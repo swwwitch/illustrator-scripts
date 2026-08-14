@@ -204,6 +204,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 ## カラー
 
+- [画像やオブジェクトからカラーパレットを作成](readme-ja/ColorPaletteFromImage.md)
 - [スウォッチの連続適用](readme-ja/ApplySwatchesToSelection.md)
 - [カラーをランダム適用](readme-ja/ShuffleObjectColors.md)
 - [カラーを配色](readme-ja/AiApplySwatchesToSelection.md)

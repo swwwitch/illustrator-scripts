@@ -1,1810 +1,915 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/**********************************************************
-
-ColorPaletteFromImage.jsx
-
-DESCRIPTION
-
-選択した配置画像／ラスター画像／ベクター／テキストからカラーパレットを作成します。
-
-- ラスター/配置画像: 複製 → 画像トレース → 拡張で色を抽出
-- ベクター: 選択オブジェクトから直接カラーを抽出（ラスタライズ不要）
-  - グラデーション塗りのパスからは各カラーストップを個別に抽出
-- テキスト: 複製してアウトライン化した上で色を抽出
-- 16色／11色／8色／5色のパレットを、元オブジェクトの下に正方形で出力
-  - 16色は対象幅にフィット、他の行も左右端を対象に揃えて出力
-- 各行（16 / 11 / 8 / 5色）は、面積重み付き最大距離法で代表色を選択
-  - 面積が大きい色ほど選ばれやすい（pow 0.75 で重み付け）
-- 色の並びは最近傍法でグラデーション風にソート
-- 11色の選出では「ほぼ白 / ほぼ黒」を除外し、中間色を拾いやすく調整
-- 5色行は HEX 表示、5色（CMYK補正）は CMYK 表示（任意）
-- CMYK補正は 5% 刻みで丸め
-  - 0/5 は 2.5、5/10 は 7.5 を境界に判定
-
-初回に色が取得できたタイミングでダイアログを表示し、
-出力する行（16 / 11 / 8 / 5 / 5補正）とカラー情報（HEX / CMYK）を選択できます。
-
-- 「5色のみ」モードでは 16 / 11 / 8 行を非表示にし、5色系のみを表示
-- 5色（CMYK補正）は単独でも出力可能
-- スウォッチ登録は、実際に描画された 5色パレットを元に作成
-- オブジェクト未選択時は、スウォッチパネルで選択中のスウォッチから色玉パレットを生成可能
-  - グラデーションスウォッチ選択時はカラーストップを展開して抽出
-
-色選出は段階的減色（16 → 11 → 8 → 5）で統一されています。
-
-処理状況は以下のフェーズで表示されます。
-
-- 準備中
-- 色を解析中
-- パレット生成中
-
-ダイアログ表示中はプレビューが更新され、
-OK確定後にスウォッチグループを作成します（キャンセル時は作成されません）。
-
-更新日: 2026-04-17
-
-**********************************************************/
-
-
-var SCRIPT_VERSION = "v1.7.3";
-
-var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
-
 /*
-ほぼ白の除外しきい値 / Near‑white exclusion thresholds
 
-目的:
-11色の代表色選出時に「背景の白」などを除外し、中間色を拾いやすくする。
+### 概要
 
-判定ロジック:
-1. まず RGB の見た目の明るさで判定
-   - R,G,B がすべて NEAR_WHITE_RGB_MIN 以上なら「白候補」
-2. CMYK が取得できる場合
-   - C+M+Y+K が NEAR_WHITE_CMYK_TOTAL_MAX 以下なら「ほぼ白」
-3. CMYK が取得できない場合
-   - RGB 条件のみで「ほぼ白」と判定
+選択した配置画像・ラスター画像・ベクター・テキスト、またはスウォッチパネルの選択から代表色を抽出し、16／11／8／5色のカラーパレットを元オブジェクトの下に描画します。5色の行はスウォッチグループとしても登録できます。
 
-※ 淡い色（薄いピンク・水色など）を誤って白扱いしないため、
-   RGB 判定を先に行う保守的な条件になっている。
+詳細は README を参照してください。
+
+### Overview
+
+Extracts representative colors from selected placed/raster images, vector art, text, or the current swatch selection, then draws 16 / 11 / 8 / 5 color palettes below the source object. The 5-color rows can also be registered as swatch groups.
+
+See the README for details.
+
 */
-var NEAR_WHITE_CMYK_TOTAL_MAX = 20;   // CMYK合成値（C+M+Y+K）がこの値以下で「ほぼ白」
-var NEAR_WHITE_RGB_MIN = 235;         // RGBの各チャンネルがこの値以上で「ほぼ白」
 
-/*
-ほぼ黒の除外しきい値 / Near‑black exclusion thresholds
-
-目的:
-11色の代表色選出時に「背景の黒」などの極端に暗い色を除外する。
-
-判定ロジック:
-1. まず RGB の暗さで判定
-   - R,G,B がすべて NEAR_BLACK_RGB_MAX 以下なら「黒候補」
-2. CMYK が取得できる場合
-   - (C+M+Y+K が NEAR_BLACK_CMYK_TOTAL_MIN 以上) または
-   - (K が NEAR_BLACK_K_MIN 以上)
-   のどちらかを満たす場合「ほぼ黒」
-3. CMYK が取得できない場合
-   - RGB 条件のみで「ほぼ黒」と判定
-
-※ 濃い色（濃紺・濃茶など）を黒として誤除外しないよう、
-   RGB と CMYK の両方で確認する保守的な条件になっている。
-*/
-var NEAR_BLACK_CMYK_TOTAL_MIN = 280;  // CMYK合成値（C+M+Y+K）がこの値以上で「ほぼ黒」
-var NEAR_BLACK_K_MIN = 85;            // K単独がこの値(%)以上で「ほぼ黒」
-var NEAR_BLACK_RGB_MAX = 40;          // RGBの各チャンネルがこの値以下で「ほぼ黒」
-
-/* ロケール判定 / Detect locale */
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var lang = getCurrentLang();
-
-// Debug logger (ExtendScript console)
-// Silent errors become visible during development without breaking execution.
-function __logError(e, context) {
-    try {
-        var msg = "[ColorPaletteFromImage]";
-        if (context) msg += " " + context + ":";
-        msg += " " + e;
-        $.writeln(msg);
-    } catch (_) { }
-}
-
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
-    noDocument: {
-        ja: "ドキュメントが開かれていません。",
-        en: "No document is open."
-    },
-    noSelection: {
-        ja: "対象のオブジェクトが選択されていません。",
-        en: "No applicable objects are selected."
-    },
-    group16Name: {
-        ja: "16色",
-        en: "16 Colors"
-    },
-    colorsSuffix: {
-        ja: "色",
-        en: "Colors"
-    },
-    itemPrefix: {
-        ja: "パレット_",
-        en: "Palette_"
-    },
-    unknownColorName: {
-        ja: "不明な色",
-        en: "Unknown Color"
-    },
-    progressTitle: {
-        ja: "処理中",
-        en: "Processing"
-    },
-    progressPreparing: {
-        ja: "準備中…",
-        en: "Preparing…"
-    },
-    progressTracing: {
-        ja: "色を解析中…",
-        en: "Analyzing Colors…"
-    },
-    progressPalette: {
-        ja: "パレット生成中…",
-        en: "Generating Palette…"
-    },
-    progressDone: {
-        ja: "完了",
-        en: "Done"
-    },
-    // --- Output Options Dialog ---
-    dialogTitle: {
-        ja: "カラーパレット作成",
-        en: "Create Color Palette"
-    },
-    btnOK: {
-        ja: "OK",
-        en: "OK"
-    },
-    btnCancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    opt16: {
-        ja: "16色",
-        en: "16 Colors"
-    },
-    opt11: {
-        ja: "11色",
-        en: "11 Colors"
-    },
-    opt8: {
-        ja: "8色",
-        en: "8 Colors"
-    },
-    opt5: {
-        ja: "5色",
-        en: "5 Colors"
-    },
-    opt5Adj: {
-        ja: "5色（CMYK補正）",
-        en: "5 Colors (CMYK Rounded)"
-    },
-    optHEX: {
-        ja: "HEX",
-        en: "HEX"
-    },
-    optCMYK: {
-        ja: "CMYK",
-        en: "CMYK"
-    },
-    helpTipCMYKDocOnly: {
-        ja: "CMYKラベルはCMYKドキュメントでのみ利用できます。",
-        en: "CMYK labels are available only in a CMYK document."
-    },
-    optInfoAll: {
-        ja: "すべての情報",
-        en: "Info for all rows"
-    },
-    optInfo5Only: {
-        ja: "5色のみ",
-        en: "5-color rows only"
-    },
-    cmykPrefix: {
-        ja: "CMYK: ",
-        en: "CMYK: "
-    },
-    panelCountsTitle: {
-        ja: "色数",
-        en: "Color Counts"
-    },
-    panelColorInfoTitle: {
-        ja: "カラー情報",
-        en: "Color Info"
-    },
-    msgNoRow: {
-        ja: "出力する行が選ばれていません。",
-        en: "No rows selected to output."
-    },
-    btnRetry: {
-        ja: "やり直し",
-        en: "Retry"
-    },
-    fitView: {
-        ja: "画面にフィット",
-        en: "Fit View"
-    },
-    // --- Preset Selection Dialog ---
-    presetDialogTitle: {
-        ja: "画像トレース（プリセット選択）",
-        en: "Image Trace (Preset Selection)"
-    },
-    // --- Swatch Mode ---
-    swatchPaletteGroup: {
-        ja: "スウォッチパレット",
-        en: "Swatch Palette"
-    },
-    noSwatchSelected: {
-        ja: "対象のオブジェクトまたはスウォッチが選択されていません。",
-        en: "No applicable objects or swatches are selected."
-    },
-};
-
-/* ラベル取得関数 / Get localized label */
-function L(key) {
-    return LABELS[key][lang];
-}
-
-
-// --- Preset Selection Dialog ---
-// プリセットを3カテゴリに分類する / Categorize presets
-function categorizePresets(presets) {
-    var withBrackets = [];    // []付き
-    var originals = [];       // オリジナル（ユーザー作成）
-    for (var i = 0; i < presets.length; i++) {
-        var name = presets[i];
-        if (name.charAt(0) === "[") {
-            withBrackets.push(name);
-        } else {
-            originals.push(name);
-        }
-    }
-    return { withBrackets: withBrackets, originals: originals };
-}
-
-// プリセット選択ダイアログを表示し、選択されたプリセット名を返す（キャンセル時はnull）
-function showPresetDialog(presets) {
-    var cat = categorizePresets(presets);
-
-    var dialog = new Window("dialog", L('presetDialogTitle'));
-    dialog.orientation = "column";
-    dialog.alignChildren = "fill";
-
-    var listGroup = dialog.add("group");
-    listGroup.orientation = "row";
-    listGroup.alignChildren = ["fill", "fill"];
-    listGroup.spacing = 12;
-
-    var listCol1 = listGroup.add("group");
-    listCol1.orientation = "column";
-    listCol1.alignChildren = ["fill", "top"];
-    var list1 = listCol1.add("listbox", undefined, cat.withBrackets);
-    list1.preferredSize = [150, 300];
-
-    var listCol2 = listGroup.add("group");
-    listCol2.orientation = "column";
-    listCol2.alignChildren = ["fill", "top"];
-    var list2 = listCol2.add("listbox", undefined, cat.originals);
-    list2.preferredSize = [150, 300];
-
-    // 1つだけ選択可能に / Only one selection at a time
-    list1.onChange = function () { if (list1.selection) { list2.selection = null; } };
-    list2.onChange = function () { if (list2.selection) { list1.selection = null; } };
-
-    if (cat.originals.length > 0) {
-        list2.selection = cat.originals.length - 1;
-    } else {
-        list1.selection = 0;
-    }
-
-    var btnGroup = dialog.add("group");
-    btnGroup.alignment = ["center", "top"];
-    var btnCancel = btnGroup.add("button", undefined, L('btnCancel'), { name: "cancel" });
-    var btnOk = btnGroup.add("button", undefined, L('btnOK'), { name: "ok" });
-
-    btnOk.onClick = function () { dialog.close(1); };
-    btnCancel.onClick = function () { dialog.close(0); };
-
-    if (dialog.show() === 1) {
-        if (list1.selection) return list1.selection.text;
-        if (list2.selection) return list2.selection.text;
-    }
-    return null;
-}
-
-// --- Output Options Dialog ---
-function showOutputOptionsDialog(onPreviewChange, onFitView) {
-    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
-    dlg.alignChildren = 'fill';
-    dlg.margins = 15;
-
-    // Update stored bounds when moved/resized
-    dlg.onMove = dlg.onResize = function () {
-        try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM) { }
-    };
-
-    // Info scope (UI)
-    var infoModeRow = dlg.add('group');
-    infoModeRow.alignment = 'left';
-    infoModeRow.orientation = 'row';
-    infoModeRow.alignChildren = 'center';
-    infoModeRow.margins = [20, 0, 0, 0];
-
-    var rbAllInfo = infoModeRow.add('radiobutton', undefined, L('optInfoAll'));
-    var rb5Only = infoModeRow.add('radiobutton', undefined, L('optInfo5Only'));
-
-    // Three-column layout
-    var cols = dlg.add('group');
-    cols.orientation = 'row';
-    cols.alignChildren = 'fill';
-    cols.alignment = 'fill';
-    cols.spacing = 12;
-
-    var colL = cols.add('group');
-    colL.orientation = 'column';
-    colL.alignChildren = 'fill';
-
-    var colR = cols.add('group');
-    colR.orientation = 'column';
-    colR.alignChildren = 'fill';
-
-    var colBtn = cols.add('group');
-    colBtn.orientation = 'column';
-    colBtn.alignChildren = 'fill';
-    colBtn.alignment = ['right', 'top'];
-
-    var pnl = colL.add('panel', undefined, L('panelCountsTitle'));
-    pnl.alignChildren = 'left';
-    pnl.margins = [15, 20, 15, 10];
-
-    var cb16 = pnl.add('checkbox', undefined, L('opt16'));
-    var cb11 = pnl.add('checkbox', undefined, L('opt11'));
-    var cb8 = pnl.add('checkbox', undefined, L('opt8'));
-    var cb5 = pnl.add('checkbox', undefined, L('opt5'));
-    var cb5a = pnl.add('checkbox', undefined, L('opt5Adj'));
-
-    var pnlInfo = colR.add('panel', undefined, L('panelColorInfoTitle'));
-    pnlInfo.alignment = 'fill';
-    pnlInfo.alignChildren = 'left';
-    pnlInfo.margins = [15, 20, 15, 10];
-
-    var cbHEX = pnlInfo.add('checkbox', undefined, L('optHEX'));
-    var cbCMYK = pnlInfo.add('checkbox', undefined, L('optCMYK'));
-
-
-    // CMYK label availability: only meaningful/expected in a CMYK document
-    var __isDocCMYK = false;
-    try {
-        __isDocCMYK = (app.activeDocument && app.activeDocument.documentColorSpace === DocumentColorSpace.CMYK);
-    } catch (eCS) { __isDocCMYK = false; }
-
-    try {
-        if (!__isDocCMYK) {
-            cbCMYK.helpTip = L('helpTipCMYKDocOnly');
-        }
-    } catch (eTip) { }
-
-    // Defaults: all ON
-    rbAllInfo.value = false;
-    rb5Only.value = true;
-
-    cb16.value = true;
-    cb11.value = true;
-    cb8.value = true;
-    cb5.value = true;
-    cb5a.value = true;
-    cbHEX.value = true;
-    cbCMYK.value = true;
-
-    // Apply dependent dimming rules without triggering preview twice
-    updateInfoDims(false);
-
-    function getCurrentOptions() {
-        return {
-            out16: cb16.value,
-            out11: cb11.value,
-            out8: cb8.value,
-            out5: cb5.value,
-            out5Adj: cb5a.value,
-            infoMode: rb5Only.value ? '5only' : 'all',
-            preview: true,
-            showHEX: cbHEX.value,
-            showCMYK: cbCMYK.value,
-            cascade: true
-        };
-    }
-
-    var __isInitializing = true;
-
-    function notifyPreviewChange() {
-        // Avoid redundant preview redraws during dialog initialization.
-        if (__isInitializing) return;
-        try {
-            if (onPreviewChange) onPreviewChange(getCurrentOptions());
-        } catch (eNP) { __logError(eNP, "notify preview"); }
-    }
-
-    function updateInfoDims(doNotify) {
-        cbHEX.enabled = cb5.value;
-        if (!cb5.value) cbHEX.value = false;
-
-        cbCMYK.enabled = (cb5a.value && __isDocCMYK);
-        if (!cb5a.value || !__isDocCMYK) cbCMYK.value = false;
-
-        if (doNotify !== false) notifyPreviewChange();
-    }
-
-    var __savedAllInfoState = null;
-
-    function captureCurrentAllInfoState() {
-        return {
-            cb16: cb16.value,
-            cb11: cb11.value,
-            cb8: cb8.value,
-            cb5: cb5.value,
-            cb5a: cb5a.value,
-            cbHEX: cbHEX.value,
-            cbCMYK: cbCMYK.value
-        };
-    }
-
-    function restoreAllInfoState(state) {
-        if (!state) return;
-        cb16.value = !!state.cb16;
-        cb11.value = !!state.cb11;
-        cb8.value = !!state.cb8;
-        cb5.value = !!state.cb5;
-        cb5a.value = !!state.cb5a;
-        cbHEX.value = !!state.cbHEX;
-        cbCMYK.value = !!state.cbCMYK;
-    }
-
-    function updateInfoMode(doNotify) {
-        if (rb5Only.value) {
-            // Save current "all info" state before forcing the reduced mode.
-            __savedAllInfoState = captureCurrentAllInfoState();
-
-            // Only 5: lock non-5 rows OFF and disable them to avoid confusion.
-            cb16.value = false;
-            cb11.value = false;
-            cb8.value = false;
-            cb16.enabled = false;
-            cb11.enabled = false;
-            cb8.enabled = false;
-        } else {
-            // All info: re-enable rows and restore the user's previous state.
-            cb16.enabled = true;
-            cb11.enabled = true;
-            cb8.enabled = true;
-
-            if (__savedAllInfoState) {
-                restoreAllInfoState(__savedAllInfoState);
-            }
-            updateInfoDims(false);
-        }
-
-        if (doNotify !== false) notifyPreviewChange();
-    }
-
-    // Wire events
-    rbAllInfo.onClick = function () { updateInfoMode(true); };
-    rb5Only.onClick = function () { updateInfoMode(true); };
-
-    cb16.onClick = notifyPreviewChange;
-    cb11.onClick = notifyPreviewChange;
-    cb8.onClick = notifyPreviewChange;
-
-    cb5.onClick = function () {
-        updateInfoDims(false);
-        notifyPreviewChange();
-    };
-    cb5a.onClick = function () {
-        updateInfoDims(false);
-        // If 5色（CMYK補正） is turned ON and CMYK labels are available, auto-enable CMYK labels.
-        if (cb5a.value && cbCMYK.enabled && !cbCMYK.value) {
-            cbCMYK.value = true;
-        }
-        notifyPreviewChange();
-    };
-
-    cbHEX.onClick = notifyPreviewChange;
-    cbCMYK.onClick = notifyPreviewChange;
-
-    // Right column: OK + Cancel + spacer + Retry
-    var ok = colBtn.add('button', undefined, L('btnOK'), { name: 'ok' });
-    ok.preferredSize = [90, 26];
-    var ng = colBtn.add('button', undefined, L('btnCancel'), { name: 'cancel' });
-    ng.preferredSize = [90, 26];
-
-    var btnSpacer = colBtn.add('group');
-    btnSpacer.preferredSize = [-1, 50];
-
-    var btnRetry = colBtn.add('button', undefined, L('btnRetry'));
-    btnRetry.preferredSize = [90, 26];
-    btnRetry.onClick = function () {
-        try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM5) { }
-        dlg.close(2);
-    };
-
-    // Bottom bar: Fit button
-    var btnRow = dlg.add('group');
-    btnRow.alignment = 'fill';
-    btnRow.orientation = 'row';
-    btnRow.margins = [0, 10, 0, 0];
-
-    var btnFit = btnRow.add('button', undefined, L('fitView'));
-    btnFit.preferredSize = [-1, 26];
-    btnFit.onClick = function () {
-        try { if (onFitView) onFitView(); } catch (_) { }
-    };
-
-    // Initialize UI state (must be after all controls are created)
-    updateInfoDims(false);
-    updateInfoMode(false);
-    __isInitializing = false;
-    notifyPreviewChange();
-
-    ok.onClick = function () {
-        if (!cb16.value && !cb11.value && !cb8.value && !cb5.value && !cb5a.value) {
-            alert(L('msgNoRow'));
-            return;
-        }
-        try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM2) { }
-        dlg.close(1);
-    };
-    ng.onClick = function () {
-        try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM3) { }
-        dlg.close(0);
-    };
-
-    // Center only when no stored bounds (so session position memory works)
-    // Restore position only (not size) from previous session, or center
-    try {
-        if (__DIALOG_BOUNDS_OUTPUT__) {
-            dlg.location = [__DIALOG_BOUNDS_OUTPUT__.x, __DIALOG_BOUNDS_OUTPUT__.y];
-        } else {
-            dlg.center();
-        }
-    } catch (e) { __logError(e); }
-
-    var res = dlg.show();
-    try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM4) { }
-    if (res === 2) return "__RETRY__";
-    if (res !== 1) return null;
-
-    return getCurrentOptions();
-}
-
-/* スウォッチパネルで選択中のスウォッチから色を取得 / Get colors from selected swatches */
-function getSelectedSwatchColors(doc) {
-    var colors = [];
-    try {
-        var selected = doc.swatches.getSelected();
-        if (!selected || selected.length === 0) return colors;
-        for (var i = 0; i < selected.length; i++) {
-            var c = selected[i].color;
-            if (!c) continue;
-            // Skip [None] and registration-like swatches
-            if (c.typename === "NoColor") continue;
-            if (c.typename === "PatternColor") continue;
-            if (c.typename === "GradientColor") {
-                // グラデーションスウォッチのカラーストップを個別に抽出 / Extract gradient swatch color stops
-                try {
-                    var stops = c.gradient.gradientStops;
-                    for (var si = 0; si < stops.length; si++) {
-                        var sc = stops[si].color;
-                        if (sc.typename === "SpotColor") {
-                            try { sc = sc.spot.color; } catch (e2) { continue; }
-                        }
-                        if (sc.typename === "NoColor" || sc.typename === "PatternColor") continue;
-                        colors.push({ color: sc, area: 1 });
-                    }
-                } catch (e2) { __logError(e2, "getSelectedSwatchColors:gradient"); }
-                continue;
-            }
-            colors.push({ color: c, area: 1 });
-        }
-    } catch (e) { __logError(e, "getSelectedSwatchColors"); }
-    return colors;
-}
-
-/* スウォッチから色玉パレットを描画（固定60px、HEX+CMYK付き）/ Draw swatch palette with fixed 60px squares */
-function drawPaletteFromSwatches(doc, colors) {
-    var squareSize = 60;
-    var gap = squareSize * 0.10;
-    var num = colors.length;
-
-    // アクティブアートボードの中央上部に配置 / Place at top-center of active artboard
-    var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-    var abRect = ab.artboardRect; // [left, top, right, bottom]
-    var totalWidth = num * squareSize + (num - 1) * gap;
-    var abWidth = abRect[2] - abRect[0];
-    var abHeight = abRect[1] - abRect[3];
-    var startX = abRect[0] + (abWidth - totalWidth) / 2;
-    var startY = abRect[1] - (abHeight - squareSize) / 2;
-
-    var targetLayer = doc.activeLayer;
-    var group = targetLayer.groupItems.add();
-    group.name = L('swatchPaletteGroup');
-
-    var __isDocCMYK = false;
-    try {
-        __isDocCMYK = (doc.documentColorSpace === DocumentColorSpace.CMYK);
-    } catch (e) { }
-
-    function getLabelBlackColor() {
-        try {
-            if (__isDocCMYK) {
-                var c = new CMYKColor();
-                c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
-                return c;
-            }
-        } catch (e) { }
-        var r = new RGBColor();
-        r.red = 0; r.green = 0; r.blue = 0;
-        return r;
-    }
-
-    for (var i = 0; i < num; i++) {
-        var rect = group.pathItems.rectangle(
-            startY,
-            startX + i * (squareSize + gap),
-            squareSize,
-            squareSize
-        );
-        rect.stroked = false;
-        rect.filled = true;
-        rect.fillColor = colors[i].color;
-
-        // HEX + CMYK labels
-        try {
-            var rgb = colorToRGB(rect.fillColor);
-            function __toHex2(n) { var s = Math.round(n).toString(16).toUpperCase(); return s.length === 1 ? "0" + s : s; }
-            var hexText = "#" + __toHex2(rgb[0]) + __toHex2(rgb[1]) + __toHex2(rgb[2]);
-
-            var fs = squareSize / 10;
-            var x = rect.left;
-            var y = rect.top - rect.height - (fs / 2);
-
-            var tfHex = targetLayer.textFrames.add();
-            tfHex.contents = hexText;
-            tfHex.textRange.justification = Justification.LEFT;
-            tfHex.textRange.characterAttributes.size = fs;
-            tfHex.textRange.fillColor = getLabelBlackColor();
-            try {
-                tfHex.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
-            } catch (eFont) {
-                try { tfHex.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro"); } catch (e) { }
-            }
-            tfHex.position = [x, y];
-            try { tfHex.move(group, ElementPlacement.PLACEATEND); } catch (e) { }
-
-            // CMYK label (below HEX)
-            if (__isDocCMYK) {
-                var cmykVals = colorToCMYKVals(rect.fillColor);
-                if (cmykVals) {
-                    function __round5(v) { return Math.floor((v + 2.5) / 5) * 5; }
-                    var cmykText = L('cmykPrefix') + __round5(cmykVals[0]) + ", " + __round5(cmykVals[1]) + ", " + __round5(cmykVals[2]) + ", " + __round5(cmykVals[3]);
-                    var tfCmyk = targetLayer.textFrames.add();
-                    tfCmyk.contents = cmykText;
-                    tfCmyk.textRange.justification = Justification.LEFT;
-                    tfCmyk.textRange.characterAttributes.size = fs;
-                    tfCmyk.textRange.fillColor = getLabelBlackColor();
-                    try {
-                        tfCmyk.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
-                    } catch (eFont2) {
-                        try { tfCmyk.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro"); } catch (e) { }
-                    }
-                    var hexBottom = y - tfHex.height;
-                    tfCmyk.position = [x, hexBottom];
-                    try { tfCmyk.move(group, ElementPlacement.PLACEATEND); } catch (e) { }
-                }
-            }
-        } catch (eLabel) { __logError(eLabel, "swatch palette label"); }
-    }
-
-    // スウォッチグループに登録 / Register as swatch group
-    try {
-        createSwatchGroupFromColors(doc, L('swatchPaletteGroup'), colors);
-    } catch (e) { __logError(e, "swatch group registration"); }
-
-    try { app.redraw(); } catch (e) { }
-}
-
-/* 複数オブジェクト全体の境界を元に、パレット配置用アンカーを作成 / Build a palette anchor from the union bounds of multiple items */
-function buildPaletteAnchorFromItems(items, fallbackItem) {
-    if (!items || !items.length || !fallbackItem) return fallbackItem;
-
-    var l = Infinity;
-    var t = -Infinity;
-    var r = -Infinity;
-    var b = Infinity;
-    var found = false;
-
-    for (var i = 0; i < items.length; i++) {
-        try {
-            var gb = items[i].geometricBounds;
-            if (!gb || gb.length < 4) continue;
-            if (gb[0] < l) l = gb[0];
-            if (gb[1] > t) t = gb[1];
-            if (gb[2] > r) r = gb[2];
-            if (gb[3] < b) b = gb[3];
-            found = true;
-        } catch (eGb) {
-            __logError(eGb, "palette anchor bounds");
-        }
-    }
-
-    if (!found) return fallbackItem;
-
-    return {
-        typename: "BoundsAnchor",
-        left: l,
-        top: t,
-        width: r - l,
-        height: t - b,
-        layer: fallbackItem.layer,
-        geometricBounds: [l, t, r, b]
-    };
-}
-
-/* メインコード / Main code */
-
-if (app.documents.length === 0) {
-    alert(L('noDocument'));
-} else {
-    var doc = app.activeDocument;
-    var sel = doc.selection;
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ColorPaletteFromImage";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPaletteFromImage.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPaletteFromImage.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+(function () {
+
+    // =========================================
+    // ユーザー設定 / User configuration
+    // =========================================
+
+    /*
+    ほぼ白の除外しきい値 / Near-white exclusion thresholds
+
+    目的:
+    11色の代表色選出時に「背景の白」などを除外し、中間色を拾いやすくする。
+
+    判定ロジック:
+    1. まず RGB の見た目の明るさで判定
+       - R,G,B がすべて NEAR_WHITE_RGB_MIN 以上なら「白候補」
+    2. CMYK が取得できる場合
+       - C+M+Y+K が NEAR_WHITE_CMYK_TOTAL_MAX 以下なら「ほぼ白」
+    3. CMYK が取得できない場合
+       - RGB 条件のみで「ほぼ白」と判定
+
+    ※ 淡い色（薄いピンク・水色など）を誤って白扱いしないため、
+       RGB 判定を先に行う保守的な条件になっている。
+    */
+    var NEAR_WHITE_CMYK_TOTAL_MAX = 20;   /* この値以下の C+M+Y+K を「ほぼ白」とみなす / near-white when C+M+Y+K is at or below this */
+    var NEAR_WHITE_RGB_MIN = 235;         /* この値以上の RGB 各チャンネルを「ほぼ白」とみなす / near-white when every RGB channel is at or above this */
+
+    /*
+    ほぼ黒の除外しきい値 / Near-black exclusion thresholds
+
+    目的:
+    11色の代表色選出時に「背景の黒」などの極端に暗い色を除外する。
+
+    判定ロジック:
+    1. まず RGB の暗さで判定
+       - R,G,B がすべて NEAR_BLACK_RGB_MAX 以下なら「黒候補」
+    2. CMYK が取得できる場合
+       - (C+M+Y+K が NEAR_BLACK_CMYK_TOTAL_MIN 以上) または
+       - (K が NEAR_BLACK_K_MIN 以上)
+       のどちらかを満たす場合「ほぼ黒」
+    3. CMYK が取得できない場合
+       - RGB 条件のみで「ほぼ黒」と判定
+
+    ※ 濃い色（濃紺・濃茶など）を黒として誤除外しないよう、
+       RGB と CMYK の両方で確認する保守的な条件になっている。
+    */
+    var NEAR_BLACK_CMYK_TOTAL_MIN = 280;  /* この値以上の C+M+Y+K を「ほぼ黒」とみなす / near-black when C+M+Y+K is at or above this */
+    var NEAR_BLACK_K_MIN = 85;            /* この値以上の K 単独値を「ほぼ黒」とみなす / near-black when K alone is at or above this */
+    var NEAR_BLACK_RGB_MAX = 40;          /* この値以下の RGB 各チャンネルを「ほぼ黒」とみなす / near-black when every RGB channel is at or below this */
 
     /* クリップグループのラスタライズ設定 / Rasterize settings for clip groups */
-    var RASTERIZE_RESOLUTION = 300;       // 解像度 (ppi)
-    var RASTERIZE_TRANSPARENCY = false;   // 背景: false=白, true=透明
-    var RASTERIZE_PADDING = 0;            // 余白 (px)
-    var RASTERIZE_ANTIALIAS = true;       // アンチエイリアス: true=ON, false=OFF
+    var RASTERIZE_RESOLUTION = 300;       /* 解像度（ppi） / resolution in ppi */
+    var RASTERIZE_TRANSPARENCY = false;   /* 背景 false=白 true=透明 / background: false = white, true = transparent */
+    var RASTERIZE_PADDING = 0;            /* 余白（px） / padding in px */
+    var RASTERIZE_ANTIALIAS = true;       /* アンチエイリアス / anti-aliasing */
 
-    /* クリップグループが含まれていればラスタライズ / Rasterize clip groups before processing */
-    var rasterizedItems = [];
-    var clipAnchors = {};  // ラスタライズ結果のインデックス → クリップ範囲アンカー
-    var nonClipItems = [];
-    for (var ci = 0; ci < sel.length; ci++) {
-        if (sel[ci].typename === "GroupItem" && sel[ci].clipped) {
-            // クリッピングパスの範囲を保存（パレット配置の基準に使う）
-            var clipBounds = null;
-            try {
-                for (var cp = 0; cp < sel[ci].pageItems.length; cp++) {
-                    if (sel[ci].pageItems[cp].clipping) {
-                        clipBounds = sel[ci].pageItems[cp].geometricBounds;
-                        break;
-                    }
-                }
-            } catch (eCb) { __logError(eCb, "clip bounds"); }
-            if (!clipBounds) clipBounds = sel[ci].geometricBounds;
+    /* CMYK補正の丸め幅（%） / Rounding step for the CMYK-adjusted row */
+    var CMYK_ROUND_STEP = 5;
 
-            var rOpt = new RasterizeOptions();
-            rOpt.resolution = RASTERIZE_RESOLUTION;
-            rOpt.transparency = RASTERIZE_TRANSPARENCY;
-            rOpt.padding = RASTERIZE_PADDING;
-            rOpt.antiAliasing = RASTERIZE_ANTIALIAS;
-            rOpt.backgroundBlack = false;
-            var rasterized = doc.rasterize(sel[ci], clipBounds, rOpt);
-            var rIdx = rasterizedItems.length;
-            rasterizedItems.push(rasterized);
-            // クリップパスの範囲をアンカーとして記録
-            clipAnchors[rIdx] = {
-                typename: "BoundsAnchor",
-                left: clipBounds[0],
-                top: clipBounds[1],
-                width: clipBounds[2] - clipBounds[0],
-                height: clipBounds[1] - clipBounds[3],
-                layer: rasterized.layer,
-                geometricBounds: clipBounds
-            };
-        } else {
-            nonClipItems.push(sel[ci]);
-        }
-    }
-    if (rasterizedItems.length > 0) {
-        // ラスタライズ結果と非クリップアイテムを合わせて選択を復元
-        var newSel = nonClipItems.concat(rasterizedItems);
-        app.selection = newSel;
-        sel = doc.selection;
-    }
+    /* スウォッチ名の重複回避で試す連番の上限 / Highest suffix tried when making a swatch name unique */
+    var SWATCH_NAME_MAX_SUFFIX = 999;
 
-    /* 選択中のオブジェクトを収集（配置画像＋ベクター＋テキスト） / Collect selected items (placed + vector + text) */
-    var rasterItems = [];
-    var vectorItems = [];
-    var textItems = [];
-    for (var s = 0; s < sel.length; s++) {
-        if (sel[s].typename === "PlacedItem" || sel[s].typename === "RasterItem") {
-            rasterItems.push(sel[s]);
-        } else if (sel[s].typename === "PathItem" || sel[s].typename === "CompoundPathItem" || sel[s].typename === "GroupItem") {
-            vectorItems.push(sel[s]);
-        } else if (sel[s].typename === "TextFrame") {
-            textItems.push(sel[s]);
-        }
+    /* ラベルに使うフォント（先頭から順に試す） / Label fonts, tried in order */
+    var LABEL_FONT_NAMES = ["MyriadPro-Regular", "Myriad Pro"];
+
+    /* 一時的に作成するレイヤー・グループの名前 / Names of temporary layers and groups */
+    var WORK_LAYER_NAME = "__workLayer__";
+    var PALETTE_GROUP_NAME = "__ColorPalette__";
+    var PREVIEW_GROUP_NAME = "__ColorPalettePreview__";
+
+    // =========================================
+    // UIレイアウトの共通設定 / Shared UI layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+    /* ダイアログ内の寸法 / Sizes inside the dialogs */
+    var PRESET_LIST_SIZE = [150, 300];       /* プリセット一覧の寸法 / preset listbox size */
+    var DIALOG_BUTTON_SIZE = [90, 26];       /* ボタンの寸法 / dialog button size */
+    var BUTTON_SPACER_HEIGHT = 50;           /* 選び直すボタンの上の空き / spacer above the reselect button */
+    var PROGRESS_BAR_SIZE = [260, 14];       /* 進捗バーの寸法 / progress bar size */
+    var PROGRESS_TEXT_CHARS = 28;            /* 進捗テキストの最小幅 / minimum width of the progress text */
+
+    /* パレットの寸法比 / Palette proportions */
+    var PALETTE_MAX_COLUMNS = 16;            /* 最上段の色数（寸法の基準） / column count that defines the cell size */
+    var PALETTE_GAP_RATIO = 0.10;            /* 色玉の間隔比 / gap as a ratio of the cell size */
+    var PALETTE_ROW_GAP_DIVISOR = 120;       /* 行間＝元オブジェクト幅 ÷ この値 / row gap = source width divided by this */
+    var SWATCH_MODE_SQUARE_SIZE = 60;        /* スウォッチ選択時の色玉の一辺 / square size in swatch mode */
+    var LABEL_SIZE_RATIO = 10;               /* 色玉の一辺に対するラベル文字サイズの比 / square size to label font size ratio */
+    var ADJUSTED_ROW_GAP_RATIO = 0.25;       /* CMYK補正行を下げる量の比 / offset ratio for the CMYK-adjusted row */
+    var FIT_VIEW_MARGIN = 1.05;              /* 画面にフィットしたときの余裕 / breathing room when fitting the view */
+
+    /**
+     * ウィンドウの余白と間隔をそろえる
+     * @param {Window} win - 対象ウィンドウ
+     * @param {number} [spacing] - 要素間隔。省略時は WINDOW_SPACING
+     * @returns {void}
+     */
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = "fill";
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
-    /* 処理対象リストを構築 / Build process list */
-    // NOTE: Separate "what we process" from "where we place palettes".
-    // Raster/Placed items are processed one-by-one.
-    // Vector selection is processed as a single grouped job, while palette placement uses the first vector as an anchor.
-    var jobs = []; // { type: "raster"|"vector", originalItem: PageItem, workSource: PageItem }
+    /**
+     * パネルの余白と間隔をそろえる
+     * @param {Panel} panel - 対象パネル
+     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
+     * @returns {void}
+     */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
-    /* ラスター/配置画像は個別に処理 / Process raster/placed items individually */
-    for (var s = 0; s < rasterItems.length; s++) {
-        // クリップグループ由来のラスタライズ結果にはアンカーを使用
-        var anchor = null;
-        for (var ai = 0; ai < rasterizedItems.length; ai++) {
-            if (rasterItems[s] === rasterizedItems[ai] && clipAnchors[ai]) {
-                anchor = clipAnchors[ai];
-                break;
+    /**
+     * 横並びグループの配置と間隔をそろえる（ボタン列など）
+     * @param {Group} group - 対象グループ
+     * @param {string|Array} [alignment] - グループ自身の alignment。省略時は "left"
+     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
+     * @returns {void}
+     */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        group.alignment = alignment || "left";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 見出し付きパネルを追加する
+     * @param {Window|Group} parent - 追加先
+     * @param {string} labelText - パネルの見出し
+     * @param {number} [spacing] - パネル内の要素間隔
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parent, labelText, spacing) {
+        var panel = parent.add("panel", undefined, labelText);
+        setupPanel(panel, spacing);
+        return panel;
+    }
+
+    /**
+     * 縦並びのカラムグループを追加する
+     * @param {Window|Group} parent - 追加先
+     * @param {string|Array} [alignment] - グループ自身の alignment
+     * @returns {Group} 追加したグループ
+     */
+    function addColumnGroup(parent, alignment) {
+        var column = parent.add("group");
+        column.orientation = "column";
+        column.alignChildren = "fill";
+        if (alignment) column.alignment = alignment;
+        return column;
+    }
+
+    /**
+     * パネル幅いっぱいに広げないチェックボックスを追加する
+     * @param {Panel} panel - 追加先のパネル
+     * @param {string} labelText - チェックボックスのラベル
+     * @param {string} [tooltipText] - ツールチップ
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addLeftCheckbox(panel, labelText, tooltipText) {
+        var checkbox = panel.add("checkbox", undefined, labelText);
+        checkbox.alignment = "left";
+        if (tooltipText) checkbox.helpTip = tooltipText;
+        return checkbox;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 実行環境のロケールから表示言語を決める / Pick the UI language from the locale */
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            output: { ja: "カラーパレット作成", en: "Create Color Palette" },
+            preset: { ja: "画像トレース（プリセット選択）", en: "Image Trace (Preset Selection)" },
+            progress: { ja: "処理中", en: "Processing" }
+        },
+        panel: {
+            outputRows: { ja: "出力する行", en: "Rows to Output" },
+            colorInfo: { ja: "カラー情報", en: "Color Info" }
+        },
+        radio: {
+            allRows: { ja: "すべての行", en: "All rows" },
+            fiveRowsOnly: { ja: "5色の行のみ", en: "5-color rows only" }
+        },
+        listHeader: {
+            presetBuiltIn: { ja: "標準", en: "Built-in" },
+            presetCustom: { ja: "ユーザー定義", en: "Custom" }
+        },
+        checkbox: {
+            count16: { ja: "16色", en: "16 Colors" },
+            count11: { ja: "11色", en: "11 Colors" },
+            count8: { ja: "8色", en: "8 Colors" },
+            count5: { ja: "5色", en: "5 Colors" },
+            count5Adjusted: { ja: "5色（CMYK補正）", en: "5 Colors (CMYK Rounded)" },
+            hex: { ja: "HEX", en: "HEX" },
+            cmyk: { ja: "CMYK", en: "CMYK" }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            retry: { ja: "選び直す", en: "Reselect" },
+            fitView: { ja: "画面にフィット", en: "Fit View" }
+        },
+        tooltip: {
+            allRows: {
+                ja: "16色・11色・8色の行もあわせて出力します。",
+                en: "Also outputs the 16, 11, and 8 color rows."
+            },
+            fiveRowsOnly: {
+                ja: "16色・11色・8色の行を出力せず、5色の行だけを出力します。",
+                en: "Outputs only the 5-color rows, skipping the 16, 11, and 8 color rows."
+            },
+            count16: {
+                ja: "元オブジェクトの幅にフィットする16色の行を出力します。他の行の幅もこの行にそろえます。",
+                en: "Outputs a 16-color row fitted to the source width. The other rows align to it."
+            },
+            count11: {
+                ja: "「ほぼ白」「ほぼ黒」を除いた11色の行を出力します。",
+                en: "Outputs an 11-color row with near-white and near-black colors excluded."
+            },
+            count5Adjusted: {
+                ja: "5色の各値を5%刻みに丸めた行を出力します。",
+                en: "Outputs a row with each value rounded to the nearest 5%."
+            },
+            hexLabel: {
+                ja: "5色の行に HEX 値を表示します。",
+                en: "Shows HEX values under the 5-color row."
+            },
+            cmykLabel: {
+                ja: "5色（CMYK補正）の行に CMYK 値を表示します。",
+                en: "Shows CMYK values under the CMYK-rounded 5-color row."
+            },
+            cmykDocOnly: {
+                ja: "CMYKラベルはCMYKドキュメントでのみ利用できます。",
+                en: "CMYK labels are available only in a CMYK document."
+            },
+            retry: {
+                ja: "画像トレースのプリセット選択からやり直します。",
+                en: "Starts over from the image trace preset selection."
+            },
+            fitView: {
+                ja: "元オブジェクトとプレビューが収まるように表示倍率を合わせます。",
+                en: "Fits the view to the source object and the preview."
+            },
+            presetBuiltIn: {
+                ja: "Illustrator にあらかじめ用意されているプリセットです。",
+                en: "Presets that ship with Illustrator."
+            },
+            presetCustom: {
+                ja: "自分で保存したプリセットです。",
+                en: "Presets you saved yourself."
+            }
+        },
+        progress: {
+            preparing: { ja: "準備中…", en: "Preparing…" },
+            tracing: { ja: "色を解析中…", en: "Analyzing Colors…" },
+            palette: { ja: "パレット生成中…", en: "Generating Palette…" },
+            done: { ja: "完了", en: "Done" }
+        },
+        group: {
+            colors16: { ja: "16色", en: "16 Colors" },
+            colorsSuffix: { ja: "色", en: "Colors" },
+            swatchPalette: { ja: "スウォッチパレット", en: "Swatch Palette" }
+        },
+        fallbackName: {
+            itemPrefix: { ja: "パレット_", en: "Palette_" },
+            unknownColor: { ja: "不明な色", en: "Unknown Color" }
+        },
+        prefix: {
+            cmyk: { ja: "CMYK: ", en: "CMYK: " }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noRow: { ja: "出力する行が選ばれていません。", en: "No rows selected to output." },
+            noSwatchSelected: {
+                ja: "対象のオブジェクトまたはスウォッチが選択されていません。",
+                en: "No applicable objects or swatches are selected."
             }
         }
-        // anchor がある場合: originalItem=アンカー(配置用), workSource=実アイテム(複製/トレース用)
-        jobs.push({ type: "raster", originalItem: anchor || rasterItems[s], workSource: anchor ? rasterItems[s] : null });
-    }
-
-    /* ベクター＋テキストは「まとめて1回」処理 / Vectors + text are processed once as a group */
-    if (vectorItems.length > 0 || textItems.length > 0) {
-        var anchorBase = vectorItems.length > 0 ? vectorItems[0] : textItems[0];
-        var vectorJobItems = [];
-        for (var vi = 0; vi < vectorItems.length; vi++) vectorJobItems.push(vectorItems[vi]);
-        for (var ti = 0; ti < textItems.length; ti++) vectorJobItems.push(textItems[ti]);
-        var anchor = buildPaletteAnchorFromItems(vectorJobItems, anchorBase);
-        jobs.push({ type: "vector", originalItem: anchor }); /* パレット配置の基準 / Anchor for palette position */
-    }
-
-    if (jobs.length === 0) {
-        // オブジェクト未選択 → スウォッチ選択をチェック / No objects → check swatch selection
-        var swatchColors = getSelectedSwatchColors(doc);
-        if (swatchColors.length > 0) {
-            drawPaletteFromSwatches(doc, swatchColors);
-        } else {
-            alert(L('noSwatchSelected'));
-        }
-    } else {
-        var __retrying = true;
-        while (__retrying) {
-            __retrying = false;
-
-            var tracingPresetName = null;
-            var __presetCanceled = false;
-            // ラスター/配置画像がある場合のみプリセット選択ダイアログを表示
-            var hasRasterJob = false;
-            for (var rj = 0; rj < jobs.length; rj++) {
-                if (jobs[rj].type === "raster") { hasRasterJob = true; break; }
-            }
-            if (hasRasterJob) {
-                var tracingPresets = app.tracingPresetsList;
-                if (tracingPresets && tracingPresets.length) {
-                    tracingPresetName = showPresetDialog(tracingPresets);
-                    if (tracingPresetName === null) __presetCanceled = true;
-                }
-            }
-
-            if (!__presetCanceled) {
-                // --- Progress UI (ScriptUI) ---
-                function createProgress(maxValue) {
-                    var w = new Window('palette', L('progressTitle'));
-                    w.alignChildren = 'fill';
-                    w.margins = 15;
-                    var txt = w.add('statictext', undefined, L('progressPreparing'));
-                    txt.characters = 28;
-                    var bar = w.add('progressbar', undefined, 0, Math.max(1, maxValue));
-                    bar.preferredSize = [260, 14];
-                    w.show();
-                    w.update();
-                    return {
-                        win: w,
-                        text: txt,
-                        bar: bar,
-                        set: function (value, label) {
-                            try {
-                                if (label) txt.text = label;
-                                bar.value = Math.max(0, Math.min(bar.maxvalue, value));
-                                w.update();
-                                app.redraw();
-                            } catch (e) { __logError(e); }
-                        },
-                        close: function () {
-                            try { w.close(); } catch (e) { __logError(e); }
-                        }
-                    };
-                }
-
-                var progress = createProgress(jobs.length * 2);
-                progress.set(0, L('progressPreparing'));
-
-                /* 作業用レイヤーを作成 / Create work layer */
-                var workLayer = doc.layers.add();
-                workLayer.name = "__workLayer__"; // workLayer
-
-                try {
-
-                    /* 選択したオブジェクトを複製し、作業用レイヤーに移動 / Duplicate selected items to work layer */
-                    // itemsToProcess holds the work item plus its original reference for naming and palette placement.
-                    var itemsToProcess = []; // { type: "raster"|"vector", originalItem: PageItem, workItem: PageItem }
-
-                    for (var i = 0; i < jobs.length; i++) {
-                        if (jobs[i].type === "vector") {
-                            /* ベクター＋テキストを複製し、作業用レイヤー上でグループ化 / Duplicate vectors + text and group on work layer */
-                            /* TextFrame は複製後にアウトライン化し、戻り値オブジェクトを明示的に扱う / Outline duplicated text and handle the returned object explicitly */
-                            var vecGroup = workLayer.groupItems.add();
-                            for (var v = vectorItems.length - 1; v >= 0; v--) {
-                                var vdup = vectorItems[v].duplicate();
-                                vdup.move(vecGroup, ElementPlacement.PLACEATEND);
-                            }
-                            /* テキストは複製してアウトライン化 / Duplicate text and convert to outlines */
-                            for (var t = textItems.length - 1; t >= 0; t--) {
-                                var tdup = textItems[t].duplicate();
-                                tdup.move(vecGroup, ElementPlacement.PLACEATEND);
-
-                                try {
-                                    var outlined = tdup.createOutline();
-
-                                    // createOutline() の結果オブジェクトを明示的にグループ内へ保持する。
-                                    // 環境によっては返り値が新規オブジェクトになり、元の TextFrame が残ることがあるため、
-                                    // 戻り値を無視せず、元テキストにも依存しないようにする。
-                                    if (outlined) {
-                                        try {
-                                            outlined.move(vecGroup, ElementPlacement.PLACEATEND);
-                                        } catch (eOutlineMove) {
-                                            __logError(eOutlineMove, "text outline move");
-                                        }
-                                    }
-                                } catch (eOutline) {
-                                    // アウトライン化に失敗した場合は元の複製テキストを残したまま続行する。
-                                    // collectFillColors() は TextFrame 自体は拾わないため、結果としてこのテキストは色抽出対象外になる。
-                                    __logError(eOutline, "text outline");
-                                }
-                            }
-                            itemsToProcess.push({ type: "vector", originalItem: jobs[i].originalItem, workItem: vecGroup });
-                        } else {
-                            var dupSource = jobs[i].workSource || jobs[i].originalItem;
-                            var dup = dupSource.duplicate();
-                            dup.move(workLayer, ElementPlacement.PLACEATEND);
-                            itemsToProcess.push({ type: "raster", originalItem: jobs[i].originalItem, workItem: dup });
-                        }
-                    }
-
-                    // --- Helper: Trace and expand (raster/placed only) ---
-                    function traceAndExpand(itemToTrace) {
-                        try {
-                            var traceObj = itemToTrace.trace();
-                            try {
-                                if (tracingPresetName) {
-                                    traceObj.tracing.tracingOptions.loadFromPreset(tracingPresetName);
-                                }
-                            } catch (ePreset) { __logError(ePreset, "trace preset"); }
-                            var expanded = traceObj.tracing.expandTracing();
-                            return expanded;
-                        } catch (e) {
-                            __logError(e, "trace expand");
-                            return null;
-                        }
-                    }
-
-                    /* 各複製に対してトレース→拡張→スウォッチ登録 / Trace, expand, and register swatches */
-                    var outOpt = null; // decided after first successful extraction
-                    var canceled = false;
-                    for (var j = 0; j < itemsToProcess.length; j++) {
-                        try {
-                            var job = itemsToProcess[j];
-                            progress.set(j * 2 + 1, L('progressTracing'));
-                            var p = job.workItem;
-                            var colors;
-                            if (job.type === "vector") {
-                                // ベクター: オブジェクトから直接カラーを抽出（ラスタライズ不要）
-                                colors = collectFillColors(p, []);
-                                colors = deduplicateColors(colors);
-                            } else {
-                                var grp = traceAndExpand(p);
-                                if (!grp) {
-                                    // Trace/expand failed; skip this item without stopping the whole batch.
-                                    continue;
-                                }
-                                colors = collectFillColors(grp, []);
-                                colors = deduplicateColors(colors);
-                            }
-
-                            progress.set(j * 2 + 2, L('progressPalette'));
-                            // 2. On first extraction, show dialog, draw preview from colors (not swatchGroup)
-                            if (outOpt === null) {
-                                if (colors && colors.length > 0) {
-                                    var outAll = { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true };
-                                    var previewGroup = null;
-                                    try {
-                                        previewGroup = job.originalItem.layer.groupItems.add();
-                                        previewGroup.name = "__ColorPalettePreview__";
-                                    } catch (ePg) { __logError(ePg, "preview group create"); }
-
-                                    try {
-                                        if (previewGroup) {
-                                            drawSwatchSquares(doc, job.originalItem, colors, outAll, previewGroup);
-                                        }
-                                    } catch (ePrev) { __logError(ePrev, "preview initial draw"); }
-
-                                    // Ensure preview is rendered before opening the modal dialog
-                                    try { app.redraw(); } catch (eRd) { }
-                                    try { $.sleep(80); } catch (eSl) { }
-
-                                    // Hide progress UI while dialog shown
-                                    try { if (progress && progress.win) progress.win.hide(); } catch (eHide) { }
-                                    outOpt = showOutputOptionsDialog(function (optNow) {
-                                        try {
-                                            // Robust preview refresh:
-                                            // - Recreate the preview group each time to avoid lingering items/residue.
-                                            // - This also prevents partial-delete failures from leaving behind artifacts.
-
-                                            // Remove existing preview group (best-effort)
-                                            try {
-                                                if (previewGroup) {
-                                                    previewGroup.remove();
-                                                }
-                                            } catch (eRmPrev) { }
-                                            previewGroup = null;
-
-                                            // Draw preview only if enabled
-                                            if (optNow && optNow.preview) {
-                                                try {
-                                                    previewGroup = job.originalItem.layer.groupItems.add();
-                                                    previewGroup.name = "__ColorPalettePreview__";
-                                                } catch (eNewPg) {
-                                                    __logError(eNewPg, "preview group recreate");
-                                                    previewGroup = null;
-                                                }
-                                                if (previewGroup) {
-                                                    drawSwatchSquares(doc, job.originalItem, colors, optNow, previewGroup);
-                                                }
-                                            }
-
-                                            try { app.redraw(); } catch (eRd2) { }
-                                        } catch (eCb) { __logError(eCb, "preview callback"); }
-                                    }, function () {
-                                        // Fit view to originalItem + previewGroup
-                                        var items = [];
-                                        try { items.push(job.originalItem); } catch (_) { }
-                                        try { if (previewGroup) items.push(previewGroup); } catch (_) { }
-                                        if (items.length === 0) return;
-                                        var l = Infinity, t = -Infinity, r = -Infinity, b = Infinity;
-                                        for (var fi = 0; fi < items.length; fi++) {
-                                            var gb = items[fi].geometricBounds;
-                                            if (gb[0] < l) l = gb[0];
-                                            if (gb[1] > t) t = gb[1];
-                                            if (gb[2] > r) r = gb[2];
-                                            if (gb[3] < b) b = gb[3];
-                                        }
-                                        var v = doc.activeView;
-                                        var margin = 1.05;
-                                        v.centerPoint = [(l + r) / 2, (t + b) / 2];
-                                        var vb = v.bounds;
-                                        var vw = vb[2] - vb[0];
-                                        var vh = vb[1] - vb[3];
-                                        var ow = r - l;
-                                        var oh = t - b;
-                                        if (ow > 0 && oh > 0) {
-                                            var scale = Math.min(vw / ow, vh / oh) / margin;
-                                            v.zoom = v.zoom * scale;
-                                        }
-                                        try { app.redraw(); } catch (_) { }
-                                    });
-                                    try { if (progress && progress.win) progress.win.show(); } catch (eShow) { }
-
-                                    if (outOpt === "__RETRY__") {
-                                        // Retry: remove preview, will clean up workLayer in finally block
-                                        try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev) { __logError(eRmPrev, "preview remove on retry"); }
-                                        __retrying = true;
-                                        canceled = true;
-                                    } else if (!outOpt) {
-                                        // Canceled: remove preview and stop
-                                        try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev) { __logError(eRmPrev, "preview remove on cancel"); }
-                                        canceled = true;
-                                    } else {
-                                        // OK: keep preview visible until final output is ready
-
-                                        // Now create swatch group and register colors
-                                        var groupName;
-                                        if (job.originalItem.typename === "PlacedItem" && job.originalItem.file) {
-                                            groupName = job.originalItem.file.name;
-                                        } else {
-                                            groupName = L('itemPrefix') + (j + 1);
-                                        }
-                                        // Register swatches ONLY for 5 and 5 (CMYK Adjust), each as its own group.
-                                        createSwatchGroupsFor5Only(doc, groupName, colors, outOpt);
-                                        // Draw final output for this item
-                                        var finalGroup = null;
-                                        try {
-                                            finalGroup = job.originalItem.layer.groupItems.add();
-                                            finalGroup.name = "__ColorPalette__";
-                                        } catch (eFg) { __logError(eFg, "final group create"); }
-                                        try {
-                                            if (finalGroup) {
-                                                drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup);
-                                            } else {
-                                                drawSwatchSquares(doc, job.originalItem, colors, outOpt);
-                                            }
-                                        } catch (eFinal) { __logError(eFinal, "final draw"); }
-                                        // Remove preview after final output is drawn
-                                        try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev2) { __logError(eRmPrev2, "preview remove after final"); }
-                                    }
-                                }
-                            } else {
-                                // For subsequent items, create swatch group immediately and proceed
-                                if (!canceled && outOpt && colors && colors.length > 0) {
-                                    var groupName;
-                                    if (job.originalItem.typename === "PlacedItem" && job.originalItem.file) {
-                                        groupName = job.originalItem.file.name;
-                                    } else {
-                                        groupName = L('itemPrefix') + (j + 1);
-                                    }
-                                    // Register swatches ONLY for 5 and 5 (CMYK Adjust), each as its own group.
-                                    createSwatchGroupsFor5Only(doc, groupName, colors, outOpt);
-                                    var finalGroup2 = null;
-                                    try {
-                                        finalGroup2 = job.originalItem.layer.groupItems.add();
-                                        finalGroup2.name = "__ColorPalette__";
-                                    } catch (eFg2) { __logError(eFg2, "final group create subsequent"); }
-                                    try {
-                                        if (finalGroup2) {
-                                            drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup2);
-                                        } else {
-                                            drawSwatchSquares(doc, job.originalItem, colors, outOpt);
-                                        }
-                                    } catch (eFinal2) { __logError(eFinal2, "final draw subsequent"); }
-                                }
-                            }
-
-                            progress.set(j * 2 + 2, L('progressPalette'));
-                        } catch (err) {
-                            __logError(err, "per-item processing");
-                        }
-                        if (canceled) break;
-                    }
-                    progress.set(jobs.length * 2, L('progressDone'));
-
-                } finally {
-                    /* 作業用レイヤーを削除 / Remove work layer */
-                    try {
-                        if (workLayer) workLayer.remove();
-                    } catch (e) { __logError(e); }
-                    try { if (progress) progress.close(); } catch (e) { __logError(e); }
-                }
-
-                app.redraw();
-            }
-        } // !__presetCanceled
-    } // while (__retrying)
-}
-
-
-// Helper: Collect fill colors with area from expanded result into array
-// Returns [{color: Color, area: Number}, ...]
-function collectFillColors(item, out) {
-    if (!out) out = [];
-    if (!item) return out;
-    if (item.typename === "PathItem") {
-        if (item.filled && item.fillColor) {
-            var c = item.fillColor;
-            var a = 1;
-            try { a = Math.abs(item.area); } catch (e) { __logError(e); }
-            if (a < 1) a = 1;
-            if (c.typename === "GradientColor") {
-                // グラデーションのカラーストップを個別に抽出 / Extract each gradient color stop
-                try {
-                    var stops = c.gradient.gradientStops;
-                    var n = stops.length;
-                    for (var si = 0; si < n; si++) {
-                        var sc = stops[si].color;
-                        if (sc.typename === "SpotColor") {
-                            try { sc = sc.spot.color; } catch (e2) { __logError(e2); continue; }
-                        }
-                        if (sc.typename === "NoColor" || sc.typename === "PatternColor") continue;
-                        out.push({ color: sc, area: a / n });
-                    }
-                } catch (e) { __logError(e, "collectFillColors:gradient"); }
-            } else if (c.typename !== "NoColor" && c.typename !== "PatternColor" &&
-                c.typename !== "SpotColor") {
-                out.push({ color: c, area: a });
-            }
-        }
-        return out;
-    }
-    if (item.typename === "GroupItem" || item.typename === "CompoundPathItem") {
-        var children = (item.typename === "GroupItem") ? item.pageItems : item.pathItems;
-        for (var k = 0; k < children.length; k++) {
-            collectFillColors(children[k], out);
-        }
-    }
-    return out;
-}
-
-/* スウォッチをグループに追加 / Add swatch to group */
-function addSwatchToGroup(doc, swatchGroup, color) {
-    try {
-        if (color.typename === "SpotColor") return;
-        if (color.typename === "PatternColor") return;
-        if (color.typename === "GradientColor") return;
-        if (color.typename === "NoColor") return;
-
-        var swatchName = colorToName(color);
-
-        /* 同名スウォッチが既に存在すればそれをグループに追加、なければ新規作成 / Reuse existing swatch or create new */
-        var swatch;
-        try {
-            swatch = doc.swatches.getByName(swatchName);
-        } catch (e) {
-            swatch = doc.swatches.add();
-            swatch.name = swatchName;
-            swatch.color = color;
-        }
-        swatchGroup.addSwatch(swatch);
-    } catch (err) {
-        /* スウォッチ追加エラーは無視 / Ignore swatch add errors */
-    }
-}
-
-// Helper: Create swatch group from colors array
-// colors: [{color, area}, ...] or [Color, ...]
-
-function createSwatchGroupFromColors(doc, groupName, colors) {
-    var swatchGroup = doc.swatchGroups.add();
-    swatchGroup.name = groupName;
-    for (var i = 0; i < colors.length; i++) {
-        var c = colors[i].color ? colors[i].color : colors[i];
-        addSwatchToGroup(doc, swatchGroup, c);
-    }
-    return swatchGroup;
-}
-
-// Helper: convert swatch-like input into ordered palette entries used by the row selection logic.
-// Input: [{color, area}, ...] or [{swatch:{color,area}, ...}, ...]
-// Output: [{swatch:{color,area}, r,g,b, area}, ...] sorted from darkest by nearest-neighbor walk.
-function buildOrderedPaletteEntries(sourceItems) {
-    var swatches = [];
-    for (var i = 0; i < sourceItems.length; i++) {
-        var item = sourceItems[i];
-        var sw = item && item.swatch ? item.swatch : item;
-        if (!sw) continue;
-        swatches.push({
-            color: sw.color,
-            area: (sw.area !== undefined) ? sw.area : ((item && item.area !== undefined) ? item.area : 1)
-        });
-    }
-
-    var remaining = [];
-    for (var m = 0; m < swatches.length; m++) {
-        var rgb = colorToRGB(swatches[m].color);
-        remaining.push({
-            swatch: swatches[m],
-            r: rgb[0],
-            g: rgb[1],
-            b: rgb[2],
-            area: swatches[m].area || 1
-        });
-    }
-
-    var ordered = [];
-    if (remaining.length > 0) {
-        var startIdx = 0;
-        var minLum = Infinity;
-        for (var q = 0; q < remaining.length; q++) {
-            var lum = remaining[q].r * 0.299 + remaining[q].g * 0.587 + remaining[q].b * 0.114;
-            if (lum < minLum) { minLum = lum; startIdx = q; }
-        }
-        ordered.push(remaining.splice(startIdx, 1)[0]);
-
-        while (remaining.length > 0) {
-            var last = ordered[ordered.length - 1];
-            var nearestIdx = 0;
-            var nearestDist = Infinity;
-            for (var q2 = 0; q2 < remaining.length; q2++) {
-                var dr = last.r - remaining[q2].r;
-                var dg = last.g - remaining[q2].g;
-                var db = last.b - remaining[q2].b;
-                var dist = dr * dr + dg * dg + db * db;
-                if (dist < nearestDist) { nearestDist = dist; nearestIdx = q2; }
-            }
-            ordered.push(remaining.splice(nearestIdx, 1)[0]);
-        }
-    }
-
-    return ordered;
-}
-
-// Helper: select a palette row from the ordered entry list while honoring cascade and 11-color exclusion.
-function selectPaletteRowEntries(colorList, rowCount, cascadePrev, useCascade) {
-    var sourceColors;
-    if (rowCount === 11) {
-        sourceColors = getElevenRowSourceColors(colorList, cascadePrev, useCascade);
-    } else if (useCascade && cascadePrev) {
-        sourceColors = cascadePrev;
-    } else {
-        sourceColors = colorList;
-    }
-
-    return selectByMaxDistance(sourceColors, rowCount);
-}
-
-// Helper: reproduce the shared 16 -> 11 -> 8 -> 5 cascade selection flow.
-// Returns the sorted entries for the requested row count.
-function buildSelectedPaletteRow(colorList, rowCount, outOpt) {
-    if (!colorList || !colorList.length) return [];
-
-    var useCascade = !outOpt || outOpt.cascade !== false;
-    var cascadePrev = null;
-    var selected = [];
-
-    if (useCascade) {
-        selected = selectByMaxDistance(colorList, 16);
-        cascadePrev = selected;
-        if (rowCount === 16) return sortByNearest(selected);
-    } else if (rowCount === 16) {
-        return sortByNearest(selectByMaxDistance(colorList, 16));
-    }
-
-    var rows = [11, 8, 5];
-    for (var r = 0; r < rows.length; r++) {
-        var num = rows[r];
-        selected = selectPaletteRowEntries(colorList, num, cascadePrev, useCascade);
-        if (useCascade) cascadePrev = selected;
-        if (num === rowCount) return sortByNearest(selected);
-    }
-
-    return [];
-}
-
-
-
-function buildDrawnFiveRowEntries(fullColors, outOpt) {
-    var colorList = buildOrderedPaletteEntries(fullColors);
-    return buildSelectedPaletteRow(colorList, 5, outOpt);
-}
-
-// Helper: precompute row selections shared by drawing and swatch-group creation.
-// Returns { colorList, rowsByCount, gap, squareSize }
-function buildPaletteRowPlan(imgWidth, swatches, outOpt) {
-    var numSquares = 16;
-    var colorList = buildOrderedPaletteEntries(swatches);
-
-    var cell16 = imgWidth / numSquares;
-    var gapRatio = 0.10;
-    var gap = cell16 * gapRatio;
-    var squareSize = (imgWidth - (numSquares - 1) * gap) / numSquares;
-
-    var useCascade = (outOpt.cascade !== false);
-    var cascadePrev = null;
-    var rowsByCount = {};
-
-    var sorted16 = [];
-    if (outOpt.out16 || useCascade) {
-        sorted16 = buildSelectedPaletteRow(colorList, 16, outOpt);
-        rowsByCount[16] = sorted16;
-        cascadePrev = sorted16.slice();
-    } else {
-        rowsByCount[16] = [];
-    }
-
-    var rows = [11, 8, 5];
-    for (var r = 0; r < rows.length; r++) {
-        var num = rows[r];
-        var selected = selectPaletteRowEntries(colorList, num, cascadePrev, useCascade);
-        if (useCascade) cascadePrev = selected;
-        rowsByCount[num] = sortByNearest(selected);
-    }
-
-    return {
-        colorList: colorList,
-        rowsByCount: rowsByCount,
-        gap: gap,
-        squareSize: squareSize
     };
-}
 
-// Helper: add a swatch label under one swatch rectangle.
-function addPaletteLabel(targetLayer, doc, rect, size, group, mode) {
-    try {
-        if (!rect || !rect.filled) return;
-        var info = buildColorLabelForPalette(doc, rect.fillColor, mode);
-        var fs = size / 10;
-        var x = rect.left;
-        var y = rect.top - rect.height - (fs / 2);
+    /**
+     * ラベルをドット区切りのキーで引く
+     * @param {string} labelKey - "alert.noDocument" のようなドット区切りキー
+     * @returns {string} 現在の表示言語のラベル。見つからない場合はキーをそのまま返す
+     */
+    function getLabel(labelKey) {
+        var keyParts = labelKey.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < keyParts.length; i++) {
+            if (!labelNode) return labelKey;
+            labelNode = labelNode[keyParts[i]];
+        }
+        return (labelNode && labelNode[uiLang]) ? labelNode[uiLang] : labelKey;
+    }
 
-        var tf = targetLayer.textFrames.add();
-        tf.contents = info.text;
-        tf.textRange.justification = Justification.LEFT;
-        tf.textRange.characterAttributes.size = fs;
-        tf.textRange.fillColor = getPaletteLabelBlackColor(doc);
+    /**
+     * 握りつぶした例外を ExtendScript コンソールに書き出す
+     * @param {Error} e - 発生した例外
+     * @param {string} [context] - 発生箇所を示す短い説明
+     * @returns {void}
+     */
+    function logError(e, context) {
+        var message = "[" + SCRIPT_NAME + "]";
+        if (context) message += " " + context + ":";
+        $.writeln(message + " " + e);
+    }
 
+    // =========================================
+    // カラーの変換 / Color conversion
+    // =========================================
+
+    /**
+     * 値を 0〜255 に収める
+     * @param {number} value - 入力値
+     * @returns {number} 0〜255 に収めた値
+     */
+    function clamp255(value) {
+        return Math.max(0, Math.min(255, value));
+    }
+
+    /**
+     * 値を 0〜100 に収める
+     * @param {number} value - 入力値
+     * @returns {number} 0〜100 に収めた値
+     */
+    function clampPercent(value) {
+        return Math.max(0, Math.min(100, value));
+    }
+
+    /**
+     * CMYK_ROUND_STEP 刻みに丸める（0/5 は 2.5、5/10 は 7.5 を境界とする）
+     * @param {number} value - 入力値
+     * @returns {number} 丸めた値
+     */
+    function roundToStep(value) {
+        var half = CMYK_ROUND_STEP / 2;
+        return Math.floor((value + half) / CMYK_ROUND_STEP) * CMYK_ROUND_STEP;
+    }
+
+    /**
+     * 0〜255 の値を2桁の16進表記に変換する
+     * @param {number} value - 0〜255 の値
+     * @returns {string} 2桁の16進文字列
+     */
+    function toHex2(value) {
+        var hex = Math.round(value).toString(16).toUpperCase();
+        return (hex.length === 1) ? ("0" + hex) : hex;
+    }
+
+    /**
+     * RGB 値を HEX 文字列に変換する
+     * @param {Array<number>} rgb - [R, G, B]
+     * @returns {string} "#RRGGBB" 形式の文字列
+     */
+    function rgbToHex(rgb) {
+        return "#" + toHex2(rgb[0]) + toHex2(rgb[1]) + toHex2(rgb[2]);
+    }
+
+    /**
+     * app.convertSampleColor でカラーを変換する
+     * @param {ImageColorSpace} sourceSpace - 変換元のカラースペース
+     * @param {Array<number>} sourceValues - 変換元の値
+     * @param {ImageColorSpace} targetSpace - 変換先のカラースペース
+     * @returns {Array<number>|null} 変換後の値。変換できない場合は null
+     */
+    function convertSampleColor(sourceSpace, sourceValues, targetSpace) {
         try {
-            tf.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
-        } catch (eFont) {
-            try {
-                tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro");
-            } catch (eFont2) { }
-        }
-
-        tf.position = [x, y];
-        try { tf.move(group, ElementPlacement.PLACEATEND); } catch (eMove) { __logError(eMove, "palette label move"); }
-    } catch (e) { __logError(e, "palette label add"); }
-}
-
-// Helper: draw one palette row and optionally add labels.
-function drawPaletteRow(container, rowName, rowEntries, rowLeft, yPos, rowSize, gap, showLabelMode, targetLayer, doc) {
-    var rowGroup = container.groupItems.add();
-    rowGroup.name = rowName;
-
-    var count = Math.max(1, rowEntries.length);
-    for (var n = 0; n < count; n++) {
-        var rect = rowGroup.pathItems.rectangle(
-            yPos,
-            rowLeft + n * (rowSize + gap),
-            rowSize,
-            rowSize
-        );
-        rect.stroked = false;
-
-        if (rowEntries.length > 0) {
-            rect.filled = true;
-            rect.fillColor = rowEntries[n % rowEntries.length].swatch.color;
-        } else {
-            rect.filled = false;
-        }
-
-        if (showLabelMode) addPaletteLabel(targetLayer, doc, rect, rowSize, rowGroup, showLabelMode);
-    }
-
-    return rowGroup;
-}
-
-// Helper: rebuild labels on an adjusted 5-color row.
-function rebuildAdjustedRowLabels(rowGroup, rowSize, outOpt, targetLayer, doc) {
-    try {
-        if (rowGroup.textFrames && rowGroup.textFrames.length) {
-            for (var tfi = rowGroup.textFrames.length - 1; tfi >= 0; tfi--) {
-                try { rowGroup.textFrames[tfi].remove(); } catch (eRm) { __logError(eRm, "label remove"); }
+            if (!app.convertSampleColor || typeof ImageColorSpace === "undefined" || typeof ColorConvertPurpose === "undefined") {
+                return null;
             }
-        }
-    } catch (eRmAll) { __logError(eRmAll, "label remove all"); }
-
-    if (outOpt.showCMYK) {
-        for (var u = 0; u < rowGroup.pathItems.length; u++) {
-            var pi = rowGroup.pathItems[u];
-            if (!pi.filled) continue;
-            addPaletteLabel(targetLayer, doc, pi, rowSize, rowGroup, "cmyk");
-        }
-    }
-}
-
-// Helper: duplicate the 5-color row, convert colors to CMYK-rounded values, and rebuild labels.
-function createAdjustedFiveRow(baseRowGroup, rowSize, outOpt, targetLayer, doc) {
-    var rowGroup2 = baseRowGroup.duplicate();
-    rowGroup2.translate(0, - (rowSize + (rowSize / 4)));
-
-    for (var p = 0; p < rowGroup2.pathItems.length; p++) {
-        var item = rowGroup2.pathItems[p];
-        if (!item.filled) continue;
-
-        var c = item.fillColor;
-        var cNew = buildCmykAdjustedColor(c);
-        if (cNew) item.fillColor = cNew;
-    }
-
-    rebuildAdjustedRowLabels(rowGroup2, rowSize, outOpt, targetLayer, doc);
-    return rowGroup2;
-}
-
-// Helper: create/update the single visible 5-color row when only CMYK-adjusted output is requested.
-function applyAdjustedColorsToExistingFiveRow(rowGroup, rowSize, outOpt, targetLayer, doc) {
-    for (var p0 = 0; p0 < rowGroup.pathItems.length; p0++) {
-        var baseItem = rowGroup.pathItems[p0];
-        if (!baseItem.filled) continue;
-        var cBase = baseItem.fillColor;
-        var cAdj = buildCmykAdjustedColor(cBase);
-        if (cAdj) baseItem.fillColor = cAdj;
-    }
-
-    rebuildAdjustedRowLabels(rowGroup, rowSize, outOpt, targetLayer, doc);
-}
-
-// Helper: palette label color in current document color space.
-function getPaletteLabelBlackColor(doc) {
-    try {
-        if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
-            var c = new CMYKColor();
-            c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
-            return c;
-        }
-    } catch (e) { __logError(e, "palette label black"); }
-    var r = new RGBColor();
-    r.red = 0; r.green = 0; r.blue = 0;
-    return r;
-}
-
-// Helper: build one label string for palette output.
-function buildColorLabelForPalette(doc, color, mode) {
-    function toHex2(n) {
-        var s = Math.round(n).toString(16).toUpperCase();
-        return (s.length === 1) ? ("0" + s) : s;
-    }
-    function rgbToHex(r, g, b) {
-        return "#" + toHex2(r) + toHex2(g) + toHex2(b);
-    }
-    function round5(v) {
-        return Math.floor((v + 2.5) / 5) * 5;
-    }
-
-    if (!mode) mode = "both";
-
-    var rgb = colorToRGB(color);
-    var hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
-    var cmyk = colorToCMYKVals(color);
-
-    if (mode === "hex") {
-        return { text: hex, rgb: rgb };
-    }
-
-    if (mode === "cmyk") {
-        if (cmyk) {
-            var Cc = round5(cmyk[0]);
-            var Mm = round5(cmyk[1]);
-            var Yy = round5(cmyk[2]);
-            var Kk = round5(cmyk[3]);
-            return { text: L('cmykPrefix') + Cc + ", " + Mm + ", " + Yy + ", " + Kk, rgb: rgb };
-        }
-        return { text: hex, rgb: rgb };
-    }
-
-    if (cmyk) {
-        var C = round5(cmyk[0]);
-        var M = round5(cmyk[1]);
-        var Y = round5(cmyk[2]);
-        var K = round5(cmyk[3]);
-        return { text: L('cmykPrefix') + C + ", " + M + ", " + Y + ", " + K + "\r" + hex, rgb: rgb };
-    }
-    return { text: hex, rgb: rgb };
-}
-
-// Helper: CMYK adjust used for the duplicated 5-color row (same policy as drawSwatchSquares)
-function buildCmykAdjustedColor(color) {
-    var cmykVals = null;
-    try {
-        if (color && color.typename === "CMYKColor") {
-            cmykVals = [color.cyan, color.magenta, color.yellow, color.black];
-        } else {
-            cmykVals = colorToCMYKVals(color);
-        }
-    } catch (e) { cmykVals = null; }
-
-    if (!cmykVals || cmykVals.length < 4) return null;
-
-    function roundToNearest5(v) {
-        // Midpoint rule: 0–2.49→0, 2.5–7.49→5, 7.5–12.49→10 ...
-        return Math.floor((v + 2.5) / 5) * 5;
-    }
-    function clampPercent(v) {
-        return Math.max(0, Math.min(100, v));
-    }
-
-    var cNew = new CMYKColor();
-    cNew.cyan = clampPercent(roundToNearest5(cmykVals[0]));
-    cNew.magenta = clampPercent(roundToNearest5(cmykVals[1]));
-    cNew.yellow = clampPercent(roundToNearest5(cmykVals[2]));
-    cNew.black = clampPercent(roundToNearest5(cmykVals[3]));
-
-    return cNew;
-}
-
-// Helper: create the two swatch groups (5 and 5Adj) from the full extracted colors.
-function createSwatchGroupsFor5Only(doc, baseName, fullColors, outOpt) {
-    if (!outOpt) return;
-
-    var rep5 = buildDrawnFiveRowEntries(fullColors, outOpt);
-    if (!rep5 || !rep5.length) return;
-
-    // Group naming
-    var name5 = baseName + " - " + L('opt5');
-    var name5a = baseName + " - " + L('opt5Adj');
-
-    if (outOpt.out5) {
-        var colors5 = [];
-        for (var i = 0; i < rep5.length; i++) {
-            colors5.push({ color: rep5[i].swatch.color, area: rep5[i].swatch.area || 1 });
-        }
-        createSwatchGroupFromColors(doc, name5, colors5);
-    }
-
-    if (outOpt.out5Adj) {
-        var colors5a = [];
-        for (var j = 0; j < rep5.length; j++) {
-            var baseC = rep5[j].swatch.color;
-            var adj = buildCmykAdjustedColor(baseC);
-            colors5a.push({ color: adj ? adj : baseC, area: rep5[j].swatch.area || 1 });
-        }
-        createSwatchGroupFromColors(doc, name5a, colors5a);
-    }
-}
-
-/* 元画像の下にカラーパレットを描画 / Draw color palette squares below original image */
-// swatchSource: SwatchGroup or Array of {color, area}
-function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGroup) {
-    var swatches;
-    if (swatchSource && typeof swatchSource.getAllSwatches === "function") {
-        swatches = swatchSource.getAllSwatches();
-    } else if (swatchSource && swatchSource.length !== undefined) {
-        swatches = [];
-        for (var i = 0; i < swatchSource.length; i++) {
-            swatches.push({ color: swatchSource[i].color, area: swatchSource[i].area || 1 });
-        }
-    } else {
-        swatches = [];
-    }
-
-    outOpt = outOpt || { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true, cascade: true };
-
-    var imgLeft = originalItem.left;
-    var imgTop = originalItem.top;
-    var imgWidth = originalItem.width;
-    var imgBottom = imgTop - originalItem.height;
-
-    var plan = buildPaletteRowPlan(imgWidth, swatches, outOpt);
-    var gap = plan.gap;
-    var squareSize = plan.squareSize;
-
-    var gap12 = (imgWidth / 12) / 10;
-    var rowGap = gap12;
-    var startY = imgBottom - squareSize;
-
-    var targetLayer = originalItem.layer;
-    var container = containerGroup || targetLayer;
-
-    if (outOpt.out16) {
-        drawPaletteRow(
-            container,
-            L('group16Name'),
-            plan.rowsByCount[16],
-            imgLeft,
-            startY,
-            squareSize,
-            gap,
-            null,
-            targetLayer,
-            doc
-        );
-    }
-
-    var rows = [11, 8, 5];
-    var prevBottom = outOpt.out16 ? (startY - squareSize) : (startY + rowGap);
-
-    for (var r = 0; r < rows.length; r++) {
-        var num = rows[r];
-        var isRowEnabled = !((num === 11 && !outOpt.out11) || (num === 8 && !outOpt.out8) || (num === 5 && !outOpt.out5 && !outOpt.out5Adj));
-        if (!isRowEnabled) continue;
-
-        var rowEntries = plan.rowsByCount[num] || [];
-        var rowSize = (imgWidth - gap * (num - 1)) / num;
-        var yPos = prevBottom - rowGap;
-        var rowLeft = imgLeft;
-        var rowName = (lang === 'ja') ? (num + L('colorsSuffix')) : (num + " " + L('colorsSuffix'));
-        var drawBaseRow = !(num === 5 && !outOpt.out5 && outOpt.out5Adj);
-        var labelMode = (num === 5 && drawBaseRow && outOpt.showHEX) ? "hex" : null;
-
-        var rowGroup = drawPaletteRow(
-            container,
-            rowName,
-            rowEntries,
-            rowLeft,
-            yPos,
-            rowSize,
-            gap,
-            labelMode,
-            targetLayer,
-            doc
-        );
-
-        if (num === 5 && !drawBaseRow && outOpt.out5Adj) {
-            try {
-                applyAdjustedColorsToExistingFiveRow(rowGroup, rowSize, outOpt, targetLayer, doc);
-            } catch (eOnlyAdj) { __logError(eOnlyAdj, "adjusted-only row"); }
-        }
-
-        if (num === 5 && drawBaseRow && outOpt.out5Adj) {
-            try {
-                createAdjustedFiveRow(rowGroup, rowSize, outOpt, targetLayer, doc);
-            } catch (eAdj) { __logError(eAdj, "adjusted row duplicate"); }
-        }
-
-        prevBottom = yPos - rowSize;
-    }
-}
-
-/* エントリからCMYK値を取得 / Get CMYK values from a color entry
-   Return: [C, M, Y, K] or null */
-function entryToCMYK(entry) {
-    var cmyk = null;
-    try {
-        var c = entry && entry.swatch ? entry.swatch.color : null;
-        if (c && c.typename === "CMYKColor") {
-            cmyk = [c.cyan, c.magenta, c.yellow, c.black];
-        } else if (c && c.typename === "RGBColor" && app.convertSampleColor) {
-            var dst = app.convertSampleColor(
-                ImageColorSpace.RGB,
-                [c.red, c.green, c.blue],
-                ImageColorSpace.CMYK,
+            var converted = app.convertSampleColor(
+                sourceSpace,
+                sourceValues,
+                targetSpace,
                 ColorConvertPurpose.defaultpurpose,
                 false,
                 false
             );
-            if (dst && dst.length >= 4) {
-                cmyk = [dst[0], dst[1], dst[2], dst[3]];
+            return (converted && converted.length >= 3) ? converted : null;
+        } catch (e) {
+            logError(e, "convertSampleColor");
+            return null;
+        }
+    }
+
+    /**
+     * カラーを RGB 値に変換する
+     * @param {Color} color - 変換元のカラー
+     * @returns {Array<number>} [R, G, B]（0〜255）
+     */
+    function colorToRGB(color) {
+        if (!color) return [0, 0, 0];
+
+        if (color.typename === "RGBColor") {
+            return [clamp255(color.red), clamp255(color.green), clamp255(color.blue)];
+        }
+
+        /* CMYK はドキュメントの見えに近づけるため Illustrator 自身の変換を優先する / Prefer Illustrator's own conversion for CMYK */
+        if (color.typename === "CMYKColor") {
+            var fromCmyk = convertSampleColor(
+                ImageColorSpace.CMYK,
+                [color.cyan, color.magenta, color.yellow, color.black],
+                ImageColorSpace.RGB
+            );
+            if (fromCmyk) return [clamp255(fromCmyk[0]), clamp255(fromCmyk[1]), clamp255(fromCmyk[2])];
+
+            /* 変換が使えない場合の簡易近似 / Simple approximation when sample conversion is unavailable */
+            return [
+                clamp255(255 * (1 - color.cyan / 100) * (1 - color.black / 100)),
+                clamp255(255 * (1 - color.magenta / 100) * (1 - color.black / 100)),
+                clamp255(255 * (1 - color.yellow / 100) * (1 - color.black / 100))
+            ];
+        }
+
+        if (color.typename === "GrayColor") {
+            var fromGray = convertSampleColor(ImageColorSpace.GrayScale, [color.gray], ImageColorSpace.RGB);
+            if (fromGray) return [clamp255(fromGray[0]), clamp255(fromGray[1]), clamp255(fromGray[2])];
+
+            var grayValue = clamp255(255 * (1 - color.gray / 100));
+            return [grayValue, grayValue, grayValue];
+        }
+
+        if (color.typename === "LabColor") {
+            var fromLab = convertSampleColor(ImageColorSpace.LAB, [color.l, color.a, color.b], ImageColorSpace.RGB);
+            if (fromLab) return [clamp255(fromLab[0]), clamp255(fromLab[1]), clamp255(fromLab[2])];
+        }
+
+        return [0, 0, 0];
+    }
+
+    /**
+     * カラーを CMYK 値に変換する
+     * @param {Color} color - 変換元のカラー
+     * @returns {Array<number>|null} [C, M, Y, K]（0〜100）。変換できない場合は null
+     */
+    function colorToCMYKVals(color) {
+        if (!color) return null;
+        if (color.typename === "CMYKColor") {
+            return [color.cyan, color.magenta, color.yellow, color.black];
+        }
+
+        var converted = null;
+        if (color.typename === "RGBColor") {
+            converted = convertSampleColor(ImageColorSpace.RGB, [color.red, color.green, color.blue], ImageColorSpace.CMYK);
+        } else if (color.typename === "LabColor") {
+            converted = convertSampleColor(ImageColorSpace.LAB, [color.l, color.a, color.b], ImageColorSpace.CMYK);
+        }
+
+        return (converted && converted.length >= 4) ? [converted[0], converted[1], converted[2], converted[3]] : null;
+    }
+
+    /**
+     * CMYK 各値を CMYK_ROUND_STEP 刻みに丸めたカラーを作る
+     * @param {Color} color - 元のカラー
+     * @returns {CMYKColor|null} 丸めた CMYK カラー。変換できない場合は null
+     */
+    function buildCmykAdjustedColor(color) {
+        var cmykVals = colorToCMYKVals(color);
+        if (!cmykVals || cmykVals.length < 4) return null;
+
+        var adjustedColor = new CMYKColor();
+        adjustedColor.cyan = clampPercent(roundToStep(cmykVals[0]));
+        adjustedColor.magenta = clampPercent(roundToStep(cmykVals[1]));
+        adjustedColor.yellow = clampPercent(roundToStep(cmykVals[2]));
+        adjustedColor.black = clampPercent(roundToStep(cmykVals[3]));
+        return adjustedColor;
+    }
+
+    /**
+     * カラーの一致判定に使うキーを作る
+     * @param {Color} color - 対象のカラー
+     * @returns {string} RGB 値をまとめた文字列キー
+     */
+    function colorKey(color) {
+        var rgb = colorToRGB(color);
+        return Math.round(rgb[0]) + "," + Math.round(rgb[1]) + "," + Math.round(rgb[2]);
+    }
+
+    /**
+     * カラー値からスウォッチ名を生成する
+     * @param {Color} color - 対象のカラー
+     * @returns {string} スウォッチ名
+     */
+    function colorToName(color) {
+        if (color.typename === "RGBColor") {
+            return "R=" + Math.round(color.red) + " G=" + Math.round(color.green) + " B=" + Math.round(color.blue);
+        }
+        if (color.typename === "CMYKColor") {
+            return "C=" + Math.round(color.cyan) + " M=" + Math.round(color.magenta) +
+                " Y=" + Math.round(color.yellow) + " K=" + Math.round(color.black);
+        }
+        if (color.typename === "GrayColor") {
+            return "Gray=" + Math.round(color.gray);
+        }
+        return getLabel("fallbackName.unknownColor");
+    }
+
+    /**
+     * ドキュメントが CMYK かどうかを判定する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {boolean} CMYK ドキュメントなら true
+     */
+    function isCmykDocument(doc) {
+        try {
+            return !!(doc && doc.documentColorSpace === DocumentColorSpace.CMYK);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * ドキュメントのカラースペースに合わせた黒を返す
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {CMYKColor|RGBColor} ラベル用の黒
+     */
+    function getLabelBlackColor(doc) {
+        if (isCmykDocument(doc)) {
+            var cmykBlack = new CMYKColor();
+            cmykBlack.cyan = 0;
+            cmykBlack.magenta = 0;
+            cmykBlack.yellow = 0;
+            cmykBlack.black = 100;
+            return cmykBlack;
+        }
+        var rgbBlack = new RGBColor();
+        rgbBlack.red = 0;
+        rgbBlack.green = 0;
+        rgbBlack.blue = 0;
+        return rgbBlack;
+    }
+
+    // =========================================
+    // カラーの抽出 / Color extraction
+    // =========================================
+
+    /**
+     * グラデーションのカラーストップを個別のカラーとして取り出す
+     * @param {GradientColor} gradientColor - 対象のグラデーションカラー
+     * @returns {Array<Color>} 取り出したカラーの配列
+     */
+    function getGradientStopColors(gradientColor) {
+        var stopColors = [];
+        try {
+            var gradientStops = gradientColor.gradient.gradientStops;
+            for (var i = 0; i < gradientStops.length; i++) {
+                var stopColor = gradientStops[i].color;
+                if (stopColor.typename === "SpotColor") stopColor = stopColor.spot.color;
+                if (stopColor.typename === "NoColor" || stopColor.typename === "PatternColor") continue;
+                stopColors.push(stopColor);
+            }
+        } catch (e) {
+            logError(e, "gradient stops");
+        }
+        return stopColors;
+    }
+
+    /**
+     * オブジェクトツリーから塗りのカラーを面積付きで集める
+     * @param {PageItem} item - 走査対象のオブジェクト
+     * @param {Array<object>} collected - 収集先の配列
+     * @returns {Array<object>} { color: Color, area: number } の配列
+     */
+    function collectFillColors(item, collected) {
+        if (!collected) collected = [];
+        if (!item) return collected;
+
+        if (item.typename === "PathItem") {
+            if (!item.filled || !item.fillColor) return collected;
+
+            var fillColor = item.fillColor;
+            var area = 1;
+            try {
+                area = Math.abs(item.area);
+            } catch (e) {
+                logError(e, "path area");
+            }
+            if (area < 1) area = 1;
+
+            if (fillColor.typename === "GradientColor") {
+                var stopColors = getGradientStopColors(fillColor);
+                for (var i = 0; i < stopColors.length; i++) {
+                    collected.push({ color: stopColors[i], area: area / stopColors.length });
+                }
+            } else if (fillColor.typename !== "NoColor" &&
+                fillColor.typename !== "PatternColor" &&
+                fillColor.typename !== "SpotColor") {
+                collected.push({ color: fillColor, area: area });
+            }
+            return collected;
+        }
+
+        if (item.typename === "GroupItem" || item.typename === "CompoundPathItem") {
+            var children = (item.typename === "GroupItem") ? item.pageItems : item.pathItems;
+            for (var k = 0; k < children.length; k++) {
+                collectFillColors(children[k], collected);
             }
         }
-    } catch (e) { __logError(e); }
-    return cmyk;
-}
+        return collected;
+    }
 
-/* 最大距離法でN色を選択（面積で重み付け） / Select N colors by max-distance method (area-weighted) */
-// colorList entries: {swatch, r, g, b, area}
-// score = minDist × sqrt(area / avgArea) — 面積が大きい色は選ばれやすく、小さい色は選ばれにくい
-/* ほぼ白の判定 / Determine if a color entry is nearly white
-   RGB の明るさで白候補を絞り、可能なら CMYK 合計量で確認する。
-   CMYK が取得できない場合は RGB 条件のみで判定する。 */
-function isNearlyWhite(entry) {
-    // RGB条件
-    if (entry.r < NEAR_WHITE_RGB_MIN || entry.g < NEAR_WHITE_RGB_MIN || entry.b < NEAR_WHITE_RGB_MIN) {
-        return false;
-    }
-    // CMYK条件
-    var cmyk = entryToCMYK(entry);
-    if (cmyk && cmyk.length >= 4) {
-        var total = cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3];
-        return total <= NEAR_WHITE_CMYK_TOTAL_MAX;
-    }
-    // CMYKが取得できない場合はRGB条件のみで「ほぼ白」と判定
-    return true;
-}
-
-/* ほぼ黒の判定 / Determine if a color entry is nearly black
-   RGB の暗さで黒候補を絞り、可能なら CMYK 合計量または K 値で確認する。
-   CMYK が取得できない場合は RGB 条件のみで判定する。 */
-function isNearlyBlack(entry) {
-    // RGB条件
-    if (entry.r > NEAR_BLACK_RGB_MAX || entry.g > NEAR_BLACK_RGB_MAX || entry.b > NEAR_BLACK_RGB_MAX) {
-        return false;
-    }
-    // CMYK条件
-    var cmyk = entryToCMYK(entry);
-    if (cmyk && cmyk.length >= 4) {
-        var total = cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3];
-        if (total >= NEAR_BLACK_CMYK_TOTAL_MIN || cmyk[3] >= NEAR_BLACK_K_MIN) {
-            return true;
+    /**
+     * 同じカラーをまとめ、面積を合算する
+     * @param {Array<object>} colors - { color: Color, area: number } の配列
+     * @returns {Array<object>} 重複を除いた { color: Color, area: number } の配列
+     */
+    function deduplicateColors(colors) {
+        var seenIndex = {};
+        var merged = [];
+        for (var i = 0; i < colors.length; i++) {
+            var key = colorKey(colors[i].color);
+            if (seenIndex[key] === undefined) {
+                seenIndex[key] = merged.length;
+                merged.push({ color: colors[i].color, area: colors[i].area || 1 });
+            } else {
+                merged[seenIndex[key]].area += (colors[i].area || 1);
+            }
         }
-        return false;
+        return merged;
     }
-    // CMYKが取得できない場合はRGB条件のみで「ほぼ黒」と判定
-    return true;
-}
 
-/* 11色行用の入力色を取得 / Build source colors for the 11-color row
-   near-white / near-black exclusion must apply even in cascade mode. */
-function getElevenRowSourceColors(colorList, cascadePrev, useCascade) {
-    var filtered = [];
-    for (var i = 0; i < colorList.length; i++) {
-        if (!isNearlyWhite(colorList[i]) && !isNearlyBlack(colorList[i])) filtered.push(colorList[i]);
+    /**
+     * スウォッチパネルで選択中のスウォッチからカラーを取得する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Array<object>} { color: Color, area: number } の配列
+     */
+    function getSelectedSwatchColors(doc) {
+        var colors = [];
+        try {
+            var selectedSwatches = doc.swatches.getSelected();
+            if (!selectedSwatches || selectedSwatches.length === 0) return colors;
+
+            for (var i = 0; i < selectedSwatches.length; i++) {
+                var swatchColor = selectedSwatches[i].color;
+                if (!swatchColor) continue;
+
+                /* [なし]・パターンは対象外 / Skip [None] and pattern swatches */
+                if (swatchColor.typename === "NoColor" || swatchColor.typename === "PatternColor") continue;
+
+                if (swatchColor.typename === "GradientColor") {
+                    var stopColors = getGradientStopColors(swatchColor);
+                    for (var k = 0; k < stopColors.length; k++) {
+                        colors.push({ color: stopColors[k], area: 1 });
+                    }
+                    continue;
+                }
+                colors.push({ color: swatchColor, area: 1 });
+            }
+        } catch (e) {
+            logError(e, "getSelectedSwatchColors");
+        }
+        return colors;
     }
-    if (filtered.length === 0) filtered = colorList;
 
-    if (useCascade && cascadePrev) {
+    // =========================================
+    // 代表色の選出 / Representative color selection
+    // =========================================
+
+    /**
+     * エントリの明度を返す
+     * @param {object} entry - { r, g, b } を持つエントリ
+     * @returns {number} 明度
+     */
+    function getLuminance(entry) {
+        return entry.r * 0.299 + entry.g * 0.587 + entry.b * 0.114;
+    }
+
+    /**
+     * 2つのエントリの RGB 距離の2乗を返す
+     * @param {object} entryA - 比較元のエントリ
+     * @param {object} entryB - 比較先のエントリ
+     * @returns {number} 距離の2乗
+     */
+    function getColorDistance(entryA, entryB) {
+        var dr = entryA.r - entryB.r;
+        var dg = entryA.g - entryB.g;
+        var db = entryA.b - entryB.b;
+        return dr * dr + dg * dg + db * db;
+    }
+
+    /**
+     * 最も暗いエントリの位置を返す
+     * @param {Array<object>} entries - { r, g, b } を持つエントリの配列
+     * @returns {number} 最も暗いエントリのインデックス
+     */
+    function findDarkestIndex(entries) {
+        var darkestIndex = 0;
+        var minLuminance = Infinity;
+        for (var i = 0; i < entries.length; i++) {
+            var luminance = getLuminance(entries[i]);
+            if (luminance < minLuminance) {
+                minLuminance = luminance;
+                darkestIndex = i;
+            }
+        }
+        return darkestIndex;
+    }
+
+    /**
+     * 最も暗い色から始めて、最近傍法でグラデーション風に並べ替える
+     * @param {Array<object>} entries - { r, g, b } を持つエントリの配列
+     * @returns {Array<object>} 並べ替えたエントリの配列
+     */
+    function sortByNearest(entries) {
+        if (entries.length <= 1) return entries.slice();
+
+        var remaining = entries.slice();
+        var sorted = [remaining.splice(findDarkestIndex(remaining), 1)[0]];
+
+        while (remaining.length > 0) {
+            var last = sorted[sorted.length - 1];
+            var nearestIndex = 0;
+            var nearestDistance = Infinity;
+            for (var i = 0; i < remaining.length; i++) {
+                var distance = getColorDistance(last, remaining[i]);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestIndex = i;
+                }
+            }
+            sorted.push(remaining.splice(nearestIndex, 1)[0]);
+        }
+        return sorted;
+    }
+
+    /**
+     * カラー配列を RGB 付きのエントリに変換し、最近傍法で並べ替える
+     * @param {Array<object>} colorEntries - { color, area } または { swatch: { color, area } } の配列
+     * @returns {Array<object>} { swatch, r, g, b, area } の配列
+     */
+    function buildOrderedPaletteEntries(colorEntries) {
+        var paletteEntries = [];
+        for (var i = 0; i < colorEntries.length; i++) {
+            var entry = colorEntries[i];
+            var swatch = (entry && entry.swatch) ? entry.swatch : entry;
+            if (!swatch) continue;
+
+            var area = 1;
+            if (swatch.area !== undefined) {
+                area = swatch.area;
+            } else if (entry && entry.area !== undefined) {
+                area = entry.area;
+            }
+
+            var rgb = colorToRGB(swatch.color);
+            paletteEntries.push({
+                swatch: { color: swatch.color, area: area },
+                r: rgb[0],
+                g: rgb[1],
+                b: rgb[2],
+                area: area || 1
+            });
+        }
+        return sortByNearest(paletteEntries);
+    }
+
+    /**
+     * 最大距離法で N 色を選ぶ（面積で重み付け）
+     * スコア = 既選択色との最小距離 × pow(面積 / 平均面積, 0.75)
+     * 面積が平均の4倍なら重み約2.83倍、1/4なら約0.35倍で、sqrt より強く面積を反映する。
+     * @param {Array<object>} colorList - { swatch, r, g, b, area } の配列
+     * @param {number} pickCount - 選出する色数
+     * @returns {Array<object>} 選出したエントリの配列
+     */
+    function selectByMaxDistance(colorList, pickCount) {
+        if (colorList.length <= pickCount) return colorList.slice();
+
+        var totalArea = 0;
+        for (var i = 0; i < colorList.length; i++) {
+            totalArea += (colorList[i].area || 1);
+        }
+        var averageArea = totalArea / colorList.length;
+
+        var areaWeights = [];
+        var isUsed = [];
+        for (var k = 0; k < colorList.length; k++) {
+            areaWeights.push(Math.pow((colorList[k].area || 1) / averageArea, 0.75));
+            isUsed.push(false);
+        }
+
+        /* 最初の色は最も暗い色 / The first color is the darkest one */
+        var firstIndex = findDarkestIndex(colorList);
+        var selectedEntries = [colorList[firstIndex]];
+        isUsed[firstIndex] = true;
+
+        /* 既選択色から最も遠い色を順に選ぶ / Repeatedly pick the color farthest from the selected set */
+        while (selectedEntries.length < pickCount) {
+            var bestIndex = -1;
+            var bestScore = -1;
+
+            for (var c = 0; c < colorList.length; c++) {
+                if (isUsed[c]) continue;
+
+                var minDistance = Infinity;
+                for (var s = 0; s < selectedEntries.length; s++) {
+                    var distance = getColorDistance(colorList[c], selectedEntries[s]);
+                    if (distance < minDistance) minDistance = distance;
+                }
+
+                var score = minDistance * areaWeights[c];
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestIndex = c;
+                }
+            }
+
+            selectedEntries.push(colorList[bestIndex]);
+            isUsed[bestIndex] = true;
+        }
+
+        return selectedEntries;
+    }
+
+    /**
+     * エントリが「ほぼ白」かどうかを判定する
+     * RGB の明るさで白候補を絞り、可能なら CMYK 合計量で確認する。
+     * @param {object} entry - { swatch, r, g, b } を持つエントリ
+     * @returns {boolean} ほぼ白なら true
+     */
+    function isNearlyWhite(entry) {
+        if (entry.r < NEAR_WHITE_RGB_MIN || entry.g < NEAR_WHITE_RGB_MIN || entry.b < NEAR_WHITE_RGB_MIN) {
+            return false;
+        }
+        var cmyk = colorToCMYKVals(entry.swatch.color);
+        /* CMYK が取得できない場合は RGB 条件のみで判定する / Fall back to the RGB condition alone */
+        if (!cmyk) return true;
+        return (cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3]) <= NEAR_WHITE_CMYK_TOTAL_MAX;
+    }
+
+    /**
+     * エントリが「ほぼ黒」かどうかを判定する
+     * RGB の暗さで黒候補を絞り、可能なら CMYK 合計量または K 値で確認する。
+     * @param {object} entry - { swatch, r, g, b } を持つエントリ
+     * @returns {boolean} ほぼ黒なら true
+     */
+    function isNearlyBlack(entry) {
+        if (entry.r > NEAR_BLACK_RGB_MAX || entry.g > NEAR_BLACK_RGB_MAX || entry.b > NEAR_BLACK_RGB_MAX) {
+            return false;
+        }
+        var cmyk = colorToCMYKVals(entry.swatch.color);
+        /* CMYK が取得できない場合は RGB 条件のみで判定する / Fall back to the RGB condition alone */
+        if (!cmyk) return true;
+        return ((cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3]) >= NEAR_BLACK_CMYK_TOTAL_MIN || cmyk[3] >= NEAR_BLACK_K_MIN);
+    }
+
+    /**
+     * 11色行の入力色を作る（カスケード時も「ほぼ白／ほぼ黒」の除外を効かせる）
+     * @param {Array<object>} colorList - 全カラーのエントリ配列
+     * @param {Array<object>} cascadePrev - 直前の行で選ばれたエントリ配列
+     * @param {boolean} useCascade - 段階的減色を使うかどうか
+     * @returns {Array<object>} 11色行の候補エントリ配列
+     */
+    function getElevenRowSourceColors(colorList, cascadePrev, useCascade) {
+        var filtered = [];
+        for (var i = 0; i < colorList.length; i++) {
+            if (!isNearlyWhite(colorList[i]) && !isNearlyBlack(colorList[i])) filtered.push(colorList[i]);
+        }
+        if (filtered.length === 0) filtered = colorList;
+        if (!useCascade || !cascadePrev) return filtered;
+
         var filteredKeys = {};
         for (var k = 0; k < filtered.length; k++) {
             filteredKeys[colorKey(filtered[k].swatch.color)] = true;
@@ -1812,245 +917,1327 @@ function getElevenRowSourceColors(colorList, cascadePrev, useCascade) {
 
         var cascadedFiltered = [];
         for (var j = 0; j < cascadePrev.length; j++) {
-            var key = colorKey(cascadePrev[j].swatch.color);
-            if (filteredKeys[key]) cascadedFiltered.push(cascadePrev[j]);
+            if (filteredKeys[colorKey(cascadePrev[j].swatch.color)]) cascadedFiltered.push(cascadePrev[j]);
+        }
+        return (cascadedFiltered.length > 0) ? cascadedFiltered : filtered;
+    }
+
+    /**
+     * 16 → 11 → 8 → 5 の段階的減色で全行の代表色をまとめて選ぶ
+     * @param {Array<object>} colorList - 全カラーのエントリ配列
+     * @param {object} outputOptions - 出力オプション
+     * @returns {object} 色数をキーにしたエントリ配列のマップ
+     */
+    function buildAllPaletteRows(colorList, outputOptions) {
+        var rowsByCount = { 16: [], 11: [], 8: [], 5: [] };
+        if (!colorList || !colorList.length) return rowsByCount;
+
+        var useCascade = !outputOptions || outputOptions.cascade !== false;
+        var cascadePrev = null;
+
+        if (useCascade || !outputOptions || outputOptions.out16) {
+            rowsByCount[16] = sortByNearest(selectByMaxDistance(colorList, 16));
+            cascadePrev = rowsByCount[16];
         }
 
-        if (cascadedFiltered.length > 0) return cascadedFiltered;
-    }
-
-    return filtered;
-}
-
-function selectByMaxDistance(colorList, num) {
-    if (colorList.length <= num) return colorList.slice();
-
-    var selected = [];
-    var used = [];
-    for (var i = 0; i < colorList.length; i++) used.push(false);
-
-    /* 面積の重みを事前計算: pow(area / avgArea, 0.75)
-       面積が平均の4倍 → 重み約2.83倍、1/4 → 重み約0.35倍
-       sqrt(0.5乗)より強く面積を反映する */
-    var totalArea = 0;
-    for (var i = 0; i < colorList.length; i++) {
-        totalArea += (colorList[i].area || 1);
-    }
-    var avgArea = totalArea / colorList.length;
-    var areaWeights = [];
-    for (var i = 0; i < colorList.length; i++) {
-        areaWeights.push(Math.pow((colorList[i].area || 1) / avgArea, 0.75));
-    }
-
-    /* 最初の色: 最も暗い色 / First color: darkest */
-    var firstIdx = 0;
-    var minLum = Infinity;
-    for (var i = 0; i < colorList.length; i++) {
-        var lum = colorList[i].r * 0.299 + colorList[i].g * 0.587 + colorList[i].b * 0.114;
-        if (lum < minLum) { minLum = lum; firstIdx = i; }
-    }
-    selected.push(colorList[firstIdx]);
-    used[firstIdx] = true;
-
-    /* 既に選ばれた色群から最も遠い色を順に選択（面積重み付き） / Select farthest color with area weight */
-    while (selected.length < num) {
-        var bestIdx = -1;
-        var bestScore = -1;
-
-        for (var i = 0; i < colorList.length; i++) {
-            if (used[i]) continue;
-
-            /* この色と既選択色との最小距離を求める / Find min distance to already selected */
-            var minDist = Infinity;
-            for (var s = 0; s < selected.length; s++) {
-                var dr = colorList[i].r - selected[s].r;
-                var dg = colorList[i].g - selected[s].g;
-                var db = colorList[i].b - selected[s].b;
-                var dist = dr * dr + dg * dg + db * db;
-                if (dist < minDist) minDist = dist;
+        var rowCounts = [11, 8, 5];
+        for (var i = 0; i < rowCounts.length; i++) {
+            var rowCount = rowCounts[i];
+            var sourceColors;
+            if (rowCount === 11) {
+                sourceColors = getElevenRowSourceColors(colorList, cascadePrev, useCascade);
+            } else {
+                sourceColors = (useCascade && cascadePrev) ? cascadePrev : colorList;
             }
 
-            /* 距離 × 面積重み = スコア（大きいほど優先） */
-            var score = minDist * areaWeights[i];
-            if (score > bestScore) {
-                bestScore = score;
-                bestIdx = i;
-            }
+            var selectedEntries = selectByMaxDistance(sourceColors, rowCount);
+            if (useCascade) cascadePrev = selectedEntries;
+            rowsByCount[rowCount] = sortByNearest(selectedEntries);
         }
-
-        selected.push(colorList[bestIdx]);
-        used[bestIdx] = true;
+        return rowsByCount;
     }
 
-    return selected;
-}
-
-/* 最近傍法で色を並べ替え / Sort colors by nearest neighbor */
-function sortByNearest(colors) {
-    if (colors.length <= 1) return colors.slice();
-
-    var remaining = colors.slice();
-    var sorted = [];
-
-    /* 最も暗い色からスタート / Start from darkest */
-    var startIdx = 0;
-    var minLum = Infinity;
-    for (var i = 0; i < remaining.length; i++) {
-        var lum = remaining[i].r * 0.299 + remaining[i].g * 0.587 + remaining[i].b * 0.114;
-        if (lum < minLum) { minLum = lum; startIdx = i; }
-    }
-    sorted.push(remaining.splice(startIdx, 1)[0]);
-
-    while (remaining.length > 0) {
-        var last = sorted[sorted.length - 1];
-        var nearestIdx = 0;
-        var nearestDist = Infinity;
-        for (var i = 0; i < remaining.length; i++) {
-            var dr = last.r - remaining[i].r;
-            var dg = last.g - remaining[i].g;
-            var db = last.b - remaining[i].b;
-            var dist = dr * dr + dg * dg + db * db;
-            if (dist < nearestDist) { nearestDist = dist; nearestIdx = i; }
-        }
-        sorted.push(remaining.splice(nearestIdx, 1)[0]);
+    /**
+     * 描画とスウォッチ登録で共有する行の選出結果と寸法を求める
+     * @param {number} sourceWidth - 元オブジェクトの幅
+     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} outputOptions - 出力オプション
+     * @returns {object} { rowsByCount, gap, squareSize }
+     */
+    function buildPaletteRowPlan(sourceWidth, colors, outputOptions) {
+        var gap = (sourceWidth / PALETTE_MAX_COLUMNS) * PALETTE_GAP_RATIO;
+        return {
+            rowsByCount: buildAllPaletteRows(buildOrderedPaletteEntries(colors), outputOptions),
+            gap: gap,
+            squareSize: (sourceWidth - (PALETTE_MAX_COLUMNS - 1) * gap) / PALETTE_MAX_COLUMNS
+        };
     }
 
-    return sorted;
-}
+    // =========================================
+    // スウォッチ登録 / Swatch registration
+    // =========================================
 
-/* カラーの一致判定用キー / Color identity key for deduplication */
-function colorKey(color) {
-    var rgb = colorToRGB(color);
-    return Math.round(rgb[0]) + "," + Math.round(rgb[1]) + "," + Math.round(rgb[2]);
-}
-
-/* 重複除去（面積を合算） / Deduplicate colors (summing areas) */
-// Input/Output: [{color, area}, ...]
-function deduplicateColors(colors) {
-    var seen = {};
-    var result = [];
-    for (var i = 0; i < colors.length; i++) {
-        var key = colorKey(colors[i].color);
-        if (seen[key] === undefined) {
-            seen[key] = result.length;
-            result.push({ color: colors[i].color, area: colors[i].area || 1 });
-        } else {
-            result[seen[key]].area += (colors[i].area || 1);
-        }
-    }
-    return result;
-}
-
-/* カラーをCMYK値に変換 / Convert color to CMYK values */
-function colorToCMYKVals(color) {
-    // Return [C,M,Y,K] in 0..100 (numbers). Best-effort.
-    if (color && color.typename === "CMYKColor") {
-        return [color.cyan, color.magenta, color.yellow, color.black];
-    }
-    try {
-        if (app.convertSampleColor && typeof ImageColorSpace !== "undefined" && typeof ColorConvertPurpose !== "undefined") {
-            if (color && color.typename === "RGBColor") {
-                var dst = app.convertSampleColor(
-                    ImageColorSpace.RGB,
-                    [color.red, color.green, color.blue],
-                    ImageColorSpace.CMYK,
-                    ColorConvertPurpose.defaultpurpose,
-                    false,
-                    false
-                );
-                if (dst && dst.length >= 4) return [dst[0], dst[1], dst[2], dst[3]];
-            }
-            if (color && color.typename === "LabColor") {
-                var dst2 = app.convertSampleColor(
-                    ImageColorSpace.LAB,
-                    [color.l, color.a, color.b],
-                    ImageColorSpace.CMYK,
-                    ColorConvertPurpose.defaultpurpose,
-                    false,
-                    false
-                );
-                if (dst2 && dst2.length >= 4) return [dst2[0], dst2[1], dst2[2], dst2[3]];
-            }
-        }
-    } catch (e) { __logError(e); }
-    return null;
-}
-
-/* カラーをRGB値に変換 / Convert color to RGB values */
-function colorToRGB(color) {
-    if (!color) return [0, 0, 0];
-
-    function clamp255(v) {
-        return Math.max(0, Math.min(255, v));
-    }
-
-    function convertViaSample(srcSpace, srcValues) {
+    /**
+     * 指定した名前のスウォッチが既にあるかを調べる
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} swatchName - 調べる名前
+     * @returns {boolean} 存在すれば true
+     */
+    function swatchNameExists(doc, swatchName) {
         try {
-            if (app.convertSampleColor && typeof ImageColorSpace !== "undefined" && typeof ColorConvertPurpose !== "undefined") {
-                var dst = app.convertSampleColor(
-                    srcSpace,
-                    srcValues,
-                    ImageColorSpace.RGB,
-                    ColorConvertPurpose.defaultpurpose,
-                    false,
-                    false
-                );
-                if (dst && dst.length >= 3) {
-                    return [clamp255(dst[0]), clamp255(dst[1]), clamp255(dst[2])];
+            doc.swatches.getByName(swatchName);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * 既存のスウォッチ名と衝突しない名前を作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} baseName - 基準となる名前
+     * @returns {string} 未使用のスウォッチ名
+     */
+    function buildUniqueSwatchName(doc, baseName) {
+        if (!swatchNameExists(doc, baseName)) return baseName;
+        for (var i = 2; i <= SWATCH_NAME_MAX_SUFFIX; i++) {
+            var candidate = baseName + " " + i;
+            if (!swatchNameExists(doc, candidate)) return candidate;
+        }
+        return baseName;
+    }
+
+    /**
+     * カラーをスウォッチグループに追加する（毎回新しいスウォッチを作る）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {SwatchGroup} swatchGroup - 追加先のスウォッチグループ
+     * @param {Color} color - 追加するカラー
+     * @returns {void}
+     */
+    function addSwatchToGroup(doc, swatchGroup, color) {
+        if (color.typename === "SpotColor" || color.typename === "PatternColor" ||
+            color.typename === "GradientColor" || color.typename === "NoColor") {
+            return;
+        }
+
+        /* 1色の登録に失敗しても残りの色は登録する / A single failure must not drop the remaining colors */
+        try {
+            /* 同名の既存スウォッチを流用してはいけない。Illustrator ではスウォッチは1つのグループにしか
+               属せないため、addSwatch() が既存スウォッチを元のグループから「移動」させてしまう。
+               colorToName() は既定スウォッチと同じ "C=0 M=100 Y=100 K=0" 形式のため衝突しやすい。
+               Never reuse an existing swatch: a swatch belongs to only one group, so addSwatch() would
+               move the user's swatch out of its group. colorToName() collides with the default swatch names. */
+            var swatch = doc.swatches.add();
+            swatch.name = buildUniqueSwatchName(doc, colorToName(color));
+            swatch.color = color;
+            swatchGroup.addSwatch(swatch);
+        } catch (err) {
+            logError(err, "addSwatchToGroup");
+        }
+    }
+
+    /**
+     * カラー配列からスウォッチグループを作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} groupName - スウォッチグループ名
+     * @param {Array<object>} colors - { color, area } の配列
+     * @returns {SwatchGroup} 作成したスウォッチグループ
+     */
+    function createSwatchGroupFromColors(doc, groupName, colors) {
+        var swatchGroup = doc.swatchGroups.add();
+        swatchGroup.name = groupName;
+        for (var i = 0; i < colors.length; i++) {
+            addSwatchToGroup(doc, swatchGroup, colors[i].color);
+        }
+        return swatchGroup;
+    }
+
+    /**
+     * パレットのエントリをスウォッチ登録用のカラー配列に変換する
+     * @param {Array<object>} rowEntries - { swatch: { color, area } } の配列
+     * @param {boolean} useCmykAdjusted - CMYK補正した色にするかどうか
+     * @returns {Array<object>} { color, area } の配列
+     */
+    function toSwatchColors(rowEntries, useCmykAdjusted) {
+        var colors = [];
+        for (var i = 0; i < rowEntries.length; i++) {
+            var baseColor = rowEntries[i].swatch.color;
+            var color = baseColor;
+            if (useCmykAdjusted) color = buildCmykAdjustedColor(baseColor) || baseColor;
+            colors.push({ color: color, area: rowEntries[i].swatch.area || 1 });
+        }
+        return colors;
+    }
+
+    /**
+     * 5色・5色（CMYK補正）のスウォッチグループを作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} baseName - グループ名の基準となる名前
+     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} outputOptions - 出力オプション
+     * @returns {void}
+     */
+    function createSwatchGroupsFor5Only(doc, baseName, colors, outputOptions) {
+        if (!outputOptions) return;
+
+        var fiveRowEntries = buildAllPaletteRows(buildOrderedPaletteEntries(colors), outputOptions)[5];
+        if (!fiveRowEntries || !fiveRowEntries.length) return;
+
+        if (outputOptions.out5) {
+            createSwatchGroupFromColors(doc, baseName + " - " + getLabel("checkbox.count5"),
+                toSwatchColors(fiveRowEntries, false));
+        }
+        if (outputOptions.out5Adj) {
+            createSwatchGroupFromColors(doc, baseName + " - " + getLabel("checkbox.count5Adjusted"),
+                toSwatchColors(fiveRowEntries, true));
+        }
+    }
+
+    // =========================================
+    // パレットの描画 / Palette drawing
+    // =========================================
+
+    /**
+     * ラベル用のフォントを適用する
+     * @param {TextRange} textRange - 対象のテキスト範囲
+     * @returns {void}
+     */
+    function applyLabelFont(textRange) {
+        for (var i = 0; i < LABEL_FONT_NAMES.length; i++) {
+            try {
+                textRange.characterAttributes.textFont = app.textFonts.getByName(LABEL_FONT_NAMES[i]);
+                return;
+            } catch (e) {
+                /* 見つからなければ次の候補を試す / Try the next candidate */
+            }
+        }
+    }
+
+    /**
+     * 色玉に添えるラベル文字列を作る
+     * @param {Color} color - 対象のカラー
+     * @param {string} labelMode - "hex" / "cmyk" / "both"
+     * @returns {string} ラベル文字列
+     */
+    function buildColorLabelText(color, labelMode) {
+        var hex = rgbToHex(colorToRGB(color));
+        if (labelMode === "hex") return hex;
+
+        var cmyk = colorToCMYKVals(color);
+        if (!cmyk) return hex;
+
+        var cmykText = getLabel("prefix.cmyk") +
+            roundToStep(cmyk[0]) + ", " + roundToStep(cmyk[1]) + ", " +
+            roundToStep(cmyk[2]) + ", " + roundToStep(cmyk[3]);
+
+        return (labelMode === "cmyk") ? cmykText : (cmykText + "\r" + hex);
+    }
+
+    /**
+     * 色玉の下にラベルを追加する
+     * @param {Layer} targetLayer - テキストフレームを作るレイヤー
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} swatchRect - 対象の色玉
+     * @param {number} squareSize - 色玉の一辺
+     * @param {GroupItem} labelGroup - ラベルの移動先グループ
+     * @param {string} labelMode - "hex" / "cmyk" / "both"
+     * @returns {void}
+     */
+    function addPaletteLabel(targetLayer, doc, swatchRect, squareSize, labelGroup, labelMode) {
+        if (!swatchRect || !swatchRect.filled) return;
+
+        try {
+            var fontSize = squareSize / LABEL_SIZE_RATIO;
+            var labelFrame = targetLayer.textFrames.add();
+            labelFrame.contents = buildColorLabelText(swatchRect.fillColor, labelMode || "both");
+            labelFrame.textRange.justification = Justification.LEFT;
+            labelFrame.textRange.characterAttributes.size = fontSize;
+            labelFrame.textRange.fillColor = getLabelBlackColor(doc);
+            applyLabelFont(labelFrame.textRange);
+            labelFrame.position = [swatchRect.left, swatchRect.top - swatchRect.height - (fontSize / 2)];
+            labelFrame.move(labelGroup, ElementPlacement.PLACEATEND);
+        } catch (e) {
+            logError(e, "palette label add");
+        }
+    }
+
+    /**
+     * パレット1行分の色玉を描画する
+     * @param {GroupItem|Layer} container - 描画先のコンテナ
+     * @param {string} rowName - 行のグループ名
+     * @param {Array<object>} rowEntries - 行のエントリ配列
+     * @param {number} rowLeft - 行の左端
+     * @param {number} rowTop - 行の上端
+     * @param {number} squareSize - 色玉の一辺
+     * @param {number} gap - 色玉の間隔
+     * @param {string|null} labelMode - ラベルの種類。null ならラベルなし
+     * @param {Layer} targetLayer - ラベルを作るレイヤー
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {GroupItem} 作成した行グループ
+     */
+    function drawPaletteRow(container, rowName, rowEntries, rowLeft, rowTop, squareSize, gap, labelMode, targetLayer, doc) {
+        var rowGroup = container.groupItems.add();
+        rowGroup.name = rowName;
+
+        var cellCount = Math.max(1, rowEntries.length);
+        for (var i = 0; i < cellCount; i++) {
+            var swatchRect = rowGroup.pathItems.rectangle(rowTop, rowLeft + i * (squareSize + gap), squareSize, squareSize);
+            swatchRect.stroked = false;
+            swatchRect.filled = (rowEntries.length > 0);
+            if (swatchRect.filled) {
+                swatchRect.fillColor = rowEntries[i % rowEntries.length].swatch.color;
+            }
+            if (labelMode) addPaletteLabel(targetLayer, doc, swatchRect, squareSize, rowGroup, labelMode);
+        }
+        return rowGroup;
+    }
+
+    /**
+     * 行内の色玉を CMYK補正した色に置き換える
+     * @param {GroupItem} rowGroup - 対象の行グループ
+     * @returns {void}
+     */
+    function applyAdjustedColorsToRow(rowGroup) {
+        for (var i = 0; i < rowGroup.pathItems.length; i++) {
+            var swatchRect = rowGroup.pathItems[i];
+            if (!swatchRect.filled) continue;
+            var adjustedColor = buildCmykAdjustedColor(swatchRect.fillColor);
+            if (adjustedColor) swatchRect.fillColor = adjustedColor;
+        }
+    }
+
+    /**
+     * CMYK補正行のラベルを作り直す
+     * @param {GroupItem} rowGroup - 対象の行グループ
+     * @param {number} squareSize - 色玉の一辺
+     * @param {object} outputOptions - 出力オプション
+     * @param {Layer} targetLayer - ラベルを作るレイヤー
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function rebuildAdjustedRowLabels(rowGroup, squareSize, outputOptions, targetLayer, doc) {
+        for (var i = rowGroup.textFrames.length - 1; i >= 0; i--) {
+            rowGroup.textFrames[i].remove();
+        }
+        if (!outputOptions.showCMYK) return;
+
+        for (var k = 0; k < rowGroup.pathItems.length; k++) {
+            addPaletteLabel(targetLayer, doc, rowGroup.pathItems[k], squareSize, rowGroup, "cmyk");
+        }
+    }
+
+    /**
+     * 5色行から CMYK補正した行を作る
+     * 「5色」がOFFで「5色（CMYK補正）」だけONのときは、複製せず基準行をそのまま補正する。
+     * @param {GroupItem} baseRowGroup - 基準となる5色行
+     * @param {boolean} duplicateRow - 複製して別の行を作るかどうか
+     * @param {number} squareSize - 色玉の一辺
+     * @param {object} outputOptions - 出力オプション
+     * @param {Layer} targetLayer - ラベルを作るレイヤー
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {GroupItem} CMYK補正した行
+     */
+    function buildAdjustedFiveRow(baseRowGroup, duplicateRow, squareSize, outputOptions, targetLayer, doc) {
+        var adjustedRow = baseRowGroup;
+        if (duplicateRow) {
+            adjustedRow = baseRowGroup.duplicate();
+            adjustedRow.translate(0, -(squareSize + squareSize * ADJUSTED_ROW_GAP_RATIO));
+        }
+        applyAdjustedColorsToRow(adjustedRow);
+        rebuildAdjustedRowLabels(adjustedRow, squareSize, outputOptions, targetLayer, doc);
+        return adjustedRow;
+    }
+
+    /**
+     * 指定した色数の行を出力するかどうかを判定する
+     * @param {number} rowCount - 行の色数
+     * @param {object} outputOptions - 出力オプション
+     * @returns {boolean} 出力する場合は true
+     */
+    function isRowEnabled(rowCount, outputOptions) {
+        if (rowCount === 11) return !!outputOptions.out11;
+        if (rowCount === 8) return !!outputOptions.out8;
+        if (rowCount === 5) return !!(outputOptions.out5 || outputOptions.out5Adj);
+        return true;
+    }
+
+    /**
+     * 行のグループ名を作る
+     * @param {number} rowCount - 行の色数
+     * @returns {string} グループ名
+     */
+    function buildRowName(rowCount) {
+        var suffix = getLabel("group.colorsSuffix");
+        return (uiLang === "ja") ? (rowCount + suffix) : (rowCount + " " + suffix);
+    }
+
+    /**
+     * 元オブジェクトの下にカラーパレットを描画する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem|object} originalItem - 配置の基準となるオブジェクトまたはアンカー
+     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} outputOptions - 出力オプション
+     * @param {GroupItem} [containerGroup] - 描画先グループ。省略時はレイヤー直下
+     * @returns {void}
+     */
+    function drawSwatchSquares(doc, originalItem, colors, outputOptions, containerGroup) {
+        var sourceLeft = originalItem.left;
+        var sourceWidth = originalItem.width;
+        var sourceBottom = originalItem.top - originalItem.height;
+
+        var rowPlan = buildPaletteRowPlan(sourceWidth, colors, outputOptions);
+        var gap = rowPlan.gap;
+        var rowGap = sourceWidth / PALETTE_ROW_GAP_DIVISOR;
+        var firstRowTop = sourceBottom - rowPlan.squareSize;
+
+        var targetLayer = originalItem.layer;
+        var container = containerGroup || targetLayer;
+
+        if (outputOptions.out16) {
+            drawPaletteRow(container, getLabel("group.colors16"), rowPlan.rowsByCount[16],
+                sourceLeft, firstRowTop, rowPlan.squareSize, gap, null, targetLayer, doc);
+        }
+
+        var rowCounts = [11, 8, 5];
+        var prevBottom = outputOptions.out16 ? (firstRowTop - rowPlan.squareSize) : (firstRowTop + rowGap);
+
+        for (var i = 0; i < rowCounts.length; i++) {
+            var rowCount = rowCounts[i];
+            if (!isRowEnabled(rowCount, outputOptions)) continue;
+
+            var squareSize = (sourceWidth - gap * (rowCount - 1)) / rowCount;
+            var rowTop = prevBottom - rowGap;
+
+            /* 「5色」OFF＋「5色（CMYK補正）」ONのときは、基準行をそのまま補正行として使う / Reuse the base row when only the adjusted output is requested */
+            var drawBaseRow = !(rowCount === 5 && !outputOptions.out5 && outputOptions.out5Adj);
+            var labelMode = (rowCount === 5 && drawBaseRow && outputOptions.showHEX) ? "hex" : null;
+
+            var rowGroup = drawPaletteRow(container, buildRowName(rowCount), rowPlan.rowsByCount[rowCount] || [],
+                sourceLeft, rowTop, squareSize, gap, labelMode, targetLayer, doc);
+
+            if (rowCount === 5 && outputOptions.out5Adj) {
+                try {
+                    buildAdjustedFiveRow(rowGroup, drawBaseRow, squareSize, outputOptions, targetLayer, doc);
+                } catch (e) {
+                    logError(e, "adjusted five row");
                 }
             }
-        } catch (e) { __logError(e); }
+
+            prevBottom = rowTop - squareSize;
+        }
+    }
+
+    /**
+     * スウォッチ選択から固定サイズの色玉パレットを描画する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<object>} colors - { color, area } の配列
+     * @returns {void}
+     */
+    function drawPaletteFromSwatches(doc, colors) {
+        var squareSize = SWATCH_MODE_SQUARE_SIZE;
+        var gap = squareSize * PALETTE_GAP_RATIO;
+        var colorCount = colors.length;
+
+        /* アクティブアートボードの中央に配置 / Place at the center of the active artboard */
+        var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+        var totalWidth = colorCount * squareSize + (colorCount - 1) * gap;
+        var rowLeft = artboardRect[0] + ((artboardRect[2] - artboardRect[0]) - totalWidth) / 2;
+        var rowTop = artboardRect[1] - ((artboardRect[1] - artboardRect[3]) - squareSize) / 2;
+
+        var targetLayer = doc.activeLayer;
+
+        /* 代表色の選出とは違い、スウォッチパネルで選んだ順のまま並べる / Unlike the extracted palettes, keep the order the swatches were selected in */
+        var rowEntries = [];
+        for (var i = 0; i < colorCount; i++) {
+            rowEntries.push({ swatch: colors[i] });
+        }
+
+        drawPaletteRow(targetLayer, getLabel("group.swatchPalette"), rowEntries,
+            rowLeft, rowTop, squareSize, gap, isCmykDocument(doc) ? "both" : "hex", targetLayer, doc);
+
+        try {
+            createSwatchGroupFromColors(doc, getLabel("group.swatchPalette"), colors);
+        } catch (e) {
+            logError(e, "swatch group registration");
+        }
+
+        app.redraw();
+    }
+
+    // =========================================
+    // ダイアログ / Dialogs
+    // =========================================
+
+    /* セッション中だけ保持するダイアログ位置 / Dialog position remembered for this session only */
+    var outputDialogBounds = null;
+
+    /**
+     * トレースプリセットを標準（[]付き）とユーザー定義に分類する
+     * @param {Array<string>} presets - プリセット名の配列
+     * @returns {object} { builtIn: Array<string>, custom: Array<string> }
+     */
+    function categorizePresets(presets) {
+        var builtIn = [];
+        var custom = [];
+        for (var i = 0; i < presets.length; i++) {
+            if (presets[i].charAt(0) === "[") {
+                builtIn.push(presets[i]);
+            } else {
+                custom.push(presets[i]);
+            }
+        }
+        return { builtIn: builtIn, custom: custom };
+    }
+
+    /**
+     * 見出し付きのプリセット一覧を追加する
+     * @param {Group} parent - 追加先の行グループ
+     * @param {string} headerText - 一覧の見出し
+     * @param {Array<string>} presetNames - プリセット名の配列
+     * @param {string} tooltipText - ツールチップ
+     * @returns {ListBox} 追加した一覧
+     */
+    function addPresetList(parent, headerText, presetNames, tooltipText) {
+        var column = addColumnGroup(parent);
+        column.add("statictext", undefined, headerText);
+
+        var presetList = column.add("listbox", undefined, presetNames);
+        presetList.preferredSize = PRESET_LIST_SIZE;
+        presetList.helpTip = tooltipText;
+        return presetList;
+    }
+
+    /**
+     * トレースプリセット選択ダイアログを表示する
+     * @param {Array<string>} presets - プリセット名の配列
+     * @returns {string|null} 選択したプリセット名。キャンセル時は null
+     */
+    function showPresetDialog(presets) {
+        var presetCategories = categorizePresets(presets);
+
+        var presetDialog = new Window("dialog", getLabel("dialog.preset"));
+        setupWindow(presetDialog);
+
+        var presetListRow = presetDialog.add("group");
+        setupRow(presetListRow, "fill", COLUMN_SPACING);
+        presetListRow.alignChildren = ["fill", "fill"];
+
+        var builtInPresetList = addPresetList(presetListRow, getLabel("listHeader.presetBuiltIn"),
+            presetCategories.builtIn, getLabel("tooltip.presetBuiltIn"));
+        var customPresetList = addPresetList(presetListRow, getLabel("listHeader.presetCustom"),
+            presetCategories.custom, getLabel("tooltip.presetCustom"));
+
+        /* 2つのリストで同時に選択させない / Keep only one list selected at a time */
+        builtInPresetList.onChange = function () {
+            if (builtInPresetList.selection) customPresetList.selection = null;
+        };
+        customPresetList.onChange = function () {
+            if (customPresetList.selection) builtInPresetList.selection = null;
+        };
+
+        if (presetCategories.custom.length > 0) {
+            customPresetList.selection = presetCategories.custom.length - 1;
+        } else {
+            builtInPresetList.selection = 0;
+        }
+
+        var presetButtonRow = presetDialog.add("group");
+        setupRow(presetButtonRow, ["center", "top"]);
+        presetButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        presetButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        if (presetDialog.show() !== 1) return null;
+        if (builtInPresetList.selection) return builtInPresetList.selection.text;
+        if (customPresetList.selection) return customPresetList.selection.text;
         return null;
     }
 
-    // Fast path: RGB is already the target space.
-    if (color.typename === "RGBColor") {
-        return [clamp255(color.red), clamp255(color.green), clamp255(color.blue)];
+    /**
+     * 出力オプションダイアログを表示する
+     * @param {function} onPreviewChange - 設定変更時に呼ばれるプレビュー更新関数
+     * @param {function} onFitView - 「画面にフィット」ボタンで呼ばれる関数
+     * @returns {object|string|null} 出力オプション、"__RETRY__"、キャンセル時は null
+     */
+    function showOutputOptionsDialog(onPreviewChange, onFitView) {
+        var outputDialog = new Window("dialog", getLabel("dialog.output") + " " + SCRIPT_VERSION);
+        setupWindow(outputDialog);
+
+        outputDialog.onMove = outputDialog.onResize = function () {
+            outputDialogBounds = outputDialog.bounds;
+        };
+
+        var rowScopeRow = outputDialog.add("group");
+        setupRow(rowScopeRow, "left");
+        rowScopeRow.margins = [20, 0, 0, 0];
+        var allRowsRadio = rowScopeRow.add("radiobutton", undefined, getLabel("radio.allRows"));
+        allRowsRadio.helpTip = getLabel("tooltip.allRows");
+        var fiveRowsOnlyRadio = rowScopeRow.add("radiobutton", undefined, getLabel("radio.fiveRowsOnly"));
+        fiveRowsOnlyRadio.helpTip = getLabel("tooltip.fiveRowsOnly");
+
+        var optionColumnsRow = outputDialog.add("group");
+        setupRow(optionColumnsRow, "fill", COLUMN_SPACING);
+        optionColumnsRow.alignChildren = ["fill", "top"];
+
+        var outputRowsColumn = addColumnGroup(optionColumnsRow);
+        var colorInfoColumn = addColumnGroup(optionColumnsRow);
+        var dialogButtonColumn = addColumnGroup(optionColumnsRow, ["right", "top"]);
+
+        var outputRowsPanel = addPanel(outputRowsColumn, getLabel("panel.outputRows"), 6);
+        var count16Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count16"), getLabel("tooltip.count16"));
+        var count11Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count11"), getLabel("tooltip.count11"));
+        var count8Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count8"));
+        var count5Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count5"));
+        var count5AdjustedCheckbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count5Adjusted"), getLabel("tooltip.count5Adjusted"));
+
+        var colorInfoPanel = addPanel(colorInfoColumn, getLabel("panel.colorInfo"), 6);
+        var hexCheckbox = addLeftCheckbox(colorInfoPanel, getLabel("checkbox.hex"), getLabel("tooltip.hexLabel"));
+        var cmykCheckbox = addLeftCheckbox(colorInfoPanel, getLabel("checkbox.cmyk"), getLabel("tooltip.cmykLabel"));
+
+        /* CMYKラベルは CMYK ドキュメントでのみ意味を持つ / CMYK labels only make sense in a CMYK document */
+        var canUseCmykLabels = isCmykDocument(app.activeDocument);
+        if (!canUseCmykLabels) cmykCheckbox.helpTip = getLabel("tooltip.cmykDocOnly");
+
+        /* 「5色の行のみ」で伏せる行と、状態を保存する対象 / Rows hidden by "5-color rows only", and the checkboxes whose state is saved */
+        var wideRowCheckboxes = [count16Checkbox, count11Checkbox, count8Checkbox];
+        var rowCheckboxes = [count16Checkbox, count11Checkbox, count8Checkbox, count5Checkbox, count5AdjustedCheckbox];
+        var stateCheckboxes = [count16Checkbox, count11Checkbox, count8Checkbox, count5Checkbox,
+            count5AdjustedCheckbox, hexCheckbox, cmykCheckbox];
+
+        for (var i = 0; i < stateCheckboxes.length; i++) stateCheckboxes[i].value = true;
+        allRowsRadio.value = false;
+        fiveRowsOnlyRadio.value = true;
+
+        var isInitializing = true;
+        var savedRowState = null;
+
+        /**
+         * 現在の設定から出力オプションを組み立てる
+         * @returns {object} 出力オプション
+         */
+        function getCurrentOptions() {
+            return {
+                out16: count16Checkbox.value,
+                out11: count11Checkbox.value,
+                out8: count8Checkbox.value,
+                out5: count5Checkbox.value,
+                out5Adj: count5AdjustedCheckbox.value,
+                showHEX: hexCheckbox.value,
+                showCMYK: cmykCheckbox.value,
+                cascade: true
+            };
+        }
+
+        /**
+         * プレビュー更新を通知する
+         * @returns {void}
+         */
+        function notifyPreviewChange() {
+            /* 初期化中の重複描画を避ける / Avoid redundant redraws while initializing */
+            if (isInitializing || !onPreviewChange) return;
+            try {
+                onPreviewChange(getCurrentOptions());
+            } catch (e) {
+                logError(e, "notify preview");
+            }
+        }
+
+        /**
+         * カラー情報チェックボックスの有効／無効を更新する
+         * @param {boolean} doNotify - プレビュー更新を通知するかどうか
+         * @returns {void}
+         */
+        function updateColorInfoAvailability(doNotify) {
+            hexCheckbox.enabled = count5Checkbox.value;
+            if (!count5Checkbox.value) hexCheckbox.value = false;
+
+            cmykCheckbox.enabled = (count5AdjustedCheckbox.value && canUseCmykLabels);
+            if (!count5AdjustedCheckbox.value || !canUseCmykLabels) cmykCheckbox.value = false;
+
+            if (doNotify !== false) notifyPreviewChange();
+        }
+
+        /**
+         * 「すべての行」／「5色の行のみ」の切り替えを反映する
+         * @param {boolean} doNotify - プレビュー更新を通知するかどうか
+         * @returns {void}
+         */
+        function updateRowScope(doNotify) {
+            var i;
+            if (fiveRowsOnlyRadio.value) {
+                /* 5色の行のみ: 他の行をOFFにして操作できないようにする / 5-rows-only: force the other rows off and disable them */
+                savedRowState = [];
+                for (i = 0; i < stateCheckboxes.length; i++) savedRowState.push(stateCheckboxes[i].value);
+                for (i = 0; i < wideRowCheckboxes.length; i++) {
+                    wideRowCheckboxes[i].value = false;
+                    wideRowCheckboxes[i].enabled = false;
+                }
+            } else {
+                for (i = 0; i < wideRowCheckboxes.length; i++) wideRowCheckboxes[i].enabled = true;
+                if (savedRowState) {
+                    for (i = 0; i < stateCheckboxes.length; i++) stateCheckboxes[i].value = !!savedRowState[i];
+                }
+                updateColorInfoAvailability(false);
+            }
+
+            if (doNotify !== false) notifyPreviewChange();
+        }
+
+        allRowsRadio.onClick = function () { updateRowScope(true); };
+        fiveRowsOnlyRadio.onClick = function () { updateRowScope(true); };
+
+        count16Checkbox.onClick = notifyPreviewChange;
+        count11Checkbox.onClick = notifyPreviewChange;
+        count8Checkbox.onClick = notifyPreviewChange;
+        hexCheckbox.onClick = notifyPreviewChange;
+        cmykCheckbox.onClick = notifyPreviewChange;
+
+        count5Checkbox.onClick = function () {
+            updateColorInfoAvailability(false);
+            notifyPreviewChange();
+        };
+        count5AdjustedCheckbox.onClick = function () {
+            updateColorInfoAvailability(false);
+            /* 5色（CMYK補正）をONにしたらCMYKラベルも自動でONにする / Turn CMYK labels on together with the adjusted row */
+            if (count5AdjustedCheckbox.value && cmykCheckbox.enabled) cmykCheckbox.value = true;
+            notifyPreviewChange();
+        };
+
+        var okButton = dialogButtonColumn.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        okButton.preferredSize = DIALOG_BUTTON_SIZE;
+        var cancelButton = dialogButtonColumn.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        cancelButton.preferredSize = DIALOG_BUTTON_SIZE;
+
+        var retryButtonSpacer = dialogButtonColumn.add("group");
+        retryButtonSpacer.preferredSize = [-1, BUTTON_SPACER_HEIGHT];
+
+        var retryButton = dialogButtonColumn.add("button", undefined, getLabel("button.retry"));
+        retryButton.preferredSize = DIALOG_BUTTON_SIZE;
+        retryButton.helpTip = getLabel("tooltip.retry");
+        retryButton.onClick = function () {
+            outputDialogBounds = outputDialog.bounds;
+            outputDialog.close(2);
+        };
+
+        var fitViewRow = outputDialog.add("group");
+        setupRow(fitViewRow, "fill");
+        fitViewRow.margins = [0, 10, 0, 0];
+        var fitViewButton = fitViewRow.add("button", undefined, getLabel("button.fitView"));
+        fitViewButton.alignment = ["fill", "center"];
+        fitViewButton.preferredSize = [-1, DIALOG_BUTTON_SIZE[1]];
+        fitViewButton.helpTip = getLabel("tooltip.fitView");
+        fitViewButton.onClick = function () {
+            try {
+                if (onFitView) onFitView();
+            } catch (e) {
+                logError(e, "fit view");
+            }
+        };
+
+        okButton.onClick = function () {
+            for (var i = 0; i < rowCheckboxes.length; i++) {
+                if (!rowCheckboxes[i].value) continue;
+                outputDialogBounds = outputDialog.bounds;
+                outputDialog.close(1);
+                return;
+            }
+            alert(getLabel("alert.noRow"));
+        };
+        cancelButton.onClick = function () {
+            outputDialogBounds = outputDialog.bounds;
+            outputDialog.close(0);
+        };
+
+        /* すべてのコントロールを作ってから初期状態を反映する / Apply the initial state after every control exists */
+        updateColorInfoAvailability(false);
+        updateRowScope(false);
+        isInitializing = false;
+        notifyPreviewChange();
+
+        /* 前回位置を復元する（サイズは復元しない） / Restore the previous position only, not the size */
+        if (outputDialogBounds) {
+            outputDialog.location = [outputDialogBounds.x, outputDialogBounds.y];
+        } else {
+            outputDialog.center();
+        }
+
+        var dialogResult = outputDialog.show();
+        outputDialogBounds = outputDialog.bounds;
+
+        if (dialogResult === 2) return "__RETRY__";
+        if (dialogResult !== 1) return null;
+        return getCurrentOptions();
     }
 
-    // Prefer Illustrator's own conversion for CMYK to better match document appearance.
-    if (color.typename === "CMYKColor") {
-        var rgbFromCmyk = convertViaSample(
-            ImageColorSpace.CMYK,
-            [color.cyan, color.magenta, color.yellow, color.black]
-        );
-        if (rgbFromCmyk) return rgbFromCmyk;
+    /**
+     * 進捗ウィンドウを作る
+     * @param {number} maxValue - 進捗バーの最大値
+     * @returns {object} { window: Window, set: function, close: function }
+     */
+    function createProgressWindow(maxValue) {
+        var progressWindow = new Window("palette", getLabel("dialog.progress"));
+        setupWindow(progressWindow);
 
-        // Fallback: simple approximation if sample conversion is unavailable.
-        var r = 255 * (1 - color.cyan / 100) * (1 - color.black / 100);
-        var g = 255 * (1 - color.magenta / 100) * (1 - color.black / 100);
-        var b = 255 * (1 - color.yellow / 100) * (1 - color.black / 100);
-        return [clamp255(r), clamp255(g), clamp255(b)];
+        var progressText = progressWindow.add("statictext", undefined, getLabel("progress.preparing"));
+        progressText.characters = PROGRESS_TEXT_CHARS;
+        progressText.alignment = ["fill", "center"];
+
+        var progressBar = progressWindow.add("progressbar", undefined, 0, Math.max(1, maxValue));
+        progressBar.preferredSize = PROGRESS_BAR_SIZE;
+
+        progressWindow.show();
+        progressWindow.update();
+
+        return {
+            window: progressWindow,
+            set: function (value, labelText) {
+                try {
+                    if (labelText) progressText.text = labelText;
+                    progressBar.value = Math.max(0, Math.min(progressBar.maxvalue, value));
+                    progressWindow.update();
+                    app.redraw();
+                } catch (e) {
+                    logError(e, "progress update");
+                }
+            },
+            close: function () {
+                try {
+                    progressWindow.close();
+                } catch (e) {
+                    logError(e, "progress close");
+                }
+            }
+        };
     }
 
-    if (color.typename === "GrayColor") {
-        var rgbFromGray = convertViaSample(ImageColorSpace.GrayScale, [color.gray]);
-        if (rgbFromGray) return rgbFromGray;
+    // =========================================
+    // 処理対象の組み立て / Building the task list
+    // =========================================
 
-        var v = 255 * (1 - color.gray / 100);
-        return [clamp255(v), clamp255(v), clamp255(v)];
+    /**
+     * 座標範囲からパレット配置用のアンカーを作る
+     * @param {Array<number>} bounds - [左, 上, 右, 下]
+     * @param {Layer} layer - 対象のレイヤー
+     * @returns {object} パレット配置用のアンカー
+     */
+    function createBoundsAnchor(bounds, layer) {
+        return {
+            typename: "BoundsAnchor",
+            left: bounds[0],
+            top: bounds[1],
+            width: bounds[2] - bounds[0],
+            height: bounds[1] - bounds[3],
+            layer: layer,
+            geometricBounds: bounds
+        };
     }
 
-    if (color.typename === "LabColor") {
-        var rgbFromLab = convertViaSample(ImageColorSpace.LAB, [color.l, color.a, color.b]);
-        if (rgbFromLab) return rgbFromLab;
+    /**
+     * 複数オブジェクト全体の境界からパレット配置用アンカーを作る
+     * @param {Array<PageItem>} items - 対象のオブジェクト配列
+     * @param {PageItem} fallbackItem - 境界が取れない場合に返すオブジェクト
+     * @returns {object|PageItem} アンカー、または fallbackItem
+     */
+    function buildPaletteAnchorFromItems(items, fallbackItem) {
+        if (!items || !items.length || !fallbackItem) return fallbackItem;
+
+        var left = Infinity;
+        var top = -Infinity;
+        var right = -Infinity;
+        var bottom = Infinity;
+        var found = false;
+
+        for (var i = 0; i < items.length; i++) {
+            try {
+                var bounds = items[i].geometricBounds;
+                if (!bounds || bounds.length < 4) continue;
+                if (bounds[0] < left) left = bounds[0];
+                if (bounds[1] > top) top = bounds[1];
+                if (bounds[2] > right) right = bounds[2];
+                if (bounds[3] < bottom) bottom = bounds[3];
+                found = true;
+            } catch (e) {
+                logError(e, "palette anchor bounds");
+            }
+        }
+
+        if (!found) return fallbackItem;
+        return createBoundsAnchor([left, top, right, bottom], fallbackItem.layer);
     }
 
-    if (color.typename === "NoColor") {
-        return [0, 0, 0];
+    /**
+     * クリップグループのクリッピングパスの境界を取得する
+     * @param {GroupItem} clipGroup - 対象のクリップグループ
+     * @returns {Array<number>} [左, 上, 右, 下]
+     */
+    function getClippingBounds(clipGroup) {
+        try {
+            for (var i = 0; i < clipGroup.pageItems.length; i++) {
+                if (clipGroup.pageItems[i].clipping) return clipGroup.pageItems[i].geometricBounds;
+            }
+        } catch (e) {
+            logError(e, "clip bounds");
+        }
+        return clipGroup.geometricBounds;
     }
 
-    return [0, 0, 0];
-}
+    /**
+     * 選択内のクリップグループをラスタライズし、処理対象の一覧を返す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<PageItem>} selection - 選択中のオブジェクト
+     * @returns {Array<object>} { item: PageItem, anchor: object|null } の配列
+     */
+    function rasterizeClippedGroups(doc, selection) {
+        var sourceEntries = [];
+        var rasterizedCount = 0;
 
-/* カラー値から名前を生成 / Generate name from color values */
-function colorToName(color) {
-    if (color.typename === "RGBColor") {
-        return "R=" + Math.round(color.red) + " G=" + Math.round(color.green) + " B=" + Math.round(color.blue);
-    } else if (color.typename === "CMYKColor") {
-        return "C=" + Math.round(color.cyan) + " M=" + Math.round(color.magenta) + " Y=" + Math.round(color.yellow) + " K=" + Math.round(color.black);
-    } else if (color.typename === "GrayColor") {
-        return "Gray=" + Math.round(color.gray);
+        for (var i = 0; i < selection.length; i++) {
+            if (selection[i].typename !== "GroupItem" || !selection[i].clipped) {
+                sourceEntries.push({ item: selection[i], anchor: null });
+                continue;
+            }
+
+            /* クリップ範囲はパレット配置の基準として残す / Keep the clip bounds as the palette anchor */
+            var clipBounds = getClippingBounds(selection[i]);
+
+            var rasterizeOptions = new RasterizeOptions();
+            rasterizeOptions.resolution = RASTERIZE_RESOLUTION;
+            rasterizeOptions.transparency = RASTERIZE_TRANSPARENCY;
+            rasterizeOptions.padding = RASTERIZE_PADDING;
+            rasterizeOptions.antiAliasing = RASTERIZE_ANTIALIAS;
+            rasterizeOptions.backgroundBlack = false;
+
+            var rasterizedItem = doc.rasterize(selection[i], clipBounds, rasterizeOptions);
+            rasterizedCount++;
+            sourceEntries.push({ item: rasterizedItem, anchor: createBoundsAnchor(clipBounds, rasterizedItem.layer) });
+        }
+
+        if (rasterizedCount > 0) {
+            var newSelection = [];
+            for (var k = 0; k < sourceEntries.length; k++) newSelection.push(sourceEntries[k].item);
+            app.selection = newSelection;
+        }
+        return sourceEntries;
     }
-    return L('unknownColorName');
-}
+
+    /**
+     * 処理対象を「何から色を取るか」と「どこにパレットを置くか」に分けて組み立てる
+     * ラスター／配置画像は個別に、ベクターとテキストはまとめて1件として扱う。
+     * @param {Array<object>} sourceEntries - rasterizeClippedGroups() の戻り値
+     * @returns {object} { tasks, vectorItems, textItems }
+     */
+    function buildExtractionPlan(sourceEntries) {
+        var paletteTasks = [];
+        var vectorItems = [];
+        var textItems = [];
+
+        for (var i = 0; i < sourceEntries.length; i++) {
+            var item = sourceEntries[i].item;
+            var typeName = item.typename;
+
+            if (typeName === "PlacedItem" || typeName === "RasterItem") {
+                /* アンカーがある場合、配置はアンカー・複製元は実アイテム / With an anchor, place by the anchor but duplicate the real item */
+                paletteTasks.push({
+                    type: "raster",
+                    originalItem: sourceEntries[i].anchor || item,
+                    workSource: sourceEntries[i].anchor ? item : null
+                });
+            } else if (typeName === "PathItem" || typeName === "CompoundPathItem" || typeName === "GroupItem") {
+                vectorItems.push(item);
+            } else if (typeName === "TextFrame") {
+                textItems.push(item);
+            }
+        }
+
+        if (vectorItems.length > 0 || textItems.length > 0) {
+            var anchorItems = vectorItems.concat(textItems);
+            var anchorBase = (vectorItems.length > 0) ? vectorItems[0] : textItems[0];
+            paletteTasks.push({ type: "vector", originalItem: buildPaletteAnchorFromItems(anchorItems, anchorBase) });
+        }
+
+        return { tasks: paletteTasks, vectorItems: vectorItems, textItems: textItems };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ベクターとテキストを作業用レイヤーに複製し、1つのグループにまとめる
+     * テキストは複製後にアウトライン化する。
+     * @param {Layer} workLayer - 作業用レイヤー
+     * @param {Array<PageItem>} vectorItems - ベクターオブジェクトの配列
+     * @param {Array<TextFrame>} textItems - テキストフレームの配列
+     * @returns {GroupItem} 複製をまとめたグループ
+     */
+    function duplicateVectorsAndText(workLayer, vectorItems, textItems) {
+        var vectorGroup = workLayer.groupItems.add();
+
+        for (var i = vectorItems.length - 1; i >= 0; i--) {
+            vectorItems[i].duplicate().move(vectorGroup, ElementPlacement.PLACEATEND);
+        }
+
+        for (var k = textItems.length - 1; k >= 0; k--) {
+            var duplicatedText = textItems[k].duplicate();
+            duplicatedText.move(vectorGroup, ElementPlacement.PLACEATEND);
+
+            try {
+                /* createOutline() の戻り値を明示的に扱う。環境によっては新規オブジェクトが返り、
+                   元の TextFrame が残ることがあるため、戻り値を無視しない。
+                   失敗した場合は複製テキストを残して続行する（collectFillColors() は TextFrame を拾わないため色抽出の対象外になる）。 */
+                var outlinedText = duplicatedText.createOutline();
+                if (outlinedText) outlinedText.move(vectorGroup, ElementPlacement.PLACEATEND);
+            } catch (e) {
+                logError(e, "text outline");
+            }
+        }
+
+        return vectorGroup;
+    }
+
+    /**
+     * 処理対象を作業用レイヤーに複製する
+     * @param {Layer} workLayer - 作業用レイヤー
+     * @param {object} extractionPlan - buildExtractionPlan() の戻り値
+     * @returns {Array<object>} { type, originalItem, workItem } の配列
+     */
+    function duplicateTasksToWorkLayer(workLayer, extractionPlan) {
+        var workTasks = [];
+
+        for (var i = 0; i < extractionPlan.tasks.length; i++) {
+            var paletteTask = extractionPlan.tasks[i];
+            if (paletteTask.type === "vector") {
+                workTasks.push({
+                    type: "vector",
+                    originalItem: paletteTask.originalItem,
+                    workItem: duplicateVectorsAndText(workLayer, extractionPlan.vectorItems, extractionPlan.textItems)
+                });
+            } else {
+                var duplicatedItem = (paletteTask.workSource || paletteTask.originalItem).duplicate();
+                duplicatedItem.move(workLayer, ElementPlacement.PLACEATEND);
+                workTasks.push({ type: "raster", originalItem: paletteTask.originalItem, workItem: duplicatedItem });
+            }
+        }
+        return workTasks;
+    }
+
+    /**
+     * ラスター／配置画像をトレースして拡張する
+     * @param {PageItem} itemToTrace - トレース対象のオブジェクト
+     * @param {string|null} tracingPresetName - 適用するプリセット名
+     * @returns {GroupItem|null} 拡張結果。失敗時は null
+     */
+    function traceAndExpand(itemToTrace, tracingPresetName) {
+        try {
+            var traceObject = itemToTrace.trace();
+            if (tracingPresetName) {
+                try {
+                    traceObject.tracing.tracingOptions.loadFromPreset(tracingPresetName);
+                } catch (e) {
+                    logError(e, "trace preset");
+                }
+            }
+            return traceObject.tracing.expandTracing();
+        } catch (e) {
+            logError(e, "trace expand");
+            return null;
+        }
+    }
+
+    /**
+     * 処理対象からカラーを抽出する
+     * ベクターは直接、ラスター／配置画像はトレース→拡張してから抽出する。
+     * @param {object} workTask - { type, originalItem, workItem }
+     * @param {string|null} tracingPresetName - 適用するプリセット名
+     * @returns {Array<object>|null} { color, area } の配列。抽出できない場合は null
+     */
+    function extractTaskColors(workTask, tracingPresetName) {
+        var colorSource = workTask.workItem;
+        if (workTask.type !== "vector") {
+            colorSource = traceAndExpand(colorSource, tracingPresetName);
+            if (!colorSource) return null;
+        }
+        return deduplicateColors(collectFillColors(colorSource, []));
+    }
+
+    /**
+     * パレットのグループ名を決める
+     * @param {PageItem|object} originalItem - 配置の基準となるオブジェクト
+     * @param {number} taskIndex - 処理対象の連番（0起点）
+     * @returns {string} グループ名
+     */
+    function buildPaletteGroupName(originalItem, taskIndex) {
+        if (originalItem.typename === "PlacedItem" && originalItem.file) return originalItem.file.name;
+        return getLabel("fallbackName.itemPrefix") + (taskIndex + 1);
+    }
+
+    /**
+     * パレット描画用の空グループを作る
+     * @param {PageItem|object} originalItem - 配置の基準となるオブジェクト
+     * @param {string} groupName - グループ名
+     * @returns {GroupItem|null} 作成したグループ。失敗時は null
+     */
+    function createPaletteContainer(originalItem, groupName) {
+        try {
+            var paletteContainer = originalItem.layer.groupItems.add();
+            paletteContainer.name = groupName;
+            return paletteContainer;
+        } catch (e) {
+            logError(e, "palette group create");
+            return null;
+        }
+    }
+
+    /**
+     * グループを安全に削除する
+     * @param {GroupItem} group - 削除するグループ
+     * @returns {void}
+     */
+    function removeGroup(group) {
+        if (!group) return;
+        try {
+            group.remove();
+        } catch (e) {
+            logError(e, "group remove");
+        }
+    }
+
+    /**
+     * 1件分のスウォッチ登録とパレット描画を行う
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} workTask - { type, originalItem, workItem }
+     * @param {number} taskIndex - 処理対象の連番（0起点）
+     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} outputOptions - 出力オプション
+     * @returns {void}
+     */
+    function outputPaletteForTask(doc, workTask, taskIndex, colors, outputOptions) {
+        /* スウォッチ登録は5色・5色（CMYK補正）だけを対象にする / Register swatches only for the 5-color rows */
+        createSwatchGroupsFor5Only(doc, buildPaletteGroupName(workTask.originalItem, taskIndex), colors, outputOptions);
+
+        var paletteContainer = createPaletteContainer(workTask.originalItem, PALETTE_GROUP_NAME);
+        try {
+            drawSwatchSquares(doc, workTask.originalItem, colors, outputOptions, paletteContainer);
+        } catch (e) {
+            logError(e, "palette draw");
+        }
+    }
+
+    /**
+     * 対象オブジェクトとプレビューが収まるようにビューを合わせる
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<PageItem>} items - 対象のオブジェクト配列
+     * @returns {void}
+     */
+    function fitViewToItems(doc, items) {
+        if (!items.length) return;
+
+        var left = Infinity;
+        var top = -Infinity;
+        var right = -Infinity;
+        var bottom = Infinity;
+        for (var i = 0; i < items.length; i++) {
+            var bounds = items[i].geometricBounds;
+            if (bounds[0] < left) left = bounds[0];
+            if (bounds[1] > top) top = bounds[1];
+            if (bounds[2] > right) right = bounds[2];
+            if (bounds[3] < bottom) bottom = bounds[3];
+        }
+
+        var activeView = doc.activeView;
+        activeView.centerPoint = [(left + right) / 2, (top + bottom) / 2];
+
+        var viewBounds = activeView.bounds;
+        var itemWidth = right - left;
+        var itemHeight = top - bottom;
+        if (itemWidth > 0 && itemHeight > 0) {
+            var scale = Math.min(
+                (viewBounds[2] - viewBounds[0]) / itemWidth,
+                (viewBounds[1] - viewBounds[3]) / itemHeight
+            ) / FIT_VIEW_MARGIN;
+            activeView.zoom = activeView.zoom * scale;
+        }
+        app.redraw();
+    }
+
+    /**
+     * プレビューを表示しながら出力オプションを尋ねる
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} workTask - { type, originalItem, workItem }
+     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} progress - 進捗ウィンドウ
+     * @returns {object} { result: "ok"|"retry"|"cancel", options, previewGroup }
+     */
+    function askOutputOptions(doc, workTask, colors, progress) {
+        var previewOptions = {
+            out16: true, out11: true, out8: true, out5: true, out5Adj: true,
+            showHEX: true, showCMYK: true, cascade: true
+        };
+        var previewGroup = createPaletteContainer(workTask.originalItem, PREVIEW_GROUP_NAME);
+
+        try {
+            if (previewGroup) drawSwatchSquares(doc, workTask.originalItem, colors, previewOptions, previewGroup);
+        } catch (e) {
+            logError(e, "preview initial draw");
+        }
+
+        /* モーダルを開く前にプレビューを描き切らせる / Make sure the preview is rendered before the modal opens */
+        app.redraw();
+        $.sleep(80);
+
+        progress.window.hide();
+        var outputOptions = showOutputOptionsDialog(function (currentOptions) {
+            /* 取り残しを防ぐため、プレビューグループは毎回作り直す / Recreate the preview group each time so nothing lingers */
+            removeGroup(previewGroup);
+            previewGroup = createPaletteContainer(workTask.originalItem, PREVIEW_GROUP_NAME);
+            if (previewGroup) {
+                try {
+                    drawSwatchSquares(doc, workTask.originalItem, colors, currentOptions, previewGroup);
+                } catch (e) {
+                    logError(e, "preview redraw");
+                }
+            }
+            app.redraw();
+        }, function () {
+            var items = [workTask.originalItem];
+            if (previewGroup) items.push(previewGroup);
+            fitViewToItems(doc, items);
+        });
+        progress.window.show();
+
+        if (outputOptions === "__RETRY__" || !outputOptions) {
+            removeGroup(previewGroup);
+            return { result: (outputOptions === "__RETRY__") ? "retry" : "cancel", options: null, previewGroup: null };
+        }
+
+        /* 最終出力を描き終えるまでプレビューは残す / Keep the preview until the final output is drawn */
+        return { result: "ok", options: outputOptions, previewGroup: previewGroup };
+    }
+
+    /**
+     * 処理対象を順に処理する
+     * 最初にカラーを取得できた時点で出力オプションを尋ね、以降はその設定を使う。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<object>} workTasks - duplicateTasksToWorkLayer() の戻り値
+     * @param {object} progress - 進捗ウィンドウ
+     * @param {string|null} tracingPresetName - 適用するプリセット名
+     * @returns {string} "done" または "retry"
+     */
+    function processPaletteTasks(doc, workTasks, progress, tracingPresetName) {
+        var outputOptions = null;
+
+        for (var i = 0; i < workTasks.length; i++) {
+            try {
+                var workTask = workTasks[i];
+
+                progress.set(i * 2 + 1, getLabel("progress.tracing"));
+                var colors = extractTaskColors(workTask, tracingPresetName);
+
+                progress.set(i * 2 + 2, getLabel("progress.palette"));
+                if (!colors || colors.length === 0) continue;
+
+                if (outputOptions !== null) {
+                    outputPaletteForTask(doc, workTask, i, colors, outputOptions);
+                    continue;
+                }
+
+                var optionsChoice = askOutputOptions(doc, workTask, colors, progress);
+                if (optionsChoice.result !== "ok") {
+                    return (optionsChoice.result === "retry") ? "retry" : "done";
+                }
+
+                outputOptions = optionsChoice.options;
+                outputPaletteForTask(doc, workTask, i, colors, outputOptions);
+                removeGroup(optionsChoice.previewGroup);
+            } catch (e) {
+                logError(e, "per-item processing");
+            }
+        }
+        return "done";
+    }
+
+    /**
+     * ラスター／配置画像の処理対象が含まれるかを判定する
+     * @param {Array<object>} paletteTasks - 処理対象の配列
+     * @returns {boolean} 含まれる場合は true
+     */
+    function hasRasterTask(paletteTasks) {
+        for (var i = 0; i < paletteTasks.length; i++) {
+            if (paletteTasks[i].type === "raster") return true;
+        }
+        return false;
+    }
+
+    /**
+     * プリセット選択からパレット出力までを1回分実行する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} extractionPlan - buildExtractionPlan() の戻り値
+     * @returns {string} "done" または "retry"
+     */
+    function runPaletteSession(doc, extractionPlan) {
+        var tracingPresetName = null;
+
+        /* プリセット選択はラスター／配置画像があるときだけ尋ねる / Ask for a preset only when a raster task exists */
+        if (hasRasterTask(extractionPlan.tasks)) {
+            var tracingPresets = app.tracingPresetsList;
+            if (tracingPresets && tracingPresets.length) {
+                tracingPresetName = showPresetDialog(tracingPresets);
+                if (tracingPresetName === null) return "done";
+            }
+        }
+
+        var progress = createProgressWindow(extractionPlan.tasks.length * 2);
+        progress.set(0, getLabel("progress.preparing"));
+
+        var workLayer = doc.layers.add();
+        workLayer.name = WORK_LAYER_NAME;
+
+        var sessionResult = "done";
+        try {
+            var workTasks = duplicateTasksToWorkLayer(workLayer, extractionPlan);
+            sessionResult = processPaletteTasks(doc, workTasks, progress, tracingPresetName);
+            progress.set(extractionPlan.tasks.length * 2, getLabel("progress.done"));
+        } finally {
+            try {
+                workLayer.remove();
+            } catch (e) {
+                logError(e, "work layer remove");
+            }
+            progress.close();
+        }
+
+        app.redraw();
+        return sessionResult;
+    }
+
+    /**
+     * メイン処理
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var doc = app.activeDocument;
+        var extractionPlan = buildExtractionPlan(rasterizeClippedGroups(doc, doc.selection));
+
+        /* オブジェクト未選択のときはスウォッチパネルの選択を使う / With no objects selected, fall back to the swatch selection */
+        if (extractionPlan.tasks.length === 0) {
+            var swatchColors = getSelectedSwatchColors(doc);
+            if (swatchColors.length === 0) {
+                alert(getLabel("alert.noSwatchSelected"));
+                return;
+            }
+            drawPaletteFromSwatches(doc, swatchColors);
+            return;
+        }
+
+        while (runPaletteSession(doc, extractionPlan) === "retry") {
+            /* 「選び直す」が選ばれている間は繰り返す / Repeat while the user keeps choosing Reselect */
+        }
+    }
+
+    main();
+
+})();
