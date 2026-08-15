@@ -2,29 +2,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  グリッド複製ツール / Duplicate in Grid Plus
-  Version: v2.0.1（SCRIPT_VERSION で管理）
 
-  概要 / Overview
-  - 選択中のオブジェクトを、指定した繰り返し数と間隔で複製・配置します（ライブプレビュー対応）。
-  - 繰り返し方式 / Repeat Method
-    - グリッド（G）：行×列で配置（繰り返し数は連動ONが基本）。
-    - 行（R）：横の数で1行に配置（縦は常に1、上下方向は無効）。
-    - 列（C）：縦の数で1列に配置（横は常に1、左右方向は無効）。
-    - ランダム配置（A）：元の中心を基準にランダムに配置（OK後もプレビューと同一の配置になるようオフセットを保持）。
-  - 間隔は現在の定規単位（rulerType）で入力し、内部では pt に変換して処理します。
-    - 行／列では不要側の間隔入力をディム表示し、［連動］はOFF。
-    - ランダムでは間隔［連動］はON（上下=左右）で、値は散らばり範囲に反映されます。
-    - ランダムで左右または上下を0にすると、その軸のランダムを完全にOFFできます。
-  - 方向（右R／左L／上T／下B）を指定できます（方式により無効化されます）。
-  - Fill パネル
-    - ［アートボードの端まで］：選択オブジェクト基準で行列を自動計算。
-    - ［アートボードいっぱいに］：行列を自動計算し、OK時に複製を含む全体をアートボード中央へ移動（行／列にも対応）。
-  - クリッピングマスクを優先して境界を取得（なければ可視境界）。
-    - プレビュー描画は一時オブジェクトのみ削除（noteタグで管理）し、既存の「_preview」レイヤー上の他要素は削除しません。
-  - UIは2カラム構成：左（繰り返し数／方式）、右（間隔／方向／敷き詰め）。
-    - 繰り返し数はスライダー（1〜20）でも操作可能で、ドラッグ中はプレビュー更新をスロットルしてチラつきを軽減。
-  - 複数選択時は自動でグループ化してから処理（以降は単一オブジェクトと同様）。/ When multiple objects are selected, they are grouped first and processed like a single object.
+### 概要
+
+選択したオブジェクトを、グリッド／行／列／ランダムのいずれかの方式で複製・配置します。
+繰り返し数・間隔・方向・アートボードへの敷き詰めを2カラムのダイアログで指定でき、結果はライブプレビューで確認できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Duplicates the selected object in a grid, row, column, or random arrangement.
+Count, spacing, direction, and artboard-fill options are set in a two-column dialog, with a live preview of the result.
+
+See the README for details.
 
 */
 
@@ -34,111 +25,466 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "DuplicateInGridPlus";          /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-02-26";                   /* 更新日 / last updated */
+    var SCRIPT_RELEASED = "2025-10-23";                   /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
 
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n65de8bbbfc6a"; /* 紹介記事 / article URL */
+    // README (Japanese)
+    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DuplicateInGridPlus.md
+    // README (English)
+    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateInGridPlus.md
+    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹介記事 / article URL */
 
     // Released under the MIT license
     // http://opensource.org/licenses/mit-license.php
 
-    /* 言語判定 / Locale detection */
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+
+    /* プレビュー用レイヤーと一時オブジェクトの識別タグ / Preview layer and temporary-item tag */
+    var PREVIEW_LAYER_NAME = "_preview";
+    var PREVIEW_ITEM_TAG = "__grid_preview__";
+
+    /* 繰り返し数の下限・上限（スライダーの範囲）/ Repeat count range (slider bounds) */
+    var REPEAT_COUNT_MIN = 1;
+    var REPEAT_COUNT_MAX = 20;
+
+    /* プレビュー更新の最小間隔（ミリ秒）/ Minimum interval between preview updates (ms) */
+    var PREVIEW_THROTTLE_MS = 120;
+
+    /* 画面ズームの範囲 / Zoom range */
+    var VIEW_ZOOM_MIN = 0.1;
+    var VIEW_ZOOM_MAX = 16;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var WINDOW_MARGINS    = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING    = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS     = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING     = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING    = 12;                 /* 2カラムの間隔 / gap between columns */
+    var FIELD_ROW_SPACING = 20;                 /* 入力欄と［連動］の間隔 / gap between fields and the link checkbox */
+    var FIELD_CHARS       = 4;                  /* 数値入力欄の文字数 / width of numeric fields */
+    var ZOOM_SLIDER_WIDTH = 240;                /* ズームスライダーの幅 / zoom slider width */
+    var DIALOG_OFFSET_X   = 300;                /* ダイアログを右へずらす量 / horizontal dialog offset */
+    var DIALOG_OPACITY    = 0.98;               /* ダイアログの不透明度 / dialog opacity */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale && $.locale.toLowerCase().indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
-    var PREVIEW_TAG = "__grid_preview__";
+
+    var uiLang = getCurrentLang();
 
     /* ラベル定義 / Label definitions (JA/EN) */
     var LABELS = {
-        dialogTitle: { ja: "複製配置（グリッド／行／列／ランダム）", en: "Duplicate & Arrange" },
-        repeatCount: { ja: "繰り返し数", en: "Count" },
-        repeatCountH: { ja: "横", en: "Horizontal" },
-        repeatCountV: { ja: "縦", en: "Vertical" },
-        gap: { ja: "間隔", en: "Gap" },
-        unitFmt: { ja: "間隔（{unit}）:", en: "Gap ({unit}):" },
-        fillTitle: { ja: "敷き詰め", en: "Fill" },
-        ok: { ja: "OK", en: "OK" },
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        alertNoDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        alertNoSel: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
-        alertCountInvalid: { ja: "繰り返し数は1以上の整数を入力してください。", en: "Enter an integer count of 1 or more." },
-        alertGapInvalid: { ja: "間隔は数値で入力してください。", en: "Enter a numeric gap value." },
-        directionTitle: { ja: "方向", en: "Direction" },
-        dirRight: { ja: "右", en: "Right" },
-        dirLeft: { ja: "左", en: "Left" },
-        verticalTitle: { ja: "縦方向", en: "Vertical" },
-        dirUp: { ja: "上", en: "Up" },
-        dirDown: { ja: "下", en: "Down" },
-        repeatMethodTitle: { ja: "繰り返し方式", en: "Repeat Method" },
-        repeatMethodGrid: { ja: "グリッド", en: "Grid" },
-        repeatMethodRow: { ja: "行", en: "Row" },
-        repeatMethodCol: { ja: "列", en: "Column" },
-        repeatMethodRandom: { ja: "ランダム配置", en: "Random" },
-        lightMode: { ja: "軽量モード", en: "Light mode" },
-        zoom: { ja: "画面ズーム", en: "Zoom" },
+        dialog: {
+            title: { ja: "複製配置（グリッド／行／列／ランダム）", en: "Duplicate & Arrange" }
+        },
+        panel: {
+            repeatCount: { ja: "繰り返し数", en: "Count" },
+            repeatMethod: { ja: "繰り返し方式", en: "Repeat Method" },
+            gap: { ja: "間隔（{unit}）", en: "Gap ({unit})" },
+            direction: { ja: "方向", en: "Direction" },
+            fill: { ja: "敷き詰め", en: "Fill" }
+        },
+        fieldLabel: {
+            countHorizontal: { ja: "横:", en: "Horizontal:" },
+            countVertical: { ja: "縦:", en: "Vertical:" },
+            gapHorizontal: { ja: "左右:", en: "Horizontal:" },
+            gapVertical: { ja: "上下:", en: "Vertical:" },
+            directionHorizontal: { ja: "横方向", en: "Horizontal" },
+            directionVertical: { ja: "縦方向", en: "Vertical" },
+            zoom: { ja: "画面ズーム", en: "Zoom" }
+        },
+        radio: {
+            methodGrid: { ja: "グリッド", en: "Grid" },
+            methodRow: { ja: "行", en: "Row" },
+            methodColumn: { ja: "列", en: "Column" },
+            methodRandom: { ja: "ランダム配置", en: "Random" },
+            directionRight: { ja: "右", en: "Right" },
+            directionLeft: { ja: "左", en: "Left" },
+            directionUp: { ja: "上", en: "Up" },
+            directionDown: { ja: "下", en: "Down" }
+        },
+        checkbox: {
+            link: { ja: "連動", en: "Link Horizontal & Vertical" },
+            fillToEdge: { ja: "アートボードの端まで", en: "Fill to Artboard Edge" },
+            fillFull: { ja: "アートボードいっぱいに", en: "Fill Full Artboard" },
+            lightMode: { ja: "軽量モード", en: "Light mode" }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
+            invalidCount: { ja: "繰り返し数は1以上の整数を入力してください。", en: "Enter an integer count of 1 or more." },
+            invalidGap: { ja: "間隔は数値で入力してください。", en: "Enter a numeric gap value." }
+        }
     };
 
-    /* ラベル取得関数 / Label resolver */
-    function L(key, params) {
-        var table = LABELS[key];
-        var text = (table && table[lang]) ? table[lang] : key;
+    /**
+     * ドット区切りのキーからUI言語のラベルを取得する
+     * @param {string} labelPath - "panel.gap" のようなドット区切りのキー
+     * @param {object} [params] - {unit: "mm"} のような差し込み値
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath, params) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        var labelText = labelNode[uiLang] || labelNode["en"];
+        if (!labelText) return labelPath;
         if (params) {
-            for (var k in params) if (params.hasOwnProperty(k)) {
-                text = text.replace(new RegExp("\\{" + k + "\\}", "g"), params[k]);
+            for (var paramKey in params) {
+                if (!params.hasOwnProperty(paramKey)) continue;
+                labelText = labelText.replace(new RegExp("\\{" + paramKey + "\\}", "g"), params[paramKey]);
             }
         }
-        return text;
+        return labelText;
     }
 
-    /* テキストフィールドの数値操作 / Arrow key increment–decrement for numeric fields */
-    function changeValueByArrowKey(edittext) {
-        edittext.addEventListener("keydown", function (e) {
-            var v = Number(edittext.text);
-            if (isNaN(v)) return;
-            var kb = ScriptUI.environment.keyboardState, d = 1;
-            if (kb.shiftKey) {
-                d = 10;
-                if (e.keyName == "Up") { v = Math.ceil((v + 1) / d) * d; e.preventDefault(); }
-                else if (e.keyName == "Down") { v = Math.floor((v - 1) / d) * d; e.preventDefault(); }
-            } else if (kb.altKey) {
-                d = 0.1;
-                if (e.keyName == "Up") { v += d; e.preventDefault(); }
-                else if (e.keyName == "Down") { v -= d; e.preventDefault(); }
+    // =========================================
+    // UIレイアウト補助 / UI layout helpers
+    // =========================================
+
+    /**
+     * パネルの共通設定を適用する
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - パネル内の要素間隔
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 行グループの共通設定を適用する
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {string} [alignment] - グループ自身の配置（既定は "left"）
+     * @param {number} [spacing] - グループ内の要素間隔
+     * @returns {void}
+     */
+    function setupRow(targetGroup, alignment, spacing) {
+        targetGroup.orientation = "row";
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.alignment = alignment || "left";
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Group|Window} parentContainer - 追加先
+     * @param {string} labelText - パネルのタイトル
+     * @returns {Panel} 生成したパネル
+     */
+    function addPanel(parentContainer, labelText) {
+        var createdPanel = parentContainer.add("panel");
+        createdPanel.text = labelText;
+        setupPanel(createdPanel);
+        return createdPanel;
+    }
+
+    /**
+     * 左寄せの縦並びグループを生成する（入力欄の列・チェックボックス列など）
+     * @param {Group|Panel} parentContainer - 追加先
+     * @returns {Group} 生成したグループ
+     */
+    function addColumnGroup(parentContainer) {
+        var columnGroup = parentContainer.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = ["left", "center"];
+        return columnGroup;
+    }
+
+    /**
+     * ダイアログウィンドウを生成する
+     * @param {string} title - タイトルバーの文字列
+     * @returns {Window} 生成したダイアログ
+     */
+    function createDialogWindow(title) {
+        var dialogWindow = new Window("dialog", title);
+        dialogWindow.orientation = "column";
+        dialogWindow.alignChildren = ["fill", "top"];
+        dialogWindow.spacing = WINDOW_SPACING;
+        dialogWindow.margins = WINDOW_MARGINS;
+        dialogWindow.opacity = DIALOG_OPACITY;
+        return dialogWindow;
+    }
+
+    /**
+     * 数値入力欄を上下キーで増減できるようにする（shift:10単位 / option:0.1単位）
+     * @param {EditText} numericField - 対象のテキストフィールド
+     * @returns {void}
+     */
+    function changeValueByArrowKey(numericField) {
+        numericField.addEventListener("keydown", function (event) {
+            var fieldValue = Number(numericField.text);
+            if (isNaN(fieldValue)) return;
+            var keyboardState = ScriptUI.environment.keyboardState;
+
+            if (keyboardState.shiftKey) {
+                if (event.keyName == "Up") { fieldValue = Math.ceil((fieldValue + 1) / 10) * 10; event.preventDefault(); }
+                else if (event.keyName == "Down") { fieldValue = Math.floor((fieldValue - 1) / 10) * 10; event.preventDefault(); }
+            } else if (keyboardState.altKey) {
+                if (event.keyName == "Up") { fieldValue += 0.1; event.preventDefault(); }
+                else if (event.keyName == "Down") { fieldValue -= 0.1; event.preventDefault(); }
             } else {
-                d = 1;
-                if (e.keyName == "Up") { v += d; e.preventDefault(); }
-                else if (e.keyName == "Down") { v -= d; e.preventDefault(); }
+                if (event.keyName == "Up") { fieldValue += 1; event.preventDefault(); }
+                else if (event.keyName == "Down") { fieldValue -= 1; event.preventDefault(); }
             }
-            v = kb.altKey ? Math.round(v * 10) / 10 : Math.round(v);
-            if (edittext.isInteger) v = Math.max(0, Math.round(v));
-            edittext.text = v;
-            if (typeof edittext.onChanging === "function") { try { edittext.onChanging(); } catch (_) { } }
+
+            fieldValue = keyboardState.altKey ? Math.round(fieldValue * 10) / 10 : Math.round(fieldValue);
+            if (numericField.isInteger) fieldValue = Math.max(0, Math.round(fieldValue));
+            numericField.text = fieldValue;
+            if (typeof numericField.onChanging === "function") numericField.onChanging();
         });
     }
 
-    /* 単位ユーティリティ / Units */
-    var unitLabelMap = { 0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 5: "Q/H", 6: "px", 7: "ft/in", 8: "m", 9: "yd", 10: "ft" };
-    function getCurrentUnitLabel() { var c = app.preferences.getIntegerPreference("rulerType"); return unitLabelMap[c] || "pt"; }
-    function getCurrentUnitCode() { return app.preferences.getIntegerPreference("rulerType"); }
-    function unitToPoints(unitCode, value) {
-        var PT_IN = 72, MM_PT = PT_IN / 25.4;
+    /**
+     * ラジオボタンを選択し、クリック時と同じ処理を走らせる
+     * @param {RadioButton} radioButton - 選択するラジオボタン
+     * @returns {void}
+     */
+    function selectRadioButton(radioButton) {
+        if (!radioButton || radioButton.enabled === false) return;
+        radioButton.value = true;
+        if (typeof radioButton.onClick === "function") radioButton.onClick();
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    var rulerUnitLabels = { 0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 5: "Q/H", 6: "px", 7: "ft/in", 8: "m", 9: "yd", 10: "ft" };
+
+    /**
+     * 現在の定規単位のコードを取得する
+     * @returns {number} rulerType の値
+     */
+    function getRulerUnitCode() {
+        return app.preferences.getIntegerPreference("rulerType");
+    }
+
+    /**
+     * 現在の定規単位の表示名を取得する
+     * @returns {string} "mm" などの単位名
+     */
+    function getRulerUnitLabel() {
+        return rulerUnitLabels[getRulerUnitCode()] || "pt";
+    }
+
+    /**
+     * 指定単位の数値をポイントに変換する
+     * @param {number} unitCode - rulerType の値
+     * @param {number} unitValue - 変換する数値
+     * @returns {number} ポイント換算値
+     */
+    function unitToPoints(unitCode, unitValue) {
+        var PT_PER_INCH = 72, PT_PER_MM = PT_PER_INCH / 25.4;
         switch (unitCode) {
-            case 0: return value * PT_IN;           // in
-            case 1: return value * MM_PT;           // mm
-            case 2: return value;                 // pt
-            case 3: return value * 12;              // pica
-            case 4: return value * (MM_PT * 10);      // cm
-            case 5: return value * (MM_PT * 0.25);    // Q/H
-            case 6: return value;                 // px ≒ pt
-            case 7: return value * PT_IN;           // ft/in → in
-            case 8: return value * (MM_PT * 1000);    // m
-            case 9: return value * (PT_IN * 36);      // yd
-            case 10: return value * (PT_IN * 12);      // ft
-            default: return value;
+            case 0: return unitValue * PT_PER_INCH;         // in
+            case 1: return unitValue * PT_PER_MM;           // mm
+            case 2: return unitValue;                       // pt
+            case 3: return unitValue * 12;                  // pica
+            case 4: return unitValue * (PT_PER_MM * 10);    // cm
+            case 5: return unitValue * (PT_PER_MM * 0.25);  // Q/H
+            case 6: return unitValue;                       // px ≒ pt
+            case 7: return unitValue * PT_PER_INCH;         // ft/in → in
+            case 8: return unitValue * (PT_PER_MM * 1000);  // m
+            case 9: return unitValue * (PT_PER_INCH * 36);  // yd
+            case 10: return unitValue * (PT_PER_INCH * 12); // ft
+            default: return unitValue;
         }
+    }
+
+    // =========================================
+    // 境界と複製 / Bounds and duplication
+    // =========================================
+
+    /**
+     * クリッピングマスクを優先して境界を取得する（なければ可視境界）
+     * @param {PageItem} targetItem - 対象オブジェクト
+     * @returns {Array<number>} [左, 上, 右, 下]
+     */
+    function getMaskedBounds(targetItem) {
+        try {
+            if (targetItem.typename === "GroupItem" && targetItem.clipped) {
+                for (var i = 0; i < targetItem.pageItems.length; i++) {
+                    var childItem = targetItem.pageItems[i];
+                    if (childItem.typename === "PathItem" && childItem.clipping) return childItem.geometricBounds;
+                    if (childItem.typename === "CompoundPathItem" && childItem.pathItems.length > 0 && childItem.pathItems[0].clipping)
+                        return childItem.pathItems[0].geometricBounds;
+                }
+            }
+            if (targetItem.typename === "PathItem" && targetItem.clipping) return targetItem.geometricBounds;
+            if (targetItem.typename === "CompoundPathItem" && targetItem.pathItems.length > 0 && targetItem.pathItems[0].clipping)
+                return targetItem.pathItems[0].geometricBounds;
+        } catch (e) { }
+        return targetItem.visibleBounds;
+    }
+
+    /**
+     * アクティブなアートボードの矩形を取得する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Array<number>} [左, 上, 右, 下]
+     */
+    function getActiveArtboardRect(doc) {
+        return doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+    }
+
+    /**
+     * 複数オブジェクトを囲む境界を求める
+     * @param {Array<PageItem>} targetItems - 対象オブジェクトの配列
+     * @returns {Array<number>} [左, 上, 右, 下]
+     */
+    function getUnionBounds(targetItems) {
+        var unionLeft = Infinity, unionTop = -Infinity, unionRight = -Infinity, unionBottom = Infinity;
+        for (var i = 0; i < targetItems.length; i++) {
+            var itemBounds = getMaskedBounds(targetItems[i]);
+            if (itemBounds[0] < unionLeft) unionLeft = itemBounds[0];
+            if (itemBounds[1] > unionTop) unionTop = itemBounds[1];
+            if (itemBounds[2] > unionRight) unionRight = itemBounds[2];
+            if (itemBounds[3] < unionBottom) unionBottom = itemBounds[3];
+        }
+        return [unionLeft, unionTop, unionRight, unionBottom];
+    }
+
+    /**
+     * グリッド配置のオフセット一覧を作る（元オブジェクトのぶんは含まない）
+     * @param {number} rowCount - 縦の数
+     * @param {number} columnCount - 横の数
+     * @param {number} sourceWidth - 元オブジェクトの幅（pt）
+     * @param {number} sourceHeight - 元オブジェクトの高さ（pt）
+     * @param {number} gapX - 左右の間隔（pt）
+     * @param {number} gapY - 上下の間隔（pt）
+     * @param {string} horizontalDirection - "right" または "left"
+     * @param {string} verticalDirection - "up" または "down"
+     * @returns {Array<Array<number>>} [dx, dy] の配列（pt）
+     */
+    function computeGridOffsets(rowCount, columnCount, sourceWidth, sourceHeight, gapX, gapY, horizontalDirection, verticalDirection) {
+        var gridOffsets = [];
+        for (var rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+                if (rowIndex === 0 && columnIndex === 0) continue;
+                var dx = (sourceWidth + gapX) * columnIndex;
+                if (horizontalDirection === "left") dx = -dx;
+                var dy = (sourceHeight + gapY) * rowIndex;
+                if (verticalDirection !== "up") dy = -dy;
+                gridOffsets.push([dx, dy]);
+            }
+        }
+        return gridOffsets;
+    }
+
+    /**
+     * 元オブジェクトを指定オフセットぶん複製する
+     * @param {Array<PageItem>} sourceItems - 複製元（複数可。まとめて同じ量だけずらす）
+     * @param {Array<Array<number>>} placementOffsets - [dx, dy] の配列（pt）
+     * @param {Layer} [targetLayer] - 複製先レイヤー（省略時は元と同じ場所に複製）
+     * @returns {Array<PageItem>} 生成した複製の配列
+     */
+    function duplicateWithOffsets(sourceItems, placementOffsets, targetLayer) {
+        var duplicatedItems = [];
+
+        for (var i = 0; i < placementOffsets.length; i++) {
+            var dx = placementOffsets[i][0];
+            var dy = placementOffsets[i][1];
+            for (var j = 0; j < sourceItems.length; j++) {
+                /* duplicate() は同じ座標に作られるので、オフセットぶん動かすだけでよい
+                   duplicate() keeps the original coordinates, so shifting by the offset is enough */
+                var duplicatedItem = targetLayer
+                    ? sourceItems[j].duplicate(targetLayer, ElementPlacement.PLACEATBEGINNING)
+                    : sourceItems[j].duplicate();
+                if (targetLayer) duplicatedItem.note = PREVIEW_ITEM_TAG;
+
+                duplicatedItem.left += dx;
+                duplicatedItem.top += dy;
+                duplicatedItems.push(duplicatedItem);
+            }
+        }
+        return duplicatedItems;
+    }
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /**
+     * プレビュー用レイヤーを取得する（なければ作成し、最前面へ）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer} プレビュー用レイヤー
+     */
+    function getPreviewLayer(doc) {
+        var previewLayer;
+        try {
+            previewLayer = doc.layers.getByName(PREVIEW_LAYER_NAME);
+        } catch (e) {
+            previewLayer = doc.layers.add();
+            previewLayer.name = PREVIEW_LAYER_NAME;
+        }
+        previewLayer.visible = true;
+        previewLayer.locked = false;
+        previewLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+        return previewLayer;
+    }
+
+    /**
+     * プレビューで作った一時オブジェクトだけを削除する（noteタグで判別）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {boolean} [skipRedraw] - true なら再描画を呼ばない（直後に描き直す場合）
+     * @returns {void}
+     */
+    function clearPreview(doc, skipRedraw) {
+        var previewLayer;
+        try {
+            previewLayer = doc.layers.getByName(PREVIEW_LAYER_NAME);
+        } catch (e) {
+            return;
+        }
+        /* pageItems はグループの子まで含むため、削除で添字がずれても止まらないよう1件ずつ受ける
+           pageItems includes group children, so guard each removal against the shifting index */
+        for (var i = previewLayer.pageItems.length - 1; i >= 0; i--) {
+            try {
+                var previewItem = previewLayer.pageItems[i];
+                if (previewItem.note === PREVIEW_ITEM_TAG) previewItem.remove();
+            } catch (e) { }
+        }
+        if (!skipRedraw) app.redraw();
+    }
+
+    /**
+     * プレビューを描き直す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<PageItem>} sourceItems - 複製元
+     * @param {Array<Array<number>>} placementOffsets - [dx, dy] の配列（pt）
+     * @returns {void}
+     */
+    function renderPreview(doc, sourceItems, placementOffsets) {
+        var previewLayer = getPreviewLayer(doc);
+        /* 空の状態を挟むとちらつくので、消去時は再描画しない / Skip the intermediate repaint so the canvas never flashes empty */
+        clearPreview(doc, true);
+        duplicateWithOffsets(sourceItems, placementOffsets, previewLayer);
+        app.redraw();
     }
 
     // =========================================
@@ -146,1078 +492,976 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // - Light mode: apply zoom only on slider release
     // =========================================
 
+    /**
+     * 現在のビュー状態（ズーム倍率と中心）を控える
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {object} {view, zoom, center} の状態オブジェクト
+     */
     function __TMKZoom_captureViewState(doc) {
-        var st = { view: null, zoom: null, center: null };
+        var viewState = { view: null, zoom: null, center: null };
         try {
-            st.view = doc.activeView;
-            st.zoom = st.view.zoom;
-            st.center = st.view.centerPoint;
-        } catch (_) { }
-        return st;
+            viewState.view = doc.activeView;
+            viewState.zoom = viewState.view.zoom;
+            viewState.center = viewState.view.centerPoint;
+        } catch (e) { }
+        return viewState;
     }
 
-    function __TMKZoom_restoreViewState(doc, state) {
-        if (!state) return;
+    /**
+     * 控えておいたビュー状態を復元する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} viewState - __TMKZoom_captureViewState() の戻り値
+     * @returns {void}
+     */
+    function __TMKZoom_restoreViewState(doc, viewState) {
+        if (!viewState) return;
         try {
-            var v = state.view || doc.activeView;
-            if (v && state.zoom != null) v.zoom = state.zoom;
-            if (v && state.center != null) v.centerPoint = state.center;
-        } catch (_) { }
+            var targetView = viewState.view || doc.activeView;
+            if (targetView && viewState.zoom != null) targetView.zoom = viewState.zoom;
+            if (targetView && viewState.center != null) targetView.centerPoint = viewState.center;
+        } catch (e) { }
     }
 
-    function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
+    /**
+     * 画面ズーム用のスライダーと軽量モードのチェックボックスを追加する
+     * @param {Group|Window} parentContainer - 追加先
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} labelText - スライダーのラベル
+     * @param {object} initialViewState - __TMKZoom_captureViewState() の戻り値
+     * @param {object} [options] - {min, max, sliderWidth, margins, redraw, lightMode, lightModeLabel, lightModeDefault}
+     * @returns {object} {group, label, slider, lightModeCheckbox, applyZoom, syncFromView, restoreInitial}
+     */
+    function __TMKZoom_addControls(parentContainer, doc, labelText, initialViewState, options) {
         options = options || {};
         var minZoom = (typeof options.min === "number") ? options.min : 0.1;
         var maxZoom = (typeof options.max === "number") ? options.max : 16;
         var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 240;
         var doRedraw = (options.redraw !== false);
 
-        // Light mode options
-        var showLightMode = (options.lightMode !== false);            // default: show
+        /* 軽量モードの設定 / Light mode options */
+        var showLightMode = (options.lightMode !== false);
         var lightModeLabel = options.lightModeLabel || "Light mode";
-        var lightModeDefault = (options.lightModeDefault === true);   // default: false
+        var lightModeDefault = (options.lightModeDefault === true);
 
-        // UI group
-        var g = parent.add("group");
-        g.orientation = "row";
-        g.alignChildren = ["center", "center"];
-        g.alignment = "center";
-        try { if (options.margins) g.margins = options.margins; } catch (_) { }
+        var zoomGroup = parentContainer.add("group");
+        zoomGroup.orientation = "row";
+        zoomGroup.alignChildren = ["center", "center"];
+        zoomGroup.alignment = "center";
+        if (options.margins) zoomGroup.margins = options.margins;
 
-        var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
+        var zoomLabel = zoomGroup.add("statictext", undefined, String(labelText || "Zoom"));
 
-        // Initial zoom
-        var initZoom = 1;
+        var initialZoom = 1;
         try {
-            if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
-            else initZoom = Number(doc.activeView.zoom);
-        } catch (_) { }
-        if (!initZoom || isNaN(initZoom)) initZoom = 1;
+            initialZoom = Number((initialViewState && initialViewState.zoom != null) ? initialViewState.zoom : doc.activeView.zoom);
+        } catch (e) { }
+        if (!initialZoom || isNaN(initialZoom)) initialZoom = 1;
 
-        var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
-        try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+        var zoomSlider = zoomGroup.add("slider", undefined, initialZoom, minZoom, maxZoom);
+        zoomSlider.preferredSize.width = sliderWidth;
 
-        var chkLight = null;
+        var lightModeCheck = null;
         if (showLightMode) {
-            chkLight = g.add("checkbox", undefined, String(lightModeLabel));
-            chkLight.value = lightModeDefault;
+            lightModeCheck = zoomGroup.add("checkbox", undefined, String(lightModeLabel));
+            lightModeCheck.value = lightModeDefault;
         }
 
+        /**
+         * 軽量モードが有効かどうかを返す
+         * @returns {boolean} 有効なら true
+         */
         function isLightMode() {
-            return !!(chkLight && chkLight.value);
+            return !!(lightModeCheck && lightModeCheck.value);
         }
 
-        function applyZoom(z) {
+        /**
+         * 指定倍率をビューへ適用する
+         * @param {number} zoomLevel - ズーム倍率
+         * @returns {void}
+         */
+        function applyZoom(zoomLevel) {
             try {
-                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
-                if (!v) return;
-                v.zoom = z;
-                if (doRedraw) { try { app.redraw(); } catch (_) { } }
-            } catch (_) { }
+                var targetView = (initialViewState && initialViewState.view) ? initialViewState.view : doc.activeView;
+                if (!targetView) return;
+                targetView.zoom = zoomLevel;
+                if (doRedraw) app.redraw();
+            } catch (e) { }
         }
 
+        /**
+         * 現在のビュー倍率をスライダーへ反映する
+         * @returns {void}
+         */
         function syncFromView() {
             try {
-                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
-                if (!v) return;
-                sld.value = v.zoom;
-            } catch (_) { }
+                var targetView = (initialViewState && initialViewState.view) ? initialViewState.view : doc.activeView;
+                if (!targetView) return;
+                zoomSlider.value = targetView.zoom;
+            } catch (e) { }
         }
 
-        // Live drag (disabled in light mode)
-        sld.onChanging = function () {
-            if (isLightMode()) return; // ✅ lightweight: do nothing while dragging
-            applyZoom(Number(sld.value));
+        /* ドラッグ中の追従（軽量モードでは無効）/ Live drag (disabled in light mode) */
+        zoomSlider.onChanging = function () {
+            if (isLightMode()) return;
+            applyZoom(Number(zoomSlider.value));
         };
 
-        // Always apply once on release
-        sld.onChange = function () {
-            applyZoom(Number(sld.value));
+        /* 離したときは必ず1回適用 / Always apply once on release */
+        zoomSlider.onChange = function () {
+            applyZoom(Number(zoomSlider.value));
         };
 
-        if (chkLight) {
-            chkLight.onClick = function () {
-                // Toggle feels consistent: apply current value immediately
-                try { applyZoom(Number(sld.value)); } catch (_) { }
+        if (lightModeCheck) {
+            lightModeCheck.onClick = function () {
+                applyZoom(Number(zoomSlider.value));
             };
         }
 
         return {
-            group: g,
-            label: stLabel,
-            slider: sld,
-            lightModeCheckbox: chkLight,
+            group: zoomGroup,
+            label: zoomLabel,
+            slider: zoomSlider,
+            lightModeCheckbox: lightModeCheck,
             applyZoom: applyZoom,
             syncFromView: syncFromView,
-            restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialState); }
+            restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialViewState); }
         };
     }
 
-    /* クリッピングマスク優先の境界取得 / Bounds preferring clipping mask */
-    function getMaskedBounds(item) {
-        try {
-            if (item.typename === "GroupItem" && item.clipped) {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    var pi = item.pageItems[i];
-                    if (pi.typename === "PathItem" && pi.clipping) return pi.geometricBounds;
-                    if (pi.typename === "CompoundPathItem" && pi.pathItems.length > 0 && pi.pathItems[0].clipping)
-                        return pi.pathItems[0].geometricBounds;
-                }
-            }
-            if (item.typename === "PathItem" && item.clipping) return item.geometricBounds;
-            if (item.typename === "CompoundPathItem" && item.pathItems.length > 0 && item.pathItems[0].clipping)
-                return item.pathItems[0].geometricBounds;
-        } catch (_) { }
-        return item.visibleBounds;
-    }
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
-    /* プレビュー用ユーティリティ / Preview utilities */
-    function getPreviewLayer(doc) {
-        var name = "_preview", lyr;
-        try { lyr = doc.layers.getByName(name); }
-        catch (e) { lyr = doc.layers.add(); lyr.name = name; }
-        lyr.visible = true; lyr.locked = false;
-        try { lyr.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
-        return lyr;
-    }
-    function clearPreview(doc) {
-        try {
-            var lyr = doc.layers.getByName("_preview");
-            // Remove only items we created (note tagged)
-            for (var i = lyr.pageItems.length - 1; i >= 0; i--) {
-                try {
-                    var it = lyr.pageItems[i];
-                    if (it.note === PREVIEW_TAG) it.remove();
-                } catch (_) { }
-            }
-            app.redraw();
-        } catch (e) { }
-    }
-    function buildPreview(doc, sourceItem, rows, cols, gapX, gapY, w, h, hDir, vDir, baseL, baseT) {
-        var lyr = getPreviewLayer(doc);
-        clearPreview(doc);
-        for (var r = 0; r < rows; r++) {
-            for (var c = 0; c < cols; c++) {
-                if (r === 0 && c === 0) continue;
-                var dup = sourceItem.duplicate(lyr, ElementPlacement.PLACEATBEGINNING);
-                dup.note = PREVIEW_TAG;
-                var offX = (w + gapX) * c; if (hDir === "left") offX = -offX;
-                var offY = (h + gapY) * r;
-                var desiredL = baseL + offX;
-                var desiredT = (vDir === "up") ? (baseT + offY) : (baseT - offY);
-                var mb = getMaskedBounds(dup); // [L,T,R,B]
-                var dx = desiredL - mb[0], dy = desiredT - mb[1];
-                dup.left += dx; dup.top += dy;
-            }
-        }
-        app.redraw();
-    }
+    /**
+     * 設定ダイアログを表示し、プレビューを結線する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<PageItem>} sourceItems - 複製元オブジェクト（複数選択のまま扱う）
+     * @param {number} sourceWidth - 複製元全体の幅（pt）
+     * @param {number} sourceHeight - 複製元全体の高さ（pt）
+     * @returns {object} OKなら {placementOffsets, fillFullArtboard}、キャンセルなら null
+     */
+    function showDuplicateDialog(doc, sourceItems, sourceWidth, sourceHeight) {
+        var rulerUnitCode = getRulerUnitCode();
+        var rulerUnitLabel = getRulerUnitLabel();
 
-    // ランダム配置プレビュー / Random placement preview
-    function buildPreviewRandom(doc, sourceItem, offsets) {
-        var lyr = getPreviewLayer(doc);
-        clearPreview(doc);
+        var duplicateDialog = createDialogWindow(getLabel("dialog.title") + " " + SCRIPT_VERSION);
 
-        var bb = getMaskedBounds(sourceItem);
-        var baseCX = (bb[0] + bb[2]) / 2.0;
-        var baseCY = (bb[1] + bb[3]) / 2.0;
+        /* 2カラムレイアウト：左（繰り返し数／方式）、右（間隔／方向／敷き詰め）
+           Two-column layout: counts & method on the left, gap / direction / fill on the right */
+        var columnsGroup = duplicateDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
 
-        for (var i = 0; i < offsets.length; i++) {
-            var dup = sourceItem.duplicate(lyr, ElementPlacement.PLACEATBEGINNING);
-            dup.note = PREVIEW_TAG;
+        var leftColumnGroup = columnsGroup.add("group");
+        leftColumnGroup.orientation = "column";
+        leftColumnGroup.alignChildren = "fill";
+        leftColumnGroup.spacing = WINDOW_SPACING;
 
-            var dx = offsets[i][0];
-            var dy = offsets[i][1];
+        var rightColumnGroup = columnsGroup.add("group");
+        rightColumnGroup.orientation = "column";
+        rightColumnGroup.alignChildren = "fill";
+        rightColumnGroup.spacing = WINDOW_SPACING;
 
-            var db = getMaskedBounds(dup);
-            var dupCX = (db[0] + db[2]) / 2.0;
-            var dupCY = (db[1] + db[3]) / 2.0;
+        /* 繰り返し数 / Repeat count */
+        var repeatCountPanel = addPanel(leftColumnGroup, getLabel("panel.repeatCount"));
 
-            dup.left += (baseCX + dx) - dupCX;
-            dup.top += (baseCY + dy) - dupCY;
-        }
-        app.redraw();
-    }
+        var repeatCountRow = repeatCountPanel.add("group");
+        setupRow(repeatCountRow, "left", FIELD_ROW_SPACING);
+        repeatCountRow.alignChildren = ["left", "top"];
 
-    /* ダイアログ生成＆プレビュー結線 / Build dialog and preview wiring */
-    function showDialog(doc, sourceItem, w, h) {
-        var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-        var offsetX = 300, dialogOpacity = 0.98;
-        dlg.onShow = function () { var loc = dlg.location; dlg.location = [loc[0] + offsetX, loc[1]]; };
-        dlg.opacity = dialogOpacity;
-        dlg.orientation = "column"; dlg.alignChildren = "fill";
+        var countFieldsColumn = addColumnGroup(repeatCountRow);
+        var countHorizontalGroup = countFieldsColumn.add("group");
+        countHorizontalGroup.add("statictext", undefined, getLabel("fieldLabel.countHorizontal"));
+        var countHorizontalInput = countHorizontalGroup.add("edittext", undefined, "2");
+        countHorizontalInput.characters = FIELD_CHARS;
+        countHorizontalInput.isInteger = true;
+        changeValueByArrowKey(countHorizontalInput);
 
-        // 2カラムレイアウト / Two-column layout
-        var colsGroup = dlg.add("group");
-        colsGroup.orientation = "row";
-        colsGroup.alignChildren = "fill";
-        colsGroup.spacing = 20;
+        var countVerticalGroup = countFieldsColumn.add("group");
+        countVerticalGroup.add("statictext", undefined, getLabel("fieldLabel.countVertical"));
+        var countVerticalInput = countVerticalGroup.add("edittext", undefined, "2");
+        countVerticalInput.characters = FIELD_CHARS;
+        countVerticalInput.isInteger = true;
+        changeValueByArrowKey(countVerticalInput);
 
-        var leftCol = colsGroup.add("group");
-        leftCol.orientation = "column";
-        leftCol.alignChildren = "fill";
-        leftCol.spacing = 10;
+        var countLinkGroup = addColumnGroup(repeatCountRow);
+        var countLinkCheck = countLinkGroup.add("checkbox", undefined, getLabel("checkbox.link"));
+        countLinkCheck.value = true;
 
-        var rightCol = colsGroup.add("group");
-        rightCol.orientation = "column";
-        rightCol.alignChildren = "fill";
-        rightCol.spacing = 10;
-
-        var unitCode = getCurrentUnitCode(), unitLabel = getCurrentUnitLabel();
-
-        // Random layout cache (OKでプレビューと一致させる)
-        var _randomCache = { key: null, offsets: [] };
-
-        function _randLCG(seedObj) {
-            seedObj.v = (seedObj.v * 1664525 + 1013904223) % 4294967296;
-            return seedObj.v / 4294967296;
-        }
-
-        function _makeRandomOffsets(dupCount, rangeX, rangeY, seed) {
-            var seedObj = { v: seed >>> 0 };
-            var arr = [];
-            for (var i = 0; i < dupCount; i++) {
-                var rx = (rangeX > 0) ? ((-rangeX) + (2 * rangeX) * _randLCG(seedObj)) : 0;
-                var ry = (rangeY > 0) ? ((-rangeY) + (2 * rangeY) * _randLCG(seedObj)) : 0;
-                arr.push([rx, ry]);
-            }
-            return arr;
-        }
-
-        function _getRandomOffsets(cx, cy, gptX, gptY) {
-            var dupCount = Math.max(cx, cy) - 1;
-            if (dupCount < 0) dupCount = 0;
-
-            // When gap is 0, allow disabling randomness on that axis
-            var eps = 1e-9;
-            var rangeX = (Math.abs(gptX) <= eps) ? 0 : ((w + gptX) * (cx - 1) / 2.0);
-            var rangeY = (Math.abs(gptY) <= eps) ? 0 : ((h + gptY) * (cy - 1) / 2.0);
-            if (rangeX < 0) rangeX = 0;
-            if (rangeY < 0) rangeY = 0;
-
-            var key = [cx, cy, gptX.toFixed(4), gptY.toFixed(4), w.toFixed(4), h.toFixed(4)].join("|");
-            if (_randomCache.key === key && _randomCache.offsets && _randomCache.offsets.length === dupCount) {
-                return _randomCache.offsets;
-            }
-
-            var seed = (new Date().getTime() & 0xFFFFFFFF) ^ (cx << 16) ^ (cy << 8);
-            _randomCache.key = key;
-            _randomCache.offsets = _makeRandomOffsets(dupCount, rangeX, rangeY, seed);
-            return _randomCache.offsets;
-        }
-
-        /* 繰り返し数 / Repeat Count */
-        var repeatPanel = leftCol.add("panel", undefined, L("repeatCount"));
-        repeatPanel.orientation = "column";
-        repeatPanel.alignChildren = "fill";
-        repeatPanel.margins = [15, 20, 15, 10];
-        repeatPanel.spacing = 10;
-
-        var repeatRow = repeatPanel.add("group");
-        repeatRow.orientation = "row";
-        repeatRow.alignChildren = "top";
-        repeatRow.spacing = 20;
-
-        var repeatLeftCol = repeatRow.add("group"); repeatLeftCol.orientation = "column"; repeatLeftCol.alignChildren = "left";
-        var repeatRightCol = repeatRow.add("group"); repeatRightCol.orientation = "column"; repeatRightCol.alignChildren = "left"; repeatRightCol.alignment = ["left", "center"];
-        var repeatXGroup = repeatLeftCol.add("group");
-        repeatXGroup.add("statictext", undefined, L("repeatCountH") + ":");
-        var countXInput = repeatXGroup.add("edittext", undefined, "2"); countXInput.characters = 4; countXInput.isInteger = true; changeValueByArrowKey(countXInput);
-
-        var repeatYGroup = repeatLeftCol.add("group");
-        repeatYGroup.add("statictext", undefined, L("repeatCountV") + ":");
-        var countYInput = repeatYGroup.add("edittext", undefined, "2"); countYInput.characters = 4; countYInput.isInteger = true; changeValueByArrowKey(countYInput);
-
-        var linkGroup = repeatRightCol.add("group"); linkGroup.alignment = ["left", "center"];
-        var linkCheck = linkGroup.add("checkbox", undefined, (lang === "ja" ? "連動" : "Link Horizontal & Vertical"));
-        linkCheck.value = true;
-        function syncCounts() {
-            if (linkCheck.value) {
-                countYInput.enabled = false;
-                countYInput.text = countXInput.text;
-                if (typeof countYInput.onChanging === "function") { try { countYInput.onChanging(); } catch (_) { } }
-            } else {
-                countYInput.enabled = true;
-            }
-            if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs();
-        }
-        linkCheck.onClick = function () { syncCounts(); applyPreview(); };
-        syncCounts();
-
-        /* 繰り返し数スライダー（連動時のみ有効） / Repeat count slider (enabled only when linked) */
-        var repeatSliderGroup = repeatPanel.add("group");
-        repeatSliderGroup.orientation = "row";
-        repeatSliderGroup.alignChildren = ["fill", "center"];
-
-        var countSlider = repeatSliderGroup.add("slider", undefined, parseInt(countXInput.text, 10) || 2, 1, 20);
+        var countSliderGroup = repeatCountPanel.add("group");
+        countSliderGroup.orientation = "row";
+        countSliderGroup.alignChildren = ["fill", "center"];
+        var countSlider = countSliderGroup.add("slider", undefined, 2, REPEAT_COUNT_MIN, REPEAT_COUNT_MAX);
         countSlider.alignment = ["fill", "center"];
 
-        function clampInt(n, min, max) {
-            n = parseInt(n, 10);
-            if (isNaN(n)) n = min;
-            if (n < min) n = min;
-            if (n > max) n = max;
-            return n;
+        /* 繰り返し方式 / Repeat method */
+        var repeatMethodPanel = addPanel(leftColumnGroup, getLabel("panel.repeatMethod"));
+        repeatMethodPanel.alignChildren = ["left", "top"];
+        var methodGridRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodGrid"));
+        var methodRowRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodRow"));
+        var methodColumnRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodColumn"));
+        var methodRandomRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodRandom"));
+        methodGridRadio.value = true;
+
+        /* 間隔（現在の定規単位で入力し、内部ではptへ変換）
+           Gap (entered in the current ruler unit, converted to points internally) */
+        var gapPanel = addPanel(rightColumnGroup, getLabel("panel.gap", { unit: rulerUnitLabel }));
+
+        var gapFieldsRow = gapPanel.add("group");
+        setupRow(gapFieldsRow, "left", FIELD_ROW_SPACING);
+        gapFieldsRow.alignChildren = ["left", "top"];
+
+        var gapFieldsColumn = addColumnGroup(gapFieldsRow);
+        var gapHorizontalGroup = gapFieldsColumn.add("group");
+        gapHorizontalGroup.add("statictext", undefined, getLabel("fieldLabel.gapHorizontal"));
+        var gapHorizontalInput = gapHorizontalGroup.add("edittext", undefined, "10");
+        gapHorizontalInput.characters = FIELD_CHARS;
+        changeValueByArrowKey(gapHorizontalInput);
+
+        var gapVerticalGroup = gapFieldsColumn.add("group");
+        gapVerticalGroup.add("statictext", undefined, getLabel("fieldLabel.gapVertical"));
+        var gapVerticalInput = gapVerticalGroup.add("edittext", undefined, "10");
+        gapVerticalInput.characters = FIELD_CHARS;
+        changeValueByArrowKey(gapVerticalInput);
+
+        var gapLinkGroup = addColumnGroup(gapFieldsRow);
+        var gapLinkCheck = gapLinkGroup.add("checkbox", undefined, getLabel("checkbox.link"));
+        gapLinkCheck.value = true;
+
+        /* 方向 / Direction */
+        var directionPanel = addPanel(rightColumnGroup, getLabel("panel.direction"));
+        directionPanel.alignChildren = ["left", "top"];
+
+        var horizontalDirectionRow = directionPanel.add("group");
+        setupRow(horizontalDirectionRow);
+        horizontalDirectionRow.add("statictext", undefined, getLabel("fieldLabel.directionHorizontal"));
+        var directionRightRadio = horizontalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionRight"));
+        var directionLeftRadio = horizontalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionLeft"));
+        directionRightRadio.value = true;
+
+        var verticalDirectionRow = directionPanel.add("group");
+        setupRow(verticalDirectionRow);
+        verticalDirectionRow.add("statictext", undefined, getLabel("fieldLabel.directionVertical"));
+        var directionUpRadio = verticalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionUp"));
+        var directionDownRadio = verticalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionDown"));
+        directionDownRadio.value = true;
+
+        /* 敷き詰め / Fill */
+        var fillPanel = addPanel(rightColumnGroup, getLabel("panel.fill"));
+        fillPanel.alignChildren = ["left", "top"];
+        var fillToEdgeCheck = fillPanel.add("checkbox", undefined, getLabel("checkbox.fillToEdge"));
+        fillToEdgeCheck.value = false;
+        var fillFullCheck = fillPanel.add("checkbox", undefined, getLabel("checkbox.fillFull"));
+        fillFullCheck.value = false;
+
+        /* 画面ズーム / Zoom */
+        var initialViewState = __TMKZoom_captureViewState(doc);
+        var zoomControls = __TMKZoom_addControls(duplicateDialog, doc, getLabel("fieldLabel.zoom"), initialViewState, {
+            min: VIEW_ZOOM_MIN,
+            max: VIEW_ZOOM_MAX,
+            sliderWidth: ZOOM_SLIDER_WIDTH,
+            margins: [0, 0, 0, 10],
+            redraw: true,
+            lightMode: true,
+            lightModeLabel: getLabel("checkbox.lightMode"),
+            lightModeDefault: false
+        });
+
+        var dialogButtonRow = duplicateDialog.add("group");
+        setupRow(dialogButtonRow, "center");
+        var cancelButton = dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = dialogButtonRow.add("button", undefined, getLabel("button.ok"));
+
+        // -----------------------------------------
+        // 入力値の読み取り / Reading the input values
+        // -----------------------------------------
+
+        /**
+         * 選択中の繰り返し方式を返す
+         * @returns {string} "grid" / "row" / "column" / "random"
+         */
+        function getRepeatMethod() {
+            if (methodRowRadio.value) return "row";
+            if (methodColumnRadio.value) return "column";
+            if (methodRandomRadio.value) return "random";
+            return "grid";
         }
 
-        function updateCountSliderFromInputs() {
-            if (!countSlider) return;
-            var isRowMode = !!(methodRow && methodRow.value);
-            var isColMode = !!(methodCol && methodCol.value);
-            var isRandomMode = !!(methodRandom && methodRandom.value);
-
-            var src = isColMode ? countYInput : countXInput;
-            var v = clampInt(src.text, 1, 20);
-            countSlider.value = v;
-
-            // Enabled when Row/Column/Random mode, or when Link is ON (and available)
-            countSlider.enabled = isRowMode || isColMode || isRandomMode || !!(linkCheck.enabled && linkCheck.value);
+        /**
+         * 繰り返し数を読み取る（方式に応じて不要側を1に固定）
+         * @returns {object} {columns, rows}。数値として読めない場合は null
+         */
+        function readRepeatCounts() {
+            var columnCount = parseInt(countHorizontalInput.text, 10);
+            var rowCount = parseInt(countVerticalInput.text, 10);
+            var repeatMethod = getRepeatMethod();
+            if (repeatMethod === "row" || repeatMethod === "random") rowCount = 1;
+            if (repeatMethod === "column") columnCount = 1;
+            if (isNaN(columnCount) || columnCount < 1 || isNaN(rowCount) || rowCount < 1) return null;
+            return { columns: columnCount, rows: rowCount };
         }
 
-        function setCountsFromSlider() {
-            var v = Math.round(countSlider.value);
-            if (v < 1) v = 1;
-            if (v > 20) v = 20;
-            countSlider.value = v;
+        /**
+         * 間隔を読み取り、ポイントへ変換する
+         * @returns {object} {x, y}（pt）。数値として読めない場合は null
+         */
+        function readGapPoints() {
+            var horizontalGap = parseFloat(gapHorizontalInput.text);
+            var verticalGap = parseFloat(gapVerticalInput.text);
+            if (isNaN(horizontalGap) || isNaN(verticalGap)) return null;
+            return {
+                x: unitToPoints(rulerUnitCode, horizontalGap),
+                y: unitToPoints(rulerUnitCode, verticalGap)
+            };
+        }
 
-            var isRowMode = !!(methodRow && methodRow.value);
-            var isColMode = !!(methodCol && methodCol.value);
-            var isRandomMode = !!(methodRandom && methodRandom.value);
+        /**
+         * 数値を繰り返し数の範囲に収める
+         * @param {string|number} countValue - 入力値
+         * @returns {number} REPEAT_COUNT_MIN〜REPEAT_COUNT_MAX に収めた整数
+         */
+        function clampRepeatCount(countValue) {
+            /* スライダーは実数を返すので、切り捨てず四捨五入する / Sliders report real numbers, so round instead of truncating */
+            var repeatCount = Math.round(Number(countValue));
+            if (isNaN(repeatCount) || repeatCount < REPEAT_COUNT_MIN) return REPEAT_COUNT_MIN;
+            if (repeatCount > REPEAT_COUNT_MAX) return REPEAT_COUNT_MAX;
+            return repeatCount;
+        }
 
-            if (isColMode) {
-                // Column mode: Horizontal is always 1, slider controls Vertical
-                countXInput.text = "1";
-                countYInput.text = String(v);
-            } else {
-                // Grid / Row / Random: slider controls Horizontal
-                countXInput.text = String(v);
-                if (isRowMode || isRandomMode) {
-                    countYInput.text = "1";
-                } else {
-                    if (linkCheck.value) countYInput.text = String(v);
-                }
+        // -----------------------------------------
+        // ランダム配置 / Random placement
+        // -----------------------------------------
+
+        /* OK後もプレビューと同じ配置にするためのキャッシュ / Cache so OK keeps the previewed layout */
+        var randomOffsetCache = { key: null, offsets: [] };
+
+        /**
+         * 線形合同法で擬似乱数を返す（同じ種から同じ並びを再現するため）
+         * @param {object} seedHolder - {v: number} 形式の内部状態
+         * @returns {number} 0以上1未満の擬似乱数
+         */
+        function nextRandomValue(seedHolder) {
+            seedHolder.v = (seedHolder.v * 1664525 + 1013904223) % 4294967296;
+            return seedHolder.v / 4294967296;
+        }
+
+        /**
+         * ランダム配置のオフセット一覧を作る
+         * @param {number} duplicateCount - 複製する数
+         * @param {number} rangeX - 左右の散らばり範囲（pt）
+         * @param {number} rangeY - 上下の散らばり範囲（pt）
+         * @param {number} randomSeed - 乱数の種
+         * @returns {Array<Array<number>>} [dx, dy] の配列（pt）
+         */
+        function createRandomOffsets(duplicateCount, rangeX, rangeY, randomSeed) {
+            var seedHolder = { v: randomSeed >>> 0 };
+            var randomOffsets = [];
+            for (var i = 0; i < duplicateCount; i++) {
+                var dx = (rangeX > 0) ? (-rangeX + 2 * rangeX * nextRandomValue(seedHolder)) : 0;
+                var dy = (rangeY > 0) ? (-rangeY + 2 * rangeY * nextRandomValue(seedHolder)) : 0;
+                randomOffsets.push([dx, dy]);
             }
+            return randomOffsets;
         }
 
-        // プレビュー更新をスロットル（スライダードラッグ中のチラつき軽減） / Throttle preview updates while dragging
-        var PREVIEW_THROTTLE_MS = 120;
-        var _lastPreviewTick = 0;
-        function _nowMs() {
-            // $.hiresTimer is microseconds
-            try { return $.hiresTimer / 1000.0; } catch (_) { return new Date().getTime(); }
+        /**
+         * ランダム配置のオフセットを取得する（同じ条件ならキャッシュを返す）
+         * @param {number} repeatCount - 繰り返し数
+         * @param {number} gapX - 左右の間隔（pt）
+         * @param {number} gapY - 上下の間隔（pt）
+         * @returns {Array<Array<number>>} [dx, dy] の配列（pt）
+         */
+        function getRandomOffsets(repeatCount, gapX, gapY) {
+            var GAP_EPSILON = 1e-9;
+            var duplicateCount = Math.max(0, repeatCount - 1);
+
+            /* 間隔が0の軸はランダムを完全にOFF / A gap of 0 disables randomness on that axis */
+            var rangeX = (Math.abs(gapX) <= GAP_EPSILON) ? 0 : Math.max(0, (sourceWidth + gapX) * (repeatCount - 1) / 2);
+            var rangeY = (Math.abs(gapY) <= GAP_EPSILON) ? 0 : Math.max(0, (sourceHeight + gapY) * (repeatCount - 1) / 2);
+
+            var cacheKey = [repeatCount, gapX.toFixed(4), gapY.toFixed(4), sourceWidth.toFixed(4), sourceHeight.toFixed(4)].join("|");
+            if (randomOffsetCache.key === cacheKey && randomOffsetCache.offsets.length === duplicateCount) {
+                return randomOffsetCache.offsets;
+            }
+
+            var randomSeed = (new Date().getTime() & 0xFFFFFFFF) ^ (repeatCount << 16);
+            randomOffsetCache.key = cacheKey;
+            randomOffsetCache.offsets = createRandomOffsets(duplicateCount, rangeX, rangeY, randomSeed);
+            return randomOffsetCache.offsets;
         }
+
+        /**
+         * 現在の設定から配置オフセットを組み立てる
+         * @returns {Array<Array<number>>} [dx, dy] の配列（pt）。入力値が読めない場合は null
+         */
+        function buildPlacementOffsets() {
+            var repeatCounts = readRepeatCounts();
+            var gapPoints = readGapPoints();
+            if (!repeatCounts || !gapPoints) return null;
+
+            if (getRepeatMethod() === "random") {
+                return getRandomOffsets(repeatCounts.columns, gapPoints.x, gapPoints.y);
+            }
+            var horizontalDirection = directionRightRadio.value ? "right" : "left";
+            var verticalDirection = directionUpRadio.value ? "up" : "down";
+            return computeGridOffsets(
+                repeatCounts.rows, repeatCounts.columns,
+                sourceWidth, sourceHeight,
+                gapPoints.x, gapPoints.y,
+                horizontalDirection, verticalDirection
+            );
+        }
+
+        // -----------------------------------------
+        // プレビュー更新 / Preview updates
+        // -----------------------------------------
+
+        var lastPreviewTime = 0;
+
+        /**
+         * 現在の設定でプレビューを描き直す
+         * @returns {void}
+         */
+        function applyPreview() {
+            var placementOffsets = buildPlacementOffsets();
+            if (!placementOffsets) return;
+            renderPreview(doc, sourceItems, placementOffsets);
+        }
+
+        /**
+         * プレビュー更新を間引く（スライダードラッグ中のチラつき軽減）
+         * @param {boolean} force - true なら間引かずに更新する
+         * @returns {void}
+         */
         function applyPreviewThrottled(force) {
-            var t = _nowMs();
-            if (force || (t - _lastPreviewTick) >= PREVIEW_THROTTLE_MS) {
-                _lastPreviewTick = t;
-                applyPreview();
+            var currentTime = new Date().getTime();
+            if (!force && (currentTime - lastPreviewTime) < PREVIEW_THROTTLE_MS) return;
+            lastPreviewTime = currentTime;
+            applyPreview();
+        }
+
+        // -----------------------------------------
+        // UIの同期 / Keeping the UI in sync
+        // -----------------------------------------
+
+        /**
+         * ［連動］に合わせて縦の繰り返し数を横へそろえる
+         * @returns {void}
+         */
+        function syncCountFields() {
+            if (countLinkCheck.value) {
+                countVerticalInput.enabled = false;
+                countVerticalInput.text = countHorizontalInput.text;
+            } else {
+                countVerticalInput.enabled = true;
+            }
+            updateCountSliderFromFields();
+        }
+
+        /**
+         * ［連動］に合わせて上下の間隔を左右へそろえる
+         * @returns {void}
+         */
+        function syncGapFields() {
+            if (gapLinkCheck.value) {
+                gapVerticalInput.enabled = false;
+                gapVerticalInput.text = gapHorizontalInput.text;
+            } else {
+                gapVerticalInput.enabled = true;
             }
         }
+
+        /**
+         * 方向ラジオの有効／無効をまとめて切り替える
+         * @param {boolean} horizontalEnabled - 横方向を有効にするか
+         * @param {boolean} verticalEnabled - 縦方向を有効にするか
+         * @returns {void}
+         */
+        function setDirectionEnabled(horizontalEnabled, verticalEnabled) {
+            directionRightRadio.enabled = horizontalEnabled;
+            directionLeftRadio.enabled = horizontalEnabled;
+            directionUpRadio.enabled = verticalEnabled;
+            directionDownRadio.enabled = verticalEnabled;
+        }
+
+        /**
+         * 繰り返し方式と敷き詰めの状態から、方向ラジオの有効／無効を決める
+         * @returns {void}
+         */
+        function applyDirectionStateForMethod() {
+            /* ［アートボードいっぱいに］のあいだは方向を固定 / Fill Full pins the direction */
+            if (fillFullCheck.value) { setDirectionEnabled(false, false); return; }
+
+            var repeatMethod = getRepeatMethod();
+            if (repeatMethod === "row") setDirectionEnabled(true, false);
+            else if (repeatMethod === "column") setDirectionEnabled(false, true);
+            else if (repeatMethod === "random") setDirectionEnabled(false, false);
+            else setDirectionEnabled(true, true);
+        }
+
+        /**
+         * 方向を既定（右・下）に戻す
+         * @returns {void}
+         */
+        function resetDirectionToDefault() {
+            directionRightRadio.value = true;
+            directionLeftRadio.value = false;
+            directionDownRadio.value = true;
+            directionUpRadio.value = false;
+        }
+
+        /**
+         * 入力欄の値をスライダーへ反映し、スライダーの有効／無効を決める
+         * @returns {void}
+         */
+        function updateCountSliderFromFields() {
+            var repeatMethod = getRepeatMethod();
+            var sourceField = (repeatMethod === "column") ? countVerticalInput : countHorizontalInput;
+            countSlider.value = clampRepeatCount(sourceField.text);
+
+            /* 敷き詰め中は行列数を自動計算するので操作させない（上限20で潰れるため）
+               While a Fill option drives the counts, block the slider so it cannot clamp them to 20 */
+            if (fillToEdgeCheck.value || fillFullCheck.value) {
+                countSlider.enabled = false;
+                return;
+            }
+            /* 行／列／ランダムでは常に有効、グリッドは［連動］ONのときだけ有効
+               Enabled in Row / Column / Random, and in Grid only while Link is on */
+            countSlider.enabled = (repeatMethod !== "grid") || (countLinkCheck.enabled && countLinkCheck.value);
+        }
+
+        /**
+         * スライダーの値を繰り返し数の入力欄へ反映する
+         * @returns {void}
+         */
+        function applyCountFieldsFromSlider() {
+            var repeatCount = clampRepeatCount(countSlider.value);
+            countSlider.value = repeatCount;
+
+            var repeatMethod = getRepeatMethod();
+            if (repeatMethod === "column") {
+                /* 列：横は常に1で、スライダーは縦を操作 / Column: horizontal stays 1, the slider drives vertical */
+                countHorizontalInput.text = "1";
+                countVerticalInput.text = String(repeatCount);
+                return;
+            }
+            countHorizontalInput.text = String(repeatCount);
+            if (repeatMethod === "row" || repeatMethod === "random") {
+                countVerticalInput.text = "1";
+            } else if (countLinkCheck.value) {
+                countVerticalInput.text = String(repeatCount);
+            }
+        }
+
+        /**
+         * 繰り返し方式に合わせて各コントロールの状態を更新する
+         * @returns {void}
+         */
+        function updateRepeatMethodUI() {
+            var repeatMethod = getRepeatMethod();
+
+            if (repeatMethod === "column") {
+                /* 列：横は常に1 / Column: horizontal fixed to 1 */
+                countHorizontalInput.text = "1";
+                countHorizontalInput.enabled = false;
+                countVerticalInput.enabled = true;
+                countLinkCheck.value = false;
+                countLinkCheck.enabled = false;
+
+                gapLinkCheck.value = false;
+                gapLinkCheck.enabled = false;
+                gapHorizontalInput.enabled = false;
+                gapVerticalInput.enabled = true;
+
+            } else if (repeatMethod === "row") {
+                /* 行：縦は常に1 / Row: vertical fixed to 1 */
+                countVerticalInput.text = "1";
+                countVerticalInput.enabled = false;
+                countHorizontalInput.enabled = true;
+                countLinkCheck.value = false;
+                countLinkCheck.enabled = false;
+
+                gapLinkCheck.value = false;
+                gapLinkCheck.enabled = false;
+                gapHorizontalInput.enabled = true;
+                gapVerticalInput.enabled = false;
+
+            } else if (repeatMethod === "random") {
+                /* ランダム：繰り返し数は横だけ、間隔は連動ON、方向と敷き詰めは無効
+                   Random: a single count, gaps linked, direction & fill turned off */
+                countVerticalInput.text = "1";
+                countVerticalInput.enabled = false;
+                countHorizontalInput.enabled = true;
+                countLinkCheck.value = false;
+                countLinkCheck.enabled = false;
+
+                gapLinkCheck.value = true;
+                gapLinkCheck.enabled = true;
+                gapHorizontalInput.enabled = true;
+                syncGapFields();
+                fillToEdgeCheck.value = false;
+                fillFullCheck.value = false;
+
+            } else {
+                /* グリッド：繰り返し数・間隔とも［連動］ONに戻す / Grid: restore both link checkboxes */
+                countHorizontalInput.enabled = true;
+                countLinkCheck.enabled = true;
+                countLinkCheck.value = true;
+                syncCountFields();
+
+                gapLinkCheck.enabled = true;
+                gapLinkCheck.value = true;
+                gapHorizontalInput.enabled = true;
+                syncGapFields();
+            }
+
+            applyDirectionStateForMethod();
+            updateCountSliderFromFields();
+        }
+
+        // -----------------------------------------
+        // 敷き詰めの自動計算 / Automatic fill counts
+        // -----------------------------------------
+
+        /**
+         * ［アートボードの端まで］：選択オブジェクトを起点に行列数を求める
+         * @returns {void}
+         */
+        function recalcCountsToArtboardEdge() {
+            var gapPoints = readGapPoints();
+            if (!gapPoints) return;
+
+            var artboardRect = getActiveArtboardRect(doc);
+            var sourceBounds = getUnionBounds(sourceItems);
+            var sourceLeft = sourceBounds[0], sourceTop = sourceBounds[1];
+            var stepWidth = sourceWidth + gapPoints.x, stepHeight = sourceHeight + gapPoints.y;
+            var repeatMethod = getRepeatMethod();
+            var columnCount = 1, rowCount = 1;
+
+            if (repeatMethod !== "column" && stepWidth > 0) {
+                var availableWidth = directionRightRadio.value ? (artboardRect[2] - sourceLeft) : (sourceLeft - artboardRect[0]);
+                columnCount = Math.max(1, Math.floor((availableWidth + gapPoints.x) / stepWidth));
+            }
+            if (repeatMethod !== "row" && stepHeight > 0) {
+                var availableHeight = directionUpRadio.value ? (artboardRect[1] - sourceTop) : (sourceTop - artboardRect[3]);
+                rowCount = Math.max(1, Math.floor((availableHeight + gapPoints.y) / stepHeight));
+            }
+
+            countHorizontalInput.text = String(columnCount);
+            countVerticalInput.text = String(rowCount);
+            updateCountSliderFromFields();
+        }
+
+        /**
+         * ［アートボードいっぱいに］：アートボードに収まる最大の行列数を求める（方向は無視）
+         * @returns {void}
+         */
+        function recalcCountsToFullArtboard() {
+            var gapPoints = readGapPoints();
+            if (!gapPoints) return;
+
+            var artboardRect = getActiveArtboardRect(doc);
+            var artboardWidth = Math.abs(artboardRect[2] - artboardRect[0]);
+            var artboardHeight = Math.abs(artboardRect[1] - artboardRect[3]);
+            var stepWidth = sourceWidth + gapPoints.x, stepHeight = sourceHeight + gapPoints.y;
+            var repeatMethod = getRepeatMethod();
+
+            var columnCount = (repeatMethod === "column" || stepWidth <= 0)
+                ? 1 : Math.max(1, Math.floor((artboardWidth + gapPoints.x) / stepWidth));
+            var rowCount = (repeatMethod === "row" || stepHeight <= 0)
+                ? 1 : Math.max(1, Math.floor((artboardHeight + gapPoints.y) / stepHeight));
+
+            countHorizontalInput.text = String(columnCount);
+            countVerticalInput.text = String(rowCount);
+            updateCountSliderFromFields();
+        }
+
+        /**
+         * ONになっている敷き詰めオプションに応じて行列数を再計算する
+         * @returns {void}
+         */
+        function recalcFillCounts() {
+            if (fillToEdgeCheck.value) recalcCountsToArtboardEdge();
+            else if (fillFullCheck.value) recalcCountsToFullArtboard();
+        }
+
+        // -----------------------------------------
+        // イベント結線 / Event wiring
+        // -----------------------------------------
+
+        /**
+         * 横の繰り返し数が変わったときの処理
+         * @returns {void}
+         */
+        function onCountHorizontalChanged() {
+            if (countLinkCheck.value) countVerticalInput.text = countHorizontalInput.text;
+            updateCountSliderFromFields();
+            applyPreview();
+        }
+
+        /**
+         * 縦の繰り返し数が変わったときの処理
+         * @returns {void}
+         */
+        function onCountVerticalChanged() {
+            updateCountSliderFromFields();
+            applyPreview();
+        }
+
+        /**
+         * 左右の間隔が変わったときの処理
+         * @returns {void}
+         */
+        function onGapHorizontalChanged() {
+            if (gapLinkCheck.value) gapVerticalInput.text = gapHorizontalInput.text;
+            recalcFillCounts();
+            applyPreview();
+        }
+
+        /**
+         * 上下の間隔が変わったときの処理
+         * @returns {void}
+         */
+        function onGapVerticalChanged() {
+            recalcFillCounts();
+            applyPreview();
+        }
+
+        /**
+         * 繰り返し方式のラジオが選ばれたときの処理
+         * @returns {void}
+         */
+        function onRepeatMethodChanged() {
+            updateRepeatMethodUI();
+            recalcFillCounts();
+            applyPreview();
+        }
+
+        countHorizontalInput.onChanging = onCountHorizontalChanged;
+        countHorizontalInput.onChange = onCountHorizontalChanged;
+        countVerticalInput.onChanging = onCountVerticalChanged;
+        countVerticalInput.onChange = onCountVerticalChanged;
+        gapHorizontalInput.onChanging = onGapHorizontalChanged;
+        gapHorizontalInput.onChange = onGapHorizontalChanged;
+        gapVerticalInput.onChanging = onGapVerticalChanged;
+        gapVerticalInput.onChange = onGapVerticalChanged;
+
+        countLinkCheck.onClick = function () {
+            syncCountFields();
+            applyPreview();
+        };
+        gapLinkCheck.onClick = function () {
+            syncGapFields();
+            /* 上下の間隔が左右にそろうと敷き詰めの行列数も変わる / Linking the gaps changes the fill counts too */
+            recalcFillCounts();
+            applyPreview();
+        };
 
         countSlider.onChanging = function () {
             if (!countSlider.enabled) return;
-            setCountsFromSlider();
+            applyCountFieldsFromSlider();
             applyPreviewThrottled(false);
         };
-
         countSlider.onChange = function () {
             if (!countSlider.enabled) return;
-            setCountsFromSlider();
+            applyCountFieldsFromSlider();
             applyPreviewThrottled(true);
         };
 
-        // init slider state
-        updateCountSliderFromInputs();
+        methodGridRadio.onClick = onRepeatMethodChanged;
+        methodRowRadio.onClick = function () {
+            /* 列→行では縦の数を横の数として引き継ぐ / Carry the vertical count over when switching Column -> Row */
+            countHorizontalInput.text = String(clampRepeatCount(countVerticalInput.text));
+            onRepeatMethodChanged();
+        };
+        methodColumnRadio.onClick = function () {
+            /* 行→列では横の数を縦の数として引き継ぐ / Carry the horizontal count over when switching Row -> Column */
+            countVerticalInput.text = String(clampRepeatCount(countHorizontalInput.text));
+            onRepeatMethodChanged();
+        };
+        methodRandomRadio.onClick = function () {
+            /* 列→ランダムでは縦の数を横の数として引き継ぐ / Carry the vertical count over when switching Column -> Random */
+            if (getRepeatMethod() === "random" && countHorizontalInput.text === "1") {
+                countHorizontalInput.text = String(clampRepeatCount(countVerticalInput.text));
+            }
+            onRepeatMethodChanged();
+        };
 
-        /* 繰り返し方式 / Repeat method */
-        var methodPanel = leftCol.add("panel", undefined, L("repeatMethodTitle"));
-        methodPanel.orientation = "column";
-        methodPanel.alignChildren = "left";
-        methodPanel.margins = [15, 20, 15, 10];
-        methodPanel.spacing = 8;
-
-        var methodGrid = methodPanel.add("radiobutton", undefined, L("repeatMethodGrid"));
-        var methodRow = methodPanel.add("radiobutton", undefined, L("repeatMethodRow"));
-        var methodCol = methodPanel.add("radiobutton", undefined, L("repeatMethodCol"));
-        var methodRandom = methodPanel.add("radiobutton", undefined, L("repeatMethodRandom"));
-        methodGrid.value = true;
-
-
-        /* 間隔（現在単位表記） / Gap (show in current ruler units) */
-        var gapPanel = rightCol.add("panel", undefined, (lang === "ja" ? ("間隔（" + unitLabel + "）") : ("Gap (" + unitLabel + ")")));
-        gapPanel.orientation = "row"; gapPanel.alignChildren = "top";
-        gapPanel.margins = [15, 20, 15, 10]; gapPanel.spacing = 20;
-
-        var gapLeftCol = gapPanel.add("group"); gapLeftCol.orientation = "column"; gapLeftCol.alignChildren = "left";
-        var gapRightCol = gapPanel.add("group"); gapRightCol.orientation = "column"; gapRightCol.alignChildren = "left"; gapRightCol.alignment = ["left", "center"];
-
-        var gapXGroup = gapLeftCol.add("group");
-        gapXGroup.add("statictext", undefined, (lang === "ja" ? "左右:" : "Horizontal:"));
-        var gapXInput = gapXGroup.add("edittext", undefined, "10"); gapXInput.characters = 4; changeValueByArrowKey(gapXInput);
-
-        var gapYGroup = gapLeftCol.add("group");
-        gapYGroup.add("statictext", undefined, (lang === "ja" ? "上下:" : "Vertical:"));
-        var gapYInput = gapYGroup.add("edittext", undefined, "10"); gapYInput.characters = 4; changeValueByArrowKey(gapYInput);
-
-        var gapLinkGroup = gapRightCol.add("group"); gapLinkGroup.alignment = ["left", "center"];
-        var gapLink = gapLinkGroup.add("checkbox", undefined, (lang === "ja" ? "連動" : "Link Horizontal & Vertical")); gapLink.value = true;
-        function syncGaps() {
-            if (gapLink.value) {
-                gapYInput.enabled = false; gapYInput.text = gapXInput.text;
-                if (typeof gapYInput.onChanging === "function") { try { gapYInput.onChanging(); } catch (_) { } }
-            } else { gapYInput.enabled = true; }
-        }
-        gapLink.onClick = function () { syncGaps(); applyPreview(); };
-        syncGaps();
-
-        if (typeof fillToArtboardCheck !== "undefined" && fillToArtboardCheck.value) { recalcCountsForArtboard(); }
-
-        /* 方向パネル（横・縦の展開方向を指定） / Direction panel (horizontal & vertical placement) */
-        var dirPanel = rightCol.add("panel", undefined, L("directionTitle"));
-        dirPanel.orientation = "column"; dirPanel.alignChildren = "left"; dirPanel.margins = [15, 20, 15, 10];
-
-        var hGroup = dirPanel.add("group"); hGroup.orientation = "row"; hGroup.alignChildren = "left";
-        hGroup.add("statictext", undefined, (lang === "ja" ? "横方向" : "Horizontal"));
-        var dirRight = hGroup.add("radiobutton", undefined, L("dirRight"));
-        var dirLeft = hGroup.add("radiobutton", undefined, L("dirLeft"));
-        dirRight.value = true;
-        dirRight.onClick = function () {
-            // 右選択時はそのままプレビュー
+        directionRightRadio.onClick = applyPreview;
+        directionDownRadio.onClick = applyPreview;
+        directionLeftRadio.onClick = function () {
+            /* 左を選んだら［アートボードの端まで］を自動OFF / Choosing Left turns Fill to Edge off */
+            fillToEdgeCheck.value = false;
+            updateCountSliderFromFields();
             applyPreview();
         };
-        dirLeft.onClick = function () {
-            // 左を選んだら「アートボードの端まで」を自動OFF
-            try {
-                if (typeof fillToArtboardCheck !== "undefined" && fillToArtboardCheck.value) {
-                    fillToArtboardCheck.value = false;
-                }
-            } catch (_) { }
+        directionUpRadio.onClick = function () {
+            /* 上を選んだら［アートボードの端まで］を自動OFF / Choosing Up turns Fill to Edge off */
+            fillToEdgeCheck.value = false;
+            updateCountSliderFromFields();
             applyPreview();
         };
 
-        var vGroup = dirPanel.add("group"); vGroup.orientation = "row"; vGroup.alignChildren = "left";
-        vGroup.add("statictext", undefined, (lang === "ja" ? "縦方向" : "Vertical"));
-        var dirUp = vGroup.add("radiobutton", undefined, L("dirUp"));
-        var dirDown = vGroup.add("radiobutton", undefined, L("dirDown"));
-        dirDown.value = true;
-        dirUp.onClick = function () {
-            // 上を選んだら「アートボードの端まで」を自動OFF
-            try {
-                if (typeof fillToArtboardCheck !== "undefined" && fillToArtboardCheck.value) {
-                    fillToArtboardCheck.value = false;
-                }
-            } catch (_) { }
+        fillToEdgeCheck.onClick = function () {
+            if (fillToEdgeCheck.value) {
+                /* 端までは右・下を起点にする（方向は変更可）/ Fill to Edge starts from the right & bottom, direction still editable */
+                fillFullCheck.value = false;
+                resetDirectionToDefault();
+                applyDirectionStateForMethod();
+                countLinkCheck.value = false;
+                syncCountFields();
+                recalcCountsToArtboardEdge();
+            }
+            updateCountSliderFromFields();
             applyPreview();
         };
-        dirDown.onClick = function () {
-            // 下選択時はそのままプレビュー
+
+        fillFullCheck.onClick = function () {
+            if (fillFullCheck.value) {
+                /* いっぱいには方向を固定してディム / Fill Full fixes the direction and dims the radios */
+                fillToEdgeCheck.value = false;
+                resetDirectionToDefault();
+                recalcCountsToFullArtboard();
+            }
+            applyDirectionStateForMethod();
+            updateCountSliderFromFields();
             applyPreview();
         };
 
         /* キー操作でラジオを選択 / Keyboard shortcuts for radios */
-        function _selectRadio(radio) {
-            if (!radio || radio.enabled === false) return;
-            radio.value = true;
-            if (typeof radio.onClick === "function") {
-                try { radio.onClick(); } catch (_) { }
-            }
-        }
+        duplicateDialog.addEventListener("keydown", function (event) {
+            var keyName = event.keyName;
+            if (!keyName) return;
 
-        dlg.addEventListener("keydown", function (event) {
-            // Normalize single-letter key names
-            var k = event.keyName;
-            if (!k) return;
+            var targetRadio = null;
+            if (keyName === "G") targetRadio = methodGridRadio;
+            else if (keyName === "C") targetRadio = methodColumnRadio;
+            else if (keyName === "A") targetRadio = methodRandomRadio;
+            else if (keyName === "R") targetRadio = event.shiftKey ? directionRightRadio : methodRowRadio;
+            else if (keyName === "L") targetRadio = directionLeftRadio;
+            else if (keyName === "T") targetRadio = directionUpRadio;
+            else if (keyName === "B") targetRadio = directionDownRadio;
+            if (!targetRadio) return;
 
-            // Repeat Method
-            if (k === "G") {
-                _selectRadio(methodGrid);
-                event.preventDefault();
-                return;
-            }
-            if (k === "C") {
-                _selectRadio(methodCol);
-                event.preventDefault();
-                return;
-            }
-            if (k === "A") {
-                _selectRadio(methodRandom);
-                event.preventDefault();
-                return;
-            }
-            if (k === "R" && !event.shiftKey) {
-                // R = Row
-                _selectRadio(methodRow);
-                event.preventDefault();
-                return;
-            }
-
-            // Direction
-            if (k === "R" && event.shiftKey) {
-                // Shift+R = Right
-                _selectRadio(dirRight);
-                event.preventDefault();
-                return;
-            }
-            if (k === "L") {
-                _selectRadio(dirLeft);
-                event.preventDefault();
-                return;
-            }
-            if (k === "T") {
-                _selectRadio(dirUp);
-                event.preventDefault();
-                return;
-            }
-            if (k === "B") {
-                _selectRadio(dirDown);
-                event.preventDefault();
-                return;
-            }
+            selectRadioButton(targetRadio);
+            event.preventDefault();
         });
 
-        /* パネル：Fill（アートボードの端まで／アートボードいっぱいに） / Panel: Fill */
-        var fillPanel = rightCol.add("panel", undefined, L("fillTitle"));
-        fillPanel.orientation = "column"; fillPanel.alignChildren = "left";
-        fillPanel.margins = [15, 20, 15, 10]; fillPanel.spacing = 8;
+        var dialogResult = null;
 
-        var fillABGroup = fillPanel.add("group"); fillABGroup.alignment = ["left", "center"];
-        var fillToArtboardCheck = fillABGroup.add("checkbox", undefined, (lang === "ja" ? "アートボードの端まで" : "Fill to Artboard Edge"));
-        fillToArtboardCheck.value = false;
-        fillToArtboardCheck.onClick = function () {
-            if (fillToArtboardCheck.value) {
-                // 「アートボードの端まで」選択時は方向を［右・下］に固定
-                if (typeof dirRight !== "undefined") { dirRight.value = true; }
-                if (typeof dirLeft !== "undefined") { dirLeft.value = false; }
-                if (typeof dirDown !== "undefined") { dirDown.value = true; }
-                if (typeof dirUp !== "undefined") { dirUp.value = false; }
-                // 方向コントロールは有効化
-                if (typeof dirRight !== "undefined") dirRight.enabled = true;
-                if (typeof dirLeft !== "undefined") dirLeft.enabled = true;
-                if (typeof dirUp !== "undefined") dirUp.enabled = true;
-                if (typeof dirDown !== "undefined") dirDown.enabled = true;
-                linkCheck.value = false;
-                syncCounts();
-                recalcCountsForArtboard();
-            }
-            if (typeof fillToArtboardFullCheck !== "undefined" && fillToArtboardCheck.value) {
-                fillToArtboardFullCheck.value = false;
-            }
-            applyPreview();
-        };
+        okButton.onClick = function () {
+            if (!readRepeatCounts()) { alert(getLabel("alert.invalidCount")); return; }
+            if (!readGapPoints()) { alert(getLabel("alert.invalidGap")); return; }
 
-        // 追加：アートボードいっぱいに
-        var fillABFullGroup = fillPanel.add("group"); fillABFullGroup.alignment = ["left", "center"];
-        var fillToArtboardFullCheck = fillABFullGroup.add("checkbox", undefined, (lang === "ja" ? "アートボードいっぱいに" : "Fill Full Artboard"));
-        fillToArtboardFullCheck.value = false;
-        fillToArtboardFullCheck.onClick = function () {
-            if (fillToArtboardFullCheck.value) {
-                // 端までと排他
-                if (typeof fillToArtboardCheck !== "undefined") fillToArtboardCheck.value = false;
-                // 方向は任意。既定を右・下へ
-                if (typeof dirRight !== "undefined") { dirRight.value = true; }
-                if (typeof dirLeft !== "undefined") { dirLeft.value = false; }
-                if (typeof dirDown !== "undefined") { dirDown.value = true; }
-                if (typeof dirUp !== "undefined") { dirUp.value = false; }
-                // 方向コントロールをディム（無効化）
-                if (typeof dirRight !== "undefined") dirRight.enabled = false;
-                if (typeof dirLeft !== "undefined") dirLeft.enabled = false;
-                if (typeof dirUp !== "undefined") dirUp.enabled = false;
-                if (typeof dirDown !== "undefined") dirDown.enabled = false;
-                // 行列をアートボード内に収まる最大値で自動計算
-                recalcCountsForArtboardFull();
-            } else {
-                // チェック解除時は方向コントロールを再有効化
-                if (typeof dirRight !== "undefined") dirRight.enabled = true;
-                if (typeof dirLeft !== "undefined") dirLeft.enabled = true;
-                if (typeof dirUp !== "undefined") dirUp.enabled = true;
-                if (typeof dirDown !== "undefined") dirDown.enabled = true;
-            }
-            applyPreview();
-        };
-
-        // 初期状態の有効/無効を同期
-        if (fillToArtboardFullCheck.value) {
-            if (typeof dirRight !== "undefined") dirRight.enabled = false;
-            if (typeof dirLeft !== "undefined") dirLeft.enabled = false;
-            if (typeof dirUp !== "undefined") dirUp.enabled = false;
-            if (typeof dirDown !== "undefined") dirDown.enabled = false;
-        } else {
-            if (typeof dirRight !== "undefined") dirRight.enabled = true;
-            if (typeof dirLeft !== "undefined") dirLeft.enabled = true;
-            if (typeof dirUp !== "undefined") dirUp.enabled = true;
-            if (typeof dirDown !== "undefined") dirDown.enabled = true;
-        }
-
-        function updateRepeatModeUI() {
-            var isRow = (methodRow && methodRow.value);
-            var isCol = (methodCol && methodCol.value);
-            var isRandom = (methodRandom && methodRandom.value);
-
-            // In Row mode, Vertical count is always 1 and is dimmed.
-            if (isRow) {
-                // Row mode: Vertical fixed to 1
-                countYInput.text = "1";
-                countYInput.enabled = false;
-
-                // Horizontal is editable
-                countXInput.enabled = true;
-
-                // Link irrelevant
-                linkCheck.value = false;
-                linkCheck.enabled = false;
-
-                // Gap link OFF and disable
-                if (gapLink) {
-                    gapLink.value = false;
-                    gapLink.enabled = false;
-                }
-                // Vertical gap irrelevant in Row mode
-                if (gapYInput) gapYInput.enabled = false;
-                if (gapXInput) gapXInput.enabled = true;
-
-                // Vertical direction irrelevant
-                if (dirUp) dirUp.enabled = false;
-                if (dirDown) dirDown.enabled = false;
-
-                // Horizontal direction relevant
-                if (dirRight) dirRight.enabled = true;
-                if (dirLeft) dirLeft.enabled = true;
-
-            } else if (isCol) {
-                // Column mode: Horizontal fixed to 1
-                countXInput.text = "1";
-                countXInput.enabled = false;
-
-                // Vertical is editable
-                countYInput.enabled = true;
-
-                // Link irrelevant
-                linkCheck.value = false;
-                linkCheck.enabled = false;
-
-                // Gap link OFF and disable
-                if (gapLink) {
-                    gapLink.value = false;
-                    gapLink.enabled = false;
-                }
-                // Horizontal gap irrelevant in Column mode
-                if (gapXInput) gapXInput.enabled = false;
-                if (gapYInput) gapYInput.enabled = true;
-
-                // Horizontal direction irrelevant
-                if (dirRight) dirRight.enabled = false;
-                if (dirLeft) dirLeft.enabled = false;
-
-                // Vertical direction relevant
-                if (dirUp) dirUp.enabled = true;
-                if (dirDown) dirDown.enabled = true;
-            } else if (isRandom) {
-                // Random mode: treat counts like Row (single horizontal count)
-                countYInput.text = "1";
-                countYInput.enabled = false;
-                countXInput.enabled = true;
-
-                // Link OFF
-                linkCheck.value = false;
-                linkCheck.enabled = false;
-
-                // Gap link ON in Random mode
-                if (gapLink) {
-                    gapLink.value = true;
-                    gapLink.enabled = true;
-                }
-                if (typeof syncGaps === "function") syncGaps();
-
-                // Ensure Horizontal gap is editable in Random mode
-                if (gapXInput) gapXInput.enabled = true;
-
-                // Directions are irrelevant in Random mode
-                if (dirRight) dirRight.enabled = false;
-                if (dirLeft) dirLeft.enabled = false;
-                if (dirUp) dirUp.enabled = false;
-                if (dirDown) dirDown.enabled = false;
-
-                // Random mode: disable Fill options by turning them off
-                try { if (fillToArtboardCheck) fillToArtboardCheck.value = false; } catch (_) { }
-                try { if (fillToArtboardFullCheck) fillToArtboardFullCheck.value = false; } catch (_) { }
-            } else {
-                // Grid mode
-                linkCheck.enabled = true;
-                syncCounts();
-
-                // Gap link and inputs restored
-                if (gapLink) gapLink.enabled = true;
-                if (gapXInput) gapXInput.enabled = true;
-                if (gapYInput) gapYInput.enabled = gapLink ? !gapLink.value : true;
-                if (gapLink) gapLink.value = true;
-                if (typeof syncGaps === "function") syncGaps();
-
-                if (dirRight) dirRight.enabled = true;
-                if (dirLeft) dirLeft.enabled = true;
-                if (dirUp) dirUp.enabled = true;
-                if (dirDown) dirDown.enabled = true;
-            }
-
-            if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs();
-        }
-
-        methodGrid.onClick = function () {
-            // Grid mode defaults to linked repeat counts
-            if (linkCheck) linkCheck.value = true;
-            if (gapLink) gapLink.value = true;
-            if (typeof syncGaps === "function") syncGaps();
-            updateRepeatModeUI();
-            // If Fill Full Artboard is ON, direction controls stay dimmed.
-            if (fillToArtboardFullCheck && fillToArtboardFullCheck.value) {
-                if (dirRight) dirRight.enabled = false;
-                if (dirLeft) dirLeft.enabled = false;
-                if (dirUp) dirUp.enabled = false;
-                if (dirDown) dirDown.enabled = false;
-            }
-            applyPreview();
-        };
-        methodRow.onClick = function () {
-            if (linkCheck) linkCheck.value = false;
-            // Carry over count when switching Column -> Row (use previous vertical count as horizontal count)
-            try {
-                var prev = clampInt(countYInput.text, 1, 20);
-                countXInput.text = String(prev);
-            } catch (_) { }
-            // Row mode: allow Fill Full Artboard; rows are fixed to 1
-            updateRepeatModeUI();
-            if (fillToArtboardFullCheck && fillToArtboardFullCheck.value) {
-                // Keep direction controls dimmed when Fill Full is ON
-                if (dirRight) dirRight.enabled = false;
-                if (dirLeft) dirLeft.enabled = false;
-                if (dirUp) dirUp.enabled = false;
-                if (dirDown) dirDown.enabled = false;
-                recalcCountsForArtboardFull();
-            }
-            applyPreview();
-        };
-
-        methodCol.onClick = function () {
-            if (linkCheck) linkCheck.value = false;
-            // Carry over count when switching Row -> Column (use previous horizontal count as vertical count)
-            try {
-                var prev = clampInt(countXInput.text, 1, 20);
-                countYInput.text = String(prev);
-            } catch (_) { }
-            // Column mode: allow Fill Full Artboard; cols are fixed to 1
-            updateRepeatModeUI();
-            if (fillToArtboardFullCheck && fillToArtboardFullCheck.value) {
-                if (dirRight) dirRight.enabled = false;
-                if (dirLeft) dirLeft.enabled = false;
-                if (dirUp) dirUp.enabled = false;
-                if (dirDown) dirDown.enabled = false;
-                recalcCountsForArtboardFull();
-            }
-            applyPreview();
-        };
-
-        methodRandom.onClick = function () {
-            updateRepeatModeUI();
-            applyPreview();
-        };
-
-        // Initialize
-        updateRepeatModeUI();
-
-        function applyPreview() {
-            var cx = parseInt(countXInput.text, 10);
-            var cy = parseInt(countYInput.text, 10);
-            if (methodRow && methodRow.value) cy = 1;
-            if (methodRandom && methodRandom.value) cy = 1;
-            if (methodCol && methodCol.value) cx = 1;
-            var gx = parseFloat(gapXInput.text), gy = parseFloat(gapYInput.text);
-            if (isNaN(cx) || cx < 1) return; if (isNaN(cy) || isNaN(cy) || cy < 1) return; if (isNaN(gx) || isNaN(gy)) return;
-            var gptX = unitToPoints(unitCode, gx), gptY = unitToPoints(unitCode, gy);
-            var hDir = dirRight.value ? "right" : "left";
-            var vDir = (dirUp && dirUp.value) ? "up" : "down";
-            var isRandomMode = !!(methodRandom && methodRandom.value);
-            if (isRandomMode) {
-                // Random: spread in both X and Y using the same count so it doesn't collapse vertically
-                var n = cx;
-                var offsets = _getRandomOffsets(n, n, gptX, gptY);
-                buildPreviewRandom(doc, sourceItem, offsets);
-            } else {
-                var baseMask = getMaskedBounds(sourceItem), baseLeft = baseMask[0], baseTop = baseMask[1];
-                buildPreview(doc, sourceItem, cy, cx, gptX, gptY, w, h, hDir, vDir, baseLeft, baseTop);
-            }
-        }
-
-        // アートボードの端まで：列・行の自動計算
-        function recalcCountsForArtboard() {
-            try {
-                var tgt = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; // [L,T,R,B]
-                var tgtL = tgt[0], tgtT = tgt[1], tgtR = tgt[2], tgtB = tgt[3];
-                var baseMask = getMaskedBounds(sourceItem), baseLeft = baseMask[0], baseTop = baseMask[1];
-
-                var gx = parseFloat(gapXInput.text), gy = parseFloat(gapYInput.text);
-                if (isNaN(gx) || isNaN(gy)) return;
-                var gptX = unitToPoints(unitCode, gx), gptY = unitToPoints(unitCode, gy);
-                var stepX = w + gptX, stepY = h + gptY;
-
-                var hDir = dirRight.value ? "right" : "left";
-                var vDir = (typeof dirUp !== "undefined" && dirUp.value) ? "up" : "down";
-
-                var cols = 1, rows = 1;
-                var isColMode = !!(methodCol && methodCol.value);
-                if (methodRow && methodRow.value) {
-                    rows = 1;
-                }
-                if (!isColMode && stepX > 0) {
-                    if (hDir === "right") { var availW = tgtR - baseLeft; cols = Math.floor((availW + gptX) / stepX); }
-                    else { var availWL = baseLeft - tgtL; cols = Math.floor((availWL + gptX) / stepX); }
-                    if (cols < 1) cols = 1;
-                } else {
-                    cols = 1;
-                }
-                if (!(methodRow && methodRow.value) && stepY > 0) {
-                    if (vDir === "down") { var availH = baseTop - tgtB; rows = Math.floor((availH + gptY) / stepY); }
-                    else { var availHU = tgtT - baseTop; rows = Math.floor((availHU + gptY) / stepY); }
-                    if (rows < 1) rows = 1;
-                }
-                countXInput.text = String(cols);
-                countYInput.text = String(rows);
-                if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs();
-            } catch (e) { }
-        }
-
-        // アートボードいっぱいに：アートボード内に収まる最大の列・行を計算（方向は無視）
-        function recalcCountsForArtboardFull() {
-            // アートボードいっぱいに：アートボード内に収まる最大の列・行を計算（方向は無視）
-            try {
-                var isRowMode = !!(methodRow && methodRow.value);
-                var isColMode = !!(methodCol && methodCol.value);
-                var tgt = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; // [L,T,R,B]
-                var tgtW = Math.abs(tgt[2] - tgt[0]);
-                var tgtH = Math.abs(tgt[1] - tgt[3]);
-                var gx = parseFloat(gapXInput.text), gy = parseFloat(gapYInput.text);
-                if (isNaN(gx) || isNaN(gy)) return;
-                var gptX = unitToPoints(unitCode, gx), gptY = unitToPoints(unitCode, gy);
-                var stepX = w + gptX, stepY = h + gptY;
-                var cols = isColMode ? 1 : ((stepX > 0) ? Math.floor((tgtW + gptX) / stepX) : 1);
-                var rows = isRowMode ? 1 : ((stepY > 0) ? Math.floor((tgtH + gptY) / stepY) : 1);
-                if (cols < 1) cols = 1;
-                if (rows < 1) rows = 1;
-                countXInput.text = String(cols);
-                countYInput.text = String(rows);
-                if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs();
-            } catch (e) { }
-        }
-
-        // 値変更時のプレビュー更新と再計算
-        countXInput.onChanging = function () { if (linkCheck.value) countYInput.text = countXInput.text; if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs(); applyPreview(); };
-        countXInput.onChange = function () { if (linkCheck.value) countYInput.text = countXInput.text; if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs(); applyPreview(); };
-        countYInput.onChanging = function () { if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs(); applyPreview(); };
-        countYInput.onChange = function () { if (typeof updateCountSliderFromInputs === "function") updateCountSliderFromInputs(); applyPreview(); };
-
-        gapXInput.onChanging = function () {
-            if (gapLink.value) gapYInput.text = gapXInput.text;
-            if (fillToArtboardCheck.value) recalcCountsForArtboard();
-            if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
-            applyPreview();
-        };
-        gapXInput.onChange = function () {
-            if (gapLink.value) gapYInput.text = gapXInput.text;
-            if (fillToArtboardCheck.value) recalcCountsForArtboard();
-            if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
-            applyPreview();
-        };
-        gapYInput.onChanging = function () {
-            if (fillToArtboardCheck.value) recalcCountsForArtboard();
-            if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
-            applyPreview();
-        };
-        gapYInput.onChange = function () {
-            if (fillToArtboardCheck.value) recalcCountsForArtboard();
-            if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
-            applyPreview();
-        };
-
-        var __zoomState = __TMKZoom_captureViewState(doc);
-
-        var zoomCtrl = __TMKZoom_addControls(dlg, doc, L("zoom"), __zoomState, {
-            min: 0.1,
-            max: 16,
-            sliderWidth: 240,
-            margins: [0, 0, 0, 10],
-            redraw: true,
-
-            // ✅ lightweight mode
-            lightMode: true,
-            lightModeLabel: L("lightMode"),   // 例: ja「軽量モード」/ en「Light mode」
-            lightModeDefault: false           // デフォルトOFF
-        });
-
-        var btnGroup = dlg.add("group"); btnGroup.alignment = "center";
-        var cancelBtn = btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        var okBtn = btnGroup.add("button", undefined, L("ok"));
-
-        var result = null;
-        okBtn.onClick = function () {
-            var cx = parseInt(countXInput.text, 10), cy = parseInt(countYInput.text, 10);
-            var gx = parseFloat(gapXInput.text), gy = parseFloat(gapYInput.text);
-            if (isNaN(cx) || cx < 1) { alert(L("alertCountInvalid")); return; }
-            if (isNaN(cy) || cy < 1) { alert(L("alertCountInvalid")); return; }
-            if (isNaN(gx) || isNaN(gy)) { alert(L("alertGapInvalid")); return; }
-            if (methodRow && methodRow.value) cy = 1;
-            if (methodCol && methodCol.value) cx = 1;
-            result = {
-                cols: cx, rows: cy,
-                gapX: unitToPoints(unitCode, gx),
-                gapY: unitToPoints(unitCode, gy),
-                randomOffsets: (methodRandom && methodRandom.value) ? (_randomCache.offsets || []) : [],
-                direction: dirRight.value ? "right" : "left",
-                vDirection: (dirUp && dirUp.value) ? "up" : "down",
-                fillToArtboard: fillToArtboardCheck.value,
-                fillFullArtboard: (typeof fillToArtboardFullCheck !== "undefined" ? fillToArtboardFullCheck.value : false),
-                repeatMethod: (methodRow && methodRow.value) ? "row" :
-                    ((methodCol && methodCol.value) ? "col" :
-                        ((methodRandom && methodRandom.value) ? "random" : "grid"))
+            dialogResult = {
+                placementOffsets: buildPlacementOffsets(),
+                fillFullArtboard: fillFullCheck.value
             };
-            clearPreview(doc); dlg.close();
-        };
-        cancelBtn.onClick = function () {
-            try { if (zoomCtrl && typeof zoomCtrl.restoreInitial === "function") zoomCtrl.restoreInitial(); } catch (_) { }
             clearPreview(doc);
-            dlg.close();
+            duplicateDialog.close();
         };
 
-        dlg.onClose = function () {
-            // If user closes without OK, treat as Cancel
-            if (!result) {
-                try { if (zoomCtrl && typeof zoomCtrl.restoreInitial === "function") zoomCtrl.restoreInitial(); } catch (_) { }
-                clearPreview(doc);
-            }
+        cancelButton.onClick = function () {
+            zoomControls.restoreInitial();
+            clearPreview(doc);
+            duplicateDialog.close();
         };
 
-        var origOnShow = dlg.onShow;
-        dlg.onShow = function () {
-            if (typeof origOnShow === "function") { try { origOnShow(); } catch (_) { } }
-            $.sleep(0); applyPreview(); countXInput.active = true;
+        duplicateDialog.onClose = function () {
+            /* OK以外で閉じたときはキャンセル扱い / Closing without OK is treated as Cancel */
+            if (dialogResult) return;
+            zoomControls.restoreInitial();
+            clearPreview(doc);
         };
 
-        dlg.show();
-        return result;
+        duplicateDialog.onShow = function () {
+            var dialogLocation = duplicateDialog.location;
+            duplicateDialog.location = [dialogLocation[0] + DIALOG_OFFSET_X, dialogLocation[1]];
+            applyPreview();
+            countHorizontalInput.active = true;
+        };
+
+        updateRepeatMethodUI();
+        duplicateDialog.show();
+        return dialogResult;
     }
 
-    /* メイン：検証→ダイアログ→複製 / Main: validate → dialog → duplicate */
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 複数選択をひとつのグループにまとめる
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<PageItem>} selectedItems - 選択中のオブジェクト
+     * @returns {PageItem} まとめたグループ（失敗時は先頭のオブジェクト）
+     */
+    function groupSelectedItems(doc, selectedItems) {
+        try {
+            var wrapperGroup = doc.groupItems.add();
+            /* 選択配列はライブで変化するのでコピーを回す / The live selection array can change, so iterate a copy */
+            var itemsToMove = [];
+            for (var i = 0; i < selectedItems.length; i++) itemsToMove.push(selectedItems[i]);
+            /* 移動できないオブジェクトが混じっても残りは処理する / Keep going even if one item refuses to move */
+            for (var j = 0; j < itemsToMove.length; j++) {
+                try { itemsToMove[j].move(wrapperGroup, ElementPlacement.PLACEATEND); } catch (err) { }
+            }
+
+            doc.selection = null;
+            wrapperGroup.selected = true;
+            return wrapperGroup;
+        } catch (e) {
+            return selectedItems[0];
+        }
+    }
+
+    /**
+     * 元オブジェクトと複製をまとめてアートボード中央へ移動する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<PageItem>} sourceItems - 複製元
+     * @param {Array<PageItem>} duplicatedItems - 生成した複製
+     * @returns {void}
+     */
+    function centerOnArtboard(doc, sourceItems, duplicatedItems) {
+        var artboardRect = getActiveArtboardRect(doc);
+        var itemsToMove = sourceItems.concat(duplicatedItems);
+        var unionBounds = getUnionBounds(itemsToMove);
+
+        var dx = (artboardRect[0] + artboardRect[2]) / 2 - (unionBounds[0] + unionBounds[2]) / 2;
+        var dy = (artboardRect[1] + artboardRect[3]) / 2 - (unionBounds[1] + unionBounds[3]) / 2;
+
+        for (var i = 0; i < itemsToMove.length; i++) {
+            itemsToMove[i].left += dx;
+            itemsToMove[i].top += dy;
+        }
+    }
+
+    /**
+     * 検証 → ダイアログ → 複製
+     * @returns {void}
+     */
     function main() {
-        if (app.documents.length === 0) { alert(L("alertNoDoc")); return; }
+        if (app.documents.length === 0) { alert(getLabel("alert.noDocument")); return; }
         var doc = app.activeDocument;
-        if (doc.selection.length === 0) { alert(L("alertNoSel")); return; }
+        if (doc.selection.length === 0) { alert(getLabel("alert.noSelection")); return; }
 
-        var sel = doc.selection;
-        // 複数選択時は自動でグループ化してから処理 / Auto-group when multiple items are selected
-        if (sel.length > 1) {
-            try {
-                var grp = doc.groupItems.add();
-                // 既存の選択配列はライブで変化し得るため、コピーを回して移動
-                var toMove = [];
-                for (var i = 0; i < sel.length; i++) toMove.push(sel[i]);
-                for (var j = 0; j < toMove.length; j++) {
-                    try { toMove[j].move(grp, ElementPlacement.PLACEATEND); } catch (_) { }
-                }
-                // グループを選択対象にして以降の処理を単一オブジェクトと同様に
-                doc.selection = null;
-                grp.selected = true;
-                sel = [grp];
-            } catch (e) { }
-        }
+        /* 選択配列はライブで変化するのでコピーを保持 / The live selection array can change, so keep a copy */
+        var selectedItems = [];
+        for (var i = 0; i < doc.selection.length; i++) selectedItems.push(doc.selection[i]);
 
-        var bounds = getMaskedBounds(sel[0]);
-        var w = bounds[2] - bounds[0], h = bounds[1] - bounds[3];
+        var sourceBounds = getUnionBounds(selectedItems);
+        var sourceWidth = sourceBounds[2] - sourceBounds[0];
+        var sourceHeight = sourceBounds[1] - sourceBounds[3];
 
-        var settings = showDialog(doc, sel[0], w, h);
-        if (!settings) return;
+        /* グループ化はOK後まで遅らせる（キャンセル時にドキュメントを変更しないため）
+           Grouping is deferred until after OK so that cancelling leaves the document untouched */
+        var duplicateSettings = showDuplicateDialog(doc, selectedItems, sourceWidth, sourceHeight);
+        if (!duplicateSettings) return;
 
-        var rows = settings.rows, cols = settings.cols;
-        // Row/Column mode constraints
-        if (settings.repeatMethod === "row") rows = 1;
-        if (settings.repeatMethod === "col") cols = 1;
-        var gapX = settings.gapX, gapY = settings.gapY;
-        var direction = settings.direction || "right";
-        var vDirection = settings.vDirection || "down";
-
-        var isRandomMode = (settings.repeatMethod === "random");
-
-        var baseMask0 = getMaskedBounds(sel[0]);
-        var baseLeftMain = baseMask0[0], baseTopMain = baseMask0[1];
-
-        var dupItems = [];
-
-        if (isRandomMode) {
-            // Use cached offsets from preview so OK does not change the layout
-            var offsets = (settings.randomOffsets && settings.randomOffsets.length) ? settings.randomOffsets : [];
-
-            var bb = getMaskedBounds(sel[0]);
-            var baseCX = (bb[0] + bb[2]) / 2.0;
-            var baseCY = (bb[1] + bb[3]) / 2.0;
-
-            for (var i = 0; i < offsets.length; i++) {
-                var dup = sel[0].duplicate();
-                var dxr = offsets[i][0];
-                var dyr = offsets[i][1];
-
-                var db = getMaskedBounds(dup);
-                var dupCX = (db[0] + db[2]) / 2.0;
-                var dupCY = (db[1] + db[3]) / 2.0;
-
-                dup.left += (baseCX + dxr) - dupCX;
-                dup.top += (baseCY + dyr) - dupCY;
-                dupItems.push(dup);
-            }
-        } else {
-            for (var row = 0; row < rows; row++) {
-                for (var col = 0; col < cols; col++) {
-                    if (row === 0 && col === 0) continue;
-                    var dup = sel[0].duplicate();
-                    var offX = (w + gapX) * col; if (direction === "left") offX = -offX;
-                    var offY = (h + gapY) * row;
-                    var desiredL = baseLeftMain + offX;
-                    var desiredT = (vDirection === "up") ? (baseTopMain + offY) : (baseTopMain - offY);
-                    var mb = getMaskedBounds(dup);
-                    var dx = desiredL - mb[0], dy = desiredT - mb[1];
-                    dup.left += dx; dup.top += dy;
-                    dupItems.push(dup);
-                }
-            }
-        }
-
-        if (settings.fillFullArtboard) {
-            try {
-                var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; // [L,T,R,B]
-                var abCX = (ab[0] + ab[2]) / 2.0;
-                var abCY = (ab[1] + ab[3]) / 2.0;
-
-                // ユニオン境界を計算（選択元 + 複製）
-                var unionL = +Infinity, unionT = -Infinity, unionR = -Infinity, unionB = +Infinity;
-                function expandBy(bounds) {
-                    if (bounds[0] < unionL) unionL = bounds[0];
-                    if (bounds[1] > unionT) unionT = bounds[1];
-                    if (bounds[2] > unionR) unionR = bounds[2];
-                    if (bounds[3] < unionB) unionB = bounds[3];
-                }
-                expandBy(getMaskedBounds(sel[0]));
-                for (var i = 0; i < dupItems.length; i++) {
-                    expandBy(getMaskedBounds(dupItems[i]));
-                }
-
-                var grpCX = (unionL + unionR) / 2.0;
-                var grpCY = (unionT + unionB) / 2.0;
-
-                var dx = abCX - grpCX;
-                var dy = abCY - grpCY;
-
-                // 全アイテムを同量移動（選択元＋複製）
-                sel[0].left += dx; sel[0].top += dy;
-                for (var j = 0; j < dupItems.length; j++) {
-                    dupItems[j].left += dx; dupItems[j].top += dy;
-                }
-            } catch (e) { }
-        }
+        var sourceItems = (selectedItems.length > 1) ? [groupSelectedItems(doc, selectedItems)] : selectedItems;
+        var duplicatedItems = duplicateWithOffsets(sourceItems, duplicateSettings.placementOffsets, null);
+        if (duplicateSettings.fillFullArtboard) centerOnArtboard(doc, sourceItems, duplicatedItems);
     }
 
     main();
