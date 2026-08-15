@@ -1,105 +1,51 @@
 #targetengine "MyScriptEngine"
 #target illustrator
+
+/* 外部JSX読み込み時の警告を抑止 / Suppress the warning raised when an external JSX is loaded */
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 #include "../stroke-table/ColorPicker.jsx"
 
 /*
 
 ### 概要
 
-- 円・正多角形・スター・スーパー楕円・ルーロー（定幅図形）を1つのダイアログから作成します。
-- 辺の数、幅、回転、塗りと線、角丸、アンカーポイントの各オプションをプレビューしながら設定します。
-- 機能の詳細と使い方はREADME（readme-ja/SmartShapeMaker.md）を参照してください。
+円・正多角形・スター・スーパー楕円・ルーロー（定幅図形）を、辺の数や回転、塗りと線、角丸などをプレビューしながら1つのダイアログから作成します。
 
-### 仕様・注意
-
-- 数値はIllustratorの定規単位で入力します。線幅だけは線の単位に従います。
-- ［幅］は図形の外接円の直径です。正方形だけは既定の回転角（45°）で1辺の長さと一致します。
-- 図形はドキュメントウィンドウの中央に作成します。
-- プレビューはUndo履歴を汚さず、確定した図形は1ステップで取り消せます。
-  ただし［ライブシェイプ化］と［ラフ効果で追加］はメニューコマンドを使うため、それぞれ取り消しが1ステップ増えます。
-- ダイアログの値はIllustratorの起動中のみ保持し、再起動でリセットされます。［アンカーポイントで分割］だけは毎回OFFで開きます。
-
-### キーボードショートカット
-
-- E：円（0）／A：回転／S：スター／P：五芒星／D：アンカーポイントで分割
-- L：三角形（左）／R：三角形（右）／B：三角形（下）。いずれも辺の数を3にします。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Builds circles, regular polygons, stars, superellipses and Reuleaux (constant-width) shapes from one dialog.
-- Sides, width, rotation, fill and stroke, corner smoothing and anchor options are all set with a live preview.
-- See the README (readme-en/SmartShapeMaker.md) for the full feature list and usage.
+Builds circles, regular polygons, stars, superellipses and Reuleaux (constant-width) shapes from a single dialog,
+with sides, rotation, fill and stroke, and corner smoothing all set under a live preview.
 
-### Notes
-
-- Values are entered in Illustrator's ruler unit; the stroke width follows the stroke unit.
-- "Width" is the diameter of the circumscribed circle. Only a square matches its edge length, at the default 45 degree rotation.
-- Shapes are created at the center of the document window.
-- The preview leaves the undo history clean and the confirmed shape is undone in a single step.
-  "Live Shape" and "Add Anchors (Roughen)" run menu commands, so each of them adds one more undo step.
-- Dialog values persist only while Illustrator is running. "Split at Anchor Points" always opens off.
-
-### Keyboard shortcuts
-
-- E: circle (0) / A: rotate / S: star / P: pentagram / D: split at anchor points
-- L: triangle left / R: triangle right / B: triangle down. Each one also sets the side count to 3.
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartShapeMaker";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.2.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SmartShapeMaker";              /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v2.2.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User settings
     // =========================================
-
-    /* 外部JSX読み込み時の警告を抑止 / Suppress the warning raised when an external JSX is loaded */
-    app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
-    /* ダイアログとUIの外観 / Dialog and UI appearance */
-    var UI_CONFIG = {
-        dialogOffsetX: 300,    /* ダイアログの表示位置オフセットX / dialog offset X */
-        dialogOffsetY: 0,      /* ダイアログの表示位置オフセットY / dialog offset Y */
-        dialogOpacity: 0.98,   /* ダイアログの不透明度 / dialog opacity */
-        swatchSize: 16,        /* カラースウォッチの一辺（px） / color swatch size in px */
-        sliderWidth: 200,      /* 標準スライダー幅 / default slider width */
-        shortSliderWidth: 150, /* 短いスライダー幅 / short slider width */
-        sidesSliderWidth: 100, /* ［辺の数］スライダー幅（入力欄と同じ行に収める） / slider width of the side count, kept on the field's row */
-        zoomSliderWidth: 300   /* ［画面ズーム］スライダー幅 / slider width of the view zoom */
-    };
-
-    /* UIレイアウト：余白と間隔 / UI layout: margins and spacing */
-    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
-    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
-
-    /* 各パネル内の要素間隔（パネルが多い密なダイアログなので既定より詰める）
-       Panel spacing used in this dialog; tighter than the default because many panels are stacked */
-    var DIALOG_PANEL_SPACING = 6;
 
     /* 各入力の初期値 / Default values of the inputs */
     var SHAPE_DEFAULTS = {
@@ -132,11 +78,55 @@
     };
 
     /* 図形生成の内部パラメーター / Internal parameters of the shape generation */
-    var SHAPE_CONFIG = {
+    var SHAPE_GEOMETRY = {
         superEllipsePoints: 8,    /* スーパー楕円のサンプル点数 / sample point count of a superellipse */
         superEllipseHandle: 0.35, /* スーパー楕円のハンドル長比率 / handle length ratio of a superellipse */
         smoothingArmFactor: 0.8   /* 角丸のアーム長係数 / arm length factor of the corner smoothing */
     };
+
+    /* ［辺の数］ラジオの選択肢（0は円）。最後に［それ以外］の手動入力が続く
+       Choices of the side-count radios, 0 being a circle; the custom field follows the last one */
+    var SIDE_CHOICES = [0, 3, 4, 5, 6, 8];
+    var CUSTOM_SIDES_INDEX = SIDE_CHOICES.length;
+
+    /* 円のアンカーポイント数の選択肢 / Choices of the circle anchor count */
+    var CIRCLE_ANCHOR_CHOICES = [2, 3, 4, 5, 6];
+
+    /* 回転をONにしたときの円の既定角度（アンカー数ごと） / Default angle of a circle per anchor count, applied when the rotation is turned on */
+    var CIRCLE_ROTATION_DEFAULTS = { 2: 90, 3: 180, 4: 45, 5: 180, 6: 30 };
+
+    /* 三角形の向きごとの回転角 / Rotation angle per triangle direction */
+    var TRIANGLE_ANGLES = { right: -90, left: 90, down: 60 };
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window and panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+    /* パネルが多い密なダイアログなので、パネル内と行内は既定より詰める
+       This dialog stacks many panels, so panels and rows are tighter than the defaults */
+    var DENSE_PANEL_SPACING = 6;   /* パネル内の要素間隔 / spacing inside a panel */
+    var ROW_SPACING         = 6;   /* 行内の標準間隔 / default spacing inside a row */
+    var TIGHT_ROW_SPACING   = 4;   /* 要素の多い行の間隔 / spacing of a crowded row */
+    var WIDE_ROW_SPACING    = 10;  /* ラジオを横に並べる行の間隔 / spacing of a row of radios */
+
+    /* コントロールの寸法 / Control sizes */
+    var SWATCH_SIZE        = 16;   /* カラースウォッチの一辺（px） / color swatch size in px */
+    var SLIDER_WIDTH       = 200;  /* 標準スライダー幅 / default slider width */
+    var SHORT_SLIDER_WIDTH = 150;  /* 短いスライダー幅 / short slider width */
+    var SIDES_SLIDER_WIDTH = 100;  /* ［辺の数］スライダー幅（入力欄と同じ行に収める） / slider width of the side count, kept on the field's row */
+    var ZOOM_SLIDER_WIDTH  = 300;  /* ［画面ズーム］スライダー幅 / slider width of the view zoom */
+
+    /* ダイアログの表示位置と不透明度 / Dialog position and opacity */
+    var DIALOG_OFFSET_X = 300;    /* 初回表示位置のオフセットX / dialog offset X */
+    var DIALOG_OFFSET_Y = 0;      /* 初回表示位置のオフセットY / dialog offset Y */
+    var DIALOG_OPACITY  = 0.98;   /* ダイアログの不透明度 / dialog opacity */
 
     // =========================================
     // ローカライズ / Localization
@@ -146,10 +136,10 @@
      * 実行環境のロケールからUI言語を判定する。
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function getUiLang() {
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
-    var lang = getCurrentLang();
+    var uiLang = getUiLang();
 
     /* UI文言の定義 / UI string definitions */
     var LABELS = {
@@ -218,43 +208,33 @@
     // =========================================
 
     /**
-     * 定規単位のラベルとpt換算係数を取得する。
-     * @returns {{label: string, factor: number}} 単位ラベルとpt換算係数
+     * Illustratorの単位コードから、単位ラベルとpt換算係数を取得する。
+     * @param {number} unitCode - 単位コード（rulerType / strokeUnits 共通）
+     * @returns {{label: string, factorToPt: number}} 単位ラベルとpt換算係数
      */
-    function getRulerUnitInfo() {
-        var rulerType = app.preferences.getIntegerPreference("rulerType");
-        var unitInfo = { label: "pt", factor: 1.0 };
-        if (rulerType === 0) unitInfo = { label: "inch", factor: 72.0 };
-        else if (rulerType === 1) unitInfo = { label: "mm", factor: 72.0 / 25.4 };
-        else if (rulerType === 3) unitInfo = { label: "pica", factor: 12.0 };
-        else if (rulerType === 4) unitInfo = { label: "cm", factor: 72.0 / 2.54 };
-        else if (rulerType === 5) unitInfo = { label: "Q", factor: 72.0 / 25.4 * 0.25 };
-        else if (rulerType === 6) unitInfo = { label: "px", factor: 1.0 };
-        return unitInfo;
+    function getUnitInfo(unitCode) {
+        switch (unitCode) {
+            case 0: return { label: "inch", factorToPt: 72 };
+            case 1: return { label: "mm", factorToPt: 72 / 25.4 };
+            case 3: return { label: "pica", factorToPt: 12 };
+            case 4: return { label: "cm", factorToPt: 72 / 2.54 };
+            case 5: return { label: "Q", factorToPt: (72 / 25.4) * 0.25 };
+            case 6: return { label: "px", factorToPt: 1 };
+            default: return { label: "pt", factorToPt: 1 }; /* case 2 */
+        }
     }
 
     /**
-     * 線の単位（strokeUnits）のラベルとpt換算係数を取得する。
+     * 環境設定から単位情報を取得する（取得できないときはptとして扱う）。
+     * @param {string} preferenceKey - 単位の環境設定キー（"rulerType" または "strokeUnits"）
      * @returns {{label: string, factorToPt: number}} 単位ラベルとpt換算係数
      */
-    function getStrokeUnitInfo() {
-        var strokeUnitCode;
+    function getUnitInfoFromPreference(preferenceKey) {
+        var unitCode = 2; /* ptにフォールバック / fall back to pt */
         try {
-            strokeUnitCode = app.preferences.getIntegerPreference("strokeUnits");
-        } catch (e) {
-            strokeUnitCode = 2; /* ptにフォールバック / fall back to pt */
-        }
-        var label, factor;
-        switch (strokeUnitCode) {
-            case 0: label = "inch"; factor = 72; break;
-            case 1: label = "mm"; factor = 72 / 25.4; break;
-            case 3: label = "pica"; factor = 12; break;
-            case 4: label = "cm"; factor = 72 / 2.54; break;
-            case 5: label = "Q"; factor = (72 / 25.4) * 0.25; break;
-            case 6: label = "px"; factor = 1; break;
-            default: label = "pt"; factor = 1; break; /* case 2 */
-        }
-        return { label: label, factorToPt: factor };
+            unitCode = app.preferences.getIntegerPreference(preferenceKey);
+        } catch (e) { }
+        return getUnitInfo(unitCode);
     }
 
     // =========================================
@@ -288,6 +268,26 @@
     // =========================================
     // 数学ヘルパー / Math helpers
     // =========================================
+
+    /**
+     * 数値を有効範囲に収める。空欄や数値でない入力は既定値に戻す。
+     * @param {string|number} value - 入力値
+     * @param {Array<number>} range - [下限, 上限]
+     * @param {number} fallbackValue - 数値として読めないときの既定値
+     * @param {boolean} [asInteger] - 整数に丸めるかどうか
+     * @returns {number} 範囲内に収めた数値
+     */
+    function clampNumber(value, range, fallbackValue, asInteger) {
+        /* 入力途中の空欄はNumber()が0になってしまうので既定値に戻す
+           An empty field would become 0 through Number(), so fall back to the default */
+        if (typeof value === "string" && !/\S/.test(value)) value = fallbackValue;
+        value = Number(value);
+        if (isNaN(value)) value = fallbackValue;
+        if (asInteger) value = Math.round(value);
+        if (value < range[0]) value = range[0];
+        if (value > range[1]) value = range[1];
+        return value;
+    }
 
     /**
      * 角度表示を整える（小数第3位まで、整数なら整数表記）。
@@ -344,7 +344,7 @@
                 this.undoDepth++;
                 app.redraw();
             } catch (e) {
-                alert(LABELS.alert.previewError[lang] + e);
+                alert(LABELS.alert.previewError[uiLang] + e);
             }
         };
 
@@ -368,7 +368,7 @@
         this.confirm = function (finalAction) {
             if (finalAction) {
                 this.rollback();
-                try { finalAction(); } catch (e) { alert(LABELS.alert.finalError[lang] + e); }
+                try { finalAction(); } catch (e) { alert(LABELS.alert.finalError[uiLang] + e); }
                 this.undoDepth = 0;
             } else {
                 this.undoDepth = 0;
@@ -408,19 +408,6 @@
     }
 
     /**
-     * タブの共通レイアウトを適用する。
-     * @param {Group} tab - 対象のタブ
-     * @param {number} [spacing] - 要素間隔（省略時は既定のまま）
-     * @returns {void}
-     */
-    function setupTab(tab, spacing) {
-        tab.orientation = "column";
-        tab.alignChildren = "fill";
-        tab.margins = TAB_MARGINS;
-        if (typeof spacing === "number") tab.spacing = spacing;
-    }
-
-    /**
      * 行グループの共通レイアウトを適用する（ボタン列など）。
      * @param {Group} group - 対象のグループ
      * @param {string|Array} [alignment] - 整列指定（省略時は"left"）
@@ -434,15 +421,58 @@
     }
 
     /**
-     * ボタンの高さを指定px詰める（レイアウト確定後に呼ぶ）。
-     * @param {Button} button - 対象のボタン
-     * @param {number} px - 詰める高さ（px）
-     * @returns {void}
+     * 見出し付きパネルを追加し、共通レイアウトを適用する。
+     * @param {object} parent - 追加先のコンテナ
+     * @param {string} labelText - パネルの見出し
+     * @param {number} [spacing] - 要素間隔（省略時はDENSE_PANEL_SPACING）
+     * @returns {Panel} 追加したパネル
      */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) { }
+    function addPanel(parent, labelText, spacing) {
+        var panel = parent.add("panel", undefined, labelText);
+        setupPanel(panel, (typeof spacing === "number") ? spacing : DENSE_PANEL_SPACING);
+        return panel;
+    }
+
+    /**
+     * 左揃え・上下中央の行グループを追加する。
+     * @param {object} parent - 追加先のコンテナ
+     * @param {number} [spacing] - 要素間隔（省略時はROW_SPACING）
+     * @returns {Group} 追加したグループ
+     */
+    function addControlRow(parent, spacing) {
+        var row = parent.add("group");
+        row.orientation = "row";
+        row.alignChildren = ["left", "center"];
+        row.spacing = (typeof spacing === "number") ? spacing : ROW_SPACING;
+        return row;
+    }
+
+    /**
+     * 上下矢印キーで増減できる数値入力欄を追加する。
+     * @param {object} parent - 追加先のコンテナ
+     * @param {string|number} value - 初期値
+     * @param {number} charCount - 入力欄の文字幅
+     * @returns {EditText} 追加した入力欄
+     */
+    function addNumberField(parent, value, charCount) {
+        var editText = parent.add("edittext", undefined, String(value));
+        editText.characters = charCount;
+        changeValueByArrowKey(editText);
+        return editText;
+    }
+
+    /**
+     * 幅を指定したスライダーを追加する。
+     * @param {object} parent - 追加先のコンテナ
+     * @param {number} value - 初期値
+     * @param {Array<number>} range - [下限, 上限]
+     * @param {number} width - スライダー幅（px）
+     * @returns {Slider} 追加したスライダー
+     */
+    function addSlider(parent, value, range, width) {
+        var slider = parent.add("slider", undefined, value, range[0], range[1]);
+        slider.preferredSize.width = width;
+        return slider;
     }
 
     // =========================================
@@ -478,23 +508,72 @@
     }
 
     /**
-     * ラジオボタンまたは手動入力から辺の数を取得する。
-     * @param {Array} sideRadios - 辺の数のラジオボタン
-     * @param {EditText} customSidesInput - ［それ以外］の入力欄
-     * @returns {number} 辺の数（0は円）
+     * 選択中のラジオボタンのインデックスを返す。
+     * @param {Array} radios - ラジオボタンの配列
+     * @returns {number} 選択中のインデックス（未選択なら-1）
      */
-    function getSelectedSideValue(sideRadios, customSidesInput) {
-        for (var i = 0; i < sideRadios.length; i++) {
-            if (sideRadios[i].value) {
-                return (i === 6) ? parseInt(customSidesInput.text, 10) : [0, 3, 4, 5, 6, 8][i];
-            }
+    function getSelectedRadioIndex(radios) {
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].value) return i;
         }
-        return 4;
+        return -1;
+    }
+
+    /**
+     * 指定したインデックスのラジオボタンだけをONにする。
+     * ［それ以外］は別グループにあるため排他が効かず、全件を明示的に解除する必要がある。
+     * @param {Array} radios - ラジオボタンの配列
+     * @param {number} selectedIndex - ONにするインデックス
+     * @returns {void}
+     */
+    function selectRadio(radios, selectedIndex) {
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].value = (i === selectedIndex);
+        }
     }
 
     // =========================================
     // パス生成 / Path builders
     // =========================================
+
+    /**
+     * 図形を作る前にアクティブレイヤーの編集を許可し、ドキュメントウィンドウの中心を得る。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {{layer: Layer, centerX: number, centerY: number}} レイヤーと中心座標
+     */
+    function prepareActiveLayer(doc) {
+        var layer = doc.activeLayer;
+        layer.locked = false;
+        layer.visible = true;
+        var viewCenter = doc.activeView.centerPoint;
+        return { layer: layer, centerX: viewCenter[0], centerY: viewCenter[1] };
+    }
+
+    /**
+     * 自前で組んだパスの見た目をcreateShapeの既定に合わせる。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {PathItem} 見た目を適用したパス
+     */
+    function applyDefaultAppearance(doc, pathItem) {
+        pathItem.filled = true;
+        pathItem.fillColor = doc.defaultFillColor;
+        pathItem.stroked = false;
+        return pathItem;
+    }
+
+    /**
+     * 座標の配列から閉じたパスを作る。
+     * @param {Layer} layer - 追加先のレイヤー
+     * @param {Array} anchors - アンカー座標の配列
+     * @returns {PathItem} 作成したパス
+     */
+    function createClosedPath(layer, anchors) {
+        var pathItem = layer.pathItems.add();
+        pathItem.setEntirePath(anchors);
+        pathItem.closed = true;
+        return pathItem;
+    }
 
     /**
      * スーパー楕円のパスを作成する（サンプル点とスムーズハンドルで構成）。
@@ -506,80 +585,56 @@
      */
     function createSuperellipsePath(doc, sizePt, exponent, pointCount) {
         exponent = (typeof exponent === 'number' && exponent > 0) ? exponent : SHAPE_DEFAULTS.superExponent;
-        pointCount = (typeof pointCount === 'number' && pointCount >= SHAPE_CONFIG.superEllipsePoints)
+        pointCount = (typeof pointCount === 'number' && pointCount >= SHAPE_GEOMETRY.superEllipsePoints)
             ? Math.round(pointCount)
-            : SHAPE_CONFIG.superEllipsePoints;
+            : SHAPE_GEOMETRY.superEllipsePoints;
 
-        var layer = doc.activeLayer;
-        layer.locked = false;
-        layer.visible = true;
+        var placement = prepareActiveLayer(doc);
+        var radius = sizePt / 2;
 
-        var viewCenter = doc.activeView.centerPoint;
-        var centerX = viewCenter[0];
-        var centerY = viewCenter[1];
-
-        var shapeWidth = sizePt;
-        var shapeHeight = sizePt;
-
-        var TWO_PI = Math.PI * 2;
         var anchors = [];
         for (var i = 0; i < pointCount; i++) {
-            var theta = (TWO_PI * i) / pointCount;
+            var theta = (Math.PI * 2 * i) / pointCount;
             var cosTheta = Math.cos(theta);
             var sinTheta = Math.sin(theta);
-            var x = Math.pow(Math.abs(cosTheta), 2 / exponent) * (shapeWidth / 2) * signOf(cosTheta);
-            var y = Math.pow(Math.abs(sinTheta), 2 / exponent) * (shapeHeight / 2) * signOf(sinTheta);
-            anchors.push([x + centerX, y + centerY]);
+            var x = Math.pow(Math.abs(cosTheta), 2 / exponent) * radius * signOf(cosTheta);
+            var y = Math.pow(Math.abs(sinTheta), 2 / exponent) * radius * signOf(sinTheta);
+            anchors.push([x + placement.centerX, y + placement.centerY]);
         }
 
-        var pathItem = layer.pathItems.add();
-        pathItem.setEntirePath(anchors);
-        pathItem.closed = true;
+        var pathItem = createClosedPath(placement.layer, anchors);
 
-        /* ハンドルをスムーズにする / Smooth the handles */
-        try {
-            var pathPoints = pathItem.pathPoints;
-            var anchorCount = pathPoints.length;
-            if (anchorCount >= 4) {
-                for (var k = 0; k < anchorCount; k++) {
-                    var prevAnchor = anchors[(k - 1 + anchorCount) % anchorCount];
-                    var currentAnchor = anchors[k];
-                    var nextAnchor = anchors[(k + 1) % anchorCount];
+        /* 接線方向（次点−前点）にスムーズハンドルを置く / Place smooth handles along the tangents (next - prev) */
+        var pathPoints = pathItem.pathPoints;
+        var anchorCount = pathPoints.length;
+        for (var k = 0; anchorCount >= 4 && k < anchorCount; k++) {
+            var prevAnchor = anchors[(k - 1 + anchorCount) % anchorCount];
+            var currentAnchor = anchors[k];
+            var nextAnchor = anchors[(k + 1) % anchorCount];
 
-                    /* 接線ベクトル（次点−前点） / Tangent vector (next - prev) */
-                    var tangentX = nextAnchor[0] - prevAnchor[0];
-                    var tangentY = nextAnchor[1] - prevAnchor[1];
-                    var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY);
-                    if (tangentLength === 0) continue;
-                    tangentX /= tangentLength;
-                    tangentY /= tangentLength;
+            var tangentX = nextAnchor[0] - prevAnchor[0];
+            var tangentY = nextAnchor[1] - prevAnchor[1];
+            var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY);
+            if (tangentLength === 0) continue;
+            tangentX /= tangentLength;
+            tangentY /= tangentLength;
 
-                    /* 前後のセグメント長 / Lengths of the neighbouring segments */
-                    var prevDeltaX = currentAnchor[0] - prevAnchor[0];
-                    var prevDeltaY = currentAnchor[1] - prevAnchor[1];
-                    var nextDeltaX = nextAnchor[0] - currentAnchor[0];
-                    var nextDeltaY = nextAnchor[1] - currentAnchor[1];
-                    var prevLength = Math.sqrt(prevDeltaX * prevDeltaX + prevDeltaY * prevDeltaY);
-                    var nextLength = Math.sqrt(nextDeltaX * nextDeltaX + nextDeltaY * nextDeltaY);
+            /* 前後のセグメント長のうち短いほうに合わせる / Follow the shorter of the neighbouring segments */
+            var prevDeltaX = currentAnchor[0] - prevAnchor[0];
+            var prevDeltaY = currentAnchor[1] - prevAnchor[1];
+            var nextDeltaX = nextAnchor[0] - currentAnchor[0];
+            var nextDeltaY = nextAnchor[1] - currentAnchor[1];
+            var prevLength = Math.sqrt(prevDeltaX * prevDeltaX + prevDeltaY * prevDeltaY);
+            var nextLength = Math.sqrt(nextDeltaX * nextDeltaX + nextDeltaY * nextDeltaY);
+            var handleLength = Math.min(prevLength, nextLength) * SHAPE_GEOMETRY.superEllipseHandle;
 
-                    var handleLength = Math.min(prevLength, nextLength) * SHAPE_CONFIG.superEllipseHandle;
-                    var leftHandle = [currentAnchor[0] - tangentX * handleLength, currentAnchor[1] - tangentY * handleLength];
-                    var rightHandle = [currentAnchor[0] + tangentX * handleLength, currentAnchor[1] + tangentY * handleLength];
+            pathPoints[k].anchor = currentAnchor;
+            pathPoints[k].leftDirection = [currentAnchor[0] - tangentX * handleLength, currentAnchor[1] - tangentY * handleLength];
+            pathPoints[k].rightDirection = [currentAnchor[0] + tangentX * handleLength, currentAnchor[1] + tangentY * handleLength];
+            pathPoints[k].pointType = PointType.SMOOTH;
+        }
 
-                    pathPoints[k].anchor = currentAnchor;
-                    pathPoints[k].leftDirection = leftHandle;
-                    pathPoints[k].rightDirection = rightHandle;
-                    pathPoints[k].pointType = PointType.SMOOTH;
-                }
-            }
-        } catch (e) { }
-
-        /* 見た目はcreateShapeの既定に合わせる / Match the defaults used by createShape */
-        pathItem.filled = true;
-        pathItem.fillColor = doc.defaultFillColor;
-        pathItem.stroked = false;
-
-        return pathItem;
+        return applyDefaultAppearance(doc, pathItem);
     }
 
     /**
@@ -591,56 +646,37 @@
      * @returns {PathItem} 作成したパス
      */
     function createCirclePathWithNAnchors(doc, sizePt, anchorCount) {
-        var layer = doc.activeLayer;
-        layer.locked = false;
-        layer.visible = true;
-
-        var viewCenter = doc.activeView.centerPoint;
-        var centerX = viewCenter[0];
-        var centerY = viewCenter[1];
-
+        var placement = prepareActiveLayer(doc);
         var radius = sizePt / 2;
         anchorCount = (typeof anchorCount === 'number') ? Math.round(anchorCount) : SHAPE_DEFAULTS.circleAnchors;
         if (anchorCount < 2) anchorCount = 2;
 
-        var handleRatio = (4 / 3) * Math.tan(Math.PI / (2 * anchorCount));
-        var handleLength = radius * handleRatio;
+        var handleLength = radius * (4 / 3) * Math.tan(Math.PI / (2 * anchorCount));
 
         /* 頂点が真上に来るよう-90°から並べる / Start at -90 degrees so one anchor sits on top */
+        var angles = [];
         var anchors = [];
         for (var i = 0; i < anchorCount; i++) {
             var angle = (-Math.PI / 2) + (2 * Math.PI * i) / anchorCount;
-            anchors.push([centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle)]);
+            angles.push(angle);
+            anchors.push([placement.centerX + radius * Math.cos(angle), placement.centerY + radius * Math.sin(angle)]);
         }
 
-        var pathItem = layer.pathItems.add();
-        pathItem.setEntirePath(anchors);
-        pathItem.closed = true;
+        var pathItem = createClosedPath(placement.layer, anchors);
 
-        /* 接線方向にスムーズハンドルを置く / Place smooth handles along the tangents */
-        try {
-            var pathPoints = pathItem.pathPoints;
-            for (var j = 0; j < anchorCount; j++) {
-                var anchorX = anchors[j][0];
-                var anchorY = anchors[j][1];
-                var anchorAngle = (-Math.PI / 2) + (2 * Math.PI * j) / anchorCount;
+        /* 接線は半径に直交する [-sin, cos] / The tangent is perpendicular to the radius */
+        var pathPoints = pathItem.pathPoints;
+        for (var j = 0; j < anchorCount; j++) {
+            var tangentX = -Math.sin(angles[j]);
+            var tangentY = Math.cos(angles[j]);
 
-                /* 接線は半径に直交する [-sin, cos] / The tangent is perpendicular to the radius */
-                var tangentX = -Math.sin(anchorAngle);
-                var tangentY = Math.cos(anchorAngle);
+            pathPoints[j].anchor = anchors[j];
+            pathPoints[j].leftDirection = [anchors[j][0] - tangentX * handleLength, anchors[j][1] - tangentY * handleLength];
+            pathPoints[j].rightDirection = [anchors[j][0] + tangentX * handleLength, anchors[j][1] + tangentY * handleLength];
+            pathPoints[j].pointType = PointType.SMOOTH;
+        }
 
-                pathPoints[j].anchor = [anchorX, anchorY];
-                pathPoints[j].leftDirection = [anchorX - tangentX * handleLength, anchorY - tangentY * handleLength];
-                pathPoints[j].rightDirection = [anchorX + tangentX * handleLength, anchorY + tangentY * handleLength];
-                pathPoints[j].pointType = PointType.SMOOTH;
-            }
-        } catch (e) { }
-
-        pathItem.filled = true;
-        pathItem.fillColor = doc.defaultFillColor;
-        pathItem.stroked = false;
-
-        return pathItem;
+        return applyDefaultAppearance(doc, pathItem);
     }
 
     /**
@@ -651,83 +687,64 @@
      * @returns {PathItem} 変換後のパス
      */
     function applyReuleauxToPolygon(pathItem, amount) {
-        try {
-            if (!pathItem || pathItem.typename !== "PathItem") return pathItem;
-            if (!pathItem.pathPoints || pathItem.pathPoints.length < 3) return pathItem;
-            var pathPoints = pathItem.pathPoints;
-            var pointCount = pathPoints.length;
-            if (pointCount % 2 === 0) return pathItem; /* 奇数辺のみ / odd side counts only */
+        if (!pathItem || pathItem.typename !== "PathItem") return pathItem;
+        if (!pathItem.pathPoints || pathItem.pathPoints.length < 3) return pathItem;
+        var pathPoints = pathItem.pathPoints;
+        var pointCount = pathPoints.length;
+        if (pointCount % 2 === 0) return pathItem; /* 奇数辺のみ / odd side counts only */
 
-            amount = (typeof amount === "number") ? amount : 1;
-            if (isNaN(amount)) amount = 1;
-            if (amount < 0) amount = 0;
-            if (amount > 2) amount = 2;
+        amount = clampNumber(amount, [0, 2], 1);
 
-            /* アンカー座標をキャッシュ / Cache the anchor coordinates */
-            var anchorCoords = [];
-            for (var i = 0; i < pointCount; i++) {
-                anchorCoords.push([pathPoints[i].anchor[0], pathPoints[i].anchor[1]]);
-            }
+        /* アンカー座標をキャッシュ / Cache the anchor coordinates */
+        var anchorCoords = [];
+        for (var i = 0; i < pointCount; i++) {
+            anchorCoords.push([pathPoints[i].anchor[0], pathPoints[i].anchor[1]]);
+        }
 
-            for (i = 0; i < pointCount; i++) {
-                var startIndex = i;
-                var endIndex = (i + 1) % pointCount;
-                var centerIndex = (i + Math.floor((pointCount + 1) / 2)) % pointCount;
+        for (i = 0; i < pointCount; i++) {
+            var startIndex = i;
+            var endIndex = (i + 1) % pointCount;
+            var centerIndex = (i + Math.floor((pointCount + 1) / 2)) % pointCount;
 
-                var arcStart = anchorCoords[startIndex];
-                var arcEnd = anchorCoords[endIndex];
-                var arcCenter = anchorCoords[centerIndex];
+            var arcStart = anchorCoords[startIndex];
+            var arcEnd = anchorCoords[endIndex];
+            var arcCenter = anchorCoords[centerIndex];
 
-                var vectorToStart = [arcStart[0] - arcCenter[0], arcStart[1] - arcCenter[1]];
-                var vectorToEnd = [arcEnd[0] - arcCenter[0], arcEnd[1] - arcCenter[1]];
+            var vectorToStart = [arcStart[0] - arcCenter[0], arcStart[1] - arcCenter[1]];
+            var vectorToEnd = [arcEnd[0] - arcCenter[0], arcEnd[1] - arcCenter[1]];
 
-                var crossZ = vectorToStart[0] * vectorToEnd[1] - vectorToStart[1] * vectorToEnd[0];
+            var radiusToStart = Math.sqrt(vectorToStart[0] * vectorToStart[0] + vectorToStart[1] * vectorToStart[1]);
+            var radiusToEnd = Math.sqrt(vectorToEnd[0] * vectorToEnd[0] + vectorToEnd[1] * vectorToEnd[1]);
+            if (radiusToStart === 0 || radiusToEnd === 0) continue;
+            var arcRadius = (radiusToStart + radiusToEnd) / 2;
 
-                var radiusToStart = Math.sqrt(vectorToStart[0] * vectorToStart[0] + vectorToStart[1] * vectorToStart[1]);
-                var radiusToEnd = Math.sqrt(vectorToEnd[0] * vectorToEnd[0] + vectorToEnd[1] * vectorToEnd[1]);
-                if (radiusToStart === 0 || radiusToEnd === 0) continue;
-                var arcRadius = (radiusToStart + radiusToEnd) / 2;
+            var dotProduct = vectorToStart[0] * vectorToEnd[0] + vectorToStart[1] * vectorToEnd[1];
+            var cosTheta = clampNumber(dotProduct / (radiusToStart * radiusToEnd), [-1, 1], 0);
+            var deltaTheta = Math.acos(cosTheta);
 
-                var dotProduct = vectorToStart[0] * vectorToEnd[0] + vectorToStart[1] * vectorToEnd[1];
-                var cosTheta = dotProduct / (radiusToStart * radiusToEnd);
-                if (cosTheta < -1) cosTheta = -1;
-                if (cosTheta > 1) cosTheta = 1;
-                var deltaTheta = Math.acos(cosTheta);
+            /* 円弧をベジェで近似したハンドル長に度合いを掛ける / Bezier approximation of the arc, scaled by the amount */
+            var handleLength = arcRadius * (4 / 3) * Math.tan(deltaTheta / 4) * amount;
 
-                var handleLength = arcRadius * (4 / 3) * Math.tan(deltaTheta / 4);
-                handleLength *= amount; /* 度合いを反映 / apply the amount */
+            /* 中心から見た回り方向に合わせて接線の向きを決める / Pick the tangent side from the winding around the arc center */
+            var crossZ = vectorToStart[0] * vectorToEnd[1] - vectorToStart[1] * vectorToEnd[0];
+            var tangentSign = (crossZ > 0) ? 1 : -1;
+            var tangentStart = [-vectorToStart[1] * tangentSign, vectorToStart[0] * tangentSign];
+            var tangentEnd = [vectorToEnd[1] * tangentSign, -vectorToEnd[0] * tangentSign];
 
-                var tangentStart, tangentEnd;
-                if (crossZ > 0) {
-                    tangentStart = [-vectorToStart[1], vectorToStart[0]];
-                    tangentEnd = [vectorToEnd[1], -vectorToEnd[0]];
-                } else {
-                    tangentStart = [vectorToStart[1], -vectorToStart[0]];
-                    tangentEnd = [-vectorToEnd[1], vectorToEnd[0]];
-                }
+            pathPoints[startIndex].rightDirection = [
+                arcStart[0] + handleLength * tangentStart[0] / radiusToStart,
+                arcStart[1] + handleLength * tangentStart[1] / radiusToStart
+            ];
+            pathPoints[endIndex].leftDirection = [
+                arcEnd[0] + handleLength * tangentEnd[0] / radiusToEnd,
+                arcEnd[1] + handleLength * tangentEnd[1] / radiusToEnd
+            ];
 
-                var tangentStartLength = Math.sqrt(tangentStart[0] * tangentStart[0] + tangentStart[1] * tangentStart[1]);
-                var tangentEndLength = Math.sqrt(tangentEnd[0] * tangentEnd[0] + tangentEnd[1] * tangentEnd[1]);
-                if (tangentStartLength === 0 || tangentEndLength === 0) continue;
+            pathPoints[startIndex].pointType = PointType.CORNER;
+            pathPoints[endIndex].pointType = PointType.CORNER;
+        }
 
-                var rightHandle = [
-                    arcStart[0] + handleLength * tangentStart[0] / tangentStartLength,
-                    arcStart[1] + handleLength * tangentStart[1] / tangentStartLength
-                ];
-                var leftHandle = [
-                    arcEnd[0] + handleLength * tangentEnd[0] / tangentEndLength,
-                    arcEnd[1] + handleLength * tangentEnd[1] / tangentEndLength
-                ];
-
-                pathPoints[startIndex].rightDirection = rightHandle;
-                pathPoints[endIndex].leftDirection = leftHandle;
-
-                pathPoints[startIndex].pointType = PointType.CORNER;
-                pathPoints[endIndex].pointType = PointType.CORNER;
-            }
-
-            pathItem.closed = true;
-        } catch (e) { }
+        pathItem.closed = true;
         return pathItem;
     }
 
@@ -747,7 +764,7 @@
         radius = Math.min(Math.abs(radius), rectWidth / 2, rectHeight / 2);
         smoothing = Math.max(0, smoothing);
 
-        var armLength = radius * (1 + SHAPE_CONFIG.smoothingArmFactor * smoothing);
+        var armLength = radius * (1 + SHAPE_GEOMETRY.smoothingArmFactor * smoothing);
         var armX = Math.min(armLength, rectWidth / 2);
         var armY = Math.min(armLength, rectHeight / 2);
 
@@ -822,6 +839,27 @@
     }
 
     /**
+     * ドキュメントのカラーモードに合わせた黒を作る。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {CMYKColor|RGBColor} 黒のカラーオブジェクト
+     */
+    function createBlackColor(doc) {
+        if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = 0;
+            cmykColor.magenta = 0;
+            cmykColor.yellow = 0;
+            cmykColor.black = 100;
+            return cmykColor;
+        }
+        var rgbColor = new RGBColor();
+        rgbColor.red = 0;
+        rgbColor.green = 0;
+        rgbColor.blue = 0;
+        return rgbColor;
+    }
+
+    /**
      * 閉じたパスをアンカーポイントごとに分割し、開いたパスのグループにする。
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem} pathItem - 分割元のパス
@@ -866,148 +904,167 @@
             segmentPath.pathPoints[1].rightDirection = endPoint.anchor;
             segmentPath.pathPoints[1].pointType = endPoint.pointType;
 
-            /* 開いたパスに塗りは合わないので線だけにする / Open paths get a stroke, not a fill */
+            /* 開いたパスに塗りは合わないので線だけにする。線がOFFなら黒の細線で見えるようにする
+               Open paths get a stroke, not a fill; without a stroke option they fall back to a thin black line */
             segmentPath.filled = false;
             segmentPath.stroked = true;
-
+            var hasStroke = !!(strokeOpts && strokeOpts.enabled);
             try {
-                if (strokeOpts && strokeOpts.enabled) {
-                    segmentPath.strokeColor = strokeOpts.color;
-                } else {
-                    var fallbackColor;
-                    if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
-                        fallbackColor = new CMYKColor();
-                        fallbackColor.cyan = 0; fallbackColor.magenta = 0; fallbackColor.yellow = 0; fallbackColor.black = 100;
-                    } else {
-                        fallbackColor = new RGBColor();
-                        fallbackColor.red = 0; fallbackColor.green = 0; fallbackColor.blue = 0;
-                    }
-                    segmentPath.strokeColor = fallbackColor;
-                }
-            } catch (e) { }
-            try {
-                segmentPath.strokeWidth = (strokeOpts && strokeOpts.enabled) ? strokeOpts.widthPt : SHAPE_DEFAULTS.segmentStrokeWidth;
-            } catch (e) { }
-            try {
+                segmentPath.strokeColor = hasStroke ? strokeOpts.color : createBlackColor(doc);
+                segmentPath.strokeWidth = hasStroke ? strokeOpts.widthPt : SHAPE_DEFAULTS.segmentStrokeWidth;
                 if (strokeCap) segmentPath.strokeCap = strokeCap;
             } catch (e) { }
         }
 
         /* 元のパスを削除 / Remove the original path */
-        try { pathItem.remove(); } catch (e) { }
+        pathItem.remove();
 
         return segmentGroup;
     }
 
     /**
-     * 指定したパラメーターから図形を作成し、選択状態にする。
-     * @param {Document} doc - 対象ドキュメント
-     * @param {number} sizePt - 幅（pt）
-     * @param {number} sides - 辺の数（0は円）
-     * @param {boolean} isStar - スターにするか
-     * @param {number} innerRatio - スターの第2半径（%）
-     * @param {boolean} rotateEnabled - 回転を適用するか
-     * @param {number} rotateAngle - 回転角（度）
-     * @param {boolean} splitAtAnchors - アンカーポイントで分割するか
-     * @param {boolean} useSuperEllipse - スーパー楕円にするか
-     * @param {number} superExponent - スーパー楕円の指数
-     * @param {number} circleAnchorCount - 円のアンカーポイント数
-     * @param {boolean} useReuleaux - ルーロー図形にするか
-     * @param {number} reuleauxAmount - ルーローの度合い（1.0が標準）
-     * @param {object} fillOpts - 塗りの設定 {enabled, color}
-     * @param {object} strokeOpts - 線の設定 {enabled, color, widthPt}
-     * @param {object} cornerSmoothing - 角丸の設定 {radius, smoothing}（不要ならnull）
-     * @param {StrokeCap} strokeCap - 線端の種類
-     * @param {number} opacity - 不透明度（%）
-     * @returns {PathItem|GroupItem} 作成した図形
+     * 図形生成のパラメーター一式。ダイアログのgetCurrentParams()が組み立てる。
+     * @typedef {object} ShapeParams
+     * @property {number} size - 幅（pt）
+     * @property {number} sides - 辺の数（0は円）
+     * @property {boolean} isStar - スターにするか
+     * @property {number} innerRatio - スターの第2半径（%）
+     * @property {boolean} rotateEnabled - 回転を適用するか
+     * @property {number} angle - 回転角（度）
+     * @property {boolean} splitAtAnchors - アンカーポイントで分割するか
+     * @property {StrokeCap} strokeCap - 分割時の線端の種類
+     * @property {boolean} useSuperEllipse - スーパー楕円にするか
+     * @property {number} superExponent - スーパー楕円の指数
+     * @property {number} circleAnchorCount - 円のアンカーポイント数
+     * @property {boolean} useReuleaux - ルーロー図形にするか
+     * @property {number} reuleauxAmount - ルーローの度合い（1.0が標準）
+     * @property {object} fillOpts - 塗りの設定 {enabled, color}
+     * @property {object} strokeOpts - 線の設定 {enabled, color, widthPt}
+     * @property {object} cornerSmoothing - 角丸の設定 {radius, smoothing}（不要ならnull）
+     * @property {number} opacity - 不透明度（%）
+     * @property {number} roughenDetail - ラフ効果の詳細（0で無効）
      */
-    function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, superExponent, circleAnchorCount, useReuleaux, reuleauxAmount, fillOpts, strokeOpts, cornerSmoothing, strokeCap, opacity) {
-        var layer = doc.activeLayer;
-        layer.locked = false;
-        layer.visible = true;
-        var viewCenter = doc.activeView.centerPoint;
-        var radius = sizePt / 2;
-        var innerRadius = radius * (innerRatio / 100);
-        var shape;
 
-        if (sides === 0) {
-            if (useSuperEllipse) {
-                shape = createSuperellipsePath(doc, sizePt, superExponent);
-            } else {
-                /* 既定の4アンカーはIllustratorの楕円、それ以外は独自のスムーズパス
-                   Four anchors use Illustrator's ellipse; other counts build a custom smooth path */
-                var anchorCount = (typeof circleAnchorCount === 'number') ? Math.round(circleAnchorCount) : SHAPE_DEFAULTS.circleAnchors;
-                if (anchorCount < 2) anchorCount = 2;
-                if (anchorCount === 4) {
-                    shape = layer.pathItems.ellipse(viewCenter[1] + radius, viewCenter[0] - radius, sizePt, sizePt);
-                } else {
-                    shape = createCirclePathWithNAnchors(doc, sizePt, anchorCount);
-                }
-            }
-        } else if (isStar) {
-            shape = doc.pathItems.star(viewCenter[0], viewCenter[1], radius, innerRadius, sides);
-        } else if (sides === 4 && cornerSmoothing && cornerSmoothing.radius > 0 && cornerSmoothing.smoothing > 0) {
+    /**
+     * 円のもとになるパスを作成する。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {Array} viewCenter - ドキュメントウィンドウの中心座標
+     * @returns {PathItem} 作成したパス
+     */
+    function createCircleBasePath(doc, params, viewCenter) {
+        if (params.useSuperEllipse) {
+            return createSuperellipsePath(doc, params.size, params.superExponent);
+        }
+        /* 既定の4アンカーはIllustratorの楕円、それ以外は独自のスムーズパス
+           Four anchors use Illustrator's ellipse; other counts build a custom smooth path */
+        var anchorCount = (typeof params.circleAnchorCount === 'number') ? Math.round(params.circleAnchorCount) : SHAPE_DEFAULTS.circleAnchors;
+        if (anchorCount < 2) anchorCount = 2;
+        if (anchorCount !== 4) return createCirclePathWithNAnchors(doc, params.size, anchorCount);
+
+        var radius = params.size / 2;
+        return doc.activeLayer.pathItems.ellipse(viewCenter[1] + radius, viewCenter[0] - radius, params.size, params.size);
+    }
+
+    /**
+     * 正方形のもとになるパスを作成する（角丸の指定に応じて作り方を変える）。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {Array} viewCenter - ドキュメントウィンドウの中心座標
+     * @returns {PathItem} 作成したパス
+     */
+    function createSquareBasePath(doc, params, viewCenter) {
+        var cornerSmoothing = params.cornerSmoothing;
+        var hasCornerRadius = !!(cornerSmoothing && cornerSmoothing.radius > 0);
+
+        if (hasCornerRadius && cornerSmoothing.smoothing > 0) {
             /* スムージングありの角丸は独自のベジェパス / Corner smoothing above zero builds a custom bezier path */
-            var smoothRadius = cornerSmoothing.radius;
-            var smoothAmount = cornerSmoothing.smoothing / 100;
-            var smoothLeft = viewCenter[0] - sizePt / 2;
-            var smoothTop = viewCenter[1] + sizePt / 2;
-            shape = buildSmoothedRect(doc, smoothLeft, smoothTop, sizePt, sizePt, smoothRadius, smoothAmount);
-        } else if (sides === 4 && cornerSmoothing && cornerSmoothing.radius > 0 && cornerSmoothing.smoothing === 0) {
+            return buildSmoothedRect(doc, viewCenter[0] - params.size / 2, viewCenter[1] + params.size / 2,
+                params.size, params.size, cornerSmoothing.radius, cornerSmoothing.smoothing / 100);
+        }
+
+        /* 正方形は1辺の長さを幅として扱うので外接円の半径に換算する（既定の45°回転が前提）
+           A square is sized by its edge, so convert to the circumscribed radius; assumes the default 45 degree rotation */
+        var squarePath = doc.pathItems.polygon(viewCenter[0], viewCenter[1], params.size / Math.sqrt(2), 4);
+
+        if (hasCornerRadius) {
             /* スムージング0の角丸は通常の正方形＋［角を丸くする］効果
                A zero smoothing value uses a plain square plus the Round Corners live effect */
-            var roundedSquareRadius = sizePt / Math.sqrt(2);
-            shape = doc.pathItems.polygon(viewCenter[0], viewCenter[1], roundedSquareRadius, sides);
             try {
-                var roundCornersXml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + cornerSmoothing.radius + ' "/></LiveEffect>';
-                shape.applyEffect(roundCornersXml);
+                squarePath.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + cornerSmoothing.radius + ' "/></LiveEffect>');
             } catch (e) { }
-        } else if (sides === 4) {
-            /* 正方形は1辺の長さを幅として扱うので外接円の半径に換算する（既定の45°回転が前提）
-               A square is sized by its edge, so convert to the circumscribed radius; assumes the default 45 degree rotation */
-            var squareRadius = sizePt / Math.sqrt(2);
-            shape = doc.pathItems.polygon(viewCenter[0], viewCenter[1], squareRadius, sides);
-        } else {
-            /* 正方形以外はsizePtを外接円の直径として扱う（バウンディングボックスの幅とは一致しない）
-               Other polygons treat sizePt as the circumscribed diameter, which is not the bounding box width */
-            shape = doc.pathItems.polygon(viewCenter[0], viewCenter[1], radius, sides);
         }
+        return squarePath;
+    }
 
-        /* 塗りと線を適用 / Apply the fill and stroke options */
-        if (fillOpts && fillOpts.enabled) {
-            shape.filled = true;
-            shape.fillColor = fillOpts.color;
-        } else {
-            shape.filled = false;
+    /**
+     * 辺の数と各オプションから、変形前のもとになるパスを作成する。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @param {Array} viewCenter - ドキュメントウィンドウの中心座標
+     * @returns {PathItem} 作成したパス
+     */
+    function createBasePath(doc, params, viewCenter) {
+        var radius = params.size / 2;
+        if (params.sides === 0) return createCircleBasePath(doc, params, viewCenter);
+        if (params.isStar) {
+            return doc.pathItems.star(viewCenter[0], viewCenter[1], radius, radius * (params.innerRatio / 100), params.sides);
         }
-        if (strokeOpts && strokeOpts.enabled) {
-            shape.stroked = true;
+        if (params.sides === 4) return createSquareBasePath(doc, params, viewCenter);
+
+        /* 正方形以外はsizeを外接円の直径として扱う（バウンディングボックスの幅とは一致しない）
+           Other polygons treat the size as the circumscribed diameter, which is not the bounding box width */
+        return doc.pathItems.polygon(viewCenter[0], viewCenter[1], radius, params.sides);
+    }
+
+    /**
+     * 塗りと線の設定をオブジェクトに適用する。
+     * @param {PathItem} shape - 対象の図形
+     * @param {object} fillOpts - 塗りの設定 {enabled, color}
+     * @param {object} strokeOpts - 線の設定 {enabled, color, widthPt}
+     * @returns {void}
+     */
+    function applyFillAndStroke(shape, fillOpts, strokeOpts) {
+        shape.filled = !!(fillOpts && fillOpts.enabled);
+        if (shape.filled) shape.fillColor = fillOpts.color;
+
+        shape.stroked = !!(strokeOpts && strokeOpts.enabled);
+        if (shape.stroked) {
             shape.strokeColor = strokeOpts.color;
             shape.strokeWidth = strokeOpts.widthPt;
-        } else {
-            shape.stroked = false;
         }
+    }
 
+    /**
+     * 指定したパラメーターから図形を作成し、選択状態にする。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {ShapeParams} params - 図形生成のパラメーター
+     * @returns {PathItem|GroupItem} 作成した図形
+     */
+    function createShape(doc, params) {
+        var placement = prepareActiveLayer(doc);
+        var viewCenter = [placement.centerX, placement.centerY];
+
+        var shape = createBasePath(doc, params, viewCenter);
+        applyFillAndStroke(shape, params.fillOpts, params.strokeOpts);
+
+        /* ドキュメントウィンドウの中央にそろえる / Center the shape in the document window */
         var bounds = shape.geometricBounds;
-        var shapeCenterX = (bounds[0] + bounds[2]) / 2;
-        var shapeCenterY = (bounds[1] + bounds[3]) / 2;
-        shape.translate(viewCenter[0] - shapeCenterX, viewCenter[1] - shapeCenterY);
+        shape.translate(viewCenter[0] - (bounds[0] + bounds[2]) / 2, viewCenter[1] - (bounds[1] + bounds[3]) / 2);
 
         /* 奇数辺の多角形をルーロー（定幅図形）に変換 / Convert odd-sided polygons into constant-width shapes */
-        if (useReuleaux && !isStar && sides > 0 && (sides % 2 === 1)) {
-            try {
-                shape = applyReuleauxToPolygon(shape, reuleauxAmount);
-            } catch (e) { }
+        if (params.useReuleaux && !params.isStar && params.sides > 0 && (params.sides % 2 === 1)) {
+            shape = applyReuleauxToPolygon(shape, params.reuleauxAmount);
         }
 
-        if (rotateEnabled && !isNaN(rotateAngle)) {
-            shape.rotate(rotateAngle, true, true, true, true, Transformation.CENTER);
+        if (params.rotateEnabled && !isNaN(params.angle)) {
+            shape.rotate(params.angle, true, true, true, true, Transformation.CENTER);
         }
-        if (splitAtAnchors) {
-            shape = splitPathAtAnchors(doc, shape, strokeOpts, strokeCap);
+        if (params.splitAtAnchors) {
+            shape = splitPathAtAnchors(doc, shape, params.strokeOpts, params.strokeCap);
         }
-        if (typeof opacity === "number" && opacity < 100) {
-            try { shape.opacity = opacity; } catch (e) { }
+        if (typeof params.opacity === "number" && params.opacity < 100) {
+            shape.opacity = params.opacity;
         }
         doc.selection = [shape];
         return shape;
@@ -1039,243 +1096,522 @@
     }
 
     // =========================================
+    // カラーの変換 / Color conversion
+    // =========================================
+
+    /**
+     * Illustratorのカラーオブジェクトを ColorPicker 用の文字列に変換する。
+     * @param {object} aiColor - Illustratorのカラーオブジェクト
+     * @returns {string} ColorPickerが受け取る色文字列
+     */
+    function aiColorToPickerString(aiColor) {
+        try {
+            if (aiColor.typename === "RGBColor") {
+                return ColorPicker.rgbToHex(aiColor.red, aiColor.green, aiColor.blue);
+            } else if (aiColor.typename === "CMYKColor") {
+                return "cmyk:" + Math.round(aiColor.cyan) + "," + Math.round(aiColor.magenta) + "," + Math.round(aiColor.yellow) + "," + Math.round(aiColor.black);
+            } else if (aiColor.typename === "GrayColor") {
+                return "cmyk:0,0,0," + Math.round(aiColor.gray);
+            }
+        } catch (e) { }
+        return "000000";
+    }
+
+    /**
+     * ColorPickerの戻り値をIllustratorのカラーオブジェクトに変換する。
+     * @param {string} pickerString - ColorPickerが返した色文字列
+     * @returns {CMYKColor|RGBColor} Illustratorのカラーオブジェクト
+     */
+    function pickerStringToAiColor(pickerString) {
+        if (ColorPicker.isCmykString(pickerString)) {
+            var cmykValues = ColorPicker.parseCmykString(pickerString);
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = cmykValues.c;
+            cmykColor.magenta = cmykValues.m;
+            cmykColor.yellow = cmykValues.y;
+            cmykColor.black = cmykValues.k;
+            return cmykColor;
+        }
+        var rgbValues = ColorPicker.hexToRGB(pickerString);
+        var rgbColor = new RGBColor();
+        rgbColor.red = rgbValues.r;
+        rgbColor.green = rgbValues.g;
+        rgbColor.blue = rgbValues.b;
+        return rgbColor;
+    }
+
+    /**
+     * Illustratorのカラーから、スウォッチ描画用のブラシを作る。
+     * @param {object} graphics - ScriptUIのgraphicsオブジェクト
+     * @param {object} aiColor - Illustratorのカラーオブジェクト
+     * @returns {object} ブラシ（NoColorのときnull）
+     */
+    function aiColorToScriptUIBrush(graphics, aiColor) {
+        try {
+            if (aiColor.typename === "RGBColor") {
+                return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [aiColor.red / 255, aiColor.green / 255, aiColor.blue / 255, 1]);
+            } else if (aiColor.typename === "CMYKColor") {
+                /* 表示用にCMYKをRGBへ近似 / Approximate CMYK as RGB for display */
+                var redValue = 1 - Math.min(1, aiColor.cyan / 100 + aiColor.black / 100);
+                var greenValue = 1 - Math.min(1, aiColor.magenta / 100 + aiColor.black / 100);
+                var blueValue = 1 - Math.min(1, aiColor.yellow / 100 + aiColor.black / 100);
+                return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [redValue, greenValue, blueValue, 1]);
+            } else if (aiColor.typename === "GrayColor") {
+                var grayValue = 1 - (aiColor.gray / 100);
+                return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [grayValue, grayValue, grayValue, 1]);
+            } else if (aiColor.typename === "NoColor") {
+                return null;
+            }
+        } catch (e) { }
+        return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [1, 1, 1, 1]);
+    }
+
+    /**
+     * クリックでカラーピッカーを開けるカラースウォッチを作る。
+     * @param {Group} parent - 追加先のコンテナ
+     * @param {object} aiColor - 初期表示に使うIllustratorのカラー
+     * @returns {Group} スウォッチのグループ
+     */
+    function addColorSwatch(parent, aiColor) {
+        var swatchGroup = parent.add("group");
+        swatchGroup.preferredSize = [SWATCH_SIZE, SWATCH_SIZE];
+        swatchGroup.minimumSize = [SWATCH_SIZE, SWATCH_SIZE];
+        swatchGroup._aiColor = aiColor;
+        swatchGroup.onDraw = function () {
+            var graphics = this.graphics;
+            var brush = aiColorToScriptUIBrush(graphics, this._aiColor);
+            if (brush) {
+                graphics.rectPath(0, 0, this.size[0], this.size[1]);
+                graphics.fillPath(brush);
+            }
+            var borderPen = graphics.newPen(graphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1);
+            graphics.rectPath(0, 0, this.size[0], this.size[1]);
+            graphics.strokePath(borderPen);
+        };
+        return swatchGroup;
+    }
+
+    /**
+     * スウォッチを描き直す（色を変えたあとに呼ぶ）。
+     * @param {Group} swatchGroup - 対象のスウォッチ
+     * @returns {void}
+     */
+    function redrawSwatch(swatchGroup) {
+        try {
+            swatchGroup.hide();
+            swatchGroup.show();
+        } catch (e) { }
+    }
+
+    // =========================================
+    // ダイアログ位置の記憶 / Stored dialog position
+    // =========================================
+
+    /**
+     * セッション状態に保存されたダイアログ位置を取得する。
+     * @returns {Array<number>} [x, y] の配列、保存がなければnull
+     */
+    function getSavedDialogLocation() {
+        var savedLocation = getSessionState().dialogLocation;
+        if (!savedLocation || savedLocation.length !== 2) return null;
+        var x = Number(savedLocation[0]);
+        var y = Number(savedLocation[1]);
+        return (isNaN(x) || isNaN(y)) ? null : [x, y];
+    }
+
+    /**
+     * ダイアログの表示位置をセッション状態に保存する。
+     * @param {Window} targetDialog - 対象のダイアログ
+     * @returns {void}
+     */
+    function saveDialogLocation(targetDialog) {
+        if (!targetDialog || !targetDialog.location) return;
+        getSessionState().dialogLocation = [Number(targetDialog.location[0]), Number(targetDialog.location[1])];
+    }
+
+    /**
+     * 入力欄にフォーカスがあるかどうかを判定する。
+     * @param {object} target - イベントの発生元
+     * @returns {boolean} 入力欄ならtrue
+     */
+    function isTextInputTarget(target) {
+        return !!(target && target.type === "edittext");
+    }
+
+    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
     /**
      * 設定ダイアログを表示し、OKが押されたら確定用の状態を整える。
-     * @param {string} unitLabel - 定規単位のラベル
-     * @param {number} unitFactor - 定規単位のpt換算係数
+     * @param {object} rulerUnitInfo - 定規単位の情報 {label, factorToPt}
      * @param {object} strokeUnitInfo - 線の単位情報 {label, factorToPt}
      * @returns {boolean} OKで確定できたときtrue、キャンセルや失敗時はnull
      */
-    function showInputDialog(unitLabel, unitFactor, strokeUnitInfo) {
-        var dialog = new Window("dialog", LABELS.dialog.title[lang] + " " + SCRIPT_VERSION);
+    function showInputDialog(rulerUnitInfo, strokeUnitInfo) {
+        var dialog = new Window("dialog", LABELS.dialog.title[uiLang] + " " + SCRIPT_VERSION);
         var previewManager = new PreviewManager();
         var doc = app.activeDocument;
 
-        /**
-         * ダイアログの表示位置を相対的にずらす。
-         * @param {Window} targetDialog - 対象のダイアログ
-         * @param {number} dx - X方向の移動量
-         * @param {number} dy - Y方向の移動量
-         * @returns {void}
-         */
-        function shiftDialogPosition(targetDialog, dx, dy) {
-            try {
-                var currentX = targetDialog.location[0];
-                var currentY = targetDialog.location[1];
-                targetDialog.location = [currentX + dx, currentY + dy];
-            } catch (e) { }
-        }
+        /* 確定に関わるダイアログの状態 / Dialog state referenced when finalizing */
+        var isConfirmed = false;
+        var finalParams = null;
+        var documentView = null;
+        var initialZoom = null;
+
+        /* 辺の数 / Side count */
+        var sidesPanel, sideRadios = [], customSidesInput, customSidesSlider;
+        /* 回転と三角形 / Rotation and triangle */
+        var rotatePanel, rotateCheck, rotateInput, rotateUnitLabel;
+        var trianglePanel, triangleRightRadio, triangleLeftRadio, triangleDownRadio;
+        /* 塗りと線 / Fill and stroke */
+        var fillCheck, fillSwatch, strokeCheck, strokeSwatch, strokeWidthInput, strokeWidthUnitLabel;
+        var opacityInput, opacitySlider;
+        /* 幅 / Width */
+        var sizeInput;
+        /* スター / Star */
+        var starPanel, starCheck, pentagramCheck;
+        var innerRadiusLabel, innerRatioInput, innerPercentLabel, innerRatioSlider;
+        /* 円 / Circle */
+        var circlePanel, superEllipseCheck, superExponentInput, superExponentSlider;
+        var circleAnchorPanel, circleAnchorRadios = [];
+        /* 角丸 / Corner smoothing */
+        var cornerSmoothingPanel, cornerRadiusCheck, cornerRadiusInput, smoothingValueLabel, smoothingSlider;
+        /* アンカーポイントの操作 / Anchor point operations */
+        var roughenAnchorsCheck, roughenAnchorsInput, splitAtAnchorsCheck;
+        var strokeCapLabel, capButtRadio, capRoundRadio, capProjectingRadio;
+        /* オプション / Options */
+        var liveShapeCheck, reuleauxCheck, reuleauxAmountInput, reuleauxAmountSlider;
+
+        // -----------------------------------------
+        // 現在の入力の読み取り / Reading the current input
+        // -----------------------------------------
 
         /**
-         * セッション状態に保存されたダイアログ位置を取得する。
-         * @returns {Array} [x, y] の配列、保存がなければnull
+         * ラジオボタンまたは手動入力から辺の数を取得する。
+         * @returns {number} 辺の数（0は円）
          */
-        function getSavedDialogLocation() {
-            try {
-                var state = getSessionState();
-                if (state && state.dialogLocation && state.dialogLocation.length === 2) {
-                    var x = Number(state.dialogLocation[0]);
-                    var y = Number(state.dialogLocation[1]);
-                    if (!isNaN(x) && !isNaN(y)) return [x, y];
-                }
-            } catch (e) { }
-            return null;
-        }
-
-        /**
-         * ダイアログの表示位置をセッション状態に保存する。
-         * @param {Window} targetDialog - 対象のダイアログ
-         * @returns {void}
-         */
-        function saveDialogLocation(targetDialog) {
-            try {
-                if (!targetDialog || !targetDialog.location) return;
-                var state = getSessionState();
-                state.dialogLocation = [Number(targetDialog.location[0]), Number(targetDialog.location[1])];
-            } catch (e) { }
+        function getCurrentSides() {
+            var selectedIndex = getSelectedRadioIndex(sideRadios);
+            if (selectedIndex < 0) return 4;
+            return (selectedIndex === CUSTOM_SIDES_INDEX) ? parseInt(customSidesInput.text, 10) : SIDE_CHOICES[selectedIndex];
         }
 
         /**
          * 円のアンカーポイント数をラジオボタンから取得する。
          * @returns {number} アンカーポイント数
          */
-        function getCircleAnchorCountFromRadios() {
-            try {
-                return circleAnchorRadios.anchors2.value ? 2 :
-                    (circleAnchorRadios.anchors3.value ? 3 :
-                        (circleAnchorRadios.anchors5.value ? 5 :
-                            (circleAnchorRadios.anchors6.value ? 6 : SHAPE_DEFAULTS.circleAnchors)));
-            } catch (e) {
-                return SHAPE_DEFAULTS.circleAnchors;
-            }
+        function getCircleAnchorCount() {
+            var selectedIndex = getSelectedRadioIndex(circleAnchorRadios);
+            return (selectedIndex < 0) ? SHAPE_DEFAULTS.circleAnchors : CIRCLE_ANCHOR_CHOICES[selectedIndex];
         }
 
         /**
-         * ダイアログの不透明度を設定する。
-         * @param {Window} targetDialog - 対象のダイアログ
-         * @param {number} opacityValue - 不透明度（0.0〜1.0）
+         * スーパー楕円が実際に効く状態かどうかを判定する。
+         * @param {number} sidesValue - 現在の辺の数
+         * @returns {boolean} 円かつスーパー楕円がONならtrue
+         */
+        function isSuperEllipseActive(sidesValue) {
+            return !!(superEllipseCheck.value && sidesValue === 0);
+        }
+
+        /**
+         * 選択されている線端の種類を取得する。
+         * @returns {StrokeCap} 線端の種類
+         */
+        function getSelectedStrokeCap() {
+            if (capRoundRadio.value) return StrokeCap.ROUNDENDCAP;
+            if (capProjectingRadio.value) return StrokeCap.PROJECTINGENDCAP;
+            return StrokeCap.BUTTENDCAP;
+        }
+
+        /**
+         * スーパー楕円の指数を有効範囲に収める（小数第1位まで）。
+         * @param {string|number} value - 入力値
+         * @returns {number} 丸めた指数
+         */
+        function clampSuperExponent(value) {
+            return Math.round(clampNumber(value, SHAPE_RANGES.superExponent, SHAPE_DEFAULTS.superExponent) * 10) / 10;
+        }
+
+        /**
+         * ルーローの度合いを有効範囲に収める。
+         * @param {string|number} value - 入力値
+         * @returns {number} 整数に丸めた度合い（%）
+         */
+        function clampReuleauxAmount(value) {
+            return clampNumber(value, SHAPE_RANGES.reuleauxAmount, SHAPE_DEFAULTS.reuleauxAmount, true);
+        }
+
+        /**
+         * 不透明度を有効範囲に収める（0は有効な値なので既定値に丸めない）。
+         * @param {string|number} value - 入力値
+         * @returns {number} 整数に丸めた不透明度（%）
+         */
+        function clampOpacity(value) {
+            return clampNumber(value, SHAPE_RANGES.opacity, SHAPE_DEFAULTS.opacity, true);
+        }
+
+        // -----------------------------------------
+        // パネルの組み立て / Panel construction
+        // -----------------------------------------
+
+        /**
+         * ［辺の数］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
          * @returns {void}
          */
-        function setDialogOpacity(targetDialog, opacityValue) {
-            try {
-                targetDialog.opacity = opacityValue;
-            } catch (e) { }
+        function buildSidesPanel(parent) {
+            sidesPanel = addPanel(parent, LABELS.panel.sides[uiLang]);
+
+            sideRadios[0] = sidesPanel.add("radiobutton", undefined, LABELS.radio.circleWithZero[uiLang]);
+            for (var i = 1; i < SIDE_CHOICES.length; i++) {
+                sideRadios[i] = sidesPanel.add("radiobutton", undefined, String(SIDE_CHOICES[i]));
+            }
+
+            /* ［それ以外］はラベルを持たず、ラジオ・入力欄・スライダーを1行に並べる
+               The custom side count has no label; its radio, field and slider share one row */
+            var customSidesRow = addControlRow(sidesPanel);
+            sideRadios[CUSTOM_SIDES_INDEX] = customSidesRow.add("radiobutton", undefined, "");
+            customSidesInput = addNumberField(customSidesRow, SHAPE_DEFAULTS.customSides, 3);
+            customSidesSlider = addSlider(customSidesRow, SHAPE_DEFAULTS.customSides, SHAPE_RANGES.customSides, SIDES_SLIDER_WIDTH);
+
+            selectRadio(sideRadios, 2); /* 既定は4辺 / Four sides by default */
+            setCustomSidesEnabled(false);
         }
 
         /**
-         * 入力欄にフォーカスがあるかどうかを判定する。
-         * @param {object} target - イベントの発生元
-         * @returns {boolean} 入力欄ならtrue
+         * ［回転］パネルと、その中の［三角形］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
          */
-        function isTextInputTarget(target) {
-            try {
-                return !!(target && target.type === "edittext");
-            } catch (e) {
-                return false;
-            }
+        function buildRotatePanel(parent) {
+            rotatePanel = addPanel(parent, LABELS.panel.rotation[uiLang]);
+
+            var rotateRow = addControlRow(rotatePanel);
+            rotateCheck = rotateRow.add("checkbox", undefined, "");
+            rotateInput = addNumberField(rotateRow, SHAPE_DEFAULTS.rotation, 4);
+            rotateUnitLabel = rotateRow.add("statictext", undefined, "°");
+            /* 手動入力はチェック時だけ有効 / Manual entry is enabled only while checked */
+            rotateInput.enabled = rotateCheck.value;
+            rotateUnitLabel.enabled = rotateCheck.value;
+
+            /* 三角形パネルは回転パネルの中に置く / The triangle panel lives inside the rotation panel */
+            trianglePanel = addPanel(rotatePanel, LABELS.panel.triangle[uiLang]);
+            var triangleRow = addControlRow(trianglePanel, WIDE_ROW_SPACING);
+            triangleRightRadio = triangleRow.add("radiobutton", undefined, LABELS.radio.triangleRight[uiLang]);
+            triangleLeftRadio = triangleRow.add("radiobutton", undefined, LABELS.radio.triangleLeft[uiLang]);
+            triangleDownRadio = triangleRow.add("radiobutton", undefined, LABELS.radio.triangleDown[uiLang]);
+            triangleRightRadio.value = true;
         }
 
-        /* キーボードショートカット / Keyboard shortcuts */
-        dialog.addEventListener("keydown", function (event) {
-            if (!event || !event.keyName) return;
+        /**
+         * ［塗りと線］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildFillStrokePanel(parent) {
+            var fillStrokePanel = addPanel(parent, LABELS.panel.fillAndStroke[uiLang]);
+            var checkboxWidth = (uiLang === 'ja') ? 46 : 66;
 
-            /* 入力欄の編集中はショートカットを発火させない
-               Shortcuts must not fire while a text field is being edited */
-            if (isTextInputTarget(event.target)) return;
+            var fillRow = addControlRow(fillStrokePanel);
+            fillCheck = fillRow.add("checkbox", undefined, LABELS.checkbox.fill[uiLang]);
+            fillCheck.preferredSize.width = checkboxWidth;
+            fillCheck.value = true;
+            fillSwatch = addColorSwatch(fillRow, doc.defaultFillColor);
 
-            switch (event.keyName.toUpperCase()) {
+            var strokeRow = addControlRow(fillStrokePanel);
+            strokeCheck = strokeRow.add("checkbox", undefined, LABELS.checkbox.stroke[uiLang]);
+            strokeCheck.preferredSize.width = checkboxWidth;
+            strokeCheck.value = false;
+            strokeSwatch = addColorSwatch(strokeRow, doc.defaultStrokeColor);
 
-                case "E":
-                    /* 辺の数を0（円）にする / Set the side count to 0 (circle) */
-                    for (var i = 0; i < sideRadios.length; i++) sideRadios[i].value = false;
-                    sideRadios[0].value = true;
-                    setCustomSidesEnabled(false);
-                    applyAutoRotationForSides(0);
-                    updatePreview();
-                    event.preventDefault();
-                    break;
+            /* 線幅は［線］と同じ行に置く（ラベルなし） / The stroke width sits on the stroke row, without a label */
+            strokeWidthInput = addNumberField(strokeRow, SHAPE_DEFAULTS.strokeWidth, 4);
+            strokeWidthUnitLabel = strokeRow.add("statictext", undefined, strokeUnitInfo.label);
 
-                case "L":
-                    /* 三角形（左） / Triangle pointing left */
-                    for (var i = 0; i < sideRadios.length; i++) sideRadios[i].value = false;
-                    sideRadios[1].value = true;
-                    setCustomSidesEnabled(false);
-                    applyAutoRotationForSides(3);
-                    triangleLeftRadio.value = true;
-                    onTriangleDirectionChange();
-                    event.preventDefault();
-                    break;
+            var opacityRow = addControlRow(fillStrokePanel);
+            opacityRow.add("statictext", undefined, LABELS.label.opacity[uiLang]);
+            opacityInput = addNumberField(opacityRow, SHAPE_DEFAULTS.opacity, 4);
+            opacityRow.add("statictext", undefined, "%");
+            opacitySlider = addSlider(fillStrokePanel, SHAPE_DEFAULTS.opacity, SHAPE_RANGES.opacity, SLIDER_WIDTH);
+        }
 
-                case "R":
-                    /* 三角形（右） / Triangle pointing right */
-                    for (var i = 0; i < sideRadios.length; i++) sideRadios[i].value = false;
-                    sideRadios[1].value = true;
-                    setCustomSidesEnabled(false);
-                    applyAutoRotationForSides(3);
-                    triangleRightRadio.value = true;
-                    onTriangleDirectionChange();
-                    event.preventDefault();
-                    break;
+        /**
+         * ［幅］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildWidthPanel(parent) {
+            var widthPanel = addPanel(parent, LABELS.panel.width[uiLang]);
+            var widthRow = addControlRow(widthPanel);
+            sizeInput = addNumberField(widthRow, SHAPE_DEFAULTS.size, 5);
+            widthRow.add("statictext", undefined, rulerUnitInfo.label);
+        }
 
-                case "B":
-                    /* 三角形（下） / Triangle pointing down */
-                    for (var i = 0; i < sideRadios.length; i++) sideRadios[i].value = false;
-                    sideRadios[1].value = true;
-                    setCustomSidesEnabled(false);
-                    applyAutoRotationForSides(3);
-                    triangleDownRadio.value = true;
-                    onTriangleDirectionChange();
-                    event.preventDefault();
-                    break;
+        /**
+         * ［スター］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildStarPanel(parent) {
+            starPanel = addPanel(parent, LABELS.panel.star[uiLang]);
 
-                case "D":
-                    /* ［アンカーポイントで分割］の切り替え / Toggle "split at anchor points" */
-                    splitAtAnchorsCheck.value = !splitAtAnchorsCheck.value;
-                    if (typeof splitAtAnchorsCheck.onClick === "function") {
-                        splitAtAnchorsCheck.onClick();
-                    } else {
-                        updatePreview();
-                    }
-                    event.preventDefault();
-                    break;
+            var starRow = addControlRow(starPanel, WIDE_ROW_SPACING);
+            starCheck = starRow.add("checkbox", undefined, LABELS.checkbox.star[uiLang]);
+            pentagramCheck = starRow.add("checkbox", undefined, LABELS.checkbox.pentagram[uiLang]);
+            pentagramCheck.value = false;
 
-                case "A":
-                    /* ［回転］の切り替え / Toggle the rotation */
-                    rotateCheck.value = !rotateCheck.value;
-                    rotateInput.enabled = rotateCheck.value;
-                    rotateUnitLabel.enabled = rotateCheck.value;
-                    if (rotateCheck.value) {
-                        applyDefaultRotationWhenEnablingRotate();
-                    }
-                    updatePreview();
-                    event.preventDefault();
-                    break;
+            var innerRadiusRow = addControlRow(starPanel);
+            innerRadiusLabel = innerRadiusRow.add("statictext", undefined, LABELS.label.innerRadius[uiLang]);
+            innerRatioInput = addNumberField(innerRadiusRow, SHAPE_DEFAULTS.innerRatio, 4);
+            innerPercentLabel = innerRadiusRow.add("statictext", undefined, "%");
 
-                case "S":
-                    /* ［スター］の切り替え / Toggle the star */
-                    starCheck.value = !starCheck.value;
-                    if (!starCheck.value) {
-                        pentagramCheck.value = false;
-                    }
-                    updatePreview();
-                    event.preventDefault();
-                    break;
+            innerRatioSlider = addSlider(starPanel, SHAPE_DEFAULTS.innerRatio, SHAPE_RANGES.innerRatio, SLIDER_WIDTH);
+        }
 
-                case "P":
-                    /* ［五芒星］の切り替え（スターがONのときのみ） / Toggle the pentagram, the star must be on */
-                    if (!starCheck.value) {
-                        starCheck.value = true;
-                    }
-                    pentagramCheck.value = !pentagramCheck.value;
-                    updatePreview();
-                    event.preventDefault();
-                    break;
+        /**
+         * ［円］パネルと、その中の［アンカーポイント］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildCirclePanel(parent) {
+            circlePanel = addPanel(parent, LABELS.panel.circle[uiLang]);
+
+            superEllipseCheck = circlePanel.add("checkbox", undefined, LABELS.checkbox.superEllipse[uiLang]);
+            superEllipseCheck.value = false;
+
+            var superExponentRow = addControlRow(circlePanel);
+            superExponentInput = addNumberField(superExponentRow, SHAPE_DEFAULTS.superExponent, 4);
+            superExponentSlider = addSlider(superExponentRow, SHAPE_DEFAULTS.superExponent, SHAPE_RANGES.superExponent, SHORT_SLIDER_WIDTH);
+
+            circleAnchorPanel = addPanel(circlePanel, LABELS.panel.anchor[uiLang]);
+            var circleAnchorRow = addControlRow(circleAnchorPanel, WIDE_ROW_SPACING);
+            for (var i = 0; i < CIRCLE_ANCHOR_CHOICES.length; i++) {
+                circleAnchorRadios[i] = circleAnchorRow.add("radiobutton", undefined, String(CIRCLE_ANCHOR_CHOICES[i]));
             }
-        });
-        setupWindow(dialog);
+            selectRadio(circleAnchorRadios, 2); /* 既定は4アンカー / Four anchors by default */
+        }
 
-        var sideRadios = [], customSidesInput;
-        var contentGroup = dialog.add("group");
-        contentGroup.orientation = "row";
-        contentGroup.alignChildren = ["fill", "top"];
-        contentGroup.spacing = COLUMN_SPACING;
+        /**
+         * ［角丸］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildCornerSmoothingPanel(parent) {
+            cornerSmoothingPanel = addPanel(parent, LABELS.panel.cornerSmoothing[uiLang]);
 
-        /* 左カラム（辺の数・回転・塗りと線・幅） / Left column: sides, rotation, fill and stroke, width */
-        var leftColumn = contentGroup.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = "fill";
-        leftColumn.alignment = "top";
-        leftColumn.spacing = DIALOG_PANEL_SPACING;
+            var cornerRadiusRow = addControlRow(cornerSmoothingPanel);
+            cornerRadiusCheck = cornerRadiusRow.add("checkbox", undefined, LABELS.checkbox.cornerRadius[uiLang]);
+            cornerRadiusCheck.value = false;
+            cornerRadiusInput = addNumberField(cornerRadiusRow, SHAPE_DEFAULTS.cornerRadius, 5);
+            cornerRadiusRow.add("statictext", undefined, rulerUnitInfo.label);
 
-        var sidesPanel = leftColumn.add("panel", undefined, LABELS.panel.sides[lang]);
-        setupPanel(sidesPanel, DIALOG_PANEL_SPACING);
+            var smoothingLabelRow = addControlRow(cornerSmoothingPanel);
+            smoothingLabelRow.add("statictext", undefined, LABELS.label.smoothing[uiLang]);
+            smoothingValueLabel = smoothingLabelRow.add("statictext", undefined, String(SHAPE_DEFAULTS.smoothing));
+            smoothingValueLabel.characters = 4;
 
-        sideRadios[0] = sidesPanel.add("radiobutton", undefined, LABELS.radio.circleWithZero[lang]);
-        sideRadios[1] = sidesPanel.add("radiobutton", undefined, "3");
-        sideRadios[2] = sidesPanel.add("radiobutton", undefined, "4");
-        sideRadios[3] = sidesPanel.add("radiobutton", undefined, "5");
-        sideRadios[4] = sidesPanel.add("radiobutton", undefined, "6");
-        sideRadios[5] = sidesPanel.add("radiobutton", undefined, "8");
+            smoothingSlider = addSlider(cornerSmoothingPanel, SHAPE_DEFAULTS.smoothing, SHAPE_RANGES.smoothing, SLIDER_WIDTH);
+        }
 
-        /* ［それ以外］はラベルを持たず、ラジオ・入力欄・スライダーを1行に並べる
-           The custom side count has no label; its radio, field and slider share one row */
-        var customSidesRow = sidesPanel.add("group");
-        customSidesRow.orientation = "row";
-        customSidesRow.alignChildren = ["left", "center"];
+        /**
+         * ［アンカーポイントの操作］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildAnchorOpsPanel(parent) {
+            var anchorOpsPanel = addPanel(parent, LABELS.panel.anchorOps[uiLang]);
 
-        sideRadios[6] = customSidesRow.add("radiobutton", undefined, "");
-        customSidesInput = customSidesRow.add("edittext", undefined, String(SHAPE_DEFAULTS.customSides));
-        customSidesInput.characters = 3;
-        customSidesInput.enabled = false;
-        changeValueByArrowKey(customSidesInput);
+            var roughenAnchorsRow = addControlRow(anchorOpsPanel, TIGHT_ROW_SPACING);
+            roughenAnchorsCheck = roughenAnchorsRow.add("checkbox", undefined, LABELS.checkbox.roughenAnchors[uiLang]);
+            roughenAnchorsCheck.value = false;
+            roughenAnchorsInput = addNumberField(roughenAnchorsRow, SHAPE_DEFAULTS.roughenDetail, 3);
+            roughenAnchorsInput.enabled = false;
 
-        var customSidesSlider = customSidesRow.add("slider", undefined, SHAPE_DEFAULTS.customSides, SHAPE_RANGES.customSides[0], SHAPE_RANGES.customSides[1]);
-        customSidesSlider.preferredSize.width = UI_CONFIG.sidesSliderWidth;
-        customSidesSlider.enabled = false;
-        sideRadios[2].value = true;
+            splitAtAnchorsCheck = anchorOpsPanel.add("checkbox", undefined, LABELS.checkbox.splitAtAnchors[uiLang]);
+            splitAtAnchorsCheck.value = false;
+
+            var strokeCapRow = addControlRow(anchorOpsPanel, TIGHT_ROW_SPACING);
+            strokeCapLabel = strokeCapRow.add("statictext", undefined, LABELS.label.strokeCap[uiLang]);
+            capButtRadio = strokeCapRow.add("radiobutton", undefined, LABELS.radio.capButt[uiLang]);
+            capRoundRadio = strokeCapRow.add("radiobutton", undefined, LABELS.radio.capRound[uiLang]);
+            capProjectingRadio = strokeCapRow.add("radiobutton", undefined, LABELS.radio.capProjecting[uiLang]);
+            capButtRadio.value = true;
+        }
+
+        /**
+         * ［オプション］パネルを組み立てる。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildOptionsPanel(parent) {
+            var optionPanel = addPanel(parent, LABELS.panel.option[uiLang]);
+
+            liveShapeCheck = optionPanel.add("checkbox", undefined, LABELS.checkbox.liveShape[uiLang]);
+            liveShapeCheck.value = true;
+
+            reuleauxCheck = optionPanel.add("checkbox", undefined, LABELS.checkbox.reuleaux[uiLang]);
+            reuleauxCheck.value = false;
+
+            var reuleauxAmountRow = addControlRow(optionPanel);
+            reuleauxAmountInput = addNumberField(reuleauxAmountRow, SHAPE_DEFAULTS.reuleauxAmount, 4);
+            reuleauxAmountSlider = addSlider(reuleauxAmountRow, SHAPE_DEFAULTS.reuleauxAmount, SHAPE_RANGES.reuleauxAmount, SHORT_SLIDER_WIDTH);
+        }
+
+        /**
+         * ［画面ズーム］の行を組み立てる。
+         * @param {Window} parent - 追加先のコンテナ
+         * @returns {Slider} ズームスライダー
+         */
+        function buildViewZoomRow(parent) {
+            var viewZoomRow = parent.add("group");
+            viewZoomRow.orientation = "row";
+            viewZoomRow.alignChildren = ["center", "center"];
+            viewZoomRow.alignment = "center";
+            viewZoomRow.margins = [0, 7, 0, 5];
+            viewZoomRow.add("statictext", undefined, LABELS.label.viewZoom[uiLang]);
+
+            try {
+                initialZoom = (doc && doc.activeView) ? Number(doc.activeView.zoom) : 1;
+            } catch (e) {
+                initialZoom = 1;
+            }
+            return addSlider(viewZoomRow, initialZoom, SHAPE_RANGES.zoom, ZOOM_SLIDER_WIDTH);
+        }
+
+        /**
+         * ダイアログ下部のボタン列を組み立てる。
+         * @param {Window} parent - 追加先のコンテナ
+         * @returns {{previewButton: Button, cancelButton: Button, okButton: Button}} 各ボタン
+         */
+        function buildButtonRow(parent) {
+            var buttonRow = parent.add("group");
+            buttonRow.orientation = "row";
+            buttonRow.alignChildren = ["fill", "center"];
+            buttonRow.alignment = "fill";
+            buttonRow.margins = [0, 10, 0, 0];
+
+            var previewButtonGroup = buttonRow.add("group");
+            setupRow(previewButtonGroup, ["left", "center"]);
+            var previewButton = previewButtonGroup.add("button", undefined, LABELS.button.preview[uiLang]);
+
+            var confirmButtonGroup = buttonRow.add("group");
+            setupRow(confirmButtonGroup, ["right", "center"], WIDE_ROW_SPACING);
+            var cancelButton = confirmButtonGroup.add("button", undefined, LABELS.button.cancel[uiLang], { name: "cancel" });
+            var okButton = confirmButtonGroup.add("button", undefined, LABELS.button.ok[uiLang], { name: "ok" });
+
+            /* ボタンはコンテナいっぱいに広げない / Buttons must not stretch to the container width */
+            previewButton.alignment = "left";
+            cancelButton.alignment = "right";
+            okButton.alignment = "right";
+
+            return { previewButton: previewButton, cancelButton: cancelButton, okButton: okButton };
+        }
+
+        // -----------------------------------------
+        // 有効・無効の制御 / Enabled state
+        // -----------------------------------------
 
         /**
          * ［それ以外］の入力欄とスライダーの有効・無効をまとめて切り替える。
@@ -1287,331 +1623,25 @@
             customSidesSlider.enabled = isEnabled;
         }
 
-        /* 回転パネル / Rotation panel */
-        var rotatePanel = leftColumn.add("panel", undefined, LABELS.panel.rotation[lang]);
-        setupPanel(rotatePanel, DIALOG_PANEL_SPACING);
-
-        var rotateRow = rotatePanel.add("group");
-        rotateRow.orientation = "row";
-        rotateRow.alignChildren = ["left", "center"];
-        rotateRow.spacing = 6;
-
-        var rotateCheck = rotateRow.add("checkbox", undefined, "");
-
-        var rotateInput = rotateRow.add("edittext", undefined, SHAPE_DEFAULTS.rotation);
-        rotateInput.characters = 4;
-        changeValueByArrowKey(rotateInput);
-
-        var rotateUnitLabel = rotateRow.add("statictext", undefined, "°");
-        /* 初期状態ではチェック時だけ手動入力を有効にする / Manual entry starts enabled only when checked */
-        rotateInput.enabled = rotateCheck.value;
-        rotateUnitLabel.enabled = rotateCheck.value;
-
-        /* 塗りと線パネル / Fill and stroke panel */
-        var fillStrokePanel = leftColumn.add("panel", undefined, LABELS.panel.fillAndStroke[lang]);
-        setupPanel(fillStrokePanel, DIALOG_PANEL_SPACING);
-
-        var fillStrokeLabelWidth = (lang === 'ja') ? 30 : 50;
-
         /**
-         * Illustratorのカラーオブジェクトを ColorPicker 用の文字列に変換する。
-         * @param {object} aiColor - Illustratorのカラーオブジェクト
-         * @returns {string} ColorPickerが受け取る色文字列
+         * 円のアンカーポイント数のラジオをまとめて有効・無効にする。
+         * @param {boolean} isEnabled - 有効にするかどうか
+         * @returns {void}
          */
-        function aiColorToPickerString(aiColor) {
-            try {
-                if (aiColor.typename === "RGBColor") {
-                    return ColorPicker.rgbToHex(aiColor.red, aiColor.green, aiColor.blue);
-                } else if (aiColor.typename === "CMYKColor") {
-                    return "cmyk:" + Math.round(aiColor.cyan) + "," + Math.round(aiColor.magenta) + "," + Math.round(aiColor.yellow) + "," + Math.round(aiColor.black);
-                } else if (aiColor.typename === "GrayColor") {
-                    return "cmyk:0,0,0," + Math.round(aiColor.gray);
-                }
-            } catch (e) { }
-            return "000000";
-        }
-
-        /**
-         * ColorPickerの戻り値をIllustratorのカラーオブジェクトに変換する。
-         * @param {string} pickerString - ColorPickerが返した色文字列
-         * @returns {object} Illustratorのカラーオブジェクト
-         */
-        function pickerStringToAiColor(pickerString) {
-            if (ColorPicker.isCmykString(pickerString)) {
-                var cmykValues = ColorPicker.parseCmykString(pickerString);
-                var cmykColor = new CMYKColor();
-                cmykColor.cyan = cmykValues.c;
-                cmykColor.magenta = cmykValues.m;
-                cmykColor.yellow = cmykValues.y;
-                cmykColor.black = cmykValues.k;
-                return cmykColor;
-            } else {
-                var rgbValues = ColorPicker.hexToRGB(pickerString);
-                var rgbColor = new RGBColor();
-                rgbColor.red = rgbValues.r;
-                rgbColor.green = rgbValues.g;
-                rgbColor.blue = rgbValues.b;
-                return rgbColor;
+        function setCircleAnchorRadiosEnabled(isEnabled) {
+            for (var i = 0; i < circleAnchorRadios.length; i++) {
+                circleAnchorRadios[i].enabled = isEnabled;
             }
         }
-
-        /**
-         * Illustratorのカラーから、スウォッチ描画用のブラシを作る。
-         * @param {object} graphics - ScriptUIのgraphicsオブジェクト
-         * @param {object} aiColor - Illustratorのカラーオブジェクト
-         * @returns {object} ブラシ（NoColorのときnull）
-         */
-        function aiColorToScriptUIBrush(graphics, aiColor) {
-            try {
-                if (aiColor.typename === "RGBColor") {
-                    return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [aiColor.red / 255, aiColor.green / 255, aiColor.blue / 255, 1]);
-                } else if (aiColor.typename === "CMYKColor") {
-                    /* 表示用にCMYKをRGBへ近似 / Approximate CMYK as RGB for display */
-                    var redValue = 1 - Math.min(1, aiColor.cyan / 100 + aiColor.black / 100);
-                    var greenValue = 1 - Math.min(1, aiColor.magenta / 100 + aiColor.black / 100);
-                    var blueValue = 1 - Math.min(1, aiColor.yellow / 100 + aiColor.black / 100);
-                    return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [redValue, greenValue, blueValue, 1]);
-                } else if (aiColor.typename === "GrayColor") {
-                    var grayValue = 1 - (aiColor.gray / 100);
-                    return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [grayValue, grayValue, grayValue, 1]);
-                } else if (aiColor.typename === "NoColor") {
-                    return null;
-                }
-            } catch (e) { }
-            return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [1, 1, 1, 1]);
-        }
-
-        /**
-         * クリックでカラーピッカーを開けるカラースウォッチを作る。
-         * @param {Group} parent - 追加先のコンテナ
-         * @param {object} aiColor - 初期表示に使うIllustratorのカラー
-         * @returns {Group} スウォッチのグループ
-         */
-        function createSwatchPanel(parent, aiColor) {
-            var swatchGroup = parent.add("group");
-            swatchGroup.preferredSize = [UI_CONFIG.swatchSize, UI_CONFIG.swatchSize];
-            swatchGroup.minimumSize = [UI_CONFIG.swatchSize, UI_CONFIG.swatchSize];
-            swatchGroup._aiColor = aiColor;
-            swatchGroup.onDraw = function () {
-                var graphics = this.graphics;
-                var brush = aiColorToScriptUIBrush(graphics, this._aiColor);
-                if (brush) {
-                    graphics.rectPath(0, 0, this.size[0], this.size[1]);
-                    graphics.fillPath(brush);
-                }
-                var borderPen = graphics.newPen(graphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1);
-                graphics.rectPath(0, 0, this.size[0], this.size[1]);
-                graphics.strokePath(borderPen);
-            };
-            return swatchGroup;
-        }
-
-        /* 塗りの行 / Fill row */
-        var fillRow = fillStrokePanel.add("group");
-        fillRow.orientation = "row";
-        fillRow.alignChildren = ["left", "center"];
-        fillRow.spacing = 6;
-
-        var fillCheck = fillRow.add("checkbox", undefined, LABELS.checkbox.fill[lang]);
-        fillCheck.preferredSize.width = fillStrokeLabelWidth + 16;
-        fillCheck.value = true;
-        var fillSwatch = createSwatchPanel(fillRow, doc.defaultFillColor);
-        fillSwatch.addEventListener("click", function () {
-            var pickedColor = ColorPicker.show({
-                value: aiColorToPickerString(fillSwatch._aiColor),
-                title: LABELS.dialog.colorPicker[lang],
-                lang: lang
-            });
-            if (pickedColor !== null) {
-                fillSwatch._aiColor = pickerStringToAiColor(pickedColor);
-                try { fillSwatch.hide(); fillSwatch.show(); } catch (e) { }
-                updatePreview();
-            }
-        });
-
-        /* 線の行 / Stroke row */
-        var strokeRow = fillStrokePanel.add("group");
-        strokeRow.orientation = "row";
-        strokeRow.alignChildren = ["left", "center"];
-        strokeRow.spacing = 6;
-
-        var strokeCheck = strokeRow.add("checkbox", undefined, LABELS.checkbox.stroke[lang]);
-        strokeCheck.preferredSize.width = fillStrokeLabelWidth + 16;
-        strokeCheck.value = false;
-        var strokeSwatch = createSwatchPanel(strokeRow, doc.defaultStrokeColor);
-        strokeSwatch.addEventListener("click", function () {
-            var pickedColor = ColorPicker.show({
-                value: aiColorToPickerString(strokeSwatch._aiColor),
-                title: LABELS.dialog.colorPicker[lang],
-                lang: lang
-            });
-            if (pickedColor !== null) {
-                strokeSwatch._aiColor = pickerStringToAiColor(pickedColor);
-                try { strokeSwatch.hide(); strokeSwatch.show(); } catch (e) { }
-                updatePreview();
-            }
-        });
-
-        /* 線幅は［線］と同じ行に置く（ラベルなし） / The stroke width sits on the stroke row, without a label */
-        var strokeWidthInput = strokeRow.add("edittext", undefined, SHAPE_DEFAULTS.strokeWidth);
-        strokeWidthInput.characters = 4;
-        changeValueByArrowKey(strokeWidthInput);
-        var strokeWidthUnitLabel = strokeRow.add("statictext", undefined, strokeUnitInfo.label);
 
         /**
          * 線幅の入力欄を［線］チェックの状態に合わせて有効・無効にする。
          * @returns {void}
          */
         function updateStrokeWidthEnabled() {
-            var isEnabled = strokeCheck.value;
-            strokeWidthInput.enabled = isEnabled;
-            strokeWidthUnitLabel.enabled = isEnabled;
+            strokeWidthInput.enabled = strokeCheck.value;
+            strokeWidthUnitLabel.enabled = strokeCheck.value;
         }
-        fillCheck.onClick = function () {
-            updatePreview();
-        };
-        strokeCheck.onClick = function () {
-            updateStrokeWidthEnabled();
-            updatePreview();
-        };
-        strokeWidthInput.onChanging = function () {
-            updatePreview();
-        };
-        updateStrokeWidthEnabled();
-
-        /* 不透明度の行 / Opacity row */
-        var opacityRow = fillStrokePanel.add("group");
-        opacityRow.orientation = "row";
-        opacityRow.alignChildren = ["left", "center"];
-        opacityRow.spacing = 6;
-
-        opacityRow.add("statictext", undefined, LABELS.label.opacity[lang]);
-        var opacityInput = opacityRow.add("edittext", undefined, String(SHAPE_DEFAULTS.opacity));
-        opacityInput.characters = 4;
-        changeValueByArrowKey(opacityInput);
-        opacityRow.add("statictext", undefined, "%");
-        var opacitySlider = fillStrokePanel.add("slider", undefined, SHAPE_DEFAULTS.opacity, SHAPE_RANGES.opacity[0], SHAPE_RANGES.opacity[1]);
-        opacitySlider.preferredSize.width = UI_CONFIG.sliderWidth;
-
-        /**
-         * 不透明度を有効範囲に収める（0は有効な値なので既定値に丸めない）。
-         * @param {string|number} value - 入力値
-         * @returns {number} 整数に丸めた不透明度（%）
-         */
-        function clampOpacity(value) {
-            /* 入力途中の空欄はNumber()が0になってしまうので既定値に戻す
-               An empty field would become 0 through Number(), so fall back to the default */
-            if (typeof value === "string" && !/\S/.test(value)) return SHAPE_DEFAULTS.opacity;
-            value = Math.round(Number(value));
-            if (isNaN(value)) value = SHAPE_DEFAULTS.opacity;
-            if (value < SHAPE_RANGES.opacity[0]) value = SHAPE_RANGES.opacity[0];
-            if (value > SHAPE_RANGES.opacity[1]) value = SHAPE_RANGES.opacity[1];
-            return value;
-        }
-
-        opacityInput.onChanging = function () {
-            opacitySlider.value = clampOpacity(opacityInput.text);
-            updatePreview();
-        };
-
-        opacitySlider.onChanging = function () {
-            var value = Math.round(opacitySlider.value);
-            var keyboard = ScriptUI.environment.keyboardState;
-            if (keyboard.shiftKey) {
-                value = Math.round(value / 10) * 10;
-                opacitySlider.value = value;
-            }
-            opacityInput.text = String(value);
-            updatePreview();
-        };
-
-        /* 幅パネル / Width panel */
-        var widthPanel = leftColumn.add("panel", undefined, LABELS.panel.width[lang]);
-        setupPanel(widthPanel, DIALOG_PANEL_SPACING);
-
-        var widthRow = widthPanel.add("group");
-        widthRow.orientation = "row";
-        widthRow.alignChildren = ["left", "center"];
-
-        var sizeInput = widthRow.add("edittext", undefined, SHAPE_DEFAULTS.size);
-        sizeInput.characters = 5;
-        changeValueByArrowKey(sizeInput);
-        widthRow.add("statictext", undefined, unitLabel);
-
-        /* 右カラム（スター・円・角丸・アンカー・オプション） / Right column */
-        var rightColumn = contentGroup.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = "fill";
-        rightColumn.alignment = "top";
-        rightColumn.spacing = DIALOG_PANEL_SPACING;
-
-        /* スターパネル / Star panel */
-        var starPanel = rightColumn.add("panel", undefined, LABELS.panel.star[lang]);
-        setupPanel(starPanel, DIALOG_PANEL_SPACING);
-
-        var starRow = starPanel.add("group");
-        starRow.orientation = "row";
-        starRow.alignChildren = ["left", "center"];
-        starRow.spacing = 10;
-
-        var starCheck = starRow.add("checkbox", undefined, LABELS.checkbox.star[lang]);
-        var pentagramCheck = starRow.add("checkbox", undefined, LABELS.checkbox.pentagram[lang]);
-        pentagramCheck.value = false;
-
-        var innerRadiusRow = starPanel.add("group");
-        var innerRadiusLabel = innerRadiusRow.add("statictext", undefined, LABELS.label.innerRadius[lang]);
-        var innerRatioInput = innerRadiusRow.add("edittext", undefined, String(SHAPE_DEFAULTS.innerRatio));
-        innerRatioInput.characters = 4;
-        changeValueByArrowKey(innerRatioInput);
-        var innerPercentLabel = innerRadiusRow.add("statictext", undefined, "%");
-
-        var innerRatioSliderRow = starPanel.add("group");
-        innerRatioSliderRow.orientation = "row";
-        innerRatioSliderRow.alignChildren = ["left", "center"];
-
-        var innerRatioSlider = innerRatioSliderRow.add("slider", undefined, SHAPE_DEFAULTS.innerRatio, SHAPE_RANGES.innerRatio[0], SHAPE_RANGES.innerRatio[1]);
-        innerRatioSlider.preferredSize.width = UI_CONFIG.sliderWidth;
-
-        /* 円パネル / Circle panel */
-        var circlePanel = rightColumn.add("panel", undefined, LABELS.panel.circle[lang]);
-        setupPanel(circlePanel, DIALOG_PANEL_SPACING);
-
-        var superEllipseCheck = circlePanel.add("checkbox", undefined, LABELS.checkbox.superEllipse[lang]);
-        superEllipseCheck.value = false;
-
-        var superExponentRow = circlePanel.add("group");
-        superExponentRow.orientation = "row";
-        superExponentRow.alignChildren = ["left", "center"];
-        superExponentRow.spacing = 8;
-
-        var superExponentInput = superExponentRow.add("edittext", undefined, String(SHAPE_DEFAULTS.superExponent));
-        superExponentInput.characters = 4;
-        changeValueByArrowKey(superExponentInput);
-
-        var superExponentSlider = superExponentRow.add("slider", undefined, SHAPE_DEFAULTS.superExponent, SHAPE_RANGES.superExponent[0], SHAPE_RANGES.superExponent[1]);
-        superExponentSlider.preferredSize.width = UI_CONFIG.shortSliderWidth;
-
-        /* 円のアンカーポイント数パネル / Anchor count panel of the circle */
-        var circleAnchorPanel = circlePanel.add("panel", undefined, LABELS.panel.anchor[lang]);
-        setupPanel(circleAnchorPanel, DIALOG_PANEL_SPACING);
-
-        var circleAnchorColumn = circleAnchorPanel.add("group");
-        circleAnchorColumn.orientation = "column";
-        circleAnchorColumn.alignChildren = "left";
-        circleAnchorColumn.spacing = 10;
-
-        var circleAnchorRow = circleAnchorColumn.add("group");
-        circleAnchorRow.orientation = "row";
-        circleAnchorRow.alignChildren = ["left", "center"];
-        circleAnchorRow.spacing = 10;
-
-        var circleAnchorRadios = {};
-        circleAnchorRadios.anchors2 = circleAnchorRow.add("radiobutton", undefined, "2");
-        circleAnchorRadios.anchors3 = circleAnchorRow.add("radiobutton", undefined, "3");
-        circleAnchorRadios.anchors4 = circleAnchorRow.add("radiobutton", undefined, "4");
-        circleAnchorRadios.anchors5 = circleAnchorRow.add("radiobutton", undefined, "5");
-        circleAnchorRadios.anchors6 = circleAnchorRow.add("radiobutton", undefined, "6");
-        circleAnchorRadios.anchors4.value = true;
 
         /**
          * 円パネルの有効・無効を辺の数に応じて切り替える。
@@ -1621,22 +1651,13 @@
         function updateCirclePanelEnabled(sidesValue) {
             var isEnabled = (sidesValue === 0);
             circlePanel.enabled = isEnabled;
-            try { circleAnchorPanel.enabled = isEnabled; } catch (e) { }
-            if (!isEnabled) {
-                try { superEllipseCheck.value = false; } catch (e) { }
-                try {
-                    circleAnchorRadios.anchors2.value = false;
-                    circleAnchorRadios.anchors3.value = false;
-                    circleAnchorRadios.anchors4.value = true;
-                    circleAnchorRadios.anchors5.value = false;
-                    circleAnchorRadios.anchors6.value = false;
-                    circleAnchorRadios.anchors2.enabled = true;
-                    circleAnchorRadios.anchors3.enabled = true;
-                    circleAnchorRadios.anchors4.enabled = true;
-                    circleAnchorRadios.anchors5.enabled = true;
-                    circleAnchorRadios.anchors6.enabled = true;
-                } catch (e) { }
-            }
+            circleAnchorPanel.enabled = isEnabled;
+            if (isEnabled) return;
+
+            /* 円以外に切り替えたら円用の設定を既定へ戻す / Reset the circle options when leaving the circle */
+            superEllipseCheck.value = false;
+            selectRadio(circleAnchorRadios, 2);
+            setCircleAnchorRadiosEnabled(true);
         }
 
         /**
@@ -1661,102 +1682,10 @@
          */
         function updateInnerRadiusEnabled() {
             var isEnabled = !!starCheck.value;
-            try {
-                innerRadiusLabel.enabled = isEnabled;
-                innerRatioInput.enabled = isEnabled;
-                innerPercentLabel.enabled = isEnabled;
-                innerRatioSlider.enabled = isEnabled;
-            } catch (e) { }
-        }
-
-        /**
-         * ルーローのチェックボックスを、辺の数とスターの状態に応じて有効・無効にする。
-         * @param {number} sidesValue - 現在の辺の数
-         * @returns {void}
-         */
-        function updateReuleauxAvailability(sidesValue) {
-            try {
-                /* スターがONのときは奇数判定を行わない（スター側の制御を優先）
-                   While the star is on, the odd-side rule is skipped and the star logic wins */
-                if (starCheck && starCheck.value) {
-                    try { updateReuleauxAmountEnabled(); } catch (e) { }
-                    return;
-                }
-
-                /* ルーローは奇数辺（3、5、7…）のみ。円（0）と偶数辺は対象外
-                   Reuleaux applies to odd side counts only, never to a circle or an even count */
-                var isEnabled = (typeof sidesValue === "number") && (sidesValue > 0) && (sidesValue % 2 === 1);
-                reuleauxCheck.enabled = isEnabled;
-                if (!isEnabled) reuleauxCheck.value = false;
-                updateReuleauxAmountEnabled();
-            } catch (e) { }
-        }
-
-        /**
-         * スーパー楕円の指数を有効範囲に収める。
-         * @param {number} value - 入力値
-         * @returns {number} 小数第1位に丸めた指数
-         */
-        function clampSuperExponent(value) {
-            value = Number(value);
-            if (isNaN(value)) value = SHAPE_DEFAULTS.superExponent;
-            if (value < SHAPE_RANGES.superExponent[0]) value = SHAPE_RANGES.superExponent[0];
-            if (value > SHAPE_RANGES.superExponent[1]) value = SHAPE_RANGES.superExponent[1];
-            value = Math.round(value * 10) / 10;
-            return value;
-        }
-
-        /**
-         * スーパー楕円の指数を入力欄とスライダーの両方に反映する。
-         * @param {number} value - 入力値
-         * @returns {number} 反映した指数
-         */
-        function syncSuperExponentUI(value) {
-            value = clampSuperExponent(value);
-            try {
-                superExponentInput.text = String(value);
-                superExponentSlider.value = value;
-            } catch (e) { }
-            return value;
-        }
-
-        /**
-         * ルーローの度合いを有効範囲に収める。
-         * @param {number} value - 入力値
-         * @returns {number} 整数に丸めた度合い（%）
-         */
-        function clampReuleauxAmount(value) {
-            value = Math.round(Number(value));
-            if (isNaN(value)) value = SHAPE_DEFAULTS.reuleauxAmount;
-            if (value < SHAPE_RANGES.reuleauxAmount[0]) value = SHAPE_RANGES.reuleauxAmount[0];
-            if (value > SHAPE_RANGES.reuleauxAmount[1]) value = SHAPE_RANGES.reuleauxAmount[1];
-            return value;
-        }
-
-        /**
-         * ルーローの度合いを入力欄とスライダーの両方に反映する。
-         * @param {number} value - 入力値
-         * @returns {number} 反映した度合い（%）
-         */
-        function syncReuleauxAmountUI(value) {
-            value = clampReuleauxAmount(value);
-            try {
-                reuleauxAmountInput.text = String(value);
-                reuleauxAmountSlider.value = value;
-            } catch (e) { }
-            return value;
-        }
-
-        /**
-         * ルーローの度合いの入力群を有効・無効にする。
-         * @returns {void}
-         */
-        function updateReuleauxAmountEnabled() {
-            try {
-                var isEnabled = (reuleauxCheck.enabled && reuleauxCheck.value);
-                reuleauxAmountInput.enabled = isEnabled;
-                reuleauxAmountSlider.enabled = isEnabled;
-            } catch (e) { }
+            innerRadiusLabel.enabled = isEnabled;
+            innerRatioInput.enabled = isEnabled;
+            innerPercentLabel.enabled = isEnabled;
+            innerRatioSlider.enabled = isEnabled;
         }
 
         /**
@@ -1765,35 +1694,42 @@
          * @returns {void}
          */
         function updateSuperEllipseControlsEnabled(sidesValue) {
-            var isSuperEllipseActive = (superEllipseCheck.value && sidesValue === 0);
-            try {
-                superExponentInput.enabled = isSuperEllipseActive;
-                superExponentSlider.enabled = isSuperEllipseActive;
-                /* スーパー楕円がONのときはアンカーポイント数を選べない
-                   The anchor count cannot be chosen while the superellipse is on */
-                circleAnchorPanel.enabled = !isSuperEllipseActive;
-            } catch (e) { }
+            var isActive = isSuperEllipseActive(sidesValue);
+            superExponentInput.enabled = isActive;
+            superExponentSlider.enabled = isActive;
+            /* スーパー楕円がONのときはアンカーポイント数を選べない
+               The anchor count cannot be chosen while the superellipse is on */
+            circleAnchorPanel.enabled = !isActive;
+            setCircleAnchorRadiosEnabled(!isActive);
         }
 
-        /* 三角形パネルは回転パネルの中に置く / The triangle panel lives inside the rotation panel */
-        var trianglePanel = rotatePanel.add("panel", undefined, LABELS.panel.triangle[lang]);
-        setupPanel(trianglePanel, DIALOG_PANEL_SPACING);
+        /**
+         * ルーローの度合いの入力群を有効・無効にする。
+         * @returns {void}
+         */
+        function updateReuleauxAmountEnabled() {
+            var isEnabled = (reuleauxCheck.enabled && reuleauxCheck.value);
+            reuleauxAmountInput.enabled = isEnabled;
+            reuleauxAmountSlider.enabled = isEnabled;
+        }
 
-        /* 角丸パネル / Corner smoothing panel */
-        var cornerSmoothingPanel = rightColumn.add("panel", undefined, LABELS.panel.cornerSmoothing[lang]);
-        setupPanel(cornerSmoothingPanel, DIALOG_PANEL_SPACING);
-
-        var cornerRadiusRow = cornerSmoothingPanel.add("group");
-        cornerRadiusRow.orientation = "row";
-        cornerRadiusRow.alignChildren = ["left", "center"];
-        cornerRadiusRow.spacing = 6;
-
-        var cornerRadiusCheck = cornerRadiusRow.add("checkbox", undefined, LABELS.checkbox.cornerRadius[lang]);
-        cornerRadiusCheck.value = false;
-        var cornerRadiusInput = cornerRadiusRow.add("edittext", undefined, SHAPE_DEFAULTS.cornerRadius);
-        cornerRadiusInput.characters = 5;
-        changeValueByArrowKey(cornerRadiusInput);
-        cornerRadiusRow.add("statictext", undefined, unitLabel);
+        /**
+         * ルーローのチェックボックスを、辺の数とスターの状態に応じて有効・無効にする。
+         * @param {number} sidesValue - 現在の辺の数
+         * @returns {void}
+         */
+        function updateReuleauxAvailability(sidesValue) {
+            /* スターがONのときは奇数判定を行わない（スター側の制御を優先）
+               While the star is on, the odd-side rule is skipped and the star logic wins */
+            if (!starCheck.value) {
+                /* ルーローは奇数辺（3、5、7…）のみ。円（0）と偶数辺は対象外
+                   Reuleaux applies to odd side counts only, never to a circle or an even count */
+                var isEnabled = (typeof sidesValue === "number") && (sidesValue > 0) && (sidesValue % 2 === 1);
+                reuleauxCheck.enabled = isEnabled;
+                if (!isEnabled) reuleauxCheck.value = false;
+            }
+            updateReuleauxAmountEnabled();
+        }
 
         /**
          * 角丸の入力群を［半径］チェックの状態に合わせて有効・無効にする。
@@ -1804,31 +1740,6 @@
             cornerRadiusInput.enabled = isEnabled;
             smoothingSlider.enabled = isEnabled;
             smoothingValueLabel.enabled = isEnabled;
-        }
-
-        var smoothingLabelRow = cornerSmoothingPanel.add("group");
-        smoothingLabelRow.orientation = "row";
-        smoothingLabelRow.alignChildren = ["left", "center"];
-        smoothingLabelRow.spacing = 8;
-
-        smoothingLabelRow.add("statictext", undefined, LABELS.label.smoothing[lang]);
-        var smoothingValueLabel = smoothingLabelRow.add("statictext", undefined, String(SHAPE_DEFAULTS.smoothing));
-        smoothingValueLabel.characters = 4;
-
-        var smoothingSlider = cornerSmoothingPanel.add("slider", undefined, SHAPE_DEFAULTS.smoothing, SHAPE_RANGES.smoothing[0], SHAPE_RANGES.smoothing[1]);
-        smoothingSlider.preferredSize.width = UI_CONFIG.sliderWidth;
-
-        /**
-         * 角丸の半径の既定値を、現在の幅に対する比率から求めて入力欄に入れる。
-         * @returns {void}
-         */
-        function applyDefaultCornerRadius() {
-            try {
-                var currentWidth = parseFloat(sizeInput.text);
-                if (isNaN(currentWidth) || currentWidth <= 0) return;
-                var defaultRadius = Math.round(currentWidth * SHAPE_DEFAULTS.cornerRadiusRatio * 10) / 10;
-                cornerRadiusInput.text = String(defaultRadius);
-            } catch (e) { }
         }
 
         /**
@@ -1846,87 +1757,12 @@
                read only when sides === 4, so keeping them is harmless */
             if (isEnabled && !(parseFloat(cornerRadiusInput.text) > 0)) {
                 /* 有効化したときは幅に対する比率で既定値を入れる / Restore the ratio-based default when enabled */
-                applyDefaultCornerRadius();
+                var currentWidth = parseFloat(sizeInput.text);
+                if (!isNaN(currentWidth) && currentWidth > 0) {
+                    cornerRadiusInput.text = String(Math.round(currentWidth * SHAPE_DEFAULTS.cornerRadiusRatio * 10) / 10);
+                }
             }
         }
-
-        cornerRadiusCheck.onClick = function () {
-            updateCornerRadiusInputEnabled();
-            refreshLiveShapeAvailabilityFromUI();
-            updatePreview();
-        };
-        updateCornerRadiusInputEnabled();
-
-        cornerRadiusInput.onChanging = function () {
-            refreshLiveShapeAvailabilityFromUI();
-            updatePreview();
-        };
-
-        smoothingSlider.onChanging = function () {
-            var value = Math.round(smoothingSlider.value);
-            smoothingValueLabel.text = String(value);
-            updatePreview();
-        };
-
-        /* アンカーポイント操作パネル / Anchor operations panel */
-        var anchorOpsPanel = rightColumn.add("panel", undefined, LABELS.panel.anchorOps[lang]);
-        setupPanel(anchorOpsPanel, DIALOG_PANEL_SPACING);
-
-        /* オプションパネル / Options panel */
-        var optionPanel = rightColumn.add("panel", undefined, LABELS.panel.option[lang]);
-        setupPanel(optionPanel, DIALOG_PANEL_SPACING);
-
-        var liveShapeCheck = optionPanel.add("checkbox", undefined, LABELS.checkbox.liveShape[lang]);
-        liveShapeCheck.value = true;
-
-        /* ラフ効果でアンカーを追加 / Add anchors with the Roughen effect */
-        var roughenAnchorsRow = anchorOpsPanel.add("group");
-        roughenAnchorsRow.orientation = "row";
-        roughenAnchorsRow.alignChildren = ["left", "center"];
-        roughenAnchorsRow.spacing = 4;
-        var roughenAnchorsCheck = roughenAnchorsRow.add("checkbox", undefined, LABELS.checkbox.roughenAnchors[lang]);
-        roughenAnchorsCheck.value = false;
-        var roughenAnchorsInput = roughenAnchorsRow.add("edittext", undefined, SHAPE_DEFAULTS.roughenDetail);
-        roughenAnchorsInput.characters = 3;
-        roughenAnchorsInput.enabled = false;
-        changeValueByArrowKey(roughenAnchorsInput);
-
-        roughenAnchorsCheck.onClick = function () {
-            var isRoughenOn = roughenAnchorsCheck.value;
-            roughenAnchorsInput.enabled = isRoughenOn;
-
-            if (isRoughenOn) {
-                splitAtAnchorsCheck.value = false;
-                splitAtAnchorsCheck.enabled = false;
-                liveShapeCheck.value = false;
-                liveShapeCheck.enabled = false;
-            } else {
-                splitAtAnchorsCheck.enabled = true;
-            }
-
-            refreshLiveShapeAvailabilityFromUI();
-            if (isRoughenOn) {
-                liveShapeCheck.value = false;
-                liveShapeCheck.enabled = false;
-            }
-            updatePreview();
-        };
-        roughenAnchorsInput.onChanging = function () { updatePreview(); };
-
-        /* アンカーポイントで分割 / Split at anchor points */
-        var splitAtAnchorsCheck = anchorOpsPanel.add("checkbox", undefined, LABELS.checkbox.splitAtAnchors[lang]);
-        splitAtAnchorsCheck.value = false;
-
-        var strokeCapRow = anchorOpsPanel.add("group");
-        strokeCapRow.orientation = "row";
-        strokeCapRow.alignChildren = ["left", "center"];
-        strokeCapRow.spacing = 4;
-
-        var strokeCapLabel = strokeCapRow.add("statictext", undefined, LABELS.label.strokeCap[lang]);
-        var capButtRadio = strokeCapRow.add("radiobutton", undefined, LABELS.radio.capButt[lang]);
-        var capRoundRadio = strokeCapRow.add("radiobutton", undefined, LABELS.radio.capRound[lang]);
-        var capProjectingRadio = strokeCapRow.add("radiobutton", undefined, LABELS.radio.capProjecting[lang]);
-        capButtRadio.value = true;
 
         /**
          * 線端の選択肢を［アンカーポイントで分割］の状態に合わせて有効・無効にする。
@@ -1939,130 +1775,46 @@
             capRoundRadio.enabled = isEnabled;
             capProjectingRadio.enabled = isEnabled;
         }
-        updateStrokeCapEnabled();
-
-        capButtRadio.onClick = function () { updatePreview(); };
-        capRoundRadio.onClick = function () { updatePreview(); };
-        capProjectingRadio.onClick = function () { updatePreview(); };
-
-        /**
-         * 選択されている線端の種類を取得する。
-         * @returns {StrokeCap} 線端の種類
-         */
-        function getSelectedStrokeCap() {
-            if (capRoundRadio.value) return StrokeCap.ROUNDENDCAP;
-            if (capProjectingRadio.value) return StrokeCap.PROJECTINGENDCAP;
-            return StrokeCap.BUTTENDCAP;
-        }
-
-        /* ルーロー（定幅図形） / Reuleaux (constant-width) */
-        var reuleauxCheck = optionPanel.add("checkbox", undefined, LABELS.checkbox.reuleaux[lang]);
-        reuleauxCheck.value = false;
-
-        var reuleauxAmountRow = optionPanel.add("group");
-        reuleauxAmountRow.orientation = "row";
-        reuleauxAmountRow.alignChildren = ["left", "center"];
-        reuleauxAmountRow.spacing = 8;
-
-        var reuleauxAmountInput = reuleauxAmountRow.add("edittext", undefined, String(SHAPE_DEFAULTS.reuleauxAmount));
-        reuleauxAmountInput.characters = 4;
-        changeValueByArrowKey(reuleauxAmountInput);
-
-        var reuleauxAmountSlider = reuleauxAmountRow.add("slider", undefined, SHAPE_DEFAULTS.reuleauxAmount, SHAPE_RANGES.reuleauxAmount[0], SHAPE_RANGES.reuleauxAmount[1]);
-        reuleauxAmountSlider.preferredSize.width = UI_CONFIG.shortSliderWidth;
-
-        /**
-         * ライブシェイプ化の可否を、排他条件から決める。
-         * @param {boolean} isSplit - アンカーポイントで分割するか
-         * @param {boolean} isSuperEllipseActive - スーパー楕円が有効か
-         * @param {boolean} isCustomCircleAnchors - 円のアンカー数が4以外か
-         * @param {boolean} isReuleaux - ルーロー、またはラフ効果が有効か
-         * @param {boolean} isCornerSmoothing - 角丸が有効か
-         * @returns {void}
-         */
-        function updateLiveShapeAvailability(isSplit, isSuperEllipseActive, isCustomCircleAnchors, isReuleaux, isCornerSmoothing) {
-            if (isSplit || isSuperEllipseActive || isCustomCircleAnchors || isReuleaux || isCornerSmoothing) {
-                liveShapeCheck.value = false;
-                liveShapeCheck.enabled = false;
-            } else {
-                liveShapeCheck.enabled = true;
-            }
-        }
 
         /**
          * 現在のUIの状態からライブシェイプ化の可否を再計算する。
+         * 分割・スーパー楕円・4以外のアンカー数・ルーロー・ラフ効果・角丸のいずれかが有効なら使えない。
          * @returns {void}
          */
-        function refreshLiveShapeAvailabilityFromUI() {
-            try {
-                var currentSides = getSelectedSideValue(sideRadios, customSidesInput);
-                var isSuperEllipseActive = (superEllipseCheck.value && currentSides === 0);
-                var anchorCount = getCircleAnchorCountFromRadios();
-                if (!anchorCount || anchorCount < 2) anchorCount = 2;
-                /* ライブシェイプ化できるのは円のアンカーが4のときだけ（スーパー楕円を除く）
-                   A live shape is possible only with four circle anchors and no superellipse */
-                var isCustomCircleAnchors = (currentSides === 0 && !isSuperEllipseActive && anchorCount !== 4);
-                var isCornerSmoothingActive = (currentSides === 4 && cornerRadiusCheck.value && parseFloat(cornerRadiusInput.text) > 0);
-                var isRoughenActive = roughenAnchorsCheck.value;
-                updateLiveShapeAvailability(splitAtAnchorsCheck.value, isSuperEllipseActive, isCustomCircleAnchors, reuleauxCheck.value || isRoughenActive, isCornerSmoothingActive);
-            } catch (e) {
-                /* 判定できないときは安全側に倒す / Fall back to the safe side when the state cannot be read */
-                try {
-                    liveShapeCheck.value = false;
-                    liveShapeCheck.enabled = false;
-                } catch (err) { }
-            }
+        function refreshLiveShapeAvailability() {
+            var sidesValue = getCurrentSides();
+            var isSuperEllipse = isSuperEllipseActive(sidesValue);
+            /* ライブシェイプ化できるのは円のアンカーが4のときだけ（スーパー楕円を除く）
+               A live shape is possible only with four circle anchors and no superellipse */
+            var isCustomCircleAnchors = (sidesValue === 0 && !isSuperEllipse && getCircleAnchorCount() !== 4);
+            var isCornerSmoothing = (sidesValue === 4 && cornerRadiusCheck.value && parseFloat(cornerRadiusInput.text) > 0);
+
+            var isBlocked = splitAtAnchorsCheck.value || isSuperEllipse || isCustomCircleAnchors ||
+                reuleauxCheck.value || roughenAnchorsCheck.value || isCornerSmoothing;
+            if (isBlocked) liveShapeCheck.value = false;
+            liveShapeCheck.enabled = !isBlocked;
         }
 
         /**
-         * 回転がOFFのときに使う自動角度を、回転の入力欄に反映する。
-         * 辺の数が変わったときは回転がONでも呼び出す。
-         * @param {number} sidesValue - 現在の辺の数
-         * @returns {void}
+         * 辺の数に依存する各パネルの有効状態をまとめて更新する。
+         * @returns {number} 現在の辺の数
          */
-        function applyAutoRotationForSides(sidesValue) {
-            var angle;
-            if (sidesValue === 0) {
-                angle = 45;
-            } else if (sidesValue >= 3) {
-                angle = 360 / (sidesValue * 2);
-            } else {
-                return;
-            }
-            rotateInput.text = formatAngle(angle);
+        function refreshPanelStates() {
+            var sidesValue = getCurrentSides();
+            trianglePanel.enabled = (sidesValue === 3);
+            updateCirclePanelEnabled(sidesValue);
+            updateCornerSmoothingEnabled(sidesValue);
+            updateSuperEllipseControlsEnabled(sidesValue);
+            updateStarPanelEnabled(sidesValue);
+            updateReuleauxAvailability(sidesValue);
+            updateInnerRadiusEnabled();
+            refreshLiveShapeAvailability();
+            return sidesValue;
         }
 
-        /**
-         * 回転をONにしたときの既定角度を決めて入力欄に反映する。
-         * 円（辺の数0）はアンカー数ごとに 2→90、3→180、4→45、5→180、6→30 を使う。
-         * @returns {void}
-         */
-        function applyDefaultRotationWhenEnablingRotate() {
-            try {
-                var currentSides = getSelectedSideValue(sideRadios, customSidesInput);
-                var isSuperEllipseActive = (superEllipseCheck.value && currentSides === 0);
-                var anchorCount = getCircleAnchorCountFromRadios();
-                if (!anchorCount || anchorCount < 2) anchorCount = 2;
-                if (currentSides === 0 && !isSuperEllipseActive) {
-                    var angle;
-                    if (anchorCount === 2) angle = 90;
-                    else if (anchorCount === 3) angle = 180;
-                    else if (anchorCount === 4) angle = 45;
-                    else if (anchorCount === 5) angle = 180;
-                    else if (anchorCount === 6) angle = 30;
-                    else angle = 45;
-                    rotateInput.text = formatAngle(angle);
-                } else {
-                    applyAutoRotationForSides(currentSides);
-                    /* 三角形のときは［下］（60°）を既定にする / A triangle defaults to "down" (60 degrees) */
-                    if (currentSides === 3) {
-                        try {
-                            triangleDownRadio.value = true;
-                        } catch (e) { }
-                    }
-                }
-            } catch (e) { }
-        }
+        // -----------------------------------------
+        // 入力どうしの整合 / Keeping the inputs consistent
+        // -----------------------------------------
 
         /**
          * 回転を強制的にOFFにする。
@@ -2074,42 +1826,36 @@
             rotateUnitLabel.enabled = false;
         }
 
-        splitAtAnchorsCheck.onClick = function () {
-            if (splitAtAnchorsCheck.value) {
-                fillCheck.value = false;
-                strokeCheck.value = true;
-                updateStrokeWidthEnabled();
-            }
-            updateStrokeCapEnabled();
-            refreshLiveShapeAvailabilityFromUI();
-            updateSuperEllipseControlsEnabled(getSelectedSideValue(sideRadios, customSidesInput));
-            updatePreview();
-        };
-
-        var triangleRow = trianglePanel.add("group");
-        triangleRow.orientation = "row";
-        triangleRow.alignChildren = ["left", "center"];
-        triangleRow.spacing = 10;
-
-        var triangleRightRadio = triangleRow.add("radiobutton", undefined, LABELS.radio.triangleRight[lang]);
-        var triangleLeftRadio = triangleRow.add("radiobutton", undefined, LABELS.radio.triangleLeft[lang]);
-        var triangleDownRadio = triangleRow.add("radiobutton", undefined, LABELS.radio.triangleDown[lang]);
-        triangleRightRadio.value = true;
-
         /**
-         * 三角形の向きを変えたときの処理。回転を必ずONにしてプレビューを更新する。
-         * @returns {void}
+         * 回転がOFFのときに使う自動角度を、回転の入力欄に反映する。
+         * 辺の数が変わったときは回転がONでも呼び出す。
+         * @param {number} sidesValue - 現在の辺の数
+         * @returns {number} 反映した角度（対象外の辺の数ならNaN）
          */
-        function onTriangleDirectionChange() {
-            rotateCheck.value = true;
-            rotateInput.enabled = true;
-            rotateUnitLabel.enabled = true;
-            updatePreview();
+        function applyAutoRotationForSides(sidesValue) {
+            var angle = NaN;
+            if (sidesValue === 0) angle = 45;
+            else if (sidesValue >= 3) angle = 360 / (sidesValue * 2);
+            if (!isNaN(angle)) rotateInput.text = formatAngle(angle);
+            return angle;
         }
 
-        triangleRightRadio.onClick = onTriangleDirectionChange;
-        triangleLeftRadio.onClick = onTriangleDirectionChange;
-        triangleDownRadio.onClick = onTriangleDirectionChange;
+        /**
+         * 回転をONにしたときの既定角度を決めて入力欄に反映する。
+         * 円（辺の数0）はアンカー数ごとに 2→90、3→180、4→45、5→180、6→30 を使う。
+         * @returns {void}
+         */
+        function applyDefaultRotationWhenEnablingRotate() {
+            var sidesValue = getCurrentSides();
+            if (sidesValue === 0 && !isSuperEllipseActive(sidesValue)) {
+                var angle = CIRCLE_ROTATION_DEFAULTS[getCircleAnchorCount()];
+                rotateInput.text = formatAngle((typeof angle === "number") ? angle : 45);
+                return;
+            }
+            applyAutoRotationForSides(sidesValue);
+            /* 三角形のときは［下］（60°）を既定にする / A triangle defaults to "down" (60 degrees) */
+            if (sidesValue === 3) triangleDownRadio.value = true;
+        }
 
         /**
          * スターと五芒星、およびルーローとの排他関係を整える。
@@ -2133,14 +1879,11 @@
             if (starCheck.value) {
                 reuleauxCheck.value = false;
                 reuleauxCheck.enabled = false;
+                updateReuleauxAmountEnabled();
             }
-            try { updateReuleauxAmountEnabled(); } catch (e) { }
 
             if (pentagramCheck.value) {
-                /* ［それ以外］は別グループなのでラジオの排他が効かない。全件を明示的に解除する
-                   The custom radio lives in another group, so clear every radio explicitly */
-                for (var i = 0; i < sideRadios.length; i++) sideRadios[i].value = false;
-                sideRadios[3].value = true;
+                selectRadio(sideRadios, 3); /* 五芒星は5辺 / A pentagram has five sides */
                 setCustomSidesEnabled(false);
                 applyAutoRotationForSides(5);
                 forceRotateOff();
@@ -2148,109 +1891,100 @@
 
             /* スターがOFFに戻ったら奇数辺の条件でルーローを復帰させる
                Once the star is off again, restore Reuleaux under the odd-side rule */
-            if (!starCheck.value) {
-                try {
-                    updateReuleauxAvailability(getSelectedSideValue(sideRadios, customSidesInput));
-                } catch (e) { }
-            }
+            if (!starCheck.value) updateReuleauxAvailability(getCurrentSides());
             updateInnerRadiusEnabled();
         }
 
         /**
+         * スーパー楕円の指数を入力欄とスライダーの両方に反映する。
+         * @param {string|number} value - 入力値
+         * @returns {number} 反映した指数
+         */
+        function syncSuperExponentUI(value) {
+            value = clampSuperExponent(value);
+            superExponentInput.text = String(value);
+            superExponentSlider.value = value;
+            return value;
+        }
+
+        /**
+         * ルーローの度合いを入力欄とスライダーの両方に反映する。
+         * @param {string|number} value - 入力値
+         * @returns {number} 反映した度合い（%）
+         */
+        function syncReuleauxAmountUI(value) {
+            value = clampReuleauxAmount(value);
+            reuleauxAmountInput.text = String(value);
+            reuleauxAmountSlider.value = value;
+            return value;
+        }
+
+        // -----------------------------------------
+        // プレビュー / Preview
+        // -----------------------------------------
+
+        /**
          * 現在のUIから図形生成のパラメーターを組み立てる（プレビューと確定の両方で使う）。
-         * @returns {object} createShapeに渡すパラメーター一式
+         * @returns {ShapeParams} createShapeに渡すパラメーター一式
          */
         function getCurrentParams() {
             validateStarAndPentagram();
+            var sides = refreshPanelStates();
 
-            var sides = getSelectedSideValue(sideRadios, customSidesInput);
-            trianglePanel.enabled = (sides === 3);
-            updateCirclePanelEnabled(sides);
-            updateCornerSmoothingEnabled(sides);
-            updateStarPanelEnabled(sides);
-            updateReuleauxAvailability(sides);
+            var useSuperEllipse = isSuperEllipseActive(sides);
+            /* スーパー楕円は回転を強制的にOFFにする / The superellipse forces the rotation off */
+            if (useSuperEllipse) forceRotateOff();
 
-            var size = parseFloat(sizeInput.text) * unitFactor;
-            var innerRatio = parseFloat(innerRatioInput.text);
-            var isStar = starCheck.value;
-            var isPentagram = pentagramCheck.value;
-            var rotateEnabled = rotateCheck.value;
+            /* 回転がOFFのときだけ自動角度を使う（ONなら入力値を尊重）
+               The auto angle is used only while the rotation is off; manual mode keeps the entered angle */
             var angle = parseFloat(rotateInput.text);
-            var splitAtAnchors = splitAtAnchorsCheck.value;
-            var useSuperEllipse = superEllipseCheck.value && (sides === 0);
-            roughenAnchorsUseMenuFallback = (sides !== 0 && Math.round(Number(roughenAnchorsInput.text)) === 1);
+            if (!rotateCheck.value) {
+                var autoAngle = applyAutoRotationForSides(sides);
+                if (!isNaN(autoAngle)) angle = autoAngle;
+            }
 
-            /* ラフ効果の詳細。メニューコマンド経由の経路はプレビューできないので0にする
-               Roughen detail; the menu-command path cannot be previewed, so it is reported as 0 */
+            /* 三角形は向きごとの回転角で上書きする / A triangle overrides the angle with its direction */
+            if (sides === 3 && trianglePanel.enabled) {
+                if (triangleRightRadio.value) angle = TRIANGLE_ANGLES.right;
+                else if (triangleLeftRadio.value) angle = TRIANGLE_ANGLES.left;
+                else if (triangleDownRadio.value) angle = TRIANGLE_ANGLES.down;
+                rotateInput.text = formatAngle(angle);
+            }
+
+            /* 五芒星の第2半径は黄金比から決まる / A pentagram derives its inner radius from the golden ratio */
+            var innerRatio = parseFloat(innerRatioInput.text);
+            if (starCheck.value && pentagramCheck.value && sides === 5) {
+                innerRatio = (3 - Math.sqrt(5)) / 2 * 100;
+                innerRatioInput.text = innerRatio.toFixed(2);
+            }
+
+            /* 詳細が1の多角形はメニューコマンドでアンカーを追加する。この経路はプレビューできない
+               A detail of 1 on a polygon adds anchors through a menu command, which cannot be previewed */
+            roughenAnchorsUseMenuFallback = (sides !== 0 && Math.round(Number(roughenAnchorsInput.text)) === 1);
             var roughenDetail = 0;
             if (roughenAnchorsCheck.value && !roughenAnchorsUseMenuFallback) {
                 roughenDetail = parseFloat(roughenAnchorsInput.text);
                 if (isNaN(roughenDetail) || roughenDetail < 0) roughenDetail = 0;
             }
 
-            var useReuleaux = reuleauxCheck.value;
-            var reuleauxAmount = clampReuleauxAmount(reuleauxAmountInput.text) / 100;
-            var superExponent = clampSuperExponent(superExponentInput.text);
-
             /* 円のアンカーポイント数は、円かつスーパー楕円OFFのときだけ有効
                The circle anchor count only matters for a circle without the superellipse */
-            var anchorCount = getCircleAnchorCountFromRadios();
-            if (!anchorCount || anchorCount < 2) anchorCount = 2;
-            var circleAnchorCount = (sides === 0 && !useSuperEllipse) ? anchorCount : SHAPE_DEFAULTS.circleAnchors;
-
-            /* refreshLiveShapeAvailabilityFromUI()が同じ判定を行うので、そちらに任せる
-               refreshLiveShapeAvailabilityFromUI() recomputes the same condition, so let it decide */
-            refreshLiveShapeAvailabilityFromUI();
-
-            /* スーパー楕円は回転を強制的にOFFにする / The superellipse forces the rotation off */
-            if (useSuperEllipse) {
-                forceRotateOff();
-            }
-
-            /* 回転がOFFのときだけ自動角度を使う（ONなら入力値を尊重）
-               The auto angle is used only while the rotation is off; manual mode keeps the entered angle */
-            if (!rotateEnabled) {
-                if (sides === 0) {
-                    angle = 45;
-                    rotateInput.text = "45";
-                } else if (sides >= 3) {
-                    angle = 360 / (sides * 2);
-                    rotateInput.text = formatAngle(angle);
-                }
-            }
-
-            /* 三角形の向きごとの回転角。右＝-90°、左＝90°、下＝60°
-               Rotation per triangle direction: right -90, left 90, down 60 */
-            if (sides === 3 && trianglePanel.enabled) {
-                if (triangleRightRadio.value) {
-                    angle = -90;
-                } else if (triangleLeftRadio.value) {
-                    angle = 90;
-                } else if (triangleDownRadio.value) {
-                    angle = 60;
-                }
-                rotateInput.text = formatAngle(angle);
-            }
-
-            if (isStar && isPentagram && sides === 5) {
-                innerRatio = (3 - Math.sqrt(5)) / 2 * 100;
-                innerRatioInput.text = innerRatio.toFixed(2);
-            }
+            var circleAnchorCount = (sides === 0 && !useSuperEllipse) ? getCircleAnchorCount() : SHAPE_DEFAULTS.circleAnchors;
 
             return {
-                size: size,
+                size: parseFloat(sizeInput.text) * rulerUnitInfo.factorToPt,
                 sides: sides,
-                isStar: isStar,
+                isStar: starCheck.value,
                 innerRatio: innerRatio,
-                rotateEnabled: rotateEnabled,
+                rotateEnabled: rotateCheck.value,
                 angle: angle,
-                splitAtAnchors: splitAtAnchors,
-                strokeCap: splitAtAnchors ? getSelectedStrokeCap() : null,
+                splitAtAnchors: splitAtAnchorsCheck.value,
+                strokeCap: splitAtAnchorsCheck.value ? getSelectedStrokeCap() : null,
                 useSuperEllipse: useSuperEllipse,
-                superExponent: superExponent,
+                superExponent: clampSuperExponent(superExponentInput.text),
                 circleAnchorCount: circleAnchorCount,
-                useReuleaux: useReuleaux,
-                reuleauxAmount: reuleauxAmount,
+                useReuleaux: reuleauxCheck.value,
+                reuleauxAmount: clampReuleauxAmount(reuleauxAmountInput.text) / 100,
                 fillOpts: {
                     enabled: fillCheck.value,
                     color: fillSwatch._aiColor
@@ -2261,7 +1995,7 @@
                     widthPt: parseFloat(strokeWidthInput.text) * strokeUnitInfo.factorToPt
                 },
                 cornerSmoothing: (sides === 4 && cornerRadiusCheck.value) ? {
-                    radius: parseFloat(cornerRadiusInput.text) * unitFactor,
+                    radius: parseFloat(cornerRadiusInput.text) * rulerUnitInfo.factorToPt,
                     smoothing: Math.round(smoothingSlider.value)
                 } : null,
                 opacity: clampOpacity(opacityInput.text),
@@ -2279,497 +2013,528 @@
             previewShape = null;
 
             var params = getCurrentParams();
-            if (!isNaN(params.size) && !isNaN(params.innerRatio)) {
-                previewManager.addStep(function () {
-                    previewShape = createShape(app.activeDocument, params.size, params.sides, params.isStar, params.innerRatio, params.rotateEnabled, params.angle, params.splitAtAnchors, params.useSuperEllipse, params.superExponent, params.circleAnchorCount, params.useReuleaux, params.reuleauxAmount, params.fillOpts, params.strokeOpts, params.cornerSmoothing, params.strokeCap, params.opacity);
-                    /* ラフ効果も同じステップ内で適用してプレビューに反映する
-                       The roughen effect runs inside the same step so the preview shows it */
-                    applyRoughenEffect(previewShape, params.roughenDetail);
-                });
-            }
+            if (isNaN(params.size) || isNaN(params.innerRatio)) return;
+
+            previewManager.addStep(function () {
+                previewShape = createShape(app.activeDocument, params);
+                /* ラフ効果も同じステップ内で適用してプレビューに反映する
+                   The roughen effect runs inside the same step so the preview shows it */
+                applyRoughenEffect(previewShape, params.roughenDetail);
+            });
         }
 
-        superExponentInput.onChanging = function () {
-            syncSuperExponentUI(superExponentInput.text);
-            updatePreview();
-        };
-
-        superExponentSlider.onChanging = function () {
-            syncSuperExponentUI(superExponentSlider.value);
-            updatePreview();
-        };
-
-        /* イベントの割り当て / Event bindings */
-        starCheck.onClick = function () {
-            validateStarAndPentagram();
-            updateInnerRadiusEnabled();
-            updatePreview();
-        };
-        pentagramCheck.onClick = function () {
-            if (pentagramCheck.value) {
-                forceRotateOff();
-            }
-            updatePreview();
-        };
-        superEllipseCheck.onClick = function () {
-            /* スーパー楕円は円（辺の数0）でだけ効く / The superellipse only applies to a circle */
-            var currentSides = getSelectedSideValue(sideRadios, customSidesInput);
-            if (superEllipseCheck.value && currentSides === 0) {
-                forceRotateOff();
-            }
-            try {
-                var isSuperEllipseActive = (superEllipseCheck.value && currentSides === 0);
-                circleAnchorRadios.anchors2.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors3.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors4.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors5.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors6.enabled = !isSuperEllipseActive;
-            } catch (e) { }
-            refreshLiveShapeAvailabilityFromUI();
-            updateSuperEllipseControlsEnabled(currentSides);
-            updatePreview();
-        };
-        innerRatioInput.onChanging = function () {
-            if (pentagramCheck.value) pentagramCheck.value = false;
-            var value = Math.round(Number(innerRatioInput.text));
-            if (isNaN(value)) value = SHAPE_DEFAULTS.innerRatio;
-            if (value < SHAPE_RANGES.innerRatio[0]) value = SHAPE_RANGES.innerRatio[0];
-            if (value > SHAPE_RANGES.innerRatio[1]) value = SHAPE_RANGES.innerRatio[1];
-            innerRatioInput.text = String(value);
-            innerRatioSlider.value = value;
-            updatePreview();
-        };
-
-        innerRatioSlider.onChanging = function () {
-            var value = Math.round(innerRatioSlider.value);
-            innerRatioInput.text = String(value);
-            updatePreview();
-        };
-        sizeInput.onChanging = updatePreview;
-
-        reuleauxCheck.onClick = function () {
-            if (reuleauxCheck.value) {
-                /* 有効にするたび既定値（100%）に戻す / Reset to the default amount whenever it is enabled */
-                syncReuleauxAmountUI(SHAPE_DEFAULTS.reuleauxAmount);
-            }
-            updateReuleauxAmountEnabled();
-            updatePreview();
-        };
-
-        reuleauxAmountInput.onChanging = function () {
-            syncReuleauxAmountUI(reuleauxAmountInput.text);
-            updatePreview();
-        };
-
-        reuleauxAmountSlider.onChanging = function () {
-            syncReuleauxAmountUI(reuleauxAmountSlider.value);
-            updatePreview();
-        };
-
-        rotateInput.onChanging = updatePreview;
-        rotateCheck.onClick = function () {
-            rotateInput.enabled = rotateCheck.value;
-            rotateUnitLabel.enabled = rotateCheck.value;
-            if (rotateCheck.value) {
-                applyDefaultRotationWhenEnablingRotate();
-            }
-            updatePreview();
-        };
-        customSidesInput.onChanging = function () {
-            var value = Math.round(Number(customSidesInput.text));
-            if (isNaN(value)) value = SHAPE_DEFAULTS.customSides;
-            if (value < SHAPE_RANGES.customSides[0]) value = SHAPE_RANGES.customSides[0];
-            if (value > SHAPE_RANGES.customSides[1]) value = SHAPE_RANGES.customSides[1];
-            customSidesInput.text = String(value);
-            customSidesSlider.value = value;
-            try { updateReuleauxAvailability(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            updatePreview();
-        };
-
-        customSidesSlider.onChanging = function () {
-            var value = Math.round(customSidesSlider.value);
-            customSidesInput.text = String(value);
-            try { updateReuleauxAvailability(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            updatePreview();
-        };
-
-        /**
-         * 円のアンカーポイント数を切り替えたときの処理。
-         * @returns {void}
-         */
-        function onCircleAnchorRadioClick() {
-            refreshLiveShapeAvailabilityFromUI();
-            updatePreview();
-        }
-        circleAnchorRadios.anchors2.onClick = onCircleAnchorRadioClick;
-        circleAnchorRadios.anchors3.onClick = onCircleAnchorRadioClick;
-        circleAnchorRadios.anchors4.onClick = onCircleAnchorRadioClick;
-        circleAnchorRadios.anchors5.onClick = onCircleAnchorRadioClick;
-        circleAnchorRadios.anchors6.onClick = onCircleAnchorRadioClick;
-
-        for (var i = 0; i <= 6; i++) {
-            (function (radioIndex) {
-                sideRadios[radioIndex].onClick = function () {
-                    if (pentagramCheck.value) pentagramCheck.value = false;
-                    if (radioIndex === 6) {
-                        for (var j = 0; j < 6; j++) sideRadios[j].value = false;
-                        setCustomSidesEnabled(true);
-                    } else {
-                        sideRadios[6].value = false;
-                        setCustomSidesEnabled(false);
-                    }
-                    /* 辺の数が変わったら回転がONでも角度を更新する / Update the angle on a side change, even while rotation is on */
-                    try { applyAutoRotationForSides(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-                    try { updateReuleauxAvailability(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-                    try { updateCornerSmoothingEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-                    refreshLiveShapeAvailabilityFromUI();
-                    updateSuperEllipseControlsEnabled(getSelectedSideValue(sideRadios, customSidesInput));
-                    updatePreview();
-                };
-            })(i);
-        }
+        // -----------------------------------------
+        // セッション状態 / Session state
+        // -----------------------------------------
 
         /**
          * セッション状態をUIに復元する。
-         * @param {object} state - セッション状態
+         * @param {object} sessionState - セッション状態
          * @returns {void}
          */
-        function applyStateToUI(state) {
-            if (!state) return;
+        function applyStateToUI(sessionState) {
+            if (!sessionState) return;
 
-            /* 辺の数の選択 / Side count selection */
-            if (typeof state.selectedSideIndex === "number" && state.selectedSideIndex >= 0 && state.selectedSideIndex < sideRadios.length) {
-                for (var i = 0; i < sideRadios.length; i++) sideRadios[i].value = false;
-                sideRadios[state.selectedSideIndex].value = true;
-                if (state.selectedSideIndex === 6) {
-                    setCustomSidesEnabled(true);
-                    if (typeof state.customSidesText === "string") customSidesInput.text = state.customSidesText;
+            /* 辺の数 / Side count */
+            if (typeof sessionState.selectedSideIndex === "number" && sessionState.selectedSideIndex >= 0 && sessionState.selectedSideIndex < sideRadios.length) {
+                selectRadio(sideRadios, sessionState.selectedSideIndex);
+                var isCustomSides = (sessionState.selectedSideIndex === CUSTOM_SIDES_INDEX);
+                if (isCustomSides && typeof sessionState.customSidesText === "string") {
+                    customSidesInput.text = sessionState.customSidesText;
                     /* スライダーのつまみも復元した辺の数に合わせる / Move the slider thumb to the restored side count */
-                    var restoredCustomSides = Math.round(Number(customSidesInput.text));
-                    if (!isNaN(restoredCustomSides)) {
-                        if (restoredCustomSides < SHAPE_RANGES.customSides[0]) restoredCustomSides = SHAPE_RANGES.customSides[0];
-                        if (restoredCustomSides > SHAPE_RANGES.customSides[1]) restoredCustomSides = SHAPE_RANGES.customSides[1];
-                        customSidesSlider.value = restoredCustomSides;
-                    }
-                } else {
-                    setCustomSidesEnabled(false);
+                    customSidesSlider.value = clampNumber(customSidesInput.text, SHAPE_RANGES.customSides, SHAPE_DEFAULTS.customSides, true);
                 }
+                setCustomSidesEnabled(isCustomSides);
             }
-
-            if (typeof state.sizeText === "string") sizeInput.text = state.sizeText;
+            if (typeof sessionState.sizeText === "string") sizeInput.text = sessionState.sizeText;
 
             /* 塗りと線 / Fill and stroke */
-            if (typeof state.fillCheck === "boolean") fillCheck.value = state.fillCheck;
-            if (typeof state.strokeCheck === "boolean") strokeCheck.value = state.strokeCheck;
-            if (typeof state.strokeWidthText === "string") strokeWidthInput.text = state.strokeWidthText;
-            if (state.fillColorString) {
-                try { fillSwatch._aiColor = pickerStringToAiColor(state.fillColorString); } catch (e) { }
-            }
-            if (state.strokeColorString) {
-                try { strokeSwatch._aiColor = pickerStringToAiColor(state.strokeColorString); } catch (e) { }
-            }
-            try { updateStrokeWidthEnabled(); } catch (e) { }
+            if (typeof sessionState.fillCheck === "boolean") fillCheck.value = sessionState.fillCheck;
+            if (typeof sessionState.strokeCheck === "boolean") strokeCheck.value = sessionState.strokeCheck;
+            if (typeof sessionState.strokeWidthText === "string") strokeWidthInput.text = sessionState.strokeWidthText;
+            if (sessionState.fillColorString) fillSwatch._aiColor = pickerStringToAiColor(sessionState.fillColorString);
+            if (sessionState.strokeColorString) strokeSwatch._aiColor = pickerStringToAiColor(sessionState.strokeColorString);
+            updateStrokeWidthEnabled();
 
             /* 不透明度 / Opacity */
-            if (typeof state.opacityText === "string") {
-                opacityInput.text = state.opacityText;
-                try { opacitySlider.value = clampOpacity(state.opacityText); } catch (e) { }
+            if (typeof sessionState.opacityText === "string") {
+                opacityInput.text = sessionState.opacityText;
+                opacitySlider.value = clampOpacity(sessionState.opacityText);
             }
 
             /* 角丸 / Corner smoothing */
-            if (typeof state.cornerRadiusCheck === "boolean") cornerRadiusCheck.value = state.cornerRadiusCheck;
-            if (typeof state.cornerRadiusText === "string") cornerRadiusInput.text = state.cornerRadiusText;
-            if (typeof state.smoothingValue === "number") {
-                var restoredSmoothing = Math.round(state.smoothingValue);
-                if (restoredSmoothing < SHAPE_RANGES.smoothing[0]) restoredSmoothing = SHAPE_RANGES.smoothing[0];
-                if (restoredSmoothing > SHAPE_RANGES.smoothing[1]) restoredSmoothing = SHAPE_RANGES.smoothing[1];
+            if (typeof sessionState.cornerRadiusCheck === "boolean") cornerRadiusCheck.value = sessionState.cornerRadiusCheck;
+            if (typeof sessionState.cornerRadiusText === "string") cornerRadiusInput.text = sessionState.cornerRadiusText;
+            if (typeof sessionState.smoothingValue === "number") {
+                var restoredSmoothing = clampNumber(sessionState.smoothingValue, SHAPE_RANGES.smoothing, SHAPE_DEFAULTS.smoothing, true);
                 smoothingSlider.value = restoredSmoothing;
                 smoothingValueLabel.text = String(restoredSmoothing);
             }
-            try { updateCornerRadiusInputEnabled(); } catch (e) { }
+            updateCornerRadiusInputEnabled();
 
-            /* 回転 / Rotation */
-            if (typeof state.rotateCheck === "boolean") rotateCheck.value = state.rotateCheck;
-            if (typeof state.rotateText === "string") rotateInput.text = state.rotateText;
+            /* 回転と三角形 / Rotation and triangle */
+            if (typeof sessionState.rotateCheck === "boolean") rotateCheck.value = sessionState.rotateCheck;
+            if (typeof sessionState.rotateText === "string") rotateInput.text = sessionState.rotateText;
             rotateInput.enabled = rotateCheck.value;
             rotateUnitLabel.enabled = rotateCheck.value;
+            if (sessionState.triangleDir === "left") triangleLeftRadio.value = true;
+            else if (sessionState.triangleDir === "down") triangleDownRadio.value = true;
+            else if (sessionState.triangleDir === "right") triangleRightRadio.value = true;
 
             /* スターと五芒星 / Star and pentagram */
-            if (typeof state.starCheck === "boolean") starCheck.value = state.starCheck;
-            if (typeof state.pentagramCheck === "boolean") pentagramCheck.value = state.pentagramCheck;
-            if (typeof state.innerRatioText === "string") innerRatioInput.text = state.innerRatioText;
-            try {
-                var restoredInnerRatio = Math.round(Number(innerRatioInput.text));
-                if (!isNaN(restoredInnerRatio)) innerRatioSlider.value = restoredInnerRatio;
-            } catch (e) { }
-            try { updateInnerRadiusEnabled(); } catch (e) { }
-            if (typeof state.superEllipseCheck === "boolean") superEllipseCheck.value = state.superEllipseCheck;
-            if (typeof state.superExponentText === "string") {
-                superExponentInput.text = state.superExponentText;
-                superExponentSlider.value = clampSuperExponent(state.superExponentText);
-            }
-            if (typeof state.circleAnchorsValue === "number") {
-                circleAnchorRadios.anchors2.value = (state.circleAnchorsValue === 2);
-                circleAnchorRadios.anchors3.value = (state.circleAnchorsValue === 3);
-                circleAnchorRadios.anchors4.value = (state.circleAnchorsValue === 4);
-                circleAnchorRadios.anchors5.value = (state.circleAnchorsValue === 5);
-                circleAnchorRadios.anchors6.value = (state.circleAnchorsValue === 6);
-                if (!circleAnchorRadios.anchors2.value && !circleAnchorRadios.anchors3.value && !circleAnchorRadios.anchors4.value && !circleAnchorRadios.anchors5.value && !circleAnchorRadios.anchors6.value) {
-                    circleAnchorRadios.anchors4.value = true;
-                }
-            }
+            if (typeof sessionState.starCheck === "boolean") starCheck.value = sessionState.starCheck;
+            if (typeof sessionState.pentagramCheck === "boolean") pentagramCheck.value = sessionState.pentagramCheck;
+            if (!starCheck.value) pentagramCheck.value = false;
+            if (typeof sessionState.innerRatioText === "string") innerRatioInput.text = sessionState.innerRatioText;
+            innerRatioSlider.value = clampNumber(innerRatioInput.text, SHAPE_RANGES.innerRatio, SHAPE_DEFAULTS.innerRatio, true);
 
-            /* 三角形の向き / Triangle direction */
-            if (state.triangleDir === "right") {
-                triangleRightRadio.value = true;
-            } else if (state.triangleDir === "left") {
-                triangleLeftRadio.value = true;
-            } else if (state.triangleDir === "down") {
-                triangleDownRadio.value = true;
+            /* 円 / Circle */
+            if (typeof sessionState.superEllipseCheck === "boolean") superEllipseCheck.value = sessionState.superEllipseCheck;
+            if (typeof sessionState.superExponentText === "string") syncSuperExponentUI(sessionState.superExponentText);
+            if (typeof sessionState.circleAnchorsValue === "number") {
+                var anchorIndex = 2; /* 見つからないときは4アンカー / Fall back to four anchors */
+                for (var i = 0; i < CIRCLE_ANCHOR_CHOICES.length; i++) {
+                    if (CIRCLE_ANCHOR_CHOICES[i] === sessionState.circleAnchorsValue) anchorIndex = i;
+                }
+                selectRadio(circleAnchorRadios, anchorIndex);
             }
 
             /* ［アンカーポイントで分割］は毎回OFFで開く（復元しない）
                "Split at anchor points" always opens off and is never restored */
             splitAtAnchorsCheck.value = false;
-            if (state.strokeCapValue === "round") {
-                capRoundRadio.value = true;
-            } else if (state.strokeCapValue === "projecting") {
-                capProjectingRadio.value = true;
-            } else {
-                capButtRadio.value = true;
-            }
+            if (sessionState.strokeCapValue === "round") capRoundRadio.value = true;
+            else if (sessionState.strokeCapValue === "projecting") capProjectingRadio.value = true;
+            else capButtRadio.value = true;
             updateStrokeCapEnabled();
-            if (typeof state.reuleauxCheck === "boolean") reuleauxCheck.value = state.reuleauxCheck;
-            if (typeof state.liveShapeCheck === "boolean") liveShapeCheck.value = state.liveShapeCheck;
-            if (typeof state.roughenAnchorsCheck === "boolean") roughenAnchorsCheck.value = state.roughenAnchorsCheck;
-            if (typeof state.roughenAnchorsText === "string") roughenAnchorsInput.text = state.roughenAnchorsText;
-            roughenAnchorsInput.enabled = roughenAnchorsCheck.value;
-            if (roughenAnchorsCheck.value) {
-                splitAtAnchorsCheck.value = false;
-                splitAtAnchorsCheck.enabled = false;
-                liveShapeCheck.value = false;
-                liveShapeCheck.enabled = false;
-            } else {
-                splitAtAnchorsCheck.enabled = true;
-            }
 
-            /* 分割・スーパー楕円・アンカー数とライブシェイプ化の依存関係を反映
-               Apply the dependency between split, superellipse, anchor count and the live shape */
-            try {
-                refreshLiveShapeAvailabilityFromUI();
-            } catch (e) {
-                if (splitAtAnchorsCheck.value) {
-                    liveShapeCheck.value = false;
-                    liveShapeCheck.enabled = false;
-                } else {
-                    liveShapeCheck.enabled = true;
-                }
-            }
-
-            if (!starCheck.value) pentagramCheck.value = false;
+            /* オプション / Options */
+            if (typeof sessionState.reuleauxCheck === "boolean") reuleauxCheck.value = sessionState.reuleauxCheck;
+            if (typeof sessionState.liveShapeCheck === "boolean") liveShapeCheck.value = sessionState.liveShapeCheck;
+            if (typeof sessionState.roughenAnchorsCheck === "boolean") roughenAnchorsCheck.value = sessionState.roughenAnchorsCheck;
+            if (typeof sessionState.roughenAnchorsText === "string") roughenAnchorsInput.text = sessionState.roughenAnchorsText;
+            applyRoughenExclusions();
 
             /* 五芒星やスーパー楕円が有効なら回転を強制的にOFF / Force the rotation off for a pentagram or a superellipse */
-            try {
-                var restoredSides = getSelectedSideValue(sideRadios, customSidesInput);
-                if (pentagramCheck.value || (superEllipseCheck.value && restoredSides === 0)) {
-                    forceRotateOff();
-                }
-                var isSuperEllipseActive = (superEllipseCheck.value && restoredSides === 0);
-                circleAnchorRadios.anchors2.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors3.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors4.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors5.enabled = !isSuperEllipseActive;
-                circleAnchorRadios.anchors6.enabled = !isSuperEllipseActive;
-            } catch (e) { }
-
-            /* 選択内容に合わせて各パネルの有効状態を更新 / Refresh every panel against the current selection */
-            try { updateCirclePanelEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateCornerSmoothingEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateStarPanelEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateReuleauxAvailability(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
+            if (pentagramCheck.value || isSuperEllipseActive(getCurrentSides())) forceRotateOff();
+            refreshPanelStates();
         }
 
         /**
          * 現在のUIの状態をセッション状態に保存する。
-         * @param {object} state - セッション状態
+         * @param {object} sessionState - セッション状態
          * @returns {void}
          */
-        function saveStateFromUI(state) {
-            if (!state) return;
+        function saveStateFromUI(sessionState) {
+            if (!sessionState) return;
 
-            var selectedIndex = 0;
-            for (var i = 0; i < sideRadios.length; i++) {
-                if (sideRadios[i].value) { selectedIndex = i; break; }
-            }
-            state.selectedSideIndex = selectedIndex;
-            state.customSidesText = customSidesInput.text;
+            var selectedSideIndex = getSelectedRadioIndex(sideRadios);
+            sessionState.selectedSideIndex = (selectedSideIndex < 0) ? 0 : selectedSideIndex;
+            sessionState.customSidesText = customSidesInput.text;
+            sessionState.sizeText = sizeInput.text;
 
-            state.sizeText = sizeInput.text;
-
-            /* 塗りと線・不透明度・角丸 / Fill and stroke, opacity, corner smoothing */
-            state.fillCheck = fillCheck.value;
-            state.strokeCheck = strokeCheck.value;
-            state.strokeWidthText = strokeWidthInput.text;
+            /* 塗りと線・不透明度 / Fill and stroke, opacity */
+            sessionState.fillCheck = fillCheck.value;
+            sessionState.strokeCheck = strokeCheck.value;
+            sessionState.strokeWidthText = strokeWidthInput.text;
             /* カラーは常駐エンジンに残るオブジェクト参照ではなく文字列で保存する
                Colors are stored as strings, not as object references kept alive by the engine */
-            try { state.fillColorString = aiColorToPickerString(fillSwatch._aiColor); } catch (e) { }
-            try { state.strokeColorString = aiColorToPickerString(strokeSwatch._aiColor); } catch (e) { }
-            state.opacityText = opacityInput.text;
-            state.cornerRadiusCheck = cornerRadiusCheck.value;
-            state.cornerRadiusText = cornerRadiusInput.text;
-            state.smoothingValue = Math.round(smoothingSlider.value);
+            sessionState.fillColorString = aiColorToPickerString(fillSwatch._aiColor);
+            sessionState.strokeColorString = aiColorToPickerString(strokeSwatch._aiColor);
+            sessionState.opacityText = opacityInput.text;
 
-            state.rotateCheck = rotateCheck.value;
-            state.rotateText = rotateInput.text;
-            state.starCheck = starCheck.value;
-            state.pentagramCheck = pentagramCheck.value;
-            state.innerRatioText = innerRatioInput.text;
-            state.superEllipseCheck = superEllipseCheck.value;
-            state.superExponentText = superExponentInput.text;
-            state.circleAnchorsValue = getCircleAnchorCountFromRadios();
+            /* 角丸 / Corner smoothing */
+            sessionState.cornerRadiusCheck = cornerRadiusCheck.value;
+            sessionState.cornerRadiusText = cornerRadiusInput.text;
+            sessionState.smoothingValue = Math.round(smoothingSlider.value);
 
-            state.triangleDir = triangleRightRadio.value ? "right" : (triangleLeftRadio.value ? "left" : "down");
+            /* 回転と三角形 / Rotation and triangle */
+            sessionState.rotateCheck = rotateCheck.value;
+            sessionState.rotateText = rotateInput.text;
+            sessionState.triangleDir = triangleRightRadio.value ? "right" : (triangleLeftRadio.value ? "left" : "down");
 
-            /* 次回はOFFで開くが、今回の値としては保存しておく
-               The option opens off next time, but the current value is still recorded */
-            state.splitAtAnchorsCheck = splitAtAnchorsCheck.value;
-            state.strokeCapValue = capRoundRadio.value ? "round" : (capProjectingRadio.value ? "projecting" : "butt");
-            state.liveShapeCheck = liveShapeCheck.value;
-            state.roughenAnchorsCheck = roughenAnchorsCheck.value;
-            state.roughenAnchorsText = roughenAnchorsInput.text;
-            state.reuleauxCheck = reuleauxCheck.value;
+            /* スターと円 / Star and circle */
+            sessionState.starCheck = starCheck.value;
+            sessionState.pentagramCheck = pentagramCheck.value;
+            sessionState.innerRatioText = innerRatioInput.text;
+            sessionState.superEllipseCheck = superEllipseCheck.value;
+            sessionState.superExponentText = superExponentInput.text;
+            sessionState.circleAnchorsValue = getCircleAnchorCount();
+
+            /* アンカーポイントの操作とオプション / Anchor point operations and options */
+            sessionState.strokeCapValue = capRoundRadio.value ? "round" : (capProjectingRadio.value ? "projecting" : "butt");
+            sessionState.liveShapeCheck = liveShapeCheck.value;
+            sessionState.roughenAnchorsCheck = roughenAnchorsCheck.value;
+            sessionState.roughenAnchorsText = roughenAnchorsInput.text;
+            sessionState.reuleauxCheck = reuleauxCheck.value;
         }
 
-        /* 最初のプレビューの前に復元した状態を反映 / Apply the restored state before the first preview */
-        try { applyStateToUI(getSessionState()); } catch (e) { }
-        try { updateReuleauxAmountEnabled(); } catch (e) { }
-        try { updateInnerRadiusEnabled(); } catch (e) { }
-        try { updateSuperEllipseControlsEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-        try { updateCornerSmoothingEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-
-        dialog.onClose = function () {
-            try { saveDialogLocation(dialog); } catch (err) { }
-            try { saveStateFromUI(getSessionState()); } catch (e) { }
-
-            /* キャンセル時はプレビューを巻き戻してUndo履歴を汚さない / Roll the preview back on cancel */
-            if (!isConfirmed) {
-                try { previewManager.rollback(); } catch (e) { }
-                previewShape = null;
-                try { if (initialView && initialZoom != null) initialView.zoom = initialZoom; } catch (err) { }
-            }
-        };
-
-        dialog.onShow = function () {
-            /* 環境によっては無視されるため不透明度を先に適用 / Apply the opacity first, some hosts ignore it */
-            setDialogOpacity(dialog, UI_CONFIG.dialogOpacity);
-            /* ［アンカーポイントで分割］は毎回OFFで開く / The split option always opens off */
-            try { splitAtAnchorsCheck.value = false; } catch (err) { }
-            try { refreshLiveShapeAvailabilityFromUI(); } catch (err) { }
-
-            try { updateCirclePanelEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateCornerSmoothingEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateSuperEllipseControlsEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateStarPanelEnabled(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateReuleauxAvailability(getSelectedSideValue(sideRadios, customSidesInput)); } catch (e) { }
-            try { updateReuleauxAmountEnabled(); } catch (e) { }
-            try { updateInnerRadiusEnabled(); } catch (e) { }
-            updatePreview();
-
-            /* Illustratorの起動中は前回のダイアログ位置を再利用 / Reuse the last dialog position while Illustrator is running */
-            var savedLocation = null;
-            try { savedLocation = getSavedDialogLocation(); } catch (err) { savedLocation = null; }
-            if (savedLocation) {
-                try { dialog.location = savedLocation; } catch (err) { }
-            } else {
-                dialog.center();
-                shiftDialogPosition(dialog, UI_CONFIG.dialogOffsetX, UI_CONFIG.dialogOffsetY);
-            }
-        };
-
-        /* 画面ズーム / View zoom */
-        var initialView = null;
-        var initialZoom = null;
-
-        var zoomGroup = dialog.add("group");
-        zoomGroup.orientation = "row";
-        zoomGroup.alignChildren = ["center", "center"];
-        zoomGroup.alignment = "center";
-        try { zoomGroup.margins = [0, 7, 0, 5]; } catch (err) { }
-
-        zoomGroup.add("statictext", undefined, LABELS.label.viewZoom[lang]);
-
-        try { initialZoom = (doc && doc.activeView) ? Number(doc.activeView.zoom) : 1; } catch (err) { initialZoom = 1; }
-        var zoomSlider = zoomGroup.add("slider", undefined, (initialZoom != null ? initialZoom : 1), SHAPE_RANGES.zoom[0], SHAPE_RANGES.zoom[1]);
-        zoomSlider.preferredSize.width = UI_CONFIG.zoomSliderWidth;
+        // -----------------------------------------
+        // イベントの割り当て / Event bindings
+        // -----------------------------------------
 
         /**
-         * ドキュメントウィンドウのズーム倍率を変更する。
-         * @param {number} zoomValue - ズーム倍率
+         * ラフ効果と併用できない項目を、ラフ効果の状態に合わせて整える。
          * @returns {void}
          */
-        function applyZoom(zoomValue) {
-            try {
-                if (!initialView) initialView = doc.activeView;
-                if (!initialView) return;
-                initialView.zoom = zoomValue;
-            } catch (err) { }
+        function applyRoughenExclusions() {
+            var isRoughenOn = roughenAnchorsCheck.value;
+            roughenAnchorsInput.enabled = isRoughenOn;
+            if (isRoughenOn) splitAtAnchorsCheck.value = false;
+            splitAtAnchorsCheck.enabled = !isRoughenOn;
+            updateStrokeCapEnabled();
+            refreshLiveShapeAvailability();
         }
 
+        /**
+         * 三角形の向きを変えたときの処理。回転を必ずONにしてプレビューを更新する。
+         * @returns {void}
+         */
+        function onTriangleDirectionChange() {
+            rotateCheck.value = true;
+            rotateInput.enabled = true;
+            rotateUnitLabel.enabled = true;
+            updatePreview();
+        }
+
+        /**
+         * 辺の数のラジオを選び直したときの処理。
+         * @param {number} selectedIndex - 選択したインデックス
+         * @returns {void}
+         */
+        function selectSides(selectedIndex) {
+            if (pentagramCheck.value) pentagramCheck.value = false;
+            selectRadio(sideRadios, selectedIndex);
+            setCustomSidesEnabled(selectedIndex === CUSTOM_SIDES_INDEX);
+            /* 辺の数が変わったら回転がONでも角度を更新する / Update the angle on a side change, even while rotation is on */
+            applyAutoRotationForSides(getCurrentSides());
+            refreshPanelStates();
+        }
+
+        /**
+         * カラースウォッチをクリックしたときにカラーピッカーを開く。
+         * @param {Group} swatchGroup - 対象のスウォッチ
+         * @returns {void}
+         */
+        function pickSwatchColor(swatchGroup) {
+            var pickedColor = ColorPicker.show({
+                value: aiColorToPickerString(swatchGroup._aiColor),
+                title: LABELS.dialog.colorPicker[uiLang],
+                lang: uiLang
+            });
+            if (pickedColor === null) return;
+            swatchGroup._aiColor = pickerStringToAiColor(pickedColor);
+            redrawSwatch(swatchGroup);
+            updatePreview();
+        }
+
+        /**
+         * 入力欄とスライダーを連動させ、変更のたびにプレビューを更新する。
+         * @param {EditText} inputField - 入力欄
+         * @param {Slider} slider - スライダー
+         * @param {function} clampValue - 値を有効範囲に収める関数
+         * @param {boolean} writeBackText - 入力中の値を入力欄へ書き戻すかどうか
+         * @param {function} [afterChange] - 値を反映したあとに呼ぶ処理
+         * @returns {void}
+         */
+        function bindValueAndSlider(inputField, slider, clampValue, writeBackText, afterChange) {
+            /**
+             * 値を入力欄とスライダーへ反映してプレビューを更新する。
+             * @param {string|number} value - 反映する値
+             * @param {boolean} fromSlider - スライダー操作から呼ばれたかどうか
+             * @returns {void}
+             */
+            function applyValue(value, fromSlider) {
+                value = clampValue(value);
+                if (fromSlider || writeBackText) inputField.text = String(value);
+                slider.value = value;
+                if (afterChange) afterChange();
+                updatePreview();
+            }
+            inputField.onChanging = function () { applyValue(inputField.text, false); };
+            slider.onChanging = function () { applyValue(slider.value, true); };
+        }
+
+        /**
+         * 辺の数・回転・三角形のハンドラーを割り当てる。
+         * @returns {void}
+         */
+        function bindShapeHandlers() {
+            for (var i = 0; i < sideRadios.length; i++) {
+                (function (radioIndex) {
+                    sideRadios[radioIndex].onClick = function () {
+                        selectSides(radioIndex);
+                        updatePreview();
+                    };
+                })(i);
+            }
+            bindValueAndSlider(customSidesInput, customSidesSlider, function (value) {
+                return clampNumber(value, SHAPE_RANGES.customSides, SHAPE_DEFAULTS.customSides, true);
+            }, true, function () {
+                updateReuleauxAvailability(getCurrentSides());
+            });
+
+            sizeInput.onChanging = updatePreview;
+            rotateInput.onChanging = updatePreview;
+            rotateCheck.onClick = function () {
+                rotateInput.enabled = rotateCheck.value;
+                rotateUnitLabel.enabled = rotateCheck.value;
+                if (rotateCheck.value) applyDefaultRotationWhenEnablingRotate();
+                updatePreview();
+            };
+            triangleRightRadio.onClick = onTriangleDirectionChange;
+            triangleLeftRadio.onClick = onTriangleDirectionChange;
+            triangleDownRadio.onClick = onTriangleDirectionChange;
+        }
+
+        /**
+         * 塗りと線、不透明度のハンドラーを割り当てる。
+         * @returns {void}
+         */
+        function bindAppearanceHandlers() {
+            fillCheck.onClick = updatePreview;
+            fillSwatch.addEventListener("click", function () { pickSwatchColor(fillSwatch); });
+            strokeCheck.onClick = function () {
+                updateStrokeWidthEnabled();
+                updatePreview();
+            };
+            strokeSwatch.addEventListener("click", function () { pickSwatchColor(strokeSwatch); });
+            strokeWidthInput.onChanging = updatePreview;
+
+            /* 入力中は書き戻さない（カーソルが飛ぶため）、Shiftドラッグは10%刻み
+               Typing is not written back, which would move the caret; shift-dragging snaps to steps of ten percent */
+            bindValueAndSlider(opacityInput, opacitySlider, function (value) {
+                if (typeof value === "number" && ScriptUI.environment.keyboardState.shiftKey) {
+                    value = Math.round(value / 10) * 10;
+                }
+                return clampOpacity(value);
+            }, false);
+        }
+
+        /**
+         * スター・円・角丸・アンカーポイントの操作・オプションのハンドラーを割り当てる。
+         * @returns {void}
+         */
+        function bindShapeOptionHandlers() {
+            starCheck.onClick = function () {
+                validateStarAndPentagram();
+                updatePreview();
+            };
+            pentagramCheck.onClick = function () {
+                if (pentagramCheck.value) forceRotateOff();
+                updatePreview();
+            };
+            bindValueAndSlider(innerRatioInput, innerRatioSlider, function (value) {
+                return clampNumber(value, SHAPE_RANGES.innerRatio, SHAPE_DEFAULTS.innerRatio, true);
+            }, true, function () {
+                /* 第2半径を手で決めたら五芒星の固定値から外れる / A hand-picked inner radius leaves the pentagram preset */
+                if (pentagramCheck.value) pentagramCheck.value = false;
+            });
+
+            superEllipseCheck.onClick = function () {
+                /* スーパー楕円は円（辺の数0）でだけ効く / The superellipse only applies to a circle */
+                if (isSuperEllipseActive(getCurrentSides())) forceRotateOff();
+                refreshPanelStates();
+                updatePreview();
+            };
+            bindValueAndSlider(superExponentInput, superExponentSlider, clampSuperExponent, true);
+            for (var i = 0; i < circleAnchorRadios.length; i++) {
+                circleAnchorRadios[i].onClick = function () {
+                    refreshLiveShapeAvailability();
+                    updatePreview();
+                };
+            }
+
+            cornerRadiusCheck.onClick = function () {
+                updateCornerRadiusInputEnabled();
+                refreshLiveShapeAvailability();
+                updatePreview();
+            };
+            cornerRadiusInput.onChanging = function () {
+                refreshLiveShapeAvailability();
+                updatePreview();
+            };
+            smoothingSlider.onChanging = function () {
+                smoothingValueLabel.text = String(Math.round(smoothingSlider.value));
+                updatePreview();
+            };
+
+            roughenAnchorsCheck.onClick = function () {
+                applyRoughenExclusions();
+                updatePreview();
+            };
+            roughenAnchorsInput.onChanging = updatePreview;
+            splitAtAnchorsCheck.onClick = function () {
+                /* 分割後は開いたパスになるので、塗りではなく線で見せる / Split segments are open paths, so show them with a stroke */
+                if (splitAtAnchorsCheck.value) {
+                    fillCheck.value = false;
+                    strokeCheck.value = true;
+                    updateStrokeWidthEnabled();
+                }
+                updateStrokeCapEnabled();
+                refreshPanelStates();
+                updatePreview();
+            };
+            capButtRadio.onClick = updatePreview;
+            capRoundRadio.onClick = updatePreview;
+            capProjectingRadio.onClick = updatePreview;
+
+            reuleauxCheck.onClick = function () {
+                /* 有効にするたび既定値（100%）に戻す / Reset to the default amount whenever it is enabled */
+                if (reuleauxCheck.value) syncReuleauxAmountUI(SHAPE_DEFAULTS.reuleauxAmount);
+                updateReuleauxAmountEnabled();
+                refreshLiveShapeAvailability();
+                updatePreview();
+            };
+            bindValueAndSlider(reuleauxAmountInput, reuleauxAmountSlider, clampReuleauxAmount, true);
+        }
+
+        /**
+         * キーボードショートカットを割り当てる。
+         * E：円（0）／A：回転／S：スター／P：五芒星／D：アンカーポイントで分割／L・R・B：三角形の向き。
+         * @returns {void}
+         */
+        function bindKeyboardShortcuts() {
+            /**
+             * 三角形のショートカット。辺の数を3にして向きを決める。
+             * @param {RadioButton} directionRadio - 向きのラジオボタン
+             * @returns {void}
+             */
+            function applyTriangleShortcut(directionRadio) {
+                selectSides(1);
+                directionRadio.value = true;
+                onTriangleDirectionChange();
+            }
+
+            dialog.addEventListener("keydown", function (event) {
+                if (!event || !event.keyName) return;
+                /* 入力欄の編集中はショートカットを発火させない
+                   Shortcuts must not fire while a text field is being edited */
+                if (isTextInputTarget(event.target)) return;
+
+                switch (event.keyName.toUpperCase()) {
+                    case "E":
+                        selectSides(0);
+                        updatePreview();
+                        break;
+                    case "L":
+                        applyTriangleShortcut(triangleLeftRadio);
+                        break;
+                    case "R":
+                        applyTriangleShortcut(triangleRightRadio);
+                        break;
+                    case "B":
+                        applyTriangleShortcut(triangleDownRadio);
+                        break;
+                    case "D":
+                        splitAtAnchorsCheck.value = !splitAtAnchorsCheck.value;
+                        splitAtAnchorsCheck.onClick();
+                        break;
+                    case "A":
+                        rotateCheck.value = !rotateCheck.value;
+                        rotateCheck.onClick();
+                        break;
+                    case "S":
+                        starCheck.value = !starCheck.value;
+                        starCheck.onClick();
+                        break;
+                    case "P":
+                        /* 五芒星はスターがONのときだけ / The pentagram needs the star to be on */
+                        starCheck.value = true;
+                        pentagramCheck.value = !pentagramCheck.value;
+                        pentagramCheck.onClick();
+                        break;
+                    default:
+                        return;
+                }
+                event.preventDefault();
+            });
+        }
+
+        // -----------------------------------------
+        // ダイアログの組み立てと表示 / Building and showing the dialog
+        // -----------------------------------------
+
+        setupWindow(dialog);
+
+        var columnsGroup = dialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+
+        /* 左カラム（辺の数・回転・塗りと線・幅） / Left column: sides, rotation, fill and stroke, width */
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = "fill";
+        leftColumn.alignment = "top";
+        leftColumn.spacing = DENSE_PANEL_SPACING;
+
+        buildSidesPanel(leftColumn);
+        buildRotatePanel(leftColumn);
+        buildFillStrokePanel(leftColumn);
+        buildWidthPanel(leftColumn);
+
+        /* 右カラム（スター・円・角丸・アンカー・オプション） / Right column: star, circle, corners, anchors, options */
+        var rightColumn = columnsGroup.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = "fill";
+        rightColumn.alignment = "top";
+        rightColumn.spacing = DENSE_PANEL_SPACING;
+
+        buildStarPanel(rightColumn);
+        buildCirclePanel(rightColumn);
+        buildCornerSmoothingPanel(rightColumn);
+        buildAnchorOpsPanel(rightColumn);
+        buildOptionsPanel(rightColumn);
+
+        var zoomSlider = buildViewZoomRow(dialog);
+        var dialogButtons = buildButtonRow(dialog);
+
+        bindShapeHandlers();
+        bindAppearanceHandlers();
+        bindShapeOptionHandlers();
+        bindKeyboardShortcuts();
+
+        /* レイアウトが決まる前に復元しておく / Restore before the layout is measured */
+        applyStateToUI(getSessionState());
+        updateStrokeWidthEnabled();
+        updateCornerRadiusInputEnabled();
+        updateStrokeCapEnabled();
+
         zoomSlider.onChanging = function () {
-            applyZoom(Number(zoomSlider.value));
-            try { app.redraw(); } catch (err) { }
+            try {
+                if (!documentView) documentView = doc.activeView;
+                documentView.zoom = Number(zoomSlider.value);
+                app.redraw();
+            } catch (e) { }
         };
-
-        var buttonArea = dialog.add("group");
-        buttonArea.orientation = "row";
-        buttonArea.alignChildren = ["fill", "center"];
-        buttonArea.alignment = "fill";
-        buttonArea.margins = [0, 10, 0, 0];
-
-        var buttonLeftGroup = buttonArea.add("group");
-        setupRow(buttonLeftGroup, ["left", "center"]);
 
         /* ドキュメントは通常プレビュー表示で開くので、ONから始めて表示と実態を合わせる
            A document normally opens in preview mode, so start on to keep the label truthful */
         var isViewPreviewOn = true;
-        var previewButton = buttonLeftGroup.add("button", undefined, LABELS.button.preview[lang]);
-        /* ボタンはコンテナいっぱいに広げない / Buttons must not stretch to the container width */
-        previewButton.alignment = "left";
-
-        var buttonRightGroup = buttonArea.add("group");
-        setupRow(buttonRightGroup, ["right", "center"], 10);
-
-        var cancelButton = buttonRightGroup.add("button", undefined, LABELS.button.cancel[lang], { name: "cancel" });
-        var okButton = buttonRightGroup.add("button", undefined, LABELS.button.ok[lang], { name: "ok" });
-        cancelButton.alignment = "right";
-        okButton.alignment = "right";
-
-        /**
-         * ［プレビュー］ボタンの表示を現在の状態に合わせて更新する。
-         * @returns {void}
-         */
-        function updatePreviewButtonText() {
-            previewButton.text = isViewPreviewOn
-                ? "● " + LABELS.button.preview[lang]
-                : LABELS.button.preview[lang];
-        }
-        updatePreviewButtonText();
-
-        previewButton.onClick = function () {
+        dialogButtons.previewButton.text = "● " + LABELS.button.preview[uiLang];
+        dialogButtons.previewButton.onClick = function () {
             isViewPreviewOn = !isViewPreviewOn;
-            updatePreviewButtonText();
+            dialogButtons.previewButton.text = (isViewPreviewOn ? "● " : "") + LABELS.button.preview[uiLang];
             try { app.executeMenuCommand('preview'); } catch (e) { }
         };
 
-        var isConfirmed = false;
-        var finalParams = null;
-        cancelButton.onClick = function () {
-            try { previewManager.rollback(); } catch (e) { }
+        /**
+         * プレビューを巻き戻し、画面ズームを開いたときの倍率へ戻す。
+         * @returns {void}
+         */
+        function discardPreview() {
+            previewManager.rollback();
             previewShape = null;
-            try { if (initialView && initialZoom != null) initialView.zoom = initialZoom; } catch (err) { }
+            try {
+                if (documentView && initialZoom != null) documentView.zoom = initialZoom;
+            } catch (e) { }
+        }
+
+        dialogButtons.cancelButton.onClick = function () {
+            discardPreview();
             dialog.close();
         };
-        okButton.onClick = function () {
+        dialogButtons.okButton.onClick = function () {
             /* ウィジェットが生きているうちにパラメーターを確定させる
                Capture the parameters while the dialog widgets are still alive */
             try { finalParams = getCurrentParams(); } catch (e) { finalParams = null; }
@@ -2779,6 +2544,33 @@
             dialog.close();
         };
 
+        dialog.onShow = function () {
+            /* 環境によっては無視されるため不透明度を先に適用 / Apply the opacity first, some hosts ignore it */
+            try { dialog.opacity = DIALOG_OPACITY; } catch (e) { }
+
+            /* ［アンカーポイントで分割］は毎回OFFで開く / The split option always opens off */
+            splitAtAnchorsCheck.value = false;
+            updateStrokeCapEnabled();
+            refreshPanelStates();
+            updatePreview();
+
+            /* Illustratorの起動中は前回のダイアログ位置を再利用 / Reuse the last dialog position while Illustrator is running */
+            var savedLocation = getSavedDialogLocation();
+            if (savedLocation) {
+                dialog.location = savedLocation;
+            } else {
+                dialog.center();
+                dialog.location = [dialog.location[0] + DIALOG_OFFSET_X, dialog.location[1] + DIALOG_OFFSET_Y];
+            }
+        };
+
+        dialog.onClose = function () {
+            saveDialogLocation(dialog);
+            saveStateFromUI(getSessionState());
+            /* キャンセル時はプレビューを巻き戻してUndo履歴を汚さない / Roll the preview back on cancel */
+            if (!isConfirmed) discardPreview();
+        };
+
         dialog.show();
 
         /* OKなら1回のUndoで取り消せる形で確定する / Finalize as a single undoable action when OK was pressed */
@@ -2786,17 +2578,16 @@
             previewManager.confirm(function () {
                 if (!finalParams) return;
                 if (isNaN(finalParams.size) || isNaN(finalParams.innerRatio)) return;
-                previewShape = createShape(app.activeDocument, finalParams.size, finalParams.sides, finalParams.isStar, finalParams.innerRatio, finalParams.rotateEnabled, finalParams.angle, finalParams.splitAtAnchors, finalParams.useSuperEllipse, finalParams.superExponent, finalParams.circleAnchorCount, finalParams.useReuleaux, finalParams.reuleauxAmount, finalParams.fillOpts, finalParams.strokeOpts, finalParams.cornerSmoothing, finalParams.strokeCap, finalParams.opacity);
+                previewShape = createShape(app.activeDocument, finalParams);
             });
         }
 
         if (!isConfirmed || !previewShape) {
             /* キャンセル時にプレビューが残らないようにする / Make sure no preview survives a cancel */
-            try { previewManager.rollback(); } catch (e) { }
+            previewManager.rollback();
             previewShape = null;
             return null;
         }
-
         return true;
     }
 
@@ -2805,38 +2596,43 @@
     // =========================================
 
     /**
+     * 確定後にラフ効果でアンカーポイントを追加する。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function addAnchorsAfterConfirm(doc) {
+        if (!(roughenAnchorsDetail > 0)) return;
+        try {
+            if (roughenAnchorsUseMenuFallback && Math.round(roughenAnchorsDetail) === 1) {
+                /* この経路だけはメニューコマンドなのでプレビューには出ない
+                   Only this path uses a menu command, so it cannot appear in the preview */
+                app.executeMenuCommand('Add Anchor Points2');
+                return;
+            }
+            for (var i = 0; i < doc.selection.length; i++) {
+                applyRoughenEffect(doc.selection[i], roughenAnchorsDetail);
+            }
+        } catch (e) { }
+    }
+
+    /**
      * ダイアログを開き、確定した図形を作成して後処理を行う。
      * @returns {void}
      */
     function main() {
         if (app.documents.length === 0) {
-            alert(LABELS.alert.noDocument[lang]);
+            alert(LABELS.alert.noDocument[uiLang]);
             return;
         }
-        var doc = app.activeDocument;
-        var rulerUnit = getRulerUnitInfo();
-        var strokeUnitInfo = getStrokeUnitInfo();
-        var dialogResult = showInputDialog(rulerUnit.label, rulerUnit.factor, strokeUnitInfo);
-        if (!dialogResult) return;
+        var rulerUnitInfo = getUnitInfoFromPreference("rulerType");
+        var strokeUnitInfo = getUnitInfoFromPreference("strokeUnits");
+        if (!showInputDialog(rulerUnitInfo, strokeUnitInfo)) return;
 
         /* ダイアログ表示中にドキュメントが切り替わった場合に備えて取得し直す
            Re-acquire the active document in case it changed while the dialog was open */
-        doc = app.activeDocument;
-
+        var doc = app.activeDocument;
         finalizeShape(doc);
-        if (roughenAnchorsDetail > 0) {
-            try {
-                if (roughenAnchorsUseMenuFallback && Math.round(roughenAnchorsDetail) === 1) {
-                    /* この経路だけはメニューコマンドなのでプレビューには出ない
-                       Only this path uses a menu command, so it cannot appear in the preview */
-                    app.executeMenuCommand('Add Anchor Points2');
-                } else {
-                    for (var i = 0; i < doc.selection.length; i++) {
-                        applyRoughenEffect(doc.selection[i], roughenAnchorsDetail);
-                    }
-                }
-            } catch (e) { }
-        }
+        addAnchorsAfterConfirm(doc);
         if (applyLiveShape) app.executeMenuCommand('Convert to Shape');
     }
 
