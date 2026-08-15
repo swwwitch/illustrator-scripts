@@ -20,7 +20,7 @@ To fill in the lines one at a time instead, use the derived [ReplaceTextWithPast
 
 - Replaces the contents of every selected text frame at once
 - Creates a new text frame with the default formatting where the paste lands when nothing is selected
-- Walks into groups and processes the text frames inside them
+- Walks into groups and clip groups, and processes the text frames inside them
 - Supports point type, area type, and type on a path
 - Keeps the selection intact across the run
 - Japanese and English UI
@@ -42,7 +42,7 @@ To fill in the lines one at a time instead, use the derived [ReplaceTextWithPast
 
 | | Objects |
 | --- | --- |
-| Handled | Text frames, and text frames inside groups |
+| Handled | Text frames, and text frames inside groups and clip groups |
 | Not handled | Images, shapes, locked objects |
 
 ## Notes
@@ -57,6 +57,7 @@ To fill in the lines one at a time instead, use the derived [ReplaceTextWithPast
 
 ## Changelog
 
+- v1.1.3 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid, and the frames are all collected before any of them is rewritten
 - v1.1.1 (20260814): Fixed text copied in an application other than Illustrator not coming through. Illustrator holds on to whatever it copied itself, so the first paste after another application changes the clipboard brings back the old contents; the script now discards that first paste and uses the result of a second one. It also looks for a text frame inside a pasted group, and reports when nothing was pasted at all
 - v1.1.0 (20260814): Clear the selection before pasting, fixing a case where the original selection — or the characters selected with the Type tool — could be deleted when the paste did not go through. Added a message for when no text is found on the clipboard. Replacement errors are now deduplicated and reported in a single alert instead of one per selected object. Corrected the description of where a new text frame is placed
 - v1.0.0 (20260727): Introduced the version variable, removed the ineffective `doc.undoGroup` assignment, consolidated the duplicated selection-restore and clipboard-read logic, and added a message for when no document is open

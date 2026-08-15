@@ -22,7 +22,7 @@ It is derived from `ReplaceTextWithPaste.jsx`. That script applies the same text
 - Removes the applied line from the clipboard so the next run continues where the last one stopped
 - Recognizes paragraph returns (CR), soft returns (LF), and CRLF as line breaks
 - Skips blank lines, including whitespace-only ones, instead of emptying the text frame
-- Walks into groups and processes the text frames inside them
+- Walks into groups and clip groups, and processes the text frames inside them
 - Reports when the last line has been applied
 - Keeps the selection intact across the run
 - Japanese and English UI
@@ -49,7 +49,7 @@ Assigning a keyboard shortcut lets you work through the list with nothing but se
 
 | | Objects |
 | --- | --- |
-| Handled | Text frames, and text frames inside groups |
+| Handled | Text frames, and text frames inside groups and clip groups |
 | Not handled | Images, shapes, locked objects |
 
 ## Notes
@@ -67,4 +67,5 @@ Assigning a keyboard shortcut lets you work through the list with nothing but se
 
 ## Changelog
 
+- v1.0.1 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid. When the selection holds no text frame at all, the script now reports it and stops instead of consuming a line from the clipboard
 - v1.0.0 (20260814): Initial release

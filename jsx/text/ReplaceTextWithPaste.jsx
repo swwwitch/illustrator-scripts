@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceTextWithPaste";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-10-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPaste.md
@@ -195,23 +195,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
+     * テキストフレームを再帰的に集める。
+     * クリップグループも typename は GroupItem なので、同じ経路で中までたどれる。
+     * 子は生のコレクションのまま持たず配列へ写し取る。内容を書き換えると
+     * コレクションの中身が変わり、たどっている途中で取りこぼすため。
+     * TextRange が渡された場合は親のテキストフレームに読み替える。
+     * @param {Object} searchItem - 探索対象のページアイテムまたは TextRange
+     * @param {Array<TextFrame>} collectedFrames - 収集先の配列
+     * @returns {void}
+     */
+    function collectTextFrames(searchItem, collectedFrames) {
+        if (!searchItem) return;
+
+        try {
+            if (searchItem.typename === "TextRange" && searchItem.parent && searchItem.parent.typename === "TextFrame") {
+                searchItem = searchItem.parent;
+            }
+
+            if (searchItem.typename === "TextFrame") {
+                collectedFrames.push(searchItem);
+                return;
+            }
+
+            if (searchItem.typename !== "GroupItem") return;
+
+            var childItems = [];
+            for (var i = 0; i < searchItem.pageItems.length; i++) {
+                childItems.push(searchItem.pageItems[i]);
+            }
+            for (var j = 0; j < childItems.length; j++) {
+                collectTextFrames(childItems[j], collectedFrames);
+            }
+        } catch (e) {
+            // シンボルやエンベロープなど、中をたどれないものは対象外にする / Skip what we cannot walk into, such as symbols and envelopes
+        }
+    }
+
+    /**
+     * 配列やコレクションから、テキストフレームをまとめて集める
+     * @param {Array<Object>} searchItems - 探索対象の配列またはコレクション
+     * @returns {Array<TextFrame>} 見つかったテキストフレームの配列。順序は探索順
+     */
+    function collectTextFramesFrom(searchItems) {
+        var collectedFrames = [];
+        if (!searchItems) return collectedFrames;
+        for (var i = 0; i < searchItems.length; i++) {
+            collectTextFrames(searchItems[i], collectedFrames);
+        }
+        return collectedFrames;
+    }
+
+    /**
      * 配列から最初のテキストフレームを探す。
-     * 他アプリからのペーストはグループにまとめられることがあるため、中も再帰的にたどる。
+     * 他アプリからのペーストはグループやクリップグループにまとめられることがあるため、中も再帰的にたどる。
      * @param {Array<Object>} searchItems - 探索対象の配列またはコレクション
      * @returns {TextFrame|null} 見つかったテキストフレーム。なければ null
      */
     function findFirstTextFrame(searchItems) {
-        if (!searchItems) return null;
-        for (var i = 0; i < searchItems.length; i++) {
-            var searchItem = searchItems[i];
-            if (searchItem.typename === "TextFrame") return searchItem;
-
-            if (searchItem.typename === "GroupItem") {
-                var nestedTextFrame = findFirstTextFrame(searchItem.pageItems);
-                if (nestedTextFrame) return nestedTextFrame;
-            }
-        }
-        return null;
+        var foundFrames = collectTextFramesFrom(searchItems);
+        return (foundFrames.length > 0) ? foundFrames[0] : null;
     }
 
     // =========================================
@@ -336,7 +378,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
      */
     function replaceEditingRange(rangeInfo, textContent, errorMessages) {
         if (rangeInfo.start === rangeInfo.end) {
-            applyTextToItem(rangeInfo.frame, textContent, errorMessages);
+            applyTextToFrames([rangeInfo.frame], textContent, errorMessages);
             return;
         }
 
@@ -351,32 +393,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
-     * テキストフレームなら内容を置き換え、グループなら中を再帰的にたどる。
-     * TextRange が選択されている場合は親のテキストフレームに読み替える。
-     * @param {Object} targetItem - 対象のページアイテムまたは TextRange
+     * 集めたテキストフレームの内容をまとめて置き換える
+     * @param {Array<TextFrame>} targetFrames - 対象のテキストフレーム
      * @param {string} textContent - 適用するテキスト
      * @param {Array<string>} errorMessages - 発生したエラーの収集先（呼び出し元でまとめて通知する）
      * @returns {void}
      */
-    function applyTextToItem(targetItem, textContent, errorMessages) {
-        try {
-            if (targetItem.typename === "TextRange" && targetItem.parent.typename === "TextFrame") {
-                targetItem = targetItem.parent;
+    function applyTextToFrames(targetFrames, textContent, errorMessages) {
+        for (var i = 0; i < targetFrames.length; i++) {
+            try {
+                targetFrames[i].contents = textContent;
+            } catch (e) {
+                addUniqueError(errorMessages, String(e));
             }
-
-            if (targetItem.typename === "TextFrame") {
-                targetItem.contents = textContent;
-                return;
-            }
-
-            if (targetItem.typename === "GroupItem") {
-                var childItems = targetItem.pageItems;
-                for (var i = 0; i < childItems.length; i++) {
-                    applyTextToItem(childItems[i], textContent, errorMessages);
-                }
-            }
-        } catch (e) {
-            addUniqueError(errorMessages, String(e));
         }
     }
 
@@ -417,6 +446,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
             return;
         }
 
+        /* グループやクリップグループの中は、ペーストを挟んで参照が古くなる前にたどっておく / Walk into groups before the paste cycle can stale the references */
+        var targetFrames = collectTextFramesFrom(originalSelection);
+
         var clipboardInfo = readClipboardTextFrame(doc, originalSelection);
         if (!clipboardInfo) return;
 
@@ -424,9 +456,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
             createNewTextFrame(doc.activeLayer, clipboardInfo.bounds, clipboardInfo.contents);
         } else {
             var errorMessages = [];
-            for (var i = 0; i < originalSelection.length; i++) {
-                applyTextToItem(originalSelection[i], clipboardInfo.contents, errorMessages);
-            }
+            applyTextToFrames(targetFrames, clipboardInfo.contents, errorMessages);
             /* 選択数だけダイアログが出ないよう、まとめて1回だけ知らせる / Report every failure in a single alert */
             if (errorMessages.length > 0) {
                 alert(getLabel("alert.replaceError") + errorMessages.join("\n"));

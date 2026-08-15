@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceTextWithPasteSequential"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md
@@ -194,23 +194,65 @@ var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last update
     }
 
     /**
+     * テキストフレームを再帰的に集める。
+     * クリップグループも typename は GroupItem なので、同じ経路で中までたどれる。
+     * 子は生のコレクションのまま持たず配列へ写し取る。内容を書き換えると
+     * コレクションの中身が変わり、たどっている途中で取りこぼすため。
+     * TextRange が渡された場合は親のテキストフレームに読み替える。
+     * @param {Object} searchItem - 探索対象のページアイテムまたは TextRange
+     * @param {Array<TextFrame>} collectedFrames - 収集先の配列
+     * @returns {void}
+     */
+    function collectTextFrames(searchItem, collectedFrames) {
+        if (!searchItem) return;
+
+        try {
+            if (searchItem.typename === "TextRange" && searchItem.parent && searchItem.parent.typename === "TextFrame") {
+                searchItem = searchItem.parent;
+            }
+
+            if (searchItem.typename === "TextFrame") {
+                collectedFrames.push(searchItem);
+                return;
+            }
+
+            if (searchItem.typename !== "GroupItem") return;
+
+            var childItems = [];
+            for (var i = 0; i < searchItem.pageItems.length; i++) {
+                childItems.push(searchItem.pageItems[i]);
+            }
+            for (var j = 0; j < childItems.length; j++) {
+                collectTextFrames(childItems[j], collectedFrames);
+            }
+        } catch (e) {
+            // シンボルやエンベロープなど、中をたどれないものは対象外にする / Skip what we cannot walk into, such as symbols and envelopes
+        }
+    }
+
+    /**
+     * 配列やコレクションから、テキストフレームをまとめて集める
+     * @param {Array<Object>} searchItems - 探索対象の配列またはコレクション
+     * @returns {Array<TextFrame>} 見つかったテキストフレームの配列。順序は探索順
+     */
+    function collectTextFramesFrom(searchItems) {
+        var collectedFrames = [];
+        if (!searchItems) return collectedFrames;
+        for (var i = 0; i < searchItems.length; i++) {
+            collectTextFrames(searchItems[i], collectedFrames);
+        }
+        return collectedFrames;
+    }
+
+    /**
      * 配列から最初のテキストフレームを探す。
-     * 他アプリからのペーストはグループにまとめられることがあるため、中も再帰的にたどる。
+     * 他アプリからのペーストはグループやクリップグループにまとめられることがあるため、中も再帰的にたどる。
      * @param {Array<Object>} searchItems - 探索対象の配列またはコレクション
      * @returns {TextFrame|null} 見つかったテキストフレーム。なければ null
      */
     function findFirstTextFrame(searchItems) {
-        if (!searchItems) return null;
-        for (var i = 0; i < searchItems.length; i++) {
-            var searchItem = searchItems[i];
-            if (searchItem.typename === "TextFrame") return searchItem;
-
-            if (searchItem.typename === "GroupItem") {
-                var nestedTextFrame = findFirstTextFrame(searchItem.pageItems);
-                if (nestedTextFrame) return nestedTextFrame;
-            }
-        }
-        return null;
+        var foundFrames = collectTextFramesFrom(searchItems);
+        return (foundFrames.length > 0) ? foundFrames[0] : null;
     }
 
     // =========================================
@@ -413,32 +455,19 @@ var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last update
     }
 
     /**
-     * テキストフレームなら内容を置き換え、グループなら中を再帰的にたどる。
-     * TextRange が選択されている場合は親のテキストフレームに読み替える。
-     * @param {Object} targetItem - 対象のページアイテムまたは TextRange
+     * 集めたテキストフレームの内容をまとめて置き換える
+     * @param {Array<TextFrame>} targetFrames - 対象のテキストフレーム
      * @param {string} textContent - 適用するテキスト
      * @param {Array<string>} errorMessages - 発生したエラーの収集先（呼び出し元でまとめて通知する）
      * @returns {void}
      */
-    function applyTextToItem(targetItem, textContent, errorMessages) {
-        try {
-            if (targetItem.typename === "TextRange" && targetItem.parent.typename === "TextFrame") {
-                targetItem = targetItem.parent;
+    function applyTextToFrames(targetFrames, textContent, errorMessages) {
+        for (var i = 0; i < targetFrames.length; i++) {
+            try {
+                targetFrames[i].contents = textContent;
+            } catch (e) {
+                addUniqueError(errorMessages, String(e));
             }
-
-            if (targetItem.typename === "TextFrame") {
-                targetItem.contents = textContent;
-                return;
-            }
-
-            if (targetItem.typename === "GroupItem") {
-                var childItems = targetItem.pageItems;
-                for (var i = 0; i < childItems.length; i++) {
-                    applyTextToItem(childItems[i], textContent, errorMessages);
-                }
-            }
-        } catch (e) {
-            addUniqueError(errorMessages, String(e));
         }
     }
 
@@ -467,7 +496,10 @@ var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last update
             setSelection(doc, originalSelection);
         }
 
-        if (originalSelection.length === 0) {
+        /* グループやクリップグループの中は、ペーストを挟んで参照が古くなる前にたどっておく / Walk into groups before the paste cycle can stale the references */
+        var targetFrames = collectTextFramesFrom(originalSelection);
+        /* 対象が無いまま進むと、適用先が無いのにクリップボードの行だけ消える / Without a target, a line would be consumed with nowhere to apply it */
+        if (targetFrames.length === 0) {
             alert(getLabel("alert.noSelection"));
             return;
         }
@@ -478,9 +510,7 @@ var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last update
         var splitResult = splitFirstLine(clipboardText);
 
         var errorMessages = [];
-        for (var i = 0; i < originalSelection.length; i++) {
-            applyTextToItem(originalSelection[i], splitResult.firstLine, errorMessages);
-        }
+        applyTextToFrames(targetFrames, splitResult.firstLine, errorMessages);
         /* 選択数だけダイアログが出ないよう、まとめて1回だけ知らせる / Report every failure in a single alert */
         if (errorMessages.length > 0) {
             alert(getLabel("alert.replaceError") + errorMessages.join("\n"));

@@ -26,10 +26,10 @@ See the README for details.
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "AiMemoPallete";                /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
+    var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
 
     // README (Japanese)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPallete.md

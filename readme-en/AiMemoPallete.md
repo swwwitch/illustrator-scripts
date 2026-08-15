@@ -81,9 +81,13 @@ Based on the following article by こじらせたクマー, with added features 
 
 https://note.com/nice_lotus120/n/n6291a432b30d
 
+### Change log
+
+- v1.1.3 (2026-08-16) : Copying to the clipboard now goes through redraw + menu command for reliability, loading no longer removes characters being edited with the Type tool, internal structure tidied up
+
 ### Script info
 
-- Version: v1.1.2
+- Version: v1.1.3
 - First release: 2026-06-15
-- Last updated: 2026-08-15
+- Last updated: 2026-08-16
 - Article: https://note.com/dtp_tranist/n/n41e91e4b1a09
