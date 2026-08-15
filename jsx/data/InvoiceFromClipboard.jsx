@@ -5,13 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードにある「見出し行＋値行」を空行で区切った形式のテキストを読み取り、テンプレート内の `<タグ>` を置き換えてPDFを書き出す作例スクリプトです。
-税込金額から税抜・消費税を計算し、書き出したあとは返信メールの文面をクリップボードへ入れて、保存先フォルダーを開きます。
+クリップボードにある「見出し行＋値行」を空行で区切った形式のテキストを読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
+税込金額から税抜・消費税を計算し、書き出したあとは保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。
 
 ### 注意
 
 - テンプレートは［指定］で選んだものを記憶します（Illustratorを再起動しても残ります）。置換は作業用の複製ファイルで行うため、テンプレート自体は変更されません。
 - 見出しとタグの対応、税率、ファイル名の付け方、メールの文面はユーザー設定で差し替えられます。
+- PDFは「最小ファイルサイズ」相当で書き出すため、Illustratorで開いても元通りには編集できません。
 
 詳しい機能・使い方はREADMEを参照してください。
 
@@ -22,15 +23,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### Overview
 
 A worked example that reads blank-line separated heading-and-value text from the clipboard, replaces `<tag>`
-placeholders in an Illustrator template, and exports a PDF.
-The ex-tax amount and the tax are derived from the tax-inclusive amount; after the export the reply mail is
-placed on the clipboard and the output folder is revealed.
+placeholders in an Illustrator template, and exports a receipt, invoice or delivery-note PDF.
+The ex-tax amount and the tax are derived from the tax-inclusive amount; after the export the output folder
+and a pre-filled mail draft are opened.
 
 ### Notes
 
 - The template picked with Choose is remembered across Illustrator restarts. Replacement happens on a working
   copy, so the template itself is never modified.
 - The heading-to-tag map, the tax rate, the file naming and the mail body are all user settings.
+- The PDF is exported at Smallest File Size, so it cannot be reopened in Illustrator with full editability.
 
 See the README for the full feature list and usage.
 
@@ -158,17 +160,18 @@ var OPEN_MAIL_AFTER_EXPORT = true;
 var MAIL_ADDRESS_HEADING = "メールアドレス"; /* 宛先に使う見出し（空文字で宛先なし）/ heading used as the To address */
 
 /*
-   Illustratorテンプレートの初期パス。ダイアログで［指定］すると、以降はそちらが記憶されて優先される。
-   空文字にすると、最初の実行から［指定］で選ばせる。
-   Initial template path; whatever is picked in the dialog takes precedence from then on.
+   Illustratorテンプレートの初期パス。空文字なら、最初の実行時に［指定］で選ばせる。
+   一度選べば環境設定に記憶されるので、通常は空文字のままでよい。
+   個人のパスをスクリプトに書き残さないため、既定は空文字にしてある。
+   Initial template path; left empty so no personal path is stored in the script.
 */
-var DEFAULT_TEMPLATE_PATH = "/Users/takano/sw Dropbox/takano masahiro/Dropbox-shared/CeeBeeDee/領収書/領収書テンプレート.ai";
+var DEFAULT_TEMPLATE_PATH = "";
 
 /*
    PDFファイル名の組み立て方。区切りをはさんで
    「書類名・発行元・日付（8桁）・宛先」の順につなぐ。
    書類名はテンプレートのファイル名から決まり、発行元を空文字にするとその部分ごと省く。
-   例：領収書-CeeBeeDee-20260814-株式会社セガ.pdf
+   例：領収書-CeeBeeDee-20260814-株式会社xx.pdf
    How the PDF file name is assembled ("" issuer drops that part).
 */
 var PDF_FILE_NAME_ISSUER = "CeeBeeDee";      /* 書類名の次に入れる発行元（空文字で省略）/ issuer ("" omits it) */
@@ -183,9 +186,9 @@ var PDF_FILE_NAME_HEADING = "領収書の宛先";  /* 宛先に使う見出し /
 var PDF_PRESET_CANDIDATES = ["[最小ファイルサイズ]", "[Smallest File Size]"];
 var PDF_COMPATIBILITY_NAME = "ACROBAT7";     /* 互換性：ACROBAT5=1.4 / ACROBAT6=1.5 / ACROBAT7=1.6 / ACROBAT8=1.7 */
 var PDF_PRESERVE_EDITABILITY = false;        /* Illustratorの編集機能を保持（trueにすると大幅に重くなる）/ keeps AI data */
-var PDF_IMAGE_RESOLUTION = 100;              /* カラー・グレースケール画像の解像度（ppi、0で縮小しない）/ downsample target */
-var PDF_IMAGE_THRESHOLD = 150;               /* この解像度を超える画像だけ縮小する（ppi）/ downsample above this */
-var OVERWRITE_EXISTING_PDF = false;          /* 同名PDFを上書きする（falseなら連番を付ける）/ overwrite an existing PDF */
+var PDF_IMAGE_RESOLUTION = 300;              /* カラー・グレースケール画像の解像度（ppi、0で縮小しない）/ downsample target */
+var PDF_IMAGE_THRESHOLD = 300;               /* この解像度を超える画像だけ縮小する（ppi）/ downsample above this */
+var OVERWRITE_EXISTING_PDF = false;          /* 同名PDFの扱いの初期選択（trueで上書き）/ initial pick for the name conflict */
 var OPEN_FOLDER_AFTER_EXPORT = true;         /* 書き出し後に保存先フォルダーを開く / reveal the output folder afterwards */
 
 var TAX_RATE = 0.1;                          /* 消費税率（単一税率）/ tax rate */
@@ -197,8 +200,8 @@ var DROPBOX_MOUNT_PATH = "";
 /*
    マウントパスの直下で、さらに表示から省くフォルダー名。
    共有フォルダー（「Dropbox-shared」など）は自動検出では外れないため、ここに挙げる。
-   例：/Users/<ユーザー>/<チーム> Dropbox/<アカウント>/Dropbox-shared/CeeBeeDee/領収書/領収書テンプレート.ai
-       → CeeBeeDee/領収書/領収書テンプレート.ai
+   例：/Users/<ユーザー>/<チーム> Dropbox/<アカウント>/Dropbox-shared/<案件>/領収書/領収書テンプレート.ai
+       → <案件>/領収書/領収書テンプレート.ai
    Extra folders dropped from displayed paths, right under the Dropbox mount.
 */
 var DROPBOX_SKIP_FOLDERS = ["Dropbox-shared"];
@@ -413,7 +416,13 @@ var LABELS = {
         templateFolder: "パス：",
         templateFileName: "ファイル：",
         pdfFileName: "ファイル名：",
-        saveFolder: "保存先："
+        saveFolder: "保存先：",
+        nameConflict: "同名ファイル："
+    },
+    /* ラジオボタン / Radio buttons */
+    radio: {
+        overwrite: "上書き",
+        addSerialNumber: "連番を付ける"
     },
     /* チェックボックス / Checkboxes */
     checkbox: {
@@ -446,6 +455,7 @@ var LABELS = {
         shortenDropbox: "Dropboxフォルダーまでのパスを省いて表示します。\nテンプレートと保存先の両方に効きます。",
         amount: "税込金額を入力します。税抜と消費税はここから計算されます。",
         application: "テンプレートの「但」に入れる文面の書き方を選びます。",
+        nameConflict: "同じ名前のPDFがすでにあるときの動きです。\n「連番を付ける」では -2、-3 … と後ろに足していきます。",
         documentType: "書類の種類です。テンプレートの<タイトル>、PDFのファイル名、メールの文面に入ります。\nテンプレートのファイル名から初期選択を決めています。",
         reloadClipboard: "クリップボードを読み直して、各項目を入れ直します。\nダイアログを開いたまま別の内容をコピーして押してください。",
         run: "テンプレートの複製にデータを流し込み、PDFを書き出します。\nテンプレート自体は変更されません。"
@@ -629,7 +639,7 @@ function sanitizeFileName(nameText) {
 
 /**
  * ホーム直下から「Dropbox」を含むフォルダーを探す
- * チームフォルダー（「sw Dropbox」など）を優先する。
+ * チームフォルダー（「<チーム名> Dropbox」）を優先する。
  * 個人用の「Dropbox」は「~/Dropbox/」として短縮できるため、優先度を下げている
  * @returns {Folder} 見つかったフォルダー（なければnull）
  */
@@ -659,7 +669,7 @@ function findDropboxFolder() {
 
 /**
  * フォルダー直下に表示用のサブフォルダーが1つだけあるとき、そのフォルダーを返す
- * チームDropboxのメンバーフォルダー（「takano masahiro」など）の判定に使う
+ * チームDropboxのメンバーフォルダー（アカウント名のフォルダー）の判定に使う
  * @param {Folder} parentFolder - 探索するフォルダー
  * @returns {Folder} 唯一のサブフォルダー（0個または2個以上のときはnull）
  */
@@ -1237,6 +1247,17 @@ function shortenToWidth(displayText, maxWidth) {
     var pdfFileNameText = addReadOnlyTextRow(pdfOutputPanel, LABELS.fieldLabel.pdfFileName);
     var saveFolderText = addReadOnlyTextRow(pdfOutputPanel, LABELS.fieldLabel.saveFolder);
 
+    /* 同名ファイルの扱い。選ぶとファイル名の表示も変わるので、書き出し行と一緒に更新する */
+    var nameConflictRowGroup = pdfOutputPanel.add("group");
+    setupRow(nameConflictRowGroup, "fill");
+    addFieldLabel(nameConflictRowGroup, LABELS.fieldLabel.nameConflict);
+    var overwriteRadio = nameConflictRowGroup.add("radiobutton", undefined, LABELS.radio.overwrite);
+    var addSerialNumberRadio = nameConflictRowGroup.add("radiobutton", undefined, LABELS.radio.addSerialNumber);
+    overwriteRadio.helpTip = LABELS.tooltip.nameConflict;
+    addSerialNumberRadio.helpTip = LABELS.tooltip.nameConflict;
+    overwriteRadio.value = OVERWRITE_EXISTING_PDF;
+    addSerialNumberRadio.value = !OVERWRITE_EXISTING_PDF;
+
     var buttonBarGroup = mainDialog.add("group");
     setupRow(buttonBarGroup, "right");
     /* パネルとの間隔を、ウィンドウ既定の行間よりも広げる / Widen the gap from the panel above */
@@ -1317,7 +1338,7 @@ function shortenToWidth(displayText, maxWidth) {
         var baseName = buildPdfBaseName();
         var outputFolder = templateFile.parent;
         var pdfFile = new File(outputFolder.fsName + "/" + baseName + ".pdf");
-        if (OVERWRITE_EXISTING_PDF) return pdfFile;
+        if (overwriteRadio.value) return pdfFile;
 
         var serialNumber = 2;
         while (pdfFile.exists && serialNumber < MAX_FILE_NAME_SERIAL) {
@@ -1452,6 +1473,10 @@ function shortenToWidth(displayText, maxWidth) {
     if (dateHeading !== "" && fieldInputs[dateHeading]) {
         fieldInputs[dateHeading].onChanging = refreshExportRows;
     }
+    /* 同名ファイルの扱いで連番の有無が変わるため、選び直すたびにファイル名を付け直す / The name depends on this */
+    overwriteRadio.onClick = refreshExportRows;
+    addSerialNumberRadio.onClick = refreshExportRows;
+
     /* 書類名はタイトルにもファイル名にも出るため、選び直すたびに両方を付け直す / Retitle and rename on every pick */
     for (var radioIndex = 0; radioIndex < documentTypeRadios.length; radioIndex++) {
         documentTypeRadios[radioIndex].onClick = refreshTemplateAndExportRows;

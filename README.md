@@ -192,6 +192,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [登録済みAIファイルからスタイル・ブラシ・フォント見本を読み込み](readme-ja/ImportStyles.md)
 - [フォルダー内のAI／SVGをバージョン指定で一括保存](readme-ja/AIBatchVersionSave.md)
 - [CSV／タブ区切りデータをテンプレートに流し込むデータ結合](readme-ja/VariableDataImport.md)
+- [クリップボードの申し込み内容から領収書・請求書・納品書のPDFを作成](readme-ja/InvoiceFromClipboard.md)
 - [選択オブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてクリップボードにコピーするIllu…](readme-ja/CopyAsPngLikeFigmaWithDialog.md)
 - [登録されているアクションセットを、デスクトップの `Illustrator_Actions` フォルダーへ…](readme-ja/ExportActions.md)
 - [PDF/AI ファイルを指定したページ範囲で読み込み、現在のドキュメント上にページを配置します](readme-ja/PDFAIImporter.md)

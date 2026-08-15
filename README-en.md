@@ -186,6 +186,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Linked image management](readme-en/LinkedImageManager.md)
 - [Batch save AI / SVG files in a folder with a specified version](readme-en/AIBatchVersionSave.md)
 - [Merge CSV / tab-separated data into a template](readme-en/VariableDataImport.md)
+- [Build a receipt / invoice / delivery-note PDF from the clipboard](readme-en/InvoiceFromClipboard.md)
 - [An Illustrator script that rasterizes selected objects…](readme-en/CopyAsPngLikeFigmaWithDialog.md)
 - [Exports every registered action set to an `Illustrator…](readme-en/ExportActions.md)
 - [Imports a PDF or AI file over a given page range and p…](readme-en/PDFAIImporter.md)

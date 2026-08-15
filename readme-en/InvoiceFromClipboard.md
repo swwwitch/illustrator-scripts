@@ -10,7 +10,7 @@
 
 ## Overview
 
-A worked example that turns a copied form response into a single receipt PDF.
+A worked example that turns a copied form response into a single receipt, invoice or delivery-note PDF.
 
 It reads blank-line separated heading-and-value text from the clipboard, replaces `<tag>` placeholders in an Illustrator template, and exports a PDF. After the export it reveals the output folder and opens a mail draft with the recipient, subject and body already filled in.
 
@@ -21,16 +21,18 @@ Where `VariableDataImport.jsx` builds many artboards from one data file, this on
 ## Features
 
 - Reads per-heading values from the text on the clipboard
+- Dialog for reviewing and correcting what was read (swap the clipboard and press Reload)
+- Choose the document type (receipt / invoice / delivery note); the template's file name sets the initial pick
 - Derives the ex-tax amount and the tax from the tax-inclusive amount (single rate)
+- Radio buttons choose how the 適用 line is worded
 - Replaces `<tag>` placeholders in the template, keeping the character formatting applied to the tag
-- Dialog for reviewing and correcting what was read
 - Remembers the template path across Illustrator restarts
-- Exports the PDF next to the template
+- Exports next to the template at Smallest File Size, PDF 1.6
+- Choose what happens when the file name is taken (overwrite or add a serial number)
 - Copies the reply mail to the clipboard
 - Opens a mail draft with the recipient, subject and body filled in
 - Reveals the output folder afterwards
 - Shortens Dropbox paths on screen, with a full-path toggle
-- Derives the document type (receipt / invoice / delivery note) from the template's file name
 
 ## Usage
 
@@ -39,7 +41,7 @@ Where `VariableDataImport.jsx` builds many artboards from one data file, this on
 3. Run `InvoiceFromClipboard.jsx`.
 4. Pick the template with **Choose** in the Template panel. It is remembered, so later runs only need **Change** when you want a different file.
 5. Review the values in the Clipboard Data panel and correct them if needed. Editing the amount recalculates the ex-tax amount and the tax on the spot. The radio buttons under 適用 choose how the "but" line is worded.
-6. The Export panel shows the resulting file name and folder.
+6. The Export panel shows the resulting file name and folder, plus what to do when that name is taken.
 7. Click **Create PDF**. The PDF is exported, then the output folder and a mail draft open. Drag the PDF from the folder onto the draft to attach it.
 
 Replace the clipboard contents and press **Reload** to read the next record without reopening the dialog.
@@ -52,10 +54,10 @@ A heading line, a value line, and a blank line, repeated.
 
 ```
 お名前
-向井 さゆり
+山田 太郎
 
 メールアドレス
-sayuri.mukai@sega.com
+sample@example.com
 
 金額
 11,000
@@ -64,10 +66,10 @@ sayuri.mukai@sega.com
 STORES
 
 領収書の宛先
-株式会社セガ
+株式会社サンプル
 
 該当イベント名
-【法人向け】できることから始めるWebアクセシビリティ
+【法人向け】はじめてのIllustrator講座
 
 日付
 2026/08/14
@@ -86,8 +88,8 @@ Defined in `FIELD_MAPPINGS`. The defaults are:
 | --- | --- | --- |
 | `<タイトル>` | (chosen in the dialog) | `領収書` |
 | `<日付>` | 日付 | `2026年8月14日` |
-| `<御中>` | 領収書の宛先 | `株式会社セガ` |
-| `<適用>` | 該当イベント名 | `セミナーアーカイブ（できることから始めるWebアクセシビリティ）` |
+| `<御中>` | 領収書の宛先 | `株式会社サンプル` |
+| `<適用>` | 該当イベント名 | `セミナーアーカイブ（はじめてのIllustrator講座）` |
 | `<Price>` | 金額 | `11,000` (incl. tax) |
 | `<PriceWithoutTax>` | 金額 | `10,000` (ex-tax, derived) |
 | `<Tax>` | 金額 | `1,000` (tax, derived) |
@@ -106,8 +108,8 @@ Radio buttons under the 適用 field choose how it is worded.
 
 | Choice | Value merged into `<適用>` |
 | --- | --- |
-| セミナーイベント (default) | `セミナーアーカイブ（できることから始めるWebアクセシビリティ）` |
-| その他 | `できることから始めるWebアクセシビリティ` |
+| セミナーイベント (default) | `セミナーアーカイブ（はじめてのIllustrator講座）` |
+| その他 | `はじめてのIllustrator講座` |
 
 Add or change the choices in `APPLICATION_PRESETS`. `#heading#` is replaced with that field's value, and the first entry is selected by default.
 
@@ -115,7 +117,7 @@ Add or change the choices in `APPLICATION_PRESETS`. `#heading#` is replaced with
 
 | File | Example |
 | --- | --- |
-| PDF | `領収書-CeeBeeDee-20260814-株式会社セガ.pdf` |
+| PDF | `領収書-CeeBeeDee-20260814-株式会社サンプル.pdf` |
 
 The name is assembled as document name, issuer, an 8-digit date, and recipient. The date sits before the recipient so the folder sorts chronologically by name.
 
@@ -123,7 +125,14 @@ The document name is **taken from the template's file name**.
 
 The date comes from the **receipt date** in the data, so rebuilding the same record produces the same name. Today's date is used only when the date cannot be read.
 
-The PDF is written next to the template. If a file of that name exists, `-2`, `-3`, … is appended.
+The PDF is written next to the template. What happens when a file of that name already exists is chosen in the Export panel.
+
+| Choice | Behaviour |
+| --- | --- |
+| 上書き | Replaces the existing PDF |
+| 連番を付ける (default) | Appends `-2`, `-3`, … to keep both |
+
+The displayed file name updates as you switch, so the result is visible before exporting. `OVERWRITE_EXISTING_PDF` sets the initial pick.
 
 The export matches Illustrator's **Smallest File Size** preset:
 
@@ -168,14 +177,14 @@ Choosing another template with **Change** re-picks it from the new file name. Ed
 After the export a mail draft opens with the recipient, subject and body filled in. The same body is placed on the clipboard, so it can be pasted by hand where no draft opens.
 
 ```
-To:      sayuri.mukai@sega.com
+To:      sample@example.com
 Subject: 領収書をお送りします
 
-向井 さゆりさん、
+山田 太郎さん、
 アーカイブ購入ありがとうございました！
 
 領収書PDFを添付します。
-（領収書-CeeBeeDee-20260814-株式会社セガ.pdf）
+（領収書-CeeBeeDee-20260814-株式会社サンプル.pdf）
 
 よろしくお願いします。
 ```
@@ -211,7 +220,7 @@ Change these in the User settings block at the top of the script.
 | `PDF_COMPATIBILITY_NAME` | Compatibility (`ACROBAT5`=1.4 / `ACROBAT6`=1.5 / `ACROBAT7`=1.6 / `ACROBAT8`=1.7) |
 | `PDF_PRESERVE_EDITABILITY` | Whether to keep Illustrator editing data |
 | `PDF_IMAGE_RESOLUTION` | Downsample target in ppi (0 keeps the original) |
-| `OVERWRITE_EXISTING_PDF` | Whether to overwrite an existing PDF |
+| `OVERWRITE_EXISTING_PDF` | Initial pick for the name conflict (`true` overwrites) |
 | `OPEN_FOLDER_AFTER_EXPORT` | Whether to reveal the output folder |
 | `DROPBOX_SKIP_FOLDERS` | Shared folders also dropped from displayed paths |
 
