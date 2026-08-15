@@ -77,6 +77,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         zoom: [0.1, 16]           /* 画面ズーム倍率 / view zoom factor */
     };
 
+    /* ［画面にフィット］したときの余裕（1.0で図形が画面いっぱい） / Breathing room when fitting the view, 1.0 fills the window */
+    var FIT_VIEW_MARGIN = 1.05;
+
     /* 図形生成の内部パラメーター / Internal parameters of the shape generation */
     var SHAPE_GEOMETRY = {
         superEllipsePoints: 8,    /* スーパー楕円のサンプル点数 / sample point count of a superellipse */
@@ -170,7 +173,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
             reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant-Width)" },
             splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
-            roughenAnchors: { ja: "ラフ効果で追加：", en: "Add Anchors (Roughen):" }
+            roughenAnchors: { ja: "ラフ効果で追加：", en: "Add Anchors (Roughen):" },
+            fitView: { ja: "画面にフィット", en: "Fit View" }
+        },
+        tooltip: {
+            fitView: {
+                ja: "［幅］を変えたときに、作成する図形が収まるよう表示倍率を合わせます。",
+                en: "Refits the view to the shape being created whenever the width changes."
+            }
         },
         radio: {
             circleWithZero: { ja: "0（円）", en: "0 (Circle)" },
@@ -499,12 +509,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             }
             editText.text = value;
 
-            /* プレビュー用のonChangingがあれば呼び出して矢印キー編集も反映する
-               Invoke onChanging, when present, so arrow-key edits update the preview */
-            if (typeof editText.onChanging === "function") {
-                try { editText.onChanging(); } catch (e) { }
+            /* 矢印キーは確定した編集として扱う。onChangeがあれば丸めまで、なければプレビューだけ反映する
+               An arrow key is a committed edit: onChange also rounds the value, onChanging only redraws */
+            var editHandler = (typeof editText.onChange === "function") ? editText.onChange : editText.onChanging;
+            if (typeof editHandler === "function") {
+                try { editHandler(); } catch (e) { }
             }
         });
+    }
+
+    /**
+     * 入力途中で書き戻すと編集できなくなる文字列かどうかを判定する。
+     * 空欄・符号だけ・小数点で終わる値は、まだ確定していないものとして扱う。
+     * @param {string} text - 入力欄の文字列
+     * @returns {boolean} 入力途中ならtrue
+     */
+    function isPartialNumberInput(text) {
+        return /^\s*[+-]?\s*$/.test(text) || /\.\s*$/.test(text);
     }
 
     /**
@@ -1095,6 +1116,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         previewShape = null;
     }
 
+    /**
+     * 指定したオブジェクトが収まるようにドキュメントウィンドウの表示倍率を合わせる。
+     * ColorPaletteFromImage.jsx の fitViewToItems() をもとにしている。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} item - 対象のオブジェクト
+     * @returns {void}
+     */
+    function fitViewToItem(doc, item) {
+        if (!item) return;
+
+        var bounds = item.geometricBounds;
+        var itemWidth = bounds[2] - bounds[0];
+        var itemHeight = bounds[1] - bounds[3];
+
+        var activeView = doc.activeView;
+        activeView.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+        if (itemWidth <= 0 || itemHeight <= 0) return;
+
+        /* 中心をそろえたあとの表示範囲を基準に倍率を求める / Scale from the view bounds after the center has moved */
+        var viewBounds = activeView.bounds;
+        var scale = Math.min(
+            (viewBounds[2] - viewBounds[0]) / itemWidth,
+            (viewBounds[1] - viewBounds[3]) / itemHeight
+        ) / FIT_VIEW_MARGIN;
+        activeView.zoom = activeView.zoom * scale;
+    }
+
     // =========================================
     // カラーの変換 / Color conversion
     // =========================================
@@ -1267,8 +1315,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         /* 塗りと線 / Fill and stroke */
         var fillCheck, fillSwatch, strokeCheck, strokeSwatch, strokeWidthInput, strokeWidthUnitLabel;
         var opacityInput, opacitySlider;
-        /* 幅 / Width */
-        var sizeInput;
+        /* 幅と表示 / Width and view */
+        var sizeInput, fitViewCheck;
         /* スター / Star */
         var starPanel, starCheck, pentagramCheck;
         var innerRadiusLabel, innerRatioInput, innerPercentLabel, innerRatioSlider;
@@ -1434,7 +1482,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             opacityRow.add("statictext", undefined, LABELS.label.opacity[uiLang]);
             opacityInput = addNumberField(opacityRow, SHAPE_DEFAULTS.opacity, 4);
             opacityRow.add("statictext", undefined, "%");
-            opacitySlider = addSlider(fillStrokePanel, SHAPE_DEFAULTS.opacity, SHAPE_RANGES.opacity, SLIDER_WIDTH);
+            opacitySlider = addSlider(fillStrokePanel, SHAPE_DEFAULTS.opacity, SHAPE_RANGES.opacity, SHORT_SLIDER_WIDTH);
         }
 
         /**
@@ -1447,6 +1495,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             var widthRow = addControlRow(widthPanel);
             sizeInput = addNumberField(widthRow, SHAPE_DEFAULTS.size, 5);
             widthRow.add("statictext", undefined, rulerUnitInfo.label);
+        }
+
+        /**
+         * ［画面にフィット］の行を組み立てる（幅パネルの下に置く）。
+         * @param {Group} parent - 追加先のコンテナ
+         * @returns {void}
+         */
+        function buildFitViewRow(parent) {
+            var fitViewRow = addControlRow(parent);
+            fitViewRow.margins = [20, 0, 0, 0];
+            fitViewCheck = fitViewRow.add("checkbox", undefined, LABELS.checkbox.fitView[uiLang]);
+            fitViewCheck.value = false;
+            fitViewCheck.helpTip = LABELS.tooltip.fitView[uiLang];
         }
 
         /**
@@ -2004,6 +2065,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         }
 
         /**
+         * ［画面にフィット］がONのとき、プレビューが収まるよう表示倍率を合わせる。
+         * 呼ぶのは［幅］を変えたときとダイアログを開いたときだけ。ほかの設定でも呼ぶと
+         * 1キーごとに倍率が動いて落ち着かないため。
+         * 倍率の変更はUndo履歴に残らないので、キャンセル時はdiscardPreview()で戻す。
+         * @returns {void}
+         */
+        function applyFitView() {
+            if (!fitViewCheck.value || !previewShape) return;
+            try {
+                var activeDoc = app.activeDocument;
+                documentView = activeDoc.activeView;
+                fitViewToItem(activeDoc, previewShape);
+                /* ズームスライダーの表示も合わせる / Keep the zoom slider in step */
+                zoomSlider.value = clampNumber(documentView.zoom, SHAPE_RANGES.zoom, 1);
+                app.redraw();
+            } catch (e) { }
+        }
+
+        /**
          * 入力内容からプレビューを描き直す（Undo履歴を汚さない）。
          * @returns {void}
          */
@@ -2021,6 +2101,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                    The roughen effect runs inside the same step so the preview shows it */
                 applyRoughenEffect(previewShape, params.roughenDetail);
             });
+        }
+
+        /**
+         * ［幅］を変えたときの処理。プレビューを更新してから画面にフィットさせる。
+         * @returns {void}
+         */
+        function onSizeChange() {
+            updatePreview();
+            applyFitView();
         }
 
         // -----------------------------------------
@@ -2047,6 +2136,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 setCustomSidesEnabled(isCustomSides);
             }
             if (typeof sessionState.sizeText === "string") sizeInput.text = sessionState.sizeText;
+            if (typeof sessionState.fitViewCheck === "boolean") fitViewCheck.value = sessionState.fitViewCheck;
 
             /* 塗りと線 / Fill and stroke */
             if (typeof sessionState.fillCheck === "boolean") fillCheck.value = sessionState.fillCheck;
@@ -2131,6 +2221,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             sessionState.selectedSideIndex = (selectedSideIndex < 0) ? 0 : selectedSideIndex;
             sessionState.customSidesText = customSidesInput.text;
             sessionState.sizeText = sizeInput.text;
+            sessionState.fitViewCheck = fitViewCheck.value;
 
             /* 塗りと線・不透明度 / Fill and stroke, opacity */
             sessionState.fillCheck = fillCheck.value;
@@ -2229,28 +2320,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
         /**
          * 入力欄とスライダーを連動させ、変更のたびにプレビューを更新する。
+         * 入力中は入力欄へ書き戻さず（小数点の途中でカーソルが飛ぶため）、
+         * 確定（Enter・フォーカス移動）とスライダー操作のときだけ丸めた値を書き戻す。
          * @param {EditText} inputField - 入力欄
          * @param {Slider} slider - スライダー
          * @param {function} clampValue - 値を有効範囲に収める関数
-         * @param {boolean} writeBackText - 入力中の値を入力欄へ書き戻すかどうか
          * @param {function} [afterChange] - 値を反映したあとに呼ぶ処理
          * @returns {void}
          */
-        function bindValueAndSlider(inputField, slider, clampValue, writeBackText, afterChange) {
+        function bindValueAndSlider(inputField, slider, clampValue, afterChange) {
             /**
-             * 値を入力欄とスライダーへ反映してプレビューを更新する。
+             * 値を反映してプレビューを更新する。
              * @param {string|number} value - 反映する値
-             * @param {boolean} fromSlider - スライダー操作から呼ばれたかどうか
+             * @param {boolean} writeBackText - 丸めた値を入力欄へ書き戻すかどうか
              * @returns {void}
              */
-            function applyValue(value, fromSlider) {
+            function applyValue(value, writeBackText) {
                 value = clampValue(value);
-                if (fromSlider || writeBackText) inputField.text = String(value);
+                if (writeBackText) inputField.text = String(value);
                 slider.value = value;
                 if (afterChange) afterChange();
                 updatePreview();
             }
-            inputField.onChanging = function () { applyValue(inputField.text, false); };
+            inputField.onChanging = function () {
+                /* 入力途中は確定を待つ / Wait for the rest of a value that is still being typed */
+                if (isPartialNumberInput(inputField.text)) return;
+                applyValue(inputField.text, false);
+            };
+            inputField.onChange = function () { applyValue(inputField.text, true); };
             slider.onChanging = function () { applyValue(slider.value, true); };
         }
 
@@ -2269,11 +2366,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             }
             bindValueAndSlider(customSidesInput, customSidesSlider, function (value) {
                 return clampNumber(value, SHAPE_RANGES.customSides, SHAPE_DEFAULTS.customSides, true);
-            }, true, function () {
+            }, function () {
                 updateReuleauxAvailability(getCurrentSides());
             });
 
-            sizeInput.onChanging = updatePreview;
+            sizeInput.onChanging = onSizeChange;
+            fitViewCheck.onClick = applyFitView;
             rotateInput.onChanging = updatePreview;
             rotateCheck.onClick = function () {
                 rotateInput.enabled = rotateCheck.value;
@@ -2300,14 +2398,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             strokeSwatch.addEventListener("click", function () { pickSwatchColor(strokeSwatch); });
             strokeWidthInput.onChanging = updatePreview;
 
-            /* 入力中は書き戻さない（カーソルが飛ぶため）、Shiftドラッグは10%刻み
-               Typing is not written back, which would move the caret; shift-dragging snaps to steps of ten percent */
+            /* Shiftドラッグは10%刻み / Shift-dragging snaps to steps of ten percent */
             bindValueAndSlider(opacityInput, opacitySlider, function (value) {
                 if (typeof value === "number" && ScriptUI.environment.keyboardState.shiftKey) {
                     value = Math.round(value / 10) * 10;
                 }
                 return clampOpacity(value);
-            }, false);
+            });
         }
 
         /**
@@ -2325,7 +2422,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             };
             bindValueAndSlider(innerRatioInput, innerRatioSlider, function (value) {
                 return clampNumber(value, SHAPE_RANGES.innerRatio, SHAPE_DEFAULTS.innerRatio, true);
-            }, true, function () {
+            }, function () {
                 /* 第2半径を手で決めたら五芒星の固定値から外れる / A hand-picked inner radius leaves the pentagram preset */
                 if (pentagramCheck.value) pentagramCheck.value = false;
             });
@@ -2336,7 +2433,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 refreshPanelStates();
                 updatePreview();
             };
-            bindValueAndSlider(superExponentInput, superExponentSlider, clampSuperExponent, true);
+            bindValueAndSlider(superExponentInput, superExponentSlider, clampSuperExponent);
             for (var i = 0; i < circleAnchorRadios.length; i++) {
                 circleAnchorRadios[i].onClick = function () {
                     refreshLiveShapeAvailability();
@@ -2385,7 +2482,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
                 refreshLiveShapeAvailability();
                 updatePreview();
             };
-            bindValueAndSlider(reuleauxAmountInput, reuleauxAmountSlider, clampReuleauxAmount, true);
+            bindValueAndSlider(reuleauxAmountInput, reuleauxAmountSlider, clampReuleauxAmount);
         }
 
         /**
@@ -2472,6 +2569,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         buildRotatePanel(leftColumn);
         buildFillStrokePanel(leftColumn);
         buildWidthPanel(leftColumn);
+        buildFitViewRow(leftColumn);
 
         /* 右カラム（スター・円・角丸・アンカー・オプション） / Right column: star, circle, corners, anchors, options */
         var rightColumn = columnsGroup.add("group");
@@ -2494,8 +2592,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         bindShapeOptionHandlers();
         bindKeyboardShortcuts();
 
-        /* レイアウトが決まる前に復元しておく / Restore before the layout is measured */
-        applyStateToUI(getSessionState());
+        /* レイアウトが決まる前に復元しておく。壊れた保存値でも既定値で開けるようにする
+           Restore before the layout is measured; a broken stored value must still let the dialog open */
+        try { applyStateToUI(getSessionState()); } catch (e) { }
         updateStrokeWidthEnabled();
         updateCornerRadiusInputEnabled();
         updateStrokeCapEnabled();
@@ -2552,7 +2651,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
             splitAtAnchorsCheck.value = false;
             updateStrokeCapEnabled();
             refreshPanelStates();
-            updatePreview();
+            /* 開いた時点でも一度フィットさせる / Fit once when the dialog opens, too */
+            onSizeChange();
 
             /* Illustratorの起動中は前回のダイアログ位置を再利用 / Reuse the last dialog position while Illustrator is running */
             var savedLocation = getSavedDialogLocation();
@@ -2565,8 +2665,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
         };
 
         dialog.onClose = function () {
-            saveDialogLocation(dialog);
-            saveStateFromUI(getSessionState());
+            /* 保存に失敗しても閉じる処理は続ける（OK時の確定を巻き添えにしない）
+               A failed save must not abort the close, which would also abort the confirmed shape */
+            try {
+                saveDialogLocation(dialog);
+                saveStateFromUI(getSessionState());
+            } catch (e) { }
+
             /* キャンセル時はプレビューを巻き戻してUndo履歴を汚さない / Roll the preview back on cancel */
             if (!isConfirmed) discardPreview();
         };

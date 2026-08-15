@@ -116,7 +116,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ## 原案・参考
 
-- 原案：宮澤聖二さん（サンカイラボ）
+- 原案：宮澤聖二さん（三階ラボ）
 - 角丸のスムージング：黒野真吾さん [Illustratorで角丸のスムージングを再現する](https://note.com/shingokurono/n/n348a3e73a465)
 
 ## 紹介記事
