@@ -6,6 +6,10 @@
 
 - [クリップボードの申し込み内容から領収書・請求書・納品書のPDFを作成](readme-ja/InvoiceFromClipboard.md)
 
+### 調整
+
+- [クリップボードの申し込み内容から領収書・請求書・納品書のPDFを作成](readme-ja/InvoiceFromClipboard.md)（v1.0.1）：タブ区切りの見出し行＋値行の形式に対応
+
 ## 20250724
 
 ### 新しいスクリプトを追加

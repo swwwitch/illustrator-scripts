@@ -12,15 +12,17 @@
 
 A worked example that turns a copied form response into a single receipt, invoice or delivery-note PDF.
 
-It reads blank-line separated heading-and-value text from the clipboard, replaces `<tag>` placeholders in an Illustrator template, and exports a PDF. After the export it reveals the output folder and opens a mail draft with the recipient, subject and body already filled in.
+It reads heading-and-value text from the clipboard — stacked and blank-line separated, or a tab-separated heading row and value row — replaces `<tag>` placeholders in an Illustrator template, and exports a PDF. After the export it reveals the output folder and opens a mail draft with the recipient, subject and body already filled in.
 
 Replacement happens on a working copy, so the template itself is never modified.
 
 Where `VariableDataImport.jsx` builds many artboards from one data file, this one builds a single PDF from a single record.
 
+<img alt="The receipt dialog" src="../png/ss-1060-1308-144-20260816-092601.png" width="50%" />
+
 ## Features
 
-- Reads per-heading values from the text on the clipboard
+- Reads per-heading values from the text on the clipboard (stacked or tab-separated)
 - Dialog for reviewing and correcting what was read (swap the clipboard and press Reload)
 - Choose the document type (receipt / invoice / delivery note); the template's file name sets the initial pick
 - Derives the ex-tax amount and the tax from the tax-inclusive amount (single rate)
@@ -37,7 +39,7 @@ Where `VariableDataImport.jsx` builds many artboards from one data file, this on
 ## Usage
 
 1. Design the receipt in Illustrator and write the variable parts as tags, such as `<日付>` and `<御中>`. **Save the file.**
-2. Copy the form response — heading line, value line, blank line, repeated.
+2. Copy the form response — headings and values, either stacked or tab-separated.
 3. Run `InvoiceFromClipboard.jsx`.
 4. Pick the template with **Choose** in the Template panel. It is remembered, so later runs only need **Change** when you want a different file.
 5. Review the values in the Clipboard Data panel and correct them if needed. Editing the amount recalculates the ex-tax amount and the tax on the spot. The radio buttons under 適用 choose how the "but" line is worded.
@@ -50,7 +52,9 @@ The dialog also opens when nothing could be read from the clipboard. Type the va
 
 ## Clipboard format
 
-A heading line, a value line, and a blank line, repeated.
+Two layouts are supported; the script tells them apart on its own.
+
+### Stacked (a heading line, a value line, a blank line, repeated)
 
 ```
 お名前
@@ -78,7 +82,22 @@ STORES
 - A blank line ends a field.
 - Blocks whose heading is not in the map (such as `購入くださった窓口` above) are skipped.
 - A value spanning several lines is joined into one with spaces.
-- Leading and trailing spaces are stripped from every value.
+
+### Side by side (a tab-separated heading row and a value row)
+
+The layout you get by copying the heading row plus one data row out of a spreadsheet or a form response sheet.
+
+```
+お名前	メールアドレス	金額	購入くださった窓口	領収書の宛先	該当イベント名	日付
+山田 太郎	sample@example.com	11,000	STORES	株式会社サンプル	はじめてのIllustrator講座	2026/8/14
+```
+
+- A tab-separated line carrying two or more known headings is taken as the heading row, and the first non-empty line below it holds the values (`MIN_HEADER_ROW_MATCHES` changes the threshold).
+- When several value rows follow, only the first one is read.
+- Lines above the heading row (a table title, say) are ignored.
+- Dropped trailing empty cells are fine.
+
+In both layouts, leading and trailing spaces are stripped from every value.
 
 ## Tag map
 
@@ -237,6 +256,11 @@ Change these in the User settings block at the top of the script.
 - With `PDF_PRESERVE_EDITABILITY` off, the exported PDF cannot be reopened in Illustrator with full editability. Keep the template for that.
 - The draft opens in whatever mail client the OS is set to use. `mailto:` cannot specify an attachment, so attach the PDF by hand.
 
+## Article
+
+[Illustrator: copy a form response, run the script, get a receipt PDF | DTP Transit](https://note.com/dtp_tranist/n/n1901883d86cd)
+
 ## Changelog
 
+- v1.0.1 (2026-08-16): Support a tab-separated heading row and value row
 - v1.0.0 (2026-08-16): Initial release

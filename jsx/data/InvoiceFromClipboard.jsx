@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードにある「見出し行＋値行」を空行で区切った形式のテキストを読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
+クリップボードにある「見出しと値」のテキスト（空行区切りの縦並び、またはタブ区切りの横並び）を読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
 税込金額から税抜・消費税を計算し、書き出したあとは保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。
 
 ### 注意
@@ -22,8 +22,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### Overview
 
-A worked example that reads blank-line separated heading-and-value text from the clipboard, replaces `<tag>`
-placeholders in an Illustrator template, and exports a receipt, invoice or delivery-note PDF.
+A worked example that reads heading-and-value text from the clipboard — stacked and blank-line separated, or a
+tab-separated heading row and value row — replaces `<tag>` placeholders in an Illustrator template, and exports
+a receipt, invoice or delivery-note PDF.
 The ex-tax amount and the tax are derived from the tax-inclusive amount; after the export the output folder
 and a pre-filled mail draft are opened.
 
@@ -42,7 +43,7 @@ See the README for the full feature list and usage.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "InvoiceFromClipboard";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
@@ -51,6 +52,7 @@ var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InvoiceFromClipboard.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹介記事 / article URL */
 
 /**
  * @discussion クリップボードの読み取りは ReplaceTextWithPasteSequential.jsx から流用
@@ -206,6 +208,7 @@ var DROPBOX_MOUNT_PATH = "";
 */
 var DROPBOX_SKIP_FOLDERS = ["Dropbox-shared"];
 
+var MIN_HEADER_ROW_MATCHES = 2;              /* タブ区切りの見出し行と判定するのに必要な既知の見出しの数 / known headings needed to call a row a header */
 var MAX_TAG_REPLACEMENTS = 1000;             /* 1フレーム内で同一タグを置換する上限 / replacement guard */
 var MAX_FILE_NAME_SERIAL = 1000;             /* ファイル名に付ける連番の上限 / file name serial limit */
 
@@ -497,13 +500,14 @@ function trimAndStripBom(sourceText) {
 }
 
 /**
- * 改行を空白に置き換えて1行にまとめる
- * ダイアログの入力欄は1行しか扱えず、領収書の各項目も1行に収める前提のため
+ * 改行とタブを空白に置き換えて1行にまとめる
+ * ダイアログの入力欄は1行しか扱えず、領収書の各項目も1行に収める前提のため。
+ * タブは値の中に残るとテキストフレームで文字が飛ぶので、ここで空白にする
  * @param {string} sourceText - 対象の文字列
  * @returns {string} 1行にまとめた文字列
  */
 function toSingleLine(sourceText) {
-    return trimAndStripBom(String(sourceText).replace(/[\r\n]+/g, " "));
+    return trimAndStripBom(String(sourceText).replace(/[\r\n\t]+/g, " "));
 }
 
 /**
@@ -981,6 +985,69 @@ function shortenToWidth(displayText, maxWidth) {
     }
 
     /**
+     * 行をタブで区切り、各セルの前後の空白を落とす
+     * @param {string} lineText - 対象の行
+     * @returns {string[]} 区切ったセルの配列
+     */
+    function splitTabCells(lineText) {
+        var cellList = String(lineText).split("\t");
+        for (var i = 0; i < cellList.length; i++) {
+            cellList[i] = trimAndStripBom(cellList[i]);
+        }
+        return cellList;
+    }
+
+    /**
+     * セルのうち、既知の見出しと一致するものを数える
+     * @param {string[]} cellList - 判定するセルの配列
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {number} 一致した数
+     */
+    function countKnownHeadings(cellList, knownHeadings) {
+        var matchCount = 0;
+        for (var i = 0; i < cellList.length; i++) {
+            if (isKnownHeading(cellList[i], knownHeadings)) matchCount++;
+        }
+        return matchCount;
+    }
+
+    /**
+     * 見出しと値がタブ区切りで横に並んだ形式を解析する
+     * スプレッドシートやフォームの回答一覧から1行ぶんをコピーした場合の形式。
+     * 値の行にも見出しと同じ文字が入りうるため、複数の見出しが並ぶ行だけを見出し行とみなす
+     * @param {string} clipboardText - クリップボードから読み取った文字列
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {Object} 見出しをキー、値を文字列とするオブジェクト（この形式でなければnull）
+     */
+    function parseTabSeparatedRows(clipboardText, knownHeadings) {
+        var textLines = String(clipboardText).split(/\r\n|\r|\n/);
+
+        for (var i = 0; i < textLines.length; i++) {
+            if (textLines[i].indexOf("\t") === -1) continue;
+
+            var headingCells = splitTabCells(textLines[i]);
+            if (countKnownHeadings(headingCells, knownHeadings) < MIN_HEADER_ROW_MATCHES) continue;
+
+            /* 見出し行の下にある最初の空でない行を、値の行として読む / The next non-empty line holds the values */
+            for (var j = i + 1; j < textLines.length; j++) {
+                if (trimAndStripBom(textLines[j]) === "") continue;
+
+                var valueCells = splitTabCells(textLines[j]);
+                var rowValues = {};
+                /* 末尾の空セルは省かれることがあるので、短いほうに合わせて読む / Trailing empty cells may be dropped */
+                for (var k = 0; k < headingCells.length && k < valueCells.length; k++) {
+                    if (headingCells[k] === "") continue;
+                    rowValues[headingCells[k]] = valueCells[k];
+                }
+                return rowValues;
+            }
+            /* 見出し行だけで値の行が無いときは、この形式としては読めない / A header row with no values below it */
+            return null;
+        }
+        return null;
+    }
+
+    /**
      * 「見出し行＋値行」を空行で区切った形式のテキストを解析する
      * 空行と既知の見出しの両方を値の終わりとして扱うため、
      * 対応表に無い項目が挟まっていても、その値を隣の項目に取り込んでしまわない
@@ -1029,6 +1096,19 @@ function shortenToWidth(displayText, maxWidth) {
         /* 末尾に空行が無くても最後の項目を確定させる / Close the last field even without a trailing blank line */
         closeCurrentField();
         return parsedValues;
+    }
+
+    /**
+     * クリップボードの文字列を、形式を見分けて解析する
+     * タブ区切りの見出し行が見つかればそちらで読み、無ければ縦並びの形式として読む
+     * @param {string} clipboardText - クリップボードから読み取った文字列
+     * @param {string[]} knownHeadings - 見出しとして扱う文字列の配列
+     * @returns {Object} 見出しをキー、値を文字列とするオブジェクト
+     */
+    function parseClipboardValues(clipboardText, knownHeadings) {
+        var tabSeparatedValues = parseTabSeparatedRows(clipboardText, knownHeadings);
+        if (tabSeparatedValues !== null) return tabSeparatedValues;
+        return parseHeadingValuePairs(clipboardText, knownHeadings);
     }
 
     /**
@@ -1083,7 +1163,7 @@ function shortenToWidth(displayText, maxWidth) {
         var clipboardResult = readClipboardText();
         if (clipboardResult.text === null) return { values: {}, error: clipboardResult.error };
 
-        var readValues = parseHeadingValuePairs(clipboardResult.text, collectKnownHeadings());
+        var readValues = parseClipboardValues(clipboardResult.text, collectKnownHeadings());
         if (!hasAnyMappedField(readValues, mappedHeadings)) {
             return { values: {}, error: LABELS.alert.noFields.replace("#headings#", mappedHeadings.join("\n")) };
         }
