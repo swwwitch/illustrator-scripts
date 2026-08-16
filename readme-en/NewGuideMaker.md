@@ -32,4 +32,6 @@
 
 - v1.0 (20250713): Initial version
 - v1.1 (20250714): Added layer selection and repeat functionality
+- v1.2.1 (20260706): Extracted dialog-window creation into a helper, added a locale-aware colon, appended colons to input labels, two-column layout with a bottom button bar, consolidated units into a shared dropdown + per-field unit labels, reverted the canvas ruler-origin offset (fixed misplacement from coordinate-space mismatch), deduplicated UI with helpers (addPanel/addColumnGroup/addLabeledField), added tooltips to key fields, trimmed unused symbol cases
+- v1.2.2 (20260817): Restore the "_guide" layer on cancel (remove the empty layer this run created, put back an existing layer's lock state), warn only once when the active layer is locked, cap the repeat count at 1000, and handle H/V in the capture phase so the letter never lands in a numeric field. Also trimmed the header to an overview + README pointer, added README links and the article URL to the basic-info block, split user settings from layout constants, extracted colors / stroke widths / the layer name into constants, added JSDoc to every function, aligned names with the naming rules (`L()` → `getLabel()` and friends), split the preview and dialog-building code into smaller functions, and merged the duplicated target-switch and H/V handlers
 

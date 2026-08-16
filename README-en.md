@@ -190,7 +190,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [An Illustrator script that rasterizes selected objects…](readme-en/CopyAsPngLikeFigmaWithDialog.md)
 - [Exports every registered action set to an `Illustrator…](readme-en/ExportActions.md)
 - [Imports a PDF or AI file over a given page range and p…](readme-en/PDFAIImporter.md)
-- [Uses the selected placed image as a reference, finds p…](readme-en/RelinkSameImages.md)
+- [Relink every placed image that shares the same linked file](readme-en/RelinkSameImages.md)
 - [Finds every PlacedItem in the active document that ref…](readme-en/SelectSameLinks.md)
 - [Generates a dedicated "Symbol List" artboard that lays…](readme-en/SymbolListBuilder.md)
 - [Converts the selected object into a symbol and replace…](readme-en/SymbolizeAndReplace.md)

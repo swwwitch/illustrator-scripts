@@ -1,26 +1,70 @@
-# RelinkSameImages
+# RelinkSameImages.jsx
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-RelinkSameImages.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImages.jsx)
+[![Direct Link](https://img.shields.io/badge/Direct%20Link-RelinkSameImages.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImages.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkSameImages.md)
 
-[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 
-### 概要
+## 概要
 
-- 選択した配置画像を基準に、同じリンクファイルを参照している配置画像をドキュメント内から検索し、指定ファイルへ一括で差し替えます。
-- 選択対象は先頭の1件を基準に判定し、グループ内に配置画像がある場合も自動で解決します。
-- ローカライズ対応を維持しつつ、グループ選択時の判定を強化し、安全性と保守性を改善しています。
+選択した配置画像を基準に、同じリンクファイルを参照している配置画像をドキュメント全体から探し出し、指定した1つのファイルへまとめて差し替えます。
 
-### バージョン履歴 / Version History
+同じロゴや共通パーツを複数のアートボードに配置していると、リンクパネルからの再リンクは1つずつの操作になります。このスクリプトは基準となる画像を1つ選ぶだけで、残りをまとめて処理します。
 
-- v1.0 (2024-06-15): 初版 / Initial release
-- v1.1 (2025-01-20): グループ内の配置画像解決を改善 / Improved resolution of placed images inside groups
-- v1.2 (2026-03-09): 安全性と保守性の改善 / Improved safety and maintainability
-- v1.2.1 (2026-06-18): 命名整理・ラベルのカテゴリ化・不要な try と分岐の削除によるリファクタ / Refactor — clearer naming, categorized labels, removed unnecessary try blocks and dead branches
+## 主な機能
 
-### スクリプト情報
+- 選択した配置画像と同じリンク先を参照する配置画像を、ドキュメント全体から収集
+- 収集した配置画像を、選んだファイルへ一括で差し替え
+- グループの中にある配置画像も、選択の先頭から自動で解決
+- 判定は絶対パスで行うため、別フォルダーにある同名ファイルは巻き込まない
+- 埋め込み画像・リンク切れの画像は対象から除外
+- 日本語／英語のローカライズに対応
 
-- バージョン: v1.2.1
+## 使い方
+
+1. 差し替えたい配置画像を1つ選択します。画像を含むグループを選んでも構いません。
+2. `RelinkSameImages.jsx` を実行します。
+3. 差し替え先のファイルをダイアログで選びます。
+4. 同じリンクを参照していた配置画像がすべて差し替わり、件数が表示されます。
+
+複数のオブジェクトを選んで実行した場合は、**選択の先頭にある1件だけ**が基準になります。
+
+## 判定のしくみ
+
+基準にした配置画像のリンク先を絶対パス（`file.fsName`）で取得し、ドキュメント内のすべての配置画像（`document.placedItems`）を同じパスかどうかで突き合わせます。
+
+| 対象 | 差し替え |
+| --- | --- |
+| 同じファイルを参照している配置画像 | ○ |
+| 基準として選んだ配置画像そのもの | ○ |
+| グループやクリップグループの中にある配置画像 | ○ |
+| 別フォルダーにある同名ファイル | ✕（パスが異なるため） |
+| 埋め込み画像 | ✕ |
+| リンク切れの画像 | ✕ |
+
+ファイル名だけで判定したいときや、差し替えではなく選択・削除をしたいときは `SelectSameLinks.jsx` を使ってください。
+
+## 注意事項
+
+- 実行前の確認ダイアログはありません。元に戻す場合は取り消し（⌘Z / Ctrl+Z）を使ってください。
+- 拡張子が異なるファイル（PSD → PNG など）へも差し替えられます。
+- 差し替え後の表示サイズは、Illustratorの環境設定［ファイル管理］にある、リンクの再設定時にサイズを保持するかどうかの設定に従います。
+- 基準にした配置画像が埋め込み画像またはリンク切れの場合は、警告を表示して終了します。
+- 処理の対象はドキュメント全体です。すべてのアートボードと、グループの内側が含まれます。
+- 差し替えが終わると選択は解除されます。
+- Illustrator 2026（2026年6月のアップデート）以降は、同等の一括再リンクが標準機能でも行えます。
+
+## 紹介記事
+
+[Illustratorで同じファイル名のリンク画像を一括置換するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/ne38eeee5abc8)
+
+## 更新履歴
+
+- v1.2.2 (2026-08-17): ヘッダーと基本情報ブロックの整理、`getLabel()` への統一、JSDoc付与、メイン処理の関数化（動作は変更なし）
+- v1.2.1 (2026-06-18): 命名整理・ラベルのカテゴリ化・不要な try と分岐の削除によるリファクタ
+- v1.2 (2026-03-09): 安全性と保守性の改善
+- v1.1 (2025-01-20): グループ内の配置画像解決を改善
+- v1.0 (2024-06-15): 初期バージョン
