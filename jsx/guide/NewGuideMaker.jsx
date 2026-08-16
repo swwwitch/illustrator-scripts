@@ -33,355 +33,404 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1085336d7265"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
-
-/* ガイドを作成するレイヤー名 / Layer that receives the guides */
-var GUIDE_LAYER_NAME = "_guide";
-
-/* カンバス端まで届く十分な長さ（Illustrator の最大カンバス 227inch 相当）/ Length long enough to span the canvas (227 inch ≈ Illustrator max canvas) */
-var CANVAS_SPAN_PT = 227 * 72;
-
-/* プレビュー線の色（CMYK ドキュメント用）/ Preview stroke color for CMYK documents */
-var PREVIEW_COLOR_CMYK = { cyan: 70, magenta: 50, yellow: 0, black: 0 };
-
-/* プレビュー線の色（CMYK 以外へのフォールバック）/ Preview stroke color for non-CMYK documents */
-var PREVIEW_COLOR_RGB = { red: 74, green: 132, blue: 255 };
-
-/* プレビュー線の太さ（pt）/ Stroke width of the preview paths (pt) */
-var PREVIEW_STROKE_WIDTH = 1.0;
-
-/* ガイド化後の線幅（pt）/ Stroke width once converted to a guide (pt) */
-var GUIDE_STROKE_WIDTH = 0.1;
-
-/* リピートで一度に作れるガイドの上限（桁の打ち間違いで固まるのを防ぐ）/ Cap on repeated guides, so a mistyped digit cannot freeze Illustrator */
-var MAX_REPEAT_COUNT = 1000;
-
-// =========================================
-// レイアウト / Layout
-// =========================================
-
-/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-var WINDOW_MARGINS     = 16;               /* ウィンドウ外周の余白 / window margin */
-var WINDOW_SPACING     = 12;               /* ウィンドウ内の要素間隔 / window spacing */
-var PANEL_MARGINS      = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
-var PANEL_SPACING      = 6;                /* パネル内の要素間隔 / panel spacing */
-var COLUMN_SPACING     = 12;               /* 2カラムの間隔 / gap between columns */
-var FIELD_ROW_SPACING  = 6;                /* ラベル・入力欄・単位表記の間隔 / gap inside a labeled field row */
-var UNIT_TEXT_WIDTH    = 34;               /* 数値欄に添える単位表記の幅 / width of the unit label next to a field */
-var BUTTON_BAR_MARGINS = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
-
-// =========================================
-// ローカライズ / Localization
-// =========================================
-
-/**
- * 現在の表示言語を取得する
- * @returns {string} "ja" または "en"
- */
-function getCurrentLang() {
-    var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
-    /* "ja" で始まるロケール（ja, ja_JP など）は日本語扱い / Treat "ja*" locales as Japanese */
-    if (localeText.indexOf("ja") === 0) {
-        return "ja";
-    }
-    return "en";
-}
-var uiLang = getCurrentLang();
-
-/* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
-var LABELS = {
-    dialog: {
-        title: { ja: "ガイド作成", en: "Create Guide" }
-    },
-    target: {
-        panelTitle: { ja: "対象", en: "Target" },
-        canvas:     { ja: "カンバス", en: "Canvas" },
-        artboard:   { ja: "アートボード", en: "Artboard" },
-        extension:  { ja: "延長", en: "Extension" }
-    },
-    direction: {
-        panelTitle: { ja: "方向", en: "Direction" },
-        horizontal: { ja: "水平方向", en: "Horizontal" },
-        vertical:   { ja: "垂直方向", en: "Vertical" },
-        position:   { ja: "開始位置", en: "Start Position" }
-    },
-    layer: {
-        panelTitle: { ja: "作成レイヤー", en: "Target Layer" },
-        guideLayer: { ja: "_guideレイヤー", en: "_guide Layer" },
-        activeLayer: { ja: "現在のレイヤー", en: "Current Layer" }
-    },
-    repeat: {
-        panelTitle: { ja: "リピート", en: "Repeat" },
-        count:      { ja: "ガイド数", en: "Guide Count" },
-        distance:   { ja: "距離", en: "Distance" }
-    },
-    unit: {
-        fieldLabel: { ja: "単位", en: "Unit" }
-    },
-    tooltip: {
-        extension: { ja: "ガイドをアートボードの外側へ伸ばす量（アートボード対象時のみ）", en: "How far to extend guides beyond the artboard (artboard target only)" },
-        position:  { ja: "ガイドの開始位置。↑↓で増減、Shift+↑↓で10単位スナップ", en: "Guide start position. Up/Down to step, Shift+Up/Down snaps to 10" },
-        count:     { ja: "作成するガイドの本数", en: "Number of guides to create" },
-        distance:  { ja: "リピート時のガイドの間隔", en: "Spacing between repeated guides" },
-        direction: { ja: "H / V キーでも切り替えできます", en: "Toggle with the H / V keys too" }
-    },
-    button: {
-        ok:     { ja: "OK", en: "OK" },
-        cancel: { ja: "キャンセル", en: "Cancel" }
-    },
-    alert: {
-        lockedLayer: { ja: "アクティブレイヤーがロックされています。", en: "The active layer is locked." },
-        noDocument:  { ja: "ドキュメントが開かれていません。", en: "No document is open." }
-    }
-};
-
-/**
- * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('target','canvas')）
- * @param {...string} keys - LABELS を辿るキー列
- * @returns {string} 該当するラベル（見つからない場合は空文字）
- */
-function getLabel() {
-    var labelNode = LABELS;
-    for (var i = 0; i < arguments.length; i++) {
-        if (labelNode == null) break;
-        labelNode = labelNode[arguments[i]];
-    }
-    return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
-}
-
-/**
- * ラベル末尾に付けるコロンを返す（日本語は全角、英語は半角）
- * @returns {string} コロン記号
- */
-function getUiColon() {
-    return (uiLang === "ja") ? "：" : ":";
-}
-
-// =========================================
-// 単位 / Units
-// =========================================
-
-/* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; array index equals the rulerType code (0=in, 1=mm, 2=pt …) */
-var UNITS = [
-    { label: "in",    factor: 72.0 },                /* 0 */
-    { label: "mm",    factor: 72.0 / 25.4 },         /* 1 */
-    { label: "pt",    factor: 1.0 },                 /* 2 */
-    { label: "pica",  factor: 12.0 },                /* 3 */
-    { label: "cm",    factor: 72.0 / 2.54 },         /* 4 */
-    { label: "Q/H",   factor: 72.0 / 25.4 * 0.25 },  /* 5 */
-    { label: "px",    factor: 1.0 },                 /* 6 */
-    { label: "ft/in", factor: 72.0 * 12.0 },         /* 7 */
-    { label: "m",     factor: 72.0 / 25.4 * 1000.0 },/* 8 */
-    { label: "yd",    factor: 72.0 * 36.0 },         /* 9 */
-    { label: "ft",    factor: 72.0 * 12.0 }          /* 10 */
-];
-
-/* pt の添字（単位が特定できないときのフォールバック）/ Index of pt, used as the fallback unit */
-var POINT_UNIT_INDEX = 2;
-
-/**
- * 単位ラベルの一覧を返す（ドロップダウン用）
- * @returns {string[]} 単位ラベルの配列
- */
-function getUnitLabels() {
-    var labelList = [];
-    for (var i = 0; i < UNITS.length; i++) {
-        labelList.push(UNITS[i].label);
-    }
-    return labelList;
-}
-
-/**
- * ルーラー環境設定の単位インデックスを取得する（= rulerType コード）
- * @returns {number} UNITS の添字（範囲外なら POINT_UNIT_INDEX）
- */
-function getRulerUnitIndex() {
-    var rulerTypeCode = app.preferences.getIntegerPreference("rulerType");
-    return (rulerTypeCode >= 0 && rulerTypeCode < UNITS.length) ? rulerTypeCode : POINT_UNIT_INDEX;
-}
-
-/**
- * 値と単位ラベルから pt へ変換する
- * @param {string|number} inputValue - 変換する値（数値以外は0扱い）
- * @param {string} unitLabel - 単位ラベル（"mm" など）
- * @returns {number} pt に変換した値
- */
-function convertToPt(inputValue, unitLabel) {
-    var numericValue = Number(inputValue);
-    if (isNaN(numericValue)) {
-        return 0;
-    }
-    for (var i = 0; i < UNITS.length; i++) {
-        if (UNITS[i].label === unitLabel) {
-            return numericValue * UNITS[i].factor;
-        }
-    }
-    return numericValue; /* 見つからなければ pt 扱い / Fall back to pt */
-}
-
-// =========================================
-// UIレイアウト補助 / UI layout helpers
-// =========================================
-
-/**
- * パネルに共通レイアウトを適用する
- * @param {Panel} targetPanel - 対象パネル
- * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
- * @returns {void}
- */
-function setupPanel(targetPanel, spacing) {
-    targetPanel.orientation = "column";
-    targetPanel.alignChildren = ["fill", "top"];
-    targetPanel.alignment = "fill";
-    targetPanel.margins = PANEL_MARGINS;
-    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/**
- * グループを横並びの行として設定する
- * @param {Group} targetGroup - 対象グループ
- * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
- * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
- * @returns {void}
- */
-function setupRow(targetGroup, horizontalAlign, spacing) {
-    targetGroup.orientation = "row";
-    /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
-    targetGroup.alignment = [horizontalAlign || "left", "center"];
-    targetGroup.alignChildren = ["left", "center"];
-    targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/**
- * ラベル付きパネルを生成する（共通レイアウト適用）
- * @param {Window|Group} parentContainer - 追加先
- * @param {string} panelTitle - パネルの見出し
- * @returns {Panel} 生成したパネル
- */
-function addPanel(parentContainer, panelTitle) {
-    var createdPanel = parentContainer.add("panel");
-    createdPanel.text = panelTitle;
-    setupPanel(createdPanel);
-    return createdPanel;
-}
-
-/**
- * 左寄せの縦並びグループを生成する（ラジオ列など）
- * @param {Window|Group|Panel} parentContainer - 追加先
- * @returns {Group} 生成したグループ
- */
-function addLeftAlignedColumn(parentContainer) {
-    var createdGroup = parentContainer.add("group");
-    createdGroup.orientation = "column";
-    createdGroup.alignChildren = ["left", "center"];
-    return createdGroup;
-}
-
-/**
- * 幅いっぱいに広がる縦並びカラムを生成する（パネルを積む用）
- * @param {Group} parentRow - 追加先の行グループ
- * @returns {Group} 生成したカラム
- */
-function addSettingsColumn(parentRow) {
-    var createdColumn = parentRow.add("group");
-    createdColumn.orientation = "column";
-    createdColumn.alignChildren = ["fill", "top"];
-    createdColumn.spacing = WINDOW_SPACING;
-    return createdColumn;
-}
-
-/**
- * ダイアログウィンドウを生成する（上段に内容、下段にボタンの縦構成）
- * @param {string} windowTitle - ウィンドウタイトル
- * @returns {Window} 生成したダイアログ
- */
-function createDialogWindow(windowTitle) {
-    var dialogWindow = new Window("dialog", windowTitle);
-    dialogWindow.orientation = "column";
-    dialogWindow.alignChildren = ["fill", "top"];
-    dialogWindow.spacing = WINDOW_SPACING;
-    dialogWindow.margins = WINDOW_MARGINS;
-    return dialogWindow;
-}
-
-// =========================================
-// ガイド座標と外観 / Guide geometry and appearance
-// =========================================
-
-/**
- * ガイド1本分の始点・終点座標を返す（カンバスはドキュメント原点基準＝既定のルーラー0点）
- * @param {boolean} isCanvasTarget - カンバス基準なら true、アートボード基準なら false
- * @param {boolean} isHorizontal - 水平ガイドなら true、垂直ガイドなら false
- * @param {number} positionPt - ガイド位置（pt）
- * @param {number} extensionPt - アートボード外への延長量（pt）
- * @param {number[]} artboardRect - アートボードの矩形 [左, 上, 右, 下]（カンバス基準では未使用）
- * @returns {number[][]} 始点・終点の座標配列
- */
-function getGuidePathPoints(isCanvasTarget, isHorizontal, positionPt, extensionPt, artboardRect) {
-    if (isCanvasTarget) {
-        /* Y は上方向が正なので、下向きの位置は減算 / Y is up, so a downward position subtracts */
-        return isHorizontal
-            ? [[-CANVAS_SPAN_PT, -positionPt], [CANVAS_SPAN_PT, -positionPt]]
-            : [[positionPt, CANVAS_SPAN_PT], [positionPt, -CANVAS_SPAN_PT]];
-    }
-    var artboardLeft = artboardRect[0];
-    var artboardTop = artboardRect[1];
-    var artboardRight = artboardRect[2];
-    var artboardBottom = artboardRect[3];
-    return isHorizontal
-        ? [[artboardLeft - extensionPt, artboardTop - positionPt], [artboardRight + extensionPt, artboardTop - positionPt]]
-        : [[artboardLeft + positionPt, artboardTop + extensionPt], [artboardLeft + positionPt, artboardBottom - extensionPt]];
-}
-
-/**
- * プレビュー線に使う色を生成する
- * @param {DocumentColorSpace} docColorSpace - ドキュメントのカラースペース
- * @returns {CMYKColor|RGBColor} プレビュー線の色
- */
-function createPreviewColor(docColorSpace) {
-    if (docColorSpace === DocumentColorSpace.CMYK) {
-        var cmykColor = new CMYKColor();
-        cmykColor.cyan = PREVIEW_COLOR_CMYK.cyan;
-        cmykColor.magenta = PREVIEW_COLOR_CMYK.magenta;
-        cmykColor.yellow = PREVIEW_COLOR_CMYK.yellow;
-        cmykColor.black = PREVIEW_COLOR_CMYK.black;
-        return cmykColor;
-    }
-    /* CMYK 以外は青の RGB にフォールバック / Fall back to a blue RGB for non-CMYK modes */
-    var rgbColor = new RGBColor();
-    rgbColor.red = PREVIEW_COLOR_RGB.red;
-    rgbColor.green = PREVIEW_COLOR_RGB.green;
-    rgbColor.blue = PREVIEW_COLOR_RGB.blue;
-    return rgbColor;
-}
-
-/**
- * プレビュー線の見た目を設定する
- * @param {PathItem} previewPath - 対象パス
- * @param {CMYKColor|RGBColor} previewColor - 線の色
- * @returns {void}
- */
-function stylePreviewPath(previewPath, previewColor) {
-    previewPath.stroked = true;
-    previewPath.filled = false;
-    previewPath.strokeWidth = PREVIEW_STROKE_WIDTH;
-    previewPath.strokeColor = previewColor;
-    previewPath.guides = false; /* プレビューはガイド化しない / Preview is not a guide */
-}
-
-// =========================================
-// メイン / Main
-// =========================================
-
 (function () {
-    if (app.documents.length === 0) {
-        alert(getLabel('alert', 'noDocument'));
-        return;
+
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+
+    /* ガイドを作成するレイヤー名 / Layer that receives the guides */
+    var GUIDE_LAYER_NAME = "_guide";
+
+    /* カンバス端まで届く十分な長さ（Illustrator の最大カンバス 227inch 相当）/ Length long enough to span the canvas (227 inch ≈ Illustrator max canvas) */
+    var CANVAS_SPAN_PT = 227 * 72;
+
+    /* プレビュー線の色（CMYK ドキュメント用）/ Preview stroke color for CMYK documents */
+    var PREVIEW_COLOR_CMYK = { cyan: 70, magenta: 50, yellow: 0, black: 0 };
+
+    /* プレビュー線の色（CMYK 以外へのフォールバック）/ Preview stroke color for non-CMYK documents */
+    var PREVIEW_COLOR_RGB = { red: 74, green: 132, blue: 255 };
+
+    /* プレビュー線の太さ（pt）/ Stroke width of the preview paths (pt) */
+    var PREVIEW_STROKE_WIDTH = 1.0;
+
+    /* ガイド化後の線幅（pt）/ Stroke width once converted to a guide (pt) */
+    var GUIDE_STROKE_WIDTH = 0.1;
+
+    /* リピートで一度に作れるガイドの上限（桁の打ち間違いで固まるのを防ぐ）/ Cap on repeated guides, so a mistyped digit cannot freeze Illustrator */
+    var MAX_REPEAT_COUNT = 1000;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS     = 16;               /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING     = 12;               /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS      = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING      = 6;                /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING     = 12;               /* 2カラムの間隔 / gap between columns */
+    var FIELD_ROW_SPACING  = 6;                /* ラベル・入力欄・単位表記の間隔 / gap inside a labeled field row */
+    var UNIT_TEXT_WIDTH    = 34;               /* 数値欄に添える単位表記の幅 / width of the unit label next to a field */
+    var BUTTON_BAR_MARGINS = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
+    var BUTTON_BAR_SPACING = 10;               /* ボタンバー内グループの要素間隔 / spacing inside the button bar groups */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在の表示言語を取得する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
+        /* "ja" で始まるロケール（ja, ja_JP など）は日本語扱い / Treat "ja*" locales as Japanese */
+        if (localeText.indexOf("ja") === 0) {
+            return "ja";
+        }
+        return "en";
     }
-    var dialog = createGuideDialog();
-    dialog.show();
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "ガイド作成", en: "Create Guide" }
+        },
+        target: {
+            panelTitle: { ja: "対象", en: "Target" },
+            canvas:     { ja: "カンバス", en: "Canvas" },
+            artboard:   { ja: "アートボード", en: "Artboard" },
+            extension:  { ja: "延長", en: "Extension" }
+        },
+        direction: {
+            panelTitle: { ja: "方向", en: "Direction" },
+            horizontal: { ja: "水平方向", en: "Horizontal" },
+            vertical:   { ja: "垂直方向", en: "Vertical" },
+            position:   { ja: "開始位置", en: "Start Position" }
+        },
+        layer: {
+            panelTitle:  { ja: "作成レイヤー", en: "Target Layer" },
+            guideLayer:  { ja: "_guideレイヤー", en: "_guide Layer" },
+            activeLayer: { ja: "現在のレイヤー", en: "Current Layer" }
+        },
+        repeat: {
+            panelTitle: { ja: "リピート", en: "Repeat" },
+            count:      { ja: "ガイド数", en: "Guide Count" },
+            distance:   { ja: "距離", en: "Distance" }
+        },
+        unit: {
+            fieldLabel: { ja: "単位", en: "Unit" }
+        },
+        tooltip: {
+            extension: { ja: "ガイドをアートボードの外側へ伸ばす量（アートボード対象時のみ）", en: "How far to extend guides beyond the artboard (artboard target only)" },
+            position:  { ja: "ガイドの開始位置。↑↓で増減、Shift+↑↓で10単位スナップ", en: "Guide start position. Up/Down to step, Shift+Up/Down snaps to 10" },
+            count:     { ja: "作成するガイドの本数", en: "Number of guides to create" },
+            distance:  { ja: "リピート時のガイドの間隔", en: "Spacing between repeated guides" },
+            direction: { ja: "H / V キーでも切り替えできます", en: "Toggle with the H / V keys too" }
+        },
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            lockedLayer: { ja: "アクティブレイヤーがロックされています。", en: "The active layer is locked." },
+            noDocument:  { ja: "ドキュメントが開かれていません。", en: "No document is open." }
+        }
+    };
+
+    /**
+     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('target','canvas')）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} 該当するラベル（見つからない場合は空文字）
+     */
+    function getLabel() {
+        var labelNode = LABELS;
+        for (var i = 0; i < arguments.length; i++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[arguments[i]];
+        }
+        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
+    }
+
+    /**
+     * ラベル末尾に付けるコロンを返す（日本語は全角、英語は半角）
+     * @returns {string} コロン記号
+     */
+    function getUiColon() {
+        return (uiLang === "ja") ? "：" : ":";
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; array index equals the rulerType code (0=in, 1=mm, 2=pt …) */
+    var UNITS = [
+        { label: "in",    factor: 72.0 },                /* 0 */
+        { label: "mm",    factor: 72.0 / 25.4 },         /* 1 */
+        { label: "pt",    factor: 1.0 },                 /* 2 */
+        { label: "pica",  factor: 12.0 },                /* 3 */
+        { label: "cm",    factor: 72.0 / 2.54 },         /* 4 */
+        { label: "Q/H",   factor: 72.0 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    factor: 1.0 },                 /* 6 */
+        { label: "ft/in", factor: 72.0 * 12.0 },         /* 7 */
+        { label: "m",     factor: 72.0 / 25.4 * 1000.0 },/* 8 */
+        { label: "yd",    factor: 72.0 * 36.0 },         /* 9 */
+        { label: "ft",    factor: 72.0 * 12.0 }          /* 10 */
+    ];
+
+    /* pt の添字（単位が特定できないときのフォールバック）/ Index of pt, used as the fallback unit */
+    var POINT_UNIT_INDEX = 2;
+
+    /**
+     * 単位ラベルの一覧を返す（ドロップダウン用）
+     * @returns {string[]} 単位ラベルの配列
+     */
+    function getUnitLabels() {
+        var labelList = [];
+        for (var i = 0; i < UNITS.length; i++) {
+            labelList.push(UNITS[i].label);
+        }
+        return labelList;
+    }
+
+    /**
+     * ルーラー環境設定の単位インデックスを取得する（= rulerType コード）
+     * @returns {number} UNITS の添字（範囲外なら POINT_UNIT_INDEX）
+     */
+    function getRulerUnitIndex() {
+        var rulerTypeCode = app.preferences.getIntegerPreference("rulerType");
+        return (rulerTypeCode >= 0 && rulerTypeCode < UNITS.length) ? rulerTypeCode : POINT_UNIT_INDEX;
+    }
+
+    /**
+     * 値と単位ラベルから pt へ変換する
+     * @param {string|number} inputValue - 変換する値（数値以外は0扱い）
+     * @param {string} unitLabel - 単位ラベル（"mm" など）
+     * @returns {number} pt に変換した値
+     */
+    function convertToPt(inputValue, unitLabel) {
+        var numericValue = Number(inputValue);
+        if (isNaN(numericValue)) {
+            return 0;
+        }
+        for (var i = 0; i < UNITS.length; i++) {
+            if (UNITS[i].label === unitLabel) {
+                return numericValue * UNITS[i].factor;
+            }
+        }
+        return numericValue; /* 見つからなければ pt 扱い / Fall back to pt */
+    }
+
+    // =========================================
+    // UIレイアウト補助 / UI layout helpers
+    // =========================================
+
+    /**
+     * パネルに共通レイアウトを適用する
+     * @param {Panel} targetPanel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループを横並びの行として設定する
+     * @param {Group} targetGroup - 対象グループ
+     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, horizontalAlign, spacing) {
+        targetGroup.orientation = "row";
+        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
+        targetGroup.alignment = [horizontalAlign || "left", "center"];
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Window|Group} parentContainer - 追加先
+     * @param {string} panelTitle - パネルの見出し
+     * @returns {Panel} 生成したパネル
+     */
+    function addPanel(parentContainer, panelTitle) {
+        var createdPanel = parentContainer.add("panel");
+        createdPanel.text = panelTitle;
+        setupPanel(createdPanel);
+        return createdPanel;
+    }
+
+    /**
+     * 左寄せの縦並びグループを生成する（ラジオ列など）
+     * @param {Window|Group|Panel} parentContainer - 追加先
+     * @returns {Group} 生成したグループ
+     */
+    function addLeftAlignedColumn(parentContainer) {
+        var createdGroup = parentContainer.add("group");
+        createdGroup.orientation = "column";
+        createdGroup.alignChildren = ["left", "center"];
+        return createdGroup;
+    }
+
+    /**
+     * 2択のラジオボタン列を生成する
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} firstLabel - 1つ目のラベル
+     * @param {string} secondLabel - 2つ目のラベル
+     * @param {number} selectedIndex - 初期選択（0=1つ目、1=2つ目）
+     * @returns {RadioButton[]} [1つ目, 2つ目] のラジオボタン
+     */
+    function addRadioPair(parentContainer, firstLabel, secondLabel, selectedIndex) {
+        var radioColumn = addLeftAlignedColumn(parentContainer);
+        var firstRadio = radioColumn.add("radiobutton", undefined, firstLabel);
+        var secondRadio = radioColumn.add("radiobutton", undefined, secondLabel);
+        ((selectedIndex === 1) ? secondRadio : firstRadio).value = true;
+        return [firstRadio, secondRadio];
+    }
+
+    /**
+     * 幅いっぱいに広がる縦並びカラムを生成する（パネルを積む用）
+     * @param {Group} parentRow - 追加先の行グループ
+     * @returns {Group} 生成したカラム
+     */
+    function addSettingsColumn(parentRow) {
+        var createdColumn = parentRow.add("group");
+        createdColumn.orientation = "column";
+        createdColumn.alignChildren = ["fill", "top"];
+        createdColumn.spacing = WINDOW_SPACING;
+        return createdColumn;
+    }
+
+    /**
+     * ダイアログウィンドウを生成する（上段に内容、下段にボタンの縦構成）
+     * @param {string} windowTitle - ウィンドウタイトル
+     * @returns {Window} 生成したダイアログ
+     */
+    function createDialogWindow(windowTitle) {
+        var dialogWindow = new Window("dialog", windowTitle);
+        dialogWindow.orientation = "column";
+        dialogWindow.alignChildren = ["fill", "top"];
+        dialogWindow.spacing = WINDOW_SPACING;
+        dialogWindow.margins = WINDOW_MARGINS;
+        return dialogWindow;
+    }
+
+    // =========================================
+    // 入力欄の補助 / Input field helpers
+    // =========================================
+
+    /**
+     * 入力欄に↑↓キーでの値増減を追加する（Shift併用で10単位スナップ）
+     * @param {EditText} inputField - 対象の入力欄
+     * @param {function} [onValueChanged] - 値を更新したあとに呼ぶコールバック
+     * @returns {void}
+     */
+    function changeValueByArrowKey(inputField, onValueChanged) {
+        inputField.addEventListener("keydown", function(event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+            var currentValue = Number(inputField.text);
+            if (isNaN(currentValue)) return;
+
+            /* 修飾キーは event から読む（keyboardState は macOS で誤報あり）/ Read the modifier from event (keyboardState misreports on macOS) */
+            var shiftPressed = event.shiftKey;
+            if (shiftPressed === undefined) {
+                shiftPressed = ScriptUI.environment.keyboardState.shiftKey;
+            }
+
+            var stepDirection = (event.keyName == "Up") ? 1 : -1;
+            if (shiftPressed) {
+                /* Shift押下時は「10の倍数」スナップ / Snap to multiples of 10 when Shift is pressed */
+                currentValue = Math.round(currentValue / 10) * 10 + stepDirection * 10;
+            } else {
+                currentValue += stepDirection;
+            }
+
+            event.preventDefault();
+            inputField.text = currentValue;
+            if (typeof onValueChanged === "function") {
+                onValueChanged(inputField.text);
+            }
+        });
+    }
+
+    // =========================================
+    // ガイド座標と外観 / Guide geometry and appearance
+    // =========================================
+
+    /**
+     * ガイド1本分の始点・終点座標を返す（カンバスはドキュメント原点基準＝既定のルーラー0点）
+     * @param {boolean} isCanvasTarget - カンバス基準なら true、アートボード基準なら false
+     * @param {boolean} isHorizontal - 水平ガイドなら true、垂直ガイドなら false
+     * @param {number} positionPt - ガイド位置（pt）
+     * @param {number} extensionPt - アートボード外への延長量（pt）
+     * @param {number[]} artboardRect - アートボードの矩形 [左, 上, 右, 下]（カンバス基準では未使用）
+     * @returns {number[][]} 始点・終点の座標配列
+     */
+    function getGuidePathPoints(isCanvasTarget, isHorizontal, positionPt, extensionPt, artboardRect) {
+        if (isCanvasTarget) {
+            /* Y は上方向が正なので、下向きの位置は減算 / Y is up, so a downward position subtracts */
+            return isHorizontal
+                ? [[-CANVAS_SPAN_PT, -positionPt], [CANVAS_SPAN_PT, -positionPt]]
+                : [[positionPt, CANVAS_SPAN_PT], [positionPt, -CANVAS_SPAN_PT]];
+        }
+        var artboardLeft = artboardRect[0];
+        var artboardTop = artboardRect[1];
+        var artboardRight = artboardRect[2];
+        var artboardBottom = artboardRect[3];
+        return isHorizontal
+            ? [[artboardLeft - extensionPt, artboardTop - positionPt], [artboardRight + extensionPt, artboardTop - positionPt]]
+            : [[artboardLeft + positionPt, artboardTop + extensionPt], [artboardLeft + positionPt, artboardBottom - extensionPt]];
+    }
+
+    /**
+     * プレビュー線に使う色を生成する
+     * @param {DocumentColorSpace} docColorSpace - ドキュメントのカラースペース
+     * @returns {CMYKColor|RGBColor} プレビュー線の色
+     */
+    function createPreviewColor(docColorSpace) {
+        if (docColorSpace === DocumentColorSpace.CMYK) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = PREVIEW_COLOR_CMYK.cyan;
+            cmykColor.magenta = PREVIEW_COLOR_CMYK.magenta;
+            cmykColor.yellow = PREVIEW_COLOR_CMYK.yellow;
+            cmykColor.black = PREVIEW_COLOR_CMYK.black;
+            return cmykColor;
+        }
+        /* CMYK 以外は青の RGB にフォールバック / Fall back to a blue RGB for non-CMYK modes */
+        var rgbColor = new RGBColor();
+        rgbColor.red = PREVIEW_COLOR_RGB.red;
+        rgbColor.green = PREVIEW_COLOR_RGB.green;
+        rgbColor.blue = PREVIEW_COLOR_RGB.blue;
+        return rgbColor;
+    }
+
+    /**
+     * プレビュー線の見た目を設定する
+     * @param {PathItem} previewPath - 対象パス
+     * @param {CMYKColor|RGBColor} previewColor - 線の色
+     * @returns {void}
+     */
+    function stylePreviewPath(previewPath, previewColor) {
+        previewPath.stroked = true;
+        previewPath.filled = false;
+        previewPath.strokeWidth = PREVIEW_STROKE_WIDTH;
+        previewPath.strokeColor = previewColor;
+        previewPath.guides = false; /* プレビューはガイド化しない / Preview is not a guide */
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
     /**
      * @typedef {object} PreviewSettings
@@ -674,10 +723,9 @@ function stylePreviewPath(previewPath, previewColor) {
          */
         function buildTargetPanel(parentColumn) {
             var targetPanel = addPanel(parentColumn, getLabel('target', 'panelTitle'));
-            var targetRadioGroup = addLeftAlignedColumn(targetPanel);
-            canvasRadio = targetRadioGroup.add("radiobutton", undefined, getLabel('target', 'canvas'));
-            artboardRadio = targetRadioGroup.add("radiobutton", undefined, getLabel('target', 'artboard'));
-            artboardRadio.value = true;
+            var targetRadios = addRadioPair(targetPanel, getLabel('target', 'canvas'), getLabel('target', 'artboard'), 1);
+            canvasRadio = targetRadios[0];
+            artboardRadio = targetRadios[1];
 
             /* 延長：ガイドをアートボード外へ伸ばす量 / Extension: how far to extend guides beyond the artboard */
             var extensionField = addLabeledField(targetPanel, getLabel('target', 'extension'), "0", true, getLabel('tooltip', 'extension'));
@@ -692,10 +740,9 @@ function stylePreviewPath(previewPath, previewColor) {
          */
         function buildLayerPanel(parentColumn) {
             var layerPanel = addPanel(parentColumn, getLabel('layer', 'panelTitle'));
-            var layerRadioGroup = addLeftAlignedColumn(layerPanel);
-            guideLayerRadio = layerRadioGroup.add("radiobutton", undefined, getLabel('layer', 'guideLayer'));
-            activeLayerRadio = layerRadioGroup.add("radiobutton", undefined, getLabel('layer', 'activeLayer'));
-            guideLayerRadio.value = true; /* デフォルト / default */
+            var layerRadios = addRadioPair(layerPanel, getLabel('layer', 'guideLayer'), getLabel('layer', 'activeLayer'), 0);
+            guideLayerRadio = layerRadios[0];
+            activeLayerRadio = layerRadios[1];
         }
 
         /**
@@ -706,10 +753,9 @@ function stylePreviewPath(previewPath, previewColor) {
         function buildDirectionPanel(parentColumn) {
             var directionPanel = addPanel(parentColumn, getLabel('direction', 'panelTitle'));
             directionPanel.helpTip = getLabel('tooltip', 'direction');
-            var directionRadioGroup = addLeftAlignedColumn(directionPanel);
-            horizontalRadio = directionRadioGroup.add("radiobutton", undefined, getLabel('direction', 'horizontal'));
-            verticalRadio = directionRadioGroup.add("radiobutton", undefined, getLabel('direction', 'vertical'));
-            horizontalRadio.value = true;
+            var directionRadios = addRadioPair(directionPanel, getLabel('direction', 'horizontal'), getLabel('direction', 'vertical'), 0);
+            horizontalRadio = directionRadios[0];
+            verticalRadio = directionRadios[1];
             positionInput = addLabeledField(directionPanel, getLabel('direction', 'position'), "0", true, getLabel('tooltip', 'position')).input;
         }
 
@@ -737,7 +783,7 @@ function stylePreviewPath(previewPath, previewColor) {
 
             /* 左側グループ：単位 / Left-side group: unit */
             var unitSelectGroup = buttonBarGroup.add("group");
-            unitSelectGroup.alignChildren = ["left", "center"];
+            setupRow(unitSelectGroup, "left", BUTTON_BAR_SPACING);
             unitSelectGroup.add("statictext", undefined, getLabel('unit', 'fieldLabel') + getUiColon());
             unitDropdown = unitSelectGroup.add("dropdownlist", undefined, unitOptions);
             unitDropdown.selection = currentUnitIndex;
@@ -757,7 +803,7 @@ function stylePreviewPath(previewPath, previewColor) {
 
             /* 右側グループ：キャンセル＋OK（Mac 規約で Cancel → OK）/ Right-side group: Cancel + OK (Cancel → OK per macOS) */
             var dialogButtonGroup = buttonBarGroup.add("group");
-            dialogButtonGroup.alignChildren = ["right", "center"];
+            setupRow(dialogButtonGroup, "right", BUTTON_BAR_SPACING);
             /* キャンセルは既定動作で閉じ、後片付けは dialog.onClose が行う / Cancel closes by default; cleanup happens in dialog.onClose */
             dialogButtonGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
             return dialogButtonGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
@@ -839,37 +885,22 @@ function stylePreviewPath(previewPath, previewColor) {
         return dialog;
     }
 
+    // =========================================
+    // メイン / Main
+    // =========================================
+
     /**
-     * 入力欄に↑↓キーでの値増減を追加する（Shift併用で10単位スナップ）
-     * @param {EditText} inputField - 対象の入力欄
-     * @param {function} [onValueChanged] - 値を更新したあとに呼ぶコールバック
+     * ガイド作成ダイアログを表示する
      * @returns {void}
      */
-    function changeValueByArrowKey(inputField, onValueChanged) {
-        inputField.addEventListener("keydown", function(event) {
-            if (event.keyName != "Up" && event.keyName != "Down") return;
-            var currentValue = Number(inputField.text);
-            if (isNaN(currentValue)) return;
-
-            /* 修飾キーは event から読む（keyboardState は macOS で誤報あり）/ Read the modifier from event (keyboardState misreports on macOS) */
-            var shiftPressed = event.shiftKey;
-            if (shiftPressed === undefined) {
-                shiftPressed = ScriptUI.environment.keyboardState.shiftKey;
-            }
-
-            var stepDirection = (event.keyName == "Up") ? 1 : -1;
-            if (shiftPressed) {
-                /* Shift押下時は「10の倍数」スナップ / Snap to multiples of 10 when Shift is pressed */
-                currentValue = Math.round(currentValue / 10) * 10 + stepDirection * 10;
-            } else {
-                currentValue += stepDirection;
-            }
-
-            event.preventDefault();
-            inputField.text = currentValue;
-            if (typeof onValueChanged === "function") {
-                onValueChanged(inputField.text);
-            }
-        });
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel('alert', 'noDocument'));
+            return;
+        }
+        createGuideDialog().show();
     }
+
+    main();
+
 })();
