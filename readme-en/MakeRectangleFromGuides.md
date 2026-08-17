@@ -12,6 +12,8 @@
 
 Fills every area bounded by vertical and horizontal guide intersections with a generated rectangle. A dialog selects which guides to use and where the rectangles go.
 
+<img alt="The Make Rectangle from Guides dialog" src="../png/ss-1126-896-144-20260817-124427.png" width="50%" />
+
 ### Dialog
 
 #### Source Guides
