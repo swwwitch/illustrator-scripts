@@ -42,6 +42,8 @@ The top of the palette always shows what is currently selected.
 
 *Merge All into One Line* is the greedy one: it merges the frames vertically, drops empty lines, removes every paragraph and forced break, then trims leading/trailing spaces, CJK–Latin spaces and repeated spaces.
 
+When a break sits between two Latin words, it becomes a space so the words do not run together (`fast` and `car` give `fast car`, not `fastcar`). Breaks between CJK characters, or between CJK and Latin, are still closed up.
+
 | Button | Action |
 | --- | --- |
 | Merge All into One Line | Merge, drop empty lines, remove all breaks, tidy spaces |
@@ -62,13 +64,13 @@ The top of the palette always shows what is currently selected.
 | --- | --- |
 | Split by Line Breaks | Split into a separate text frame per line |
 | Split by Line Breaks (Keep Style) | Same, keeping character formatting and position |
-| Split by Tabs and Line Breaks | Split each paragraph at its tab positions |
+| Split by Tabs | Split each paragraph at its tab positions (Option-click to leave the results ungrouped) |
 | Keep Style (split by character) | One frame per character, formatting kept |
 | Ignore Style (split by character) | One frame per character, formatting reset |
 
 The two line-break splits work differently under the hood. The first duplicates the frame, replaces its contents and positions the copies from the leading value. The second duplicates each paragraph with `TextRange.duplicate` and re-aligns it against the bottom edge (left edge for vertical text) recorded before the split. Use the second one when formatting matters.
 
-*Split by Tabs and Line Breaks* reads the **left X coordinate of the character after each tab** rather than the tab itself, so table-like text keeps its visual alignment.
+*Split by Tabs* measures **how far the character after each tab sits from the start of the paragraph** rather than reading the tab itself. The offsets come from outlining a duplicate, so table-like text keeps its visual alignment (when the measurement is not possible it falls back to spacing each piece half an em after the previous one). The pieces are grouped together; **hold Option (Alt) while clicking to leave them ungrouped**.
 
 Character-level splitting duplicates the frame, converts it to outlines, reads the bounding box of each glyph, and fits a new frame to it. If outlining fails it falls back to accumulating character widths. Breaks, tabs and spaces (half- and full-width) never become frames.
 
@@ -135,8 +137,14 @@ Pick a *Before* and an *After* option with the radio buttons, then press *Conver
 
 - *Fullwidth to Halfwidth*: full-width digits and Latin letters become half-width
 - *Halfwidth Kana to Fullwidth*: half-width kana become full-width (including dakuten/handakuten composition and `｡｢｣､･`)
-- *Bullet List*: removes leading `・` `•` `-` `*`
-- *Number List*: removes leading numbering such as `1.` (full-width digits and periods included)
+- *Bullet List*: removes leading markers (`・` `･` `·` `•` `◦` `●` `○` `◎` `□` `■` `◆` `◇` `✓` `-` `*`)
+- *Number List*: removes leading numbering (`1.` `１．` `①` `❶` `a.` `一.`; delimiters `.` `．` `:` `：` `|`)
+
+Both also handle the "tab + marker + tab" form produced by [AddBulletsAndNumbers.jsx](AddBulletsAndNumbers.md), and leading indentation is removed along with the marker.
+
+A few exceptions keep body text safe: `-5℃` and `*important` are left alone because no space follows the symbol, and `12.5` is not treated as numbering because a digit follows the period. Lines without a delimiter (`Apple is red`) are left alone too — but note that `Mr. Smith` does become `Smith`, so take care with English text.
+
+**Only markers that exist as characters are affected.** Markers drawn from paragraph attributes are not part of the text and cannot be removed here. To tell them apart, look at the list in the *Line Edit* tab: **if the marker shows up there, it is a character and can be removed.**
 
 ## Line Edit tab
 
@@ -177,7 +185,7 @@ Letter case conversion. **A preview of the result** sits next to each button, so
 
 ## Hidden characters button
 
-*Hidden Characters* at the bottom left of the palette toggles Illustrator's "Show Hidden Characters". While it is on, the button gets a `✓` and turns blue. Use it to see at a glance whether a break is a paragraph break or a forced break.
+*Show/Hide Hidden Characters* at the bottom left of the palette toggles Illustrator's "Show Hidden Characters". While it is on, the button label turns blue. Use it to see at a glance whether a break is a paragraph break or a forced break.
 
 **If you turned it on with this button, it is turned back off automatically when the palette closes.**
 

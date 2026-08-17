@@ -4,53 +4,17 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+### 概要
 
-# 箇条書き・番号リスト / Add Bullets and Numbers
+- 選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
+- ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
+- 詳細な機能・オプションはREADMEを参照してください。
 
-## 概要 / Overview
+### Overview
 
-選択したテキストフレームの各行の先頭に、箇条書き記号または連番を付与します。
-ダイアログのラジオボタンで「箇条書き」「番号リスト」「なし」を切り替えられ、
-プレビューを見ながら設定を調整できます。行の並べ替えにも対応しています。
-
-ダイアログを開くと現在の行頭マーカーから種類・記号・番号スタイル・区切り文字を
-推定し、「現状の続き」として編集できます。
-
-- 箇条書き: 記号（• - ● ○ ◎ ■ □ ◆ ◇）を選択
-- 番号リスト: 数字／白丸数字／黒丸数字／ABC／abc、開始番号・ゼロ埋め・区切り文字（. ： |）に対応
-  （白丸・黒丸数字は箇条書きと同じくタブストップ1つで配置）
-- 位置調整: マーカー位置・本文位置・揃え（左／中央／右）を指定
-  （既定のタブストップは種類・記号ごとに自動設定。数字=1.5/2.0、ABC/abc=1.0/2.0、箇条書き=1.2、•/-=本文0.8 など、文字サイズ基準）
-- マーカーの書式: フォント・スタイル・比率・ベースラインシフトに加え、記号／番号と区切り文字のカラーを個別に指定
-- 段落設定: 行送り・段落後のアキ・インデント（折り返し位置を揃えるに対応）
-- 行の並べ替え: 行を複数選択して上下移動／先頭・末尾へ移動、名前順・数値順・数値順（逆）で並べ替え可能
-- フレームごとにリセット: 複数テキストフレーム選択時に各フレームで連番を振り直し
-- リセット: 比率・ベースライン・カラー・インデント・タブストップをまとめて初期化
-
-複数のテキストフレームを選択した場合は、上→下（同じ高さなら左→右）の順に
-通し番号が付きます。実行時、行頭の中黒（・ ･ ·）と、後ろにタブ・空白を伴う
-ハイフン（-）は自動的に除去します。
-
-Adds a bullet symbol or sequential numbers to the head of each line in the
-selected text frames. Switch between "Bullets", "Numbered List", and "None"
-with the radio buttons, reorder lines, and tune the settings while watching a live preview.
-On open, the current leading markers are detected so you can keep editing
-from the existing state.
-
-- Bullets: choose a glyph (• - ● ○ ◎ ■ □ ◆ ◇)
-- Numbered: numbers / circled (white/black) / ABC / abc, with start number, zero padding, and delimiter (. ： |)
-  (circled numbers use a single tab stop, like bullets)
-- Position: marker position, body position, and alignment (left/center/right)
-  (default tab stops are set automatically per type/glyph, relative to font size: numbers = 1.5/2.0, ABC/abc = 1.0/2.0, bullets = 1.2, •/- = 0.8 body, etc.)
-- Marker format: font family, style, scale, baseline shift, plus separate colors for the marker/number and the delimiter
-- Paragraph settings: leading, space-after, and indent (supports aligning wrapped lines to the body)
-- Reorder lines: multi-select rows to move up/down or to top/bottom, or sort by name, number, or reverse number
-- Restart each frame: restart numbering from the start number in each selected text frame
-- Reset: clears scale, baseline, color, indent, and tab stops at once
-
-With multiple frames selected, numbering runs continuously top→bottom
-(then left→right). Leading middle dots (・ ･ ·) and a hyphen (-) followed by a
-tab/space are stripped on run.
+- Adds a bullet symbol or sequential numbers to the head of each line in the selected text frames.
+- On open, the existing leading markers are detected so you can keep editing from the current state while watching a live preview.
+- See the README for the full feature and option list.
 
 */
 
@@ -58,10 +22,16 @@ tab/space are stripped on run.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBulletsAndNumbers";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-05-30";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-18";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBulletsAndNumbers.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBulletsAndNumbers.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -96,29 +66,123 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
     // tabストップ既定倍率（文字サイズ基準, 種類ごと）/ Default tab stop ratios (relative to font size, per type)
     var TAB_STOP_RATIO_1 = 1.2;          // 箇条書き・丸数字の1つ目／本文（1ストップ）/ bullet & circled: 1st stop / body (single stop)
-    var BULLET_TAB_STOP_RATIO_2 = 2.0;   // 箇条書きの2つ目（本文）/ bullet 2nd stop (text)
     var NUMBERED_TAB_STOP_RATIO_1 = 1.5; // 数字の1つ目（番号列）/ numbers 1st stop (number column)
     var ALPHA_TAB_STOP_RATIO_1 = 1.0;    // ABC/abc の1つ目（マーカー列）/ ABC/abc 1st stop (marker column)
     var NUMBERED_TAB_STOP_RATIO_2 = 2.0; // 番号リストの2つ目（本文）/ numbered 2nd stop (text)
 
-    /* パネル共通の余白・間隔 / Common panel margins and spacing */
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var PANEL_SPACING = 8;
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
 
-    /* パネルの共通レイアウトを設定 / Apply common panel layout */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margins */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / column gutter */
+    var DENSE_SPACING  = 6;                  /* ラジオ・入力行を詰めるパネルの間隔 / spacing for dense panels */
+    var FIELD_LABEL_WIDTH = 100;             /* 書式・位置ラベルの幅 / label width for format & position rows */
+    var PARAGRAPH_LABEL_WIDTH = 110;         /* 段落設定ラベルの幅 / label width for paragraph rows */
+    var REORDER_BUTTON_HEIGHT = 22;          /* 並べ替えボタンの高さ / reorder button height */
+    var SWATCH_SIZE = 20;                    /* カラースウォッチの一辺 / color swatch size */
+    var PREVIEW_LIST_SIZE = [250, 350];      /* 行一覧の大きさ [幅,高さ] / preview list size */
+    var PREVIEW_LIST_NUMBER_COL = 40;        /* 行一覧の行番号カラム幅 / row-number column width */
+    var PREVIEW_LIST_FONT_SIZE = 14;         /* 行一覧の文字サイズ / preview list font size */
+
+    /**
+     * ウィンドウの共通レイアウトを設定する
+     * @param {Window} win - 対象のダイアログ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = ["fill", "top"];
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通レイアウトを設定する
+     * @param {Panel} panel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
     function setupPanel(panel, spacing) {
         panel.orientation = "column";
-        panel.alignChildren = ['fill', 'top'];
+        panel.alignChildren = ["fill", "top"];
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 行グループの共通レイアウトを設定する（alignment と alignChildren は対で指定する）
+     * @param {Group} targetGroup - 対象の行グループ
+     * @param {string} [alignment] - 横方向の揃え（既定は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, alignment, spacing) {
+        targetGroup.orientation = "row";
+        targetGroup.alignment = [alignment || "left", "top"];
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 縦積みカラムの共通レイアウトを設定する
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {number} [spacing] - 要素間隔（省略時は COLUMN_SPACING）
+     * @returns {void}
+     */
+    function setupColumn(targetGroup, spacing) {
+        targetGroup.orientation = "column";
+        targetGroup.alignChildren = ["fill", "top"];
+        targetGroup.alignment = ["fill", "top"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : COLUMN_SPACING;
+    }
+
+    /**
+     * 共通レイアウト済みのパネルを追加する
+     * @param {Group|Panel|Window} parent - 追加先
+     * @param {string} titleText - パネルのタイトル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parent, titleText, spacing) {
+        var panel = parent.add("panel", undefined, titleText);
+        setupPanel(panel, spacing);
+        return panel;
+    }
+
+    /**
+     * ラベル＋入力欄＋単位の1行を追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {string} labelString - ラベル文字列
+     * @param {string} initialText - 入力欄の初期値
+     * @param {number} [labelWidth] - ラベルの幅（省略時は内容にフィット）
+     * @param {string} [unitLabel] - 入力欄の後ろに置く単位（省略可）
+     * @returns {{row: Group, label: StaticText, input: EditText}} 生成した行と部品
+     */
+    function addFieldRow(parent, labelString, initialText, labelWidth, unitLabel) {
+        var row = parent.add("group");
+        setupRow(row);
+        var label = row.add("statictext", undefined, labelString);
+        if (typeof labelWidth === "number") label.preferredSize.width = labelWidth;
+        var input = row.add("edittext", undefined, initialText);
+        input.characters = 4;
+        if (unitLabel) row.add("statictext", undefined, unitLabel);
+        return { row: row, label: label, input: input };
     }
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在の言語を取得 / Get current language */
+    /**
+     * 実行環境の言語コードを取得する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
@@ -126,7 +190,8 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
     var LABELS = {
         dialog: {
-            title: { ja: "箇条書き・番号リスト", en: "Add Bullets and Numbers" }
+            title: { ja: "箇条書き・番号リスト", en: "Add Bullets and Numbers" },
+            colorPicker: { ja: "カラーピッカー", en: "Color Picker" }
         },
         panel: {
             listType: { ja: "リストの種類", en: "List Type" },
@@ -165,7 +230,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             circledWhite: { ja: "白丸数字", en: "Circled (white)" },
             circledBlack: { ja: "黒丸数字", en: "Circled (black)" }
         },
-        label: {
+        fieldLabel: {
             tabStop1: { ja: "マーカー", en: "Marker" },
             tabStop2: { ja: "本文", en: "Body" },
             font: { ja: "フォント", en: "Font" },
@@ -175,11 +240,9 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             leading: { ja: "行送り", en: "Leading" },
             spaceAfter: { ja: "段落後のアキ", en: "Space After" },
             leftIndent: { ja: "インデント", en: "Indent" },
-            color: { ja: "カラー", en: "Color" },
             markerColor: { ja: "記号／番号", en: "Marker/Number" },
             startNumber: { ja: "開始番号", en: "Start No." }
         },
-        colorPicker: { ja: "カラーピッカー", en: "Color Picker" },
         radio: {
             bullet: { ja: "箇条書き", en: "Bullets" },
             numbered: { ja: "番号リスト", en: "Numbered List" },
@@ -195,7 +258,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             showHidden: { ja: "制御文字を表示", en: "Show Hidden Characters" },
             reset: { ja: "リセット", en: "Reset" }
         },
-        tip: {
+        tooltip: {
             tabStop1: {
                 ja: "箇条書き記号・丸数字では本文開始位置、数字／ABC／abcでは番号を置く位置です。",
                 en: "For bullets and circled numbers, this is where the body starts; for numbers / ABC / abc, this is where the marker is placed."
@@ -293,8 +356,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     };
 
-    /* ドット区切りキーでラベルを取得 / Get a label by dot-separated key */
-    function L(key) {
+    /**
+     * ドット区切りキーで現在の言語のラベルを取得する
+     * @param {string} key - LABELS のキー（例: "panel.listType"）
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(key) {
         var keyParts = key.split(".");
         var labelNode = LABELS;
         for (var i = 0; i < keyParts.length; i++) {
@@ -303,16 +370,38 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return labelNode[currentLanguage] || labelNode["en"];
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return L(key) + (currentLanguage === 'ja' ? '：' : ':');
+    /**
+     * コロン付きのラベルを取得する（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロンを付けたラベル文字列
+     */
+    function getLabelWithColon(key) {
+        return getLabel(key) + (currentLanguage === 'ja' ? '：' : ':');
+    }
+
+    // =========================================
+    // テキスト行の共通処理 / Line helpers
+    // =========================================
+
+    /**
+     * 改行コードを統一したうえでテキストを行配列へ分割する
+     * @param {string} text - 対象のテキスト
+     * @returns {string[]} 行の配列
+     */
+    function splitIntoLines(text) {
+        return String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
     }
 
     // =========================================
     // メイン処理 / Main
     // =========================================
 
-    /* 選択（グループ内も再帰）からテキストフレームを集める / Collect text frames from the selection (recursing into groups) */
+    /**
+     * 選択オブジェクトからテキストフレームを集める（グループ内も再帰）
+     * @param {Array<PageItem>} items - 走査対象のオブジェクト配列
+     * @param {Array<TextFrame>} out - 収集先の配列
+     * @returns {Array<TextFrame>} 収集したテキストフレーム
+     */
     function collectTextFrames(items, out) {
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
@@ -329,15 +418,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
     main();
 
-    /* 前提チェック→ダイアログ（プレビュー＆確定）の順に実行 / Validate, then show dialog (preview & confirm) */
+    /**
+     * 前提チェックののち、ダイアログ（プレビュー＆確定）を表示する
+     * @returns {void}
+     */
     function main() {
-        if (app.documents.length === 0) { alert(L('alert.noDoc')); return; }
-        if (app.selection.length === 0) { alert(L('alert.noSelection')); return; }
+        if (app.documents.length === 0) { alert(getLabel('alert.noDoc')); return; }
+        if (app.selection.length === 0) { alert(getLabel('alert.noSelection')); return; }
 
         // 選択（グループ内含む）からテキストフレームを収集 / Gather text frames from the selection (groups included)
         var targetSelection = collectTextFrames(app.selection, []);
         if (targetSelection.length === 0) {
-            alert(L('alert.noTextFrame'));
+            alert(getLabel('alert.noTextFrame'));
             return;
         }
 
@@ -358,7 +450,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // カラー / Color (ColorPicker 連携) / Color (ColorPicker integration)
     // =========================================
 
-    /* ドキュメントのカラースペースに応じた黒を生成 / Make black for the document color space */
+    /**
+     * ドキュメントのカラースペースに応じた黒を生成する
+     * @returns {CMYKColor|RGBColor} 生成した黒
+     */
     function makeDefaultColor() {
         try {
             if (app.documents.length && app.activeDocument.documentColorSpace === DocumentColorSpace.CMYK) {
@@ -368,7 +463,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var rgbBlack = new RGBColor(); rgbBlack.red = 0; rgbBlack.green = 0; rgbBlack.blue = 0; return rgbBlack;
     }
 
-    /* 先頭テキストフレームの塗り色を取得（なければ黒）/ Get the first text frame's fill color (black if none) */
+    /**
+     * 先頭テキストフレームの塗り色を取得する（取得できなければ黒）
+     * @param {Array<TextFrame>} selection - 対象のテキストフレーム配列
+     * @returns {CMYKColor|RGBColor|GrayColor} 基準となる塗り色
+     */
     function getBaseFillColor(selection) {
         for (var i = 0; i < selection.length; i++) {
             if (selection[i].typename === "TextFrame") {
@@ -382,7 +481,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return makeDefaultColor();
     }
 
-    /* Illustratorカラー → ColorPicker文字列 / AI color → ColorPicker string */
+    /**
+     * Illustratorのカラーを ColorPicker 用の文字列へ変換する
+     * @param {CMYKColor|RGBColor|GrayColor} aiColor - 変換元のカラー
+     * @returns {string} 16進数文字列または "cmyk:c,m,y,k" 形式の文字列
+     */
     function aiColorToPickerString(aiColor) {
         try {
             if (aiColor.typename === "RGBColor") {
@@ -396,7 +499,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return "000000";
     }
 
-    /* ColorPicker文字列 → Illustratorカラー / ColorPicker string → AI color */
+    /**
+     * ColorPicker の文字列を Illustrator のカラーへ変換する
+     * @param {string} pickerString - 16進数文字列または "cmyk:c,m,y,k" 形式の文字列
+     * @returns {CMYKColor|RGBColor} 変換したカラー
+     */
     function pickerStringToAiColor(pickerString) {
         if (ColorPicker.isCmykString(pickerString)) {
             var cmykParts = ColorPicker.parseCmykString(pickerString);
@@ -410,7 +517,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return rgbColor;
     }
 
-    /* Illustratorカラー → ScriptUIブラシ（スウォッチ描画用）/ AI color → ScriptUI brush (for the swatch) */
+    /**
+     * Illustratorのカラーをスウォッチ描画用のScriptUIブラシへ変換する
+     * @param {object} graphics - 描画対象のScriptUI graphics オブジェクト
+     * @param {CMYKColor|RGBColor|GrayColor} aiColor - 変換元のカラー
+     * @returns {object} 生成したブラシ
+     */
     function aiColorToScriptUIBrush(graphics, aiColor) {
         try {
             if (aiColor.typename === "RGBColor") {
@@ -429,7 +541,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return graphics.newBrush(graphics.BrushType.SOLID_COLOR, [1, 1, 1, 1]);
     }
 
-    /* カラースウォッチ（クリックでカラーピッカー）を生成 / Create a color swatch (click to open the picker) */
+    /**
+     * カラースウォッチ（クリックでカラーピッカーを開く四角）を生成する
+     * @param {Group|Panel} parent - 追加先
+     * @param {CMYKColor|RGBColor|GrayColor} aiColor - 初期カラー
+     * @param {number} swatchSize - 一辺の長さ
+     * @returns {Group} 生成したスウォッチ（_aiColor に現在のカラーを保持）
+     */
     function createColorSwatch(parent, aiColor, swatchSize) {
         var swatch = parent.add("group");
         swatch.preferredSize = [swatchSize, swatchSize];
@@ -446,16 +564,28 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return swatch;
     }
 
+    /**
+     * カラースウォッチを再描画する（_aiColor の変更を画面へ反映）
+     * @param {Group} swatch - createColorSwatch() が返したスウォッチ
+     * @returns {void}
+     */
+    function redrawSwatch(swatch) {
+        try { swatch.hide(); swatch.show(); } catch (e) { }
+    }
+
     // =========================================
     // 現在状態の推定 / Detect current state
     // =========================================
 
-    /* 選択先頭フレームの最初の非空行を取得 / First non-empty line of the first text frame */
+    /**
+     * 選択先頭のテキストフレームから最初の非空行を取得する
+     * @param {Array<TextFrame>} selection - 対象のテキストフレーム配列
+     * @returns {string|null} 最初の非空行（見つからなければ null）
+     */
     function firstMarkedLine(selection) {
         for (var i = 0; i < selection.length; i++) {
             if (selection[i].typename !== "TextFrame") continue;
-            var normalized = selection[i].contents.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-            var lines = normalized.split("\n");
+            var lines = splitIntoLines(selection[i].contents);
             for (var j = 0; j < lines.length; j++) {
                 if (/\S/.test(lines[j])) return lines[j];
             }
@@ -464,7 +594,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return null;
     }
 
-    /* 区切り文字のインデックスを取得（未一致は0=なし）/ Index of a delimiter char (0 = none if not found) */
+    /**
+     * 区切り文字の DELIMITERS 内でのインデックスを取得する
+     * @param {string} ch - 区切り文字
+     * @returns {number} インデックス（未一致は 0＝なし）
+     */
     function delimiterIndexOf(ch) {
         for (var i = 0; i < DELIMITERS.length; i++) {
             if (DELIMITERS[i] === ch) return i;
@@ -472,7 +606,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return 0;
     }
 
-    /* 現在の行頭マーカーから初期状態を推定（このスクリプトが付与した形式を想定）/ Detect initial dialog state from the existing leading marker (assumes markers this script created) */
+    /**
+     * 現在の行頭マーカーからダイアログの初期状態を推定する（このスクリプトが付与した形式を想定）
+     * @param {Array<TextFrame>} selection - 対象のテキストフレーム配列
+     * @returns {{type: string, bulletIndex: number, numberStyle: string, delimiterIndex: number}} 推定した初期状態
+     */
     function detectInitialState(selection) {
         var state = { type: "bullet", bulletIndex: 0, numberStyle: "number", delimiterIndex: 1 };
         var line = firstMarkedLine(selection);
@@ -516,7 +654,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // ダイアログ / Dialog
     // =========================================
 
-    /* ダイアログを表示し、プレビューと確定適用を行う / Show the dialog, drive live preview, and apply on OK */
+    /**
+     * ダイアログを表示し、プレビューと確定適用を行う
+     * @param {Array<TextFrame>} targetSelection - 対象のテキストフレーム配列（上→下、左→右の順）
+     * @returns {void}
+     */
     function showDialog(targetSelection) {
         // プレビュー前の状態を保存（キャンセル時に復元・並べ替えの作業領域）/ Snapshot the pre-preview state (restored on cancel; also the reorder work area)
         var baseline = captureBaseline(targetSelection);
@@ -528,25 +670,44 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var unitInfo = getTextUnitInfo();
         var baseFontSize = getBaseFontSize(targetSelection);
 
-        /* pt を表示単位へ換算（小数第1位）/ Convert pt to the display unit (1 decimal) */
+        /**
+         * ポイント値を表示単位へ換算する（小数第1位まで）
+         * @param {number} valuePt - ポイント値
+         * @returns {number} 表示単位での値
+         */
         function toDisplayUnit(valuePt) {
             return Math.round(valuePt / unitInfo.factor * 10) / 10;
         }
 
-        /* 選択中の箇条書き記号の本文タブストップ倍率（•/- は0.8など）。初期化中（ラジオ未生成）は先頭記号 / Body tab-stop ratio of the selected bullet glyph (e.g. 0.8 for •/-); during init (before radios exist) use the first symbol */
-        function selectedBulletBodyRatio() {
-            var symbol = BULLET_SYMBOLS[0];
+        /**
+         * 選択中の箇条書き記号の定義を取得する（初期化中でラジオ未生成なら先頭の記号）
+         * @returns {{mark: string, scale: number, bodyRatio: number}} BULLET_SYMBOLS の要素
+         */
+        function selectedBulletSymbol() {
             if (typeof bulletRadios !== "undefined" && bulletRadios) {
                 for (var bi = 0; bi < bulletRadios.length; bi++) {
-                    if (bulletRadios[bi].value) { symbol = BULLET_SYMBOLS[bi]; break; }
+                    if (bulletRadios[bi].value) return BULLET_SYMBOLS[bi];
                 }
             }
-            return (symbol && symbol.bodyRatio != null) ? symbol.bodyRatio : TAB_STOP_RATIO_1;
+            return BULLET_SYMBOLS[0];
         }
 
-        /* 種類ごとの既定tabストップ（pt）/ Per-type default tab stops (pt) */
-        // 数字: マーカー×1.5・本文×2.0。ABC/abc: マーカー×1.0・本文×2.0。箇条書きは本文＝記号ごとの bodyRatio（既定×1.2, •/-=0.8）。丸数字・なしは×1.2。
-        // numbers: marker ×1.5, body ×2.0. ABC/abc: marker ×1.0, body ×2.0. Bullet: body = each glyph's bodyRatio (default ×1.2, •/- = 0.8). Circled & none: ×1.2.
+        /**
+         * 選択中の箇条書き記号の本文タブストップ倍率を取得する（•/- は0.8など）
+         * @returns {number} 本文タブストップの倍率（bodyRatio 未指定は TAB_STOP_RATIO_1）
+         */
+        function selectedBulletBodyRatio() {
+            var symbol = selectedBulletSymbol();
+            return (symbol.bodyRatio != null) ? symbol.bodyRatio : TAB_STOP_RATIO_1;
+        }
+
+        /**
+         * 種類ごとの既定タブストップ（pt）を求める
+         * 数字はマーカー×1.5・本文×2.0、ABC/abc はマーカー×1.0・本文×2.0、
+         * 箇条書きの本文は記号ごとの bodyRatio（既定×1.2、•/-=0.8）、丸数字・なしは×1.2
+         * @param {string} type - "numbered" / "alpha" / "bullet" / "circled" / "none"
+         * @returns {{stop1Pt: number, stop2Pt: number}} マーカー位置と本文位置（pt）
+         */
         function defaultStopsForType(type) {
             if (type === "numbered") return { stop1Pt: baseFontSize * NUMBERED_TAB_STOP_RATIO_1, stop2Pt: baseFontSize * NUMBERED_TAB_STOP_RATIO_2 };
             if (type === "alpha") return { stop1Pt: baseFontSize * ALPHA_TAB_STOP_RATIO_1, stop2Pt: baseFontSize * NUMBERED_TAB_STOP_RATIO_2 };
@@ -558,48 +719,39 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         // 初期は箇条書き / Initial type is bullet
         var initialStops = defaultStopsForType("bullet");
 
-        var dlg = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
-        dlg.spacing = 15;
-        dlg.margins = 20;
+        var dlg = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        setupWindow(dlg);
 
         /* 上段: 2カラム（左: 設定 / 右: テキストプレビュー）/ Top: two columns (left: settings / right: text preview) */
         var topRow = dlg.add("group");
         topRow.orientation = "row";
         topRow.alignChildren = ["fill", "fill"];
-        topRow.spacing = 15;
+        topRow.spacing = COLUMN_SPACING;
 
         /* 左カラム / Left column */
         var topLeftCol = topRow.add("group");
-        topLeftCol.orientation = "column";
-        topLeftCol.alignChildren = ["fill", "top"];
-        topLeftCol.spacing = 15;
+        setupColumn(topLeftCol);
 
         /* リストの種類パネル（ラジオは横並び）/ List type panel (radios in a row) */
-        var typePanel = topLeftCol.add("panel", undefined, L('panel.listType'));
-        setupPanel(typePanel, 6);
+        var typePanel = addPanel(topLeftCol, getLabel('panel.listType'), DENSE_SPACING);
 
         // ラジオを横並びにし、パネル内で左右中央へ / Radios in a row, centered horizontally within the panel
         var typeRow = typePanel.add("group");
-        typeRow.orientation = "row";
-        typeRow.alignment = ["center", "top"];
-        typeRow.spacing = 12;
+        setupRow(typeRow, "center", COLUMN_SPACING);
 
-        var rbBullet = typeRow.add("radiobutton", undefined, L('radio.bullet'));
-        var rbNumbered = typeRow.add("radiobutton", undefined, L('radio.numbered'));
-        var rbNone = typeRow.add("radiobutton", undefined, L('radio.none'));
+        var rbBullet = typeRow.add("radiobutton", undefined, getLabel('radio.bullet'));
+        var rbNumbered = typeRow.add("radiobutton", undefined, getLabel('radio.numbered'));
+        var rbNone = typeRow.add("radiobutton", undefined, getLabel('radio.none'));
         rbBullet.value = true;
 
         /* 記号／番号の種類／区切り文字の3カラム / Symbol / number style / delimiter (three columns) */
         var styleRow = topLeftCol.add("group");
         styleRow.orientation = "row";
         styleRow.alignChildren = ["fill", "top"];
-        styleRow.spacing = 15;
+        styleRow.spacing = COLUMN_SPACING;
 
         /* 箇条書き記号パネル（箇条書きのみ有効）/ Bullet symbol panel (bullet only) */
-        var bulletStylePanel = styleRow.add("panel", undefined, L('panel.bulletStyle'));
-        setupPanel(bulletStylePanel, 6);
+        var bulletStylePanel = addPanel(styleRow, getLabel('panel.bulletStyle'), DENSE_SPACING);
 
         // 記号候補をラジオで列挙 / List the symbol candidates as radios
         var bulletRadios = [];
@@ -610,27 +762,20 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
         /* 番号スタイル＋区切り文字を縦に並べるカラム / Column stacking number style + delimiter vertically */
         var numberStyleColumn = styleRow.add("group");
-        numberStyleColumn.orientation = "column";
-        numberStyleColumn.alignChildren = ["fill", "top"];
-        numberStyleColumn.alignment = ["fill", "top"];
-        numberStyleColumn.spacing = 8;
+        setupColumn(numberStyleColumn, DENSE_SPACING);
 
         /* 番号スタイルパネル（番号リストのみ有効）/ Number style panel (numbered only) */
-        var numberStylePanel = numberStyleColumn.add("panel", undefined, L('panel.numberStyle'));
-        setupPanel(numberStylePanel, 6);
+        var numberStylePanel = addPanel(numberStyleColumn, getLabel('panel.numberStyle'), DENSE_SPACING);
         numberStylePanel.alignChildren = ["left", "top"];
 
         // 「数字」とゼロ埋めを横並び（ゼロ埋めは数字スタイルのみ有効）/ "Numbers" + zero padding in a row (zero pad only for the numbers style)
         var numberStyleNumberRow = numberStylePanel.add("group");
-        numberStyleNumberRow.orientation = "row";
-        numberStyleNumberRow.alignment = "left";
-        numberStyleNumberRow.alignChildren = ["left", "center"];
-        numberStyleNumberRow.spacing = 8;
-        var rbStyleNumber = numberStyleNumberRow.add("radiobutton", undefined, L('numberStyle.number'));
-        var chkZeroPad = numberStyleNumberRow.add("checkbox", undefined, L('checkbox.zeroPad'));
+        setupRow(numberStyleNumberRow, "left", DENSE_SPACING);
+        var rbStyleNumber = numberStyleNumberRow.add("radiobutton", undefined, getLabel('numberStyle.number'));
+        var chkZeroPad = numberStyleNumberRow.add("checkbox", undefined, getLabel('checkbox.zeroPad'));
 
-        var rbStyleCircledWhite = numberStylePanel.add("radiobutton", undefined, L('numberStyle.circledWhite'));
-        var rbStyleCircledBlack = numberStylePanel.add("radiobutton", undefined, L('numberStyle.circledBlack'));
+        var rbStyleCircledWhite = numberStylePanel.add("radiobutton", undefined, getLabel('numberStyle.circledWhite'));
+        var rbStyleCircledBlack = numberStylePanel.add("radiobutton", undefined, getLabel('numberStyle.circledBlack'));
         // アルファベット大文字 / 小文字（ラベルはそのまま表示）/ Uppercase / lowercase alphabet (self-explanatory labels)
         var rbStyleUpperAlpha = numberStylePanel.add("radiobutton", undefined, "ABC");
         var rbStyleLowerAlpha = numberStylePanel.add("radiobutton", undefined, "abc");
@@ -638,6 +783,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
         // 「数字」を別グループ（行）へ移したため、ラジオの排他は手動で管理 / "Numbers" is in its own row, so manage radio exclusivity manually
         var numberStyleRadios = [rbStyleNumber, rbStyleCircledWhite, rbStyleCircledBlack, rbStyleUpperAlpha, rbStyleLowerAlpha];
+
+        /**
+         * 番号スタイルのラジオを排他選択にする
+         * @param {RadioButton} selected - 選択状態にするラジオボタン
+         * @returns {void}
+         */
         function selectNumberStyleExclusive(selected) {
             for (var nsi = 0; nsi < numberStyleRadios.length; nsi++) {
                 numberStyleRadios[nsi].value = (numberStyleRadios[nsi] === selected);
@@ -646,328 +797,253 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
         // 開始番号 / Start number
         var startNumberRow = numberStylePanel.add("group");
-        startNumberRow.orientation = "row";
-        startNumberRow.alignment = "left";
-        startNumberRow.alignChildren = ["left", "center"];
-        startNumberRow.add("statictext", undefined, labelText('label.startNumber'));
+        setupRow(startNumberRow, "left", DENSE_SPACING);
+        startNumberRow.add("statictext", undefined, getLabelWithColon('fieldLabel.startNumber'));
         var inputStartNumber = startNumberRow.add("edittext", undefined, String(START_NUMBER));
         inputStartNumber.characters = 3;
 
         // フレームごとにリセット（複数フレーム時、各フレームで開始番号から振り直す）/ Restart numbering at each frame (multi-frame)
-        var chkResetPerFrame = numberStylePanel.add("checkbox", undefined, L('checkbox.resetPerFrame'));
+        var chkResetPerFrame = numberStylePanel.add("checkbox", undefined, getLabel('checkbox.resetPerFrame'));
 
         /* 区切り文字パネル（番号リストのみ有効・縦並び）番号スタイルの下に配置 / Delimiter panel (numbered only); placed under the number style panel */
-        var delimiterPanel = numberStyleColumn.add("panel", undefined, L('delimiter.label'));
-        setupPanel(delimiterPanel, 6);
+        var delimiterPanel = addPanel(numberStyleColumn, getLabel('delimiter.label'), DENSE_SPACING);
         delimiterPanel.alignChildren = ["left", "top"];
 
         // 区切り文字（なし/./：/|）は横並び / Delimiter radios in a row
         var delimiterRow = delimiterPanel.add("group");
-        delimiterRow.orientation = "row";
-        delimiterRow.alignment = "left";
-        delimiterRow.spacing = 8;
+        setupRow(delimiterRow, "left", DENSE_SPACING);
         var delimiterRadios = [];
         for (var delimIndex = 0; delimIndex < DELIMITERS.length; delimIndex++) {
-            var delimLabel = (DELIMITERS[delimIndex] === "") ? L('delimiter.none') : DELIMITERS[delimIndex];
+            var delimLabel = (DELIMITERS[delimIndex] === "") ? getLabel('delimiter.none') : DELIMITERS[delimIndex];
             delimiterRadios.push(delimiterRow.add("radiobutton", undefined, delimLabel));
         }
         delimiterRadios[1].value = true; // 既定は「.」 / default "."
 
         /* 位置調整パネル / Position panel */
-        var positionPanel = topLeftCol.add("panel", undefined, L('panel.position'));
-        setupPanel(positionPanel, 30);
-
-        var tabLabelWidth = 100; // ラベル幅をそろえる / Align label widths
+        var positionPanel = addPanel(topLeftCol, getLabel('panel.position'), COLUMN_SPACING);
 
         // 1行目: 1つ目／2つ目を左右2カラムに（それぞれ上揃え）/ Row 1: 1st / 2nd in two columns (each top-aligned)
         var tabStopColumns = positionPanel.add("group");
-        tabStopColumns.orientation = "row";
-        tabStopColumns.alignment = "left";
+        setupRow(tabStopColumns, "left", COLUMN_SPACING * 2); // 1つ目／2つ目カラムのガターを広めに / wider gutter between the 1st / 2nd columns
         tabStopColumns.alignChildren = ["left", "top"];
-        tabStopColumns.spacing = 30; // 1つ目／2つ目カラムのガターを広めに / wider gutter between the 1st / 2nd columns
 
         // 左: 1つ目のtabストップ（数字／箇条書きの位置）＋揃え種類 / Left column: 1st tab stop (number / bullet) + alignment type
         var tabStopLeftCol = tabStopColumns.add("group");
-        tabStopLeftCol.orientation = "column";
+        setupColumn(tabStopLeftCol, DENSE_SPACING);
         tabStopLeftCol.alignChildren = ["left", "top"];
         tabStopLeftCol.alignment = ["left", "top"];
-        tabStopLeftCol.spacing = 6;
 
-        var tabStopRow1 = tabStopLeftCol.add("group");
-        tabStopRow1.orientation = "row";
-        tabStopRow1.alignment = "left";
-        var tabStopLabel1 = tabStopRow1.add("statictext", undefined, labelText('label.tabStop1'));
-        var inputTabStop1 = tabStopRow1.add("edittext", undefined, String(toDisplayUnit(initialStops.stop1Pt)));
-        inputTabStop1.characters = 4;
-        tabStopRow1.add("statictext", undefined, unitInfo.label);
+        var tabStop1UI = addFieldRow(tabStopLeftCol, getLabelWithColon('fieldLabel.tabStop1'), String(toDisplayUnit(initialStops.stop1Pt)), null, unitInfo.label);
+        var tabStopRow1 = tabStop1UI.row;
+        var tabStopLabel1 = tabStop1UI.label;
+        var inputTabStop1 = tabStop1UI.input;
 
         // 1つ目のタブストップの揃え種類（左／中央／右）/ Alignment type of the 1st tab stop (left/center/right)
         var tabAlignRow = tabStopLeftCol.add("group");
-        tabAlignRow.orientation = "row";
-        tabAlignRow.alignment = "left";
+        setupRow(tabAlignRow, "left", DENSE_SPACING);
         tabAlignRow.margins = [0, 5, 0, 0]; // 1つ目入力との間に上マージン / top margin from the 1st-stop input
-        tabAlignRow.spacing = 8;
-        var rbAlignLeft = tabAlignRow.add("radiobutton", undefined, L('tabAlign.left'));
-        var rbAlignCenter = tabAlignRow.add("radiobutton", undefined, L('tabAlign.center'));
-        var rbAlignRight = tabAlignRow.add("radiobutton", undefined, L('tabAlign.right'));
+        var rbAlignLeft = tabAlignRow.add("radiobutton", undefined, getLabel('tabAlign.left'));
+        var rbAlignCenter = tabAlignRow.add("radiobutton", undefined, getLabel('tabAlign.center'));
+        var rbAlignRight = tabAlignRow.add("radiobutton", undefined, getLabel('tabAlign.right'));
         rbAlignRight.value = true; // 既定は右揃え（番号リストの番号位置）/ default right (number column for numbered)
 
         // 右: 2つ目のtabストップ（本文の位置, 番号リストのみ）/ Right: 2nd tab stop (text column, numbered only)
-        var tabStopRow2 = tabStopColumns.add("group");
-        tabStopRow2.orientation = "row";
-        tabStopRow2.alignment = ["left", "top"];
-        var tabStopLabel2 = tabStopRow2.add("statictext", undefined, labelText('label.tabStop2'));
-        var inputTabStop2 = tabStopRow2.add("edittext", undefined, String(toDisplayUnit(initialStops.stop2Pt)));
-        inputTabStop2.characters = 4;
-        tabStopRow2.add("statictext", undefined, unitInfo.label);
+        var tabStop2UI = addFieldRow(tabStopColumns, getLabelWithColon('fieldLabel.tabStop2'), String(toDisplayUnit(initialStops.stop2Pt)), null, unitInfo.label);
+        var tabStopRow2 = tabStop2UI.row;
+        var tabStopLabel2 = tabStop2UI.label;
+        var inputTabStop2 = tabStop2UI.input;
 
-        /* 上段右カラム: 要素のソート / Top-right column: sort elements */
+        /* 上段右カラム: 行の並べ替え / Top-right column: reorder lines */
         var topRightCol = topRow.add("group");
-        topRightCol.orientation = "column";
-        topRightCol.alignChildren = ["fill", "top"];
-        topRightCol.alignment = ["fill", "top"]; // 左カラムの高さに引き伸ばさず内容にフィット / hug content instead of stretching to the taller left column
-        topRightCol.spacing = 0;
+        setupColumn(topRightCol, 0);
         topRightCol.margins = 0;
 
         /* 行の並べ替えパネル（一覧＋並べ替え操作をまとめる）/ Reorder-lines wrapper panel (list + reorder controls) */
-        var sortPanel = topRightCol.add("panel", undefined, L('panel.sortElements'));
-        sortPanel.orientation = "column";
-        sortPanel.alignChildren = ["fill", "top"];
-        sortPanel.margins = PANEL_MARGINS;
-        sortPanel.spacing = 0;  // 並べ替えボタンを listbox の直下に / reorder buttons flush under the listbox
+        // 並べ替えボタンを listbox の直下に置くため間隔は0 / spacing 0 so the reorder buttons sit flush under the listbox
+        var sortPanel = addPanel(topRightCol, getLabel('panel.sortElements'), 0);
 
         // 左=行番号 / 右=本文（マーカーは含めない）/ Left = row number, Right = body text (markers excluded)
         // 列幅の合計をリストボックス幅に合わせて2列目を端まで使う / column widths sum to the listbox width so column 2 fills to the edge
-        var previewListWidth = 250, numberColWidth = 40;
         var previewList = sortPanel.add("listbox", undefined, [], {
             numberOfColumns: 2,
             showHeaders: true,
             multiselect: true, // 複数行を選択して一括移動できるように / allow selecting multiple rows to move them together
-            columnTitles: [L('header.number'), L('header.text')],
-            columnWidths: [numberColWidth, previewListWidth - numberColWidth]
+            columnTitles: [getLabel('header.number'), getLabel('header.text')],
+            columnWidths: [PREVIEW_LIST_NUMBER_COL, PREVIEW_LIST_SIZE[0] - PREVIEW_LIST_NUMBER_COL]
         });
-        previewList.preferredSize = [previewListWidth, 350];
-        // リストの文字サイズを 14pt 相当に / set the list font size to 14pt
+        previewList.preferredSize = PREVIEW_LIST_SIZE;
+        // リストの文字サイズを大きめに / enlarge the list font
         var previewListFont = previewList.graphics.font;
-        previewList.graphics.font = ScriptUI.newFont(previewListFont.name, previewListFont.style, 14);
+        previewList.graphics.font = ScriptUI.newFont(previewListFont.name, previewListFont.style, PREVIEW_LIST_FONT_SIZE);
 
-        /* 並べ替え行（左: 先頭へ/上へ/下へ/末尾へ・右: 名前順）/ Reorder row (left: top/up/down/bottom, right: by name) */
+        /**
+         * 並べ替えボタンを1つ追加する
+         * @param {Group} parent - 追加先の行グループ
+         * @param {string} labelString - ボタンのラベル
+         * @param {number} width - ボタンの幅
+         * @returns {Button} 追加したボタン
+         */
+        function addReorderButton(parent, labelString, width) {
+            var button = parent.add("button", undefined, labelString);
+            button.preferredSize = [width, REORDER_BUTTON_HEIGHT];
+            return button;
+        }
+
+        /* 並べ替え行（先頭へ/上へ/下へ/末尾へ）/ Reorder row (top/up/down/bottom) */
         var reorderRow = sortPanel.add("group");
-        reorderRow.orientation = "row";
-        reorderRow.alignment = ["fill", "top"];
+        setupRow(reorderRow, "fill", 4);
         reorderRow.margins = [0, 10, 0, 0]; // listbox との間に上マージン / top margin from the listbox
-        reorderRow.alignChildren = ["left", "center"];
-        reorderRow.spacing = 4;
 
-        var btnMoveTop = reorderRow.add("button", undefined, L('reorder.top'));
-        var btnMoveUp = reorderRow.add("button", undefined, L('reorder.up'));
-        var btnMoveDown = reorderRow.add("button", undefined, L('reorder.down'));
-        var btnMoveBottom = reorderRow.add("button", undefined, L('reorder.bottom'));
+        var btnMoveTop = addReorderButton(reorderRow, getLabel('reorder.top'), 52);
+        var btnMoveUp = addReorderButton(reorderRow, getLabel('reorder.up'), 46);
+        var btnMoveDown = addReorderButton(reorderRow, getLabel('reorder.down'), 46);
+        var btnMoveBottom = addReorderButton(reorderRow, getLabel('reorder.bottom'), 52);
 
-        var reorderHeight = 22;
-        var moveTopWidth = 52;
-        var moveUpWidth = 46;
-        var moveDownWidth = 46;
-        var moveBottomWidth = 52;
-
-        btnMoveTop.preferredSize = [moveTopWidth, reorderHeight];
-        btnMoveUp.preferredSize = [moveUpWidth, reorderHeight];
-        btnMoveDown.preferredSize = [moveDownWidth, reorderHeight];
-        btnMoveBottom.preferredSize = [moveBottomWidth, reorderHeight];
-
-        // 名前順・値順は次の行に / "By name" / "By value" go on the next row
+        // 名前順・数値順は次の行に / "By name" / "By number" go on the next row
         var sortByNameRow = sortPanel.add("group");
-        sortByNameRow.orientation = "row";
-        sortByNameRow.alignment = ["fill", "top"];
-        sortByNameRow.alignChildren = ["left", "center"];
+        setupRow(sortByNameRow, "fill", 4);
         sortByNameRow.margins = [0, 5, 0, 0]; // 上にマージン / top margin
-        sortByNameRow.spacing = 4;
-        var sortByNameWidth = 70;
-        var sortByValueWidth = 70;
-        var sortByValueDescWidth = 100;
 
-        var btnSortByName = sortByNameRow.add("button", undefined, L('reorder.sortByName'));
-        btnSortByName.preferredSize = [sortByNameWidth, reorderHeight];
-
-        var btnSortByValue = sortByNameRow.add("button", undefined, L('reorder.sortByValue'));
-        btnSortByValue.preferredSize = [sortByValueWidth, reorderHeight];
-
-        var btnSortByValueDesc = sortByNameRow.add("button", undefined, L('reorder.sortByValueDesc'));
-        btnSortByValueDesc.preferredSize = [sortByValueDescWidth, reorderHeight];
+        var btnSortByName = addReorderButton(sortByNameRow, getLabel('reorder.sortByName'), 70);
+        var btnSortByValue = addReorderButton(sortByNameRow, getLabel('reorder.sortByValue'), 70);
+        var btnSortByValueDesc = addReorderButton(sortByNameRow, getLabel('reorder.sortByValueDesc'), 100);
 
         /* ===== 2行目: 左=記号や番号の書式 / 右=段落の書式 / Row 2: left = symbol/number format, right = paragraph format ===== */
         var bottomRow = dlg.add("group");
         bottomRow.orientation = "row";
         bottomRow.alignChildren = ["fill", "top"];
-        bottomRow.spacing = 15;
+        bottomRow.spacing = COLUMN_SPACING;
 
         /* 下段左カラム / Bottom-left column */
         var bottomLeft = bottomRow.add("group");
-        bottomLeft.orientation = "column";
-        bottomLeft.alignChildren = ["fill", "top"];
-        bottomLeft.alignment = ["fill", "top"];
+        setupColumn(bottomLeft);
 
         /* マーカーの書式パネル / Marker format panel */
-        var formatPanel = bottomLeft.add("panel", undefined, L('panel.format'));
-        setupPanel(formatPanel, 6);
+        var formatPanel = addPanel(bottomLeft, getLabel('panel.format'), DENSE_SPACING);
 
         // フォントファミリー（ポップアップ）/ Font family (popup)
         var baseFontName = getBaseFontName(targetSelection);
         var fontRow = formatPanel.add("group");
-        fontRow.orientation = "row";
-        fontRow.alignment = "left";
-        var fontLabel = fontRow.add("statictext", undefined, labelText('label.font'));
-        fontLabel.preferredSize.width = tabLabelWidth;
+        setupRow(fontRow);
+        var fontLabel = fontRow.add("statictext", undefined, getLabelWithColon('fieldLabel.font'));
+        fontLabel.preferredSize.width = FIELD_LABEL_WIDTH;
         var fontFamilyDropdown = fontRow.add("dropdownlist", undefined, []);
         fontFamilyDropdown.preferredSize.width = 200;
 
         // フォントスタイル（ポップアップ）/ Font style (popup)
         var fontStyleRow = formatPanel.add("group");
-        fontStyleRow.orientation = "row";
-        fontStyleRow.alignment = "left";
-        var fontStyleLabel = fontStyleRow.add("statictext", undefined, labelText('label.fontStyle'));
-        fontStyleLabel.preferredSize.width = tabLabelWidth;
+        setupRow(fontStyleRow);
+        var fontStyleLabel = fontStyleRow.add("statictext", undefined, getLabelWithColon('fieldLabel.fontStyle'));
+        fontStyleLabel.preferredSize.width = FIELD_LABEL_WIDTH;
         var fontStyleDropdown = fontStyleRow.add("dropdownlist", undefined, []);
         fontStyleDropdown.preferredSize.width = 200;
 
         // 和文フォントのみ / Japanese fonts only
         var jpOnlyRow = formatPanel.add("group");
-        jpOnlyRow.orientation = "row";
-        jpOnlyRow.alignment = "left";
-        jpOnlyRow.add("statictext", undefined, "").preferredSize.width = tabLabelWidth; // ラベル列に合わせるスペーサー / spacer to align with the label column
-        var chkJPOnly = jpOnlyRow.add("checkbox", undefined, L('checkbox.jpOnly'));
+        setupRow(jpOnlyRow);
+        jpOnlyRow.add("statictext", undefined, "").preferredSize.width = FIELD_LABEL_WIDTH; // ラベル列に合わせるスペーサー / spacer to align with the label column
+        var chkJPOnly = jpOnlyRow.add("checkbox", undefined, getLabel('checkbox.jpOnly'));
 
         populateFontFamilyDropdown(fontFamilyDropdown, baseFontName, chkJPOnly.value);
         populateFontStyleDropdown(fontStyleDropdown, fontFamilyDropdown.selection, baseFontName);
 
         // 2カラム: 左=比率・ベースライン / 右=カラー / Two columns: left = scale & baseline, right = color
         var formatColumns = formatPanel.add("group");
-        formatColumns.orientation = "row";
-        formatColumns.alignment = "left";
+        setupRow(formatColumns, "left", COLUMN_SPACING);
         formatColumns.alignChildren = ["left", "top"];
-        formatColumns.spacing = 20;
 
         // 左カラム / Left column: scale & baseline
         var formatLeft = formatColumns.add("group");
-        formatLeft.orientation = "column";
+        setupColumn(formatLeft, DENSE_SPACING);
         formatLeft.alignChildren = ["left", "top"];
-        formatLeft.spacing = 6;
+        formatLeft.alignment = ["left", "top"];
 
-        // 比率（水平・垂直を同率で適用, %）/ Scale (applied equally to H and V, %)
-        var scaleRow = formatLeft.add("group");
-        scaleRow.orientation = "row";
-        scaleRow.alignment = "left";
-        var scaleLabel = scaleRow.add("statictext", undefined, labelText('label.scale'));
-        scaleLabel.preferredSize.width = tabLabelWidth;
-        var inputScale = scaleRow.add("edittext", undefined, "120"); // 初期は箇条書きの記号に合わせた比率 / initial scale for the default bullet glyph
-        inputScale.characters = 4;
-        scaleRow.add("statictext", undefined, "%");
+        // 比率（水平・垂直を同率で適用, %）。初期は箇条書きの記号に合わせた比率 / Scale (applied equally to H and V, %), initialized for the default bullet glyph
+        var scaleUI = addFieldRow(formatLeft, getLabelWithColon('fieldLabel.scale'), "120", FIELD_LABEL_WIDTH, "%");
+        var scaleLabel = scaleUI.label;
+        var inputScale = scaleUI.input;
 
         // ベースラインシフト / Baseline shift
-        var baselineRow = formatLeft.add("group");
-        baselineRow.orientation = "row";
-        baselineRow.alignment = "left";
-        var baselineLabel = baselineRow.add("statictext", undefined, labelText('label.baselineShift'));
-        baselineLabel.preferredSize.width = tabLabelWidth;
-        var inputBaseline = baselineRow.add("edittext", undefined, "0");
-        inputBaseline.characters = 4;
-        baselineRow.add("statictext", undefined, unitInfo.label);
+        var baselineUI = addFieldRow(formatLeft, getLabelWithColon('fieldLabel.baselineShift'), "0", FIELD_LABEL_WIDTH, unitInfo.label);
+        var baselineLabel = baselineUI.label;
+        var inputBaseline = baselineUI.input;
 
         // 右カラム / Right column: color
         var formatRight = formatColumns.add("group");
-        formatRight.orientation = "column";
+        setupColumn(formatRight, DENSE_SPACING);
         formatRight.alignChildren = ["left", "top"];
-        formatRight.spacing = 6;
+        formatRight.alignment = ["left", "top"];
 
         // カラー（■をクリックでカラーピッカー）。記号／番号と区切り文字を別々に指定 / Color (click a swatch to open the picker). Marker/number and delimiter are set separately
         var baseFillColor = getBaseFillColor(targetSelection);
 
-        // カラー行のラベル幅（比率・ベースラインの tabLabelWidth とは独立）/ Color-row label width (independent of tabLabelWidth used by scale/baseline)
+        // カラー行のラベル幅（比率・ベースラインの FIELD_LABEL_WIDTH とは独立）/ Color-row label width (independent of FIELD_LABEL_WIDTH used by scale/baseline)
         var colorLabelWidth = (currentLanguage === 'ja') ? 80 : 110;
 
-        /* ラベル＋カラースウォッチの1行を作る（クリックでピッカー→プレビュー）/ Build one label + swatch row (click opens the picker → preview) */
-        function addColorRow(parent, labelStr, initColor) {
+        /**
+         * ラベル＋カラースウォッチの1行を追加する（スウォッチのクリックでピッカー→プレビュー）
+         * @param {Group|Panel} parent - 追加先
+         * @param {string} labelString - ラベル文字列
+         * @param {CMYKColor|RGBColor|GrayColor} initColor - 初期カラー
+         * @returns {{row: Group, label: StaticText, swatch: Group}} 生成した行と部品
+         */
+        function addColorRow(parent, labelString, initColor) {
             var row = parent.add("group");
-            row.orientation = "row";
-            row.alignment = "left";
-            row.alignChildren = ["left", "center"];
-            var lbl = row.add("statictext", undefined, labelStr);
-            lbl.preferredSize.width = colorLabelWidth;
-            var swatch = createColorSwatch(row, initColor, 20);
+            setupRow(row, "left", DENSE_SPACING);
+            var label = row.add("statictext", undefined, labelString);
+            label.preferredSize.width = colorLabelWidth;
+            var swatch = createColorSwatch(row, initColor, SWATCH_SIZE);
             swatch.addEventListener("click", function () {
                 var result = ColorPicker.show({
                     value: aiColorToPickerString(swatch._aiColor),
-                    title: L('colorPicker'),
+                    title: getLabel('dialog.colorPicker'),
                     lang: currentLanguage
                 });
                 if (result !== null) {
                     swatch._aiColor = pickerStringToAiColor(result);
-                    try { swatch.hide(); swatch.show(); } catch (e) { }
+                    redrawSwatch(swatch);
                     updatePreview();
                 }
             });
-            return { row: row, label: lbl, swatch: swatch };
+            return { row: row, label: label, swatch: swatch };
         }
 
-        var markerColorUI = addColorRow(formatRight, labelText('label.markerColor'), baseFillColor);
-        var delimiterColorUI = addColorRow(formatRight, labelText('delimiter.label'), baseFillColor);
+        var markerColorUI = addColorRow(formatRight, getLabelWithColon('fieldLabel.markerColor'), baseFillColor);
+        var delimiterColorUI = addColorRow(formatRight, getLabelWithColon('delimiter.label'), baseFillColor);
         var colorSwatch = markerColorUI.swatch;             // 記号／番号のカラー / marker-number color
         var delimiterColorSwatch = delimiterColorUI.swatch; // 区切り文字のカラー / delimiter color
 
         /* 下段右カラム / Bottom-right column */
         var bottomRight = bottomRow.add("group");
-        bottomRight.orientation = "column";
-        bottomRight.alignChildren = ["fill", "top"];
-        bottomRight.alignment = ["fill", "top"];
+        setupColumn(bottomRight);
 
         /* 段落設定パネル / Paragraph settings panel */
-        var paragraphPanel = bottomRight.add("panel", undefined, L('panel.paragraph'));
-        setupPanel(paragraphPanel, 6);
-
-        var paraLabelWidth = 110; // 段落書式ラベルの幅 / paragraph-format label width
+        var paragraphPanel = addPanel(bottomRight, getLabel('panel.paragraph'), DENSE_SPACING);
 
         // 行送り（初期値は選択テキストの現在値）/ Leading (initialized to the selection's current value)
         var baseLeadingPt = getBaseLeading(targetSelection);
         var leadingDefaultText = (baseLeadingPt != null) ? String(toDisplayUnit(baseLeadingPt)) : "";
-        var leadingRow = paragraphPanel.add("group");
-        leadingRow.orientation = "row";
-        leadingRow.alignment = "left";
-        var leadingLabel = leadingRow.add("statictext", undefined, labelText('label.leading'));
-        leadingLabel.preferredSize.width = paraLabelWidth;
-        var inputLeading = leadingRow.add("edittext", undefined, leadingDefaultText);
-        inputLeading.characters = 4;
-        leadingRow.add("statictext", undefined, unitInfo.label);
+        var leadingUI = addFieldRow(paragraphPanel, getLabelWithColon('fieldLabel.leading'), leadingDefaultText, PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var leadingLabel = leadingUI.label;
+        var inputLeading = leadingUI.input;
 
         // 段落後のアキ / Space after
-        var spaceAfterRow = paragraphPanel.add("group");
-        spaceAfterRow.orientation = "row";
-        spaceAfterRow.alignment = "left";
-        var spaceAfterLabel = spaceAfterRow.add("statictext", undefined, labelText('label.spaceAfter'));
-        spaceAfterLabel.preferredSize.width = paraLabelWidth;
-        var inputSpaceAfter = spaceAfterRow.add("edittext", undefined, "0");
-        inputSpaceAfter.characters = 4;
-        spaceAfterRow.add("statictext", undefined, unitInfo.label);
+        var spaceAfterUI = addFieldRow(paragraphPanel, getLabelWithColon('fieldLabel.spaceAfter'), "0", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var spaceAfterLabel = spaceAfterUI.label;
+        var inputSpaceAfter = spaceAfterUI.input;
 
         // ハンギング対応（チェック時のみ左/1行目インデントを適用）/ Hanging indent (apply left/first-line indent only when checked)
         // チェックボックスは他のラベルと同じ左位置に / checkbox aligned at the label column like the other rows
         var hangingRow = paragraphPanel.add("group");
-        hangingRow.orientation = "row";
-        hangingRow.alignment = "left";
+        setupRow(hangingRow, "left", DENSE_SPACING);
         hangingRow.margins = [0, 12, 0, 0]; // 上に余白 / top margin
-        var chkHanging = hangingRow.add("checkbox", undefined, L('checkbox.hanging'));
+        var chkHanging = hangingRow.add("checkbox", undefined, getLabel('checkbox.hanging'));
 
-        // 左インデント / Left indent
-        var leftIndentRow = paragraphPanel.add("group");
-        leftIndentRow.orientation = "row";
-        leftIndentRow.alignment = "left";
-        var leftIndentLabel = leftIndentRow.add("statictext", undefined, labelText('label.leftIndent'));
-        leftIndentLabel.preferredSize.width = paraLabelWidth;
-        var inputLeftIndent = leftIndentRow.add("edittext", undefined, "0");
-        inputLeftIndent.characters = 4;
-        leftIndentRow.add("statictext", undefined, unitInfo.label);
-
-        // 1行目インデントはUIを持たず、内部的に「左インデントの正負反転」を計算して適用
-        // First-line indent has no UI; internally it's computed as the negated left indent
+        // 左インデント（1行目インデントはUIを持たず、内部で左インデントの正負を反転して適用）
+        // Left indent (first-line indent has no UI; it's the negated left indent, computed internally)
+        var leftIndentUI = addFieldRow(paragraphPanel, getLabelWithColon('fieldLabel.leftIndent'), "0", PARAGRAPH_LABEL_WIDTH, unitInfo.label);
+        var leftIndentLabel = leftIndentUI.label;
+        var inputLeftIndent = leftIndentUI.input;
 
         /* ボタンエリア（左: 制御文字表示 / 中央: spacer / 右: Cancel → OK）/ Button area (left: show hidden / center: spacer / right: Cancel → OK) */
         var btnGroup = dlg.add("group");
@@ -976,8 +1052,8 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
         // 左カラム / Left column
         var btnLeft = btnGroup.add("group");
-        var btnShowHidden = btnLeft.add("button", undefined, L('button.showHidden'));
-        var btnReset = btnLeft.add("button", undefined, L('button.reset'));
+        var btnShowHidden = btnLeft.add("button", undefined, getLabel('button.showHidden'));
+        var btnReset = btnLeft.add("button", undefined, getLabel('button.reset'));
 
         // 中央カラム（伸縮スペーサー）/ Center column (flexible spacer)
         var btnSpacer = btnGroup.add("group");
@@ -987,7 +1063,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         // 右カラム / Right column
         var btnRight = btnGroup.add("group");
         btnRight.alignChildren = ["right", "center"];
-        var btnCancel = btnRight.add("button", undefined, L('button.cancel'), { name: "cancel" });
+        var btnCancel = btnRight.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
         var btnOK = btnRight.add("button", undefined, "OK", { name: "ok" });
 
         /* 制御文字（隠し文字）の表示切り替え / Toggle hidden characters */
@@ -998,22 +1074,28 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         /* まとめてリセット / Reset everything listed */
         btnReset.onClick = function () { resetAllValues(); };
 
-        /* 現在の選択種類を取得 / Get the currently selected list type */
+        /**
+         * 現在選択されているリストの種類を取得する
+         * @returns {string} "bullet" / "numbered" / "none"
+         */
         function currentType() {
             if (rbNumbered.value) return "numbered";
             if (rbNone.value) return "none";
             return "bullet";
         }
 
-        /* 現在の箇条書き記号を取得 / Get the currently selected bullet symbol */
+        /**
+         * 現在選択されている箇条書き記号を取得する
+         * @returns {string} 箇条書き記号
+         */
         function currentBulletMark() {
-            for (var bi = 0; bi < bulletRadios.length; bi++) {
-                if (bulletRadios[bi].value) return BULLET_SYMBOLS[bi].mark;
-            }
-            return BULLET_SYMBOLS[0].mark;
+            return selectedBulletSymbol().mark;
         }
 
-        /* 現在の区切り文字を取得（なし=空文字）/ Get the currently selected delimiter (none = "") */
+        /**
+         * 現在選択されている区切り文字を取得する
+         * @returns {string} 区切り文字（「なし」は空文字）
+         */
         function currentDelimiter() {
             for (var di = 0; di < delimiterRadios.length; di++) {
                 if (delimiterRadios[di].value) return DELIMITERS[di];
@@ -1021,7 +1103,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             return "";
         }
 
-        /* 現在の番号スタイルを取得 / Get the currently selected number style */
+        /**
+         * 現在選択されている番号スタイルを取得する
+         * @returns {string} "number" / "circledWhite" / "circledBlack" / "upperAlpha" / "lowerAlpha"
+         */
         function currentStyle() {
             if (rbStyleCircledWhite.value) return "circledWhite";
             if (rbStyleCircledBlack.value) return "circledBlack";
@@ -1030,13 +1115,19 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             return "number";
         }
 
-        /* 開始番号を取得（不正値・負値は1へ）/ Read the start number (fallback to 1 on invalid / negative) */
+        /**
+         * 開始番号を取得する（不正値・負値は START_NUMBER へフォールバック）
+         * @returns {number} 開始番号
+         */
         function currentStartNumber() {
             var value = parseInt(inputStartNumber.text, 10);
             return (isNaN(value) || value < 0) ? START_NUMBER : value;
         }
 
-        /* 付与される最大の番号（警告・桁そろえ用）/ The largest number that will be produced (for warnings & zero padding) */
+        /**
+         * 付与される最大の番号を求める（丸数字の警告・ゼロ埋めの桁そろえ用）
+         * @returns {number} 最大の番号
+         */
         function largestNumberValue() {
             var count = chkResetPerFrame.value
                 ? maxNumberedItemsPerFrame(targetSelection)   // フレームごとにリセット時は最大フレームの件数 / per-frame: the biggest frame's count
@@ -1044,13 +1135,20 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             return currentStartNumber() + count - 1;
         }
 
-        /* %入力値を取得（不正値・0以下は100へ）/ Read a percent input (fallback to 100 on invalid / non-positive) */
+        /**
+         * パーセント入力欄の値を取得する（不正値・0以下は100へフォールバック）
+         * @param {EditText} input - 対象の入力欄
+         * @returns {number} パーセント値
+         */
         function readPercent(input) {
             var value = parseFloat(input.text);
             return (isNaN(value) || value <= 0) ? 100 : value;
         }
 
-        /* 書式（フォント・比率・ベースラインシフト・カラー）を取得 / Get the marker format (font, scale, baseline shift, color) */
+        /**
+         * マーカーの書式（フォント・比率・ベースラインシフト・カラー）を取得する
+         * @returns {{fontName: string, horizontalScale: number, verticalScale: number, baselineShiftPt: number, fillColor: object, delimiterFillColor: object}} 書式
+         */
         function currentFormat() {
             var fontName = getSelectedFontName(fontFamilyDropdown, fontStyleDropdown);
 
@@ -1069,9 +1167,16 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             };
         }
 
-        /* 段落の書式（行送り・段落後のアキ・インデント）を取得。空欄は null（変更しない）/ Get paragraph format; blank = null (leave unchanged) */
+        /**
+         * 段落の書式（行送り・段落後のアキ・インデント）を取得する。空欄は null（＝変更しない）
+         * @returns {{leadingPt: (number|null), spaceAfterPt: (number|null), leftIndentPt: (number|null), firstLineIndentPt: (number|null)}} 段落の書式
+         */
         function currentParagraphFormat() {
-            // 負値不可（行送り・アキ・左インデント）/ non-negative only
+            /**
+             * 入力欄をポイント値として読む（空欄・不正値・負値は null）
+             * @param {EditText} input - 対象の入力欄
+             * @returns {number|null} ポイント値
+             */
             function readOptionalPt(input) {
                 if (!input.text || !/\S/.test(input.text)) return null; // 空欄は変更なし / blank = no change
                 var value = parseFloat(input.text);
@@ -1090,26 +1195,40 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             };
         }
 
-        /* ハンギング対応のON/OFFでインデントをディム / Dim the indent field by the hanging checkbox */
+        /**
+         * 「折り返し位置を揃える」のON/OFFに応じてインデント欄をディムする
+         * @returns {void}
+         */
         function updateHangingEnabled() {
             var hangingOn = chkHanging.value;
             leftIndentLabel.enabled = hangingOn;
             inputLeftIndent.enabled = hangingOn;
         }
 
-        /* ハンギングON時、本文位置（tabStop2）に左インデント値を反映 / When hanging is on, mirror the left indent into the body position (tabStop2) */
+        /**
+         * 「折り返し位置を揃える」がONのとき、本文位置に左インデントの値を反映する
+         * @returns {void}
+         */
         function syncHangingTabStop() {
             if (!chkHanging.value || rbNone.value) return;
             inputTabStop2.text = inputLeftIndent.text; // 本文位置＝左インデント（全種類共通）/ body position = left indent (all types)
         }
 
-        /* tabストップ入力値（表示単位、不正値は既定へフォールバック）/ Tab stop input in display unit (fallback to default on invalid input) */
+        /**
+         * タブストップ入力欄の値を表示単位で取得する
+         * @param {EditText} input - 対象の入力欄
+         * @param {number} fallbackPt - 不正値のときに使う既定値（pt）
+         * @returns {number} 表示単位での値
+         */
         function readTabStop(input, fallbackPt) {
             var value = parseFloat(input.text);
             return (isNaN(value) || value < 0) ? toDisplayUnit(fallbackPt) : value;
         }
 
-        /* タブストップ既定用の種類（丸数字=1ストップ, ABC/abc=マーカー×1.0 で区別）/ Type for default tab stops (circled = single stop; ABC/abc = marker ×1.0) */
+        /**
+         * タブストップ既定値を決めるための種類を取得する（丸数字は1ストップ、ABC/abc はマーカー×1.0）
+         * @returns {string} "bullet" / "none" / "circled" / "alpha" / "numbered"
+         */
         function currentStopType() {
             if (rbBullet.value) return "bullet";
             if (rbNone.value) return "none";
@@ -1118,7 +1237,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             return "numbered";
         }
 
-        /* 各tabストップ入力値をポイントへ換算 / Convert each tab stop input to points */
+        /**
+         * マーカー位置のタブストップをポイントで取得する
+         * @returns {number} マーカー位置（pt）
+         */
         function currentTabStop1Pt() {
             return readTabStop(inputTabStop1, defaultStopsForType(currentStopType()).stop1Pt) * unitInfo.factor;
         }
@@ -1176,10 +1298,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             var prevSelected = selectedRowIndices();
 
             previewList.removeAll();
-            var bodyLines = computeBodyLines(baseline);
-            for (var k = 0; k < bodyLines.length; k++) {
+            var bodyEntries = getFlatBodyEntries(baseline);
+            for (var k = 0; k < bodyEntries.length; k++) {
                 var row = previewList.add("item", String(k + 1)); // 左カラム: 連番 / Left column: sequential number
-                row.subItems[0].text = bodyLines[k];               // 右カラム: 本文 / Right column: body text
+                row.subItems[0].text = bodyEntries[k].text;        // 右カラム: 本文 / Right column: body text
             }
 
             // 退避した選択を復元（行数が減っている場合は範囲内のみ）/ Restore selection (only indices still in range)
@@ -1396,7 +1518,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             updatePreview();
             // 丸数字で21以上になる場合は範囲外（素の数字）になるため警告 / Warn when circled numbering exceeds 20 (the rest become plain numbers)
             if (isCircled && largestNumberValue() > 20) {
-                alert(L('alert.circledLimit'));
+                alert(getLabel('alert.circledLimit'));
             }
         }
 
@@ -1518,27 +1640,27 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         changeValueByArrowKey(inputLeftIndent, false, function () { syncHangingTabStop(); updatePreview(); }); // インデント→本文タブストップ同期 / indent syncs body tab stop
 
         // ツールチップ（意味が伝わりにくいラベル・入力に補足）/ Tooltips for labels and inputs whose meaning isn't obvious
-        tabStopLabel1.helpTip = inputTabStop1.helpTip = L('tip.tabStop1');
-        tabStopLabel2.helpTip = inputTabStop2.helpTip = L('tip.tabStop2');
-        rbAlignLeft.helpTip = rbAlignCenter.helpTip = rbAlignRight.helpTip = L('tip.tabAlign');
-        scaleLabel.helpTip = inputScale.helpTip = L('tip.scale');
-        baselineLabel.helpTip = inputBaseline.helpTip = L('tip.baseline');
-        chkZeroPad.helpTip = L('tip.zeroPad');
-        inputStartNumber.helpTip = L('tip.startNumber');
-        chkResetPerFrame.helpTip = L('tip.resetPerFrame');
+        tabStopLabel1.helpTip = inputTabStop1.helpTip = getLabel('tooltip.tabStop1');
+        tabStopLabel2.helpTip = inputTabStop2.helpTip = getLabel('tooltip.tabStop2');
+        rbAlignLeft.helpTip = rbAlignCenter.helpTip = rbAlignRight.helpTip = getLabel('tooltip.tabAlign');
+        scaleLabel.helpTip = inputScale.helpTip = getLabel('tooltip.scale');
+        baselineLabel.helpTip = inputBaseline.helpTip = getLabel('tooltip.baseline');
+        chkZeroPad.helpTip = getLabel('tooltip.zeroPad');
+        inputStartNumber.helpTip = getLabel('tooltip.startNumber');
+        chkResetPerFrame.helpTip = getLabel('tooltip.resetPerFrame');
 
-        fontLabel.helpTip = fontFamilyDropdown.helpTip = L('tip.font');
-        fontStyleLabel.helpTip = fontStyleDropdown.helpTip = L('tip.fontStyle');
+        fontLabel.helpTip = fontFamilyDropdown.helpTip = getLabel('tooltip.font');
+        fontStyleLabel.helpTip = fontStyleDropdown.helpTip = getLabel('tooltip.fontStyle');
 
-        chkJPOnly.helpTip = L('tip.jpOnly');
-        markerColorUI.label.helpTip = markerColorUI.swatch.helpTip = L('tip.color');
-        delimiterColorUI.label.helpTip = delimiterColorUI.swatch.helpTip = L('tip.delimiterColor');
-        leadingLabel.helpTip = inputLeading.helpTip = L('tip.leading');
-        spaceAfterLabel.helpTip = inputSpaceAfter.helpTip = L('tip.spaceAfter');
-        chkHanging.helpTip = L('tip.hanging');
-        leftIndentLabel.helpTip = inputLeftIndent.helpTip = L('tip.leftIndent');
-        btnShowHidden.helpTip = L('tip.showHidden');
-        btnReset.helpTip = L('tip.reset');
+        chkJPOnly.helpTip = getLabel('tooltip.jpOnly');
+        markerColorUI.label.helpTip = markerColorUI.swatch.helpTip = getLabel('tooltip.color');
+        delimiterColorUI.label.helpTip = delimiterColorUI.swatch.helpTip = getLabel('tooltip.delimiterColor');
+        leadingLabel.helpTip = inputLeading.helpTip = getLabel('tooltip.leading');
+        spaceAfterLabel.helpTip = inputSpaceAfter.helpTip = getLabel('tooltip.spaceAfter');
+        chkHanging.helpTip = getLabel('tooltip.hanging');
+        leftIndentLabel.helpTip = inputLeftIndent.helpTip = getLabel('tooltip.leftIndent');
+        btnShowHidden.helpTip = getLabel('tooltip.showHidden');
+        btnReset.helpTip = getLabel('tooltip.reset');
 
         var committed = false;
 
@@ -1705,8 +1827,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     /* 1フレーム分の行へマーカーを付与（連番カウンタを共有）/ Build marked lines for one frame (shares the number counter) */
     function buildMarkedLines(frameText, listType, options, numberCounter, padWidth) {
         // 改行コードを統一 / Normalize line breaks
-        var normalized = frameText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-        var lines = normalized.split("\n");
+        var lines = splitIntoLines(frameText);
 
         var bulletMark = options.bulletMark || BULLET_MARK;
 
@@ -1826,31 +1947,32 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     }
 
-    /* 一覧表示用に、マーカーを除いた本文の全行を算出（ドキュメントは変更しない）/ Compute body lines without markers for the list display (no document changes) */
-    function computeBodyLines(baseline) {
-        return getFlatBodyLines(baseline);
-    }
-
     // =========================================
     // 並べ替え / Reorder
     // =========================================
 
-    /* baseline 各フレームの行数を取得 / Get each frame's line count */
+    /**
+     * baseline の各フレームの行数を取得する
+     * @param {Array<object>} baseline - captureBaseline() が返した控え
+     * @returns {number[]} フレームごとの行数
+     */
     function getFrameLineCounts(baseline) {
         var counts = [];
         for (var i = 0; i < baseline.length; i++) {
-            var normalized = baseline[i].contents.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-            counts.push(normalized.split("\n").length);
+            counts.push(splitIntoLines(baseline[i].contents).length);
         }
         return counts;
     }
 
-    /* 全フレームの本文と文字属性を1つのフラット配列で取得 / Flat array of body lines and attributes across all frames */
+    /**
+     * 全フレームの本文（マーカー除去後）と文字属性を1つのフラット配列で取得する
+     * @param {Array<object>} baseline - captureBaseline() が返した控え
+     * @returns {Array<{text: string, attrs: Array<object>}>} 行ごとの本文と文字属性
+     */
     function getFlatBodyEntries(baseline) {
         var flat = [];
         for (var i = 0; i < baseline.length; i++) {
-            var normalized = baseline[i].contents.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-            var lines = normalized.split("\n");
+            var lines = splitIntoLines(baseline[i].contents);
             var attrsPerLine = baseline[i].bodyAttrsPerLine || [];
             for (var j = 0; j < lines.length; j++) {
                 flat.push({
@@ -1861,31 +1983,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
         return flat;
     }
-    /* 全フレームの本文（マーカー除去後）を1つのフラット配列で取得 / Flat array of body lines (markers stripped) across all frames */
-    function getFlatBodyLines(baseline) {
-        var flat = [];
-        for (var i = 0; i < baseline.length; i++) {
-            var normalized = baseline[i].contents.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-            var lines = normalized.split("\n");
-            for (var j = 0; j < lines.length; j++) {
-                flat.push(stripListMarker(lines[j]));
-            }
-        }
-        return flat;
-    }
-
-    /* フラット配列を元のフレーム行数どおりに baseline へ書き戻す / Write a flat array back into baseline by each frame's line count */
-    function writeFlatBodyLines(baseline, flat) {
-        var counts = getFrameLineCounts(baseline);
-        var index = 0;
-        for (var i = 0; i < baseline.length; i++) {
-            var lineCount = counts[i];
-            baseline[i].contents = flat.slice(index, index + lineCount).join("\r");
-            index += lineCount;
-        }
-    }
-
-    /* フラット配列の本文と文字属性を元のフレーム行数どおりに baseline へ書き戻す / Write flat body entries and attributes back by each frame's line count */
+    /**
+     * フラット配列の本文と文字属性を、元のフレーム行数どおりに baseline へ書き戻す
+     * @param {Array<object>} baseline - captureBaseline() が返した控え
+     * @param {Array<{text: string, attrs: Array<object>}>} flatEntries - 書き戻す行データ
+     * @returns {void}
+     */
     function writeFlatBodyEntries(baseline, flatEntries) {
         var counts = getFrameLineCounts(baseline);
         var index = 0;
@@ -1935,8 +2038,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
     /* 1フレームの番号付け対象行数（空行は除外）/ Numbered (non-empty) line count of one frame */
     function numberedItemsInFrame(frame) {
-        var normalized = frame.contents.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-        var lines = normalized.split("\n");
+        var lines = splitIntoLines(frame.contents);
         var count = 0;
         for (var j = 0; j < lines.length; j++) {
             if (/\S/.test(stripListMarker(lines[j]))) count++; // 空行はスキップ / skip empty lines
