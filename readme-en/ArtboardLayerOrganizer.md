@@ -16,37 +16,45 @@
 ### Main Features
 
 - Target Artboards
-  - **Current only** / **All** (locked to "Current only" when the document has only one artboard)
+  - **Current artboard** / **All** (locked to "Current artboard" when the document has only one artboard)
 - Layer Name Format
-  - Toggle "Artboard Number" and "Artboard Name"
+  - Toggle "Include number" and "Include name" (they cannot both be off)
   - Separator: Underscore (_) / Hyphen (-) / Space / None (default: underscore)
+  - The separator applies only when both the number and the name are included
+  - The resulting name is previewed live in the dialog, e.g. "Example: 1_Cover"
   - Falls back to "Artboard" when the artboard name is empty
 - Exclude options
   - Locked: Layer / Object, Hidden: Layer / Object (all on by default)
-  - "Layer names to exclude" accepts comma-separated layer names to leave untouched (default: bg)
+  - Whatever you turn off is temporarily unlocked / shown for the move, then restored to its original state
+  - "Specify by name" accepts comma-separated layer names to leave untouched (default: bg)
   - Guides bypass the name-based exclusion and are still collected on _guide (locked / hidden ancestors are respected)
 - "After Organizing" toggle removes empty layers and sub-layers (on by default)
+  - Sub-layers matching an exclusion rule are kept together with their contents
 - Legacy layers (named after the artboard only) are merged into the new layers and removed
 - Target layers that are locked or hidden are temporarily unlocked / shown for the move, then restored
-- "_guide" and "_pasteboard" are protected layers that are never deleted even when empty; _guide is brought to the front
+- "_guide" and "_pasteboard" are protected layers that are never deleted even when empty, including when they appear as sub-layers; _guide is brought to the front
 - Reports the number of objects that could not be moved via an alert
 - Automatic Japanese / English UI
 
 ### Workflow
 
 1. Choose target artboards, layer name format, exclusions, and after-organizing options in the dialog
-2. Collect the top-level objects, resolve the owning artboard from each centroid, and move them into the matching layer
-3. Send leftover objects to _pasteboard / _guide and merge legacy artboard-named layers
-4. Reorder the layers to match artboard order and remove empty layers / sub-layers when requested
+2. Collect the top-level objects and compute every centroid up front
+3. Temporarily release the lock / hidden state of whatever is in scope, then move each object into the layer of the artboard containing its centroid
+4. Send objects that belong to no artboard to _pasteboard / _guide and merge legacy artboard-named layers
+5. Reorder the layers to match artboard order and restore the original lock / hidden state
+6. Remove empty layers / sub-layers when requested
 
 ### Not Supported
 
 - No open document (an alert is shown and the script exits)
 - Locked or hidden layers and objects when the corresponding exclusions are on, plus any object under such an ancestor
-- Layers listed in "Layer names to exclude" and their contents (guides excepted)
-- The _pasteboard pass and legacy-layer merge are skipped in "Current only" mode
+- Layers listed under "Specify by name" and their contents (guides excepted)
+- Objects nested inside groups or symbols (only top-level objects are processed)
+- The _pasteboard pass and legacy-layer merge are skipped in "Current artboard" mode
 - Protected layers (_guide / _pasteboard) are never deleted, even when empty
 
 ### Update History
 
-- v1.3.0 (20260526): Current version
+- v1.3.1 (2026-08-17): Fixed objects being counted as failures instead of moved when the Locked / Hidden exclusions were turned off. Fixed the script aborting while removing empty layers, and failures being counted twice. Excluded sub-layers are now kept together with their contents. Added the layer name preview, revised the UI wording, and cached centroid calculation for speed
+- v1.3.0 (2026-05-26)

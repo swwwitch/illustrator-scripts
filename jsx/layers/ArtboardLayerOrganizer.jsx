@@ -20,16 +20,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardLayerOrganizer";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-17";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardLayerOrganizer.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardLayerOrganizer.md
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -44,15 +44,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     var GUIDE_LAYER_NAME = "_guide";
     var PASTEBOARD_LAYER_NAME = "_pasteboard";
 
-    /* パネル共通レイアウト / Common panel layout */
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var PANEL_SPACING = 8;
-
-    /* 区切り文字ドロップダウンの選択位置 / Separator dropdown indexes */
+    /* 区切り文字ドロップダウンの選択位置と実際の文字 / Separator dropdown indexes and their characters */
     var SEPARATOR_UNDERSCORE = 0;
-    var SEPARATOR_HYPHEN = 1;
-    var SEPARATOR_SPACE = 2;
-    var SEPARATOR_NONE = 3;
+    var SEPARATOR_HYPHEN     = 1;
+    var SEPARATOR_SPACE      = 2;
+    var SEPARATOR_NONE       = 3;
+    var SEPARATOR_CHARACTERS = ["_", "-", " ", ""];
 
     /* ダイアログの初期値。必要に応じて編集 / Dialog defaults; edit as needed */
     var DEFAULT_OPTIONS = {
@@ -60,13 +57,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         includeArtboardNumber: true,
         includeArtboardName: true,
         useSeparator: true,
-        separatorIndex: SEPARATOR_UNDERSCORE,
+        layerNameSeparatorIndex: SEPARATOR_UNDERSCORE,
         ignoreLockedLayers: true,
         ignoreLockedObjects: true,
         ignoreHiddenLayers: true,
         ignoreHiddenObjects: true,
         excludedLayerNames: "bg"    // , または 、 区切り / Comma-separated
     };
+
+    // =========================================
+    // レイアウト設定 / Layout Settings
+    // =========================================
+
+    /* ダイアログ外周の余白 / Dialog margins */
+    var DIALOG_MARGINS = [15, 20, 15, 15];
+
+    /* パネル共通の余白と行間 / Common panel margins and spacing */
+    var PANEL_MARGINS = [15, 20, 15, 10];
+    var PANEL_SPACING = 8;
+
+    /* 「ロック」「非表示」サブパネル間の間隔 / Gap between the locked / hidden sub-panels */
+    var EXCLUSION_SUBPANEL_SPACING = 15;
+
+    /* レイヤー名プレビューの最大文字数（ダイアログ幅を広げないための上限） / Preview length cap, keeps the dialog from widening */
+    var LAYER_NAME_PREVIEW_MAX_LENGTH = 16;
 
     // =========================================
     // ローカライズ / Localization
@@ -76,31 +90,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * Illustrator の UI 言語から表示言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function detectUILang() {
+    function detectUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var uiLang = detectUILang();
+    var uiLanguage = detectUILanguage();
+
+    /* ラベル内の {slash} などを言語別に置き換えるための記号表 / Symbol table for {slash}-style placeholders */
+    var LOCALIZED_SYMBOLS = {
+        slash:      { ja: "／", en: "/" },
+        colon:      { ja: "：", en: ":" },
+        comma:      { ja: "、", en: ", " },
+        openParen:  { ja: "（", en: "(" },
+        closeParen: { ja: "）", en: ")" }
+    };
 
     var LABELS = {
         dialog: {
-            title: { ja: "アートボード単位でレイヤー整理", en: "Artboard Layer Organizer" }
+            title: { ja: "アートボードごとにレイヤーを整理", en: "Organize Layers by Artboard" }
         },
         panel: {
             targetArtboards: { ja: "対象のアートボード", en: "Target Artboards" },
             layerName: { ja: "レイヤー名の構成", en: "Layer Name Format" },
             exclusion: { ja: "対象外にする", en: "Exclude" },
-            locked: { ja: "ロック", en: "Locked" },
+            locked: { ja: "ロック中", en: "Locked" },
             hidden: { ja: "非表示", en: "Hidden" },
-            postProcess: { ja: "整理後", en: "After Organizing" }
+            postProcess: { ja: "整理後の処理", en: "After Organizing" }
         },
         radio: {
-            currentArtboardOnly: { ja: "現在のみ", en: "Current only" },
+            currentArtboardOnly: { ja: "現在のアートボード", en: "Current artboard" },
             allArtboards: { ja: "すべて", en: "All" }
         },
         checkbox: {
-            includeArtboardNumber: { ja: "アートボード番号", en: "Artboard Number" },
-            includeArtboardName: { ja: "アートボード名", en: "Artboard Name" },
+            includeArtboardNumber: { ja: "番号を含める", en: "Include number" },
+            includeArtboardName: { ja: "名前を含める", en: "Include name" },
             useSeparator: { ja: "区切り文字", en: "Separator" },
             excludeLayer: { ja: "レイヤー", en: "Layer" },
             excludeObject: { ja: "オブジェクト", en: "Object" },
@@ -113,12 +136,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             separatorNone: { ja: "なし", en: "None" }
         },
         fieldLabel: {
-            specifiedLayers: { ja: "除外するレイヤー名", en: "Layer names to exclude" }
+            specifiedLayers: { ja: "レイヤー名で指定", en: "Specify by name" },
+            layerNamePreview: { ja: "例", en: "Example" }
         },
         tooltip: {
             targetArtboards: {
-                ja: "アートボードが1つのときは「現在のみ」に固定されます",
-                en: "Locked to \"Current only\" when the document has just one artboard"
+                ja: "アートボードが1つのときは「現在のアートボード」に固定されます。「現在のアートボード」では、どのアートボードにも乗っていないオブジェクトは移動しません",
+                en: "Locked to \"Current artboard\" when the document has just one artboard. In that mode, objects outside every artboard are left where they are"
             },
             includeArtboardNumber: {
                 ja: "レイヤー名の先頭にアートボードの通し番号（1, 2, 3…）を付けます",
@@ -131,6 +155,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             useSeparator: {
                 ja: "アートボード番号とアートボード名の間に入れる文字",
                 en: "Character inserted between the artboard number and the artboard name"
+            },
+            exclusionPanel: {
+                ja: "ガイドはここでの指定に関係なく、常に _guide レイヤーに集約されます",
+                en: "Guides are always gathered into the _guide layer regardless of these settings"
             },
             lockedExclusion: {
                 ja: "ロックされたレイヤー{slash}オブジェクトを整理対象から除外します",
@@ -159,11 +187,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             moveFailed: {
-                ja: "一部のオブジェクトを移動できませんでした。\n移動できなかったオブジェクト: {count}件",
-                en: "Some objects could not be moved.\nObjects that could not be moved: {count}"
+                ja: "{count}件のオブジェクトを移動できませんでした。\nロックを解除できないオブジェクトが含まれている可能性があります。",
+                en: "{count} object(s) could not be moved.\nSome of them may not allow unlocking."
             }
         }
     };
+
+    /**
+     * 言語別の記号を返す（日本語＝全角、英語＝半角）
+     * @param {string} symbolName - 記号名（slash / colon / comma / openParen / closeParen）
+     * @returns {string} 表示言語に合わせた記号。未定義の記号名なら空文字
+     */
+    function getLocalizedSymbol(symbolName) {
+        var symbolVariants = LOCALIZED_SYMBOLS[symbolName];
+        if (!symbolVariants) return "";
+        return symbolVariants[uiLanguage] || symbolVariants.en;
+    }
+
+    /**
+     * {slash} などのプレースホルダを言語別の記号に展開する
+     * 記号表に無いプレースホルダ（{count} など）はそのまま残す
+     * @param {string} labelText - 展開前のテキスト
+     * @returns {string} 展開後のテキスト
+     */
+    function expandSymbolPlaceholders(labelText) {
+        return labelText.replace(/\{(\w+)\}/g, function (matchedText, symbolName) {
+            var symbolText = getLocalizedSymbol(symbolName);
+            return (symbolText === "") ? matchedText : symbolText;
+        });
+    }
 
     /**
      * LABELS からドット区切りのパスで表示言語のテキストを取り出す
@@ -171,54 +223,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
      */
     function getLabel(labelPath) {
-        var pathKeys = labelPath.split(".");
+        var labelPathKeys = labelPath.split(".");
         var labelNode = LABELS;
-        for (var i = 0; i < pathKeys.length; i++) {
-            labelNode = labelNode[pathKeys[i]];
-            if (!labelNode) return labelPath;
+        for (var i = 0; i < labelPathKeys.length; i++) {
+            labelNode = labelNode[labelPathKeys[i]];
+            if (labelNode === undefined || labelNode === null) return labelPath;
         }
-        var labelText = labelNode[uiLang] || labelNode["en"];
-        if (!labelText) return labelPath;
+        var labelText = labelNode[uiLanguage];
+        if (typeof labelText !== "string") labelText = labelNode.en;
+        if (typeof labelText !== "string") return labelPath;
         return expandSymbolPlaceholders(labelText);
-    }
-
-    /**
-     * {slash} などのプレースホルダを言語別の記号に展開する
-     * @param {string} labelText - 展開前のテキスト
-     * @returns {string} 展開後のテキスト
-     */
-    function expandSymbolPlaceholders(labelText) {
-        return labelText
-            .replace(/\{slash\}/g, getLocalizedSymbol("slash"))
-            .replace(/\{colon\}/g, getLocalizedSymbol("colon"))
-            .replace(/\{comma\}/g, getLocalizedSymbol("comma"))
-            .replace(/\{openParen\}/g, getLocalizedSymbol("openParen"))
-            .replace(/\{closeParen\}/g, getLocalizedSymbol("closeParen"));
-    }
-
-    /**
-     * 言語別の記号を返す（日本語＝全角、英語＝半角）
-     * @param {string} symbolName - 記号名（slash / colon / comma / openParen / closeParen）
-     * @returns {string} 表示言語に合わせた記号
-     */
-    function getLocalizedSymbol(symbolName) {
-        if (uiLang === "ja") {
-            switch (symbolName) {
-                case "slash": return "／";
-                case "colon": return "：";
-                case "comma": return "、";
-                case "openParen": return "（";
-                case "closeParen": return "）";
-            }
-        }
-        switch (symbolName) {
-            case "slash": return "/";
-            case "colon": return ":";
-            case "comma": return ", ";
-            case "openParen": return "(";
-            case "closeParen": return ")";
-        }
-        return "";
     }
 
     // =========================================
@@ -230,8 +244,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         return;
     }
 
-    var activeDoc = app.activeDocument;
-    var artboards = activeDoc.artboards;
+    var activeDocument = app.activeDocument;
+    var documentArtboards = activeDocument.artboards;
     var guideLayer = null; // _guide レイヤー参照（必要時に取得・作成） / _guide layer reference, resolved on demand
 
     // =========================================
@@ -240,16 +254,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * パネル共通の見た目をまとめて設定する
-     * @param {Panel} panel - 対象パネル
-     * @param {number} [spacing] - 子要素の間隔（省略時は PANEL_SPACING）
+     * @param {Panel} targetPanel - 対象パネル
+     * @param {Array<string>} [panelAlignment] - パネル自身の配置（省略時は横も縦も fill）
      * @returns {void}
      */
-    function applyPanelLayout(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ['fill', 'top'];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function applyPanelLayout(targetPanel, panelAlignment) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = panelAlignment || ["fill", "top"];
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = PANEL_SPACING;
     }
 
     /**
@@ -257,24 +271,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {Object} 処理設定。キャンセル時は null
      */
     function showOptionsDialog() {
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.margins = [15, 20, 15, 15];
+        var optionsDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        optionsDialog.orientation = "column";
+        optionsDialog.alignChildren = ["fill", "top"];
+        optionsDialog.margins = DIALOG_MARGINS;
 
-        var targetControls = buildTargetArtboardPanel(dialog);
-        var layerNameControls = buildLayerNamePanel(dialog);
-        var exclusionControls = buildExclusionPanel(dialog);
-        var postProcessControls = buildPostProcessPanel(dialog);
-        buildDialogButtonRow(dialog);
+        var targetControls = buildTargetArtboardPanel(optionsDialog);
+        var layerNameControls = buildLayerNamePanel(optionsDialog);
+        var exclusionControls = buildExclusionPanel(optionsDialog);
+        var postProcessControls = buildPostProcessPanel(optionsDialog);
+        buildDialogButtonRow(optionsDialog);
 
-        if (dialog.show() !== 1) {
+        if (optionsDialog.show() !== 1) {
             return null;
         }
 
         return {
-            removeEmptyLayers: postProcessControls.removeEmptyCheckbox.value,
-            currentArtboardOnly: targetControls.currentArtboardRadio.value,
+            removeEmptyLayers: postProcessControls.removeEmptyLayersCheckbox.value,
+            currentArtboardOnly: targetControls.currentArtboardOnlyRadio.value,
             includeArtboardNumber: layerNameControls.artboardNumberCheckbox.value,
             includeArtboardName: layerNameControls.artboardNameCheckbox.value,
             layerNameSeparatorIndex: layerNameControls.getSeparatorIndex(),
@@ -282,189 +296,225 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             ignoreLockedObjects: exclusionControls.lockedObjectCheckbox.value,
             ignoreHiddenLayers: exclusionControls.hiddenLayerCheckbox.value,
             ignoreHiddenObjects: exclusionControls.hiddenObjectCheckbox.value,
-            excludedLayerNames: parseExcludedLayerNames(exclusionControls.specifiedLayersField.text)
+            excludedLayerNames: parseExcludedLayerNames(exclusionControls.excludedNamesField.text)
         };
     }
 
     /**
      * 対象アートボードパネル（現在のみ／すべて）を構築する
-     * @param {Window} parentContainer - 追加先のダイアログ
+     * @param {Window} parentDialog - 追加先のダイアログ
      * @returns {Object} ラジオボタン参照をまとめたオブジェクト
      */
-    function buildTargetArtboardPanel(parentContainer) {
-        var targetPanel = parentContainer.add("panel", undefined, getLabel("panel.targetArtboards"));
-        applyPanelLayout(targetPanel);
+    function buildTargetArtboardPanel(parentDialog) {
+        var targetArtboardPanel = parentDialog.add("panel", undefined, getLabel("panel.targetArtboards"));
+        applyPanelLayout(targetArtboardPanel);
+        targetArtboardPanel.helpTip = getLabel("tooltip.targetArtboards");
 
-        var scopeGroup = targetPanel.add("group");
-        scopeGroup.orientation = "row";
-        scopeGroup.alignChildren = ["left", "center"];
+        var artboardScopeRow = targetArtboardPanel.add("group");
+        artboardScopeRow.orientation = "row";
+        artboardScopeRow.alignment = ["left", "top"];
+        artboardScopeRow.alignChildren = ["left", "center"];
 
-        var currentArtboardRadio = scopeGroup.add("radiobutton", undefined, getLabel("radio.currentArtboardOnly"));
-        var allArtboardsRadio = scopeGroup.add("radiobutton", undefined, getLabel("radio.allArtboards"));
-        targetPanel.helpTip = getLabel("tooltip.targetArtboards");
-        currentArtboardRadio.helpTip = targetPanel.helpTip;
-        allArtboardsRadio.helpTip = targetPanel.helpTip;
+        var currentArtboardOnlyRadio = artboardScopeRow.add("radiobutton", undefined, getLabel("radio.currentArtboardOnly"));
+        var allArtboardsRadio = artboardScopeRow.add("radiobutton", undefined, getLabel("radio.allArtboards"));
+        currentArtboardOnlyRadio.helpTip = targetArtboardPanel.helpTip;
+        allArtboardsRadio.helpTip = targetArtboardPanel.helpTip;
 
-        if (artboards.length <= 1) {
-            currentArtboardRadio.value = true;
+        if (documentArtboards.length <= 1) {
+            currentArtboardOnlyRadio.value = true;
             allArtboardsRadio.enabled = false;
         } else {
             allArtboardsRadio.value = true;
         }
 
-        return {
-            currentArtboardRadio: currentArtboardRadio,
-            allArtboardsRadio: allArtboardsRadio
-        };
+        return { currentArtboardOnlyRadio: currentArtboardOnlyRadio };
     }
 
     /**
      * レイヤー名パネル（番号・名前・区切り文字）を構築する
-     * @param {Window} parentContainer - 追加先のダイアログ
+     * @param {Window} parentDialog - 追加先のダイアログ
      * @returns {Object} チェックボックス参照と区切り文字インデックス取得関数
      */
-    function buildLayerNamePanel(parentContainer) {
-        var layerNamePanel = parentContainer.add("panel", undefined, getLabel("panel.layerName"));
+    function buildLayerNamePanel(parentDialog) {
+        var layerNamePanel = parentDialog.add("panel", undefined, getLabel("panel.layerName"));
         applyPanelLayout(layerNamePanel);
 
         var artboardNumberCheckbox = layerNamePanel.add("checkbox", undefined, getLabel("checkbox.includeArtboardNumber"));
         artboardNumberCheckbox.value = DEFAULT_OPTIONS.includeArtboardNumber;
         artboardNumberCheckbox.helpTip = getLabel("tooltip.includeArtboardNumber");
 
-        var separatorGroup = layerNamePanel.add("group");
-        separatorGroup.orientation = "row";
-        separatorGroup.alignChildren = ["left", "center"];
-        separatorGroup.helpTip = getLabel("tooltip.useSeparator");
-        var useSeparatorCheckbox = separatorGroup.add("checkbox", undefined, getLabel("checkbox.useSeparator"));
+        var separatorRow = layerNamePanel.add("group");
+        separatorRow.orientation = "row";
+        separatorRow.alignment = ["left", "top"];
+        separatorRow.alignChildren = ["left", "center"];
+        separatorRow.helpTip = getLabel("tooltip.useSeparator");
+        var useSeparatorCheckbox = separatorRow.add("checkbox", undefined, getLabel("checkbox.useSeparator"));
         useSeparatorCheckbox.value = DEFAULT_OPTIONS.useSeparator;
-        useSeparatorCheckbox.helpTip = separatorGroup.helpTip;
-        var separatorDropdown = separatorGroup.add("dropdownlist", undefined, [
+        useSeparatorCheckbox.helpTip = separatorRow.helpTip;
+        var separatorDropdown = separatorRow.add("dropdownlist", undefined, [
             getLabel("dropdown.separatorUnderscore"),
             getLabel("dropdown.separatorHyphen"),
             getLabel("dropdown.separatorSpace"),
             getLabel("dropdown.separatorNone")
         ]);
-        separatorDropdown.selection = DEFAULT_OPTIONS.separatorIndex;
-        separatorDropdown.helpTip = separatorGroup.helpTip;
-
-        /**
-         * 区切り文字まわりの有効／無効を、アートボード番号の状態に合わせて更新する
-         * @returns {void}
-         */
-        function updateSeparatorEnabled() {
-            var numberIncluded = artboardNumberCheckbox.value;
-            separatorGroup.enabled = numberIncluded;
-            separatorDropdown.enabled = numberIncluded && useSeparatorCheckbox.value;
-        }
-
-        updateSeparatorEnabled();
-        artboardNumberCheckbox.onClick = updateSeparatorEnabled;
-        useSeparatorCheckbox.onClick = updateSeparatorEnabled;
+        separatorDropdown.selection = DEFAULT_OPTIONS.layerNameSeparatorIndex;
+        separatorDropdown.helpTip = separatorRow.helpTip;
 
         var artboardNameCheckbox = layerNamePanel.add("checkbox", undefined, getLabel("checkbox.includeArtboardName"));
         artboardNameCheckbox.value = DEFAULT_OPTIONS.includeArtboardName;
         artboardNameCheckbox.helpTip = getLabel("tooltip.includeArtboardName");
 
+        var layerNamePreviewText = layerNamePanel.add("statictext", undefined, "");
+        layerNamePreviewText.alignment = ["fill", "top"];
+
+        /**
+         * 現在の設定で選択されている区切り文字のインデックスを返す
+         * @returns {number} 区切り文字のインデックス
+         */
+        function getSeparatorIndex() {
+            if (useSeparatorCheckbox.value && separatorDropdown.selection) {
+                return separatorDropdown.selection.index;
+            }
+            return SEPARATOR_NONE;
+        }
+
+        /**
+         * 1番目のアートボードを例にしたレイヤー名のプレビュー文字列を作る
+         * 長いアートボード名でダイアログが広がらないよう、一定の長さで省略する
+         * @returns {string} プレビュー用のテキスト
+         */
+        function buildLayerNamePreview() {
+            var sampleLayerName = getArtboardLayerName(0, {
+                includeArtboardNumber: artboardNumberCheckbox.value,
+                includeArtboardName: artboardNameCheckbox.value,
+                layerNameSeparatorIndex: getSeparatorIndex()
+            });
+            if (sampleLayerName.length > LAYER_NAME_PREVIEW_MAX_LENGTH) {
+                sampleLayerName = sampleLayerName.substring(0, LAYER_NAME_PREVIEW_MAX_LENGTH) + "…";
+            }
+            return getLabel("fieldLabel.layerNamePreview") + getLocalizedSymbol("colon") + sampleLayerName;
+        }
+
+        /**
+         * 番号と名前の両方が外れないようにし、区切り文字の有効／無効とプレビューを更新する
+         * 区切り文字は番号と名前の両方を出すときだけ意味を持つ
+         * @param {Checkbox} keepOnCheckbox - 両方外れたときに戻すチェックボックス
+         * @returns {void}
+         */
+        function updateLayerNameControls(keepOnCheckbox) {
+            if (!artboardNumberCheckbox.value && !artboardNameCheckbox.value) {
+                keepOnCheckbox.value = true;
+            }
+            var separatorApplies = artboardNumberCheckbox.value && artboardNameCheckbox.value;
+            separatorRow.enabled = separatorApplies;
+            separatorDropdown.enabled = separatorApplies && useSeparatorCheckbox.value;
+            layerNamePreviewText.text = buildLayerNamePreview();
+        }
+
+        artboardNumberCheckbox.onClick = function () { updateLayerNameControls(artboardNameCheckbox); };
+        artboardNameCheckbox.onClick = function () { updateLayerNameControls(artboardNumberCheckbox); };
+        useSeparatorCheckbox.onClick = function () { updateLayerNameControls(artboardNumberCheckbox); };
+        separatorDropdown.onChange = function () { updateLayerNameControls(artboardNumberCheckbox); };
+        updateLayerNameControls(artboardNumberCheckbox);
+
         return {
             artboardNumberCheckbox: artboardNumberCheckbox,
             artboardNameCheckbox: artboardNameCheckbox,
-            getSeparatorIndex: function () {
-                if (useSeparatorCheckbox.value && separatorDropdown.selection) {
-                    return separatorDropdown.selection.index;
-                }
-                return SEPARATOR_NONE;
-            }
+            getSeparatorIndex: getSeparatorIndex
         };
     }
 
     /**
-     * 対象外パネル（ロック／非表示／指定レイヤー）を構築する
-     * @param {Window} parentContainer - 追加先のダイアログ
+     * 対象外パネル（ロック／非表示／指定レイヤー名）を構築する
+     * @param {Window} parentDialog - 追加先のダイアログ
      * @returns {Object} チェックボックスと入力欄の参照をまとめたオブジェクト
      */
-    function buildExclusionPanel(parentContainer) {
-        var exclusionPanel = parentContainer.add("panel", undefined, getLabel("panel.exclusion"));
+    function buildExclusionPanel(parentDialog) {
+        var exclusionPanel = parentDialog.add("panel", undefined, getLabel("panel.exclusion"));
         applyPanelLayout(exclusionPanel);
+        exclusionPanel.helpTip = getLabel("tooltip.exclusionPanel");
 
-        var stateGroup = exclusionPanel.add("group");
-        stateGroup.orientation = "row";
-        stateGroup.alignChildren = ["left", "top"];
-        stateGroup.spacing = 15;
+        var lockHiddenRow = exclusionPanel.add("group");
+        lockHiddenRow.orientation = "row";
+        lockHiddenRow.alignment = ["left", "top"];
+        lockHiddenRow.alignChildren = ["left", "fill"];
+        lockHiddenRow.spacing = EXCLUSION_SUBPANEL_SPACING;
 
-        var lockedControls = buildExclusionSubPanel(stateGroup, "panel.locked", "tooltip.lockedExclusion", DEFAULT_OPTIONS.ignoreLockedLayers, DEFAULT_OPTIONS.ignoreLockedObjects);
-        var hiddenControls = buildExclusionSubPanel(stateGroup, "panel.hidden", "tooltip.hiddenExclusion", DEFAULT_OPTIONS.ignoreHiddenLayers, DEFAULT_OPTIONS.ignoreHiddenObjects);
+        var lockedControls = buildExclusionSubPanel(lockHiddenRow, "panel.locked", "tooltip.lockedExclusion", DEFAULT_OPTIONS.ignoreLockedLayers, DEFAULT_OPTIONS.ignoreLockedObjects);
+        var hiddenControls = buildExclusionSubPanel(lockHiddenRow, "panel.hidden", "tooltip.hiddenExclusion", DEFAULT_OPTIONS.ignoreHiddenLayers, DEFAULT_OPTIONS.ignoreHiddenObjects);
 
-        /* 指定レイヤー入力欄（対象外パネル最下部） / Specified layer names input */
-        var specifiedGroup = exclusionPanel.add("group");
-        specifiedGroup.orientation = "row";
-        specifiedGroup.alignChildren = ["left", "center"];
-        specifiedGroup.helpTip = getLabel("tooltip.specifiedLayers");
-        var specifiedStaticText = specifiedGroup.add("statictext", undefined, getLabel("fieldLabel.specifiedLayers") + getLocalizedSymbol("colon"));
-        specifiedStaticText.helpTip = specifiedGroup.helpTip;
-        var specifiedLayersField = specifiedGroup.add("edittext", undefined, DEFAULT_OPTIONS.excludedLayerNames);
-        specifiedLayersField.preferredSize.width = 200;
-        specifiedLayersField.helpTip = specifiedGroup.helpTip;
+        var excludedNamesRow = exclusionPanel.add("group");
+        excludedNamesRow.orientation = "row";
+        excludedNamesRow.alignment = ["fill", "top"];
+        excludedNamesRow.alignChildren = ["left", "center"];
+        excludedNamesRow.helpTip = getLabel("tooltip.specifiedLayers");
+        var excludedNamesLabel = excludedNamesRow.add("statictext", undefined, getLabel("fieldLabel.specifiedLayers") + getLocalizedSymbol("colon"));
+        excludedNamesLabel.helpTip = excludedNamesRow.helpTip;
+        var excludedNamesField = excludedNamesRow.add("edittext", undefined, DEFAULT_OPTIONS.excludedLayerNames);
+        excludedNamesField.alignment = ["fill", "center"];
+        excludedNamesField.helpTip = excludedNamesRow.helpTip;
 
         return {
             lockedLayerCheckbox: lockedControls.layerCheckbox,
             lockedObjectCheckbox: lockedControls.objectCheckbox,
             hiddenLayerCheckbox: hiddenControls.layerCheckbox,
             hiddenObjectCheckbox: hiddenControls.objectCheckbox,
-            specifiedLayersField: specifiedLayersField
+            excludedNamesField: excludedNamesField
         };
     }
 
     /**
      * ロック／非表示のサブパネル（レイヤー・オブジェクトの2択）を構築する
-     * @param {Group} parentContainer - 追加先のグループ
+     * @param {Group} parentGroup - 追加先のグループ
      * @param {string} titleLabelPath - パネルタイトルの LABELS パス
      * @param {string} tooltipLabelPath - パネルと各チェックボックスに設定する tooltip の LABELS パス
      * @param {boolean} layerDefaultValue - レイヤー側チェックボックスの初期値
      * @param {boolean} objectDefaultValue - オブジェクト側チェックボックスの初期値
      * @returns {Object} チェックボックス参照をまとめたオブジェクト
      */
-    function buildExclusionSubPanel(parentContainer, titleLabelPath, tooltipLabelPath, layerDefaultValue, objectDefaultValue) {
-        var subPanel = parentContainer.add("panel", undefined, getLabel(titleLabelPath));
-        applyPanelLayout(subPanel);
-        subPanel.helpTip = getLabel(tooltipLabelPath);
+    function buildExclusionSubPanel(parentGroup, titleLabelPath, tooltipLabelPath, layerDefaultValue, objectDefaultValue) {
+        var exclusionSubPanel = parentGroup.add("panel", undefined, getLabel(titleLabelPath));
+        applyPanelLayout(exclusionSubPanel, ["left", "fill"]);
+        exclusionSubPanel.helpTip = getLabel(tooltipLabelPath);
 
-        var layerCheckbox = subPanel.add("checkbox", undefined, getLabel("checkbox.excludeLayer"));
+        var layerCheckbox = exclusionSubPanel.add("checkbox", undefined, getLabel("checkbox.excludeLayer"));
         layerCheckbox.value = layerDefaultValue;
-        layerCheckbox.helpTip = subPanel.helpTip;
-        var objectCheckbox = subPanel.add("checkbox", undefined, getLabel("checkbox.excludeObject"));
+        layerCheckbox.helpTip = exclusionSubPanel.helpTip;
+        var objectCheckbox = exclusionSubPanel.add("checkbox", undefined, getLabel("checkbox.excludeObject"));
         objectCheckbox.value = objectDefaultValue;
-        objectCheckbox.helpTip = subPanel.helpTip;
+        objectCheckbox.helpTip = exclusionSubPanel.helpTip;
 
         return { layerCheckbox: layerCheckbox, objectCheckbox: objectCheckbox };
     }
 
     /**
-     * 後処理パネル（空レイヤー削除）を構築する
-     * @param {Window} parentContainer - 追加先のダイアログ
+     * 整理後パネル（空レイヤー削除）を構築する
+     * @param {Window} parentDialog - 追加先のダイアログ
      * @returns {Object} チェックボックス参照をまとめたオブジェクト
      */
-    function buildPostProcessPanel(parentContainer) {
-        var postProcessPanel = parentContainer.add("panel", undefined, getLabel("panel.postProcess"));
+    function buildPostProcessPanel(parentDialog) {
+        var postProcessPanel = parentDialog.add("panel", undefined, getLabel("panel.postProcess"));
         applyPanelLayout(postProcessPanel);
-        var removeEmptyCheckbox = postProcessPanel.add("checkbox", undefined, getLabel("checkbox.removeEmpty"));
-        removeEmptyCheckbox.value = DEFAULT_OPTIONS.removeEmptyLayers;
-        removeEmptyCheckbox.helpTip = getLabel("tooltip.removeEmpty");
-        return { removeEmptyCheckbox: removeEmptyCheckbox };
+        var removeEmptyLayersCheckbox = postProcessPanel.add("checkbox", undefined, getLabel("checkbox.removeEmpty"));
+        removeEmptyLayersCheckbox.value = DEFAULT_OPTIONS.removeEmptyLayers;
+        removeEmptyLayersCheckbox.helpTip = getLabel("tooltip.removeEmpty");
+        return { removeEmptyLayersCheckbox: removeEmptyLayersCheckbox };
     }
 
     /**
      * OK / キャンセルのボタン列を構築する
-     * @param {Window} dialog - 対象ダイアログ
+     * @param {Window} optionsDialog - 対象ダイアログ
      * @returns {void}
      */
-    function buildDialogButtonRow(dialog) {
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = ["center", "top"];
-        var cancelButton = buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var okButton = buttonGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        dialog.defaultElement = okButton;
-        dialog.cancelElement = cancelButton;
+    function buildDialogButtonRow(optionsDialog) {
+        var dialogButtonRow = optionsDialog.add("group");
+        dialogButtonRow.orientation = "row";
+        dialogButtonRow.alignment = ["center", "top"];
+        dialogButtonRow.alignChildren = ["center", "center"];
+        var cancelButton = dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        optionsDialog.defaultElement = okButton;
+        optionsDialog.cancelElement = cancelButton;
     }
 
     // =========================================
@@ -473,62 +523,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * "bg, temp" のような文字列をレイヤー名の配列に分解する（, または 、 区切り）
-     * @param {string} inputText - 指定レイヤー欄の入力値
+     * @param {string} excludedNamesText - 指定レイヤー欄の入力値
      * @returns {Array<string>} 前後の空白を除いたレイヤー名の配列
      */
-    function parseExcludedLayerNames(inputText) {
-        if (!inputText) return [];
-        var rawNames = inputText.split(/[,、]/);
-        var layerNames = [];
-        for (var i = 0; i < rawNames.length; i++) {
-            var trimmedName = rawNames[i].replace(/^\s+|\s+$/g, "");
-            if (trimmedName.length > 0) layerNames.push(trimmedName);
+    function parseExcludedLayerNames(excludedNamesText) {
+        if (!excludedNamesText) return [];
+        var rawLayerNames = excludedNamesText.split(/[,、]/);
+        var parsedLayerNames = [];
+        for (var i = 0; i < rawLayerNames.length; i++) {
+            var trimmedLayerName = rawLayerNames[i].replace(/^\s+|\s+$/g, "");
+            if (trimmedLayerName.length > 0) parsedLayerNames.push(trimmedLayerName);
         }
-        return layerNames;
+        return parsedLayerNames;
     }
 
     /**
      * レイヤー名が指定除外リストに含まれるか判定する
      * @param {string} layerName - 判定するレイヤー名
-     * @param {Array<string>} excludedNames - 除外レイヤー名の配列
+     * @param {Array<string>} excludedLayerNames - 除外レイヤー名の配列
      * @returns {boolean} 含まれていれば true
      */
-    function isNameInExcludedList(layerName, excludedNames) {
-        if (!excludedNames || excludedNames.length === 0) return false;
-        for (var i = 0; i < excludedNames.length; i++) {
-            if (excludedNames[i] === layerName) return true;
+    function isNameInExcludedList(layerName, excludedLayerNames) {
+        if (!excludedLayerNames) return false;
+        for (var i = 0; i < excludedLayerNames.length; i++) {
+            if (excludedLayerNames[i] === layerName) return true;
         }
         return false;
     }
 
     /**
      * レイヤー自身が除外対象か判定する（指定名・ロック・非表示）
-     * @param {Layer} layer - 判定するレイヤー
+     * @param {Layer} targetLayer - 判定するレイヤー
      * @param {Object} organizeOptions - 処理設定
      * @returns {boolean} 除外対象なら true
      */
-    function isLayerExcluded(layer, organizeOptions) {
-        if (!layer || layer.typename !== "Layer") return false;
-        if (isNameInExcludedList(layer.name, organizeOptions.excludedLayerNames)) return true;
-        if (organizeOptions.ignoreLockedLayers && layer.locked) return true;
-        if (organizeOptions.ignoreHiddenLayers && !layer.visible) return true;
+    function isLayerExcluded(targetLayer, organizeOptions) {
+        if (!targetLayer || targetLayer.typename !== "Layer") return false;
+        if (isNameInExcludedList(targetLayer.name, organizeOptions.excludedLayerNames)) return true;
+        if (organizeOptions.ignoreLockedLayers && targetLayer.locked) return true;
+        if (organizeOptions.ignoreHiddenLayers && !targetLayer.visible) return true;
         return false;
     }
 
     /**
      * 親方向に辿って除外対象のレイヤーがあるか判定する
-     * @param {PageItem} item - 判定するオブジェクト
+     * @param {PageItem} targetItem - 判定するオブジェクト
      * @param {Object} organizeOptions - 処理設定
-     * @param {boolean} lockAndHiddenOnly - true のとき指定レイヤー名による除外を無視し、ロック／非表示だけを見る
+     * @param {boolean} skipNameExclusion - true のとき指定レイヤー名による除外を無視し、ロック／非表示だけを見る
      * @returns {boolean} 除外対象の祖先レイヤーがあれば true
      */
-    function hasExcludedAncestorLayer(item, organizeOptions, lockAndHiddenOnly) {
-        var ancestor = item.parent;
+    function hasExcludedAncestorLayer(targetItem, organizeOptions, skipNameExclusion) {
+        var ancestor = targetItem.parent;
         while (ancestor && ancestor.typename !== "Document") {
             if (ancestor.typename === "Layer") {
                 if (organizeOptions.ignoreLockedLayers && ancestor.locked) return true;
                 if (organizeOptions.ignoreHiddenLayers && !ancestor.visible) return true;
-                if (!lockAndHiddenOnly && isNameInExcludedList(ancestor.name, organizeOptions.excludedLayerNames)) return true;
+                if (!skipNameExclusion && isNameInExcludedList(ancestor.name, organizeOptions.excludedLayerNames)) return true;
             }
             ancestor = ancestor.parent;
         }
@@ -537,14 +587,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * PageItem の真偽値プロパティを安全に読む
-     * 一部の PageItem は locked / hidden / guides の参照で例外になるため、取得できない場合は false を返す
-     * @param {PageItem} item - 対象オブジェクト
+     * guides のように種類によっては存在しないプロパティがあるため、読めない場合は false を返す
+     * @param {PageItem} targetItem - 対象オブジェクト
      * @param {string} propertyName - プロパティ名（locked / hidden / guides）
      * @returns {boolean} プロパティが true のときのみ true
      */
-    function readItemFlag(item, propertyName) {
+    function readItemFlag(targetItem, propertyName) {
         try {
-            return item[propertyName] === true;
+            return targetItem[propertyName] === true;
         } catch (e) {
             return false;
         }
@@ -552,22 +602,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * オブジェクトがガイドか判定する
-     * @param {PageItem} item - 対象オブジェクト
+     * @param {PageItem} targetItem - 対象オブジェクト
      * @returns {boolean} ガイドなら true
      */
-    function isGuideItem(item) {
-        return readItemFlag(item, "guides");
+    function isGuideItem(targetItem) {
+        return readItemFlag(targetItem, "guides");
     }
 
     /**
      * オブジェクト自身が除外対象か判定する（ロック／非表示）
-     * @param {PageItem} item - 判定するオブジェクト
+     * @param {PageItem} targetItem - 判定するオブジェクト
      * @param {Object} organizeOptions - 処理設定
      * @returns {boolean} 除外対象なら true
      */
-    function isObjectExcluded(item, organizeOptions) {
-        if (organizeOptions.ignoreLockedObjects && readItemFlag(item, "locked")) return true;
-        if (organizeOptions.ignoreHiddenObjects && readItemFlag(item, "hidden")) return true;
+    function isObjectExcluded(targetItem, organizeOptions) {
+        if (organizeOptions.ignoreLockedObjects && readItemFlag(targetItem, "locked")) return true;
+        if (organizeOptions.ignoreHiddenObjects && readItemFlag(targetItem, "hidden")) return true;
         return false;
     }
 
@@ -581,10 +631,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {Layer} 見つかったレイヤー。無ければ null
      */
     function findTopLevelLayerByName(layerName) {
-        for (var i = 0; i < activeDoc.layers.length; i++) {
-            if (activeDoc.layers[i].name === layerName) {
-                return activeDoc.layers[i];
-            }
+        var topLevelLayers = activeDocument.layers;
+        for (var i = 0; i < topLevelLayers.length; i++) {
+            if (topLevelLayers[i].name === layerName) return topLevelLayers[i];
         }
         return null;
     }
@@ -595,13 +644,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {Layer} 取得または作成したレイヤー
      */
     function getOrCreateTopLevelLayer(layerName) {
-        var layer = findTopLevelLayerByName(layerName);
-        if (layer) {
-            return layer;
-        }
-        layer = activeDoc.layers.add();
-        layer.name = layerName;
-        return layer;
+        var foundLayer = findTopLevelLayerByName(layerName);
+        if (foundLayer) return foundLayer;
+        var createdLayer = activeDocument.layers.add();
+        createdLayer.name = layerName;
+        return createdLayer;
     }
 
     /**
@@ -616,67 +663,175 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     }
 
     /**
+     * トップレベルレイヤーを配列に控える
+     * 処理中のレイヤー増減でインデックスがずれるのを防ぐために使う
+     * @returns {Array<Layer>} トップレベルレイヤーの配列
+     */
+    function getTopLevelLayerSnapshot() {
+        var topLevelLayers = [];
+        for (var i = 0; i < activeDocument.layers.length; i++) {
+            topLevelLayers.push(activeDocument.layers[i]);
+        }
+        return topLevelLayers;
+    }
+
+    /**
      * システム管理レイヤー（_guide / _pasteboard）か判定する
-     * @param {Layer} layer - 判定するレイヤー
+     * @param {Layer} targetLayer - 判定するレイヤー
      * @returns {boolean} 保護対象なら true
      */
-    function isProtectedSystemLayer(layer) {
-        if (!layer || layer.typename !== "Layer") return false;
-        return layer.name === GUIDE_LAYER_NAME || layer.name === PASTEBOARD_LAYER_NAME;
+    function isProtectedSystemLayer(targetLayer) {
+        if (!targetLayer || targetLayer.typename !== "Layer") return false;
+        return targetLayer.name === GUIDE_LAYER_NAME || targetLayer.name === PASTEBOARD_LAYER_NAME;
+    }
+
+    /**
+     * レイヤーが空（オブジェクトもサブレイヤーも無い）か判定する
+     * @param {Layer} targetLayer - 判定するレイヤー
+     * @returns {boolean} 空なら true
+     */
+    function isLayerEmpty(targetLayer) {
+        return targetLayer.pageItems.length === 0 && targetLayer.layers.length === 0;
     }
 
     /**
      * レイヤーを一時的に書き込み可（ロック解除・表示）にして処理を実行し、終了時に元の状態へ戻す
-     * 処理内でレイヤーが削除されていた場合は復元せず黙って抜ける
-     * @param {Layer} layer - 対象レイヤー
+     * ここで削除されるレイヤーは無い前提のため、復元は素通しで行う
+     * @param {Layer} targetLayer - 対象レイヤー
      * @param {function():*} runWithLayer - 書き込み可の状態で実行する処理
      * @returns {*} runWithLayer の戻り値
      */
-    function withWritableLayer(layer, runWithLayer) {
-        if (!layer || layer.typename !== "Layer") {
+    function withWritableLayer(targetLayer, runWithLayer) {
+        if (!targetLayer || targetLayer.typename !== "Layer") {
             return runWithLayer();
         }
-        var wasLocked = layer.locked;
-        var wasVisible = layer.visible;
-        if (wasLocked) layer.locked = false;
-        if (!wasVisible) layer.visible = true;
+        var wasLocked = targetLayer.locked;
+        var wasHidden = !targetLayer.visible;
+        if (wasLocked) targetLayer.locked = false;
+        if (wasHidden) targetLayer.visible = true;
         try {
             return runWithLayer();
         } finally {
-            try {
-                if (wasLocked) layer.locked = true;
-                if (!wasVisible) layer.visible = false;
-            } catch (e) {
-                // 処理内でレイヤー削除済み等で参照不能ならスキップ
-            }
+            if (wasLocked) targetLayer.locked = true;
+            if (wasHidden) targetLayer.visible = false;
+        }
+    }
+
+    /**
+     * レイヤーを削除する（ロックされていれば解除してから削除する）
+     * 親レイヤーのロックなどで削除できない場合は何もしない
+     * @param {Layer} targetLayer - 削除するレイヤー
+     * @returns {boolean} 削除できたら true
+     */
+    function removeLayerSafely(targetLayer) {
+        try {
+            if (targetLayer.locked) targetLayer.locked = false;
+            targetLayer.remove();
+            return true;
+        } catch (e) {
+            return false;
         }
     }
 
     /**
      * レイヤーを最前面へ移動する（ロック／非表示は一時解除）
-     * @param {Layer} layer - 対象レイヤー
+     * @param {Layer} targetLayer - 対象レイヤー
      * @returns {void}
      */
-    function bringLayerToFront(layer) {
-        if (!layer) return;
-        withWritableLayer(layer, function () {
-            layer.zOrder(ZOrderMethod.BRINGTOFRONT);
+    function bringLayerToFront(targetLayer) {
+        if (!targetLayer) return;
+        withWritableLayer(targetLayer, function () {
+            targetLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
         });
     }
 
+    // =========================================
+    // ロック／非表示の一時解除 / Suspending lock and hidden state
+    // =========================================
+
     /**
-     * 空になったサブレイヤーを再帰的に削除する
-     * @param {Layer} parentLayer - 親レイヤー
+     * 移動の妨げになるロック／非表示を一時解除し、復元用の記録を返す
+     * 「対象外にする」が有効な側は移動候補に含まれないため、その分は解除しない
+     * @param {Array<PageItem>} movableItems - 移動候補のオブジェクト配列
      * @param {Object} organizeOptions - 処理設定
+     * @returns {Array<Object>} 復元用の記録（上位レイヤー→下位レイヤー→オブジェクトの順）
+     */
+    function suspendLockAndHidden(movableItems, organizeOptions) {
+        var suspendedEntries = [];
+        var unlockLayers = !organizeOptions.ignoreLockedLayers;
+        var showLayers = !organizeOptions.ignoreHiddenLayers;
+        if (unlockLayers || showLayers) {
+            suspendLayerLockAndHidden(activeDocument, unlockLayers, showLayers, suspendedEntries);
+        }
+        var unlockItems = !organizeOptions.ignoreLockedObjects;
+        var showItems = !organizeOptions.ignoreHiddenObjects;
+        if (unlockItems || showItems) {
+            suspendItemLockAndHidden(movableItems, unlockItems, showItems, suspendedEntries);
+        }
+        return suspendedEntries;
+    }
+
+    /**
+     * レイヤーツリーを上位から辿ってロック／非表示を解除する
+     * 親を先に解除しないと子の解除が効かないため、必ず上位から処理する
+     * @param {Document|Layer} layerContainer - 探索するドキュメントまたはレイヤー
+     * @param {boolean} unlockLocked - ロックを解除するなら true
+     * @param {boolean} showHidden - 非表示を表示にするなら true
+     * @param {Array<Object>} suspendedEntries - 記録の追加先
      * @returns {void}
      */
-    function removeEmptySubLayers(parentLayer, organizeOptions) {
-        for (var i = parentLayer.layers.length - 1; i >= 0; i--) {
-            var subLayer = parentLayer.layers[i];
-            removeEmptySubLayers(subLayer, organizeOptions);
-            if (isLayerExcluded(subLayer, organizeOptions)) continue;
-            if (subLayer.pageItems.length === 0 && subLayer.layers.length === 0) {
-                subLayer.remove();
+    function suspendLayerLockAndHidden(layerContainer, unlockLocked, showHidden, suspendedEntries) {
+        for (var i = 0; i < layerContainer.layers.length; i++) {
+            var childLayer = layerContainer.layers[i];
+            var wasLocked = unlockLocked && childLayer.locked;
+            var wasHidden = showHidden && !childLayer.visible;
+            if (wasLocked || wasHidden) {
+                if (wasLocked) childLayer.locked = false;
+                if (wasHidden) childLayer.visible = true;
+                suspendedEntries.push({ node: childLayer, isLayer: true, wasLocked: wasLocked, wasHidden: wasHidden });
+            }
+            suspendLayerLockAndHidden(childLayer, unlockLocked, showHidden, suspendedEntries);
+        }
+    }
+
+    /**
+     * 移動候補オブジェクトのロック／非表示を解除する
+     * 親レイヤーの解除後に呼ぶこと
+     * @param {Array<PageItem>} movableItems - 移動候補のオブジェクト配列
+     * @param {boolean} unlockLocked - ロックを解除するなら true
+     * @param {boolean} showHidden - 非表示を表示にするなら true
+     * @param {Array<Object>} suspendedEntries - 記録の追加先
+     * @returns {void}
+     */
+    function suspendItemLockAndHidden(movableItems, unlockLocked, showHidden, suspendedEntries) {
+        for (var i = 0; i < movableItems.length; i++) {
+            var targetItem = movableItems[i];
+            var wasLocked = unlockLocked && readItemFlag(targetItem, "locked");
+            var wasHidden = showHidden && readItemFlag(targetItem, "hidden");
+            if (!wasLocked && !wasHidden) continue;
+            if (wasLocked) targetItem.locked = false;
+            if (wasHidden) targetItem.hidden = false;
+            suspendedEntries.push({ node: targetItem, isLayer: false, wasLocked: wasLocked, wasHidden: wasHidden });
+        }
+    }
+
+    /**
+     * suspendLockAndHidden で解除したロック／非表示を元へ戻す
+     * 子より親を後に戻す必要があるため、記録の逆順で処理する
+     * @param {Array<Object>} suspendedEntries - 復元する記録の配列
+     * @returns {void}
+     */
+    function restoreLockAndHidden(suspendedEntries) {
+        for (var i = suspendedEntries.length - 1; i >= 0; i--) {
+            var suspendedEntry = suspendedEntries[i];
+            try {
+                if (suspendedEntry.wasLocked) suspendedEntry.node.locked = true;
+                if (suspendedEntry.wasHidden) {
+                    if (suspendedEntry.isLayer) suspendedEntry.node.visible = false;
+                    else suspendedEntry.node.hidden = true;
+                }
+            } catch (e) {
+                // 統合処理で削除されたレイヤーなど、書き戻せないものはスキップ
             }
         }
     }
@@ -687,81 +842,81 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
 
     /**
      * 収集した移動エントリを移動先レイヤーへ移動する
+     * 成否にかかわらず処理済みフラグを立て、同じオブジェクトを二重に数えないようにする
      * @param {Array<Object>} moveEntries - { item: PageItem, index: number } の配列
      * @param {Layer} targetLayer - 移動先レイヤー
-     * @param {Array<boolean>} movedFlags - 移動済みフラグ（不要なら null）
-     * @returns {{moved: number, failed: number}} 移動できた件数と失敗件数
+     * @param {Array<boolean>} handledFlags - 処理済みフラグ（不要なら null）
+     * @returns {number} 移動できなかった件数
      */
-    function moveEntriesToLayer(moveEntries, targetLayer, movedFlags) {
-        var moveResult = { moved: 0, failed: 0 };
-        if (moveEntries.length === 0) return moveResult;
+    function moveEntriesToLayer(moveEntries, targetLayer, handledFlags) {
+        if (moveEntries.length === 0) return 0;
         return withWritableLayer(targetLayer, function () {
+            var failedMoves = 0;
             var i = moveEntries.length;
             while (i--) {
                 try {
                     moveEntries[i].item.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
-                    if (movedFlags && typeof moveEntries[i].index === "number") {
-                        movedFlags[moveEntries[i].index] = true;
-                    }
-                    moveResult.moved++;
                 } catch (e) {
-                    moveResult.failed++;
+                    failedMoves++;
+                }
+                if (handledFlags && typeof moveEntries[i].index === "number") {
+                    handledFlags[moveEntries[i].index] = true;
                 }
             }
-            return moveResult;
+            return failedMoves;
         });
     }
 
     /**
      * 未処理のアイテムをガイドとそれ以外に振り分け、移動エントリを作る
      * @param {Array<PageItem>} movableItems - 移動候補のオブジェクト配列
-     * @param {Array<boolean>} movedFlags - 移動済みフラグ
-     * @param {function(PageItem):boolean} acceptItem - 対象に含めるか判定する関数（null なら未処理すべて）
+     * @param {Array<boolean>} handledFlags - 処理済みフラグ
+     * @param {function(number):boolean} shouldMoveItem - 対象に含めるか判定する関数（null なら未処理すべて）
      * @returns {{normal: Array<Object>, guide: Array<Object>}} 通常オブジェクトとガイドの移動エントリ
      */
-    function buildMoveEntries(movableItems, movedFlags, acceptItem) {
+    function collectMoveEntries(movableItems, handledFlags, shouldMoveItem) {
         var moveEntries = { normal: [], guide: [] };
         for (var i = 0; i < movableItems.length; i++) {
-            if (movedFlags[i]) continue;
-            var candidateItem = movableItems[i];
-            if (acceptItem && !acceptItem(candidateItem)) continue;
-            var moveEntry = { item: candidateItem, index: i };
-            if (isGuideItem(candidateItem)) {
-                moveEntries.guide.push(moveEntry);
-            } else {
-                moveEntries.normal.push(moveEntry);
-            }
+            if (handledFlags[i]) continue;
+            if (shouldMoveItem && !shouldMoveItem(i)) continue;
+            var moveEntry = { item: movableItems[i], index: i };
+            if (isGuideItem(movableItems[i])) moveEntries.guide.push(moveEntry);
+            else moveEntries.normal.push(moveEntry);
         }
         return moveEntries;
     }
 
     /**
-     * レイヤー以下の pageItem を再帰的に集める
-     * @param {Layer} layer - 探索するレイヤー
-     * @param {Array<Object>} collectedEntries - 収集先の配列（{ item: PageItem } を追加）
-     * @returns {void}
+     * 通常オブジェクトとガイドをそれぞれの移動先レイヤーへ送る
+     * @param {{normal: Array<Object>, guide: Array<Object>}} moveEntries - 振り分け済みの移動エントリ
+     * @param {Layer} normalTargetLayer - 通常オブジェクトの移動先レイヤー
+     * @param {Array<boolean>} handledFlags - 処理済みフラグ
+     * @returns {number} 移動に失敗した件数
      */
-    function collectPageItemsRecursive(layer, collectedEntries) {
-        for (var i = 0; i < layer.layers.length; i++) {
-            collectPageItemsRecursive(layer.layers[i], collectedEntries);
+    function moveEntriesToTargets(moveEntries, normalTargetLayer, handledFlags) {
+        var failedMoves = moveEntriesToLayer(moveEntries.normal, normalTargetLayer, handledFlags);
+        if (moveEntries.guide.length > 0) {
+            failedMoves += moveEntriesToLayer(moveEntries.guide, getOrCreateGuideLayer(), handledFlags);
         }
-        for (var j = 0; j < layer.pageItems.length; j++) {
-            var pageItem = layer.pageItems[j];
-            if (pageItem.parent !== layer) continue;
-            collectedEntries.push({ item: pageItem });
-        }
+        return failedMoves;
     }
 
     /**
-     * レイヤー内の全 pageItem を別レイヤーへ移動する
-     * @param {Layer} sourceLayer - 移動元レイヤー
-     * @param {Layer} targetLayer - 移動先レイヤー
-     * @returns {{moved: number, failed: number}} 移動できた件数と失敗件数
+     * レイヤー以下の pageItem を再帰的に集める
+     * layer.pageItems はサブレイヤーの中身を含まないため、サブレイヤーは個別に辿る
+     * @param {Layer} targetLayer - 探索するレイヤー
+     * @param {Array<Object>} collectedEntries - 収集先の配列（{ item: PageItem } を追加）
+     * @returns {void}
      */
-    function moveAllItemsToLayer(sourceLayer, targetLayer) {
-        var collectedEntries = [];
-        collectPageItemsRecursive(sourceLayer, collectedEntries);
-        return moveEntriesToLayer(collectedEntries, targetLayer, null);
+    function collectPageItemEntriesRecursive(targetLayer, collectedEntries) {
+        for (var i = 0; i < targetLayer.layers.length; i++) {
+            collectPageItemEntriesRecursive(targetLayer.layers[i], collectedEntries);
+        }
+        for (var j = 0; j < targetLayer.pageItems.length; j++) {
+            var pageItem = targetLayer.pageItems[j];
+            if (pageItem.parent !== targetLayer) continue;
+            collectedEntries.push({ item: pageItem });
+        }
     }
 
     // =========================================
@@ -769,27 +924,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     // =========================================
 
     /**
-     * オブジェクトの重心がアートボード矩形に含まれるか判定する
-     * @param {PageItem} item - 判定するオブジェクト
-     * @param {Array<number>} artboardRect - [left, top, right, bottom]
-     * @returns {boolean} 含まれていれば true（座標を取得できない場合は false）
+     * 移動候補オブジェクトの重心座標を先にまとめて求める
+     * アートボードごとに geometricBounds を取り直さないための前計算
+     * @param {Array<PageItem>} movableItems - 移動候補のオブジェクト配列
+     * @returns {Array<Array<number>>} [x, y] の配列（座標を取得できなかった要素は null）
      */
-    function isCentroidInsideArtboard(item, artboardRect) {
-        var itemBounds;
-        try {
-            itemBounds = item.geometricBounds; // [left, top, right, bottom]
-        } catch (e) {
-            return false;
+    function buildItemCentroids(movableItems) {
+        var itemCentroids = [];
+        for (var i = 0; i < movableItems.length; i++) {
+            var itemBounds = null;
+            try {
+                itemBounds = movableItems[i].geometricBounds; // [left, top, right, bottom]
+            } catch (e) {
+                itemBounds = null;
+            }
+            if (itemBounds) {
+                itemCentroids.push([(itemBounds[0] + itemBounds[2]) / 2, (itemBounds[1] + itemBounds[3]) / 2]);
+            } else {
+                itemCentroids.push(null);
+            }
         }
-        var centroidX = (itemBounds[0] + itemBounds[2]) / 2;
-        var centroidY = (itemBounds[1] + itemBounds[3]) / 2;
+        return itemCentroids;
+    }
 
+    /**
+     * 重心がアートボード矩形に含まれるか判定する
+     * @param {Array<number>} itemCentroid - [x, y]（取得できなかった場合は null）
+     * @param {Array<number>} artboardRect - [left, top, right, bottom]
+     * @returns {boolean} 含まれていれば true
+     */
+    function isCentroidInsideArtboard(itemCentroid, artboardRect) {
+        if (!itemCentroid) return false;
         return (
-            centroidX >= artboardRect[0] &&
-            centroidX <= artboardRect[2] &&
-            centroidY <= artboardRect[1] &&
-            centroidY >= artboardRect[3]
+            itemCentroid[0] >= artboardRect[0] &&
+            itemCentroid[0] <= artboardRect[2] &&
+            itemCentroid[1] <= artboardRect[1] &&
+            itemCentroid[1] >= artboardRect[3]
         );
+    }
+
+    /**
+     * 指定アートボードに重心が入るかを判定するフィルター関数を作る
+     * @param {Array<Array<number>>} itemCentroids - 重心座標の配列
+     * @param {Array<number>} artboardRect - [left, top, right, bottom]
+     * @returns {function(number):boolean} インデックスを受け取る判定関数
+     */
+    function buildCentroidFilter(itemCentroids, artboardRect) {
+        return function (itemIndex) {
+            return isCentroidInsideArtboard(itemCentroids[itemIndex], artboardRect);
+        };
     }
 
     /**
@@ -798,16 +981,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {string} 区切り文字
      */
     function getSeparatorString(organizeOptions) {
-        var separatorIndex = SEPARATOR_UNDERSCORE;
-        if (organizeOptions && typeof organizeOptions.layerNameSeparatorIndex === "number") {
-            separatorIndex = organizeOptions.layerNameSeparatorIndex;
-        }
-        switch (separatorIndex) {
-            case SEPARATOR_HYPHEN: return "-";
-            case SEPARATOR_SPACE: return " ";
-            case SEPARATOR_NONE: return "";
-            default: return "_";
-        }
+        var separatorText = SEPARATOR_CHARACTERS[organizeOptions.layerNameSeparatorIndex];
+        return (typeof separatorText === "string") ? separatorText : SEPARATOR_CHARACTERS[SEPARATOR_UNDERSCORE];
     }
 
     /**
@@ -816,10 +991,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {string} アートボード名
      */
     function getArtboardDisplayName(artboardIndex) {
-        var artboardName = artboards[artboardIndex].name;
-        if (!artboardName || artboardName === "") {
-            return getLabel("fallbackName.artboard");
-        }
+        var artboardName = documentArtboards[artboardIndex].name;
+        if (!artboardName) return getLabel("fallbackName.artboard");
         return artboardName;
     }
 
@@ -831,18 +1004,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      */
     function getArtboardLayerName(artboardIndex, organizeOptions) {
         var nameParts = [];
-        var artboardName = getArtboardDisplayName(artboardIndex);
-
-        if (!organizeOptions || organizeOptions.includeArtboardNumber !== false) {
-            nameParts.push(String(artboardIndex + 1));
-        }
-        if (!organizeOptions || organizeOptions.includeArtboardName !== false) {
-            nameParts.push(artboardName);
-        }
-        if (nameParts.length === 0) {
-            nameParts.push(String(artboardIndex + 1));
-            nameParts.push(artboardName);
-        }
+        if (organizeOptions.includeArtboardNumber) nameParts.push(String(artboardIndex + 1));
+        if (organizeOptions.includeArtboardName) nameParts.push(getArtboardDisplayName(artboardIndex));
+        if (nameParts.length === 0) nameParts.push(String(artboardIndex + 1));
         return nameParts.join(getSeparatorString(organizeOptions));
     }
 
@@ -852,10 +1016,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {number} 一致したアートボードのインデックス。無ければ -1
      */
     function findLegacyArtboardIndexByLayerName(layerName) {
-        for (var i = 0; i < artboards.length; i++) {
-            if (getArtboardDisplayName(i) === layerName) {
-                return i;
-            }
+        for (var i = 0; i < documentArtboards.length; i++) {
+            if (getArtboardDisplayName(i) === layerName) return i;
         }
         return -1;
     }
@@ -867,10 +1029,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      */
     function getTargetArtboardRange(organizeOptions) {
         if (organizeOptions.currentArtboardOnly) {
-            var activeIndex = activeDoc.artboards.getActiveArtboardIndex();
+            var activeIndex = documentArtboards.getActiveArtboardIndex();
             return { start: activeIndex, end: activeIndex + 1 };
         }
-        return { start: 0, end: artboards.length };
+        return { start: 0, end: documentArtboards.length };
     }
 
     // =========================================
@@ -885,17 +1047,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      */
     function collectMovableItems(organizeOptions) {
         var movableItems = [];
-        for (var i = 0; i < activeDoc.pageItems.length; i++) {
-            var pageItem = activeDoc.pageItems[i];
-            var parentNode = pageItem.parent;
-            if (parentNode.typename !== "Layer" && parentNode.typename !== "Document") continue;
+        var allPageItems = activeDocument.pageItems;
+        var pageItemCount = allPageItems.length;
+        for (var i = 0; i < pageItemCount; i++) {
+            var pageItem = allPageItems[i];
+            var itemParentType = pageItem.parent.typename;
+            if (itemParentType !== "Layer" && itemParentType !== "Document") continue;
 
             if (isGuideItem(pageItem)) {
-                if (hasExcludedAncestorLayer(pageItem, organizeOptions, true)) continue;
-                movableItems.push(pageItem);
+                if (!hasExcludedAncestorLayer(pageItem, organizeOptions, true)) movableItems.push(pageItem);
                 continue;
             }
-
             if (hasExcludedAncestorLayer(pageItem, organizeOptions, false)) continue;
             if (isObjectExcluded(pageItem, organizeOptions)) continue;
             movableItems.push(pageItem);
@@ -904,40 +1066,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     }
 
     /**
-     * 通常オブジェクトとガイドをそれぞれの移動先レイヤーへ送る
-     * @param {{normal: Array<Object>, guide: Array<Object>}} moveEntries - 振り分け済みの移動エントリ
-     * @param {Layer} normalTargetLayer - 通常オブジェクトの移動先レイヤー
-     * @param {Array<boolean>} movedFlags - 移動済みフラグ
-     * @returns {number} 移動に失敗した件数
-     */
-    function dispatchMoveEntries(moveEntries, normalTargetLayer, movedFlags) {
-        var failedMoves = 0;
-        if (moveEntries.normal.length > 0) {
-            failedMoves += moveEntriesToLayer(moveEntries.normal, normalTargetLayer, movedFlags).failed;
-        }
-        if (moveEntries.guide.length > 0) {
-            failedMoves += moveEntriesToLayer(moveEntries.guide, getOrCreateGuideLayer(), movedFlags).failed;
-        }
-        return failedMoves;
-    }
-
-    /**
      * 各アートボードに対応するレイヤーへオブジェクトを振り分ける
      * @param {Array<PageItem>} movableItems - 移動候補のオブジェクト配列
+     * @param {Array<Array<number>>} itemCentroids - 重心座標の配列
      * @param {Object} organizeOptions - 処理設定
-     * @param {Array<boolean>} movedFlags - 移動済みフラグ
+     * @param {Array<boolean>} handledFlags - 処理済みフラグ
      * @param {{start: number, end: number}} artboardRange - 処理対象のアートボード範囲
      * @returns {number} 移動に失敗した件数
      */
-    function assignItemsToArtboardLayers(movableItems, organizeOptions, movedFlags, artboardRange) {
+    function assignItemsToArtboardLayers(movableItems, itemCentroids, organizeOptions, handledFlags, artboardRange) {
         var failedMoves = 0;
         for (var artboardIndex = artboardRange.start; artboardIndex < artboardRange.end; artboardIndex++) {
             var artboardLayer = getOrCreateTopLevelLayer(getArtboardLayerName(artboardIndex, organizeOptions));
-            var artboardRect = artboards[artboardIndex].artboardRect;
-            var moveEntries = buildMoveEntries(movableItems, movedFlags, function (candidateItem) {
-                return isCentroidInsideArtboard(candidateItem, artboardRect);
-            });
-            failedMoves += dispatchMoveEntries(moveEntries, artboardLayer, movedFlags);
+            var centroidFilter = buildCentroidFilter(itemCentroids, documentArtboards[artboardIndex].artboardRect);
+            var moveEntries = collectMoveEntries(movableItems, handledFlags, centroidFilter);
+            failedMoves += moveEntriesToTargets(moveEntries, artboardLayer, handledFlags);
         }
         return failedMoves;
     }
@@ -945,30 +1088,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /**
      * どのアートボードにも属さなかったオブジェクトを _pasteboard / _guide へ振り分ける
      * @param {Array<PageItem>} movableItems - 移動候補のオブジェクト配列
-     * @param {Object} organizeOptions - 処理設定
-     * @param {Array<boolean>} movedFlags - 移動済みフラグ
+     * @param {Array<boolean>} handledFlags - 処理済みフラグ
      * @returns {number} 移動に失敗した件数
      */
-    function assignLeftoverItems(movableItems, organizeOptions, movedFlags) {
-        var moveEntries = buildMoveEntries(movableItems, movedFlags, null);
+    function assignLeftoverItems(movableItems, handledFlags) {
+        var moveEntries = collectMoveEntries(movableItems, handledFlags, null);
         if (moveEntries.normal.length === 0 && moveEntries.guide.length === 0) return 0;
-        var pasteboardLayer = null;
-        if (moveEntries.normal.length > 0) {
-            pasteboardLayer = getOrCreateTopLevelLayer(PASTEBOARD_LAYER_NAME);
-        }
-        return dispatchMoveEntries(moveEntries, pasteboardLayer, movedFlags);
+        /* 通常オブジェクトが無いときは _pasteboard を作らない / Skip creating _pasteboard when only guides are left */
+        var pasteboardLayer = (moveEntries.normal.length > 0) ? getOrCreateTopLevelLayer(PASTEBOARD_LAYER_NAME) : null;
+        return moveEntriesToTargets(moveEntries, pasteboardLayer, handledFlags);
     }
 
     /**
-     * 対象アートボードのレイヤーを上から 1→2→3… の順に並べる
+     * 対象アートボードのレイヤーを上から 1→2→3… の順に並べ、_guide を最前面に置く
      * @param {Object} organizeOptions - 処理設定
      * @param {{start: number, end: number}} artboardRange - 処理対象のアートボード範囲
      * @returns {void}
      */
-    function reorderArtboardLayers(organizeOptions, artboardRange) {
+    function applyLayerOrder(organizeOptions, artboardRange) {
         for (var i = artboardRange.end - 1; i >= artboardRange.start; i--) {
             bringLayerToFront(getOrCreateTopLevelLayer(getArtboardLayerName(i, organizeOptions)));
         }
+        bringLayerToFront(guideLayer);
     }
 
     /**
@@ -978,8 +1119,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      */
     function mergeLegacyLayers(organizeOptions) {
         var failedMoves = 0;
-        for (var i = activeDoc.layers.length - 1; i >= 0; i--) {
-            var legacyLayer = activeDoc.layers[i];
+        var topLevelLayers = getTopLevelLayerSnapshot();
+        for (var i = topLevelLayers.length - 1; i >= 0; i--) {
+            var legacyLayer = topLevelLayers[i];
             if (isProtectedSystemLayer(legacyLayer)) continue;
             if (isLayerExcluded(legacyLayer, organizeOptions)) continue;
             var legacyArtboardIndex = findLegacyArtboardIndexByLayerName(legacyLayer.name);
@@ -1000,13 +1142,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {number} 移動に失敗した件数
      */
     function mergeSingleLegacyLayer(legacyLayer, targetLayer) {
-        return withWritableLayer(legacyLayer, function () {
-            var failedMoves = moveAllItemsToLayer(legacyLayer, targetLayer).failed;
-            if (legacyLayer.pageItems.length === 0 && legacyLayer.layers.length === 0 && activeDoc.layers.length > 1) {
-                legacyLayer.remove();
-            }
-            return failedMoves;
+        var collectedEntries = [];
+        collectPageItemEntriesRecursive(legacyLayer, collectedEntries);
+        var failedMoves = withWritableLayer(legacyLayer, function () {
+            return moveEntriesToLayer(collectedEntries, targetLayer, null);
         });
+        if (isLayerEmpty(legacyLayer) && activeDocument.layers.length > 1) {
+            removeLayerSafely(legacyLayer);
+        }
+        return failedMoves;
+    }
+
+    // =========================================
+    // 空レイヤーの削除 / Removing empty layers
+    // =========================================
+
+    /**
+     * 空になったサブレイヤーを再帰的に削除する（除外対象は中身ごと残す）
+     * @param {Layer} parentLayer - 親レイヤー
+     * @param {Object} organizeOptions - 処理設定
+     * @returns {void}
+     */
+    function removeEmptySubLayers(parentLayer, organizeOptions) {
+        for (var i = parentLayer.layers.length - 1; i >= 0; i--) {
+            var childLayer = parentLayer.layers[i];
+            if (isLayerExcluded(childLayer, organizeOptions)) continue;
+            removeEmptySubLayers(childLayer, organizeOptions);
+            if (isProtectedSystemLayer(childLayer)) continue;
+            if (isLayerEmpty(childLayer)) removeLayerSafely(childLayer);
+        }
     }
 
     /**
@@ -1015,13 +1179,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @returns {void}
      */
     function cleanupEmptyLayers(organizeOptions) {
-        for (var i = activeDoc.layers.length - 1; i >= 0; i--) {
-            var topLayer = activeDoc.layers[i];
-            if (isLayerExcluded(topLayer, organizeOptions)) continue;
-            removeEmptySubLayers(topLayer, organizeOptions);
-            if (isProtectedSystemLayer(topLayer)) continue;
-            if (topLayer.pageItems.length === 0 && topLayer.layers.length === 0 && activeDoc.layers.length > 1) {
-                topLayer.remove();
+        var topLevelLayers = getTopLevelLayerSnapshot();
+        for (var i = topLevelLayers.length - 1; i >= 0; i--) {
+            var topLevelLayer = topLevelLayers[i];
+            if (isLayerExcluded(topLevelLayer, organizeOptions)) continue;
+            removeEmptySubLayers(topLevelLayer, organizeOptions);
+            if (isProtectedSystemLayer(topLevelLayer)) continue;
+            if (isLayerEmpty(topLevelLayer) && activeDocument.layers.length > 1) {
+                removeLayerSafely(topLevelLayer);
             }
         }
     }
@@ -1037,27 +1202,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      */
     function organizeDocumentLayers(organizeOptions) {
         var movableItems = collectMovableItems(organizeOptions);
-        var movedFlags = [];
+        var itemCentroids = buildItemCentroids(movableItems);
+        var handledFlags = [];
         var artboardRange = getTargetArtboardRange(organizeOptions);
         var failedMoves = 0;
 
         guideLayer = findTopLevelLayerByName(GUIDE_LAYER_NAME); // 既存があれば先に拾う / capture existing if any
 
-        failedMoves += assignItemsToArtboardLayers(movableItems, organizeOptions, movedFlags, artboardRange);
-        reorderArtboardLayers(organizeOptions, artboardRange);
-
-        if (!organizeOptions.currentArtboardOnly) {
-            failedMoves += assignLeftoverItems(movableItems, organizeOptions, movedFlags);
+        var suspendedEntries = suspendLockAndHidden(movableItems, organizeOptions);
+        try {
+            failedMoves += assignItemsToArtboardLayers(movableItems, itemCentroids, organizeOptions, handledFlags, artboardRange);
+            if (!organizeOptions.currentArtboardOnly) {
+                failedMoves += assignLeftoverItems(movableItems, handledFlags);
+                failedMoves += mergeLegacyLayers(organizeOptions);
+            }
+            applyLayerOrder(organizeOptions, artboardRange);
+        } finally {
+            restoreLockAndHidden(suspendedEntries);
         }
-
-        bringLayerToFront(guideLayer);
-
-        if (!organizeOptions.currentArtboardOnly) {
-            failedMoves += mergeLegacyLayers(organizeOptions);
-        }
-
-        reorderArtboardLayers(organizeOptions, artboardRange);
-        bringLayerToFront(guideLayer);
 
         if (organizeOptions.removeEmptyLayers) {
             cleanupEmptyLayers(organizeOptions);
