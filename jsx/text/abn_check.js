@@ -1,17 +1,17 @@
-#target illustrator
-#targetengine "addBulletsAndNumbers"
-#include "ColorPicker.jsx"
+//#target illustrator
+//#targetengine "addBulletsAndNumbers"
+//#include "ColorPicker.jsx"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### 概要
+//### 概要
 
 - 選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
 - ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
 - 行の並べ替え、マーカーの書式、段落設定にも対応しています。
 - 詳細な機能・オプションはREADMEを参照してください。
 
-### Overview
+//### Overview
 
 - Adds a bullet symbol or sequential numbers to the head of each line in the selected text frames.
 - On open, the existing leading markers are detected so you can keep editing from the current state while watching a live preview.
@@ -907,12 +907,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         // プレビュー前の状態を保存（キャンセル時に復元・並べ替えの作業領域）/ Snapshot the pre-preview state (restored on cancel; also the reorder work area)
         var frameSnapshots = captureFrameSnapshots(targetSelection);
 
+        // プレビューの undo 状態（直前のプレビューを app.undo() で巻き戻すため）/ Preview undo state (so the previous preview can be rolled back via app.undo())
+        var previewState = { isUndo: false };
+
         // リセット済みか（ハンギングOFFでもインデントを0として適用する）/ Whether Reset was pressed (apply zero indents even with hanging off)
         var indentsCleared = false;
-
-        // セッション設定の復元中か（値の代入で走るハンドラーに邪魔をさせない）
-        // Whether a saved session is being restored (assigning values fires handlers that would interfere)
-        var restoringSession = false;
 
         // プレビューの遅延実行 / Deferred preview
         // 入力のたびに再適用すると画面がちらつくため、入力が落ち着くまでまとめる
@@ -1673,7 +1672,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         function applySessionState(state) {
             if (!state || !state.listType) return; // 初回は推定した状態のまま / first run keeps the detected state
 
-            restoringSession = true;
             rbBullet.value = (state.listType === "bullet");
             rbNumbered.value = (state.listType === "numbered");
             rbNone.value = (state.listType === "none");
@@ -1695,10 +1693,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             if (state.leftIndent != null) inputLeftIndent.text = state.leftIndent;
             if (state.justifyId) selectJustify(state.justifyId);
 
-            // フォントは一覧を作り直してから選択し直す
-            // ファミリーの選択で onChange が走りスタイルが初期化されるため、スタイルの復元は必ずそのあとに行う
-            // Rebuild the dropdowns, then reselect: choosing a family fires onChange and resets the style,
-            // so the style has to be restored afterwards
+            // フォントは一覧を作り直してから選択し直す / rebuild the dropdowns before reselecting the font
             if (state.japaneseOnly != null) chkJPOnly.value = state.japaneseOnly;
             if (state.fontName) {
                 populateFontFamilyDropdown(fontFamilyDropdown, state.fontName, chkJPOnly.value);
@@ -1708,8 +1703,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             // カラーは表示前なので _aiColor を差し替えるだけでよい / the dialog is not shown yet, so swapping _aiColor is enough
             if (state.markerColor) colorSwatch._aiColor = pickerStringToAiColor(state.markerColor);
             if (state.delimiterColor) delimiterColorSwatch._aiColor = pickerStringToAiColor(state.delimiterColor);
-
-            restoringSession = false;
         }
 
         /**
@@ -1932,6 +1925,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         }
 
         /**
+         * 直前のプレビュー1回ぶんを巻き戻す（実機検証: 1プレビュー = app.undo() 1回で完全復元）
+         * @returns {void}
+         */
+        function undoPreview() {
+            if (!previewState.isUndo) return;
+            try { app.undo(); app.redraw(); } catch (e) { }
+            previewState.isUndo = false;
+        }
+
+        /**
          * 現在のUIの状態を applyListMarkers() へ渡すオプションにまとめる
          * @returns {object} applyListMarkers() のオプション
          */
@@ -1955,13 +1958,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         }
 
         /**
-         * プレビューを更新する
+         * プレビューを更新する（直前のプレビューを app.undo() で巻き戻してから再適用）
          * 行一覧は並べ替えたときだけ内容が変わるため、ここでは作り直さない
          * @returns {void}
          */
         function updatePreview() {
-            if (restoringSession) return; // 復元が終わるまでは描き直さない / hold off until the restore finishes
             applyCurrentSettings();
+            previewState.isUndo = true; // 次回はこのプレビューを巻き戻す / next call rolls this one back
         }
 
         /**
@@ -1970,9 +1973,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          * @returns {void}
          */
         function applyCurrentSettings() {
-            // 本文は applyListMarkers() が控えから組み直すため、ここでは書式だけ元に戻せばよい
-            // applyListMarkers() rebuilds the text from the snapshot, so only the formats need resetting here
-            restoreFrameFormats(frameSnapshots);
+            undoPreview();
+            restoreFrameSnapshots(frameSnapshots);
             applyListMarkers(targetSelection, currentApplyOptions());
             app.redraw();
         }
@@ -1994,7 +1996,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          * @returns {void}
          */
         function requestPreview() {
-            if (restoringSession) return; // 復元が終わるまでは予約もしない / do not even schedule while restoring
             cancelScheduledPreview();
             try {
                 previewTaskId = app.scheduleTask(PREVIEW_TASK_CALL, PREVIEW_DELAY_MS, false);
@@ -2006,6 +2007,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         }
 
         /**
+         * 予約を取り消して即座にプレビューを更新する（入力の確定時など）
+         * @returns {void}
+         */
+        function flushPreview() {
+            cancelScheduledPreview();
+            updatePreview();
+        }
+
+        /**
          * 入力欄をプレビュー更新に配線する（入力中は遅延、確定時と↑↓キー操作後にまとめて反映）
          * @param {EditText} input - 対象の入力欄
          * @param {boolean} allowNegative - ↑↓キーで負値を許可するか
@@ -2013,13 +2023,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
          * @returns {void}
          */
         function wirePreviewInput(input, allowNegative, beforeUpdate) {
-            // 入力・↑↓キーとも予約だけを行う。onChange（確定）で即時更新すると、
-            // 1回の操作で予約と即時更新が二重に走るため配線しない
-            // Both typing and arrow keys only schedule. Wiring onChange to an immediate update
-            // would make a single edit run the preview twice
             input.onChanging = function () {
                 if (beforeUpdate) beforeUpdate();
+                // ↑↓キー操作中は keyup 側にまかせる（.text への代入で onChanging が走る環境があるため）
+                // During an arrow burst, leave it to keyup (assigning .text fires onChanging on some platforms)
+                if (input._arrowActive) return;
                 requestPreview();
+            };
+            input.onChange = function () {
+                if (beforeUpdate) beforeUpdate();
+                flushPreview();
             };
             changeValueByArrowKey(input, allowNegative, function () {
                 if (beforeUpdate) beforeUpdate();
@@ -2221,7 +2234,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
         var committed = false;
 
         btnOK.onClick = function () {
-            // 画面に出ている状態がそのまま確定結果になる / what is on screen is what gets committed
+            // プレビュー分を巻き戻してから、本番設定で1回だけ適用（履歴を最小化）
+            // Roll back the preview, then apply once with the final settings (minimal history)
             applyCurrentSettings();
             committed = true;
             dialog.close(1);
@@ -2238,7 +2252,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             // OK・キャンセルのどちらでも、閉じた時点の設定を覚えておく / Remember the settings as they were, on OK and Cancel alike
             saveSessionState(collectSessionState());
             if (!committed) {
-                // 控えから原状へ戻す（本文の並びは控えに従う）/ Restore from the snapshot (the line order follows it)
+                // プレビュー分を巻き戻し、原状（並べ替えは frameSnapshots 準拠）へ / Roll back the preview, then restore (reorder follows frameSnapshots)
+                undoPreview();
                 restoreFrameSnapshots(frameSnapshots);
                 app.redraw();
             }
@@ -2292,6 +2307,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             // 一連の ↑↓ 操作の開始値を控える（keyup での変化判定用。連続押下では最初の1回だけ記録）
             // Remember the value at the start of this arrow burst (for the keyup change check; recorded only on the first press of a burst)
             if (editText._arrowBaseValue == null) editText._arrowBaseValue = value;
+            editText._arrowActive = true; // バースト中は onChanging 由来のプレビューを止める / suppress onChanging-driven previews during the burst
 
             var keyboard = ScriptUI.environment.keyboardState;
             var delta = 1;
@@ -2342,6 +2358,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             if (event.keyName != "Up" && event.keyName != "Down") return;
             var baseValue = editText._arrowBaseValue;
             editText._arrowBaseValue = null; // バースト終了 / end of burst
+            editText._arrowActive = false;
             // 値が変わっていない（下限張り付きなど）ならプレビューしない / skip preview when the value did not change (e.g. clamped at the lower bound)
             if (baseValue != null && Number(editText.text) === baseValue) return;
             if (typeof onUpdate === "function") onUpdate();
@@ -2468,21 +2485,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
             // フレームごとにリセット時は各フレームの先頭で開始番号へ戻す / restart at each frame when requested
             if (options.resetPerFrame) numberCounter.value = startNumber;
 
-            // マーカーは控えの本文から組み立てる（ドキュメントを一度素に戻す必要がない）
-            // 組み上がりが今の本文と同じなら書き戻さない。比率・行送り・タブストップだけを変えた場合は
-            // 本文に一切触れないので、全文字の書式復元も走らない
-            // Build the marked text from the snapshot, so the document never has to be reset first.
-            // When the result matches the current text nothing is written, which means a change to
-            // scale / leading / tab stops alone never touches the body or its character attributes
-            var frameSnapshot = findFrameSnapshot(options.frameSnapshots, targetFrame);
-            var sourceContents = frameSnapshot ? frameSnapshot.contents : targetFrame.contents;
-            var markedContents = buildMarkedLines(sourceContents, listType, options, numberCounter, padWidth).join("\r");
-            if (targetFrame.contents !== markedContents) {
-                targetFrame.contents = markedContents;
+            var lines = buildMarkedLines(targetFrame.contents, listType, options, numberCounter, padWidth);
+            targetFrame.contents = lines.join("\r");
 
-                // contents 再設定で失われた本文の文字属性を復元 / Restore body attributes lost by resetting contents
-                if (frameSnapshot) restoreBodyAttributes(targetFrame, frameSnapshot.bodyAttrsPerLine);
-            }
+            // contents 再設定で失われた本文の文字属性を復元 / Restore body attributes lost by resetting contents
+            var frameSnapshot = findFrameSnapshot(options.frameSnapshots, targetFrame);
+            if (frameSnapshot) restoreBodyAttributes(targetFrame, frameSnapshot.bodyAttrsPerLine);
 
             // 行頭マーカーの送り位置をtabストップで揃える / Align the marker via tab stops
             setTabStops(targetFrame, tabStopSpecsFor(listType, options));
@@ -3147,29 +3155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
     function restoreFrameSnapshots(frameSnapshots) {
         for (var i = 0; i < frameSnapshots.length; i++) {
             var entry = frameSnapshots[i];
-
-            // contents の入れ直しは文字書式を初期化するため、変わっていなければ触らない
-            // Reassigning contents resets the character formatting, so skip it when the text already matches
-            var contentsChanged = true;
-            try { contentsChanged = (entry.frame.contents !== entry.contents); } catch (eRead) { }
-            if (contentsChanged) {
-                try { entry.frame.contents = entry.contents; } catch (e) { }
-                restoreBodyAttributes(entry.frame, entry.bodyAttrsPerLine);
-            }
-        }
-        restoreFrameFormats(frameSnapshots);
-    }
-
-    /**
-     * 控えから段落の書式とタブストップだけを戻す（本文と文字属性には触らない）
-     * プレビューのたびに呼ぶため、フレーム単位の軽い書き込みだけで済ませる
-     * @param {Array<object>} frameSnapshots - captureFrameSnapshots() が返した控え
-     * @returns {void}
-     */
-    function restoreFrameFormats(frameSnapshots) {
-        for (var i = 0; i < frameSnapshots.length; i++) {
-            var entry = frameSnapshots[i];
-
+            try { entry.frame.contents = entry.contents; } catch (e) { }
             if (entry.tabStops !== null) {
                 try {
                     var rebuiltTabs = [];
@@ -3182,20 +3168,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                     entry.frame.textRange.paragraphAttributes.tabStops = rebuiltTabs;
                 } catch (e) { }
             }
-
             // 段落の書式を復元 / Restore paragraph format
             // キャンセル時の原状復帰が途中で止まらないよう、項目ごとに try を分ける
             // Guard each item so a single failure cannot abort the rest of the rollback
-            if (!entry.paraFormat) continue;
-            // 行送りの代入は自動行送りを解除するため、autoLeading は最後に戻す
-            // Assigning leading turns auto-leading off, so restore autoLeading last
-            if (entry.paraFormat.leading != null) { try { entry.frame.textRange.characterAttributes.leading = entry.paraFormat.leading; } catch (eLead) { } }
-            if (entry.paraFormat.autoLeadingAmount != null) { try { entry.frame.textRange.paragraphAttributes.autoLeadingAmount = entry.paraFormat.autoLeadingAmount; } catch (eAmount) { } }
-            if (entry.paraFormat.autoLeading != null) { try { entry.frame.textRange.characterAttributes.autoLeading = entry.paraFormat.autoLeading; } catch (eAuto) { } }
-            if (entry.paraFormat.justification != null) { try { entry.frame.textRange.paragraphAttributes.justification = entry.paraFormat.justification; } catch (eJustify) { } }
-            if (entry.paraFormat.spaceAfter != null) { try { entry.frame.textRange.paragraphAttributes.spaceAfter = entry.paraFormat.spaceAfter; } catch (eSpace) { } }
-            if (entry.paraFormat.leftIndent != null) { try { entry.frame.textRange.paragraphAttributes.leftIndent = entry.paraFormat.leftIndent; } catch (eLeft) { } }
-            if (entry.paraFormat.firstLineIndent != null) { try { entry.frame.textRange.paragraphAttributes.firstLineIndent = entry.paraFormat.firstLineIndent; } catch (eFirst) { } }
+            if (entry.paraFormat) {
+                // 行送りの代入は自動行送りを解除するため、autoLeading は最後に戻す
+                // Assigning leading turns auto-leading off, so restore autoLeading last
+                if (entry.paraFormat.leading != null) { try { entry.frame.textRange.characterAttributes.leading = entry.paraFormat.leading; } catch (eLead) { } }
+                if (entry.paraFormat.autoLeadingAmount != null) { try { entry.frame.textRange.paragraphAttributes.autoLeadingAmount = entry.paraFormat.autoLeadingAmount; } catch (eAmount) { } }
+                if (entry.paraFormat.autoLeading != null) { try { entry.frame.textRange.characterAttributes.autoLeading = entry.paraFormat.autoLeading; } catch (eAuto) { } }
+                if (entry.paraFormat.justification != null) { try { entry.frame.textRange.paragraphAttributes.justification = entry.paraFormat.justification; } catch (eJustify) { } }
+                if (entry.paraFormat.spaceAfter != null) { try { entry.frame.textRange.paragraphAttributes.spaceAfter = entry.paraFormat.spaceAfter; } catch (eSpace) { } }
+                if (entry.paraFormat.leftIndent != null) { try { entry.frame.textRange.paragraphAttributes.leftIndent = entry.paraFormat.leftIndent; } catch (eLeft) { } }
+                if (entry.paraFormat.firstLineIndent != null) { try { entry.frame.textRange.paragraphAttributes.firstLineIndent = entry.paraFormat.firstLineIndent; } catch (eFirst) { } }
+            }
+            restoreBodyAttributes(entry.frame, entry.bodyAttrsPerLine);
         }
     }
 
@@ -3212,22 +3199,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
      */
     function snapshotCharAttributes(characterAttr) {
         var snap = {};
-
-        // 文字数ぶん繰り返す処理なので、まずは1つの try でまとめて読む（速い経路）
-        // This runs once per character, so read everything in a single try first (fast path)
-        try {
-            snap.textFont = characterAttr.textFont;
-            snap.size = characterAttr.size;
-            snap.horizontalScale = characterAttr.horizontalScale;
-            snap.verticalScale = characterAttr.verticalScale;
-            snap.baselineShift = characterAttr.baselineShift;
-            snap.tracking = characterAttr.tracking;
-            snap.fillColor = characterAttr.fillColor;
-            return snap;
-        } catch (eBatch) { }
-
-        // まとめて読めなかったときだけ属性ごとに読み直す（1つの失敗で控え全体を失わないように）
-        // Fall back to one try per attribute so a single failure cannot discard the whole snapshot
+        // 属性ごとに try を分ける。1つ（欠落フォントの textFont など）の失敗で控え全体を失うと、
+        // contents 再設定後に本文の書式を戻せなくなるため
+        // Guard each attribute separately: losing the whole snapshot to one failure (e.g. a missing
+        // font on textFont) would make the body formatting unrecoverable after .contents is reset
         try { snap.textFont = characterAttr.textFont; } catch (eFont) { }
         try { snap.size = characterAttr.size; } catch (eSize) { }
         try { snap.horizontalScale = characterAttr.horizontalScale; } catch (eHScale) { }
@@ -3246,22 +3221,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
      */
     function restoreCharAttributes(characterAttr, snapshot) {
         if (!snapshot) return;
-
-        // 文字数ぶん繰り返す処理なので、まずは1つの try でまとめて書く（速い経路）
-        // This runs once per character, so write everything in a single try first (fast path)
-        try {
-            if (snapshot.textFont) characterAttr.textFont = snapshot.textFont;
-            if (snapshot.size != null) characterAttr.size = snapshot.size;
-            if (snapshot.horizontalScale != null) characterAttr.horizontalScale = snapshot.horizontalScale;
-            if (snapshot.verticalScale != null) characterAttr.verticalScale = snapshot.verticalScale;
-            if (snapshot.baselineShift != null) characterAttr.baselineShift = snapshot.baselineShift;
-            if (snapshot.tracking != null) characterAttr.tracking = snapshot.tracking;
-            if (snapshot.fillColor) characterAttr.fillColor = snapshot.fillColor;
-            return;
-        } catch (eBatch) { }
-
-        // まとめて書けなかったときだけ属性ごとに書き直す（1つの失敗で残りを巻き込まないように）
-        // Fall back to one try per attribute so a single failure cannot skip the rest
+        // 属性ごとに try を分ける。フォントやカラー（スポット・グラデーションなど）は失敗しやすく、
+        // まとめて囲むと1つの失敗で残りの復元まで飛んでしまうため
+        // Guard each attribute separately: fonts and colors (spot, gradient, ...) fail easily, and
+        // one failure in a shared try would skip every remaining restore
         if (snapshot.textFont) { try { characterAttr.textFont = snapshot.textFont; } catch (eFont) { } }
         if (snapshot.size != null) { try { characterAttr.size = snapshot.size; } catch (eSize) { } }
         if (snapshot.horizontalScale != null) { try { characterAttr.horizontalScale = snapshot.horizontalScale; } catch (eHScale) { } }
@@ -3284,9 +3247,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 var text = paragraphs[paragraphIndex].contents;
                 var markerLength = text.length - stripListMarker(text).length; // 既存マーカー長 / existing marker length
                 var paragraphAttrs = [];
-                var characters = paragraphs[paragraphIndex].characters; // ループの外で1度だけ取る / resolve once per paragraph
                 for (var k = markerLength; k < text.length; k++) {
-                    paragraphAttrs.push(snapshotCharAttributes(characters[k].characterAttributes));
+                    paragraphAttrs.push(snapshotCharAttributes(paragraphs[paragraphIndex].characters[k].characterAttributes));
                 }
                 attrsPerParagraph.push(paragraphAttrs);
             }
@@ -3312,13 +3274,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd738e3258989"; /* 紹�
                 var bodyStart = text.length - paragraphAttrs.length; // 本文は末尾 paragraphAttrs.length 文字 / body = last N characters
                 if (bodyStart < 0) continue;
 
-                // 文字コレクションはループの外で1度だけ取る / resolve the character collection once per paragraph
-                var characters = paragraphs[paragraphIndex].characters;
-                var characterCount = characters.length;
                 for (var k = 0; k < paragraphAttrs.length; k++) {
                     var charIndex = bodyStart + k;
-                    if (charIndex >= characterCount) break;
-                    restoreCharAttributes(characters[charIndex].characterAttributes, paragraphAttrs[k]);
+                    if (charIndex >= paragraphs[paragraphIndex].characters.length) break;
+                    restoreCharAttributes(paragraphs[paragraphIndex].characters[charIndex].characterAttributes, paragraphAttrs[k]);
                 }
             }
         } catch (e) { }
