@@ -4,1204 +4,1620 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-RandomizeObjects.jsx
+選択したオブジェクトの位置・スケール・回転・不透明度・塗りカラーをランダムに変化させ、ダイアログ上で即時プレビューしながら調整します。
+［中央に集める］［重なりを避ける］による再配置にも対応します。
 
-### GitHub：
+詳細はREADMEを参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RandomizeObjects.jsx
+### Overview
 
-### 更新日：
-- 2026-03-05（v2.2：［重なりを避ける］の配置ロジックを汎用関数として抽出）
-- 2026-02-27（v2.1：完全シャッフル＝ランダム色生成（CMYKのKは0–30）／カラーは［ランダム］で実行）
+Randomizes the position, scale, rotation, opacity, and fill color of the selected objects, with a live preview in the dialog.
+Also provides "Gather to Center" and "Avoid Overlap" repositioning.
 
-### 概要：
-- 選択したオブジェクトをランダムに移動・変形・回転・不透明度を変更するスクリプト
-- UIから各種パラメータを指定し、即時プレビューで結果を確認可能
-- カラーの通常シャッフル／完全シャッフルに対応
-- [リセット]でダイアログ起動前の状態に復元
-- ［重なりを避ける］の配置ロジックを他スクリプトへ流用しやすい形で関数化
+See the README for details.
 
-### 主な機能：
-
-- 移動距離を横・縦方向に個別設定、または連動
-- 中央揃えオプションでオブジェクトを一箇所に集約
-- 拡大縮小（変形）、回転、不透明度のランダム化
-- プレビュー反映、キャンセルで元の状態に完全リセット
-- UI状態の同期安定性向上（チェックON/OFFと入力欄enabledの整合性を統一）
-- プレビューを毎回ベース状態から再計算（積み増し挙動を解消）
-
-### 処理の流れ：
-
-1. ドキュメントと選択状態を確認
-2. ダイアログを表示（移動距離・変形率・回転・不透明度を入力）
-3. 入力値をもとにランダム変形や移動を即時プレビュー
-4. OKで確定、キャンセルでダイアログ起動前にリセット
 */
 
-var SCRIPT_VERSION = "v2.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RandomizeObjects";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.2.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-19";                   /* 更新日 / last updated */
 
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var lang = getCurrentLang();
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RandomizeObjects.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeObjects.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹介記事 / article URL */
 
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
-    dialogTitle: { ja: "ランダム化 " + SCRIPT_VERSION, en: "Randomize " + SCRIPT_VERSION },
-    distance: { ja: "移動距離", en: "Distance" },
-    horizontal: { ja: "横:", en: "Horizontal:" },
-    vertical: { ja: "縦:", en: "Vertical:" },
-    link: { ja: "連動", en: "Link" },
-    gatherCenter: { ja: "中央に集める", en: "Gather to Center" },
-    avoidOverlap: { ja: "重なりを避ける", en: "Avoid Overlap" },
-    panelScaleTitle: { ja: "スケール（%）", en: "Scale (%)" },
-    scale: { ja: "幅・高さ", en: "Width & Height" },
-    scaleX: { ja: "幅", en: "Width" },
-    scaleY: { ja: "高さ", en: "Height" },
-    rotate: { ja: "回転", en: "Rotate" },
-    opacity: { ja: "不透明度", en: "Opacity" },
-    ok: { ja: "OK", en: "OK" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    reset: { ja: "リセット", en: "Reset" },
-    random: { ja: "ランダム", en: "Random" },
-    shuffle: { ja: "シャッフル", en: "Shuffle" },
-    force: { ja: "強制", en: "Force" }
-    , shuffleMode: { ja: "シャッフル方式", en: "Shuffle Mode" }
-    , fullShuffle: { ja: "完全シャッフル", en: "Full Shuffle" }
-    , apply: { ja: "実行", en: "Apply" }
-    , none: { ja: "なし", en: "None" }
-};
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
-/* 入力値を更新し、リンクされた入力とプレビューを処理 / Update input, linked input, and preview */
-function updateLinkedInputAndPreview(input, linkInput, previewFunc) {
-    if (linkInput && linkInput.enabled) linkInput.text = input.text;
-    if (previewFunc) previewFunc();
-}
+(function () {
 
-/* ダイアログ設定を共通化 / Configure dialog position and opacity */
-function configureDialog(dlg, options) {
-    if (options.opacity !== undefined) dlg.opacity = options.opacity;
-}
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-/*
-  Avoid-overlap placement utility (reusable)
-  - Moves items around their original positions within a random range, retrying to avoid overlaps.
-  - Designed to be copy-paste friendly for other scripts.
+    /* チェックをONにしたときに自動入力する値 / Value filled in when a checkbox is turned on */
+    var DEFAULT_RANGE_TEXT = "20";
 
-  Usage:
-    var res = TMK_placeItemsAvoidOverlap(originalStates, {
-      baseX: 50,
-      baseY: 50,
-      padding: 5,
-      maxScaleFactor: 20,
-      attemptsPerItem: 300
-    });
-    // res.success (boolean), res.scaleFactor (number)
-*/
-function TMK_placeItemsAvoidOverlap(states, opts) {
-    opts = opts || {};
-    var padding = (opts.padding !== undefined) ? opts.padding : 5;
-    var baseX = (opts.baseX !== undefined) ? opts.baseX : 50;
-    var baseY = (opts.baseY !== undefined) ? opts.baseY : 50;
-    var maxScaleFactor = (opts.maxScaleFactor !== undefined) ? opts.maxScaleFactor : 20;
-    var attemptsPerItem = (opts.attemptsPerItem !== undefined) ? opts.attemptsPerItem : 300;
+    /* 移動距離の単位表記（内部の計算は常にpt）/ Unit shown in the distance panel (values are always pt) */
+    var DISTANCE_UNIT_LABEL = "pt";
 
-    if (!states || states.length === 0) {
-        return { success: false, scaleFactor: 1, reason: "no-states" };
+    /* 回転角の上限（°）/ Maximum rotation angle (deg) */
+    var ROTATE_RANGE_MAX = 180;
+
+    /* 不透明度の振れ幅の上限（%）/ Maximum opacity variation (%) */
+    var OPACITY_RANGE_MAX = 100;
+
+    /* ［重なりを避ける］の重なり判定に使う余白（pt）/ Padding used by the avoid-overlap test (pt) */
+    var OVERLAP_PADDING = 5;
+
+    /* ［重なりを避ける］で移動距離が未指定のときの基準範囲（pt）/ Fallback move range when no distance is entered (pt) */
+    var OVERLAP_BASE_RANGE = 50;
+
+    /* ［重なりを避ける］で移動範囲を広げる上限倍率 / Maximum factor the move range is widened by */
+    var OVERLAP_MAX_SCALE_FACTOR = 20;
+
+    /* ［重なりを避ける］の1オブジェクトあたりの試行回数 / Placement attempts per object */
+    var OVERLAP_ATTEMPTS_PER_ITEM = 300;
+
+    /* 完全シャッフルで生成するCMYKのK上限（暗くなりすぎるのを防ぐ）/ Upper bound of K generated by full shuffle */
+    var FULL_SHUFFLE_MAX_BLACK = 30;
+
+    /* ダイアログの不透明度（背面のプレビューを見やすくする）/ Dialog opacity, so the preview stays visible */
+    var DIALOG_OPACITY = 0.98;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var WINDOW_MARGINS         = 16;               /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING         = 12;               /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS          = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING          = 6;                /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING         = 12;               /* 2カラムの間隔 / gap between columns */
+    var BUTTON_BAR_MARGINS     = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
+    var NUMERIC_FIELD_CHARS    = 4;                /* 数値入力欄の文字数（＝最小幅）/ width of a numeric field, in characters */
+    var SCALE_LABEL_WIDTH      = 60;               /* スケールパネルのラベル幅 / label width in the scale panel */
+    var OPTIONS_LABEL_WIDTH    = 80;               /* オプションパネルのラベル幅 / label width in the options panel */
+    var REPOSITION_BUTTON_SIZE = [120, 24];        /* 再配置ボタンのサイズ / size of the repositioning buttons */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在の表示言語を取得する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
+        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "ランダム化 " + SCRIPT_VERSION, en: "Randomize " + SCRIPT_VERSION }
+        },
+        distance: {
+            panelTitle:   { ja: "移動距離", en: "Distance" },
+            horizontal:   { ja: "横:", en: "Horizontal:" },
+            vertical:     { ja: "縦:", en: "Vertical:" },
+            link:         { ja: "連動", en: "Link" },
+            gatherCenter: { ja: "中央に集める", en: "Gather to Center" },
+            avoidOverlap: { ja: "重なりを避ける", en: "Avoid Overlap" }
+        },
+        color: {
+            panelTitle:  { ja: "カラー", en: "Color" },
+            none:        { ja: "なし", en: "None" },
+            shuffle:     { ja: "シャッフル", en: "Shuffle" },
+            fullShuffle: { ja: "完全シャッフル", en: "Full Shuffle" }
+        },
+        scale: {
+            panelTitle: { ja: "スケール（%）", en: "Scale (%)" },
+            width:      { ja: "幅", en: "Width" },
+            height:     { ja: "高さ", en: "Height" },
+            link:       { ja: "連動", en: "Link" }
+        },
+        options: {
+            panelTitle: { ja: "オプション", en: "Options" },
+            rotate:     { ja: "回転", en: "Rotate" },
+            opacity:    { ja: "不透明度", en: "Opacity" }
+        },
+        button: {
+            random: { ja: "ランダム", en: "Random" },
+            reset:  { ja: "リセット", en: "Reset" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok:     { ja: "OK", en: "OK" }
+        },
+        alert: {
+            noDocument:     { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection:    { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
+            needTwoObjects: { ja: "2つ以上のオブジェクトを選択してください", en: "Select two or more objects." },
+            needSelection:  { ja: "オブジェクトを選択してください", en: "Select at least one object." },
+            noFillTarget:   { ja: "塗りカラーを適用できる対象が見つかりませんでした", en: "Found no object that accepts a fill color." },
+            overlapFailed:  { ja: "十分な距離を確保できず、完全に非重複で配置できませんでした。", en: "Could not place every object without overlaps." },
+            forceError:     { ja: "強制処理中にエラーが発生しました: ", en: "An error occurred during repositioning: " },
+            colorError:     { ja: "カラーシャッフル中にエラーが発生しました: ", en: "An error occurred while shuffling fillColors: " },
+            randomError:    { ja: "ランダム処理中にエラーが発生しました: ", en: "An error occurred while randomizing: " },
+            resetError:     { ja: "リセット処理中にエラーが発生しました: ", en: "An error occurred while resetting: " },
+            genericError:   { ja: "エラーが発生しました：", en: "An error occurred: " }
+        }
+    };
+
+    /**
+     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('button','ok')）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} 該当するラベル（見つからない場合は空文字）
+     */
+    function getLabel() {
+        var labelNode = LABELS;
+        for (var i = 0; i < arguments.length; i++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[arguments[i]];
+        }
+        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
     }
 
-    // sanitize
-    baseX = parseFloat(baseX);
-    baseY = parseFloat(baseY);
-    if (isNaN(baseX) || baseX <= 0) baseX = 50;
-    if (isNaN(baseY) || baseY <= 0) baseY = 50;
+    // =========================================
+    // UIレイアウト補助 / UI layout helpers
+    // =========================================
 
-    var placedItems = [];
-    var success = false;
-    var scaleFactor = 1;
+    /**
+     * パネルに共通レイアウトを適用する
+     * @param {Panel} targetPanel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
-    while (!success && scaleFactor <= maxScaleFactor) {
-        placedItems = [];
-        success = true;
+    /**
+     * グループを横並びの行として設定する
+     * @param {Group} targetGroup - 対象グループ
+     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, horizontalAlign, spacing) {
+        targetGroup.orientation = "row";
+        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
+        targetGroup.alignment = [horizontalAlign || "left", "center"];
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
-        for (var i = 0; i < states.length; i++) {
-            var st = states[i];
-            var attempts = 0;
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Window|Group} parentContainer - 追加先
+     * @param {string} panelTitle - パネルの見出し
+     * @returns {Panel} 生成したパネル
+     */
+    function addPanel(parentContainer, panelTitle) {
+        var createdPanel = parentContainer.add("panel");
+        createdPanel.text = panelTitle;
+        setupPanel(createdPanel);
+        return createdPanel;
+    }
+
+    /**
+     * 縦並びのカラムを生成する（パネルを積む用）
+     * @param {Group} parentRow - 追加先の行グループ
+     * @returns {Group} 生成したカラム
+     */
+    function addPanelColumn(parentRow) {
+        var createdColumn = parentRow.add("group");
+        createdColumn.orientation = "column";
+        createdColumn.alignChildren = ["fill", "top"];
+        createdColumn.spacing = WINDOW_SPACING;
+        return createdColumn;
+    }
+
+    /**
+     * チェックボックス＋数値入力欄の行を生成する
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelText - チェックボックスのラベル
+     * @param {number} labelWidth - ラベル幅（0以下なら指定しない）
+     * @param {string} unitText - 入力欄の後ろに添える単位（不要なら空文字）
+     * @returns {object} { check: Checkbox, field: EditText }
+     */
+    function addNumericFieldRow(parentContainer, labelText, labelWidth, unitText) {
+        var numericFieldRow = parentContainer.add("group");
+        setupRow(numericFieldRow);
+
+        var checkbox = numericFieldRow.add("checkbox", undefined, labelText);
+        if (labelWidth > 0) checkbox.preferredSize.width = labelWidth;
+
+        /* 初期状態はOFF・入力欄はディム / Every row starts unchecked and dimmed */
+        var field = numericFieldRow.add("edittext", undefined, "0");
+        field.characters = NUMERIC_FIELD_CHARS;
+        field.enabled = false;
+
+        if (unitText) numericFieldRow.add("statictext", undefined, unitText);
+
+        return { check: checkbox, field: field };
+    }
+
+    // =========================================
+    // 入力欄・スライダーの連動 / Field and slider bindings
+    // =========================================
+
+    /* スライダーと入力欄の相互同期が二重に走るのを防ぐフラグ / Guard against feedback between slider and field */
+    var isSyncingSlider = false;
+
+    /**
+     * 矢印キーによる増減後の値を返す
+     * @param {object} keyEvent - keydown イベント
+     * @param {number} currentValue - 現在の値
+     * @param {object} keyboardState - ScriptUI.environment.keyboardState
+     * @returns {number} 増減後の値
+     */
+    function getSteppedValue(keyEvent, currentValue, keyboardState) {
+        if (keyboardState.shiftKey) {
+            /* Shiftは10単位でスナップ / Shift snaps to multiples of 10 */
+            if (keyEvent.keyName == "Up") return Math.ceil((currentValue + 1) / 10) * 10;
+            if (keyEvent.keyName == "Down") return Math.floor((currentValue - 1) / 10) * 10;
+        } else if (keyboardState.altKey) {
+            if (keyEvent.keyName == "Up") return currentValue + 0.1;
+            if (keyEvent.keyName == "Down") return Math.max(0, currentValue - 0.1);
+        } else {
+            if (keyEvent.keyName == "Up") return currentValue + 1;
+            if (keyEvent.keyName == "Down") return Math.max(0, currentValue - 1);
+        }
+        return currentValue;
+    }
+
+    /**
+     * 数値入力欄を矢印キーで増減できるようにする
+     * @param {EditText} field - 対象の入力欄
+     * @param {function} onChange - 値が変わったときに呼ぶ処理
+     * @returns {void}
+     */
+    function bindArrowKeys(field, onChange) {
+        field.addEventListener("keydown", function (keyEvent) {
+            var currentValue = Number(field.text);
+            if (isNaN(currentValue)) return;
+
+            var keyboardState = ScriptUI.environment.keyboardState;
+            var steppedValue = getSteppedValue(keyEvent, currentValue, keyboardState);
+            if (steppedValue === currentValue) return;
+
+            keyEvent.preventDefault();
+            /* Option併用時のみ小数第1位まで / Keep one decimal only while Option is held */
+            steppedValue = keyboardState.altKey ? Math.round(steppedValue * 10) / 10 : Math.round(steppedValue);
+            field.text = steppedValue;
+            onChange();
+        });
+    }
+
+    /**
+     * チェックボックスと数値入力欄を結び付ける
+     * @param {Checkbox} checkbox - 対象のチェックボックス
+     * @param {EditText} field - 対象の入力欄
+     * @param {object} [options] - { linkCheck: Checkbox, linkedField: EditText, slider: Slider, sliderMax: number, fillDefaultOnEnable: boolean, onChange: function }
+     * @returns {void}
+     */
+    function bindNumericField(checkbox, field, options) {
+        options = options || {};
+
+        /**
+         * 連動ONのとき、もう一方の入力欄へ値を写す
+         * @returns {void}
+         */
+        function syncLinkedField() {
+            if (options.linkedField && options.linkCheck && options.linkCheck.value) {
+                options.linkedField.text = field.text;
+            }
+        }
+
+        /**
+         * 入力値をスライダーへ反映する
+         * @returns {void}
+         */
+        function syncSlider() {
+            if (!options.slider || isSyncingSlider) return;
+            syncSliderFromField(options.slider, field, options.sliderMax);
+        }
+
+        /**
+         * 入力値が変わったときに、連動・スライダー・プレビューをまとめて更新する
+         * @returns {void}
+         */
+        function handleValueChange() {
+            syncLinkedField();
+            syncSlider();
+            if (options.onChange) options.onChange();
+        }
+
+        checkbox.onClick = function () {
+            field.enabled = checkbox.value;
+            /* ONにしたときだけ既定値を入れる（ここではプレビューを走らせない）/ Fill the default on enable only; no preview here */
+            if (checkbox.value && options.fillDefaultOnEnable) {
+                field.text = DEFAULT_RANGE_TEXT;
+                syncLinkedField();
+                syncSlider();
+            }
+        };
+
+        field.onChanging = handleValueChange;
+        bindArrowKeys(field, handleValueChange);
+    }
+
+    /**
+     * スライダーを数値入力欄とチェックボックスに結び付ける
+     * @param {Slider} slider - 対象のスライダー
+     * @param {Checkbox} checkbox - 対応するチェックボックス
+     * @param {EditText} field - 対応する入力欄
+     * @param {function} onChange - 値が変わったときに呼ぶ処理
+     * @returns {void}
+     */
+    function bindSlider(slider, checkbox, field, onChange) {
+        slider.onChanging = function () {
+            if (isSyncingSlider) return;
+
+            /* スライダー操作で自動ON（onClickは呼ばず、入力値の上書きを防ぐ）/ Turn the checkbox on without firing onClick */
+            checkbox.value = true;
+            field.enabled = true;
+
+            isSyncingSlider = true;
+            field.text = Math.round(slider.value).toString();
+            isSyncingSlider = false;
+
+            onChange();
+        };
+    }
+
+    /**
+     * スライダーの値を入力欄に合わせる（スライダーの範囲に収める）
+     * @param {Slider} slider - 対象のスライダー
+     * @param {EditText} field - 対応する入力欄
+     * @param {number} maxValue - スライダーの上限値
+     * @returns {void}
+     */
+    function syncSliderFromField(slider, field, maxValue) {
+        var value = parseFloat(field.text);
+        if (isNaN(value)) value = 0;
+        if (value < 0) value = 0;
+        if (value > maxValue) value = maxValue;
+        isSyncingSlider = true;
+        slider.value = value;
+        isSyncingSlider = false;
+    }
+
+    // =========================================
+    // 状態の記録と復元 / Capturing and restoring item states
+    // =========================================
+
+    /**
+     * 選択オブジェクトの現在の状態を記録する
+     * @param {Array} items - 対象のオブジェクト配列
+     * @returns {Array<object>} 位置・不透明度と、プレビューで掛けた変形量を持つ状態の配列
+     */
+    function captureItemStates(items) {
+        var itemStates = [];
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            itemStates.push({
+                item: item,
+                position: [item.position[0], item.position[1]],
+                opacity: (item.opacity !== undefined) ? item.opacity : 100,
+                /* プレビューで掛けた変形量（打ち消し用）/ Transforms applied by the preview, kept so they can be undone */
+                appliedRotation: 0,
+                appliedScaleX: 100,
+                appliedScaleY: 100
+            });
+        }
+        return itemStates;
+    }
+
+    /**
+     * 記録した状態を複製する（プレビュー用の基準を独立させる）
+     * @param {Array<object>} itemStates - 複製元の状態配列
+     * @returns {Array<object>} 複製した状態配列
+     */
+    function cloneItemStates(itemStates) {
+        var copies = [];
+        for (var i = 0; i < itemStates.length; i++) {
+            var itemState = itemStates[i];
+            copies.push({
+                item: itemState.item,
+                position: [itemState.position[0], itemState.position[1]],
+                opacity: itemState.opacity,
+                appliedRotation: 0,
+                appliedScaleX: 100,
+                appliedScaleY: 100
+            });
+        }
+        return copies;
+    }
+
+    /**
+     * 記録した状態へオブジェクトを戻す
+     * @param {Array<object>} itemStates - 復元する状態配列
+     * @param {boolean} [doRedraw] - 復元後に再描画するか（省略時は true）
+     * @returns {void}
+     */
+    function restoreItemStates(itemStates, doRedraw) {
+        for (var i = 0; i < itemStates.length; i++) {
+            var itemState = itemStates[i];
+            try {
+                undoAppliedTransforms(itemState);
+                itemState.item.position = [itemState.position[0], itemState.position[1]];
+                if (itemState.opacity !== undefined) itemState.item.opacity = itemState.opacity;
+            } catch (e) {
+                /* ロックされたオブジェクトなどは戻せないので、残りの復元を続ける / Keep restoring the remaining objects */
+            }
+        }
+        if (doRedraw !== false) app.redraw();
+    }
+
+    /**
+     * プレビューで掛けた回転・拡大縮小を打ち消す
+     * @param {object} itemState - 対象の状態
+     * @returns {void}
+     */
+    function undoAppliedTransforms(itemState) {
+        /* 掛けた順（拡大縮小 → 回転）の逆で戻す / Undo in reverse order: rotation first, then scaling */
+        if (itemState.appliedRotation) {
+            itemState.item.rotate(-itemState.appliedRotation);
+            itemState.appliedRotation = 0;
+        }
+        if (itemState.appliedScaleX !== 100 || itemState.appliedScaleY !== 100) {
+            itemState.item.resize(10000 / itemState.appliedScaleX, 10000 / itemState.appliedScaleY);
+            itemState.appliedScaleX = 100;
+            itemState.appliedScaleY = 100;
+        }
+    }
+
+    /**
+     * 移動後のオブジェクトに合わせて、状態が持つ位置を取り直す
+     * @param {object} itemState - 更新する状態
+     * @returns {void}
+     */
+    function refreshItemPosition(itemState) {
+        itemState.position = [itemState.item.position[0], itemState.item.position[1]];
+    }
+
+    // =========================================
+    // 再配置 / Repositioning
+    // =========================================
+
+    /**
+     * 状態の配列を順に処理する
+     * @param {Array<object>} itemStates - 対象の状態配列
+     * @param {function} applyToItemState - 各状態に対して行う処理
+     * @returns {void}
+     */
+    function eachItemState(itemStates, applyToItemState) {
+        try {
+            for (var i = 0; i < itemStates.length; i++) {
+                applyToItemState(itemStates[i]);
+            }
+        } catch (e) {
+            /* ロックされたオブジェクトなどは変更できないため、以降の処理を打ち切る / Stop when an object cannot be changed */
+        }
+    }
+
+    /**
+     * -1〜1 の乱数を返す（振れ幅の計算用）
+     * @returns {number} -1以上1未満の乱数
+     */
+    function randomSignedRatio() {
+        return Math.random() * 2 - 1;
+    }
+
+    /**
+     * 元の位置の周辺へランダムに動かしつつ、重ならない配置を探す（他スクリプトへ流用しやすい形）
+     * 置ききれた場合は、その配置を状態の新しい基準にする
+     * @param {Array<object>} itemStates - 対象オブジェクトの状態配列
+     * @param {object} [options] - { baseX: number, baseY: number, padding: number, maxScaleFactor: number, attemptsPerItem: number }
+     * @returns {object} { success: boolean, scaleFactor: number, placedCount: number, baseX: number, baseY: number }
+     */
+    function placeItemsAvoidOverlap(itemStates, options) {
+        options = options || {};
+        var padding = (options.padding !== undefined) ? options.padding : OVERLAP_PADDING;
+        var maxScaleFactor = (options.maxScaleFactor !== undefined) ? options.maxScaleFactor : OVERLAP_MAX_SCALE_FACTOR;
+        var attemptsPerItem = (options.attemptsPerItem !== undefined) ? options.attemptsPerItem : OVERLAP_ATTEMPTS_PER_ITEM;
+
+        /* 範囲が未指定・不正なら既定値へ寄せる / Fall back when the range is missing or invalid */
+        var baseX = parseFloat(options.baseX);
+        var baseY = parseFloat(options.baseY);
+        if (isNaN(baseX) || baseX <= 0) baseX = OVERLAP_BASE_RANGE;
+        if (isNaN(baseY) || baseY <= 0) baseY = OVERLAP_BASE_RANGE;
+
+        if (!itemStates || itemStates.length === 0) {
+            return { success: false, scaleFactor: 1, placedCount: 0, baseX: baseX, baseY: baseY };
+        }
+
+        /* 置ききれなければ移動範囲を段階的に広げる / Widen the range step by step until everything fits */
+        for (var scaleFactor = 1; scaleFactor <= maxScaleFactor; scaleFactor++) {
+            var placedBounds = tryPlaceWithoutOverlap(itemStates, baseX * scaleFactor, baseY * scaleFactor, padding, attemptsPerItem);
+            if (!placedBounds) continue;
+
+            /* 置ききれた配置を新しい基準にする（次のプレビューで元に戻らないように）/ Keep the placement as the new base */
+            for (var i = 0; i < itemStates.length; i++) {
+                refreshItemPosition(itemStates[i]);
+            }
+            return { success: true, scaleFactor: scaleFactor, placedCount: placedBounds.length, baseX: baseX, baseY: baseY };
+        }
+
+        return { success: false, scaleFactor: maxScaleFactor, placedCount: 0, baseX: baseX, baseY: baseY };
+    }
+
+    /**
+     * 指定した移動範囲で、重ならない配置を1巡試す
+     * @param {Array<object>} itemStates - 対象オブジェクトの状態配列
+     * @param {number} rangeX - 横方向の移動範囲（pt）
+     * @param {number} rangeY - 縦方向の移動範囲（pt）
+     * @param {number} padding - 重なり判定に加える余白（pt）
+     * @param {number} attemptsPerItem - 1オブジェクトあたりの試行回数
+     * @returns {Array<number[]>} 置けた領域の配列（1つでも置けなければ null）
+     */
+    function tryPlaceWithoutOverlap(itemStates, rangeX, rangeY, padding, attemptsPerItem) {
+        var placedBounds = [];
+
+        for (var i = 0; i < itemStates.length; i++) {
+            var itemState = itemStates[i];
             var placed = false;
 
-            while (attempts < attemptsPerItem) {
-                var randX = (Math.random() * 2 - 1) * baseX * scaleFactor;
-                var randY = (Math.random() * 2 - 1) * baseY * scaleFactor;
-                var newX = st.position[0] + randX;
-                var newY = st.position[1] + randY;
+            for (var attempt = 0; attempt < attemptsPerItem; attempt++) {
+                itemState.item.position = [
+                    itemState.position[0] + randomSignedRatio() * rangeX,
+                    itemState.position[1] + randomSignedRatio() * rangeY
+                ];
 
-                st.item.position = [newX, newY];
-                var vb = st.item.visibleBounds;
-                var overlap = false;
-
-                for (var j = 0; j < placedItems.length; j++) {
-                    var vb2 = placedItems[j];
-                    if (!(vb[2] + padding < vb2[0] || vb[0] - padding > vb2[2] || vb[1] + padding < vb2[3] || vb[3] - padding > vb2[1])) {
-                        overlap = true;
-                        break;
-                    }
-                }
-
-                if (!overlap) {
-                    placedItems.push(vb);
+                var bounds = itemState.item.visibleBounds;
+                if (!overlapsPlacedBounds(bounds, placedBounds, padding)) {
+                    placedBounds.push(bounds);
                     placed = true;
                     break;
                 }
-                attempts++;
             }
 
-            if (!placed) {
-                success = false;
-                break;
+            if (!placed) return null;
+        }
+
+        return placedBounds;
+    }
+
+    /**
+     * 配置済みの領域と重なっているか判定する
+     * @param {number[]} bounds - 判定する領域 [左,上,右,下]
+     * @param {Array<number[]>} placedBounds - 配置済み領域の配列
+     * @param {number} padding - 重なり判定に加える余白
+     * @returns {boolean} 重なっていれば true
+     */
+    function overlapsPlacedBounds(bounds, placedBounds, padding) {
+        for (var i = 0; i < placedBounds.length; i++) {
+            var otherBounds = placedBounds[i];
+            if (!(bounds[2] + padding < otherBounds[0] ||
+                  bounds[0] - padding > otherBounds[2] ||
+                  bounds[1] + padding < otherBounds[3] ||
+                  bounds[3] - padding > otherBounds[1])) {
+                return true;
             }
         }
+        return false;
+    }
 
-        if (!success) {
-            scaleFactor += 1;
+    /**
+     * 対象オブジェクトを全体の中心へ集める
+     * @param {Array<object>} itemStates - 対象オブジェクトの状態配列
+     * @returns {void}
+     */
+    function gatherItemsToCenter(itemStates) {
+        /* visibleBounds は重い読み取りなので、1オブジェクトにつき1回だけにする / visibleBounds is expensive, so read it once per object */
+        var itemBoundsList = [];
+        var left = Infinity, top = -Infinity, right = -Infinity, bottom = Infinity;
+
+        for (var i = 0; i < itemStates.length; i++) {
+            var bounds = itemStates[i].item.visibleBounds;
+            itemBoundsList.push(bounds);
+            if (bounds[0] < left) left = bounds[0];
+            if (bounds[1] > top) top = bounds[1];
+            if (bounds[2] > right) right = bounds[2];
+            if (bounds[3] < bottom) bottom = bounds[3];
+        }
+
+        var centerX = (left + right) / 2;
+        var centerY = (top + bottom) / 2;
+
+        for (var j = 0; j < itemStates.length; j++) {
+            var itemState = itemStates[j];
+            var itemBounds = itemBoundsList[j];
+            var shiftX = centerX - (itemBounds[0] + itemBounds[2]) / 2;
+            var shiftY = centerY - (itemBounds[1] + itemBounds[3]) / 2;
+
+            itemState.item.position = [itemState.item.position[0] + shiftX, itemState.item.position[1] + shiftY];
+            /* 集めた位置を新しい基準にする / Treat the gathered position as the new base */
+            refreshItemPosition(itemState);
         }
     }
 
-    return { success: success, scaleFactor: scaleFactor, placedCount: placedItems.length };
-}
+    // =========================================
+    // 塗りカラー / Fill colors
+    // =========================================
 
-function makeRectangleEdgeHorizontal(item) {
-    if (item.typename === "PathItem" && item.closed && item.pathPoints.length === 4) {
-        var p0 = item.pathPoints[0].anchor;
-        var p1 = item.pathPoints[1].anchor;
-        var dx = p1[0] - p0[0];
-        var dy = p1[1] - p0[1];
-        var angleRad = Math.atan2(dy, dx);
-        var angleDeg = angleRad * 180 / Math.PI;
-        item.rotate(-angleDeg);
-    }
-}
+    /**
+     * カラーオブジェクトを複製する（参照の使い回しによる巻き添え変更を防ぐ）
+     * @param {object} sourceColor - 複製元のカラー
+     * @returns {object} 複製したカラー（複製できない種類はそのまま返す）
+     */
+    function cloneColor(sourceColor) {
+        if (!sourceColor) return null;
 
-/* 矢印キーによる新しい値を返す補助関数 / Helper to calculate new value */
-function getNewValueByKey(event, value, keyboard) {
-    var delta = 1;
-    if (keyboard.shiftKey) {
-        delta = 10;
-        if (event.keyName == "Up") return Math.ceil((value + 1) / delta) * delta;
-        if (event.keyName == "Down") return Math.floor((value - 1) / delta) * delta;
-    } else if (keyboard.altKey) {
-        delta = 0.1;
-        if (event.keyName == "Up") return value + delta;
-        if (event.keyName == "Down") return Math.max(0, value - delta);
-    } else {
-        if (event.keyName == "Up") return value + 1;
-        if (event.keyName == "Down") return Math.max(0, value - 1);
-    }
-    return value;
-}
-
-/* 矢印キーで数値を増減 / Change numeric value with arrow keys */
-function changeValueByArrowKey(editText, previewFunc) {
-    editText.addEventListener("keydown", function (event) {
-        var value = Number(editText.text);
-        if (isNaN(value)) return;
-
-        var keyboard = ScriptUI.environment.keyboardState;
-        var newValue = getNewValueByKey(event, value, keyboard);
-
-        if (newValue !== value) {
-            event.preventDefault();
-            if (keyboard.altKey) newValue = Math.round(newValue * 10) / 10;
-            else newValue = Math.round(newValue);
-            editText.text = newValue;
-            if (previewFunc) updateLinkedInputAndPreview(editText, null, previewFunc);
+        if (sourceColor.typename === "RGBColor") {
+            var rgbColor = new RGBColor();
+            rgbColor.red = sourceColor.red;
+            rgbColor.green = sourceColor.green;
+            rgbColor.blue = sourceColor.blue;
+            return rgbColor;
         }
-    });
-}
-
-// ダイアログ位置の記憶（Illustrator終了で忘れる）/ Remember dialog location (cleared when Illustrator quits)
-var savedLoc = $.global.__RandomizeObjectsDialogLoc || null;
-
-function storeWinLoc(dlg) {
-    try {
-        // location is [left, top]
-        $.global.__RandomizeObjectsDialogLoc = [dlg.location[0], dlg.location[1]];
-    } catch (e) { }
-}
-
-function restoreWinLoc(dlg) {
-    try {
-        if (savedLoc && savedLoc instanceof Array && savedLoc.length === 2) {
-            dlg.location = [savedLoc[0], savedLoc[1]];
+        if (sourceColor.typename === "CMYKColor") {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = sourceColor.cyan;
+            cmykColor.magenta = sourceColor.magenta;
+            cmykColor.yellow = sourceColor.yellow;
+            cmykColor.black = sourceColor.black;
+            return cmykColor;
         }
-    } catch (e) { }
-}
+        if (sourceColor.typename === "GrayColor") {
+            var grayColor = new GrayColor();
+            grayColor.gray = sourceColor.gray;
+            return grayColor;
+        }
+        /* スポットカラーやグラデーションなどは参照のまま使い回して問題ない / Spot, gradient, and pattern colors are safe to reuse */
+        return sourceColor;
+    }
 
-/* メイン処理 / Main process */
-function main() {
-    try {
+    /**
+     * 配列をシャッフルした複製を返す
+     * @param {Array} list - 元の配列
+     * @returns {Array} シャッフルした新しい配列
+     */
+    function shuffleArray(list) {
+        var shuffled = list.slice();
+        for (var i = shuffled.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var swapped = shuffled[i];
+            shuffled[i] = shuffled[j];
+            shuffled[j] = swapped;
+        }
+        return shuffled;
+    }
+
+    /**
+     * 塗りカラーを読み書きできる対象を返す（グループは中を再帰的に探す）
+     * @param {object} item - 対象のオブジェクト
+     * @returns {object} 塗りカラーを持つオブジェクト（見つからなければ null）
+     */
+    function getFillTarget(item) {
+        if (!item) return null;
+
+        try {
+            if (item.typename === "PathItem" || item.typename === "TextFrame") return item;
+            if (item.typename === "CompoundPathItem") {
+                return (item.pathItems && item.pathItems.length > 0) ? item.pathItems[0] : null;
+            }
+            if (item.typename === "GroupItem" && item.pageItems) {
+                for (var i = 0; i < item.pageItems.length; i++) {
+                    var target = getFillTarget(item.pageItems[i]);
+                    if (target) return target;
+                }
+            }
+        } catch (e) {
+            /* グラフやプラグインオブジェクトなど、たどれないものは対象外にして次へ / Skip items that cannot be inspected */
+        }
+        return null;
+    }
+
+    /**
+     * 対象から塗りカラーを取得する
+     * @param {object} target - getFillTarget が返したオブジェクト
+     * @returns {object} 塗りカラー（取得できなければ null）
+     */
+    function getFillColor(target) {
+        if (!target) return null;
+        try {
+            if (target.typename === "TextFrame") return target.textRange.characterAttributes.fillColor;
+            return target.filled ? target.fillColor : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * 対象へ塗りカラーを適用する
+     * @param {object} target - getFillTarget が返したオブジェクト
+     * @param {object} color - 適用するカラー
+     * @param {boolean} [forceFill] - 塗りなしのパスを塗りありにするか
+     * @returns {boolean} 適用できたら true
+     */
+    function applyFillColor(target, color, forceFill) {
+        if (!target || !color) return false;
+        try {
+            if (target.typename === "TextFrame") {
+                target.textRange.characterAttributes.fillColor = color;
+                return true;
+            }
+            if (forceFill && target.typename === "PathItem" && !target.filled) target.filled = true;
+            if (target.filled) {
+                target.fillColor = color;
+                return true;
+            }
+        } catch (e) {
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * 選択オブジェクトの塗りカラーを入れ替える
+     * @param {Array} selection - 対象の選択オブジェクト
+     * @returns {void}
+     */
+    function shuffleFillColors(selection) {
+        if (!selection || selection.length < 2) {
+            alert(getLabel('alert', 'needTwoObjects'));
+            return;
+        }
+
+        var fillTargets = [];
+        var fillColors = [];
+        for (var i = 0; i < selection.length; i++) {
+            var target = getFillTarget(selection[i]);
+            var color = getFillColor(target);
+            fillTargets.push(target);
+            fillColors.push(color ? cloneColor(color) : null);
+        }
+
+        fillColors = shuffleArray(fillColors);
+
+        for (var j = 0; j < fillTargets.length; j++) {
+            if (fillColors[j] != null) applyFillColor(fillTargets[j], fillColors[j]);
+        }
+
+        app.redraw();
+    }
+
+    /**
+     * 範囲内の整数乱数を返す
+     * @param {number} minValue - 最小値
+     * @param {number} maxValue - 最大値
+     * @returns {number} minValue以上maxValue以下の整数
+     */
+    function randomInt(minValue, maxValue) {
+        return Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
+    }
+
+    /**
+     * ドキュメントのカラーモードに合わせたランダムカラーを生成する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {object} 生成したカラー
+     */
+    function createRandomColor(doc) {
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = randomInt(0, 100);
+            cmykColor.magenta = randomInt(0, 100);
+            cmykColor.yellow = randomInt(0, 100);
+            cmykColor.black = randomInt(0, FULL_SHUFFLE_MAX_BLACK);
+            return cmykColor;
+        }
+        var rgbColor = new RGBColor();
+        rgbColor.red = randomInt(0, 255);
+        rgbColor.green = randomInt(0, 255);
+        rgbColor.blue = randomInt(0, 255);
+        return rgbColor;
+    }
+
+    /**
+     * 選択オブジェクトへランダムな塗りカラーを生成して適用する（完全シャッフル）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} selection - 対象の選択オブジェクト
+     * @returns {void}
+     */
+    function applyRandomFillColors(doc, selection) {
+        if (!selection || selection.length < 1) {
+            alert(getLabel('alert', 'needSelection'));
+            return;
+        }
+
+        var appliedCount = 0;
+        for (var i = 0; i < selection.length; i++) {
+            var target = getFillTarget(selection[i]);
+            if (!target) continue;
+            if (applyFillColor(target, createRandomColor(doc), true)) appliedCount++;
+        }
+
+        if (appliedCount === 0) {
+            alert(getLabel('alert', 'noFillTarget'));
+            return;
+        }
+
+        app.redraw();
+    }
+
+    /**
+     * カラーの指定（なし／シャッフル／完全シャッフル）を反映する
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function applySelectedColorMode(dialogControls, doc) {
+        /* カラーの失敗で移動・変形のプレビューまで止めない / A color failure must not block the transform preview */
+        try {
+            if (dialogControls.color.fullShuffleRadio.value) applyRandomFillColors(doc, doc.selection);
+            else if (dialogControls.color.shuffleRadio.value) shuffleFillColors(doc.selection);
+        } catch (e) {
+            alert(getLabel('alert', 'colorError') + e.message);
+        }
+    }
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /**
+     * チェックがONのセクションから振れ幅を取り出す
+     * @param {object} section - { check: Checkbox, field: EditText, sliderMax: number } を持つセクション
+     * @returns {number} 振れ幅（OFF・数値でない・負の値の場合は0）
+     */
+    function getEnabledRange(section) {
+        if (!section.check.value) return 0;
+
+        var range = parseFloat(section.field.text);
+        if (isNaN(range) || range < 0) return 0;
+
+        /* スライダーの上限を持つ項目は、その範囲に収める（表示と実際の適用量を食い違わせない）/ Clamp to the slider range so the UI and the applied amount agree */
+        if (section.sliderMax !== undefined && range > section.sliderMax) return section.sliderMax;
+        return range;
+    }
+
+    /**
+     * 移動距離のプレビューを適用する
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {Array<object>} itemStates - プレビューの基準となる状態配列
+     * @returns {void}
+     */
+    function previewDistance(dialogControls, itemStates) {
+        var distanceControls = dialogControls.distance;
+        if (!distanceControls.checkX.value && !distanceControls.checkY.value) return;
+
+        var useLinkedVertical = distanceControls.linkCheck.value && distanceControls.checkX.value;
+        var horizontalRange = distanceControls.checkX.value ? parseFloat(distanceControls.fieldX.text) : 0;
+        var verticalRange = useLinkedVertical ? parseFloat(distanceControls.fieldX.text) : (distanceControls.checkY.value ? parseFloat(distanceControls.fieldY.text) : 0);
+
+        if ((distanceControls.checkX.value && isNaN(horizontalRange)) || (distanceControls.checkY.value && isNaN(verticalRange))) return;
+
+        eachItemState(itemStates, function (itemState) {
+            var newX = itemState.position[0];
+            var newY = itemState.position[1];
+
+            if (distanceControls.checkX.value) newX += randomSignedRatio() * horizontalRange;
+            if (useLinkedVertical || distanceControls.checkY.value) newY += randomSignedRatio() * verticalRange;
+
+            itemState.item.position = [newX, newY];
+        });
+    }
+
+    /**
+     * スケールのプレビューを適用する
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {Array<object>} itemStates - プレビューの基準となる状態配列
+     * @returns {void}
+     */
+    function previewScale(dialogControls, itemStates) {
+        var scaleControls = dialogControls.scale;
+        var applyWidth = !!scaleControls.checkX.value;
+        /* 連動ONで幅がONなら、高さのチェックがOFFでも幅と同じ振れ幅を使う / While Link is on, height follows width */
+        var useLinkedHeight = scaleControls.linkCheck.value && applyWidth;
+        var applyHeight = !!scaleControls.checkY.value || useLinkedHeight;
+        if (!applyWidth && !applyHeight) return;
+
+        var widthRange = applyWidth ? parseFloat(scaleControls.fieldX.text) : 0;
+        var heightRange = applyHeight ? parseFloat(useLinkedHeight ? scaleControls.fieldX.text : scaleControls.fieldY.text) : 0;
+        if ((applyWidth && isNaN(widthRange)) || (applyHeight && isNaN(heightRange))) return;
+
+        /* 幅と高さは1回のresizeでまとめて適用する / Apply both axes with a single resize call */
+        eachItemState(itemStates, function (itemState) {
+            var widthPercent = getScalePercent(applyWidth, widthRange);
+            /* 連動ONのときは幅と同じ倍率を使い、縦横比を保つ / While Link is on, reuse the width factor so the ratio holds */
+            var heightPercent = useLinkedHeight ? widthPercent : getScalePercent(applyHeight, heightRange);
+
+            itemState.item.resize(widthPercent, heightPercent);
+            /* 打ち消せるように掛けた倍率を控える / Remember the factors so they can be undone */
+            itemState.appliedScaleX = widthPercent;
+            itemState.appliedScaleY = heightPercent;
+        });
+    }
+
+    /**
+     * 振れ幅から resize() へ渡す倍率（%）を求める
+     * @param {boolean} applyScale - この軸に拡大縮小を掛けるか
+     * @param {number} range - 振れ幅（%）
+     * @returns {number} resize() に渡す倍率（%）
+     */
+    function getScalePercent(applyScale, range) {
+        if (!applyScale) return 100;
+        /* 1%未満に潰れないよう下限を設ける / Keep at least 1% so nothing collapses */
+        return Math.max(1, 100 * (1 + randomSignedRatio() * (range / 100)));
+    }
+
+    /**
+     * 回転のプレビューを適用する
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {Array<object>} itemStates - プレビューの基準となる状態配列
+     * @returns {void}
+     */
+    function previewRotate(dialogControls, itemStates) {
+        var range = getEnabledRange(dialogControls.rotate);
+        if (!range) return;
+
+        eachItemState(itemStates, function (itemState) {
+            var rotation = randomSignedRatio() * range;
+            itemState.item.rotate(rotation);
+            /* 打ち消せるように掛けた角度を控える / Remember the angle so it can be undone */
+            itemState.appliedRotation = rotation;
+        });
+    }
+
+    /**
+     * 不透明度のプレビューを適用する
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {Array<object>} itemStates - プレビューの基準となる状態配列
+     * @returns {void}
+     */
+    function previewOpacity(dialogControls, itemStates) {
+        var range = getEnabledRange(dialogControls.opacity);
+        if (!range) return;
+
+        eachItemState(itemStates, function (itemState) {
+            if (itemState.item.opacity === undefined) return;
+            /* 元の不透明度を中心に、指定した幅で振る / Vary around the original opacity */
+            var baseOpacity = (itemState.opacity !== undefined) ? itemState.opacity : itemState.item.opacity;
+            var minOpacity = Math.max(0, baseOpacity - range);
+            var maxOpacity = Math.min(OPACITY_RANGE_MAX, baseOpacity + range);
+            itemState.item.opacity = minOpacity + Math.random() * (maxOpacity - minOpacity);
+        });
+    }
+
+    /**
+     * 基準状態へ戻してから、すべてのプレビューを掛け直す
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {Array<object>} itemStates - プレビューの基準となる状態配列
+     * @returns {void}
+     */
+    function runAllPreviews(dialogControls, itemStates) {
+        /* 毎回ベース状態から計算し直し、変形が積み増しにならないようにする / Always recompute from the base state */
+        restoreItemStates(itemStates, false);
+        previewDistance(dialogControls, itemStates);
+        previewScale(dialogControls, itemStates);
+        previewRotate(dialogControls, itemStates);
+        previewOpacity(dialogControls, itemStates);
+        app.redraw();
+    }
+
+    // =========================================
+    // ダイアログの状態同期 / Dialog state sync
+    // =========================================
+
+    /**
+     * 連動チェックに応じて、もう一方のチェックと入力欄の有効状態を揃える
+     * @param {object} axisPair - { checkX, fieldX, checkY, fieldY, linkCheck } を持つ横縦（幅高さ）のペア
+     * @returns {void}
+     */
+    function applyLinkedAxisState(axisPair) {
+        axisPair.fieldX.enabled = axisPair.checkX.value;
+        if (axisPair.linkCheck.value) {
+            /* 連動ONの側はディムして値を写す / Dim the linked side and mirror the value */
+            axisPair.checkY.value = false;
+            axisPair.checkY.enabled = false;
+            axisPair.fieldY.enabled = false;
+            axisPair.fieldY.text = axisPair.fieldX.text;
+        } else {
+            axisPair.checkY.enabled = true;
+            axisPair.fieldY.enabled = axisPair.checkY.value;
+        }
+    }
+
+    /**
+     * チェック状態をまとめて設定し、入力欄の有効状態を整える
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {object} [checkStates] - { distanceX, distanceY, distanceLink, scaleX, scaleY, scaleLink, rotate, opacity }
+     * @returns {void}
+     */
+    function applyCheckboxStates(dialogControls, checkStates) {
+        checkStates = checkStates || {};
+
+        setCheckValue(dialogControls.distance.linkCheck, checkStates.distanceLink);
+        setCheckValue(dialogControls.distance.checkX, checkStates.distanceX);
+        /* 連動ONのときの縦（高さ）は applyLinkedAxisState が決めるので触らない / While Link is on, the secondary axis is derived */
+        if (!dialogControls.distance.linkCheck.value) setCheckValue(dialogControls.distance.checkY, checkStates.distanceY);
+        applyLinkedAxisState(dialogControls.distance);
+
+        setCheckValue(dialogControls.scale.linkCheck, checkStates.scaleLink);
+        setCheckValue(dialogControls.scale.checkX, checkStates.scaleX);
+        if (!dialogControls.scale.linkCheck.value) setCheckValue(dialogControls.scale.checkY, checkStates.scaleY);
+        applyLinkedAxisState(dialogControls.scale);
+
+        setCheckValue(dialogControls.rotate.check, checkStates.rotate);
+        dialogControls.rotate.field.enabled = dialogControls.rotate.check.value;
+
+        setCheckValue(dialogControls.opacity.check, checkStates.opacity);
+        dialogControls.opacity.field.enabled = dialogControls.opacity.check.value;
+    }
+
+    /**
+     * 指定があるときだけチェック状態を設定する
+     * @param {Checkbox} checkbox - 対象のチェックボックス
+     * @param {boolean} [value] - 設定する値（省略時は現状維持）
+     * @returns {void}
+     */
+    function setCheckValue(checkbox, value) {
+        if (value !== undefined) checkbox.value = !!value;
+    }
+
+    // =========================================
+    // ダイアログ位置の記憶 / Remembering the dialog location
+    // =========================================
+
+    /* Illustratorを終了すると忘れる一時的な記憶 / Cleared when Illustrator quits */
+    var savedDialogLocation = $.global.__RandomizeObjectsDialogLoc || null;
+
+    /**
+     * ダイアログの位置を記憶する
+     * @param {Window} dialogWindow - 対象のダイアログ
+     * @returns {void}
+     */
+    function storeDialogLocation(dialogWindow) {
+        try {
+            $.global.__RandomizeObjectsDialogLoc = [dialogWindow.location[0], dialogWindow.location[1]];
+        } catch (e) {
+            /* 位置を取得できないときは記憶しない / Skip when the location cannot be read */
+        }
+    }
+
+    /**
+     * 記憶したダイアログの位置を復元する
+     * @param {Window} dialogWindow - 対象のダイアログ
+     * @returns {void}
+     */
+    function restoreDialogLocation(dialogWindow) {
+        try {
+            if (savedDialogLocation instanceof Array && savedDialogLocation.length === 2) {
+                dialogWindow.location = [savedDialogLocation[0], savedDialogLocation[1]];
+            }
+        } catch (e) {
+            /* 画面構成が変わっている場合は既定位置のままにする / Keep the default position */
+        }
+    }
+
+    // =========================================
+    // ダイアログの構築 / Building the dialog
+    // =========================================
+
+    /**
+     * ダイアログウィンドウを生成する
+     * @param {string} windowTitle - ウィンドウタイトル
+     * @returns {Window} 生成したダイアログ
+     */
+    function createDialogWindow(windowTitle) {
+        var dialogWindow = new Window("dialog", windowTitle);
+        dialogWindow.orientation = "column";
+        dialogWindow.alignChildren = ["fill", "top"];
+        dialogWindow.spacing = WINDOW_SPACING;
+        dialogWindow.margins = WINDOW_MARGINS;
+        dialogWindow.opacity = DIALOG_OPACITY;
+        return dialogWindow;
+    }
+
+    /**
+     * 2つの入力欄と［連動］を持つパネルを構築する（移動距離・スケール共通）
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {string} panelTitle - パネルの見出し
+     * @param {string} primaryLabel - 1つ目（横・幅）のラベル
+     * @param {string} secondaryLabel - 2つ目（縦・高さ）のラベル
+     * @param {string} linkLabel - 連動チェックボックスのラベル
+     * @param {number} labelWidth - ラベル幅（0以下なら指定しない）
+     * @returns {object} { panel, checkX, fieldX, checkY, fieldY, linkCheck }
+     */
+    function buildAxisPairPanel(parentColumn, panelTitle, primaryLabel, secondaryLabel, linkLabel, labelWidth) {
+        var axisPanel = addPanel(parentColumn, panelTitle);
+
+        var axisRow = axisPanel.add("group");
+        setupRow(axisRow, "center", COLUMN_SPACING);
+
+        var axisFieldColumn = axisRow.add("group");
+        axisFieldColumn.orientation = "column";
+        axisFieldColumn.alignChildren = ["left", "center"];
+
+        var primaryField = addNumericFieldRow(axisFieldColumn, primaryLabel, labelWidth, "");
+        var secondaryField = addNumericFieldRow(axisFieldColumn, secondaryLabel, labelWidth, "");
+
+        var linkCheck = axisRow.add("checkbox", undefined, linkLabel);
+        linkCheck.value = true;
+
+        return {
+            panel: axisPanel,
+            checkX: primaryField.check,
+            fieldX: primaryField.field,
+            checkY: secondaryField.check,
+            fieldY: secondaryField.field,
+            linkCheck: linkCheck
+        };
+    }
+
+    /**
+     * 移動距離パネルを構築する
+     * @param {Group} parentColumn - 追加先のカラム
+     * @returns {object} 移動距離のコントロール一式
+     */
+    function buildDistancePanel(parentColumn) {
+        var distanceControls = buildAxisPairPanel(
+            parentColumn,
+            getLabel('distance', 'panelTitle') + " (" + DISTANCE_UNIT_LABEL + ")",
+            getLabel('distance', 'horizontal'),
+            getLabel('distance', 'vertical'),
+            getLabel('distance', 'link'),
+            0
+        );
+
+        /* 再配置ボタンはパネル幅いっぱいに広げず中央に置く / Keep the buttons centered instead of filling the panel */
+        var repositionButtonColumn = distanceControls.panel.add("group");
+        repositionButtonColumn.orientation = "column";
+        repositionButtonColumn.alignChildren = ["center", "center"];
+        repositionButtonColumn.alignment = ["fill", "center"];
+
+        distanceControls.gatherButton = repositionButtonColumn.add("button", undefined, getLabel('distance', 'gatherCenter'));
+        distanceControls.gatherButton.preferredSize = REPOSITION_BUTTON_SIZE;
+
+        distanceControls.avoidButton = repositionButtonColumn.add("button", undefined, getLabel('distance', 'avoidOverlap'));
+        distanceControls.avoidButton.preferredSize = REPOSITION_BUTTON_SIZE;
+
+        return distanceControls;
+    }
+
+    /**
+     * カラーパネルを構築する
+     * @param {Group} parentColumn - 追加先のカラム
+     * @returns {object} カラーのコントロール一式
+     */
+    function buildColorPanel(parentColumn) {
+        var colorPanel = addPanel(parentColumn, getLabel('color', 'panelTitle'));
+
+        var noneRadio = colorPanel.add("radiobutton", undefined, getLabel('color', 'none'));
+        var shuffleRadio = colorPanel.add("radiobutton", undefined, getLabel('color', 'shuffle'));
+        var fullShuffleRadio = colorPanel.add("radiobutton", undefined, getLabel('color', 'fullShuffle'));
+        noneRadio.value = true;
+
+        return { noneRadio: noneRadio, shuffleRadio: shuffleRadio, fullShuffleRadio: fullShuffleRadio };
+    }
+
+    /**
+     * スケールパネルを構築する
+     * @param {Group} parentColumn - 追加先のカラム
+     * @returns {object} スケールのコントロール一式
+     */
+    function buildScalePanel(parentColumn) {
+        return buildAxisPairPanel(
+            parentColumn,
+            getLabel('scale', 'panelTitle'),
+            getLabel('scale', 'width'),
+            getLabel('scale', 'height'),
+            getLabel('scale', 'link'),
+            SCALE_LABEL_WIDTH
+        );
+    }
+
+    /**
+     * 回転・不透明度パネルを構築する
+     * @param {Group} parentColumn - 追加先のカラム
+     * @returns {object} { rotate: object, opacity: object } のコントロール一式
+     */
+    function buildOptionsPanel(parentColumn) {
+        var optionsPanel = addPanel(parentColumn, getLabel('options', 'panelTitle'));
+
+        var rotateField = addNumericFieldRow(optionsPanel, getLabel('options', 'rotate'), OPTIONS_LABEL_WIDTH, "°");
+        var rotateSlider = optionsPanel.add("slider", undefined, 0, 0, ROTATE_RANGE_MAX);
+        rotateSlider.alignment = ["fill", "center"];
+
+        var opacityField = addNumericFieldRow(optionsPanel, getLabel('options', 'opacity'), OPTIONS_LABEL_WIDTH, "%");
+        var opacitySlider = optionsPanel.add("slider", undefined, 0, 0, OPACITY_RANGE_MAX);
+        opacitySlider.alignment = ["fill", "center"];
+
+        /* スライダーの上限をセクションに持たせ、連動と同期の処理を共通化する / Carry the slider maximum so binding and syncing can share code */
+        return {
+            rotate: { check: rotateField.check, field: rotateField.field, slider: rotateSlider, sliderMax: ROTATE_RANGE_MAX },
+            opacity: { check: opacityField.check, field: opacityField.field, slider: opacitySlider, sliderMax: OPACITY_RANGE_MAX }
+        };
+    }
+
+    /**
+     * 下段のボタンバーを構築する
+     * @param {Window} dialogWindow - 追加先のダイアログ
+     * @returns {object} ボタン一式
+     */
+    function buildButtonBar(dialogWindow) {
+        var buttonBar = dialogWindow.add("group");
+        buttonBar.orientation = "row";
+        buttonBar.alignment = ["fill", "bottom"];
+        buttonBar.alignChildren = ["left", "center"];
+        buttonBar.margins = BUTTON_BAR_MARGINS;
+
+        var randomizeGroup = buttonBar.add("group");
+        setupRow(randomizeGroup, "left");
+        var randomButton = randomizeGroup.add("button", undefined, getLabel('button', 'random'));
+        var resetButton = randomizeGroup.add("button", undefined, getLabel('button', 'reset'));
+
+        /* 左右のボタン群を両端へ寄せるスペーサー / Spacer that pushes the two groups apart */
+        var flexibleSpacer = buttonBar.add("group");
+        flexibleSpacer.alignment = ["fill", "fill"];
+        flexibleSpacer.minimumSize.width = 0;
+
+        var commitGroup = buttonBar.add("group");
+        setupRow(commitGroup, "right");
+        var cancelButton = commitGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
+        var okButton = commitGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
+
+        return { randomButton: randomButton, resetButton: resetButton, cancelButton: cancelButton, okButton: okButton };
+    }
+
+    // =========================================
+    // ダイアログの結線 / Wiring the dialog
+    // =========================================
+
+    /**
+     * ライブコーナーの表示を切り替える（プレビューの邪魔になるため）
+     * @returns {void}
+     */
+    function toggleLiveCornerAnnotator() {
+        try {
+            app.executeMenuCommand('Live Corner Annotator');
+        } catch (e) {
+            /* メニューが無いバージョンでは何もしない / Ignore versions without this menu command */
+        }
+    }
+
+    /**
+     * プレビューの基準となる状態一式を作る
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {object} { doc: Document, initialStates: Array<object>, baseStates: Array<object> }
+     */
+    function createPreviewSession(doc) {
+        /* initialStates はキャンセル・リセット用の原状、baseStates はプレビューの基準 / Pristine snapshot vs. preview base */
+        var initialStates = captureItemStates(doc.selection);
+        return { doc: doc, initialStates: initialStates, baseStates: cloneItemStates(initialStates) };
+    }
+
+    /**
+     * プレビューを取り消して、ダイアログ起動前の状態へ戻す
+     * @param {object} session - プレビューの状態一式
+     * @returns {void}
+     */
+    function restoreToInitialStates(session) {
+        /* 掛けた変形はプレビューの基準側に記録されているので、先にそれを打ち消す / The applied transforms are recorded on the preview base */
+        restoreItemStates(session.baseStates, false);
+        restoreItemStates(session.initialStates);
+    }
+
+    /**
+     * ダイアログの中身（2カラムのパネル）を組み立てる
+     * @param {Window} dialogWindow - 追加先のダイアログ
+     * @returns {object} ダイアログのコントロール一式
+     */
+    function buildDialogControls(dialogWindow) {
+        var contentRow = dialogWindow.add("group");
+        contentRow.orientation = "row";
+        contentRow.alignChildren = ["fill", "top"];
+        contentRow.spacing = COLUMN_SPACING;
+
+        var leftColumn = addPanelColumn(contentRow);
+        var rightColumn = addPanelColumn(contentRow);
+
+        /* パネルは表示順に生成する（左: 移動距離・カラー／右: スケール・オプション）/ Build panels in display order */
+        var distanceControls = buildDistancePanel(leftColumn);
+        var colorControls = buildColorPanel(leftColumn);
+        var scaleControls = buildScalePanel(rightColumn);
+        var optionsControls = buildOptionsPanel(rightColumn);
+
+        return {
+            distance: distanceControls,
+            color: colorControls,
+            scale: scaleControls,
+            rotate: optionsControls.rotate,
+            opacity: optionsControls.opacity
+        };
+    }
+
+    /**
+     * スライダーを持つセクション（回転・不透明度）を返す
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @returns {Array<object>} { check, field, slider, sliderMax } の配列
+     */
+    function getSliderSections(dialogControls) {
+        return [dialogControls.rotate, dialogControls.opacity];
+    }
+
+    /**
+     * スライダーの位置を入力欄の値に合わせる
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @returns {void}
+     */
+    function syncSliders(dialogControls) {
+        var sliderSections = getSliderSections(dialogControls);
+        for (var i = 0; i < sliderSections.length; i++) {
+            syncSliderFromField(sliderSections[i].slider, sliderSections[i].field, sliderSections[i].sliderMax);
+        }
+    }
+
+    /**
+     * 横縦（幅高さ）のペアを入力欄として結び付ける
+     * @param {object} axisPair - { checkX, fieldX, checkY, fieldY, linkCheck } を持つペア
+     * @param {boolean} fillDefaultOnSecondary - 縦（高さ）側もONで既定値を入れるか
+     * @param {function} runPreview - プレビューを掛け直す処理
+     * @returns {void}
+     */
+    function bindAxisPair(axisPair, fillDefaultOnSecondary, runPreview) {
+        bindNumericField(axisPair.checkX, axisPair.fieldX, {
+            linkCheck: axisPair.linkCheck,
+            linkedField: axisPair.fieldY,
+            fillDefaultOnEnable: true,
+            onChange: runPreview
+        });
+        bindNumericField(axisPair.checkY, axisPair.fieldY, {
+            fillDefaultOnEnable: fillDefaultOnSecondary,
+            onChange: runPreview
+        });
+    }
+
+    /**
+     * 入力欄・スライダー・連動チェックの動作を結び付ける
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {function} runPreview - プレビューを掛け直す処理
+     * @returns {void}
+     */
+    function bindValueControls(dialogControls, runPreview) {
+        /* 縦の移動距離だけは、ONにしても既定値を入れない / The vertical distance is the one field that keeps its value on enable */
+        bindAxisPair(dialogControls.distance, false, runPreview);
+        bindAxisPair(dialogControls.scale, true, runPreview);
+
+        var sliderSections = getSliderSections(dialogControls);
+        for (var i = 0; i < sliderSections.length; i++) {
+            var section = sliderSections[i];
+            bindNumericField(section.check, section.field, {
+                slider: section.slider,
+                sliderMax: section.sliderMax,
+                fillDefaultOnEnable: true,
+                onChange: runPreview
+            });
+            bindSlider(section.slider, section.check, section.field, runPreview);
+        }
+
+        dialogControls.distance.linkCheck.onClick = function () {
+            /* 連動を外したら縦もすぐ使える状態にする / Enable the vertical side as soon as Link is off */
+            if (!dialogControls.distance.linkCheck.value) dialogControls.distance.checkY.value = true;
+            applyLinkedAxisState(dialogControls.distance);
+            /* 連動の切り替えで縦の振れ幅が変わるので、プレビューも掛け直す / The vertical range changes, so refresh the preview */
+            runPreview();
+        };
+
+        dialogControls.scale.linkCheck.onClick = function () {
+            applyLinkedAxisState(dialogControls.scale);
+            runPreview();
+        };
+    }
+
+    /**
+     * エラーをアラートに出して受け止めるクリックハンドラーを作る
+     * @param {string} alertKey - LABELS.alert のキー
+     * @param {function} action - 実行する処理
+     * @returns {function} onClick に割り当てるハンドラー
+     */
+    function createGuardedHandler(alertKey, action) {
+        return function () {
+            try {
+                action();
+            } catch (e) {
+                alert(getLabel('alert', alertKey) + e.message);
+            }
+        };
+    }
+
+    /**
+     * すべての振れ幅の入力欄を0に戻し、スライダーも合わせる
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @returns {void}
+     */
+    function clearRangeFields(dialogControls) {
+        dialogControls.distance.fieldX.text = "0";
+        dialogControls.distance.fieldY.text = "0";
+        dialogControls.scale.fieldX.text = "0";
+        dialogControls.scale.fieldY.text = "0";
+        dialogControls.rotate.field.text = "0";
+        dialogControls.opacity.field.text = "0";
+        syncSliders(dialogControls);
+    }
+
+    /**
+     * ［中央に集める］［重なりを避ける］［ランダム］［リセット］の動作を結び付ける
+     * @param {object} dialogControls - ダイアログのコントロール一式
+     * @param {object} dialogButtons - ボタン一式
+     * @param {object} session - プレビューの状態一式
+     * @param {function} runPreview - プレビューを掛け直す処理
+     * @returns {void}
+     */
+    function bindActionButtons(dialogControls, dialogButtons, session, runPreview) {
+        dialogControls.distance.gatherButton.onClick = createGuardedHandler('forceError', function () {
+            gatherItemsToCenter(session.baseStates);
+            dialogControls.distance.fieldX.text = "0";
+            dialogControls.distance.fieldY.text = "0";
+            app.redraw();
+        });
+
+        dialogControls.distance.avoidButton.onClick = createGuardedHandler('forceError', function () {
+            var placementResult = placeItemsAvoidOverlap(session.baseStates, {
+                baseX: parseFloat(dialogControls.distance.fieldX.text),
+                baseY: parseFloat(dialogControls.distance.fieldY.text)
+            });
+
+            if (!placementResult.success) {
+                /* 試行で散らばった位置を基準へ戻し、入力値も書き換えない / Put the objects back and leave the fields as typed */
+                restoreItemStates(session.baseStates);
+                alert(getLabel('alert', 'overlapFailed'));
+                return;
+            }
+
+            /* 実際に使った範囲（未入力なら既定値）に倍率を掛けて書き戻し、次の操作の起点にする / Write back the range actually used, so the panel matches the result */
+            dialogControls.distance.fieldX.text = String(Math.round(placementResult.baseX * placementResult.scaleFactor));
+            dialogControls.distance.fieldY.text = String(Math.round(placementResult.baseY * placementResult.scaleFactor));
+
+            app.redraw();
+        });
+
+        dialogButtons.randomButton.onClick = createGuardedHandler('randomError', function () {
+            applyCheckboxStates(dialogControls);
+            applySelectedColorMode(dialogControls, session.doc);
+            runPreview();
+        });
+
+        dialogButtons.resetButton.onClick = createGuardedHandler('resetError', function () {
+            restoreToInitialStates(session);
+            /* ［中央に集める］などで動いた基準も起動時の状態へ戻す / Rebuild the preview base as well */
+            session.baseStates = cloneItemStates(session.initialStates);
+
+            clearRangeFields(dialogControls);
+            applyCheckboxStates(dialogControls, {
+                distanceX: true,
+                distanceLink: true,
+                scaleLink: true,
+                scaleX: false,
+                scaleY: false,
+                rotate: false,
+                opacity: false
+            });
+
+            app.redraw();
+        });
+    }
+
+    /**
+     * ダイアログを閉じるときの後始末を結び付ける
+     * @param {Window} dialogWindow - 対象のダイアログ
+     * @param {object} dialogButtons - ボタン一式
+     * @param {object} session - プレビューの状態一式
+     * @returns {void}
+     */
+    function bindCloseHandlers(dialogWindow, dialogButtons, session) {
+        /* ボタンで閉じたか、×ボタンで閉じたかを見分ける / Tell a button close from a title-bar close */
+        var isClosingByButton = false;
+
+        /**
+         * 後始末をしてダイアログを閉じる
+         * @param {boolean} restoreArtwork - 起動前の状態へ戻すか
+         * @returns {void}
+         */
+        function closeDialog(restoreArtwork) {
+            isClosingByButton = true;
+            if (restoreArtwork) restoreToInitialStates(session);
+            toggleLiveCornerAnnotator();
+            storeDialogLocation(dialogWindow);
+            dialogWindow.close();
+        }
+
+        dialogWindow.onMove = function () {
+            storeDialogLocation(dialogWindow);
+        };
+
+        /* ×ボタンで閉じたときはキャンセルと同じ後始末をする / Closing by the title bar behaves like Cancel */
+        dialogWindow.onClose = function () {
+            if (!isClosingByButton) {
+                restoreToInitialStates(session);
+                toggleLiveCornerAnnotator();
+            }
+            storeDialogLocation(dialogWindow);
+            return true;
+        };
+
+        dialogButtons.cancelButton.onClick = function () { closeDialog(true); };
+        dialogButtons.okButton.onClick = function () { closeDialog(false); };
+    }
+
+    /**
+     * ランダム化ダイアログを表示する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function showRandomizeDialog(doc) {
+        var session = createPreviewSession(doc);
+
+        var dialogWindow = createDialogWindow(getLabel('dialog', 'title'));
+        toggleLiveCornerAnnotator();
+
+        var dialogControls = buildDialogControls(dialogWindow);
+        var dialogButtons = buildButtonBar(dialogWindow);
+        restoreDialogLocation(dialogWindow);
+
+        /**
+         * プレビューを掛け直す（常に同じ基準状態から再計算する）
+         * @returns {void}
+         */
+        function runPreview() {
+            runAllPreviews(dialogControls, session.baseStates);
+        }
+
+        bindValueControls(dialogControls, runPreview);
+        bindActionButtons(dialogControls, dialogButtons, session, runPreview);
+        bindCloseHandlers(dialogWindow, dialogButtons, session);
+
+        applyCheckboxStates(dialogControls);
+        syncSliders(dialogControls);
+
+        dialogWindow.show();
+    }
+
+    // =========================================
+    // メイン処理 / Main process
+    // =========================================
+
+    /**
+     * ドキュメントと選択を確認してダイアログを開く
+     * @returns {void}
+     */
+    function main() {
         if (app.documents.length === 0) {
-            alert("ドキュメントが開かれていません。 / No document is open.");
+            alert(getLabel('alert', 'noDocument'));
             return;
         }
 
         var doc = app.activeDocument;
-        if (doc.selection.length === 0) {
-            alert("オブジェクトが選択されていません。 / No object is selected.");
+        /* 文字ツールで文字を選択中は TextRange が返り、length が文字数になるため配列かどうかで判定する / With the type tool the selection is a TextRange whose length counts characters */
+        if (!(doc.selection instanceof Array) || doc.selection.length === 0) {
+            alert(getLabel('alert', 'noSelection'));
             return;
         }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-
-        try { app.executeMenuCommand('Live Corner Annotator'); } catch (e) { }
-
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.spacing = 20;
-        dialog.margins = [15, 15, 20, 15];
-
-        // Content row (main left/right panels)
-        var contentRow = dialog.add("group");
-        contentRow.orientation = "row";
-        contentRow.alignChildren = "top";
-        contentRow.alignment = ["fill", "fill"];
-        contentRow.spacing = 20;
-
-        var leftPanel = contentRow.add("group");
-        leftPanel.orientation = "column";
-        leftPanel.alignChildren = "left";
-        leftPanel.alignment = ["fill", "top"];
-
-        var rightPanel = contentRow.add("group");
-        rightPanel.orientation = "column";
-        rightPanel.alignChildren = "left";
-        rightPanel.alignment = ["right", "top"];
-
-        configureDialog(dialog, { opacity: 0.97 });
-        restoreWinLoc(dialog);
-
-        /* 移動距離パネル / Distance panel */
-        var unitLabel = "pt";
-        var panelDistance = leftPanel.add("panel", undefined, LABELS.distance[lang] + " (" + unitLabel + ")");
-        panelDistance.orientation = "column";
-        panelDistance.alignChildren = ["center", "center"];
-        panelDistance.alignment = ["fill", "center"];
-        panelDistance.margins = [15, 20, 15, 10];
-
-        var groupContainer = panelDistance.add("group");
-        groupContainer.orientation = "row";
-        groupContainer.alignChildren = "top";
-
-        var leftColumn = groupContainer.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = "left";
-
-        var groupX = leftColumn.add("group");
-        groupX.orientation = "row";
-        groupX.alignChildren = "center";
-        var chkDistanceX = groupX.add("checkbox", undefined, LABELS.horizontal[lang]);
-        chkDistanceX.value = false;
-        var inputDistanceX = groupX.add("edittext", undefined, "0");
-        inputDistanceX.characters = 4;
-        inputDistanceX.enabled = chkDistanceX.value;
-
-        var groupY = leftColumn.add("group");
-        groupY.orientation = "row";
-        groupY.alignChildren = "center";
-        var chkDistanceY = groupY.add("checkbox", undefined, LABELS.vertical[lang]);
-        chkDistanceY.value = true;
-        var inputDistanceY = groupY.add("edittext", undefined, "0");
-        inputDistanceY.characters = 4;
-        inputDistanceY.enabled = chkDistanceY.value;
-
-        var rightColumn = groupContainer.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = "center";
-        rightColumn.alignment = ["fill", "center"];
-
-        var chkLinkX = rightColumn.add("checkbox", undefined, LABELS.link[lang]);
-        chkLinkX.value = true;
-
-        chkDistanceY.value = false;
-        chkDistanceY.enabled = false;
-        inputDistanceY.enabled = false;
-        inputDistanceY.text = inputDistanceX.text;
-
-        var groupCenter = panelDistance.add("group");
-        groupCenter.orientation = "row";
-        groupCenter.alignChildren = ["center", "center"];
-        groupCenter.alignment = ["fill", "center"];
-        groupCenter.margins = [0, 10, 0, 0];
-
-        var chkCenter = { value: false }; // dummy
-        var btnForceCenter = groupCenter.add("button", undefined, LABELS.gatherCenter[lang]);
-        btnForceCenter.alignment = ["center", "center"];
-        btnForceCenter.preferredSize = [120, 24];
-
-        var chkAvoidOverlap = { value: false, enabled: true }; // dummy
-
-        var groupAvoidOverlap = panelDistance.add("group");
-        groupAvoidOverlap.orientation = "row";
-        groupAvoidOverlap.alignChildren = ["center", "center"];
-        groupAvoidOverlap.alignment = ["fill", "center"];
-        groupAvoidOverlap.margins = [0, 2, 0, 0];
-
-        var btnForceAvoid = groupAvoidOverlap.add("button", undefined, LABELS.avoidOverlap[lang]);
-        btnForceAvoid.alignment = ["center", "center"];
-        btnForceAvoid.preferredSize = [120, 24];
-
-        // カラーパネル / Color panel
-        var panelColor = leftPanel.add("panel", undefined, "カラー");
-        panelColor.orientation = "column";
-        panelColor.alignChildren = ["fill", "top"]; // カラムいっぱいに広げる
-        panelColor.alignment = ["fill", "top"];      // 左カラム幅に追従
-        panelColor.margins = [15, 20, 15, 10];
-
-        // シャッフル方式 / Shuffle mode
-        var modeGroup = panelColor.add("group");
-        modeGroup.orientation = "column";
-        modeGroup.alignChildren = ["fill", "center"]; // ラジオも横幅いっぱい
-        modeGroup.alignment = ["fill", "top"];
-
-        var rbNoneShuffle = modeGroup.add("radiobutton", undefined, LABELS.none[lang]);
-        var rbShuffle = modeGroup.add("radiobutton", undefined, LABELS.shuffle[lang]);
-        var rbFullShuffle = modeGroup.add("radiobutton", undefined, LABELS.fullShuffle[lang]);
-        rbNoneShuffle.value = true; // default
-        rbNoneShuffle.alignment = ["fill", "center"];
-        rbShuffle.alignment = ["fill", "center"];
-        rbFullShuffle.alignment = ["fill", "center"];
-
-        // var btnApplyColorShuffle = panelColor.add("button", undefined, LABELS.apply[lang]);
-        // オブジェクトの塗り色をシャッフル / Shuffle fill colors of selected objects
-        function cloneColor(c) {
-            if (!c) return null;
-            try {
-                var t = c.typename;
-                if (t === "RGBColor") {
-                    var nc = new RGBColor();
-                    nc.red = c.red; nc.green = c.green; nc.blue = c.blue;
-                    return nc;
-                }
-                if (t === "CMYKColor") {
-                    var nc2 = new CMYKColor();
-                    nc2.cyan = c.cyan; nc2.magenta = c.magenta; nc2.yellow = c.yellow; nc2.black = c.black;
-                    return nc2;
-                }
-                if (t === "GrayColor") {
-                    var nc3 = new GrayColor();
-                    nc3.gray = c.gray;
-                    return nc3;
-                }
-                // SpotColor / GradientColor / PatternColor etc.
-                // These are typically safe to reuse as references.
-                return c;
-            } catch (e) {
-                return c;
-            }
+        try {
+            showRandomizeDialog(doc);
+        } catch (e) {
+            alert(getLabel('alert', 'genericError') + e.message);
         }
-
-        function shuffleArray(array) {
-            var arr = array.slice();
-            for (var i = arr.length - 1; i > 0; i--) {
-                var j = Math.floor(Math.random() * (i + 1));
-                var temp = arr[i];
-                arr[i] = arr[j];
-                arr[j] = temp;
-            }
-            return arr;
-        }
-
-        // 塗り色を持つ対象を返す（PathItem / CompoundPathItem / TextFrame / GroupItem対応）
-        function getFillTarget(item) {
-            if (!item) return null;
-            try {
-                var t = item.typename;
-                if (t === "PathItem") return item;
-                if (t === "CompoundPathItem") {
-                    if (item.pathItems && item.pathItems.length > 0) return item.pathItems[0];
-                    return null;
-                }
-                if (t === "TextFrame") {
-                    return item; // textRange.characterAttributes.fillColor
-                }
-                if (t === "GroupItem") {
-                    if (!item.pageItems) return null;
-                    for (var i = 0; i < item.pageItems.length; i++) {
-                        var target = getFillTarget(item.pageItems[i]);
-                        if (target) return target;
-                    }
-                }
-                return null;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function getFillColorFromTarget(target) {
-            if (!target) return null;
-            try {
-                if (target.typename === "TextFrame") {
-                    return target.textRange.characterAttributes.fillColor;
-                }
-                if (target.filled) return target.fillColor;
-                return null;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function setFillColorToTarget(target, color) {
-            if (!target || !color) return false;
-            try {
-                if (target.typename === "TextFrame") {
-                    target.textRange.characterAttributes.fillColor = color;
-                    return true;
-                }
-                if (target.filled) {
-                    target.fillColor = color;
-                    return true;
-                }
-                return false;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        function shuffleSelectionFillColors() {
-            var doc = app.activeDocument;
-            var selection = doc.selection;
-
-            if (!selection || selection.length < 2) {
-                alert("2つ以上のオブジェクトを選択してください");
-                return;
-            }
-
-            // Collect fill colors (null for no-fill targets)
-            var colors = [];
-            var targets = [];
-            for (var i = 0; i < selection.length; i++) {
-                var target = getFillTarget(selection[i]);
-                targets.push(target);
-                var c = getFillColorFromTarget(target);
-                colors.push(c ? cloneColor(c) : null);
-            }
-
-            colors = shuffleArray(colors);
-
-            // Apply shuffled colors
-            for (var k = 0; k < targets.length; k++) {
-                if (colors[k] != null) {
-                    setFillColorToTarget(targets[k], colors[k]);
-                }
-            }
-
-            app.redraw();
-        }
-
-        // 完全シャッフル：CMYK/RGB のランダム色を生成して適用 / Full shuffle: generate random CMYK/RGB colors
-        function fullShuffleSelectionFillColors() {
-            var doc = app.activeDocument;
-            var selection = doc.selection;
-
-            if (!selection || selection.length < 1) {
-                alert("オブジェクトを選択してください");
-                return;
-            }
-
-            function randomInt(min, max) {
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            }
-
-            function createRandomDocColor() {
-                try {
-                    if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-                        var cmyk = new CMYKColor();
-                        cmyk.cyan = randomInt(0, 100);
-                        cmyk.magenta = randomInt(0, 100);
-                        cmyk.yellow = randomInt(0, 100);
-                        cmyk.black = randomInt(0, 30);
-                        return cmyk;
-                    }
-                } catch (e) { }
-
-                // default: RGB
-                var rgb = new RGBColor();
-                rgb.red = randomInt(0, 255);
-                rgb.green = randomInt(0, 255);
-                rgb.blue = randomInt(0, 255);
-                return rgb;
-            }
-
-            var appliedCount = 0;
-
-            for (var i = 0; i < selection.length; i++) {
-                var target = getFillTarget(selection[i]);
-                if (!target) continue;
-
-                var col = createRandomDocColor();
-
-                // Force fill ON for PathItem if needed
-                try {
-                    if (target.typename === "PathItem") {
-                        if (!target.filled) target.filled = true;
-                    }
-                } catch (e2) { }
-
-                if (setFillColorToTarget(target, col)) {
-                    appliedCount++;
-                }
-            }
-
-            if (appliedCount === 0) {
-                alert("塗りカラーを適用できる対象が見つかりませんでした");
-                return;
-            }
-
-            app.redraw();
-        }
-
-
-        // カラーシャッフルをラジオ選択に応じて実行 / Apply color shuffle based on radio selection
-        function applyColorShuffleFromUI() {
-            try {
-                if (rbNoneShuffle && rbNoneShuffle.value) return;
-                if (rbFullShuffle && rbFullShuffle.value) {
-                    fullShuffleSelectionFillColors();
-                } else {
-                    shuffleSelectionFillColors();
-                }
-            } catch (e) {
-                alert("カラーシャッフル中にエラーが発生しました: " + e.message);
-            }
-        }
-
-        // NOTE: originalStates is defined later but referenced here; it will exist when the button is clicked.
-
-        btnForceAvoid.onClick = function () {
-            try {
-                // Use current distance inputs as the base range (fallback to 50 if invalid)
-                var baseX = parseFloat(inputDistanceX.text || "50");
-                var baseY = parseFloat(inputDistanceY.text || "50");
-
-                var res = TMK_placeItemsAvoidOverlap(originalStates, {
-                    baseX: baseX,
-                    baseY: baseY,
-                    padding: 5,
-                    maxScaleFactor: 20,
-                    attemptsPerItem: 300
-                });
-
-                // Reflect the scaleFactor back to UI (keeps existing behavior of "increasing distance")
-                if (!isNaN(baseX) && baseX > 0) inputDistanceX.text = String(Math.round(baseX * res.scaleFactor));
-                if (!isNaN(baseY) && baseY > 0) inputDistanceY.text = String(Math.round(baseY * res.scaleFactor));
-
-                if (!res.success) {
-                    alert("十分な距離を確保できず、完全に非重複で配置できませんでした。");
-                } else {
-                    app.redraw();
-                }
-            } catch (e) {
-                alert("強制処理中にエラーが発生しました: " + e.message);
-            }
-        };
-
-        btnForceCenter.onClick = function () {
-            try {
-                chkCenter.value = false;
-
-                var totalLeft = Infinity, totalTop = -Infinity;
-                var totalRight = -Infinity, totalBottom = Infinity;
-
-                for (var i = 0; i < originalStates.length; i++) {
-                    var bounds = originalStates[i].item.visibleBounds;
-                    if (bounds[0] < totalLeft) totalLeft = bounds[0];
-                    if (bounds[1] > totalTop) totalTop = bounds[1];
-                    if (bounds[2] > totalRight) totalRight = bounds[2];
-                    if (bounds[3] < totalBottom) totalBottom = bounds[3];
-                }
-
-                var centerX = (totalLeft + totalRight) / 2;
-                var centerY = (totalTop + totalBottom) / 2;
-
-                for (var i2 = 0; i2 < originalStates.length; i2++) {
-                    var st2 = originalStates[i2];
-                    var itemBounds = st2.item.visibleBounds;
-                    var itemCenterX = (itemBounds[0] + itemBounds[2]) / 2;
-                    var itemCenterY = (itemBounds[1] + itemBounds[3]) / 2;
-
-                    var shiftX = centerX - itemCenterX;
-                    var shiftY = centerY - itemCenterY;
-                    st2.item.position = [st2.item.position[0] + shiftX, st2.item.position[1] + shiftY];
-                }
-
-                for (var j2 = 0; j2 < originalStates.length; j2++) {
-                    var st3 = originalStates[j2];
-                    st3.position = [st3.item.position[0], st3.item.position[1]];
-                    var boundsAfter = st3.item.visibleBounds;
-                    st3.width = boundsAfter[2] - boundsAfter[0];
-                    st3.height = boundsAfter[1] - boundsAfter[3];
-                }
-
-                inputDistanceX.text = "0";
-                inputDistanceY.text = "0";
-
-                app.redraw();
-            } catch (e) {
-                alert("強制処理中にエラーが発生しました: " + e.message);
-            }
-        };
-
-        function bindInput(chk, input, previewFunc, linkInput, opts) {
-            chk.onClick = function () {
-                input.enabled = chk.value;
-
-                // opts: { set20OnEnable: boolean, skipPreviewOnCheck: boolean }
-                if (opts && opts.set20OnEnable && chk.value) {
-                    input.text = "20";
-
-                    // scale link: when enabling Width while link is ON, keep Height synced
-                    if (typeof chkLinkScale !== "undefined" && chkLinkScale && chk === chkScaleX && chkLinkScale.value) {
-                        inputScaleY.text = input.text;
-                    }
-
-                    // distance link: when enabling Horizontal while Link is ON, keep Vertical synced
-                    if (chk === chkDistanceX && chkLinkX && chkLinkX.value && typeof inputDistanceY !== "undefined" && inputDistanceY) {
-                        inputDistanceY.text = input.text;
-                    }
-                }
-
-                if (!(opts && opts.skipPreviewOnCheck)) {
-                    if (previewFunc) previewFunc();
-                }
-            };
-            input.onChanging = function () {
-                if (chkLinkX.value && linkInput) updateLinkedInputAndPreview(input, linkInput, previewFunc);
-                else if (previewFunc) previewFunc();
-            };
-            changeValueByArrowKey(input, function () {
-                if (chkLinkX.value && linkInput) updateLinkedInputAndPreview(input, linkInput, previewFunc);
-                else if (previewFunc) previewFunc();
-            });
-        }
-
-        chkLinkX.onClick = function () {
-            if (chkLinkX.value) {
-                chkDistanceY.value = false;
-                chkDistanceY.enabled = false;
-                inputDistanceY.enabled = false;
-                inputDistanceY.text = inputDistanceX.text;
-            } else {
-                chkDistanceY.value = true;
-                chkDistanceY.enabled = true;
-                inputDistanceY.enabled = true;
-            }
-        };
-
-        /* ラベル幅 / Label widths */
-        var LABEL_WIDTH_SCALE = 60;   // 幅/高さ用
-        var LABEL_WIDTH_OPT = 80;     // 回転/不透明度用
-
-        function createCheckInput(parent, label, width, unit, defaultVal, isChecked) {
-            var group = parent.add("group");
-            group.orientation = "row";
-            group.alignChildren = "center";
-
-            var chk = group.add("checkbox", undefined, label);
-            chk.value = isChecked;
-            chk.preferredSize.width = width;
-
-            group.add("statictext", undefined, "");
-            var input = group.add("edittext", undefined, defaultVal);
-            input.characters = 4;
-            input.enabled = isChecked;
-
-            if (unit) group.add("statictext", undefined, unit);
-
-            chk.onClick = function () { input.enabled = chk.value; };
-
-            return { chk: chk, input: input };
-        }
-
-        // スケールパネル（右カラム） / Scale panel (right column)
-        var panelScale = rightPanel.add("panel", undefined, LABELS.panelScaleTitle[lang]);
-        panelScale.orientation = "column";
-        panelScale.alignChildren = ["fill", "top"];
-        panelScale.margins = [15, 20, 15, 10];
-
-        // Distanceと同じ2カラム構成（左: 幅/高さ、右: 連動）
-        var scaleContainer = panelScale.add("group");
-        scaleContainer.orientation = "row";
-        scaleContainer.alignChildren = "top";
-
-        // 左カラム（幅/高さ）
-        var scaleLeft = scaleContainer.add("group");
-        scaleLeft.orientation = "column";
-        scaleLeft.alignChildren = "left";
-
-        var scaleRowX = scaleLeft.add("group");
-        scaleRowX.orientation = "row";
-        scaleRowX.alignChildren = "center";
-        var chkScaleX = scaleRowX.add("checkbox", undefined, LABELS.scaleX[lang]);
-        chkScaleX.value = false;
-        chkScaleX.preferredSize.width = LABEL_WIDTH_SCALE;
-        var inputScaleX = scaleRowX.add("edittext", undefined, "0");
-        inputScaleX.characters = 4;
-        inputScaleX.enabled = chkScaleX.value;
-
-        var scaleRowY = scaleLeft.add("group");
-        scaleRowY.orientation = "row";
-        scaleRowY.alignChildren = "center";
-        var chkScaleY = scaleRowY.add("checkbox", undefined, LABELS.scaleY[lang]);
-        chkScaleY.value = false;
-        chkScaleY.preferredSize.width = LABEL_WIDTH_SCALE;
-        var inputScaleY = scaleRowY.add("edittext", undefined, "0");
-        inputScaleY.characters = 4;
-        inputScaleY.enabled = chkScaleY.value;
-
-        // 右カラム（連動）
-        var scaleRight = scaleContainer.add("group");
-        scaleRight.orientation = "column";
-        scaleRight.alignChildren = "center";
-        scaleRight.alignment = ["fill", "center"];
-
-        var chkLinkScale = scaleRight.add("checkbox", undefined, LABELS.link[lang]);
-        chkLinkScale.value = true;
-
-        // 起動時は連動ON: 高さはディム＆同期
-        chkScaleY.value = false;
-        chkScaleY.enabled = false;
-        inputScaleY.enabled = false;
-        inputScaleY.text = inputScaleX.text;
-
-        // 回転・不透明度パネル（右カラム） / Rotate & Opacity panel (right column)
-        var groupTransform = rightPanel.add("panel", undefined, "オプション");
-        groupTransform.orientation = "column";
-        groupTransform.alignChildren = "left";
-        groupTransform.margins = [15, 20, 15, 10];
-
-        var rotateUI = createCheckInput(groupTransform, LABELS.rotate[lang], LABEL_WIDTH_OPT, "°", "0", false);
-        var chkRotate = rotateUI.chk;
-        var inputRotate = rotateUI.input;
-
-        // 回転スライダー（0〜180）
-        var rotateSlider = groupTransform.add("slider", undefined, 0, 0, 180);
-        rotateSlider.alignment = ["fill", "center"];
-
-        // 入力→スライダー同期
-        inputRotate.onChanging = function () {
-            var v = parseFloat(inputRotate.text);
-            if (!isNaN(v)) {
-                if (v < 0) v = 0;
-                if (v > 180) v = 180;
-                rotateSlider.value = v;
-            }
-        };
-
-        // スライダー→入力同期
-        rotateSlider.onChanging = function () {
-            // スライダー操作で回転を自動ON（チェックのonClickは呼ばない＝値上書きを防ぐ）
-            chkRotate.value = true;
-            inputRotate.enabled = true;
-
-            inputRotate.text = Math.round(rotateSlider.value).toString();
-            runAllPreviews();
-        };
-
-        var opacityUI = createCheckInput(groupTransform, LABELS.opacity[lang], LABEL_WIDTH_OPT, "%", "0", false);
-        var chkOpacity = opacityUI.chk;
-        var inputOpacity = opacityUI.input;
-
-        // 不透明度スライダー（0〜100）
-        var _syncingOpacitySlider = false;
-        var opacitySlider = groupTransform.add("slider", undefined, 0, 0, 100);
-        opacitySlider.alignment = ["fill", "center"];
-        opacitySlider.enabled = true; // 常に有効
-
-        // スライダー→入力（※edittextのonChangingは自動発火しないため明示的にrunAllPreviews）
-        opacitySlider.onChanging = function () {
-            if (_syncingOpacitySlider) return;
-
-            // スライダー操作で不透明度を自動ON（チェックのonClickは呼ばない＝値上書きを防ぐ）
-            chkOpacity.value = true;
-            inputOpacity.enabled = true;
-
-            _syncingOpacitySlider = true;
-            inputOpacity.text = Math.round(opacitySlider.value).toString();
-            _syncingOpacitySlider = false;
-
-            runAllPreviews();
-        };
-
-        // チェックON時に既定値を自動入力 / Auto set default value when enabled
-        function setDefault20OnEnable(chk, input) {
-            if (!chk || !input) return;
-            var prev = chk.onClick;
-            chk.onClick = function () {
-                if (typeof prev === "function") prev();
-                input.enabled = chk.value;
-                if (chk.value) {
-                    input.text = "20";
-                }
-                // ON/OFFのみ行い、ここではランダム実行しない
-            };
-        }
-
-
-        // スケール連動のUI反映 / Apply scale link UI state
-        function applyScaleLinkUI() {
-            if (!chkLinkScale) return;
-
-            if (chkLinkScale.value) {
-                chkScaleY.value = false;
-                chkScaleY.enabled = false;
-                inputScaleY.enabled = false;
-                inputScaleY.text = inputScaleX.text;
-            } else {
-                chkScaleY.enabled = true;
-                inputScaleY.enabled = chkScaleY.value;
-            }
-        }
-        chkLinkScale.onClick = function () {
-            applyScaleLinkUI();
-            runAllPreviews();
-        };
-        applyScaleLinkUI(); // initial
-
-        // UIの状態同期 / Sync UI state
-        function syncUIState(options) {
-            options = options || {};
-
-            if (options.hasOwnProperty("chkDistanceX")) chkDistanceX.value = !!options.chkDistanceX;
-            inputDistanceX.enabled = chkDistanceX.value;
-
-            if (options.hasOwnProperty("chkLinkX")) chkLinkX.value = !!options.chkLinkX;
-
-            if (chkLinkX.value) {
-                chkDistanceY.value = false;
-                chkDistanceY.enabled = false;
-                inputDistanceY.enabled = false;
-                inputDistanceY.text = inputDistanceX.text;
-            } else {
-                if (options.hasOwnProperty("chkDistanceY")) chkDistanceY.value = !!options.chkDistanceY;
-                chkDistanceY.enabled = true;
-                inputDistanceY.enabled = chkDistanceY.value;
-            }
-
-            if (options.hasOwnProperty("chkScaleX")) chkScaleX.value = !!options.chkScaleX;
-            inputScaleX.enabled = chkScaleX.value;
-
-            if (options.hasOwnProperty("chkLinkScale")) chkLinkScale.value = !!options.chkLinkScale;
-
-            if (options.hasOwnProperty("chkScaleY")) chkScaleY.value = !!options.chkScaleY;
-            inputScaleY.enabled = chkScaleY.value;
-
-            if (options.hasOwnProperty("chkRotate")) chkRotate.value = !!options.chkRotate;
-            inputRotate.enabled = chkRotate.value;
-
-            if (options.hasOwnProperty("chkOpacity")) chkOpacity.value = !!options.chkOpacity;
-            inputOpacity.enabled = chkOpacity.value;
-
-            // Apply scale link dimming/sync
-            if (typeof applyScaleLinkUI === "function") applyScaleLinkUI();
-        }
-
-        /* 選択オブジェクトの初期状態を記録（ダイアログ開始時点） */
-        var initialStates = [];
-        for (var s = 0; s < doc.selection.length; s++) {
-            var it = doc.selection[s];
-            var b = it.visibleBounds;
-            initialStates.push({
-                item: it,
-                position: [it.position[0], it.position[1]],
-                width: b[2] - b[0],
-                height: b[1] - b[3],
-                matrix: it.matrix,
-                opacity: (it.opacity !== undefined) ? it.opacity : 100
-            });
-        }
-
-        var originalStates = [];
-        for (var t = 0; t < initialStates.length; t++) {
-            var st0 = initialStates[t];
-            originalStates.push({
-                item: st0.item,
-                position: [st0.position[0], st0.position[1]],
-                width: st0.width,
-                height: st0.height,
-                matrix: st0.matrix,
-                opacity: st0.opacity
-            });
-        }
-
-        function resetPositions(states) {
-            for (var r = 0; r < states.length; r++) {
-                var stp = states[r];
-                stp.item.position = [stp.position[0], stp.position[1]];
-            }
-        }
-
-        function previewDistance() {
-            if (!chkDistanceX.value && !chkDistanceY.value) return;
-
-            var valX = chkDistanceX.value ? parseFloat(inputDistanceX.text) : 0;
-            var valY = 0;
-
-            if (chkLinkX.value && chkDistanceX.value) valY = parseFloat(inputDistanceX.text);
-            else valY = chkDistanceY.value ? parseFloat(inputDistanceY.text) : 0;
-
-            if ((chkDistanceX.value && isNaN(valX)) || (chkDistanceY.value && isNaN(valY))) return;
-
-            try {
-                for (var i3 = 0; i3 < originalStates.length; i3++) {
-                    var st = originalStates[i3];
-                    var newX = st.position[0];
-                    var newY = st.position[1];
-
-                    if (chkDistanceX.value) newX = st.position[0] + (Math.random() * 2 - 1) * valX;
-                    if (chkLinkX.value && chkDistanceX.value) newY = st.position[1] + (Math.random() * 2 - 1) * valY;
-                    else if (chkDistanceY.value) newY = st.position[1] + (Math.random() * 2 - 1) * valY;
-
-                    st.item.position = [newX, newY];
-                }
-            } catch (e) { }
-        }
-
-        function previewScale() {
-            // Link ON かつ 幅ON のときは高さも幅に連動して適用（高さチェックがOFF/ディムでも適用）
-            var applyWidth = !!chkScaleX.value;
-            var applyHeight = (!!chkScaleY.value) || (chkLinkScale && chkLinkScale.value && applyWidth);
-            if (!applyWidth && !applyHeight) return;
-
-            var valX2 = applyWidth ? parseFloat(inputScaleX.text) : 0;
-            var valY2 = applyHeight ? parseFloat((chkLinkScale && chkLinkScale.value && applyWidth) ? inputScaleX.text : inputScaleY.text) : 0;
-
-            if (applyWidth && isNaN(valX2)) return;
-            if (applyHeight && isNaN(valY2)) return;
-
-            try {
-                for (var i4 = 0; i4 < originalStates.length; i4++) {
-                    var st4 = originalStates[i4];
-
-                    if (applyWidth) {
-                        var fX = 1 + (Math.random() * 2 - 1) * (valX2 / 100);
-                        var sX = Math.max(1, 100 * fX);
-                        st4.item.resize(sX, 100);
-                    }
-                    if (applyHeight) {
-                        var fY = 1 + (Math.random() * 2 - 1) * (valY2 / 100);
-                        var sY = Math.max(1, 100 * fY);
-                        st4.item.resize(100, sY);
-                    }
-                }
-            } catch (e) { }
-        }
-
-        function previewRotate() {
-            if (!chkRotate.value) return;
-            var valR = parseFloat(inputRotate.text);
-            if (isNaN(valR)) return;
-
-            try {
-                for (var i5 = 0; i5 < originalStates.length; i5++) {
-                    var st5 = originalStates[i5];
-                    st5.item.rotate((Math.random() * 2 - 1) * valR);
-                }
-            } catch (e) { }
-        }
-
-        function previewOpacity() {
-            if (!chkOpacity.value) return;
-
-            var valO = parseFloat(inputOpacity.text);
-            if (isNaN(valO)) return;
-            if (valO < 0) valO = 0;
-            if (valO > 100) valO = 100;
-
-            try {
-                for (var i6 = 0; i6 < originalStates.length; i6++) {
-                    var st6 = originalStates[i6];
-                    if (st6.item.opacity !== undefined) {
-                        var base = (st6.opacity !== undefined) ? st6.opacity : st6.item.opacity;
-                        var minO = Math.max(0, base - valO);
-                        var maxO = Math.min(100, base + valO);
-                        st6.item.opacity = minO + Math.random() * (maxO - minO);
-                    }
-                }
-            } catch (e) { }
-        }
-
-        function restoreOriginalStates(states, doRedraw) {
-            if (doRedraw === undefined) doRedraw = true;
-            resetPositions(states);
-            for (var i7 = 0; i7 < states.length; i7++) {
-                var st7 = states[i7];
-                if (st7.matrix) st7.item.matrix = st7.matrix;
-                if (st7.opacity !== undefined) st7.item.opacity = st7.opacity;
-            }
-            if (doRedraw) app.redraw();
-        }
-
-        function runAllPreviews() {
-            restoreOriginalStates(originalStates, false);
-
-            if (chkDistanceX.value || chkDistanceY.value) previewDistance();
-            if (chkScaleX.value || chkScaleY.value) previewScale(); // ←追加
-            if (chkRotate.value) previewRotate();
-            if (chkOpacity.value) previewOpacity();
-
-            app.redraw();
-        }
-
-        // Distance: ON/OFFのみ（プレビューは実行しない）
-        bindInput(chkDistanceX, inputDistanceX, runAllPreviews, inputDistanceY, { set20OnEnable: true, skipPreviewOnCheck: true });
-        bindInput(chkDistanceY, inputDistanceY, runAllPreviews, null, { skipPreviewOnCheck: true });
-
-        // other (Width/Height/Rotate/Opacity: set 20 on enable, do not preview on ON/OFF)
-        bindInput(chkScaleX, inputScaleX, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
-        bindInput(chkScaleY, inputScaleY, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
-        bindInput(chkRotate, inputRotate, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
-        bindInput(chkOpacity, inputOpacity, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
-
-        // 不透明度：入力→スライダー同期（bindInput が onChanging を上書きするため後付けでラップ）
-        var _prevOpacityOnChanging = inputOpacity.onChanging;
-        inputOpacity.onChanging = function () {
-            if (!_syncingOpacitySlider) {
-                var v = parseFloat(inputOpacity.text);
-                if (!isNaN(v)) {
-                    if (v < 0) v = 0;
-                    if (v > 100) v = 100;
-                    _syncingOpacitySlider = true;
-                    opacitySlider.value = v;
-                    _syncingOpacitySlider = false;
-                }
-            }
-            if (typeof _prevOpacityOnChanging === "function") {
-                _prevOpacityOnChanging();
-            }
-        };
-
-        // 初期状態（スライダーは常時有効）
-        opacitySlider.value = parseFloat(inputOpacity.text) || 0;
-
-        // 幅のみの入力が変わったら、連動ON時は高さにも反映（bindInput が onChanging を上書きするため後付けでラップ）
-        var _prevScaleXOnChanging2 = inputScaleX.onChanging;
-        inputScaleX.onChanging = function () {
-            if (chkLinkScale && chkLinkScale.value) {
-                inputScaleY.text = inputScaleX.text;
-            }
-            if (typeof _prevScaleXOnChanging2 === "function") _prevScaleXOnChanging2();
-        };
-
-        /* Buttons (bottom row: 3 columns) */
-        var btnRowGroup = dialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignChildren = ["fill", "center"];
-        btnRowGroup.alignment = ["fill", "bottom"];
-        btnRowGroup.margins = [0, 10, 0, 0];
-
-        // Left column: Random / Reset
-        var btnLeft = btnRowGroup.add("group");
-        btnLeft.orientation = "row";
-        btnLeft.alignChildren = ["left", "center"];
-        btnLeft.alignment = ["left", "center"];
-
-        var randomBtn = btnLeft.add("button", undefined, LABELS.random[lang]);
-        var resetBtn = btnLeft.add("button", undefined, LABELS.reset[lang]);
-
-        // Center column: spacer
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        // Right column: Cancel / OK
-        var btnRight = btnRowGroup.add("group");
-        btnRight.orientation = "row";
-        btnRight.alignChildren = ["right", "center"];
-        btnRight.alignment = ["right", "center"];
-
-        var cancelBtn = btnRight.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-        var okBtn = btnRight.add("button", undefined, LABELS.ok[lang], { name: "ok" });
-
-
-        // Move/copy handlers from original buttons to new ones
-        randomBtn.onClick = function () {
-            try {
-                syncUIState({
-                    chkDistanceX: chkDistanceX.value,
-                    chkLinkX: chkLinkX.value,
-                    chkDistanceY: chkDistanceY.value,
-                    chkScaleX: chkScaleX.value,
-                    chkScaleY: chkScaleY.value,
-                    chkLinkScale: chkLinkScale.value,
-                    chkRotate: chkRotate.value,
-                    chkOpacity: chkOpacity.value
-                });
-                // カラー（なし/シャッフル/完全シャッフル）を反映
-                applyColorShuffleFromUI();
-                runAllPreviews();
-            } catch (e) {
-                alert("ランダム処理中にエラーが発生しました: " + e.message);
-            }
-        };
-
-        resetBtn.onClick = function () {
-            try {
-                restoreOriginalStates(initialStates);
-
-                for (var i8 = 0; i8 < initialStates.length; i8++) {
-                    try { makeRectangleEdgeHorizontal(initialStates[i8].item); } catch (e2) { }
-                }
-
-                inputDistanceX.text = "0";
-                inputDistanceY.text = "0";
-                inputScaleX.text = "0";
-                inputScaleY.text = "0";
-                inputRotate.text = "0";
-                inputOpacity.text = "0";
-
-                syncUIState({
-                    chkDistanceX: true,
-                    chkLinkX: true,
-                    chkLinkScale: true,
-                    chkScaleX: false,
-                    chkScaleY: false,
-                    chkRotate: false,
-                    chkOpacity: false
-                });
-
-                app.redraw();
-            } catch (e) {
-                alert("リセット処理中にエラーが発生しました: " + e.message);
-            }
-        };
-
-        dialog.onMove = function () { storeWinLoc(dialog); };
-
-        // Closeボタン（×）などで閉じた場合も位置を記録 / Save bounds on close as well
-        dialog.onClose = function () {
-            try { storeWinLoc(dialog); } catch (e) { }
-            return true;
-        };
-
-        cancelBtn.onClick = function () {
-            try { restoreOriginalStates(initialStates); } catch (e) { }
-            try { app.executeMenuCommand('Live Corner Annotator'); } catch (e2) { }
-            storeWinLoc(dialog);
-            dialog.close();
-        };
-
-        okBtn.onClick = function () {
-            try { app.executeMenuCommand('Live Corner Annotator'); } catch (e2) { }
-            storeWinLoc(dialog);
-            dialog.close();
-        };
-
-        dialog.show();
-
-    } catch (e) {
-        alert("エラーが発生しました：" + e.message + " / An error occurred: " + e.message);
     }
-}
 
-main();
+    main();
+
+})();

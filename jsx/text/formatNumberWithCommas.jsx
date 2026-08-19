@@ -152,7 +152,7 @@ function setDialogOpacity(dlg, opacityValue) {
 // 既定値 / Defaults
 var DIALOG_OFFSET_X = 300;
 var DIALOG_OFFSET_Y = 0;
-var DIALOG_OPACITY = 0.97;
+var DIALOG_OPACITY = 0.98;
 // 視覚順の上下判定フラグ / Order by visual top: desc=true means upper items first
 var ORDER_TOP_DESC = true; // true: 上(大きいtop)→下, false: 下→上
 

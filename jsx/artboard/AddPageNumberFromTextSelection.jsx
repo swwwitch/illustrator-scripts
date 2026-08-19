@@ -28,7 +28,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2025-06-25";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+    var SCRIPT_UPDATED  = "2026-08-19";                   /* 更新日 / last updated */
 
     // README (Japanese)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddPageNumberFromTextSelection.md
@@ -669,7 +669,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var dialogButtons = addButtonRow(dialog);
 
         // 透明度と表示位置の調整 / adjust opacity and position
-        dialog.opacity = 0.97;
+        dialog.opacity = 0.98;
         dialog.onShow = function () {
             dialog.location = [dialog.location[0] + 300, dialog.location[1]];
         };

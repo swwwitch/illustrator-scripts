@@ -28,7 +28,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextBreakSplitMergePallete";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-18";                   /* 更新日 / last updated */
@@ -688,11 +688,14 @@ function toTitleCase(text) {
         state.multiLines ? 1 : 0, state.multiFrames ? 1 : 0, state.hasSpTab ? 1 : 0].join("|");
     }
 
-    /* 各テキストフレームのcontentsを変換する共通処理 */
+    /* 各テキストフレームのcontentsを変換する共通処理。
+       contents の再設定は書式を初期化するため、変化がないときは書き戻さない */
     function transformContents(objects, transformFunc) {
         var frames = getTextFrames(objects);
         for (var i = 0; i < frames.length; i++) {
-            frames[i].contents = transformFunc(frames[i].contents);
+            var original = frames[i].contents;
+            var transformed = transformFunc(original);
+            if (transformed !== original) frames[i].contents = transformed;
         }
     }
 
@@ -1000,6 +1003,132 @@ function toTitleCase(text) {
             /^[\t 　]*(?:[A-Za-z]+|[〇一二三四五六七八九十百千]+|[0-9０-９]+)[.．:：|][\t 　]+/,
             /^[\t 　]*[0-9０-９]+[.．](?![0-9０-９])[\t 　]*/
         ]);
+    }
+
+    /* Illustrator標準の「箇条書きと番号付きリスト」を解除する関数。
+       contents を入れ直すとリスト書式が外れるが、同時に文字書式・段落書式も初期化されるため、
+       控えてから戻す（文字数・段落数は変わらないので先頭から順に対応づけられる）*/
+    function clearListFormatting(objects) {
+        var frames = getTextFrames(objects);
+        for (var i = 0; i < frames.length; i++) {
+            var snapshot = captureTextStyles(frames[i]);
+            if (snapshot.contents === null) continue;
+            try {
+                frames[i].contents = snapshot.contents;
+            } catch (e) {
+                /* 入れ直せなければ書式も戻さない */
+                debugLog("clearListFormatting: reassign contents", e);
+                continue;
+            }
+            restoreTextStyles(frames[i], snapshot);
+        }
+    }
+
+    /* 控える文字属性の名前。行送りは自動行送りより先に戻す必要があるため、この並び順のまま使う */
+    function getCharStyleProps() {
+        return ["textFont", "size", "horizontalScale", "verticalScale", "baselineShift",
+            "tracking", "leading", "autoLeading", "fillColor"];
+    }
+
+    /* 控える段落属性の名前（タブストップは TabStopInfo の作り直しが必要なため別扱い）*/
+    function getParagraphStyleProps() {
+        return ["justification", "spaceBefore", "spaceAfter", "leftIndent", "rightIndent", "firstLineIndent"];
+    }
+
+    /* テキストと、文字ごと・段落ごとの書式を控える */
+    function captureTextStyles(frame) {
+        var snapshot = { contents: null, chars: [], paras: [] };
+        try { snapshot.contents = frame.contents; } catch (e) { return snapshot; }
+
+        var charProps = getCharStyleProps();
+        try {
+            var characters = frame.textRange.characters;
+            for (var i = 0; i < characters.length; i++) {
+                snapshot.chars.push(snapshotAttributes(characters[i].characterAttributes, charProps));
+            }
+        } catch (eChar) { debugLog("captureTextStyles: characters", eChar); }
+
+        var paraProps = getParagraphStyleProps();
+        try {
+            var paragraphs = frame.paragraphs;
+            for (var p = 0; p < paragraphs.length; p++) {
+                var paraAttrs = paragraphs[p].paragraphAttributes;
+                var paraSnapshot = snapshotAttributes(paraAttrs, paraProps);
+                paraSnapshot.tabStops = snapshotTabStops(paraAttrs);
+                snapshot.paras.push(paraSnapshot);
+            }
+        } catch (ePara) { debugLog("captureTextStyles: paragraphs", ePara); }
+
+        return snapshot;
+    }
+
+    /* 控えた書式をフレームへ戻す */
+    function restoreTextStyles(frame, snapshot) {
+        var charProps = getCharStyleProps();
+        try {
+            var characters = frame.textRange.characters;
+            for (var i = 0; i < characters.length && i < snapshot.chars.length; i++) {
+                restoreAttributes(characters[i].characterAttributes, snapshot.chars[i], charProps);
+            }
+        } catch (eChar) { debugLog("restoreTextStyles: characters", eChar); }
+
+        var paraProps = getParagraphStyleProps();
+        try {
+            var paragraphs = frame.paragraphs;
+            for (var p = 0; p < paragraphs.length && p < snapshot.paras.length; p++) {
+                var paraAttrs = paragraphs[p].paragraphAttributes;
+                restoreAttributes(paraAttrs, snapshot.paras[p], paraProps);
+                restoreTabStops(paraAttrs, snapshot.paras[p].tabStops);
+            }
+        } catch (ePara) { debugLog("restoreTextStyles: paragraphs", ePara); }
+    }
+
+    /* 指定した名前の属性値を控える（読めなかった属性は控えない）*/
+    function snapshotAttributes(attrs, propertyNames) {
+        var snapshot = {};
+        for (var i = 0; i < propertyNames.length; i++) {
+            try { snapshot[propertyNames[i]] = attrs[propertyNames[i]]; } catch (e) { }
+        }
+        return snapshot;
+    }
+
+    /* 控えた属性値を戻す（1つ失敗しても残りは戻す）*/
+    function restoreAttributes(attrs, snapshot, propertyNames) {
+        if (!snapshot) return;
+        for (var i = 0; i < propertyNames.length; i++) {
+            var propertyName = propertyNames[i];
+            if (snapshot[propertyName] == null) continue;
+            safeSet(attrs, propertyName, snapshot[propertyName]);
+        }
+    }
+
+    /* 段落のタブストップを位置と揃えだけの配列として控える（取得できなければ null）*/
+    function snapshotTabStops(paraAttrs) {
+        var stops = [];
+        try {
+            var tabStops = paraAttrs.tabStops;
+            for (var i = 0; i < tabStops.length; i++) {
+                stops.push({ position: tabStops[i].position, alignment: tabStops[i].alignment });
+            }
+        } catch (e) {
+            return null;
+        }
+        return stops;
+    }
+
+    /* 控えたタブストップを TabStopInfo として作り直して戻す */
+    function restoreTabStops(paraAttrs, stops) {
+        if (!stops) return;
+        try {
+            var tabs = [];
+            for (var i = 0; i < stops.length; i++) {
+                var tab = new TabStopInfo();
+                tab.alignment = stops[i].alignment;
+                tab.position = stops[i].position;
+                tabs.push(tab);
+            }
+            paraAttrs.tabStops = tabs;
+        } catch (e) { debugLog("restoreTabStops", e); }
     }
 
     /* テキストフレームの順序を反転する関数 */
@@ -2068,6 +2197,9 @@ function toTitleCase(text) {
         removeLineBreaks, removeAllBreaks, joinBreaksToOneLine, flattenToOneLine, removeEmptyLines, removeTabs, tabsToSpaces,
         trimSpaces, collapseSpaces, removeLinePrefix, toHalfWidthAlnumText, toFullWidthKanaText,
         fullToHalfAlnum, halfToFullKana, removeBulletMarkers, removeNumberMarkers,
+        clearListFormatting, getCharStyleProps, getParagraphStyleProps,
+        captureTextStyles, restoreTextStyles, snapshotAttributes, restoreAttributes,
+        snapshotTabStops, restoreTabStops,
         reverseOrder, removeDuplicateLines, sortByCharCode, sortByLength, removeCjkLatinSpaces,
         addLineBreakPerChar, addLineBreakAtCount, convertForcedLineBreaks, convertToForcedBreaks,
         addLineBreakAtPunctuation, splitFramesByParagraph, getParagraphMetrics,
@@ -2215,8 +2347,9 @@ function toTitleCase(text) {
             case "removeAllSpaces": transformContents(targets, function (txt) { return txt.replace(/[ 　]/g, ""); }); return;
             case "fullToHalfAlnum": fullToHalfAlnum(targets); return;
             case "halfToFullKana": halfToFullKana(targets); return;
-            case "removeBulletMarkers": removeBulletMarkers(targets); return;
-            case "removeNumberMarkers": removeNumberMarkers(targets); return;
+            /* Illustrator標準のリスト書式を先に外してから、本文に打たれた行頭マーカーを除去する */
+            case "removeBulletMarkers": clearListFormatting(targets); removeBulletMarkers(targets); return;
+            case "removeNumberMarkers": clearListFormatting(targets); removeNumberMarkers(targets); return;
             case "reverseOrder": reverseOrder(targets); return;
             case "removeDuplicateLines": removeDuplicateLines(targets); return;
             case "sortByCharCode": sortByCharCode(targets); return;

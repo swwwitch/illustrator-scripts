@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "ImportStyles";                 /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-19";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportStyles.md
@@ -612,7 +612,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     function showStyleLibraryDialog() {
         var libraryWindow = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(libraryWindow);
-        libraryWindow.opacity = 0.97;
+        libraryWindow.opacity = 0.98;
         libraryWindow.onShow = function() {
             libraryWindow.location = [libraryWindow.location[0] + DIALOG_OFFSET_X, libraryWindow.location[1]];
         };
