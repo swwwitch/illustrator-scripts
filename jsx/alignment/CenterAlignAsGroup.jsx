@@ -41,14 +41,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // =========================================
     // アクション設定 / Action settings
     // =========================================
-    var ACTION_SET_NAME = "Alignment";  /* アクションセット名 / action set name */
-    var ACTION_NAME     = "Center";     /* アクション名 / action name */
+    var ACTION_SET_NAME = "CenterAlignAsGroup"; /* アクションセット名 / action set name */
+    var ACTION_NAME     = "Center";             /* アクション名 / action name */
+
+    /* 名前は .aia 内の /name（16進とバイト数）と一致させること / Keep the names in sync with the hex in the definition */
 
     /* アクション定義（.aia 形式）/ Action definition */
     var ACTION_CODE = [
         "/version 3",
-        "/name [ 9",
-        "\t416c69676e6d656e74",
+        "/name [ 18",
+        "\t43656e746572416c69676e417347726f7570",
         "]",
         "/isOpen 1",
         "/actionCount 1",
@@ -182,7 +184,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {void}
      */
     function runDynamicAction(actionSetName, actionName, actionCode) {
-        var actionFile = new File(Folder.temp + "/dynamic_action.aia");
+        var actionFile = new File(Folder.temp + "/CenterAlignAsGroup.aia");
         actionFile.open("w");
         actionFile.write(actionCode);
         actionFile.close();

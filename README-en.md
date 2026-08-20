@@ -122,6 +122,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Place a mark at the center of the gap between adjacent objects](readme-en/RightMarkPlacer.md)
 - [Ungroups the selection and groups it again, merging tw…](readme-en/AddToGroup.md)
 - [A docking palette that sets the vertical gap between t…](readme-en/AiAdjustVerticalGap.md)
+- [Groups the selection temporarily and centers it horiz…](readme-en/CenterAlignAsGroup.md)
 - [Adjusts leading and placement, deciding what to do fro…](readme-en/DistributeDownFromTop.md)
 - [Keeps the leftmost of the horizontally arranged select…](readme-en/DistributeLL.md)
 - [Keeps the leftmost of the horizontally arranged select…](readme-en/DistributeLR.md)
@@ -148,6 +149,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [An Illustrator script that swaps the position of a sel…](readme-en/SwapNearestItem.md)
 - [Aligns or groups Illustrator text frames row by row an…](readme-en/TextGridAligner.md)
 - [Infers rows and columns from the selected objects, tol…](readme-en/TransposeGrid.md)
+- [Groups the selection temporarily and centers it verti…](readme-en/VerticalCenterAlignAsGroup.md)
 - [Reorders the stacking order of objects by position (X/…](readme-en/ZIndexSorter.md)
 - [Swaps the center positions of two selected objects](readme-en/swap-2-objects.md)
 

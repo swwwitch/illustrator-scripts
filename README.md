@@ -125,6 +125,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [隣り合うオブジェクトのアキの中央に記号を配置](readme-ja/RightMarkPlacer.md)
 - [選択した2つ以上のオブジェクトをいったんグループ解除してから、あらためて1つのグループにまとめます](readme-ja/AddToGroup.md)
 - [選択した2つのオブジェクトの上下の間隔を、指定した値にそろえる常駐パレットです](readme-ja/AiAdjustVerticalGap.md)
+- [選択したオブジェクトを一時的にグループ化して、水平方向・垂直方向の中央に整列](readme-ja/CenterAlignAsGroup.md)
 - [選択内容に応じて、行送りと配置を次の順で判定して調整します](readme-ja/DistributeDownFromTop.md)
 - [横並びに選択した複数オブジェクトのうち、最も左のものを固定し、以降を左方向へ「キー入力」の値ぶんずつ動かして…](readme-ja/DistributeLL.md)
 - [横並びに選択した複数オブジェクトのうち、最も左のものを固定し、それ以降を右方向へ等間隔に再配置します](readme-ja/DistributeLR.md)
@@ -152,6 +153,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したオブジェクトを基準に、指定方向（右／左／上／下）にある最も近いオブジェクトと自然な見た目で位置を入れ…](readme-ja/SwapNearestItem.md)
 - [Illustratorでテキストフレームを行・列単位で整列またはグループ化するスクリプト](readme-ja/TextGridAligner.md)
 - [選択した複数オブジェクトを行・列として自動判定し、歯抜け（欠け）を許容しつつ、](readme-ja/TransposeGrid.md)
+- [選択したオブジェクトを一時的にグループ化して、天地中央（垂直方向中央）だけに整列](readme-ja/VerticalCenterAlignAsGroup.md)
 - [オブジェクトの重ね順を位置（X/Y）やZインデックスで並べ替える](readme-ja/ZIndexSorter.md)
 - [選択した 2 つのオブジェクトの中心位置を入れ替えます](readme-ja/swap-2-objects.md)
 

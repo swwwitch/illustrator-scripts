@@ -5,15 +5,16 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### 概要
 
-選択したオブジェクトを一時的にグループ化したうえで、整列パネルの「垂直方向中央に整列」（天地中央のみ、左右方向は動かさない）をダイナミックアクション経由で実行します。実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。
+選択したオブジェクトを一時的にグループ化してから、整列パネルの［垂直方向中央に整列］をダイナミックアクション経由で実行します。
+天地中央のみで左右方向は動かさず、整列の基準は整列パネルの設定（アートボードなど）に従います。
 
-詳細は README を参照してください。
+詳細はREADMEを参照してください。
 
 ### Overview
 
-Temporarily groups the selection, then centers it vertically only (the horizontal position is
-left untouched) by running the Align panel command through a dynamic action. "Align to Glyph
-Bounds" is turned on for the run and restored afterwards.
+Temporarily groups the selection, then runs Align Vertical Centers from the Align panel
+through a dynamic action.
+Only the vertical position changes; the alignment reference follows the Align panel setting.
 
 See the README for details.
 
@@ -42,14 +43,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // =========================================
     // アクション設定 / Action settings
     // =========================================
-    var ACTION_SET_NAME = "Alignment";      /* アクションセット名 / action set name */
-    var ACTION_NAME     = "VerticalCenter"; /* アクション名 / action name */
+    var ACTION_SET_NAME = "VerticalCenterAlignAsGroup"; /* アクションセット名 / action set name */
+    var ACTION_NAME     = "VerticalCenter";             /* アクション名 / action name */
+
+    /* 名前は .aia 内の /name（16進とバイト数）と一致させること / Keep the names in sync with the hex in the definition */
 
     /* アクション定義（.aia 形式）/ Action definition */
     var ACTION_CODE = [
         "/version 3",
-        "/name [ 9",
-        "\t416c69676e6d656e74",
+        "/name [ 26",
+        "\t566572746963616c43656e746572416c69676e417347726f7570",
         "]",
         "/isOpen 1",
         "/actionCount 1",
@@ -163,7 +166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {void}
      */
     function runDynamicAction(actionSetName, actionName, actionCode) {
-        var actionFile = new File(Folder.temp + "/dynamic_action.aia");
+        var actionFile = new File(Folder.temp + "/VerticalCenterAlignAsGroup.aia");
         actionFile.open("w");
         actionFile.write(actionCode);
         actionFile.close();
