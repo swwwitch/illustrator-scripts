@@ -64,6 +64,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したテキストをアーチ状のパス上文字に変換](readme-ja/ArcTextGenerator.md)
 - [あふれたテキストの文字サイズ・エリア高さを自動調整](readme-ja/AutoFitTextFrame.md)
 - [ポイント文字・パス上文字とエリア内文字の相互変換](readme-ja/ConvertAreaAndPointType.md)
+- [あふれを自動サイズ調整で解消してからポイント文字に変換](readme-ja/FitAndConvertToPointType.md)
 - [テキスト内の日付・曜日・数値を一括で増減](readme-ja/IncrementDatesAndNumbers.md)
 - [エリア内文字ツールキット（作成と調整）](readme-ja/AreaTypeToolkit.md)
 - [クリップボードのテキストで選択テキストを置換](readme-ja/ReplaceTextWithPaste.md)

@@ -57,6 +57,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Convert selected text into arched type on a path](readme-en/ArcTextGenerator.md)
 - [Auto-fit overflowing text by font size or area height](readme-en/AutoFitTextFrame.md)
 - [Convert between point / path type and area type](readme-en/ConvertAreaAndPointType.md)
+- [Clear the overset with auto-sizing, then convert to point type](readme-en/FitAndConvertToPointType.md)
 - [Increment dates, weekdays, and numbers in text](readme-en/IncrementDatesAndNumbers.md)
 - [Create and adjust area type in one flow](readme-en/AreaTypeToolkit.md)
 - [Replace the contents of selected text frames with the clipboard](readme-en/ReplaceTextWithPaste.md)

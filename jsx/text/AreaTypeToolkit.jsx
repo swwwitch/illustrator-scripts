@@ -103,6 +103,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             createMethod: { ja: "作成方法", en: "Creation method" },
             role: { ja: "種別", en: "Role" },
             frameHandling: { ja: "枠の処理", en: "Frame handling" },
+            textHandling: { ja: "テキストの処理", en: "Text handling" },
             leading: { ja: "行送り", en: "Leading" },
             justification: { ja: "行揃え", en: "Justification" },
             textAlign: { ja: "垂直方向の配置", en: "Vertical alignment" },
@@ -154,7 +155,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         },
         checkbox: {
             linkIndents: { ja: "連動", en: "Link" },
-            autoSize: { ja: "自動サイズ調整", en: "Auto-size" }
+            autoSize: { ja: "自動サイズ調整", en: "Auto-size" },
+            resolveOverset: { ja: "オーバーセットを解決する", en: "Resolve overset" },
+            forceLineBreaks: {
+                ja: "見かけの改行を強制改行に変換",
+                en: "Convert visual line breaks to hard returns"
+            }
         },
         button: {
             convert: { ja: "変換", en: "Convert" },
@@ -242,8 +248,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 en: "Applies the left indent value to the right as well."
             },
             separateText: {
-                ja: "エリア内文字を、囲み罫（長方形）とポイント文字に分解します。別ダイアログで枠の処理を選びます。",
-                en: "Breaks Area Type apart into a rectangle plus point text. A separate dialog picks how the frame is handled."
+                ja: "エリア内文字を、囲み罫（長方形）とポイント文字に分解します。別ダイアログで枠の処理を選びます。選択したエリア内文字をまとめて処理します。",
+                en: "Breaks Area Type apart into a rectangle plus point text. A separate dialog picks how the frame is handled. Every selected Area Type frame is processed at once."
+            },
+            resolveOverset: {
+                ja: "あふれている文字が隠れたまま分離されないよう、枠の高さを全文が収まる高さまで広げてから分解します。あふれていないフレームには何もしません。",
+                en: "Grows the frame until the whole text fits before separating, so no overset character is left hidden. Frames without overset are untouched."
+            },
+            forceLineBreaks: {
+                ja: "エリア内文字で折り返していた位置に改行を入れ、見た目の行分けをポイント文字でも保ちます。OFFにすると段落ごとに1行につながります。",
+                en: "Inserts a return where the Area Type wrapped, so the point text keeps the same line breaks. When off, each paragraph becomes a single long line."
             }
         },
         alert: {
@@ -262,6 +276,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             convertFailed: {
                 ja: "変換できる対象がありませんでした。ポイント文字や閉じたパスを選択してください。",
                 en: "Nothing could be converted. Select point text or a closed path."
+            },
+            separateFailed: {
+                ja: "分離できるエリア内文字がありませんでした。ロックや非表示になっていないか確認してください。",
+                en: "No Area Type could be separated. Check whether the frames are locked or hidden."
             }
         }
     };
@@ -1489,9 +1507,147 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // Separate dialog: Area Type → rectangle plus point text
     // ============================================================
 
+    /* 分離できるエリア内文字か（ロック・非表示のものは対象外）
+       Whether the frame can be separated (locked and hidden ones are skipped) */
+    function isSeparableAreaTextFrame(item) {
+        try {
+            if (!item || item.typename !== "TextFrame" || item.kind !== TextType.AREATEXT) return false;
+            if (item.locked || item.hidden) return false;
+            var ownerLayer = item.layer;
+            if (ownerLayer && (ownerLayer.locked || !ownerLayer.visible)) return false;
+        } catch (e) { return false; }
+        return true;
+    }
+
+    /* あふれた文字が隠れないよう、枠の高さを収まる最小の高さまで広げる
+       Grow the frame to the shortest height that fits, so no overset character stays hidden
+       入れ子のダイアログから app.doScript を呼ばずに済むよう、自動サイズ調整アクションは使わない
+       The auto-size action is avoided here, so nothing calls app.doScript from a nested dialog */
+    function resolveFrameOverset(areaTextFrame) {
+        if (!isFrameOverset(areaTextFrame)) return;
+
+        var textPath;
+        try { textPath = areaTextFrame.textPath; } catch (e) { return; }
+
+        var startHeight = getFramePathHeight(areaTextFrame);
+        if (!(startHeight > 0)) return;
+
+        var growStep = getRepresentativeFontSize(areaTextFrame) * 2;
+        if (!(growStep > 0)) growStep = 24;
+
+        /* その高さにしてもあふれが残るか / Set the height and report whether the overset remains */
+        function isOversetAtHeight(height) {
+            try { textPath.height = height; } catch (e0) { return true; }
+            return isFrameOverset(areaTextFrame);
+        }
+
+        // 収まる高さが見つかるまで、伸ばす量を倍にしながら広げる
+        // Grow with a doubling step until a height that fits turns up
+        var oversetHeight = startHeight, fittedHeight = 0;
+        for (var attempt = 0; attempt < 24; attempt++) {
+            var candidateHeight = oversetHeight + growStep;
+            if (!isOversetAtHeight(candidateHeight)) { fittedHeight = candidateHeight; break; }
+            oversetHeight = candidateHeight;
+            growStep *= 2;
+        }
+        if (!fittedHeight) {
+            // どこまで広げても収まらないときは元の高さに戻す / Put the original height back when nothing ever fits
+            try { textPath.height = startHeight; } catch (e1) { }
+            return;
+        }
+
+        // 収まる範囲で最小の高さに詰める（1pt刻みまで）/ Narrow down to the shortest height that still fits (within 1pt)
+        while (fittedHeight - oversetHeight > 1) {
+            var midHeight = (fittedHeight + oversetHeight) / 2;
+            if (isOversetAtHeight(midHeight)) { oversetHeight = midHeight; }
+            else { fittedHeight = midHeight; }
+        }
+        try { textPath.height = fittedHeight; } catch (e2) { }
+    }
+
+    /* 改行として扱う文字か / Whether the character counts as a line break */
+    function isLineBreakChar(character) {
+        return character === "\r" || character === "\n" || character === "\u2028" || character === "\u2029";
+    }
+
+    /* エリア内文字の親（レイヤーまたはグループ）を返す。取れなければドキュメント
+       Owning container (layer or group) of the Area Type, falling back to the document */
+    function getOwnerContainer(doc, item) {
+        try {
+            var parent = item.parent;
+            if (parent && parent.pathItems && parent.textFrames) return parent;
+        } catch (e) { }
+        return doc;
+    }
+
+    /* 折り返し位置に強制改行を入れた文字列と、1文字ごとの元インデックスを返す
+       Contents with the visual wraps turned into hard returns, plus each character's source index
+       折り返しが無い（1行だけの）ときは null を返す / Returns null when there is nothing to break */
+    function buildForcedLineBreakText(areaTextFrame) {
+        var sourceText, lines;
+        try {
+            sourceText = areaTextFrame.contents;
+            lines = areaTextFrame.lines;
+        } catch (e) { return null; }
+        if (!sourceText || !lines || lines.length < 2) return null;
+
+        var brokenText = "", sourceIndices = [], position = 0;
+        for (var i = 0; i < lines.length && position < sourceText.length; i++) {
+            var lineLength = 0;
+            try { lineLength = lines[i].characters.length; } catch (e0) { lineLength = 0; }
+            for (var j = 0; j < lineLength && position < sourceText.length; j++) {
+                brokenText += sourceText.charAt(position);
+                sourceIndices.push(position);
+                position++;
+            }
+            if (position >= sourceText.length) break;
+
+            // すでに改行で終わっている行はそのまま。折り返しだけを強制改行に置き換える
+            // A line that already ends in a return is left alone; only the wraps become hard returns
+            if (isLineBreakChar(sourceText.charAt(position - 1))) continue;
+            if (isLineBreakChar(sourceText.charAt(position))) {
+                brokenText += sourceText.charAt(position);
+                sourceIndices.push(position);
+                position++;
+            } else {
+                brokenText += "\r";
+                sourceIndices.push(position > 0 ? position - 1 : 0);
+            }
+        }
+
+        // 文字あふれで lines に出てこない分を、そのまま末尾に足す
+        // Overset characters never show up in lines, so they are appended as they are
+        while (position < sourceText.length) {
+            brokenText += sourceText.charAt(position);
+            sourceIndices.push(position);
+            position++;
+        }
+        return { contents: brokenText, sourceIndices: sourceIndices };
+    }
+
+    /* 強制改行を入れた文字列に合わせて、控えた文字属性を並べ直す
+       Re-line the snapshotted attributes to match the text with the inserted returns */
+    function remapCharacterSnapshots(snapshots, sourceIndices) {
+        if (!snapshots.length) return snapshots;
+        var remapped = [];
+        for (var i = 0; i < sourceIndices.length; i++) {
+            var index = sourceIndices[i];
+            if (index < 0) index = 0;
+            if (index >= snapshots.length) index = snapshots.length - 1;
+            remapped.push(snapshots[index]);
+        }
+        return remapped;
+    }
+
     /* エリア内文字を、囲み罫とポイント文字に分解し、できたオブジェクトを返す
-       Replace Area Type with a rectangle plus point text, returning what was created */
+       Replace Area Type with a rectangle plus point text, returning what was created
+       できたオブジェクトは元のレイヤー・グループの、元の重ね順の位置に置く
+       The new objects stay in the original layer or group, at the original stacking position */
     function separateAreaTextFrame(doc, areaTextFrame, settings) {
+        // 枠の大きさを読む前に解決しておく（囲み罫と行の分かれ方を実際の文字量に合わせるため）
+        // Resolved before the size is read, so the rectangle and the line breaks match the real amount of text
+        if (settings.resolveOverset) { resolveFrameOverset(areaTextFrame); }
+
         var bounds = areaTextFrame.geometricBounds;
         var spacingPt = settings.spacingPt;
         var left = bounds[0] - spacingPt, top = bounds[1] + spacingPt;
@@ -1501,14 +1657,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         // Snapshot the per-character formatting and the first-baseline size before the frame goes away
         var charAttrSnapshots = snapshotCharacterAttributes(areaTextFrame);
         var firstLineOffset = getRepresentativeFontSize(areaTextFrame);
+        var pointTextContents = areaTextFrame.contents;
 
-        var frameRect = doc.pathItems.rectangle(top, left, right - left, top - bottom);
+        // 見かけの改行を強制改行に変換する（文字属性も同じ並びに合わせる）
+        // Turn the visual wraps into hard returns, keeping the attributes lined up with them
+        if (settings.forceLineBreaks) {
+            var brokenText = buildForcedLineBreakText(areaTextFrame);
+            if (brokenText) {
+                pointTextContents = brokenText.contents;
+                charAttrSnapshots = remapCharacterSnapshots(charAttrSnapshots, brokenText.sourceIndices);
+            }
+        }
+
+        var container = getOwnerContainer(doc, areaTextFrame);
+        var frameRect = container.pathItems.rectangle(top, left, right - left, top - bottom);
         frameRect.filled = false;
         frameRect.stroked = true;
 
-        var pointTextFrame = doc.textFrames.add();
-        pointTextFrame.contents = areaTextFrame.contents;
+        var pointTextFrame = container.textFrames.add();
+        pointTextFrame.contents = pointTextContents;
         pointTextFrame.position = [left, top - firstLineOffset];
+
+        // 元の重ね順に差し込む（囲み罫の上にポイント文字）/ Slot both in at the original depth, text above the rectangle
+        try {
+            frameRect.moveBefore(areaTextFrame);
+            pointTextFrame.moveBefore(frameRect);
+        } catch (eOrder) { }
 
         // 既定の線をいったん外し、このあと文字単位で復元する / Clear the default stroke, then restore per character
         try {
@@ -1540,10 +1714,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         return createdItems;
     }
 
-    /* 「テキストを分離」ダイアログ。分離を実行したら true を返す
-       The "Separate text" dialog; returns true once the separation has run
-       settings は調整ダイアログから受け取り、枠の処理だけを足して使う
-       settings comes from the adjust dialog; only the frame handling is added here */
+    /* 「テキストを分離」ダイアログ。1つでも分離できたら true を返す
+       The "Separate text" dialog; returns true once at least one frame has been separated
+       settings は調整ダイアログから受け取り、枠とテキストの処理だけを足して使う
+       settings comes from the adjust dialog; only the frame and text handling is added here */
     function showSeparateTextDialog(doc, areaTextFrames, settings) {
         var separateDialog = new Window("dialog", getLabel("dialog.separateTitle"));
         separateDialog.alignChildren = "fill";
@@ -1557,10 +1731,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         radStrokeBlack.value = true;
         bindExclusiveRadios([radStrokeBlack, radHidePath, radRemovePath]);
 
+        // テキストの処理：あふれの解決と、折り返しの強制改行化
+        // Text handling: resolving the overset and turning the wraps into hard returns
+        var textPanel = separateDialog.add("panel", undefined, getLabel("panel.textHandling"));
+        applyPanelLayout(textPanel);
+        var chkResolveOverset = textPanel.add("checkbox", undefined, getLabel("checkbox.resolveOverset"));
+        var chkForceLineBreaks = textPanel.add("checkbox", undefined, getLabel("checkbox.forceLineBreaks"));
+        chkResolveOverset.helpTip = getLabel("tip.resolveOverset");
+        chkForceLineBreaks.helpTip = getLabel("tip.forceLineBreaks");
+        chkResolveOverset.value = true;
+        chkForceLineBreaks.value = true;
+
         // ボタンエリア：右から［OK］［キャンセル］
         var buttonRow = separateDialog.add("group");
         buttonRow.orientation = "row";
         buttonRow.alignment = ["right", "center"];
+        buttonRow.alignChildren = ["right", "center"];
         var btnCancelSeparate = buttonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var btnRunSeparate = buttonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
@@ -1570,18 +1756,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             settings.strokeBlack = radStrokeBlack.value;
             settings.hidePath = radHidePath.value;
             settings.removePath = radRemovePath.value;
+            settings.resolveOverset = chkResolveOverset.value;
+            settings.forceLineBreaks = chkForceLineBreaks.value;
 
             // 分離するとオブジェクトが置き換わるので後ろから処理する
+            // Each frame is replaced as it goes, so the list is walked from the back
             var createdItems = [];
             for (var i = areaTextFrames.length - 1; i >= 0; i--) {
                 var areaTextFrame = areaTextFrames[i];
-                if (!areaTextFrame || areaTextFrame.typename !== "TextFrame" || areaTextFrame.kind !== TextType.AREATEXT) continue;
+                if (!isSeparableAreaTextFrame(areaTextFrame)) continue;
                 // 1フレームで失敗しても残りを処理できるようにする
+                // One failing frame must not stop the rest
                 try {
                     createdItems = createdItems.concat(separateAreaTextFrame(doc, areaTextFrame, settings));
                     didSeparate = true;
                 } catch (e) { }
             }
+
+            // 何も分離できなかったときは、選択も触らずダイアログを開いたままにする
+            // When nothing could be separated, the selection is left alone and the dialog stays open
+            if (!didSeparate) { alert(getLabel("alert.separateFailed")); return; }
 
             // 削除済みの参照が選択に残らないよう、できたオブジェクトを選び直す
             // Re-select what was created, so the deleted frames do not linger in the selection
@@ -2466,9 +2660,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             // since the rectangle is built from the frame's current size
             revertPreview();
             applyAdjustments(false);
+
+            // 選択中のエリア内文字をまとめて渡す（ロック・非表示のものは外す）
+            // Hand over every selected Area Type frame at once, minus the locked and hidden ones
             var currentTargets = getTargetAreaFrames();
             var framesToSeparate = [];
-            for (var i = 0; i < currentTargets.length; i++) { framesToSeparate.push(currentTargets[i]); }
+            for (var i = 0; i < currentTargets.length; i++) {
+                if (isSeparableAreaTextFrame(currentTargets[i])) { framesToSeparate.push(currentTargets[i]); }
+            }
+            if (!framesToSeparate.length) {
+                alert(getLabel("alert.separateFailed"));
+                updatePreview();
+                return;
+            }
 
             if (showSeparateTextDialog(doc, framesToSeparate, readAdjustmentSettings())) {
                 // 分離するとエリア内文字が無くなるので、調整ダイアログも閉じる
