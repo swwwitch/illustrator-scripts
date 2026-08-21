@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 ### 概要
 
 選択したオブジェクトを一時的にグループ化してから、整列パネルの［垂直方向中央に整列］をダイナミックアクション経由で実行します。
-天地中央のみで左右方向は動かさず、整列の基準は整列パネルの設定（アートボードなど）に従います。
+天地中央のみで左右方向は動かさず、整列の基準は整列パネルの設定（アートボードなど）に従います（選択が現在のアートボード外にある場合は、選択を含むアートボードに切り替えます）。
 
 詳細はREADMEを参照してください。
 
@@ -14,7 +14,8 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 Temporarily groups the selection, then runs Align Vertical Centers from the Align panel
 through a dynamic action.
-Only the vertical position changes; the alignment reference follows the Align panel setting.
+Only the vertical position changes; the alignment reference follows the Align panel setting
+(if the selection sits outside the current artboard, the artboard holding it becomes active).
 
 See the README for details.
 
@@ -24,7 +25,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VerticalCenterAlignAsGroup";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-21";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-21";                   /* 更新日 / last updated */
@@ -183,6 +184,119 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     // =========================================
+    // アートボード / Artboards
+    // =========================================
+
+    /**
+     * 選択オブジェクト全体を囲む矩形を求める
+     * @param {Array} selectedItems - 選択中のオブジェクト
+     * @returns {Array} [左, 上, 右, 下] の座標
+     */
+    function getSelectionBounds(selectedItems) {
+        var bounds = selectedItems[0].visibleBounds;
+        var left = bounds[0];
+        var top = bounds[1];
+        var right = bounds[2];
+        var bottom = bounds[3];
+        for (var i = 1; i < selectedItems.length; i++) {
+            var itemBounds = selectedItems[i].visibleBounds;
+            if (itemBounds[0] < left) left = itemBounds[0];
+            if (itemBounds[1] > top) top = itemBounds[1];
+            if (itemBounds[2] > right) right = itemBounds[2];
+            if (itemBounds[3] < bottom) bottom = itemBounds[3];
+        }
+        return [left, top, right, bottom];
+    }
+
+    /**
+     * 2つの矩形が重なっている面積を求める
+     * @param {Array} boundsA - [左, 上, 右, 下] の座標
+     * @param {Array} boundsB - [左, 上, 右, 下] の座標
+     * @returns {number} 重なっている面積（重ならない場合は 0）
+     */
+    function getOverlapArea(boundsA, boundsB) {
+        var overlapWidth = Math.min(boundsA[2], boundsB[2]) - Math.max(boundsA[0], boundsB[0]);
+        var overlapHeight = Math.min(boundsA[1], boundsB[1]) - Math.max(boundsA[3], boundsB[3]);
+        if (overlapWidth <= 0 || overlapHeight <= 0) {
+            return 0;
+        }
+        return overlapWidth * overlapHeight;
+    }
+
+    /**
+     * 選択範囲と最も広く重なるアートボードを探す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} selectionBounds - [左, 上, 右, 下] の座標
+     * @param {number} currentIndex - 重なりが同じときに優先するアートボード番号
+     * @returns {number} アートボード番号（どこにも重ならない場合は -1）
+     */
+    function findOverlappingArtboardIndex(doc, selectionBounds, currentIndex) {
+        /* 現在のアートボードを先に見て、重なりが同じなら切り替えない / Check the current artboard first so ties keep it */
+        var searchOrder = [currentIndex];
+        for (var i = 0; i < doc.artboards.length; i++) {
+            if (i !== currentIndex) {
+                searchOrder.push(i);
+            }
+        }
+        var bestIndex = -1;
+        var bestArea = 0;
+        for (var j = 0; j < searchOrder.length; j++) {
+            var area = getOverlapArea(selectionBounds, doc.artboards[searchOrder[j]].artboardRect);
+            if (area > bestArea) {
+                bestArea = area;
+                bestIndex = searchOrder[j];
+            }
+        }
+        return bestIndex;
+    }
+
+    /**
+     * 選択範囲の中心に最も近いアートボードを探す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} selectionBounds - [左, 上, 右, 下] の座標
+     * @returns {number} アートボード番号
+     */
+    function findNearestArtboardIndex(doc, selectionBounds) {
+        var centerX = (selectionBounds[0] + selectionBounds[2]) / 2;
+        var centerY = (selectionBounds[1] + selectionBounds[3]) / 2;
+        var nearestIndex = 0;
+        var nearestDistance = null;
+        for (var i = 0; i < doc.artboards.length; i++) {
+            var artboardRect = doc.artboards[i].artboardRect;
+            var offsetX = centerX - (artboardRect[0] + artboardRect[2]) / 2;
+            var offsetY = centerY - (artboardRect[1] + artboardRect[3]) / 2;
+            var distance = offsetX * offsetX + offsetY * offsetY;
+            if (nearestDistance === null || distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestIndex = i;
+            }
+        }
+        return nearestIndex;
+    }
+
+    /**
+     * 選択が現在のアートボード上にないとき、選択を含むアートボードを現在のアートボードにする
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} selectedItems - 選択中のオブジェクト
+     * @returns {void}
+     */
+    function activateArtboardForSelection(doc, selectedItems) {
+        if (doc.artboards.length < 2) {
+            return;
+        }
+        var selectionBounds = getSelectionBounds(selectedItems);
+        var currentIndex = doc.artboards.getActiveArtboardIndex();
+        var targetIndex = findOverlappingArtboardIndex(doc, selectionBounds, currentIndex);
+        /* どのアートボードにも重ならないときは一番近いアートボードを使う / Fall back to the nearest artboard */
+        if (targetIndex < 0) {
+            targetIndex = findNearestArtboardIndex(doc, selectionBounds);
+        }
+        if (targetIndex !== currentIndex) {
+            doc.artboards.setActiveArtboardIndex(targetIndex);
+        }
+    }
+
+    // =========================================
     // 選択の検査 / Selection checks
     // =========================================
 
@@ -240,7 +354,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // =========================================
 
     /**
-     * ドキュメントと選択を確認し、複数選択時は一時的にグループ化してアクションを実行する
+     * ドキュメントと選択を確認し、選択を含むアートボードに切り替えてから、複数選択時は一時的にグループ化してアクションを実行する
      * @returns {void}
      */
     function main() {
@@ -267,6 +381,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             alert(getLabel("alert", "multipleLayers"));
             return;
         }
+        /* 選択が現在のアートボード外にあるときは、選択を含むアートボードに切り替える
+           Aligning to the artboard uses the active one, so switch to the one holding the selection */
+        activateArtboardForSelection(doc, selectedItems);
+
         /* 実行中だけONにして、終了時に元の状態へ戻す / Turn on for this run only, then restore */
         var previousGlyphBounds = getGlyphBoundsAlign();
         try {

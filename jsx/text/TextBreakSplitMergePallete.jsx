@@ -28,10 +28,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextBreakSplitMergePallete";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-21";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePallete.md
@@ -256,13 +256,14 @@ var LABELS = {
             ja: "段落改行を削除します（「強制改行を含む」ON で強制改行も対象）",
             en: "Remove paragraph breaks (also forced breaks when \"Include Forced Breaks\" is on)"
         },
+        optionGroup: { ja: "Option+クリックでグループ化", en: "Option-click to group the results" },
         splitByLine: {
             ja: "改行ごとに別々のテキストフレームへ分割します",
             en: "Split into separate text frames at each line break"
         },
         splitByTab: {
-            ja: "タブ位置で分割します（Option+クリックでグループ化しない）",
-            en: "Split at tab positions (Option-click to leave the results ungrouped)"
+            ja: "タブ位置で分割します",
+            en: "Split at tab positions"
         },
         splitByLineKeepStyle: {
             ja: "改行ごとに分割し、文字書式と位置を保持します",
@@ -359,6 +360,15 @@ function getLabel(labelNode) {
  */
 function getColonLabel(labelNode) {
     return getLabel(labelNode) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 分割ボタン用のツールチップを返す（Option+クリックの説明を添える）
+ * @param {Object} labelNode - LABELS.tooltip 内の { ja, en } ノード
+ * @returns {string} 説明文
+ */
+function getSplitTooltip(labelNode) {
+    return getLabel(labelNode) + "\n" + getLabel(LABELS.tooltip.optionGroup);
 }
 
 /**
@@ -794,6 +804,12 @@ function toTitleCase(text) {
             } catch (e) { debugLog("groupTextFrames: move to group", e); }
         }
         return [targetGroup];
+    }
+
+    /* 分割結果をまとめるかどうかの分岐（Option+クリック時だけグループ化する）*/
+    function applySplitGrouping(frames, shouldGroup) {
+        if (!shouldGroup) return frames;
+        return groupTextFrames(frames, app.activeDocument.activeLayer);
     }
 
     /* 改行系の関数 */
@@ -1266,14 +1282,15 @@ function toTitleCase(text) {
 
     /* 各テキストフレームの段落を上から順に走査し、段落ごとに
        makeFrames(sourceFrame, paragraph, originX, originY, fontSize) が返したフレームを集める。
-       走査後に元フレームを削除し、生成したフレームを1つのグループにまとめて返す */
-    function splitFramesByParagraph(objects, makeFrames) {
-        var targetLayer = app.activeDocument.activeLayer;
+       beginFrame が渡されていれば、各フレームの走査前に1回だけ呼ぶ（実測などの下準備用）。
+       走査後に元フレームを削除し、生成したフレームをグループ化せずに返す */
+    function splitFramesByParagraph(objects, makeFrames, beginFrame) {
         var sourceFrames = getTextFrames(objects);
         var resultFrames = [];
 
         for (var i = 0; i < sourceFrames.length; i++) {
             var sourceFrame = sourceFrames[i];
+            if (beginFrame) beginFrame(sourceFrame);
             var originX = sourceFrame.position[0];
             var originY = sourceFrame.position[1];
             var paragraphCount = sourceFrame.paragraphs.length;
@@ -1288,7 +1305,7 @@ function toTitleCase(text) {
             sourceFrame.remove();
         }
 
-        return groupTextFrames(resultFrames, targetLayer);
+        return resultFrames;
     }
 
     /* 段落の文字サイズと行送りを返す。
@@ -1376,15 +1393,9 @@ function toTitleCase(text) {
     /* タブで分解する関数（元のタブ位置に合わせて横へ並べ直す）*/
     function splitByTab(objects) {
         var targetLayer = app.activeDocument.activeLayer;
-        var measuredFrame = null;
         var tabOffsets = [];
 
         return splitFramesByParagraph(objects, function (sourceFrame, paragraph, originX, originY, fontSize, paragraphIndex) {
-            /* タブ位置の実測はフレーム単位で1回だけ行う */
-            if (measuredFrame !== sourceFrame) {
-                measuredFrame = sourceFrame;
-                tabOffsets = collectTabOffsetsByParagraph(sourceFrame);
-            }
             var offsetsX = tabOffsets[paragraphIndex] || [];
             var segments = stripTrailingBreaks(paragraph.contents).split("\t");
             var madeFrames = [];
@@ -1410,6 +1421,9 @@ function toTitleCase(text) {
                 madeFrames.push(segmentFrame);
             }
             return madeFrames;
+        }, function (sourceFrame) {
+            /* タブ位置の実測はフレーム単位で1回だけ行う */
+            tabOffsets = collectTabOffsetsByParagraph(sourceFrame);
         });
     }
 
@@ -1529,7 +1543,7 @@ function toTitleCase(text) {
             for (var j = 0; j < splitFrames.length; j++) resultFrames.push(splitFrames[j]);
         }
 
-        return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
+        return resultFrames;
     }
 
     /* =========================================
@@ -1555,7 +1569,7 @@ function toTitleCase(text) {
             var made = splitCharHighPrecision(frames[i], keepStyle);
             for (var j = 0; j < made.length; j++) resultFrames.push(made[j]);
         }
-        return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
+        return resultFrames;
     }
 
     /* 配列内のアイテムをまとめて削除（失敗は無視）*/
@@ -1957,7 +1971,7 @@ function toTitleCase(text) {
         return { sorted: sortedFrames, text: rowText };
     }
 
-    /* 横連結（行維持）：同じ行を左から右へ連結し、行ごとに別テキストフレームとして残す */
+    /* 横連結（行維持）：同じ行を左から右へ連結し、行ごとに別テキストフレームとして残す（グループ化しない）*/
     function concatHorizontalOnly(objects) {
         var textFrames = getTextFrames(objects);
         if (textFrames.length < 2) return textFrames;
@@ -1978,7 +1992,7 @@ function toTitleCase(text) {
             removeItems(row.sorted.slice(1));
         }
 
-        return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
+        return resultFrames;
     }
 
     /* 縦連結：各フレームを行単位へ分解し、位置順に並べ直して1つのテキストへ再構成する */
@@ -2193,7 +2207,7 @@ function toTitleCase(text) {
         getTextFrames, countTextFrameTypes, detectTextFrameType, countBreakTypes, transformContents,
         hasMultipleLines, hasSpacesOrTabs, computeSelectionState, encodeSelectionState,
         mutateMatchingChars, removeForcedLineBreaks, removeItems, sortedCopy, sortByPosition, sortByY, sortByX,
-        groupByLineY, getUnionBounds, groupTextFrames,
+        groupByLineY, getUnionBounds, groupTextFrames, applySplitGrouping,
         removeLineBreaks, removeAllBreaks, joinBreaksToOneLine, flattenToOneLine, removeEmptyLines, removeTabs, tabsToSpaces,
         trimSpaces, collapseSpaces, removeLinePrefix, toHalfWidthAlnumText, toFullWidthKanaText,
         fullToHalfAlnum, halfToFullKana, removeBulletMarkers, removeNumberMarkers,
@@ -2212,7 +2226,7 @@ function toTitleCase(text) {
         makeFramelessRect, applyLeftJustification, concatHorizontalSingleLine, buildJoinedParagraphText,
         createConcatOutputText,
         toWordCap, toSentenceCase, toTitleCase,
-        ungroupResult, runStructureAction, runContentAction, runAction,
+        runStructureAction, runContentAction, runAction,
         runQueryAction, finalizeSelection,
         safeSet, copyAttr, applyResetStyle
     ];
@@ -2285,23 +2299,6 @@ function toTitleCase(text) {
      * 先に定義される。この関数自体はパレット側では呼ばず、toString() で
      * 本文に埋め込む用途のみ。
      */
-    /* 分割結果のグループを解除し、中身を親へ出してバラの状態にする */
-    function ungroupResult(result) {
-        if (!result || !result.length) return result;
-        var frames = getTextFrames(result);
-        for (var i = 0; i < result.length; i++) {
-            var groupItem = result[i];
-            try {
-                if (!groupItem || groupItem.typename !== "GroupItem") continue;
-                var parentItem = groupItem.parent;
-                for (var j = groupItem.pageItems.length - 1; j >= 0; j--) {
-                    groupItem.pageItems[j].move(parentItem, ElementPlacement.PLACEATEND);
-                }
-                groupItem.remove();
-            } catch (e) { debugLog("ungroupResult", e); }
-        }
-        return frames;
-    }
     /* フレーム構成を変える処理（分割・連結・1行化）。該当しなければ null を返す */
     function runStructureAction(actionName, targets, params) {
         switch (actionName) {
@@ -2313,14 +2310,11 @@ function toTitleCase(text) {
                 collapseSpaces(flattenTargets);
                 return flattenTargets;
             }
-            case "splitByLineBreak": return ungroupResult(splitByLineBreak(targets));
-            case "splitByLineBreakKeepStyle": return splitByLineBreakKeepStyle(targets);
-            case "splitByTab": {
-                var tabFrames = splitByTab(targets);
-                return params.ungroup ? ungroupResult(tabFrames) : tabFrames;
-            }
-            case "splitByCharKeepStyle": return splitByCharKeepStyle(targets);
-            case "splitByCharIgnoreStyle": return splitByCharIgnoreStyle(targets);
+            case "splitByLineBreak": return applySplitGrouping(splitByLineBreak(targets), params.group);
+            case "splitByLineBreakKeepStyle": return applySplitGrouping(splitByLineBreakKeepStyle(targets), params.group);
+            case "splitByTab": return applySplitGrouping(splitByTab(targets), params.group);
+            case "splitByCharKeepStyle": return applySplitGrouping(splitByCharKeepStyle(targets), params.group);
+            case "splitByCharIgnoreStyle": return applySplitGrouping(splitByCharIgnoreStyle(targets), params.group);
             case "concatVertical": return concatVertical(targets);
             case "concatHorizontalOnly": return concatHorizontalOnly(targets);
             case "concatH": return concatHorizontal(targets, detectTextFrameType(targets));
@@ -2453,7 +2447,7 @@ function toTitleCase(text) {
 
     /**
      * アクションのパラメーターを、そのまま eval できる JS リテラル文字列へ変換する
-     * @param {Object} params - forced / turnOffHidden / ungroup / count / chars / text / from / to を持つオブジェクト
+     * @param {Object} params - forced / turnOffHidden / group / count / chars / text / from / to を持つオブジェクト
      * @returns {string} "{ ... }" 形式のソース文字列
      */
     function paramsToSource(params) {
@@ -2462,7 +2456,7 @@ function toTitleCase(text) {
         var parts = [];
         if (params.forced !== undefined) parts.push("forced:" + (params.forced ? "true" : "false"));
         if (params.turnOffHidden !== undefined) parts.push("turnOffHidden:" + (params.turnOffHidden ? "true" : "false"));
-        if (params.ungroup !== undefined) parts.push("ungroup:" + (params.ungroup ? "true" : "false"));
+        if (params.group !== undefined) parts.push("group:" + (params.group ? "true" : "false"));
         if (params.count !== undefined) parts.push("count:" + parseInt(params.count, 10));
         if (params.chars !== undefined) parts.push('chars:decodeURIComponent("' + encodeURIComponent(params.chars) + '")');
         if (params.text !== undefined) parts.push('text:decodeURIComponent("' + encodeURIComponent(params.text) + '")');
@@ -2808,37 +2802,36 @@ function toTitleCase(text) {
         var panelSplitByBreak = addPanel(panelSplitGroup, getLabel(LABELS.panel.splitByBreak));
 
         var btnSplitByLine = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByLine));
-        btnSplitByLine.helpTip = getLabel(LABELS.tooltip.splitByLine);
+        btnSplitByLine.helpTip = getSplitTooltip(LABELS.tooltip.splitByLine);
         btnSplitByLine.onClick = function () {
-            executeAction("splitByLineBreak");
+            executeAction("splitByLineBreak", { group: isAltPressed() });
         };
 
         var btnSplitByLineKeepStyle = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByLineKeepStyle));
-        btnSplitByLineKeepStyle.helpTip = getLabel(LABELS.tooltip.splitByLineKeepStyle);
+        btnSplitByLineKeepStyle.helpTip = getSplitTooltip(LABELS.tooltip.splitByLineKeepStyle);
         btnSplitByLineKeepStyle.onClick = function () {
-            executeAction("splitByLineBreakKeepStyle");
+            executeAction("splitByLineBreakKeepStyle", { group: isAltPressed() });
         };
 
         var btnSplitByTab = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByTab));
-        btnSplitByTab.helpTip = getLabel(LABELS.tooltip.splitByTab);
+        btnSplitByTab.helpTip = getSplitTooltip(LABELS.tooltip.splitByTab);
         btnSplitByTab.onClick = function () {
-            /* Option+クリックのときは分割結果をグループにまとめない */
-            executeAction("splitByTab", { ungroup: isAltPressed() });
+            executeAction("splitByTab", { group: isAltPressed() });
         };
 
         /* 1文字ずつ分割 */
         var panelSplitByChar = addPanel(panelSplitGroup, getLabel(LABELS.panel.splitByChar));
 
         var btnSplitKeepStyle = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitKeepStyle));
-        btnSplitKeepStyle.helpTip = getLabel(LABELS.tooltip.splitKeepStyle);
+        btnSplitKeepStyle.helpTip = getSplitTooltip(LABELS.tooltip.splitKeepStyle);
         btnSplitKeepStyle.onClick = function () {
-            executeAction("splitByCharKeepStyle");
+            executeAction("splitByCharKeepStyle", { group: isAltPressed() });
         };
 
         var btnSplitIgnoreStyle = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitIgnoreStyle));
-        btnSplitIgnoreStyle.helpTip = getLabel(LABELS.tooltip.splitIgnoreStyle);
+        btnSplitIgnoreStyle.helpTip = getSplitTooltip(LABELS.tooltip.splitIgnoreStyle);
         btnSplitIgnoreStyle.onClick = function () {
-            executeAction("splitByCharIgnoreStyle");
+            executeAction("splitByCharIgnoreStyle", { group: isAltPressed() });
         };
 
         /* 連結 */

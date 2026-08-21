@@ -64,15 +64,17 @@ When a break sits between two Latin words, it becomes a space so the words do no
 | --- | --- |
 | Split by Line Breaks | Split into a separate text frame per line |
 | Split by Line Breaks (Keep Style) | Same, keeping character formatting and position |
-| Split by Tabs | Split each paragraph at its tab positions (Option-click to leave the results ungrouped) |
+| Split by Tabs | Split each paragraph at its tab positions |
 | Keep Style (split by character) | One frame per character, formatting kept |
 | Ignore Style (split by character) | One frame per character, formatting reset |
 
 The two line-break splits work differently under the hood. The first duplicates the frame, replaces its contents and positions the copies from the leading value. The second duplicates each paragraph with `TextRange.duplicate` and re-aligns it against the bottom edge (left edge for vertical text) recorded before the split. Use the second one when formatting matters.
 
-*Split by Tabs* measures **how far the character after each tab sits from the start of the paragraph** rather than reading the tab itself. The offsets come from outlining a duplicate, so table-like text keeps its visual alignment (when the measurement is not possible it falls back to spacing each piece half an em after the previous one). The pieces are grouped together; **hold Option (Alt) while clicking to leave them ungrouped**.
+*Split by Tabs* measures **how far the character after each tab sits from the start of the paragraph** rather than reading the tab itself. The offsets come from outlining a duplicate, so table-like text keeps its visual alignment (when the measurement is not possible it falls back to spacing each piece half an em after the previous one).
 
 Character-level splitting duplicates the frame, converts it to outlines, reads the bounding box of each glyph, and fits a new frame to it. If outlining fails it falls back to accumulating character widths. Breaks, tabs and spaces (half- and full-width) never become frames.
+
+Split results are left as separate frames. **Hold Option (Alt) while clicking to collect them into a single group** — this applies to all five split buttons.
 
 *Ignore Style* is not a full reset: **the font and size of the first character are kept.** Fill becomes black, baseline shift / rotation / tracking go to 0, and horizontal/vertical scale return to 100%.
 
@@ -98,7 +100,7 @@ In short, lines that are merely wrapped get joined; lines where a sentence ends 
 
 *Merge Horizontally (Merge Rows)* picks point type or area text from the selection (area text wins when the two are mixed). *Format PDF Text* always outputs area text.
 
-These are visual approximations: per-line formatting differences and rotation are not preserved. Two frames count as the same row when their Y coordinates differ by 5 or less.
+Merge results are left ungrouped as well. These are visual approximations: per-line formatting differences and rotation are not preserved. Two frames count as the same row when their Y coordinates differ by 5 or less.
 
 ## Cleanup tab
 
@@ -201,7 +203,7 @@ An Illustrator palette loses its connection to the DOM while it is displayed, so
 
 Status updates have their own constraint: Illustrator 30.x has no timer API (`app.scheduleTask` / `setTimeout`), so the selection cannot be polled continuously. Instead the selection is re-read at the moment the user comes back to the palette — when it regains focus and on mouse-over. A lightweight payload carrying only the counting functions is used for that, rather than sending everything each time.
 
-Split and merge results are collected into a single group. Groups left holding only one item are ungrouped automatically when the palette closes.
+Split and merge results are left ungrouped (Option-click a split button to group them). Groups left holding only one item are ungrouped automatically when the palette closes.
 
 ### note
 
