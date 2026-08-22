@@ -73,11 +73,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
         alert: {
-            noDocument:      { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            noSelection:     { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
-            zeroWidth:       { ja: "選択範囲の幅が0のため、リサイズできません。", en: "The selection has zero width, so it cannot be resized." },
-            zeroTargetWidth: { ja: "WIDTH_PERCENT が0以下のため、リサイズできません。", en: "WIDTH_PERCENT is zero or negative, so nothing can be resized." },
-            genericError:    { ja: "エラーが発生しました：", en: "An error occurred: " }
+            noDocument:  { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
+            zeroWidth:   { ja: "選択範囲または仕上がり幅が0のため、リサイズできません。", en: "The selection or the target width is zero, so nothing can be resized." }
         }
     };
 
@@ -96,7 +94,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     // =========================================
-    // 境界の計測 / Bounds
+    // 矩形の計測 / Bounds
     // =========================================
 
     /**
@@ -129,9 +127,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         return [left, top, right, bottom];
     }
 
-    // =========================================
-    // アートボード / Artboards
-    // =========================================
+    /**
+     * 矩形の中心座標を求める
+     * @param {number[]} rect - [左, 上, 右, 下] の座標
+     * @returns {number[]} [中心X, 中心Y] の座標
+     */
+    function getRectCenter(rect) {
+        return [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2];
+    }
 
     /**
      * 2つの矩形が重なっている面積を求める
@@ -148,51 +151,77 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         return overlapWidth * overlapHeight;
     }
 
+    // =========================================
+    // アートボード / Artboards
+    // =========================================
+
     /**
-     * 基準にするアートボードを決める（選択と最も広く重なるもの、なければ中心が最も近いもの）
+     * 選択範囲と最も広く重なるアートボードを探す
      * @param {Document} doc - 対象ドキュメント
      * @param {number[]} selectionBounds - [左, 上, 右, 下] の座標
-     * @returns {number} アートボード番号
+     * @param {number} preferredIndex - 重なりが同じときに優先するアートボード番号
+     * @returns {number} アートボード番号（どこにも重ならない場合は -1）
      */
-    function findTargetArtboardIndex(doc, selectionBounds) {
-        var activeIndex = doc.artboards.getActiveArtboardIndex();
-        if (doc.artboards.length < 2) {
-            return activeIndex;
-        }
-
-        /* 現在のアートボードを先に見て、重なりが同じなら切り替えない / Check the active artboard first so ties keep it */
-        var searchOrder = [activeIndex];
+    function findOverlappingArtboardIndex(doc, selectionBounds, preferredIndex) {
+        /* 優先するアートボードを先に見て、重なりが同じなら切り替えない / Check the preferred artboard first so ties keep it */
+        var searchOrder = [preferredIndex];
         for (var i = 0; i < doc.artboards.length; i++) {
-            if (i !== activeIndex) {
+            if (i !== preferredIndex) {
                 searchOrder.push(i);
             }
         }
-
         var bestIndex = -1;
         var bestArea = 0;
-        var centerX = (selectionBounds[0] + selectionBounds[2]) / 2;
-        var centerY = (selectionBounds[1] + selectionBounds[3]) / 2;
-        var nearestIndex = activeIndex;
-        var nearestDistance = null;
-
         for (var j = 0; j < searchOrder.length; j++) {
-            var artboardRect = doc.artboards[searchOrder[j]].artboardRect;
-            var area = getOverlapArea(selectionBounds, artboardRect);
+            var area = getOverlapArea(selectionBounds, doc.artboards[searchOrder[j]].artboardRect);
             if (area > bestArea) {
                 bestArea = area;
                 bestIndex = searchOrder[j];
             }
-            var offsetX = centerX - (artboardRect[0] + artboardRect[2]) / 2;
-            var offsetY = centerY - (artboardRect[1] + artboardRect[3]) / 2;
-            var distance = offsetX * offsetX + offsetY * offsetY;
+        }
+        return bestIndex;
+    }
+
+    /**
+     * 選択範囲の中心に最も近いアートボードを探す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number[]} selectionBounds - [左, 上, 右, 下] の座標
+     * @returns {number} アートボード番号
+     */
+    function findNearestArtboardIndex(doc, selectionBounds) {
+        var selectionCenter = getRectCenter(selectionBounds);
+        var nearestIndex = 0;
+        var nearestDistance = null;
+        for (var i = 0; i < doc.artboards.length; i++) {
+            var artboardCenter = getRectCenter(doc.artboards[i].artboardRect);
+            var dx = selectionCenter[0] - artboardCenter[0];
+            var dy = selectionCenter[1] - artboardCenter[1];
+            var distance = dx * dx + dy * dy;
             if (nearestDistance === null || distance < nearestDistance) {
                 nearestDistance = distance;
-                nearestIndex = searchOrder[j];
+                nearestIndex = i;
             }
         }
+        return nearestIndex;
+    }
 
+    /**
+     * 基準にするアートボードを決める（選択と最も広く重なるもの、なければ中心が最も近いもの）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number[]} selectionBounds - [左, 上, 右, 下] の座標
+     * @returns {number[]} 基準にするアートボードの [左, 上, 右, 下] の座標
+     */
+    function findTargetArtboardRect(doc, selectionBounds) {
+        var activeIndex = doc.artboards.getActiveArtboardIndex();
+        if (doc.artboards.length < 2) {
+            return doc.artboards[activeIndex].artboardRect;
+        }
+        var targetIndex = findOverlappingArtboardIndex(doc, selectionBounds, activeIndex);
         /* どのアートボードにも重ならないときは一番近いアートボードを使う / Fall back to the nearest artboard */
-        return (bestIndex >= 0) ? bestIndex : nearestIndex;
+        if (targetIndex < 0) {
+            targetIndex = findNearestArtboardIndex(doc, selectionBounds);
+        }
+        return doc.artboards[targetIndex].artboardRect;
     }
 
     // =========================================
@@ -240,12 +269,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {void}
      */
     function centerItemsOnArtboard(items, artboardRect, centerVertically) {
-        var bounds = getCombinedBounds(items);
-        var dx = (artboardRect[0] + artboardRect[2]) / 2 - (bounds[0] + bounds[2]) / 2;
-        var dy = centerVertically ? ((artboardRect[1] + artboardRect[3]) / 2 - (bounds[1] + bounds[3]) / 2) : 0;
-        if (dx === 0 && dy === 0) {
-            return;
-        }
+        var artboardCenter = getRectCenter(artboardRect);
+        var selectionCenter = getRectCenter(getCombinedBounds(items));
+        var dx = artboardCenter[0] - selectionCenter[0];
+        var dy = centerVertically ? (artboardCenter[1] - selectionCenter[1]) : 0;
         for (var i = 0; i < items.length; i++) {
             items[i].left += dx;
             items[i].top += dy;
@@ -253,15 +280,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     // =========================================
-    // 選択の検査 / Selection checks
+    // 選択の取得 / Selection
     // =========================================
 
     /**
      * 文字を部分選択している場合に、その文字を含むテキストオブジェクトを選択し直す
      * @param {Document} doc - 対象ドキュメント
-     * @returns {Array} 選択し直したあとの選択内容
+     * @returns {Array} 選択し直したテキストオブジェクト
      */
-    function selectTextFrameFromTextRange(doc) {
+    function selectTextFramesFromTextRange(doc) {
         var storyFrames = doc.selection.story.textFrames;
         var targetFrames = [];
         for (var i = 0; i < storyFrames.length; i++) {
@@ -272,7 +299,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         for (var j = 0; j < targetFrames.length; j++) {
             targetFrames[j].selected = true;
         }
-        return doc.selection;
+        return targetFrames;
+    }
+
+    /**
+     * 選択中のオブジェクトを固定した配列で取得する
+     * doc.selection はライブ参照になりうるため、変形前にコピーして固定する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Array} 選択中のオブジェクト（選択がない場合は空配列）
+     */
+    function getSelectedItems(doc) {
+        var selection = doc.selection;
+        /* 文字を部分選択しているときは selection が TextRange になるため、テキストオブジェクトに置き換える
+           A partial text selection comes back as a TextRange; promote it to the text object */
+        if (selection && !(selection instanceof Array)) {
+            return selectTextFramesFromTextRange(doc);
+        }
+        var items = [];
+        for (var i = 0; selection && i < selection.length; i++) {
+            items.push(selection[i]);
+        }
+        return items;
     }
 
     // =========================================
@@ -290,44 +337,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         }
         var doc = app.activeDocument;
 
-        var selection = doc.selection;
-        /* 文字を部分選択しているときは selection が TextRange になるため、テキストオブジェクトに置き換える
-           A partial text selection comes back as a TextRange; promote it to the text object */
-        if (selection && !(selection instanceof Array)) {
-            selection = selectTextFrameFromTextRange(doc);
-        }
-        if (!(selection instanceof Array) || selection.length === 0) {
+        var items = getSelectedItems(doc);
+        if (items.length === 0) {
             alert(getLabel("alert", "noSelection"));
             return;
-        }
-        /* doc.selection はライブ参照になりうるため、配列にコピーして固定する
-           doc.selection can be a live reference, so copy it into a fixed array */
-        var items = [];
-        for (var i = 0; i < selection.length; i++) {
-            items.push(selection[i]);
         }
 
         var selectionBounds = getCombinedBounds(items);
         var currentWidth = selectionBounds[2] - selectionBounds[0];
-        if (currentWidth <= 0) {
+        var artboardRect = findTargetArtboardRect(doc, selectionBounds);
+        var targetWidth = (artboardRect[2] - artboardRect[0]) * WIDTH_PERCENT / 100;
+        if (currentWidth <= 0 || targetWidth <= 0) {
             alert(getLabel("alert", "zeroWidth"));
             return;
         }
 
-        var artboardRect = doc.artboards[findTargetArtboardIndex(doc, selectionBounds)].artboardRect;
-        var targetWidth = (artboardRect[2] - artboardRect[0]) * WIDTH_PERCENT / 100;
-        if (targetWidth <= 0) {
-            alert(getLabel("alert", "zeroTargetWidth"));
-            return;
-        }
-
-        try {
-            scaleItemsAsCluster(items, targetWidth / currentWidth);
-            centerItemsOnArtboard(items, artboardRect, CENTER_VERTICALLY);
-            app.redraw();
-        } catch (e) {
-            alert(getLabel("alert", "genericError") + e);
-        }
+        scaleItemsAsCluster(items, targetWidth / currentWidth);
+        centerItemsOnArtboard(items, artboardRect, CENTER_VERTICALLY);
+        app.redraw();
     }
 
     main();

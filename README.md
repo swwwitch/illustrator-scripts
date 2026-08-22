@@ -132,6 +132,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [横並びに選択した複数オブジェクトのうち、最も右のものを固定し、以降を左方向へ「キー入力」の値ぶんずつ等間隔に…](readme-ja/DistributeRL.md)
 - [選択内容に応じて、行送りと配置を次の順で判定して調整します](readme-ja/DistributeUpFromTop.md)
 - [選択したオブジェクトを、グリッド／行／列／ランダムのいずれかの方式で複製・配置します](readme-ja/DuplicateInGridPlus.md)
+- [選択したオブジェクト全体を、縦横比を保ったままアートボードの幅（既定90%）に合わせてリサイズし、中央に配置](readme-ja/FitToArtboardWidth.md)
 - [選択したオブジェクトのグループを入れ子ごとすべて解除し、あらためて1つのグループにまとめます](readme-ja/FlattenGroup.md)
 - [複数選択したテキストフレームの背面に K15% の長方形を作成し、「_bg-rectangle」レイヤーに配…](readme-ja/GridTextLayout.md)
 - [選択したオブジェクトを、1 つずつ個別のグループにまとめます](readme-ja/GroupEachSelection.md)

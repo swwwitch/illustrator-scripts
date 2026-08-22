@@ -35,8 +35,8 @@ Every time you switch the base, the selection is restored to its original state 
 | Fixed Size | Width / Height | Matches everything to the value you type |
 | Ref. side | Long side / Short side | Matches each object's long (short) side to the others |
 | Area | Max / Min | Matches every area to the largest (smallest) one |
-| Artboard | Width / Height | Fits the whole selection to the artboard width (height) and centers it |
-| Bleed | Width / Height | Fits to the artboard plus bleed (3 mm per side) and centers it |
+| Artboard | Width / Height | Fits the whole selection to the artboard width (height) and centers it (works with One side only) |
+| Bleed | Width / Height | Fits to the artboard plus bleed (3 mm per side) and centers it (works with One side only) |
 
 Only one base can be checked at a time. Clicking one turns all the others off.
 
@@ -62,6 +62,8 @@ Where the other bases resize **each object individually**, "Artboard" and "Bleed
 
 Bleed is fixed at 3 mm per side, so it targets the artboard dimensions plus 6 mm in both width and height. Because the offset is symmetrical, the center still matches the artboard center.
 
+Combined with "One side only", just the chosen side (width or height) is stretched to the artboard (plus bleed) and the other side keeps its original size. The selection is still treated as one cluster and still ends up centered.
+
 ## Keep aspect and One side only
 
 Switch between these with the radio buttons at the top of the dialog.
@@ -69,7 +71,7 @@ Switch between these with the radio buttons at the top of the dialog.
 - **Keep aspect**: scales while preserving the ratio (default)
 - **One side only**: changes just the width or just the height
 
-Selecting "One side only" **dims Ref. side, Area, Artboard, and Bleed**, and clears whichever of them was selected. Those bases only make sense when the aspect ratio is preserved. The three that remain available are Max, Min, and Fixed Size.
+Selecting "One side only" **dims Ref. side and Area**, and clears whichever of them was selected. Those two bases only make sense when the aspect ratio is preserved. Max, Min, Fixed Size, Artboard, and Bleed all stay available.
 
 Switching modes keeps the currently selected base and recalculates it under the new mode.
 
@@ -141,6 +143,8 @@ If no document is open, or if nothing is selected, the script shows an alert and
 
 For the Artboard and Bleed bases, the selection used to be grouped temporarily and scaled as a group. It now scales without any temporary group: the top-left of the cluster is used as the origin, and each item's size and relative position are scaled by the same factor. Because no grouping or ungrouping is involved, there is no structural risk of changing the parent hierarchy or the stacking order.
 
+Line widths follow the scale factor when the aspect ratio is preserved, and are left untouched in "One side only" mode (so a non-uniform scale does not stretch the stroke). Reverting via Cancel or Reset applies the inverse of whatever line-width factor was used, so repeated one-side previews never drift the stroke width.
+
 Objects with zero width or height (stroke-only paths, empty text frames, and so on) cannot be enlarged by `resize()`, and the scale factor would be Infinity, so they are treated as 100% and left as they are.
 
 ## Article
@@ -149,6 +153,7 @@ Objects with zero width or height (stroke-only paths, empty text frames, and so 
 
 ## Update history
 
+- v1.4.3 (2026-08-22): Artboard and Bleed can now be used as bases in "One side only" mode (only the base axis is stretched; the other axis keeps its size, and centering is unchanged). "One side only" now dims only Ref. side and Area. Fixed line widths drifting on revert (restoring a one-side resize, which never changes line widths, still applied the shrink factor to them). Condensed the header overview so it points to the README for details, and removed duplicate / unused code
 - v1.4.2 (2026-07-22): Added Japanese and English READMEs, linked from the script's basic info. Fixed: Esc and the window close box now cancel instead of committing the transform. Fixed: Reset now also clears the resize-base radios and the internal base state (clicking an alignment after Reset used to restore the resized geometry). Switching to "One side only" now clears the bases it dims (Ref. side / Area / Artboard / Bleed). Distribution (evenly / zero gap) now moves by delta so it follows "Measure by preview bounds". "Distribute evenly" now requires 3+ objects and "Zero gap" 2+. Added a guard for when no document is open. One-side-only resize now anchors at the top-left like every other mode
 - v1.4.1 (2026-07-04): No base is selected when the dialog opens, so it performs no transform on show; resolved the duplicate "Base" label (panel = "Resize base" / row = "Ref. side"); added tooltips to non-obvious options. Fixed a bug where clicking an alignment checkbox wiped the other axis's alignment; alignment now follows "Measure by preview bounds" so stroked and effected objects align by their visual edges
 - v1.4.0 (2026-07-04): Overall refactor (shared UI layout, localization, renaming, dead-code removal, split resize and alignment functions). The aspect / one-side toggle keeps the current base; Reset also clears alignment; guarded against Infinity on zero width or height. Artboard and Bleed resizing no longer uses a temporary group, protecting the parent hierarchy and stacking order; added Right and Bottom alignment; reorganized alignment into two panels

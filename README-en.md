@@ -128,6 +128,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Keeps the leftmost of the horizontally arranged select…](readme-en/DistributeLR.md)
 - [Keeps the rightmost of the horizontally arranged selec…](readme-en/DistributeRL.md)
 - [Adjusts leading and placement, deciding what to do fro…](readme-en/DistributeUpFromTop.md)
+- [Scales the selection to a percentage of the artboard w…](readme-en/FitToArtboardWidth.md)
 - [Ungroups the selection completely, including nested gr…](readme-en/FlattenGroup.md)
 - [Creates K15% rectangles behind selected text frames on…](readme-en/GridTextLayout.md)
 - [Wraps each selected object in its own group](readme-en/GroupEachSelection.md)

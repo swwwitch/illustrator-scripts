@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### 概要
 
-選択したオブジェクトを一時的にグループ化したうえで、整列パネルの「水平方向中央に整列」「垂直方向中央に整列」をダイナミックアクション経由で実行します（選択が現在のアートボード外にある場合は、選択を含むアートボードに切り替えます）。実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。
+選択したオブジェクトを一時的にグループ化したうえで、整列パネルの「水平方向中央に整列」「垂直方向中央に整列」をダイナミックアクション経由で実行します（選択が現在のアートボード外にある場合は、選択を含むアートボードに切り替えます）。実行中だけ「字形の境界に整列」をONにして終了時に元の状態へ戻し、1行だけのテキストを1つ選択しているときは行揃えも中央揃えにします。
 
 詳細は README を参照してください。
 
@@ -13,7 +13,8 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 Temporarily groups the selection, then centers it horizontally and vertically by running
 the Align panel commands through a dynamic action (if the selection sits outside the current artboard,
-the artboard holding it becomes active). "Align to Glyph Bounds" is turned on for the run and restored afterwards.
+the artboard holding it becomes active). "Align to Glyph Bounds" is turned on for the run and restored afterwards,
+and a lone single-line text object also gets centered justification.
 
 See the README for details.
 
@@ -368,11 +369,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     // =========================================
+    // テキスト / Text
+    // =========================================
+
+    /**
+     * 選択が1行だけのテキストオブジェクト1つか判定する
+     * @param {Array} selectedItems - 選択中のオブジェクト
+     * @returns {boolean} 1行だけのテキストオブジェクト1つなら true
+     */
+    function isSingleLineTextFrame(selectedItems) {
+        if (selectedItems.length !== 1 || selectedItems[0].typename !== "TextFrame") {
+            return false;
+        }
+        /* 折り返しも含めた実際の行数で判定 / Count the rendered lines, wrapping included */
+        return selectedItems[0].lines.length === 1;
+    }
+
+    /**
+     * テキストオブジェクト全体の行揃えを中央揃えにする
+     * @param {TextFrame} textFrame - 対象のテキストオブジェクト
+     * @returns {void}
+     */
+    function setCenterJustification(textFrame) {
+        textFrame.textRange.paragraphAttributes.justification = Justification.CENTER;
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
     /**
      * ドキュメントと選択を確認し、選択を含むアートボードに切り替えてから、複数選択時は一時的にグループ化してアクションを実行する
+     * 1行だけのテキストオブジェクト1つの選択では、行揃えも中央揃えにする
      * @returns {void}
      */
     function main() {
@@ -407,6 +435,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var previousGlyphBounds = getGlyphBoundsAlign();
         try {
             setGlyphBoundsAlign({ point: true, area: true });
+            /* 1行だけのテキスト1つの選択は行揃えも中央揃えにする / A lone single-line text object gets centered justification too */
+            if (isSingleLineTextFrame(selectedItems)) {
+                setCenterJustification(selectedItems[0]);
+            }
             if (needsGroup) {
                 app.executeMenuCommand("group");
             }

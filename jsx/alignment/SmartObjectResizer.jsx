@@ -6,59 +6,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択中のオブジェクトを、指定した基準（最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落とし）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
-- 縦横比保持・片辺のみモード、横位置／縦位置の整列、リアルタイムプレビューを備えています。ダイアログを開いた直後はどの基準も選択されておらず変形は起こらず、基準ラジオをクリックした時点でリサイズが始まります。整列はリサイズと同じ境界基準で計算します（「プレビュー境界で計測」ON＝visibleBounds／OFF＝geometricBounds）。基準を切り替えても、選択中の基準と整列は保持したまま再計算します。
+選択したオブジェクトを、最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落としのいずれかの基準でリサイズし、あわせて横位置・縦位置の整列も行えるスクリプトです。縦横比保持と片辺のみを切り替えでき、操作はリアルタイムにプレビューされます。
 
-### 主な機能
-
-- 縦横比保持と片辺のみの切り替え
-- 各種基準（最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落とし）でのスケーリング
-- テキストをアウトライン境界で計測（複製→分割→アウトライン→計測→即削除）
-- 整列（右カラムの「整列（横）」「整列（縦）」パネル）
-  - 整列（横）パネル：左／中央／右（X座標）＋ 均等／0間隔（Y方向の分配）
-  - 整列（縦）パネル：上／中央／下（Y座標）＋ 均等／0間隔（X方向の分配）
-  - 横位置と縦位置は同時指定可（横=left・縦=top で独立）。基準を変えても維持される
-- 主要オプションにツールチップ（helpTip）を表示
-- リアルタイムプレビュー、リセット、フッターの リセット／キャンセル／OK
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ダイアログでリサイズ基準（と縦横比／片辺）を選択（開いた直後は未選択＝変形なし。基準を選ぶとリサイズ開始）
-2. 選択基準でスケーリング（テキストは複製→分割→アウトライン化→計測し、元オブジェクトに反映）
-3. 整列（横位置／縦位置）や面積一致を適用。整列チェックを切り替えると、基準状態に戻してから両軸の整列を再適用
-4. OKで確定、キャンセル／リセットで元に戻す
-
-----
-
-### Script Name:
-
-SmartObjectResizer.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that flexibly resizes selected objects based on a chosen criterion (Max / Min / Fixed Size / Ref. side / Area / Artboard / Bleed).
-- Supports Keep Aspect / One Side Only modes, horizontal- and vertical-position alignment, and real-time preview. No base is selected when the dialog opens, so nothing is transformed until you click a base radio. Alignment uses the same bounds basis as resizing ("Measure by preview bounds" ON = visibleBounds / OFF = geometricBounds). Switching the base keeps the current criterion and alignment and recomputes them.
+Resizes the selected objects by one of several bases (max / min / fixed size / reference side / area / artboard / bleed) and can align them horizontally and vertically at the same time. Keep-aspect and one-side-only modes are switchable, and every change is previewed in real time.
 
-### Main Features
-
-- Toggle between Keep Aspect and One Side Only
-- Scaling based on Max / Min / Fixed Size / Ref. side / Area / Artboard / Bleed
-- Text measured by outline bounds (duplicate → expand → outline → measure → immediate cleanup)
-- Alignment (the "Align (H)" / "Align (V)" panels in the right column)
-  - Align (H) panel: Left / Center / Right (X) + Distribute evenly / Zero gap (along Y)
-  - Align (V) panel: Top / Middle / Bottom (Y) + Distribute evenly / Zero gap (along X)
-  - Horizontal and vertical can be combined (independent: H = left, V = top); preserved across base changes
-- Tooltips (helpTips) on key options
-- Real-time preview, Reset, and a footer with Reset / Cancel / OK
-- Japanese and English UI support
-
-### Process Flow
-
-1. Choose the resize base (and Keep Aspect / One Side Only) in the dialog (nothing is selected on open = no transform; picking a base starts resizing)
-2. Scale by the selected base (text is duplicated → expanded → outlined → measured, then applied back to originals)
-3. Apply alignment (horizontal / vertical) or area matching; toggling an alignment restores the base state and re-applies both axes
-4. Confirm with OK, or revert with Cancel / Reset
+See the README for details.
 
 */
 
@@ -66,10 +22,10 @@ SmartObjectResizer.jsx
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectResizer";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-22";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectResizer.md
@@ -330,6 +286,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     }
     var resizeBaseStates = [];
 
+    // 直近の変形で線幅に掛けた倍率（%）。並びは originalStates と同じ。
+    // 片辺のみは線幅を変えない（100%）ので、復元時に一律 scaleW を掛けると線幅だけがずれていく。
+    // Line-width percentage applied by the last transform, per item (same order as originalStates).
+    var appliedLineScales = [];
+    function resetAppliedLineScales() {
+        appliedLineScales = [];
+        for (var i = 0; i < originalSelectedItems.length; i++) appliedLineScales.push(100);
+    }
+    resetAppliedLineScales();
+
     var outlineBoundsCache = {};
     var outlineBoundsCacheSeq = 1;
     var outlineIdMap = [];
@@ -394,12 +360,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     setHelpTip(keepRatioRadio, L("tooltip.keepAspect"));
     setHelpTip(oneSideOnlyRadio, L("tooltip.oneSideOnly"));
 
-    // 「片辺のみ」でディムされる基準（基準辺／面積／アートボード／裁ち落とし）の選択を解除する。
+    // 「片辺のみ」でディムされる基準（基準辺／面積）の選択を解除する。
     // ディムするだけだと value が残り、getSelectedResizeMode() が enabled を見ないため
     // 「片辺のみのはずが縦横比保持でリサイズされる」状態になる。
     // Clear bases that "one side only" dims — leaving them checked would keep them active.
     function clearDimmedBaseSelections() {
-        var dimmedGroups = [baseRadios, areaRadios, artboardRadios, bleedRadios];
+        var dimmedGroups = [baseRadios, areaRadios];
         for (var g = 0; g < dimmedGroups.length; g++) {
             for (var r = 0; r < dimmedGroups[g].length; r++) {
                 dimmedGroups[g][r].value = false;
@@ -414,15 +380,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         oneSideOnlyRadio.value = useOneSideOnly;
 
         if (useOneSideOnly) clearDimmedBaseSelections();
-
-        // 指定サイズセクション全体（ラジオ＋テキストフィールド）はどちらのモードでも有効
-        if (createRadioGroup.sizeInput && createRadioGroup.sizeInput.parent) {
-            createRadioGroup.sizeInput.parent.enabled = true;   // 入力行
-        }
-        if (createRadioGroup.widthRadio && createRadioGroup.widthRadio.parent) {
-            createRadioGroup.widthRadio.parent.enabled = true;  // ラジオボタン行
-        }
-
         reapplyCurrentSelection(); // 内部で updateRadioGroupStates() を呼ぶ
     }
 
@@ -554,7 +511,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         var sizeInput = sizeInputGroup.add("edittext", undefined, avgWidth.toFixed(0));
         sizeInput.characters = 5;
         changeValueByArrowKey(sizeInput, false);
-        var sizeUnit = sizeInputGroup.add("statictext", undefined, unitLabel);
+        sizeInputGroup.add("statictext", undefined, unitLabel);
 
         sizeInput.onChange = function () {
             if ((widthRadio.value || heightRadio.value) && !isNaN(parseFloat(sizeInput.text))) {
@@ -572,7 +529,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         createRadioGroup.sizeInput = sizeInput;
         createRadioGroup.widthRadio = widthRadio;
         createRadioGroup.heightRadio = heightRadio;
-        createRadioGroup.sizeUnit = sizeUnit;
         return [widthRadio, heightRadio];
     }
 
@@ -588,7 +544,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // 6. 面積
     var areaRadios = createRadioGroup(fieldLabel("field.area"), [L("radio.areaMax"), L("radio.areaMin")], resizeBasePanel);
     // 7. --- ディバイダー ---
-    var dividerLine = resizeBasePanel.add("statictext", undefined, "  ───────────────  ");
+    resizeBasePanel.add("statictext", undefined, "  ───────────────  ");
     // 8. アートボード
     var artboardRadios = createRadioGroup(fieldLabel("field.artboard"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 9. 裁ち落とし
@@ -619,22 +575,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         alignHorizontalEvenZeroCheck.value = false;
     }
 
+    // 「片辺のみ」で無効化するのは基準辺（長辺／短辺）と面積だけ。
+    // アートボード／裁ち落としは片辺スケールにも対応するため常に有効のままにする。
+    // Artboard / bleed stay enabled in one-side-only mode; only base side and area are dimmed.
     function updateRadioGroupStates() {
-        var baseGroup = baseRadios[0].parent;
-        var areaGroup = areaRadios[0].parent;
-        var artboardGroup = artboardRadios[0].parent;
-        var bleedGroup = bleedRadios[0].parent;
-        if (oneSideOnlyRadio.value) {
-            baseGroup.enabled = false;
-            areaGroup.enabled = false;
-            artboardGroup.enabled = false;
-            bleedGroup.enabled = false;
-        } else {
-            baseGroup.enabled = true;
-            areaGroup.enabled = true;
-            artboardGroup.enabled = true;
-            bleedGroup.enabled = true;
-        }
+        var keepAspectOnly = !oneSideOnlyRadio.value;
+        baseRadios[0].parent.enabled = keepAspectOnly;
+        areaRadios[0].parent.enabled = keepAspectOnly;
     }
 
     // 現在の選択モードを再適用（ラジオのクリアはしない）
@@ -650,10 +597,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         // チェック中の整列は維持し、新しいサイズに対して再適用する
         reapplyActiveAlignments();
         updateRadioGroupStates();
-        // 指定サイズ入力の有効化は updateInputState() 済み。ここではディバイダーのみ制御
-        if (typeof dividerLine !== "undefined" && dividerLine) {
-            dividerLine.enabled = !oneSideOnlyRadio.value;
-        }
     }
 
     // ラジオボタン選択時の共通処理: 他の基準ラジオをOFFにしてから再適用
@@ -1077,8 +1020,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             else if (radioGroups[groupIndex][1].value) sideIndex = 1;
             if (sideIndex < 0) continue;
             return {
-                group: groupIndex,
-                side: sideIndex,
                 isWidth: sideIndex === 0,
                 isMax: groupIndex === 0,
                 isMin: groupIndex === 1,
@@ -1087,7 +1028,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
                 isShort: groupIndex === 3 && sideIndex === 1,
                 isArea: groupIndex === 4,
                 isAreaMax: groupIndex === 4 && sideIndex === 0,
-                isAreaMin: groupIndex === 4 && sideIndex === 1,
                 isArtboard: groupIndex === 5,
                 isBleed: groupIndex === 6
             };
@@ -1108,14 +1048,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         return { left: left, top: top, right: right, bottom: bottom, width: right - left, height: top - bottom };
     }
 
-    // アートボード／裁ち落とし基準: 選択全体をひとまとまりとして等倍スケール（グループ化しない）。
+    // アートボード／裁ち落とし基準: 選択全体をひとまとまりとしてスケール（グループ化しない）。
     // クラスタ左上を原点に、各アイテムのサイズと相対位置を同じ倍率でスケールする。
+    // 「片辺のみ」では基準辺の軸だけ倍率を掛け、もう一方の軸は等倍のまま残す。
     // → 親階層・重ね順を一切変更しないので、旧・一時グループ方式の復元リスクを構造的に回避する。
     function applyClusterResize(mode, referenceValue) {
         var clusterBounds = getCombinedReferenceBounds(workingItems);
         var current = mode.isWidth ? clusterBounds.width : clusterBounds.height;
         if (!current) return;
         var scaleFactor = referenceValue / current;
+        var isOneSideOnly = oneSideOnlyRadio.value;
+        var factorX = (!isOneSideOnly || mode.isWidth) ? scaleFactor : 1;
+        var factorY = (!isOneSideOnly || !mode.isWidth) ? scaleFactor : 1;
 
         // リサイズで位置がずれる前に、各アイテムの左上と原点（クラスタ左上）を記録
         var originLeft = null, originTop = null;
@@ -1127,13 +1071,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             if (originTop === null || itemTop > originTop) originTop = itemTop;
         }
 
-        var scalePct = scaleFactor * 100;
+        // 線幅は等倍のときだけ追従させる（非等倍では resizeOneSide と同じく 100%）
+        var lineScalePct = isOneSideOnly ? 100 : scaleFactor * 100;
         for (var i = 0; i < workingItems.length; i++) {
             var item = workingItems[i];
-            item.resize(scalePct, scalePct, true, true, true, true, scalePct, Transformation.TOPLEFT);
+            item.resize(factorX * 100, factorY * 100, true, true, true, true, lineScalePct, Transformation.TOPLEFT);
+            appliedLineScales[i] = lineScalePct;
             // 原点からの相対位置も同倍率でスケール（クラスタとして拡大縮小）
-            item.left = originLeft + (originalPositions[i].left - originLeft) * scaleFactor;
-            item.top = originTop - (originTop - originalPositions[i].top) * scaleFactor;
+            item.left = originLeft + (originalPositions[i].left - originLeft) * factorX;
+            item.top = originTop - (originTop - originalPositions[i].top) * factorY;
         }
     }
 
@@ -1186,13 +1132,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
             if (!keepOneSideOnly) {
                 workingItems[i].resize(scale, scale, true, true, true, true, scale, Transformation.TOPLEFT);
+                appliedLineScales[i] = scale;
             } else if (mode.isFixed) {
                 var currentSide = mode.isWidth ? bounds.width : bounds.height;
                 if (currentSide === 0) continue;
                 var scaleFixed = getScaleFactor(currentSide, referenceValue);
                 resizeOneSide(workingItems[i], mode.isWidth, scaleFixed);
+                appliedLineScales[i] = 100;
             } else {
                 resizeOneSide(workingItems[i], mode.isWidth, scale);
+                appliedLineScales[i] = 100;
             }
         }
     }
@@ -1222,7 +1171,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         var baseArea = mode.isAreaMax ? Math.max.apply(null, areas) : Math.min.apply(null, areas);
         if (!baseArea || baseArea <= 0) return;
         for (var i = 0; i < workingItems.length; i++) {
-            resizeToMatchArea(workingItems[i], baseArea);
+            appliedLineScales[i] = resizeToMatchArea(workingItems[i], baseArea);
         }
         captureResizeBaseState();
         app.redraw();
@@ -1254,26 +1203,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         app.redraw();
     }
 
+    // 適用した線幅倍率（%）を返す。復元時の逆算に使う。
     function resizeToMatchArea(item, targetArea) {
         var bounds = getReferenceBounds(item);
         var area = bounds.width * bounds.height;
-        if (area === 0) return;
+        if (area === 0) return 100;
         var scale = Math.sqrt(targetArea / area) * 100;
         item.resize(scale, scale, true, true, true, true, scale, Transformation.TOPLEFT);
+        return scale;
     }
 
     // item を目標サイズへリサイズ。除数 0（線のみ・空テキスト等）は Infinity 回避のため 100%＝現状維持とする。
+    // 線幅倍率は呼び出し側が明示する（省略時は 100%＝据え置き）。scaleW を流用すると、
+    // 線幅を変えていない片辺のみのリサイズを戻すときに線幅だけが縮んでいく。
     // ※ 幅/高さが 0 の要素は resize では拡大できないため「厳密復元」ではなく現状スキップに近い（実用上は許容）
-    function resizeItemToSize(item, targetWidth, targetHeight) {
+    function resizeItemToSize(item, targetWidth, targetHeight, lineScalePct) {
         var scaleW = (targetWidth === 0 || item.width === 0) ? 100 : (targetWidth / item.width) * 100;
         var scaleH = (targetHeight === 0 || item.height === 0) ? 100 : (targetHeight / item.height) * 100;
-        item.resize(scaleW, scaleH, true, true, true, true, scaleW, Transformation.TOPLEFT);
+        var lineScale = (typeof lineScalePct === "number") ? lineScalePct : 100;
+        item.resize(scaleW, scaleH, true, true, true, true, lineScale, Transformation.TOPLEFT);
     }
 
     function restoreOriginalGeometry() {
         for (var i = 0; i < originalStates.length; i++) {
-            resizeItemToSize(originalStates[i].item, originalStates[i].width, originalStates[i].height);
+            // 掛けた線幅倍率の逆数で戻す（100% のときは線幅を触らない）
+            var appliedLineScale = appliedLineScales[i] || 100;
+            resizeItemToSize(originalStates[i].item, originalStates[i].width, originalStates[i].height, 10000 / appliedLineScale);
         }
+        resetAppliedLineScales();
     }
 
     function restoreOriginalPosition() {
@@ -1301,11 +1258,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // "measure by preview bounds" is on (visual edges incl. strokes/effects),
     // geometricBounds otherwise — so resize and alignment stay consistent.
     function getAlignmentBounds(item) {
-        var useVisibleBounds = !!(previewCheck && previewCheck.value);
-        if (textOutlineBoundsCheck && textOutlineBoundsCheck.value && containsTextForOutlineBounds(item)) {
-            return getOutlinedBoundsCached(item, useVisibleBounds);
-        }
-        return getPageItemBoundsObject(item, useVisibleBounds);
+        return getReferenceBounds(item);
     }
 
     function containsTextForOutlineBounds(item) {
