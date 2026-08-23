@@ -25,7 +25,7 @@ var SCRIPT_NAME     = "SmartObjectResizer";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-22";                   /* 更新 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectResizer.md
