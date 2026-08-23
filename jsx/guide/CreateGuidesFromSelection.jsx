@@ -19,10 +19,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CreateGuidesFromSelection";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-24";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuidesFromSelection.md
@@ -103,8 +103,10 @@ function setupPanel(panel, spacing) {
  */
 function setupRow(group, alignment, spacing) {
     group.orientation = "row";
+    /* alignment と alignChildren は対で指定する（片方だけだと天地がずれ、中のボタンが横に伸びる）
+       Set both: alone, either one lets the row drift vertically or stretch its buttons */
+    group.alignment = [alignment || "left", "center"];
     group.alignChildren = ["left", "center"];
-    group.alignment = alignment || "left";
     group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
@@ -233,7 +235,11 @@ var LABELS = {
             top: { ja: "対象の上辺にガイドを作成", en: "Add a guide at the target's top edge" },
             center: { ja: "対象の中央（縦・横）にガイドを作成", en: "Add guides at the target's center (vertical & horizontal)" },
             bottom: { ja: "対象の下辺にガイドを作成", en: "Add a guide at the target's bottom edge" },
-            right: { ja: "対象の右辺にガイドを作成", en: "Add a guide at the target's right edge" }
+            right: { ja: "対象の右辺にガイドを作成", en: "Add a guide at the target's right edge" },
+            soloHint: {
+                ja: "option（Alt）＋クリックで、この項目だけをオンにします。",
+                en: "Option/Alt-click to turn this one on and all the others off."
+            }
         },
         preset: {
             allOn: { ja: "四辺＋中央をすべて選択", en: "Select all four edges and the center" },
@@ -281,61 +287,38 @@ function labelWithColon(labelKey) {
 // 単位 / Units
 // =========================================
 
-/* 単位コードとラベルのマップ / Map of ruler unit code to label */
-var rulerUnitLabels = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
+/* rulerType の単位コード→ラベルと pt 換算係数 / Unit code to label and points-per-unit */
+var UNIT_INFO = {
+    0:  { label: "in",    points: 72.0 },
+    1:  { label: "mm",    points: 72.0 / 25.4 },
+    2:  { label: "pt",    points: 1.0 },
+    3:  { label: "pica",  points: 12.0 },
+    4:  { label: "cm",    points: 72.0 / 2.54 },
+    5:  { label: "H",     points: 72.0 / 25.4 * 0.25 },
+    6:  { label: "px",    points: 1.0 },
+    7:  { label: "ft/in", points: 72.0 * 12.0 },
+    8:  { label: "m",     points: 72.0 / 25.4 * 1000.0 },
+    9:  { label: "yd",    points: 72.0 * 36.0 },
+    10: { label: "ft",    points: 72.0 * 12.0 }
 };
+
+/* 単位が取れないときの既定 / Fallback when the ruler unit cannot be read */
+var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0 };
+
+/**
+ * 現在の定規単位の情報を取得
+ * @returns {object} { label: string, points: number }（不明な場合は pt 扱い）
+ */
+function getRulerUnitInfo() {
+    return UNIT_INFO[app.preferences.getIntegerPreference("rulerType")] || FALLBACK_UNIT_INFO;
+}
 
 /**
  * 現在の定規単位ラベルを取得
  * @returns {string} 単位ラベル（不明な場合は "pt"）
  */
 function getRulerUnitLabel() {
-    return rulerUnitLabels[app.preferences.getIntegerPreference("rulerType")] || "pt";
-}
-
-/**
- * 単位コードから pt への換算係数を取得
- * @param {number} unitCode - rulerType の単位コード
- * @returns {number} 1単位あたりの pt 数
- */
-function getPointFactorForUnitCode(unitCode) {
-    switch (unitCode) {
-        case 0:
-            return 72.0; // in
-        case 1:
-            return 72.0 / 25.4; // mm
-        case 2:
-            return 1.0; // pt
-        case 3:
-            return 12.0; // pica
-        case 4:
-            return 72.0 / 2.54; // cm
-        case 5:
-            return 72.0 / 25.4 * 0.25; // Q or H
-        case 6:
-            return 1.0; // px
-        case 7:
-            return 72.0 * 12.0; // ft/in
-        case 8:
-            return 72.0 / 25.4 * 1000.0; // m
-        case 9:
-            return 72.0 * 36.0; // yd
-        case 10:
-            return 72.0 * 12.0; // ft
-        default:
-            return 1.0;
-    }
+    return getRulerUnitInfo().label;
 }
 
 /**
@@ -346,7 +329,7 @@ function getPointFactorForUnitCode(unitCode) {
 function rulerTextToPoints(inputText) {
     var inputValue = parseFloat(inputText);
     if (isNaN(inputValue)) inputValue = 0;
-    return inputValue * getPointFactorForUnitCode(app.preferences.getIntegerPreference("rulerType"));
+    return inputValue * getRulerUnitInfo().points;
 }
 
 // =========================================
@@ -518,17 +501,17 @@ function directionsFromBounds(bounds, guideOptions, offsetPt) {
  * ガイド1本分の線分を算出
  * @param {number} position - ガイドの座標
  * @param {string} orientation - "vertical" または "horizontal"
- * @param {boolean} useCanvas - カンバス基準かどうか
- * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @param {object} drawSettings - 描画設定 { useCanvas: boolean, offsetPt: number, extensionPt: number }
  * @param {number[]|null} artboardRect - アクティブなアートボードの矩形
  * @returns {number[][]} [始点, 終点]
  */
-function guideSegment(position, orientation, useCanvas, extensionPt, artboardRect) {
-    if (useCanvas) {
+function guideSegment(position, orientation, drawSettings, artboardRect) {
+    if (drawSettings.useCanvas) {
         return (orientation === "horizontal")
             ? [[-CANVAS_GUIDE_REACH, position], [CANVAS_GUIDE_REACH, position]]
             : [[position, CANVAS_GUIDE_REACH], [position, -CANVAS_GUIDE_REACH]];
     }
+    var extensionPt = drawSettings.extensionPt;
     return (orientation === "horizontal")
         ? [[artboardRect[0] - extensionPt, position], [artboardRect[2] + extensionPt, position]]
         : [[position, artboardRect[1] + extensionPt], [position, artboardRect[3] - extensionPt]];
@@ -538,19 +521,36 @@ function guideSegment(position, orientation, useCanvas, extensionPt, artboardRec
  * 基準矩形1つ分のガイドの線分を算出
  * @param {number[]} bounds - 基準の外接矩形 [左, 上, 右, 下]
  * @param {object} guideOptions - ガイド作成オプション
- * @param {boolean} useCanvas - カンバス基準かどうか
- * @param {number} offsetPt - 対象から離す距離（pt）
- * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @param {object} drawSettings - 描画設定 { useCanvas: boolean, offsetPt: number, extensionPt: number }
  * @param {number[]|null} artboardRect - アクティブなアートボードの矩形
  * @returns {number[][][]} 線分（[始点, 終点]）の配列
  */
-function segmentsForBounds(bounds, guideOptions, useCanvas, offsetPt, extensionPt, artboardRect) {
-    var guideDirections = directionsFromBounds(bounds, guideOptions, offsetPt);
+function segmentsForBounds(bounds, guideOptions, drawSettings, artboardRect) {
+    var guideDirections = directionsFromBounds(bounds, guideOptions, drawSettings.offsetPt);
     var segments = [];
     for (var i = 0; i < guideDirections.length; i++) {
-        segments.push(guideSegment(guideDirections[i].position, guideDirections[i].orientation, useCanvas, extensionPt, artboardRect));
+        segments.push(guideSegment(guideDirections[i].position, guideDirections[i].orientation, drawSettings, artboardRect));
     }
     return segments;
+}
+
+/**
+ * 基準矩形ごとに「描画先レイヤーと線分」の組を作る（本描画とプレビューで共通）
+ * @param {object[]} targetEntries - { bounds: number[], layer: Layer|null } の配列
+ * @param {object} guideOptions - ガイド作成オプション
+ * @param {object} drawSettings - 描画設定 { useCanvas: boolean, offsetPt: number, extensionPt: number }
+ * @param {number[]|null} artboardRect - アクティブなアートボードの矩形
+ * @returns {object[]} { layer: Layer|null, segments: number[][][] } の配列
+ */
+function buildDrawPlan(targetEntries, guideOptions, drawSettings, artboardRect) {
+    var drawPlan = [];
+    for (var i = 0; i < targetEntries.length; i++) {
+        drawPlan.push({
+            layer: targetEntries[i].layer,
+            segments: segmentsForBounds(targetEntries[i].bounds, guideOptions, drawSettings, artboardRect)
+        });
+    }
+    return drawPlan;
 }
 
 // =========================================
@@ -640,15 +640,13 @@ function unlockLayerOnce(targetLayer, lockStates) {
 /**
  * 選択オブジェクト・アートボード・カンバスを基準にガイドを作成（本処理）
  * @param {object} guideOptions - ガイド作成オプション（各方向フラグ・プレビュー境界・個別作成・グループ化・描画先・既存削除）
- * @param {boolean} useCanvas - カンバス基準かどうか
- * @param {number} offsetPt - 対象から離す距離（pt）
- * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @param {object} drawSettings - 描画設定 { useCanvas: boolean, offsetPt: number, extensionPt: number }
  * @returns {void}
  */
-function createGuides(guideOptions, useCanvas, offsetPt, extensionPt) {
+function createGuides(guideOptions, drawSettings) {
     var doc = app.activeDocument;
     var artboardRect = getActiveArtboardRect(doc);
-    if (!useCanvas && !artboardRect) {
+    if (!drawSettings.useCanvas && !artboardRect) {
         alert(getLabel(doc.artboards.length === 0 ? "alert.noArtboard" : "alert.invalidArtboard"));
         return;
     }
@@ -657,13 +655,7 @@ function createGuides(guideOptions, useCanvas, offsetPt, extensionPt) {
     var outlinedTextState = outlineTextForBounds(doc.selection, guideOptions.usePreviewBounds);
     var targetEntries = collectTargetEntries(outlinedTextState.items, guideOptions, artboardRect);
     /* 線分はアウトラインを戻す前に確定させる / Freeze the segments before restoring the outlined text */
-    var drawPlan = [];
-    for (var i = 0; i < targetEntries.length; i++) {
-        drawPlan.push({
-            layer: targetEntries[i].layer,
-            segments: segmentsForBounds(targetEntries[i].bounds, guideOptions, useCanvas, offsetPt, extensionPt, artboardRect)
-        });
-    }
+    var drawPlan = buildDrawPlan(targetEntries, guideOptions, drawSettings, artboardRect);
     outlinedTextState.restore();
 
     /* 「_guide」レイヤーへまとめる場合は先に用意して既存ガイドを整理 / Prepare the "_guide" layer up front */
@@ -675,15 +667,15 @@ function createGuides(guideOptions, useCanvas, offsetPt, extensionPt) {
     }
 
     var lockStates = [];
-    for (var j = 0; j < drawPlan.length; j++) {
-        var targetLayer = guideLayer || drawPlan[j].layer || doc.activeLayer;
+    for (var i = 0; i < drawPlan.length; i++) {
+        var targetLayer = guideLayer || drawPlan[i].layer || doc.activeLayer;
         unlockLayerOnce(targetLayer, lockStates);
-        addGuidesFromSegments(targetLayer, drawPlan[j].segments, guideOptions.groupGuides);
+        addGuidesFromSegments(targetLayer, drawPlan[i].segments, guideOptions.groupGuides);
     }
 
     /* 「_guide」レイヤーはロックし、ほかは元の状態へ戻す / Lock "_guide", restore the others */
-    for (var k = 0; k < lockStates.length; k++) {
-        if (lockStates[k].layer !== guideLayer) lockStates[k].layer.locked = lockStates[k].wasLocked;
+    for (var j = 0; j < lockStates.length; j++) {
+        if (lockStates[j].layer !== guideLayer) lockStates[j].layer.locked = lockStates[j].wasLocked;
     }
     if (guideLayer) guideLayer.locked = true;
 }
@@ -759,20 +751,19 @@ function drawPreviewSegments(previewLayer, segments, previewColor) {
 /**
  * 現在の設定からプレビュー線分を収集（テキストのアウトライン化は省略）
  * @param {object} guideOptions - ガイド作成オプション
- * @param {boolean} useCanvas - カンバス基準かどうか
- * @param {number} offsetPt - 対象から離す距離（pt）
- * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @param {object} drawSettings - 描画設定 { useCanvas: boolean, offsetPt: number, extensionPt: number }
  * @returns {number[][][]} 線分（[始点, 終点]）の配列
  */
-function collectPreviewSegments(guideOptions, useCanvas, offsetPt, extensionPt) {
+function collectPreviewSegments(guideOptions, drawSettings) {
     var doc = app.activeDocument;
     var artboardRect = getActiveArtboardRect(doc);
-    if (!useCanvas && !artboardRect) return [];
+    if (!drawSettings.useCanvas && !artboardRect) return [];
 
     var targetEntries = collectTargetEntries(doc.selection, guideOptions, artboardRect);
+    var drawPlan = buildDrawPlan(targetEntries, guideOptions, drawSettings, artboardRect);
     var segments = [];
-    for (var i = 0; i < targetEntries.length; i++) {
-        segments = segments.concat(segmentsForBounds(targetEntries[i].bounds, guideOptions, useCanvas, offsetPt, extensionPt, artboardRect));
+    for (var i = 0; i < drawPlan.length; i++) {
+        segments = segments.concat(drawPlan[i].segments);
     }
     return segments;
 }
@@ -866,7 +857,10 @@ function buildTargetPanel(parentContainer) {
 
     var extensionRow = addUnitInputRow(targetPanel, "fieldLabel.extension", "tooltip.extension", "20");
 
-    /* 「延長」行はカンバス基準では使わないので丸ごとディム / Dim the whole row for the canvas target */
+    /**
+     * 「延長」行のディムを更新する（カンバス基準では使わないので行ごとディムする）
+     * @returns {void}
+     */
     function updateExtensionEnabled() {
         extensionRow.row.enabled = !canvasRadio.value;
     }
@@ -891,6 +885,20 @@ function buildAxisPanel(parentContainer) {
     var axisPanel = parentContainer.add("panel", undefined, getLabel("panel.axis"));
     setupPanel(axisPanel, 8);
 
+    /**
+     * 辺・中心のチェックボックスを追加する（option＋クリックの説明をツールチップに添える）
+     * @param {Group|Panel} targetContainer - 追加先コンテナ
+     * @param {string} labelKey - ラベルのドット区切りキー
+     * @param {string} tooltipKey - ツールチップのドット区切りキー
+     * @param {boolean} initialValue - 初期状態
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addEdgeCheckbox(targetContainer, labelKey, tooltipKey, initialValue) {
+        var checkbox = addCheckbox(targetContainer, labelKey, tooltipKey, initialValue);
+        checkbox.helpTip += "\n" + getLabel("tooltip.edge.soloHint");
+        return checkbox;
+    }
+
     var crossGroup = axisPanel.add("group");
     setupRow(crossGroup, undefined, CROSS_SPACING);
     /* パネル内で左右中央に配置 / Center the cross horizontally in the panel */
@@ -898,20 +906,20 @@ function buildAxisPanel(parentContainer) {
 
     var leftColumn = crossGroup.add("group");
     setupRow(leftColumn, undefined, 10);
-    var leftCheckbox = addCheckbox(leftColumn, "checkbox.left", "tooltip.edge.left", true);
+    var leftCheckbox = addEdgeCheckbox(leftColumn, "checkbox.left", "tooltip.edge.left", true);
 
     var centerColumn = crossGroup.add("group");
     centerColumn.orientation = "column";
     centerColumn.alignChildren = ["left", "center"];
     centerColumn.spacing = 10;
-    var topCheckbox = addCheckbox(centerColumn, "checkbox.top", "tooltip.edge.top", true);
+    var topCheckbox = addEdgeCheckbox(centerColumn, "checkbox.top", "tooltip.edge.top", true);
     /* 中心（縦横）の中心線用 / Center lines (vertical & horizontal) */
-    var centerCheckbox = addCheckbox(centerColumn, "checkbox.center", "tooltip.edge.center", false);
-    var bottomCheckbox = addCheckbox(centerColumn, "checkbox.bottom", "tooltip.edge.bottom", true);
+    var centerCheckbox = addEdgeCheckbox(centerColumn, "checkbox.center", "tooltip.edge.center", false);
+    var bottomCheckbox = addEdgeCheckbox(centerColumn, "checkbox.bottom", "tooltip.edge.bottom", true);
 
     var rightColumn = crossGroup.add("group");
     setupRow(rightColumn, undefined, 10);
-    var rightCheckbox = addCheckbox(rightColumn, "checkbox.right", "tooltip.edge.right", true);
+    var rightCheckbox = addEdgeCheckbox(rightColumn, "checkbox.right", "tooltip.edge.right", true);
 
     return {
         left: leftCheckbox,
@@ -930,7 +938,13 @@ function buildAxisPanel(parentContainer) {
  * @returns {object} 生成したラジオボタン群
  */
 function buildPresetRadios(parentContainer, crossCheckboxes, centerLineState) {
-    /* ラジオボタン生成（show が false なら作らない）/ Create a radio (skip when show is false) */
+    /**
+     * プリセットのラジオボタンを追加する（show が false のときは作らない）
+     * @param {string} labelKey - ラベルのドット区切りキー
+     * @param {string} tooltipKey - ツールチップのドット区切りキー
+     * @param {boolean} [show] - 表示するかどうか（省略時は表示）
+     * @returns {RadioButton|null} 追加したラジオボタン（作らなかった場合は null）
+     */
     function addPresetRadio(labelKey, tooltipKey, show) {
         if (typeof show !== "undefined" && !show) return null;
         var presetRadio = parentContainer.add("radiobutton", undefined, getLabel(labelKey));
@@ -991,17 +1005,27 @@ function buildPresetRadios(parentContainer, crossCheckboxes, centerLineState) {
         presetRadios.allOn.value = true;
     }
 
-    /* 手動でチェックを変えたら中心線モードを解除 / Clear center-line mode on manual toggle */
-    function clearCenterLineOnToggle(checkbox) {
-        checkbox.onClick = function () {
+    /* 手動でチェックを変えたら中心線モードを解除し、option＋クリックはクリックした項目だけをオンに
+       / Clear center-line mode on manual toggle; Option-click keeps only the clicked item on */
+    var crossKeys = ["left", "top", "right", "bottom", "center"];
+
+    /**
+     * 十字のチェックボックス1つにクリック時の処理を割り当てる
+     * @param {string} crossKey - 対象のキー（"left" / "top" / "right" / "bottom" / "center"）
+     * @returns {void}
+     */
+    function setupCrossCheckbox(crossKey) {
+        crossCheckboxes[crossKey].onClick = function () {
             centerLineState.mode = "";
+            if (!ScriptUI.environment.keyboardState.altKey) return;
+            for (var k = 0; k < crossKeys.length; k++) {
+                crossCheckboxes[crossKeys[k]].value = (crossKeys[k] === crossKey);
+            }
         };
     }
-    clearCenterLineOnToggle(crossCheckboxes.left);
-    clearCenterLineOnToggle(crossCheckboxes.top);
-    clearCenterLineOnToggle(crossCheckboxes.right);
-    clearCenterLineOnToggle(crossCheckboxes.bottom);
-    clearCenterLineOnToggle(crossCheckboxes.center);
+    for (var j = 0; j < crossKeys.length; j++) {
+        setupCrossCheckbox(crossKeys[j]);
+    }
 
     return presetRadios;
 }
@@ -1140,7 +1164,10 @@ function buildDialog() {
     var optionControls = buildOptionsPanel(dialog, doc.selection.length);
     var footerControls = buildFooter(dialog);
 
-    /* 既存ガイドの削除は「_guide」レイヤーに描くときだけ有効 / Deleting guides applies to the "_guide" layer only */
+    /**
+     * 既存ガイドの削除チェックボックスのディムを更新する（「_guide」レイヤーに描くときだけ有効）
+     * @returns {void}
+     */
     function updateDeleteGuidesEnabled() {
         optionControls.deleteGuidesCheckbox.enabled = destinationControls.guideLayerRadio.value;
     }
@@ -1157,7 +1184,10 @@ function buildDialog() {
 
     /* ===== プレビュー配線 / Preview wiring ===== */
 
-    /* ダイアログの現在値をガイド作成オプションにまとめる / Read the dialog into guide options */
+    /**
+     * ダイアログの現在値をガイド作成オプションにまとめる
+     * @returns {object} ガイド作成オプション（各方向フラグ・プレビュー境界・個別作成・グループ化・描画先・既存削除）
+     */
     function readGuideOptions() {
         return {
             left: crossCheckboxes.left.value,
@@ -1174,7 +1204,22 @@ function buildDialog() {
         };
     }
 
-    /* マージンは辺のガイドにだけ効くので、中心線だけのときはディム / Offset only affects edge guides */
+    /**
+     * 対象・マージン・延長の現在値を描画設定にまとめる
+     * @returns {object} { useCanvas: boolean, offsetPt: number, extensionPt: number }
+     */
+    function readDrawSettings() {
+        return {
+            useCanvas: targetControls.canvasRadio.value,
+            offsetPt: rulerTextToPoints(optionControls.offsetInput.text),
+            extensionPt: rulerTextToPoints(targetControls.extensionInput.text)
+        };
+    }
+
+    /**
+     * マージン行のディムを更新する（マージンは辺のガイドにだけ効くので、中心線だけのときはディムする）
+     * @returns {void}
+     */
     function updateOffsetEnabled() {
         optionControls.offsetRow.enabled = crossCheckboxes.left.value || crossCheckboxes.right.value ||
             crossCheckboxes.top.value || crossCheckboxes.bottom.value;
@@ -1182,6 +1227,12 @@ function buildDialog() {
 
     /* 既存ガイドの表示／非表示（showguide はトグルなので状態を自前で追跡）/ Toggle guide visibility (track state) */
     var guidesHidden = false;
+
+    /**
+     * 既存ガイドの表示・非表示を切り替える
+     * @param {boolean} hide - 非表示にするなら true
+     * @returns {void}
+     */
     function setGuidesHidden(hide) {
         if (hide === guidesHidden) return;
         /* メニューコマンドが使えない状況でもダイアログ操作を止めない / Keep the dialog usable if the command is unavailable */
@@ -1191,6 +1242,10 @@ function buildDialog() {
         guidesHidden = hide;
     }
 
+    /**
+     * 現在の設定でライブプレビューを描き直す
+     * @returns {void}
+     */
     function renderPreview() {
         updateOffsetEnabled();
         removePreviewLayer(doc);
@@ -1198,12 +1253,7 @@ function buildDialog() {
         setGuidesHidden(footerControls.previewCheckbox.value);
         if (footerControls.previewCheckbox.value) {
             try {
-                var segments = collectPreviewSegments(
-                    readGuideOptions(),
-                    targetControls.canvasRadio.value,
-                    rulerTextToPoints(optionControls.offsetInput.text),
-                    rulerTextToPoints(targetControls.extensionInput.text)
-                );
+                var segments = collectPreviewSegments(readGuideOptions(), readDrawSettings());
                 if (segments.length > 0) {
                     var previewLayer = createPreviewLayer(doc);
                     drawPreviewSegments(previewLayer, segments, makePreviewColor(doc));
@@ -1216,7 +1266,11 @@ function buildDialog() {
         app.redraw();
     }
 
-    /* 既存 onClick を保持しつつプレビュー更新を連結 / Chain renderPreview after the existing onClick */
+    /**
+     * 既存の onClick を保持したまま、後ろにプレビュー更新を連結する
+     * @param {Object} control - 対象のコントロール（null のときは何もしない）
+     * @returns {void}
+     */
     function chainPreview(control) {
         if (!control) return;
         var previousOnClick = control.onClick;
@@ -1246,12 +1300,7 @@ function buildDialog() {
     footerControls.drawButton.onClick = function () {
         removePreviewLayer(doc); /* プレビューを片付けてから本処理 / clean up the preview before committing */
         try {
-            createGuides(
-                readGuideOptions(),
-                targetControls.canvasRadio.value,
-                rulerTextToPoints(optionControls.offsetInput.text),
-                rulerTextToPoints(targetControls.extensionInput.text)
-            );
+            createGuides(readGuideOptions(), readDrawSettings());
             dialog.close();
         } catch (e) {
             alert(getLabel("alert.guideError") + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));

@@ -125,6 +125,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [隣り合うオブジェクトのアキの中央に記号を配置](readme-ja/RightMarkPlacer.md)
 - [選択した2つ以上のオブジェクトをいったんグループ解除してから、あらためて1つのグループにまとめます](readme-ja/AddToGroup.md)
 - [選択した2つのオブジェクトの上下の間隔を、指定した値にそろえる常駐パレットです](readme-ja/AiAdjustVerticalGap.md)
+- [選択したオブジェクトを、アートボードを対象に整列する常駐パレットです](readme-ja/AiAlignToArtboard.md)
 - [選択したオブジェクトを一時的にグループ化して、水平方向・垂直方向の中央に整列](readme-ja/CenterAlignAsGroup.md)
 - [選択内容に応じて、行送りと配置を次の順で判定して調整します](readme-ja/DistributeDownFromTop.md)
 - [横並びに選択した複数オブジェクトのうち、最も左のものを固定し、以降を左方向へ「キー入力」の値ぶんずつ動かして…](readme-ja/DistributeLL.md)
