@@ -6,13 +6,13 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### 概要
 
-選択したオブジェクトを、アートボードの四辺から均一のマージンを取った位置に整列する常駐パレットです。水平方向（左・中央・右）、水平垂直の中央、垂直方向（上・中央・下）の7つを、アイコンのクリックで即時実行します。
+選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。水平方向（左・中央・右）、水平垂直の中央、垂直方向（上・中央・下）の7つを、アイコンのクリックで即時実行します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-A persistent palette that aligns the selection to the artboard, inset by a uniform margin on all four sides.
+A persistent palette that aligns the selection to the artboard.
 Seven icons run horizontal (left / center / right), both axes at once, and vertical (top / center / bottom)
 alignment immediately on click.
 

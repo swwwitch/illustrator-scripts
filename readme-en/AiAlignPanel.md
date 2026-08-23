@@ -10,7 +10,7 @@
 
 ### Overview
 
-A persistent palette that aligns the selection to the artboard, inset by a uniform margin on all four sides (no preview, no Apply button).
+A persistent palette that aligns the selection to the artboard.
 
 - Align: seven icons run immediately on click — horizontal (left / center / right), both axes at once, and vertical (top / center / bottom). A multiple selection is grouped temporarily so it moves as one
 - Margin: a uniform inset from all four artboard edges (unit follows the ruler). Only the left/right/top/bottom alignments are affected; the three centered ones do not move
