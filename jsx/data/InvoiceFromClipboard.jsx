@@ -311,6 +311,7 @@ var PANEL_BUTTON_TOP_MARGIN = 5;         /* パネル内ボタン行の上マー
 /* コントロールの寸法 / Control sizes */
 var FIELD_LABEL_WIDTH = 120;             /* 入力欄ラベルの幅 / field label width */
 var AMOUNT_INPUT_SIZE = [110, 25];       /* 金額入力欄 / amount input field */
+var DATE_INPUT_SIZE = [130, 25];         /* 日付入力欄 / date input field */
 var READONLY_TEXT_WIDTH = 330;           /* 計算結果・パス・書き出し先の表示幅 / read-only text width */
 var INLINE_BUTTON_WIDTH = 70;            /* 行の中に置くボタンの幅 / width of buttons placed inside a row */
 var INLINE_SPACER_WIDTH = 12;            /* 行の中で要素を離す固定スペーサーの幅 / fixed spacer width inside a row */
@@ -444,6 +445,7 @@ var LABELS = {
         pickTemplate: "指定",
         changeTemplate: "変更",
         reloadClipboard: "更新",
+        today: "今日の日付",
         cancel: "キャンセル",
         run: "PDFを作成"
     },
@@ -457,6 +459,7 @@ var LABELS = {
         fullPath: "パスを省略せずに表示します。\nDropboxパスの短縮中は使えません。",
         shortenDropbox: "Dropboxフォルダーまでのパスを省いて表示します。\nテンプレートと保存先の両方に効きます。",
         amount: "税込金額を入力します。税抜と消費税はここから計算されます。",
+        today: "日付欄に実行日を入れます。",
         application: "テンプレートの「但」に入れる文面の書き方を選びます。",
         nameConflict: "同じ名前のPDFがすでにあるときの動きです。\n「連番を付ける」では -2、-3 … と後ろに足していきます。",
         documentType: "書類の種類です。テンプレートの<タイトル>、PDFのファイル名、メールの文面に入ります。\nテンプレートのファイル名から初期選択を決めています。",
@@ -466,6 +469,7 @@ var LABELS = {
     /* 警告・完了メッセージ / Alerts */
     alert: {
         noTemplate: "テンプレートが指定されていません。\n［指定］でテンプレートファイルを選んでください。",
+        emptyApplication: "適用が空白です。\n適用の内容を入力してください。",
         templateMissing: "記憶していたテンプレートが見つかりません。\n［指定］で選び直してください。\n\n#path#",
         emptyClipboard: "クリップボードが空か、Illustratorに貼り付けられない内容です。",
         noTextInClipboard: "クリップボードにテキストが見つかりませんでした。",
@@ -623,12 +627,20 @@ function formatDateStamp(dateText) {
 }
 
 /**
+ * 実行日を「2026/08/14」形式にする（日付欄に入れる文字列）
+ * @returns {string} 実行日の文字列
+ */
+function todayDateText() {
+    var currentTime = new Date();
+    return String(currentTime.getFullYear()) + "/" + padTwoDigits(currentTime.getMonth() + 1) + "/" + padTwoDigits(currentTime.getDate());
+}
+
+/**
  * 実行日を8桁（YYYYMMDD）にする（データの日付が読み取れないときの控え）
  * @returns {string} 8桁の文字列
  */
 function todayDateStamp() {
-    var currentTime = new Date();
-    return String(currentTime.getFullYear()) + padTwoDigits(currentTime.getMonth() + 1) + padTwoDigits(currentTime.getDate());
+    return formatDateStamp(todayDateText());
 }
 
 /**
@@ -1276,6 +1288,7 @@ function shortenToWidth(displayText, maxWidth) {
     var fieldInputs = {};        // 見出し → 入力欄 / heading to input field
     var amountInput = null;
     var taxBreakdownText = null;
+    var todayDateButton = null;
     var applicationRadios = [];  // 適用の書き方を選ぶラジオ / wording choices for the 適用 line
 
     for (var headingIndex = 0; headingIndex < inputHeadings.length; headingIndex++) {
@@ -1293,6 +1306,11 @@ function shortenToWidth(displayText, maxWidth) {
             amountInput = fieldInput;
             /* 税抜と消費税は入力ではなく計算結果なので、見出しを空にして金額欄のすぐ下に置く / Derived values */
             taxBreakdownText = addReadOnlyTextRow(parsedFieldsPanel, "");
+        } else if (headingText === dateHeading) {
+            /* 日付は桁数が決まっているので幅を詰め、空いた右側に［今日の日付］を置く / Fixed width, with the shortcut beside it */
+            fieldInput.size = DATE_INPUT_SIZE;
+            todayDateButton = fieldRowGroup.add("button", undefined, LABELS.button.today);
+            todayDateButton.helpTip = LABELS.tooltip.today;
         } else {
             /* ダイアログを広げず、余った幅いっぱいまで伸ばす / Fill the remaining width instead of widening the dialog */
             fieldInput.alignment = ["fill", "center"];
@@ -1552,6 +1570,13 @@ function shortenToWidth(displayText, maxWidth) {
     }
     if (dateHeading !== "" && fieldInputs[dateHeading]) {
         fieldInputs[dateHeading].onChanging = refreshExportRows;
+    }
+    /* ［今日の日付］は日付欄を入れ替えるだけ。ファイル名の日付も追従させる / Fill the date field and rename */
+    if (todayDateButton) {
+        todayDateButton.onClick = function () {
+            fieldInputs[dateHeading].text = todayDateText();
+            refreshExportRows();
+        };
     }
     /* 同名ファイルの扱いで連番の有無が変わるため、選び直すたびにファイル名を付け直す / The name depends on this */
     overwriteRadio.onClick = refreshExportRows;
@@ -2102,6 +2127,12 @@ function shortenToWidth(displayText, maxWidth) {
         var pdfFile = resolvePdfFile();
         if (pdfFile === null) {
             alert(LABELS.alert.noTemplate);
+            return;
+        }
+        /* 「その他」のように、入力が空だと適用まで空になる書き方がある / Some wordings leave 適用 empty when the field is blank */
+        if (trimAndStripBom(buildApplicationText()) === "") {
+            alert(LABELS.alert.emptyApplication);
+            if (applicationHeading && fieldInputs[applicationHeading]) fieldInputs[applicationHeading].active = true;
             return;
         }
         /* 閉じたあとの入力欄は参照できなくなりうるので、必要な値はすべて先に取り出す / Read every field before closing */

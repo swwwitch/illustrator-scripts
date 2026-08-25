@@ -99,7 +99,6 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
     var DEFAULT_GLYPH_BOUNDS         = true;  /* 字形の境界に整列 / align to glyph bounds */
     var DEFAULT_CHANGE_JUSTIFICATION = true;  /* 行揃えを変更 / change justification */
     var DEFAULT_MARGIN               = 0;     /* マージン欄の初期値（定規の単位）/ initial margin, in ruler units */
-    var DEFAULT_USE_MARGIN           = false; /* マージンを使う / use the margin */
     var DEFAULT_KEEP_GUIDE           = false; /* ガイドを保持（閉じても残す）/ keep the guide when the palette closes */
 
     /* マージンのガイドを作るレイヤー名（他のガイド系スクリプトと共通）
@@ -131,6 +130,8 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
     var COLUMN_SPACING  = 8;    /* マージンパネルとオプションパネルの間隔 / gap between the two columns */
     var FIELD_CHARS     = 3;    /* マージン入力欄の文字数 / width of the margin field */
     var LABEL_FIELD_SPACING = 4; /* 入力欄と単位ラベルの間隔（既定は広すぎる）/ gap between the field and its unit label */
+    var FIELD_INDENT    = 18;   /* 入力欄の字下げ（チェックボックスのラベルに頭をそろえる）/ indent of the margin field */
+    var FIELD_BOTTOM_GAP = 5;   /* 入力欄の下の余白（［ガイドを保持］との間を空ける）/ gap below the margin field */
     var UNIT_LABEL_WIDTH = 34;  /* 単位ラベルの幅（単位が変わっても幅が動かないよう固定）/ fixed width of the unit label */
     var STATUS_WIDTH    = 260;  /* 状況表示の幅（中身でパレット幅が変わらないよう固定）/ fixed width of the status line */
     var OPTION_SPACING  = 4;    /* オプションのチェックボックスどうしの間隔 / gap between the option checkboxes */
@@ -170,7 +171,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
             title: { ja: "アートボードに整列", en: "Align to Artboard" }
         },
         panel: {
-            margin:  { ja: "マージン", en: "Margin" },
+            guide:   { ja: "ガイド", en: "Guide" },
             options: { ja: "オプション", en: "Options" }
         },
         tooltip: {
@@ -182,7 +183,6 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
             alignCenterV:   { ja: "垂直方向中央に整列", en: "Vertical Align Center" },
             alignBottom:    { ja: "垂直方向下に整列", en: "Vertical Align Bottom" },
             margin: { ja: "アートボードの端から空ける距離", en: "Distance to keep from the artboard edge" },
-            useMargin: { ja: "マージンを使う", en: "Use the margin" },
             keepGuide: {
                 ja: "パレットを閉じてもガイドを残す（OFFのときは閉じるときに削除）",
                 en: "Leave the guide in place when the palette closes (deleted on close when off)"
@@ -218,6 +218,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         },
         status: {
             done:           { ja: "整列しました。", en: "Aligned." },
+            doneJustified:  { ja: "整列し、行揃えを{0}に変更しました。", en: "Aligned; justification set to {0}." },
             noDocument:     { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noSelection:    { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
             multipleLayers: { ja: "レイヤーをまたぐ選択は整列できません。", en: "Cannot align a selection spanning layers." },
@@ -229,7 +230,13 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
                 en: "Set Align To: Artboard."
             },
             noResponse:     { ja: "Illustrator から応答がありません。", en: "No response from Illustrator." },
-            genericError:   { ja: "エラー：", en: "Error: " }
+            genericError:   { ja: "エラー：", en: "Error: " },
+            /* doneJustified の {0} に入れる行揃えの名前 / Names substituted into doneJustified */
+            justification: {
+                LEFT:   { ja: "左揃え",   en: "Left" },
+                CENTER: { ja: "中央揃え", en: "Center" },
+                RIGHT:  { ja: "右揃え",   en: "Right" }
+            }
         }
     };
 
@@ -612,15 +619,11 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
        The margin field, its unit label, and the guide checkbox */
     var marginField = null;
     var marginUnitText = null;
-    var useMarginCheckbox = null;
     var showGuideCheckbox = null;
     var keepGuideCheckbox = null;
     /* パレットを閉じてもガイドを残すか。閉じる処理でコントロールを触らずに済むよう値を控えておく
        Whether to keep the guide on close; mirrored so teardown never has to read a control */
     var keepGuideOnClose = DEFAULT_KEEP_GUIDE;
-    /* 直前のマージンが0だったか。0以外になった瞬間だけガイドを自動でONにする
-       Whether the margin was 0 last time; the guide is auto-checked only on the 0 to non-zero step */
-    var marginWasZero = true;
     /* 現在の定規単位（パレットへフォーカスが来るたびに取り直す）/ The current ruler unit, re-read on focus */
     var currentUnitInfo = FALLBACK_UNIT_INFO;
     /* 状況表示の参照 / The status line */
@@ -714,21 +717,23 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
      * @returns {void}
      */
     function addMarginPanel(parentRow) {
-        var marginPanel = parentRow.add("panel", undefined, getLabel("panel", "margin"));
+        var marginPanel = parentRow.add("panel", undefined, getLabel("panel", "guide"));
         marginPanel.orientation = "column";
         marginPanel.alignment = ["fill", "fill"];
         marginPanel.alignChildren = ["left", "top"];
         marginPanel.margins = PANEL_MARGINS;
         marginPanel.spacing = OPTION_SPACING;
 
+        showGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "showGuide"));
+        showGuideCheckbox.helpTip = getLabel("tooltip", "showGuide");
+        showGuideCheckbox.value = false;
+        showGuideCheckbox.onClick = function() { syncGuideControls(); runExclusive(refreshMarginGuide); };
+
         var fieldRow = marginPanel.add("group");
         setupRow(fieldRow, "left", LABEL_FIELD_SPACING);
-        /* ラベルなしのチェックボックス。意味は helpTip で補う（□［　］pt の並びにするため）
-           An unlabelled checkbox so the row reads as the field itself; the helpTip carries its meaning */
-        useMarginCheckbox = fieldRow.add("checkbox", undefined, "");
-        useMarginCheckbox.helpTip = getLabel("tooltip", "useMargin");
-        useMarginCheckbox.value = DEFAULT_USE_MARGIN;
-        useMarginCheckbox.onClick = function() { syncMarginControls(); runExclusive(refreshMarginGuide); };
+        /* 上下のチェックボックスのラベルに頭をそろえ、下は少し空ける
+           Indented to line up with the checkbox labels, with a little room below */
+        fieldRow.margins = [FIELD_INDENT, 0, 0, FIELD_BOTTOM_GAP];
         marginField = fieldRow.add("edittext", undefined, String(DEFAULT_MARGIN));
         marginField.characters = FIELD_CHARS;
         marginField.helpTip = getLabel("tooltip", "margin");
@@ -738,54 +743,28 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         marginUnitText = fieldRow.add("statictext", undefined, currentUnitInfo.label);
         marginUnitText.preferredSize.width = UNIT_LABEL_WIDTH;
         marginUnitText.maximumSize.width = UNIT_LABEL_WIDTH;
-
-        showGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "showGuide"));
-        showGuideCheckbox.helpTip = getLabel("tooltip", "showGuide");
-        showGuideCheckbox.value = false;
-        showGuideCheckbox.onClick = function() { syncMarginControls(); runExclusive(refreshMarginGuide); };
+        /* 確定（Enter・フォーカス移動）でガイドを描き直す
+           入力途中で毎回描き直すとそのつど委譲が走るため、描き直しは onChange だけにする
+           Only redraw the guide when the field commits, not on every keystroke */
+        marginField.onChange = function() { runExclusive(refreshMarginGuide); };
 
         keepGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "keepGuide"));
         keepGuideCheckbox.helpTip = getLabel("tooltip", "keepGuide");
         keepGuideCheckbox.value = DEFAULT_KEEP_GUIDE;
-        keepGuideCheckbox.onClick = function() { syncMarginControls(); };
+        keepGuideCheckbox.onClick = function() { syncGuideControls(); };
 
-        /* 入力のたびにディムと自動ONを見直し、確定（Enter・フォーカス移動）でガイドを描き直す
-           入力途中で毎回描き直すとそのつど委譲が走るため、描き直しは onChange だけにする
-           Re-check the dimming on every keystroke, but only redraw the guide when the field commits */
-        marginField.onChanging = function() { syncMarginControls(); };
-        marginField.onChange = function() { syncMarginControls(); runExclusive(refreshMarginGuide); };
-        syncMarginControls();
+        syncGuideControls();
     }
 
     /**
-     * ［マージンを使う］の状態に合わせて入力欄と［ガイドを表示］を更新する
-     * マージンを使わない、または値が0のときは［ガイドを表示］をディムしてOFF、
-     * 実効マージンが0以外になった瞬間だけ自動でONにする（その後の手動OFFは尊重する）
+     * ［ガイドを表示］の状態に合わせて［ガイドを保持］を更新する
+     * ガイドを出していないときは保持しようがないのでディムする（設定は残したいので値は落とさない）
      * @returns {void}
      */
-    function syncMarginControls() {
-        if (marginField === null || useMarginCheckbox === null || showGuideCheckbox === null) { return; }
-        var useMargin = useMarginCheckbox.value === true;
-        marginField.enabled = useMargin;
-        if (marginUnitText !== null) { marginUnitText.enabled = useMargin; }
-
-        var marginValue = Number(marginField.text);
-        var hasMargin = useMargin && !isNaN(marginValue) && marginValue > 0;
-        showGuideCheckbox.enabled = hasMargin;
-        if (!hasMargin) {
-            showGuideCheckbox.value = false;
-        } else if (marginWasZero) {
-            showGuideCheckbox.value = true;
-        }
-        marginWasZero = !hasMargin;
-
-        if (keepGuideCheckbox !== null) {
-            /* ガイドを出していないときは保持しようがないのでディムする。
-               設定そのものは残したいので、値は落とさない
-               Dimmed while no guide is shown, but the value is kept so the setting survives */
-            keepGuideCheckbox.enabled = showGuideCheckbox.enabled && showGuideCheckbox.value === true;
-            keepGuideOnClose = keepGuideCheckbox.value === true;
-        }
+    function syncGuideControls() {
+        if (showGuideCheckbox === null || keepGuideCheckbox === null) { return; }
+        keepGuideCheckbox.enabled = showGuideCheckbox.value === true;
+        keepGuideOnClose = keepGuideCheckbox.value === true;
     }
 
     /**
@@ -914,7 +893,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
        - パレット側の変数は参照しない。必要な値は options で受け取る */
 
     function btAlignSelection(options) {
-        var doc, selectedItems, needsGroup, previousPreferences, previousJustification;
+        var doc, selectedItems, needsGroup, previousPreferences, previousJustification, changedJustification;
         if (app.documents.length === 0) { return "NODOC"; }
         doc = app.activeDocument;
         selectedItems = doc.selection;
@@ -927,6 +906,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         btActivateArtboardForSelection(doc, selectedItems);
         previousPreferences = btReadPreferences();
         previousJustification = null;
+        changedJustification = null;
         try {
             btWritePreferences(options.previewBounds === true, options.glyphBounds === true, options.glyphBounds === true);
             /* 書いた環境設定を整列コマンドに拾わせるため、いったん反映させる
@@ -934,6 +914,10 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
             app.redraw();
             if (options.changeJustification && options.justification && btIsSingleLineTextFrame(selectedItems)) {
                 previousJustification = btSetJustification(selectedItems[0], options.justification);
+                /* もとから同じ行揃えだったときは「変更した」と言わない */
+                if (previousJustification !== null && previousJustification !== btJustificationByName(options.justification)) {
+                    changedJustification = options.justification;
+                }
             }
             if (needsGroup) { app.executeMenuCommand("group"); }
             if (!btRunAlignCommands(doc, options)) {
@@ -959,6 +943,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         } catch (guideError) {
             return "ERR:" + guideError;
         }
+        if (changedJustification !== null) { return "OK:" + changedJustification; }
         return "OK";
     }
 
@@ -1304,12 +1289,17 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         return selectedItems[0].lines.length === 1;
     }
 
+    function btJustificationByName(justificationName) {
+        if (justificationName === "LEFT") { return Justification.LEFT; }
+        if (justificationName === "CENTER") { return Justification.CENTER; }
+        if (justificationName === "RIGHT") { return Justification.RIGHT; }
+        return null;
+    }
+
     function btSetJustification(textFrame, justificationName) {
         var justification, previousJustification;
-        if (justificationName === "LEFT") { justification = Justification.LEFT; }
-        else if (justificationName === "CENTER") { justification = Justification.CENTER; }
-        else if (justificationName === "RIGHT") { justification = Justification.RIGHT; }
-        else { return null; }
+        justification = btJustificationByName(justificationName);
+        if (justification === null) { return null; }
         previousJustification = textFrame.textRange.paragraphAttributes.justification;
         textFrame.textRange.paragraphAttributes.justification = justification;
         return previousJustification;
@@ -1321,7 +1311,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         btUpdateMarginGuide, btDrawMarginGuide, btGetGuideLayer, btRemoveGuidesByName,
         btApplyGlyphCorrection, btAlignDeltaX, btAlignDeltaY, btHasTextFrame,
         btGetGlyphAwareBounds, btGetMeasureBounds, btGetOutlineBounds, btSafeRemove,
-        btGetPaletteState, btGetSelectionKind,
+        btGetPaletteState, btGetSelectionKind, btJustificationByName,
         btNudgeSelection, btReadPreferences, btWritePreferences, btPromoteTextRange,
         btGetLayerKey, btSpansMultipleLayers,
         btGetSelectionBounds, btGetOverlapArea,
@@ -1338,7 +1328,8 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
     /* 実行中フラグ（連打による多重実行を防ぐ）/ Guard against double execution from rapid clicks */
     var isBusy = false;
 
-    /* ワーカーの戻り値マーカーと status ラベルの対応 / Worker markers mapped to status labels */
+    /* ワーカーの戻り値マーカーと status ラベルの対応（「OK:CENTER」は showWorkerResult で組み立てる）
+       Worker markers mapped to status labels; "OK:CENTER" is composed in showWorkerResult */
     var STATUS_BY_MARKER = {
         OK:         "done",
         NODOC:      "noDocument",
@@ -1439,9 +1430,6 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
      */
     function readMarginPt() {
         if (marginField === null) { return 0; }
-        /* ［マージンを使う］がOFFのときは値を残したまま0として扱う
-           When "use the margin" is off the entered value is kept but treated as 0 */
-        if (useMarginCheckbox !== null && useMarginCheckbox.value !== true) { return 0; }
         var marginValue = Number(marginField.text);
         if (isNaN(marginValue) || marginValue < 0) { marginValue = 0; }
         /* 手入力が丸められたときは欄の表示も実際に使う値にそろえる / Show the value actually used */
@@ -1507,7 +1495,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
      */
     function buildGuideOptions() {
         return {
-            showGuide:      showGuideCheckbox !== null && showGuideCheckbox.enabled === true && showGuideCheckbox.value === true,
+            showGuide:      showGuideCheckbox !== null && showGuideCheckbox.value === true,
             guideMarginPt:  readMarginPt(),
             guideName:      GUIDE_NAME,
             guideLayerName: GUIDE_LAYER_NAME
@@ -1581,6 +1569,15 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         }
         if (workerResult.indexOf("ERR:") === 0) {
             setStatus(getLabel("status", "genericError") + workerResult.substring(4));
+            return;
+        }
+        /* 「OK:CENTER」のように行揃えを変えたときは、変更後の行揃えも知らせる
+           An "OK:CENTER" marker also reports the justification that was applied */
+        if (workerResult.indexOf("OK:") === 0) {
+            var justificationLabel = getLabel("status", "justification", workerResult.substring(3));
+            setStatus(justificationLabel ?
+                getLabel("status", "doneJustified").replace("{0}", justificationLabel) :
+                getLabel("status", "done"));
             return;
         }
         var statusKey = STATUS_BY_MARKER[workerResult];
