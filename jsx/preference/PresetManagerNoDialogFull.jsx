@@ -2,18 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプト名 / Script Name: PresetManagerNoDialogFull.jsx
- * 説明 / Description:
- *   Illustrator の各種環境設定を一括で適用します。ダイアログは表示しません。
- *   Apply a curated set of Illustrator preferences at once. No dialogs are shown.
- *
- * 注意 / Notes:
- *   - バージョン差異により一部キーは無視される場合があります。
- *   - Some preference keys may not exist depending on your Illustrator version; such keys are safely ignored.
- *
- * 更新履歴 / Update History:
- *   - v1.0 (2025-08-18): 初期バージョン / Initial release
- */
+
+### 概要
+
+Illustratorの各種環境設定を一括で適用します。ダイアログは表示しません。
+
+詳細は README を参照してください。
+
+### Overview
+
+Applies a curated set of Illustrator preferences at once. No dialogs are shown.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PresetManagerNoDialogFull";    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-18";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerNoDialogFull.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerNoDialogFull.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 with(app.preferences) {
 
@@ -156,7 +175,6 @@ with(app.preferences) {
         setIntegerPreference("hitShapeOnPreview", 1); // 0がON（true）、1がOFF（false）
         // 現在の「テキストをパスに制限」
         setIntegerPreference("hitTypeShapeOnPreview", 1); //
-
 
     }
 

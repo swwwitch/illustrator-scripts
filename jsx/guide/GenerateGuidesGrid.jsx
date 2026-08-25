@@ -2,34 +2,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-GenerateGuidesGrid.jsx
 
 ### 概要
 
-- Illustrator のアートボード、または選択オブジェクトの外接矩形を指定した行数・列数に分割し、グリッド用のガイドを生成するスクリプトです。
-- セルの長方形化（不透明度はスライダーで調整・初期15%）、角丸（ライブエフェクト）、各セルの左右分割ガイド、中心点の表示、プリセット書き出しに対応しています。
-- 対象（選択オブジェクト／アートボード／すべてのアートボード）をパネルで切り替えられ、選択オブジェクト基準のときは元オブジェクトの処理（削除する／そのまま／ガイド化）を選べます。
-- 入力変更（キーボード・矢印キー・チェックボックス・スライダー）でプレビューが即時更新され、Undo で巻き戻してから再描画するため履歴を汚しにくい構成です。
-- 主要なコントロールにはツールチップ（操作説明）を表示します。
+アートボードまたは選択オブジェクトの外接矩形を、指定した行数・列数に分割してグリッド用のガイドを生成します。
+セルの長方形化、角丸、中心点の表示、プリセットの書き出しにも対応します。
 
-### 主な機能
+詳細は README を参照してください。
 
-- 行数・列数、行間・列間ガター、上下左右マージン、ガイドの伸張距離を設定
-- ガター連動（行間に連動）／マージン連動（上の値を左右下に反映、上下左右が異なるプリセット選択時は自動でOFF）
-- セルの長方形化／不透明度スライダー（0〜100%）／角丸（ライブエフェクト）／中心点の表示
-- 各セルを左右分割（各セルの左右中央に縦ガイドを作成）
-- ガイド描画ON/OFF（OFF時は伸張設定を連動して無効化）／既存ガイドの削除
-- アウトライン⇔プレビュー表示の切り替えボタン
-- 現在設定をプリセットとして書き出し
-- 単一／すべてのアートボードに適用（単一時は「すべてのアートボード」を無効化）
-- 選択オブジェクトの外接矩形を対象にグリッド生成（複数選択・任意形状対応）
-- 元のオブジェクトを削除する／そのまま維持する／ガイド化する処理
-- マージン・ガター過大時は描画をスキップして不正な長方形生成を防止
-- 日本語／英語インターフェース自動切替（ツールチップも日英対応）
+### Overview
 
-### オリジナル、謝辞
+Divides the artboard, or the bounding box of the selection, into the specified rows and columns and generates grid guides.
+It can also draw the cells as rectangles, round their corners, mark center points, and export presets.
 
-スガサワ君β / https://note.com/sgswkn/n/nee8c3ec1a14c
+See the README for details.
 
 */
 
@@ -39,8 +25,14 @@ GenerateGuidesGrid.jsx
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "20250424";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "20260612";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-12";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenerateGuidesGrid.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGuidesGrid.md
+var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

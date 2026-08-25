@@ -1,37 +1,21 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/*****
-### スクリプト名 / Script name:
-AutoFitTextFrame
+/*
 
-### 更新日：
-20260304
+### 概要
 
-### 概要 / Description:
-処理（文字サイズ）：
-Font size modes:
-  ・文字サイズ：あふれ処理 / Shrink to fit：文字あふれ（オーバーセット）がなくなるまで文字サイズを縮小
-  ・文字サイズ：ぴったり / Maximize fit：いったん文字サイズを増やしてオーバーセットを発生させ、その後「あふれ処理」を実行
-    -> 余白があっても「最大であふれないサイズ」まで詰める
-  ・両方ON / Both：ぴったり → あふれ処理 の順で実行
+テキストフレームの大きさを、中身のテキストに合わせて自動調整します。
 
-処理（エリア内文字）：
-AreaText mode:
-  ・エリア内文字の高さ調整 / Adjust AreaText height：ONのとき、文字サイズの処理は無効になり、オプションを選択して実行
+詳細は README を参照してください。
 
-オプション（※「エリア内文字の高さ調整」ONのときのみ有効）：
-Options (enabled only when “Adjust AreaText height” is ON):
-  ・高さを調整 / Adjust height：自動サイズ調整を一時的にON→OFFにして、必要な分だけ高さを拡張して固定
-  ・自動サイズ調整 / Auto size：自動サイズ調整をONにします（拡張のみ・OFFには戻しません）
+### Overview
 
-データセット使用時、最初のデータセットで元の値（文字サイズ/高さ）をタグに記録し、
-各データセット適用時に一度リセットしてから処理します。
-最終データセット処理後にタグを削除します。
+Resizes a text frame automatically to fit the text it contains.
 
-※ パス上文字は従来通り「表示行に収まっている文字数」で判定。
-※ エリア内文字は可能な場合 `overflows`（Illustratorのオーバーフロー判定）を優先して判定します。
-*****/
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info
@@ -41,6 +25,11 @@ var SCRIPT_VERSION  = "v2.3.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoFitTextFrame.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoFitTextFrame.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -143,7 +132,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     if (!entry) return key;
     return entry[lang] || entry["en"] || key;
   }
-
 
   var DealWithOversetText = (function () {
 
@@ -728,7 +716,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
     return { run: run };
   })();
-
 
   var _dialogLocation = null;
 

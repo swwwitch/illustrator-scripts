@@ -3,77 +3,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-AdjustTextScaleBaseline.jsx
+選択したテキストの文字比率とベースラインシフトを調整します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustTextScaleBaseline.md
+### Overview
 
-### 概要：
+Adjusts the character scale and the baseline shift of the selected text.
 
-- 更新日：20260203
-- Illustrator上で選択文字のフォントサイズ、拡大率、ベースラインシフト、カーニング、トラッキングを調整
-- ダイアログボックスで数値入力し、即時プレビューと適用が可能
-
-### 主な機能：
-
-- 見かけのサイズとフォントサイズの変換
-- 水平・垂直比率を個別調整可能
-- ベースラインシフト、カーニング、トラッキングの指定
-- OKで確定、リセットで初期状態に復元
-
-### 更新履歴：
-
-- v1.0 (20250723) : 初期バージョン
-- v1.1 (20250724) : ベースラインシフトとカーニング対応
-- v1.2 (20250725) : プレビュー反映の強化、100%時の見かけディム処理、shiftキー刻み修正
-- v1.3 (20250726) : トラッキング機能追加、UI微調整
-- v1.4 (20260203) : 更新履歴の日付整合、ベースライン適用条件の修正、軽微なクリーンアップ
-*/
-
-/*
-
-### Script Name:
-
-AdjustTextScaleBaseline.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustTextScaleBaseline.md
-
-### Description:
-
-- Last Updated: 2026-02-03
-- Adjust font size, horizontal/vertical scale, baseline shift, kerning, and tracking of selected text in Illustrator
-- Realtime preview and numeric input via dialog box
-
-### Main Features:
-
-- Convert between apparent size and font size
-- Individually adjust horizontal/vertical scale
-- Modify baseline shift, kerning, and tracking
-- Confirm with OK, restore with Reset
-
-### Processing Flow:
-
-1. Build UI and define labels (ja/en)
-2. Get initial state of selected text
-3. Apply changes in realtime on input
-4. Confirm with OK, cancel or reset to revert
-
-### Change Log:
-
-- v1.0 (2025-07-23): Initial release
-- v1.1 (2025-07-24): Added baseline shift and kerning
-- v1.2 (2025-07-25): Enhanced preview handling, dim apparent size at 100% scale, fixed shift key increments
-- v1.3 (2025-07-26): Added tracking feature, UI adjustments
-- v1.4 (2026-02-03): Normalized changelog dates, fixed baseline target condition, minor cleanup
+See the README for details.
 
 */
 
-var SCRIPT_VERSION = "v1.4";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AdjustTextScaleBaseline";      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-23";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustTextScaleBaseline.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustTextScaleBaseline.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // UI要素をまとめるオブジェクト / UI element references
 var uiElements = {

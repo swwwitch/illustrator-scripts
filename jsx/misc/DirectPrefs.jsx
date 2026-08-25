@@ -6,13 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-環境設定の「角度の制限」（Shiftキーを押したときの角度）と「キー増加」（矢印キーの移動量）の変更、
-およびガイド・グリッドの表示やロックの切り替えをパレットから行うスクリプトです。詳細はREADMEを参照。
+環境設定の「角度の制限」と「キー増加」の変更、およびガイド・グリッドの表示やロックの切り替えをパレットから行います。
+
+詳細は README を参照してください。
 
 ### Overview
 
-A palette for changing the "constrain angle" preference (the angle used when the Shift key is held)
-and the keyboard increment (the arrow-key step), and for toggling guide/grid visibility and locking.
+A palette for changing the constrain angle and the keyboard increment, and for toggling the display and lock state of guides and the grid.
+
 See the README for details.
 
 */
@@ -26,12 +27,13 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefs.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefs.md
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ローカライズ / Localization
-// =========================================
 
 /* 言語判定 / Detect language */
 function getCurrentLang() {

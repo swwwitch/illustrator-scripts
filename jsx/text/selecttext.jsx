@@ -2,19 +2,19 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要 / Overview
-現在のアートボードにかかっているテキスト、またはドキュメント全体のテキストを一覧表示し、
-ダイアログ内に表示しているテキストをまとめてクリップボードにコピーします。
-「ドキュメント全体」は、ドキュメント内のすべてのテキストフレームを対象にします。
-「アートボード外を無視」を有効にすると、どのアートボードにもかかっていないテキストを除外します。
-重複を有効にすると、前後の空白、連続する空白、全角スペース、改行コード差をならしたうえで、同一内容のテキストは1つにまとめて表示します。
-空テキストは一覧に含めません。UIとメッセージは日本語 / 英語に対応します。
-Lists text overlapping the current artboard or across the entire document,
-and copies all text shown in the dialog to the clipboard.
-"Document" scans all text frames in the document.
-When "Ignore outside artboards" is enabled, text not overlapping any artboard is excluded.
-When duplicate filtering is enabled, line endings, leading / trailing whitespace, repeated whitespace, and full-width spaces are normalized before duplicate checks.
-Empty text is excluded. Supports Japanese / English UI and messages.
+
+### 概要
+
+現在のアートボードにかかっているテキスト、またはドキュメント全体のテキストを一覧表示し、まとめてクリップボードにコピーします。
+
+詳細は README を参照してください。
+
+### Overview
+
+Lists the text on the current artboard, or in the whole document, and copies it all to the clipboard.
+
+See the README for details.
+
 */
 
 // =========================================
@@ -23,8 +23,13 @@ Empty text is excluded. Supports Japanese / English UI and messages.
 var SCRIPT_NAME     = "selecttext";                   /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-03-31";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-03-31";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/selecttext.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/selecttext.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

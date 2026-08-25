@@ -2,78 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
 
 /*
-このスクリプトは、Illustrator ドキュメント内の数値を検出し、指定ルールに基づいて桁区切りのカンマを付与します。
-郵便番号・電話番号・MAC アドレス・クレジットカード番号などは除外対象とし、
-必要に応じて2段階ダイアログで対象確認を行えます。
-ポイント文字・エリア内文字・パス上文字・グループやクリップグループ内のテキストにも対応します。
 
-### スクリプト名：
+### 概要
 
-数値に桁区切りカンマを付与（除外条件付き）
+ドキュメント内の数値を検出し、指定したルールに基づいて桁区切りのカンマを付与します。
+郵便番号・電話番号・MACアドレス・クレジットカード番号などは除外します。
 
-### GitHub：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/formatNumberWithCommas.jsx
+### Overview
 
-### 概要：
+Finds numbers in the document and adds thousands separators according to the rules you set.
+Postal codes, phone numbers, MAC addresses and credit-card numbers are excluded.
 
-- Illustrator ドキュメント内の数字に桁区切りのカンマを自動で付与
-- 除外条件（郵便番号、電話番号、MACアドレスなど）を設定可能
-
-### 主な機能：
-
-- 選択範囲または全ドキュメントを対象に処理
-- 除外条件のカスタマイズ（郵便番号／西暦／電話番号／記号付き数値など）
-- 間違ったカンマ位置の修正
-- プレビュー確認ダイアログ
-
-### 処理の流れ：
-
-1. 対象範囲のテキストを取得
-2. 除外条件に該当する数値をフィルタリング
-3. カンマ付与対象のプレビューを表示
-4. 確定後にテキストを置換
-
-### 更新履歴：
-
-- v1.0 (20250812) : 初期バージョン
-
----
-
-### Script Name:
-
-Add Thousand Separators to Numbers (with Exclusions)
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/formatNumberWithCommas.jsx
-
-### Overview:
-
-- Automatically add thousand separators to numbers in Illustrator documents
-- Configurable exclusion rules (postal codes, phone numbers, MAC addresses, etc.)
-
-### Main Features:
-
-- Process selected objects or the entire document
-- Customizable exclusion conditions (postal code / year / phone number / symbols)
-- Fix incorrectly placed commas
-- Preview confirmation dialog
-
-### Process Flow:
-
-1. Retrieve text from the target range
-2. Filter out numbers matching exclusion conditions
-3. Show preview list of numbers to be processed
-4. Replace text after confirmation
-
-### Update History:
-
-- v1.0 (20250812) : Initial version
+See the README for details.
 
 */
 
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "formatNumberWithCommas";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-12";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-12";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/formatNumberWithCommas.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/formatNumberWithCommas.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -800,8 +761,6 @@ function main() {
         }
         // Select all by default
         for (var si = 0; si < list.items.length; si++) list.items[si].selected = true;
-
-  
 
         // Add onChange event to toggle check mark in first column
         list.onChange = function() {

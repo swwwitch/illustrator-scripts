@@ -1,22 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.3.4"; // バージョン
-
 /*
-概要 / Overview
-JP: 2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。完全に内側に収まるタイルのみ残し、元の2オブジェクトは残します。単位はIllustratorのルーラー設定に追従します。オプション「シンボル化」はデフォルトONです（プレビューは従来どおりダイレクト複製を使用）。
-EN: Select two objects; the larger becomes the container and the smaller the tile. The script fills the container’s bounding box with an even grid of tile duplicates, keeping only those fully inside (no mask). Original two items remain. Spacing units follow the current ruler settings. The “Symbolize” option is ON by default (preview still uses direct duplicates).
 
-- 2025-10-30 v1.3.4: 「基準」X/Y をタイル数の計算に反映（指定がある軸はその枚数を優先、未指定軸は従来ロジック）。 / Basis X/Y now control tile counts: when provided, use as counts; the other axis uses the previous calculation.
-- 2025-10-30 v1.3.3: 「基準」の X / Y をテキストフィールド化（UIのみ、挙動は従来どおり）。 / Changed "Basis" X / Y from radio buttons to text fields (UI only; behavior unchanged).
-- 2025-10-30 v1.3.2: 「基準」パネル（X / Y）を「間隔」の上に追加（UIのみ、挙動は従来どおり）。 / Added a new "Basis" panel (X / Y) above "Spacing" (UI only; behavior unchanged).
-- 2025-10-30 v1.3.1: 「シンボル化して複製」→「シンボル化」（UIラベル変更）／デフォルトON。 / Renamed option label from "Duplicate as Symbol" to "Symbolize" and set default to ON.
-- 2025-10-29 v1.3.0: 「シンボル化して複製」オプションを追加（プレビューは従来どおり） / Added "Duplicate as Symbol" option (preview still uses direct duplicates).
-- 2025-10-29 v1.2.0: UIラベル「レンガ」→「レンガ状」に変更（機能は不変） / Changed UI label from "レンガ" to "レンガ状" (no functional change).
-- 2025-10-29 v1.1.0: スケールUIとロジックを削除 / Removed Scale UI and logic.
-- 2025-10-26 v1.0.0: 初版 / Initial release.
+### 概要
+
+2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。
+完全に内側に収まるタイルのみを残し、元の2オブジェクトはそのまま残します。
+
+詳細は README を参照してください。
+
+### Overview
+
+With two objects selected, treats the larger as the container and the smaller as the tile, then fills the container's bounding box with an even grid of tiles.
+Only the tiles that fit entirely inside are kept, and both originals are left in place.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "fillinger-pattern";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-10-30";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/fillinger-pattern.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/fillinger-pattern.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -333,7 +351,6 @@ function main() {
         // Common label width & right align for rows
         var labelWidth = 60; // px
 
-
         // --- Basis panel: X / Y text fields (UI only for now) ---
         var pnlBasis = dlg.add('panel', undefined, '基準');
         pnlBasis.alignment = ['fill', 'top'];
@@ -452,7 +469,6 @@ function main() {
 
         // Arrow-key increments for margin as well
         changeValueByArrowKey(marginEdit, true); // マージンは負OK
-
 
         // Brick layout toggle (grouped & horizontally centered)
         var rowBWrap = dlg.add('group');

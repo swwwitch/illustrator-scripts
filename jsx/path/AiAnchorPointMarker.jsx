@@ -8,18 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクトのすべてのアンカーポイントに、マーカー（自動生成の正方形／最前面オブジェクトの複製／シンボルのインスタンス）を配置します。
 ダイアログを閉じずに、ライブプレビューで仕上がりを確かめながら設定を調整できます。
 
-詳しい仕様と注意事項は README を参照してください。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Places a marker — an auto-generated square, a duplicate of the frontmost object, or a symbol instance — at every anchor point of the selection.
-Settings can be adjusted with a live preview, without closing the dialog.
+Places a marker on every anchor point of the selected objects — a generated square, a copy of the frontmost object, or a symbol instance.
+The settings are adjusted with a live preview, without closing the dialog.
 
-See the README for the full specification and notes.
+See the README for details.
 
 */
 

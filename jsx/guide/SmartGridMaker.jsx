@@ -5,105 +5,17 @@
 
 ### 概要
 
-長方形の選択、またはアートボードを基準に、囲み罫とグリッドを一括生成するスクリプトです。
-外側エリア（角丸・辺の伸縮・線端）、タイトルエリア、内側エリアのオフセットと分割、
-塗り・分割線・線種、裁ち落とし対応のフレームを、プレビューを見ながら1つのダイアログで設定します。
+長方形の選択、またはアートボードを基準に、囲み罫とグリッドを一括生成します。
+外側エリア・タイトルエリア・内側エリアの分割や線種、裁ち落とし対応のフレームを、プレビューを見ながら1つのダイアログで設定できます。
 
-### 主な機能
-
-- 基準の選択
-  - 長方形を選択して実行、または選択なしでアートボード基準
-  - アートボード基準時はマージン指定（上下左右・連動）
-- ダイアログは4タブ構成
-  - ［マージン］（マージン／フレーム）／［外側エリア］（外側エリア／タイトルエリア）
-    ／［内側エリア］／［画面表示］
-- 外側エリア
-  - 外枠を残す／角丸／辺の伸縮／線端（なし・丸型・突出）
-  - 角丸と辺の伸縮は排他。一方をONにすると他方が自動でOFFになります
-  - 線端は4辺に分解するとき（外枠を残す＋辺の伸縮≠0）だけ指定できます
-- タイトルエリア
-  - 位置（上・下・左・右）、幅／高さ、塗り、線（仕切り線）、辺の伸縮
-  - 角丸は外側エリアの［角丸］値を、位置に応じた2角だけに適用
-  - 有効にしたとき、幅／高さの初期値は外側エリア高の1/5
-- 内側エリア
-  - オフセット（上下左右・連動）、列数／行数、間隔（ガター）、塗り、分割線
-  - 線種（実線・点線・ドット点線）
-  - 分割線は列または行が2以上のときだけ指定できます
-- フレーム
-  - 幅・裁ち落とし（3mm）・角丸。アートボード基準時のみ
-- 画面表示タブ
-  - ズームとパン（Option/Altドラッグで1/10の微調整）
-  - 表示コマンド（アートボード全体表示・100%表示・全アートボード全体表示）
-- 入力欄は↑↓キーで増減（Shiftで±10かつ10の倍数にスナップ、Option/Altで±0.1）
-- プレビュー付きダイアログ
-- 日英ローカライズ対応UI
-
-### 仕様・注意
-
-- 数値はIllustratorの定規単位（rulerType）で入力します。
-- 長方形を選択して開始した場合、［マージン］タブ全体（マージン・フレーム）が非表示になります。
-- 裁ち落としはフレームにのみ適用し、基準矩形には適用しません。
-- ［辺の伸縮］は外側エリア・タイトルエリアとも同じ向きです（＋で長く／−で短く）。
-  タイトル側は内部で符号を反転し、仕切り線の「両端の詰め量」として扱っています。
-- 辺の伸縮が0以外のときは外枠を4辺の直線に分解し、元の長方形（アートボード基準の一時矩形を含む）は削除します。
-- 内側エリアの［塗り］とフレームの［裁ち落とし］は手動操作を優先し、自動ONを抑制します。
-- 実行後は選択を解除します。生成物に付けた内部タグはnoteにのみ残し、
-  レイヤーパネルに出る名前はクリアします。
-- ダイアログの値はIllustratorの起動中のみ保持し、再起動でリセットされます。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Builds a frame and grid in one pass, based on a selected rectangle or on the artboard.
-Outer area (rounded corners, edge scale, line caps), title area, inner area offsets and
-divisions, fills, dividers, line types and a bleed-aware frame are all configured in a
-single dialog with preview.
+Generates an enclosing rule and a grid from a selected rectangle, or from the artboard.
+The outer area, title area, inner-area divisions, stroke styles, and a bleed-aware frame are all set in one dialog with a live preview.
 
-### Key features
-
-- Base object
-  - Start from a selected rectangle, or from the artboard with nothing selected
-  - Margins (top / bottom / left / right, with link) when based on the artboard
-- Four tabs
-  - Margin (margin / frame), Outer Area (outer / title), Inner Area, Display
-- Outer area
-  - Keep outer frame / rounded corners / edge scale / line caps (butt, round, project)
-  - The radius and the edge scale are mutually exclusive: enabling one turns the other off
-  - Line caps apply only while the outline is split into four lines
-    (keep outer frame plus a non-zero edge scale)
-- Title area
-  - Position (top, bottom, left, right), size, fill, divider line, edge scale
-  - Rounded corners reuse the outer area radius on the two matching corners
-  - When enabled, the size defaults to one fifth of the outer area height
-- Inner area
-  - Offsets (top, bottom, left, right, with link), columns and rows, gutters, fill, dividers
-  - Line types (solid, dash, dots)
-  - Dividers are available only with two or more columns or rows
-- Frame
-  - Width, bleed (3mm) and rounded corners; artboard-based runs only
-- Display tab
-  - Pan and zoom (hold Option/Alt while dragging for one tenth speed)
-  - View commands (Fit Artboard, Actual Size, Fit All)
-- Arrow keys step every numeric field (Shift for +/-10 snapped to tens, Option/Alt for +/-0.1)
-- Dialog with preview
-- Localized UI (Japanese / English)
-
-### Notes
-
-- Values are entered in Illustrator's ruler unit (rulerType).
-- Starting from a selected rectangle hides the whole Margin tab (margin and frame).
-- Bleed applies to the frame only, never to the base rectangle.
-- The edge scale runs the same way in the outer and title areas: positive lengthens, negative shortens.
-  Internally the title value is negated and used as the inset at both ends of the divider.
-- A non-zero edge scale splits the outline into four lines and removes the original rectangle,
-  including the temporary artboard-based one.
-- The inner area fill and the frame bleed honour manual input and suppress the auto-on rules.
-- The selection is cleared after a run. Internal tags stay in note only; the name shown in the
-  Layers panel is cleared.
-- Dialog values persist only while Illustrator is running.
+See the README for details.
 
 */
 
@@ -124,10 +36,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* 生成と既定値の設定 / Generation and default values */
 var GRID_CONFIG = {

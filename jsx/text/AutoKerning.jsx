@@ -5,27 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの自動カーニング方式（和文等幅／0／メトリクス／オプティカル）を
-まとめて設定するスクリプトです。
+選択したテキストの自動カーニング方式（和文等幅／0／メトリクス／オプティカル）をまとめて設定します。
 
-- ラジオボタンで方式を選ぶとライブプレビューで確認できる
-- テキストオブジェクト全体（選択範囲全体）に適用する
-- 「メトリクス」を選んだときだけプロポーショナルメトリクスをON、それ以外はOFF
-- プロポーショナルメトリクスのチェックボックスは単独でも操作でき、
-  その場合はカーニング方式を変えずに切り替える
-- キャンセルで開く前の状態に戻す
+詳細は README を参照してください。
 
 ### Overview
 
-Sets the auto-kerning method (Metrics - Roman Only / 0 / Metrics / Optical)
-for the selected text.
+Sets the auto-kerning method — Metrics (Roman Only), 0, Metrics or Optical — on the selected text.
 
-- Pick a method with the radio buttons; live preview shows the result
-- Applies to the whole text object (entire selection)
-- Proportional metrics is turned ON only for "Metrics", OFF otherwise
-- The proportional-metrics checkbox can also be toggled on its own, which leaves
-  the kerning method alone
-- Cancel restores the state before opening
+See the README for details.
 
 */
 
@@ -38,6 +26,10 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-29";                   /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerning.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerning.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

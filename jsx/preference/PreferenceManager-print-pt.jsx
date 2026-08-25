@@ -1,19 +1,36 @@
+
 /*
-  Illustrator Preferences Setter (Dialog Version)
 
-  概要 / Overview:
-  - ダイアログで単位と数値インクリメントを指定・変更できるスクリプト
-  - AppleScriptやKeyboard Maestro不要で直接設定可能
-  - Illustratorバージョンに応じた内部マッピングによりGUI補正不要
+### 概要
 
-  処理の流れ / Flow:
-  1. 現在の単位設定を取得
-  2. ダイアログを表示（単位選択 + 数値入力）
-  3. ラジオボタン選択で既定単位を自動セット
-  4. OK押下でプリファレンスを更新
+単位と数値インクリメントを、ダイアログから指定・変更します。
 
-  更新日: 2025-08-06
+詳細は README を参照してください。
+
+### Overview
+
+Sets the units and the numeric increment from a dialog.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PreferenceManager-print-pt";   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-print-pt.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager-print-pt.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     // --- 単位ラベル更新関数 ---

@@ -5,72 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択したクリッピングマスクをモード別に解除するIllustrator用スクリプト。
-- 単純解除、マスクパス削除、マスク内容削除の3つの方法に対応。
+選択したクリッピングマスクをモード別に解除します。
+単純解除、マスクパス削除、マスク内容削除の3つの方法から選べます。
 
-### 主な機能
-
-- 単純に解除（マスクパスと内容を両方残す）
-- マスク内容を残して、マスクパスを削除
-- マスクパスを残して、マスク内容を削除
-- マスクパスにK100の塗り（不透明度15%）を適用するオプション付き
-- 複合パス（CompoundPathItem）のマスクに対応
-- 日本語／英語UI対応
-
-### 対象範囲
-
-- 直接選択したクリッピンググループのみが対象。
-- 通常グループの内側にネストしたクリッピンググループは対象外。
-
-### 処理の流れ
-
-1. ダイアログでモードとオプションを選択
-2. 選択されたモードに従ってマスクを解除
-3. 必要に応じてマスクパスに塗りを適用
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/nebc832e574f7
-https://note.com/dtp_tranist/n/ne64abe5a2e8c
-
-### 更新履歴
-
-- v1.0 (20250606) : 初期バージョン
-- v1.2.1 (20260711) : IIFE化・命名整理・ローカライズ構造化、重なり順保持・マスク内容削除・複合パス対応・フォールバック追加
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Illustrator script to release selected clipping masks by mode.
-- Supports simple release, remove mask path, or remove masked content.
+Releases the selected clipping masks in one of three modes.
+You can release them plainly, delete the mask path, or delete the masked contents.
 
-### Main Features
-
-- Simple release (keep both mask path and content)
-- Keep masked content, remove the mask path
-- Keep the mask path, remove masked content
-- Optional K100 fill (15% opacity) on the mask path
-- Supports compound-path (CompoundPathItem) masks
-- Japanese/English UI support
-
-### Scope
-
-- Only directly selected clipping groups are processed.
-- Clipping groups nested inside normal groups are not processed.
-
-### Process Flow
-
-1. Choose mode and option in dialog
-2. Release clipping mask accordingly
-3. Optionally apply fill color to the mask path
-
-### Update History
-
-- v1.0 (20250606) : Initial release
-- v1.2.1 (20260711) : IIFE, naming, localization; stacking order, masked-content removal, compound-path support, fallbacks
+See the README for details.
 
 */
 
@@ -80,8 +25,14 @@ https://note.com/dtp_tranist/n/ne64abe5a2e8c
 var SCRIPT_NAME     = "ReleaseClipMask";              /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-06-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseClipMask.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseClipMask.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebc832e574f7"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

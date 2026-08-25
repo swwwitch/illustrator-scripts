@@ -5,11 +5,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの自動カーニング方式を「オプティカル」に設定する。
-オプティカル = OPTICAL。プロポーショナルメトリクスはOFF、文字ツメは0%。
-選択範囲全体に即適用し、未選択時は何もしない。
+選択したテキストの自動カーニング方式を「オプティカル」に設定します。
+プロポーショナルメトリクスはOFF、文字ツメは0%にします。
+
+詳細は README を参照してください。
+
+### Overview
+
+Sets the auto-kerning method of the selected text to Optical.
+Proportional metrics are turned off and tsume is set to 0%.
+
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AutoKerning-Optical";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerning-Optical.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerning-Optical.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

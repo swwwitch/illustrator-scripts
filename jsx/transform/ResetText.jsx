@@ -2,69 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-ResetText.jsx（回転／シアー／スケールのリセット）
+### 概要
 
-### GitHub：
+テキストに対して、回転／シアー（せん断）／比率を安全にリセットします。
 
-https://github.com/swwwitch/illustrator-scripts
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- テキストに対して、回転／シアー（せん断）／比率を安全にリセット
-- BBoxリセットと左上基準の位置復元により、見た目の位置を安定して維持
+Safely resets rotation, shear and scale ratio on text.
 
-### 主な機能：
+See the README for details.
 
-- テキスト：回転・シアー・水平/垂直比率（100%）のリセット
-
-### 処理の流れ：
-
-1) 選択されたテキストに対して処理を即時適用（回転／シアー／比率のリセット）
-
-### note：
-
-- スケールの微調整（Alt+↑↓による0.1%増減）は廃止
-
-### 更新履歴：
-
-- v1.0 (20250805) : 初期バージョン
-
----
-
-### Script Name:
-
-ResetText.jsx (Reset Rotate / Shear / Scale)
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts
-
-### Overview:
-
-- Safely reset rotation/shear/ratio for Text
-- Keeps visual position stable via BBox reset and top-left recentering
-
-### Key Features:
-
-- Text: reset rotation, shear, and horizontal/vertical scaling ratios (100%)
-
-### Flow:
-
-1) Apply operations immediately to selected text (reset rotation / shear / ratios)
-
-### Notes:
-
-- Fine scale tweak with Alt+Arrow (±0.1%) has been removed
-
-### Changelog:
-
-- v1.0 (20250805): Initial release
 */
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ResetText";                    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-05";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetText.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetText.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* Language helper / 言語判定ヘルパー
    日本語環境なら "ja"、それ以外は "en" */
@@ -91,7 +59,6 @@ var LABELS = {
 var CONFIG = {
     eps: 1e-8
 };
-
 
 function main() {
     if (!app.documents.length) {

@@ -2,27 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-Script: TileSmallIntoLarge.jsx
-Purpose (JP):
-  2つのオブジェクトを選択し、面積が大きい方を「容器」、小さい方を「タイル」とみなし、
-  容器のバウンディングボックスをタイルで均等に敷き詰めます（グリッド配置）。
-  結果はマスクなしで、容器の内側に収まるタイルのみ残します。元の2オブジェクトは残します。
-Purpose (EN):
-  With two selected objects, treats the larger one as the container and the smaller one as the tile.
-  Fills the container's bounding box with an even grid of tile duplicates, then keeps only tiles fully inside the container (no mask).
-  The two original items remain untouched.
 
-更新日 / Updated: 2025-10-30
+### 概要
 
-更新履歴 / Changelog
-- 2025-10-30 v1.4.0: ローカライズ処理を整理し、ダイアログタイトルにバージョンを明示する形式に変更。コメントを日英併記に統一。/ Refined localization, dialog title now shows version explicitly, unified JP/EN comments.
-- 2025-10-29 v1.3.0: 「シンボル化して複製」オプションを追加（プレビューは従来どおり） / Added "Duplicate as Symbol" option (preview still uses direct duplicates).
-- 2025-10-29 v1.2.0: UIラベル「レンガ」→「レンガ状」に変更（機能は不変） / Changed UI label from "レンガ" to "レンガ状" (no functional change).
-- 2025-10-29 v1.1.0: スケールUIとロジックを削除 / Removed Scale UI and logic.
-- 2025-10-26 v1.0.0: 初版 / Initial release.
+2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。
+完全に内側に収まるタイルのみを残し、元の2オブジェクトはそのまま残します。
+
+詳細は README を参照してください。
+
+### Overview
+
+With two objects selected, treats the larger as the container and the smaller as the tile, then fills the container's bounding box with an even grid of tiles.
+Only the tiles that fit entirely inside are kept, and both originals are left in place.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.4.0"; // バージョン / Script version
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PatternFill";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-10-30";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternFill.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFill.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 現在のロケールを判定 / Detect current locale */
 function getCurrentLang() {

@@ -6,16 +6,14 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 ### 概要
 
 選択したオブジェクトを一時的にグループ化してから、整列パネルの［垂直方向中央に整列］をダイナミックアクション経由で実行します。
-天地中央のみで左右方向は動かさず、整列の基準は整列パネルの設定（アートボードなど）に従います（選択が現在のアートボード外にある場合は、選択を含むアートボードに切り替えます）。
+天地中央のみで左右方向は動かさず、整列の基準は整列パネルの設定に従います。
 
-詳細はREADMEを参照してください。
+詳細は README を参照してください。
 
 ### Overview
 
-Temporarily groups the selection, then runs Align Vertical Centers from the Align panel
-through a dynamic action.
-Only the vertical position changes; the alignment reference follows the Align panel setting
-(if the selection sits outside the current artboard, the artboard holding it becomes active).
+Groups the selection temporarily, then runs Align Vertical Centers from the Align panel through a dynamic action.
+Only the vertical position changes, and the alignment reference follows the Align panel's own setting.
 
 See the README for details.
 

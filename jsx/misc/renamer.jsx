@@ -1,13 +1,44 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+### 概要
+
+オブジェクトやレイヤーなどの名前を、条件を指定して一括で変更します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Renames objects, layers and the like in bulk, according to the conditions you set.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "renamer";                      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/renamer.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/renamer.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
     (function () {
 
     // =========================================
     // バージョンとローカライズ / Version and Localization
     // =========================================
-
-    var SCRIPT_VERSION = "v1.0.0";
 
     /* 現在のロケールを判定 / Detect current locale */
     function getCurrentLang() {

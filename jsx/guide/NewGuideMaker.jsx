@@ -6,11 +6,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 ダイアログで方向・位置・単位・対象（カンバス／アートボード）を指定してガイドを作成します。
-詳細はREADMEを参照してください。
+
+詳細は README を参照してください。
 
 ### Overview
 
 Creates guides by specifying direction, position, unit, and target (canvas or artboard) in a dialog.
+
 See the README for details.
 
 */

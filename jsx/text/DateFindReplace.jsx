@@ -3,81 +3,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-概要
+### 概要
 
-ドキュメント内のテキストフレームから日付を検索し、選択した項目のみを置換するスクリプト。
-オブジェクトが選択されている場合は、その選択範囲（グループ内を含む）のテキストフレームのみを検索対象とする。
-文字の一部を選択している場合は、その親テキストフレームを検索対象に含める。
+ドキュメント内のテキストフレームから日付を検索し、選択した項目だけを置換します。
+オブジェクトが選択されている場合は、その選択範囲のテキストフレームだけを検索対象にします。
 
-日付形式：
-  検出時は、各形式に付いた曜日サフィックス（例：金曜 / 金曜日 / (金) / （金） / Fri / Friday）も対象にする。
-  単独の漢字曜日（例：金）は、日付本文のサフィックスとしては検出せず、GroupItem 内の曜日のみフレームとしてのみ扱う。
-  月・日は 0 を許容せず、実在しない日付（例：2026.0.8 / 2026.5.0 / 2026.2.31）は検出対象外。
-  元号範囲外の日付（例：R1.1.1 ＝ 令和元年1月1日は令和開始前）も同様に対象外。
-  出力時は、フォーマットドロップダウンで「元の形式を保持」または下記の形式を選択できる。
-  - YYYY年M月D日 / M月D日
-  - YYYY.M.D / M.D
-  - YYYY/M/D / M/D
-  - 令和Y年M月D日 / 平成Y年M月D日
-  - RY.M.D / RY/M/D / HY.M.D / HY/M/D
-  令和形式は 2019/5/1 以降、平成形式は 1989/1/8〜2019/4/30 の範囲のみ有効。
-  検出時も、この範囲外の日付は対象外。
+詳細は README を参照してください。
 
-曜日表記（曜日ドロップダウン）：
-  なし / 火 / 火曜 / 火曜日 / （火） / (火) / Tue / Tuesday
-  ドロップダウンの表示は固定し、置換時に入力日付に応じた実際の曜日へ変換する。
-  日付内の曜日サフィックス、または GroupItem 内の曜日のみフレームから初期選択を推定する。
-  「元の形式を保持」でも、曜日ドロップダウンの選択を反映する。
-  「なし」を選ぶと、日付内の曜日表記のみ削除する。
-  連動する曜日のみフレームは、意図しない空文字化を避けるため更新しない。
+### Overview
 
-数字の書式を保持：
-  「元の形式を保持」を選んだ場合のみ、年・月・日それぞれの文字書式
-  （フォント・サイズ・色など）をセグメント単位で維持したまま置換する。
-  ドット／スラッシュ区切りの日付は、曜日サフィックス付きプレビューの安定性を優先し、
-  マッチ範囲全体を1セグメントとして置換する。
-  OFF、または明示フォーマット選択時は、マッチ範囲全体を先頭文字の書式に揃える。
+Finds dates in the text frames of the document and replaces only the ones you tick.
+When objects are selected, only the text frames within that selection are searched.
 
-プレビュー：
-  ON で現在の入力をドキュメントに即時反映し、ダイアログを開いたまま結果を確認できる。
-  入力・チェックボックス・フォーマット・曜日・数字書式保持の変更で自動更新する。
-  OFF・キャンセルでは元に戻す。OK 時はプレビュー結果をいったん戻してから、本番処理として再実行する。
-
-GroupItem 内の曜日ペアリング：
-  日付フレームと、同じ GroupItem に直接含まれる「曜日のみ」のテキストフレーム
-  （例：金 / 金曜 / 金曜日 / (金) / （金） / Fri / Friday）を自動で関連付ける。
-  単独の漢字曜日（例：金）は、この曜日のみフレームでは有効。
-  日付内に曜日がなくても、曜日のみフレームの表記スタイルを曜日ドロップダウンの初期選択に反映する。
-  日付置換時には、曜日のみフレームも連動して更新する。ただし、曜日ドロップダウンが「なし」の場合は更新しない。
-  同一グループ内に複数の日付フレームがある場合は、対応関係が曖昧になるため曜日フレームをペアリングしない。
-
-入力補助：
-  年・月・日の入力欄では、↑↓キーで±1、Shift＋↑↓で±10増減する。
-  0 以下にはならない。
-
-検索結果はアートボードごとにグループ化して表示する。
-
-注意点：
-  - GroupItem 内の曜日ペアリングは「直接の子」のみが対象。ネストした GroupItem 内の
-    曜日フレームは検出されない。必要なら、日付フレームと同じ階層に置くか、
-    グループ構造を平坦化する。
-  - プレビューの巻き戻しは app.undo() を文字操作回数ぶん呼ぶ実装。
-    Illustrator の undo グループ化の挙動に依存するため、
-    環境や操作状況によっては undo 回数がずれる可能性がある。
-    プレビューを多用したあとに状態が不安定になった場合は、
-    キャンセルで戻すか、ダイアログを開き直す。
-  - 「令和Y.M.D」「平成Y.M.D」（ドット区切りの和暦）は検出対象外。
-    ドット／スラッシュ区切りの略記は RY.M.D / RY/M/D / HY.M.D / HY/M/D を使用する。
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DateFindReplace";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DateFindReplace.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DateFindReplace.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
     // バージョン
     // =========================================
-
-    var SCRIPT_VERSION = "v1.0.2";
 
     /* エラー件数メッセージ */
     function formatErrorMessage(count) {
@@ -353,7 +316,6 @@ GroupItem 内の曜日ペアリング：
 
         return null;
     }
-
 
     /* テキストフレーム内の一致範囲を書式を保持したまま置換。実行した文字操作数を返す（プレビュー巻き戻し用） */
     function replaceMatchPreserveStyle(textFrame, matchStart, oldLen, newText) {
@@ -852,7 +814,6 @@ GroupItem 内の曜日ペアリング：
             }
         } catch (eWeekdayChoice) { }
     }
-
 
     /* 数字（年・月・日）の文字書式を保持するか。OFF にするとマッチ範囲を一括置換し、
        新しい文字はマッチ先頭の書式に統一される */

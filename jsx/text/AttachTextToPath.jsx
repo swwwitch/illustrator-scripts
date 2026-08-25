@@ -1,27 +1,38 @@
 /*
-### スクリプト名：
-ポイント文字とパスをパス上文字に変換
 
-### 更新日：
-20260303
+### 概要
 
-### 概要：
-選択中の「ポイント文字」を、同時に選択しているパス（PathItem）上の文字に変換します。
-- パスが一緒に選択されている場合：そのパスを複製して使用（複数テキストにも対応）
-- パスが選択されていない場合：処理を実行せず終了します（パス必須）
+ポイント文字とパスを選択して実行すると、パス上文字に変換します。
 
-License: MIT
-See LICENSE file for details.
+詳細は README を参照してください。
 
-Original: Toshiyuki Takahashi
-https://note.com/gautt/n/n92f6faeda048
+### Overview
 
----
+Converts a selected point text and path into text on a path.
+
+See the README for details.
+
 */
 
-(function () {
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AttachTextToPath";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-    var SCRIPT_VERSION = "v1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AttachTextToPath.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AttachTextToPath.md
+var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+(function () {
 
     // --- Localization (ja/en) ---
     function getCurrentLang() {

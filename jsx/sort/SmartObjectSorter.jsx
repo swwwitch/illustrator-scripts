@@ -2,90 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartObjectSorter.jsx
 
 ### 概要
 
-- 選択したIllustratorオブジェクトを「高さ・幅・不透明度・カラー」などの基準で並び替え、横または縦に整列・分布させるダイアログツールです。
-- プレビューを確認しながら、整列方向、基準、順序、間隔、幅・高さの統一を自由にカスタマイズできます。
+選択したオブジェクトを高さ・幅・不透明度・カラーなどの基準で並び替え、横または縦に整列・分布させます。
+整列方向、基準、順序、間隔、幅・高さの統一を、プレビューを見ながら指定できます。
 
-### 主な機能
-
-- 高さ・幅・不透明度・カラー・数値（グループ内テキスト）による並び替え
-- 横並び・縦並びの自動検出と選択
-- 間隔調整（均等、ぴったり、カスタム）
-- 幅・高さの最大/最小統一機能
-- 簡易アライメント（左/中央/右、上/中央/下）
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. 並び替え基準と方向、オプションをダイアログで設定
-2. 選択オブジェクトを基準に従ってソート
-3. 整列および間隔をリアルタイムプレビュー
-4. 確定後に適用またはキャンセルで元に戻す
-
-### オリジナル、謝辞
-
-Inspired by:
-- m1b https://community.adobe.com/t5/illustrator-discussions/script-that-sorts-items-in-selection/m-p/14413701#M396923
-- John Wundes https://github.com/johnwun/js4ai/blob/master/organize.jsx
-
-This software includes components developed by wundes.com and its contributors.
-Full license: http://www.wundes.com/js4ai/copyright.txt
-
-### 更新履歴
-
-- v0.0.1 (20240603) : 初版リリース
-- v0.0.2 (20240604) : 整列機能を調整
-- v0.0.3 (20240604) : 縦方向中央揃え修正、プレビュー自動実行無効化
-- v0.0.4 (20240604) : 幅・高さ揃え機能追加、UI整理
-
----
-
-### Script Name:
-
-SmartObjectSorter.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A dialog-based Illustrator tool to sort selected objects by "Height", "Width", "Opacity", "Color", or group text numbers, and align/distribute them horizontally or vertically.
-- Fully customizable with real-time preview for direction, criteria, order, spacing, and width/height unification.
+Sorts the selected objects by height, width, opacity or color and then aligns and distributes them horizontally or vertically.
+Direction, sort key, order, spacing and size unification are all set while watching a preview.
 
-### Main Features
+See the README for details.
 
-- Sort by height, width, opacity, color, or numbers (text inside groups)
-- Auto-detect or choose horizontal/vertical direction
-- Adjust spacing (even, tight, custom)
-- Unify width or height (max/min)
-- Simple alignment options (left/center/right, top/middle/bottom)
-- Japanese and English UI support
-
-### Process Flow
-
-1. Configure criteria, direction, and options via dialog
-2. Sort selected objects based on chosen criteria
-3. Preview alignment and spacing in real time
-4. Apply or cancel to revert to original positions
-
-### Original / Acknowledgements
-
-Inspired by:
-- m1b https://community.adobe.com/t5/illustrator-discussions/script-that-sorts-items-in-selection/m-p/14413701#M396923
-- John Wundes https://github.com/johnwun/js4ai/blob/master/organize.jsx
-
-This software includes components developed by wundes.com and its contributors.
-Full license: http://www.wundes.com/js4ai/copyright.txt
-
-### Update History
-
-- v0.0.1 (20240603): Initial release
-- v0.0.2 (20240604): Adjusted alignment feature
-- v0.0.3 (20240604): Fixed vertical center alignment, disabled auto preview
-- v0.0.4 (20240604): Added width/height unification and UI improvements
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartObjectSorter";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v0.0.4";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-06-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2024-06-04";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectSorter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectSorter.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // 並べ替え・整列ダイアログの適用処理で再帰的適用を防ぐフラグ
 var skipApply = false;
@@ -695,7 +644,6 @@ function main() {
 
         // Use single definition for all controls, matching the main dialog structure
 
-
         var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
 
         dialog.alignChildren = "left";
@@ -774,8 +722,6 @@ function main() {
         randomRadio.helpTip = "r";
         var directionRadioButtons = [ascendingRadio, descendingRadio, randomRadio];
 
-
-
         // 中央ペイン(panel) - 縦方向
         var verticalAlignPanelContainer = mainGroup.add("panel", undefined, "");
         verticalAlignPanelContainer.alignChildren = "fill";
@@ -853,8 +799,6 @@ function main() {
             }
             app.redraw();
         };
-
-
 
         // 右ペイン(panel) - 横方向
         var horizontalAlignPanelContainer = mainGroup.add("panel", undefined, "");
@@ -996,14 +940,12 @@ function main() {
             app.redraw();
         };
 
-
         // 下部行: スペーサ、キャンセル・OKボタン（previewBoundsCheckboxは中央ペイン下部に移動）
         var bottomRowGroup = dialog.add("group");
         bottomRowGroup.orientation = "row";
         bottomRowGroup.alignment = ["fill", "bottom"];
         bottomRowGroup.alignChildren = ["left", "center"];
         bottomRowGroup.margins = [10, 10, 10, 10];
-
 
         // プレビュー境界チェックボックスを中央ペイン下部に追加
         var previewBoundsCheckbox = bottomRowGroup.add("checkbox", undefined, LABELS.previewBounds[lang]);
@@ -1084,7 +1026,6 @@ function main() {
 
     createDialog();
 }
-
 
 // 間隔プレビュー関数
 function smartPreviewSpacingGeneric(selArr, spacingInput, spacingType, isHorizontal) {

@@ -4,79 +4,46 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v1.9)
 
-Illustrator script to create custom shapes from a single dialog
-(Circle / Polygon / Star / Superellipse / Reuleaux-style).
-Real-time preview, adjustable sides, width, rotation, and advanced options are supported.
-Japanese / English UI.
+### 概要
 
-### 更新日 / Updated:
-- 20260319
+1つのダイアログから、正円・多角形・星形・スーパー楕円・ルーローの三角形などのカスタム形状を作成します。
+リアルタイムプレビューで、辺の数・幅・回転・詳細オプションを調整できます。
 
-Main Features:
-- Specify number of sides (0 = Circle, 3/4/5/6/8, or custom with slider)
-- Circle panel:
-  - Superellipse option (only when sides = 0)
-  - Superellipse shape control (exponent)
-  - Anchor Points panel (2 / 3 / 4 / 5 / 6)
-  - When Superellipse is ON:
-    - Rotate is forced OFF
-    - Live Shape is forced OFF
-    - Anchor Points panel is dimmed
-- Star panel:
-  - Star option + Pentagram option (side-by-side)
-  - Inner radius input + 0–100 slider
-  - Inner radius controls are dimmed when Star is OFF
-  - When Pentagram is ON, Rotate is forced OFF
-- Triangle direction options (Left / Right / Down) when sides = 3
-- Width (size) panel with unit display
-- Rotation panel:
-  - Auto angle is used when Rotate is OFF (Circle=45°, Polygon=360/(sides*2))
-  - When sides = 3 and Rotate is enabled, Triangle direction defaults to “Down” (60°)
-  - Arrow-key editing supported
-- Reuleaux-style option (odd-sided polygons only)
-  - Adjustable appearance amount (0–200%)
-  - Amount resets to 100% when Reuleaux is enabled
-- Options panel:
-  - Live Shape conversion (Convert to Shape) on finalize
-  - Split at Anchor Points (creates open stroked segments)
-- Dialog opacity and position are restored within the current Illustrator session
-- Preview does not pollute Undo history; final result can be undone in a single step
-- View Zoom slider above OK / Cancel
+詳細は README を参照してください。
 
-Keyboard Shortcuts:
-- E : Circle (0)
-- A : Toggle Rotate
-- S : Toggle Star
-- P : Toggle Pentagram
-- L : Triangle Left (also sets sides = 3)
-- R : Triangle Right (also sets sides = 3)
-- B : Triangle Down (also sets sides = 3)
-- D : Toggle Split at Anchor Points
+### Overview
 
-Usage Flow:
-1. Set sides, width, star/circle options, rotation, and options in the dialog
-2. Preview updates in real-time
-3. Click OK to finalize the preview object at the artboard center
+Creates custom shapes — circle, polygon, star, superellipse, Reuleaux-style — from a single dialog.
+A real-time preview lets you adjust the number of sides, the width, the rotation and the advanced options.
 
-Original Idea: Seiji Miyazawa (Sankai Lab)
-https://x.com/onthehead/status/2007350198721483172
-
-コーナースムージング
-黒野 真吾さん
-https://note.com/shingokurono/n/n348a3e73a465
-
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartShapeMaker-v2";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.9";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker-v2.md
+var SCRIPT_ARTICLE_URL = "https://note.com/shingokurono/n/n348a3e73a465"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // Language detection
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 var lang = getCurrentLang();
-
-var SCRIPT_VERSION = "v1.9";
 
 var LABELS = {
     dialogTitle: {
@@ -1301,7 +1268,6 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         } catch (e) { }
     }
 
-
     // Triangle panel moved into the Rotation panel
     // (Spacer removed)
     var trianglePanel = rotatePanel.add("panel", undefined, LABELS.trianglePanel[lang]);
@@ -1421,8 +1387,6 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     var reuleauxAmountSlider = reuleauxAmountRow.add("slider", undefined, 100, 0, 200);
     reuleauxAmountSlider.preferredSize.width = 150;
 
-
-
     function updateLiveShapeAvailability(isSplit, isSuperEllipseEffective, isCustomCircleAnchors, isReuleaux, isCornerSmoothing) {
         if (isSplit || isSuperEllipseEffective || isCustomCircleAnchors || isReuleaux || isCornerSmoothing) {
             liveShapeCheck.value = false;
@@ -1534,8 +1498,6 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     triangleLeftRadio.onClick = onTriangleDirectionChange;
     triangleDownRadio.onClick = onTriangleDirectionChange;
 
-
-
     // Enable/disable star and pentagram options
     function validateStarAndPentagram() {
         // If Star panel is disabled (Circle), force star options off
@@ -1595,7 +1557,6 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         var angle = parseFloat(rotateInput.text);
         var splitAtAnchors = splitAtAnchorsCheck.value;
         var superEllipse = superEllipseCheck.value && (sides === 0);
-
 
         var reuleaux = reuleauxCheck.value;
         var reuleauxAmount = clampReuleauxAmount(reuleauxAmountInput.text) / 100;

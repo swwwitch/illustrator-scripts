@@ -3,43 +3,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-## SymbolListBuilder.jsx
+### 概要
 
-### 概要 / Overview
+ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動生成します。
+ダイアログでパラメーターを操作しながらライブプレビューで確認でき、［OK］で確定します。
 
-Illustrator ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動生成するスクリプト。ダイアログでパラメータを操作しながらライブプレビューでき、OK で確定（プレビュー削除 → 最終ビルド → 旧版掃除）。
+詳細は README を参照してください。
 
-### 主な機能 / Key features
+### Overview
 
-- 作成位置の基準：最終アートボード／番号指定（既定はキャンバス最右下のアートボードを自動採用）
-- 作成方向：基準アートボードの右側／下側を選択
-- サイズと余白：幅・高さ・内側余白（幅変更時は最大幅も自動追従）
-- 背景色：なし／黒／白／グレー（K50）。背景黒のときキャプションを白に
-- シンボルの絞り込み：すべて／使用中のみ
-- キャプション：しない／上／下、フォントサイズ（Illustrator の文字設定単位）
-- 既定キャプションフォントはロケール別（ja → HiraginoSans-W3 / en → MyriadPro-Regular）
-- レイヤー／アートボード名はロケール別（ja「シンボル一覧」／ en「Symbol List」）。既存判定は両言語に対応
-- 「更新」ON で既存「シンボル一覧」アートボードと、その上に乗っているオブジェクトをすべて削除して置換
+Generates a dedicated "Symbol List" artboard that lays out every symbol registered in the document.
+Parameters are adjusted with a live preview in the dialog, and OK commits the result.
 
-### 単位系 / Units
-
-- ルーラー単位 (rulerType) … 寸法・マージン・間隔
-- テキスト単位 (text/units) … フォントサイズ
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/ncac687d0a3a0
-
-### 更新履歴 / Changelog
-
-- v1.0.0（2026-05-09）：初版 / Initial release.
-- v1.2.1（2026-06-03）：作成位置を「基準（最終アートボード／番号指定）＋方向（右側／下側）」の 2 グループに再編し、指定番号の既定値にキャンバス最右下のアートボードを自動採用。更新 ON 時は旧「シンボル一覧」アートボード上のオブジェクトをすべて削除。レイヤー／アートボード名をロケール別にし、既存判定は両言語対応。
-- v1.2.2（2026-06-03）：パネル名・ラベル・ツールチップの文言を整理。画面ズームスライダーを廃止し、ビュー合わせボタン（シンボル一覧＝作成アートボードにフィット＋90%／全体表示＝全アートボードにフィット＋90%）を最下段ボタン行の左に配置。更新チェックを「作成するアートボード」パネル末尾へ移動。収集対象ラジオを横並びに。
+See the README for details.
 
 */
 
-/* スクリプトバージョン / Script version */
-var SCRIPT_VERSION = "v1.2.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SymbolListBuilder";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolListBuilder.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolListBuilder.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

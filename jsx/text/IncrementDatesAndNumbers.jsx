@@ -1,39 +1,38 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.2";
-
 /*
- * 値の増減スクリプト / Increment or decrement dates and numbers
- *
- * 選択中のテキスト内に含まれる日付・曜日・連番・数値などを一括して増減します。
- * 増減値は整数のみを許容し、小数は使用できません。
- *
- * 対象となる主な文字列パターン：
- * - 日付（和文）：2025年11月21日、2025年11月21日（金）
- * - 日付（スラッシュ区切り）：2025/11/21、2025/11/21（金）
- * - 日付（ドット区切り）：2025.11.21、29.3.2、29.3
- * - 元号付き日付：令和7年3月21日（金）など
- * - 時刻：19:00 など
- * - 曜日単体：日・月・火・水・木・金・土、Sun〜Sat、㊐〜㊏
- * - 西暦（年のみ）：2025 など
- * - 一般的な数値：123、1,234、100.5 など
- *
- * This script increments or decrements dates, weekdays, sequence numbers, and numeric values
- * inside selected text objects. The step value accepts integers only; decimals are not allowed.
- *
- * Typical target string patterns include:
- * - Japanese dates: 2025年11月21日, 2025年11月21日（金）
- * - Slash dates: 2025/11/21, 2025/11/21(Fri)
- * - Dot-separated dates: 2025.11.21, 29.3.2, 29.3
- * - Era-based dates: 令和7年3月21日（金）, etc.
- * - Times: 19:00, etc.
- * - Standalone weekdays: 日〜土, Sun–Sat, circled symbols ㊐〜㊏
- * - Standalone years: 2025
- * - Generic numeric values: 123, 1,234, 100.5
- *
- * 更新日 / Last update: 2025-11-18
- */
+
+### 概要
+
+選択中のテキストに含まれる日付・曜日・連番・数値などを、一括して増減します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Increments or decrements the dates, weekday names, sequence numbers and other values found in the selected text, all at once.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "IncrementDatesAndNumbers";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-11-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-11-18";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/IncrementDatesAndNumbers.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/IncrementDatesAndNumbers.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -216,7 +215,6 @@ function showDialog() {
             }
         }
     } catch (e) {}
-
 
     var grpPreview = dlg.add('group');
     grpPreview.orientation = 'column';

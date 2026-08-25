@@ -1,26 +1,43 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.0";
+/*
+
+### 概要
+
+選択したテキストオブジェクトの行を、一覧で並べ替え・編集します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Reorders and edits the lines of the selected text object from a list.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TextLineEditor";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextLineEditor.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextLineEditor.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
-/*
- * TextLineEditor.jsx
- * 更新日 / Updated: 2026-03-19
- *
- * 概要 / Overview:
- * 選択した単一のテキストフレームを対象に、行単位で並び替え・追加・編集・削除を行う Illustrator 用スクリプトです。
- * 段落改行（\r）と強制改行（\u0003）を行として扱い、リストボックス上で内容を整理してから反映できます。
- * 空行削除にも対応し、選択状態に応じて操作ボタンの有効 / 無効を切り替えます。
- *
- * This Illustrator script lets you reorder, add, edit, and delete lines in a single selected text frame.
- * It treats both paragraph breaks (\r) and forced line breaks (\u0003) as lines, allows you to organize them in a list box,
- * and then writes the result back to the text frame. It also supports removing empty lines and updates button states
- * according to the current selection.
- */
 
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {

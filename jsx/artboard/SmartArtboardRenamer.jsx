@@ -5,17 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-接頭辞・接尾辞と参照テキスト（最前面のテキスト、指定レイヤーのテキスト、元のアートボード名、任意の文字列）を組み合わせて、アートボード名を一括で変更するツール。ダイアログでプレビューを確認しながら、アートボードの並び替えや1件ずつの手動リネームもできる。
+接頭辞・接尾辞と参照テキスト（最前面のテキスト、指定レイヤーのテキスト、元のアートボード名、任意の文字列）を組み合わせて、アートボード名を一括で変更します。
+ダイアログでプレビューを確認しながら、アートボードの並び替えや1件ずつの手動リネームもできます。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Batch renames artboards by combining a prefix and a suffix with reference text (the frontmost text frame, text on a chosen layer, the original artboard name, or a custom string). Artboards can also be reordered and renamed individually while checking the preview in the dialog.
+Renames the artboards in bulk from a prefix and suffix plus a reference text — the frontmost text, text on a chosen layer, the original name, or a string you type.
+The dialog offers a preview, along with reordering and renaming artboards one at a time.
 
 See the README for details.
 

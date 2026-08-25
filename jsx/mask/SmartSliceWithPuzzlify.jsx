@@ -2,95 +2,41 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartSliceWithPuzzlify.jsx
 
 ### 概要
 
-- 選択した画像や図形を、グリッドまたはジグソーパズル形状に分割し、それぞれにマスクを適用するIllustrator用スクリプトです。
-- 行数・列数・ピース数の指定に対応し、オフセット、オーバーラップ、バラけ（Scatter）、ケイ、角丸などを組み合わせて調整できます。
-- 日本語／英語UIに対応し、入力欄では ↑↓ / Shift+↑↓ / Option+↑↓ による値の増減も行えます。
+選択した画像や図形を、グリッドまたはジグソーパズル形状に分割し、それぞれにマスクを適用します。
+行数・列数・ピース数のほか、オフセット、オーバーラップ、バラけ、ケイ、角丸を組み合わせて調整できます。
 
-### 主な機能
-
-- グリッド分割、トラディショナル、ランダムなジグソー形状の生成
-- 行数・列数・ピース数の指定と、選択オブジェクト比率に応じた自動行列算出
-- オフセット、オーバーラップ、バラけ（Scatter）処理の適用
-- ケイの追加、角丸の適用
-- 画像、シンボル、ベクターアートワーク、複数選択オブジェクトへの対応
-- 複数選択時の一時グループ化とシンボル化処理
-- 日本語／英語インターフェース対応
-- 入力欄でのキーボード増減操作
-  - ↑↓キー：±1
-  - Shift+↑↓：±10
-  - Option+↑↓：±0.1
-
-### 処理の流れ
-
-1. 対象オブジェクト（画像、シンボル、ベクターなど）を選択
-2. ダイアログで分割モード、ピース数、行数、列数、形状、各種効果を指定
-3. モードに応じてグリッドまたはジグソー形状の各ピースを生成
-4. 必要に応じてオフセットやバラけ処理を適用
-5. 元オブジェクトを削除し、新しいピースを配置
-
-### オリジナル、謝辞
-
-Originally created by Jongware on 7-Oct-2010
-https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shapes-out-of-image-simultaneously/td-p/8709621#9185144
-
-### 更新履歴
-
-- v1.0 (20250607) : 初期バージョン
-- v1.5.0 (20260421) : scatterを一様分布→ガウス分布（中央寄り・クランプ付き）に変更、scatterを含む単位のpt正規化、オーバーラップ初期OFF＋値保持、オフセット初期OFF＋デフォルト値-2、モードごとに既定値で初期化（UI仕様整理）、offset処理のtry/finally化による安全化
-
----
-
-### Script Name:
-
-SmartSliceWithPuzzlify.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that splits a selected image or artwork into grid or jigsaw puzzle pieces and applies a mask to each piece.
-- Supports rows, columns, and total piece count, along with offset, overlap, scatter, stroke, and round-corner adjustments.
-- Supports Japanese and English UI, and numeric fields can be adjusted using ↑↓ / Shift+↑↓ / Option+↑↓ keyboard shortcuts.
+Slices the selected image or shape into a grid or into jigsaw pieces and applies a mask to each piece.
+Rows, columns and piece count can be combined with offset, overlap, scatter, stroke and rounded corners.
 
-### Main Features
+See the README for details.
 
-- Generate grid, traditional, or random jigsaw-shaped pieces
-- Specify rows, columns, and total pieces, with automatic row/column calculation based on artwork ratio
-- Apply offset, overlap, and scatter effects
-- Add stroke and apply round corners
-- Supports images, symbols, vector artwork, and multiple selected objects
-- Temporary grouping and symbolization for multi-selection workflows
-- Japanese and English UI support
-- Keyboard increment/decrement support in numeric fields
-  - Up/Down: ±1
-  - Shift+Up/Down: ±10
-  - Option+Up/Down: ±0.1
-
-### Process Flow
-
-1. Select a target object (image, symbol, vector artwork, etc.)
-2. Configure split mode, total pieces, rows, columns, shape type, and optional effects in the dialog
-3. Generate grid or jigsaw-shaped pieces according to the selected mode
-4. Optionally apply offset and scatter effects
-5. Remove the original object and place the generated pieces
-
-### Original / Acknowledgements
-
-Originally created by Jongware on 7-Oct-2010
-https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shapes-out-of-image-simultaneously/td-p/8709621#9185144
-
-### Update History
-
-- v1.0 (20250607): Initial version
-- v1.5.0 (20260421): Scatter changed from uniform to Gaussian distribution (center-biased with clamp), unit normalization to pt including scatter, overlap default OFF with value retention, offset default OFF with default value -2, mode-based initialization (UI behavior clarified), and safer offset processing using try/finally
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartSliceWithPuzzlify";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-07";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-21";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSliceWithPuzzlify.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSliceWithPuzzlify.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
-  var SCRIPT_VERSION = "v1.5.0";
 
   function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -348,8 +294,6 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       columnsInput.text = String(grid[1]);
     }
 
-
-
     function updateRowsColsFromTotalPieces() {
       var val = parseInt(totalPiecesInput.text, 10);
       if (isNaN(val) || val < 1) return;
@@ -364,7 +308,6 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     totalPiecesInput.onChanging = function () {
       updateRowsColsFromTotalPieces();
     };
-
 
     /* 形状 */
     var shapeGroup = splitPanel.add("group");
@@ -642,7 +585,6 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       } catch (e) { }
     }
   }
-
 
   function readDialogValues(ui) {
     var ruleCheckbox = ui.ruleCheckbox;

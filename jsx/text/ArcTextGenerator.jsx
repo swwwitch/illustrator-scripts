@@ -2,42 +2,40 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-ArcTextGenerator.jsx
 
-### 更新日：
-20260519
+### 概要
 
-### 概要：
-選択したテキストからアーチ状のパスを自動生成し、パス上文字にするツールです。
+円弧に沿ったパス上文字を生成します。
 
-- まるみ：スライダーでアーチのカーブの深さを調整（0＝直線／50＝標準／100＝最も丸い）
-- フィット：「しない」「文字サイズ」「トラッキング」から選択／文字サイズまたはトラッキングを調整してパス両端まで収める（初期値＝しない）
-- 行揃え：常に中央
-- アーチ方向：上向き／下向きを切り替え（初期値＝上）
-- 効果：パス上文字の効果を選択（虹／歪み／3D リボン／階段／引力）
-- トラッキング：チェックON時のみ／生成後の文字間隔を増減（既存のトラッキング値に加算・OFFで0）
-- プレビュー：ダイアログ操作中に結果を確認（OFF・キャンセルで元に戻せます）
+詳細は README を参照してください。
 
-### オリジナル
-高橋としゆき（@gautt）さん
-https://note.com/gautt/n/n92f6faeda048
+### Overview
+
+Generates text on an arc-shaped path.
+
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ArcTextGenerator";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArcTextGenerator.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArcTextGenerator.md
+var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
-
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "ArcTextGenerator";             /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
 
     /* 言語判定 / Language */
     function getCurrentLang() {

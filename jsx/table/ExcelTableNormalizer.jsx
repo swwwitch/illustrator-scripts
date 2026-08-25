@@ -2,39 +2,41 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- 概要
- -----------------------------------------------------------------------------
- Excel由来のIllustratorデータを、表組みとして扱いやすい状態に整形するスクリプトです。
 
- 主な処理:
- - 実行時にカラーモード関連のメニューコマンドを実行し、以後の色指定を安定させます。
- - クリッピングマスクを解除し、エラーインジケーターなどの小さいマークなどの不要なオブジェクトを削除します。
- - テキストを専用レイヤー（_text_all）へ移動し、重複テキストの削除、列ごとの配置（ダイアログで左／中央／右を指定）、印刷用黒への変換を行います。
- - 罫線グリッドから列を推定し、列サンプルを表示したうえで配置を一括指定できます（自動判定あり）。
- - セル背景を専用レイヤー（_cell_rectangle）へ抽出・調整し、必要に応じて高さを均等化します。
- - 長方形状の罫線を中心線化し、配置モードに応じて均等配置・結合セル対応・列幅保持を行います。
- - 外枠の長方形化、線幅統一、罫線の印刷用黒への変換に対応します。
- - 線幅入力はIllustratorの環境設定の［線］を参照し、mm環境では0.1mm、pt環境では0.25ptを初期値にします。
+### 概要
 
- Overview
- -----------------------------------------------------------------------------
- This script formats Illustrator data imported or copied from Excel so it can be handled like a table.
+Excel由来のIllustratorデータを、表組みとして扱いやすい状態に整形します。
+クリッピングマスクの解除、テキストの整理と配置、セル背景の抽出、罫線の中心線化と均等配置をまとめて行います。
 
- Main features:
- - Runs the color-related menu command at startup to stabilize subsequent color settings.
- - Releases clipping masks and removes unnecessary small marks.
- - Moves text to the dedicated layer (_text_all), removes duplicate text, applies column-based alignment (left/center/right via dialog), and converts text to print black.
- - Infers columns from the rule grid, shows per-column samples, and lets you set alignment in one dialog (with auto detection).
- - Extracts and adjusts cell backgrounds on the dedicated layer (_cell_rectangle), and equalizes their heights when needed.
- - Converts rectangular rules to centerlines and applies uniform placement, merged-cell handling, or column-width preservation according to the placement mode.
- - Supports converting the outer frame to a rectangle, unifying stroke width, and setting rules to print black.
- - Stroke width input follows Illustrator strokeUnits, defaulting to 0.1 mm in mm environments and 0.25 pt in pt environments.
+詳細は README を参照してください。
 
- 更新日 / Updated: 2026-04-30 (v1.1.0)
- */
+### Overview
+
+Normalizes Illustrator artwork that came from Excel so that it is easier to work with as a table.
+It releases clipping masks, tidies and aligns the text, extracts cell backgrounds, and converts the rules to evenly distributed center lines.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ExcelTableNormalizer";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-30";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-30";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExcelTableNormalizer.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExcelTableNormalizer.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
-    var SCRIPT_VERSION = "v1.1.0";
 
     var TEXT_LAYER_NAME = "_text_all";
     var PATH_LAYER_NAME = "_cell_rectangle";
@@ -319,7 +321,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var placementUniformMergedRadio = placementPanel.add("radiobutton", undefined, L('placementUniformMerged'));
         var placementMamaIkiRadio = placementPanel.add("radiobutton", undefined, L('placementMamaIki'));
         placementMamaIkiRadio.value = true;
-
 
         var stylePanel = rulesPanel.add("panel", undefined, L('stylePanelTitle'));
         setupPanel(stylePanel);
@@ -848,7 +849,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         radioRow.center.value = alignment === "center";
         radioRow.right.value = alignment === "right";
     }
-
 
     /* 配置ラジオの値を取得 / Get alignment radio value */
     function getColumnAlignmentRadioValue(radioRow) {

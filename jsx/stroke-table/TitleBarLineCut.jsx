@@ -2,10 +2,41 @@
 #targetengine "TitleBarLineCutEngine"
 try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } catch (_) { }
 
-// =========================
-// セッション内の値保持 / Session-only persistence
-// Illustrator再起動で消える（targetengineの寿命に依存）
-// =========================
+/*
+
+### 概要
+
+テキスト1つと長方形パス1つを選択して実行すると、テキストの周りで罫線が欠けたタイトル帯を作成します。
+マージン、角丸、塗り、ノッチ、線幅をダイアログで指定できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+With one text frame and one rectangle path selected, builds a title bar whose rule is cut away around the text.
+Margin, corner radius, fill, notch and stroke weight are set in a dialog.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TitleBarLineCut";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TitleBarLineCut.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TitleBarLineCut.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function initSessionState() {
     if (!$.global.__tblc_state) {
         $.global.__tblc_state = {
@@ -20,18 +51,6 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
         };
     }
 })();
-
-// =========================================
-// 基本情報 / Basic info
-// =========================================
-var SCRIPT_NAME     = "TitleBarLineCut";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
-
-// Released under the MIT license
-// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -97,7 +116,6 @@ function LF(key, unitLabel) {
     var s = L(key);
     return s.replace(/%u/g, String(unitLabel));
 }
-
 
 (function () {
     if (app.documents.length === 0) { alert(L('alertOpenDoc')); return; }
@@ -363,7 +381,6 @@ function LF(key, unitLabel) {
 
     // A（元）/ B（塗りのみ）/ C（線のみ）
     var rectB = null;
-
 
     var rectC = null;
 
@@ -1187,7 +1204,6 @@ function LF(key, unitLabel) {
     rbCapNone.value = (__capIdx === 0);
     rbCapRound.value = (__capIdx === 1);
 
-
     function getSelectedCap() {
         // Always return an explicit cap.
         // 「なし」= BUTT / 「丸型」= ROUND
@@ -1514,6 +1530,5 @@ function LF(key, unitLabel) {
 
     // 角丸はプレビュー生成（applyPreview）時点で previewItem に反映済み。
     // ここで再適用すると二重にスタックするため、最終反映では行わない。
-
 
 })();

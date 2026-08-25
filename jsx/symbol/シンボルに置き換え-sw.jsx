@@ -1,11 +1,41 @@
 /*
-シンボルに置き換え.jsx
-Copyright (c) 2015 Toshiyuki Takahashi
-Released under the MIT license
-http://opensource.org/licenses/mit-license.php
-http://www.graphicartsunit.com/
-ver. 0.5.0
+
+### 概要
+
+ドキュメントに登録されているシンボルを一覧から選び、選択したオブジェクトをそのシンボルインスタンスへ置き換えます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Picks a symbol from the ones registered in the document and replaces the selected objects with instances of it.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "シンボルに置き換え-sw";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v0.5.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Toshiyuki Takahashi";          /* 作者 / author */
+var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/シンボルに置き換え-sw.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/シンボルに置き換え-sw.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/**
+ * @author Toshiyuki Takahashi
+ * @discussion http://www.graphicartsunit.com/
+ */
 
 (function () {
 

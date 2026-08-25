@@ -3,79 +3,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-ZIndexSorter.jsx
+選択したオブジェクトの重ね順を、指定した基準で並べ替えます。
 
-### GitHub：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/ZIndexSorter.jsx
+### Overview
 
-### 概要：
+Reorders the stacking order of the selected objects according to a chosen criterion.
 
-- オブジェクトの重ね順を位置（X/Y）やZインデックスで並べ替える
-- 昇順／降順／ランダムに並べ替え可能
-
-### 主な機能：
-
-- ダイアログで並べ替え軸と順序を指定
-- キャンセル時には元の順序に復元
-- 多言語対応（日本語／英語）
-
-### 処理の流れ：
-
-- 選択アイテムを収集
-- 並べ替え軸・順序の設定をダイアログで取得
-- 並べ替え後、Zインデックス順に再配置
-
-### note：
-
-- Illustrator 2025 以降で動作確認済
-
-### 更新履歴：
-
-- v1.0 (20250806) : 初期バージョン
+See the README for details.
 
 */
 
-/*
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ZIndexSorter";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-06";                   /* 更新日 / last updated */
 
-### Script Name:
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZIndexSorter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZIndexSorter.md
 
-ZIndexSorter.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/ZIndexSorter.jsx
-
-### Overview:
-
-- Sort object stacking order by position (X/Y) or Z-index
-- Supports ascending / descending / random order
-
-### Features:
-
-- Dialog-based control of sorting axis and order
-- Restore original order when canceled
-- Bilingual support (Japanese / English)
-
-### Workflow:
-
-- Collect selected items
-- Let user choose axis and order via dialog
-- Apply Z-index reordering based on sorting
-
-### note:
-
-- Verified on Illustrator 2025 and later
-
-### Change Log:
-
-- v1.0 (20250806): Initial release
-*/
-
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.0";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var LABELS = {
     dialogTitle: {

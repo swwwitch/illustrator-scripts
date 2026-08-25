@@ -5,17 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-バラバラに分割されたテキストオブジェクトを行単位にまとめ、元のフォント・サイズ・行送り・幅を引き継いだ1つのエリア内文字に再構成するツール。PDFをIllustratorで開いたときの分断テキストの復元に使う。
+バラバラに分割されたテキストオブジェクトを行単位にまとめ、元のフォント・サイズ・行送り・幅を引き継いだ1つのエリア内文字に再構成します。
+PDFをIllustratorで開いたときの分断テキストの復元に使います。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Rebuilds text items that were split apart into a single area text frame, grouping them line by line and inheriting the original font, size, leading, and width. Useful for restoring text broken up when a PDF is opened in Illustrator.
+Gathers scattered text objects line by line and rebuilds them as a single area text that inherits the original font, size, leading and width.
+It is meant for restoring text broken apart when a PDF is opened in Illustrator.
 
 See the README for details.
 
@@ -29,11 +27,6 @@ var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-18";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
-
-/**
- * 謝辞 / Credit
- * @discussion 倉田タカシさん（イラレで便利） https://d-p.2-d.jp/ai-js/
- */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextMergeToAreaBox.md

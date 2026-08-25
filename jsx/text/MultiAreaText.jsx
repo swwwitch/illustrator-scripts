@@ -2,30 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-    作成日：2025-03-01
-    更新日：2026-03-04
-    概要 / Summary:
-    - マージ：テキストフレームを2つ以上選択して、内容を統合した新しいエリア内文字を作成。
-      Merge: Select 2+ text frames and combine contents into a new area text frame.
-    - スレッドテキスト：
-      - 2つ以上選択：リンク（必要に応じて既存スレッド解除→再リンク）
-      - 1つ選択：リンク解除 / スレッドから除外（置き換え）
-      Thread Text:
-      - 2+ selected: Link (optionally unthread first, then relink)
-      - Single selection: Unlink / Release from thread (replacement)
-    - 交換：テキストフレーム2つを選択して、文字列のみを入れ替え。
-      Swap: Select exactly 2 text frames and exchange text only.
-    - 順序：マージ時の結合順を、上→下 / 左→右 で切り替え。
-      Order: Controls merge order (top-to-bottom or left-to-right).
-    - スタイル：均等配置、外枠からの間隔（エリア内文字のみ）、アピアランス等を適用。
-      「書式保持（段落単位）」は段落ごとに文字属性を復元（段落設定は完全ではありません）。
-      Style: Apply justification, inset spacing (area text only), appearance, etc.
-      “Preserve Formatting (per paragraph)” restores character attributes per paragraph (paragraph settings are not fully preserved).
-    - フレームの高さ：マージ結果のエリア内文字に対して、フィット/自動サイズ調整を適用。
-      Frame Height: Apply Fit/Auto Size to the merged area text frame.
+
+### 概要
+
+複数のテキストフレームを1つのエリア内文字にまとめたり、逆に分割したりします。
+
+詳細は README を参照してください。
+
+### Overview
+
+Merges several text frames into a single area text, or splits one back out.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "MultiAreaText";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-03-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-04";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MultiAreaText.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MultiAreaText.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* ロケール判定 / Detect locale */
 function getCurrentLang() {

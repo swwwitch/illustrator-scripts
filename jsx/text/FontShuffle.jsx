@@ -2,19 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  FontShuffle.jsx
-  選択したテキストの1文字ごとにランダムなフォントを適用するスクリプト（プレビュー対応）
 
-  - ダイアログボックスを表示
-  - ［再実行］ボタンでランダム適用（プレビュー更新）
+### 概要
 
-  更新日: 2026-02-16
-  変更: 犯行声明文風の適用で再ランダム化しない（プレビュー維持）
-  変更: 英数字以外を含む場合は和文フォントに限るを自動ON
+選択したテキストの1文字ごとに、ランダムなフォントを適用します。
+ダイアログでプレビューを確認しながら、［再実行］で抽選し直せます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Applies a random font to each character of the selected text.
+The dialog previews the result, and a Reshuffle button redraws the assignment.
+
+See the README for details.
+
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FontShuffle";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-16";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.2";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontShuffle.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontShuffle.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -468,7 +488,6 @@ function clearBackgroundRectsIfAny() {
     var chkManifesto = dlg.add('checkbox', undefined, L('manifestoStyle'));
     chkManifesto.value = false;
 
-
     // 犯行声明文風のON/OFFは、プレビュー済みなら「ランダムを回さず」見た目だけ更新
     chkManifesto.onClick = function () {
         if (!_previewApplied) return;
@@ -597,7 +616,6 @@ function clearBackgroundRectsIfAny() {
         _do();
         if (countHistory) PreviewHistory.bump();
     }
-
 
     btnRerun.onClick = function () {
         // プレビュー更新（ランダム再実行）

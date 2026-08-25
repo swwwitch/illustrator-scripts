@@ -7,15 +7,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 選択したエリア内文字のうち、あふれているものだけ自動サイズ調整をONにして解消してから、ポイント文字に変換します。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Clears the overset of the selected Area Type with auto-sizing, then converts every frame to point text.
+Turns on auto-sizing for whichever of the selected area texts are overset, resolves the overflow, and then converts them to point text.
 
 See the README for details.
 
@@ -178,8 +174,6 @@ var SCRIPT_UPDATED  = "2026-08-20";                   /* 更新日 / last update
             "}";
     }
 
-    /* アクションセット名。ユーザーのアクションを消さないよう、スクリプト名を冠して衝突を避ける
-       Action set name, prefixed with the script name so a user's own sets are never unloaded */
     var ACTION_SET_AUTO_SIZE = SCRIPT_NAME + "_AutoSize";
 
     /* 自動サイズ調整アクションを読み込む（スクリプト開始時に1回）/ Load the auto-size action set (once at startup) */

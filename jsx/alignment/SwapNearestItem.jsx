@@ -2,70 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SwapNearestItem.jsx
 
 ### 概要
 
-- 選択したオブジェクトを基準に、指定方向（右／左／上／下）にある最も近いオブジェクトと自然な見た目で位置を入れ替えるIllustrator用スクリプトです。
-- 複数選択時の特別処理や幅・高さ、隙間を考慮した入れ替えに対応します。
+選択したオブジェクトを基準に、指定した方向（右／左／上／下）にある最も近いオブジェクトと位置を入れ替えます。
 
-### 主な機能
-
-- 上下左右方向での最短距離判定によるスワップ
-- 幅・高さ、隙間を考慮した自然な位置調整
-- 複数選択時の手動入れ替え処理対応
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ドキュメントと選択オブジェクトを確認
-2. 指定方向に最も近いオブジェクトを検索
-3. 高さ・幅・隙間を考慮して位置を入れ替え
-4. 複数選択時は中心座標または端基準で入れ替え
-
-### 更新履歴
-
-- v1.0.0 (20250610) : 初版リリース
-- v1.0.1 (20250612) : グループ・複合パスの除外、ロック対応追加
-- v1.0.2 (20250613) : getCenter() と getSize() の導入による整理
-- v1.0.3 (20250614) : 複数選択時の一時グループ処理追加
-- v1.0.4 (20250615) : 一時グループ化処理の削除、整理
-
----
-
-### Script Name:
-
-SwapNearestItem.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that swaps the position of a selected object with the nearest object in a specified direction (right, left, up, or down), maintaining a natural visual layout.
-- Supports special handling for multi-selection and considers widths, heights, and gaps.
+Swaps the selected object with the nearest object in a chosen direction — right, left, up or down.
 
-### Main Features
+See the README for details.
 
-- Swap based on shortest distance in four directions
-- Adjust positions naturally considering widths, heights, and gaps
-- Special handling for manual swaps with two selections
-- Japanese and English UI support
-
-### Process Flow
-
-1. Check document and selected objects
-2. Find the nearest object in the specified direction
-3. Swap positions considering sizes and gaps
-4. Handle multi-selection with center or edge-based swaps
-
-### Update History
-
-- v1.0.0 (20250610): Initial release
-- v1.0.1 (20250612): Added exclusion of group/compound path children and lock support
-- v1.0.2 (20250613): Refactored with getCenter() and getSize()
-- v1.0.3 (20250614): Added temporary group handling for multiple selection
-- v1.0.4 (20250615): Removed temporary grouping, cleaned up logic
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SwapNearestItem";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItem.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNearestItem.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var directionMap = {
   1: "right",

@@ -10,14 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 詳細は README を参照してください。
 
-*/
-
-/*
-
 ### Overview
 
-Finds every placed image in the active document that references the same linked file as the current selection,
-then selects or deletes them in one step. Matching runs on either the absolute path or the file name.
+Searches the whole document for placed images that reference the same file as the selection, then selects or deletes them together.
+The match can be made either on the absolute path of the link or on the file name.
 
 See the README for details.
 
@@ -39,10 +35,6 @@ var SCRIPT_UPDATED  = "2026-08-17";                   /* 更新日 / last update
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// 判定方法と動作 / Match modes and actions
-// =========================================
 
 /* リンクの同一判定に使うキー / Key used to compare links */
 var MATCH_BY_PATH = "path";  /* placedItem.file.fsName（絶対パス）で判定 / compare by absolute path */

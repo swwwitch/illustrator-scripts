@@ -5,13 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-PresetManager の［プリセット1］と同じ設定一式を、Illustrator の環境設定へまとめて書き込みます。
-ダイアログは表示せず、実行するとその場で反映されます。詳細はREADMEを参照。
+PresetManager の［プリセット1］と同じ設定一式を、Illustratorの環境設定へまとめて書き込みます。
+ダイアログは表示せず、実行するとその場で反映されます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-Writes the same set of values as [Preset 1] in PresetManager to the Illustrator preferences at once.
-No dialog is shown; running the script applies everything immediately. See the README for details.
+Writes the same set of values as PresetManager's Preset 1 into the Illustrator preferences.
+There is no dialog; running it applies everything straight away.
+
+See the README for details.
 
 */
 

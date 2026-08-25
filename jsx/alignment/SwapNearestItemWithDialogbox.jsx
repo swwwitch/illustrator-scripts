@@ -2,70 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SwapNearestItemWithDialogbox.jsx
 
 ### 概要
 
-- 選択中のオブジェクトと指定方向（上下左右）にある最も近いオブジェクトの位置を入れ替えるIllustrator用スクリプトです。
-- ダイアログを表示し、矢印キー操作で即座に入れ替え可能です。
+選択中のオブジェクトと、指定した方向（上下左右）にある最も近いオブジェクトの位置を入れ替えます。方向はダイアログで指定します。
 
-### 主な機能
-
-- 上下左右の方向キー入力で対象オブジェクトを即座にスワップ
-- Escapeキー、Enterキー、Returnキーでダイアログを閉じる
-- オブジェクトのロック・非表示・レイヤー状態を考慮
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ドキュメントと選択オブジェクトを確認
-2. 指定方向に最も近いオブジェクトを検索
-3. 矢印キー操作に応じて位置を入れ替え
-4. ダイアログで操作を続行または終了
-
-### 謝辞
-
-@ken https://x.com/ken_rainy
-
-### 更新履歴
-
-- v1.0.0 (20250706) : 初期バージョン
-
----
-
-### Script Name:
-
-SwapNearestItemWithDialogbox.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that swaps the position of the selected object with the nearest object in a specified direction (up, down, left, or right).
-- Displays a dialog allowing immediate swaps using arrow keys.
+Swaps the selected object with the nearest object in a chosen direction, picked from a dialog.
 
-### Main Features
+See the README for details.
 
-- Instantly swap objects using arrow keys (up/down/left/right)
-- Close dialog with Escape, Enter, or Return keys
-- Considers locked, hidden objects and layer states
-- Japanese and English UI support
-
-### Process Flow
-
-1. Check document and selected object
-2. Find the nearest object in the specified direction
-3. Swap positions based on arrow key input
-4. Continue or exit using the dialog
-
-### Acknowledgements
-
-@ken https://x.com/ken_rainy
-
-### Update History
-
-- v1.0.0 (20250706): Initial version
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SwapNearestItemWithDialogbox"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItemWithDialogbox.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNearestItemWithDialogbox.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var directionMap = {
   1: "right",

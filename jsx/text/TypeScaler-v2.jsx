@@ -2,88 +2,44 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+### 概要
+
+選択したテキストのフォントサイズを、基準サイズと比率から算出して適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Sets the font size of the selected text from a base size and a ratio.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TypeScaler-v2";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeScaler-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeScaler-v2.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var persistentBaseSize = null;
 $.global.__sizeValue = $.global.__sizeValue || "12";
 $.global.__ratioIndex = ($.global.__ratioIndex !== undefined) ? $.global.__ratioIndex : 3;
 
-/*
-### スクリプト名：
-
-TypeScaler.jsx
-
-### GitHub：
-
-https://github.com/swwwitch/illustrator-scripts
-
-### 概要：
-
-- 基準フォントサイズと倍率からタイプスケールを自動生成
-- 選択テキストにフォントサイズを適用、または見本を生成
-- プレビュー機能でサイズを即時確認可能
-
-### 主な機能：
-
-- 倍率に基づいたサイズリスト生成
-- 選択テキストへのフォントサイズ適用
-- 複数サイズの見本テキスト生成
-- 単位に応じたラベル表示
-
-### 処理の流れ：
-
-1. ダイアログで基準サイズと倍率を入力
-2. 自動生成されたサイズリストを表示
-3. 選択したサイズを適用または見本を作成
-
-### 参考
-
-https://note.com/hiro_design_n/n/nc95a1d2d86a4
-
-### 更新履歴：
-
-- v1.0 (20250728) : 初期バージョン
-- v1.1 (20250729) : UI改善とローカライズ対応
-- v1.2 (20250801) : ダイアログボックスを再度開いたときに値を記憶する機能を追加
-*/
-
-/*
-### Script Name：
-
-TypeScaler.jsx
-
-### GitHub：
-
-https://github.com/swwwitch/illustrator-scripts
-
-### Overview：
-
-- Automatically generate a type scale from a base font size and ratio
-- Apply font sizes to selected text or generate sample text in the document
-- Preview function for immediate size confirmation
-
-### Key Features：
-
-- Generate size list based on ratio
-- Apply font sizes to selected text
-- Create multiple sample texts with sizes
-- Display labels according to units
-
-### Process Flow：
-
-1. Enter base size and ratio in the dialog
-2. Display the automatically generated size list
-3. Apply the selected size or create samples
-
-### Update History：
-
-- v1.0 (20250728) : Initial version
-- v1.1 (20250729) : UI improvements and localization support
-- v1.2 (20250801) : Added functionality to remember values when reopening the dialog
-
-*/
-
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -167,7 +123,6 @@ function createNumberedLabels(items, offset, unitLabel) {
   }
   return labels;
 }
-
 
 function getSelectedTextFrames() {
   var sel = app.activeDocument.selection;
@@ -283,7 +238,6 @@ function main() {
   // イベント定義
   // =========================
 
-
   // 基準サイズ入力変更時
   sizeInput.onChanging = function () {
     var inputValue = parseFloat(sizeInput.text);
@@ -369,7 +323,6 @@ function main() {
   cancelBtn.onClick = function () {
     dialog.close();
   };
-
 
   // =========================
   // 初期表示更新とダイアログ表示

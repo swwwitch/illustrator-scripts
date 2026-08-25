@@ -1,20 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-(function () {
+/*
 
-    /*
-     * 概要 / Overview
-     * 選択された各テキストフレーム内の各行ごとに行送りを設定します。
-     * テキストの一部（TextRange）が選択されている場合、その親のテキストフレーム（TextFrame）に正規化します。
-     * ファイル名に AUTO または 自動 を含む場合は、自動行送り（autoLeading）を有効にします（サイズ調査は行いません）。
-     * それ以外の場合は、各行の先頭最大5文字のフォントサイズをサンプリングし、最頻値（同数時は最大値）を基準に手動行送りを設定します。
-     * ファイル名末尾の数値（例: 110）は倍率として解釈され、1.10 のように適用されます。数値が無い場合は 1.2 を使用します。
-     * 非テキストオブジェクトや処理不能な要素はスキップされます。
-     * エラーは最初の1回のみ通知され、処理は継続されます。
-     * アラートメッセージはローカライズ定義（LABELS）を通して取得します。
-     * 更新日：2026-04-21
-     */
+### 概要
+
+選択された各テキストフレームの各行に、自動行送り（autoLeading）を設定します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Turns on auto leading for each line of the selected text frames.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ApplyLeadingPerTextFrameAUTO"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFrameAUTO.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFrameAUTO.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+(function () {
 
     var DEFAULT_LEADING_RATIO = 1.2; // fallback
 

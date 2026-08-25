@@ -3,59 +3,46 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### Script Name
 
-TextOutlineRestorePalette.jsx
+### 概要
 
-English-only build. UI, comments, and the note storage format are all English.
+テキストのアウトライン化と、アウトラインからのテキスト復元を常駐パレットから実行します。AiTextOutlineRestorePalette.jsx の英語版ビルドです。
+アウトライン化の直前に文字・段落属性をオブジェクトのメモ（note）へ保存し、そのメモをもとにテキストフレームを再生成します。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Outline selected text (saving its attributes to the note) and restore it back, from a persistent palette
-- Before outlining, character/paragraph attributes are serialized into the object's note as text
-- On restore, the note is parsed to recreate the text frame, bringing back font, size, leading,
-  kerning, fill color, alignment, horizontal/vertical scale, position, etc.
-- Japanese-only typography attributes (orientation, kinsoku, mojikumi, tsume) are intentionally not handled in this English build
-- The original outlines are moved to the outlined_text layer (dimmed and locked)
-- The selected object's note is listed in the panel (Load button)
-- Older notes without newer fields fall back to previous behavior (backward compatible)
-- All DOM work is delegated to the main engine via BridgeTalk
+Outlines text and restores it back from the outlines, driven from a persistent palette. This is the English-only build of AiTextOutlineRestorePalette.jsx.
+Character and paragraph attributes are serialized into the object's note just before outlining, and the note is parsed to rebuild the text frame.
 
-### Features
-
-- Outline with Memo: serialize properties into the note
-- Restore Text: recreate the text from the note; the original outlines are moved to the outlined_text layer
-- Show the selected object's note in the panel (Load button)
-
-### Supported properties
-
-- Text contents (multi-line)
-- Font (PostScript name)
-- Font size
-- Leading
-- Auto leading
-- Horizontal & vertical scale
-- Kerning method (metrics / optical / roman only / none)
-- Proportional metrics (linked to the kerning method)
-- Tracking
-- Alignment (left / center / right / justify)
-- Fill color (CMYK / RGB / Gray / Spot)
-- Position (by geometricBounds; not shown in the list)
-
-Note: Gradient/pattern fills and mixed attributes are not supported (the first character's value is used)
-
-### note
-
-https://note.com/dtp_tranist/n/nc476be8ad43c
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AiTextOutlineRestorePalette-e"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette-e.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette-e.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
 // ==============================
 // Version
 // ==============================
-var SCRIPT_VERSION = "v2.0.0";
 
 // ==============================
 // Labels

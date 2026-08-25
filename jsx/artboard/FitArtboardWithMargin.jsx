@@ -5,97 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
-
-FitArtboardWithMargin.jsx
-
 ### 概要
 
-- 更新日：20260716
-- アートボードのサイズを「操作」×「対象」の2軸で選んで自動調整します。
-  - 操作：オブジェクトに合わせる（選択の外接＋マージン）／ アートボードを拡張（自身のサイズにマージン加減）
-  - 対象：現在のアートボード ／ すべてのアートボード
-  - ※「合わせる」は現在のアートボード専用（選択が必要。対象は「現在」に固定されます）
-- 即時プレビュー付きダイアログで、確定結果と同じ計測・丸めをリアルタイムに確認できます。
-- 定規単位（mm・px・pt・歯/Q など）に応じた初期マージン値を用意します。
+アートボードのサイズを「操作」×「対象」の2軸で選んで自動調整します。
 
-### 主な機能
-
-- 調整基準を「操作（合わせる／拡張）×対象（現在／すべて）」の2グループで指定
-- 上下・左右マージンの個別入力・連動、各軸の個別ON/OFF（OFFの軸は実行時サイズを維持）
-- サイズ丸めモードを3択（ピクセルグリッド／現在の単位で整数／なし）※X/Y/W/H を各1回だけ丸め
-- テキストは複製をアウトライン化して非破壊で正確に計測（グループ内テキストも対象・元オブジェクトは不変）
-- 確定と一致する即時プレビュー、キャンセル時はスナップショット復元で完全に元へ戻す
-- ↑↓＝±1／Shift＝10の倍数にスナップ／Option＝±0.1 のキー入力、設定はセッション内で記憶
-
-### 処理の流れ
-
-1. 操作（合わせる／拡張）と対象（現在／すべてのアートボード）を選ぶ
-   ※「合わせる」を選ぶと対象は「現在」に固定
-2. 上下・左右マージンと丸めモードを設定（即時プレビュー対応）
-3. OK で確定し、設定に基づきアートボードを自動調整
-
-### オリジナル、謝辞
-
-Gorolib Design
-https://gorolib.blog.jp/archives/71820861.html
-
-### オリジナルからの変更点
-
-- ダイアログを閉じずにプレビュー更新（確定と同じ計測・丸めを反映）
-- 単位系（mm、px など）によってデフォルト値を切り替え、歯/Q にも対応
-- アートボードのX/Y/W/Hを整数化（ピクセル／現在単位／なしの3択）
-- 「操作（合わせる／拡張）×対象（現在／すべて）」の2軸で調整基準を指定
-- 空ドキュメントでもアートボード拡張が可能
-- 上下・左右の個別ON/OFF（Option+クリックでソロ）、各軸の連動
-- ↑↓／Shift＋↑↓／Option＋↑↓によるキー入力、ダイアログ位置と設定の記憶
-
-### note
-
-https://note.com/dtp_transit/n/n15d3c6c5a1e5
-
-### 更新履歴
-
-- v1.0 (20250420) : 初期バージョン
-- v1.9.0 (20260715) : 丸めモード3択化・微調整パネル・UI共通化・プレビュー巻き戻し修正／テキスト計測を非破壊化（元テキスト不変）・プレビューと確定の計測ロジック統一・rulerType未対応値はptフォールバック・対象アイテム固定・Shift=±10/Option=±0.1・プレビュー境界は選択時のみ有効・丸めをX/Y/W/Hに統一・無効サイズ検証・文言改善・ラベル幅統一・ローカライズ共通化・ボタン右寄せ・上下/左右のマージンを個別ON/OFF（OFFで連動自動解除・実行時サイズを保持・Option+クリックでソロ）・空ドキュメントでもダイアログ表示・一時アウトラインをtry/finallyで確実削除・選択の型安全化（非ページアイテム除外）・選択ツール切替は成功時のみ・丸めをプレビューにも反映・ドキュメント未オープンガード・調整基準を「操作（合わせる/拡張）×対象（現在/すべて）」の2グループ化
-- v1.9.1 (20260716) : 合わせるは現在のアートボード固定＋対象ディム・Shiftを10の倍数スナップに・開いたらマージン欄にフォーカス・グループ内テキストも非破壊計測（再帰）・一時複製の確実削除（createOutline失敗時も）・getMaxBounds空配列ガード・UIコロンを言語別に・英語コメント/概要を実装へ同期
-
----
-
-### Script Name:
-
-FitArtboardWithMargin.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- Last Updated: 20260716
-- Automatically resizes artboards by choosing an operation and a scope:
-  - Operation: Fit to objects (the selected objects' bounds plus margins) / Expand artboard (grow/shrink the artboard itself by the margins)
-  - Scope: Current artboard / All artboards
-  - Note: "Fit to objects" applies to the current artboard only (scope is locked to Current).
-- The live-preview dialog reflects the exact same measurement and rounding as the final result.
-- Provides unit-based default margins (mm, px, pt, Ha/Q, etc.).
+Fits the artboard size automatically, choosing along two axes: the operation and the target.
 
-### Main Features
-
-- Basis split into two groups: operation (fit / expand) x scope (current / all)
-- Vertical/horizontal margins with linking and per-axis on/off (a disabled axis keeps its original size)
-- Three size-rounding modes (pixel grid / integers in current unit / none); X/Y/W/H rounded once each
-- Non-destructive text measurement by outlining duplicates, including text nested in groups (originals stay untouched)
-- Live preview that matches the final result; cancel fully restores via snapshot
-- Key input: Arrow=±1 / Shift=snap to 10 / Option=±0.1; settings remembered within the session
-
-### Workflow
-
-1. Choose the operation (fit / expand) and scope (current / all artboards)
-2. Set vertical/horizontal margins and rounding mode (with live preview)
-3. Click OK to apply the adjustment
-
-### Changelog
-
-- v1.0 (20250420): Initial version
-- v1.9.1 (20260716): Fit is current-artboard only (scope locked & dimmed), Shift snaps to multiples of 10, focus a margin field on open, non-destructive measurement of text nested in groups (recursive), reliable temp-duplicate cleanup (even if createOutline fails), getMaxBounds empty guard, language-aware UI colon, English comments/overview synced to the implementation
-- v1.9.0 (20260715): Three-way rounding mode, fine-tuning panel, shared UI, preview rollback fix / non-destructive text measurement (originals untouched), unified preview & confirm measurement, pt fallback for unknown rulerType, frozen target items, Shift=±10/Option=±0.1, preview-bounds enabled only for selection, X/Y/W/H rounding, invalid-size guard, wording, aligned labels, shared localization, right-aligned buttons, per-axis on/off for vertical/horizontal margins (auto-unlinks, keeps original size, Option-click to solo), dialog shows on empty docs, temp outlines removed via try/finally, selection type-safety (non-page items excluded), tool switch only on success, rounding reflected in preview, no-document guard, basis split into two groups (operation: fit/expand × scope: current/all)
+See the README for details.
 
 */
 
@@ -105,8 +25,14 @@ FitArtboardWithMargin.jsx
 var SCRIPT_NAME     = "FitArtboardWithMargin";        /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.9.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-16";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitArtboardWithMargin.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboardWithMargin.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

@@ -2,60 +2,41 @@
 
 /*
 
-### スクリプト名：
+### 概要
 
-KeepInView.jsx（テンプレート）
+生成・変更したオブジェクトが画面から外れたときだけ、見える位置へ表示を移す再利用テンプレートです。
+すでに見えているときは動かさず、画面に収まらないときはズームアウトのみ行います。
 
-### 概要：
+詳細は README を参照してください。
 
-- 生成・変更したオブジェクトが画面から外れたときだけ、見える位置へ表示を移す再利用テンプレート
-- すでに見えているときは動かさないので、操作のたびに画面が揺れない
-- 収まらないときはズームアウトのみ行い、拡大はしない（倍率が勝手に上がらない）
+### Overview
 
-### 使い方：
+A reusable template that scrolls the view only when the objects you created or changed have fallen outside it.
+Objects already in view are left alone, and it only zooms out — never in — when they do not fit.
 
-1. 下の `var KeepInView = (function () { ... })();` のブロックまるごとを、対象スクリプトのIIFE内へコピーする
-   （`#include` は使わない。各スクリプトは1ファイルで完結させる方針）
-2. チェックボックスを置く。ラベルとツールチップは日英を内蔵しているので、文言を用意する必要はない
-
-        var cbKeepInView = KeepInView.addCheckbox(grpViewOptions, { value: true });
-
-3. 結果を作り終えたところで呼ぶ
-
-        if (cbKeepInView.value) KeepInView.ensureVisible(createdItems, { doc: doc, fitRatio: 0.9 });
-
-チェックボックスを自前で作る場合は `addCheckbox` を使わず、`ensureVisible` だけを呼ぶ。
-`doc` を省略すると最前面のドキュメント、`fitRatio` を省略すると `DEFAULT_FIT_RATIO` が使われる。
-
-### 使用例：
-
-- `jsx/text/DynamicTextGenerator.jsx`（「結果を画面内に表示」）
-
-### 更新履歴：
-
-- v1.0.0 : 初版（テンプレート）
+See the README for details.
 
 */
 
 // =========================================
-// 再利用パーツ / Reusable part
-//   ↓↓↓ ここから下のブロックを対象スクリプトへコピーして使う ↓↓↓
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "KeepInView";                   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KeepInView.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KeepInView.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var KeepInView = (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "KeepInView";                   /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User Settings
     // =========================================
     /* 結果が可視領域からはみ出したときに合わせる倍率（1で余白なし。小さいほど余白が増える）

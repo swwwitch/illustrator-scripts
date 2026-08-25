@@ -3,83 +3,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-PathUnite.jsx
+選択中のオブジェクトに対して、複合パスの解除→パスの合体→アピアランスの拡張→グループ解除を一括で実行します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUnite.md
+### Overview
 
-### 概要：
+Runs Release Compound Path, Unite, Expand Appearance and Ungroup on the selection in one pass.
 
-- 更新日：2026-05-10
-- 選択中のオブジェクトに対して、複合パスの解除 → パスの合体 → アピアランスの拡張 → グループ解除を一括実行する Illustrator スクリプト
-
-### 主な機能：
-
-- 複合パスの解除
-- パスの合体（ライブパスファインダ）
-- アピアランスの拡張
-- グループ解除
-
-### 処理の流れ：
-
-1) 複合パスの解除
-2) パスの合体（ライブパスファインダ）
-3) アピアランスの拡張
-4) グループ解除
-
-### 更新履歴：
-
-- v1.0.0 (2026-05-10) : 初期バージョン
-
-*/
-
-/*
-
-### Script Name:
-
-PathUnite.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUnite.md
-
-### Description:
-
-- Last Updated: 2026-05-10
-- Applies Release Compound Path → Unite (Live Pathfinder Add) → Expand Appearance → Ungroup in sequence to the current selection
-
-### Main Features:
-
-- Release compound paths
-- Unite paths (Live Pathfinder Add)
-- Expand appearance
-- Ungroup
-
-### Process Flow:
-
-1) Release compound paths
-2) Unite paths (Live Pathfinder Add)
-3) Expand appearance
-4) Ungroup
-
-### Changelog:
-
-- v1.0.0 (2026-05-10) : Initial version
+See the README for details.
 
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "PathUnite";                    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-10";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUnite.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUnite.md
 
-// =========================================
-// ローカライズ / Localization
-// =========================================
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

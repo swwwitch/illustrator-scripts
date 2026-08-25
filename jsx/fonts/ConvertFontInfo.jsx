@@ -2,70 +2,19 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-ConvertFontInfo.jsx
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ConvertFontInfo.jsx
-
 
 ### 概要
 
-- 選択したテキストをフォント情報に変換するIllustrator用スクリプトです。
-- ダイアログで変換形式を選び、対象テキストを即時プレビューしながら書き換えます。
-- 右列には、選択中テキストの実フォント情報をもとにした変換結果を表示します。
-- OK時は選択中の形式を再適用し、キャンセル時は開始時の内容、フォント、サイズ、行揃えに戻します。
+選択したテキストを、そのテキストで使われているフォント情報の文字列に変換します。
 
-### 主な機能
-
-- フォント名、スタイル、フォント名＋スタイル、PostScript名、フルネーム＋サイズ、詳細表示を選択可能
-- 初期状態は「フォント名＋スタイル」を選択
-- F/S/B/P/M/Dキーで変換形式を切り替え
-- Enter／Returnキーで確定（OKがデフォルトボタン）
-- 詳細表示ではラベル行と値行を分け、行揃えを左揃えに変更
-- 選択したテキストフレームを保持し、プレビュー中に選択状態が変わっても同じ対象を更新
-- フォントサイズは環境設定「文字の単位」に従い、小数第2位まで換算表示
-- 日本語／英語インターフェース対応
-
-
-### 更新履歴
-
-- v1.0.0 (20250509) : 初期バージョン
-- v1.1.0 (20260428) : 変換形式を拡張し、実フォント情報プレビュー、キー操作、OK時の再適用を追加
-- v1.1.1 (20260608) : 文字の部分選択（TextRange）からも実行可能に、OKをデフォルトボタン化、内部リファクタ
-- v1.1.2 (20260611) : OK確定時の二重適用を廃止しクラッシュを回避（プレビュー状態をそのまま確定）
-
----
-
-### Script Name:
-
-ConvertFontInfo.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that converts selected text into font information.
-- Choose a conversion format in the dialog and rewrite the target text with an immediate preview.
-- The right column shows conversion results generated from the actual font information of the selected text.
-- Reapplies the selected format on OK, and restores original contents, font, size, and justification when canceled.
+Replaces the selected text with a string describing the font information it uses.
 
-### Main Features
+See the README for details.
 
-- Choose from font family, style, font family + style, PostScript name, full name + size, or detail view
-- Defaults to Font Family + Style
-- Switch conversion formats with the F/S/B/P/M/D keys
-- Confirm with the Enter / Return key (OK is the default button)
-- Detail view separates label lines and value lines, and sets justification to left
-- Keeps references to the selected text frames, so the same targets are updated even if the selection changes during preview
-- Converts font size according to the Illustrator "Type Units" preference and rounds it to two decimals
-- Japanese and English UI support
-
-
-### Update History
-
-- v1.0.0 (20250509): Initial version
-- v1.1.0 (20260428): Expanded conversion formats and added actual font preview, keyboard shortcuts, and final reapply on OK
-- v1.1.1 (20260608): Allow running from a partial character selection (TextRange), made OK the default button, internal refactor
-- v1.1.2 (20260611): Removed the redundant re-apply on OK to avoid crashes (commit the previewed state as-is)
 */
 
 // =========================================
@@ -74,8 +23,13 @@ ConvertFontInfo.jsx
 var SCRIPT_NAME     = "ConvertFontInfo";              /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertFontInfo.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertFontInfo.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

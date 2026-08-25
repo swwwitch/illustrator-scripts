@@ -6,36 +6,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator 用のメモ入力フローティングパレット。選択オブジェクトやクリップボードからテキストを読み込み、
-空行・改行を整理して、テキストファイルへの保存やクリップボードへのコピーができます。
+メモ入力用のフローティングパレットです。
+選択オブジェクトやクリップボードからテキストを読み込み、空行・改行を整理して、テキストファイルへの保存やクリップボードへのコピーができます。
 
-詳細はREADMEを参照。
+詳細は README を参照してください。
 
 ### Overview
 
-A floating memo palette for Illustrator. Loads text from the selected objects or the clipboard,
-tidies blank lines and line breaks, then saves it to a text file or copies it to the clipboard.
+A floating palette for taking notes.
+It can pull text in from the selection or the clipboard, tidy up blank lines and returns, and save the result to a text file or copy it back to the clipboard.
 
 See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AiMemoPallete";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPallete.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPallete.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
-
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "AiMemoPallete";                /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPallete.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPallete.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹介記事 / article URL */
 
     /**
      * 原案 / Original idea

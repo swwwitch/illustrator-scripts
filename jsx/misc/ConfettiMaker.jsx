@@ -1,40 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/* =========================================
- * 紙吹雪を生成 / Generate Confetti
- *
- * 概要 / Overview
- * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/正方形/三角形/スター/キラキラA/キラキラB/ハート/リボン/シンボル）を生成します。
- * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
- * - UIは日本語/英語に対応し、タイトルバーにバージョンを表示します。
- *
- * 使い方 / Usage
- * 1) マスクにしたいオブジェクトを1つ選択
- * 2) スクリプトを実行
- * 3) 設定を調整し、OK
- *
- * メモ / Notes
- * - マージンは生成エリアのみ拡張します（マスク領域は拡張しません）。
- * - TextFrame（テキスト）選択時はマスク処理を無効化します。
- * - プレビュー用レイヤー（__ConfettiPreview__）は終了時に削除されます。
- * - 既に Confetti レイヤーがある場合は新規作成せず再利用します。
- * - マージンの最大値は（幅+高さ）/6 を基準に動的に設定します。
- * - v1.6: ハート形状を追加。形状パネルを3カラム構成に変更。各形状のサイズバランスを補正（長方形/スター/キラキラA/キラキラB）。五芒星の向きを左右対称に修正。
- * - v1.6.1: 配置分布ラベルの英語表現を調整（Vertical → Top to Bottom、Radial → Radial Outward）。
- * - v1.6.2: ドキュメント未オープン時のガードを追加。
- * - v1.6.3: ドキュメント未オープン時のメッセージをローカライズ。
- * - v1.6.4: selectedSymbolRef の未宣言グローバル漏れを解消。
- * - v1.6.5: selectedSymbolRef に実際の Symbol 参照を保持し、シンボル生成で優先利用するよう調整。
- * - v1.6.6: シンボル選択判定を selectedSymbolRef 優先・selectedSymbolName フォールバックに整理。
- * - v1.6.7: catch を整理し、重要箇所のみ context 付きでログ出力するよう調整。
- * - v1.6.8: 最終確定時の移動失敗を無言 break せず、context 付きログと安全な脱出に変更。
- * - v1.6.9: scheduleTask 用に登録した $.global 関数を終了時にクリーンアップ。
- * - v1.7.0: noDocumentOpen を共通ローカライズ関数で参照するよう整理。
- * - v1.7.1: clearPreview() の責務を整理し、previewLayer 未作成時でも状態を確実に初期化するよう調整。
- * - v1.7.2: ハートを Option+クリックで単独選択した際も、キラキラBと同様に回転/歪みOFFとサイズプリセットを適用。
- * - v1.7.3: キラキラB/ハートの Option+クリック時、基準サイズは変更しないよう調整。
- * ========================================= */
+/*
+
+### 概要
+
+選択オブジェクトの領域を基準に、紙吹雪を生成します。
+形状は円・長方形・三角形・スター・ハート・リボン・シンボルなどから選べ、プレビューを見ながら設定できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Generates confetti across the area of the selected objects.
+The shape can be a circle, rectangle, triangle, star, heart, ribbon, symbol and more, all set with a preview.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ConfettiMaker";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConfettiMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMaker.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // コンフェティ（紙吹雪）作成スクリプト
 
@@ -60,18 +60,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         alert(getEarlyLabel("noDocumentOpen"));
         return;
     }
-
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "ConfettiMaker";                /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-03-11";                   /* 更新日 / last updated */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
 
     var lang = getCurrentLang();
 
@@ -352,7 +340,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         requestPreviewDebounced();
     };
 
-
     /* マスク処理 / Mask（基本設定panel内に移動） */
     // マスク処理 + マージン をまとめる
     var gMaskMargin = pnlBasic.add("group");
@@ -391,7 +378,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // マージン最大値を対象サイズから設定
     try { applyMarginMaxToUI(); } catch (_) { }
 
-
     /* 配置分布 / Distribution（基本設定panel内・group） */
     var gDistWrap = pnlBasic.add("group");
     gDistWrap.orientation = "column";
@@ -423,7 +409,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     rbGradY.value = false;
 
     gHollow.enabled = (rbHollow.value || rbGradY.value);
-
 
     /* 形状 / Shapes */
     var pnlShape = dlg.add("panel", undefined, L("pnlShape"));
@@ -1281,7 +1266,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             try { item.shear(deg); } catch (__) { }
         }
     }
-
 
     function getConfettiSize() {
         var base = (typeof getBaseSizePt === "function") ? getBaseSizePt() : ((minSize + maxSize) * 0.5);

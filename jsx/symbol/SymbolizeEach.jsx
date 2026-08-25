@@ -3,67 +3,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-概要
+### 概要
 
-選択したオブジェクトを、個別またはまとめてシンボルとして登録し、
-必要に応じて元オブジェクトをシンボルインスタンスで置き換える Illustrator 用 JSX スクリプト。
+選択したオブジェクトを、個別またはまとめてシンボルとして登録し、必要に応じて元オブジェクトをシンボルインスタンスで置き換えます。
 
-- 実行時にダイアログで「選択範囲の扱い」「登録方法」「シンボル名（接頭辞・連番桁数・テキスト内容の利用）」「基準点」「リンク画像の扱い」を設定する
-- ［選択範囲の扱い］
-  - ［まとめて1つのシンボルにする］：選択全体を1つのシンボルとして登録する。登録方法は標準ダイアログでの確認に固定される
-  - ［オブジェクトごとにシンボル化］：選択中の各オブジェクトを個別のシンボルとして登録する
-- ［登録方法］
-  - ［自動登録］：接頭辞・連番・テキスト内容・基準点をスクリプト側で適用し、確認なしでシンボル化する
-  - ［標準ダイアログで確認］：対象ごとに Illustrator 標準の「新規シンボル…」ダイアログ（Adobe New Symbol Shortcut）を開き、名前と基準点を都度指定する
-- ［標準ダイアログで確認］では対象オブジェクト以外の選択を解除し、ビューを対象へスクロール＋ズーム調整（約 50% 占有）してからダイアログを開く
-- ［標準ダイアログで確認］の開始時のビュー状態（ズーム・中心点）を退避し、終了時に復元する
-- ［標準ダイアログで確認］中は、ダイアログ上で「接頭辞・連番・テキスト内容・基準点」のコントロールをディム表示する
-- ［自動登録］時のシンボル名の優先順位は「テキスト内容（利用 ON 時）→ レイヤー名（既定名は除外）→ item.note → 接頭辞＋連番」
-- ［テキスト内容をシンボル名に使う］が ON のときは TextFrame の内容（または GroupItem 内の最初の TextFrame）をシンボル名に使う
-- レイヤー名は "Layer N" / "レイヤー N" のような既定名はスキップし、明示的にリネームされた場合のみ採用する
-- メモは Attributes パネルの note 欄を参照する（空白だけは無効扱い）
-- どれも取れない場合は接頭辞＋指定桁数のゼロ埋め連番（0 / 00 / 000）で命名する
-- 既存シンボルと同名になる場合は末尾に "_2", "_3"... を付けて重複を回避する
-- リンク画像（PlacedItem）は［埋め込んで登録］でシンボル化前に embed、［無視］でスキップする
-- すでに SymbolItem の選択はそのまま残し、新規登録の対象から除外する
-- ［自動登録］では元オブジェクトの geometricBounds を記録し、生成したシンボルインスタンスを同位置・近い重なり順に配置する
-- 処理後は新規シンボルインスタンスとスルーした既存 SymbolItem / 無視した PlacedItem を選択状態にする
-- 完了時に「新規作成数 / 既存シンボル数 / 無視リンク画像数 / 失敗数」をまとめて通知する
+詳細は README を参照してください。
 
-Overview
+### Overview
 
-Illustrator JSX script that registers selected artwork as symbols either per object
-or as one combined symbol, replacing originals with new instances when applicable.
+Registers the selected objects as symbols — individually or as one — and optionally replaces the originals with instances.
 
-- Shows a dialog at launch to configure selection handling, registration method, symbol-name settings, registration point, and linked-image policy
-- Selection handling:
-  - "Create one symbol from selection": registers the whole selection as one symbol. The registration method is locked to native-dialog confirmation
-  - "Create symbols per object": registers each selected object as its own symbol
-- Registration method:
-  - "Register automatically": applies prefix / sequence / text contents / registration point automatically and symbolizes each item without confirmation
-  - "Confirm with native dialog": opens Illustrator's native "New Symbol..." dialog (Adobe New Symbol Shortcut) for each target so name and registration point can be entered per target
-- In native-dialog confirmation, deselects other items and scrolls/zooms the view onto the target (~50% of the view) before opening the dialog
-- Saves the view state (zoom and center) at the start of native-dialog confirmation and restores it on exit
-- During native-dialog confirmation, dims prefix / sequence / text-contents / registration-point controls in the dialog
-- In automatic registration, symbol-name priority: text contents (when enabled) → parent layer name (excluding default "Layer N" / "レイヤー N") → item note → prefix + zero-padded sequence
-- When "Use text contents as symbol name" is on, uses the TextFrame contents (or first TextFrame inside a GroupItem)
-- Layer names matching the default "Layer N" / "レイヤー N" pattern are treated as unset
-- Item notes come from the Attributes panel's note field (whitespace-only values are treated as unset)
-- Falls back to the prefix plus a zero-padded sequence number (0 / 00 / 000) when none of the above is available
-- Appends "_2", "_3"... to avoid collisions with existing symbol names
-- Linked images (PlacedItem) are embedded before symbolizing under "Embed and register" or skipped under "Ignore"
-- Leaves existing SymbolItems in the selection untouched and excludes them from registration
-- In automatic registration, records the original geometricBounds and places the new instance at the same position and near the same z-order
-- Leaves the newly created instances and any skipped SymbolItems / ignored PlacedItems selected after the run
-- Reports created / existing-symbol / ignored-linked-image / failed counts in a summary alert
+See the README for details.
 
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "SymbolizeEach";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.1";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolizeEach.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeEach.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 現在の UI 言語 / Current UI language */
 var currentLang = ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -829,7 +798,6 @@ function getNoteFromItem(item) {
         return null;
     }
 }
-
 
 // =========================================
 // 文字列・名前ユーティリティ / String and name helpers

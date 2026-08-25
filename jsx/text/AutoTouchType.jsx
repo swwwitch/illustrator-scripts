@@ -1,19 +1,42 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/* =========================================
- * AutoTouchType.jsx
- * 概要: 選択したテキストの各文字に対して、ベースライン/比率/回転/カーニング/トラッキングをランダムに付与する「オート文字タッチ」ツール。
- *       seed付きRNGでプレビューの見た目を安定化する。文字回転を適用した場合は、回転角に応じてトラッキングを自動補正する。画面ズームは「軽量モード」でドラッグ完了時のみ反映に切り替えできる。
- * 作成日: 2026-02-16
- * 更新日: 2026-02-20
- * バージョン: v1.2.7
- * 
- * Special thanks to Egor Chistyakov for the tracking compensation algorithm.
- * ========================================= */
+/*
+
+### 概要
+
+選択したテキストの各文字に対して、ベースライン・比率・回転・カーニング・トラッキングをランダムに付与します。
+seed付きの乱数でプレビューの見た目を安定させ、文字回転を適用したときはトラッキングを自動補正します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Randomizes the baseline shift, scale, rotation, kerning and tracking of each character in the selected text.
+A seeded RNG keeps the preview stable, and the tracking is corrected automatically when character rotation is applied.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AutoTouchType";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.7";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-20";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoTouchType.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoTouchType.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
-    var SCRIPT_VERSION = "v1.2.7";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -103,7 +126,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     function getPrefIntSafe(key, fallback) {
         try { return app.preferences.getIntegerPreference(key); } catch (_) { return fallback; }
     }
-
 
     if (app.documents.length === 0) { alert(L("alertNoDoc")); return; }
     var doc = app.activeDocument;
@@ -1374,12 +1396,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     changeValueByArrowKey(edtKern);
     changeValueByArrowKey(edtRansomTrk);
 
-
     sldBase.onChanging = function () { syncFromSlider(sldBase, edtBase); requestPreview(); };
     sldH.onChanging = function () { syncFromSlider(sldH, edtH); requestPreview(); };
     sldRot.onChanging = function () { syncFromSlider(sldRot, edtRot); requestPreview(); };
     sldKern.onChanging = function () { syncFromSlider(sldKern, edtKern); requestPreview(); };
-
 
     btnOK.onClick = function () {
         var base = 0; // in pt

@@ -3,37 +3,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-概要
+### 概要
 
-選択オブジェクトをシンボル化し、書類内の一致するアイテムを
-そのシンボルインスタンスにまとめて置き換える Illustrator 用 JSX スクリプト。
+選択オブジェクトをシンボル化し、書類内の一致するアイテムをそのシンボルインスタンスへまとめて置き換えます。
+シンボル名と基準点はダイアログで指定でき、テキスト選択時は同じフォント・スタイル・文字列のフレームを対象にします。
 
-- ダイアログでシンボル名と基準点（3×3）を指定してシンボル登録する（既存と同名は不可）
-- テキスト選択時はその文字列をシンボル名の初期値にし、同じフォント・スタイル・文字列のフレームを対象にする
-  （「フォントサイズ違いも対象にする」ON でサイズ無視）
-- それ以外は SmartEdit の一括選択で類似オブジェクトを対象にする
-- 複数グループ選択時は、選択したグループすべてを 1 つのシンボルに置き換える（グループ以外を含む複数選択は不可）
-- 各対象を、指定した基準点で位置を合わせながらシンボルインスタンスに置換する
-- 置換後は新しいシンボルインスタンスを選択状態にする
-- ロック／非表示などで置換できなかったアイテムは件数を通知する
+詳細は README を参照してください。
 
-### 紹介記事（note)
+### Overview
 
-https://note.com/dtp_tranist/n/n650a4b91329d
+Registers the selection as a symbol and replaces every matching item in the document with an instance of it.
+The symbol name and registration point are set in a dialog; with text selected, frames sharing the same font, style and string are targeted.
 
-Overview
-
-Illustrator JSX script that converts the selected object into a symbol and
-replaces matching items in the document with instances of that symbol.
-
-- Registers the symbol via a dialog for its name and a 3×3 registration point (existing names are rejected)
-- For a TextFrame, seeds the symbol name from its text and targets frames with the same font, style, and contents
-  (enable "Include different font sizes" to ignore size)
-- Otherwise targets similar objects via SmartEdit bulk selection
-- With multiple groups selected, replaces every selected group with one symbol (a multi-selection containing non-groups is rejected)
-- Replaces each target with a symbol instance, aligned by the chosen registration point
-- Leaves the new symbol instances selected after replacement
-- Reports how many items could not be replaced (locked/hidden, etc.)
+See the README for details.
 
 */
 
@@ -46,12 +28,14 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolizeAndReplace.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeAndReplace.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n650a4b91329d"; /* 紹介記事 / article URL */
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* 3×3 基準点の単一テーブル（行優先：上行 → 中行 → 下行）。AiReferencePoint と SymbolRegistrationPoint への対応をここから派生させる / Single source of truth for the 3×3 reference points (row-major: top → middle → bottom). Both AiReferencePoint and SymbolRegistrationPoint mappings are derived from this table */
 var REFERENCE_POINTS = [

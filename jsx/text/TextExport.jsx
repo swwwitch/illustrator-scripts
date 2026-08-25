@@ -1,46 +1,41 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.4.14";
-
 /*
 
-TextScopeEdit.jsx
+### 概要
 
-概要
-選択した条件に応じてドキュメント内のテキストを収集し、一覧表示できます。
-対象テキスト（アートボード）では、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体を切り替えできます。
-対象テキスト（レイヤー）では、//ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかを切り替えできます。
-同じ内容のテキストも個別に一覧表示します。［重複を削除］をオンにすると、同じ内容のテキストを一覧では1件だけ表示します。
-グループ内およびサブレイヤー内のテキストも対象です。実質的に空のテキストオブジェクトは無視します。
-シンボル内のテキストはテキスト一覧に統合して表示します。シンボル内テキストの読み取り結果はダイアログ表示中にキャッシュされますが、対象アートボードや対象レイヤー条件が変わると現在の条件に合わせて再取得します。
-シンボル内テキストの読み取りは、同名シンボルを1回だけ対象にします。対象シンボルの代表インスタンスを一時レイヤーへ複製し、複製側だけを breakLink して展開後のテキストを収集します。読み取りに使った複製オブジェクトは削除し、元のカンバス上のシンボルには触れません。一時レイヤーは必要時のみ作成し、このスクリプトが作成した場合のみ削除します。
-ダイアログ左側には「テキスト一覧」を複数行のテキスト欄で表示します。通常テキストとシンボル内テキストは同じ一覧にまとめて表示します。［テキストをコピー］で現在のテキスト一覧を選択してコピーできます。
-［テキスト書き出し］で、現在の一覧条件に応じた通常テキストとシンボル内テキストをアートボードごとにまとめてデスクトップへテキストファイルとして書き出します。ファイル名には yyyymmdd-hhmmss 形式の日時を付与します。現在のアートボード内 / すべてのアートボード内 / ドキュメント全体を対象に、//ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストのチェック状態も書き出しに反映されます。現在のアートボード内では現在のアートボードだけを書き出し、ほかのアートボード名は出力しません。すべてのアートボード内 / ドキュメント全体では、各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切って出力します。［テキスト書き出し］で書き出して閉じます。［キャンセル］でダイアログを閉じます。
+ドキュメント内のテキストを収集して一覧表示し、ファイルへ書き出します。
+対象はアートボード単位やレイヤー単位で絞り込め、重複をまとめることもできます。
 
-Overview
-Collect text in the document based on the selected conditions and show it in a list.
-In Text Scope (Artboards), you can switch between the current artboard, all artboards, and the entire document.
-In Text Scope (Layers), you can choose whether to include layers starting with //, and whether locked text and hidden text are included.
-Text frames with the same content are also listed individually. When [Remove Duplicates] is enabled, only one item per identical text content is shown in the list.
-Text inside groups and sublayers is supported. Effectively empty text objects are ignored.
-Text inside symbols is merged into the main text list. Symbol text results are cached while the dialog is open, and normal list updates do not reload them.
-To read text inside symbols, the script targets each symbol name only once. It duplicates one representative instance of the target symbol to a temporary layer, break-links only the duplicate, and collects the resulting text. The temporary duplicate objects are then removed, and the original symbols on the canvas remain untouched. The temporary layer is created only when needed and is removed only if this script created it.
-The left side of the dialog shows Text List in a multi-line text field. Regular text and text found inside symbols are displayed together in the same list. [Copy Text] selects the current text list and copies it to the clipboard.
-[Export Text] writes the regular text and the text found inside symbols that match the current list conditions to a text file on the Desktop. The filename includes a timestamp in yyyymmdd-hhmmss format. The export reflects the current artboard scope setting (Current Artboard Only, All Artboards Only, or Include Entire Document), and it also reflects the current checkbox states for including layers that start with //, locked text, and hidden text. In Current Artboard Only, only the current artboard is written and no other artboard headings are output. In All Artboards Only or Include Entire Document, each artboard is written under a ---Artboard Number: Artboard Name--- heading, and items outside all artboards are written under ---Outside Artboards---. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Pressing [Export Text] exports and closes the dialog. [Cancel] closes the dialog.
+詳細は README を参照してください。
 
-更新日 / Updated: 2026-04-03
+### Overview
 
-紹介記事（note）
-https://note.com/dtp_tranist/n/nb845889dd553
+Collects the text in the document, lists it, and exports it to a file.
+The scope can be narrowed by artboard or by layer, and duplicates can be folded together.
 
-Released under the MIT license
-http://opensource.org/licenses/mit-license.php
+See the README for details.
+
 */
 
 // =========================================
-// バージョンとローカライズ
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "TextExport";                   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.14";                      /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextExport.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextExport.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -576,7 +571,6 @@ function main() {
             return uniqueItems;
         }
 
-
         // =========================================
         // ダイアログ / Dialog
         // =========================================
@@ -622,7 +616,6 @@ function main() {
             var cbOutside = cbRow.add("checkbox", undefined, L("cbOutside"));
             cbOutside.value = false;
             cbOutside.enabled = false;
-
 
             var layerPanel = rightCol.add("panel", undefined, L("panelLayerText"));
             layerPanel.orientation = "column";
@@ -1069,7 +1062,6 @@ function main() {
         cancelBtn.onClick = function () {
             dlg.close();
         };
-
 
         dlg.onClose = function () {
         };

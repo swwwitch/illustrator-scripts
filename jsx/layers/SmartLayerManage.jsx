@@ -2,74 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SuperLayerManage.jsx
 
 ### 概要
 
-- オブジェクトを指定レイヤーに一括移動できるIllustrator用スクリプトです。
-- モード切替により選択オブジェクト、全テキスト、すべて、すべて（強制）を選択可能です。
+オブジェクトを指定したレイヤーへ一括で移動します。
+対象は選択オブジェクト、全テキスト、すべて、すべて（強制）から選べます。
 
-### 主な機能
-
-- モード選択（選択中／全テキスト／すべて／すべて（強制））
-- 空レイヤー削除オプション（bg および // で始まるレイヤーを除外）
-- 移動先レイヤーのカラーをRGB(79,128,255)に自動変更
-- ロック解除、非表示解除、再帰的収集処理
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ダイアログでモードと移動先レイヤーを選択
-2. 対象オブジェクトを収集
-3. 選択レイヤーに移動
-4. オプション選択時、空レイヤーを削除
-5. 移動先レイヤーのカラーを変更
-
-### 更新履歴
-
-- v1.0.0 (20250703) : 初版リリース
-- v1.0.1 (20250703) : レイヤーカラー変更機能追加
-- v1.0.2 (20250703) : 自動選択判定、空レイヤー削除ロジック改善
-- v1.0.3 (20250704) : 「すべて（強制）」モード追加（すべてのレイヤーを結合）
-- v1.0.4 (20250706) : 「新規」ラジオボタンを追加し、レイヤー作成・移動処理追加
-
----
-
-### Script Name:
-
-SuperLayerManage.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script to batch move objects to a specified layer.
-- Supports switching modes: selected objects, all text, all objects, or all (force).
+Moves objects to a chosen layer in bulk.
+The scope can be the selection, all text, everything, or everything (forced).
 
-### Main Features
+See the README for details.
 
-- Mode selection (Selected / Text Only / All / All (Force))
-- Option to delete empty layers (excluding layers starting with bg or //)
-- Automatically change target layer color to RGB(79,128,255)
-- Unlocking, showing, and recursive item collection
-- Japanese and English UI support
-
-### Process Flow
-
-1. Select mode and target layer in the dialog
-2. Collect target objects
-3. Move objects to the selected layer
-4. Optionally delete empty layers
-5. Change target layer color
-
-### Update History
-
-- v1.0.0 (20250703): Initial release
-- v1.0.1 (20250703): Added layer color change function
-- v1.0.2 (20250703): Improved auto selection detection and empty layer deletion logic
-- v1.0.3 (20250704): Added "All (Force)" mode (merge all layers)
-- v1.0.4 (20250706): Added "New" radio button to make new layer and move objects
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartLayerManage";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartLayerManage.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartLayerManage.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // 全ロック解除と全表示
 function unlockAndShowAll() {

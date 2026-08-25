@@ -5,13 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。適用した行はクリップボードから取り除かれるため繰り返し実行すると次の行へ順に進み、テキストフレームを選択していないときはウィンドウ中央に貼り付けます。
+クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。
+適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Takes the first line of the multi-line text on the clipboard, skipping blank lines, and applies it to the selected text frames. The applied line is removed from the clipboard, so running the script repeatedly walks through the lines one by one, pasting at the center of the window when no text frame is selected.
+Takes the first line of the multi-line text on the clipboard and applies it to the selected text frame, skipping blank lines.
+The line used is removed from the clipboard, so running it again moves on to the next one.
 
 See the README for details.
 
@@ -31,11 +33,6 @@ var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last update
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹介記事 / article URL */
-
-/**
- * @discussion 原案 / Original idea by Gorolib Design
- * @discussion ReplaceTextWithPaste.jsx から派生 / Derived from ReplaceTextWithPaste.jsx
- */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

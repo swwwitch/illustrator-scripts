@@ -2,29 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-    概要 / Overview
-    -----------------------------------------------------------------
-    アートボード上に表示オブジェクトが存在しないアートボードを検出し、
-    まとめて削除するスクリプトです。オプションで非表示のレイヤー／
-    オブジェクトを「占有あり」とみなすかを切り替えられます（既定 ON：
-    無視）。トグルに応じて対象数表示も即時更新します。
-    非表示判定は祖先を遡って行うため、グループ内の非表示アイテムや
-    非表示グループ／レイヤー配下のアイテムも同じ扱いになります。
 
-    Detects artboards that contain no occupants and removes them in a
-    single pass. A checkbox toggles whether hidden layers/items are
-    counted as occupants (ON by default = ignore hidden). The count
-    summary updates live with the checkbox state. Visibility is checked
-    up the ancestor chain, so items nested inside hidden groups or
-    layers (and individually hidden items inside visible groups) are
-    handled the same way.
+### 概要
+
+アートボード上に表示オブジェクトが存在しないアートボードを検出し、まとめて削除します。
+非表示のレイヤーやオブジェクトを「占有あり」とみなすかは切り替えられます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Finds the artboards with no visible objects on them and deletes them together.
+A toggle decides whether hidden layers and objects count as occupying an artboard.
+
+See the README for details.
+
 */
 
 // =========================================
-// バージョンとローカライズ / Version & Localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "RemoveEmptyArtboards";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveEmptyArtboards.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveEmptyArtboards.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

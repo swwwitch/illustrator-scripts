@@ -2,69 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-TypefaceSampler.jsx
 
 ### 概要
 
-- Illustrator で利用可能なフォントを一覧表示し、ウエイトやスタイル順にアートボード上へ整列描画するスクリプトです。
-- フォント名、PostScript名、サンプルテキスト、カスタムテキストなど柔軟に出力内容を切り替えられます。
+Illustratorで利用できるフォントを一覧表示し、ウエイトやスタイル順にアートボード上へ整列描画します。
+フォント名、PostScript名、サンプルテキスト、カスタムテキストなど、出力内容を切り替えられます。
 
-### 主な機能
-
-- ウエイト・スタイル評価によるスコアリングとソート
-- フォント名、PostScript名、アルファベット、数字、カスタムテキスト表示に対応
-- キーワード検索（AND/OR/NOT/先頭一致）によるフォント絞り込み
-- カテゴリ（family）単位のグループ化と表示
-- ウエイト数やスコアの表示切り替え
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ダイアログで出力形式やキーワード、オプションを設定
-2. 検索条件に合致するフォントを収集
-3. スコア順にソートし、アートボードに整列描画
-
-### 更新履歴
-
-- v1.0.0 (20250420) : 初期バージョン
-- v1.3.0 (20250508) : 評価ロジック修正、条件絞り込み機能強化
-- v1.3.1 (20250706) : ローカライズ調整
-
----
-
-### Script Name:
-
-TypefaceSampler.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script for Illustrator to list available fonts and draw them on the artboard sorted by weight and style.
-- Supports flexible output options such as font name, PostScript name, sample text, and custom text.
+Lists the fonts available in Illustrator and lays them out on the artboard, ordered by weight and style.
+The output can show the font name, the PostScript name, a sample string, or your own custom text.
 
-### Main Features
+See the README for details.
 
-- Weight/style score evaluation and sorting
-- Supports display of font name, PostScript name, alphabet, numbers, or custom text
-- Keyword search with AND/OR/NOT/prefix matching for font filtering
-- Grouping by category (family) and display
-- Toggle display of weight count and score
-- Japanese and English UI support
-
-### Process Flow
-
-1. Configure output format, keywords, and options in dialog
-2. Collect fonts matching search criteria
-3. Sort by score and draw aligned on artboard
-
-### Update History
-
-- v1.0.0 (20250420): Initial version
-- v1.3.0 (20250508): Improved evaluation logic and filter features
-- v1.3.1 (20250706): Localization adjustments
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TypefaceSampler-text";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypefaceSampler-text.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypefaceSampler-text.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // -------------------------------
 // 言語設定の取得

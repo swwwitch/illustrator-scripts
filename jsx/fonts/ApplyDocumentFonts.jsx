@@ -2,70 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-ApplyDocumentFonts.jsx
 
 ### 概要
 
-- ドキュメント内で使用されているフォントを集計し、使用数順に一覧表示するスクリプトです。
-- 選択テキストに即座にフォントを適用でき、一覧はテキストファイルとして書き出し可能です。
+ドキュメント内で使用されているフォントを集計し、使用数順に一覧表示します。
+一覧から選んだフォントを選択テキストへ即座に適用でき、テキストファイルとして書き出すこともできます。
 
-### 主な機能
-
-- ドキュメント内のフォントを使用数順に収集・表示
-- 検索フィルターによるフォント絞り込み
-- 選択中のテキストオブジェクトに選択したフォントを即時適用
-- フォント一覧をデスクトップにテキストファイルとして書き出し
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ドキュメントからフォント情報を収集
-2. ダイアログで一覧を表示、検索フィルターで絞り込み
-3. フォントを選択すると即座にテキストに適用
-4. 必要に応じてフォント一覧をテキストファイルに書き出し
-
-### 更新履歴
-
-- v1.0.0 (20250225) : 初期バージョン
-- v1.1.0 (20250228) : 書き出し機能を追加
-- v1.1.1 (20250301) : グループ内テキストへの適用に対応
-- v1.1.2 (20250302) : グループ内フォント数のカウント方法を調整
-
----
-
-### Script Name:
-
-ApplyDocumentFonts.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script that collects fonts used in the document and displays them sorted by usage count.
-- You can immediately apply a selected font to text objects and export the list as a text file.
+Collects the fonts used in the document and lists them in order of usage count.
+A font picked from the list can be applied to the selected text right away, and the list can be exported as a text file.
 
-### Main Features
+See the README for details.
 
-- Collect and display document fonts sorted by usage count
-- Filter fonts using a search filter
-- Instantly apply selected font to currently selected text objects
-- Export font list as a text file on the desktop
-- Japanese and English UI support
-
-### Process Flow
-
-1. Collect font information from the document
-2. Display fonts in a dialog, filterable via search
-3. Apply font instantly when selected
-4. Optionally export font list to a text file
-
-### Update History
-
-- v1.0.0 (20250225): Initial version
-- v1.1.0 (20250228): Added export feature
-- v1.1.1 (20250301): Supported applying to text inside groups
-- v1.1.2 (20250302): Adjusted font count method for groups
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ApplyDocumentFonts";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-02-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-03-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyDocumentFonts.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyDocumentFonts.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function() {
     function getCurrentLang() {

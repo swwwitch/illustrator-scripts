@@ -2,36 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * このスクリプトについて / About this script
- *
- * 選択したテキストフレームの見た目（位置/幅/行数）に合わせて、罫線・背景を自動生成します。
- * テキスト（文字/タブ/スタイル/タブストップ）には一切手を加えません。
- *
- * 生成モード / Modes
- * - 外枠は長方形：テキスト全体を囲む長方形の外枠＋横罫線（行区切り）を作成
- * - 外枠なし：横罫線（行区切り）のみを作成
- * - 行ごとに長方形：各行に背景（塗り）を作成（罫線は作りません）
- *
- * オプション / Options
- * - 縦罫：既存のタブストップ位置を参照して縦罫線を作成（テキストは変更しません）
- * - 見出し：指定モードで一部の線幅/背景を強調（モードにより有効/無効が変わります）
- */
 
-/*
- * スクリプト名：TableMaker / Script name: TableMaker
- *
- * スクリプトの概要：選択中のテキストフレームの見た目（位置/幅/行数）に基づいて、
- *               外枠や横罫線、または行ごとの背景（塗り）を生成します。
- *               ※テキスト（タブ/文字/スタイル）には一切手を加えません。
- * 作成日：2026-01-24
- * 更新日：2026-01-24（v1.0） / Updated: 2026-01-24 (v1.0)
- * 最終更新日：2026-01-24 / Last updated: 2026-01-24
- * 行ごとに長方形を作成
- * 罫線ではなく「塗り」で作る（線はなし）
- * 上から奇数行はK10、偶数行はK30
- */
+### 概要
 
-var SCRIPT_VERSION = "v1.0";
+選択したテキストフレームの見た目（位置・幅・行数）に合わせて、罫線と背景を自動生成します。
+テキスト（文字・タブ・スタイル・タブストップ）には一切手を加えません。
+
+詳細は README を参照してください。
+
+### Overview
+
+Generates rules and backgrounds that match the appearance — position, width and line count — of the selected text frame.
+The text itself, including tabs, styles and tab stops, is never touched.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TableMaker";                   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-24";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableMaker.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -347,7 +350,6 @@ function showRuleSettingsDialog(defaultValue, displayUnit) {
     var rbTopBottom = shapePanel.add('radiobutton', undefined, L('shapeTopBottom'));
     var rbRowRect = shapePanel.add('radiobutton', undefined, L('shapeRowRect'));
     rbTopBottom.value = true;
-
 
     /* オプション / Options */
     var optionGroup = dlg.add('group');

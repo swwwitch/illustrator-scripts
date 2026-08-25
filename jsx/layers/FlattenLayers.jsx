@@ -1,129 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// スクリプトバージョン
-
-var SCRIPT_VERSION = "v1.7.4";
-
 /*
-レイヤー統合（フラット化）を行うIllustrator用スクリプト。
 
-- 除外名（bg）を持つレイヤーを残しつつ、その他のレイヤー／サブレイヤー配下のオブジェクトを指定したまとめ先レイヤーへ集約（移動）してフラット化します。必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動し、空になったレイヤーを再帰的に検出して削除します。
-- ロック / 非表示のレイヤー・オブジェクトは個別に対象外指定でき、該当するものが存在しない項目はダイアログ上で自動的にディム表示されます。
-- ガイドは「統合」「現在のレイヤーに保持」「別レイヤーに移動」の3つのモードから選択できます。
+### 概要
 
-### スクリプト名：
+除外名を持つレイヤーを残しつつ、その他のレイヤー配下のオブジェクトを指定したレイヤーへ集約してフラット化します。
+ロック／非表示の扱いやガイドの行き先は、ダイアログで個別に指定できます。
 
-レイヤー統合（フラット化） / Flatten Layers
+詳細は README を参照してください。
 
-### GitHub：
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
+Flattens the document by moving the objects under every layer except the excluded ones into a single target layer.
+How locked and hidden items are treated, and where guides end up, are chosen in a dialog.
 
-### 作成日：
-
-2025-04-14
-
-### 更新日：
-
-2026-04-15
-
-### 概要：
-
-- 実行前にダイアログを表示し、処理条件を選択可能
-- 除外レイヤーを残し、それ以外のレイヤー／サブレイヤー配下のオブジェクトを指定レイヤーへ移動してフラット化
-- ロック / 非表示のレイヤー・オブジェクトをそれぞれ対象外にするか選択可能
-- ロックレイヤー / 非表示レイヤー / 非表示オブジェクト / ガイド / サブレイヤーが存在しない場合、対応するUIを自動的にディム表示
-- 対象外設定の一括切替は、有効な項目だけを一括で ON / OFF
-- 必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動可能
-- ガイドの扱いを「統合」「現在のレイヤーに保持」「別レイヤーに移動」から選択可能
-- 「現在のレイヤーに保持」では、サブレイヤー直下のガイドを1つ上のレイヤーへ繰り上げて保持
-- 「別レイヤーに移動」では、統合後のガイドを指定レイヤーへ移動
-- 空のレイヤー／サブレイヤーを、削除可能なものがなくなるまで再帰反復で削除
-- skipLockedLayers / skipHiddenLayers はトップレベルレイヤーとサブレイヤーの両方に一貫適用
-- ガイドだけ残っているレイヤーは空レイヤーとは見なさない
-- まとめ先のレイヤー名、既存まとめ先の再利用、レイヤーカラーを指定可能
-- 既存まとめ先を再利用しない場合、同名レイヤーが存在すれば連番付きの別名で新規作成
-
-### 処理の流れ：
-
-1. ドキュメント取得（未オープンなら終了）
-2. ダイアログで処理条件を選択（該当しない項目は自動的にディム表示、キャンセル時は終了）
-3. 設定に応じて既存まとめ先レイヤーを取得、または一意な名前で新規作成
-4. 除外レイヤーを除いて、条件に合う全レイヤー／サブレイヤー配下のオブジェクトをまとめ先レイヤーへ移動してフラット化
-5. ガイドモードが「現在のレイヤーに保持」の場合、サブレイヤー直下のガイドを上位レイヤーへ繰り上げ
-6. 必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動
-7. ガイドモードが「別レイヤーに移動」の場合、統合後のガイドを指定レイヤーへ移動
-8. 設定が ON の場合、空のレイヤー／サブレイヤーがなくなるまで再帰反復で削除
-9. 失敗件数があれば、処理後に件数だけを簡潔に通知
-
-### 更新履歴：
-
-- v1.0 (20250414) : 初期バージョン
-- v1.7.1 (20260408) : 対象外UIの自動ディム表示、一括切替の有効項目限定、skipLockedLayers / skipHiddenLayers のサブレイヤーまでの一貫適用、ガイド panel 初期化の明確化、概要とコメントの更新
-- v1.7.3 (20260413) : 除外レイヤー名を「bg」のみに変更（「背景」「background」を削除）
-- v1.7.4 (20260415) : 除外レイヤー内のガイドをガイドレイヤーへ移動するオプションを追加（「別レイヤーに移動」選択時、デフォルトON）
-
-Illustrator script to flatten layers. It keeps excluded layers (bg),
-moves objects under all other layers and sublayers into a specified destination layer, optionally
-promotes remaining non-empty sublayers to the top level, and recursively deletes layers that become empty.
-Locked / hidden layers and objects can be excluded independently, and dialog items with no matching targets
-are dimmed automatically. Guides can be handled in one of three modes: integrate, keep in the current layer,
-or move to another layer.
-
-### Script Name:
-
-Flatten Layers
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
-
-### Created:
-
-2025-04-14
-
-### Updated:
-
-2026-04-15
-
-### Overview:
-
-- Show a dialog before execution so the processing conditions can be selected
-- Flatten objects from non-excluded layers and sublayers into the specified destination layer
-- Let the user choose whether locked / hidden layers and objects are excluded
-- Automatically dim UI items when there are no locked layers, hidden layers, hidden objects, guides, or sublayers in the document
-- Toggle all exclusion options on / off only for the items that are currently enabled
-- Optionally move remaining non-empty sublayers to the top level
-- Let the user choose how guides are handled: integrate, keep in the current layer, or move to another layer
-- In “Keep in the current layer” mode, guides directly under sublayers are hoisted to the parent layer
-- In “Move to another layer” mode, guides are moved to the specified guide layer after flattening
-- Delete empty layers / sublayers repeatedly until no more removable empty layers remain
-- Apply skipLockedLayers / skipHiddenLayers consistently to both top-level layers and sublayers
-- Layers that still contain only guides are not treated as empty
-- Let the user specify the destination layer name, reuse an existing destination layer, and set the destination layer color
-- If destination-layer reuse is off and the same name already exists, create a new layer with a numbered unique name
-
-### Process Flow:
-
-1. Get the active document (exit if none)
-2. Show the options dialog, automatically dim irrelevant items, and exit if canceled
-3. Reuse the existing destination layer or create a new uniquely named one according to the selected options
-4. Flatten items from eligible non-excluded layers and sublayers into the destination layer
-5. If the guide mode is “Keep in the current layer,” hoist guides directly under sublayers to the parent layer
-6. Optionally move remaining non-empty sublayers to the top level
-7. If the guide mode is “Move to another layer,” move guides from the flattened result into the specified guide layer
-8. If enabled, repeatedly delete empty layers / sublayers until none remain
-9. If any failures occurred, show only the failure counts after processing
-
-### Update History:
-
-- v1.0 (20250414) : Initial release
-- v1.7.1 (20260408) : Added automatic dimming of irrelevant exclusion UI, enabled-only toggle-all behavior, consistent skipLockedLayers / skipHiddenLayers handling for sublayers, clearer guides-panel initialization, and updated overview/comments
-- v1.7.3 (20260413) : Narrowed excluded layer names to only "bg" (removed "背景" and "background")
-- v1.7.4 (20260415) : Added option to move guides from excluded layers to the guide layer (available when "Move to another layer" is selected, default ON)
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FlattenLayers";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-14";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenLayers.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenLayers.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -700,7 +611,6 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     optionsPanel.alignChildren = 'left';
     optionsPanel.margins = [15, 20, 15, 10];
 
-
     var cbDeleteEmpty = optionsPanel.add('checkbox', undefined, L('deleteEmptyLayers'));
     cbDeleteEmpty.value = true;
 
@@ -1074,7 +984,6 @@ function moveDirectGuideItemsToLayer(sourceLayer, destinationLayer, stats) {
     }
 }
 
-
 /*
  * 指定レイヤー配下を再帰走査し、各レイヤー直下のページアイテムだけを destinationLayer へ移動。
  * Recursively walk sourceLayer and move only the page items directly under each layer to destinationLayer.
@@ -1217,7 +1126,6 @@ function isExcludedLayer(layerName) {
     var key = String(layerName).replace(/^\s+|\s+$/g, '').toLowerCase();
     return EXCLUDE[key] === 1;
 }
-
 
 // ==========================
 // 中身が残るサブレイヤーをトップレベルへ移動

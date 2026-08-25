@@ -2,31 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名 / Script Name：
-PreferenceManager.jsx
 
-### 概要 / Overview：
-- Illustrator の各種環境設定をダイアログボックスから変更可能にします。
-- 単位、文字設定、変形／整列設定などをワンパネルで調整できます。
-- Allows changing various Illustrator preferences via a dialog box.
-- Units, text settings, transform/align settings can be adjusted in one panel.
+### 概要
 
-### 主な機能 / Main Features：
-- 単位（一般・線・文字・東アジア言語）の設定 / Set units (general, stroke, text, East Asian)
-- 最近使用したフォント数とフォント表記切替 / Recent fonts count and font name localization
-- 変形と整列の各種オプション / Various transform and align options
-- 字形の境界に整列の設定 / Align to glyph bounds setting
-- モード切替（プリント pt／プリント Q／オンスクリーン） / Mode switch (Print pt / Print Q / Onscreen)
+Illustratorの各種環境設定をダイアログから変更します。
+単位、文字設定、変形／整列設定などを1つのパネルで調整できます。
 
-### 参考・謝辞 / References & Thanks：
-https://github.com/ten-A/Extend_Script_experimentals/blob/master/preferencesKeeper.jsx
+詳細は README を参照してください。
 
-### 更新履歴 / Change Log：
-- v1.0 (20240801): 初期バージョン / Initial version
+### Overview
+
+Changes a range of Illustrator preferences from a dialog.
+Units, text settings and transform/align settings are all adjusted in a single panel.
+
+See the README for details.
+
 */
 
-// スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "_PreferenceManager";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-08-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2024-08-01";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/_PreferenceManager.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/_PreferenceManager.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 現在のUI言語を取得 / Get the current UI language */
 function getCurrentLang() {
@@ -155,8 +163,6 @@ var unitLabelMap = {
     10: "ft"
 };
 
-
-
 /* 複数チェックボックスを環境設定キーにバインド / Bind multiple checkboxes to preference keys */
 function bindCheckboxes(pairs) {
     for (var i = 0; i < pairs.length; i++) {
@@ -247,13 +253,11 @@ function main() {
         }
     ]);
 
-
     /* 単位パネルを追加 / Add "Units" panel */
     var unitsPanel = leftColumn.add('panel', undefined, LABELS.unitsTitle[lang]);
     unitsPanel.orientation = 'column';
     unitsPanel.alignChildren = ['left', 'top'];
     unitsPanel.margins = [15, 20, 15, 15];
-
 
     /* テキストパネルを追加 / Add "Text" panel */
     var textPanel = leftColumn.add('panel', undefined, LABELS.textTitle[lang]);
@@ -303,7 +307,6 @@ function main() {
             inputRecentFonts.enabled = checkboxRecentFonts.value;
         }
     };
-
 
     var unitDropdowns = {};
 
@@ -421,7 +424,6 @@ function main() {
     checkboxRealtime.onClick = function() {
         app.preferences.setBooleanPreference("realTimeDrawing", checkboxRealtime.value === true);
     };
-
 
     var group2 = dialog.add('group', undefined, {
         name: 'group2'

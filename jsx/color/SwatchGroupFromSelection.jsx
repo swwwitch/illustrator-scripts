@@ -2,19 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  SwatchGroupFromSelection.jsx
 
-  選択しているオブジェクトの塗り色（フィル）を、
-  配置順（左→右、上→下）で抽出してスウォッチグループに登録します。
+### 概要
 
-  ・グループ／複合パス／テキストは再帰的に処理
-  ・線色（ストローク）も対象
-  ・抽出した色はすべてグローバルカラー（プロセス）としてスウォッチグループに登録
-  ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
+選択しているオブジェクトの塗り色を、配置順（左→右、上→下）で抽出してスウォッチグループに登録します。
+グループ・複合パス・テキストは再帰的に処理し、線色も対象にします。
 
-  Version: v1.3
-  更新日: 2026-01-28
+詳細は README を参照してください。
+
+### Overview
+
+Extracts the fill colors of the selected objects in layout order (left to right, top to bottom) and registers them as a swatch group.
+Groups, compound paths and text are processed recursively, and stroke colors are collected as well.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SwatchGroupFromSelection";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-28";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-28";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwatchGroupFromSelection.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwatchGroupFromSelection.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     // ドキュメントが開かれているか確認

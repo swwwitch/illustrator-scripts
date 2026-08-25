@@ -2,35 +2,40 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプトの概要 / Script overview
-選択したオブジェクトの塗りと線を調整するスクリプトです。
-Tool for adjusting fill and stroke on selected objects.
 
-対応モード / Supported modes
-・塗り↔線 / Fill ↔ Stroke
-・塗り→線 / Fill → Stroke
-・線→塗り / Stroke → Fill
-・2つのオブジェクト間で交換 / Swap Between 2 Objects
-・塗りを消去 / Erase Fill
-・線を消去 / Erase Stroke
-・塗りと線を消去 / Erase Fill and Stroke
+### 概要
 
-主な機能 / Main features
-・選択は最大 2 オブジェクトまで / Up to two objects can be selected
-・グラデーション対応 / Supports gradients
-・複合パス、グループ対応 / Supports compound paths and groups
-・テキスト対応（ポイント文字、エリア文字、パス上文字） / Supports point text, area text, and text on a path
-・文字単位の処理で部分スタイルを維持 / Preserves partial text styling by processing text character by character
-・必要に応じて線幅を補完 / Adds a stroke width when needed
-・ダイアログで処理モードを選択 / Choose the processing mode in a dialog
-・プレビュー時はキャンセルで元の見た目に復元 / Preview restores the original appearance when canceled
-・OK 後に元の選択を復元 / Restores the original selection after OK
+選択したオブジェクトの塗りと線を入れ替えたり、一方をもう一方へ移したりします。
+塗り↔線、塗り→線、線→塗りの3モードに対応します。
 
-参考：オリジナル / Original
-しぶやみゃむさんのスクリプトをベースに、機能追加とリファクタリングを行いました。
-Based on a script by しぶやみゃむさん, with added features and refactoring.
-https://note.com/shibumi/n/n5229b4357dd3
+詳細は README を参照してください。
+
+### Overview
+
+Swaps the fill and stroke of the selected objects, or moves one into the other.
+Three modes are available: fill ↔ stroke, fill → stroke, and stroke → fill.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FillStrokeSwitcher";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md
+var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
@@ -38,8 +43,6 @@ https://note.com/shibumi/n/n5229b4357dd3
     // バージョンとローカライズ
     // Version and localization
     // =========================================
-
-    var SCRIPT_VERSION = "v1.1.0";
 
     /* 現在の言語コードを取得 / Detect current UI language */
     function getCurrentLang() {

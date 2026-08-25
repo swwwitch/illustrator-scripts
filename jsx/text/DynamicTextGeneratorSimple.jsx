@@ -5,17 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した1つのテキストフレームの各行をアウトライン幅で測定し、最長行の幅にそろうよう行ごとの文字サイズを変倍します。ダイアログを開いたまま結果をプレビューでき、行送りを自動（既定100%）に切り替えるかどうかも選べます。
+選択した1つのテキストフレームの各行をアウトライン幅で測定し、最長行の幅にそろうよう行ごとの文字サイズを変倍します。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Measures each line of a single selected text frame by its outline width and scales every line's font size so all lines match the widest one. The result can be previewed while the dialog stays open, and leading can optionally be switched to auto (100% by default).
+Measures each line of a selected text frame by its outline width and scales the per-line font size so every line matches the longest one.
 
 See the README for details.
 

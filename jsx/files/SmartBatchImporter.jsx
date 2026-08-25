@@ -2,75 +2,21 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartBatchImporter.jsx
 
 ### 概要
 
-- 複数のIllustratorファイル（.ai/.svg/.eps）を一括で読み込み、取り込んだファイル（またはアートボード）ごとに1つのアートボードを作成して、全体が正方形に近くなるグリッドへ整列配置するスクリプトです。
-- 読み込み対象の選択、ファイル形式／ファイル名フィルター、読み込み先（新規ドキュメント／現在のドキュメント）、対象アートボードの指定、アートボード単位読み込み、ガイドの取り込み、スケール、ファイル名ラベルなど多彩なオプションを備えています。
+複数の Illustrator ファイル（.ai / .svg / .eps）を一括で読み込み、ファイルまたはアートボードごとに1つのアートボードを作成します。
+作成したアートボードは、全体が正方形に近くなるグリッドへ整列配置します。
 
-### 主な機能
-
-- 開いているファイル、またはフォルダー指定による一括読み込み（ファイル形式：AI / SVG / EPS）
-- フィルター：ファイル形式の絞り込みと、ファイル名の正規表現による絞り込み
-- 読み込み先を選択：新規ドキュメントを作成、または現在のドキュメントへ取り込み（現在のドキュメント時は既存アートボードの下に重ならないよう配置）
-- 新規ドキュメント設定：カラーモード（RGB/CMYK）、ラスタライズ効果の解像度（72/150/300 ppi）、サイズプリセット（カスタム／A4／フルHD／ラージカンバス、単位 mm/px・A4 は CMYK 既定）
-- 対象アートボードの指定：1のみ／すべて／指定（例: 1, 3-5）
-- 取り込んだファイル（またはアートボード）ごとに1つのアートボードを作成し、全体が正方形に近くなるよう列数・行数を自動調整して整列（完了後に全体を表示）
-- アートボード単位での読み込み（対象アートボードのロック・非表示も対象、元のアートボードサイズと相対位置を保持）
-- ガイドの取り込み（ルーラーガイド＝カンバスの半分以上に伸びる長いガイドは除外）
-- スケール（％）指定（アートボード枠・内容・線幅を同率で）
-- ファイル名ラベルの追加（フォルダー指定時は既定OFF）
-- 読み込み後にファイルを閉じる／保持（開いているファイル選択時のみ。未保存変更があれば確認）
-- プログレスバーとキャンセル対応
-- 日本語／英語インターフェース対応
-
-### 紹介記事
-
-https://note.com/dtp_tranist/n/n8180588e5630
-
-### 更新履歴
-
-- v1.0.0 (20250529) : 初期バージョン
-- v1.2.0 (20260613) : 読み込み対象選択（開いているファイル／フォルダー指定＋種別フィルタ AI/SVG）、新しいドキュメント設定（カラースペース・サイズプリセット・単位自動切替・ラージカンバス）、アートボード単位読み込み（ロック・非表示対象／元サイズ保持）、スケール、ファイル名ラベル、読み込み後の動作
-- v1.2.1 (20260613) : 種別フィルタに EPS を追加、ダイアログのパネル構成を2カラム化（読み込み対象／種別、カラースペース／ドキュメントサイズ、読み込みオプション）
-- v1.3.0 (20260613) : 読み込み先に「現在のドキュメント」を追加（既存アートボードの下に重ならず配置／自分自身はソースから除外）、対象アートボード指定（1のみ／すべて／指定 例 1,3-5）、ファイル名の正規表現フィルター、ラスタライズ効果の解像度指定（72/150/300）、サイズの単位を mm/px に整理（A4 は CMYK 既定）、「種別→ファイル形式」「カラースペース→カラーモード」等の名称整理、変数・パネル・関数名を整理
-
----
-
-### Script Name:
-
-SmartBatchImporter.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script to batch import multiple Illustrator files (.ai/.svg/.eps), turn each imported file (or artboard) into one artboard, and arrange them into a near-square grid.
-- Offers source selection, file-format / file-name filtering, a destination choice (new or current document), target-artboard selection, per-artboard import, guide import, scaling, filename labels, and more.
+Batch-imports several Illustrator files (.ai / .svg / .eps) and creates one artboard per file, or per source artboard.
+The artboards are then arranged in a grid that comes out close to square.
 
-### Main Features
+See the README for details.
 
-- Batch import from currently open files or a chosen folder (formats: AI / SVG / EPS)
-- Filter: narrow by file format and by a file-name regular expression
-- Choose the destination: create a new document, or import into the current document (placed below the existing artboards without overlapping)
-- New-document settings: color mode (RGB/CMYK), raster effects resolution (72/150/300 ppi), size presets (Custom / A4 / Full HD / Large Canvas; mm/px units; A4 defaults to CMYK)
-- Target artboards: only the first, all, or a specified set (e.g. 1, 3-5)
-- One artboard per imported file (or artboard); auto-adjusts columns/rows toward a near-square layout (fits all in the window when done)
-- Per-artboard import (includes locked/hidden objects on the target artboards, preserves the original artboard size and relative positions)
-- Imports guides (excludes ruler guides — long guides that span half the canvas or more)
-- Scale (%) option (artboard frame, content, and stroke widths at the same rate)
-- Adds file-name labels (off by default in folder mode)
-- Close or keep source files after import (only when importing open files; confirms if there are unsaved changes)
-- Progress bar with cancel support
-- Japanese and English UI support
-
-### Update History
-
-- v1.0.0 (20250529): Initial version
-- v1.2.0 (20260613): Source selection (open files / folder + AI/SVG type filter), new-document settings (color space, size presets, auto unit switching, Large Canvas), per-artboard import (incl. locked/hidden, preserves original size), scale, file-name label, and after-import action
-- v1.2.1 (20260613): Added EPS to the type filter; reorganized the dialog into two-column panels (source / type, color space / document size, import options)
-- v1.3.0 (20260613): Added "Current document" as a destination (placed below existing artboards without overlap; the target itself is excluded from sources), target-artboard selection (only 1 / all / specify, e.g. 1,3-5), a file-name regular-expression filter, raster effects resolution (72/150/300), mm/px size units (A4 defaults to CMYK), label cleanups ("Type→File format", "Color Space→Color Mode", etc.), and tidied variable/panel/function names
 */
 
 // =========================================
@@ -79,15 +25,18 @@ SmartBatchImporter.jsx
 var SCRIPT_NAME     = "SmartBatchImporter";           /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-05-29";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-13";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBatchImporter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBatchImporter.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User Settings
-// =========================================
 var CONFIG = {
     spacingX: 100,                 // グループ間の横間隔（pt）/ Horizontal gap between groups (pt)
     spacingY: 100,                 // 行間の縦間隔（pt）/ Vertical gap between rows (pt)

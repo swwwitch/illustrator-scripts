@@ -1,7 +1,36 @@
-// ==================================
-// Illustrator アクション書き出しスクリプト
-// アクションセットをデスクトップに保存
-// ==================================
+
+/*
+
+### 概要
+
+Illustratorに登録されているアクションセットを、デスクトップへ書き出します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Exports the action sets registered in Illustrator to the desktop.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ExportActions";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExportActions.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExportActions.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 #target illustrator
 

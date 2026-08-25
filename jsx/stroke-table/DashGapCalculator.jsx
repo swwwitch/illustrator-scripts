@@ -5,20 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したパス（オープン／クローズ）の長さをもとに、分割数と間隔から破線の線分長を計算して適用するツール。
-線分から間隔を逆算するモードやランダムパターン、開始位置（位相）の指定にも対応する。
+選択したパス（オープン／クローズ）の長さをもとに、分割数と間隔から破線の線分長を計算して適用します。
+線分から間隔を逆算するモードや、ランダムパターン、開始位置（位相）の指定にも対応します。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Applies dashes to the selected open or closed paths by calculating the dash length from the number
-of segments and the gap. Also supports solving the gap from a given dash length, random patterns,
-and a dash offset (phase).
+Works out the dash length for the selected paths, open or closed, from their length, the number of divisions and the gap.
+It can also derive the gap from the dash, produce random patterns, and set the starting phase.
 
 See the README for details.
 

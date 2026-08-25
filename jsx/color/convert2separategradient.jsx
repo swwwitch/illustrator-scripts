@@ -3,29 +3,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-# convert2separategradient.jsx
+### 概要
 
-選択したオブジェクトのグラデーションに、指定した数の中間カラーストップを追加するスクリプトです。
+選択したオブジェクトのグラデーションに、指定した数の中間カラーストップを追加します。
 通常モードでは滑らかなグラデーション、セパレートモードでは色が混ざらない縞模様グラデーションを生成します。
-特色（スポットカラー）はドキュメントのカラーモードに合わせて自動変換されます。
 
-## 主な機能
+詳細は README を参照してください。
 
-- 追加するカラーストップ数を指定（1 以上の整数）
-- セパレートグラデーション（縞模様）への変換
-- 特色（スポットカラー）の RGB / CMYK 自動変換
-- RGB / CMYK ドキュメントに対応
+### Overview
 
-## 既定の挙動
+Adds a given number of intermediate color stops to the gradient on the selected objects.
+The normal mode produces a smooth gradient, while the separate mode produces hard-edged bands.
 
-- 単一オブジェクトのみ対象
-- 塗りがグラデーション以外、またはストップが 2 つ未満の場合はアラートで終了
-
-## Overview (English)
-
-Adds a specified number of intermediate color stops to the gradient fill of a selected object.
-Smooth mode produces a continuous gradient while Separate mode produces a banded (striped) gradient.
-Spot colors are automatically converted to the document color mode.
+See the README for details.
 
 */
 
@@ -38,12 +28,13 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/convert2separategradient.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/convert2separategradient.md
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User Settings
-// =========================================
 
 /* 追加ストップ数の初期値 / Default number of stops to add */
 var DEFAULT_STOP_COUNT = 2;

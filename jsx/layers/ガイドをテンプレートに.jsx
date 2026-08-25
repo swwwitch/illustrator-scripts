@@ -1,12 +1,44 @@
 #target illustrator
 
+/*
+
+### 概要
+
+「Guides Preview for Trim View」レイヤーを作成し、そのレイヤーをテンプレート化します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Creates the "Guides Preview for Trim View" layer and turns it into a template layer.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ガイドをテンプレートに";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ガイドをテンプレートに.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ガイドをテンプレートに.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function() {
 
     // =========================================================
     // 設定 / Settings
     // =========================================================
 
-    var SCRIPT_VERSION = "v1.0";
     var NEW_LAYER_NAME = "Guides Preview for Trim View"; /* 作成するレイヤー名 / Name of the layer to create */
 
     // =========================================================

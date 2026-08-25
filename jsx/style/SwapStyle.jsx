@@ -3,119 +3,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-スクリプト名：
+### 概要
 
-SwapStyle.jsx — 2つのオブジェクト間でスタイル／文字列を交換
+選択した2つのオブジェクトの間で、見た目または文字列を交換します。
+スタイル交換では、グラフィックスタイル・基本的な塗りや線・文字属性を組み合わせて指定できます。
 
-概要：
+詳細は README を参照してください。
 
-* 選択した2つのオブジェクトの間で、見た目または文字列を交換
-* ダイアログで「スタイル交換」「文字列交換」を切替
-* スタイル交換は次の3系統を組み合わせ可能
-  - グラフィックスタイル交換（現在のアピアランス全体）
-  - 基本的な塗りや線（塗り／線のカラー／線幅）
-  - 文字書式（フォントとスタイル／フォントサイズ）
-* 基本的な塗りや線のいずれかが ON のときは、グラフィックスタイルパネルをディム表示し、グラフィックスタイル交換は実行しない（一時アクションの読み込みもスキップ）
-* 文字書式・基本的な塗りや線は、誤適用を避けるため初期 OFF
-* TextFrame 同士の場合、基本的な塗りや線は `textRange.characterAttributes` 経由で交換（線幅は `strokeWeight`）
-* グラフィックスタイル交換は、現在のアピアランスを一時スタイル（_swapStyleA〜_swapStyleZ）として登録し、相手側へクロス適用
-* 登録した一時スタイルは、必要に応じて終了時に削除（適用済みのアピアランスは各オブジェクトに残る）
+### Overview
 
-主な機能：
+Swaps the appearance, or the text content, between two selected objects.
+Style swapping can combine the graphic style, the basic fill and stroke, and the character attributes.
 
-* 交換方式（スタイル／文字列）の切替
-* テキスト同士の場合のみ文字列交換を許可
-* グラフィックスタイル交換の ON/OFF と一時スタイルの削除可否
-* 基本的な塗りや線（塗り／線のカラー／線幅）の個別 ON/OFF
-* 文字書式（フォントとスタイル／フォントサイズ）の個別 ON/OFF
-* 基本のいずれかが ON のときは、グラフィックスタイル交換を自動的に OFF として扱う
-* 交換用の一時スタイル名として _swapStyleA / _swapStyleB から順に未使用ペアを使用
-* 「AddNewWithoutName」アクションを一時ファイル経由でロードし、現在のアピアランスを無名スタイルとして登録
-
-処理の流れ：
-
-1. 選択された2つのオブジェクトを保持し、ダイアログで交換方式と対象項目を選択
-2. 文字列交換のときは、テキストフレーム同士で contents を入れ替え
-3. スタイル交換では、グラフィックスタイル交換 → 基本的な塗りや線 → 文字書式 の順に、ON の項目だけクロス入れ替え
-4. グラフィックスタイル交換では、現在のアピアランスを _swapStyleX / _swapStyleY として一時登録し、_swapStyleX を相手側、_swapStyleY をこちら側にクロス適用
-5. 基本的な塗りや線は、TextFrame 同士なら characterAttributes 経由、それ以外は PageItem の fillColor / strokeColor / strokeWidth で交換
-6. 設定に応じて、登録した一時スタイルを削除し、選択を元の2つに戻す
-
-note：
-
-* 文字列交換と文字書式交換は、どちらもテキストオブジェクト同士の場合にのみ有効
-* 基本的な塗りや線の交換は、TextFrame 同士なら characterAttributes 経由（線幅は strokeWeight）、それ以外は PageItem レベル
-* 基本的な塗りや線のいずれかが ON のときは、グラフィックスタイル交換は実行されない（パネルもディム表示）
-* スタイル名の空き（_swapStyleA〜_swapStyleZ の連続ペア）がない場合は中断
-* 一時スタイルの登録に失敗した場合は、登録済みの一時スタイルを掃除してから中断
-* Illustrator の仕様上、最後の1件など完全削除できないケースがあります
-
-更新履歴：
-
-* v1.0.0 (2026-05-21) : 初期バージョン
-* v1.1.0 (2026-05-23) : ダイアログにプレビューを追加
-
-⸻
-
-Script Name:
-
-SwapStyle.jsx — Swap Style / Content between Two Objects
-
-Overview:
-
-* Swap appearance or text content between two selected objects
-* Toggle between “Style Swap” and “Content Swap” in the dialog
-* Style Swap can combine up to three subsystems:
-  - Graphic-style swap (full current appearance)
-  - Basic fill & stroke (fill / stroke color / stroke width)
-  - Text formatting (font & style / font size)
-* When any Basic Fill & Stroke checkbox is ON, the Graphic Style panel is dimmed and graphic-style swap is skipped (the temporary action is not loaded either)
-* Text formatting and Basic Fill & Stroke options are OFF by default to avoid unintended changes
-* For two TextFrames, Basic Fill & Stroke is swapped via `textRange.characterAttributes` (stroke width uses `strokeWeight`)
-* Graphic-style swap registers each object’s current appearance as a temporary style (_swapStyleA–_swapStyleZ), then applies them crosswise
-* Registered temporary styles can be removed on exit; the applied appearance remains on each object
-
-Key Features:
-
-* Mode toggle (Style / Content)
-* Content swap is enabled only when both selected objects are text frames
-* Graphic-style swap ON/OFF and optional deletion of registered temporary styles
-* Individual Basic Fill & Stroke toggles for Fill / Stroke Color / Stroke Width
-* Individual text-format toggles for Font & Style and Font Size
-* When any Basic Fill & Stroke checkbox is ON, graphic-style swap is automatically treated as OFF
-* Uses the next available temporary pair, starting with _swapStyleA / _swapStyleB
-* Loads the “AddNewWithoutName” action via a temporary file to register the current appearance as an unnamed style
-
-Process Flow:
-
-1. Keep the two selected objects and choose mode / target items in the dialog
-2. In Content Swap mode, swap contents between two text frames
-3. In Style Swap mode, cross-swap only the enabled items in this order: graphic style → basic fill & stroke → text formatting
-4. Graphic-style swap registers current appearances as temporary _swapStyleX / _swapStyleY, then applies _swapStyleX to the other object and _swapStyleY back
-5. Basic Fill & Stroke uses characterAttributes for two TextFrames, otherwise PageItem-level fillColor / strokeColor / strokeWidth
-6. Remove registered temporary styles according to the setting, then restore selection to the original two objects
-
-note:
-
-* Content swap and text-format swaps are available only between text objects
-* Basic Fill & Stroke uses characterAttributes (strokeWeight) for two TextFrames, otherwise PageItem-level properties
-* When any Basic Fill & Stroke checkbox is ON, graphic-style swap is not executed (the panel is also dimmed)
-* Aborts if no free style-name pair (_swapStyleA–_swapStyleZ) is available
-* If temporary style registration fails, already registered temporary styles are cleaned up before aborting
-* Due to Illustrator specs, some entries (e.g. the last one) may not be fully removable
-
-Changelog:
-
-* v1.0.0 (2026-05-21): Initial release
-* v1.1.0 (2026-05-23): Add preview to the dialog
+See the README for details.
 
 */
 
 // =========================================
-// バージョンとローカライズ / Version & Localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "SwapStyle";                    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-21";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-23";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapStyle.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapStyle.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 現在の言語を返す / Return the current language */
 function getCurrentLanguage() {

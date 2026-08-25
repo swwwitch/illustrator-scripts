@@ -6,95 +6,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ドキュメント内で使用しているテキストの組み合わせ（フォント・サイズ・行送り・
-文字ツメ・トラッキング・自動カーニング・プロポーショナルメトリクス）を収集し、
-重複を除いた一覧をパレットに表示する常駐スクリプトです。同じフォントでも
-これらの設定が異なれば、別の候補としてリストアップします。
+ドキュメント内のテキストで使われている書式の組み合わせ（フォント・サイズ・行送り・文字ツメ・トラッキング・自動カーニング・プロポーショナルメトリクス）を収集し、重複を除いた一覧をパレットに表示します。
+同じフォントでも設定が異なれば、別の候補としてリストアップします。
 
-一覧は「使用数／フォント／サイズ／行送り／自動カーニング／文字ツメ／トラッキング／
-プロポーショナル」の8列で表示します（プロポーショナルメトリクスは ON/OFF）。
-使用数は、その組み合わせを含むテキストフレームの数（1フレーム内で複数回使っても1）。
-
-例）
-  使用数  フォント               サイズ   行送り  自動カーニング  文字ツメ  トラッキング  プロポーショナル
-  3       ヒラギノ角ゴシック W3   12pt     16pt    メトリクス       0         0             ON
-  1       ヒラギノ角ゴシック W3   10.5pt   14pt    メトリクス       10        25            OFF
-
-- パレットは上部に横並び・中央寄せのチェックボックス（「ロックされたテキストを含む」
-  「非表示のテキストを含む」「現在のアートボードに限定」）、列付きリスト、
-  その下のボタンエリア（左：「クリックで適用」チェックボックス／中央：スペーサー／
-  右：「リストを更新」「選択した条件のフォントを選択」ボタン）で構成
-- 「クリックで適用」が ON のとき、行をクリックすると選択中のテキストへその組み合わせ
-  （フォント・サイズ・行送り・自動カーニング・文字ツメ・トラッキング・
-  プロポーショナルメトリクス）をまとめて適用。OFF のあいだはクリックしても適用しない
-- 「選択した条件のフォントを選択」ボタンで、その条件に一致する文字を含むテキスト
-  フレームをドキュメント上で選択する（押すと「クリックで適用」は自動 OFF）
-- 「リストを更新」ボタンで一覧をその場で再走査する
-- 「現在のアートボードに限定」を ON にすると、走査・条件一致選択を現在のアートボードと
-  重なるテキストフレームだけに絞る（OFF はドキュメント全体）。適用先は常に現在の選択
-- 「非表示のテキストを含む」が OFF のあいだは、非表示のテキスト（hidden なオブジェクト・
-  グループや、非表示レイヤー上のもの）を走査・条件一致選択から除外する（ON で含める）
-- 「ロックされたテキストを含む」が OFF のあいだは、ロックされたテキスト（locked な
-  オブジェクト・グループや、ロックレイヤー上のもの）を走査・条件一致選択から除外する（ON で含める）
-- 一覧の並び順は フォント名→サイズ→行送り→自動カーニング→文字ツメ→トラッキング→
-  プロポーショナル（使用数では並べ替えない）
-- 一覧はパレット表示時・「リストを更新」・各チェックボックス切り替え時に再走査する
-- 常駐エンジン（#targetengine）でパレット表示。常駐エンジンの app は
-  パレット表示中に DOM 接続を失うため、DOM 処理はメインエンジンへ
-  BridgeTalk で都度委譲する（コードは encodeURIComponent で包んで送信）
+詳細は README を参照してください。
 
 ### Overview
 
-A docked palette that lists the text-composition combinations used in the
-document (font, size, leading, Tsume, tracking, auto-kerning and proportional
-metrics), deduped. Even for the same font, a different combination of these is
-listed as a separate candidate.
+Collects the formatting combinations used by the text in the document — font, size, leading, tsume, tracking, auto-kerning and proportional metrics — and lists them, deduplicated, in a palette.
+The same font appears as separate entries when these settings differ.
 
-The list is shown as eight columns: Count / Font / Size / Leading / Auto Kerning /
-Tsume / Tracking / Prop. Metrics (proportional metrics shown as ON/OFF). Count is
-the number of text frames that use the combination (a frame counts once).
-
-- The palette is a centered row of top checkboxes ("Include locked text" /
-  "Include hidden text" / "Current artboard only"), the column list, and
-  a button area below it (left: an "Apply on click" checkbox / center: a spacer /
-  right: "Refresh list" and "Select matching text" buttons)
-- While "Apply on click" is ON, clicking a row applies that combination (font,
-  size, leading, auto kerning, Tsume, tracking, proportional metrics) to the
-  current selection; while OFF, clicking does not apply
-- The "Select matching text" button selects the text frames containing
-  characters that match the selected condition (this turns "Apply on click" OFF)
-- The "Refresh list" button rescans the list on demand
-- Turning on "Current artboard only" limits the scan and matching selection to
-  text frames overlapping the active artboard (off = whole doc); the apply target
-  is always the current selection
-- While "Include hidden text" is OFF, hidden text (hidden items/groups, or items
-  on hidden layers) is excluded from the scan and matching selection (ON includes it)
-- While "Include locked text" is OFF, locked text (locked items/groups, or items
-  on locked layers) is excluded from the scan and matching selection (ON includes it)
-- The list is sorted by font, then size, leading, auto kerning, Tsume, tracking,
-  and prop. metrics (not by count)
-- The list is rescanned when shown, on "Refresh list", and when a checkbox is toggled
-- Runs as a persistent palette (#targetengine). The persistent engine's app
-  loses its DOM connection while the palette is shown, so all DOM work is
-  delegated to the main engine via BridgeTalk (code wrapped in encodeURIComponent)
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DocumentFontListSelector";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DocumentFontListSelector.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DocumentFontListSelector.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "DocumentFontListSelector";     /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ローカライズ / Localization
     // =========================================
 

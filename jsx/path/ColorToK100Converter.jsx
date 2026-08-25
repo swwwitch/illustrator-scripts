@@ -3,87 +3,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-ColorToK100Converter.jsx
+RGBまたはCMYKで構成された黒を、安定したK100の黒に変換します。
+テキスト、パス、スウォッチの塗りおよび線カラーが一括の対象です。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorToK100Converter.md
+### Overview
 
-### 概要：
+Converts blacks built from RGB or CMYK into a stable K100 black.
+Text, paths and swatches are all covered, for both fill and stroke colors.
 
-- 更新日：2025-06-15
-- RGB または CMYK で構成された黒を安定した K100 の黒に変換する Illustrator 用スクリプト
-- テキスト、パス、スウォッチの塗りおよび線カラーが一括対象
-
-### 主な機能：
-
-- RGB 黒（RGB 各値が 39 未満）を K100 に変換
-- CMYK の多色ブラック（CMY 全てが 70 以上 または合計が 310 以上）を K100 に変換
-- テキストの文字単位での変換対応
-- スウォッチカラーも自動変換
-- 日本語／英語インターフェース対応
-
-### 処理の流れ：
-
-1) テキストの文字単位の塗り・線カラーを変換
-2) パス、コンパウンドパスの塗り・線カラーを変換
-3) グループ内オブジェクトを再帰的に変換
-4) スウォッチのカラー定義を変換
-
-### 更新履歴：
-
-- v1.0.0 (2025-06-12) : 初期バージョン
-- v1.0.1 (2025-06-15) : 処理構造とコメント整理
-
-*/
-
-/*
-
-### Script Name:
-
-ColorToK100Converter.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorToK100Converter.md
-
-### Description:
-
-- Last Updated: 2025-06-15
-- Converts RGB or CMYK-based blacks into stable K100 black
-- Targets fills and strokes in text, paths, and swatches all at once
-
-### Main Features:
-
-- Converts RGB blacks (each channel under 39) to K100
-- Converts CMYK rich blacks (all CMY ≥ 70 or total ≥ 310) to K100
-- Supports per-character conversion for text
-- Also converts swatch colors automatically
-- Japanese and English UI support
-
-### Process Flow:
-
-1) Convert text character fill/stroke colors
-2) Convert path and compound path fill/stroke colors
-3) Recursively convert objects in groups
-4) Convert swatch color definitions
-
-### Changelog:
-
-- v1.0.0 (2025-06-12) : Initial version
-- v1.0.1 (2025-06-15) : Refined structure and cleaned comments
+See the README for details.
 
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "ColorToK100Converter";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-12";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-15";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.1";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorToK100Converter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorToK100Converter.md
 
-// ロック／非表示オブジェクトの除外が必要な場合は、ここで判定を追加すると良い（現状は全対象）
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var k100Swatch = null;
 try {

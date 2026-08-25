@@ -2,68 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-フォルダー内の Illustrator ファイルを、指定したバージョン形式でまとめて保存するスクリプトです。
+フォルダー内の Illustrator ファイル（.ai / .svg）を、指定したバージョン形式でまとめて保存します。
+上書きモードとカスタム保存先を切り替えられ、対象の拡張子やパス表示の形式も指定できます。
 
-- 保存バージョンを選んで、複数の .ai / .svg ファイルを一括保存
-- .svg はIllustratorで開き、選択したバージョンの .ai として保存
-- 「上書きモード」と「カスタム」のラジオで保存方法を切替
-- 上書きモードでは元フォルダーに同じベース名の .ai として保存
-- .svg を上書きモードで処理する場合、同名 .ai の上書き可能性を事前確認
-- 対象フォルダーと保存先フォルダーをダイアログ内で指定可能
-- 「保存先を対象と同じにする」チェック（デフォルトON）でサフィックス付き同フォルダ保存もワンクリック
-- 対象パネルで処理対象の拡張子（.ai / .svg）を選択
-- 対象フォルダー内に該当ファイルが無い拡張子はチェックボックスを自動的にディム表示
-- パス表示はフルパス／~ 短縮／Dropbox 短縮を切替可能
-- 保存バージョンや任意の文字列を、ファイル名の末尾に追加可能
-- ファイル名内のスペースを「_」または「-」に変換可能
-- 出力ファイルの拡張子は常に小文字 .ai に統一
-- PDF互換ファイルの作成を切り替え可能
-- Illustrator標準の［更新済み］付与を使用可能
-- カスタムモードで .ai 入力＆同一フォルダー＆サフィックス未指定時のみ上書き確認ダイアログを表示
-- 処理中は進捗ウィンドウで現在のファイル名と件数を表示
-- 処理中はIllustratorの警告ダイアログ（カラープロファイル、フォント置換、上書き確認等）を抑制
-- 日本語ファイル名・記号（%, スペース）にも対応
-- 日本語／英語のUIに対応
-
-### オリジナルアイデア
-
-クロさん（VoostOn）
-https://vooston.web.fc2.com/dtp/dtp_a010.html
+詳細は README を参照してください。
 
 ### Overview
 
-Batch-saves Illustrator files in a folder using the selected save-version format.
+Batch-saves the Illustrator files (.ai / .svg) in a folder in a chosen file-format version.
+You can switch between overwrite mode and a custom destination, and choose the target extensions and how paths are displayed.
 
-- Batch-save multiple .ai / .svg files with a selected Illustrator version
-- Open .svg files in Illustrator and save them as .ai in the selected version
-- “Overwrite” / “Custom” radio modes for save method
-- In Overwrite mode, save to the source folder as .ai using the same base name
-- When .svg is included in Overwrite mode, confirm possible same-named .ai overwrites in advance
-- Choose source and destination folders directly in the dialog
-- “Use same folder as source” checkbox (default ON) for one-click suffix-renamed saving
-- Target panel for selecting file types (.ai / .svg)
-- Target checkboxes are auto-dimmed when no matching files exist in the source folder
-- Path display toggles for full path / ~ shortening / Dropbox shortening
-- Optionally append the save version and custom text to filenames
-- Replace spaces in filenames with “_” or “-”
-- Output extension is always normalized to lowercase .ai
-- Toggle PDF-compatible file creation
-- Use Illustrator’s built-in [Converted] suffix option
-- In Custom mode, confirms before overwriting only when .ai inputs exist, source/destination are the same, and no suffix is set
-- Progress window shows current filename and count during processing
-- Suppresses Illustrator interaction dialogs (color profile, font substitution, overwrite, etc.) during processing
-- Handles Japanese filenames and special characters (%, spaces)
-- Supports Japanese and English UI
+See the README for details.
+
 */
 
-
-var SCRIPT_VERSION = "v1.5.0";
-
 // =========================================
-// 保存オプション設定（必要に応じて変更）/ Save option switches (tweak as needed)
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "AIBatchVersionSave";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AIBatchVersionSave.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AIBatchVersionSave.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var SAVE_OPTS = {
 	/* ファイル形式 / File format */

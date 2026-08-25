@@ -2,34 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  ClipMaskAdjust-v3 (Auto-Preview)
-  更新日: 2026-01-03
 
-  クリップグループ（クリッピングマスク）の「マスクパス」と「内容」を調整するスクリプトです。
-  ダイアログの操作はオートプレビューで即時反映されます。
+### 概要
 
-  注意:
-  - 安全重視のため Undo / ヒストリー操作は未実装です。
-  - ［キャンセル］でもプレビューで反映された状態は戻りません。
+クリップグループ（クリッピングマスク）の「マスクパス」と「内容」を調整します。
+ダイアログの操作はオートプレビューで即時反映されます。
 
-  主な機能:
-  - 基準点（9点）で内容を揃える
-  - フィットとスケール：
-    - 縦横比を保持して切り取り（Proportions / Fill）
-    - 縦横比を保持して縮小（Proportions / Fit）
-    - サイズ保持
-    - スケールを指定（%）
-  - マスクパス：そのまま / 内容に合わせる / 正方形に（短辺基準）
-  - 微調整（X/Y）
-  - 角丸：クリップグループ全体に「角を丸くする」効果を適用
-    - 角丸値の変更時はアピアランスを消去してから再適用（重複適用の防止）
-  - 正円：ON時は角丸をONにし、半径を（短辺の）半分に設定
+詳細は README を参照してください。
 
-  ショートカット:
-  - 基準点はキーボード（qwe / asd / zxc）で素早く切り替え可能
-  - 基準点: qwe / asd / zxc
-  - 数値増減: ↑↓(±1), Shift+↑↓(±10), Opt+↑↓(±0.1)
+### Overview
+
+Adjusts the mask path and the contents of a clipping group.
+Every change in the dialog is reflected immediately as an auto-preview.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ClipMaskAdjust";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v3";                           /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskAdjust.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskAdjust.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
     var doc = app.activeDocument;
@@ -44,8 +49,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         alert("Please select a clipping mask group.");
         return;
     }
-
-
 
     // --- Localization (JA / EN) ---
     var LANG = (app.locale && app.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -524,7 +527,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     tweakYInput.characters = 4;
     tweakYGroup.add("statictext", undefined, CURRENT_UNIT_LABEL);
 
-
     changeValueByArrowKey(tweakXInput, updatePreview, true);
     changeValueByArrowKey(tweakYInput, updatePreview, true);
     tweakXInput.onChanging = updatePreview;
@@ -566,7 +568,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var maskNone = maskPanel.add("radiobutton", undefined, L.maskNone);
     var radioFitFrame = maskPanel.add("radiobutton", undefined, L.fitFrame);
     var radioSquare = maskPanel.add("radiobutton", undefined, L.square);
-
 
     // --- 3.1 角丸 ---
     var roundPanel = rightCol.add("panel", undefined, L.roundPanel);
@@ -901,4 +902,3 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return [l, t, r, bot];
     }
 })();
-

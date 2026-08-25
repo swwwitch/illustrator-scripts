@@ -2,41 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
 
-選択したシンボルインスタンスのリンクを解除し、通常のオブジェクトとして扱える状態にする
-Illustrator 用 JSX スクリプト。
+### 概要
 
-- 選択範囲内のシンボルを、グループ内も含めてまとめて処理
-- static シンボル／dynamic シンボルの解除結果を整理し、扱いやすいグループまたは単体アイテムに整える
-- 解除後のアイテム名に、元のシンボル名を引き継ぐことが可能
-- 名前に `symbol_unlinked_` などの接頭辞を付けるかどうかを選択可能
-- 解除結果が単一テキストの場合、元のシンボル名より優先してテキスト内容を名前として使うことが可能
-- 1アイテムだけのグループを自動的に解除するかどうかを選択可能
-- 処理後は、解除後に生成されたアイテムを選択状態として残す
-- ダイアログUIとログ用メッセージは日本語・英語に対応
-- エラーが起きた場合も、可能な範囲でほかのシンボルの処理を継続
-- ダイアログの表示／非表示は `SHOW_OPTIONS_DIALOG` で切り替え可能
+選択したシンボルインスタンスのリンクを解除し、通常のオブジェクトとして扱える状態に整えます。
+解除後の階層と名前を整理するためのオプションを備えています。
 
-Overview
+詳細は README を参照してください。
 
-This Illustrator JSX script breaks links for selected symbol instances and turns them into regular editable objects.
+### Overview
 
-- Processes selected symbols in batch, including symbols inside groups
-- Organizes static and dynamic symbol break results into manageable groups or single items
-- Can inherit the original symbol name for the generated result
-- Can optionally add a prefix such as `symbol_unlinked_` to the result name
-- Can use text content as the result name when the generated result is a single text object, taking priority over the original symbol name
-- Can automatically ungroup groups that contain only one item
-- Keeps the generated unlinked items selected after processing
-- Supports Japanese and English dialog UI and log messages
-- Continues processing other symbols as much as possible when recoverable errors occur
-- `SHOW_OPTIONS_DIALOG` controls whether the options dialog is shown
+Breaks the links of the selected symbol instances and turns them into regular editable objects.
+Options are provided for tidying up the resulting hierarchy and names.
+
+See the README for details.
+
 */
 
-/* =========================================
-   設定 / Settings
-   ========================================= */
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SymbolChangeAxis";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolChangeAxis.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolChangeAxis.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var SHOW_OPTIONS_DIALOG = true; // 起動時にオプションダイアログを表示する
 
@@ -49,8 +47,6 @@ var USE_TEXT_CONTENT_AS_NAME_DEFAULT = true; // 単一テキストの場合は�
 /* =========================================
    バージョンとローカライズ / Version and localization
    ========================================= */
-
-var SCRIPT_VERSION = "v1.1.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -160,7 +156,6 @@ function L(key) {
 function labelText(key) {
     return L(key) + (lang === "ja" ? "：" : ":");
 }
-
 
 (function () {
 

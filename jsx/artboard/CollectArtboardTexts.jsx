@@ -2,32 +2,19 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名 / Script Name
 
-CollectArtboardTexts.jsx
+### 概要
 
-### 概要 / Overview
+全アートボード上にあるテキストフレームを収集し、最後のアートボードの右側に縦に並べて配置します。
 
-- 全アートボード上にあるテキストフレームを収集し、最後のアートボードの右側に縦に並べて配置する
-- Collect text frames on every artboard and place them as new text frames, stacked vertically to the right of the last artboard.
+詳細は README を参照してください。
 
-### 主な機能 / Main Features
+### Overview
 
-- アートボードごとに重なるテキストフレームを抽出 / Pick text frames overlapping each artboard
-- ロック・非表示のテキスト／レイヤー／グループは除外（親階層も走査）/ Skip locked or hidden frames and ancestor layers/groups
-- 改行で結合せず、1 テキスト＝1 フレームで縦に並べる（スイッチで一括結合モードも可）/ One frame per source text stacked vertically (switch to combined mode available)
-- 書き出した全フレームを選択してズーム表示 / Select the placed frames and zoom to fit
+Collects the text frames from every artboard and places them as new text frames, stacked vertically to the right of the last artboard.
 
-### 処理の流れ / Processing Flow
+See the README for details.
 
-1. アクティブドキュメントと出力先レイヤーを検証 / Validate the active document and target layer
-2. アートボードごとに含まれるテキストを収集 / Collect contained texts per artboard
-3. テキストごとに新規フレームを縦に並べて配置 / Place each text as a separate frame, stacked vertically
-4. 書き出した全フレームを選択しズーム表示 / Select created frames and zoom in
-
-### 更新履歴 / Update History
-
-- v1.0.0 (20260513) : 初版 / Initial release
 */
 
 // =========================================
@@ -36,15 +23,16 @@ CollectArtboardTexts.jsx
 var SCRIPT_NAME     = "CollectArtboardTexts";         /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-05-13";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-13";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CollectArtboardTexts.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CollectArtboardTexts.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// 設定 / Settings
-// =========================================
 
 /*
  * 配置スタイル / Placement style

@@ -2,80 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  概要 / Overview
-  ----------------------------------------------------------------------
-  複数のオブジェクト（A）を、選択範囲内で「自動（面積最大）/ 最前面 / 最背面」で指定した1本のパス（B）に沿って
-  等間隔に自動配置するIllustrator用スクリプトです。
-  右カラムのパネル順序を調整（複製パネルを上部に移動）。
-  「自動（面積最大）」は開パスの場合、バウンディングボックス面積で判定します。
-  ※複製パネルは選択がちょうど2つのときのみデフォルトで有効になり、複製数は2が初期値です。
-  ※選択がちょうど2つの場合は複製がデフォルトで有効、3つ以上の場合はデフォルトで無効になります。
-  ※回転オプションに「パスに沿う（接線） / Follow Path (Tangent)」が追加されました。
-  ※回転パネルに「反転」チェックボックス（+180°回転）が追加されました。
 
-  This script arranges multiple objects (A) at even intervals
-  along a single base path (B), which is chosen by
-  Auto (largest-area), Frontmost, or Backmost within the current selection.
-  The order of panels in the right column has been adjusted (Duplicate panel moved above Rotation/Order/Spacing).
-  For Auto (largest), open paths are evaluated by bounding-box area.
-  The Duplicate panel is enabled by default only when exactly two objects are selected (duplicate count defaults to 2).
-  When exactly two objects are selected, Duplicate is enabled by default; when three or more, it is disabled by default.
-  Preview validation errors are now only shown when the Preview checkbox is turned ON,
-  and are validated before building the preview, preventing repeated or stacked dialogs.
-  Repeated alerts are suppressed via an alert guard (deduped by selection/state) to prevent stacked dialogs.
+### 概要
 
-  A new rotation option "パスに沿う（接線） / Follow Path (Tangent)" has been added.
-  A "Flip" toggle (+180° rotation) has been added to the Rotation panel.
+複数のオブジェクトを、選択範囲内の1本のパスに沿って等間隔に自動配置します。
+基準にするパスは「自動（面積最大）／最前面／最背面」から選べます。
 
-  選択が0または1の場合、ダイアログを開かず終了します。
-  If the selection count is 0 or 1, the script exits without opening the dialog.
+詳細は README を参照してください。
 
-  使い方 / How to use
-  ----------------------------------------------------------------------
-  1. 配置したいオブジェクトを複数選択します（A）
-  2. 基準にしたいパスを含めて選択します（Bは「自動（面積最大）/ 最前面 / 最背面」で指定）
-  3. スクリプトを実行し、ダイアログでオプションを指定します
-  4. OKを押すと、オブジェクトがパスに沿って配置されます
+### Overview
 
-  Select multiple objects to place (A), including one path to be used
-  as the base path (B). The script uses the base path selected by Auto/Frontmost/Backmost
-  as B, then arranges the objects evenly along it.
+Distributes several objects evenly along a single path taken from the selection.
+The reference path is chosen automatically by largest area, or as the frontmost or backmost object.
 
-  主な仕様 / Key features
-  ----------------------------------------------------------------------
-  ・開パス／クローズパスの両方に対応
-    - クローズパスでは始点と終点の重複を避けて均等配置されます
-  ・配置基準は各オブジェクトの geometricBounds の中心
-  ・基準パス（B）は「自動（面積最大）/ 最前面 / 最背面」で選択可能（PathItem）
-  ・基準パス（B）の扱いを選択可能
-      - 何もしない
-      - 塗り／線をなしに
-      - 削除
-  ・配置後のオブジェクトをグループ化するオプションあり
-  ・プレビュー（非破壊）：複製をプレビュー用レイヤーに表示（OK/キャンセル/OFFで自動削除）
-  ・ダイアログは2カラム表示（回転は右カラム）。半透明表示で、画面右側にオフセット表示されます
-  ・回転オプションに「パスに沿う（接線） / Follow Path (Tangent)」モードを追加
+See the README for details.
 
-  Supports both open and closed paths, optional grouping of placed objects,
-  and configurable handling of the base path (keep, hide appearance, or delete).
-
-  Also includes a non-destructive Preview that shows duplicated items on a
-  temporary preview layer (auto-removed on OK/Cancel/Preview OFF).
-
-  注意事項 / Notes
-  ----------------------------------------------------------------------
-  ・選択順は配置順として保証されません
-  ・クローズパスの開始位置はパスの始点に依存します
-  ・「塗り／線をなしに」「削除」は基準パス（B）に対して直接適用されます
-    （元の外観は自動では復元されません）
-  ・プレビューは複製で表示します（元オブジェクトは移動しません）
-  ・プレビュー中は元のオブジェクトを一時的に非表示にします（OFF/OK/キャンセルで復元）
-
-  更新日 / Last updated: 2026-03-03
 */
 
-// Script version / スクリプトバージョン
-var SCRIPT_VERSION = "v1.5.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ArrangeObjectsAlongPath";      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -358,7 +317,6 @@ function changeValueByArrowKey(editText, allowNegative) {
   // 0.1〜1.0 の範囲で調整
   var spacingRandomJitterRatio = 0.4;
   var _spacingJitterDragging = false;
-
 
   // Preview internals / プレビュー用内部
   var PREVIEW_LAYER_NAME = "__PREVIEW_ArrangeAlongPath";
@@ -691,9 +649,6 @@ function changeValueByArrowKey(editText, allowNegative) {
   var rbDelete = optPanel.add("radiobutton", undefined, L('basePathModeDelete'));
   rbHide.value = true; // default（旧「塗り/線をなしに」ON相当）
 
-
-
-
   // Objects to arrange / 配置するオブジェクト
   var placeObjPanel = colR.add("panel", undefined, L('panelPlaceObjects'));
   placeObjPanel.orientation = "column";
@@ -871,7 +826,6 @@ function changeValueByArrowKey(editText, allowNegative) {
   sldSpacingJitter.enabled = false;
   stSpacingJitterVal.enabled = false;
 
-
   // Grouping / グループ化（右カラム・中央寄せ）
   var gGroupPlaced = placeObjPanel.add("group");
   gGroupPlaced.orientation = "row";
@@ -984,7 +938,6 @@ function changeValueByArrowKey(editText, allowNegative) {
 
     return { mode: mode, angle: ang, flip180: flip180 };
   }
-
 
   function getOrderMode() {
     try {

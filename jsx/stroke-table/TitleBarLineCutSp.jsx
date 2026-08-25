@@ -1,7 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.0";
+/*
+
+### 概要
+
+選択したオブジェクトの周りで、罫線を欠けさせます。
+オフセット・線幅・線端・角の形状をダイアログで指定できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Cuts a gap into a rule around the selected objects.
+Offset, stroke weight, cap and join are set in a dialog.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TitleBarLineCutSp";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TitleBarLineCutSp.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TitleBarLineCutSp.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -339,8 +372,6 @@ function L(key) {
     var strokeCapValue = rbCapRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
     var strokeJoinValue = rbJoinRound.value ? StrokeJoin.ROUNDENDJOIN : (rbJoinBevel.value ? StrokeJoin.BEVELENDJOIN : StrokeJoin.MITERENDJOIN);
 
-
-
     try {
 
         //念のためロックされていたら解除
@@ -418,7 +449,6 @@ function L(key) {
                 } else {
                     region = tmpOutlined[0].geometricBounds;
                 }
-
 
                 if (!region) return null;
 
@@ -526,7 +556,6 @@ function L(key) {
 
         applyFillK30NoStroke(objectA);
         applyFillK30NoStroke(objectC);
-
 
         // 3. AとCをグループ化 (D)
         // 新しいグループアイテムを作成

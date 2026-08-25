@@ -5,153 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトに Illustrator の「自由変形」ライブ効果を適用するスクリプトです。
-台形・平行四辺形・三角形・対角線の全18プリセットをアイコンから選択し、
-調整可能なプリセットでは変形量と強度を設定できます。Undoベースのプレビューで
-結果を確認してから、効果を各オブジェクトへ個別に適用します。
+選択オブジェクトにIllustratorの「自由変形」ライブ効果を適用します。
+台形・平行四辺形・三角形・対角線の全18プリセットをアイコンから選び、調整可能なプリセットでは変形量と強度を設定できます。
 
-### 主な機能
-
-- 調整変形（プリセットはすべてアイコンで選択）
-  - 台形（上辺を狭く / 広く、下辺を狭く / 広く）
-  - 平行四辺形（4基準点 × 左右 / 上下 の8パターン）
-  - 変形量スライダー（0.00〜0.49、ドラッグと↑↓キー操作に対応）
-  - 強度切替（マイルド / ノーマル / ブースト）
-- 固定変形
-  - 三角形（左上 / 右上 / 左下 / 右下）
-  - 対角線（＼ / ／）
-- プレビュー機能（Undoベースで一時適用）
-- 日英ローカライズ対応UI
-
-### 仕様・注意
-
-- 三角形および対角線プリセットでは、変形量と強度は使用されません。
-- 台形 / 平行四辺形の強度倍率は、マイルド=0.25、ノーマル=0.5、ブースト=1.0 です。
-- 選択対象にテキストが含まれる場合、強度の初期値はマイルドになります。
-- プレビューは Undo を利用して制御しているため、他の操作と混在すると不整合が起こる可能性があります。
-- 複数オブジェクト選択時は、すべてに同一のライブ効果を適用します。
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n15a7ae196a23
-
-### GitHub
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx
-
-### 更新履歴
-
-- v1.5.4 (2026-07-21)
-  - 日本語・英語READMEを追加し、基本情報からリンク
-
-- v1.5.3 (2026-07-21)
-  - 日本語・英語の概要を、現在のプリセット数と適用フローに合わせて更新
-
-- v1.5.2 (2026-07-21)
-  - プレビュー解除のUndoを、目印レイヤーを使って過不足なく巻き戻すよう修正
-    （複数オブジェクト選択時に効果が残留し、二重適用になる問題への対応）
-  - 効果を適用できるオブジェクトがない場合、ダイアログを出す前に警告するよう変更
-  - プレビューのUndoで選択が失われた場合に備え、初期選択をフォールバックとして保持
-  - 本適用が途中で失敗した場合、何件まで適用したかを表示するよう変更
-  - アイコンの平行四辺形サンプル値を、実際の適用値（変形量×2）と一致するよう修正
-
-- v1.5.1 (2026-07-21)
-  - 平行四辺形を、4基準点 × 左右 / 上下 の8パターンに拡張
-  - 台形 / 平行四辺形 / 三角形 / 対角線のプリセットをすべてアイコンボタン化
-  - 台形 / 平行四辺形 / 三角形・対角線 の3カラムレイアウトに変更
-  - 変形量パネルをプリセットの下へ移動し、強度ラジオを左右中央に配置
-  - ボタンエリアを「左：プレビュー／中央：スペーサー／右：キャンセル・OK」に整理
-
-- v1.5.0 (2026-07-21)
-  - プレビュー解除のUndoを、適用済みのときだけ1回実行するよう整理（戻りすぎの防止）
-  - 変形量スライダーを整数（%）に丸め、表示値と実適用値のずれを解消
-  - 効果を適用できない選択（テキスト範囲など）を除外
-  - 適用中の例外でプレビューが残留しないよう巻き戻し処理を追加
-  - プリセットをテーブル定義に集約し、インデックス依存の分岐を廃止
-  - UIレイアウトの余白・間隔を共通設定に統一
-
-- v1.1.1 (2026-04-24)
-  - 台形 / 平行四辺形 / 三角形 / 対角線のプリセットUIを実装
-  - 変形量スライダーとプレビューを実装
-  - 強度切替（マイルド / ノーマル / ブースト）を追加
-  - 選択対象にテキストが含まれる場合、強度初期値をマイルドに設定
-  - プレビュー更新の間引きと同一条件スキップを追加
-  - 日英ローカライズ対応UIを実装
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Applies Illustrator's "Free Distort" live effect to selected objects. Choose from
-18 icon-based trapezoid, parallelogram, triangle and diagonal presets; adjustable
-presets also support amount and strength controls. An Undo-based preview lets you
-check the result before the effect is applied to each object individually.
+Applies Illustrator's Free Distort live effect to the selected objects.
+Eighteen presets — trapezoids, parallelograms, triangles and diagonals — are picked from icons, and the adjustable ones expose an amount and a strength setting.
 
-### Key features
-
-- Adjustable transform
-  - Trapezoid (narrow / wide top, narrow / wide bottom)
-  - Parallelogram (four anchor corners by two axes, eight presets)
-  - Amount slider (0.00-0.49, supports dragging and arrow keys)
-  - Strength switch (Mild / Normal / Boost)
-- Fixed transform
-  - Triangle (top left / top right / bottom left / bottom right)
-  - Diagonal (backslash / slash)
-- Preview based on Undo
-- Localized UI (Japanese / English)
-
-### Notes
-
-- Amount and strength are ignored for the triangle and diagonal presets.
-- Strength factors are Mild=0.25, Normal=0.5, Boost=1.0.
-- Strength defaults to Mild when the selection contains text.
-- Preview relies on Undo, so mixing it with other operations may cause inconsistencies.
-- The same live effect is applied to every selected object.
-
-### Article (note, in Japanese)
-
-https://note.com/dtp_tranist/n/n15a7ae196a23
-
-### GitHub
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx
-
-### Changelog
-
-- v1.5.4 (2026-07-21)
-  - Added Japanese and English READMEs and linked them from Basic info
-
-- v1.5.3 (2026-07-21)
-  - Updated the Japanese and English overviews to reflect the current preset count
-    and application flow
-
-- v1.5.2 (2026-07-21)
-  - Preview removal now undoes exactly the applied steps, using a marker layer as the
-    undo boundary (previously a leftover preview could be applied twice)
-  - Warn about a selection with no effect target before the dialog opens
-  - Keep the initial selection as a fallback in case an undo clears it
-  - Report how many objects were done when the final apply stops partway
-  - Icon sample shear now matches the amount actually applied (amount times two)
-
-- v1.5.1 (2026-07-21)
-  - Expanded the parallelogram presets to eight: four anchors by two axes
-  - Turned every preset into an icon button drawn from its own corner data
-  - Reorganized the dialog into three columns: trapezoid, parallelogram, triangle / diagonal
-  - Moved the amount panel below the presets and centered the strength radios
-  - Rearranged the footer: preview on the left, Cancel / OK on the right
-
-- v1.5.0 (2026-07-21)
-  - Preview removal now runs a single undo, and only when one is actually pending
-  - Rounded the amount slider to integer percent so the readout matches what is applied
-  - Skipped selected items that cannot receive an effect (text ranges and similar)
-  - Rolled back partially applied previews when an error occurs
-  - Moved presets into a single table and removed index-based branching
-  - Unified panel margins and spacing through shared layout helpers
-
-- v1.1.1 (2026-04-24)
-  - Initial preset UI, amount slider, preview and strength switch
+See the README for details.
 
 */
 
@@ -173,9 +37,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 var DISTORT_CONFIG = {
     amountMinPercent: 0,       /* 変形量スライダーの最小値（%） / slider minimum (percent) */
     amountMaxPercent: 49,      /* 変形量スライダーの最大値（%） / slider maximum (percent) */
@@ -511,7 +372,6 @@ var DEFAULT_PRESET_INDEX = 0; /* 初期選択プリセット / initially selecte
 var TRAPEZOID_GROUP_KEY = "trapezoid";
 var SHEAR_GROUP_KEY = "parallelogram";
 var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
-
 
 (function () {
 

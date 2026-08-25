@@ -1,17 +1,20 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// =========================================
-// 概要 / Overview
-// =========================================
 /*
-DistributeLL.jsx
 
-複数選択（横並び）で、最も左のオブジェクトを固定し、以降を環境設定［一般］の
-「キー増加」の値ぶんずつ左方向へ移動して間隔を狭める。
+### 概要
 
-移動に使う値は、環境設定［一般］の「キー増加」増分（cursorKeyLength）。
-この値は pt で格納されているため単位換算は不要。
+横並びに選択した複数オブジェクトのうち最も左のものを固定し、以降を環境設定［一般］の「キー入力」の値ぶんずつ左へ動かして間隔を狭めます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Keeps the leftmost object of a horizontal selection fixed and moves the rest left by the Keyboard Increment, tightening the spacing.
+
+See the README for details.
+
 */
 
 // =========================================
@@ -22,6 +25,11 @@ var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeLL.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeLL.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

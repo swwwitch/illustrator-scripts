@@ -3,72 +3,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-ResizeClipMask.jsx
+クリップグループのマスクパスの大きさを変更します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-（準備中）
+### Overview
 
-### 概要：
+Resizes the mask path of a clipping group.
 
-- クリップマスク付きグループに対し、マージンを設定してマスクの矩形サイズを調整します。
-- プレビュー機能を備え、OKで確定、Cancelで元に戻せます。
-
-### 主な機能：
-
-- マスクが矩形かどうかを判定し、対象のみ処理
-- マージン量を±ボタン・±キー・±反転で直感的に操作可能
-- キャンセル時には元のサイズへ復元
-
-### 処理の流れ：
-
-1. 選択オブジェクトからマスクパスを収集
-2. プレビューとしてマージンを加えたサイズに一時変更
-3. OKで確定、Cancelで元に戻す
-
-### 更新履歴：
-
-- v1.0 (20250710) : 初版
-- v1.1 (20250718) : ↑↓入力に対応
-- v1.2 (20250717) : プレビュー反映ロジックを調整
-
----
-### Script Name:
-
-ResizeClipMask.jsx
-
-### Readme (GitHub):
-
-(Coming soon)
-
-### Overview:
-
-- Adjusts rectangle clip mask size by applying margin to clipped groups
-- Includes preview and cancel support
-
-### Main Features:
-
-- Detects rectangular clipping masks only
-- Intuitive margin control via ± buttons, arrow keys, and polarity switch
-- Restores original state when canceled
-
-### Workflow:
-
-1. Collect clipping masks from selected objects
-2. Apply temporary margin as preview
-3. Confirm with OK, restore with Cancel
-
-### Update History:
-
-- v1.0 (20250710): Initial version
-- v1.1 (20250718): Arrow key input supported
-- v1.2 (20250717): Adjusted preview application logic
+See the README for details.
 
 */
 
-var SCRIPT_VERSION = "v1.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ResizeClipMask";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-18";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeClipMask.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeClipMask.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 現在の言語取得 / Get current language */
 function getCurrentLang() {

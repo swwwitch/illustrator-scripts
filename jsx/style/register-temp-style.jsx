@@ -2,35 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### 概要 / Overview
 
-- 選択中のオブジェクトの見た目を「名称未設定」で登録する Illustrator 標準の挙動を回避し、固定名のグラフィックスタイルとして登録するスクリプト。
-- 同名スタイルが既に存在する場合は削除してから上書き登録するので、繰り返し実行しても重複しない。
-- Registers the appearance of the selected object as a graphic style with a fixed name, bypassing Illustrator's default "Untitled" registration.
-- If a style with the same name already exists, it is removed first so repeated runs do not create duplicates.
+### 概要
 
-### 処理の流れ / Process flow
+選択中のオブジェクトの見た目を、固定名のグラフィックスタイルとして登録します。
+同名スタイルが既に存在する場合は削除してから登録するため、繰り返し実行しても重複しません。
 
-1. 選択が1つでなければ何もせず終了 / Exit silently unless exactly one object is selected.
-2. 既存の同名スタイルを削除 / Remove the existing style with the same name, if any.
-3. 一時アクションをロード→実行→アンロードして、無名のグラフィックスタイルを末尾に追加 / Load, run, and unload a temporary action that appends an unnamed graphic style.
-4. 末尾のスタイルを `TEMP_STYLE_NAME` に改名 / Rename the last style to `TEMP_STYLE_NAME`.
+詳細は README を参照してください。
 
-### 設定 / Settings
+### Overview
 
-- `TEMP_STYLE_NAME` を書き換えると登録名を変更できる / Edit `TEMP_STYLE_NAME` to change the registered style name.
+Registers the appearance of the selected object as a graphic style with a fixed name.
+An existing style with the same name is removed first, so repeated runs never create duplicates.
 
-### オリジナルアイデア
+See the README for details.
 
-@comsk(asa me)さん
-https://qiita.com/comsk/items/87161b2b7d2336b161c4
 */
 
 // =========================================
-// バージョンと設定 / Version & Settings
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "register-temp-style";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/register-temp-style.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/register-temp-style.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 登録するスタイル名 / Style name to register */
 var TEMP_STYLE_NAME = "temp_style";

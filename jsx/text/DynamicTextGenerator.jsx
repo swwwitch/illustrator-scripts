@@ -6,50 +6,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択したテキストの文字幅に合わせたパスを作り、アーチ・円・下向き弓のパス上文字に変換します。
-パスに対して文字が占める割合を指定でき、各行の幅を最長行にそろえる「ブロック」も選べて、
-結果はダイアログを開いたままプレビューできます。
+パスに対して文字が占める割合を指定でき、各行の幅を最長行にそろえる「ブロック」も選べます。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Builds a path sized to the selected text and converts it
-into type on a path shaped as an arch, a circle, or a
-downward bow. How much of the path the text covers can be
-set, and a Block mode instead scales each line's font size
-so every line matches the widest one. The result is
-previewed while the dialog stays open.
+Builds a path sized to the width of the selected text and converts it into text on an arch, a circle, or a downward bow.
+The share of the path the text occupies is configurable, and a "block" mode evens every line out to the width of the longest one.
 
 See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DynamicTextGenerator";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGenerator.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "DynamicTextGenerator";         /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-05-18";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGenerator.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹介記事 / article URL */
-    var SCRIPT_INSPIRED_BY = "https://note.com/gautt/n/n92f6faeda048";       /* 着想元：高橋としゆき（@gautt） / inspired by */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User Settings
     // =========================================
     /* 円モードで文字が円周に占める割合（カーブ0＝ゆるやかな弧／カーブ100＝ほぼ一周） */

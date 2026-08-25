@@ -2,39 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### 概要 / Overview
 
-- オブジェクトとテキストを同時に選択して実行すると、オブジェクトの見た目をグラフィックスタイルに登録し、テキストの文字列をそのスタイル名にするスクリプト。
-- 「テキスト1点＋オブジェクト1点」の選択に加え、「グループ1点（中身がテキスト＋オブジェクト）」の選択にも対応。
-- 複数のグループを選択した場合は、グループごとに登録を実行する。
-- 同名スタイルが既に存在する場合は削除してから上書き登録するので、繰り返し実行しても重複しない。
-- Registers the appearance of the selected object as a graphic style, using the selected text's content as the style name.
-- Accepts a top-level selection of one TextFrame + one object, a single group containing one TextFrame + one object, or multiple groups (processed one by one).
-- If a style with the same name already exists, it is removed first so repeated runs do not create duplicates.
+### 概要
 
-### 処理の流れ / Process flow
+オブジェクトとテキストを同時に選択して実行すると、オブジェクトの見た目をグラフィックスタイルとして登録し、テキストの文字列をそのスタイル名にします。
+テキスト＋オブジェクトのグループ選択や、複数グループの一括処理にも対応します。
 
-1. 選択から登録ジョブ（テキスト＋スタイル対象オブジェクトの組）を集める。グループ1点はその中身、複数グループはグループごと（1件も無ければ終了） / Collect register jobs (text + style-target pairs) from the selection: a single group is unwrapped, multiple groups are processed one by one (exit if none).
-2. 一時アクションを一度だけロード / Load the temporary action once.
-3. ジョブごとに以下を実行 / For each job:
-   1. テキストから文字列を取得（前後の空白を除去、空ならそのジョブはスキップ） / Get the text content (trimmed); skip the job if empty.
-   2. 既存の同名スタイルを削除 / Remove the existing style with the same name, if any.
-   3. スタイル対象オブジェクトだけを選択し直す（テキストの見た目は含めない） / Reselect only the style-target object (exclude the text's appearance).
-   4. アクションを実行して無名のグラフィックスタイルを末尾に追加し、末尾を取得した文字列に改名 / Run the action to append an unnamed graphic style, then rename the last style to the text content.
-4. アクションをアンロード / Unload the action.
-5. 元の選択に戻す / Restore the original selection.
+詳細は README を参照してください。
+
+### Overview
+
+Registers the appearance of the selected object as a graphic style, using the selected text's content as the style name.
+A group containing one text frame plus one object, and several such groups at once, are handled as well.
+
+See the README for details.
 
 */
 
 // =========================================
-// バージョンと設定 / Version & Settings
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "RegisterGraphicStyleWithText"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegisterGraphicStyleWithText.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegisterGraphicStyleWithText.md
 
-// =========================================
-// ヘルパー / Helpers
-// =========================================
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 前後の空白を除去（ES3 には String.trim が無い） / Trim leading & trailing whitespace */
 function trimText(value) {

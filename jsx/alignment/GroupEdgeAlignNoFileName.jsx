@@ -1,66 +1,39 @@
 #target illustrator
 
 /*
-スクリプトの概要：
-選択されているオブジェクト群の端または中心を取得し、ALIGNMENT_SIDE で指定した方向（左／右／上／下／左右中央／上下中央／上下左右中央）に揃えます。
-揃え先は、アクティブアートボードの端、または条件に合うガイドです。
 
-USE_GUIDES が true の場合、指定方向に対応するガイドを探索し、
-GUIDE_SEARCH_MODE の条件に従って最適なガイドへスナップします。
-該当するガイドが存在しない場合は、アートボード端に揃えます。
+### 概要
 
-USE_GUIDES が false の場合は、常にアートボード端に揃えます。
+選択されているオブジェクト群の端または中心を、`ALIGNMENT_SIDE` で指定した方向へ揃えます。
+GroupEdgeAlign.jsx からファイル名による方向判定を外した版です。
 
-ALIGNMENT_SIDE が "CENTER_X" / "CENTER_Y" / "CENTER" の場合は、ガイドを使用せず、アートボード中央に揃えます。
+詳細は README を参照してください。
 
-設定：
-- ALIGNMENT_SIDE：揃える方向
-  ※Keyboard Maestro などから main(arguments[0]) で指定可能。未指定時は "right" を使用
-  - "left"：左端を揃える
-  - "right"：右端を揃える
-  - "top"：上端を揃える（Illustrator座標では大きいY方向）
-  - "bottom"：下端を揃える（Illustrator座標では小さいY方向）
-  - "CENTER_X"：左右中央を揃える（ガイドは無視）
-  - "CENTER_Y"：上下中央を揃える（ガイドは無視）
-  - "CENTER"：上下左右中央を揃える（ガイドは無視）
-- GUIDE_SEARCH_MODE：ガイドの選択方法
-  - "inside"：揃える方向側にあるガイドのみ対象（内側優先）
-  - "nearest"：方向を問わず最も近いガイドを対象
-- BOUNDS_MODE：境界の取得方法
-  - "preference"：環境設定に従う
-  - "preview"：線幅込み（visibleBounds）
-  - "geometric"：線幅なし（geometricBounds）
-- GUIDE_ORIENTATION_TOLERANCE：ガイドの水平・垂直判定に使う許容値
+### Overview
 
-処理の流れ：
-1. 選択オブジェクト全体のバウンディングボックスを取得
-2. ALIGNMENT_SIDE に応じて対象端または中心（selection / artboard）を取得
-3. CENTER_X / CENTER_Y / CENTER の場合は、ガイドを無視してアートボード中央を使用
-4. 端揃えで USE_GUIDES が true の場合、対応する向きのガイドを抽出
-5. GUIDE_SEARCH_MODE に従い、最適なガイドを決定
-6. ガイドが無ければアートボード端を使用
-7. 差分を計算し、該当方向へ移動
+Aligns the edges or the center of the selected objects in the direction given by `ALIGNMENT_SIDE`.
+This is GroupEdgeAlign.jsx without the filename-based direction detection.
 
-対象とするオブジェクト：
-- 選択されているすべてのオブジェクト
+See the README for details.
 
-対象としないオブジェクト：
-- 未選択オブジェクト
-- ロック／非表示オブジェクト（Illustrator仕様に準拠）
-- ALIGNMENT_SIDE に対応しない向きのガイド
-- アートボード外のガイド
-- GUIDE_SEARCH_MODE="inside" の場合、逆側のガイド
-
-補足：
-- 座標系はIllustrator準拠（Yは上方向が大きい）
-- クリッピンググループは内部要素の境界を参照
-
-オリジナル：
-Gorolib Designさん
-https://gorolib.blog.jp/archives/63149753.html
-
-作成日：2025-04-06
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "GroupEdgeAlignNoFileName";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-04-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlignNoFileName.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlignNoFileName.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main(alignmentSideArg) {
     try {

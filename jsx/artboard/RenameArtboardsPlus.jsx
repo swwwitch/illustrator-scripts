@@ -5,17 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ファイル名・接頭辞・元のアートボード名・連番・接尾辞を組み合わせて、アートボード名を一括で変更するツール。プレビューで結果を確認してから適用でき、よく使う組み合わせはプリセットとして書き出せる。
+ファイル名・接頭辞・元のアートボード名・連番・接尾辞を組み合わせて、アートボード名を一括で変更します。
+プレビューで結果を確認してから適用でき、よく使う組み合わせはプリセットとして書き出せます。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Batch renames artboards by combining the document name, a prefix, the original artboard name, sequential numbering, and a suffix. The result can be checked in the preview before applying, and frequently used combinations can be exported as presets.
+Renames the artboards in bulk from a combination of the file name, a prefix, the original name, a sequence number and a suffix.
+The result is checked in a preview before it is applied, and a favourite combination can be exported as a preset.
 
 See the README for details.
 

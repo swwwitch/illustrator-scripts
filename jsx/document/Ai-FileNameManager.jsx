@@ -3,65 +3,42 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### 概要：
+### 概要
 
-- アクティブな Illustrator ドキュメントのファイル名を変更（実ファイルのリネーム）／別名で保存／コピーを保存します。
-- 保存先は常に現在のファイルと同じフォルダ。未保存ドキュメントは保存先フォルダを選択して保存します。
-- 動作モードは 3 種類：「元ファイルをリネーム」（新名で保存後、元ファイルをゴミ箱へ移動）／「別名で保存」（元ファイルを残し、作業ドキュメントを新ファイルへ切替）／「コピー（複製）を保存」（元ファイルへ上書き保存後、別名のコピーを作成）。
-- スコープは「全体」（すべての整形を適用）と「バージョンのみ」（元ファイル名の v 番号だけを繰り上げ、他の整形はしない）から選択。元ファイルにタイムスタンプが無く v 番号がある場合は「バージョンのみ」を初期選択します。
-- ファイル名を base / title / status / timestamp / page / version の各セグメントに分解し、UI から個別に編集できます。
-  - base: 先頭の固定部分。「ベース」入力欄で編集可能（検出値が初期値、空欄可）
-  - title: 「サブテキスト」ラジオで「なし / 指定（入力欄）/ 親フォルダー / 2 階層上のフォルダー」を選択
-  - status: 「ステータス」dropdown で制作ステータス（wip / draft / review / approved / outlined など）を挿入。`：` より前の値だけがファイル名に入る
-  - timestamp: 「タイムスタンプ」ラジオで「なし / YYYYMMDD / YYYY-MM-DD」を選択（デフォルト YYYYMMDD）。「時刻も付与」で末尾に -HHMM を付加
-  - page: 「連番」で page01 / page001 のような連番セグメントを追加（プレフィックスと桁数 01 / 001 を指定可）。元ファイル名の pageNN は自動検出して初期値に反映し、保存時は「既存 +1」かつ同フォルダ内の最大連番 +1 へ自動繰り上げ（繰り上げは整形後の最終ファイル名を基準に同フォルダ内を照合するため、実際に保存される名前と番号が一致）
-  - version: 「バージョン番号」ラジオで「なし / v1, v2… / v01, v02… / v001, v002…」を選択（デフォルトは「なし」）。既存の v 番号は選択形式のまま +1、無い場合は選択形式で v1 / v01 / v001 から採番。親フォルダ内に同パターンがあれば最大 v +1 まで自動繰り上げ（連番と同様、整形後の最終ファイル名を基準に照合）
-- 構成要素の順序は「標準順 / 現在のファイル名に準じる / カスタム順（↑↓ で編集）」から選択できます。
-- ステータス検出、サブテキスト選択、連番（pageNN）、タイムスタンプ／バージョン番号の形式切替や自動繰り上げに対応します。
-- 区切り記号統一、NFC 正規化、クリーンなファイル名処理（OS 禁止文字・絵文字・機種依存文字）、半角カナ → 全角変換、丸数字や法人略記などの ASCII 化など、ファイル名整形機能を搭載しています。ファイル名が長すぎる場合は確認ダイアログを表示します。
- 
----
+アクティブなドキュメントのファイル名を、実ファイルのリネーム／別名で保存／コピーを保存のいずれかで付け直します。
+ファイル名をベース・サブテキスト・ステータス・タイムスタンプ・連番・バージョン番号のセグメントに分解し、ダイアログで個別に組み立てられます。
 
-### Overview:
+詳細は README を参照してください。
 
-- Renames the active Illustrator document (true rename), saves as a new file, or saves a copy.
-- Destination is always the same folder as the current file; for unsaved docs, a destination folder is chosen.
-- Three modes: "Rename Original" (save under the new name, then move the original to the Trash) / "Save As" (keep the original and switch the active document to the new file) / "Save a Copy" (save over the original, then create a copy under the new name).
-- Scope is either "Full" (apply all formatting) or "Version Only" (bump just the v-number in the original filename, skipping all other formatting). "Version Only" is preselected when the original has a version number but no timestamp.
-- Decomposes the filename into base / title / status / timestamp / page / version segments and lets you edit them.
-  - base: editable via the "Base" input (defaults to the detected value; may be empty)
-  - title: "Project Name" radio (None / Custom input / Parent Folder / Grandparent Folder)
-  - status: "Status" dropdown (wip / draft / review / approved / outlined, etc.); only the text before `:` is written to the filename
-  - timestamp: "Timestamp" radio selects "None / YYYYMMDD / YYYY-MM-DD" (default YYYYMMDD); "Append HHMM" adds -HHMM at the end
-  - page: "Sequence" adds a sequence segment such as page01 / page001 (prefix and width 01 / 001 are configurable). An existing pageNN in the filename is auto-detected and used as the initial value; on save it uses "existing + 1" and bumps to (max sequence in folder) + 1 (the bump is matched against the finalized/formatted name, so the number matches the file actually saved)
-  - version: "Version" radio selects "None / v1, v2… / v01, v02… / v001, v002…" (default None). Existing v-numbers are bumped by +1 in the selected format; when there is none, numbering starts from v1 / v01 / v001 in the selected format. If files matching the same pattern exist in the parent folder, the result is bumped further to (max v) + 1 (matched against the finalized name, like the sequence).
-- Segment order can be set to "Default / Match Current / Custom" (reorder with ↑↓).
-- Supports status detection, project name selection from folder hierarchy, sequence numbers (pageNN), timestamp/version formatting, and auto-increment.
-- Includes separator unification, NFC normalization, filename cleaning (OS-invalid / emoji / platform-dependent chars), half-width to full-width kana conversion, and ASCII conversion of symbols/corporate abbreviations. Shows a confirmation dialog when the filename is too long.
+### Overview
+
+Renames the active document's file — as a true rename, a save-as, or a save-a-copy.
+The filename is broken into base, title, status, timestamp, sequence and version segments that are assembled individually in a dialog.
+
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "Ai-FileNameManager";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.6";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-23";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Ai-FileNameManager.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Ai-FileNameManager.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "Ai-FileNameManager";           /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.3.6";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-07-23";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Ai-FileNameManager.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Ai-FileNameManager.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User Settings
     // =========================================
 

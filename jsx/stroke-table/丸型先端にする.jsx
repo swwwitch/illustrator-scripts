@@ -1,10 +1,38 @@
-// スクリプトの説明
-// 作成日：2024年8月22日
-// 更新日：2026年4月12日
-// このスクリプトは、選択されているパスアイテム（グループ内も含む）の
-// 線端を突出先端（プロジェクティングキャップ）に設定します。
 
-// パスアイテムに突出先端を適用する再帰関数
+/*
+
+### 概要
+
+選択したパスアイテム（グループ内も含む）の線端を、丸型線端に設定します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Sets the stroke cap of the selected path items, including those inside groups, to a round cap.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "丸型先端にする";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-08-22";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-12";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/丸型先端にする.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/丸型先端にする.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/* パスアイテムに丸型線端を適用する再帰関数 / Apply a round cap to path items recursively */
 function applyProjectingCap(item) {
     if (item.typename === "GroupItem") {
         // グループの場合、子アイテムを再帰的に処理

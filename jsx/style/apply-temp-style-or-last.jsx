@@ -1,22 +1,46 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-    /*
-      選択オブジェクトに既存のグラフィックスタイル「temp_style」を適用
-      Apply the existing graphic style "temp_style" to selected objects
-    
-     ### オリジナルアイデア
-    
-    @comsk(asa me)さん
-    https://qiita.com/comsk/items/87161b2b7d2336b161c4
+/*
 
-    Gorolib Designさん
-    https://gorolib.blog.jp/archives/73930467.html#google_vignette
-    */
+### 概要
+
+選択オブジェクトに、既存のグラフィックスタイル「temp_style」を適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Applies the existing graphic style named "temp_style" to the selected objects.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "apply-temp-style-or-last";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/apply-temp-style-or-last.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/apply-temp-style-or-last.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion https://qiita.com/comsk/items/87161b2b7d2336b161c4
+ * @discussion https://gorolib.blog.jp/archives/73930467.html
+ */
 
     (function () {
 
-        var SCRIPT_VERSION = "v1.1.0";
         var TARGET_STYLE_NAME = "temp_style";
 
         /* === ローカライズ / Localization === */

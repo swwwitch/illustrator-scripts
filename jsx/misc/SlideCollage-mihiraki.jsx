@@ -2,22 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * SlideCollage-mihiraki.jsx
- *
- * 概要:
- * PDF/AIファイルを指定したページ範囲で配置し、各ページを個別のアートボードとして展開します。
- * 横長ページは見開きとみなして左右に分割し、綴じ方向（右綴じ/左綴じ）に応じた順序で配置できます。
- * PDFではトリミング設定を選択でき、選択中の配置画像または指定ファイルからページ数を推定して
- * ページ範囲欄へ反映します。ダイアログ位置はセッション中のみ記憶します。
- *
- * 更新日: 2026-03-17
- */
+
+### 概要
+
+PDF/AIファイルを指定したページ範囲で配置し、各ページを個別のアートボードとして展開します。
+横長ページは見開きとみなして左右に分割し、綴じ方向に応じた順序で配置できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Places a PDF/AI file over a given page range and lays each page out on its own artboard.
+Landscape pages are treated as spreads, split left and right, and ordered according to the binding direction.
+
+See the README for details.
+
+*/
 
 // =========================================
-// Version & Localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "SlideCollage-mihiraki";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-17";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-17";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -89,7 +106,6 @@ var __SC_CROP_ART = 4;
 var __SC_CROP_TRIM = 3;
 var __SC_CROP_BLEED = 2;
 var __SC_CROP_CROP = 1;
-
 
 // ============================================================
 // TMK Page Count Module (collision-safe)
@@ -237,7 +253,6 @@ function __SC_setPdfCropPreference(cropVal) {
     }
 }
 
-
 // =========================================
 // PDF綴じ方向の自動検出
 // /Direction /R2L があれば右綴じ、なければ左綴じと判定
@@ -346,7 +361,6 @@ function __SC_saveDialogBounds(b) {
     } catch (e) { }
 }
 
-
 function __SC_applyDialogBounds(win) {
     try {
         var b = __SC_loadDialogBounds();
@@ -393,9 +407,7 @@ function __SC_applyDialogBounds(win) {
     } catch (e) { }
 }
 
-
 function main() {
-
 
     if (app.documents.length === 0) {
         alert(L("alertNeedDoc"));
@@ -405,9 +417,6 @@ function main() {
     var doc = app.activeDocument;
     // Current source file selected by user (set via UI). If null, the user has not selected any file yet.
     var fileA = null;
-
-
-
 
     // 2. ダイアログボックスの作成
     var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
@@ -460,8 +469,6 @@ function main() {
     etRange.characters = 10;
     etRange.enabled = true;
 
-
-
     function setPathText(f) {
         // Also update current source file reference (fileA)
         fileA = f || null;
@@ -508,7 +515,6 @@ function main() {
         if (!f) return;
         __TMKPageCount_updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
     };
-
 
     // --- アイテムパネル（PDF のトリミング設定と綴じ方向） ---
     var panelCrop = leftCol.add("panel", undefined, L("panelItem"));
@@ -579,7 +585,6 @@ function main() {
             app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
         } catch (_) { }
     }
-
 
     // ボタン類（キャンセル・OK）
     var groupButtons = win.add("group");

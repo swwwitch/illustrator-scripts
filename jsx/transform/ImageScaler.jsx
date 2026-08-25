@@ -2,83 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-配置画像の拡大・縮小率
+### 概要
 
-### GitHub：
+選択している配置画像（PlacedItem / RasterItem）の拡大・縮小率（%）を表示し、入力した値で再スケールします。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ImageScaler.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- 選択している配置画像（PlacedItem / RasterItem）の拡大・縮小率（%）を表示し、入力値で再スケールします。
-- Rotation/Skew を含む変換行列から実スケールを算出し、入力フィールドでの↑↓キー操作による値変更にも対応します。
+Shows the scale (%) of the selected placed image (PlacedItem / RasterItem) and rescales it to the value you enter.
 
-### 主な機能：
+See the README for details.
 
-- 実スケール（X/Y）を行列から算出
-- ダイアログでスケール%を入力（単一選択時は現在値を初期表示）
-- 入力値で相対倍率を計算して即時適用
-- キーボード操作での数値調整：
-  - ↑↓=±1
-  - Shift+↑↓=±10（10の倍数にスナップ）
-  - Option(Alt)+↑↓=±0.1
-
-### 処理の流れ：
-
-1. 選択オブジェクトを確認し、対象（配置画像／ラスタ画像）のみ抽出
-2. 単一選択時は現在のスケール値を初期表示
-3. ダイアログ表示、入力値の即時反映（app.redraw）
-4. OKボタンで閉じる
-
-### 更新履歴：
-
-- v1.0 (20250816) : 初期バージョン
-- v1.1 (20250816) : キーボード操作による値変更機能追加
-- v1.2 (20250816) : 入力値の即時適用（OKは閉じるのみ）、ローカライズ対応
-
----
-
-### Script Name:
-
-Placed Image Scale
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ImageScaler.jsx
-
-### Overview:
-
-- Displays and rescales the scale percentage (%) of selected placed images (PlacedItem / RasterItem).
-- Calculates actual scale from transformation matrix including rotation/skew, and supports value changes via arrow keys in the input field.
-
-### Main Features:
-
-- Calculate actual X/Y scale from transformation matrix
-- Dialog with scale % input (prefilled for single selection)
-- Apply relative scaling immediately on value change
-- Keyboard increments:
-  - ↑↓ = ±1
-  - Shift+↑↓ = ±10 (snap to multiples of 10)
-  - Option(Alt)+↑↓ = ±0.1
-
-### Process Flow:
-
-1. Check selection and filter to placed/raster items
-2. Prefill scale value if only one item is selected
-3. Show dialog, apply changes immediately (app.redraw)
-4. OK button closes the dialog
-
-### Changelog:
-
-- v1.0 (20250816) : Initial version
-- v1.1 (20250816) : Added arrow key increment feature
-- v1.2 (20250816) : Immediate application of changes (OK closes only), localization support
 */
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.3";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ImageScaler";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-16";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageScaler.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageScaler.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

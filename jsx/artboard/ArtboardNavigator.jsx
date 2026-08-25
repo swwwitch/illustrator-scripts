@@ -1,6 +1,41 @@
 #target illustrator
 #targetengine "artboardNavigatorPalette"
 
+/*
+
+### 概要
+
+アートボード間をなめらかにズーム移動する常駐パレットです。
+先頭・前・全体表示・次・末尾のボタンとキーボードショートカットで移動できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+A persistent palette for moving smoothly between artboards, zooming as it goes.
+Buttons and keyboard shortcuts cover first, previous, fit-all, next and last.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ArtboardNavigator";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.5";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardNavigator.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNavigator.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 // 外部 JSX 実行時の警告ダイアログを抑制 / Suppress the external-JSX warning dialog
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -51,18 +86,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   https://note.com/yukifurushima/n/n9f2078dc156f
 
 */
-
-// =========================================
-// 基本情報 / Basic info
-// =========================================
-var SCRIPT_NAME     = "ArtboardNavigator";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.5";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
-
-// Released under the MIT license
-// http://opensource.org/licenses/mit-license.php
 
 (function () {
     // =========================================
@@ -195,7 +218,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     if (!$.global.artboardNavigatorJobs) {
         $.global.artboardNavigatorJobs = [];
     }
-
 
     // ラベルは worker（メインエンジン）が専用レイヤー（ロックON・プリントOFF）へ描画し、
     // 切替ごとに作り直す。OFF・全体表示・閉じる時はレイヤーごと削除する。
@@ -1236,7 +1258,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
                 }
                 return null;
             }
-
 
             /* ラベル専用レイヤーごと削除（レイヤーも残さない） / Remove the dedicated label layer entirely */
             function removeLabelLayer() {

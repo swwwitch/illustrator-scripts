@@ -6,58 +6,32 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator の各種環境設定を、常駐パレットでまとめて切り替えるユーティリティです。設定は操作した時点で即時反映されます。
+Illustratorの各種環境設定を、常駐パレットでまとめて切り替えます。設定は操作した時点で即時反映されます。
 
-- パレット（常駐エンジン）で表示し、書き込みは BridgeTalk でメインエンジンへ委譲（読み出しは同期で直接取得）
-- 2カラム構成：左＝キー増加／変形と整列、右＝字形の境界に整列／ガイドと定規、最下部（全幅）＝アートボード名と枠線／その他
-- 環境設定ダイアログ等の外部変更は、パレットをクリック（再アクティブ）で同期
-
-#### パネルと項目
-
-- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
-- 変形と整列：プレビュー境界／パターンを変形／角を拡大・縮小／線幅と効果も拡大・縮小
-- 字形の境界に整列：ポイント文字／エリア内文字
-- ガイドと定規：ガイドを表示／ガイドをロック／ビデオ定規（トグル）
-- アートボード名と枠線：アートボード名を表示／カンバスカラーをホワイトに／枠線のカラー・幅
-- その他：リアルタイムの描画と編集／書式なしペースト
-
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n41d8dc1961be
+詳細は README を参照してください。
 
 ### Overview
 
-A persistent-palette utility for batch-toggling various Illustrator preferences. Every setting applies immediately when changed.
+A persistent palette for switching a range of Illustrator preferences. Every change takes effect the moment you make it.
 
-- Runs in a persistent-engine palette; writes are delegated to the main engine via BridgeTalk (reads are fetched directly/synchronously)
-- Two-column layout: left = Key input / Transform & Align, right = Glyph bounds / Guides & Rulers, bottom (full width) = Artboard / Other
-- External changes (e.g. the Preferences dialog) sync when you click (re-activate) the palette
-
-#### Panels & options
-
-- Key input: cursor step (cursorKeyLength); switch ruler unit via popup, adjust with Up/Down / Shift / Option
-- Transform & Align: Preview Bounds / Transform Patterns / Scale Corners / Scale Strokes & Effects
-- Align to Glyph Bounds: Point Type / Area Type
-- Guides & Rulers: Show Guides / Lock Guides / Video Ruler (toggle)
-- Artboard Name & Border: Show Artboard Name / Canvas color to white / border color & width
-- Other: Real-time Drawing & Editing / Paste without Formatting
-
-### 更新履歴 / Change Log
-
-- v1.6.0 (20260627): 標準フォーマットへ整理（IIFE 化、ローカライズ構造、ブロックコメント）。パレット化＋BridgeTalk 委譲、キー入力の単位ポップアップ、クリック同期、ガイド／アートボードパネルを追加、2カラムレイアウト。
-- v1.0 (20250804): 初期バージョン。
+See the README for details.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "PreferenceManagerForTransformAndAlign";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                                 /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";            /* 作者 / author */
-var SCRIPT_RELEASED = "";                                       /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                                       /* 更新日 / last updated */
+var SCRIPT_NAME     = "PreferenceManagerForTransformAndAlign"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-27";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManagerForTransformAndAlign.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManagerForTransformAndAlign.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

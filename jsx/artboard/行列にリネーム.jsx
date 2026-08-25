@@ -1,9 +1,41 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+### 概要
+
+アートボード名を「行-列」形式に一括で更新します。行と列は、カンバス上の位置から割り出します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Renames the artboards into a "row-column" form in one pass, deriving the rows and columns from their positions on the canvas.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "行列にリネーム";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/行列にリネーム.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/行列にリネーム.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
     (function () {
 
-        var SCRIPT_VERSION = "v1.2.0";
         var COORDINATE_PRECISION_DIGITS = 3;
 
         function getCurrentLang() {

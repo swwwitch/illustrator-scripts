@@ -5,19 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- Illustrator の主要な環境設定を、カテゴリ別に並べた1枚のダイアログでまとめて確認・変更します。
-- ［デフォルト］／［プリセット1］を選ぶと、一式の設定値をUIに反映できます。
-- 変更はすべて［OK］でまとめて書き込まれます。［キャンセル］なら何も変更されません。
-- ラベルを短くした項目は、環境設定と同じ全文をツールチップに表示します。
-- 対象カテゴリや環境設定キーの一覧は README を参照してください。
+Illustratorの主要な環境設定を、カテゴリ別に並べた1枚のダイアログでまとめて確認・変更します。
+［デフォルト］／［プリセット1］を選ぶと一式の設定値をUIに反映でき、変更は［OK］でまとめて書き込まれます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Review and change the major Illustrator preferences from a single dialog grouped by category.
-- Selecting [Default] or [Preset 1] loads a whole set of values into the UI.
-- All changes are written at once when [OK] is pressed; [Cancel] changes nothing.
-- Where a label is shortened, the full wording used by Preferences is shown as a tooltip.
-- See the README for the covered categories and the preference keys.
+Reviews and changes the main Illustrator preferences from a single dialog laid out by category.
+Default and Preset 1 fill the whole UI with a set of values, and everything is written at once when you click OK.
+
+See the README for details.
 
 */
 

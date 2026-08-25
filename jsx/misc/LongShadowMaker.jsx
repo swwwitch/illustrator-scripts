@@ -2,21 +2,44 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  Long Shadow Maker (Extrude and Merge with Preview)
-  ダイアログで距離・角度・スケールを指定してロングシャドウを生成するスクリプト。プレビュー機能付き。必要に応じて「パスの単純化」を実行できます。
-  サンプリング方式で影の側面を生成し、必要に応じてパスファインダーで合体・穴埋めを行います。
-  ボタンエリアを3カラム（左：プレビュー／中央：スペーサー／右：キャンセル・OK）構成に変更。
 
-  対象：閉パスの PathItem / CompoundPathItem / GroupItem / TextFrame
+### 概要
 
-  オリジナルアイデアとコード
-  こじらせたクマー さん
-  https://note.com/nice_lotus120/n/nf406fb3ae2b4
+距離・角度・スケールを指定して、ロングシャドウを生成します。
+プレビュー付きのダイアログで設定でき、必要に応じて「パスの単純化」を実行できます。
 
-  更新日: 2026-02-25
+詳細は README を参照してください。
+
+### Overview
+
+Generates a long shadow from a distance, an angle and a scale you specify.
+Everything is set in a dialog with a preview, and a Simplify Path pass can be run if needed.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md
+var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion https://note.com/nice_lotus120/n/nf406fb3ae2b4
+ */
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

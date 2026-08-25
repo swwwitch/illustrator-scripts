@@ -3,111 +3,20 @@
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
-AiSmartPathfinder.jsx — Smart Pathfinder Palette
 
-選択した複数オブジェクトにパスファインダーを適用する常駐パレット。
-アイコンをクリックすると、その操作をメインエンジンへ委譲して即時に実行する。
+### 概要
 
-タブ構成: 「基本」／「その他」（EN: Special）の2タブ（tabbedpanel）
+選択した複数オブジェクトにパスファインダーを適用する常駐パレットです。
+アイコンをクリックすると、その操作をメインエンジンへ委譲して即時に実行します。
 
-「基本」タブ（上から）:
-  モード         出力モードを排他ラジオで選択（下記 A/B/C。ショートカット P/C/F）
-  形状モード      合体／前面型抜き／交差／中マド（Adobe Pathfinder command 0〜3）
-  パスファインダー 分割／刈り込み／合流／切り抜き／アウトライン／背面型抜き（3個×2行, command 4〜9）
-  オプション      余分なポイントを削除（RemovePoints, 右に［強制］ボタン）／塗りのないアートワークを削除（ExtractUnpainted, 分割・アウトライン かつ実行モードのみ）／［複合シェイプを拡張］ボタン
+詳細は README を参照してください。
 
-「その他」タブ（4パネル構成）:
-  マド埋め      縦並び。［パスに変換］（複合パス解除＋合体→実パス化）／［効果として適用］（ライブ効果のまま）
-  変換          ［線を塗りに変換］（線のアウトライン化・ライブ効果）
-  アピアランス  縦並び。［分割］（expandStyle＋可能ならグループ解除）／［効果のみを消去］（消去→塗り・線を復元）／［（完全に）消去］（アピアランスを消去）
-  ツール、パネルを表示 ［「アピアランス」パネル］（Style Palette）／［「パスファインダー」パネル］（Adobe PathfinderUI）／［シェイプ形成ツール］［選択ツール］（selectTool）
+### Overview
 
-  ※ ［強制］は選択パスの直線上の冗長アンカーを削除（PathCleanupTool 相当・許容誤差0.02固定）
-  ※ マド埋め［パスに変換］は PathCleanupTool の fillHolesOnSelection と同じ手順（group→noCompoundPath→Live Pathfinder Add→expandStyle→ungroup）
-  ※ パスファインダーの6アイコン（2行×3）は unifyIconCellWidths でセル幅を統一し列を揃える
+A persistent palette that applies Pathfinder operations to the selected objects.
+Clicking an icon delegates the operation to the main engine and runs it immediately.
 
-出力モード（モードパネルの排他ラジオ）:
-  A パスに変換          上段・下段とも＝グループ化→XML（Adobe Pathfinder）→拡張→グループ解除（実際にパスへ変換）
-  B 複合シェイプを作成  上段のみ＝ダイナミックアクション（ai_compound_shape）で複合シェイプ（下段6ボタンはディム＝無効）
-  C 効果として適用      上段・下段とも＝XML ライブ効果のまま（拡張しない）
-  ※ A・B は選択にグループが含まれる場合、実行前に ungroupAll で解除して中身を対象にする（ungroupSelectedGroups）。
-     このため「グループ1つだけ」の選択でも中身が2つ以上あれば実行できる（2つ以上の判定は解除後の選択数で行う）。
-     C は効果をグループごと乗せるため解除しない。解除は独立した undo 履歴になるため、A・B の取り消しは2回必要になる。
-  ※ ダイナミックアクションの複合シェイプは expandStyle で焼き込めないため、A の上段も XML 方式を使う
-     （ai_plugin_pathfinder のパネル実行アクションも検討したが、undo が2回必要になるため不採用）
-  ※ A/C で複数オブジェクトを選択している場合は、効果適用の前に一時的にグループ化する（1つの効果対象にまとめるため）。
-     A では拡張後にそのグループを解除して実パスへ戻す。C はライブ効果のためグループのまま残る。
-
-形状モード（上段4ボタン）の Option+クリック:
-  出力モードに関係なく複合シェイプを作成する（＝モード B と同じ。拡張はしない）。
-
-パスファインダー（下段6ボタン）の Option+クリック:
-  出力モードに関係なく効果として適用する（＝モード C と同じ。removeUnpainted は強制OFF）。
-
-［複合シェイプを拡張］ボタン（オプションパネル）:
-  選択中の複合シェイプ（DOM 上 PluginItem）を通常のパスへ拡張する（ai_expand_compound_shape）。
-  Option（Alt）+クリックのときは拡張ではなく解除する（ai_release_compound_shape）。
-  パレットは選択変更を受け取れないため常に押せ、複合シェイプの有無はクリック時に判定する（無ければ "NOCS"）。
-
-その他タブのボタン:
-  マド埋め［パスに変換］     選択を複合パス解除→ライブパスファインダー合体→拡張→グループ解除（PathCleanupTool の fillHolesOnSelection 相当）。
-  マド埋め［効果として適用］ 選択を複合パス解除→ライブパスファインダー合体（ライブ効果のまま）。
-  ［線を塗りに変換］  線をアウトライン化して1つの塗りにまとめる（ライブ効果）。
-  アピアランス［分割］          選択のアピアランス（ライブ効果）を expandStyle で実体化し、可能ならグループ解除する。
-  アピアランス［効果のみを消去］ 「アピアランスを消去」を対象単位で再生したうえで、元の塗り・線（テキストは文字塗り）だけを復元する。
-                                見た目上はライブ効果だけが消える（ClearAppearance.jsx の「復元する」既定と同等の固定オプション）。
-  アピアランス［（完全に）消去］ 「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
-                                選択全体に一括再生する。塗り・線などの復元は行わない（アピアランスパネルのメニュー相当）。
-  ツール、パネルを表示［「アピアランス」パネル］     Illustrator のアピアランスパネル（Style Palette）を表示する。
-  ツール、パネルを表示［「パスファインダー」パネル］ Illustrator のパスファインダーパネル（Adobe PathfinderUI）を表示する。
-  ツール、パネルを表示［シェイプ形成ツール］ シェイプ形成ツール（Adobe Shape Builder Tool）に切り替える（ドキュメント必須）。
-  ツール、パネルを表示［選択ツール］         選択ツール（Adobe Select Tool）に切り替える（ドキュメント必須）。
-
-［強制］ボタン（オプションパネル・「余分なポイントを削除」の右）:
-  選択パス（グループ・複合パス含む）の直線上の冗長なアンカーポイントを削除する（許容誤差 0.02 固定・2パス）。
-
-Persistent palette that applies Pathfinder operations to the current selection.
-Two tabs: "Basic" and "Special". Basic tab, top-down: Mode (A/B/C radios;
-shortcuts P/C/F), Shape Mode (Unite/Minus Front/Intersect/Exclude), Pathfinders
-(Divide/Trim/Merge/Crop/Outline/Minus Back), Options (Remove points [+ Force
-button] / Remove unpainted / Expand Compound Shape button). Special tab:
-grouped panels — Fill Holes (Apply / Effect), Convert (Convert Strokes to
-Fills), Appearance (Expand / Clear Effects / Clear; stacked vertically), Show
-Panel (Appearance / Pathfinder). Clear plays the ai_plugin_appearance "Clear
-Appearance" dynamic action on the whole selection (no attribute restoration);
-Clear Effects clears each item's appearance and then restores its original
-fill/stroke (per-character fill for text) so only the live effects disappear.
-A = Apply: both rows group, apply the Adobe Pathfinder XML, expand, and ungroup
-(bake to real paths). B = Compound shape: Shape Modes only via the
-ai_compound_shape action (Pathfinders dimmed/disabled). C = Apply as effect:
-both rows keep the live Adobe Pathfinder effect. "Remove unpainted artwork"
-affects Divide / Outline only, and only in the destructive Apply mode (it is
-forced off in Apply-as-effect mode). Option-clicking a Shape Mode button always makes a
-compound shape regardless of the output mode; Option-clicking a Pathfinder
-button always applies it as a live effect. The Expand Compound Shape button
-turns a selected compound shape into plain paths (Option-click releases it
-instead). The Force button removes redundant collinear anchor points from the
-selected paths. The Show Panel buttons show the Appearance / Pathfinder panels.
-
-構成 / Structure
-- 常駐エンジン（#targetengine）でパレット参照を保持し GC を回避
-- 表示中の常駐 app は DOM 接続を失うため、DOM 操作は BridgeTalk でメインエンジンへ委譲
-- 委譲は worker 関数を toString → encodeURIComponent → eval(decodeURIComponent(...)) で送信
-- worker の toString はコメントを取り込み壊すため、送信前に stripWorkerComments で除去（worker 本体にはコメントを書かず、説明は JSDoc に集約する）
-- 戻り値はマーカー（OK / NODOC / NOSEL / NEEDTWO / NOCS / ERR:...）で受けるが、ステータス表示エリアは持たないため markerToStatus の戻り値は破棄（委譲の副作用のみ利用）
-- 選択不足は条件で分離：効果は1つ以上（NOSEL）、パスに変換・複合シェイプは2つ以上（NEEDTWO。判定はグループ解除後の選択数で行う）
-- 複数選択時は効果を1つの対象にまとめるため一時的にグループ化し、A（destructive）では拡張後に解除する（エラー時はその一時グループだけを選択し直して解除）
-- UI は tabbedpanel（基本／その他）配下に buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一。その他タブはマド埋め／変換／アピアランス／ツール、パネルを表示の4パネル（setupPanel 共用。マド埋め・アピアランス・ツール、パネルを表示はいずれも column で縦並び）
-- ［ツール、パネルを表示：「アピアランス」パネル／「パスファインダー」パネル］は app.executeMenuCommand（Style Palette / Adobe PathfinderUI）を、［シェイプ形成ツール］［選択ツール］は app.selectTool（Adobe Shape Builder Tool / Adobe Select Tool）をメインエンジンへ委譲
-- アイコンは onDraw で描画（無効時は dimIconColors でディム表示）
-- Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む（形状モードの複合シェイプ化・下段の効果適用・拡張ボタンの解除に共通）
-- 全体を IIFE で閉じ、$.global にはパレット参照（__pfPaletteWindow）だけを残す
-- 二重起動回避：既に開いていれば作り直さず前面化して終了
-- キーボード：Esc で閉じる／P・C・F で出力モード切替
-
-### 紹介記事(note)
-
-https://note.com/dtp_tranist/n/n6909b836221a
+See the README for details.
 
 */
 
@@ -119,6 +28,12 @@ var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinder.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPathfinder.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6909b836221a"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

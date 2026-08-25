@@ -1,43 +1,38 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-var SCRIPT_VERSION = "v1.1";
 
 /*
-### スクリプト名：
-
-AddTrimMark.jsx
-
-Version: v1.1
 
 ### 概要
 
-- 常に現在のアートボードに対して、日本式トンボを作成するIllustrator用スクリプトです。
-- 専用の「トンボ」レイヤーを最初に取得または作成し、その上にアートボード矩形を1つだけ作成します。
-- その矩形を元にトリムマークを作成し、同じオブジェクトをそのままガイド化します。
-- 「トンボ」レイヤーがロックされている場合はいったん解除して処理し、終了時に元のロック状態へ戻します。
+現在のアートボードを対象に、トンボを作成します。
 
-### 主な機能
+詳細は README を参照してください。
 
-- 常に現在のアートボードを対象にトリムマークを作成
-- 「トンボ」レイヤーを自動取得／未存在時は新規作成
-- アートボード矩形1つのみを使用（複製なし）
-- 同一オブジェクトでトンボ生成とガイド化を完結
-- 「トンボ」レイヤーの元のロック状態を維持
+### Overview
 
-### 処理の流れ
+Creates trim marks for the current artboard.
 
-1. 「トンボ」レイヤーを取得し、なければ新規作成
-2. 環境設定で日本式トンボをONに設定
-3. 「トンボ」レイヤー上にアートボード矩形を1つ作成
-4. その矩形を元にトリムマーク作成メニューを実行
-5. 同じ矩形オブジェクトをガイド化
-6. finally で選択解除を行い、「トンボ」レイヤーのロック状態を元に戻す
+See the README for details.
 
-### 更新履歴
-
-- v1.0 (20250205) : 初期バージョン
-- v1.1 (20260401) : 「トンボ」レイヤーがロックされている場合はいったん解除して処理し、終了時に元のロック状態へ戻すように変更
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AddTrimMarkToCurrentArtboard"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-02-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-01";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMarkToCurrentArtboard.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMarkToCurrentArtboard.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     var doc = app.activeDocument;

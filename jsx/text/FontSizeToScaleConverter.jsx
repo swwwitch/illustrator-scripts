@@ -5,17 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択テキスト内で文字サイズが混在しているとき、各テキストの先頭文字のサイズへ統一する
-- 見た目の大きさは変えず、サイズ差を水平比率・垂直比率（horizontalScale / verticalScale）に変換して補正する
-- 自動行送りの文字は、変換前の行送りを実値で固定して行間の変化を防ぐ
-- ポイント文字・エリア内文字・パス上文字、グループ内のテキスト、複数選択に対応
+選択テキスト内で文字サイズが混在しているとき、各テキストの先頭文字のサイズへ統一します。
+見た目の大きさは変えず、サイズ差を水平比率・垂直比率に変換して補正します。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Unifies mixed font sizes within selected text to the size of each text's first character
-- Keeps the visual size unchanged by converting the size difference into horizontal / vertical scale
-- Pins the current leading as a fixed value for auto-leading characters so line spacing does not shift
-- Supports point / area / path text, text inside groups, and multiple selections
+Unifies mixed font sizes in the selected text to the size of each text's first character.
+The apparent size is preserved by converting the difference into horizontal and vertical scale.
+
+See the README for details.
 
 */
 
@@ -37,9 +37,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ローカライズ / Localization
-// =========================================
 /**
  * 実行環境のロケールからUIの表示言語を判定する
  * @returns {string} 日本語環境なら "ja"、それ以外は "en"

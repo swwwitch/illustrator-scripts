@@ -6,14 +6,15 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### 概要
 
-選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。アイコンのクリックで即時に整列し、アートボードの端から空けるマージンも指定できます。
+選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。
+アイコンのクリックで即時に整列し、アートボードの端から空けるマージンも指定できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-A persistent palette that aligns the selection to the artboard.
-Clicking an icon aligns immediately, with an optional margin kept from the artboard edges.
+A persistent palette that aligns the selected objects to the artboard.
+Clicking an icon aligns them immediately, and a margin from the artboard edge can be set.
 
 See the README for details.
 

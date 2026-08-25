@@ -3,31 +3,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### 概要：
+### 概要
 
-- アクティブレイヤーを「テンプレート」属性（ロック・印刷不可・画像を薄く表示）にする（ON 専用）
-- ダイアログなしで即実行
-- ダイナミックアクションで実行
-- 実行前にアクティブレイヤー名を取得し、リネームせず属性のみ適用
-- ロック／非表示のレイヤーには実行しない
+アクティブレイヤーを「テンプレート」属性（ロック・印刷不可・画像を薄く表示）にします。ダイアログを出さずに即実行します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Turns the active layer into a template layer — locked, non-printing and dimmed images. It runs immediately, without a dialog.
+
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "MakeTemplateLayer";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeTemplateLayer.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeTemplateLayer.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-  // =========================================
-  // 基本情報 / Basic info
-  // =========================================
-  var SCRIPT_NAME     = "MakeTemplateLayer";            /* スクリプト名 / script name */
-  var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
-  var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-  var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-  var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
-
-  // Released under the MIT license
-  // http://opensource.org/licenses/mit-license.php
-
-  // =========================================
   // 一時アクション設定 / Temporary action settings
   // =========================================
 

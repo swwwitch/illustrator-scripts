@@ -2,30 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
-選択中のオブジェクトを「動かす対象」と「スナップ基準」に分類し、対象の
-バウンディングボックスを最寄りの基準線へ合わせるスクリプト。パスは
-アンカーポイントを直接変形するため、クリップグループ内の子パスにも対応する。
 
-「線判定の許容差」は、細長いパスを水平線／垂直線として扱うための判定幅。
-「最大スナップ距離」は、対象の辺からどれだけ離れた基準線まで吸着するかの制限。
-0の場合は距離制限なし。
+### 概要
 
-Overview
-Classifies the current selection into items to move and snap references, then
-fits each target's bounding box to the nearest references. Path items are fitted
-by directly transforming anchor points, so child paths inside clipping groups are supported.
+選択中のオブジェクトを「動かす対象」と「スナップ基準」に分類し、対象のバウンディングボックスを最寄りの基準線へ合わせます。
+パスはアンカーポイントを直接変形するため、クリップグループ内の子パスにも対応します。
 
-"Line detection tolerance" controls how thin a path must be to count as a
-horizontal or vertical reference line. "Max snap distance" limits how far a
-target edge may move to the nearest reference; 0 means no distance limit.
+詳細は README を参照してください。
+
+### Overview
+
+Classifies the current selection into items to move and snap references, then snaps each item's bounding box to the nearest reference line.
+Paths are transformed at the anchor level, so child paths inside clipping groups are handled too.
+
+See the README for details.
+
 */
 
 // =========================================
-// バージョンとローカライズ / Version & Localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "FillSnapper";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.1";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillSnapper.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillSnapper.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -75,7 +84,6 @@ var L = getLabel;
 function labelText(key) {
     return getLabel(key) + (lang === 'ja' ? '：' : ':');
 }
-
 
 // =========================================
 // 設定 / Configuration
@@ -146,7 +154,6 @@ function formatUnitValue(value) {
     var rounded = Math.round(value * 1000) / 1000;
     return String(rounded);
 }
-
 
 // =========================================
 // 共通ユーティリティ / Common utilities
@@ -378,7 +385,6 @@ function gatherDocumentGuides(doc, tolerance) {
     return { horizontalLines: horizontalLines, verticalLines: verticalLines };
 }
 
-
 // =========================================
 // 角度・回転補正 / Angle & Rotation correction
 // =========================================
@@ -399,7 +405,6 @@ function getNearestRightAngleOffset(angleDeg) {
     if (modulus < -45) modulus += 90;
     return modulus;
 }
-
 
 // =========================================
 // スナップ判定・実行 / Snap classification & execution
@@ -519,7 +524,6 @@ function applySnapToTargets(pageItems, tolerance, options) {
     };
 }
 
-
 // =========================================
 // ダイアログ / Dialog
 // =========================================
@@ -634,7 +638,6 @@ function showSnapDialog(defaults, onPreview) {
     if (dialog.show() !== 1) return null;
     return collectOptions();
 }
-
 
 // =========================================
 // メイン / Main

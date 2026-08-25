@@ -2,35 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名 / Script Name：
-PreferenceManager.jsx
 
-### 概要 / Overview：
-- Illustrator の各種環境設定をダイアログボックスから変更可能にします。
-- 単位、文字設定、変形／整列設定などをワンパネルで調整できます。
-- Allows changing various Illustrator preferences via a dialog box.
-- Units, text settings, transform/align settings can be adjusted in one panel.
+### 概要
 
-### 主な機能 / Main Features：
-- 単位（一般・線・文字・東アジア言語）の設定 / Set units (general, stroke, text, East Asian)
-- 最近使用したフォント数とフォント表記切替 / Recent fonts count and font name localization
-- 変形と整列の各種オプション / Various transform and align options
-- 字形の境界に整列の設定 / Align to glyph bounds setting
-- モード切替（プリント pt／プリント Q／オンスクリーン） / Mode switch (Print pt / Print Q / Onscreen)
+Illustratorの各種環境設定をダイアログから変更します。
+単位、文字設定、変形／整列設定などを1つのパネルで調整できます。
 
-### 参考・謝辞
+詳細は README を参照してください。
 
-https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3ba5b801d86fba7877
+### Overview
 
-### 更新履歴 / Change Log：
-- v1.0 (20250804): 初期バージョン / Initial version
-- v1.1 (20250804): ダイアログを2カラムに改修、単位とフォント設定を追加 / Dialog changed to two columns; added units and font settings
-- v1.2 (20250804): 角の拡大のロジックを修正 / Fixed logic for corner scaling
+Changes a range of Illustrator preferences from a dialog.
+Units, text settings and transform/align settings are all adjusted in a single panel.
+
+See the README for details.
+
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PreferenceManager-unit";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-04";                   /* 更新日 / last updated */
 
-/* スクリプトバージョン / Script Version */
-var SCRIPT_VERSION = "v1.2";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-unit.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager-unit.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 現在のUI言語を取得 / Get the current UI language */
 function getCurrentLang() {
@@ -161,7 +165,6 @@ var LABELS = {
     }
 };
 
-
 /* ↑↓キーで値を増減 / Change value with arrow keys */
 function changeValueByArrowKey(editText) {
     editText.addEventListener("keydown", function(event) {
@@ -285,8 +288,6 @@ function convertToPt(valueUnit, unitCode) {
     return valueUnit * getPtFactorFromUnitCode(unitCode);
 }
 
-
-
 /* 複数チェックボックスを環境設定キーにバインド / Bind multiple checkboxes to preference keys */
 function bindCheckboxes(pairs) {
     for (var i = 0; i < pairs.length; i++) {
@@ -320,7 +321,6 @@ function main() {
     dialog.text = LABELS.dialogTitle[lang];
     dialog.orientation = 'column';
     dialog.alignChildren = ['fill', 'top'];
-
 
     /* ダイアログ位置と透明度の調整 / Adjust dialog position and opacity */
     var offsetX = 300;
@@ -398,7 +398,6 @@ function main() {
     /* ↑↓キー操作を適用 / Apply arrow key value change */
     changeValueByArrowKey(inputKey);
 
-
     // 角丸の半径
     var groupCornerRadius = generalPanel.add('group');
     groupCornerRadius.orientation = 'row';
@@ -422,7 +421,6 @@ function main() {
     };
     /* ↑↓キー操作を適用 / Apply arrow key value change */
     changeValueByArrowKey(inputCornerRadius);
-
 
     /* テキスト詳細パネルを追加 / Add "Text Details" panel */
     // --- Unit label helpers for text detail panel ---
@@ -464,8 +462,6 @@ function main() {
     /* ↑↓キー操作を適用 / Apply arrow key value change */
     changeValueByArrowKey(inputLeading);
 
-
-
     // ベースラインシフト
     var groupBaseline = textDetailPanel.add('group');
     groupBaseline.orientation = 'row';
@@ -489,7 +485,6 @@ function main() {
     };
     /* ↑↓キー操作を適用 / Apply arrow key value change */
     changeValueByArrowKey(inputBaseline);
-
 
     var unitDropdowns = {};
 
@@ -623,7 +618,6 @@ function main() {
         refreshUnitLabels();
     };
 
-
     /* 右カラム / Right column */
     var rightColumn = mainGroup.add('group');
     rightColumn.orientation = 'column';
@@ -676,7 +670,6 @@ function main() {
         }
     };
 
-
     var glyphPanel = rightColumn.add('panel', undefined, LABELS.glyphBounds[lang]);
     glyphPanel.orientation = 'column';
     glyphPanel.alignChildren = ['left', 'top'];
@@ -698,8 +691,6 @@ function main() {
         }
     ]);
 
-
-
     /* その他パネルを追加 / Add "Transform & Align" panel */
     var otherPanel = rightColumn.add('panel', undefined, LABELS.transformTitle[lang]);
     otherPanel.orientation = 'column';
@@ -712,7 +703,6 @@ function main() {
     checkboxPreview.onClick = function() {
         app.preferences.setBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
     };
-
 
     // パターンを変形
     var checkboxPattern = otherPanel.add('checkbox', undefined, LABELS.transformPattern[lang]);
@@ -745,7 +735,6 @@ function main() {
     checkboxRealtime.onClick = function() {
         app.preferences.setBooleanPreference("LiveEdit_State_Machine", checkboxRealtime.value === true);
     };
-
 
     var group2 = dialog.add('group', undefined, {
         name: 'group2'

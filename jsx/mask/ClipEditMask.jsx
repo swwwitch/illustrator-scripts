@@ -1,3 +1,37 @@
+
+/*
+
+### 概要
+
+選択がクリップグループのときはマスク編集モードへ切り替え、そうでないときは重なり合うオブジェクトごとにクリッピングマスクを作成します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Enters mask-edit mode when the selection is a clipping group, and otherwise builds a clipping mask for each cluster of overlapping objects.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ClipEditMask";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipEditMask.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipEditMask.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 /**
  * 2つの矩形（geometricBounds）が重なっているかを判定する
  * @param {number[]} boundsA - [left, top, right, bottom]（top > bottom）

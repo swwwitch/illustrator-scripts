@@ -2,23 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-------------------------------------------------------------
-複数ドキュメントへコピー内容をペースト
-------------------------------------------------------------
-概要:
-- すでにコピー済みのオブジェクトを、すべての開いているドキュメントに
-  「同じ位置」でペーストする
-- 「pasteInPlace」を使用するため、各ドキュメントの座標にあわせて配置
 
-対象:
-- 開いているすべてのドキュメント
-- コピー済みのオブジェクト（事前にコピーしておく必要あり）
+### 概要
 
-非対象:
-- ペースト先で選択済みのオブジェクトは上書きされない
-- コピーしていない場合は警告を表示して終了
-------------------------------------------------------------
+コピー済みのオブジェクトを、開いているすべてのドキュメントへ同じ位置に貼り付けます（pasteInPlace）。
+
+詳細は README を参照してください。
+
+### Overview
+
+Pastes the copied objects into every open document at the same position, using Paste in Place.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PasteInAllDocs";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PasteInAllDocs.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PasteInAllDocs.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     try {

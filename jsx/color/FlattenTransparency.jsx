@@ -1,6 +1,39 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+### 概要
+
+ダイナミックアクションを使って、ドキュメントの透明部分を分割・統合します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Flattens the transparency in the document by running a dynamic action.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FlattenTransparency";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenTransparency.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenTransparency.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 function act_FlattenTransparency () {
 
   var SET_NAME = "FlattenTransparency";

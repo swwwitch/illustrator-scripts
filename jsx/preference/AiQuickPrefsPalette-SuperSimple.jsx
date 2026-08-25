@@ -6,29 +6,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator の使用頻度の高い環境設定を、常駐パレット（palette）でまとめて切り替えるユーティリティです。
-チェックや入力を操作したその場で即座に反映されるため、環境設定ダイアログを何度も開き直す手間がありません。
+Illustratorの使用頻度の高い環境設定を、常駐パレットでまとめて切り替えます。
+チェックや入力を操作したその場で反映されるため、環境設定ダイアログを開き直す手間がありません。
 
-書き込みは BridgeTalk でメインエンジンに委譲し、読み出しはパレット側で直接行うことで、
-常駐エンジンのまま安全に環境設定を操作します。パレットを再アクティブにすると現在値へ自動追従します。
+詳細は README を参照してください。
 
-- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓＝±1 / Shift＝±10（10の倍数にスナップ）/ Option＝±0.1 で増減
-- 整列オプション：プレビュー境界に整列／字形の境界に整列（ポイント文字・エリア内文字を両方まとめて ON/OFF）
-- 変形オプション：パターン／角（ライブコーナー）／線幅と効果。Option＋クリックで3つまとめて切替
-- コピー/ペースト：書式なしペースト／コピー元のレイヤーにペースト
-- 描画：リアルタイムの描画と編集／プレビュー更新（GPU プレビューをトグルして再描画）
-- 表示：境界線（エッジ＋バウンディングボックスをまとめて切替）／アートボード／ビデオ定規（表示の切替）／カンバスカラー（UIに合わせる⇔ホワイトをトグル）
+### Overview
+
+A persistent palette for toggling the Illustrator preferences you use most often.
+Every checkbox and field applies as you touch it, so there is no reopening of the Preferences dialog.
+
+See the README for details.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AiQuickPrefsPalette-SuperSimple";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.2.0";                           /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";      /* 作者 / author */
-var SCRIPT_RELEASED = "2025-08-05";                       /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-27";                       /* 更新日 / last updated */
+var SCRIPT_NAME     = "AiQuickPrefsPalette-SuperSimple"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.2.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette-SuperSimple.md
@@ -680,7 +679,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
 
         /* 表示パネル（最下部）。境界線／アートボード／ビデオ定規／カンバスカラーの切替ボタン / View panel (bottom); Edges / Artboards / Video Ruler / Canvas Color toggles */
         var viewControls = buildViewPanel(mainGroup);
-
 
         /* 読み出した環境設定を UI へ反映 / Apply fetched preferences to the UI */
         function applyPreferencesToUI(prefValues) {

@@ -1,46 +1,38 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// TextBreakSplitMerge.jsx 
-// 
-// 作成日：2026年3月18日
-// 更新日：2026年3月19日
-//
-// Illustratorで分散しがちなテキスト処理（改行・分割・連結・整形）を
-// 1つのダイアログに統合したオールインワン・テキスト処理スクリプトです。
-//
-// 従来は個別スクリプトとして分散しがちなテキスト処理（改行削除・空行整理・分割・連結など）を、
-// 単一UIに集約することで、スクリプト管理やショートカット運用の負担を軽減します。
-//
-// 対象は以下の選択状態に対応します：
-// ・テキストフレーム
-// ・テキストフレームを含むグループ
-// ・Illustratorが TextRange として返すテキスト選択
-//
-// ［主な機能］
-// ・改行の削除／挿入／変換（段落改行・強制改行の相互変換を含む）
-// ・段落／タブ／文字単位でのテキスト分割（書式保持／無視の両対応）
-// ・複数テキストの縦方向・横方向連結（見た目ベースでの再構成）
-// ・テキスト内容のクリーンアップ（タブ処理、スペース整理など）
-// ・文字変換（全角英数→半角、半角カナ→全角）、リスト記号の除去
-// ・行単位の編集・並べ替え・ソート・重複削除
-// ・テキスト構造の可視化（改行数・タブ数・文字種別の集計表示）
-// ・実行可能な処理だけを有効化する状態連動UI
-//
-// ［UIタブ構成］
-// ・基本：改行（削除・挿入・変換）、分割、連結
-// ・クリーンアップ：タブ・スペース処理、文字変換、リスト記号除去
-// ・行の編集/ソート：行単位の並べ替え・追加・削除・ソート・重複除去
-//
-// ［設計方針］
-// ・既存テキストを直接編集しつつ、結果を即座に確認できる即時実行型UI
-// ・複数スクリプトの置き換えを前提とした「集約ツール」設計
-// ・見た目ベースの処理を優先し、実務での作業効率を重視
-// ・実行条件に合わない機能は無効化し、誤操作を防止
-//
-// ダイアログUIは日本語／英語を自動切り替えし、選択状態に応じて使用可能な機能を動的に切り替えます。
+/*
 
-var SCRIPT_VERSION = "v1.6.2";
+### 概要
+
+改行・分割・連結・整形といった、Illustratorで分散しがちなテキスト処理を1つのダイアログにまとめたツールです。
+
+詳細は README を参照してください。
+
+### Overview
+
+Collects the text chores that are otherwise scattered around Illustrator — breaking, splitting, joining and tidying — into a single dialog.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TextBreakSplitMerge";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMerge.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMerge.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -461,11 +453,9 @@ function isForcedBreak(codeOrChar) {
     return code === 3 || code === 10;
 }
 
-
 function isAnyBreak(codeOrChar) {
     return isParagraphBreak(codeOrChar) || isForcedBreak(codeOrChar);
 }
-
 
 function isTabChar(codeOrChar) {
     var code = (typeof codeOrChar === "number") ? codeOrChar : getCharCodeSafe(codeOrChar);
@@ -575,7 +565,6 @@ function hasVisibleChars(txt) {
 
         return frames;
     }
-
 
     /* テキストタイプ判定 */
     function detectTextFrameType(objects) {
@@ -1712,7 +1701,6 @@ function hasVisibleChars(txt) {
     /* 横連結（行維持）
      * 同じ行のテキストを左から右へ連結し、行ごとに別テキストフレームとして残します。 */
 
-
     function concatHorizontalOnly(objects) {
         var LINE_Y_THRESHOLD = 5;
         var textItems = getTextFrames(objects);
@@ -2064,7 +2052,6 @@ function hasVisibleChars(txt) {
         statusCenter.alignment = ["fill", "top"];
         statusCenter.alignChildren = ["left", "top"];
 
-
         var rowTargetCount = statusLeft.add("group");
         rowTargetCount.orientation = "row";
         rowTargetCount.alignChildren = ["left", "center"];
@@ -2188,8 +2175,6 @@ function hasVisibleChars(txt) {
             btnRemoveTabs.enabled = breaks.tab > 0;
             btnTabsToSpaces.enabled = breaks.tab > 0;
         }
-
-
 
         /* 制御文字の状態管理 */
         var hiddenCharOn = false;

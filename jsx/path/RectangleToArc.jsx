@@ -3,72 +3,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-RectangleToArc.jsx
+選択した長方形を、左下隅・上辺中央・右下隅の3点を通る円弧に変換します。
+長方形の幅と高さから円の半径・中心・開始角・終了角を求め、元の長方形は削除します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArc.md
+### Overview
 
-### 概要：
+Converts the selected rectangle into an arc passing through its bottom-left corner, top-center and bottom-right corner.
+The radius, center and start and end angles come from the rectangle's width and height, and the rectangle itself is deleted.
 
-- 更新日：2026-05-19
-- 選択した長方形を、左下隅・上辺中央・右下隅の 3 点を通る円弧に変換
-- 長方形の幅と高さから円の半径・中心・開始角・終了角を求め、90 度以内のベジェセグメントに分割して円弧を生成
-- 元の長方形は削除
-
-### 主な機能：
-
-- 閉じた 4 点パスかつ各辺が水平／垂直の長方形のみ処理（回転長方形・台形・菱形・不定形は対象外）
-- 生成する円弧は塗りなし・線あり
-- 元長方形に線がある場合は線の色・太さを引き継ぎ
-- 元長方形が線なしでも変換は実行
-- 複数選択に対応
-
-### 更新履歴：
-
-- v1.0.1 (2026-05-19) : 現行版
+See the README for details.
 
 */
 
-/*
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RectangleToArc";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-19";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-19";                   /* 更新日 / last updated */
 
-### Script Name:
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArc.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArc.md
 
-RectangleToArc.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArc.md
-
-### Description:
-
-- Last Updated: 2026-05-19
-- Converts each selected rectangle into a circular arc passing through its bottom-left corner, top-edge midpoint, and bottom-right corner
-- Derives the radius, center, start angle, and end angle from the rectangle's width and height, then splits the arc into bezier segments of 90 degrees or less
-- The original rectangle is deleted
-
-### Main Features:
-
-- Only closed 4-point paths with horizontal/vertical edges are processed (rotated rectangles, trapezoids, rhombi, and other 4-point shapes are skipped)
-- Generated arc is fill-less and stroked
-- Inherits stroke color/width from the source rectangle when present
-- Conversion runs even if the source rectangle has no stroke
-- Multiple selection supported
-
-### Changelog:
-
-- v1.0.1 (2026-05-19) : Current version
-
-*/
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
     // バージョンと定数
     // =========================================
-    var SCRIPT_VERSION = "v1.0.1";
 
     var POSITION_TOLERANCE = 0.01;
 

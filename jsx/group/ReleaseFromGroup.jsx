@@ -1,19 +1,42 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-(function () {
 
 /*
-概要 / Overview:
-選択中のオブジェクトがグループ内にある場合、親グループを辿って所属レイヤー直下へ移動します。
-If selected objects are inside a group, this script moves them out to their owning layer.
 
-重ね順の逆転を避けるため、選択オブジェクトは逆順（後ろから）に処理します。
-To avoid z-order inversion, selected items are processed in reverse order.
+### 概要
 
-更新日 / Updated: 2026-03-06
+選択中のオブジェクトがグループ内にある場合、親グループを辿って所属レイヤーの直下へ移動します。
+重ね順が反転しないよう、選択オブジェクトは逆順に処理します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Moves the selected objects out of their groups and directly onto the layer that owns them.
+They are processed in reverse order so that the stacking order is preserved.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ReleaseFromGroup";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseFromGroup.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseFromGroup.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+(function () {
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

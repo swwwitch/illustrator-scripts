@@ -4,26 +4,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-# SmartCalendarMaker.jsx
-
 ### 概要
 
-- 基準日をもとに、指定した月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
-- セル幅／高さ・月間隔（左右／上下）などの設定はダイアログで調整でき、プレビューで即時反映されます。
-- 日本の祝日（2020–2035、振替休日・国民の休日を含む）に対応しています。
+基準日をもとに、指定した月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
+セル幅・高さや月間隔をダイアログで調整でき、日本の祝日（2020〜2035年、振替休日・国民の休日を含む）に対応します。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Creates calendars (Monday start) for the given number of months, centered on the artboard, based on a reference date.
-- Cell size, month spacing (L/R, U/D) and more are set in the dialog with live preview.
-- Japanese national holidays (2020–2035, incl. substitute & citizen's holidays) are supported.
+Builds calendars — Monday-first — for a number of months from a reference date, centered on the artboard.
+Cell size and the spacing between months are set in a dialog, and Japanese public holidays from 2020 to 2035, including substitute and citizens' holidays, are covered.
 
-### 紹介記事 / Article (note)
-
-- https://note.com/dtp_tranist/n/nc54c315c5dc3
+See the README for details.
 
 */
-
 
 // =========================================
 // 基本情報 / Basic info
@@ -34,13 +29,15 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-15";                   /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartCalendarMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalendarMaker.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹介記事 / article URL */
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User Settings
-// =========================================
-// よく調整する値をまとめています / Frequently adjusted values are collected here
 var offsetX = 300;                          /* ダイアログ表示位置の横オフセット / Dialog X offset */
 var offsetY = 0;                            /* ダイアログ表示位置の縦オフセット / Dialog Y offset */
 var dialogOpacity = 0.985;                   /* ダイアログの不透明度 / Dialog opacity */
@@ -330,7 +327,6 @@ function ptToUnitValue(pt) {
     } catch (_) { }
     return pt;
 }
-
 
 // =========================================
 // UIレイアウトの共通設定 / Shared UI layout
@@ -1134,7 +1130,6 @@ function trimButtonHeight(button, px) {
     rbWdMTW.onClick = schedulePreviewRefresh;
     rbWdMon.onClick = schedulePreviewRefresh;
 
-
     // ===== 月パネル =====
     var pnlMonth = gOption.add("panel", undefined, L("panel.month"));
     pnlMonth.orientation = "column";
@@ -1145,7 +1140,6 @@ function trimButtonHeight(button, px) {
     pnlMonth.preferredSize.height = 44;
     pnlMonth.visible = true;
     pnlMonth.enabled = true;
-
 
     var gMonth = pnlMonth.add("group");
     gMonth.orientation = "row";
@@ -1216,7 +1210,6 @@ function trimButtonHeight(button, px) {
     gYear.orientation = "row";
     gYear.alignChildren = ["left", "center"];
 
-
     var chkTopYear = gYear.add("checkbox", undefined, L("year.show"));
     chkTopYear.value = false;      // 12ヶ月のときだけONにする
     chkTopYear.enabled = false;    // 12ヶ月以外は触れない
@@ -1271,7 +1264,6 @@ function trimButtonHeight(button, px) {
         var mm = (mode === "num") ? String(m) : pad2(m);
         return includeYear ? (String(year) + "/" + mm) : mm;
     }
-
 
     // ===== レイアウトパネル =====
     var pnlLayout = gColL.add("panel", undefined, L("panel.layout"));
@@ -1944,8 +1936,6 @@ function trimButtonHeight(button, px) {
         __ddLoading.close();
     }
 
-
-
     // デフォルト: DNPShueiMGoStd-B があれば選択、なければ先頭
     var defaultFontName = "DNPShueiMGoStd-B";
     var foundIndex = -1;
@@ -1955,8 +1945,6 @@ function trimButtonHeight(button, px) {
     if (ddFont.items.length > 0) {
         ddFont.selection = (foundIndex >= 0) ? foundIndex : 0;
     }
-
-
 
     // ===== 下部コントロール行（左：プレビュー／右：キャンセル・OK）=====
     var gBottom = dlg.add("group");
@@ -2810,7 +2798,6 @@ function trimButtonHeight(button, px) {
         dlg.close(0);
     };
 
-
     dlg.show();
 
     // ====== functions ======
@@ -3046,7 +3033,6 @@ function trimButtonHeight(button, px) {
                 totalH: totalH
             });
         }
-
 
         // グリッド配置（列数指定）
         var rowsCount = Math.ceil(monthCount / colCount);

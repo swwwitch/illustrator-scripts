@@ -7,12 +7,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ドキュメントに埋め込まれたXMPメタデータから使用フォント情報を抽出し、TXT / CSV / Markdownで書き出します。
 フォント情報は保存済みのXMPから取得するため、未保存のドキュメントでは実行できません。
-詳細はREADMEを参照してください。
+
+詳細は README を参照してください。
 
 ### Overview
 
 Extracts font usage information from the XMP metadata embedded in the document and exports it as TXT / CSV / Markdown.
-The font info comes from the saved XMP, so the document must be saved before running.
+The data comes from the saved XMP, so the script cannot run on an unsaved document.
+
 See the README for details.
 
 */

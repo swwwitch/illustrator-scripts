@@ -6,15 +6,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレット。パレットで「長方形／楕円」と「値を指定（Absolute）／値を追加（Relative）」、幅・高さ（pt）を設定すると、選択にライブプレビューが反映される。DOM 操作は BridgeTalk でメインエンジンへ委譲する。
+選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレットです。
+「長方形／楕円」と「値を指定／値を追加」、幅・高さを設定すると、選択にライブプレビューが反映されます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-A persistent palette that applies the "Convert to Shape" live effect to the selection. Pick Rectangle/Ellipse and Absolute/Relative sizing plus width/height (pt); the selection updates as a live preview. All DOM work is delegated to the main engine via BridgeTalk.
+A persistent palette that applies the "Convert to Shape" live effect to the selection.
+Pick Rectangle or Ellipse, Absolute or Relative sizing, and the width and height; the selection updates as a live preview.
 
-### 更新履歴 / Changelog
-
-- v1.0.0: 常駐パレット化。形状（長方形／楕円）とサイズモード（値を指定／値を追加）＋幅・高さを設定し、ライブプレビュー付きで［形状に変換］を適用 ／ Persistent palette. Choose shape (rectangle/ellipse) and size mode (absolute/relative) plus width/height, apply "Convert to Shape" with a live preview.
+See the README for details.
 
 */
 
@@ -27,12 +29,13 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/fx-all.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/fx-all.md
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ローカライズ / Localization
-// =========================================
 
 /* 表示言語を判定 / Detect display language */
 function getCurrentLang() {

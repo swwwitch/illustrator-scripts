@@ -2,83 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-RemoveOtherArtboards
+### 概要
 
-### GitHub：
+アクティブなアートボード以外を削除し、そのアートボードの外側にあるオブジェクト（ガイドを含む）も削除します。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/RemoveOtherArtboards.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- アクティブなアートボード以外を削除
-- アクティブなアートボード外のオブジェクト削除（ガイドを含む）
+Deletes every artboard except the active one, along with the objects — guides included — that fall outside it.
 
-### 主な機能：
+See the README for details.
 
-- アクティブ以外のアートボードを削除
-- アクティブArtboard外のオブジェクト削除
-- レイヤー/サブレイヤー/グループのロック・表示・テンプレート状態の一時解除→復元
-- アクティブArtboardと重ならないオブジェクトガイドの削除（ルーラーガイドは対象外）
-- PageItemのlocked/hidden一時解除→復元
-
-### 処理の流れ：
-
-1) アクティブドキュメント・アートボード取得
-2) アクティブ以外のアートボードを末尾から削除
-3) レイヤー/サブレイヤー/グループ/PageItemの状態を再帰的に収集し一時解除
-4) アクティブArtboardと重ならないオブジェクトガイドを削除
-5) 反転選択でアクティブArtboard外オブジェクトを削除
-6) 状態を復元
-
-### 更新履歴：
-
-- v1.0 (202406XX) : 初期バージョン
-- v1.1 (20250815) : 説明文強化、ロック復元・ガイド削除ロジックの注記、コメント整理
-- v1.2 (20250815) : PageItemのlocked/hidden対応、用語統一、構造化コメント
-
----
-
-### Script Name:
-
-RemoveOtherArtboards
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/RemoveOtherArtboards.jsx
-
-### Description:
-
-- Remove all non-active artboards
-- Delete objects outside the active artboard (including guides)
-
-### Key Features:
-
-- Delete non-active artboards
-- Delete objects outside the active artboard
-- Temporarily relax and restore lock/visible/template state of layers/sublayers/groups
-- Delete object guides not overlapping the active artboard (ruler guides excluded)
-- Temporarily relax and restore locked/hidden state of PageItems
-
-### Processing Flow:
-
-1) Get the active document and active artboard
-2) Remove non-active artboards from the end
-3) Recursively collect and temporarily relax the state of layers/sublayers/groups/PageItems
-4) Delete object guides not overlapping the active artboard
-5) Inverse-select and delete objects outside the active artboard
-6) Restore original states
-
-### Update History:
-
-- v1.0 (202406XX) : Initial version
-- v1.1 (20250815) : Expanded docs, notes on lock restore & guide checks, comment cleanup
-- v1.2 (20250815) : Added PageItem locked/hidden handling, terminology unification, structured comments
 */
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RemoveOtherArtboards-v2";      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveOtherArtboards-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveOtherArtboards-v2.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // 矩形の交差判定（[top,left,bottom,right]）/ Rectangle intersection test
 function rectIntersects(a, b) {

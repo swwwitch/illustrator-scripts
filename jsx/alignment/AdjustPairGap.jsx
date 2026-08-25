@@ -4,117 +4,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-# ペア配置調整スクリプト
+### 概要
 
-オブジェクトの間隔（および位置）を指定値にそろえます。「固定」で選んだ側を基準に、残りを動かします。ライブプレビュー対応。
+オブジェクトの間隔（および位置）を、指定した値にそろえます。
+［固定］で選んだ側を基準に残りを動かし、ライブプレビューで結果を確認できます。
 
-## モード
+詳細は README を参照してください。
 
-- 自動ペア認識：選択オブジェクトを最も近いもの同士でペアにし、各ペアの間隔をそろえます
-- グループ：選択した各グループの中身を並べ、隣り合う間隔をすべて指定値にそろえます（3個以上もカスケードで分配）
-- アートボード：各選択オブジェクトと、「固定」で選んだアートボード端（上 / 左 / 右 / 下）との間隔（マージン）をそろえます
+### Overview
 
-選択がすべてグループなら起動時に「グループ」、それ以外は「自動ペア認識」が初期選択です（「アートボード」は手動。ダイアログで切替可）。
+Sets the gap — and the position — between objects to a value you specify.
+The side marked as fixed stays put while the rest move, with a live preview of the result.
 
-## 固定（基準）
-
-上 / 左 / 右 / 下 で基準にする側を選びます。左右なら水平方向、上下なら垂直方向の間隔をそろえ、選んだ側は動かしません。グループモードでは選んだ端を起点に残りをカスケード配置します。
-
-## 間隔（位置調整パネル）
-
-- 「間隔」で対象間の距離を指定します（↑↓キーで±1、Shiftで±10、Optionで±0.1。マイナス値で重ねられます）
-- 「プレビュー境界」オンで線幅や効果を含む見た目の境界を基準に測ります
-
-## 水平 / 垂直パネル（移動側）
-
-「固定」が上下のときは「水平」パネル、左右のときは「垂直」パネルが有効になります（直交する側だけ操作可）。
-
-- 整列：動かす側を固定側の端／中央にそろえます（不要なら「移動しない」）
-- 位置：移動側（＝固定でない側）を直交方向へ微調整します（正＝右／下）。整列が「中央」のときは 0 にして無効化します
-- ショートカット：水平＝L/C/R（左/中央/右）、垂直＝T/M/B（上/中央/下）
-
-## テキストの行揃え
-
-テキストオブジェクトの段落の行揃えを指定します（自動 / 左 / 中央 / 右 / 均等配置（最終行左））。
-
-- 自動（既定）：整列・固定に連動します。エリア内文字＝均等配置（最終行左）、ポイント文字＝縦並びは水平整列に連動（左/中央/右）、横並びは固定側に連動（固定が左→左／固定が右→右）
-- 左 / 中央 / 右 / 均等配置：ポイント文字・エリア内文字とも一律にその行揃え
-
-行揃えは間隔・整列より先に適用し、境界を測り直してから配置します（ポイント文字は行揃えで字幅が変わるため）。
-
-## 設定の記憶
-
-ダイアログを閉じる（OK）と設定を記憶し、次回はその状態で開きます。
-
-- 同一セッション中：モード・固定・整列・間隔・位置・プレビュー境界をすべて記憶（#targetengine）
-- Illustrator 再起動後：固定・整列・位置・プレビュー境界を復元（モード・間隔は選択内容に依存するため毎回決め直し）
-
-## 注意
-
-- 自動ペア認識：選択数が奇数のときは末尾の1つがペアにならず残ります
-- グループ：子が2個未満のグループ、およびグループ以外のオブジェクトは対象外です
-- アートボード：各オブジェクトは中心が含まれるアートボードを基準にします（該当がなければアクティブアートボード）
-
-### 紹介記事
-
-https://note.com/dtp_tranist/n/nc8fab19d8164
-
----
-
-# Adjust Pair Gap
-
-Aligns the gap (and position) between objects to a specified value. Uses the side chosen by the key object as the anchor and moves the rest. Supports live preview.
-
-## Modes
-
-- Auto pair detection: pairs the selected objects by nearest neighbor and aligns the gap of each pair
-- Group: lays out the contents of each selected group and aligns every adjacent gap to the specified value (3+ items are distributed in a cascade)
-- Artboard: aligns the gap (margin) between each selected object and the artboard edge (top / left / right / bottom) chosen by the key object
-
-If the whole selection is groups, "Group" is selected at launch; otherwise "Auto pair detection" is selected ("Artboard" is manual; switchable in the dialog).
-
-## Key object (anchor)
-
-Choose the anchor side with top / left / right / bottom. Left/right aligns the horizontal gap, top/bottom the vertical gap, and the chosen side does not move. In Group mode, the chosen edge is the starting point for cascading the rest.
-
-## Gap (position panel)
-
-- "Gap" specifies the distance between targets (↑↓ keys ±1, Shift ±10, Option ±0.1; negative values overlap them)
-- With "Preview bounds" on, the visual bounds including stroke width and effects are used for measurement
-
-## Horizontal / Vertical panel (moving side)
-
-When the key is top/bottom, the "Horizontal" panel is enabled; when left/right, the "Vertical" panel is enabled (only the orthogonal side can be operated).
-
-- Align: aligns the moving side to the edge/center of the key object (use "Don't move" if not needed)
-- Position: fine-tunes the moving side (= the non-key side) in the orthogonal direction (positive = right / down). Set to 0 to disable when Align is "Center"
-- Shortcuts: horizontal = L/C/R (left/center/right), vertical = T/M/B (top/center/bottom)
-
-## Text justification
-
-Specifies the paragraph justification of text objects (auto / left / center / right / justify (last line left)).
-
-- Auto (default): follows alignment and key. Area text = justify (last line left); point text = vertical layout follows horizontal alignment (left/center/right), horizontal layout follows the key side (key left → left / key right → right)
-- Left / Center / Right / Justify: applies that justification uniformly to both point text and area text
-
-Justification is applied before the gap and alignment, then the bounds are re-measured before placement (because point text changes its width with justification).
-
-## Remembering settings
-
-Closing the dialog (OK) remembers the settings, and they are restored on the next open.
-
-- Within the same session: mode, key, alignment, gap, position, and preview bounds are all remembered (#targetengine)
-- After an Illustrator restart: key, alignment, position, and preview bounds are restored (mode and gap depend on the selection, so they are decided each time)
-
-## Notes
-
-- Auto pair detection: when the selection count is odd, the last one is left unpaired
-- Group: groups with fewer than 2 children, and non-group objects, are excluded
-- Artboard: each object uses the artboard that contains its center as the anchor (or the active artboard if none applies)
-
-### Article
-
-https://note.com/dtp_tranist/n/nc8fab19d8164
+See the README for details.
 
 */
 
@@ -127,12 +29,15 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹介記事 / article URL */
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 var DEFAULT_GAP = 30; // 平均間隔を測れないときのフォールバック（pt）/ Fallback gap when no average can be measured (pt)
 
 // =========================================

@@ -2,73 +2,38 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-ClipWithSquare.jsx
+### 概要
 
-### GitHub：
+選択したオブジェクトを、正方形のクリッピングマスクで切り抜きます。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSquare.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- 選択された画像（配置画像/埋め込み画像）やクリッピングマスクグループ内の画像に対して、中心を基準とした最小の正方形パスを生成
-- 生成した正方形で新しいクリッピンググループを作成
+Clips the selected objects with a square clipping mask.
 
-### 主な機能：
+See the README for details.
 
-- 配置画像、埋め込み画像、およびそれらを含むクリッピングマスクの処理
-- ロックレイヤーやテンプレートレイヤー上の画像も対象（作業用レイヤーを作成して処理）
-
-### 処理の流れ：
-
-1) 選択オブジェクトを走査
-2) クリッピングマスクなら解除して画像のみ抽出
-3) visibleBounds から最小正方形を作成
-4) 正方形と画像を同一グループに入れてクリッピング化
-5) 作成されたグループを選択状態に
-
-### 更新履歴：
-
-- v1.0 (20231126) : 初期バージョン
-- v1.1 (20250813) : クリッピング解除→再構築の安定化、コメント整理
 */
 
-/*
-### Script Name:
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ClipWithSquare";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2023-11-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-13";                   /* 更新日 / last updated */
 
-ClipWithSquare.jsx
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipWithSquare.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipWithSquare.md
 
-### GitHub:
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSquare.jsx
-
-### Overview:
-
-- Generates the smallest possible square path centered on selected placed/embedded images or images within clipping mask groups
-- Creates a new clipping group using the generated square
-
-### Main Features:
-
-- Handles placed images, embedded images, and clipping masks containing them
-- Includes images on locked/template layers by creating a work layer for processing
-
-### Process Flow:
-
-1) Iterate through selected objects
-2) If a clipping mask, release it and extract only the images
-3) Create the smallest square from visibleBounds
-4) Place the square and image in the same group and clip
-5) Select the created group
-
-### Changelog:
-
-- v1.0 (20231126) : Initial version
-- v1.1 (20250813) : Stabilized release→rebuild of clipping, comment cleanup
-*/
-
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.1";
 /*
 作業用レイヤーを取得/作成 / Get or create a reusable work layer
 - 名称 / Name: _clip_work

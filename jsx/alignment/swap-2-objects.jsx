@@ -2,17 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-    スクリプト名: SwapObjectsByCenter.jsx
-    概要:
-    - Illustratorで2つのオブジェクトを選択しているとき、
-      それぞれの中心位置を入れ替えるスクリプト。
-    - 通常オブジェクトは visibleBounds、クリップグループはマスクパスの geometricBounds を基準にする。
-    - 2つ以外の選択数では警告を表示。
 
-    更新履歴:
-    - v1.0 (20250802) : 初版作成
-    - v1.1 (20250802) : クリップグループのマスクパスを基準に対応
+### 概要
+
+2つのオブジェクトを選択しているとき、それぞれの中心位置を入れ替えます。
+通常オブジェクトは visibleBounds、クリップグループはマスクパスの geometricBounds を基準にします。
+
+詳細は README を参照してください。
+
+### Overview
+
+Swaps the center positions of two selected objects.
+Ordinary objects use their visibleBounds, while clipping groups use the geometricBounds of the mask path.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "swap-2-objects";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/swap-2-objects.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/swap-2-objects.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function swapObjectsByCenter(objA, objB) {
     // 中心点を取得する関数

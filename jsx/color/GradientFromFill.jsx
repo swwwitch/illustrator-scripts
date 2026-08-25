@@ -2,32 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * 概要：
- * 選択した塗りオブジェクトに対して、元の塗り色を始点にした線形グラデーションを作成します。
- * 単色オブジェクトを選択している場合はその塗り色をそのまま使用し、オブジェクトが1つで塗りがグラデーションの場合は、黒・白・透明を除いたグラデーションストップから始点色を選択できます。
- * 複数オブジェクト選択時は始点カラーパネル全体を無効化し、単一グラデーション選択時はドロップダウン内に実際の色情報を表示します。Auto は先頭の有効な候補色を使用し、同じ色のグラデーションストップは重複候補として扱わず、1色にまとめます。
- * 終点カラーと角度を2カラムで表示し、角度は 0、30、45、60、90 のラジオボタンから選択できます。
- * 終点カラーには、黒、白、透明、補色、淡色を選択できます。
- * セパレートグラデーション、反転、プレビューに対応し、キャンセル時には元の塗り色へ戻します。プレビュー中に例外が発生した場合も、元の塗り色と選択状態を復元します。
- * CompoundPathItem、GroupItem 内の再帰処理、クリッピンググループ内のオブジェクトにも対応します。
- * グラデーション角度はオブジェクトごとに前回角度との差分で適用します。
- *
- * Overview:
- * Creates a linear gradient for selected filled objects, using the original fill color as the starting color.
- * For solid-color objects, the object's fill color is used directly. When exactly one gradient-filled object is selected, the source color can be chosen from gradient stops excluding black, white, and fully transparent stops.
- * When multiple objects are selected, the entire source-color panel is disabled. For a single gradient-filled object, the dropdown shows actual color information for each available source color. Auto uses the first valid source color, and duplicate stop colors are merged into a single option.
- * The end color and angle are shown in a two-column layout, and the angle can be selected with radio buttons for 0, 30, 45, 60, or 90 degrees.
- * The end color can be set to black, white, transparent, complementary, or tint.
- * Supports separate gradients, reverse, and preview, and restores the original fill color when canceled. If an exception occurs during preview, the script also restores the original fill color and selection state.
- * Compound paths, recursive traversal inside groups, and objects inside clipping groups are also supported.
- * The gradient angle is applied per object using the difference from the previously applied angle.
- */
+
+### 概要
+
+選択した塗りオブジェクトに対して、元の塗り色を始点にした線形グラデーションを作成します。
+終点カラー（黒・白・透明・補色・淡色）と角度を指定でき、セパレートグラデーションや反転にも対応します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Creates a linear gradient on the selected filled objects, starting from their original fill color.
+The end color (black, white, transparent, complementary or tint) and the angle are selectable, and separate gradients and reversing are supported.
+
+See the README for details.
+
+*/
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "GradientFromFill";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GradientFromFill.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GradientFromFill.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -177,7 +184,6 @@ function main() {
 
         populateSourceDropdown(sourceDropdown, targetObjects, isCMYK);
         updateSourcePanelEnabled(sourcePanel, sourceDropdown, targetObjects);
-
 
         // =========================================
         // 処理関数 / Processing functions
@@ -981,7 +987,6 @@ function rotateCompoundPathGradient(compoundPath, deltaAngle) {
     compoundPath.rotate(deltaAngle, false, false, true, false, Transformation.CENTER);
 }
 
-
 function createBlackColor(isCMYK) {
     if (isCMYK) {
         var c = new CMYKColor();
@@ -1005,7 +1010,6 @@ function createWhiteColor(isCMYK) {
         return c;
     }
 }
-
 
 function createTintColor(orgColor, amount, isCMYK) {
     var ratio = Math.max(0, Math.min(100, amount)) / 100;

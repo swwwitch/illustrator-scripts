@@ -2,22 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプトの説明 / Script Description
 
-このスクリプトはAdobe Illustratorのドキュメント内に存在する「_guide」という名前のレイヤーを対象としています。
-対象レイヤーのロックを解除し、そのレイヤー内のすべてのガイドを解除します。
-解除したガイドは「UnlockedGuides」という名前の新しいレイヤーに移動され、移動後に再度ロックされます。
+### 概要
 
-This script targets a layer named "_guide" in the active Adobe Illustrator document.
-It unlocks the target layer, removes the guide attribute from all items within it,
-then moves those items to a new layer named "UnlockedGuides", which is locked after the move.
+「_guide」レイヤーのロックを解除し、そのレイヤー内のすべてのガイドを解除します。
+解除したオブジェクトは「UnlockedGuides」レイヤーへ移動し、移動後にそのレイヤーを再ロックします。
 
-### 更新履歴 / Change Log
+詳細は README を参照してください。
 
-v1.0 (20250716) : 初期バージョン / Initial version
+### Overview
+
+Unlocks the "_guide" layer and removes the guide attribute from every item in it.
+The released items are moved to a new "UnlockedGuides" layer, which is locked once the move is done.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "unlockGuideLayerAndClearGuides"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-16";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/unlockGuideLayerAndClearGuides.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/unlockGuideLayerAndClearGuides.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 「_guide」レイヤーがあれば、そのロックを解除して、ガイドを解除後、「UnlockedGuides」レイヤーに移動し再ロックする / If a "_guide" layer exists, unlock it, remove guides, move to "UnlockedGuides" layer, and relock */
 function unlockGuideLayerAndClearGuides() {

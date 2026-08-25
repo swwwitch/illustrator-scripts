@@ -2,25 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要 / Overview
 
-選択したテキストの段落に対して、ジャスティフィケーション関連の設定（ワードスペース、文字間、グリフスケーリング）を初期値にリセットします。
+### 概要
 
-・Word Spacing：80 / 100 / 133
-・Letter Spacing：0 / 0 / 0
-・Glyph Scaling：100 / 100 / 100
+選択したテキストの段落に対して、ジャスティフィケーション関連の設定（ワードスペース、文字間、グリフスケーリング）を初期値に戻します。
 
-選択がない場合、またはテキストでない場合はアラートを表示します。
+詳細は README を参照してください。
 
-Resets justification-related settings (word spacing, letter spacing, glyph scaling)
-of the selected text paragraphs to default values.
+### Overview
 
-- Word Spacing: 80 / 100 / 133
-- Letter Spacing: 0 / 0 / 0
-- Glyph Scaling: 100 / 100 / 100
+Resets the justification settings — word spacing, letter spacing and glyph scaling — of the selected paragraphs to their defaults.
 
-Shows an alert if no valid text is selected.
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ResetJustification";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetJustification.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetJustification.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

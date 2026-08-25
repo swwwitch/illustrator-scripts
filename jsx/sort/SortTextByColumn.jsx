@@ -2,76 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SortTextByColumn.jsx
 
 ### 概要
 
-- テキストフレーム内のタブ区切りテキストを指定列の値で並び替えるIllustrator用スクリプトです。
-- 数値、文字列の昇順・降順、ランダム順に対応し、見出し行の自動判定にも対応しています。
+テキストフレーム内のタブ区切りテキストを、指定した列の値で並び替えます。
+数値・文字列の昇順／降順とランダム順に対応し、見出し行は自動で判定します。
 
-### 主な機能
-
-- タブ区切りテキストの列指定ソート
-- 数値列の自動検出、カンマ区切り数値対応
-- 昇順、降順、ランダム並び替え
-- 見出し行の有無を自動判定
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. テキストフレームを選択
-2. ダイアログでソート対象列と順序、見出し行設定を選択
-3. 指定列でテキスト行を並び替え
-4. 必要に応じてヘッダーと本文を分割し再構築
-
-### 更新履歴
-
-- v1.0.0 (20250615) : 初期バージョン
-- v1.0.1 (20250617) : 見出し行オプション追加
-- v1.0.2 (20250617) : カンマ区切り数値対応
-- v1.0.3 (20250617) : ランダムソート機能追加
-- v1.0.4 (20250617) : 数字列自動選択機能追加
-- v1.0.5 (20250617) : 見出し行自動判定機能追加
-- v1.0.6 (20250617) : 見出し行の不完全タブ許容
-
----
-
-### Script Name:
-
-SortTextByColumn.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that sorts tab-delimited text in a text frame based on a specified column.
-- Supports numeric, string, ascending, descending, and random sorting, and can automatically detect header rows.
+Sorts the tab-separated text inside a text frame by the values in a chosen column.
+Numeric and string sorting (ascending or descending) and random order are supported, and a header row is detected automatically.
 
-### Main Features
+See the README for details.
 
-- Column-specific sorting for tab-delimited text
-- Auto-detect numeric columns, supports comma-separated numbers
-- Ascending, descending, and random sort orders
-- Auto-detect header row presence
-- Japanese and English UI support
-
-### Process Flow
-
-1. Select a text frame
-2. Configure sort column, order, and header settings in dialog
-3. Sort text lines by specified column
-4. Optionally split header and body and reconstruct
-
-### Update History
-
-- v1.0.0 (20250615): Initial version
-- v1.0.1 (20250617): Added header option
-- v1.0.2 (20250617): Supported comma-separated numbers
-- v1.0.3 (20250617): Added random sort function
-- v1.0.4 (20250617): Auto-select numeric column
-- v1.0.5 (20250617): Auto-detect header row
-- v1.0.6 (20250617): Allow incomplete tabs in header
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SortTextByColumn";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-17";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortTextByColumn.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortTextByColumn.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     var lang = getCurrentLang();
@@ -309,7 +272,6 @@ function showSortOptionsDialog(columns, lines, lang, hasHeaderCandidate) {
     var randomBtn = orderGroup.add("radiobutton", undefined, LABELS.RANDOM[lang]);
     ascBtn.value = true;
 
-
     var headerCheckbox = dlg.add("checkbox", undefined, LABELS.HEADER[lang]);
     headerCheckbox.value = false;
 
@@ -353,7 +315,6 @@ function showSortOptionsDialog(columns, lines, lang, hasHeaderCandidate) {
         }
     }
     radioButtons[defaultColIndex].value = true;
-
 
     var btnGroup = dlg.add("group");
     btnGroup.orientation = "row";

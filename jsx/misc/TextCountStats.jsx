@@ -4,71 +4,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-TextCountStats.jsx
+ドキュメント内のテキストの文字数などを集計して表示します。
 
-### GitHub：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountStats.jsx
+### Overview
 
-### 概要：
+Tallies the character counts and related statistics of the text in the document.
 
-- Illustrator の選択テキストや全体の文字情報を統計的に可視化
-- 文字数、段落数、行数、英単語数、全角文字数、半角カナ、種別（ポイント／エリア／パス上）、フォント数などをカウント
-- 常駐パレット化：開いたまま選択を切り替え、［更新］で再集計
-
-### 主な機能：
-
-- 選択したテキストオブジェクトの各種統計をパレット上に一覧表示
-- 選択がない場合はドキュメント全体のテキストを対象に集計
-- DOM 集計はメインエンジンへ BridgeTalk 委譲（常駐パレットの DOM 切断を回避）
-- UI は日本語／英語対応
-
-### 処理の流れ：
-
-1. 常駐パレットを表示（多重起動は自動で閉じてから再表示）
-2. ［更新］押下（または表示直後）にメインエンジンへ集計を委譲
-3. 戻り値（マーカー方式）を解析し、各パネルの値を更新
-
-### 更新履歴：
-
-- v1.0 (20250806) : 初期バージョン
-- v1.1 (20260702) : 常駐パレット化（#targetengine ＋ BridgeTalk 委譲）、更新ボタン・ステータス表示・ローカライズ整理
-
----
-
-### Script Name:
-
-TextCountStats.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountStats.jsx
-
-### Description:
-
-- Visualize statistics of selected or all text objects in Illustrator
-- Count characters, paragraphs, lines, English words, full-width characters, half-width kana, type (point/area/path), and fonts
-- Persistent palette: keep it open, change selection, press Refresh to recount
-
-### Main Features:
-
-- Shows a summary of various counts in a palette
-- Automatically switches between selected objects and all content
-- Delegates DOM counting to the main engine via BridgeTalk (avoids palette DOM disconnection)
-- UI supports Japanese and English
-
-### Flow:
-
-1. Show a persistent palette (existing one is closed first to prevent duplicates)
-2. On Refresh (or right after showing), delegate counting to the main engine
-3. Parse the marker-based result and update each panel value
-
-### Change Log:
-
-- v1.0 (20250806): Initial version
-- v1.1 (20260702): Palette conversion (#targetengine + BridgeTalk delegation), refresh button, status line, localization cleanup
+See the README for details.
 
 */
 
@@ -78,15 +24,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountSt
 var SCRIPT_NAME     = "TextCountStats";               /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStats.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStats.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/* ============================================================
-   言語判定・ローカライズ / Language & localization
-   ============================================================ */
 function getCurrentLang() {
     /* 言語判定 / Determine language */
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

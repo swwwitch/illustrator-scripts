@@ -6,11 +6,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ビューの回転角度と環境設定の「角度の制限」をパレットから確認・変更し、選択オブジェクトの角度と合わせられるスクリプトです。詳細はREADMEを参照。
+ビューの回転角度と環境設定の「角度の制限」をパレットから確認・変更し、選択オブジェクトの角度と合わせられます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-A palette for checking and changing the view rotation and the "constrain angle" preference, and for aligning them with the selected object's angle. See the README for details.
+A palette for checking and changing the view rotation and the "constrain angle" preference, and for aligning them with the selected object's angle.
+
+See the README for details.
 
 */
 

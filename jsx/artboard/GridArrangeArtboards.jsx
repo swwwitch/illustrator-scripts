@@ -2,60 +2,45 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-Illustrator のアートボード名を解析し、行列グリッドとして再配置するスクリプト。
-列間・行間は、環境設定の定規単位（rulerType）に合わせて入力できる。
-初期値は、アクティブアートボード幅の1/8を整数値に丸めた値を使用する。
+アートボード名を解析し、行列グリッドとして再配置します。
+名前全体が「行番号＋区切り文字（-, _, x）＋列番号」に一致するアートボードを、行列指定として扱います。
 
-名前全体が「行番号 + 区切り文字（-, _, x）+ 列番号」に一致するアートボードは、行列指定として扱う。
-例: 1-1, 1_2, 2x1
-
-行列指定に一致しない場合のみ、「接頭辞 + 区切り文字（-, _, x）+ 番号」を接頭辞指定として扱う。
-例: banner-1, banner_2, iconx3
-接頭辞指定は、通常の行列指定の下に、接頭辞ごとの行として配置する。
-
-0行・0列、および0番は無効として扱う。
-数字だけの接頭辞は、行列指定との混同を避けるため接頭辞指定として扱わない。
-
-未指定名や重複名は、指定した例外処理モードに従って末尾側へ自動配置する。
-例外領域に入る境界では、列間・行間を広めに取って区別しやすくする。
-アートボード上のオブジェクトも、元アートボード内にあるものは同じ移動量で移動する。
-グループはグループ単位で移動し、グループ内の個別オブジェクトは分解しない。
-ロック／非表示レイヤー、およびロック／非表示オブジェクトを除外できる。
-必要に応じて、アートボードパネル上の並び順も行→列の順に再構築できる。
+詳細は README を参照してください。
 
 ### Overview
 
-Parses Illustrator artboard names and rearranges artboards as a row/column grid.
-Column and row gaps can be entered using the document ruler unit (rulerType).
-The default gap is the active artboard width divided by 8, rounded to an integer.
+Parses the artboard names and re-lays the artboards out as a row-column grid.
+An artboard counts as positioned when its whole name matches "row number + separator (-, _, x) + column number".
 
-Artboard names that fully match "row number + separator (-, _, or x) + column number" are treated as row/column targets.
-Examples: 1-1, 1_2, 2x1
+See the README for details.
 
-Only when a name does not match the row/column pattern, names that fully match "prefix + separator (-, _, or x) + number" are treated as prefix-number targets.
-Examples: banner-1, banner_2, iconx3
-Prefix-number targets are placed below numeric row/column targets, grouped into separate rows by prefix.
-
-Row 0, column 0, and number 0 are treated as invalid.
-Numeric-only prefixes are not treated as prefix-number targets to avoid ambiguity with row/column names.
-
-Unmatched or duplicate names are automatically placed at the end according to the selected exception-handling mode.
-The gap is widened at the boundary into the exception area for better visual separation.
-Items inside the original artboard are moved by the same delta as the artboard.
-Groups are moved as groups; individual items inside groups are not separated.
-Locked/hidden layers and locked/hidden objects can optionally be excluded.
-The Artboards panel order can also be rebuilt in row-then-column order when needed.
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "GridArrangeArtboards";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GridArrangeArtboards.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridArrangeArtboards.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
     // バージョンとローカライズ / Version and localization
     // =========================================
-
-    var SCRIPT_VERSION = "v1.1.0";
 
     /* 現在の UI 言語を判定する / Detect the current UI language */
     function getCurrentLanguage() {

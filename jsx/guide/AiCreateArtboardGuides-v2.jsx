@@ -5,73 +5,37 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-アートボードを基準にガイドを整理・作成するツール。次の3系統をダイアログでまとめて設定できる。
+アートボードを基準に、ルーラーガイドの変換・中心ガイド・エッジガイドをダイアログでまとめて作成します。
+作成したガイドは「_guide」レイヤーに集約し、ライブプレビューで結果を確認しながら設定できます。
 
-- ルーラーガイドの変換：アートボード内に重なるルーラーガイドを検出し、アートボード基準の直線ガイドに引き直す（マスターでON/OFF）
-- 中心ガイド：各アートボードの垂直・水平の中心にガイドを作成
-- エッジガイド：各アートボードの上下左右にガイドを作成（マスターON/OFF、既定はOFF）
-- ガイドが1本も無くても、中心・エッジの作成だけ実行可能
-- 作成したガイドはすべて「_guide」レイヤーに集約（無ければ自動作成、ロック/非表示は解除して使用）
-
-設定
-
-- 「外側に延長」「外側へ延長」で、ガイドをアートボードの外側へ延ばす量を指定
-- 「すべてのアートボード」は変換側（重なる全アートボード）と中心・エッジ側（全アートボード／アクティブのみ）で個別に指定
-- 入力値は現在のルーラー単位として扱い、内部で pt に換算（単位は環境設定の rulerType を参照）
-
-プレビュー
-
-- 設定変更に追従するライブプレビュー（専用レイヤーに色付き線で仮表示し、確定時に本物のガイドへ置換）
-
-### 値の変更
-
-- ↑↓キーで±1増減
-- shiftキーを併用すると±10増減
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n56d9c936a364
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-A tool to organize/create guides relative to artboards. Three groups are configured together in one dialog:
+Creates artboard-based guides — converted ruler guides, center guides, and edge guides — from a single dialog.
+The generated guides are collected into a "_guide" layer, with a live preview of the result.
 
-- Convert ruler guides: detect ruler guides overlapping an artboard and redraw them as artboard-based straight guides (master toggle)
-- Center guides: add vertical/horizontal guides at each artboard center
-- Edge guides: add guides on each artboard's top/bottom/left/right edges (master toggle, off by default)
-- Center/edge creation can run even when there are no guides at all
-- All created guides are collected on a "_guide" layer (created if missing; unlocked/shown when reused)
-
-Settings
-
-- "Extend" fields control how far guides reach beyond the artboard edges
-- "All artboards" is set independently for conversion (every overlapping artboard) and for center/edge (all artboards vs. the active one)
-- Entered values are treated in the current ruler unit and converted to points (unit follows the rulerType preference)
-
-Preview
-
-- Live preview that follows the settings (colored overlay on a dedicated layer, replaced by real guides on commit)
-
-### Changing the value
-
-- Up/Down keys change by ±1
-- Hold Shift for ±10
+See the README for details.
 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "AiCreateArtboardGuides-v2";    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCreateArtboardGuides-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCreateArtboardGuides-v2.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹介記事 / article URL */
 
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 既定の延長（現在のルーラー単位）/ Default extend amount (in current ruler unit) */
 var DEFAULT_EXTEND = 0;

@@ -2,70 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-TextGridAligner-v2.jsx
+### 概要
 
-### GitHub：
+テキストフレームを行・列単位で整列またはグループ化します。
+行方向と列方向のしきい値を独立して調整でき、行・列のアキを均等に配置するオプションもあります。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/TextGridAligner.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- Illustratorでテキストフレームを行・列単位で整列またはグループ化するスクリプト
-- 行方向と列方向のしきい値を独立して調整可能
+Aligns or groups text frames by row and by column.
+The row and column thresholds are tuned independently, and an option evens out the gaps between them.
 
-### 主な機能：
+See the README for details.
 
-- 行方向：天地中央に整列、またはグループ化
-- 列方向：左右中央に整列、またはグループ化
-- 行・列のアキを均等に配置するオプション
-
-### 処理の流れ：
-
-1. ダイアログを表示して設定を取得
-2. 選択したテキストフレームを対象に処理
-3. 行・列ごとに整列またはグループ化を実行
-
-### 更新履歴：
-
-- v1.0 (20250802) : 初期バージョン
-- v1.1 (20250803) : ダイアログUI改善とコード整理
 */
 
-/*
-### Script Name:
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TextGridAligner";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-03";                   /* 更新日 / last updated */
 
-TextGridAligner-v2.jsx
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextGridAligner.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextGridAligner.md
 
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/TextGridAligner.jsx
-
-### Overview:
-
-- Script for aligning or grouping text frames in Illustrator by rows or columns
-- Independent threshold adjustment for row and column directions
-
-### Key Features:
-
-- Row: Align or group to vertical center
-- Column: Align or group to horizontal center
-- Option to distribute spacing evenly for rows or columns
-
-### Process Flow:
-
-1. Show dialog to get settings
-2. Process selected text frames
-3. Execute alignment or grouping by row/column
-
-### Update History:
-
-- v1.0 (20250802) : Initial version
-- v1.1 (20250803) : Improved dialog UI and code organization
-*/
-
-var SCRIPT_VERSION = "v1.1";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -217,8 +186,6 @@ function showDialog(prevThreshold, prevGroupMode) {
     function setDialogOpacity(dlg, opacityValue) {
         dlg.opacity = opacityValue;
     }
-
-
 
     /* 行しきい値パネル / Row Threshold Panel */
     var thresholdGroup = dialog.add("panel", undefined, LABELS.threshold[lang]);
@@ -504,7 +471,6 @@ function getGroupedOverlappingItems(items, direction) {
     return groups;
 }
 
-
 /* 2つのバウンディングボックスの水平方向距離を返す（縦方向距離がある場合は無視）/ Return horizontal distance between two bounding boxes (ignore if vertical distance exists) */
 function getAxisDistanceHorizontal(a, b) {
     var ax1 = a[0],
@@ -552,7 +518,6 @@ function getOverlapRatio(a, b) {
     var maxArea = Math.max(areaA, areaB);
     return overlapArea / maxArea;
 }
-
 
 /* 共通グループ化処理（direction: "horizontal"|"vertical"）/ Common grouping process (direction: "horizontal"|"vertical") */
 function groupOverlappingObjectsByDirection(direction) {
@@ -727,7 +692,6 @@ function groupObjectsOnlyByDirection(direction) {
 }
 
 main();
-
 
 /* 選択オブジェクト群の結合バウンディングボックス取得 / Get combined bounding box of selected objects */
 function getCombinedBounds(items) {

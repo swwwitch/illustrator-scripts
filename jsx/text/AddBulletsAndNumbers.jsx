@@ -4,19 +4,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-- 選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
-- ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
-- 行の並べ替え、マーカーの書式、段落設定にも対応しています。
-- 詳細な機能・オプションはREADMEを参照してください。
+選択したテキストフレームの各行頭に、箇条書き記号または連番を付与します。
+ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Adds a bullet symbol or sequential numbers to the head of each line in the selected text frames.
-- On open, the existing leading markers are detected so you can keep editing from the current state while watching a live preview.
-- Line reordering, marker formatting, and paragraph settings are supported as well.
-- See the README for the full feature and option list.
+Adds a bullet or a sequence number to the start of each line in the selected text frames.
+The dialog infers its settings from the markers already present, so you can carry on from the current state while watching a preview.
+
+See the README for details.
 
 */
 

@@ -2,28 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * PresetManager-artboards.jsx
- * 更新日: 20260323
- *
- * 概要:
- * Illustrator のアートボード名表示とアートボード枠線の表示設定をまとめて切り替えるスクリプトです。
- * プリセット切り替えに加え、アートボード名の表示、ハイライトカラー、ストローク幅をダイアログで設定できます。
- *
- * Summary:
- * A utility script for changing Illustrator artboard display settings in one dialog.
- * It lets you switch presets and adjust the artboard name visibility, highlight color, and stroke width.
- *
- * 更新履歴:
- * v1.0.0 (20260323): 初版。コード構成を constants / utility / UI / 値反映 / event に整理し、
- *                    ダイアログタイトルへのバージョン表示と画面更新ハックの説明コメントを追加。
- *
- * Changelog:
- * v1.0.0 (20260323): Initial release. Reorganized the code into constants / utility / UI /
- *                    reflection / event sections, added version text to the dialog title,
- *                    and documented the zoom refresh hack.
- */
 
-var SCRIPT_VERSION = "v1.0.0";
+### 概要
+
+アートボード名表示とアートボード枠線の表示設定を、ダイアログでまとめて切り替えます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Switches the artboard-name and artboard-border display preferences from a dialog.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PresetManagerArtboard";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-23";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerArtboard.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerArtboard.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -173,7 +182,6 @@ function main() {
         return Math.max(min, Math.min(max, n));
     }
 
-
     function buildStrokeColorNames() {
         var names = [];
         for (var i = 0; i < STROKE_COLOR_PRESETS.length; i++) {
@@ -233,7 +241,6 @@ function main() {
             for (i = 0; i < rbStrokeWidths.length; i++) rbStrokeWidths[i].value = (i === 0);
         }
     }
-
 
     /*
   Build main dialog / ダイアログ生成
@@ -367,11 +374,9 @@ function main() {
         applyCurrentSettings();
     };
 
-
     btnVideoRuler.onClick = function () {
         app.executeMenuCommand('videoruler');
     };
-
 
     btnOK.onClick = function () {
         applyCurrentSettings();

@@ -5,29 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択オブジェクトを水平方向の行ごとに自動グループ化します。
-- 縦のズレが「縦のズレ許容」以内なら、横に離れていても同じ行とみなします。
+選択オブジェクトを水平方向の行ごとに自動グループ化します。
+縦のズレが許容値以内であれば、横に大きく離れていても同じ行とみなします。
 
-### 主な機能
+詳細は README を参照してください。
 
-- 水平方向グループ化（同じ行＝縦が揃った横並びを検出。横の距離は問わない）
-- 「縦のズレ許容」スライダーによる行判定の調整
-- グループ化後の自動選択
-- 未グループオブジェクトの再実行確認
-- 日本語／英語インターフェース対応
+### Overview
 
-### 処理の流れ
+Automatically groups the selection into horizontal rows.
+Objects count as the same row when their vertical offset is within the tolerance, however far apart they are horizontally.
 
-1. ダイアログで「縦のズレ許容」を設定
-2. DFS探索で縦のズレが許容内のオブジェクトを同じ行として連結
-3. Illustrator標準 group コマンドで結合
-4. グループ化されなかったオブジェクトがある場合に再実行を促す
-
-### 更新履歴
-
-- v1.0.0 (20250611) : 初期バージョン
-- v1.1.0 (20260609) : 水平方向のみに特化（モード選択を廃止）。判定を「縦のズレ許容」しきい値に変更し、横の距離は無制限に
-- v1.2.0 (20260609) : 「アートボードごと」チェックボックスを追加（ONで別アートボードのオブジェクトは同じ行でも別グループにする）。選択が複数アートボードにまたがる場合のみデフォルトON、アートボードが1つだけならディム表示。グループ化実行中にプログレスバーを表示。スライダーをラベルの下の行に配置
+See the README for details.
 
 */
 
@@ -37,8 +25,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 var SCRIPT_NAME     = "SmartAutoGroup-yoko";          /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-06-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-09";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAutoGroup-yoko.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAutoGroup-yoko.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

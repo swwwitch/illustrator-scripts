@@ -1,43 +1,18 @@
-﻿#target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
 /*
- 
-概要 / Overview
+
+### 概要
+
 既存のアートボードの並び（行・列）を解析し、その規則を維持したまま新しいアートボードを挿入します。
+追加方法・追加位置・追加数・間隔をダイアログで指定できます。
 
-・追加方法：「空のアートボード」または「現在のアートボードを複製」。初期選択は DEFAULT_ADD_METHOD で変更できます。
-・追加位置：「現在のアートボードの次」または「末尾」。方向は「右」（横並び）／「下」（縦並び）から選べます。
-・追加数：空のアートボードのときのみ有効で、指定した枚数をまとめて追加します。
-・間隔：既存の並びから自動推定した値を定規単位で初期表示し、ダイアログ上で変更できます。
-　適用範囲は「追加するアートボードのみ」または「すべてのアートボード」（並び全体を再配置）から選べます。
+詳細は README を参照してください。
 
-既存の並びが指定方向と一致する場合は、そのピッチと列数を引き継いだうえで後続のアートボードと
-アートワーク（グループ・複合パスを含む）をシフトし、既存レイアウトを崩さずに挿入します。
-一致しない場合や1枚のみの場合は既存の並びを動かさず、挿入位置の直前のアートボードを基準に指定方向へ配置します。
-移動・複製の対象がロックまたは非表示でも、一時的に解除してから処理し、完了後に元の状態へ戻します。
+### Overview
 
-追加されたアートボード名は、基準となるアートボード名に「_blank」（空）または「_copy」（複製）を付けたものになります。
-実行後は最初に追加されたアートボードをアクティブにします。
+Analyzes how the existing artboards are arranged in rows and columns and inserts new ones that follow the same pattern.
+The method, position, count and spacing are all set in a dialog.
 
-キーボードショートカット（B / D / N / E）による操作にも対応しています。
-
-Analyzes the current artboard layout (rows/columns) and inserts new artboards while preserving that structure.
-
-- Add method: a blank artboard, or a duplicate of the current one. The initial choice is set by DEFAULT_ADD_METHOD.
-- Insert position: after the current artboard or at the end, running either Right (horizontal) or Down (vertical).
-- Count: enabled for blank artboards only, adding the requested number in one go.
-- Spacing: auto-estimated from the existing layout, shown in the current ruler unit and editable in the dialog.
-  It can be applied to the added artboards only, or to all artboards (re-flowing the whole arrangement).
-
-When the existing layout runs along the chosen direction, its pitch and column count are inherited, and the
-trailing artboards and their artwork (including groups and compound paths) are shifted so the layout stays intact.
-Otherwise the existing artboards are left untouched and the new ones are placed relative to the artboard just
-before the insert point. Locked or hidden artwork is temporarily unlocked/shown and restored afterwards.
-
-The added artboard is named after the reference artboard plus _blank (blank) or _copy (duplicate).
-After execution, the first newly added artboard becomes the active artboard.
-Keyboard shortcuts (B / D / N / E) are also supported for quick operation.
+See the README for details.
 
 */
 
@@ -47,10 +22,20 @@ Keyboard shortcuts (B / D / N / E) are also supported for quick operation.
 var SCRIPT_NAME     = "AddArtboardPlus";              /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-04-15";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-04-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddArtboardPlus.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddArtboardPlus.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+﻿#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // オリジナル / Original
 // Copyright (c) 2018 Takeshi Umeda (noellabo)

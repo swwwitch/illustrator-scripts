@@ -1,32 +1,44 @@
 #target illustrator
 
-var SCRIPT_VERSION = '1.2';
+/*
+
+### 概要
+
+選択内容に応じて、ブレンドの作成・設定・調整を1つのダイアログで行います。
+ステップ数と方向はライブプレビューで確認でき、解除／拡張／ブレンド軸の置き換えは［OK］で確定したときだけ実行します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Creates, configures and adjusts a blend from a single dialog, depending on what is selected.
+Steps and orientation are shown as a live preview, while Release, Expand and Replace Spine run only when the dialog is confirmed.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "BlendSp";                      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-01";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendSp.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendSp.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var SCRIPT_TITLE = {
     ja: 'ブレンドSpecial',
     en: 'Blend Special'
 };
-var SCRIPT_UPDATED = '2026-01-01';
-
-/*
- * 概要
- * - 選択にブレンド（BlendItem/PluginItem）が含まれる場合：ブレンドは作成せず、設定／調整のみを行います（ブレンド＋パス等の混在選択も含む）。
- * - 選択がブレンド内のパス等（PathItem など）の場合でも、可能な限りブレンド本体を見つけて同様に扱います（※環境差あり）。
- * - 選択にブレンドが含まれない場合：ブレンドを作成してから、設定／調整を行います。
- * - ステップ数／方向はダイアログ中にライブプレビュー（Undo で戻せる方式）します。
- * - ステップ数は整数のみ（小数不可）、0〜1000 の範囲で扱います（0 可）。
- * - ダイアログ表示時、ブレンドを選択している場合はそのステップ数を取得してデフォルト表示します（取得できない場合は 8）。
- * - ブレンドを選択していない場合、［ステップ数］のデフォルトは 8 です。
- * - ステップ数の下にスライダーを表示：
- *    - 通常：0〜32
- *    - option：0〜128
- *    - shift：0〜1000（shift > option の優先）
- * - 「解除／拡張／ブレンド軸を置き換え」は安全のためプレビューでは実行せず、OK 押下時にのみ実行します。
- * - 「反転」はチェック操作で即時プレビューします（トグル二重実行で元に戻らないよう制御）。
- * - ローカライズ文言は 1 箇所（LABELS）にまとめています（日本語／英語）。
- * - ダイアログは 2 カラム構成：左（方向／反転）、右（その他）。ステップ数は上部に全幅で表示します。
- * - 「その他」が「なし」以外のとき、方向／反転パネルを無効化します（状態は保持）。
- * - OK／キャンセルボタンはダイアログ中央に配置します。
- */
 
 $.localize = true;
 
@@ -687,7 +699,6 @@ function getInput(selection, wasBlendSelectedAtOpen) {
     var cbReverseStack = reverseGroup.add('checkbox', undefined, localize(LABELS.reverseStack));
     cbReverseSpine.value = false;
     cbReverseStack.value = false;
-
 
     // Cross-panel radio exclusivity (ScriptUI only auto-excludes within same parent)
     function selectAdjustMode(which) {

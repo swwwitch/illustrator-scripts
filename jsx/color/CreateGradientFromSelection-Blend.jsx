@@ -1,30 +1,41 @@
 #target illustrator
+
+/*
+
+### 概要
+
+選択オブジェクトの塗り／線カラーを配置順（左→右、上→下）で抽出し、スウォッチグループに登録してグラデーションを自動生成します。ブレンド版です。
+
+詳細は README を参照してください。
+
+### Overview
+
+Extracts the fill and stroke colors of the selection in layout order, registers them as a swatch group, and builds a gradient from them. This is the blend variant.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "CreateGradientFromSelection-Blend"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGradientFromSelection-Blend.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGradientFromSelection-Blend.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 // Use a script-specific engine for session-persistent values (not across restarts)
 #targetengine "CreateGradientFromSelectionEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
-var SCRIPT_VERSION = "v1.6";
-
-/*
-  CreateGradientFromSelection.jsx
-
-  選択オブジェクトの塗り／線カラーを、配置順（左→右、上→下）で抽出し、
-  スウォッチグループに登録してグラデーションを自動生成します。
-
-  ・グループ／複合パス／テキストは再帰的に処理
-  ・塗り（フィル）と線（ストローク）の両方を対象
-  ・抽出色をスウォッチ化（必要に応じてグローバルカラー（プロセス）に変換）
-  ・抽出色数に合わせて線形グラデーションを作成（各ストップにスウォッチの色を適用）
-  ・オプションで「グローバルカラー化／グラデーション作成／長方形作成」を切り替え可能
-  ・長方形を作成する場合、サイズは「固定(100)」または「選択オブジェクトに合わせる」を選択可能
-  ・長方形の配置は、選択が横並びなら下方向へ、縦並びなら右方向へ“長方形1個分”ずらして配置
-  ・縦並び判定時は、アクション（gradient/90degree）で角度調整を実行（アクションが無い場合は無言でスキップ）
-  ・（任意）長方形の見た目をグラフィックスタイルに登録
-  ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
-
-  Version: v1.6
-  更新日: 2026-01-29
-*/
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -398,7 +409,6 @@ function main() {
         list.push(c);
     }
 
-
     // 位置情報（左上）を取得 / Get top-left position
     function getItemTopLeft(item) {
         // geometricBounds: [left, top, right, bottom]
@@ -604,7 +614,6 @@ function main() {
 
         return colors;
     }
-
 
     // Run Graphic Style creation via Action (ai_plugin_styles) / アクションでグラフィックスタイル作成
     function runGraphicStyleAction() {
@@ -1031,7 +1040,6 @@ function main() {
                 }
             } catch (e) { }
         }
-
 
     } catch (e) {
         // 無言（エラー通知しない）

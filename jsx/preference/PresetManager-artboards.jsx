@@ -3,37 +3,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * ArtboardDisplayPresetManager.jsx
- * 更新日: 20260323
- *
- * 概要:
- * Illustrator のアートボード名表示とアートボード枠線の表示設定をまとめて切り替えるスクリプトです。
- * パレット型のコントロールパネルとして動作し、プリセット切り替え、アートボード名の表示、
- * ハイライトカラー、ストローク幅の変更を操作した瞬間に即時反映できます。
- * 下部には補助操作として［ビデオ定規］ボタンも備えています。
- *
- * Summary:
- * A utility script for changing Illustrator artboard display settings with an immediate-apply palette UI.
- * It works as a control panel where preset changes, artboard name visibility, highlight color,
- * and stroke width updates are applied instantly when you interact with the controls.
- * A Video Ruler button is also provided as an auxiliary action.
- *
- * 更新履歴:
- * v1.1 (20260323): ファイル名表記を ArtboardDisplayPresetManager.jsx に更新。
- * v1.0.0 (20260323): 初版。コード構成を constants / utility / UI / 値反映 / event に整理し、
- *                    即時反映のパレットUI、プリセット初期状態判定、ラベル参照の安全化、
- *                    ビデオ定規ボタン、ダイアログタイトルへのバージョン表示、
- *                    画面更新ハックの説明コメントを追加。
- *
- * Changelog:
- * v1.1 (20260323): Updated the internal file name reference to ArtboardDisplayPresetManager.jsx.
- * v1.0.0 (20260323): Initial release. Reorganized the code into constants / utility / UI /
- *                    reflection / event sections, added an immediate-apply palette UI,
- *                    initial preset-state detection, safer label lookup, a Video Ruler button,
- *                    version text in the palette title, and documentation for the zoom refresh hack.
- */
 
-var SCRIPT_VERSION = "v1.1";
+### 概要
+
+アートボード名表示とアートボード枠線の表示設定を、パレット型のコントロールパネルでまとめて切り替えます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Switches the artboard-name and artboard-border display preferences from a palette-style control panel.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PresetManager-artboards";      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-23";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManager-artboards.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManager-artboards.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -189,7 +189,6 @@ function main() {
         return Math.max(min, Math.min(max, n));
     }
 
-
     function buildStrokeColorNames() {
         var names = [];
         for (var i = 0; i < STROKE_COLOR_PRESETS.length; i++) {
@@ -249,7 +248,6 @@ function main() {
             for (i = 0; i < rbStrokeWidths.length; i++) rbStrokeWidths[i].value = (i === 0);
         }
     }
-
 
     /*
   Build main palette / パレット生成
@@ -410,11 +408,9 @@ function main() {
         applyCurrentSettings();
     };
 
-
     btnVideoRuler.onClick = function () {
         app.executeMenuCommand('videoruler');
     };
-
 
     btnClose.onClick = function () {
         dlg.close();

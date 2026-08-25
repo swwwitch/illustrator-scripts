@@ -2,69 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-DeleteAllGuides
 
 ### 概要
 
-- ドキュメント内のすべてのガイドを削除します。
-- ロックされたレイヤーも一時的にアンロックしてガイドを削除します。
+ドキュメント内のすべてのガイドを削除します。
+ロックされたレイヤーも一時的にロックを解除して対象にし、処理後に元のロック状態へ戻します。
 
-### Main Features
-
-- Remove all guides from the document
-- Temporarily unlock locked layers to remove guides
-
-### 処理の流れ
-
-1. ドキュメントを確認（開いていない場合は終了）
-2. すべてのレイヤーのロック状態を保存し、アンロック
-3. ガイドロックを解除
-4. すべてのガイドを削除
-5. レイヤーのロック状態を元に戻す
-
-### オリジナル、謝辞
-
-特になし
-
-### 更新履歴
-
-- v1.0 (20250711) : 初期バージョン
-
-### Script Name:
-
-DeleteAllGuides
+詳細は README を参照してください。
 
 ### Overview
 
-- Removes all guides from the document.
-- Temporarily unlocks locked layers to remove guides.
+Deletes every guide in the document.
+Locked layers are unlocked temporarily so their guides are included, then their lock state is restored.
 
-### Main Features
+See the README for details.
 
-- Remove all guides from the document
-- Temporarily unlock locked layers to remove guides
-
-### Process Flow
-
-1. Check if a document is open (exit if none)
-2. Save lock states of all layers and unlock
-3. Unlock document guides
-4. Remove all guides
-5. Restore original lock states
-
-### Original / Credits
-
-None
-
-### Update History
-
-- v1.0 (20250711) : Initial version
 */
 
-// スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DeleteAllGuides";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DeleteAllGuides.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DeleteAllGuides.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     if (app.documents.length === 0) {

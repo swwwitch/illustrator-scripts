@@ -5,21 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-CSV / タブ区切りテキストのデータを、Illustratorのテンプレートに流し込むデータ結合スクリプトです。
-テキストフレーム内の `<変数名>` タグをデータ列の値に置換し、データ件数ぶんのアートボードを生成します。
+CSV／タブ区切りテキストのデータを、Illustratorのテンプレートに流し込むデータ結合スクリプトです。
+テキストフレーム内の `<変数名>` タグを列の値に置き換え、データ件数ぶんのアートボードを生成します。
 
-詳しい機能・使い方はREADMEを参照してください。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-A data-merge script for Illustrator. It replaces `<tag>` placeholders inside text frames with values
-from a CSV / TSV column and generates one artboard per data row.
+A data-merge script that pours CSV / TSV data into an Illustrator template.
+It replaces `<tag>` placeholders inside text frames with values from a column and generates one artboard per data row.
 
-See the README for the full feature list and usage.
+See the README for details.
 
 */
 
@@ -40,10 +36,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 var MAX_ARTBOARD_COUNT = 1000;              /* 生成できるアートボードの上限 / artboard count limit */
 var CANVAS_MAX_SIZE = 16383;                /* Illustratorのカンバス最大寸法（pt） / max canvas size in pt */

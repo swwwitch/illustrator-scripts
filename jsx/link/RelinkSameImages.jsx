@@ -5,20 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した配置画像と同じリンクファイルを参照している配置画像をドキュメント全体から探し、
-指定したファイルへ一括で差し替えます。グループの中にある配置画像も自動で解決します。
+選択した配置画像と同じリンクファイルを参照している配置画像をドキュメント全体から探し、指定したファイルへ一括で差し替えます。
+グループの中にある配置画像も自動で解決します。
 
 詳細は README を参照してください。
 
-*/
-
-/*
-
 ### Overview
 
-Finds every placed image in the active document that references the same linked file as the
-selection, then relinks them all to a file you choose. A placed image nested inside a group
-is resolved automatically.
+Searches the whole document for placed images that reference the same linked file as the selection and relinks them all to a file you choose.
+Placed images nested inside groups are resolved automatically.
 
 See the README for details.
 

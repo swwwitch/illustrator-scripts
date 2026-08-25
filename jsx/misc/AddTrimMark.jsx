@@ -2,58 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-AddTrimMark.jsx
 
 ### 概要
 
-- 選択オブジェクト（単純な長方形1点）、現在のアートボード、またはすべてのアートボードを対象に、トンボを作成するIllustrator用スクリプトです。
-- 実行時にScriptUIダイアログを表示し、トンボの対象および「ガイドを残す」「日本式トンボ」のON/OFFを選択できます。
-- 「選択オブジェクト」を選択した場合は、単純な長方形1点のみを対象とし、対象オブジェクトをトンボレイヤーに複製して〈塗り〉〈線〉をなしにしてからトンボを作成します（元オブジェクトは変更しません）。
-- 「現在のアートボード」を選択した場合は、アートボードサイズの矩形を生成してトンボを作成します。
-- 「すべてのアートボード」を選択した場合は、アートボードごとに「トンボ_アートボード名」レイヤーを作成し、それぞれにトンボを作成します（同名の場合は「（2）」などでユニーク化されます）。
-- 「ガイドを残す」がONのときは対象オブジェクトをガイド化し、OFFのときは対象オブジェクトを削除します。
-- トンボは各対象レイヤー上に作成され、処理後はレイヤーのロック状態を元に戻します。
-- ダイアログのUIおよびラベルは日本語／英語に自動対応します。
+選択オブジェクト（単純な長方形1点）、現在のアートボード、またはすべてのアートボードを対象に、トンボを作成します。
+実行時のダイアログで、対象と「ガイドを残す」「日本式トンボ」のON/OFFを選べます。
 
-### 主な機能
+詳細は README を参照してください。
 
-- 選択オブジェクト（単純な長方形1点）、現在のアートボード、またはすべてのアートボードを対象として選択可能
-- 実行時ダイアログで「ガイドを残す」「日本式トンボ」のON/OFFを切り替え
-- 「トンボ」レイヤーを自動取得／未存在時は新規作成
-- 単純な長方形1点、現在のアートボード矩形1つ、または全アートボード矩形を対象に処理
-- 同一オブジェクトでトンボ生成とガイド化、または削除を実行
-- 処理後は「トンボ」レイヤーをロック
+### Overview
 
-### 処理の流れ
+Creates trim marks for a selected object (a single simple rectangle), the current artboard, or every artboard.
+A dialog picks the target and toggles "keep guides" and "Japanese-style trim marks".
 
-1. ダイアログボックスでトンボの対象と「ガイドを残す」「日本式トンボ」のON/OFFを選択
-2. 「トンボ」レイヤーを取得し、なければ新規作成
-3. 環境設定で日本式トンボをONに設定
-4. 選択オブジェクトなら、単純な長方形1点のみを「トンボ」レイヤーへ複製し、塗りと線をなしに設定
-5. 現在のアートボードなら「トンボ」レイヤー上にアートボード矩形を1つ作成
-6. すべてのアートボードならアートボードごとに「トンボ_アートボード名」レイヤーを作成し、矩形を1つずつ作成
-7. その対象オブジェクトを元にトリムマーク作成メニューを実行
-8. 「ガイドを残す」がONなら同じ対象オブジェクトをガイド化
-9. 「ガイドを残す」がOFFなら同じ対象オブジェクトを削除
+See the README for details.
 
-### 更新日
-
-- 2026-04-01
-
-### 更新履歴
-
-- v1.2.0 (20260401) : すべてのアートボード対応、選択オブジェクト対応、ScriptUIダイアログ追加、ローカライズ対応
-- v1.1.0 (20260401) : 選択オブジェクト対応、ScriptUIダイアログ追加、ローカライズ対応
-- v1.0 (20250205) : 初期バージョン
 */
 
 // =========================================
-// バージョンとローカライズ
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "AddTrimMark";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-02-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-01";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.2.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMark.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMark.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function sanitizeLayerName(name) {
     return name.replace(new RegExp('[\\\\/:*?"<>|]', 'g'), '_');

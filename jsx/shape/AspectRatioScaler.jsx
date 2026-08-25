@@ -3,93 +3,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-AspectRatioScaler.jsx
+選択したオブジェクトを、指定した縦横比に合わせて拡大・縮小します。
 
-### GitHub：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts
+### Overview
 
-### 概要：
+Scales the selected objects to a specified aspect ratio.
 
-- 選択オブジェクトを指定したアスペクト比に合わせて変形します。
-- プレビュー対応のダイアログと、縦置き／横置き（Portrait／Landscape）の切り替えに対応。
-- 「サイズ＞横幅」に目標幅を入力（現在のルーラー単位：px/mm/pt など）。
-- 右カラムに「基準（横／縦）」パネルを追加：基準＝横のときは横幅固定、基準＝縦のときは高さ固定（向きに依存しません）。
-- サイズ欄のラベル（横幅／高さ）は、基準の選択に応じて自動切替します。
-- 更新日：2025-10-13
-
-### 主な機能：
-
-- 比率プリセット：16:9、1:1、A4、カスタム
-- 向き：縦置き／横置き（必要に応じて比率を自動反転）
-- 向き：縦置き／横置き（比率の向きだけを自動補正）
-- 基準：横／縦（固定する寸法を指定：横=横幅固定／縦=高さ固定）
-- 目標幅指定＋単位に応じた丸め（px=整数、mm=0.1mm）
-- ピクセルグリッド整合（任意）、アートボードへの変換（任意）
-
-### 処理の流れ：
-
-1) ダイアログで比率・基準・横幅・オプションを設定
-2) プレビューでリアルタイム確認
-3) ［実行］で選択オブジェクトへ適用（必要に応じてアートボード追加）
-
-### 更新履歴：
-
-- v1.5 (2025-10-13) : 「基準（横／縦）」パネルを追加。固定寸法を基準で制御／ラベル自動切替に対応
-- v1.4 (2025-08-24) : ロジック修正、ラベルのローカライズ整理、コメント整備
-- v1.3 (2025-07-23) : プレビュー安定化、UI微調整、サイズ入力＆丸め処理
-- v1.2 (2025-07-22) : ダイアログ構成・ローカライズ・キー入力を改善
-- v1.1 (2025-07-21) : アートボード変換・カスタム比率を追加
-- v1.0 (2025-07-20) : 初期バージョン
-
----
-
-### Script Name:
-
-AspectRatioScaler.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts
-
-### Overview:
-
-- Transforms selected objects to a specified aspect ratio.
-- Dialog with live preview and Portrait/Landscape switch.
-- Enter target width under "Size" (uses current ruler unit: px/mm/pt, etc.).
-- Added a right-column “Basis (Horizontal/Vertical)” panel: Basis=Horizontal fixes width, Basis=Vertical fixes height (independent of Orientation).
-- The Size field label (Width/Height) auto-switches based on the Basis selection.
-- Updated: 2025-10-13
-
-### Main Features:
-
-- Ratio presets: 16:9, 1:1, A4, Custom
-- Orientation: Portrait/Landscape (auto-inverts ratio when needed)
-- Basis: Horizontal/Vertical (choose which dimension to keep fixed: Horizontal=Width, Vertical=Height)
-- Target width with unit-aware rounding (px = integer, mm = 0.1mm)
-- Optional: Align to Pixel Grid, Convert to Artboard
-
-### Workflow:
-
-1) Configure ratio, orientation, width, and options in the dialog
-2) Preview updates in real time
-3) Apply to the selection with [Apply]; optionally add an artboard
-
-### Update History:
-
-- v1.5 (2025-10-13): Added “Basis (Horizontal/Vertical)” panel; fixed-dimension control and auto label switching
-- v1.4 (2025-08-24): Logic fixes, label localization cleanup, comment pass
-- v1.3 (2025-07-23): Preview stability, minor UI tweaks, size input & rounding
-- v1.2 (2025-07-22): Improved dialog structure, localization, key input
-- v1.1 (2025-07-21): Added artboard conversion & custom ratio
-- v1.0 (2025-07-20): Initial release
+See the README for details.
 
 */
 
-// スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.5";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AspectRatioScaler";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-10-13";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AspectRatioScaler.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRatioScaler.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -197,7 +140,6 @@ function L(key) {
     }
 }
 
-
 // Original sizes for preview/apply (global)
 var __origW = [];
 var __origH = [];
@@ -295,7 +237,6 @@ function getDefaultWidthTextForCurrentUnit() {
     return ""; // その他の単位は未指定 / leave empty for other units
 }
 
-
 /* ダイアログ作成 / Create dialog */
 function createDialog() {
     function shiftDialogPosition(dlg, offsetX, offsetY) {
@@ -367,7 +308,6 @@ function createDialog() {
     ratio11 = aspectGroup.add("radiobutton", undefined, LABELS.ratio11[lang]);
     ratioA4 = aspectGroup.add("radiobutton", undefined, LABELS.ratioA4[lang]);
     ratioCustom = aspectGroup.add("radiobutton", undefined, LABELS.ratioCustom[lang]);
-
 
     var customRatioGroup = aspectPanel.add("group");
     customRatioGroup.orientation = "row";

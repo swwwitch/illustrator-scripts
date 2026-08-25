@@ -2,18 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要 / Overview
-- 見開きページ相当のオブジェクトを検出し、左右2つの片ページに分割します。 / Detects spread-like objects and splits them into left and right single pages.
-- 対象は選択オブジェクトのみ、またはドキュメント内のすべてから選べます。 / You can process either only the selected objects or all matching objects in the document.
-- 偶数ページが左／右の綴じ方向に対応します。 / Supports both left-binding and right-binding page orders.
-- 必要に応じて、アートボード名の連番リネームとアートボード再配置を実行できます。 / Optionally renames artboards sequentially and rearranges artboards after processing.
-更新日 / Updated: 2026-03-21
+
+### 概要
+
+見開きページ相当のオブジェクトを検出し、左右2つの片ページに分割します。
+対象は選択オブジェクトのみ、またはドキュメント内のすべてから選べます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Detects spread-like objects and splits them into left and right single pages.
+You can process only the selection, or every matching object in the document.
+
+See the README for details.
+
 */
 
 // =========================================
-// バージョンとローカライズ
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_NAME     = "SplitSpreadToSingle";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-21";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-21";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitSpreadToSingle.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitSpreadToSingle.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -213,7 +234,6 @@ var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
     } catch (e) {
         pageOffset = 5; // fallback
     }
-
 
     /* 対象オブジェクトの収集 / Collect target objects */
     var items = [];
@@ -546,8 +566,6 @@ var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
     // ヘルパー関数
     // =========================================
     /* ヘルパー関数 / Helper functions */
-
-
 
     function isTargetItem(obj) {
         return obj && (

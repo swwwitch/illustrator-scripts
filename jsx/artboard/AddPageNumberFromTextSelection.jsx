@@ -5,40 +5,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択中のポイントテキストを雛形に、すべてのアートボードへページ番号を配置
-- 接頭辞／接尾辞／ゼロ埋め／総ページ数表示に対応し、変更は即時プレビュー
-- 配置先は _pagenumber レイヤー（無ければ自動作成）
-- 対象はポイントテキストのみ。体裁の変更は行わない
+選択中のポイントテキストを雛形に、すべてのアートボードへページ番号を配置します。
+接頭辞・接尾辞・ゼロ埋め・総ページ数表示に対応し、変更は即時プレビューされます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Places page numbers on every artboard, using the selected point text as a template
-- Supports prefix / suffix / zero padding / total page display, with live preview
-- Text is placed on the _pagenumber layer (auto-created when missing)
-- Point text only; paragraph alignment and styling are left untouched
+Uses the selected point text as a template and places a page number on every artboard.
+Prefix, suffix, zero padding and a total-pages display are supported, with an immediate preview.
+
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AddPageNumberFromTextSelection"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-19";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddPageNumberFromTextSelection.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddPageNumberFromTextSelection.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "AddPageNumberFromTextSelection"; /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2025-06-25";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-19";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddPageNumberFromTextSelection.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddPageNumberFromTextSelection.md
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User Settings
     // =========================================
 

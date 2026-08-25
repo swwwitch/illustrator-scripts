@@ -9,18 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したパス（グループ・複合パスの中も含む）のアンカーポイントとハンドルを整理します。
 削除・変換の内容を選び、アンカー数とハンドル数の増減を確認してから実行できます。
 
-詳しい仕様と注意事項は README を参照してください。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Cleans up the anchor points and handles of the selected paths (including those inside groups and compound paths).
-Choose what to remove or convert, and check how the anchor and handle counts will change before running.
+Tidies the anchor points and handles of the selected paths, including those inside groups and compound paths.
+You choose what to remove or convert and can see how the anchor and handle counts will change before running it.
 
-See the README for the full specification and notes.
+See the README for details.
 
 */
 
@@ -41,10 +37,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User Settings
-// =========================================
 
 /* 許容誤差の初期値（ダイアログで調整可能） / Default tolerances (adjustable in dialog) */
 var TOL_ANCHOR_COLLINEAR = 0.02; /* 直線上アンカー削除の許容誤差 / Redundant-anchor removal */

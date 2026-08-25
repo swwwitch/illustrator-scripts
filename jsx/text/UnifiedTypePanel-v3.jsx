@@ -6,79 +6,37 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの文字組み設定（フォント・フォントサイズ・自動カーニング・字間・文字揃え・行揃え・行送り・
-文字組みアキ量設定）をまとめて行う常駐パレットスクリプトです。3カラム構成（左：ドキュメントフォント／プリセット、
-中央：フォントサイズ・自動カーニング・字間調整・文字揃え、右：種別・行揃え・行送り・行送りの基準・文字組みアキ量設定・禁則）。
+選択したテキストの文字組み設定（フォント・フォントサイズ・自動カーニング・字間・文字揃え・行揃え・行送り・文字組みアキ量設定）をまとめて行う常駐パレットです。
+ラジオや入力を操作した時点で、選択中のテキストへ即時適用します。
 
-- 最上部にインフォバー：テキストが1つだけ選択されているとき、フォント名・スタイル・サイズ・行送り・行揃え・自動カーニング・禁則を表示
-
-- ドキュメントフォント：書類で使用中のフォントを一覧表示。選ぶと選択テキストへ適用
-- プリセット：フォント＋カーニング・文字ツメ・トラッキングをまとめて登録。選ぶと一括適用。
-  「追加」で現在の選択の設定を保存、「上書き」で選択中のプリセットを更新、「削除」で除去（JSON で Folder.userData に永続化）
-- フォントサイズ：サイズ・比率（水平／垂直を同値）・実質（サイズ×比率の表示）
-- 自動カーニング：和文等幅／0／メトリクス／オプティカル（「メトリクス」のみプロポーショナルメトリクスON）
-- 字間調整：文字ツメ（0〜100%）とトラッキング（-100〜500）。入力欄とスライダー（Shift で粗い刻み）
-- 文字揃え：欧文ベースライン／中央／その他（仮想ボディの上下・平均字面の上下をポップアップで選択）
-- 行揃え：左／中央／右／均等配置（最終行左）／両端揃え（テキストの見た目の位置を保持して適用）
-- 種別：本文（文字組みベタ組み）／見出し（文字組みツメ組み）。よく使う組み合わせを一括適用
-- 行送り：115%／150%／その他（%で直接入力）／自動、行送りの基準。
-  「その他」を選ぶと現在の行送りを % で補完。「自動の値を変更」ボタンで自動行送りの割合を変更。
-  基準サイズの取り方（共通／個別）は UI を廃し、LEADING_USE_COMMON スイッチで制御（既定＝共通）
-- 文字組みアキ量設定：なし／約物半角／約物全角／ツメ組み／ベタ組み などをポップアップで一括適用
-- 禁則：なし／強い禁則／弱い禁則／弱い禁則 v2 をポップアップで一括適用（「なし」は scripting では設定不可）
-- 制御文字の表示／非表示の切り替え、再読み込み（選択の現在値を読み直して反映）、
-  リセット（標準値に戻す。カーニングはメトリクス・文字組みはツメ組み・字前/字後のアキは自動に設定）
-- ラジオや入力を操作すると、その場で選択中のテキストへ即時適用する
-- 選択は単体のテキストフレームだけでなく、グループ内のテキストやテキスト編集モードでの範囲選択にも対応（行送りを含む全機能で共通）
-- パレットにフォーカスが戻るたび、または「再読み込み」で選択の現在値を読み取って UI に反映する
-- 常駐エンジン（#targetengine）でパレット表示。常駐エンジンの app は
-  パレット表示中に DOM 接続を失うため、DOM 処理はメインエンジンへ
-  BridgeTalk で都度委譲する（コードは encodeURIComponent で包んで送信）
-
-### 謝辞
-　
-古島佑起さん
-BridgeTalk のワーカー登録と呼び出しの仕組み、行揃えのボタンの実装方法など、多くのアイデアとコードを提供いただきました。
-https://note.com/yukifurushima/n/n9f2078dc156f
+詳細は README を参照してください。
 
 ### Overview
 
-A docked palette that sets text-composition attributes (font, font size, auto kerning,
-letter spacing, character alignment, justification, leading, and mojikumi) for the selected text.
-Three columns (left: document fonts / presets, center: font size, kerning, letter spacing
-& alignment, right: type, justification, leading, basis, mojikumi, kinsoku).
+A persistent palette for setting the typography of the selected text — font, size, auto-kerning, letter spacing, character alignment, justification, leading and mojikumi — all in one place.
+Every radio button and field applies to the current selection the moment you touch it.
 
-- Top info bar: when exactly one text is selected, shows font family, style, size, leading, justification, auto kerning, and kinsoku
-
-- Document fonts: lists the fonts used in the document; clicking one applies it to the selection
-- Presets: a font plus kerning / Tsume / tracking, applied together when clicked. "Add"
-  saves the current selection's settings, "Overwrite" updates the selected preset, "Delete" removes it (persisted as JSON under Folder.userData)
-- Font size: size, scale (horizontal/vertical set together), effective (size × scale, shown)
-- Auto kerning: Metrics - Roman Only / 0 / Metrics / Optical (proportional metrics ON only for "Metrics")
-- Letter spacing: Tsume (0–100%) and tracking (-100 to 500), via input fields and sliders (Shift = coarse steps)
-- Character alignment: Roman baseline / center / Other (embox top-bottom & ICF box top-bottom via popup)
-- Justification: left / center / right / justify (last left) / justify all (applied while keeping the text's visual position)
-- Type: Body (solid mojikumi) / Heading (tight mojikumi); applies common combinations at once
-- Leading: 115% / 150% / Other (enter a %) / Auto, and leading basis.
-  Individual vs common base size has no UI; it is fixed by the LEADING_USE_COMMON switch (default: common)
-  (Leading choices: 115% / 150% / Other / Auto)
-  Choosing "Other" prefills the current leading as %; "Change auto value" edits the auto-leading percentage
-- Mojikumi: None / half-width punctuation / full-width punctuation / tight / solid, applied together via a popup
-- Show/hide hidden characters, Reload (re-read the selection's current values), and
-  Reset (restore defaults; kerning Metrics, mojikumi Tight, and aki before/after set to auto)
-- Operating a radio or field applies it immediately to the current selection
-- Selection handling covers not just standalone text frames but text nested in groups and ranges selected in text-edit mode (consistent across all features, including leading)
-- Whenever the palette regains focus — or via "Reload" — the current selection's values are read back into the UI
-- Runs as a persistent palette (#targetengine). The persistent engine's app
-  loses its DOM connection while the palette is shown, so all DOM work is
-  delegated to the main engine via BridgeTalk (code wrapped in encodeURIComponent)
+See the README for details.
 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0.3";
+var SCRIPT_NAME     = "UnifiedTypePanel-v3";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnifiedTypePanel-v3.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTypePanel-v3.md
+var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

@@ -5,48 +5,31 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換する。
+ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換します。
 
-処理の流れ：
-
-1. 変換前に、選択テキストの見た目をグラフィックスタイルとして一時登録（ダイナミックアクション）
-2. ポイント文字 / パス上文字 → 計測した実寸のエリア内文字へ変換
-   テキスト＋図形 → 図形をエリア内文字にしてテキストを流し込む
-3. 変換後のエリア内文字に登録したグラフィックスタイルを適用し、その一時スタイルを削除
-4. 行揃え・テキストの配置は常に中央
-
-#### 補足
-
-- フレームサイズは、複製→アピアランス分割→アウトラインで計測した実寸を基準に決定する。
-- 縦方向の中央配置とグラフィックスタイル登録にはダイナミックアクションを使用する。実行時に一時的に読み込み、終了時に自動で破棄するため、アクションパネルに残骸は残らない。
+詳細は README を参照してください。
 
 ### Overview
 
-Convert point text, path text, or text + shape into area type while preserving appearance.
+Converts point text, text on a path, or a shape plus text into area text while preserving the appearance.
 
-Flow:
-
-1. Before converting, register the selected text's appearance as a temporary graphic style (dynamic action).
-2. Point / path text → area type at the measured real size.
-   Text + shape → fill the shape (as area type) with the text.
-3. Apply the registered graphic style to the converted area type, then remove the temporary style.
-4. Justification and vertical alignment are always centered.
-
-#### Notes
-
-- Frame size is based on the real size measured via duplicate → expand appearance → create outlines.
-- Vertical centering and graphic-style registration use dynamic actions that are loaded temporarily and removed automatically on exit, so nothing is left behind in the Actions panel.
+See the README for details.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ConvertToAreaTypeLikeButtonAccurateSize";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                                   /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";              /* 作者 / author */
-var SCRIPT_RELEASED = "";                                         /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                                         /* 更新日 / last updated */
+var SCRIPT_NAME     = "ConvertToAreaTypeLikeButtonAccurateSize"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButtonAccurateSize.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButtonAccurateSize.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

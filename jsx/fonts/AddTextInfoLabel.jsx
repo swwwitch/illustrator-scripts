@@ -2,66 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-AddTextInfoLabel.jsx
 
 ### 概要
 
-- 選択したテキストオブジェクトの下または右に、フォント情報を表示するスクリプトです。
-- 詳細表示（エリア内文字）と簡易表示（ポイント文字）を切り替えられ、表示項目を個別にカスタマイズできます。
+選択したテキストオブジェクトの下または右に、フォント情報を表示するラベルを作成します。
+詳細表示（エリア内文字）と簡易表示（ポイント文字）を切り替えられ、表示項目は個別に指定できます。
 
-### 主な機能
-
-- フォント名、スタイル、サイズ、行送り、カーニング、トラッキングなど、詳細なフォント情報を表示
-- 表示項目のON/OFF切り替え、全ON／全OFF／最小セットのボタンを用意
-- プレビューと位置設定（下・右）の選択
-- 生成した情報テキストは「フォント情報」レイヤーに配置
-- ES3準拠（Illustrator ExtendScript対応）
-
-### 処理の流れ
-
-1. ダイアログで表示形式や項目を選択
-2. プレビューを確認
-3. OKを押すと情報テキストを生成し配置
-
-### 更新履歴
-
-- v1.0.0 (20250420) : 初期バージョン
-- v1.0.1 (20250423) : 表示項目の無効化制御とspacing設定を追加
-- v1.0.2 (20250424) : 行送り（%）の誤判定を修正し、正確な表示に対応
-
----
-
-### Script Name:
-
-AddTextInfoLabel.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script that displays font information below or to the right of selected text objects.
-- You can switch between detailed display (area text) and compact display (point text), and customize which information to show.
+Adds a label showing the font information below or beside the selected text objects.
+You can switch between a detailed layout (area text) and a compact one (point text), and choose which items appear.
 
-### Main Features
+See the README for details.
 
-- Displays detailed font info: font name, style, size, leading, kerning, tracking, etc.
-- Toggle each display item on/off, plus buttons for All ON, All OFF, or Minimal Set
-- Option to choose preview and position (bottom or right)
-- Generated info text is placed on a "Font Info" layer
-- ES3 compliant (Illustrator ExtendScript compatible)
-
-### Process Flow
-
-1. Choose display mode and items in the dialog
-2. Check the preview
-3. Press OK to generate and place the info text
-
-### Update History
-
-- v1.0.0 (20250420): Initial version
-- v1.0.1 (20250423): Added item disable control and spacing settings
-- v1.0.2 (20250424): Fixed incorrect leading (%) detection for accurate display
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AddTextInfoLabel";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-04-24";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTextInfoLabel.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTextInfoLabel.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 main();
 

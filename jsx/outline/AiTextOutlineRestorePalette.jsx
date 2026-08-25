@@ -9,22 +9,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 テキストのアウトライン化と、アウトラインからのテキスト復元を常駐パレットから実行します。
 アウトライン化の直前に文字・段落属性をオブジェクトのメモ（note）へ保存し、そのメモをもとにテキストフレームを再生成します。
 
-詳しい仕様と注意事項は README を参照してください。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Outlines text and restores it back from the outline, using a persistent palette.
-Character and paragraph attributes are saved to the object's note just before outlining, and the text frame is recreated from that note.
+Outlines text and restores it back from the outlines, driven from a persistent palette.
+Character and paragraph attributes are serialized into the object's note just before outlining, and the note is parsed to rebuild the text frame.
 
-See the README for the full specification and notes.
+See the README for details.
 
 */
-
-(function () {
 
 // =========================================
 // 基本情報 / Basic info
@@ -44,7 +38,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// ==============================
+(function () {
+
 // ローカライズ / Localization
 // ==============================
 function getCurrentLang() {

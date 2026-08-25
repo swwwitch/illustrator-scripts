@@ -2,66 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-MimicDynamicText.jsx
 
 ### 概要
 
-- エリア内文字をポイント文字に変換し、改行ごとに分割して個別に再配置するIllustrator用スクリプトです。
-- 最終的にポイント文字を連結してエリア内文字に戻すことで、より柔軟な再編集が可能になります。
+ダイナミックテキストのような見た目を、通常のテキストで再現します。
 
-### 主な機能
-
-- エリア内文字をポイント文字に変換
-- 改行ごとに分割してポイント文字フレームを生成
-- 複数のテキストフレームを連結して再構築
-- 再びエリア内文字に変換して自動行送りを設定
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. エリア内文字が選択されているか確認
-2. ポイント文字に変換後、改行で分割し再配置
-3. 分割されたテキストフレームを連結
-4. エリア内文字に再変換して調整
-
-### 更新履歴
-
-- v1.0.0 (20250618) : 初期バージョン
-- v1.0.1 (20250618) : エリア内文字へ戻す処理を追加
-
----
-
-### Script Name:
-
-MimicDynamicText.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that converts area text to point text, splits it line by line, and repositions each line individually.
-- Finally merges the point texts and converts them back into area text for flexible editing.
+Reproduces the look of dynamic text using ordinary text objects.
 
-### Main Features
+See the README for details.
 
-- Convert area text to point text
-- Split by line breaks and create individual point text frames
-- Merge multiple text frames back into one
-- Convert back to area text and apply auto leading
-- Japanese and English UI support
-
-### Process Flow
-
-1. Check if area text is selected
-2. Convert to point text, split by line, and reposition
-3. Merge split text frames
-4. Convert back to area text and adjust
-
-### Update History
-
-- v1.0.0 (20250618): Initial version
-- v1.0.1 (20250618): Added process to convert back to area text
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "MimicDynamicText";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-18";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MimicDynamicText.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MimicDynamicText.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -74,7 +45,6 @@ var LABELS = {
     alertSelectAreaText: { ja: "エリア内文字を選択してください。", en: "Please select area text." },
     alertSortError: { ja: "ソート中にエラーが発生しました: ", en: "An error occurred during sorting: " }
 };
-
 
 /* エリア内文字をポイント文字に変換し、変換後のTextFrameを取得 / Convert area text to point text and get the resulting TextFrame */
 function convertAreaTextToPointText(areaTextFrame, originalContents, originalPosition) {

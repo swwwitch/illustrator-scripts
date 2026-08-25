@@ -6,13 +6,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したオブジェクトを、最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落としのいずれかの基準でリサイズし、あわせて横位置・縦位置の整列も行えるスクリプトです。縦横比保持と片辺のみを切り替えでき、操作はリアルタイムにプレビューされます。
+選択したオブジェクトを、最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落としのいずれかの基準でリサイズし、あわせて横位置・縦位置の整列も行えます。
+縦横比保持と片辺のみを切り替えでき、操作はリアルタイムにプレビューされます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Resizes the selected objects by one of several bases (max / min / fixed size / reference side / area / artboard / bleed) and can align them horizontally and vertically at the same time. Keep-aspect and one-side-only modes are switchable, and every change is previewed in real time.
+Resizes the selected objects to the largest, the smallest, a given size, a reference edge, an area, the artboard, or the bleed, and can align them horizontally and vertically at the same time.
+You can switch between keeping the aspect ratio and constraining a single edge, with a real-time preview.
 
 See the README for details.
 
@@ -25,7 +27,7 @@ var SCRIPT_NAME     = "SmartObjectResizer";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-22";                   /* 更新 / last updated */
+var SCRIPT_UPDATED  = "2026-08-22";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectResizer.md
@@ -398,7 +400,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     leftPane.orientation = "column";
     leftPane.alignChildren = ["left", "top"];
     // 余白は dialog.margins（左右）と columnsGroup.spacing（カラム間）で管理
-
 
     // resizeBasePanel を左ペイン内にパネルとして追加
     var resizeBasePanel = leftPane.add("panel", undefined, L("panel.base"));

@@ -1,98 +1,46 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.0";
+/*
+
+### 概要
+
+選択したオブジェクトやテキストに、スウォッチや定義済みカラーを自動で適用します。
+CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Applies swatches, or predefined colors, to the selected objects and text automatically.
+The palette follows the CMYK/RGB color mode, and in CMYK with no swatch selected it generates random two-ink combinations.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ApplySwatchesToSelection";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-05";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplySwatchesToSelection.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatchesToSelection.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // CMYK fallback generation: maximum total (C+M or C+Y or M+Y)
 var TMK_CMYK_FALLBACK_MAX_TOTAL = 200;
 
-
 // CMYK fallback generation: minimum distance (Manhattan) between generated colors to avoid similar colors
 var TMK_CMYK_FALLBACK_MIN_DISTANCE = 35;
-
-/*
-
-### スクリプト名：
-
-ApplySwatchesToSelection.jsx
-
-### 概要
-
-- 更新日: 20260305
-- 選択したオブジェクトまたはテキストに、スウォッチや定義済みカラーを自動適用するスクリプトです。
-- CMYK / RGB カラーモードに応じてカラーを使い分けます。
-- CMYKのスウォッチ未選択時は、CM/CY/MYの2色混合（K=0）をランダム生成（合計上限: TMK_CMYK_FALLBACK_MAX_TOTAL / 近い色の回避: TMK_CMYK_FALLBACK_MIN_DISTANCE。初期値200%）
-- 複数テキストオブジェクトはテキストオブジェクト単位で色付け（単一テキストは文字単位）
-
-### 主な機能
-
-- スウォッチパネル選択スウォッチ、またはプロセススウォッチの利用
-- テキスト単体は文字単位、複数オブジェクトは位置順にカラーを適用
-- 3色以上のスウォッチ時にはランダム適用
-- 日本語／英語UI切替対応
-
-### 処理の流れ
-
-1. ドキュメントと選択確認
-2. スウォッチ取得（未選択時は定義済みカラーを使用）
-3. テキストは文字単位、オブジェクトは位置順にカラー適用
-4. 必要に応じてランダムシャッフル
-
-### 更新履歴
-
-- v1.0.0 (20241103) : 初期バージョン
-- v1.1.0 (20250625) : スウォッチ未選択時の全プロセス対応
-- v1.2.0 (20250708) : CMYK/RGB切替対応
-- v1.3.0 (20260207) : 複数テキスト選択時はテキストオブジェクト単位で色付け（グループ内も対応）
-- v1.4.0 (20260305) : CMYKスウォッチ未選択時のカラー生成ロジックを変更（CM/CY/MYのみ・合計120%以内）
-- v1.4.1 (20260305) : スウォッチ未選択時（CMYK）の生成色数を「対象数」に合わせ、可能な限り重複しないように変更
-- v1.4.2 (20260305) : CMYKスウォッチ未選択時の合計上限（150%）を定数化（TMK_CMYK_FALLBACK_MAX_TOTAL）
-- v1.4.3 (20260305) : CMYKスウォッチ未選択時、近い色がかぶりにくいよう距離制約を追加（TMK_CMYK_FALLBACK_MIN_DISTANCE）
-- v1.4.4 (20260305) : CMYKスウォッチ未選択時の合計上限（TMK_CMYK_FALLBACK_MAX_TOTAL）の初期値を200%に変更
-- v1.5.0 (20260307) : 選択オブジェクトが4つのとき固定4色プリセット（#B9D3E0, #E19DA1, #FDECAC, #CB4447）を適用
-
----
-
-### Script Name:
-
-ApplySwatchesToSelection.jsx
-
-### Overview
-
-- Updated: 20260305
-- A script to automatically apply swatches or predefined colors to selected objects or text.
-- Switches colors depending on document color mode (CMYK or RGB).
-- When no swatches are selected in CMYK documents, generates random 2-channel CM/CY/MY colors (K=0) using TMK_CMYK_FALLBACK_MAX_TOTAL as the total limit and TMK_CMYK_FALLBACK_MIN_DISTANCE to avoid similar colors (default 200%)
-- Colors multiple selected text objects per text object (single text is per character).
-
-### Main Features
-
-- Use selected swatches from panel or all process swatches
-- Apply per character for single text, or per object in order
-- Random shuffle when more than 3 swatches
-- Supports Japanese / English UI
-
-### Process Flow
-
-1. Check document and selection
-2. Get swatches (use predefined colors if none selected)
-3. Apply per character or per object in order
-4. Shuffle randomly if needed
-
-### Update History
-
-- v1.0.0 (20241103): Initial version
-- v1.1.0 (20250625): Added process swatch fallback when no swatches selected
-- v1.2.0 (20250708): Added CMYK/RGB mode switch support
-- v1.3.0 (20260207): Color multiple selected text objects per text object (also supports text inside groups)
-- v1.4.0 (20260305): Changed CMYK fallback palette generation (CM/CY/MY only, total <= 120%)
-- v1.4.1 (20260305): In CMYK fallback (no swatches), generate as many colors as targets and avoid duplicates when possible
-- v1.4.2 (20260305): Made CMYK fallback total limit (150%) configurable via TMK_CMYK_FALLBACK_MAX_TOTAL
-- v1.4.3 (20260305): Added distance constraint to reduce similar colors in CMYK fallback (TMK_CMYK_FALLBACK_MIN_DISTANCE)
-- v1.4.4 (20260305): Set default CMYK fallback total limit (TMK_CMYK_FALLBACK_MAX_TOTAL) to 200%
-- v1.5.0 (20260307): Apply fixed 4-color preset (#B9D3E0, #E19DA1, #FDECAC, #CB4447) when exactly 4 objects are selected
-
-*/
 
 function getCurrentLang() {
     var locale = $.locale.toLowerCase();

@@ -1,48 +1,37 @@
 #target illustrator
 
-/**
- * AiSelectParagraph.jsx
- *
- * 概要 / Overview:
- * テキストにカーソルを置いた状態で実行すると、その段落全体を選択します。
- * 段落の区切りは改行（\r）のみで、強制改行（Shift+Return, ）は段落内の
- * 折り返しとして扱うため、そこで選択が止まることはありません。
- * 段落末尾の改行を選択に含めるかは INCLUDE_PARAGRAPH_RETURN で切り換えます。
- *
- * Run with the text cursor placed in text to select the whole paragraph.
- * Only a return (\r) delimits a paragraph; a forced line break () is treated
- * as a wrap inside one, so the selection does not stop there. Whether the trailing
- * return is included is controlled by INCLUDE_PARAGRAPH_RETURN.
- *
- * 処理の流れ / Flow:
- * 1. テキスト編集中の TextRange を取得 / Get the text range being edited
- * 2. ストーリー全文を取得し、選択が段落をまたいでいないか確認 / Read the story text, reject a selection spanning paragraphs
- * 3. カーソル位置の前後から \r を探して段落範囲を算出 / Scan for the surrounding returns to derive the range
- * 4. story.textRange の start/end を書き換えて選択 / Select by rewriting start/end of story.textRange
- *
- * 制限 / Limitations:
- * - テキスト編集中（カーソルがある状態）のみ動作します。オブジェクト選択では実行できません
- *   Works only while editing text; selecting the object itself is not enough
- * - 段落をまたぐ選択は対象を特定できないため中止します
- *   Aborts when the selection spans paragraphs, as the target is ambiguous
- *
- * 注意 / Note:
- * Illustrator の paragraphs コレクションは強制改行でも区切られるため使用しません。
- * 全文は story.textRange.contents で取得します（story.contents は存在しません）。
- * Illustrator's paragraphs collection also splits on forced line breaks, so it is not
- * used here; the full text comes from story.textRange.contents (story.contents does not exist).
- *
- * 更新履歴 / Changelog:
- * - v1.0.0 (2026-07-16): InDesign 版から移植。段落判定を \r の走査に変更し、強制改行は段落内として扱う
- *   Ported from the InDesign version; paragraphs are found by scanning for \r, forced line breaks kept inside a paragraph
- *
- * 作成日 / Created: 2026-07-16
- * 更新日 / Updated: 2026-07-16
- */
+/*
 
-var SCRIPT_VERSION = "v1.0.0";
+### 概要
 
-/* ===== 設定 / Settings ===== */
+テキストにカーソルを置いた状態で実行すると、その段落全体を選択します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Selects the whole paragraph the text cursor is sitting in.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AiSelectParagraph-v2";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-07-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-16";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSelectParagraph-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSelectParagraph-v2.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /**
  * 段落末尾の改行（\r）を選択範囲に含めるか / Include the trailing return in the selection

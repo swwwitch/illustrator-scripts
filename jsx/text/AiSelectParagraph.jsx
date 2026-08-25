@@ -2,73 +2,21 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-- テキストにカーソルを置いた状態で実行すると、その段落全体を選択します
-- 同じ段落内で文字列を選択している場合も、その段落全体に広げます（末尾の改行まで選択済みでも可）
-- 段落の区切りは改行（\r）のみです
-- 強制改行（Shift+Return, \u0003）は段落内の折り返しとして扱うため、そこで選択は止まりません
-- 段落末尾の改行を選択に含めるかは INCLUDE_PARAGRAPH_RETURN で切り換えます
+テキストにカーソルを置いた状態で実行すると、その段落全体を選択します。
+同じ段落内で文字列を選択している場合も、その段落全体に広げます。
 
-### 処理の流れ
+詳細は README を参照してください。
 
-1. テキスト編集中の TextRange を取得
-2. ストーリー全文を取得し、選択が段落をまたいでいないか確認
-3. カーソル位置から段落先頭を求め、そこから最初の \r までを段落範囲とする
-4. story.textRange の start/end を書き換えて選択
-
-### 制限
-
-- テキスト編集中（カーソルがある状態）のみ動作します。オブジェクトを選択しただけでは実行できません
-- 段落をまたぐ選択は対象を特定できないため中止します
-- 改行だけの空段落は、INCLUDE_PARAGRAPH_RETURN が false のとき選択対象がないため中止します
-
-### 注意
-
-- Illustrator の paragraphs コレクションは強制改行（\u0003）でも区切られるため使用しません
-- 全文は story.textRange.contents で取得します（story.contents は存在しません）
-- TextRange.end は排他的です。改行まで選択した状態で end をそのまま使うと次段落の先頭を指すため、またぎ判定は end - 1、段落末尾の改行検索は段落先頭を起点にしています
-
-### 更新履歴
-
-- v1.0.1 (2026-07-17): 境界条件を修正。改行まで含めて1段落を選択している場合の誤判定（次段落へはみ出す／複数段落と判定される）を解消
-- v1.0.0 (2026-07-16): InDesign 版から移植。段落判定を \r の走査に変更し、強制改行は段落内として扱う
-
-作成日: 2026-07-16
-*/
-
-/*
 ### Overview
 
-- Run with the text cursor placed in text to select the whole paragraph
-- A selection within one paragraph is widened to that whole paragraph, even when its trailing return is already selected
-- Only a return (\r) delimits a paragraph
-- A forced line break (Shift+Return, \u0003) is treated as a wrap inside a paragraph, so the selection does not stop there
-- Whether the trailing return is included is controlled by INCLUDE_PARAGRAPH_RETURN
+Selects the whole paragraph the text cursor is sitting in.
+A selection already inside a paragraph is expanded to cover the whole paragraph.
 
-### Flow
+See the README for details.
 
-1. Get the text range being edited
-2. Read the full story text and reject a selection spanning paragraphs
-3. Find the paragraph head from the cursor, then run to the first \r after it
-4. Select by rewriting start/end of story.textRange
-
-### Limitations
-
-- Works only while editing text; selecting the object itself is not enough
-- Aborts when the selection spans paragraphs, as the target is ambiguous
-- Aborts on an empty paragraph when INCLUDE_PARAGRAPH_RETURN is false, as nothing is left to select
-
-### Notes
-
-- Illustrator's paragraphs collection also splits on forced line breaks (\u0003), so it is not used here
-- The full text comes from story.textRange.contents (story.contents does not exist)
-- TextRange.end is exclusive: with the trailing return selected it points at the next paragraph's head, so the span check uses end - 1 and the trailing return is searched from the paragraph head
-
-### Changelog
-
-- v1.0.1 (2026-07-17): Fixed paragraph boundary detection and selection boundary handling; a selection that includes the trailing return no longer spills into the next paragraph or reports as spanning paragraphs
-- v1.0.0 (2026-07-16): Ported from the InDesign version; paragraphs are found by scanning for \r, forced line breaks kept inside a paragraph
 */
 
 // =========================================
@@ -77,8 +25,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 var SCRIPT_NAME     = "AiSelectParagraph";            /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-07-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-17";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSelectParagraph.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSelectParagraph.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

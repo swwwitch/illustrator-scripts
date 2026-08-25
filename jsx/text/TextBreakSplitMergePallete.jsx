@@ -6,19 +6,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-改行・分割・連結・整形に加えて、行の入れ替えや英字のケース変換までを1つのパレットに集約し、選択中のテキストへ即時に適用するツール。
-選択状態に応じて、実行できる処理のボタンだけを有効化する。
+改行・分割・連結・整形に加えて、行の入れ替えや英字のケース変換までを1つのパレットに集約し、選択中のテキストへ即時に適用します。
+選択状態に応じて、実行できる処理のボタンだけを有効化します。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Brings line-break, split, merge, cleanup, line reordering, and letter-case conversion into a single palette and
-applies them to the current selection immediately. Only the buttons available for the current selection stay enabled.
+A palette that gathers breaking, splitting, joining and tidying — plus reordering lines and changing letter case — and applies them to the current selection immediately.
+Only the buttons that make sense for the current selection stay enabled.
 
 See the README for details.
 
@@ -41,10 +37,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* 「指定文字で改行」の初期値 / Default characters for "break at specified characters" */
 var DEFAULT_BREAK_CHARS = "、。，．｡､,.!?！？";

@@ -1,33 +1,22 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// =========================================
-// 概要 / Overview
-// =========================================
 /*
-DistributeUpFromTop.jsx
 
-選択内容に応じて、行送り（leading）と配置を調整する。判定は以下の順で行う。
+### 概要
 
-(1) テキストを 1 つだけ選択しているとき:
-    そのテキストの行送りから「サイズ／行送り」の値を引く。
+選択内容に応じて、行送り（leading）と配置を調整します。
+最も上のオブジェクトを固定し、以降を上方向へ詰めます。
 
-(2) 複数のテキストを選択していて、上端 Y がほぼ同じ（横並び）のとき:
-    位置は動かさず、行送りだけを調整する。
-      ・初回（行送りがバラバラ） → 全テキストの行送りを平均値に統一する。
-      ・再実行（行送りが揃っている）→「複数行の 1 テキスト」のように、
-        全テキストの行送りを「サイズ／行送り」分ずつ減らす。
+詳細は README を参照してください。
 
-(3) それ以外の複数選択（縦積み）:
-    最上部のオブジェクトを固定し、以降を「サイズ／行送り」の値ぶんずつ
-    上方向へ等間隔に再配置する。
+### Overview
 
-移動・減算に使う値は、環境設定［テキスト］の「サイズ／行送り」キー増加増分
-（text/sizeIncrement）を、表示単位（text/units）込みで pt 換算したもの。
+Adjusts the leading and the placement according to what is selected.
+The topmost object stays fixed and the rest close up upwards.
 
-行送りの適用は手動行送りではなく、目標行送りから自動行送り量（autoLeadingAmount ％）を
-逆算して設定する（autoLeading=true、基準は TOPTOTOP に固定）。段落ごとに先頭文字の
-フォントサイズを基準に算出する。
+See the README for details.
+
 */
 
 // =========================================
@@ -38,6 +27,11 @@ var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeUpFromTop.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeUpFromTop.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

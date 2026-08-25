@@ -2,108 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-AlignAndDistributeTate.jsx
+### 概要
 
-### Readme （GitHub）：
+重なって配置されたオブジェクトを、縦方向へ指定した間隔で並べ直します。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- 更新日：2026-02-26
-- 選択したオブジェクトを縦方向に整列し、指定した間隔と横方向の数（列数）で再配置するスクリプト。
-- プレビュー時に境界線を含むオプション、ランダム配置、単位の自動取得、上下キーでの数値変更に対応。
-- プレビュー時にUndo履歴を汚さないように管理し、OK時は1回のUndoで取り消せるように確定します。
+Redistributes stacked objects along the vertical axis at the spacing you specify.
 
-### 主な機能：
+See the README for details.
 
-- 縦方向整列と再配置
-- 列数（横方向の数）指定
-- ランダム配置オプション
-- プレビュー時の境界含む切替
-- 単位自動対応
-- キーボードで間隔・列数調整
-- Undoを汚さないプレビューと一括取り消し（1回のUndo）
-
-### 処理の流れ：
-
-- オブジェクト選択確認
-- ダイアログ表示（各オプション設定）
-- プレビュー更新
-- 実行時に配置確定
-
-### オリジナルアイデア
-
-John Wundes 
-Distribute Stacked Objects v1.1
-https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
-
-Gorolib Design
-https://gorolib.blog.jp/archives/77282974.html
-
-### 更新履歴：
-- v1.8 (20260226) : 縦方向前提（列数指定）にロジックとUIを変更、変数/関数名を整理
-- v1.7 (20260119) : プレビュー時にUndo履歴を汚さないように管理し、OK時は1回のUndoで取り消せるように確定
-- v1.6 (20250809) : 「プレビュー境界を使用」をOFFのとき geometricBounds を使用するように調整
-- v1.0 (20250716) : 初期バージョン
-- v1.1 (20250717) : 安定性改善、行数ロジック修正
-- v1.2 (20250718) : コメント整理、ローカライズ統一、ランダム基準位置補正改善
-- v1.3 (20250801) : グリッド機能の追加、ガターを縦横個別に設定
-- v1.4 (20250801) : ローカライズを調整
-- v1.5 (20250802) : 横／縦の連動機能を追加、プレビュー境界を使用のロジックを調整
-- v1.6 (20250809) : 「プレビュー境界を使用」をOFFのとき geometricBounds を使用するように調整
-
----
-
-### Script Name:
-
-AlignAndDistributeTate.jsx
-
-### Readme (GitHub):
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile.jsx
-
-### Overview:
-
-- Updated: 2026-02-26
-- Arrange selected objects vertically and re-distribute by specified spacing and number of columns.
-- Supports preview bounds option, random arrangement, auto unit detection, and keyboard adjustments.
-- Uses an undo-safe preview workflow and confirms the result so it can be undone with a single Undo step.
-
-### Main Features:
-
-- Vertical arrangement and redistribution
-- Column count (horizontal count) specification
-- Random arrangement option
-- Toggle including preview bounds
-- Automatic unit detection
-- Keyboard adjustment for spacing and columns
-- Undo-safe preview and single-step Undo on confirm
-
-### Workflow:
-
-- Check object selection
-- Show dialog and set options
-- Preview update
-- Confirm to apply
-
-### Update History:
-- v1.8 (2026-02-26): Switched logic/UI to vertical-first layout (columns), refactored names
-- v1.7 (2026-01-19): Undo-safe preview management and single-step Undo on confirm.
-- v1.6 (2025-08-09): When "Use preview bounds" is OFF, use geometricBounds (OFF = geometric, ON = visible).
-- v1.0 (2025-07-16): Initial version
-- v1.1 (2025-07-17): Stability improvements, row logic fix
-- v1.2 (2025-07-18): Comment refinement, localization update, improved random positioning correction
-- v1.3 (2025-08-01): Added grid feature, separate gutter settings for horizontal and vertical spacing
-- v1.4 (2025-08-01): Adjusted localization
-- v1.5 (2025-08-02): Added horizontal/vertical linking feature, adjusted preview bounds logic
-- v1.6 (2025-08-09): Adjusted to use geometricBounds when "Use preview bounds" is OFF
 */
 
-/* バージョン変数を追加 / Script version variable */
-var SCRIPT_VERSION = "v1.8";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartAlignAndTile-tate";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.8";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-26";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-tate.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-tate.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* ダイアログ位置と外観変数 / Dialog position and appearance variables */
 var offsetX = 300;
@@ -183,7 +112,6 @@ var LABELS = {
     }
 };
 
-
 /* 汎用 Undo/Preview 管理クラス / Generic Undo-safe preview manager */
 function PreviewManager() {
     this.undoDepth = 0; // プレビュー中に実行されたアクションの回数 / Number of preview actions executed
@@ -227,7 +155,6 @@ function PreviewManager() {
         }
     };
 }
-
 
 /* 単位コードとラベルのマップ / Map of unit codes to labels */
 var unitLabelMap = {
@@ -310,13 +237,11 @@ function showArrangeDialog() {
     setDialogOpacity(dlg, dialogOpacity);
     shiftDialogPosition(dlg, offsetX, offsetY);
 
-
     // Undo-safe preview manager
     var previewMgr = new PreviewManager();
 
     // Preserve current preference so cancel can restore it
     var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
-
 
     /* 間隔パネル / Spacing panel */
     var unit = getCurrentUnitLabel();

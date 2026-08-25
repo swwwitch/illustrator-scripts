@@ -4,59 +4,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-PathInspector.jsx
+選択中またはドキュメント全体のパス統計を集計し、常駐パレットで表示します。
 
-### 概要：
+詳細は README を参照してください。
 
-- 選択中／全体のパス統計をカウントし、常駐パレットで表示
-- 「書き出し」でレポート（テキスト）を書き出し可能
-- 常駐パレット化：開いたまま選択を切り替え、［更新］で再集計
-- DOM 集計はメインエンジンへ BridgeTalk 委譲（常駐パレットの DOM 切断を回避）
+### Overview
 
-### 主な機能：
+Counts path statistics for the selection, or for the whole document, and shows them in a persistent palette.
 
-- パス（オープン／クローズ／アンカー／ハンドル／複合パス／複合シェイプ）を表示
-  ※ ガイド（guides=true）はパス統計から除外
-- グループ内のパスを再帰的にカウント
-- 「書き出し」ボタンで集計結果をテキストファイルとして保存
-- ダイアログ位置をセッション中に記憶・復元
-
-### 処理の流れ：
-
-- 常駐パレットを表示（多重起動は自動で閉じてから再表示）
-- ［更新］押下（または表示直後）にメインエンジンへ集計を委譲
-- 戻り値（マーカー方式）を解析し、パス統計パネルを更新
-- 書き出しは収集データから生成
-
----
-
-### Script Name:
-
-PathInspector.jsx
-
-### Overview:
-
-- Count path stats for the selection / whole document and show them in a persistent palette
-- Export the stats as a plain text report
-- Persistent palette: keep it open, change selection, press Refresh to recount
-- Delegate DOM counting to the main engine via BridgeTalk
-
-### Main Features:
-
-- Path stats: open/closed, anchor points, handles, compound paths, compound shapes
-  * Guide paths (guides=true) are excluded from path stats
-- Recursively count paths inside groups
-- Export button writes a plain text report to the desktop
-- Remember and restore the palette position during the current session
-
-### Process Flow:
-
-- Show a persistent palette (existing one is closed first to prevent duplicates)
-- On Refresh (or right after showing), delegate counting to the main engine
-- Parse the marker-based result and update the path panel
-- Export is generated from the collected data
+See the README for details.
 
 */
 
@@ -66,15 +24,16 @@ PathInspector.jsx
 var SCRIPT_NAME     = "PathInspector";                /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "20260731";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "20260731";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-07-31";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathInspector.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathInspector.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-/* ============================================================
-   言語判定・ローカライズ / Language & localization
-   ============================================================ */
 
 /**
  * 現在の言語コードを返す

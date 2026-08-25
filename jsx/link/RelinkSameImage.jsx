@@ -2,76 +2,38 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-RelinkSameImage.jsx
+### 概要
 
-### Readme （GitHub）：
+選択した配置画像と同じリンクファイルを参照している配置画像を探し、指定したファイルへ一括で差し替えます。
 
-（未指定）
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- 選択したリンク画像と同名のすべてのリンク画像を検索
-- ユーザーが指定したファイルで一括置換する
+Finds the placed images that reference the same linked file as the selected one and relinks them all to a file you choose.
 
-### 主な機能：
+See the README for details.
 
-- 配置画像1つを選ぶだけで、同名リンクを全自動で置換
-- 日本語と英語のローカライズに対応
-- 置換対象選択のダイアログ表示あり
-
-### 処理の流れ：
-
-- ドキュメントと選択状態の確認
-- 選択が1件かつ配置画像か判定
-- 同名リンク画像をすべて取得
-- 新ファイルを選択し、全対象を置換
-- 最後に選択を解除
-
-### note
-
-https://note.com/dtp_tranist/n/ne38eeee5abc8?nt=_3084117
-
-### 更新履歴：
-
-- v1.0 (20240805) : 初期バージョン作成
-- v1.1 (20250721) : ローカライズ
-
-### Script Name:
-
-RelinkSameImage.jsx
-
-### Readme (GitHub):
-
-(Unspecified)
-
-### Overview:
-
-- Find all linked images with the same name as the selected one
-- Replace them in bulk using a file selected by the user
-
-### Features:
-
-- Automatically replaces all same-name linked images by selecting just one
-- Supports Japanese and English localization
-- Prompts user to select replacement file via dialog
-
-### Workflow:
-
-- Check if document is open and an item is selected
-- Ensure only one item is selected and it's a placed image
-- Gather all linked items with the same file name
-- Prompt user to select a new file
-- Replace all targets and clear selection
-
-### Changelog:
-
-- v1.0 (20240805): Initial release
-- v1.1 (20250721): Localization added
 */
 
-var SCRIPT_VERSION = "v1.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RelinkSameImage";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-08-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-21";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkSameImage.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkSameImage.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne38eeee5abc8?nt=_3084117"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     // 言語を取得し、"ja" または "en" で返す / Get language code as "ja" or "en"

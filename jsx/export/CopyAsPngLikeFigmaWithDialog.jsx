@@ -2,68 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-CopyAsPngLikeFigmaWithDialog.jsx
 
 ### 概要
 
-- 選択オブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてクリップボードにコピーするIllustrator用スクリプトです。
-- 実行時にダイアログで解像度、背景色、アンチエイリアス、余白を設定できます。
+選択オブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてクリップボードへコピーします。
+解像度・背景色・アンチエイリアス・余白は、実行時のダイアログで指定できます。
 
-### 主な機能
-
-- 解像度（dpi）を選択可能（72〜1200）
-- 背景色（透明・白・黒）を指定
-- アンチエイリアスON/OFF切替
-- 余白の設定
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. 対象オブジェクトを選択
-2. ダイアログで各種設定を指定
-3. 一時レイヤーに複製し、ラスタライズと拡大を実行
-4. クリップボードにコピー
-5. 一時オブジェクトを削除し、選択を復元
-
-### 更新履歴
-
-- v1.0.0 (20250502) : 初期バージョン
-- v1.0.1 (20250603) : ラベル整理と拡大率補正
-
----
-
-### Script Name:
-
-CopyAsPngLikeFigmaWithDialog.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that rasterizes selected objects at high resolution and copies them as a PNG-like bitmap to the clipboard.
-- Allows configuring resolution, background color, anti-aliasing, and margin via a dialog at runtime.
+Rasterizes the selection at high resolution and copies it to the clipboard as a PNG-equivalent bitmap.
+Resolution, background color, anti-aliasing and margin are all set in a dialog when the script runs.
 
-### Main Features
+See the README for details.
 
-- Selectable resolution (dpi) from 72 to 1200
-- Choose background color (transparent, white, black)
-- Toggle anti-aliasing on/off
-- Set margin
-- Japanese and English UI support
-
-### Process Flow
-
-1. Select target objects
-2. Configure settings via dialog
-3. Duplicate to temporary layer, rasterize and resize
-4. Copy to clipboard
-5. Delete temporary objects and restore selection
-
-### Update History
-
-- v1.0.0 (20250502): Initial version
-- v1.0.1 (20250603): Refined labels and scaling adjustments
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "CopyAsPngLikeFigmaWithDialog"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyAsPngLikeFigmaWithDialog.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyAsPngLikeFigmaWithDialog.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';

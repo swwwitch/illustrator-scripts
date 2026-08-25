@@ -2,12 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * カラージェネレーター / Color Generator
- * 生成したカラーパレットをアートボードに描画し、スウォッチグループにも登録します。 / Draw palettes on the artboard and register them as a swatch group.
- * 対応アルゴリズム: Tailwind / Lightness / Saturation / Complementary / LCH / すべて / Algorithms: Tailwind / Lightness / Saturation / Complementary / LCH / All
- */
 
-var SCRIPT_VERSION = "v1.0.1";
+### 概要
+
+カラーパレットを生成してアートボードに描画し、スウォッチグループにも登録します。
+Tailwind / Lightness / Saturation / Complementary / LCH のアルゴリズムに対応します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Generates color palettes, draws them on the artboard and registers them as a swatch group.
+Tailwind, Lightness, Saturation, Complementary and LCH algorithms are supported.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ColorGenerator";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorGenerator.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorGenerator.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -32,7 +59,6 @@ var LABELS = {
     btnGenerate: { ja: "生成", en: "Generate" },
     alertNoDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." }
 };
-
 
 function L(key) {
     try {
@@ -328,7 +354,6 @@ function main() {
         if (nh) inputHex.text = nh;
     } catch (_) { }
     updateColorSwatch();
-
 
     // ステップ数パネル / Steps panel
     var stepsPanel = leftCol.add("panel", undefined, L("labelSteps"));

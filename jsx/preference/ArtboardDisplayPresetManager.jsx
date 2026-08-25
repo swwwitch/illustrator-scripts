@@ -6,26 +6,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- アートボード関連の Illustrator 環境設定を、常駐パレットでまとめて切り替えるユーティリティです。設定は操作した時点で即時反映されます。
-- アートボードのサイズ確認とリサイズ、名前表示と枠線、プリセット（デフォルト・強調・ライト）、カンバスカラーの切り替えに対応します。
-- 機能の詳細と使い方はREADME（readme-ja/ArtboardDisplayPresetManager.md）を参照してください。
+アートボード関連のIllustrator環境設定を、常駐パレットでまとめて切り替えます。
+アートボードのサイズ確認とリサイズ、名前表示と枠線、プリセット、カンバスカラーの切り替えに対応します。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- A persistent-palette utility for switching artboard-related Illustrator preferences in one place. Every change applies immediately.
-- Covers artboard size check and resize, name visibility and border, presets (Default, Emphasis, Light) and the canvas color toggle.
-- See the README (readme-en/ArtboardDisplayPresetManager.md) for the full feature list and usage.
+A persistent palette for switching the artboard-related Illustrator preferences.
+It covers checking and resizing artboards, name and border display, presets, and the canvas color.
+
+See the README for details.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ArtboardDisplayPresetManager";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                        /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";   /* 作者 / author */
-var SCRIPT_RELEASED = "2026-03-23";                    /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-01";                    /* 更新日 / last updated */
+var SCRIPT_NAME     = "ArtboardDisplayPresetManager"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-01";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardDisplayPresetManager.md

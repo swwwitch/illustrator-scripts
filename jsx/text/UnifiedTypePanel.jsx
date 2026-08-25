@@ -6,25 +6,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-文字組みに関する設定（フォント、フォントサイズ、自動カーニング、字間調整、文字揃え、行揃え、
-行送り、文字組みアキ量設定、禁則など）を1枚の常駐パレットにまとめ、
-ラジオや入力を操作した時点で選択中のテキストへ即時適用します。
+文字組みに関する設定（フォント、フォントサイズ、自動カーニング、字間調整、文字揃え、行揃え、行送り、文字組みアキ量設定、禁則など）を1枚の常駐パレットにまとめました。
+ラジオや入力を操作した時点で、選択中のテキストへ即時適用します。
 
-タブ構成、各設定の内容、項目ごとに異なる適用範囲などの詳細はREADMEを参照してください。
-
-### 謝辞
-
-古島佑起さん
-BridgeTalk のワーカー登録と呼び出しの仕組み、行揃えのボタンの実装方法など、多くのアイデアとコードを提供いただきました。
-https://note.com/yukifurushima/n/n9f2078dc156f
+詳細は README を参照してください。
 
 ### Overview
 
-A persistent palette that gathers text-composition settings (font, font size, auto kerning,
-letter spacing, character alignment, justification, leading, mojikumi, kinsoku, and more)
-into one place and applies them to the selected text the moment a control is operated.
+Gathers the typography settings — font, size, auto-kerning, letter spacing, character alignment, justification, leading, mojikumi and kinsoku — into a single persistent palette.
+Every radio button and field applies to the current selection the moment you touch it.
 
-See the README for the tab layout, the individual settings, and the scope each item applies to.
+See the README for details.
 
 */
 
@@ -45,6 +37,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion https://note.com/yukifurushima/n/n9f2078dc156f
+ */
 
 (function () {
 

@@ -2,19 +2,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-- 複数アートボードのドキュメントで、選択したオブジェクトを各アートボード上の指定位置へ整列します。
-- 整列先は3×3の9点から選択でき、辺からのマージンを指定できます。
-- ダイアログ表示中はライブプレビューで結果を確認でき、キャンセルすると元の位置に戻ります。
-- 詳細な機能・オプションはREADMEを参照してください。
-新
+複数アートボードのドキュメントで、選択したオブジェクトを各アートボード上の指定位置へ整列します。
+整列先は3×3の9点から選べ、辺からのマージンも指定できます。
+
+詳細は README を参照してください。
+
 ### Overview
 
-- Aligns the selected objects to a chosen position on each artboard in a multi-artboard document.
-- Pick one of nine anchor points in a 3x3 grid and set a margin from the artboard edges.
-- Live preview while the dialog is open; Cancel restores the original positions.
-- See the README for the full feature and option list.
+Aligns the selected objects to a chosen position on each artboard of a multi-artboard document.
+The target is picked from a 3×3 grid of nine points, with a margin from the edges.
+
+See the README for details.
 
 */
 

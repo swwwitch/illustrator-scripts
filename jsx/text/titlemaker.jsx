@@ -5,35 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択中のテキストフレームを、指定した文字の直後で改行する
-- 改行対象の文字（、。〜）をチェックボックスで選択
-- 改行後、連続する改行を1つにまとめる
-- 文字揃えを欧文ベースラインに設定
+選択中のテキストフレームを、指定した文字（、。〜など）の直後で改行します。
+改行の対象にする文字はチェックボックスで選べます。
 
-### 処理の流れ
-
-1. ダイアログで改行対象文字を選択
-2. 選択中の各テキストフレームの内容を走査
-3. 対象文字の後ろに改行を挿入し、重複改行を整理
-4. 欧文ベースラインを適用
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Insert a line break after specified characters in selected text frames
-- Choose target characters (、。〜) via checkboxes
-- Collapse consecutive line breaks into one
-- Set character alignment to the Roman baseline
+Breaks the selected text frame onto a new line right after the characters you choose, such as 、 。 or 〜.
+Which characters trigger a break is set with checkboxes.
 
-### Flow
-
-1. Choose target characters in the dialog
-2. Walk through each selected text frame's contents
-3. Insert a line break after each target character and clean up duplicates
-4. Apply the Roman baseline
+See the README for details.
 
 */
 
@@ -46,13 +28,14 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/titlemaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/titlemaker.md
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User Settings
-// =========================================
-/* 改行対象文字とデフォルトの ON/OFF / Target characters and default ON/OFF */
 var TARGET_CHARS = [
     { mark: "、", on: true },
     { mark: "。", on: true },

@@ -2,64 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartAutoGroup.jsx
 
 ### 概要
 
-- 選択オブジェクトを自動的に「重なり」「垂直方向」「水平方向」「近接度」などの条件に応じてグループ化するIllustrator用スクリプトです。
-- UI でモードとしきい値を指定し、再実行時には未グループオブジェクトを再確認できます。
+選択オブジェクトを「重なり」「垂直方向」「水平方向」「近接度」などの条件で自動グループ化します。
+モードとしきい値はダイアログで指定でき、再実行時に未グループのオブジェクトを確認できます。
 
-### 主な機能
-
-- 重なり・垂直・水平・近接度モード切替
-- しきい値スライダーによる距離設定（重なりのみ除く）
-- グループ化後の自動選択
-- 未グループオブジェクトの再実行確認
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ダイアログでモードとしきい値を設定
-2. DFS探索に基づきグループ単位を抽出
-3. Illustrator標準 group コマンドで結合
-4. グループ化されなかったオブジェクトがある場合に再実行を促す
-
-### 更新履歴
-
-- v1.0.0 (20250611) : 初期バージョン
-
----
-
-### Script Name:
-
-SmartAutoGroup.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script to automatically group selected objects based on conditions like "overlap", "vertical", "horizontal", or "proximity".
-- Allows selecting mode and threshold via UI, and checks for ungrouped objects on retry.
+Automatically groups the selection by overlap, vertical alignment, horizontal alignment or proximity.
+The mode and threshold are set in a dialog, and a re-run reports the objects that were left ungrouped.
 
-### Main Features
+See the README for details.
 
-- Switch modes: overlap, vertical, horizontal, proximity
-- Threshold slider for distance (except overlap only)
-- Auto-select grouped objects after grouping
-- Prompt to retry if ungrouped objects remain
-- Japanese and English UI support
-
-### Process Flow
-
-1. Configure mode and threshold in dialog
-2. Extract groups using DFS traversal
-3. Group objects using Illustrator's group command
-4. Prompt to retry if any ungrouped objects remain
-
-### Update History
-
-- v1.0.0 (20250611): Initial version
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartAutoGroup";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAutoGroup.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAutoGroup.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var groupMode = "horizontal";
 
@@ -114,7 +89,6 @@ var LABELS = {
 };
 
 // function getTopmostPath is unused and can be removed.
-
 
 // ダイアログUIの表示とユーザー選択取得
 function showDialog(prevThreshold, prevGroupMode) {
@@ -548,4 +522,3 @@ function groupOverlappingObjectsByProximity() {
 
     return newGroups;
 }
-

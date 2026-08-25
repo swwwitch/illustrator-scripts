@@ -3,48 +3,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-SplitBackgroundForTwo
 
-### 更新日：
-20260228
+### 概要
 
-### 概要：
 2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に2分割の背景を作成します。
-ダイアログで［方向］（左右／上下）を切り替えることで、左右2分割（Left/Right）だけでなく上下2分割（Top/Bottom）にも対応します。
-実行時にサイズ倍率（%）を指定するダイアログが表示され、閉じる前にプレビューを確認できます（デフォルトは200%）。
-プレビューは専用レイヤーに描画して差し替え、［OK］時に図形や線が二重に作成されないようにします。
+［方向］で左右2分割と上下2分割を切り替えられ、サイズ倍率（%）をプレビューしながら指定できます。
 
-分割の基準となるギャップは、2つのオブジェクト間の「隙間」を基準に計算されます。
-［バランス］パネルで「なし／左／右（上下モード時は なし／上／下）」を選択すると、
-- 「なし」：均等（中央分割）
-- 「左（上）」：左（上）側のマージンを［幅］で指定（反対側は自動計算）
-- 「右（下）」：右（下）側のマージンを［幅］で指定（反対側は自動計算）
+詳細は README を参照してください。
 
-［幅］はスライダーおよび数値入力で指定でき、選択中の2オブジェクト間ギャップを最大値として自動設定されます。
-テキストのサイドベアリング等によるズレを減らすため、
-一時的にテキストをアウトライン化して外接矩形を計算し、計算後すぐに一時生成物を削除します。
-その上で背景長方形を選択オブジェクトの背面に配置し、ダイアログ内でリアルタイムにプレビュー表示します（元のオブジェクトは変更しません）。
+### Overview
 
-サイズ（%）および［幅］入力欄では、↑↓キーで±1、Shift+↑↓で±10（10刻みスナップ）、Option+↑↓で±0.1 の増減が可能です。
+With two objects selected — text, paths or groups — creates a background behind them, split in two.
+The Direction option switches between a left/right and a top/bottom split, and the size scale (%) is set with a preview.
 
-### 更新履歴：
-- v1.0 (20260124) : 初期バージョン
-- v1.1 (20260126) : ［バランス］（なし／左／右）と［幅］指定による左右背景の比率調整に対応。［幅］はオブジェクト間ギャップを最大値として自動計算し、スライダー／数値入力／矢印キー操作に対応
-- v2.0 (20260126) : ［方向］（左右／上下）に対応。上下配置時は背景を上下2分割で作成し、バランス（なし／上／下）と幅でギャップ内の分割位置を調整可能。
-- v2.1 (20260126) : 選択オブジェクトの位置関係から左右／上下を自動判別し、ダイアログの［方向］UIを省略。
-- v2.2 (20260126) : #targetengine を追加し、Illustrator再起動までは前回閉じたダイアログ値を復元。
-- v2.3 (20260126) : PreviewHistory によるプレビュー一括Undoを追加（プレビューでヒストリーを汚さない）。
-- v2.4 (20260126) : ［OK］時にプレビューUndo後も必ず最終描画を行い、直前の見た目で確定するよう修正。
-- v2.5 (20260126) : ［OK］時にプレビュー削除で last 値が初期化される不具合を修正（角丸等が反映されない問題）。
-- v2.6 (20260126) : PreviewHistory.undo() 後に一時アウトライン生成物が復活するケースを除去（TEMPマーカーを即掃除）。
-- v2.7 (20260228) : プレビュー更新時に直前のプレビューを1回Undoして差し替える方式に変更し、［OK］時に図形や線が二重に生成される問題を修正。
-- v2.8 (20260228) : プレビューのロールバックをUndo依存から、プレビュー印（PREVIEW_NOTE）付きオブジェクトの直接削除方式に変更し、線幅プレビューが更新されない／線がダブる問題を修正。
-- v2.9 (20260228) : プレビュー専用レイヤーに描画してレイヤー単位で掃除する方式に変更し、プレビュー残骸やダブりをさらに抑止。
+See the README for details.
+
 */
 
-// --- Version / バージョン ---
-var SCRIPT_VERSION = "v2.9";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SplitBackgroundForTwo";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.9";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-28";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitBackgroundForTwo.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitBackgroundForTwo.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // --- Dialog UI prefs / ダイアログUI設定 ---
 var DIALOG_OFFSET_X = 300;

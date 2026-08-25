@@ -5,23 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整する
-- ライブプレビューで結果を確認しながら調整でき、キャンセルで開く前の状態に戻る
-- 「実サイズ↔見かけ」でサイズ×比率の焼き込みと復元を切り替えられる
+選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整します。
+ライブプレビューで結果を確認しながら調整でき、キャンセルすると開く前の状態に戻ります。
 
-### 注意
-
-- 詳しい機能・使い方は README を参照
+詳細は README を参照してください。
 
 ### Overview
 
-- Adjusts the font size and horizontal / vertical scale of the selected characters
-- Live preview; Cancel restores the state from before the dialog opened
-- “Actual ↔ Apparent” toggles between baking size × scale into the size and restoring it
+Adjusts the font size and the horizontal and vertical scale of the selected characters.
+A live preview shows the result, and cancelling restores the state from before the dialog opened.
 
-### Notes
-
-- See the README for the full feature list and usage
+See the README for details.
 
 */
 

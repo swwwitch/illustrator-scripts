@@ -2,70 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-CopyAsPngLikeFigma.jsx
 
 ### 概要
 
-- 選択中のオブジェクトを高解像度でラスタライズし、Figmaの「Copy as PNG」のようにビットマップとしてクリップボードへコピーするスクリプトです。
-- 600dpiでラスタライズ後、72ppi相当の偶数整数倍率に拡大して最適化します。
+選択中のオブジェクトを高解像度でラスタライズし、Figmaの「Copy as PNG」のようにビットマップとしてクリップボードへコピーします。
+600dpiでラスタライズしたあと、72ppi相当の偶数整数倍率に調整します。
 
-### 主な機能
-
-- 一時レイヤー・グループを自動作成して管理
-- 600dpiラスタライズ後、拡大倍率を偶数整数に調整
-- プログレスバーによる処理進行の可視化
-- 一時オブジェクトの自動削除と元選択の復元
-- 日本語／英語環境対応
-
-### 処理の流れ
-
-1. オブジェクトを選択
-2. 一時レイヤー・グループに複製
-3. 600dpiでラスタライズ
-4. 72ppi相当の偶数整数倍率に拡大
-5. クリップボードにビットマップコピー
-6. 一時オブジェクト削除、選択を復元
-
-### 更新履歴
-
-- v1.0.0 (20250502) : 初期バージョン
-- v1.0.1 (20250603) : 拡大倍率を偶数整数に調整、コメント整理
-
----
-
-### Script Name:
-
-CopyAsPngLikeFigma.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script to rasterize selected objects at high resolution and copy as bitmap to clipboard, similar to Figma’s “Copy as PNG”.
-- Rasterizes at 600dpi, then scales up to the nearest even integer multiple of 72ppi for optimization.
+Rasterizes the selection at high resolution and copies it to the clipboard as a bitmap, the way Figma's "Copy as PNG" does.
+It rasterizes at 600 dpi, then scales the result to an even integer multiple of 72 ppi.
 
-### Main Features
+See the README for details.
 
-- Automatically creates and manages temporary layers and groups
-- Rasterizes at 600dpi, adjusts scaling to an even integer multiple
-- Progress bar shows processing status
-- Automatically deletes temporary objects and restores original selection
-- Supports Japanese and English environments
-
-### Process Flow
-
-1. Select objects
-2. Duplicate to temporary layer and group
-3. Rasterize at 600dpi
-4. Scale up to even integer multiple of 72ppi
-5. Copy bitmap to clipboard
-6. Delete temporary objects and restore selection
-
-### Update History
-
-- v1.0.0 (20250502): Initial version
-- v1.0.1 (20250603): Adjusted scaling to even integer multiples, cleaned up comments
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "CopyAsPngLikeFigma";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyAsPngLikeFigma.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyAsPngLikeFigma.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // -------------------------------
 // 日英ラベル定義 Define label

@@ -1,23 +1,19 @@
 #targetengine "MyScriptEngine"
 #target illustrator
 
-/* 外部JSX読み込み時の警告を抑止 / Suppress the warning raised when an external JSX is loaded */
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
-#include "../stroke-table/ColorPicker.jsx"
-
 /*
 
 ### 概要
 
-円・正多角形・スター・スーパー楕円・ルーロー（定幅図形）を、辺の数や回転、塗りと線、角丸などをプレビューしながら1つのダイアログから作成します。
+1つのダイアログから、正円・多角形・星形・スーパー楕円・ルーローの三角形などのカスタム形状を作成します。
+リアルタイムプレビューで、辺の数・幅・回転・詳細オプションを調整できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Builds circles, regular polygons, stars, superellipses and Reuleaux (constant-width) shapes from a single dialog,
-with sides, rotation, fill and stroke, and corner smoothing all set under a live preview.
+Creates custom shapes — circle, polygon, star, superellipse, Reuleaux-style — from a single dialog.
+A real-time preview lets you adjust the number of sides, the width, the rotation and the advanced options.
 
 See the README for details.
 
@@ -40,6 +36,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
+
+/* 外部JSX読み込み時の警告を抑止 / Suppress the warning raised when an external JSX is loaded */
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+#include "../stroke-table/ColorPicker.jsx"
 
 (function () {
 

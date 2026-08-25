@@ -5,18 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの「現在の行送り（絶対値）」とフォントサイズから行送り％を逆算し、
-それを自動行送り量（％）として設定して常に自動行送りにするスクリプトです。
-TypeBasicsPanel.jsx の「自動計算」ボタンの機能だけを抜き出した単独スクリプトで、
-ダイアログやパレットは表示せず、実行するとその場で選択中のテキストへ適用します。
-グループ内のテキストやテキスト編集モードの範囲選択にも対応します。
+選択したテキストの現在の行送り（絶対値）とフォントサイズから行送り％を逆算し、それを自動行送り量（％）として設定します。
+これにより、以後は常に自動行送りとして扱われます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-Back-calculates the leading percentage from the selection's current (absolute) leading and
-font size, then applies it as the paragraph's auto-leading amount. Standalone extract of the
-"Auto-calc" button in TypeBasicsPanel.jsx — no dialog is shown; it applies to the selection
-in place, including text inside groups and range selections in text-edit mode.
+Derives the leading percentage from the current absolute leading and font size of the selected text and stores it as the auto-leading percentage.
+From then on the text uses auto leading.
+
+See the README for details.
 
 */
 
@@ -28,6 +27,11 @@ var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoLeadingCalc.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoLeadingCalc.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

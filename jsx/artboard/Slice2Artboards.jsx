@@ -5,17 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択したオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
-- 分割したピースごとにアートボードを作成できます。
+選択したオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
+分割したピースごとにアートボードを作成することもできます。
 
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Splits the selected object into a grid of the given rows and columns, clipping each piece with a rectangular mask.
-- Can create one artboard per piece.
+Slices the selected objects into a grid of the given rows and columns and clips each piece with a rectangular mask.
+An artboard can be created for each piece as well.
+
+See the README for details.
 
 */
 

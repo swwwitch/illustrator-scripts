@@ -1,64 +1,38 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
 
-
 /*
-### スクリプト名：
-
-SortItemsByPosition.jsx
 
 ### 概要
 
-- ページアイテムをX座標またはY座標で並べ替え、重ね順を更新します。
+ページアイテムをX座標またはY座標で並べ替え、その順序で重ね順を更新します。
 
-### 主な機能
-
-- X/Y座標による昇順ソート
-- 反転ボタンで順序の切り替え
-- 選択オブジェクトまたはアートボード内オブジェクト限定選択
-- レイヤーを移動し、空レイヤーを削除するオプション
-
-### 処理の流れ
-
-1. 対象オブジェクトを収集
-2. 並べ替え基準を選択
-3. プレビューを確認
-4. OKで確定
-
-### 更新履歴
-
-- v1.0.0 (20250706) : 初期バージョン
-- v1.0.1 (20250707) : ランダム機能を追加
-
----
-
-### Script Name:
-
-SortItemsByPosition.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- Sort page items by X or Y coordinate and update stacking order.
+Sorts page items by their X or Y coordinate and rewrites the stacking order to match.
 
-### Main Features
+See the README for details.
 
-- Ascending sort by X or Y coordinate
-- Reverse button to toggle order
-- Limit to selection or current artboard objects
-- Option to move objects to top layer and delete empty layers
-
-### Workflow
-
-1. Collect target objects
-2. Select sort criteria
-3. Preview order
-4. Confirm with OK
-
-### Changelog
-
-- v1.0.0 (20250706) : Initial version
-- v1.0.1 (20250707) : Added random button functionality
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SortItemsByPosition";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-07";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortItemsByPosition.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortItemsByPosition.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -279,12 +253,10 @@ function main() {
     var cancelBtn = rightGroup.add("button", undefined, LABELS.cancel[lang]);
     cancelBtn.preferredSize.width = buttonWidth;
 
-
     /* 反転ボタン有効/無効の更新（常に有効） */
     function updateReverseButtonState() {
         reverseBtn.enabled = true;
     }
-
 
     /* プレビュー共通イベント処理 */
     function previewWithMode(mode) {

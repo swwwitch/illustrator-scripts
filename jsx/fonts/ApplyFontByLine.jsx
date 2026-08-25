@@ -3,33 +3,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
+### 概要
 
-概要
-選択したテキストフレーム（グループ内も再帰的に対象。ロック・非表示は除外）の
-各行（段落）について、その行の文字列をフォント名とみなして検索し、行単位で適用する。
+選択したテキストフレームの各行（段落）の文字列をフォント名とみなして検索し、行単位でそのフォントを適用します。
+グループ内のテキストフレームも再帰的に対象にし、ロック・非表示のものは除外します。
 
-主な機能
-・CUSTOM_MAP による特定文字列の強制割り当て
-・PostScript 名、ファミリー名＋スタイル名、ファミリー名による厳密一致
-・ファミリー名／フォント名全体／先頭ワードによるあいまい一致
-・厳密一致は自動適用、あいまい一致・未一致は対話ピッカーで確認
-・同じ文字列は実行中に再質問せず、選択結果を再利用
-・未適用の行を含むフレームには「// missing-fonts」レイヤー上に赤い目印を作成
-・未適用文字列を一覧表示し、クリップボードへコピー可能
+詳細は README を参照してください。
 
-履歴
-v1.0.0  初期バージョン
-v1.1.1  現行バージョン
+### Overview
+
+Treats each line (paragraph) of the selected text frames as a font name, looks it up, and applies that font to the line.
+Text frames inside groups are handled recursively, while locked and hidden ones are skipped.
+
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ApplyFontByLine";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontByLine.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontByLine.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // ============================================================
     // 設定 / バージョン / ローカライズ（Settings / Version / Localization）
     // ============================================================
-    var SCRIPT_VERSION = "v1.1.1";
 
     // クラッシュ箇所を特定するためのデバッグログ（true でデスクトップにログ出力）。
     // 各ステップで「開く→書く→閉じる」を行い、その都度ディスクへ確定させるので、
@@ -435,7 +446,6 @@ v1.1.1  現行バージョン
         // スキップ／終了：ダイアログ中にドキュメントを変更していないので復元は不要。
         return (result === 3) ? PICKER_QUIT : null;
     }
-
 
     // フォントピッカーの UI を生成して { dialog, familyList, styleList } を返す。
     // ボタンは name:"ok"/"cancel" なので、判定は dialog.show() の戻り値で行う。

@@ -2,66 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SortByNumbers.jsx
 
 ### 概要
 
-- グループ内のテキストから数値を抽出し、数値に基づいてグループを並び替え縦方向に整列するIllustrator用スクリプトです。
-- フォント情報によるグループ分けと、昇順・降順・ランダムソートに対応します。
+グループ内のテキストから数値を抽出し、その数値でグループを並び替えて縦方向に整列します。
+フォント情報によるグループ分けと、昇順・降順・ランダム順に対応します。
 
-### 主な機能
-
-- テキストから数値抽出（カンマ除去、小数対応）
-- フォント名ごとのグループ選択とソート
-- 昇順、降順、ランダムの並び替えオプション
-- スペーシング（フィットまたはカスタム値）選択
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. 数値を含むグループオブジェクトを選択
-2. ダイアログでフォント、ソート順、スペーシングを設定
-3. グループをソートし縦方向に配置
-4. 全体位置を元の開始位置に補正
-
-### 更新履歴
-
-- v1.0.0 (20250615) : 初期バージョン
-- v1.1.0 (20250616) : ラジオボタン選択状態保持機能追加
-
----
-
-### Script Name:
-
-SortByNumbers.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script that extracts numbers from text inside groups, sorts groups based on those numbers, and arranges them vertically.
-- Supports grouping by font info and sorting in ascending, descending, or random order.
+Extracts numbers from the text inside groups, sorts the groups by those numbers, and aligns them vertically.
+Groups can be split by font, and the order can be ascending, descending or random.
 
-### Main Features
+See the README for details.
 
-- Extract numbers from text (ignores commas, supports decimals)
-- Group and sort by font name
-- Ascending, descending, or random sorting options
-- Choose spacing mode: fit or custom value
-- Japanese and English UI support
-
-### Process Flow
-
-1. Select group objects containing numbers
-2. Configure font, sort order, and spacing in dialog
-3. Sort and arrange groups vertically
-4. Adjust overall position to original start point
-
-### Update History
-
-- v1.0.0 (20250615): Initial version
-- v1.1.0 (20250616): Added radio button state retention
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SortByNumbers";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-16";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortByNumbers.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortByNumbers.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 var LABELS = {
     ja: {

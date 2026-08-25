@@ -1,25 +1,51 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-(function () {
-
 /*
-    概要：
-    選択オブジェクトに合わせてアクティブビューをズーム＆センタリングする。
-    複数選択時は全体のバウンディングボックスにフィット（周囲に少し余白を残す）。
-    選択が無い場合は現在位置のまま 100% 表示に戻す。
-    ズームは一気に切り替えず、少しずつ補間してアニメーション風に動かす。
 
-    アルゴリズム原典：
-    John Wundes ( john@wundes.com ) www.wundes.com  "Zoom and Center to Selection v2."
-    http://www.wundes.com/js4ai/copyright.txt
-    アニメーション補間は ArtboardNavigator.jsx（古島佑起さん）を参考にした。
+### 概要
+
+選択オブジェクトに合わせて、アクティブビューをズーム＆センタリングします。
+複数選択時は全体の外接矩形にフィットし、選択がないときは100%表示に戻します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Zooms and centers the active view on the selected objects.
+With several objects selected it fits their overall bounding box, and with nothing selected it returns to 100%.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ZoomToSelection";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZoomToSelection.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZoomToSelection.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/**
+ * @author John Wundes (www.wundes.com)
+ * @discussion http://www.wundes.com/js4ai/copyright.txt
+ */
+
+(function () {
 
 // ============================================================
 // スクリプトバージョン / Script version
 // ============================================================
-var SCRIPT_VERSION = "v2.1.0";
 
 // フィット時に残す余白の係数（1.0 でぴったり、0.9 で 10% 余白）
 var ZOOM_FIT_RATIO = 0.9;

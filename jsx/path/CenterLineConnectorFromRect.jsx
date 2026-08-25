@@ -3,69 +3,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-CenterLineConnectorFromRect.jsx
+Excelなどからコピー＆ペーストした長方形から、罫線（グリッド・枠線）を自動生成します。
+線同士の関係に応じて、格子化・結合・統合まで実行します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md
+### Overview
 
-### 概要：
+Generates table rules — a grid and a border — from rectangles pasted in from Excel or similar.
+Depending on how the lines relate to each other, it also lattices, joins and merges them.
 
-- 更新日：2026-04-27
-- Excel などからコピー＆ペーストした長方形から罫線（グリッド・枠線）を自動生成
-- 線同士の関係に応じて格子化・結合・統合まで実行する Illustrator 用スクリプト
-
-### 主な機能：
-
-- 中心線化（任意 ON/OFF）、回転補正、除外条件、格子モード、外枠長方形化に対応
-- 線幅は Illustrator の strokeUnits、短辺しきい値は rulerType を参照し、表示値と内部 pt 換算を一元管理
-- 線幅の共通化・代表値選択・指定値、印刷用ブラック化、グループ化など仕上げ処理を内蔵
-- IIFE 構成で UI 構築／イベント配線／値取得／実行フローを分離し、保守性を確保
-- Illustrator DOM の不安定な操作（move/remove/selection 等）は安全ヘルパー経由で実行
-- 生成結果は専用作業レイヤーに作成し、ロックレイヤー依存を回避
-
-### 更新履歴：
-
-- v1.0.0 (2025-06-12) : 初版作成
-- v1.6.0 (2026-04-27) : UI 構造の分離、単位管理の整理、安全操作ヘルパー導入、命名整理、生成専用レイヤー対応
-- v1.6.5 (2026-04-27) : UI 構造の改善（事後処理パネル追加、オプション整理、ラベル改善）、生成レイヤー設計の最適化
+See the README for details.
 
 */
 
-/*
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "CenterLineConnectorFromRect";  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.5";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-12";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-27";                   /* 更新日 / last updated */
 
-### Script Name:
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md
 
-CenterLineConnectorFromRect.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md
-
-### Description:
-
-- Last Updated: 2026-04-27
-- Generates rule lines (grids / frames) from rectangles copied and pasted from sources such as Excel
-- Grids, connects, or unifies the generated lines based on their relationships
-
-### Main Features:
-
-- Center-line conversion (toggleable), rotation correction, exclusion rules, grid mode, and outer-frame conversion
-- Uses Illustrator strokeUnits for stroke width and rulerType for the short-side threshold (unified display ↔ pt)
-- Finishing controls such as stroke normalization, representative width selection, custom width, print black, and grouping
-- IIFE structure with UI building, event binding, value reading, and execution flow separated for maintainability
-- Runs unstable Illustrator DOM operations (move/remove/selection etc.) through safe helpers
-- Creates results on a dedicated work layer to avoid locked-layer dependency
-
-### Changelog:
-
-- v1.0.0 (2025-06-12) : Initial version
-- v1.6.0 (2026-04-27) : Refactored UI structure, unified unit handling, added safe operation helpers, improved naming, dedicated generated layer
-- v1.6.5 (2026-04-27) : Improved UI structure (post-process panel, option refinement, labeling), optimized generated-layer workflow
-
-*/
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
@@ -73,7 +42,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLine
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.6.5";
     var DEFAULT_STROKE_WIDTH_PT = 0.25;
 
     // =========================================
@@ -238,8 +206,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLine
     function unitValueToPoints(value, unitCode) {
         return value * getUnitToPointFactor(unitCode);
     }
-
-
 
     function createExclusionMarkerColor() {
         var markerColor = new CMYKColor();
@@ -1592,7 +1558,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLine
         return tolerance;
     }
 
-
     // =========================================
     // 実行フロー補助 / Execution Flow Helpers
     // =========================================
@@ -1630,7 +1595,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLine
 
         return generatedCenterLines;
     }
-
 
     /* 生成済み中心線を連結モードに応じてクラスタ単位で処理
        Process generated center lines cluster-by-cluster according to connect mode */

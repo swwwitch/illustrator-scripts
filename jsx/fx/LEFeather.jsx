@@ -2,6 +2,41 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
+### 概要
+
+選択オブジェクトに［効果］＞［スタイライズ］＞［ぼかし］のライブエフェクトを適用します。
+半径は現在の定規単位で入力し、内部で pt に換算します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Applies the Effect > Stylize > Feather live effect to the current selection.
+The radius is entered in the current ruler unit and converted to points internally.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "LEFeather";                    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LEFeather.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEFeather.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/*
 選択オブジェクトに「効果 > スタイライズ > ぼかし」ライブエフェクトを適用する。
 半径はダイアログから入力し、現在の定規単位（rulerType）に合わせて表示・換算する。
 */
@@ -16,8 +51,6 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
     // ================================================================================
     // バージョンとローカライズ / Version and localization
     // ================================================================================
-
-    var SCRIPT_VERSION = "v1.0.0";
 
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -41,7 +74,6 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
         return L(key) + (lang === "ja" ? "：" : ":");
     }
 
-
     // ================================================================================
     // 設定 / Settings
     // ================================================================================
@@ -62,7 +94,6 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
         return RULER_UNITS[rulerType] || RULER_UNITS[2];
     }
 
-
     // ================================================================================
     // ヘルパー関数 / Helper functions
     // ================================================================================
@@ -79,7 +110,6 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
         if (isNaN(value) || value <= 0) return null;
         return value;
     }
-
 
     // ================================================================================
     // ダイアログ / Dialog
@@ -116,7 +146,6 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
         }
         return value;
     }
-
 
     // ================================================================================
     // メイン処理 / Main flow

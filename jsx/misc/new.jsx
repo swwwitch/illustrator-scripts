@@ -5,111 +5,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したオブジェクトから、新規レイヤー・新規アートボード・新規ドキュメントを作成するスクリプトです。
+選択したオブジェクトから、新規レイヤー・新規アートボード・新規ドキュメントを作成します。
 何を作成するかは、ダイアログのラジオボタンで選択します。
 
-### 主な機能
-
-- 作成対象を選ぶダイアログ（レイヤー／アートボード／ドキュメント）
-- ［複製］チェックボックスで、元のオブジェクトを残すかどうかを選択
-- ［レイヤー］選択オブジェクトを収めた新規レイヤーを作成
-  - レイヤー名の重複を回避（「新規レイヤー」「新規レイヤー 2」…）
-  - 元の重ね順をできる限り保ったまま移動／複製
-  - 作成後は新規レイヤー側のオブジェクトを選択状態に
-- ［アートボード］選択オブジェクトから新規アートボードを作成
-  - 既存の並び（行・列）を解析し、そのピッチと列数を引き継いで挿入
-  - 挿入位置以降のアートボードとアートワークをずらして既存レイアウトを維持
-  - アクティブアートボードと同じサイズで作成し、相対位置を保ったまま配置
-- ［ドキュメント］選択オブジェクトから新規ドキュメントを作成
-  - 元ドキュメントのファイルをコピーして複製を作成（元ドキュメントには手を加えません）
-  - 複製側で、選択オブジェクト以外と、現在のアートボード以外を削除
-  - スウォッチ・シンボル・ドキュメント設定はそのまま引き継がれます
-- 日英ローカライズ対応UI
-
-### 仕様・注意
-
-- ［複製］は［レイヤー］［アートボード］選択時のみ有効です。
-  ［ドキュメント］は元のドキュメントを残す＝常に複製になるため、ディム表示になります。
-- ドキュメントが開かれていない場合、オブジェクトが選択されていない場合は警告を表示して終了します。
-- ［レイヤー］の新規レイヤーはレイヤーパネルの最前面（最上位）に作成します。
-- ［アートボード］の挿入位置と方向は ARTBOARD_INSERT_AFTER_CURRENT／ARTBOARD_DIRECTION_AXIS で変更できます。
-  間隔は既存の並びから自動推定し、2枚未満のときは環境設定の値を使います。
-- ［アートボード］は選択オブジェクトの中心が載っているアートボードを基準に相対位置を算出します。
-  どのアートボードにも載っていない場合はアクティブアートボードを基準にします。
-- ［アートボード］は移動・複製ともオブジェクトの階層（所属レイヤー・グループ）を変更しません。
-  座標を移動するだけです。
-- ［ドキュメント］は保存済みのドキュメントでのみ実行できます。未保存・変更ありの場合は
-  ディスク上の状態と画面上の状態がずれるため、警告を表示して終了します。
-- ［ドキュメント］の複製は「temp-元のファイル名」で元ファイルと同じ場所に作成します。
-  同名のファイルがある場合は連番を付けます。
-- 重ね順はレイヤーとコンテナ内の並び順（zOrderPosition）を基準に並べ替えてから移動します。
-  グループ内のオブジェクトと最前面のオブジェクトが混在する選択では、
-  完全な重ね順の再現にならない場合があります。
-- 移動に失敗して新規レイヤーが空のままになった場合は、そのレイヤーを削除します。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Creates a new layer, a new artboard or a new document from the selected objects.
-What to create is chosen with radio buttons in a dialog.
+Creates a new layer, a new artboard, or a new document from the selected objects.
+Which one is produced is chosen with radio buttons in the dialog.
 
-### Key features
-
-- Dialog to choose what to create (Layer / Artboard / Document)
-- A Duplicate checkbox controls whether the original objects are kept
-- Layer: creates a new layer holding every selected object
-  - Avoids duplicate layer names ("New Layer", "New Layer 2", ...)
-  - Keeps the original stacking order as far as possible
-  - Selects the items that ended up on the new layer
-- Artboard: creates a new artboard from the selection
-  - Analyzes the existing layout (rows/columns) and inherits its pitch and column count
-  - Shifts trailing artboards and their artwork so the layout stays intact
-  - Matches the active artboard's size and keeps the relative position
-- Document: creates a new document from the selection
-  - Copies the source file to build the duplicate (the source document is untouched)
-  - Removes everything but the selection, and every artboard but the current one
-  - Swatches, symbols and document settings carry over as-is
-- Japanese / English localized UI
-
-### Notes
-
-- Duplicate applies to Layer and Artboard only. Document always keeps the original
-  document, so the checkbox is dimmed for it.
-- Shows an alert and exits when no document is open or nothing is selected.
-- The new layer is created at the top of the Layers panel.
-- The artboard insert position and direction are set by ARTBOARD_INSERT_AFTER_CURRENT and
-  ARTBOARD_DIRECTION_AXIS. Spacing is inferred from the existing layout, falling back to
-  the preference value when there are fewer than two artboards.
-- Artboard mode anchors on the artboard holding the selection's center, falling back to the
-  active artboard, and only translates the objects — their layer/group nesting is unchanged.
-- Document mode requires a saved document with no unsaved changes; otherwise the copy on disk
-  would differ from what is on screen, so it alerts and exits.
-- The duplicate is written next to the source file as "temp-<original name>", with a numeric
-  suffix when that name is taken.
-- Items are sorted by layer and container stacking order (zOrderPosition) before moving.
-  A selection that mixes grouped items with top-level items may not reproduce the
-  original order exactly.
-- If the move fails and the new layer stays empty, the layer is removed.
+See the README for details.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "SelectionToNew";               /* スクリプト名 / script name */
+var SCRIPT_NAME     = "new";                          /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-29";                   /* 更新日 / last updated */
 
 // README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionToNew.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/new.md
 // README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionToNew.md
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/new.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

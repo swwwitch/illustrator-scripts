@@ -2,23 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-FontSampler.jsx
 
-### 概要 / Overview：
-- 入力したテキストを、インストールされているフォントで表示
-- 指定したモードに応じて、30個／アートボードいっぱい／すべてのフォントを適用
-- アートボードに収まらない場合、「すべて」モードでは新しいアートボードを自動追加
+### 概要
 
-### 主な機能 / Key Features：
-- ダイアログボックスでテキストを入力
-- ラジオボタンで表示モードを選択
-- フォントをグリッド状に配置
-- 「すべて」モード時にプログレスバー表示
+入力したテキストを、インストールされているフォントで並べて表示します。
+30個ぶん／アートボードいっぱい／すべてのフォント、の3モードから選べます。
 
-### 更新履歴 / Update History：
-- v1.0 (20250806) : 初版リリース
+詳細は README を参照してください。
+
+### Overview
+
+Lays out the text you type in each of the installed fonts.
+Three modes are available: 30 fonts, as many as fit the artboard, or every font.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FontSampler";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontSampler.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontSampler.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     try {

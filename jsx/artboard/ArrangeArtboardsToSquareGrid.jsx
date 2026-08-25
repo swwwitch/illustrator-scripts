@@ -1,22 +1,40 @@
 #target illustrator
 
-/* ============================================================
- * アートボードを正方形グリッドに整列 / Arrange Artboards into a Square Grid
- *
- * 複数のアートボードを、全体の外形ができるだけ正方形（縦横比 1:1）
- * に近づく行列で再配置する。各アートボード内のアートワークも一緒に
- * 移動する。グリッドはカンバス中央に配置される。
- *
- * Re-lays out every artboard so the whole grid's outline is as
- * close to a square as possible, and moves each artboard's
- * artwork together with it. The grid is centered on the canvas.
- * ============================================================ */
+/*
 
-var SCRIPT_VERSION = "v1.0";
+### 概要
 
-// ============================================================
-// ローカライズ / Localization
-// ============================================================
+複数のアートボードを、全体の外形ができるだけ正方形に近づく行列で再配置します。
+各アートボード内のアートワークも一緒に移動し、グリッドはカンバス中央に配置します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Re-lays out every artboard so the whole grid's outline is as close to a square as possible.
+Each artboard's artwork moves with it, and the grid is centered on the canvas.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ArrangeArtboardsToSquareGrid"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeArtboardsToSquareGrid.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeArtboardsToSquareGrid.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var L = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
 var LABELS = {

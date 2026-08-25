@@ -1,30 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+### 概要
+
+選択したテキストフレーム内の数字や英字を検出し、指定した数だけ下方向へ複製しながら値を増分します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Finds the digits or letters in the selected text frame and duplicates it downwards the number of times you ask for, incrementing the value each time.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartIncrementText";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-20";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartIncrementText.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
-    /* =========================================
-     * 連番複製スクリプト / Duplicate Text With Increment Numbers
-     * Version: v2.0.0
-     *
-     * 概要:
-     * - 選択したテキストフレーム内の数字/英字を検出し、指定数だけ下方向へ複製して増分
-     * - 日付/時刻は暦として正しい増減（繰り上がり/うるう年）＋曜日追従に対応
-     * - 英字増分は「1文字（A〜Z/a〜z）」のみ対応（例: A1 はOK / AB1, Ver1 の英字は対象外）
-     * - プレビューは常時ON。プレビューで増えたUndoをカウントし、閉じる/確定時に一括Undoで戻す
-     * - ダイアログ位置を記憶して次回復元
-     * ========================================= */
-
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SmartIncrementText";           /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-02-20";                   /* 更新日 / last updated */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
 
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";

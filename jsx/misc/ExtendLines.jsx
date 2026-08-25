@@ -3,31 +3,40 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "ExtendLinesEngine"
 
 /*
-概要 / Overview
-- 選択オブジェクト内のパス（グループ／複合パス含む）から隣接アンカーポイントのペアを取り、補助線として「直線を描画範囲いっぱいに延長した線」を描画します。
-- 「直線」チェックONのときは直線セグメントのみ、OFFのときは曲線セグメントのみを対象にします（曲線は必要に応じて「円弧から円」側で処理）。
-- 選択がアクティブアートボードと交差しない場合、選択の外接幅A・高さBを基準に中心に矩形P（幅A×4、高さB×4）を想定し、その矩形内で延長線を描画します。
-- オプション「円弧から円」：Bezier曲線セグメントから円を推定して円を作成します。正確な円弧でない場合は「円弧オプション」で、無視／直線（弦）／直線（延長）を選べます。
-- 線幅は「線（strokeUnits）」の単位に追従し、内部では pt に変換して適用します（デフォルトは 0.1mm 相当）。
-- プレビューONで、ダイアログを閉じる前に一時レイヤーへプレビュー描画し、終了時に自動で消去します。
-- オプション「別レイヤーに」ONのときは `_construction` レイヤーへ出力します。選択が `_construction` 上にある場合は既存 `_construction` を `_construction_backup...` に退避し、新しい `_construction` を作成します（元オブジェクトは消しません）。
-- 再実行時は、このスクリプトが生成したオブジェクト（マーカー付き）のみを削除して更新します。
 
-Overview
-- From selected paths (including groups/compound paths), the script takes adjacent anchor pairs and draws auxiliary lines by extending the straight line to fill the drawing bounds.
-- When “Straight” is ON, only straight segments are processed; when OFF, only curved segments are processed (curves can be handled via the “Create circle from arc” option).
-- If the selection does not intersect the active artboard, a rectangle P centered on the selection bounds is used instead (width A×4, height B×4), and lines are extended within P.
-- Option “Create circle from arc”: estimates a circle from Bezier curve segments and creates circles. If a segment is not a perfect arc, the “Arc options” fallback can be set to Ignore / Straight (chord) / Straight (extend).
-- Stroke width follows Illustrator’s strokeUnits and is applied internally in pt (default is equivalent to 0.1mm).
-- With Preview ON, output is rendered into a temporary preview layer while the dialog is open and removed automatically when the dialog closes.
-- When “Separate layer” is ON, output goes to `_construction`. If the selection is on `_construction`, the existing layer is renamed to `_construction_backup...` and a new `_construction` layer is created (original objects are preserved).
-- On re-run, only script-generated objects (marked) are cleared and regenerated.
+### 概要
 
-作成日 / Created: 2026-02-27
-更新日 / Updated: 2026-02-28
+選択オブジェクト内のパス（グループ／複合パスを含む）から隣接するアンカーポイントのペアを取り、補助線として「直線を描画範囲いっぱいに延長した線」を描画します。
+［円弧から円］でBezier曲線セグメントから円を推定することもできます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Takes pairs of adjacent anchor points from the paths in the selection — groups and compound paths included — and draws each as a construction line extended across the drawing area.
+The "arc to circle" option can also estimate a circle from a Bézier segment.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ExtendLines";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-28";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExtendLines.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExtendLines.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var SCRIPT_MARKER = "__ExtendLines__";
 
 function getCurrentLang() {
@@ -74,8 +83,6 @@ function L(key) {
     if (!v) return key;
     return v[lang] || v.en || v.ja || key;
 }
-
-
 
 /* セッション保持（Illustrator終了で破棄） / Session-only state (forgotten when Illustrator quits) */
 var __EXTENDLINES_SESSION__ = (typeof __EXTENDLINES_SESSION__ !== "undefined") ? __EXTENDLINES_SESSION__ : {};
@@ -128,7 +135,6 @@ function getPtFactorFromUnitCode(code) {
         default: return 1.0;
     }
 }
-
 
 function getStrokeUnitLabel() {
     var code = getStrokeUnitCode();
@@ -932,8 +938,6 @@ function clearGeneratedItemsInLayer(layer) {
         }
     } catch (_) { }
 }
-
-
 
 // 2つのアンカーポイント間が直線（ハンドルが出ていない）かどうかを判定する関数
 function isStraightSegment(pt1, pt2) {

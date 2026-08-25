@@ -2,20 +2,38 @@
 
 /*
 
-# スクリプトの概要
+### 概要
 
-アクティブなアートボードを PNG24 形式で書き出します。
+アクティブなアートボードを、解像度200%・背景白のPNG24として、ドキュメントと同じフォルダーへ書き出します。
+書き出し中は「Guides Preview for Trim View」レイヤーを一時的に非表示にします。
 
-- 解像度 200%、アートボードでクリップ、アンチエイリアスあり
-- 背景は白に固定（透過なし）
-- 保存先はドキュメントと同じフォルダ、ファイル名は「ドキュメント名.png」形式
-- 書き出し中は「Guides Preview for Trim View」レイヤーを一時的に非表示にし、完了後に再表示
-- 書き出し後、Mac では保存フォルダを Finder で自動的に開く
-- 最後に書き出したファイルのパス（exportFolder + exportFileName）を return
+詳細は README を参照してください。
 
-作成日：2025-04-22
+### Overview
+
+Exports the active artboard as a PNG24 at 200% scale on a white background, into the same folder as the document.
+The "Guides Preview for Trim View" layer is hidden while the export runs.
+
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "export200";                    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-22";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-04-22";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/export200.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export200.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 main();
 

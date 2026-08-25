@@ -2,45 +2,40 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-Script: CollectGuides.jsx
 
-目的 / Purpose:
-- 複数レイヤー/サブレイヤーに散在するガイドを新規レイヤー（デフォルト: "// guide"）に集約します。
-- 非表示/ロックされたレイヤーやガイドも対象。処理中は一時解除し、終了後に元の状態へ復元します。
+### 概要
 
-概要 / Overview:
-- 全レイヤー（サブレイヤー含む）を再帰的に走査し、ガイド（pageItem.guides === true）をターゲットレイヤーへ移動。
-- レイヤー/アイテムの locked・visible・hidden を退避→復元。
-- 大規模ドキュメント向けの最適化（対象限定スキャン / Redraw抑制）を搭載。
+複数のレイヤーやサブレイヤーに散在するガイドを、1つのレイヤー（既定は「// guide」）へ集約します。
+非表示・ロックされたレイヤーのガイドも一時解除して対象にし、処理後に元の状態へ戻します。
 
-主な機能 / Features:
-- ガイドの一括収集 / Collect all guides into a single layer
-- 非表示/ロック状態のガイド・レイヤーにも対応 / Handles hidden/locked guides and layers
-- ターゲットレイヤー名を定数で変更可能 / Target layer name configurable
-- 実行後のガイド表示/ロック状態の復帰オプション / Optional restore of global guide show/lock
-- Redraw抑制オプション / Optional redraw suppression
+詳細は README を参照してください。
 
-使い方 / How to use:
-- ドキュメントを開いて実行（対象はアクティブドキュメント）。
-- 既にターゲットレイヤーが存在する場合は再利用。
+### Overview
 
-仕様 / Specs:
-- グローバルの「表示 > ガイドを表示」「表示 > ガイドをロック解除」を一時的に実行（showGuides / unlockGuides）。
-- すべてのレイヤーとサブレイヤーを再帰的に走査し、ガイド（pageItem.guides === true）を移動。
-- レイヤーとアイテムの locked / visible / hidden 状態は退避→復元。
+Collects guides scattered across layers and sublayers into a single layer ("// guide" by default).
+Hidden and locked layers are unlocked temporarily so their guides are included, then restored afterwards.
 
-更新履歴 / Changelog:
-- v1.0 (20250816): 初版。ガイド集約、再帰走査、ロック/可視状態の復元を実装。
-- v1.1 (20250816): 対象限定スキャンを追加。事前に「ガイドを含むレイヤーのみ」絞込んで処理。
-- v1.2 (20250816): 実行後に「ガイド表示/ロック」を任意状態へ復帰できる設定を追加（自動検出はAPI制約により非対応）。
-- v1.3 (20250816): ターゲットレイヤー名を定数 `TARGET_GUIDE_LAYER_NAME` で切替可能に。
-- v1.4 (20250816): Redraw抑制オプションを追加（処理前後で Preview トグル／最後に app.redraw() 1回）。
+See the README for details.
+
 */
 
-// ===== 設定 / Settings =====
-// 実行後にグローバルの「ガイド表示/ロック」状態を所望の状態へ復帰するか
-// Restore global guide visibility/lock after processing.
-// null の場合は復帰しません（現状維持）。
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "CollectGuides";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-16";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CollectGuides.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CollectGuides.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var RESTORE_GUIDES_VISIBILITY /* 'show' | 'hide' | null */ = null;
 var RESTORE_GUIDES_LOCK /* 'lock' | 'unlock' | null */ = null;
 // ============================

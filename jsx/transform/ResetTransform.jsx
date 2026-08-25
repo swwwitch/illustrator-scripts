@@ -5,92 +5,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-ResetTransform.jsx（回転／シアー／スケール／縦横比のリセット）
+配置画像・テキスト・長方形・クリップグループ・直線パスに対して、回転／シアー／スケール／縦横比を安全にリセットします。
+バウンディングボックスのリセットと左上基準の再配置により、見た目の位置を保ちます。
 
-### 概要：
+詳細は README を参照してください。
 
-- 配置画像・テキスト・長方形（パス）・クリップグループ・直線パスに対して、回転／シアー（せん断）／スケール／縦横比を安全にリセットします。
-- BBox リセットと左上基準の再配置により、見た目の位置を安定して維持します。
+### Overview
 
-### 主な機能：
+Safely resets rotation, shear, scale and aspect ratio on placed images, text, rectangles, clipping groups and straight paths.
+The bounding box is reset and the item is repositioned from its top-left corner so that its apparent position is preserved.
 
-- **配置画像／ラスタ**：回転・シアー・縦横比（小さい軸を大きい軸へ揃え、％は四捨五入の整数）・反転（上下／左右）・スケール（指定％、下限20%）の個別／同時リセット。
-- **テキスト**：回転・シアー・水平／垂直比率（100%）のリセット。
-- **長方形（4点パス）**：近傍角度（±44°以内）をスナップして回転を0°/90°へ補正。
-- **直線（2点パス）**：近傍軸（0°/90°）へスナップして補正。
-- **クリップグループ**：子要素（配置/ラスタ **＋ マスクパス**）の回転・反転リセット＋縦横比（配置画像から導出した等比化Δを、配置画像とマスクパスに同時適用）。
-- **UI**：2カラム、対象別パネル、ホットキー（S=スケール／F=反転）、スケール数値入力（↑↓=±1／Shift+↑↓=10刻み）、ダイアログ位置/透明度の記憶。
-
-### 処理の流れ：
-
-1) ドキュメント／選択を確認し、選択内容を解析して対応パネルを自動ディム表示。
-2) パネルで操作項目を選択 → ［リセット］。
-3) 各ハンドラが変形を適用 → BBox リセット → 左上基準で再配置。
-4) 処理後、開始時の選択状態を復元。
-
-### 謝辞：
-
-フジタノリアキさん
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n52f6b645bc70
-
-### 更新履歴：
-
-- v1.6.0 (20260708) : ↑↓キーの小数（0.1）刻みを廃止し整数のみに。スケール％の下限を 20% に変更。長方形の回転補正を最大44°まで拡大＋BBoxリセット化、実行後に元の選択を復元、ドキュメント未オープン時のガードを追加。
-- v1.5.1 (20260708) : 内部整理（IIFE化、共通ローカライズ L 関数と LABELS のカテゴリ構造化、共通UIレイアウト setupPanel、未使用コード削除、変数・関数名の明確化）。挙動は v1.5 と同等。
-- v1.5 (20250818) : 反転（上下／左右）の対応を追加
-- v1.4 (20250817) : クリップグループの縦横比（配置画像＋マスクパスへ同時適用）を実装。複合パス・ネストに対応し、変形の確実性を向上。
-- v1.3 (20250817) : 配置/ラスタの［縦横比］オプションを追加（100%/100% 基準の等比化、整数％丸め）。
-- v1.2 (20250816) : スケール％入力とホットキー、選択内容によるパネル自動ディム、安定化（atan2・EPS 集約）。
-- v1.1 (20250810) : クリップグループ回転の子要素処理、2カラムUI、最大面積代表子選定。
-- v1.0 (20250805) : 初期バージョン（基本機能、ダイアログ、配置/ラスタ/テキスト/長方形対応）。
-
-*/
-
-/*
-
-### Script Name:
-
-ResetTransform.jsx (Reset Rotate / Shear / Scale / Aspect Ratio)
-
-### Overview:
-
-- Safely resets rotation / shear / scale / aspect ratio for Placed Images, Text, Rectangles (paths), Clip Groups, and straight Paths.
-- Keeps visual position stable via BBox reset and top-left recentering.
-
-### Key Features:
-
-- **Placed/Raster**: Reset rotation, shear, aspect ratio (lift smaller axis to the larger; integer-rounded percent), flip (horizontal/vertical), and absolute scale (percent, min 20%), individually or together.
-- **Text**: Reset rotation, shear, and horizontal/vertical scaling ratios (100%).
-- **Rectangle (4-point path)**: Snap near angles (within ±44°) to 0°/90°.
-- **Line (2-point path)**: Snap to nearest axis (0°/90°).
-- **Clip Group**: For children (placed/raster **and** clipping path), reset rotation and flip, and equalize aspect ratio; the uniformizing delta derived from the placed image is applied **to both** the placed image and the clipping path simultaneously. Supports nested groups and compound paths.
-- **UI**: Two-column panels per target, hotkeys (S = Scale, F = Flip), scale nudge (↑↓ ±1, Shift+↑↓ by 10), remembered dialog position/opacity.
-
-### Flow:
-
-1) Check document/selection, analyze it, and dim unsupported panels.
-2) Choose operations → Reset.
-3) Apply transforms per handler → reset BBox → recenter to top-left.
-4) Restore the original selection afterward.
-
-- Scale input supports Arrow keys: ↑↓ ±1, Shift+↑↓ snaps by 10.
-- Angle snap tolerance configurable via `CONFIG.rectSnapMin` / `CONFIG.rectSnapMax`.
-
-### Changelog:
-
-- v1.6.0 (20260708): Removed 0.1 decimal step on Up/Down keys (integer only). Scale % minimum changed to 20%. Rectangle rotation correction widened to 44° with BBox reset, original selection restored after run, and a guard for when no document is open.
-- v1.5.1 (20260708): Internal cleanup (IIFE wrapper, shared localization via L() and categorized LABELS, shared panel layout via setupPanel, dead-code removal, clearer variable/function names). Behavior unchanged from v1.5.
-- v1.5 (20250818): Added Flip (horizontal/vertical) support.
-- v1.4 (20250817): Implemented Clip Group aspect-ratio equalization (applies same delta to placed image + clipping path). Added nested/compound support and improved robustness.
-- v1.3 (20250817): Added Placed/Raster "Aspect Ratio" option (equalization with integer rounding).
-- v1.2 (20250816): Added Scale % input & hotkeys, selection-aware panel dimming, stability improvements (atan2 & EPS consolidation).
-- v1.1 (20250810): Clip group child-wise rotation, two-column UI, largest-area child picking.
-- v1.0 (20250805): Initial release (core features, dialog, placed/raster/text/rect).
+See the README for details.
 
 */
 
@@ -100,8 +27,14 @@ ResetTransform.jsx (Reset Rotate / Shear / Scale / Aspect Ratio)
 var SCRIPT_NAME     = "ResetTransform";               /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2025-08-05";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-08";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetTransform.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetTransform.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

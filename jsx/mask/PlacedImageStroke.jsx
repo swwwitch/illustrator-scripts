@@ -1,6 +1,39 @@
 #target illustrator
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
+/*
+
+### 概要
+
+選択した配置画像に、アピアランスとしてケイ線を追加します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Adds a stroke to the selected placed images as an appearance.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "PlacedImageStroke";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PlacedImageStroke.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PlacedImageStroke.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 function main() {
     if (app.documents.length === 0) {
         alert("ドキュメントが開かれていません。");
@@ -157,7 +190,6 @@ function main() {
     btns.orientation = 'row';
     btns.alignChildren = ['center', 'center'];
     btns.alignment = 'center';
-
 
     var cancelBtn = btns.add('button', undefined, 'キャンセル', { name: 'cancel' }); var okBtn = btns.add('button', undefined, 'OK', { name: 'ok' });
 

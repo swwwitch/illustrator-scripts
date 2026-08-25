@@ -2,79 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-SmartVerticalAlign
+### 概要
 
-### GitHub：
+ポイント文字およびエリア内文字に対して、［字形の境界に整列］を制御します。
+整列位置（上・中央・下）はプレビューで即時に確認でき、T / M / B キーでも操作できます。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartVerticalAlign.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- ポイント文字およびエリア内文字に対して［字形の境界に整列］を制御するスクリプト
-- 整列位置（上・中央・下）をプレビューで即時確認可能
+Controls "align to glyph bounds" for point text and area text.
+The alignment — top, middle or bottom — is shown in an immediate preview and can also be driven with the T, M and B keys.
 
-### 主な機能：
-
-- ポイント文字／エリア内文字に対応
-- 「プレビュー境界」のON/OFFで境界基準を切替
-- キー入力（T/M/B）で整列を操作可能
-- ダイアログ位置・透明度の調整機能
-
-### 処理の流れ：
-
-1. 選択中のオブジェクトからTextFrameを検出
-2. チェックボックスで字形境界整列のON/OFFを設定
-3. ラジオボタンまたはキー入力で整列方向を指定
-4. プレビュー境界ON/OFFに応じてジオメトリ境界／プレビュー境界を適用
-5. プレビューで即時に反映
-
-### 更新履歴：
-
-- v1.0 (20250804) : 初期バージョン
-- v1.1 (20250804) : ダイアログボックスを開くときのロジックを調整
+See the README for details.
 
 */
 
-/*
-### Script Name:
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartVerticalAlign";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-04";                   /* 更新日 / last updated */
 
-SmartVerticalAlign
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartVerticalAlign.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartVerticalAlign.md
 
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartVerticalAlign.jsx
-
-### Overview:
-
-- Controls "Align to Glyph Bounds" for Point Text and Area Text
-- Provides instant preview of alignment (Top / Center / Bottom)
-
-### Key Features:
-
-- Supports Point Text and Area Text
-- Toggles between Preview Bounds and Geometric Bounds
-- Allows T/M/B keyboard shortcuts for alignment
-- Adjusts dialog position and opacity
-
-### Workflow:
-
-1. Detect TextFrames from current selection
-2. Configure Glyph Bounds alignment via checkboxes
-3. Specify alignment direction with radio buttons or keyboard shortcuts
-4. Apply Geometric or Preview Bounds based on checkbox
-5. Reflect instantly with preview
-
-### Update History:
-
-- v1.0 (20250804): Initial version
-- v1.1 (20250804): Adjusted dialog opening logic
-
-*/
-
-// スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.1";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // 現在のUI言語を取得 / Get the current UI language
 function getCurrentLang() {

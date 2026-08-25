@@ -3,36 +3,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-SplitBackgroundForTwo
 
-### 更新日：
-20260314
+### 概要
 
-### 概要：
-1つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、そのオブジェクトの外接矩形を左右または上下に2分割し、背面に2色の背景を作成します。
-プレビューは専用レイヤーに描画して差し替え、［OK］時に図形や線が二重に作成されないようにします。
+1つのオブジェクトを選択して実行すると、その外接矩形を左右または上下に2分割し、背面に2色の背景を作成します。
+［バランス］パネルで、左右（または上下）の幅と比率を数値入力とスライダーで調整できます。
 
-［分割方法］で「左右／上下」を選択できます。
-［バランス］パネルでは、左・右（または上・下）の幅と比率を数値入力およびスライダーで調整できます。
+詳細は README を参照してください。
 
-［線］では外枠と区切り線の有無、線幅、線色を指定できます。
-［オプション］では角丸やピル形状を指定できます。
-カラー指定は RGB / CMYK / グレーに対応したカラーピッカーから行えます。
-プリセットの保存・呼び出し・書き出しにも対応しています。
+### Overview
 
-テキストのサイドベアリング等によるズレを減らすため、
-一時的にテキストをアウトライン化して外接矩形を計算し、計算後すぐに一時生成物を削除します。
-その上で背景長方形を選択オブジェクトの背面に配置し、ダイアログ内でリアルタイムにプレビュー表示します（元のオブジェクトは変更しません）。
+With a single object selected, splits its bounding box left/right or top/bottom and creates a two-color background behind it.
+The Balance panel adjusts the width and ratio of each half with a field and a slider.
 
-［幅］入力欄では、↑↓キーで±1、Shift+↑↓で±10（10刻みスナップ）、Option+↑↓で±0.1 の増減が可能です。
+See the README for details.
 
-### 更新履歴：
-- v2.9.2 (20260314) : バージョン表記と更新日を更新。
 */
 
-// --- Version / バージョン ---
-var SCRIPT_VERSION = "v2.9.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SplitForTwo";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.9.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-14";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-14";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // --- Dialog UI prefs / ダイアログUI設定 ---
 var DIALOG_OPACITY = 0.98;
@@ -1695,7 +1698,6 @@ function saveSessionDialogPosition(dlg) {
         clearAnchorSelection(pathItem);
     }
 
-
     // --- 背景を置くターゲットレイヤーの決定 ---
     function getLayerIndex(doc, layer) {
         for (var i = 0; i < doc.layers.length; i++) {
@@ -2264,7 +2266,6 @@ function saveSessionDialogPosition(dlg) {
             };
         }
 
-
         function buildFillPanel(parent) {
             var panel = parent.add('panel', undefined, L('panelFill'));
             panel.orientation = 'column';
@@ -2364,7 +2365,6 @@ function saveSessionDialogPosition(dlg) {
             pillRow.alignChildren = ['left', 'center'];
             var cbCornerAutoLocal = pillRow.add('checkbox', undefined, L('labelPillShape'));
             cbCornerAutoLocal.value = (ss.cornerAuto !== undefined) ? !!ss.cornerAuto : false;
-
 
             var linkRow = panel.add('group');
             linkRow.orientation = 'row';
@@ -2942,7 +2942,6 @@ function saveSessionDialogPosition(dlg) {
             vPt = Math.round(vPt * 10) / 10;
             return vPt;
         }
-
 
         function parseWidthOffset() {
             var vUnit = Number(slWidth.value);

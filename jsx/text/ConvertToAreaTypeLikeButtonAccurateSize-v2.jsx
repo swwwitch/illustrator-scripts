@@ -5,68 +5,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストを、選択内容に応じて双方向に変換する。
+選択したテキストを、選択内容に応じて双方向に変換します。
+ポイント文字・パス上文字・図形＋テキストからエリア内文字へ、またその逆に変換します。
 
-- ポイント文字・パス上文字 → 見た目と実寸を保ったままエリア内文字へ
-- エリア内文字 → ポイント文字へ
-
-処理の流れ（ポイント文字・パス上文字 → エリア内文字）：
-
-1. パス上文字はいったんポイント文字へ分離（字形・属性は保持）
-2. 変換前に、テキストの見た目をグラフィックスタイルとして一時登録（ダイナミックアクション）
-3. 複製→アピアランス分割→アウトラインで計測した実寸の長方形フレームを作り、エリア内文字に変換
-4. 元テキストの内容・フォント・サイズ・カーニング・文字組みアキ量設定を引き継ぐ
-5. 登録したグラフィックスタイルを適用し、その一時スタイルを削除
-6. 行揃え（水平）・テキストの配置（垂直）は常に中央
-
-処理の流れ（エリア内文字 → ポイント文字）：
-
-1. エリア文字の幅・高さを取得（幅A、高さB）
-2. convertAreaObjectToPointObject() でポイント文字へ変換
-3. 複製→アウトライン化で文字の実寸を計測（幅D、高さE）し、複製は破棄
-4. ［形状に変換：長方形］効果を付与。幅に追加 = A − D、高さに追加 = B − E として、元のフレーム実寸の長方形を再現
-
-#### 補足
-
-- 選択にエリア内文字が含まれる場合は逆変換（→ ポイント文字）、含まれない場合は順変換（→ エリア内文字）として扱う。
-- フレームサイズは、複製→アピアランス分割→アウトラインで計測した実寸を基準に決定する。
-- 縦方向の中央配置とグラフィックスタイル登録にはダイナミックアクションを使用する。実行時に一時的に読み込み、終了時に自動で破棄するため、アクションパネルに残骸は残らない。
+詳細は README を参照してください。
 
 ### Overview
 
-Convert the selected text in either direction, based on the selection.
+Converts the selected text in both directions, depending on what is selected.
+Point text, text on a path, or a shape plus text become area text, and area text goes back the other way.
 
-- Point / path text → area type, preserving appearance and real size.
-- Area type → point text.
-
-Flow (point / path text → area type):
-
-1. Path text is first detached into point text (glyphs and attributes preserved).
-2. Before converting, register the text's appearance as a temporary graphic style (dynamic action).
-3. Build a rectangle frame at the real size measured via duplicate → expand appearance → create outlines, then convert it to area type.
-4. Carry over the source text's contents, font, size, kerning, and mojikumi settings.
-5. Apply the registered graphic style, then remove the temporary style.
-6. Justification (horizontal) and text placement (vertical) are always centered.
-
-Flow (area type → point text):
-
-1. Read the area text's width and height (width A, height B).
-2. Convert to point text via convertAreaObjectToPointObject().
-3. Measure the text's real size (width D, height E) via duplicate → create outlines, then discard the copy.
-4. Apply the Convert-to-Shape (Rectangle) effect with extra width = A − D and extra height = B − E, reproducing a rectangle at the original frame size.
-
-#### Notes
-
-- If the selection contains area type, it is treated as the reverse conversion (→ point text); otherwise as the forward conversion (→ area type).
-- Frame size is based on the real size measured via duplicate → expand appearance → create outlines.
-- Vertical centering and graphic-style registration use dynamic actions that are loaded temporarily and removed automatically on exit, so nothing is left behind in the Actions panel.
+See the README for details.
 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_NAME     = "ConvertToAreaTypeLikeButtonAccurateSize-v2"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButtonAccurateSize-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButtonAccurateSize-v2.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

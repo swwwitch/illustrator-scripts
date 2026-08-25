@@ -2,44 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-slide-collage
 
-### 更新日：
-20260318
+### 概要
 
-### 概要：
-アクティブなドキュメント上で、指定した .ai / .pdf（PDFはページ指定）をグリッド配置し、ポートフォリオ用のサムネイル一覧を作成します。
+指定した .ai / .pdf ファイルをグリッド配置し、ポートフォリオ用のサムネイル一覧を作成します。
+読み込むアートボード番号やページを指定できます。
 
-・読み込み：アートボード番号（例 1-20 / 1,3,5）を指定して配置
-・アイテム：PDFの配置範囲（アート/トリミング/仕上がり/裁ち落とし）を選択、角丸（pt換算）を適用
-  - 各アイテムは同サイズの矩形でクリップグループ化し、角丸（ライブエフェクト）はクリップグループに適用
+詳細は README を参照してください。
 
-・グリッド：方向（横/縦/ランダム）、列数、間隔を設定
-・偶数列：配分モード（偶数列＋1）で偶数列に+1スロットを追加、ずらし（偶数列の上下オフセット）を個別調整
-・レイアウト：スケール（自動フィット結果に対する追加倍率）、回転（全体を回転し中心をアートボード中心に合わせる）、位置調整（横/縦）
+### Overview
 
-・マスク：OK時にマージン内側でクリッピング
-  - マスク角丸を設定可能（クリップグループに適用）
+Lays out the .ai and .pdf files you choose in a grid to build a portfolio-style thumbnail sheet.
+The artboards or pages to import can be specified by number.
 
-・アートボード：背景色（HEX指定）を追加可能（マスク対象外）
-
-変更操作の多くはリアルタイムプレビュー（debounce 120ms）で確認できます（読み込みのアートボード番号変更は対象外）。
-数値入力欄は ↑↓ / Shift / Option で増減できます。
-
-・内部構造を整理し、main() 内のページ数処理・入力補助・プレビューキャッシュ補助を関数へ分離して保守しやすくしました。
-
-オリジナルアイデア
-Slide Collage - Portfolio Layout Generator -
-https://slide-collage.vercel.app/
+See the README for details.
 
 */
 
 // =========================================
-// Version & Localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.5";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -148,7 +143,6 @@ if (typeof safeAlertKey === "undefined") {
     };
 }
 
-
 // =========================================
 // Unit utilities (rulerType)
 // =========================================
@@ -227,7 +221,6 @@ function __SC_ptToUnit(pt, factor) {
     if (!(factor > 0)) factor = 1;
     return pt / factor;
 }
-
 
 function __SC_unitToPt(val, factor) {
     if (!(factor > 0)) factor = 1;
@@ -451,7 +444,6 @@ function __SC_setPdfCropPreference(cropVal) {
     }
 }
 
-
 // Placing .ai in Illustrator uses the PDF import pipeline as well (AI is PDF-compatible),
 // so we treat .ai as "PDF-like" for page/artboard selection.
 function __SC_isPdfLikeFile(f) {
@@ -666,8 +658,6 @@ function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
     };
 }
 
-
-
 // =========================================
 // main() 分散化用ヘルパー
 // =========================================
@@ -779,7 +769,6 @@ function __SC_parsePositiveInt(s) {
         return 0;
     }
 }
-
 
 function __SC_removeItemSafe(it) {
     try { if (it) it.remove(); } catch (_) { }
@@ -911,7 +900,6 @@ function main() {
 
     // 自動フィット（UIは非表示。ロジックは維持して常にON）
     var AUTO_FIT_ENABLED = true;
-
 
     // 2. ダイアログボックスの作成
     var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
@@ -1219,7 +1207,6 @@ function main() {
         etTotal.text = String(v);
     };
 
-
     // --- トリミングパネル（配置範囲：PDF のトリミング設定） ---
     var panelCrop = leftCol.add("panel", undefined, L("panelItem"));
     panelCrop.alignChildren = "left";
@@ -1228,7 +1215,6 @@ function main() {
     // panelCrop.add("statictext", undefined, "トリミング");
     var ddCrop = panelCrop.add("dropdownlist", undefined, [L("cropArt"), L("cropTrim"), L("cropCrop"), L("cropBleed")]);
     ddCrop.minimumSize.width = 160;
-
 
     /* 角丸 / Round corners */
     var groupRound = panelCrop.add("group");
@@ -1258,7 +1244,6 @@ function main() {
     // Initial: try selection
     PC.updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
     initSourceDependentUI();
-
 
     function getTargetPagesFromUI() {
         var specified = String(etRange.text || '');
@@ -1681,7 +1666,6 @@ function main() {
         editMaskRound.enabled = cbMask.value && cbMaskRound.value;
     };
 
-
     // スケール
     var groupScale = panelLayoutRight.add("group");
     groupScale.orientation = "row";
@@ -1737,7 +1721,6 @@ function main() {
     // スケールUIは常に操作可能（自動フィットのロジックは維持）
     editScale.enabled = true;
     sldScale.enabled = true;
-
 
     // 回転（全体を回転）
     var groupRotate = panelLayoutRight.add("group");
@@ -3386,7 +3369,6 @@ function main() {
             return;
         }
 
-
         var finalPages = parsePageNumbers(editPages.text);
         // Repeat pages/artboards when requested count exceeds source count
         try {
@@ -3443,7 +3425,6 @@ function main() {
             }
         }
     }
-
 
     // ダイアログ終了後に選択解除 / Clear selection after closing dialog
     try { doc.selection = null; } catch (eSel) { }

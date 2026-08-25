@@ -3,22 +3,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名
-SmartAlignDistribute.jsx
 
-### 概要 / Overview
-選択オブジェクトを「縦/横」に並べて、指定した間隔で分布します。方向は自動判定も可能で、揃え（左右/上下）、プレビュー境界（visible/geometric）、ランダム並べ替えにも対応します。
-縦並び時にテキストを含む場合、ダイアログ中だけ一度だけ計測用に複製→アウトライン化して高さ（必要に応じて幅も）を計測し、その結果をダイアログ中だけキャッシュします（プレビューのたびに複製しない）。
+### 概要
 
-### オリジナルアイデア
+選択オブジェクトを縦または横に並べ、指定した間隔で分布します。
+方向は自動判定でき、揃え（左右／上下）、プレビュー境界、ランダム並べ替えにも対応します。
 
-John Wundes
-Distribute Stacked Objects v1.1
-https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
+詳細は README を参照してください。
 
-Gorolib Design
-https://gorolib.blog.jp/archives/77282974.html
+### Overview
 
+Lines the selected objects up vertically or horizontally and distributes them at the spacing you specify.
+The direction can be detected automatically, and alignment, preview bounds and random reordering are all supported.
+
+See the README for details.
 
 */
 
@@ -28,12 +26,16 @@ https://gorolib.blog.jp/archives/77282974.html
 var SCRIPT_NAME     = "SmartAlignDistribute";         /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-02-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-02-26";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
 
 (function () {
 

@@ -5,47 +5,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用するモーダルダイアログです。
-- 適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）をラジオボタンで選択します。
-- 「ランダム」はカラーの並びをシャッフルして繰り返し適用、「完全ランダム」は適用先ごとに毎回抽選するため繰り返しがありません。
-- ラジオを変えるたびにライブプレビュー。［OK］で確定、［キャンセル］（Esc）で元に戻します。
-- 開いた時点の選択スウォッチを■で取り込み、それ（スウォッチ名で参照）を適用に使用。1色でも選択があれば優先します。
-- スウォッチ未選択時は自動カラー（CMYK は CM/CY/MY 生成、RGB は既定色）を使用。
-- 「単語」は各行の先頭色が互い違いになるよう配色。
-- モーダルダイアログはメインエンジンで動作するため、DOM 操作を直接実行します（BridgeTalk 委譲なし）。
+選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用するモーダルダイアログです。
+適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）を選べ、変更のたびにライブプレビューします。
 
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n5602f3084d2b
+詳細は README を参照してください。
 
 ### Overview
 
-- A modal dialog that applies swatches or predefined colors to selected objects or text.
-- Choose apply unit (object / character / word / line / paragraph) and order (as-is / reverse / random / fully random) with radio buttons.
-- "Random" shuffles the color list once and cycles through it; "Fully random" draws a color per target, so no sequence repeats.
-- Live preview on every change. [OK] commits the result; [Cancel] (Esc) reverts it.
-- The swatches selected when the dialog opens are captured as chips and used (by swatch name) for applying. Even a single selected swatch is used.
-- When no swatches are selected, auto colors are used (CMYK CM/CY/MY generation, RGB defaults).
-- "Per word" staggers colors so each line starts on a different color.
-- The dialog runs in the main engine, so DOM work is executed directly (no BridgeTalk delegation).
+A modal dialog that applies swatches, or predefined colors, to the selected objects and text.
+The application unit (object, character, word, line or paragraph) and order (as-is, reversed, random or fully random) are selectable, with a live preview on every change.
+
+See the README for details.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AiApplySwatchesToSelection-dialog";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.0";                             /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";        /* 作者 / author */
-var SCRIPT_RELEASED = "";                                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                                   /* 更新日 / last updated */
+var SCRIPT_NAME     = "AiApplySwatchesToSelection-dialog"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiApplySwatchesToSelection-dialog.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiApplySwatchesToSelection-dialog.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 /* CMYK フォールバック生成の設定 / CMYK fallback generation settings */
 var TMK_CMYK_FALLBACK_MAX_TOTAL = 200;    /* 合計上限 C+M / C+Y / M+Y / total channel limit */
 var TMK_CMYK_FALLBACK_MIN_DISTANCE = 35;  /* 近似色回避の最小距離 / min distance to avoid similar colors */

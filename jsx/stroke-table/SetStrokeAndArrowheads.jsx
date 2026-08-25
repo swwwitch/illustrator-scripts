@@ -5,57 +5,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択したオブジェクトの線幅と矢印（始点／終点の形状・倍率・先端位置）をまとめて設定します。
-- 矢印は Illustrator の DOM から操作できないため、一時アクション（ai_plugin_setStroke）を生成して実行します。
-- ダイアログでプレビューできます。線幅は DOM で即時反映、矢印を含む設定はアクション実行＋取り消しで反映します。
+選択したオブジェクトの線幅と矢印（始点／終点の形状・倍率・先端位置）をまとめて設定します。
+矢印はDOMから操作できないため、一時アクションを生成して実行します。
 
-### 処理の流れ
-
-1. ドキュメントと選択オブジェクトの有無を確認
-2. ダイアログで線幅・矢印・先端位置を入力（プレビュー可）
-3. 入力値から .aia（アクション）ソースを生成
-4. 一時ファイルとして書き出し → 読み込み → 実行 → 破棄
-
-### 注意
-
-- 矢印名・先端位置名は Illustrator の UI 表示名と一致している必要があります（言語に依存）。
-- 矢印の倍率キー（asc1 / asc2）は推定値です。
-
----
+詳細は README を参照してください。
 
 ### Overview
 
-- Sets stroke width and arrowheads (shape, scale and tip alignment for both ends) of the selection at once.
-- Arrowheads are not exposed to the Illustrator DOM, so a temporary action (ai_plugin_setStroke) is generated and played.
-- The dialog supports preview: stroke width updates through the DOM instantly, arrowhead settings are previewed by playing the action and undoing it.
+Sets the stroke weight and the arrowheads — start and end shape, scale and tip position — on the selected objects.
+Arrowheads cannot be reached from the DOM, so a temporary action is generated and played instead.
 
-### Flow
-
-1. Verify that a document is open and objects are selected
-2. Enter stroke width, arrowheads and tip alignment in the dialog (with preview)
-3. Build an .aia (action) source from the entered values
-4. Write it as a temporary file, load, play, then discard it
-
-### Notes
-
-- Arrowhead and tip alignment names must match the Illustrator UI labels (language dependent).
-- The arrowhead scale keys (asc1 / asc2) are estimated values.
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SetStrokeAndArrowheads";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-07-22";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SetStrokeAndArrowheads.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetStrokeAndArrowheads.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-
-    var SCRIPT_NAME     = "SetStrokeAndArrowheads";       /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-07-22";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
-
-    // =========================================
     // ユーザー設定 / User settings
     // =========================================
 

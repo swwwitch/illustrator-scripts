@@ -4,79 +4,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-PathCleanupTool-v2.jsx
+選択したパス（グループ・複合パスの中も含む）の冗長なアンカー・同座標のアンカー・直線として扱えるベジェハンドルを削除して最適化します。
+［その他］タブからスムーズ化／コーナー化／アンカー追加／アンカー分割も実行できます。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool-v2.md
+### Overview
 
-### 概要：
+Optimizes the selected paths — including those inside groups and compound paths — by removing redundant anchors, coincident anchors and Bézier handles that can be treated as straight.
+The Other tab adds smoothing, cornering, adding anchors and splitting anchors.
 
-- 更新日：2026-03-20
-- 選択したパス（グループ／複合パス内も含む）の冗長アンカー・同座標アンカー・直線扱い可能なベジェハンドルを削除して最適化
-- 「その他」タブからスムーズ化／コーナー化／アンカー追加／アンカー分割も実行可能
-
-### 主な機能：
-
-- 直線上で冗長なアンカーポイントを削除
-- 同じ座標のアンカーポイントを削除
-- 直線として扱えるベジェ区間のハンドルを削除
-- ロック／非表示オブジェクト（親・レイヤー含む）は自動スキップ
-- ダイアログ表示時点の選択を固定し、情報表示と実行対象を一致
-- 許容誤差はアンカー削除用とハンドル削除用で個別に調整可能
-- スムーズ化は前後アンカーが同一点や極端に近い場合のガード付き
-- オープンパス端点は循環参照せず自然な接線方向を使用
-- 角度差・長さ差が大きい場合はハンドル長を抑えて破綻を抑制
-- 実処理中の例外は UI 系の保存復元と分離して最小限ログ出力
-
-### 更新履歴：
-
-- v1.4.1 (2026-03-20) : 現行版
-
-*/
-
-/*
-
-### Script Name:
-
-PathCleanupTool-v2.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool-v2.md
-
-### Description:
-
-- Last Updated: 2026-03-20
-- Optimizes selected paths (including inside groups / compound paths) by removing redundant anchors, duplicate-coordinate anchors, and handles on bezier segments that can be treated as straight
-- The "Other" tab can additionally smooth / cornerize / add anchors / split anchors
-
-### Main Features:
-
-- Removes redundant anchors on straight segments
-- Removes duplicate-coordinate anchors
-- Removes handles on bezier segments that can be treated as straight
-- Skips locked / hidden objects (including parents and layers)
-- Locks selection at dialog open time so display and execution targets match
-- Separate tolerance controls for anchor removal and handle removal
-- Smoothing includes guards for adjacent anchors that are identical or extremely close
-- Open-path endpoints use natural tangent directions without circular referencing
-- When neighboring segments differ greatly in angle or length, handle length is reduced to prevent runaway results
-- Minimal logging for runtime exceptions, separated from UI state save/restore
-
-### Changelog:
-
-- v1.4.1 (2026-03-20) : Current version
+See the README for details.
 
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "PathCleanupTool-v2";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-20";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.4.1";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool-v2.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -170,7 +129,6 @@ var LABELS = {
         en: "Split at anchor points"
     }
 };
-
 
 (function () {
     // --- shared settings / helpers ---

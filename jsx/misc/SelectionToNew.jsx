@@ -7,30 +7,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択したオブジェクトから、新規レイヤー・新規アートボード・新規ドキュメントを作成します。
+作成対象はラジオボタン（`L` / `A` / `D` キー）で切り替え、元のオブジェクトを残すかどうかも指定できます。
 
-- 作成対象はラジオボタンで選択（`L` / `A` / `D` キーでも切り替え）
-- 作成するレイヤー名・アートボード名・ドキュメント名を指定
-- ［元のオブジェクトを残す］で、移動と複製を切り替え
-- アートボードは既存の並びを引き継ぎ、方向と間隔を指定して挿入
-- ドキュメントはロック・非表示オブジェクトを残すかどうかを選択（保存済みのドキュメントのみ）
-
-詳しい仕様と注意事項は README を参照してください。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Creates a new layer, a new artboard or a new document from the selected objects.
+Creates a new layer, a new artboard, or a new document from the selected objects.
+The target is picked with radio buttons (or the L / A / D keys), and you can choose whether the originals stay put.
 
-- The target is chosen with radio buttons (or the `L` / `A` / `D` keys)
-- The new layer, artboard or document is named in the dialog
-- Keep original objects switches between moving and duplicating
-- Artboards inherit the existing arrangement; direction and spacing are set in the dialog
-- Documents can keep locked and hidden objects (saved documents only)
-
-See the README for the full specification and notes.
+See the README for details.
 
 */
 
@@ -51,16 +37,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// アートボードの配置ロジック / Artboard layout logic
-// AddArtboardPlus.jsx（jsx/artboard/AddArtboardPlus.jsx）から移植
-// Ported from AddArtboardPlus.jsx
-// Original: Copyright (c) 2018 Takeshi Umeda (noellabo)
-// https://dtp-discourse.jp/t/illustrator/99
-
-// =========================================
-// セッション保持 / Session state
-// =========================================
 
 /* 前回のダイアログ設定。#targetengine を指定しているので、この変数は
    スクリプトの実行が終わってもIllustratorの起動中は残る。

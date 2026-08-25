@@ -11,43 +11,37 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したパスやグループの外接矩形から、指定した角度の引き出し線を作成し、元のオブジェクトと置き換えます。
 角度・斜線の方向・線のスタイル・先端マーカー・フチを、ダイアログでプレビューしながら調整できます。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Builds leader lines at a specified angle from the bounding box of the selected
-paths or groups, replacing the original objects. Angle, diagonal direction, line
-style, tip marker, and edge are adjusted with a live preview in the dialog.
+Builds a leader line at a chosen angle from the bounding box of the selected paths or groups and replaces the original with it.
+Angle, diagonal direction, stroke style, end marker and outline are all adjusted with a preview in the dialog.
 
 See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "LeaderLineBuilder";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-12";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LeaderLineBuilder.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LeaderLineBuilder.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "LeaderLineBuilder";            /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-03-06";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-12";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LeaderLineBuilder.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LeaderLineBuilder.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User Settings
     // =========================================
 

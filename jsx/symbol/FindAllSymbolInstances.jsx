@@ -2,32 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * Find All Instances of Selected Symbol Instances
- * 更新日: 2026-05-09
- *
- * 概要:
- *  - 選択中の SymbolItem（GroupItem 内にネストされたものも含む）を再帰的に集めます。
- *  - 集めたインスタンスのうち、シンボル定義ごとに「最初に出現した1つ」を代表として選び、
- *    代表ごとに app.executeMenuCommand('Find Symbol Instance menu item');
- *    を実行して、そのシンボルの全インスタンスを得ます。
- *  - 各実行結果を重複なくマージし、最終的に「選択していたシンボル群すべての全インスタンス」を
- *    まとめて再選択します（複数のシンボルが混在している場合にも対応）。
- *  - 選択に SymbolItem が1つも含まれない場合は、フォールバックとして
- *      app.executeMenuCommand('Find Appearance menu item');
- *    を実行します（同一アピアランスのオブジェクトを検索）。
- *  - ロック等で再選択できないアイテムは黙ってスキップします。
- *  - 何も集約できなかった場合のみアラートを表示します。
- */
+
+### 概要
+
+選択中のシンボルインスタンスと同じシンボルのインスタンスを、ドキュメント全体から探してまとめて選択し直します。
+グループ内にネストされたインスタンスも対象にし、複数のシンボルが混在した選択にも対応します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Finds every instance of the same symbols as the currently selected symbol instances and reselects them all.
+Instances nested inside groups are included, and selections that mix several symbols are handled too.
+
+See the README for details.
+
+*/
 
 // =========================================
-// バージョン情報 / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "FindAllSymbolInstances";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-09";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FindAllSymbolInstances.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FindAllSymbolInstances.md
 
-// =========================================
-// メイン処理 / Main
-// =========================================
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
     if (app.documents.length === 0) return;

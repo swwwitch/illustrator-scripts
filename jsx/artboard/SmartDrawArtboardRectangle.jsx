@@ -3,85 +3,42 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### 概要：
+### 概要
 
-- アクティブまたは全アートボードと同サイズの長方形を、オフセットを考慮して描画します。
-- カラー（なし／K100 15%／HEX／CMYK）、重ね順（最前面／最背面／bgレイヤー）を指定でき、ライブプレビューで確認できます。
-- 描画後に「ガイド化」「ライブシェイプに変換」をオプションで適用できます。
-- ライブシェイプには中心の○（中心点）を常に表示します。
+アクティブまたはすべてのアートボードと同じサイズの長方形を、オフセットを考慮して描画します。
+カラーと重ね順を指定でき、描画後に「ガイド化」「ライブシェイプに変換」を適用できます。
 
-### 主な機能：
+詳細は README を参照してください。
 
-- オフセット指定（裁ち落としプリセット：3mm／12H／0.125in）
-- カラー指定（None／K100 15%／HEX／CMYK）
-- 重ね順（Front／Back／bgレイヤー、デフォルトは最前面）
-- 対象範囲（作業アートボード／すべて）
-- オプション（ガイド化：デフォルトOFF／ライブシェイプに変換：デフォルトON）
-- 中心の○（中心点）を常に表示（記録済みアクションで適用）
-- プレビュー（1ptの破線、50%トーン、専用レイヤー）
-- ホットキー（F：最前面／B：最背面／L：bgレイヤー／G：ガイド化／C：現在のアートボード／A：すべて）
-- ダイアログの初期位置・不透明度の設定
+### Overview
 
-### 紹介記事
+Draws a rectangle the size of the active artboard, or of every artboard, taking an offset into account.
+The color and the stacking order are configurable, and the result can be turned into a guide or a live shape.
 
-https://note.com/dtp_tranist/n/n1ba88513a9c8
-
-### 更新履歴：
-
-- v1.0 (20250820) : 初期バージョン
-- v1.5.1 (20250824) : ライブシェイプ化・ガイド化などのオプション追加
-- v1.5.2 (20260531) : 中心の○を常に表示、単位テーブル統合、CMYK入力修正、ホットキー再編
-- v1.5.3 (20260531) : オブジェクト名を「<長方形>」に変更、オフセット入力欄の幅を調整
-- v1.5.4 (20260601) : 最前面がテンプレート／ロックレイヤーのときの Error 8705 を修正
-- v1.5.5 (20260625) : プレビューレイヤーの後始末を確実化（残存・誤描画を防止）、ガイド化時はオブジェクト名を「<ガイド>」にして選択解除、HEX欄で色名／#RGB短縮／grayNN を許容、ホットキー抑止の堅牢化、中心の○はライブシェイプ時のみ、内部リファクタリング、最新バージョン
-
----
-
-### Overview:
-
-- Draws rectangles that match the active or all artboards, with optional offset.
-- Supports color (None / K100 15% / HEX / CMYK), stacking order (Front / Back / bg layer), and live preview.
-- Optional post-draw actions: "Make guides" and "Convert to Live Shape".
-- Always shows the center widget (center point) on live shapes.
-
-### Key Features:
-
-- Offset with Bleed presets (3mm / 12H / 0.125in)
-- Color modes (None / K100 15% / HEX / CMYK)
-- Z-order (Front / Back / bg layer; defaults to Bring to Front)
-- Target scope (Current artboard / All artboards)
-- Options (Make guides: default OFF / Convert to Live Shape: default ON)
-- Always shows the center widget (applied via a recorded action)
-- Preview (1pt dashed stroke, 50% tone, dedicated layer)
-- Hotkeys (F: Front / B: Back / L: bg layer / G: Make guides / C: Current artboard / A: All)
-- Dialog initial position & opacity settings
-
-### Changelog:
-
-- v1.0 (20250820): Initial version
-- v1.5.1 (20250824): Added post-draw options (Convert to Live Shape, Make guides)
-- v1.5.2 (20260531): Always show center widget, unified unit table, CMYK input fix, hotkey rework
-- v1.5.3 (20260531): Renamed object to "<Rectangle>", tweaked offset field width
-- v1.5.4 (20260601): Fixed Error 8705 when the front-most layer is a template/locked layer
-- v1.5.5 (20260625): Reliable preview-layer cleanup (no leftover/mis-draw), guide mode renames to "<Guide>" and clears selection, HEX field accepts color names / #RGB shorthand / grayNN, sturdier hotkey guard, center widget only on live shapes, internal refactoring; latest version
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User settings
     // =========================================
 

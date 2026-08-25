@@ -1,3 +1,37 @@
+
+/*
+
+### 概要
+
+最前面のドキュメントで選択したオブジェクトの座標に合わせて、ほかの開いているドキュメントの選択オブジェクトを移動します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Moves the selected objects in every other open document so that they match the position of the selection in the frontmost document.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SyncSelectionPosition";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SyncSelectionPosition.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SyncSelectionPosition.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 /*
   Align Selection Across Documents
   最前面のドキュメントの選択オブジェクトの座標に、他ドキュメントの選択オブジェクトを合わせる
@@ -61,7 +95,6 @@
     // 最後に元のドキュメントをアクティブに戻す
     app.activeDocument = sourceDoc;
     alert("完了しました。\n座標 X: " + targetX.toFixed(2) + ", Y: " + targetY.toFixed(2) + " に統一しました。");
-
 
     // ---------------------------------------------------------
     // ヘルパー関数: 選択範囲の左上座標を取得する

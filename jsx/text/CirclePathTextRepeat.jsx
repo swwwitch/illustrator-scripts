@@ -5,14 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 円（パス）とテキストを 1 つずつ選択し、テキストを指定回数繰り返して、円を複製したパス上の文字に変換する
-- 連結文字は「スペース」または任意の入力文字（初期値は欧文 bullet「•」）を選択でき、末尾にも連結文字を付与
-- 連結文字の前後に入れる半角スペース数を指定可能（スペースのみの場合は区切りの間隔になる）
-- スペース以外の連結文字は、スケール（水平・垂直比率）とベースライン（環境設定のテキスト単位）を調整可能
-- 円周に合わせた文字サイズの自動調整は ON/OFF 可能（補正率で開始・終了の隙間を微調整）
-- 生成結果を円の中心基準で回転
-- 数値フィールドは ↑↓ キーで増減（Shift で ±10・10 の倍数にスナップ、Option で ±0.1）
-- プレビュー対応（確定までは元のテキスト・円を保持し、OK で元を削除して生成結果を選択）
+円（パス）とテキストを1つずつ選択して実行すると、テキストを指定回数繰り返して、円を複製したパス上文字に変換します。
+連結文字はスペースまたは任意の文字（初期値は「•」）から選べます。
+
+詳細は README を参照してください。
+
+### Overview
+
+With one circle and one text frame selected, repeats the text a given number of times and converts it into text on a copy of the circle.
+The separator can be a space or any character you type ("•" by default).
+
+See the README for details.
 
 */
 
@@ -25,12 +28,13 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CirclePathTextRepeat.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CirclePathTextRepeat.md
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* 繰り返し数の初期値 / Default repeat count */
 var DEFAULT_REPEAT_COUNT = 3;

@@ -3,21 +3,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-- ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクトなど）をまとめて削除します。
-- 処理対象は「最前面のドキュメント」「開いているすべてのドキュメント」「指定フォルダー内の .ai ファイル（上書き保存）」から選べます。
-- ダイアログで削除対象を選び、実行後は種類ごとの削除件数を表示します。
-- 誤削除しやすい項目は初期OFF、ガイドは既定で「削除しない」です。
-- 詳細な機能・オプションはREADMEを参照してください。
+ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクトなど）をまとめて削除します。
+処理対象は、最前面のドキュメント／開いているすべてのドキュメント／指定フォルダー内の .ai ファイルから選べます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Removes unneeded elements from a document in one pass: unused panel items, stray points and empty text frames, empty groups and layers, guides, objects outside the artboards, and more.
-- Runs against the frontmost document, every open document, or all .ai files in a chosen folder (saved over the originals).
-- Choose the targets in the dialog; the deleted count per type is reported afterwards.
-- Deletion-prone options start unchecked, and guides default to "Don't delete".
-- See the README for the full feature and option list.
+Removes the clutter from a document — unused panel entries, stray points and empty text, empty groups and layers, guides, objects outside the artboards, and more.
+The scope can be the frontmost document, every open document, or the .ai files in a folder you choose.
+
+See the README for details.
 
 */
 
@@ -38,11 +37,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User Settings
-// 動作を変えたいときに触る値 / Values to tweak when you want different behavior
-// =========================================
 
 /* Dropboxのローカルマウントパス。空文字にするとホーム直下から自動検出 / Local Dropbox mount path ("" = auto detect) */
 var DROPBOX_MOUNT_PATH = "";

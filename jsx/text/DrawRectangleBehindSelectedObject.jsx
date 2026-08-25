@@ -4,95 +4,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-背面に長方形を作成
+選択したオブジェクトの背面に長方形を作成します。
 
-### GitHub：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts
+### Overview
 
-### 概要：
+Draws a rectangle behind the selected objects.
 
-- 選択オブジェクトの外接バウンディングボックスを基準に、オフセットを加えた長方形を生成
-- プレビュー機能で即時確認可能、作成した長方形は常に最背面に配置
-- 不透明度はプレビューだけでなく、確定後に作成される長方形にも適用
-
-更新日：2025-11-09
-
-### 主な機能：
-
-- オフセット（現在の定規単位に追従）
-- 角丸（ライブエフェクト適用、非展開）
-- 塗り/線 カラー指定（K100 / ホワイト / HEX / CMYK）
-- 対象：個別／グループとして
-- プレビュー（専用レイヤー、ヒストリーに残らない）
-- ダイアログ位置・不透明度・各パラメーターの記憶
-
-### 処理の流れ：
-
-1. 対象オブジェクトのバウンディングボックスを計算
-2. オフセット・角丸・塗り/線を適用した長方形を作成
-3. プレビューは専用レイヤーに生成、確定時に本番描画
-4. 「テキストとグループ化」オプションで元テキストとグループ化可能
-
-### 更新履歴：
-
-- v1.0 (2025-08-22) : 初期バージョン
-- v1.1 (2025-08-23) : プレビュー・カラー選択機能を追加
-- v1.2 (2025-08-23) : 種別（塗り/線）、線幅指定、プリセット保存機能を追加
-- v1.3 (2025-08-28) : ダイアログ位置・不透明度・各パラメーター記憶機能を追加
-- v1.4 (2025-09-02) : ロジック調整
-- v1.5 (2025-11-09) : 塗りロジックの見直し（HEX→CMYK変換、オーバープリント抑止、Normal固定）
-- v1.6 (2025-11-09) : プレビュー安定化（debounce/cancelの整備、before/afterRender導入、bump互換、即時更新の不具合修正）
-
----
-
-### Script Name:
-
-Draw Rectangle Behind Selection
-
-### GitHub：
-
-https://github.com/swwwitch/illustrator-scripts
-
-### Overview:
-
-- Generate rectangles offset from the bounding box of selected objects
-- Live preview with immediate feedback; created rectangles are always sent to back
-- Opacity applies to both preview and the finalized rectangle
-
-Last updated: 2025-11-09
-
-### Key Features:
-
-- Offset (follows current ruler units)
-- Corner radius (applied via Live Effect, kept unexpanded)
-- Fill/Stroke color options (K100 / White / HEX / CMYK)
-- Target: Individual or as Group
-- Preview on a dedicated layer (does not pollute history)
-- Dialog position, opacity, and parameter persistence
-
-### Processing Flow:
-
-1. Compute bounding box of target objects
-2. Apply offset, corner radius, and fill/stroke settings to rectangle
-3. Render preview to dedicated layer; finalize on OK
-4. Optionally group rectangle with original text
-
-### Update History:
-
-- v1.0 (2025-08-22): Initial version
-- v1.1 (2025-08-23): Added preview and color selection
-- v1.2 (2025-08-23): Added type (fill/stroke), stroke width, and preset saving
-- v1.3 (2025-08-28): Added dialog position, opacity, and parameter persistence
-- v1.4 (2025-09-02): 
-- v1.5 (2025-11-09): Reviewed fill logic (HEX→CMYK when needed, disable overprint, enforce Normal)
-- v1.6 (2025-11-09): Preview stabilization (debounce & cancel, before/afterRender, bump compat, immediate refresh fix)
+See the README for details.
 
 */
 
-var SCRIPT_VERSION = "v1.6";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DrawRectangleBehindSelectedObject"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-22";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-11-09";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawRectangleBehindSelectedObject.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawRectangleBehindSelectedObject.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /*
  * Debug logger for error handling
@@ -349,7 +290,6 @@ var LABELS = {
     }
 };
 
-
 /* ===== Dialog appearance & position (tunable) ===== */
 var DIALOG_OFFSET_X = 300; // shift right (+) / left (-)
 var DIALOG_OFFSET_Y = 0; // shift down (+) / up (-)
@@ -470,7 +410,6 @@ function makeRGB(r, g, b) {
     c.blue = _clamp(Math.round(b), 0, 255);
     return c;
 }
-
 
 function makeCMYK(cy, mg, yl, k) {
     var c = new CMYKColor();
@@ -931,7 +870,6 @@ function bindNumericField(et, opts) {
 
 // ===== プレビュー用ヘルパー / Preview helpers =====
 
-
 /* =========================================
  * PreviewHistory util (extractable)
  * ヒストリーを残さないプレビューのための小さなユーティリティ。/ Small utility for previews that do not leave history.
@@ -1083,7 +1021,6 @@ function getCombinedFinalBoundsCached(doc, sel, usePreview) {
     return b;
 }
 
-
 var __previewDebounceTask = null;
 
 function schedulePreview(choice, delayMs) {
@@ -1156,7 +1093,6 @@ function clearPreview(removeLayer) {
         logError("clearPreview", e);
     }
 }
-
 
 function getOrCreatePreviewLayer(doc, refLayer) {
     var name = LABELS.previewLayer[lang];
@@ -2092,7 +2028,6 @@ function showDialog() {
     };
     cbPill.onChanging = cbPill.onClick;
 
-
     dlg.onShow = function() {
         // Restore last dialog parameters (if any)
         try {
@@ -2243,7 +2178,6 @@ function showDialog() {
     }
 
     bindHexField(customInput);
-
 
     /*
      * CMYK モード選択 / CMYK mode radio
@@ -2433,7 +2367,6 @@ function showDialog() {
     attachTypingBlockOnFocusBlur(etY);
     attachTypingBlockOnFocusBlur(etK);
 
-
     clearZeroOnFocus(etC);
     clearZeroOnFocus(etM);
     clearZeroOnFocus(etY);
@@ -2497,7 +2430,6 @@ function showDialog() {
         setHexEnabled(!!specifiedRadio.value);
         setCmykEnabled(!!cmykRadio.value);
     }
-
 
     // --- Unified color mode handler ---
     function applyColorMode(mode) {
@@ -2852,8 +2784,6 @@ function showDialog() {
         } catch (e) {}
     }
 
-
-
     k100Radio.onClick = function() {
         selectColorMode(ColorMode.K100);
     };
@@ -3077,7 +3007,6 @@ function showDialog() {
 
     // Stroke width field handlers
 
-
     // Default selection: Fill
     typeFillRadio.value = true;
     typeStrokeRadio.value = false;
@@ -3111,8 +3040,6 @@ function showDialog() {
     }
     addScopeAndZHotkeys(dlg);
 
-
-
     currentRadio.onClick = updatePreviewCommit;
     allRadio.onClick = updatePreviewCommit;
     currentRadio.onChanging = updatePreviewCommit;
@@ -3131,7 +3058,6 @@ function showDialog() {
     cbGroupWithText.onClick = updatePreviewCommit;
     cbGroupWithText.onChanging = updatePreviewCommit;
 
-
     // (UI removed) Always compute preview with outlined text for accuracy
 
     var btnGroup = dlg.add('group');
@@ -3149,7 +3075,6 @@ function showDialog() {
         } catch (e) {}
         dlg.close(1);
     };
-
 
     cancelBtn.onClick = function() {
         DialogPersist.savePosition(dlg, __DLG_KEY);
@@ -3175,8 +3100,6 @@ function showDialog() {
     var __choiceFinal = __collectChoice(true);
     __choiceFinal.__usePreviewAsFinal = true; // ★これが重要
     return __choiceFinal;
-
-
 
     // Converter: Reuse preview rectangles as final output
     function convertPreviewToFinal(doc, sel, choice) {
@@ -3372,7 +3295,6 @@ function getOrCreateTempOutlineLayer(doc) {
     return layer;
 }
 
-
 function getItemBounds(it, usePreview) {
     try {
         if (!it) return null;
@@ -3472,7 +3394,6 @@ function getFinalItemBounds(doc, it, usePreview) {
         return null;
     }
 }
-
 
 function getCombinedGeometricBounds(sel, usePreview) {
     try {

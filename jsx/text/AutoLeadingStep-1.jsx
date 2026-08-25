@@ -5,27 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの行送り（表示値）が整数で 1 ステップ大きくなるように、自動行送り量（％）を
-逆算して設定するスクリプトです。AutoLeadingCalc.jsx を元にした姉妹スクリプトで、ダイアログや
-パレットは表示せず、実行するとその場で選択中のテキストへ適用します。
-グループ内のテキストやテキスト編集モードの範囲選択にも対応します。
+選択したテキストの行送り（表示値）が 整数で1ステップ小さく するように、自動行送り量（％）を逆算して設定します。
+ダイアログは表示せず、実行するとその場で反映されます。
 
-- 段落ごとに、現在の行送りを表示単位（pt / mm / Q(H) など）に換算し、次の整数を目標にする
-  （例：26.124 → 27）
-- その整数の行送りになるよう「目標行送り ÷ フォントサイズ × 100」で自動行送り量（％）を逆算し、
-  autoLeadingAmount に設定して常に自動行送り（autoLeading=true）にする
-- 手動行送りの段落も、現在の見た目の行送りを基準に整数へ丸めたうえで自動行送り化される
-- 行送りの基準（leadingType）は仮想ボディの上（TOPTOTOP）に固定する
-- テキスト編集中に段落内の一部の文字だけを選択している場合は、その段落全体へ適用する
-  （行送り量は段落単位の属性のため）
+詳細は README を参照してください。
 
 ### Overview
 
-Sets the auto-leading amount (%) so the selected text's displayed leading value steps up by one
-integer (e.g. 26.124 → 27). A sibling of AutoLeadingCalc.jsx — no dialog is shown; it applies to
-the selection in place, including text inside groups and range selections in text-edit mode. For
-each paragraph the current leading is converted to the document's text unit, the next integer is
-chosen, and the auto-leading amount that yields that integer leading is applied.
+Works out the auto-leading percentage that decreases by one whole step the displayed leading of the selected text, and applies it.
+There is no dialog; running it applies the change straight away.
+
+See the README for details.
 
 */
 
@@ -37,6 +27,11 @@ var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoLeadingStep-1.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoLeadingStep-1.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

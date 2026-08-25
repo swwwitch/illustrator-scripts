@@ -2,68 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartSwitchDocs.jsx
 
 ### 概要
 
-- 複数のIllustratorドキュメントが開いている場合に、素早く別のドキュメントへ切り替えるためのスクリプトです。
-- 2つだけ開いているときは自動切り替え、3つ以上のときはダイアログで選択可能です。
+複数のIllustratorドキュメントが開いているときに、別のドキュメントへ素早く切り替えます。
+2つだけ開いているときは自動で切り替え、3つ以上のときはダイアログのリストから選びます。
 
-### 主な機能
-
-- 開いているドキュメント数に応じた自動切り替え
-- 3件以上のときにリストボックスから選択して切り替え
-- ダイアログ内で即時プレビュー切り替え
-- キャンセル時には元のドキュメントに戻る
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ドキュメント数を確認
-2. 2件なら非アクティブなドキュメントへ自動切り替え
-3. 3件以上ならダイアログを表示しリストから選択
-4. 選択後にOKまたはキャンセルを押して切り替え
-
-### 更新履歴
-
-- v1.0.0 (20250325) : 初期バージョン
-- v0.5.1 (20250525) : ［キャンセル］ボタン追加、UI調整
-- v0.5.2 (20250525) : 矢印キー選択後のフォーカス維持修正
-
----
-
-### Script Name:
-
-SmartSwitchDocs.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script to quickly switch to another Illustrator document when multiple documents are open.
-- Automatically switches if only two documents are open; shows a dialog for selection when there are three or more.
+Quickly switches to another Illustrator document when several are open.
+With two documents it switches automatically; with three or more it offers a list in a dialog.
 
-### Main Features
+See the README for details.
 
-- Auto switch depending on the number of open documents
-- Select from a list when there are three or more documents
-- Immediate preview switching inside the dialog
-- Revert to original document on cancel
-- Japanese and English UI support
-
-### Process Flow
-
-1. Check the number of open documents
-2. If two, automatically switch to the inactive document
-3. If three or more, show dialog and select from the list
-4. Switch after pressing OK or Cancel
-
-### Update History
-
-- v1.0.0 (20250325): Initial version
-- v0.5.1 (20250525): Added Cancel button and adjusted UI
-- v0.5.2 (20250525): Fixed focus maintenance after arrow key selection
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartSwitchDocs";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v0.5.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-03-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-05-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSwitchDocs.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitchDocs.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // -------------------------------
 // 日英ラベル定義　Define labels for ja/en

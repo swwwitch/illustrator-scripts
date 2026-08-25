@@ -2,72 +2,40 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SendToBgLayer.jsx
 
 ### 概要
 
-- 選択されたオブジェクトを「bg」レイヤーに重ね順を維持したまま移動し、最背面に配置するIllustrator用スクリプトです。
-- 自動的に「bg」レイヤーが作成され、処理後にロックされます。
+選択したオブジェクトを、重ね順を維持したまま「bg」レイヤーへ移動して最背面に配置します。
+「bg」レイヤーは自動的に作成され、処理後にロックされます。
 
-### 主な機能
-
-- 選択オブジェクトを「bg」レイヤーに移動
-- 重ね順を維持して配置
-- 「bg」レイヤーを自動作成（存在しない場合）
-- レイヤーの最背面配置とロック
-- 元のアクティブレイヤーを復元
-
-### 処理の流れ
-
-1. ドキュメントとアクティブレイヤーを取得
-2. 「bg」レイヤーの存在を確認、なければ作成
-3. 選択オブジェクトを重ね順を維持して移動
-4. 「bg」レイヤーを最背面に移動してロック
-5. 元のレイヤーを再アクティブ化
-
-### 更新履歴
-
-- v1.0 (20240624) : 初期バージョン
-- v1.1 (20240625) : ローカライズ対応、エラーハンドリングの改善
-
----
-
-### Script Name:
-
-SendToBgLayer.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script to move selected objects to a "bg" layer while preserving their stacking order and placing them at the very back.
-- Automatically creates a "bg" layer if it does not exist, and locks it after processing.
+Moves the selected objects to a "bg" layer, preserving their stacking order, and sends that layer to the back.
+The "bg" layer is created automatically and locked once the move is done.
 
-### Main Features
-
-- Move selected objects to "bg" layer
-- Preserve stacking order
-- Auto-create "bg" layer if missing
-- Send "bg" layer to back and lock it
-- Restore original active layer
-
-### Process Flow
-
-1. Get document and active layer
-2. Check if "bg" layer exists, create if not
-3. Move selected objects preserving stacking order
-4. Send "bg" layer to back and lock
-5. Reactivate original layer
-
-### Update History
-
-- v1.0 (20240624): Initial version
-- v1.1 (20240625): Added localization support, improved error handling
+See the README for details.
 
 */
 
-// バージョン定義 / Script version
-var SCRIPT_VERSION = "v1.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SendToBgLayer";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-06-24";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2024-06-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SendToBgLayer.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SendToBgLayer.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var TARGET_LAYER_NAME = "bg"; // 利用者が変更可能なレイヤー名 / User-editable target layer name
 
 /* メイン処理 / Main process */

@@ -3,23 +3,42 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-SmartAlignDistribute.jsx
+### 概要
 
-### オリジナルアイデア
+重なって配置されたオブジェクトを、横方向へ等間隔に並べ直します。
 
-John Wundes 
-Distribute Stacked Objects v1.1
-https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
+詳細は README を参照してください。
 
-Gorolib Design
-https://gorolib.blog.jp/archives/77282974.html
+### Overview
+
+Redistributes stacked objects evenly along the horizontal axis.
+
+See the README for details.
 
 */
 
-/* バージョン変数を追加 / Script version variable */
-var SCRIPT_VERSION = "v1.0.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartAlignAndTile-simple";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-simple.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-simple.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
+ * @discussion https://gorolib.blog.jp/archives/77282974.html
+ */
 
 /* ダイアログ外観変数 / Dialog appearance variable */
 var dialogOpacity = 0.97;
@@ -237,7 +256,6 @@ function setGroupCollapsed(g, collapsed) {
     }
 }
 
-
 /* ダイアログ位置（セッション内で記憶） / Dialog position (remember within session) */
 var DLG_POS_MEM_KEY = "__SmartAlignAndTileTateSimple_DlgPos__";
 
@@ -316,7 +334,6 @@ function showArrangeDialog() {
     var rbDirV = dirPanel.add("radiobutton", undefined, LABELS.dirVertical[lang]);
     var rbDirH = dirPanel.add("radiobutton", undefined, LABELS.dirHorizontal[lang]);
     rbDirAuto.value = true;
-
 
     function getEffectiveDirection() {
         if (rbDirV.value) return "vertical";
@@ -427,7 +444,6 @@ function showArrangeDialog() {
     var okButton = buttonGroup2.add("button", undefined, LABELS.ok[lang], {
         name: "ok"
     });
-
 
     // Random preview cache: keep the same shuffle order so OK matches preview
     var randomOrderCache = null; // array of indices

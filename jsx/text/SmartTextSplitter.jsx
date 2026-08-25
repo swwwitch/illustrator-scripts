@@ -1,23 +1,38 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/* =========================================
- * 書式を保ったままテキストを1文字ごとに分割（高精度）
- *
- * 概要:
- *  - 選択した TextFrame を 1文字ごとの TextFrame に分割します。
- *  - 常に「単一文字」単位でのみ分割します（単語や行単位の分割はありません）。
- *  - 最優先で「計算用にアウトライン化した各文字グループの座標（bounds）」を利用し、
- *    文字の見た目位置を可能な限り正確に再現します。
- *  - アウトライン化したオブジェクトは計算にのみ使用し、処理後に削除します。
- *  - もしアウトライン化で文字グループの取得ができない等の場合は、従来の
- *    「仮TextFrameで幅を積算して配置」方式にフォールバックします。
- *
- * 作成日: 2026-02-16
- * 更新日: 2026-02-17
- * ========================================= */
+/*
 
-var SCRIPT_VERSION = "v2.0";
+### 概要
+
+選択したテキストフレームを、書式を保ったまま1文字ごとのテキストフレームへ分割します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Splits the selected text frame into one text frame per character, preserving the formatting.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartTextSplitter";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-17";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextSplitter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextSplitter.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -143,7 +158,6 @@ var rbGroupNone = pnlGroup.add('radiobutton', undefined, L('rbGroupNone'));
 var rbGroupLine = pnlGroup.add('radiobutton', undefined, L('rbGroupLine'));
 var rbGroupAll = pnlGroup.add('radiobutton', undefined, L('rbGroupAll'));
 rbGroupAll.value = true; // default
-
 
 var gBtns = dlg.add('group');
 gBtns.alignment = 'right';
@@ -401,7 +415,6 @@ function splitTextFrameHighPrecision(textFrame) {
     /* フォールバック / Fallback */
     splitTextFrameFallback(textFrame);
 }
-
 
 /* =========================================
  * Outline bounds builder / アウトラインboundsの取得

@@ -5,89 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択に応じて、ポイント文字・パス上文字 ⇔ エリア内文字を相互変換する（順変換は見た目を保ったままエリア内文字へ、逆変換はエリア内文字を枠サイズを保ったままポイント文字へ）。ダイアログは順/逆共通（タイトル「テキストの変換」）で、現在の選択の内訳と「スタイル：保持する/保持しない」を表示し、ラジオの挙動はツールチップで補足する。
+選択に応じて、ポイント文字・パス上文字とエリア内文字を相互に変換します。
+順変換は見た目を保ったままエリア内文字へ、逆変換は枠サイズを保ったままポイント文字へ変換します。
 
-順変換（ポイント/パス文字 → エリア内文字）の流れ：
-
-1. 変換ダイアログを表示（選択の内訳＋スタイル：保持する/保持しない）
-2. スタイル「保持する」なら、変換前に選択テキストの見た目を一時グラフィックスタイルとして登録
-3. ポイント文字 / パス上文字 → 複製→アピアランス分割→アウトラインで計測した実寸でエリア内文字へ変換（保持する/しない共通で、この計測サイズをフレームに使う）。「保持する」なら一時スタイルを適用してアピアランスを引き継ぐ（適用後に一時スタイルは削除）
-4. 行揃え・テキストの配置は常に中央
-
-逆変換（エリア内文字 → ポイント文字）の流れ：
-
-1. 変換ダイアログを表示（選択の内訳＋スタイル：保持する/保持しない）
-2. 元のエリア枠の実寸（幅A・高さB＝geometricBounds）を取得
-3. ポイント文字へ変換（変換後の参照を取り直す）
-4. スタイル「保持する」→ 何もしない（変換後の見た目のまま）／「保持しない」→ 塗りを2枚追加し、固定サイズ（AbsWidth=A / AbsHeight=B）の［形状に変換：長方形］効果でボタン背景を付与
-
-#### 補足
-
-- フレームサイズは、複製→アピアランス分割→アウトラインで計測した実寸を基準に決定する。
-- 縦方向の中央配置とグラフィックスタイル登録にはダイナミックアクションを使用する。実行時に一時的に読み込み、終了時に自動で破棄するため、アクションパネルに残骸は残らない。
-- 選択にエリア内文字が含まれていれば逆変換、含まれていなければ順変換を行う。
-- 1件も変換できなかった場合は無言で終わらず警告を表示する。
-
-#### 対応している選択
-
-- ポイント文字 … そのまま計測してエリア内文字化
-- パス上文字 … 内部で一度ポイント文字に分離（detachPathTextToPointText）してから同じ経路で処理
-- 複数選択時はそれぞれ個別に変換
-
-#### スタイル（保持する/保持しない）の効き方
-
-| | 順変換（→エリア内文字） | 逆変換（→ポイント文字） |
-|---|---|---|
-| 保持する | 一時グラフィックスタイルで元の見た目を引き継ぐ | 何もしない（変換後の見た目のまま） |
-| 保持しない | グラフィックスタイル適用なし（テキストのみ移す） | 塗り2枚＋固定サイズ A×B の長方形でボタン背景を付与 |
-
-- ボタン背景（逆変換・保持しない）は New Fill を2枚追加し、固定サイズ（AbsWidth=A / AbsHeight=B）の長方形シェイプ効果で背景化する。塗り色は設定しない（追加した塗りは既定のまま）。
-- エリア→ポイント変換直後のテキストは最初の New Fill が吸収されるため、実際には New Fill を3回呼ぶ（1回“空打ち”＋2枚）。毎回オブジェクトを選択し直してから実行する。
+詳細は README を参照してください。
 
 ### Overview
 
-Convert point/path text ⇔ area type depending on the selection, with a Keep/Don't-keep style choice for each direction. Both directions share one dialog (title "Convert Text") that shows a summary of the current selection and the "Style: Keep / Don't keep" choice, with tooltips clarifying each radio's behavior.
+Converts between point text or text on a path and area text, depending on what is selected.
+The forward conversion preserves the appearance, and the reverse keeps the frame size when returning to point text.
 
-Forward flow (point/path text → area type):
-
-1. Show the conversion dialog (selection summary + Style: Keep / Don't keep).
-2. When "Keep", register the selected text's appearance as a temporary graphic style before converting.
-3. Point / path text → area type at the size measured via duplicate → expand appearance → create outlines (same measurement for Keep / Don't keep). When "Keep", apply the temp style to carry over the appearance (removed afterwards).
-4. Justification and vertical alignment are always centered.
-
-Reverse flow (area type → point text):
-
-1. Show the conversion dialog (selection summary + Style: Keep / Don't keep).
-2. Read the original area frame size (width A / height B = geometricBounds).
-3. Convert to point text (re-acquiring the reference afterwards).
-4. "Keep" → leave as-is; "Don't keep" → add two fills + an absolute-size (AbsWidth=A / AbsHeight=B) "Convert to Shape: Rectangle" effect as a button background.
-
-#### Notes
-
-- Frame size is based on the real size measured via duplicate → expand appearance → create outlines.
-- Vertical centering and graphic-style registration use dynamic actions that are loaded temporarily and removed automatically on exit, so nothing is left behind in the Actions panel.
-- If the selection contains area type, the reverse conversion runs; otherwise the forward conversion runs.
-- If nothing could be converted, the script alerts instead of exiting silently.
-
-#### Supported selections
-
-- Point text … measured directly and converted to area type
-- Path text … first detached into point text internally (detachPathTextToPointText), then converted through the same path
-- With a multiple selection, each is converted individually
-
-#### How the Keep / Don't-keep style option behaves
-
-| | Forward (→ area type) | Reverse (→ point text) |
-|---|---|---|
-| Keep | Carry over the original appearance via a temp graphic style | Do nothing (leave the converted look as-is) |
-| Don't keep | Apply no graphic style (transfer text only) | Add two fills + an absolute A×B rectangle button background |
-
-- The button background (reverse · Don't keep) adds two fills via New Fill and reshapes them with an absolute-size (AbsWidth=A / AbsHeight=B) rectangle shape effect. Fill colors are not set (the added fills keep their defaults).
-- Right after area→point conversion the first New Fill is absorbed, so New Fill is actually invoked three times (one primer + two), re-selecting the object before each call.
-
-### 更新履歴 / Changelog
-
-- v1.0.0 (2026-07-02): 初期バージョン。選択に応じてポイント文字・パス上文字 ⇔ エリア内文字を相互変換する。共通ダイアログ「テキストの変換」で現在の選択内容とスタイル保持（保持する/保持しない）を選ぶ。順変換はアピアランス分割で計測した実寸でエリア内文字化（保持する＝一時グラフィックスタイルで見た目を引き継ぐ／保持しない＝文字のみ）。逆変換はポイント文字化（保持する＝そのまま／保持しない＝塗り2枚＋固定サイズの長方形背景）。縦中央配置とグラフィックスタイル登録はダイナミックアクションで一時的に処理 ／ Initial release. Converts point/path text ⇔ area type depending on the selection. A shared "Convert Text" dialog shows the current selection and a Keep/Don't-keep style choice. Forward: area type at the appearance-expanded measured size (Keep = carry over the look via a temp graphic style; Don't keep = text only). Reverse: point text (Keep = as-is; Don't keep = two fills + an absolute-size rectangle background). Vertical centering and graphic-style registration use temporary dynamic actions.
+See the README for details.
 
 */
 
@@ -97,8 +25,13 @@ Reverse flow (area type → point text):
 var SCRIPT_NAME     = "ConvertAreaAndPointType";      /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-07-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertAreaAndPointType.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertAreaAndPointType.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

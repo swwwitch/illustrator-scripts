@@ -6,11 +6,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択したシンボルインスタンスのリンクを解除し、通常のオブジェクトとして扱える状態にします。
-詳細はREADMEを参照してください。
+
+詳細は README を参照してください。
 
 ### Overview
 
 Breaks the links of the selected symbol instances and turns them into regular editable objects.
+
 See the README for details.
 
 */
@@ -32,10 +34,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* 起動時にオプションダイアログを表示する / Show the options dialog on launch */
 var SHOW_OPTIONS_DIALOG = true;

@@ -1,17 +1,39 @@
 #target illustrator
 
 /*
-### 概要：
-選択した複数オブジェクトを行・列として自動判定し、歯抜け（欠け）を許容しつつ、
-元の配置ピッチを推定してグリッドを転置（行⇄列）します。
-1行だけ→1列、1列だけ→1行の転置にも対応します。
-整列されていない選択でも、一定の許容値内で行列を推定し、左上基準で再配置します。
 
-### 更新日：
-2026-01-26
+### 概要
 
-v1.1 1行1列に対応
+選択した複数オブジェクトを行・列として自動判定し、元の配置ピッチを推定してグリッドを転置（行⇄列）します。
+歯抜けのある配置や、1行だけ／1列だけの転置にも対応します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Detects the rows and columns of the selected objects, estimates the original pitch, and transposes the grid so rows become columns and vice versa.
+Gaps in the grid, and single-row or single-column layouts, are handled too.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TransposeGrid";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-26";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TransposeGrid.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TransposeGrid.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
     if (app.documents.length === 0) { alert("ドキュメントがありません。"); return; }

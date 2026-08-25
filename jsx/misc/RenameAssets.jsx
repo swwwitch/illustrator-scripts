@@ -1,84 +1,38 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-
 /*
-### スクリプト名：
 
-RenameAssets.jsx
+### 概要
 
-### GitHub：
+アセット書き出しパネルに登録されたアセットの名前を、一括で変更します。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/RenameAssets.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- グラフィックスタイル／ブラシ／スウォッチ／シンボルの「名前」を、ダイアログで指定した「検索→置換」で一括変更します。
-- プレビュー（ボタン押下時のみ）で事前に変更結果を確認できます。キャンセルで元に戻せます。
+Renames the assets registered in the Asset Export panel in bulk.
 
-### 主な機能：
+See the README for details.
 
-- 検索・置換、正規表現対応、大文字小文字の無視
-- 対象（スタイル／ブラシ／スウォッチ／シンボル）の切替（ラジオボタン）
-- グラフィックスタイルに限り、対象スタイルの**複数選択フィルタ**
-- 重複名の自動回避（ (2), (3), … を付与）
-- 角括弧で囲まれた既定名のスキップ
-- ダイアログの透明度と表示位置の調整
-- 日本語／英語のローカライズ
-
-### 処理の流れ：
-
-1. ダイアログで対象コレクションと検索／置換文字列、オプション（正規表現・大文字小文字）を設定
-2. （スタイルの場合）必要に応じて対象スタイルを複数選択
-3. ［プレビュー］を押してパネル上の名称に一時反映（スナップショットから安全に復元可能）
-4. 問題なければ［OK］で確定、［キャンセル］で元に戻す
-
-### note：
-
-- ライブ（入力中）プレビューは行いません。プレビューはボタン押下時のみ実行されます。
-
-### 更新履歴：
-
-- v1.0 (20250820) : 初期バージョン
 */
 
-/*
-### Script Name:
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RenameAssets";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-20";                   /* 更新日 / last updated */
 
-RenameAssets.jsx
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RenameAssets.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameAssets.md
 
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/RenameAssets.jsx
-
-### Overview:
-
-- Batch rename the names of Graphic Styles, Brushes, Swatches, and Symbols using a dialog-driven Find→Replace.
-- Preview (only when the button is pressed) lets you inspect changes before applying; Cancel restores originals.
-
-### Key Features:
-
-- Find/Replace, Regex support, and Case-insensitive option
-- Target switching (Style/Brush/Swatch/Symbol) via radio buttons
-- **Multi-select filter** for Graphic Styles (restrict renaming to selected styles)
-- Auto de-duplication by appending (2), (3), …
-- Skip bracketed default names
-- Dialog opacity and position adjustment
-- Localization (Japanese/English)
-
-### Flow:
-
-1. Choose target collection and set Find/Replace text and options (Regex / Ignore Case)
-2. (For Styles) Optionally multi-select specific styles to limit the scope
-3. Press [Preview] to temporarily apply changes (safe snapshot/restore)
-4. Press [OK] to finalize or [Cancel] to revert
-
-### Update History:
-
-- v1.0 (20250820): Initial release
-*/
-
-var SCRIPT_VERSION = "v1.0";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -244,7 +198,6 @@ function main() {
 main();
 
 /* ---------------- Helpers ---------------- */
-
 
 /*
  * 置換関数のビルド / Build a replacer function

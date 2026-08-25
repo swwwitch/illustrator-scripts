@@ -5,88 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-埋め込み画像（RasterItem）を、一時アクション（adobe_placeDocument）を動的に生成して実行し、
-リンク画像に置き換えるスクリプトです。「選択オブジェクトと置換」で配置するため、
-位置・サイズ・回転角・重ね順はIllustrator側がそのまま引き継ぎます。
+埋め込み画像を、一時アクションを動的に生成して実行することでリンク画像に置き換えます。
+「選択オブジェクトと置換」で配置するため、位置・サイズ・回転角・重ね順はそのまま引き継がれます。
 
-### 主な機能
-
-- 処理対象をダイアログで選択
-  - 選択している画像のみ（グループの中も再帰的に探索）
-  - 現在のアートボード上の埋め込み画像（アクティブなアートボードと重なる画像）
-  - すべての埋め込み画像
-- 対象ファイルの一覧表示（ファイル名／パス）
-  - ［フルパス］絶対パスのまま表示
-  - ［Dropboxパスを短縮］Dropboxのメンバーフォルダー以下を相対表示。オフのときはホーム以下を「~」に短縮
-    - ホーム直下の「Dropbox」を含むフォルダーとその中のメンバーフォルダーを自動検出
-- 元ファイルが判明している画像はそのファイルへリンク
-- 元ファイルが不明な画像は「Links」フォルダーへPSDで書き出してリンク
-  - 書き出し名は、レイヤー名 → 拡張子付きの親グループ名 → XMPマニフェスト → image1、image2… の順に探索
-  - 同名ファイルがある場合は連番の接尾辞を付けるため、既存ファイルを上書きしない
-- ［再リンク後に収集］リンク先をドキュメントと同階層の「Links」フォルダーへコピー
-  - 同名で内容が異なるファイルには連番を付け、同一とみなせるファイルは再コピーしない
-- 処理結果（成功・スキップ・失敗の件数と明細）をまとめて表示
-
-### 処理の流れ
-
-1. 対象の埋め込み画像を集め、元ファイル不明時の書き出し名をまとめて決める
-2. 元ファイルを取得。取得できない場合は一時ドキュメントへ複製し、
-   拡大率100%・回転角0°に戻してPSDとして書き出す
-3. 対象の画像だけを選択し、一時アクションを生成して実行（実行後にアクションは必ず削除）
-4. 収集がオンなら「Links」フォルダーへコピーしてリンクを張り替える
-5. 置き換え後のリンク画像を選択状態にして結果を表示
-
-### 注意
-
-- ドキュメントが未保存の場合、「Links」フォルダーの場所を決められないため収集・書き出しに失敗します。
-- ロックまたは非表示のレイヤー・グループ・画像は置換できません（理由を明示して失敗として報告します）。
-- PSD書き出しはCMYK／RGB／グレースケールのみ対応です。
-- 効果（ドロップシャドウなど）はPSD書き出し時にラスタライズされて含まれます。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Replaces embedded raster images with linked images by generating and playing a temporary
-action (adobe_placeDocument). Because the action places the file with "replace selection",
-Illustrator itself preserves the position, size, rotation and stacking order.
+Replaces embedded images with linked images by generating and running a temporary action on the fly.
+Because the placement replaces the selected object, position, size, rotation and stacking order all carry over unchanged.
 
-### Features
-
-- Scope chosen in a dialog
-  - Selected images only (groups are searched recursively)
-  - Embedded images on the current artboard
-  - All embedded images
-- Target file list (file name / path)
-  - [Full path] shows the absolute path
-  - [Shorten Dropbox path] hides the Dropbox member folder; when off, the home folder becomes "~"
-    - The "*Dropbox" folder in the home folder and its member folder are detected automatically
-- Images whose original file is known are linked to that file
-- Images with an unknown original are exported as a PSD into the "Links" folder and linked
-  - The name is looked up in the layer name, the parent group name, the XMP manifest,
-    then falls back to image1, image2…
-  - An incremental suffix is added when a file of the same name exists
-- [Collect after relinking] copies the linked file into the "Links" folder next to the document
-  - A numbered suffix is added for different files of the same name; identical files are not copied again
-- Reports the result (success / skipped / failed counts and details) in a single alert
-
-### Flow
-
-1. Collect the target images and resolve the export names up front
-2. Get the original file; when unavailable, duplicate the image into a temporary document,
-   reset the scale to 100% and the rotation to 0°, then export a PSD
-3. Select only the target image and play the temporary action (always removed afterwards)
-4. Copy the file into the "Links" folder and repoint the link when collecting is enabled
-5. Select the resulting linked images and show the summary
-
-### Notes
-
-- Collecting and exporting fail when the document has not been saved.
-- Locked or hidden layers, groups and items cannot be replaced (the reason is reported).
-- PSD export supports CMYK / RGB / Grayscale only.
-- Effects such as drop shadows are rasterized into the exported PSD.
+See the README for details.
 
 */
 
@@ -105,16 +34,8 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedToLinks.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹介記事 / article URL */
 
-// 埋め込み画像のPSD書き出し処理は次のコードを参照 / The PSD export logic is based on:
-// author: m1b
-// discussion: https://community.adobe.com/t5/illustrator-discussions/is-it-possible-to-convert-rasteritem-to-placeditem/m-p/13081172
-
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// 設定 / Settings
-// =========================================
 
 var ACTION_SET_NAME    = "UnembedToLinksTempSet";    /* 一時アクションセット名 / temporary action set name */
 var ACTION_NAME        = "UnembedToLinksPlace";      /* 一時アクション名 / temporary action name */

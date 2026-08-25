@@ -1,30 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/**
- * クリップグループの形状変更 / Change clipping group shape
- * 更新日 / Updated: 2026-02-01
- *
- * 概要 / Overview:
- * - 選択した画像（配置/埋め込み）または既存のクリップグループを対象に、
- *   正方形 / 正円 / 六角形（A/B）のクリップ形状へ置き換えます。
- * - 「ケイ線を追加」ONで、生成後にケイ線を追加（メニューコマンド実行）します。
- * - 「角丸」ONで、生成したクリップグループに角丸 LiveEffect を適用します（※正円では無効）。
- * - 「複数オブジェクト > 大きさを揃える」ONで、選択内の最大/最小（面積）を基準に、
- *   クリップグループ作成後にグループ全体を等比スケール（縦横比維持）します。
- *   ※長辺合わせのため、短辺は揃いません。
- *
- * 使い方 / How to use:
- * 1) 対象を選択して実行
- * 2) 形状とアピアランスを指定して OK
- *
- * 注意 / Notes:
- * - 「大きさを揃える」は縦横比を維持してスケールします（歪みません）。
- *   長辺合わせのため、縦長・横長が混在している場合は短辺に差が出ます。
- */
+/*
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.0";
+### 概要
+
+選択した画像（配置／埋め込み）または既存のクリップグループを、正方形・正円・六角形のクリップ形状へ置き換えます。
+ケイ線の追加、角丸、複数オブジェクトの大きさ揃えにも対応します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Replaces the clipping shape of the selected images, or of an existing clipping group, with a square, circle or hexagon.
+Adding a stroke, rounding corners, and matching sizes across several objects are supported too.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ClipMaskShapeChanger";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-01";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskShapeChanger.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskShapeChanger.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 形状モード / Shape mode */
 // 'square' | 'circle' | 'hexA' | 'hexB' | 'octagon'
@@ -35,7 +45,6 @@ var __roundCornersEnabled = false;
 var __roundCornerRadius = 0;
 var __sameSizeEnabled = false; // 「大きさを揃える」
 var __sameSizeMode = 'max'; // 'max' | 'min'  （最大/最小）
-
 
 /*
 正六角形パスを作成 / Create a regular hexagon path
@@ -76,7 +85,6 @@ function createOctagonPath(targetLayer, centerX, centerY, r, rotationDeg) {
     p.filled = false;
     return p;
 }
-
 
 /* 角丸 LiveEffect / Round corners LiveEffect */
 function createRoundCornersEffectXML(radius) {
@@ -183,7 +191,6 @@ function __getItemBounds(item) {
     } catch (e2) { }
     return null;
 }
-
 
 function __getBoundsSize(b) {
     if (!b || b.length !== 4) return null;
@@ -568,7 +575,6 @@ function showDialog() {
 
     // default
     cbAddStrokeOnly.value = false;
-
 
     function updateRoundRadiusUI() {
         // 現在の形状選択をUIから判定（「変更なし」の場合は現在値を参照）

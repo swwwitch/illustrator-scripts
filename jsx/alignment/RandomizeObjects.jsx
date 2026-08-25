@@ -9,12 +9,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの位置・スケール・回転・不透明度・塗りカラーをランダムに変化させ、ダイアログ上で即時プレビューしながら調整します。
 ［中央に集める］［重なりを避ける］による再配置にも対応します。
 
-詳細はREADMEを参照してください。
+詳細は README を参照してください。
 
 ### Overview
 
-Randomizes the position, scale, rotation, opacity, and fill color of the selected objects, with a live preview in the dialog.
-Also provides "Gather to Center" and "Avoid Overlap" repositioning.
+Randomizes the position, scale, rotation, opacity and fill color of the selected objects, with an immediate preview in the dialog.
+It can also regroup them with "gather to center" and "avoid overlap".
 
 See the README for details.
 

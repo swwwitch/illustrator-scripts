@@ -3,27 +3,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-AlignLabelWidths.jsx（テンプレート）
+ScriptUI の複数ラベル（statictext）の幅を、実際の描画幅を測って最長のものへ揃える再利用テンプレートです。
+「ラベル：値」を縦に並べるパネルで、コロンの位置と値の開始位置をそろえる用途に使います。
 
-### 概要：
+詳細は README を参照してください。
 
-- ScriptUI の複数ラベル（statictext）の幅を最長のものへ自動で揃え、右揃えにするための再利用テンプレート
-- 「ラベル：値」を縦に並べる情報パネル／設定パネルで、コロン位置と値の開始位置を揃える用途
-- ロケールや文言の長さに依存せず、実際の描画幅を測って揃える（`characters` の固定値より堅牢）
+### Overview
 
-### 使い方：
+A reusable template that measures the rendered width of ScriptUI statictext labels and aligns them all to the widest one.
+It keeps the colon and the value column lined up in stacked "label: value" panels.
 
-1. `alignLabelWidths()`（または簡易版 `setLabelsFixedWidth()`）と、必要なら `addLabelValueRow()` を対象スクリプトのトップレベルにコピー
-2. 各行を作りながらラベルを配列に集める
-3. 集めたラベル配列を揃え関数に渡す
-   - 方式A（推奨・実測して自動）：`alignLabelWidths(labels, 'right')`
-   - 方式B（簡易・固定文字数。PathCleanupTool と同方式）：`setLabelsFixedWidth(labels, 13, 'right')`
-
-### 更新履歴：
-
-- v1.0.0 : 初版（テンプレート）
+See the README for details.
 
 */
 
@@ -36,13 +28,13 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignLabelWidths.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignLabelWidths.md
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// 再利用パーツ / Reusable parts
-//   ↓↓↓ ここから下の2関数を対象スクリプトへコピーして使う ↓↓↓
-// =========================================
 
 /**
  * 複数のラベル（statictext）の幅を最長のものへ揃え、指定方向に揃えます。
@@ -115,7 +107,6 @@ function addLabelValueRow(parent, labelString, valueString, valueChars) {
 // =========================================
 //   ↑↑↑ ここまでが再利用パーツ ↑↑↑
 // =========================================
-
 
 // =========================================
 // デモ（動作確認用。コピー時は不要） / Demo (for testing; omit when copying)

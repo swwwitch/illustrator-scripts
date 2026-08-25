@@ -3,70 +3,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-長方形に変換.jsx
+選択したオブジェクトと同じ大きさの長方形を作成します。
+個別／グループ単位の作成、計測基準、塗り・線プリセット、重ね順、元オブジェクトの扱いをダイアログで指定できます。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/長方形に変換.md
+### Overview
 
-### 概要：
+Creates a rectangle the same size as the selected objects.
+Whether to work per object or per group, the measurement basis, fill and stroke presets, stacking order and what happens to the originals are all set in a dialog.
 
-- 更新日：2026-05-20
-- 選択したオブジェクトと同じ大きさの長方形を作成する Illustrator スクリプト
-- 個別／グループ単位の単位選択、計測基準、塗り・線プリセット、重ね順、元オブジェクトの扱いをダイアログで指定
-
-### 主な機能：
-
-- 個別／グループ（選択範囲全体）単位で長方形を作成
-- 計測基準にプレビュー境界・テキストのアウトライン化を選択可能
-- 塗り・線プリセットの選択
-- 重ね順（前面／背面）の指定
-- 元オブジェクトの扱い（そのまま／マスク／削除）の指定
-
-### 更新履歴：
-
-- v1.0.0 (2026-05-20) : 初期バージョン
+See the README for details.
 
 */
 
-/*
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "長方形に変換";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-20";                   /* 更新日 / last updated */
 
-### Script Name:
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/長方形に変換.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/長方形に変換.md
 
-長方形に変換.jsx (ConvertToRectangle in Japanese)
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToRectangleJa.md
-
-### Description:
-
-- Last Updated: 2026-05-20
-- Creates a rectangle matching the size of each selected object
-- Provides options for per-object / whole-selection unit, bounds basis, fill/stroke preset, stacking order and original handling via dialog
-
-### Main Features:
-
-- Creates rectangles per object or for the whole selection
-- Bounds basis: preview bounds or outlined text bounds
-- Fill / stroke presets
-- Stacking order (front / back)
-- Original handling (keep / mask / delete)
-
-### Changelog:
-
-- v1.0.0 (2026-05-20) : Initial version
-
-*/
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // ==============================
     // スクリプト情報 / Script information
     // ==============================
-    var SCRIPT_VERSION = "v1.0.0";
 
     // ==============================
     // 言語判定 / Language detection

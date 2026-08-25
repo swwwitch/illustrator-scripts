@@ -5,20 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した長方形パスから、ミシン目・ギザギザ・コーナー処理・スリット／ホールを組み合わせたチケット風の形状を生成するツール。
-専用のプレビューレイヤーで結果を確認しながら設定でき、OKしたときだけ元のオブジェクトへ適用する。
+選択した長方形パスから、ミシン目・ギザギザ・コーナー処理・スリット／ホールを組み合わせたチケット風の形状を生成します。
+専用のプレビューレイヤーで結果を確認しながら設定でき、［OK］したときだけ元のオブジェクトへ適用します。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Builds ticket-style shapes from a selected rectangular path by combining perforations, zigzag edges,
-corner treatments, and slit / hole cutouts. Settings are checked on a dedicated preview layer and
-applied to the original object only when confirmed.
+Turns a selected rectangle into a ticket-like shape combining perforations, zigzag edges, corner treatments and slits or holes.
+The result is set up on a dedicated preview layer and applied to the original only when you confirm with OK.
 
 See the README for details.
 
@@ -41,10 +36,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* 塗りも線も持たないオブジェクトに使う代替色の濃度（%）/ Tint used when an object has neither fill nor stroke */
 var FALLBACK_GRAY_TINT = 60;

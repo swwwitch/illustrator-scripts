@@ -1,14 +1,40 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/* Illustrator ExtendScript
-   選択テキストの整形（ダイアログ）
-   更新日：2026-02-23
-   - 「削除」パネル、「ナンバリング」パネル、「改行」パネル、「アルファベット」パネル、「その他」パネルを使用
-   - 各 panel の margins をすべて [15, 20, 15, 10] に設定
-   - 機能：行頭/行末スペース削除、ナンバリング削除、強制改行↔改行 変換、空行の整理（連続改行の圧縮）、タブ→半角スペース、ナンバリングの振り直し、全角英数字を半角に
-   - ナンバリング：［リセット］で（プレビューON時）ダイアログ初期状態へ復元して再プレビュー
+/*
+
+### 概要
+
+選択したテキストを、ダイアログで指定したルールに従って整形します。
+行頭・行末スペースの削除、ナンバリングの削除と振り直し、改行の変換、空行の整理などに対応します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Tidies the selected text according to the rules you set in the dialog.
+It can trim leading and trailing spaces, remove and renumber list numbering, convert returns, and collapse blank lines.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TextNormalize";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextNormalize.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextNormalize.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
     if (app.documents.length === 0) { alert("ドキュメントが開かれていません。"); return; }
@@ -25,7 +51,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     function isTextFrame(o) { return o && o.typename === "TextFrame"; }
     function isTextRange(o) { return o && o.typename === "TextRange"; }
-
 
     // 英字のケース変換モード（null=未選択）
     var __caseMode = null; // "upper" | "lower" | "word" | "sentence" | "title"
@@ -108,7 +133,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             try { __baselineRanges[i].tr.contents = __baselineRanges[i].baseline; } catch (_) { }
         }
     }
-
 
     // --- Dialog ---
     var w = new Window("dialog", "テキストのクリーンアップと変換");
@@ -299,7 +323,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     alnumPanel.orientation = "column";
     alnumPanel.alignChildren = ["left", "top"];
     try { alnumPanel.margins = panelMargins; } catch (_) { }
-
 
     // --- 英字のケース変換（ボタン＋例） ---
     var caseGroup = alnumPanel.add("group");
@@ -515,7 +538,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     cbHyphenToUnderscore.onClick = requestPreview;
     cbUnderscoreToHyphen.onClick = requestPreview;
 
-
     rbSortAsc.onClick = requestPreview;
     rbReverse.onClick = requestPreview;
     rbUniqueAdjacent.onClick = requestPreview;
@@ -628,7 +650,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         return parts.join("");
     }
-
 
     // --- 全角英数字 → 半角 ---
     // 対象: 全角 0-9（FF10-FF19）, A-Z（FF21-FF3A）, a-z（FF41-FF5A）
@@ -906,8 +927,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         tr.contents = s;
     }
-
-
 
     // (post-dialog processing removed: handled by preview logic and ok.onClick)
 

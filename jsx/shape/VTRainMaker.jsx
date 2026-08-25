@@ -2,29 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * 概要 / Overview:
- * 選択した長方形、または現在のアートボードを対象に、ランダムな雨の罫線や雨粒を生成するIllustrator用スクリプトです。
- * 何も選択していない場合は現在のアートボード全体を対象にし、長方形を1つ選択している場合はその長方形の範囲内を対象にします。
- * 春雨・五月雨・鉄砲雨・雨粒・水玉の5種類のプリセットを切り替えながら、線幅・角度・密度・子罫オフセット・外側拡張・全体スケール・プレビューをダイアログで調整できます。
- * 子罫オフセットは親線に対する法線方向へ平行移動する仕様で、全体スケールは25〜300の範囲で入力欄とスライダーの制約を揃えています。
- * 雨粒プリセットでは塗り・線・A/B/C形状を切り替えられ、大きさと不透明度はランダムに変化します。
- * 単位表示は Illustrator の環境設定を参照し、線幅と子罫オフセットは strokeUnits、外側拡張は rulerType に合わせて表示・入力できます。
- *
- * This Illustrator script generates random rain lines and raindrops inside a selected rectangle or the active artboard.
- * If nothing is selected, it uses the current artboard. If a single rectangle is selected, it uses that rectangle’s bounds as the target area.
- * It provides five presets—Harusame, Samidare, Driving Rain, Raindrops, and Polka Dots—and lets you adjust stroke width, angle, density, child-line offset, outward expansion, overall scale, and preview in a dialog.
- * Child-line offset moves parallel to the parent line along its normal, and overall scale is constrained consistently between 25 and 300 in both the edit field and the slider.
- * In the Raindrops preset, you can switch fill, stroke, and A/B/C shapes, while size and opacity vary randomly.
- * Unit display follows Illustrator preferences: stroke width and child-line offset use strokeUnits, while outward expansion uses rulerType for both labels and input values.
- *
- * 作成日 / Created: 2026-03-27
- * 更新日 / Updated: 2026-03-28（長方形選択対応、子罫オフセットの法線方向化、外側拡張表記、全体スケール制約統一、概要更新 / Added selected-rectangle targeting, normal-based child offset, outward-expansion labeling, unified overall-scale constraints, and updated the overview）
- */
+
+### 概要
+
+雨のような罫線を生成します。
+雨の種類（雨粒・春雨・五月雨・鉄砲雨）や粒の形状、線幅・角度・密度・本数を指定できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Generates rain-like rules.
+The rain type (raindrop, spring rain, early-summer rain, driving rain), the drop shape, and the stroke weight, angle, density and count are all configurable.
+
+See the README for details.
+
+*/
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_NAME     = "VTRainMaker";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-28";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VTRainMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VTRainMaker.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -178,7 +188,6 @@ var LABELS = {
     }
 };
 
-
 // =========================================
 // 単位ユーティリティ / Unit utilities
 // =========================================
@@ -253,7 +262,6 @@ function unitValueToPt(unitValue, prefKey) {
     return unitValue * info.factor;
 }
 
-
 function parseMarginPtFromText(text) {
     return unitValueToPt(parseFloat(text), "rulerType");
 }
@@ -261,7 +269,6 @@ function parseMarginPtFromText(text) {
 function parseScaleValueFromText(text) {
     return parseFloat(text);
 }
-
 
 function isValidMarginPt(marginPt) {
     return !isNaN(marginPt) && marginPt >= 0;
@@ -272,7 +279,6 @@ function clampScaleValue(scaleValue) {
     if (scaleValue > 300) return 300;
     return scaleValue;
 }
-
 
 function isValidScaleValue(scaleValue) {
     return !isNaN(scaleValue) && scaleValue >= 25 && scaleValue <= 300;

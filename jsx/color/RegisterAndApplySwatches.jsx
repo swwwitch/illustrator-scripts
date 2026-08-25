@@ -2,64 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-RegisterAndApplySwatches.jsx
 
 ### 概要
 
-- 選択オブジェクト（閉じたパス、テキスト）の塗りおよび線のカラーをスウォッチ（スポットカラー）として登録し、その場で再適用するIllustrator用スクリプトです。
-- RGBおよびCMYKカラーをサポートし、既存の同名スウォッチを再利用します。
+選択オブジェクトの塗りおよび線のカラーをスウォッチ（スポットカラー）として登録し、その場で再適用します。
+RGBとCMYKに対応し、既存の同名スウォッチは再利用します。
 
-### 主な機能
-
-- RGB または CMYK カラーのスウォッチ登録
-- 同名スウォッチがある場合は再利用
-- 塗り・線にスポットカラーを即時適用
-- テキストオブジェクトの文字カラーにも対応
-- グループや複合パス内のオブジェクトを再帰処理
-
-### 処理の流れ
-
-1. 対象オブジェクトを選択
-2. RGB または CMYK カラーを検出
-3. スウォッチ名を生成し、既存スウォッチがあれば再利用
-4. スポットカラーを作成してオブジェクトに適用
-
-### 更新履歴
-
-- v1.0.0 (20250626) : 初期バージョン
-
----
-
-### Script Name:
-
-RegisterAndApplySwatches.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An Illustrator script to register fill and stroke colors of selected objects (closed paths, text) as swatches (spot colors) and reapply them immediately.
-- Supports RGB and CMYK colors, and reuses existing swatches with the same name.
+Registers the fill and stroke colors of the selected objects as spot-color swatches and reapplies them in place.
+RGB and CMYK are supported, and an existing swatch with the same name is reused.
 
-### Main Features
+See the README for details.
 
-- Register swatches from RGB or CMYK colors
-- Reuse existing swatches with matching names
-- Immediately apply spot colors to fills and strokes
-- Supports text object character colors
-- Recursively process groups and compound paths
-
-### Process Flow
-
-1. Select target objects
-2. Detect RGB or CMYK colors
-3. Generate swatch names and reuse existing swatches if found
-4. Create and apply spot colors to objects
-
-### Update History
-
-- v1.0.0 (20250626): Initial version
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RegisterAndApplySwatches";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-26";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegisterAndApplySwatches.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegisterAndApplySwatches.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function createColorCopy(color) {
     var c = null;

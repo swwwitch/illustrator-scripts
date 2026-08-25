@@ -2,12 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-MergeExpand.jsx
-選択オブジェクトをグループ化し、線を塗りに変換してから Pathfinder「合流（Merge）」のライブエフェクトを適用、アピアランスを分割する。最後のグループ解除は UNGROUP_AT_END で切り替え（既定 false）
-Group the selection, convert strokes to fills, apply Pathfinder Merge as a live effect, then expand the appearance. The final ungroup is toggled via UNGROUP_AT_END (default: false)
+
+### 概要
+
+選択オブジェクトをグループ化し、線を塗りに変換してから Pathfinder の「合流」をライブエフェクトとして適用し、アピアランスを分割します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Groups the selection, converts strokes to fills, applies Pathfinder Merge as a live effect, and then expands the appearance.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.0.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "MergeExpand";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MergeExpand.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MergeExpand.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 処理の最後にグループ解除するか / Whether to ungroup at the end */
 var UNGROUP_AT_END = false;

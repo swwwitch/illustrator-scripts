@@ -1,3 +1,37 @@
+
+/*
+
+### 概要
+
+1つの図形と1つの画像を選択して実行すると、図形の大きさに合わせて画像を拡大・縮小してからクリッピングマスクを作成します。
+
+詳細は README を参照してください。
+
+### Overview
+
+With one shape and one image selected, scales the image to the shape and then creates a clipping mask.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ImgFitMask";                   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgFitMask.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMask.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function() {
     // ドキュメントが開かれていない場合は終了
     if (app.documents.length === 0) {
@@ -52,7 +86,6 @@
     // 引数: scaleX, scaleY, changePositions, changeFillPatterns, changeFillGradients, changeStrokePattern
     targetImg.resize(scaleFactor * 100, scaleFactor * 100, true, true, true, true);
 
-
     // --- 2. 中央揃えの処理 ---
     
     // 図形の中心座標
@@ -73,7 +106,6 @@
 
     // 画像を移動
     targetImg.translate(deltaX, deltaY);
-
 
     // --- 3. クリッピングマスクの作成処理 ---
 

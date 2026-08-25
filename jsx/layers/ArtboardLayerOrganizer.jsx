@@ -2,17 +2,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-- ドキュメント内のオブジェクトをアートボード単位で振り分け、「番号_アートボード名」のレイヤーに整理します。
-- 所属アートボードは各オブジェクトの重心位置で判定します。
-- 詳細な機能・オプションはREADMEを参照してください。
+ドキュメント内のオブジェクトをアートボード単位で振り分け、「番号_アートボード名」のレイヤーに整理します。
+所属アートボードは各オブジェクトの重心位置で判定します。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Distributes objects in the document by artboard and organizes them into "number_artboard name" layers.
-- Each object is assigned to an artboard by its centroid.
-- See the README for the full feature and option list.
+Distributes the objects in the document by artboard and organizes them into "number_artboard name" layers.
+Each object is assigned to the artboard that contains its centroid.
+
+See the README for details.
 
 */
 

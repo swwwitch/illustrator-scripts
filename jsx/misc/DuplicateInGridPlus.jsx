@@ -12,34 +12,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### Overview
 
-Duplicates the selected object in a grid, row, column, or random arrangement.
-Count, spacing, direction, and artboard-fill options are set in a two-column dialog, with a live preview of the result.
+Duplicates and lays out the selected objects as a grid, a row, a column, or at random.
+Repeat count, spacing, direction and filling the artboard are set in a two-column dialog, with a live preview of the result.
 
 See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DuplicateInGridPlus";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-10-23";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DuplicateInGridPlus.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateInGridPlus.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "DuplicateInGridPlus";          /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2025-10-23";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DuplicateInGridPlus.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateInGridPlus.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User settings
     // =========================================
 

@@ -2,43 +2,21 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要 / Overview
 
-Illustratorドキュメント内のテキストフレームを、複数の条件で一括選択するスクリプトです。
+### 概要
 
-【選択条件】
-- 属性で選択：選択中テキストを基準に、フォントファミリー／＋スタイル／＋サイズ／フォントサイズ／テキストカラー／不透明度をIllustrator標準コマンドで検索
-- テキストの種類：すべて／ポイント文字／エリア内文字／パス上文字
-- 文字列で選択：完全一致／部分一致／先頭一致／末尾一致／正規表現（大小区別あり）
+ドキュメント内のテキストフレームを、複数の条件で一括選択します。
+属性・テキストの種類・文字列で絞り込み、選択後に非表示やレイヤー移動、一括編集も行えます。
 
-【選択後の処理】
-- なし
-- 選択後に非表示
-- 「_text」レイヤーへ移動（既存レイヤーのロック・可視状態は復元）
-- 一括編集：書式（characterAttributes）を維持したまま、入力した文字列で内容を置換
+詳細は README を参照してください。
 
-【処理の流れ】
-1. ダイアログで選択条件と選択後の処理を指定
-2. 条件に一致するテキストフレームを選択（0件ならアラート）
-3. 選択後の処理を適用（一括編集の場合はサブダイアログで入力）
+### Overview
 
-Select text frames in an Illustrator document using multiple conditions.
+Selects text frames across the document by a combination of conditions.
+You can filter by attribute, text kind and string, then hide, move to a layer, or bulk-edit what was selected.
 
-[Selection criteria]
-- By attribute: find text matching the selected text’s font family / + style / + size / font size / text color / opacity via Illustrator’s built-in commands
-- By text type: All / Point Text / Area Text / Path Text
-- By string: Exact / Contains / Starts With / Ends With / Regex (case-sensitive)
+See the README for details.
 
-[After selection]
-- None
-- Hide
-- Move to the “_text” layer (the original lock/visibility of an existing layer is restored)
-- Bulk edit: replace contents while preserving formatting (characterAttributes)
-
-[Flow]
-1. Choose selection criteria and post-process in the dialog
-2. Select matching text frames (alert if none matched)
-3. Apply the post-process (bulk edit opens a sub-dialog for input)
 */
 
 // =========================================
@@ -50,12 +28,14 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextSelector.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextSelector.md
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 /* 「選択後に移動」先のレイヤー名 / Destination layer name for "move after selection" */
 var TEXT_LAYER_NAME = "_text";
 

@@ -5,39 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-アートボードを現在サイズ基準でスケール変更します。ダイアログを開いたままライブプレビューできます。
+アートボードを現在のサイズを基準にスケール変更します。ダイアログを開いたままライブプレビューできます。
+対象は現在のアートボード／すべて／指定から選べ、9つの基準点のいずれかを固定して再計算します。
 
-- 対象：現在のアートボード／すべて／指定（例: 3, 4 または 3-5、入力は厳密に検証）
-- スケール：幅・高さは一意の倍率で相互連動、9つの基準点を固定して再計算
-- 幅・高さの入力はアクティブアートボード基準の%に換算される。対象が複数の場合は各アートボードが同率で拡縮（各アートボードを入力した絶対サイズに揃えるものではない）
-- ライブプレビューは「アートボードの矩形」のみ（完全可逆）。オブジェクトはOK確定時に一度だけ拡縮（線幅も正しく拡縮）
-- オブジェクト連動：複数アートボードにまたがるオブジェクトも所属ルール（参照/uuidで一意化）で1回だけ変形
-- オブジェクト連動はロック・非表示のオブジェクトを対象外（そのアートボードの矩形のみ変更されます）
-- ピクセルグリッド最適化：基準点固定と幅・高さの整数化を優先（基準点も整数化するため、基準点でない側の端は0.5px単位になる場合あり）。オブジェクトは整数化後の実効倍率で拡縮
-- 定規単位（rulerType 0〜10）に追従してサイズ欄を表示
-- 初期状態を基準として復元・再適用し、変形誤差の蓄積を抑制。変形・復元失敗時は安全に復元し通知
-
-### 履歴
-
-v1.0.0 2026-07-15 初版 / Initial release
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Scales artboards based on their current size, with a live preview while the dialog stays open.
+Scales artboards relative to their current size, with a live preview while the dialog stays open.
+The target can be the current artboard, all of them, or a specified set, recalculated around one of nine reference points.
 
-- Target: current / all / specify (e.g. 3, 4 or 3-5, strictly validated)
-- Scale: uniform ratio; width/height linked, recalculated with a fixed 9-point anchor
-- Width/height inputs are converted to a % relative to the active artboard; with multiple targets each artboard scales by the same ratio (it does not set each artboard to the entered absolute size)
-- Live preview covers the artboard rectangles only (fully reversible); objects are scaled once at commit (line width scales too)
-- Scale objects: objects spanning multiple artboards are assigned once by an ownership rule (deduped by reference/uuid) and transformed only once
-- Locked/hidden objects are excluded from object scaling (only the artboard rectangle changes)
-- Pixel-grid optimization: prioritizes a fixed anchor and integer width/height (the pivot is integerized too, so non-anchored edges may land on 0.5px); objects use the post-rounding effective ratio
-- Size fields follow the current ruler unit (rulerType 0..10)
-- Uses the initial state as the baseline for restore/re-apply to limit drift; on transform/restore failure it reverts safely and notifies
+See the README for details.
 
 */
 
@@ -47,8 +25,13 @@ Scales artboards based on their current size, with a live preview while the dial
 var SCRIPT_NAME     = "AiArtboardScaler";             /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-07-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiArtboardScaler.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiArtboardScaler.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

@@ -2,32 +2,44 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
-選択した水平線・垂直線を解析し、長方形グリッドとして再構成する Illustrator スクリプトです。
+
+### 概要
+
+選択した水平線・垂直線を解析し、長方形グリッドとして再構成します。
 不揃いな罫線や、結合セルを含むレイアウトを整理し、整った格子構造に変換します。
-主な機能：
-  配置：均等配置なし／均等（強制）／均等＋結合セル対応 を選択可能
-  対象：縦罫・横罫ごとに均等化対象を制御
-  線：突出線端、破線→実線、線幅（最大・最小・平均・指定）を設定
-  後処理：外枠の長方形化、グループ化
-  プレビュー：ダイアログを閉じずに結果を確認
-Overview
-This Illustrator script analyzes selected horizontal and vertical lines and reconstructs them into a rectangular grid.
-It is designed to normalize uneven rule lines and layouts that include merged-cell-like structures.
-Main features:
-  Distribution: Choose none, evenly (force), or evenly with merged cell support
-  Targets: Control which lines (horizontal/vertical) are equalized
-  Line: Set projecting caps, convert dashed lines to solid, and define stroke width (max/min/average/specified)
-  Post-processing: Convert outer frame to a rectangle and optionally group items
-  Preview: See results without closing the dialog
+
+詳細は README を参照してください。
+
+### Overview
+
+Analyzes the selected horizontal and vertical lines and reconstructs them into a rectangular grid.
+Uneven rules and layouts containing merged cells are tidied into a regular lattice.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RectangularGridReverseTool-v2"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool-v2.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool-v2.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
     // =========================================
     // バージョンとローカライズ / Version and localization
     // =========================================
-
-    var SCRIPT_VERSION = "v1.2.0";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

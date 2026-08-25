@@ -5,54 +5,40 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択した2つのオブジェクトの位置を入れ替えます。
-- 「中心位置を交換」：お互いの中心位置を交換します。
-- 「両端の位置を保って交換」：左端・右端を固定したまま入れ替えます。
-- 「見た目のサイズを基準にする」で、線幅や効果を含めた bounds を基準にできます。
-- プレビューを見ながら基準を切り替えられ、キャンセルで元の位置に戻ります。
+選択した2つのオブジェクトの位置を入れ替えます。
+「中心位置を交換」と「両端の位置を保って交換」を切り替えられ、見た目のサイズを基準にすることもできます。
 
-### 処理の流れ
-
-1. 選択が2つの入れ替え可能なオブジェクトかを検証
-2. ダイアログで基準（位置・サイズ）を選択
-3. 元の位置を控えたうえで移動量を計算し、適用
-4. OK で確定、キャンセルで復元
+詳細は README を参照してください。
 
 ### Overview
 
-- Swaps the positions of two selected objects.
-- "Swap Center Positions": exchanges their center points.
-- "Swap Keeping Outer Edges": swaps them while keeping the outer left and right edges fixed.
-- "Use Visual Bounds" switches the reference to bounds that include strokes and effects.
-- The reference can be changed with live preview, and Cancel restores the original positions.
+Swaps the positions of two selected objects.
+You can swap their centers, or keep their outer edges fixed, and optionally work from their visual bounds.
 
-### Process
-
-1. Validate that exactly two swappable objects are selected
-2. Choose the position and size references in the dialog
-3. Snapshot the original positions, calculate the offsets, and apply them
-4. Commit with OK, or restore with Cancel
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SwapObjects";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-21";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapObjects.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapObjects.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SwapObjects";                  /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-04-06";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-07-21";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapObjects.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapObjects.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2";  /* 紹介記事 / article URL */
-
-    // =========================================
     // ユーザー設定 / User settings
     // =========================================
     var DEFAULT_USE_VISUAL_BOUNDS      = false;  /* 「見た目のサイズを基準にする」の初期値 / default for visual bounds */

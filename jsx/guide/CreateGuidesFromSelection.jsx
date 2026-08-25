@@ -6,11 +6,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択オブジェクト・アートボード・カンバスを基準にガイドを作成します。
-詳細はREADMEを参照してください。
+
+詳細は README を参照してください。
 
 ### Overview
 
 Creates guides based on the selection, the artboard, or the canvas.
+
 See the README for details.
 
 */
@@ -32,10 +34,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd1359cf41a2c"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* ガイドを作成するレイヤー名 / Layer that receives the guides */
 var GUIDE_LAYER_NAME = "_guide";

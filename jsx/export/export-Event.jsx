@@ -2,42 +2,45 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  ### 概要
 
-  アクティブドキュメントの全アートボードを、名前ごとのルールで PNG 書き出しします。
+### 概要
 
-  ### 書き出しルール
+アクティブドキュメントのすべてのアートボードを、アートボード名ごとのルールでPNG書き出しします。
+背景の透明・白、倍率、書き出し対象外の判定は `buildExportJobs()` で定義します。
 
-  - "title" / "title2"（"-..." 付きを含む） … 背景「透明」で 100% 書き出し
-  - "Doorkeeper" … 背景「白」で 100% と 200% の 2 種類書き出し（200% は "-200" を付加）
-  - "シンボル一覧" … 書き出し対象外
-  - 上記以外 … 背景「白」で 100% 書き出し
+詳細は README を参照してください。
 
-  ルールを追加・変更する場合は `buildExportJobs()` を編集してください。
-  空配列を返せば「除外」、複数要素を返せば「複数倍率の書き出し」になります。
+### Overview
 
-  ### 出力
+Exports every artboard of the active document to PNG, using rules keyed on the artboard name.
+Transparent or white background, scale, and exclusions are all defined in `buildExportJobs()`.
 
-  - 保存先 … ドキュメントと同じフォルダ
-  - ファイル名 … "<ドキュメント名>-<アートボード名>[suffix].png"
-  - 書き出し後は macOS のみ Finder で保存先を自動オープン
+See the README for details.
 
-  ### 更新履歴
-
-  - 2025-04-22 … 初版
-  - 2026-06-03 … 書き出し前に "Guides Preview for Trim View" レイヤー（"*" 付き含む）を非表示にし、書き出し後に再表示 / 未保存ドキュメントのガードを追加
-  - 2026-06-15 … "Guides Preview for Trim View" レイヤー（"*" 付き含む）を非表示ではなく書き出し前に削除するよう変更
-  - 2026-06-17 … 定数の巻き上げで削除が機能していなかった不具合を修正。仕様を再び「書き出し前に非表示 → 書き出し後に再表示」に戻す（中断・エラー時も再表示）
-  - 2026-07-03 … 進捗ウィンドウを native progressbar に戻す / "Guides Preview for Trim View" レイヤーの非表示・再表示処理を削除
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "export-Event";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-22";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/export-Event.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export-Event.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
     // バージョンとローカライズ / Version & Localization
     // =========================================
-
-    var SCRIPT_VERSION = "v1.0.4";
 
     // =========================================
     // メイン処理 / Main routine

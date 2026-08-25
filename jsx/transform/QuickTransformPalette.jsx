@@ -9,12 +9,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの移動・複製と反転・回転を、アイコンのクリックで即時実行する常駐パレットです。
 9軸の基準点・マージン・プレビュー境界の設定はすべての操作に共通で、Option＋クリックすると複製してから変形します。
 
-詳細はREADMEを参照。
+詳細は README を参照してください。
 
 ### Overview
 
-A persistent palette that moves/duplicates and flips/rotates the selection immediately on an icon click.
-The 9-axis anchor, margin and preview-bounds settings apply to every action, and Option-clicking duplicates before transforming.
+A persistent palette that moves, duplicates, flips and rotates the selection immediately on an icon click.
+The nine-point reference, margin and preview-bounds settings are shared by every operation, and Option-clicking duplicates before transforming.
 
 See the README for details.
 
@@ -34,12 +34,6 @@ var SCRIPT_UPDATED  = "2026-08-17";                   /* 更新日 / last update
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/QuickTransformPalette.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹介記事 / article URL */
-
-/**
- * 謝辞 / Acknowledgements
- * @author ken (@ken_rainy)
- * @discussion https://x.com/ken_rainy/status/1472505526768783361
- */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

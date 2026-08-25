@@ -2,27 +2,45 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### 概要 / Overview
 
-選択した外枠の長方形を基準に、内部の縦罫／横罫を等間隔に再配置します。
+### 概要
+
+選択した外枠の長方形を基準に、内部の縦罫・横罫を等間隔に再配置します。
 最大の長方形を外枠として判定し、縦罫は左右、横罫は上下方向に均等配置します。
-プレビューは初期ON。縦罫／横罫の切替に対応し、option+クリックで一方ON・他方OFF。
-キャンセルで元の位置とサイズに復元します。
 
-Evenly redistributes internal vertical and horizontal rules based on the
-largest selected rectangle as the outer frame. Vertical rules are spaced
-horizontally and horizontal rules vertically. Preview is ON by default.
-Option+click toggles one direction ON and the other OFF. Cancel restores
-original positions and sizes.
+詳細は README を参照してください。
+
+### Overview
+
+Evenly redistributes the internal vertical and horizontal rules, using the largest selected rectangle as the outer frame.
+Vertical rules are spaced horizontally and horizontal rules vertically.
+
+See the README for details.
+
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TableRuleAverager";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableRuleAverager.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableRuleAverager.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
     // バージョンとローカライズ / Version and Localization
     // =========================================
-
-    var SCRIPT_VERSION = "v1.0";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -78,7 +96,6 @@ original positions and sizes.
         if (!LABELS[key]) return key;
         return LABELS[key][currentLanguage] || LABELS[key].en || key;
     }
-
 
     // =========================================
     // ダイアログUI / Dialog UI

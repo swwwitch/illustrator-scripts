@@ -3,29 +3,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  tabularize.jsx
 
-  選択オブジェクトを「表」として解釈し、表組み用の塗りと線（横ケイ/縦ケイ）を生成します。
-  - テキストは計算用に複製・アウトライン化されます（元のテキストは編集可能なまま、非破壊です）。
-  - 塗り：通常／ゼブラ／行方向に連結／ヘッダー行のみ
-  - オプション：ガター（rulerType単位）、1行目をヘッダー行に
-  - 線：縦ケイ（なし／列間のみ／すべて）＋ ガター0時は連結描画
-  - プリセット：代表的な組み合わせを一括適用
-  - ダイアログ値はセッション内で復元（Illustrator再起動でリセット）
+### 概要
 
-  Interpret the selection as a table grid and generate fills and rules (horizontal/vertical).
-  - Text is duplicated and outlined for calculation only (original text remains editable).
-  - Fill: normal / zebra / join by row / header-only
-  - Options: gutter (rulerType units), treat first row as header
-  - Rules: vertical modes (none / gaps only / all) + continuous drawing when gutter is 0
-  - Presets: apply common combinations at once
-  - Dialog values persist within the session (reset on Illustrator restart)
+選択オブジェクトを「表」として解釈し、表組み用の塗りと線（横ケイ／縦ケイ）を生成します。
+計算のためにテキストを複製・アウトライン化しますが、元のテキストは編集可能なまま残ります。
+
+詳細は README を参照してください。
+
+### Overview
+
+Interprets the selection as a table grid and generates fills and rules, both horizontal and vertical.
+Text is duplicated and outlined for measurement only, so the original stays editable.
+
+See the README for details.
+
 */
 
-// =========================
-// セッション内の状態保持（Illustrator再起動でリセット） / Session-only persistence
-// =========================
-// Engine スコープ（#targetengine）で $.global を使って保持
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "tabularize";                   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/tabularize.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/tabularize.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 $.global.__tabularizeState = $.global.__tabularizeState || {
     presetIndex: 0,
@@ -46,18 +56,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 (function () {
     // 単位変換用の定数 (ポイント換算) / Unit conversion constant (pt)
     var MM_TO_PT = 2.83464567;
-
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "tabularize";                   /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-02-11";                   /* 更新日 / last updated */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
 
     // 言語判定 / Language detection
     function getCurrentLang() {
@@ -648,7 +646,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
     // 初期反映
     applyFillEnabled();
 
-
     /* 縦罫 / Vertical rules */
     var pVrule = gRight.add('panel', undefined, L('vRulePanel'));
     pVrule.orientation = 'column';
@@ -672,7 +669,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
     var rbVruleNone = gVrule.add('radiobutton', undefined, L('none'));
     var rbVruleGapsOnly = gVrule.add('radiobutton', undefined, L('gapsOnly'));
     var rbVruleAll = gVrule.add('radiobutton', undefined, L('all'));
-
 
     // デフォルト：列間のみ
     rbVruleGapsOnly.value = true;
@@ -759,7 +755,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 cbFillJoinRow.value = true;
                 cbFillHeaderOnly.value = false;
                 cbZebra.value = true;
-
 
                 cbRule.value = false;
                 applyRuleEnabled();
@@ -940,7 +935,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         applyPreset();
     };
 
-
     // --- 手動変更検知 / Manual change detection ---
     function hookManual(control) {
         var prev = control.onClick;
@@ -971,8 +965,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         try { requestPreviewUpdate(); } catch (_) { }
     };
 
-
-
     // セッション状態を復元
     restoreDialogState({
         ddPreset: ddPreset,
@@ -993,7 +985,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         applyFillJoinRow: applyFillJoinRow,
         applyFillHeaderOnly: applyFillHeaderOnly
     });
-
 
     var btnGroup = dlg.add('group');
     btnGroup.orientation = 'row';
@@ -1319,7 +1310,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             }
         } catch (_) { }
     }
-
 
     // 生成処理本体 / Main generation
     function generateMain() {
@@ -1857,7 +1847,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             } catch (_) { }
         });
     }
-
 
     // 近いYを同一とみなしてユニークに追加する
     function addUniqueY(list, y, tol) {

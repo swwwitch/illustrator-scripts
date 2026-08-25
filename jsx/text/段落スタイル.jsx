@@ -1,5 +1,38 @@
 #target illustrator
 
+/*
+
+### 概要
+
+選択したテキストの体裁を、段落スタイルとして登録します。既存のスタイルを選んで上書きすることもできます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Registers the formatting of the selected text as a paragraph style, or overwrites an existing style with it.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "段落スタイル";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/段落スタイル.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/段落スタイル.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
 // ドキュメント内の段落スタイル名を取得（既定スタイル = index 0 は除外）

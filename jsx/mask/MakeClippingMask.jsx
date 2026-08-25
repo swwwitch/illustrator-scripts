@@ -1,22 +1,39 @@
+#target illustrator
+
 /*
-作成日：2024-11-18  
-更新日：2025-04-03
 
-このスクリプトは、Adobe Illustrator 2025で選択されたオブジェクトに対して以下の操作を行います：
+### 概要
 
-1. クリッピングマスクが設定されている場合、その解除とマスクの削除（グループの解除も含む）
-2. 配置画像やラスタ画像に対して、新たにクリッピングマスクを作成
-3. 配置画像1つとパス1つを選択しているときには、パスを使ってマスクを作成
-4. パスのみを複数選択しているときには、最前面（zOrderPositionが最大）のパスを使ってマスクを作成
-5. 新しく作成されたクリッピングマスクのオブジェクトを選択状態に更新
+選択オブジェクトの状態に応じて、クリッピングマスクの作成と解除を切り替えて実行します。
+すでにマスクが設定されていれば解除し、配置画像やパスの選択からは新たにマスクを作成します。
 
-注意：
-- ExtendScript（ECMAScript 3）で記述されています。
-- Illustrator 2025でサポートされる構文や関数のみを使用しています。
-- 画像のレイヤーがロックされていたりテンプレートだった場合にも対応しています。
+詳細は README を参照してください。
+
+### Overview
+
+Creates or releases a clipping mask, depending on what is selected.
+An existing mask is released, while a selection of placed images or paths produces a new one.
+
+See the README for details.
+
 */
 
-#target illustrator
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "MakeClippingMask";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-11-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-04-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeClippingMask.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeClippingMask.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function main() {
     var activeDoc = app.activeDocument;

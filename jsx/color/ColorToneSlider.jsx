@@ -1,3 +1,39 @@
+
+/*
+
+### 概要
+
+選択したオブジェクトの輝度を、スライダーで調整します。
+スライダーは -50〜+50、入力欄は -100〜+100 で、確定時の取り消しは1ステップにまとまります。
+
+詳細は README を参照してください。
+
+### Overview
+
+Adjusts the brightness of the selected objects with a slider.
+The slider ranges from -50 to +50 and the text field from -100 to +100, and the result commits as a single undo step.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ColorToneSlider";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorToneSlider.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorToneSlider.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 /*
   BrightnessAdjuster_History.jsx
   - Localized: Japanese and English

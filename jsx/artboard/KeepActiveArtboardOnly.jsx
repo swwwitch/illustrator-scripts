@@ -1,10 +1,42 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+### 概要
+
+アクティブなアートボード以外を削除し、その外側にあるオブジェクトも取り除きます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Deletes every artboard except the active one, along with the objects that fall outside it.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "KeepActiveArtboardOnly";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KeepActiveArtboardOnly.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KeepActiveArtboardOnly.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
 
 // 矩形の交差判定（[top,left,bottom,right]）/ Rectangle intersection test
 function rectanglesIntersect(rectA, rectB) {

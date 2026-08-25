@@ -1,50 +1,39 @@
 #target illustrator
 
-/* =========================================
-概要 / Overview
+/*
 
-選択したオブジェクトに対して「アピアランスの消去」を実行します。
-実行前にダイアログボックスを表示し、復元するかどうかと、選択オブジェクトに応じた復元方法を選択できます。
+### 概要
 
-パスオブジェクトは、元の塗り・線・線幅を再適用します。
-「カラーのみ（塗りと線）」または「カラーと線の設定」を選択できます。
-後者を選んだ場合は、線端・角の形状・破線・破線オフセット・角の比率も戻します。
-「不透明度」「描画モード」「オーバープリント」が ON の場合は、それぞれ元の値を戻します。
+選択したオブジェクトに「アピアランスの消去」を実行します。
+実行前にダイアログを表示し、復元するかどうかと、選択オブジェクトに応じた復元方法を選べます。
 
-テキストは、次のいずれかを選択できます。
-- 復元しない
-- 1文字目の塗りをテキスト全体に戻す
-- 文字単位の塗りを戻す
-テキストの線は戻しません。
+詳細は README を参照してください。
 
-パス、複合パス（親単位でアピアランスの消去のみ実行）、グループ内オブジェクト、テキストに対応します。
-クリップグループは再帰処理せず、グループに対してアピアランスの消去のみ実行します。
-処理後は選択状態を復元します。
-失敗があった場合は件数と詳細を通知します。
+### Overview
 
----
+Runs Clear Appearance on the selected objects.
+A dialog first asks whether to restore anything, and which restore mode fits the selection.
 
-Clears appearance from selected objects.
-Before execution, a dialog lets you choose whether to restore attributes and which restore options are available for the current selection.
+See the README for details.
 
-For path objects, the original fill, stroke, and stroke width are reapplied.
-You can choose either “Color Only (Fill and Stroke)” or “Color + Stroke Settings”.
-When the latter is selected, stroke cap, join, dash pattern, dash offset, and miter limit are also restored.
-When “Opacity”, “Blending Mode”, or “Overprint” is enabled, the original value is restored for each option.
+*/
 
-For text, you can choose one of the following:
-- do not restore text fill
-- restore the first character's fill to the whole text
-- restore fill per character
-Text stroke is not restored.
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ClearAppearance";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-14";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-14";                   /* 更新日 / last updated */
 
-Supports paths, compound paths (cleared at parent level without restoring attributes), grouped items, and text.
-Clipped groups are not processed recursively; the script only clears appearance on the group itself.
-Restores the original selection after processing.
-If any failures occur, the script reports counts and details.
-Updated: 2026-04-14  |  Version: v1.0
-========================================= */
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClearAppearance.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClearAppearance.md
 
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
     (function () {
         app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
@@ -58,7 +47,6 @@ Updated: 2026-04-14  |  Version: v1.0
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
         var lang = getCurrentLang();
-        var SCRIPT_VERSION = "v1.0";
 
         /* 日英ラベル定義 / Japanese-English label definitions */
         var LABELS = {
@@ -688,7 +676,6 @@ Updated: 2026-04-14  |  Version: v1.0
                 if (opts && opts.blendingMode) {
                     try { blendingMode = textFrame.blendingMode; } catch (e3) { }
                 }
-
 
                 selectOnlyItem(textFrame);
                 act_Clear(stats);

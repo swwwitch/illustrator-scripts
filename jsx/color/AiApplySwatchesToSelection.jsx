@@ -6,31 +6,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用する常駐パレットです。
-- 適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）をラジオボタンで選択します。
-- 「ランダム」はカラーの並びをシャッフルして繰り返し適用、「完全ランダム」は適用先ごとに毎回抽選するため繰り返しがありません。
-- ラジオを変えるたびにライブプレビュー。適用ボタンはなく、閉じた時点の結果が確定します（取り消しは Cmd+Z）。
-- 開いた時点の選択スウォッチを■で取り込み、以後はそれ（スウォッチ名で参照）を最優先で使用。ラジオ操作でスウォッチ選択が外れても影響しません。1色でも選択があれば優先します。
-- スウォッチを選び直したら［アップデート］で再取り込みします。
-- スウォッチ未選択時は自動カラー（CMYK は CM/CY/MY 生成、RGB は既定色）を使用。
-- 「単語」は各行の先頭色が互い違いになるよう配色。
-- DOM 操作はメインエンジンへ BridgeTalk 委譲（常駐パレットは表示中に DOM 接続を失うため）。
+選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用する常駐パレットです。
+適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）を選べ、変更のたびにライブプレビューします。
 
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n5602f3084d2b
+詳細は README を参照してください。
 
 ### Overview
 
-- A persistent palette that applies swatches or predefined colors to selected objects or text.
-- Choose apply unit (object / character / word / line / paragraph) and order (as-is / reverse / random / fully random) with radio buttons.
-- "Random" shuffles the color list once and cycles through it; "Fully random" draws a color per target, so no sequence repeats.
-- Live preview on every change. There is no Apply button — the result is committed when the palette closes (undo via Cmd+Z).
-- The swatches selected when the palette opens are captured as chips and used (by swatch name) with top priority, so losing the swatch selection when clicking radios has no effect. Even a single selected swatch is used.
-- Use [Update] to re-capture after reselecting swatches.
-- When no swatches are selected, auto colors are used (CMYK CM/CY/MY generation, RGB defaults).
-- "Per word" staggers colors so each line starts on a different color.
-- DOM work is delegated to the main engine via BridgeTalk (a persistent palette loses its DOM connection while shown).
+A persistent palette that applies swatches, or predefined colors, to the selected objects and text.
+The application unit (object, character, word, line or paragraph) and order (as-is, reversed, random or fully random) are selectable, with a live preview on every change.
+
+See the README for details.
 
 */
 
@@ -43,12 +29,15 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiApplySwatchesToSelection.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiApplySwatchesToSelection.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹介記事 / article URL */
+
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 /* CMYK フォールバック生成の設定 / CMYK fallback generation settings */
 var TMK_CMYK_FALLBACK_MAX_TOTAL = 200;    /* 合計上限 C+M / C+Y / M+Y / total channel limit */
 var TMK_CMYK_FALLBACK_MIN_DISTANCE = 35;  /* 近似色回避の最小距離 / min distance to avoid similar colors */

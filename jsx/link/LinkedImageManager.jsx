@@ -4,38 +4,42 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
+### 概要
 
-ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析して一覧表示し、
-ソート・絞り込み・同一ファイルのまとめ、再リンク・リネーム・削除、
-埋め込み／埋め込み解除、フォルダー単位の再リンクやリンクの収集までを
-一元化するユーティリティ。一覧とカンバスの選択は相互に連動する。
+ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析して一覧表示し、ソート・絞り込み・再リンク・リネーム・削除・埋め込み／解除までを一元化する常駐パレットです。
+一覧とカンバスの選択は相互に連動します。
 
-機能・使い方・実装メモの詳細は README を参照。
+詳細は README を参照してください。
+
+### Overview
+
+A persistent palette that lists every placed image in the document — linked and embedded — and centralizes sorting, filtering, relinking, renaming, deleting, and embedding or unembedding.
+The list and the canvas selection stay in sync with each other.
+
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "LinkedImageManager";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManager.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManager.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "LinkedImageManager";           /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManager.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManager.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User configuration
     // =========================================
 

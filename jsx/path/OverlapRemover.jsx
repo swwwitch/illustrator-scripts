@@ -5,17 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択オブジェクトに対して、重なりをならすためのメニューコマンドを順に実行します。
-- オフセットパス → グループ化 → パスファインダー：合流 → アピアランスを分割、の順で処理します。
+選択オブジェクトに対して、重なりをならすためのメニューコマンドを順に実行します。
+オフセットパス→グループ化→パスファインダー：合流→アピアランスを分割の順で処理します。
 
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Runs a sequence of menu commands against the current selection to flatten overlaps.
-- The order is Offset Path, Group, Pathfinder: Merge, then Expand Appearance.
+Runs a sequence of menu commands on the selection to even out overlaps.
+The order is Offset Path, Group, Pathfinder Merge, and Expand Appearance.
+
+See the README for details.
 
 */
 

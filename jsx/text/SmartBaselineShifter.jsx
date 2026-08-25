@@ -3,92 +3,37 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-SmartBaselineShifter.jsx
+選択したテキストのベースラインシフトを調整します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/creold/illustrator-scripts
+### Overview
 
-### 概要：
-- 更新日: 20260203
-- 指定した文字を基準文字の位置に合わせてベースラインを調整
-- 選択中の複数テキストフレームに一括適用可能
+Adjusts the baseline shift of the selected text.
 
-### 主な機能：
-
-- 対象文字と基準文字の指定
-- 自動計算と手動シフト量指定
-- 日本語／英語 UI 対応
-
-### 処理の流れ：
-
-1. ダイアログで文字とシフト量を指定
-2. 必要に応じて自動計算でシフト量を算出
-3. 各テキストフレーム内の対象文字にベースラインシフトを適用
-
-### オリジナル、謝辞：
-
-Egor Chistyakov https://x.com/tchegr
-
-### note
-
-https://note.com/dtp_tranist/n/n5e41727cf265
-
-### 更新履歴：
-
-- v1.0 (20250704): 初版リリース
-- v1.7 (20250716): コード整理、プレビュー改善
-- v1.8 (20250720): 自動計算機能を追加
-- v1.9 (20250721): ツールチップを実装
-- v2.0 (20260203): OK押下後の確定処理を実装
-- v2.1 (20260203): プレビューのUndo汚染を防止（PreviewManager導入）／OKで1回Undo可能に
-
----
-
-### Script Name:
-
-SmartBaselineShifter.jsx
-
-### Readme (GitHub):
-
-https://github.com/creold/illustrator-scripts
-
-### Overview:
-- Updated: 20260203
-- Adjust baseline of specified characters to align with reference character
-- Supports batch application to multiple selected text frames
-
-### Main Features:
-
-- Specify target and reference characters
-- Supports automatic calculation and manual shift input
-- Japanese / English UI support
-
-### Process Flow:
-
-1. Specify characters and shift amount in dialog
-2. Optionally calculate shift amount automatically
-3. Apply baseline shift to target characters in text frames
-
-### Original / Acknowledgements:
-
-Egor Chistyakov https://x.com/tchegr
-
-### Update History:
-
-- v1.0 (20250704): Initial release
-- v1.7 (20250716): Refactoring, improved preview
-- v1.8 (20250720): Added automatic calculation feature
-- v1.9 (20250721): Implemented tooltips
-- v2.0 (20260203): Implemented final apply on OK
-- v2.1 (20260203): Prevented Undo pollution during preview (introduced PreviewManager) / Single Undo on OK
+See the README for details.
 
 */
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v2.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartBaselineShifter";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBaselineShifter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBaselineShifter.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -274,7 +219,6 @@ function getCurrentUnitLabel() {
     return unitLabelMap[unitCode] || "pt";
 }
 
-
 /* EditTextで上下キーによる値の増減を実装 / Enable arrow key increment/decrement on EditText */
 function changeValueByArrowKey(editText, allowNegative, targetInput, textFrames, previewMgr) {
     editText.addEventListener("keydown", function (event) {
@@ -384,7 +328,6 @@ function applyShiftAll(targetText, shiftValue, textFrames) {
         }
     }
 }
-
 
 /* アイテムのジオメトリック境界から中心Y座標を取得 / Get center Y coordinate from geometric bounds */
 function getCenterY(item) {

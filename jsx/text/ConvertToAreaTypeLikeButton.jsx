@@ -5,47 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ポイント文字・パス上文字・図形・エリア内文字を対象に、エリア内文字の作成と調整を行うツール。
+ポイント文字・パス上文字・図形・エリア内文字を対象に、エリア内文字の作成と調整を行います。
 
-選択内容に応じて自動でエリア内文字へ変換し、調整ダイアログを開く。
-
-- ポイント文字 / パス上文字のみ → ボタン風（幅×1.2・高さ×1.6）に変換
-- テキスト＋図形 → 図形をエリア内文字にしてテキストを流し込む
-- エリア内文字のみ → そのまま調整ダイアログへ
-
-#### 調整ダイアログ
-
-- フォントサイズの指定、「文字あふれ解消」で枠に収まる最大サイズへ自動縮小
-- フレームサイズ（幅・高さ）の変更
-- 左右インデント（連動可）と外側からの間隔
-- 行揃え・テキストの配置は常に中央
-- プレビューは常時ONで、変更を即座に反映
-
-#### 補足
-
-- 縦方向の中央配置にはフレーム整列アクションを使用する。実行時に一時的に読み込み、終了時に自動で破棄するため、アクションパネルに残骸は残らない。
+詳細は README を参照してください。
 
 ### Overview
 
-A tool to create and adjust area type from point text, path text, shapes, or existing area type.
+Creates and adjusts area text from point text, text on a path, shapes, or existing area text.
 
-Depending on the selection it converts to area type automatically and opens the adjust dialog.
-
-- Point / path text only → convert to button style (width ×1.2, height ×1.6)
-- Text + shape → fill the shape (as area type) with the text
-- Area type only → open the adjust dialog directly
-
-#### Adjust dialog
-
-- Set font size, or auto-shrink to the largest fitting size via "Make overset"
-- Change frame size (width / height)
-- Left / right indent (linkable) and outer spacing
-- Justification and vertical alignment are always centered
-- Preview is always on and reflects changes instantly
-
-#### Notes
-
-- Vertical centering uses a frame-alignment action that is loaded temporarily and removed automatically on exit, so nothing is left behind in the Actions panel.
+See the README for details.
 
 */
 
@@ -57,6 +25,11 @@ var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButton.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButton.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

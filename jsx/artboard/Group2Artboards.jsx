@@ -2,75 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-Group2Artboards.jsx
 
 ### 概要
 
-- 選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして自動追加するIllustrator用スクリプトです。
-- 複数のグループ選択に対応し、名前の連番付与やファイル名参照、既存アートボードの削除オプションも搭載しています。
+選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして追加します。
+複数のグループ選択に対応し、名前の連番付与やファイル名参照、既存アートボードの削除オプションも備えます。
 
-更新日：2025-08-22（v1.3）
-
-### 主な機能
-
-- グループオブジェクトを基にアートボードを自動生成
-- マージン値と使用境界（プレビュー/ジオメトリ）の切り替え
-- アートボード名に接頭辞、記号、連番、ファイル名参照を組み合わせ可能
-- 既存アートボードの一括削除機能
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. グループオブジェクトを選択
-2. ダイアログでマージンやアートボード名設定などを指定
-3. OKでアートボードを自動追加
-
-### 更新履歴
-
-- v1.0 (20250703) : 初期バージョン
-- v1.1 (20250704) : コメント整理と最適化
-- v1.2 (20250705) : クリップグループ選択時の挙動を調整
-- v1.3 (20250822) : キー操作（↑/↓、Shift+↑/↓、Option+↑/↓）での数値増減を追加
-
----
-
-### Script Name:
-
-Group2Artboards.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script for Illustrator that automatically adds new artboards around each selected group object with an optional margin.
-- Supports multiple group selections, sequential naming, file name reference, and deletion of existing artboards.
+Adds an artboard covering the bounds of each selected group, plus a margin you specify.
+Several groups can be processed at once, with options for sequential naming, using the file name, and removing the existing artboards.
 
-Last Updated: 2025-08-22 (v1.3)
+See the README for details.
 
-### Main Features
-
-- Automatically generate artboards based on group objects
-- Set margin value and choose between preview or geometric bounds
-- Flexible naming: prefix, symbol, sequence number, file name reference
-- Option to delete existing artboards
-- Japanese and English UI support
-
-### Process Flow
-
-1. Select group objects
-2. Configure margin and artboard name options in the dialog
-3. Click OK to add artboards automatically
-
-### Update History
-
-- v1.0 (20250703): Initial version
-- v1.1 (20250704): Cleaned comments and optimized logic
-- v1.2 (20250705): Adjusted behavior for clip groups
-- v1.3 (20250822): Added keyboard increments (Up/Down, Shift+Up/Down, Option+Up/Down)
 */
 
-/* スクリプトバージョン / Script version */
-var SCRIPT_VERSION = "v1.3";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "Group2Artboards";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-22";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Group2Artboards.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Group2Artboards.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

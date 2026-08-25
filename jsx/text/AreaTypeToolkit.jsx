@@ -5,17 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁（サイズ・行送り・行揃え・日本語の組版など）を調整するツール。
+ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁（サイズ・行送り・行揃え・日本語の組版など）を調整します。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Builds Area Type from point text, path text, or shapes, then tunes its typesetting (size, leading, justification, Japanese composition, and so on) in place.
+Builds area text from point text, text on a path, or a shape, and adjusts its formatting — size, leading, justification and Japanese composition — in the same pass.
 
 See the README for details.
 
@@ -929,8 +925,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         try { tempFile.remove(); } catch (e1) { }
     }
 
-    /* アクションセット名。ユーザーのアクションを消さないよう、スクリプト名を冠して衝突を避ける
-       Action set names, prefixed with the script name so a user's own sets are never unloaded */
     var ACTION_SET_AUTO_SIZE = "AreaTypeToolkit_AutoSize";
     var ACTION_SET_ALIGNMENT = "AreaTypeToolkit_Alignment";
 

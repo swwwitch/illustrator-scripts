@@ -2,28 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * 連番振り直し / Smart Renumber
- * 
- * [概要 / Summary]
- * 更新日: 2026-01-09
- * 選択した数値テキストを、指定した並び順でソートして連番を振り直します。
- * 接頭辞・接尾辞の追加、ゼロ埋め、逆順などのオプションが利用可能です。
- * 
- * プレビューは app.undo() を使って「巻き戻し→再適用」するため、操作中のUndo履歴を汚しません。
- * OK確定時は一度すべて巻き戻してから本番を1回だけ適用し、Undo 1回で取り消せます。
- * 
- * ダイアログは見やすさのため、表示位置を右へオフセットし、透明度をわずかに下げています。
- * 
- * Sorts selected numeric text frames by the chosen order and renumbers them.
- * Supports prefix/suffix, zero padding, and reverse order.
- * 
- * Preview rolls back via app.undo() (rollback → reapply), so it doesn't pollute the Undo history.
- * On OK, rolls back and applies once so the whole operation is undoable in a single step.
- * 
- * The dialog is shifted to the right and slightly transparent for better visibility.
- */
 
-var SCRIPT_VERSION = "v2.0";
+### 概要
+
+選択した数値テキストを、指定した並び順でソートして連番を振り直します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Sorts the selected numeric text in a chosen order and renumbers it as a sequence.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartRenumber";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-09";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-09";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenumber.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenumber.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // ダイアログ表示位置・透明度
 var DIALOG_OFFSET_X = 300;
@@ -163,7 +172,6 @@ function main() {
     var chkReverse = optionsGroup.add("checkbox", undefined, L('reverse'));
     var chkZeroPad = optionsGroup.add("checkbox", undefined, L('zeroPad'));
 
-
     // テキスト追加パネル
     var textAddPanel = leftCol.add("panel", undefined, L('textAdd'));
     textAddPanel.orientation = "column";
@@ -180,7 +188,6 @@ function main() {
     groupSuffix.add("statictext", undefined, L('suffix'));
     var inputSuffix = groupSuffix.add("edittext", undefined, "");
     inputSuffix.characters = 12;
-
 
     /* 右カラム */
     var rightCol = win.add("group");

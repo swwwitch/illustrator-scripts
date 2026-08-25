@@ -1,58 +1,44 @@
 #target illustrator
 
-    /*
-    概要:
-    ・選択オブジェクトの visibleBounds を基準に、ロゴ用の補助線およびクリアスペースを生成するスクリプトです（選択範囲の境界に一致する線を太く強調表示する機能に対応）。
-    ・本スクリプトは「文字形状からグリッド構造を抽出する」ことを目的としています。
-    
-    【横線】
-    ・横伸張率、上下に線を追加、左方向に延長を設定できます。
-    ・ラインの決め方（なし／自動判定／水平セグメント／均等分割）に対応しています。
-    
-    【縦線】
-    ・縦伸張率、左右に線を追加、縦分割、上方向に延長を設定できます。
-    ・垂直エレメント／斜線エレメントの抽出に対応しています。
-    
-    【オプション（縦線）】
-    ・縦分割数、垂直エレメント、斜線エレメントを制御できます。
-    
-    【共通設定とクリアスペース】 
-    ・作成レイヤー名、線幅、ガイド化、グループ化を設定できます。
-    ・クリアスペースON時は、横線・縦線はパネルごと無効化されます。
-    ・このとき、線幅・ガイド化は無効、グループ化はON固定になります。
-    ・境界線を強調：境界に一致する線の線幅を強調（4倍）します。
-    
-    【プリセット】
-    ・プリセットは配列定義から自動生成されます。
-    ・以下のプリセットを選択できます：
-        - 1x1
-        - auto
-        - element
-        - left
-        - up-3
-        - clear space
-    ・現在のUI状態をJSON（配列貼り付け形式）として書き出すことができます。
-    
-    【動作】
-    ・左方向に延長ON：右側基準で横線を左に延長
-    ・上方向に延長ON：下側基準で縦線を上に延長
-    
-    【出力】
-    ・補助線およびクリアスペースは指定レイヤーに作成（未存在時は自動生成）
-    ・プレビュー対応
-    ・ガイド変換対応
-    ・単位はIllustratorのstrokeUnitsに準拠
-    ・日英ローカライズ対応
-    
-    更新日: 2026-04-10（クリアスペースON時は、均等分割連動中でも共通設定の分割数を編集可能に調整）
-    */
+/*
+
+### 概要
+
+選択オブジェクトの visibleBounds を基準に、ロゴ用の補助線およびクリアスペースを生成します。
+「文字形状からグリッド構造を抽出する」ことを目的としたスクリプトです。
+
+詳細は README を参照してください。
+
+### Overview
+
+Generates construction lines and clear space for a logo, based on the visibleBounds of the selection.
+The script is aimed at extracting a grid structure from letterforms.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "LogoGridMaker";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-10";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LogoGridMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMaker.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
     (function () {
         // =========================================
         // バージョンとローカライズ
         // =========================================
-
-        var SCRIPT_VERSION = "v1.4.1";
 
         function getCurrentLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -323,7 +309,6 @@
                 return 2;
             }
         }
-
 
         /* 現在の線単位ラベル取得 / Get current stroke unit label */
         function getCurrentStrokeUnitLabel() {
@@ -1369,7 +1354,6 @@
             guideLayerRow.add("statictext", undefined, L("labelGuideLayer"));
             var guideLayerInput = guideLayerRow.add("edittext", undefined, L("defaultGuideLayerName"));
             guideLayerInput.characters = 16;
-
 
             var columns = dlg.add("group");
             columns.orientation = "row";

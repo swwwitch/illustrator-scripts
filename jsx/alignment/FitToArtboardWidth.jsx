@@ -5,15 +5,13 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### 概要
 
-選択したオブジェクト全体をひとまとまりとして、縦横比を保ったままアートボードの幅（既定は90%）に合わせてリサイズし、アートボードの中央に配置します。ダイアログはなく、実行するとそのまま処理します。
+選択したオブジェクト全体をひとまとまりとして、縦横比を保ったままアートボードの幅（既定は90%）に合わせてリサイズし、アートボードの中央に配置します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Scales the whole selection as one cluster to a percentage of the artboard width (90% by default)
-while keeping its aspect ratio, then centers it on the artboard. There is no dialog; running the script
-applies the change directly.
+Treats the whole selection as one unit, resizes it to the artboard width (90% by default) while keeping its aspect ratio, and centers it on the artboard.
 
 See the README for details.
 

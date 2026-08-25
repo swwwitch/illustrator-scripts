@@ -1,18 +1,42 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-(function () {
+/*
 
-    /*
-     * 概要 / Overview
-     * 選択された各テキストフレーム内の各行ごとに、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
-     * テキストの一部（TextRange）が選択されている場合、その親のテキストフレーム（TextFrame）に正規化します。
-     * 自動行送りを有効化し、行送りの値そのものではなく自動行送りの値（％）を変更して行送りを調整します。
-     * 非テキストオブジェクトや処理不能な要素はスキップされます。
-     * エラーは最初の1回のみ通知され、処理は継続されます。
-     * アラートメッセージはローカライズ定義（LABELS）を通して取得します。
-     * 更新日：2026-07-08
-     */
+### 概要
+
+選択された各テキストフレームの各行について、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
+行送りは150%に固定されます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Recalculates the leading of each line in the selected text frames from the font size of the first few characters, and applies it.
+The leading is fixed at 150%.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ApplyLeadingPerTextFrame150";  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFrame150.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFrame150.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+(function () {
 
     var DEFAULT_LEADING_RATIO = 1.5; // fallback
 

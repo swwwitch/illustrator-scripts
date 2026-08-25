@@ -2,27 +2,40 @@
 #targetengine "session"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.3";
-
 /*
- * ひとつの長方形に変換.jsx / Convert to One Rectangle.jsx
- *
- * 概要 / Overview:
- * 選択した複数オブジェクト全体の外接矩形をもとに、ひとつの長方形へ統合します。
- * 属性の引き継ぎ元を選択でき、プレビュー境界 / オブジェクト境界の切り替え、
- * 元の図形を残す、プレビュー表示、属性パネルでの中心表示に対応しています。
- * 引き継ぎ元が長方形の場合は、そのオブジェクト自体を再利用して座標と大きさを更新し、
- * visibleBounds 使用時は stroke alignment / stroke width を考慮して補正します。
- * ダイアログボックスの位置はセッション中に記憶され、次回表示時に復元されます。
- * Creates one merged rectangle from the overall bounds of multiple selected objects.
- * You can choose the source object for appearance, switch between preview bounds and geometric bounds,
- * keep the original objects, use preview display, and enable center display in the Attributes panel.
- * If the source object is a rectangle, the object itself is reused and its position and size are updated.
- * When visibleBounds is used, the rectangle geometry is compensated for stroke alignment and stroke width.
- * The dialog position is remembered during the session and restored the next time it is shown.
- *
- * 更新日 / Updated: 2026-03-08
- */
+
+### 概要
+
+選択した複数オブジェクト全体の外接矩形をもとに、ひとつの長方形へ統合します。
+属性の引き継ぎ元やプレビュー境界／オブジェクト境界の切り替え、元の図形を残すオプションを指定できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Merges the selected objects into a single rectangle based on their overall bounding box.
+You can choose which object's attributes to inherit, switch between preview and geometric bounds, and keep the originals.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "BoundsToRectangle";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-08";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-08";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BoundsToRectangle.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BoundsToRectangle.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -314,7 +327,6 @@ function main() {
         app.unloadAction("Attribute", ""); // set name
     }
 
-
     /* 結果を適用 / Apply final result */
     function applyMergeResult(bounds, sourceIndex, keepOriginals) {
         var baseObj = objects[sourceIndex];
@@ -369,7 +381,6 @@ function main() {
     var visibleBoundsData = selectionData.visibleBoundsData;
     var geometricBoundsData = selectionData.geometricBoundsData;
     var originalHiddenStates = selectionData.originalHiddenStates;
-
 
     /* 使用するboundsデータ（初期値はgeometricBounds） / Active bounds data (default: geometricBounds) */
     var activeBoundsData = geometricBoundsData;
@@ -697,7 +708,6 @@ function main() {
             $.writeln("[OneRect] removeTempLayer error: " + e);
         }
     }
-
 
     var dialogResult = showDialogAndGetOptions();
 

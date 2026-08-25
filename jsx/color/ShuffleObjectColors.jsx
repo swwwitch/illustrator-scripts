@@ -2,88 +2,45 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-ShuffleObjectColors.jsx
 
 ### 概要
 
-- 選択オブジェクト（パス、グループ、複合シェイプ）の塗り・線カラーを再配色します。
-- RGB／CMYK／グレースケール／特色／グラデーション／パターンに対応。
-- 黒・白の除外、カラー比率（バランス）保持、ランダム順／元の順序の切替が可能です。
-- 適用ボタンでダイアログを閉じずにプレビュー、キャンセルで元の状態に戻せます。
-- 日本語／英語UIに対応。
+選択オブジェクト（パス、グループ、複合シェイプ）の塗り・線カラーを再配色します。
+RGB／CMYK／グレースケール／特色／グラデーション／パターンに対応します。
 
-### 主な機能
-
-- 塗り・線の適用切替（各チェックボックスで個別に ON/OFF）
-- 黒・白の除外（特色は tint 100% のときのみ判定）
-- レジストレーション（見当合わせ色）は自動的に除外
-- カラー比率（バランス）保持オプション
-- ランダム順／元の順序の切替
-- プレビュー適用（ダイアログを閉じずに結果を確認）
-
-### 処理の流れ
-
-1. 対象オブジェクトを収集
-2. 使用カラーを抽出
-3. プールを生成・並べ替え
-4. カラーを再適用
-
-### 更新履歴
-
-- v1.0.0 (20240624) : 初期バージョン
-- v1.0.1 (20240624) : バグ修正
-- v1.0.2 (20240624) : ランダム／順番適用切替追加
-- v1.0.3 (20240625) : ローカライズ調整
-- v1.1 (20250708) : テキスト機能削除、構造整理
-
----
-
-### Script Name:
-
-ShuffleObjectColors.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- Reapplies fill and stroke colors to selected objects (paths, groups, compound shapes).
-- Supports RGB, CMYK, Grayscale, Spot, Gradient, and Pattern colors.
-- Options for excluding black/white, preserving color balance, and toggling random/sequential order.
-- Apply button previews the result without closing the dialog; Cancel restores the original state.
-- Supports Japanese and English UI.
+Reshuffles the fill and stroke colors of the selected paths, groups and compound shapes.
+RGB, CMYK, grayscale, spot colors, gradients and patterns are all supported.
 
-### Main Features
+See the README for details.
 
-- Toggle fill and stroke application (independent checkboxes)
-- Exclude black and white (spot colors only when tint is 100%)
-- Registration color is automatically excluded
-- Preserve color balance option
-- Random or sequential color application
-- Live preview without closing the dialog
-
-### Workflow
-
-1. Collect target objects
-2. Extract used colors
-3. Create and shuffle color pool
-4. Reapply colors
-
-### Changelog
-
-- v1.0.0 (20240624): Initial release
-- v1.0.1 (20240624): Bug fixes
-- v1.0.2 (20240624): Added random/sequential application
-- v1.0.3 (20240625): Localization updates
-- v1.1 (20250708): Removed text feature, refactored structure
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ShuffleObjectColors";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-06-24";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-08";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShuffleObjectColors.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShuffleObjectColors.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
     // バージョンとローカライズ
     // =========================================
-
-    var SCRIPT_VERSION = "v1.1";
 
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';

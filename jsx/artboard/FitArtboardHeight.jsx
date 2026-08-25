@@ -2,91 +2,40 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
-var SCRIPT_VERSION = "v1.2";
-
 /*
-### スクリプト名：
 
-Fit Artboard Height to Selection (Same Width)
+### 概要
 
-### GitHub：
+選択したオブジェクトの外接矩形に上下マージンを加味して、作業中のアートボードの高さのみを自動調整します（幅は固定）。
+選択がない場合は、各アートボード内のオブジェクトを対象に、すべてのアートボードの高さを個別に調整します。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/FitArtboardHeight.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- 選択したオブジェクトのバウンディングボックスに **上下マージン** を加味して、作業中のアートボードの **高さのみ** を自動調整（左右＝幅は固定）。
-- **選択がない場合**は、各アートボード内のオブジェクトを対象にして、**すべてのアートボード**の高さを個別に調整。
+Adjusts only the height of the current artboard to the bounding box of the selection, plus a vertical margin; the width stays fixed.
+With nothing selected, it adjusts the height of every artboard individually, based on the objects each one contains.
 
-### 主な機能：
+See the README for details.
 
-- ライブプレビュー（軽量化のため `visibleBounds` 固定）
-- プレビューの再描画をデバウンス（軽量化）
-- プレビュー境界の切替（確定時のみ `visible`/`geometric` を反映）
-- 〈対象〉パネル：  
-  ・「作業アートボードのみ」＝選択ありはアクティブABのみ／選択なしは全AB（従来挙動）  
-  ・「すべてのアートボード」＝選択を無視して全AB
-- 文字オブジェクトは一時アウトライン化して正確な境界を計測（処理後に復元）
-- 単位ラベル表示、ダイアログ位置の記憶（バージョン別キー）
-
-### 処理の流れ：
-
-1) ダイアログで上下マージンを指定  
-2) プレビューでアートボードの上下のみ更新（左右は保持）  
-3) OKで確定、Cancelで元に戻す
-
-### note：
-
-- プレビューは高速化のため `visibleBounds` 固定です。確定時に設定の `visible/geometric` が反映されます。
-
-### 更新履歴：
-
-- v1.2 (20250825) : 〈対象〉パネル追加（全AB/作業AB 切替）。プレビューを `visibleBounds` 固定＋`app.redraw()` をデバウンス。単位ラベルとローカライズ整理。ダイアログ位置の保存キーをバージョン別に。
-- v1.1 (20250825) : アートボード **高さのみ** 調整に簡素化。未定義 `doc` 参照を修正。コメント整理と説明文更新。
-- v1.0 (20250825) : 初期バージョン
-
----
-
-### Script name (EN):
-
-Fit Artboard Height to Selection (Same Width)
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/FitArtboardHeight.jsx
-
-### Overview:
-
-- Adjust the **height only** of the active artboard to the selection’s bounds plus **vertical margin** (width/left/right are preserved).
-- **When nothing is selected,** adjust the **height of all artboards** individually based on items inside each artboard.
-
-### Key features:
-
-- Live preview (uses `visibleBounds` for speed)
-- Throttled `app.redraw()` during preview
-- Preview-bounds toggle (apply `visible`/`geometric` only on commit)
-- Target panel:  
-  · “Active artboard only” = with selection → active AB, without selection → all AB (legacy behavior)  
-  · “All artboards” = ignore selection and process all AB  
-- Temporary outlining for text to measure exact bounds (restored after)
-- Unit label next to input, dialog position remembered (namespaced per version)
-
-### Flow:
-
-1) Enter vertical margin in the dialog  
-2) Preview updates top/bottom only (left/right preserved)  
-3) Confirm to commit or cancel to restore
-
-### note:
-
-- Preview always uses `visibleBounds` for performance; final commit respects the chosen `visible/geometric` option.
-
-### Changelog:
-
-- v1.2 (2025-08-25): Added Target panel (All/Active). Preview fixed to `visibleBounds` with throttled redraw. Unit label & localization cleanup. Version-scoped dialog position key.
-- v1.1 (2025-08-25): Simplified to height-only adjustment. Fixed undefined `doc`. Cleaned comments and docs.
-- v1.0 (2025-08-25): Initial version.
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FitArtboardHeight";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitArtboardHeight.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboardHeight.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // --- Core references & defaults ---
 var doc = (app.documents.length > 0) ? app.activeDocument : null;
@@ -126,7 +75,6 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese–English label definitions */
-
 
 var LABELS = {
     // 1) Dialog title
@@ -201,7 +149,6 @@ function formatError(e) {
     }
 }
 
-
 /*
 共通エンジン名を使用 / Use a common engine name
 複数スクリプト間で位置記憶を共有しつつ、key で保存先を分離します。
@@ -225,8 +172,6 @@ function _clampToScreen(loc) {
         return loc;
     }
 }
-
-
 
 // -------------------------------
 // 設定定数 / Configuration constants
@@ -321,13 +266,11 @@ function showMarginDialog(defaultValue, unit) {
     dlg.alignChildren = "fill";
     dlg.margins = 15;
 
-
     /* マージン入力パネル / Margin input panel */
     var marginPanel = dlg.add("panel", undefined, LABELS.marginLabel[lang]);
     marginPanel.orientation = "row";
     marginPanel.alignChildren = ["fill", "top"];
     marginPanel.margins = [15, 20, 15, 10];
-
 
     /* 上下マージン入力欄 / Vertical margin input */
     var verticalGroup = marginPanel.add("group");
@@ -371,15 +314,12 @@ function showMarginDialog(defaultValue, unit) {
         updatePreview(inputV.text);
     };
 
-
-
     /* 現在のアートボードrectと全アートボードrectを保存（プレビュー用に復元） / Save current and all artboard rects for preview restore */
     var abIndex = app.activeDocument.artboards.getActiveArtboardIndex();
     var originalRects = [];
     for (var i = 0; i < app.activeDocument.artboards.length; i++) {
         originalRects.push(app.activeDocument.artboards[i].artboardRect.slice());
     }
-
 
     function previewSelection(previewMarginV) {
         var sel = app.activeDocument.selection;

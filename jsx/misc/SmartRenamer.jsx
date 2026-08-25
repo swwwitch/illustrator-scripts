@@ -12,34 +12,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### Overview
 
-Batch-renames artboards, symbols, layers, and graphic styles by combining prefix, suffix, name source, and find/replace.
-Targets can be filtered, reordered, and edited individually in the dialog, with a live preview of the result.
+Renames artboards, symbols, layers and graphic styles in bulk, combining a prefix, a suffix, a naming basis and find-and-replace.
+The dialog filters, reorders and hand-edits individual entries, with a preview of the result.
 
 See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartRenamer";                 /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-24";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenamer.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenamer.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SmartRenamer";                 /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2025-05-09";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-24";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenamer.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenamer.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2db43c753c0b"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User settings
     // =========================================
 

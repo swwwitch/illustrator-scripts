@@ -3,101 +3,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
-ResetRotation.jsx
+### 概要
 
-### GitHub：
+選択オブジェクトの回転を水平（0°）に補正します。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetRotation.jsx
+詳細は README を参照してください。
 
-### 概要：
+### Overview
 
-- 選択オブジェクトの回転を水平(0°)に補正。
-- テキスト、配置画像（リンク/埋め込み）、長方形（パス）を対象に、見かけ上の回転を0°に補正。
-- 画像がクリッピンググループ内にある場合は、回転が乗っている“親（ホスト）”を自動で検出して補正。
-- クリップ範囲は「最上位のクリップ」に固定（UIからの選択は不可）。
-- 縦書きテキストはスキップ。ほぼ水平（許容角度内）は無視。
+Corrects the rotation of the selected objects back to horizontal (0°).
 
-### 主な機能：
-
-- 対象の選択：テキスト / 配置画像 / 長方形（チェックボックス）
-- 補正条件：水平とみなす範囲（°）を指定。↑/↓=±1、Shift+↑/↓=±10、Option+↑/↓=±0.1 のキー操作に対応。
-- テキスト：縦横比（1:1）を保持するオプション（デフォルトON）。
-
-### 処理の流れ：
-
-1) 選択オブジェクトを再帰走査し、タイプ別に収集。  
-2) 変換行列（matrix）から回転角を推定（パスは頂点からの推定をフォールバック）。  
-3) 鏡像（負スケール）を考慮して必要角度だけ回転。  
-4) 回転直後に各オブジェクトへ個別に「Reset Bounding Box」を実行。
-
-### オリジナル、謝辞：
-
-### note：
-
-- 許容角度（しきい値）は CONFIG.epsilonDeg で管理し、ダイアログから変更可能。  
-- 回転はオブジェクト中心（Transformation.CENTER）。  
-- ロック/非表示等で回転不可の場合はスキップ（例外は握りつぶし）。
-
-### 更新履歴：
-
-- v1.3 (20250815) : テキストフレームの縦横比保持オプション追加
-- v1.2 (20250815) : クリップ範囲を「最上位のクリップ」に固定。UIから選択を削除
-- v1.1 (20250815) : しきい値UI、矢印キー増減、クリップグループ対応、画像の鏡像補正、回転直後の Reset Bounding Box を実装
-- v1.0 (20250815) : 初期バージョン
-
----
-
-### Script name:
-ResetRotation.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetRotation.jsx
-
-### Overview:
-
-- Level selected objects to horizontal (0°).  
-- Targets text, placed/embedded images, and rectangles (paths).  
-- Automatically detects and corrects rotation on parent (host) when images are inside clipping groups.  
-- Clip scope is fixed to Topmost (no UI selection).  
-- Skips vertical text and ignores nearly horizontal objects (within tolerance).
-
-### Main features:
-
-- Selection options: Text / Placed Image / Rectangle (checkboxes).  
-- Correction tolerance range (degrees) adjustable via dialog with keyboard shortcuts (↑/↓=±1, Shift+↑/↓=±10, Option+↑/↓=±0.1).
-- Text option: keep aspect ratio (1:1) enabled by default.
-
-### Processing flow:
-
-1) Recursively traverse selected objects and collect by type.  
-2) Estimate rotation angle from transformation matrix (fallback to path vertices for paths).  
-3) Rotate by required angle considering mirrored (negative scale) transforms.  
-4) Execute "Reset Bounding Box" individually on each object immediately after rotation.
-
-### Original, acknowledgments:
-
-### note:
-
-- Tolerance threshold is managed by CONFIG.epsilonDeg and adjustable from dialog.  
-- Rotation is performed about object center (Transformation.CENTER).  
-- Skips locked/hidden objects that cannot be rotated (exceptions are suppressed).
-
-### Changelog:
-
-- v1.3 (20250815) : Added text frame aspect ratio keep option
-- v1.2 (20250815) : Fixed clip scope to "Topmost" and removed scope selection from UI
-- v1.1 (20250815) : Added tolerance UI and arrow-key increments, clipping-group rotation, mirrored image handling, and per-item Reset Bounding Box after rotation
-- v1.0 (20250815) : Initial release  
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ResetRotation";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-15";                   /* 更新日 / last updated */
 
-/* =============================
-   基本情報 / Script Basics
-   ============================= */
-var SCRIPT_VERSION = "v1.3";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetRotation.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetRotation.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -315,7 +250,6 @@ function showTargetDialog(defaults) {
     var etEps = gEps.add("edittext", undefined, String((typeof defaults.epsilonDeg !== 'undefined') ? defaults.epsilonDeg : CONFIG.epsilonDeg));
     etEps.characters = 6;
     changeValueByArrowKey(etEps);
-
 
     var gBtns = w.add("group");
     gBtns.alignment = "center";
@@ -598,7 +532,6 @@ function processItems(items) {
         rotated: rotated
     };
 }
-
 
 function getGroupProxyAngle(grp) {
     /* クリップグループの見かけ角度を子要素から推定 / Estimate apparent angle of a clipping group from children

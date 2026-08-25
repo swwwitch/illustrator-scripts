@@ -2,38 +2,45 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * PDFAISpreadImporter.jsx
- *
- * 概要:
- * PDF/AIファイルを指定したページ範囲で読み込み、新規ドキュメント上に各ページを
- * 個別のアートボードとして配置します。
- *
- * 横長ページは見開きとして自動判定し、左右2つのアートボードに分割して配置します。
- * 偶数ページの位置は 右 / 左 から選択でき、見開きページの配置順序に反映されます。
- *
- * PDFではトリミング設定（アート / トリミング / 仕上がり / 裁ち落とし）を選択可能です。
- * 選択中の配置画像、または指定ファイルからページ数を推定し、ページ範囲に反映します。
- *
- * 新規ドキュメントのカラーモードは CMYK / RGB から選択できます。
- * アートボード間隔は 100 pt 固定、ラスタライズ効果解像度は 300 ppi 固定です。
- *
- * 配置完了後は、生成されたすべてのアートボードが見えるように表示倍率を自動調整します。
- *
- * 更新日: 2026-03-18
- */
+
+### 概要
+
+PDF/AI ファイルを指定したページ範囲で読み込み、新規ドキュメント上に各ページを個別のアートボードとして配置します。
+横長ページは見開きとして自動判定し、左右2つのアートボードに分割します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Imports a PDF/AI file over a given page range and places each page on its own artboard in a new document.
+Landscape pages are detected as spreads and split into two artboards, left and right.
+
+See the README for details.
+
+*/
 
 // =========================================
-// バージョンとローカライズ
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "PDFAISpreadImporter";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-18";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAISpreadImporter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAISpreadImporter.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // 生成されるアートボード間のデフォルト間隔（pt）
 var DEFAULT_ARTBOARD_GAP = 100;
 
 // 新規出力ドキュメントのデフォルト・ラスタライズ効果解像度（ppi）
 var DEFAULT_RASTER_EFFECTS_RESOLUTION = 300;
-
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -289,7 +296,6 @@ function placementFitAllArtboardsInView(targetDoc) {
         view.zoom = targetZoom;
     } catch (_) { }
 }
-
 
 // =========================================
 // PDF配置時のトリミング指定
@@ -656,7 +662,6 @@ function main() {
     var btnCancel = ui.btnCancel;
     var btnOk = ui.btnOk;
 
-
     // ------------------------
     // UI表示補助
     // ------------------------
@@ -695,7 +700,6 @@ function main() {
     function setResultText(last) {
         etRange.text = last ? ('1-' + last) : '';
     }
-
 
     // ------------------------
     // UIイベント配線
@@ -751,7 +755,6 @@ function main() {
             targetDoc.rasterEffectSettings = settings;
         } catch (_) { }
     }
-
 
     // ------------------------
     // 配置オプション取得

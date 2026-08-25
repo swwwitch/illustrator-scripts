@@ -5,13 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した配置画像・ラスター画像・ベクター・テキストから代表色を抽出し、16／11／8／5色のカラーパレットを元オブジェクトの下に描画します。オブジェクトを選択していないときは、スウォッチパネルで選択中のスウォッチから色玉パレットを作成します。
+選択した配置画像・ラスター画像・ベクター・テキストから代表色を抽出し、16／11／8／5色のカラーパレットを元オブジェクトの下に描画します。
+オブジェクトを選択していないときは、スウォッチパネルで選択中のスウォッチから色玉パレットを作成します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Extracts representative colors from selected placed/raster images, vector art, or text, then draws 16 / 11 / 8 / 5 color palettes below the source object. With nothing selected, it builds a palette from the swatches selected in the Swatches panel.
+Extracts representative colors from the selected placed image, raster image, vector art or text and draws a 16, 11, 8 or 5 color palette below the original.
+With nothing selected, it builds the palette from the swatches selected in the Swatches panel instead.
 
 See the README for details.
 

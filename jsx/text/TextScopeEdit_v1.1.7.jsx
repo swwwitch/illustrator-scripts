@@ -1,52 +1,41 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.1.7";
-
 /*
 
-TextScopeEditor.jsx
+### 概要
 
-概要
-選択した条件に応じてドキュメント内のテキストを収集し、一覧表示して内容を編集できます。
-対象テキスト（アートボード）では、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体を切り替えできます。
-対象テキスト（レイヤー）では、//ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかを切り替えできます。
-重複を除外はデフォルトでオンです。ソート、段落単位の書式保持つき置換、プレビューに対応します。
-グループ内のテキストも対象です。実質的に空のテキストオブジェクトは無視します。
-ロックまたは非表示のテキストを対象に含めた場合でも、一時的に編集可能な状態にしてから内容を更新し、処理後に元の状態へ戻します。
-シンボル内のテキストは編集対象外ですが、一覧表示には対応します。シンボル内テキストの読み取り結果はダイアログ表示中にキャッシュされ、通常の一覧更新では再読込しません。
-シンボルの再シンボル化には互換性のあるダイナミックアクション定義を使います。アクションは必要時に一度だけ読み込み、終了時に解放します。シンボル内テキスト収集では breakLink 後に毎回再シンボル化を実行しますが、再シンボル化前に選択可能なオブジェクトだけを再帰収集して選択し、シンボル化しにくい項目は除外します。不発時はアクションを再読み込みして一度だけ再試行します。
-シンボル内テキスト一覧はダイアログ表示中にキャッシュしますが、初回収集時は全シンボルで再シンボル化を実行するロジックです。
-OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
+ドキュメント内のテキストを収集して一覧表示し、その場で編集してドキュメントへ書き戻します。
+対象はアートボード単位やレイヤー単位で絞り込めます。
 
-Overview
-Collect text in the document based on the selected conditions, show it in a list, and edit the contents.
-In Text Scope (Artboards), you can switch between the current artboard, all artboards, and the entire document.
-In Text Scope (Layers), you can choose whether to include layers starting with //, and whether locked text and hidden text are included.
-Remove Duplicates is enabled by default. Sorting, replacement while keeping paragraph-level formatting, and preview are supported.
-Text inside groups is supported. Effectively empty text objects are ignored.
-When locked or hidden text is included, the script temporarily makes it editable, updates the contents, and then restores the original state.
-Text inside symbols is not editable, but listing is supported. Symbol text results are cached while the dialog is open, and normal list updates do not reload them.
-A compatible dynamic action definition is used for re-symbolizing. The action is loaded only when needed and unloaded at the end. During symbol text collection, the script always re-symbolizes after breakLink, but before that it recursively selects only eligible objects and skips items that are unsuitable for symbol creation. If it does not fire, it reloads the action and retries once.
-The symbol text list is cached while the dialog is open, but the initial collection now runs re-symbolizing for every symbol.
-Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
+詳細は README を参照してください。
 
-更新日 / Updated: 2026-04-02
+### Overview
 
-紹介記事（note）
-https://note.com/dtp_tranist/n/nb845889dd553
+Collects the text in the document, lists it, and lets you edit it in place and write it back.
+The scope can be narrowed by artboard or by layer.
 
-Special thanks to:
-Sergey Osokin
-https://github.com/creold/illustrator-scripts/blob/master/md/Text.md#multiedittext
+See the README for details.
 
-Released under the MIT license
-http://opensource.org/licenses/mit-license.php
 */
 
 // =========================================
-// バージョンとローカライズ
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "TextScopeEdit_v1.1.7";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.7";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit_v1.1.7.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit_v1.1.7.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -783,7 +772,6 @@ function main() {
             leftCol.orientation = "column";
             leftCol.alignChildren = ["fill", "top"];
 
-
             var listBox = leftCol.add("listbox", [0, 0, 250, 230], []);
             var editBox = leftCol.add("edittext", [0, 0, 250, 50], "", { multiline: true, scrolling: true });
 
@@ -983,9 +971,6 @@ function main() {
             }
         }
 
-
-
-
         /* 初回収集 / Initial collection */
         updateList();
         refreshSymbolList(false);
@@ -1001,7 +986,6 @@ function main() {
             updateList();
         };
         cbDedup.onClick = function () { updateList(); };
-
 
         cbOutside.onClick = function () { updateList(); };
         cbSkipComment.onClick = function () { updateList(); };

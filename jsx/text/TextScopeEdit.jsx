@@ -1,54 +1,41 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.3.6";
-
 /*
 
-TextScopeEdit.jsx
+### 概要
 
-概要
-選択した条件に応じてドキュメント内のテキストを収集し、一覧表示して内容を編集できます。
-対象テキスト（アートボード）では、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体を切り替えできます。
-対象テキスト（レイヤー）では、//ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかを切り替えできます。
-同じ内容のテキストをまとめて扱うはデフォルトでオンです。同じ内容のテキストが複数ある場合、一覧では1件として扱い、編集時は該当テキストを一括で更新します。ソート、段落単位の書式保持つき置換、プレビューに対応します。
-グループ内およびサブレイヤー内のテキストも対象です。実質的に空のテキストオブジェクトは無視します。内部の収集処理は共通化し、一覧用と書き出し用で同じ走査ロジックを使います。
-ロックまたは非表示のテキストを対象に含めた場合でも、一時的に編集可能な状態にしてから内容を更新し、処理後に元の状態へ戻します。収集時のロック・非表示判定は、親グループや親コンテナの状態も含めて確認します。
-シンボル内のテキストは編集対象外ですが、一覧表示には対応します。現在のアートボード内を選んだときは、そのアートボード内にあるシンボルインスタンスのみを対象にします。シンボル内テキストの読み取り結果は、対象範囲・//レイヤー・ロック・非表示の条件ごとにダイアログ表示中キャッシュします。条件が変わった場合のみ再読込します。
-シンボル内テキストの読み取りは、同名シンボルをアートボードごとに1回だけ対象にします。対象条件の判定、重複除外、一時レイヤーでの複製・breakLink・後始末は共通処理化しています。読み取りに使った複製オブジェクトは削除し、元のカンバス上のシンボルには触れません。一時レイヤーは必要時のみ作成し、このスクリプトが作成した場合のみ削除します。
-ダイアログ全体をタブ構成にしています。カンバスタブには従来どおり「テキスト一覧」「テキスト編集」「シンボル内テキスト（編集不可）」と各種オプションを表示します。追加した「レイヤー名」タブは常にドキュメント全体を対象とし、上部のラジオボタンで「すべてのレイヤー」と「上位レベルのレイヤーのみ」を切り替えできます。デフォルトは「上位レベルのレイヤーのみ」です。「アートボード名」タブも常にドキュメント全体を対象とし、上部のラジオボタンで「番号つき」と「アートボード名のみ」を切り替えできます。デフォルトは「番号つき」です。「フォント名」タブは常にドキュメント全体・すべてのレイヤー・ロック・非表示を含めて収集し、「PostScript名」「フォント名」「スタイル」の3列で表示します。上部のチェックボックスで各列の表示・非表示を切り替えられ、項目をクリックすると、該当するテキストオブジェクトを選択します。テキスト編集欄の高さは4行分です。シンボル内テキスト一覧の高さは内容件数に応じて自動調整され、最小4行・最大8行の範囲で表示します。
-段落書式を保持がオンのときは、プレビューを自動でオフにして無効化します。プレビュー中に切り替えた場合も、プレビュー状態を解除してから反映します。
-［テキスト書き出し］実行時には、書き出し情報ダイアログを表示します。ダイアログでは「テキスト」と「フォント名」を出力するかどうか、および書き出し後にファイルを開くかどうかを選べます。デフォルトでは書き出し後にファイルを開きます。書き出し時は、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体の範囲指定、および //ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかの条件を反映します。重複のまとめ表示やソート状態には影響されません。各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切られ、必要に応じてテキストとフォント名を書き出します。シンボル内テキストは「〈シンボル：名前〉」の形式で末尾に付加されます。OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
+ドキュメント内のテキストを収集して一覧表示し、その場で編集してドキュメントへ書き戻します。
+対象はアートボード単位やレイヤー単位で絞り込めます。
 
-Overview
-Collect text in the document based on the selected conditions, show it in a list, and edit the contents.
-In Text Scope (Artboards), you can switch between the current artboard, all artboards, and the entire document.
-In Text Scope (Layers), you can choose whether to include layers starting with //, and whether locked text and hidden text are included.
-Treat Same Text as One is enabled by default. When multiple text frames have the same content, the list shows them as one item and editing updates all matching text frames together. Sorting, replacement while keeping paragraph-level formatting, and preview are supported.
-Text inside groups and sublayers is supported. Effectively empty text objects are ignored. Internally, the collection logic is shared so the list and export use the same traversal behavior.
-When locked or hidden text is included, the script temporarily makes it editable, updates the contents, and then restores the original state. Collectability checks for locked and hidden states also inspect parent groups and parent containers.
-Text inside symbols is not editable, but listing is supported. When Current Artboard Only is selected, only symbol instances on the current artboard are targeted. Symbol text results are cached while the dialog is open per condition set, including scope, // layers, locked text, and hidden text. They are reloaded only when those conditions change.
-To read text inside symbols, the script targets each symbol name once per artboard. Scope filtering, duplicate elimination, temporary-layer duplication, break-linking, and cleanup are shared internally. The temporary duplicate objects are then removed, and the original symbols on the canvas remain untouched. The temporary layer is created only when needed and is removed only if this script created it.
-The whole dialog now uses tabs. The Canvas tab keeps the existing Text List, Edit Text, Text in Symbols (Read-Only), and the existing option controls. The Layer Names tab always targets the entire document and provides radio buttons to switch between All Layers and Top-Level Layers Only. The default is Top-Level Layers Only. The Artboard Names tab also always targets the entire document and provides radio buttons to switch between Numbered and Names Only. The default is Numbered. The Font Name tab always collects items from the entire document including all layers, locked text, and hidden text, and displays them in three columns: PostScript name, font family name, and style. The checkboxes above the list let you show or hide each column independently, and clicking an item selects all matching text objects. The Edit Text field height is 4 lines. The height of the symbol text list adjusts automatically to the number of items, with a minimum of 4 rows and a maximum of 8 rows.
-When Keep Paragraph Formatting is enabled, Preview is turned off automatically and disabled. If you switch it on while previewing, the preview state is cleared before the change is applied.
-When [Export Text] is clicked, the script first shows an Export Information dialog. In that dialog, you can choose whether to include Text and Font Names, and whether to open the exported file afterward. Opening the file after export is enabled by default. Export respects the current scope setting (current artboard, all artboards, or entire document), as well as whether layers starting with // are included and whether locked or hidden text is included. Duplicate grouping and sort state do not affect export. Each artboard is written under a ---Artboard Number: Artboard Name--- heading, and, depending on the selected options, the export includes text and font names. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Symbol text lines append "«Symbol: name»" in English. Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
+詳細は README を参照してください。
 
-更新日 / Updated: 2026-04-08
+### Overview
 
-紹介記事（note）
-https://note.com/dtp_tranist/n/nb845889dd553
+Collects the text in the document, lists it, and lets you edit it in place and write it back.
+The scope can be narrowed by artboard or by layer.
 
-Special thanks to:
-Sergey Osokin
-https://github.com/creold/illustrator-scripts/blob/master/md/Text.md#multiedittext
+See the README for details.
 
-Released under the MIT license
-http://opensource.org/licenses/mit-license.php
 */
 
 // =========================================
-// バージョンとローカライズ
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.6";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-08";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -165,7 +152,6 @@ function main() {
             ].join('|');
         }
 
-
         var TEMP_LAYER_NAME = '__TextScopeEdit_temp_read__';
         var TEMP_LAYER_NOTE = '__TextScopeEdit_temp_read__';
 
@@ -225,7 +211,6 @@ function main() {
                 return false;
             }
         }
-
 
         // Helper: Check if any parent group/container is locked or hidden
         function isParentLockedOrHidden(item, options) {
@@ -711,7 +696,6 @@ function main() {
         // =========================================
         // 段落書式保持のためのユーティリティ / Utilities for keeping paragraph formatting
         // =========================================
-
 
         function getProps(obj, keys) {
             var props = {};
@@ -1694,7 +1678,6 @@ function main() {
 
             return results;
         }
-
 
         function collectExportTextFrames(options, scopeMode) {
             return collectFramesByScope(scopeMode, options);

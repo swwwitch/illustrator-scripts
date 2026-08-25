@@ -2,51 +2,38 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-UI messages support Japanese/English. (Note format remains Japanese for compatibility.)
 
-### スクリプト名：
+### 概要
 
-OutlineTextRestore.jsx
+選択したテキストをアウトライン化し、そのとき保存したメモ（note）をもとに、あとからテキストへ復元します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/OutlineTextRestore.jsx
+### Overview
 
-### 概要：
+Outlines the selected text and can later restore it, using the note saved at the time of outlining.
 
-- アウトライン化されたテキストを、メモ情報（note）をもとに元のテキストとして復元するスクリプトです。
-- 選択しているパス／グループのみを対象とし、復元されたテキストは「restored_text」レイヤーに統合して作成されます。
-- 元のアウトライン（選択オブジェクトのみ）は、新規作成した退避レイヤーに移動され、そのレイヤーを「outlined_text」として最背面に配置し、テンプレートレイヤーに設定します。
-
-### 更新日：
-
-20260111
-
-### 主な機能：
-
-- PathItem または GroupItem の note 情報からテキスト内容、フォント情報、座標などを抽出
-- 新しいテキストフレームを元の位置に再生成し、元のアウトラインを非表示または移動
-- メモが存在しない・情報が不正な場合には警告を表示
-- 復元テキストは毎回「新規レイヤー」に作成／元アウトラインは毎回「新規退避レイヤー」に移動して outlined_text（最背面・テンプレート化）
-
-### 処理の流れ：
-
-1. 対象オブジェクトを選択（アウトライン化された Path または Group）
-2. メモ情報を解析し、属性データを抽出
-3. 復元テキストを「新規レイヤー」に再構築
-4. 元オブジェクトを「outlined_text」レイヤーへ移動（このレイヤーは常に最背面・テンプレート化）
-
-### 更新履歴：
-
-- v1.0 (20240811) : 初期バージョン
-- v1.1 (20250721) : 微調整
-- v1.2 (20260111) : ローカライズ（アラート文言の英語対応）
-- v1.3 (20260111) : 退避レイヤー名を outlined_text に変更（旧名 outlined-text から自動移行）
+See the README for details.
 
 */
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.3";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "OutlineTextRestore";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-08-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/OutlineTextRestore.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/OutlineTextRestore.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 function normalizeOutlinedTextLayerNames(doc, keepLayer) {
     if (!doc || !keepLayer) { return; }
 
@@ -178,7 +165,6 @@ function cleanupOutlinedTextDuplicateNames(doc) {
     return target;
 }
 
-
 // 退避レイヤー名（新/旧）
 var TEMPLATE_LAYER_NAME = "outlined_text";
 // Backward compatibility: previous names
@@ -216,7 +202,6 @@ var I18N = {
 function _(key) {
     return (I18N[LOCALE] && I18N[LOCALE][key]) ? I18N[LOCALE][key] : key;
 }
-
 
 // ==============================
 // Template Layer (Action-based)
@@ -334,7 +319,6 @@ function act_setLayTmplAttr() {
     app.doScript("change-to-template-layer", "layer", false); // action name, set name
     app.unloadAction("layer", ""); // set name
 }
-
 
 // メモからテキスト属性（文字列、フォント、フォントサイズなど）を抽出する関数
 function extractTextAttributes(noteText) {

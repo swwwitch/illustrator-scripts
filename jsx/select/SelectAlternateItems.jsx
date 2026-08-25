@@ -2,9 +2,19 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  互い違いに選択 / Alternate Select
-  - 選択中のオブジェクトを「奇数 / 偶数」で互い違いに選択
-  - 方向（垂直 / 水平）でカウント順を切り替え
+
+### 概要
+
+選択中のオブジェクトを並び順で数え、奇数番目または偶数番目だけを互い違いに選択し直します。数える方向は垂直・水平から選べます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Counts the selected objects in order and reselects only the odd- or even-numbered ones. The counting direction can be set to vertical or horizontal.
+
+See the README for details.
+
 */
 
 // =========================================
@@ -15,6 +25,11 @@ var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectAlternateItems.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlternateItems.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -367,7 +382,6 @@ function guessInitialDirectionMode(items, fallbackMode) {
     }, false);
   }
 
-
   /* キー入力でラジオ切替 / Key handler for radio buttons
      Odd: O / Even: E / Vertical: V / Horizontal: H / Z-Order: A
   */
@@ -523,7 +537,6 @@ function guessInitialDirectionMode(items, fallbackMode) {
 
   // 初期状態をプレビュー反映（ダイアログ表示直後に選択を更新） / Initial preview
   applySelectionPreview();
-
 
   // ダイアログ表示 / Show dialog
   dialog.show();

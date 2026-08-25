@@ -2,32 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
 
-選択オブジェクトを条件に応じてフィルタリングし、
-テキスト／オープンパス／クローズパスを選択し直すスクリプト。
-対象スコープを切り替えることで、選択直下のみ、またはグループ内のオブジェクトも対象にできます。
-クローズパスは、塗りのみ／線のみ／塗り＋線のいずれも対象にします。
-複合パスは親オブジェクトとして扱い、クリップグループではマスク用パスを選択対象から除外します。
-選択更新時は、ロック／非表示のオブジェクトや親階層を避けて安全に処理します。
+### 概要
 
-Overview
+選択オブジェクトを条件に応じてフィルタリングし、テキスト／オープンパス／クローズパスを選択し直します。
+対象スコープを切り替えると、選択直下だけでなくグループ内のオブジェクトも対象にできます。
 
-Filters selected objects by condition and reselects text,
-open paths, and closed paths.
-The selection scope can be limited to selected objects only,
-or include objects inside groups.
-Closed paths include fill-only, stroke-only, and fill-plus-stroke paths.
-Compound paths are treated as parent objects, and clipping mask paths
-inside clipping groups are excluded from the selection targets.
-Selection updates are applied safely by avoiding locked or hidden objects
-and locked or hidden parent containers.
+詳細は README を参照してください。
+
+### Overview
+
+Filters the selection by condition and reselects text frames, open paths, or closed paths.
+Switching the scope extends the filter from the top level of the selection to objects inside groups as well.
+
+See the README for details.
+
 */
 
 // =========================================
-// バージョンとローカライズ / Version & Localization
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_NAME     = "SmartSelectionFilterSimple";   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilterSimple.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilterSimple.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLanguage() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -103,7 +110,6 @@ function getLabel(labelKey) {
             activeDocument = app.activeDocument;
             originalSelectionItems = getOriginalSelectionItems(activeDocument);
             var expandedGroupTargetItemsCache = null;
-
 
             function applySelectionSafely(targetDocument, targetItems) {
                 if (!targetDocument || !targetItems) {

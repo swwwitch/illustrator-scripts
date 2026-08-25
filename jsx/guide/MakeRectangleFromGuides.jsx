@@ -6,11 +6,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 ガイドの交点で区切られた区画に、塗りつぶした長方形を一括生成します。対象にするガイドと作成先はダイアログで指定できます。
-詳細はREADMEを参照してください。
+
+詳細は README を参照してください。
 
 ### Overview
 
 Fills every area bounded by guide intersections with a generated rectangle. A dialog selects which guides to use and where the rectangles go.
+
 See the README for details.
 
 */

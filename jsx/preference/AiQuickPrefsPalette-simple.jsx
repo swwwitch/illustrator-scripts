@@ -6,53 +6,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator の各種環境設定の切り替えと、選択オブジェクトの反転・回転を、常駐パレットでまとめて操作するユーティリティです。操作した時点で即時反映されます。
+Illustratorの各種環境設定の切り替えと、選択オブジェクトの反転・回転を、常駐パレットでまとめて操作します。
+反転・回転はアイコンボタンで実行し、9軸（3×3）ウィジェットで基準点を指定します。
 
-- パレット（常駐エンジン）で表示し、書き込み・DOM 操作は BridgeTalk でメインエンジンへ委譲（読み出しは同期で直接取得）
-- 上段は2カラム（左:キー増加／整列オプション／変形オプション・右:反転と回転／字形の境界に整列）、その下に全幅でコピー/ペースト・描画
-- 反転・回転はアイコンボタンで実行し、9軸（3×3）ウィジェットで基点を指定。アイコンはライト／ダーク UI に合わせて配色を自動切り替え
-- 環境設定ダイアログ等の外部変更は、パレットをクリック（再アクティブ）で同期
-- パレットがアクティブなとき esc キーで閉じる
-
-#### パネルと項目
-
-- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
-- 整列オプション：プレビュー境界
-- 字形の境界に整列：ポイント文字／エリア内文字
-- 変形オプション：パターン／角／線幅と効果
-- 変形：左右反転／上下反転／回転（反時計回り・時計回り）をアイコンボタンで実行。9軸（3×3）の基準点ウィジェットで反転・回転の基点を指定（既定は中央）。基点は選択全体の可視バウンディングを基準に算出。アイコンはライト／ダーク UI に合わせて配色を自動切り替え
-- コピー/ペースト：書式なしペースト／コピー元のレイヤーにペースト
-- 描画：リアルタイムの描画と編集／プレビュー更新（GPU プレビューを更新）
-
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n41d8dc1961be
+詳細は README を参照してください。
 
 ### Overview
 
-A persistent-palette utility for batch-toggling various Illustrator preferences and flipping/rotating the selection. Every action applies immediately when triggered.
+A persistent palette that groups the Illustrator preferences together with flipping and rotating the selection.
+Flips and rotations run from icon buttons, with the reference point picked on a nine-point (3×3) widget.
 
-- Runs in a persistent-engine palette; writes and DOM operations are delegated to the main engine via BridgeTalk (reads are fetched directly/synchronously)
-- Top is a two-column row (left = Key input / Align Options / Transform Options, right = Flip & Rotate / Align to Glyph Bounds); below it, full width = Copy / Paste and Drawing
-- Flip and rotate run from icon buttons, with a 9-axis (3x3) widget to set the pivot; icon colors adapt to the light / dark UI
-- External changes (e.g. the Preferences dialog) sync when you click (re-activate) the palette
-- Press Esc to close while the palette is active
-
-#### Panels & options
-
-- Key input: cursor step (cursorKeyLength); switch ruler unit via popup, adjust with Up/Down / Shift / Option
-- Align Options: Preview Bounds
-- Align to Glyph Bounds: Point Type / Area Type
-- Transform Options: Pattern Tiles / Corners / Strokes & Effects
-- Transform: Flip horizontal / vertical and rotate (counterclockwise / clockwise) from icon buttons. A 9-axis (3x3) anchor widget sets the pivot (center by default), computed from the selection's overall visible bounds. Icon colors adapt to the light / dark UI
-- Copy / Paste: Paste without Formatting / Paste Remembers Layers
-- Drawing: Real-time Drawing & Editing / Refresh Preview (GPU preview)
-
-### 更新履歴 / Change Log
-
-- v2.0.0 (20260630): 「反転と回転」パネルを FlipRotatePalette のアイコン UI へ差し替え（左右反転／上下反転／回転 CCW・CW のアイコンボタン＋9軸の基準点ウィジェット、ライト／ダーク対応）。反転・回転の基点を選択中心固定から 9 軸の任意基準点に変更（btTransformSelection＋getAnchorExpressions に共通化、適用後に app.redraw()）。方向ラジオと水平／垂直／45°回転のテキストボタンを廃止。
-- v1.0 (20250804): 初期バージョン。
+See the README for details.
 
 */
 
@@ -62,8 +26,14 @@ A persistent-palette utility for batch-toggling various Illustrator preferences 
 var SCRIPT_NAME     = "AiQuickPrefsPalette-simple";   /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette-simple.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPrefsPalette-simple.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -1083,7 +1053,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         btnRefreshGpuPreview.onClick = function () {
             runInMainEngine('try{app.executeMenuCommand("View using GPU");app.executeMenuCommand("View using GPU");}catch(e){}');
         };
-
 
         /* 読み出した環境設定を UI へ反映 / Apply fetched preferences to the UI */
         function applyPreferencesToUI(prefValues) {

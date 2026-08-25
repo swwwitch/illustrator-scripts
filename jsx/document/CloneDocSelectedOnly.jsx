@@ -2,70 +2,40 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-CloneDocSelectedOnly.jsx
 
 ### 概要
 
-- 選択オブジェクトのみを残した複製ドキュメントを作成するInDesign用スクリプトです。
-- 元ドキュメントを一時保存後、不要なオブジェクトを削除して新しいドキュメントを生成します。
+選択オブジェクトだけを残した複製ドキュメントを作成するInDesign用スクリプトです。
+元ドキュメントを一時保存してから複製を開き、非選択・非表示のオブジェクトを削除します。
 
-### 主な機能
-
-- 選択オブジェクトのみを保持した複製ドキュメント作成
-- 非表示・非選択オブジェクトの削除
-- ロックアイテム削除オプション
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. アクティブドキュメントと選択オブジェクトを確認
-2. 一時ファイル名を生成してドキュメントを保存
-3. 複製ドキュメントを開く
-4. 非選択オブジェクトや非表示アイテムを削除
-5. 必要に応じてロックアイテムを削除
-
-### 更新履歴
-
-- v1.0.0 (20231226) : 初版リリース
-- v1.0.1 (20250702) : 処理微調整
-
----
-
-### Script Name:
-
-CloneDocSelectedOnly.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- An InDesign script that creates a duplicate document containing only the selected objects.
-- Saves the original document temporarily, then removes unnecessary objects to create a clean copy.
+An InDesign script that creates a duplicate document containing only the selected objects.
+The original is saved to a temporary file, the copy is opened, and unselected and hidden objects are removed from it.
 
-### Main Features
+See the README for details.
 
-- Create a duplicate document with only selected objects
-- Remove hidden and unselected objects
-- Option to remove locked items
-- Japanese and English UI support
-
-### Process Flow
-
-1. Check active document and selected objects
-2. Generate temporary file name and save document
-3. Open the duplicate document
-4. Remove unselected and hidden items
-5. Optionally remove locked items
-
-### Update History
-
-- v1.0.0 (20231226): Initial release
-- v1.0.1 (20250702): Minor adjustments
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "CloneDocSelectedOnly";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2023-12-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-02";                   /* 更新日 / last updated */
 
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloneDocSelectedOnly.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloneDocSelectedOnly.md
 
-// ===== 設定セクション ===== // Settings section
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var REMOVE_LOCKED_ITEMS = false; // true: ロックされたアイテムやレイヤーも削除 / Remove locked items and layers if true
 
 // -------------------------------
@@ -81,7 +51,6 @@ var LABELS = {
     notSaved: { ja: "ドキュメントが一度も保存されていません。先に保存してください。", en: "The document has never been saved. Please save it first." },
     noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
 };
-
 
 // スクリプト開始 // Script start
 function main() {
@@ -112,7 +81,6 @@ function main() {
     }
 }
 // スクリプト終了 // Script end
-
 
 // 選択されているオブジェクトを配列で取得 // Get selected items as array
 function getSelectedItems(doc) {

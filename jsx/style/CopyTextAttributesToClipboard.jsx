@@ -3,74 +3,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
 
-選択されたテキストオブジェクト、またはテキスト編集モードで部分選択された文字列から、
-先頭文字を基準に文字属性・段落属性を取得し、永続エンジン "FontClipboard" の
-$.global.FontClipboard に保存します。同じ #targetengine を指定した
-ApplyTextAttributesFromClipboard.jsx から読み取って適用できます。
+### 概要
 
-保存する内容
-- フォント（PostScript 名・ファミリ名・スタイル）／フォントサイズ／行送り／自動行送り
-- 文字ツメ／トラッキング／自動カーニング（種別と表示名）／プロポーショナルメトリクス
-- 組み方向（値と表示名）／行揃え（値と表示名）
-- 塗り色（複製）と塗り色の表示名
-- グラフィックスタイル名（後述）
+選択したテキストの先頭文字を基準に、文字属性・段落属性を取得して保存します。
+保存した内容は ApplyTextAttributesFromClipboard.jsx から読み取って適用できます。
 
-グラフィックスタイルの自動登録
-- 選択中の TextFrame の見た目を、register-temp-style.jsx と同じダイナミックアクションで
-  固定名 "temp_style" としてドキュメントに登録し、その名前を保存します。
-- 同名スタイルが存在する場合は削除してから上書きするので、繰り返し実行しても重複しません。
-- 登録中だけ TextFrame をオブジェクト選択し直し、完了後に元の選択（TextRange 含む）へ戻します。
+詳細は README を参照してください。
 
-表示と単位
-- フォントサイズと行送りは Illustrator 内部値（pt）で保存し、結果ダイアログでは
-  text/units の設定に合わせて表示します。
-- 自動行送りがオンのときは行送りの数値を「—」で表示します。
-- 行揃えは Justification 値を判定し、取得できない場合は「—」と表示します。
+### Overview
 
-結果ダイアログにはラジオやチェックボックスは置かず、取得した塗り色とグラフィックスタイル名を
-そのまま並べて表示します。Apply 側でどちらを使うかを選びます。
+Reads the character and paragraph attributes of the selected text, taking the first character as the reference, and stores them.
+The stored values can then be applied with ApplyTextAttributesFromClipboard.jsx.
 
-Overview
+See the README for details.
 
-This script reads character and paragraph attributes from the first character of the selected
-TextFrame (or partially selected text range) and stores them in $.global.FontClipboard on the
-persistent "FontClipboard" engine. ApplyTextAttributesFromClipboard.jsx, running under the same
-#targetengine, reads and applies them.
-
-Stored values
-- Font (PostScript name, family, style), size, leading, auto leading
-- Tsume, tracking, auto kerning (type and label), proportional metrics
-- Text orientation (value and label), alignment (value and label)
-- Fill color (cloned) and its display label
-- Graphic style name (see below)
-
-Auto-registered graphic style
-- The current TextFrame's appearance is registered as a graphic style with the fixed name
-  "temp_style" by running the same dynamic action used in register-temp-style.jsx.
-- Any existing "temp_style" is removed first, so repeated runs do not create duplicates.
-- The TextFrame is temporarily selected as an object during registration; the original selection
-  (including a TextRange) is restored afterwards.
-
-Display and units
-- Font size and leading are stored as internal point values; the result dialog displays them
-  according to the text/units preference.
-- When auto leading is on, the leading is shown as "—".
-- Alignment is resolved from the Justification value; otherwise shown as "—".
-
-The result dialog only displays the captured values (no radios or checkboxes); the choice between
-fill and graphic style is made on the Apply side.
-
-作成日 / Created: 2021-04-10
-更新日 / Updated: 2026-05-21
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "CopyTextAttributesToClipboard"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2021-04-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-21";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.3.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyTextAttributesToClipboard.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyTextAttributesToClipboard.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

@@ -3,23 +3,42 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
 
-AlignAndDistribute-Tate-simple.jsx
+### 概要
 
-### オリジナルアイデア
+重なって配置されたオブジェクトを、縦方向へ等間隔に並べ直します。
 
-John Wundes 
-Distribute Stacked Objects v1.1
-https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
+詳細は README を参照してください。
 
-Gorolib Design
-https://gorolib.blog.jp/archives/77282974.html
+### Overview
+
+Redistributes stacked objects evenly along the vertical axis.
+
+See the README for details.
 
 */
 
-/* バージョン変数を追加 / Script version variable */
-var SCRIPT_VERSION = "v1.0.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartAlignAndTile-tate-simple"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-tate-simple.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-tate-simple.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
+ * @discussion https://gorolib.blog.jp/archives/77282974.html
+ */
 
 /* ダイアログ外観変数 / Dialog appearance variable */
 var dialogOpacity = 0.97;
@@ -204,7 +223,6 @@ function addAlignKeyHandler(target, rbNone, rbLeft, rbCenter, rbRight, onUpdate)
 function setDialogOpacity(dlg, opacityValue) {
     dlg.opacity = opacityValue;
 }
-
 
 /* ダイアログ位置（セッション内で記憶） / Dialog position (remember within session) */
 var DLG_POS_MEM_KEY = "__SmartAlignAndTileTateSimple_DlgPos__";

@@ -3,82 +3,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
 
-CopyTextAttributesToClipboard.jsx が永続エンジン "FontClipboard" の
-$.global.FontClipboard に保存した属性を、選択中のテキストへ適用します。
-テキスト編集モードで部分選択された範囲には範囲だけに、複数の TextFrame を選択している場合は
-それぞれに、同じ属性を適用します。
+### 概要
 
-ダイアログの構成
-- フォント・サイズ／行送り、カーニング関連、段落属性ほか、塗りとグラフィックスタイルの4パネル。
-- 各属性はチェックボックスで適用可否を切り替え。フォントのみ初期 ON、それ以外は OFF。
-- 「塗りとグラフィックスタイル」パネルだけはラジオで排他（しない／塗り／グラフィックスタイル）。
-  初期選択は Copy 側が保存した fillOrGraphicStyle に従う。
-- Optionクリックでクリックした項目以外を OFF にできる（チェックボックス側）。
-- プレビューをONにするとダイアログを閉じずに一時適用、OFF／キャンセル時は
-  「実際に変更した項目のみ」を退避値へ戻す（限定復元）。
+CopyTextAttributesToClipboard.jsx が保存した文字属性を、選択中のテキストへ適用します。
+適用する属性はダイアログのチェックボックスで選べ、文字ツールでの部分選択にも対応します。
 
-ふるまいのポイント
-- フォントスタイルは独立適用項目ではなく、フォント名の補足表示。
-- 自動行送りONのコピー元では、行送りチェックボックスは無効化。
-- 行送りを数値適用するときは、自動行送りを先に OFF にしてから値を入れる。
-- 自動カーニング（メトリクス／オプティカル／0）は ExtendScript から直接適用できないため、
-  ダイナミックアクションを一時ロードして適用。
-- 行揃えは段落属性として扱い、段落ごとの値も含めて退避・復元。
-- グラフィックスタイルは TextFrame 単位で graphicStyle.applyTo を実行。
-  退避時に TextFrame の塗り・線・不透明度・描画モードを保存し、限定復元はこれらを戻す
-  （効果など複雑なアピアランスは完全には戻せない場合あり）。
-- ドキュメントに保存名のグラフィックスタイルが存在しない（Copy 後に別ドキュメントで実行など）場合、
-  グラフィックスタイルのラジオは「（未登録）」表示で無効化。
+詳細は README を参照してください。
 
-単位と保存
-- フォントサイズと行送りは Illustrator 内部値（pt）で適用し、ダイアログでは text/units に従い表示。
-- 選択範囲に属性が混在している場合、退避・復元は代表値ベースとなり、元の混在状態は完全には戻りません。
-- Illustrator を再起動するとエンジンが破棄され、記憶した値は消えます。
+### Overview
 
-Overview
+Applies the text attributes saved by CopyTextAttributesToClipboard.jsx to the current text selection.
+Which attributes are applied is chosen with checkboxes in the dialog, and partial selections made with the Type tool are supported.
 
-This script applies text and paragraph attributes stored by CopyTextAttributesToClipboard.jsx
-in $.global.FontClipboard (persistent engine "FontClipboard") to the current selection.
-If a text range is partially selected the attributes apply to that range; for multiple TextFrames
-the attributes apply to each.
+See the README for details.
 
-Dialog
-- Four panels: Font/Size/Leading, Kerning, Paragraph & Other, and Fill & Graphic Style.
-- Each attribute has its own checkbox; only Font is on by default.
-- The Fill & Graphic Style panel uses a 3-way radio (None / Fill / Graphic Style) for mutual
-  exclusion. The default radio follows fillOrGraphicStyle saved by the Copy script.
-- Option-click on a checkbox turns off all the others.
-- Preview applies the current settings without closing the dialog; turning Preview off or
-  pressing Cancel restores only the attributes that were actually changed (selective restore).
-
-Behavior
-- Font style is shown next to the font name as supplementary info, not as a separate apply target.
-- When the source uses auto leading, the leading checkbox is disabled.
-- When applying a numeric leading value, auto leading is turned off first.
-- Auto kerning (Metrics / Optical / 0) cannot be applied directly via ExtendScript, so a
-  dynamic action is loaded temporarily and used to apply it.
-- Alignment is handled as a paragraph attribute and restored per paragraph.
-- Graphic style is applied to the TextFrame via graphicStyle.applyTo. Before applying, the
-  TextFrame's fill, stroke, opacity, and blending mode are captured so the selective restore
-  can revert them (complex appearances like effects may not be fully reverted).
-- If the stored graphic style name is not present in the active document (for example when the
-  Apply runs on a different document), the Graphic Style radio is disabled and shows "(not in document)".
-
-Units and persistence
-- Font size and leading are applied in internal point units; the dialog displays them according
-  to the text/units preference.
-- If the source contains mixed formatting, capture/restore is based on representative values and
-  the original mixed state may not be fully reconstructed.
-- Restarting Illustrator destroys the engine and the stored values are lost.
-
-作成日 / Created: 2021-04-10
-更新日 / Updated: 2026-05-21
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ApplyTextAttributesFromClipboard"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2021-04-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-21";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.3.1";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyTextAttributesFromClipboard.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyTextAttributesFromClipboard.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -967,7 +924,6 @@ function unloadCachedKerningAction() {
     kerningActionCache.loadedType = null;
 }
 
-
 /* 対応する行揃え値か判定 / Check whether the justification value is supported */
 function isSupportedJustification(justification) {
     try {
@@ -1285,7 +1241,6 @@ function addFontCheckboxRow(parent, fontText, styleText, isAvailable, defaultVal
 
     return checkbox;
 }
-
 
 /* Optionクリックで対象以外をOFFにする / Turn off other checkboxes with Option-click */
 function bindExclusiveOptionClick(checkboxes) {

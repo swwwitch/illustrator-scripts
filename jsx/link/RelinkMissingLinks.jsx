@@ -2,23 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-リンク切れの配置画像を検出し、ユーザーに再リンク用フォルダーを指定させ、
-同名ファイルが見つかった場合に自動で再リンクを行います。
 
-Detect missing linked images in Illustrator, prompt user to specify a folder,
-and automatically relink if a file with the same name is found.
+### 概要
 
-更新日 / Last Updated: 2025-08-02
+リンク切れの配置画像を検出し、指定したフォルダーから同名ファイルを探して自動的に再リンクします。
 
-更新履歴 / Update History:
-- v1.0 (20250718): 初版作成 / Initial version
-- v1.1 (20250730): ダイアログオプション（拡張子完全一致/ファイル名のみ/拡張子優先）追加
-- v1.2 (20250731): 処理対象「すべて」を選択した場合、リンクが有効なファイルも更新可能に変更
+詳細は README を参照してください。
+
+### Overview
+
+Detects missing linked images and relinks them automatically from a folder you choose, matching by file name.
+
+See the README for details.
 
 */
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.4";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RelinkMissingLinks";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkMissingLinks.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkMissingLinks.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

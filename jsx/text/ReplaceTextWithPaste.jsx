@@ -5,13 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードのテキストで、選択中のテキストフレームの内容をまとめて置き換えます。選択がない場合は、貼り付いた位置（画面の中央）に既定の書式でテキストフレームを新規作成します。
+クリップボードのテキストで、選択中のテキストフレームの内容をまとめて置き換えます。
+選択がない場合は、画面の中央に既定の書式でテキストフレームを新規作成します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Replaces the contents of the selected text frames with the text on the clipboard. With nothing selected, it creates a new text frame with the default formatting where the paste lands, which is the center of the view.
+Replaces the contents of the selected text frames with the text on the clipboard.
+With nothing selected, it creates a new text frame at the center of the view using the default formatting.
 
 See the README for details.
 
@@ -31,10 +33,6 @@ var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last update
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPaste.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹介記事 / article URL */
-
-/**
- * @discussion 原案 / Original idea by Gorolib Design
- */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

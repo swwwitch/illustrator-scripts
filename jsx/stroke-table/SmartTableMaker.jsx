@@ -2,43 +2,44 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-SplitBackgroundForTwo
 
-### 更新日：
-20260131
+### 概要
 
-### 概要：
 2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に左右2分割の背景を作成します。
-実行時に高さ倍率（%）を指定するダイアログが表示され、閉じる前にプレビューを確認できます（デフォルトは200%）。
+高さ倍率（%）をダイアログで指定でき、閉じる前にプレビューを確認できます。
 
-左右の背景幅は、2つのオブジェクト間のギャップを基準に計算されます。
-［バランス］パネルで「なし／左／右」を選択すると、
-- 「なし」：左右均等（中央分割）
-- 「左」　：左側のマージンを［幅］で指定（右側は自動計算）
-- 「右」　：右側のマージンを［幅］で指定（左側は自動計算）
+詳細は README を参照してください。
 
-［幅］はスライダーおよび数値入力で指定でき、選択中の2オブジェクト間ギャップを最大値として自動設定されます。
-テキストのサイドベアリング等によるズレを減らすため、
-一時的にテキストをアウトライン化して外接矩形を計算し、計算後すぐに一時生成物を削除します。
-その上で背景長方形を選択オブジェクトの背面に配置し、ダイアログ内でリアルタイムにプレビュー表示します（元のオブジェクトは変更しません）。
+### Overview
 
-高さ（%）および［幅］入力欄では、↑↓キーで±1、Shift+↑↓で±10（10刻みスナップ）、Option+↑↓で±0.1 の増減が可能です。
+With two objects selected — text, paths or groups — creates a background behind them, split into a left and a right half.
+The height scale (%) is set in a dialog, with a preview before you commit.
 
-### 更新履歴：
-- v1.0 (20260124) : 初期バージョン
-- v1.1 (20260126) : ［バランス］（なし／左／右）と［幅］指定による左右背景の比率調整に対応。［幅］はオブジェクト間ギャップを最大値として自動計算し、スライダー／数値入力／矢印キー操作に対応
-- v1.2 (20260131) : プレビュー時のUndo履歴を汚さないように app.undo() を用いたプレビュー管理（PreviewManager）を導入。OK時は一度ロールバックして本番処理を1回だけ再実行し、Ctrl+Z一回で戻せるように調整
+See the README for details.
+
 */
 
-// --- Version / バージョン ---
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartTableMaker";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-31";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTableMaker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTableMaker.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // --- Dialog UI prefs / ダイアログUI設定 ---
 var DIALOG_OFFSET_X = 300;
 var DIALOG_OFFSET_Y = 0;
 var DIALOG_OPACITY = 0.98;
-
-var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -159,7 +160,6 @@ var LABELS = {
         en: "Enter a height (%) greater than 0."
     }
 };
-
 
 function L(key) {
     var v = LABELS[key];
@@ -1051,7 +1051,6 @@ function setDialogOpacity(dlg, opacityValue) {
         var cbFillRight = drawPanel.add('checkbox', undefined, L('labelFillRight'));
         cbFillRight.value = true;
 
-
         var cbOverallFrame = drawPanel.add('checkbox', undefined, L('labelOverallFrame'));
         cbOverallFrame.value = false;
 
@@ -1068,7 +1067,6 @@ function setDialogOpacity(dlg, opacityValue) {
         linePanel.orientation = 'column';
         linePanel.alignChildren = ['left', 'top'];
         linePanel.margins = [15, 20, 15, 10];
-
 
         var lineRow = linePanel.add('group');
         lineRow.orientation = 'row';
@@ -1274,7 +1272,6 @@ function setDialogOpacity(dlg, opacityValue) {
 
         // Initial state
         updateWidthEnabled();
-
 
         // プレビューは一番下 / Preview at the bottom
         var cbPreview = dlg.add('checkbox', undefined, L('labelPreview'));

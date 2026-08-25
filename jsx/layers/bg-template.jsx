@@ -2,19 +2,37 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：現在のアートボードサイズの長方形作成 / Create Rectangle Same as Artboard
 
-概要 / Overview:
-- 現在のアートボードと同じ大きさの長方形を作成
-- CMYKドキュメントの場合は塗りをK20に設定
-- RGBドキュメントの場合は塗りを#999999に設定
-- 「bg-template」レイヤーを作成し、テンプレート化＆最背面に移動
+### 概要
 
-更新履歴 / Update History:
-- v1.0 (20250729) : 初期バージョン
+現在のアートボードと同じ大きさの長方形を作成し、「bg-template」レイヤーに置いてテンプレート化したうえで最背面へ移動します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Creates a rectangle the size of the current artboard, places it on a "bg-template" layer, marks that layer as a template and sends it to the back.
+
+See the README for details.
+
 */
 
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "bg-template";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-29";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-29";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-template.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

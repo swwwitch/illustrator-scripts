@@ -3,76 +3,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-TextMergeToAreaBox.jsx
+バラバラに分割されたテキストオブジェクトを行単位にまとめ、タブ区切りの1つのエリア内文字に再構成します。
 
-### 概要：
+詳細は README を参照してください。
 
-- 複数のテキストオブジェクトを1つのエリア内文字に連結します。
-- 元のオブジェクトのサイズ・フォント・行送りを反映します。
+### Overview
 
-### 主な機能：
+Gathers scattered text objects line by line and rebuilds them as a single tab-separated area text.
 
-- 改行位置の調整（末尾が「。」以外、「.」「?」「!」の場合は連結）
-- JUSTIFY 揃えの自動適用
-- 元のオブジェクトの削除と置換処理
-
-### 処理の流れ：
-
-1. 選択中のテキストオブジェクトを上から順にソート
-2. 幅・高さ・行送りなどを取得
-3. テキストを1つに連結し、エリア内文字を作成
-4. 元のオブジェクトは削除
-
-### 謝辞
-
-倉田タカシさん（イラレで便利）
-https://d-p.2-d.jp/ai-js/
-
-### note
-
-https://note.com/dtp_tranist/n/ne8d31278c266
-
-### 更新履歴：
-
-- v1.0 (2025-07-18) : 初期バージョン
-- v1.1 (2025-07-19) : 1行だけに対応、禁則を設定
-- v1.2 (2025-07-20) : 行末が英単語の場合の改行処理を追加
-
----
-
-### Script Name：
-
-TextMergeToAreaBox.jsx
-
-### Overview：
-
-- Merges multiple text items into a single area text box.
-- Inherits font, size, and leading from the original text.
-
-### Key Features：
-
-- Removes line breaks except after "。", ".", "!", or "?"
-- Applies JUSTIFY alignment automatically
-- Replaces and deletes original text items
-
-### Workflow：
-
-1. Sort selected text items from top to bottom
-2. Extract dimensions and leading
-3. Merge text and create area text
-4. Delete original items
-
-### Change Log：
-
-- v1.0 (2025-07-18): Initial release
-- v1.1 (2025-07-19): Added support for single line text, set kinsoku rules
-- v1.2 (2025-07-20): Added handling for line breaks after English words
+See the README for details.
 
 */
 
-var SCRIPT_VERSION = "v1.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TextMergeToAreaBox-tab";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-20";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextMergeToAreaBox-tab.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextMergeToAreaBox-tab.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var LINE_Y_THRESHOLD = 5; // 行分類のY座標差の閾値（ポイント単位）
 var MIN_LEADING_RATIO = 1.2; // 最小の行送り倍率
 
@@ -88,7 +50,6 @@ var LABELS = {
         en: "No convertible text found."
     }
 };
-
 
 function main() {
     var textLines = groupTextFramesByLine(activeDocument.selection);

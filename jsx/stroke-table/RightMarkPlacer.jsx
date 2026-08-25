@@ -6,15 +6,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択した複数オブジェクトを左から順に見て、隣り合うオブジェクト同士のアキの中央に記号を配置します。
-記号は9種類（▶ > >> ─ → ➡ ＿\ ＋ ×）から選べ、高さ・幅・線幅・位置をダイアログで調整できます。
-幅は最も狭いアキを基準に自動計算され、入力した幅はそのまま記号の実寸になります。
-詳細はREADMEを参照してください。
+記号は9種類から選べ、高さ・幅・線幅・位置をダイアログで調整できます。
+
+詳細は README を参照してください。
 
 ### Overview
 
 Scans the selected objects from left to right and places a mark in the middle of the gap between each adjacent pair.
-Nine marks are available (▶ > >> ─ → ➡ ＿\ ＋ ×), with height, width, stroke width and position set from the dialog.
-The width is derived from the narrowest gap, and a width you type is the drawn size of the mark.
+Nine marks are available, with height, width, stroke weight and position set from the dialog.
+
 See the README for details.
 
 */
@@ -36,10 +36,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /* 記号の色（CMYK）/ Mark color (CMYK) */
 var MARK_COLOR_CMYK = [0, 0, 0, 100];

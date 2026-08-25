@@ -3,75 +3,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
-
-ArtboardMaskAndRelease.jsx
-
 ### 概要
 
-- すべてのアートボードに同じサイズの矩形を描画し、アートボード内のオブジェクトをマスクします。
-- クリップグループ名をアートボード名に設定します。
-- 複数アートボードにまたがるオブジェクトは複製され、それぞれのアートボードでマスクされます。
-- マスクを解除する機能も搭載しており、解除後にグループを解除するオプションも用意されています。
-- マージン値を指定してマスク範囲を調整できます。
+すべてのアートボードに同じサイズの矩形を描画し、アートボード内のオブジェクトをマスクします。
+クリップグループ名はアートボード名に設定します。
 
-### 主な機能
-
-- アートボード単位でのマスク適用
-- クリップグループ名をアートボード名に設定
-- 複数アートボードにまたがるオブジェクトの複製処理
-- マスク解除およびグループ解除オプション
-- マージン設定
-- 日本語 / 英語 UI 切り替え
-
-### 処理の流れ
-
-1. ダイアログでモード（マスク / 解除）とオプションを選択
-2. 「マスク」選択時はアートボードごとに矩形を作成しオブジェクトをマスク
-3. 「解除」選択時はクリッピングを解除し、必要に応じてグループを解除
-
-### 更新履歴
-
-- v1.0 (20250710) : 初期バージョン
-- v1.1 (20250710) : アートボード外のオブジェクトを削除機能を追加、ロック／非表示オブジェクトのオプションを追加
-
----------------------------------------
-### Script Name:
-
-ArtboardMaskAndRelease.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- Draws the same-sized rectangle on all artboards and masks objects inside each artboard.
-- Sets the clip group name to the artboard name.
-- Duplicates objects that span multiple artboards and masks them on each.
-- Includes a release function with an option to ungroup after release.
-- Allows margin adjustment to control the mask area.
+Draws a rectangle the size of each artboard and uses it to mask the objects on that artboard.
+Each clipping group is named after its artboard.
 
-### Main Features
-
-- Apply mask per artboard
-- Set clip group name to artboard name
-- Duplicate objects spanning multiple artboards
-- Release mask and optional ungroup
-- Margin setting
-- Japanese / English UI support
-
-### Workflow
-
-1. Select mode (Mask / Release) and options in the dialog
-2. When "Mask" is selected, create rectangles for each artboard and mask objects
-3. When "Release" is selected, release clipping and optionally ungroup
-
-### Change Log
-
-- v1.0 (20250710) : Initial version
-- v1.1 (20250710) : Added option to remove objects outside artboards, options for locked/hidden objects
+See the README for details.
 
 */
 
-// スクリプトバージョン / Script version
-var SCRIPT_VERSION = "v1.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ArtboardMaskAndRelease";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-10";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardMaskAndRelease.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardMaskAndRelease.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

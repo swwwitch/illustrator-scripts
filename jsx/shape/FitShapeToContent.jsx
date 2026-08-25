@@ -2,36 +2,47 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "FitShapeToContentSession"
 
-    /*
-    FitShapeToContent.jsx
-    座布団メーカー
+/*
 
-    概要：
-    テキストやグループに合わせて、背面の座布団形状を手早く作成・調整するスクリプトです。
-    - 【1つ選択】テキストまたはグループのみを選ぶと、背面に座布団用の長方形を自動作成します
-    - 【2つ選択】テキストまたはグループと図形を選ぶと、既存の図形を座布団として使えます
-    - パディングの幅・高さをプレビューしながら調整できます
-    - 「連動」ON時は幅と高さを同じ値で扱えます
-    - 座布団の調整をOFFにすると、サイズ変更や角丸調整は行わず、中央合わせのみで使えます
-    - 角丸は有効/無効を切り替えできます
-    - 「ピル形状」ON時は高さに合わせたカプセル形状にできます
-    - セッション中は前回の入力値を保持します
-    - キャンセル時はプレビューを破棄し、1つ選択時に自動作成した長方形も削除します
-    - OK確定後の Undo は 1 ステップで全変更を巻き戻せます
+### 概要
 
-    紹介記事（note）
-    https://note.com/dtp_tranist/n/n6e4a6a2b175f
+テキストやグループに合わせて、背面の座布団形状を手早く作成・調整します。
+1つだけ選ぶと長方形を自動作成し、図形も一緒に選ぶとその図形を座布団として使います。
 
-    作成日: 2026-03-25
-    更新日: 2026-05-25（プレビューを runPreview/undoPreview パターンに刷新し、main を 5 関数 + プレビューコントローラに分割、safeRemove ヘルパー導入）
-    */
+詳細は README を参照してください。
+
+### Overview
+
+Quickly creates and adjusts a backing shape that fits a text frame or a group.
+With one object selected a rectangle is created automatically; add a shape to the selection to reuse it instead.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FitShapeToContent";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitShapeToContent.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitShapeToContent.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
     (function () {
         // =========================================
         // バージョンとローカライズ / Version and Localization
         // =========================================
 
-        var SCRIPT_VERSION = "v2.0.2";
         var AUTO_CREATED_SHAPE_OPACITY = 20;
 
         var __FS2C_SESSION_KEY = "__FitShapeToContentSession__";
@@ -54,7 +65,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         function saveSessionState(state) {
             $.global[__FS2C_SESSION_KEY] = state;
         }
-
 
         function getCurrentLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -313,7 +323,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 shapeItem.strokeWidth = styleInfo.strokeWidth;
             }
         }
-
 
         /* クリッピンググループか判定 / Check whether group is a clipping group */
         function isClippingGroupItem(item) {
@@ -809,7 +818,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 ctrl.refresh();
             };
             changeValueByArrowKey(inputR, ctrl.refresh, 0);
-
 
             var btnGroup = win.add("group");
             btnGroup.alignment = "center";

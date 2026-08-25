@@ -2,17 +2,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### 概要
 
-- 選択したテキストフレームから、Illustrator標準の「箇条書きと番号付きリスト」を解除します。
-- テキストの内容・文字属性・段落設定・タブストップは控えて戻すため、リスト書式だけが外れます。
-- 詳細な機能・オプションはREADMEを参照してください。
+選択したテキストフレームから、Illustrator標準の「箇条書きと番号付きリスト」を解除します。
+テキストの内容・文字属性・段落設定・タブストップは控えて戻すため、リスト書式だけが外れます。
+
+詳細は README を参照してください。
 
 ### Overview
 
-- Clears Illustrator's built-in "Bullets and Numbering" from the selected text frames.
-- Text, character attributes, paragraph settings, and tab stops are snapshotted and restored, so only the list formatting is dropped.
-- See the README for the full feature and option list.
+Removes Illustrator's built-in Bullets and Numbering from the selected text frames.
+The text content, character attributes, paragraph settings and tab stops are captured and restored, so only the list formatting comes off.
+
+See the README for details.
 
 */
 

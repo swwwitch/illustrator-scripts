@@ -3,54 +3,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-ApplyFontWithFontsize.jsx — 行ごとにフォント・サイズ・行送りを適用するスクリプト
+### 概要
 
-概要
-選択したテキストフレーム（グループ内も再帰的に対象。ロック・非表示は除外）の各行
-（段落）を「フォント名＋サイズ（＋行送り）」の指定とみなして読み取り、行単位で適用する。
+選択したテキストフレームの各行を「フォント名＋サイズ（＋行送り）」の指定とみなして読み取り、行単位で適用します。
+「ヒラギノ角ゴシック W3 12pt↓16pt」のように、フォント名のうしろにサイズと行送りを併記する書式です。
 
-各行は「ヒラギノ角ゴシック W3 12pt↓16pt」のように、フォント名のうしろにサイズ、さらに
-うしろに行送りを併記する書式。フォント名部分だけで検索してフォントを当て、併記された
-サイズ・行送りも合わせて適用する。
+詳細は README を参照してください。
 
-サイズも行送りも併記されていない行（フォント名だけの行）は指定として扱わず、処理対象外
-＝スキップする（フォント・サイズとも変更しない）。
+### Overview
 
-指定の書式
-　フォント名 〈区切り〉 サイズ 〈区切り〉 行送り
-　例）ヒラギノ角ゴシック W3 12pt↓16pt
-　・フォント名↔サイズの区切り：半角/全角スペース・タブ・「、」「,」「/」
-　・サイズ↔行送りの区切り    ：上記に加えて「↓」
-　・単位は pt / px / Q（級＝0.25mm をポイントへ換算）。値はポイントで適用
-　・サイズは「単位付き（12pt）」か「、・,・/ 区切り（, 14）」のいずれかで指定する
-　　（スペース/タブ区切りで単位なしの裸の数値はサイズとみなさない）
-　・行送りは省略可。単位・区切りも任意（サイズ確定後の数値を行送りとみなす）
-　・サイズを省略した行（フォント名だけの行）はスキップ
-　・フォント名末尾の数字（例「DIN 2014」「Univers 45」）はサイズと誤認しない
+Reads each line of the selected text frames as a "font name plus size (plus leading)" spec and applies it line by line.
+The format puts the size after the font name and the leading after that, as in "Hiragino Kaku Gothic W3 12pt↓16pt".
 
-主な機能
-・サイズ・行送りの情報がない行はスキップ（フォント名だけの行は対象外）
-・併記されたサイズ・行送りを検出し、フォントと合わせて適用
-・CUSTOM_MAP による特定文字列の強制割り当て
-・PostScript 名、ファミリー名＋スタイル名、ファミリー名による厳密一致
-・ファミリー名／フォント名全体／先頭ワードによるあいまい一致
-・厳密一致は自動適用、あいまい一致・未一致は対話ピッカーで確認
-・同じフォント名は実行中に再質問せず、選択結果を再利用
-・未適用の行を含むフレームには「// missing-fonts」レイヤー上に赤い目印を作成
-・未適用文字列を一覧表示し、クリップボードへコピー可能（コピー後は元の選択状態を復元）
-
-履歴
-v1.0.0  初期バージョン
-v1.3.3  行送りは絶対値ではなく「行送り÷サイズ」の百分率を自動行送りの値に代入し、行送りを自動に
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ApplyFontWithFontsize";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontWithFontsize.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontWithFontsize.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // ============================================================
     // 設定 / バージョン / ローカライズ（Settings / Version / Localization）
     // ============================================================
-    var SCRIPT_VERSION = "v1.3.3";
 
     // クラッシュ箇所特定用のデバッグログ（true でデスクトップに出力）
     var DEBUG_LOG = false;
@@ -448,7 +438,6 @@ v1.3.3  行送りは絶対値ではなく「行送り÷サイズ」の百分率�
         // スキップ／終了：ダイアログ中にドキュメントを変更していないので復元は不要。
         return (result === 3) ? PICKER_QUIT : null;
     }
-
 
     // フォントピッカーの UI を生成して { dialog, familyList, styleList } を返す。
     // ボタンは name:"ok"/"cancel" なので、判定は dialog.show() の戻り値で行う。

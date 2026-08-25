@@ -5,17 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-カンバス上の見た目の並び（左上基準・Y優先）をもとに、［アートボード］パネルの並び順を整理するツール。あわせて、列数指定やアートボード名にもとづくカンバス上の再配置、「行-列」形式へのリネームも実行できる。
+カンバス上の見た目の並び（左上基準・Y優先）をもとに、［アートボード］パネルの並び順を整理します。
+列数指定やアートボード名にもとづくカンバス上の再配置、「行-列」形式へのリネームも実行できます。
 
-詳細はREADMEを参照。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-Organizes the Artboards panel order based on the visual layout on the canvas (Top Left, Y priority). It can also rearrange artboards on the canvas by column count or by row-column names, and rename them in a row-column format.
+Reorders the Artboards panel to match the visual arrangement on the canvas, working from the top-left with Y taking priority.
+It can also rearrange the artboards on the canvas by column count or by name, and rename them into a "row-column" form.
 
 See the README for details.
 
@@ -29,13 +27,6 @@ var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-07";                   /* 更新日 / last updated */
-
-/**
- * オリジナル、謝辞 / Original and credit
- * @author m1b
- * @discussion https://community.adobe.com/t5/illustrator-discussions/randomly-order-artboards/m-p/12692397
- * @discussion https://community.adobe.com/t5/illustrator-discussions/illustrator-script-to-renumber-reorder-the-artboards-with-there-position/m-p/12752568
- */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReorderArtboardsByPosition.md

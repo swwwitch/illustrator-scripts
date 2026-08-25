@@ -1,3 +1,37 @@
+
+/*
+
+### 概要
+
+複数の画像と図形を選択して実行すると、対応する図形の大きさに合わせて各画像を拡大・縮小し、それぞれクリッピングマスクを作成します。
+
+詳細は README を参照してください。
+
+### Overview
+
+With several images and shapes selected, scales each image to its matching shape and creates a clipping mask for each pair.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ImgFitMaskMultiple";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgFitMaskMultiple.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMaskMultiple.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function() {
     // ドキュメントが開かれていない場合は終了
     if (app.documents.length === 0) {
@@ -111,7 +145,6 @@
 
     // 完了メッセージ（任意）
     // alert(processedCount + " 組のマスクを作成しました。");
-
 
     // --- 個別のマスク処理関数 ---
     function processClip(targetImg, maskObj) {

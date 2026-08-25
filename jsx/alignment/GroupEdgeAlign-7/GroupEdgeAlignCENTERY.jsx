@@ -1,74 +1,39 @@
 #target illustrator
 
 /*
-スクリプトの概要：
-選択されているオブジェクト群の端または中心を取得し、ALIGNMENT_SIDE で指定した方向（左／右／上／下／左右中央／上下中央／上下左右中央）に揃えます。
+
+### 概要
+
+選択されているオブジェクト群の端または中心を取得し、上下中央に揃えます。
 揃え先は、アクティブアートボードの端、または条件に合うガイドです。
 
-USE_GUIDES が true の場合、指定方向に対応するガイドを探索し、
-GUIDE_SEARCH_MODE の条件に従って最適なガイドへスナップします。
-該当するガイドが存在しない場合は、アートボード端に揃えます。
+詳細は README を参照してください。
 
-USE_GUIDES が false の場合は、常にアートボード端に揃えます。
+### Overview
 
-ALIGNMENT_SIDE が "CENTER_X" / "CENTER_Y" / "CENTER" の場合は、ガイドを使用せず、アートボード中央に揃えます。
+Takes the edges or the center of the selected objects and aligns them to the vertical center.
+The target is the edge of the active artboard, or a matching guide.
 
-設定：
-- USE_GUIDES：ガイドを吸着先として使用するかどうか
-- ALIGNMENT_SIDE：揃える方向
-  ※ファイル名による自動判定にも対応：
-    - GroupEdgeAlignCENTER.jsx → "CENTER"
-    - GroupEdgeAlignCENTERX.jsx → "CENTER_X"
-    - GroupEdgeAlignCENTERY.jsx → "CENTER_Y"
-    - GroupEdgeAlignLEFT.jsx → "left"
-    - GroupEdgeAlignRIGHT.jsx → "right"
-    - GroupEdgeAlignTOP.jsx → "top"
-    - GroupEdgeAlignBOTTOM.jsx → "bottom"
-  - "left"：左端を揃える
-  - "right"：右端を揃える
-  - "top"：上端を揃える（Illustrator座標では大きいY方向）
-  - "bottom"：下端を揃える（Illustrator座標では小さいY方向）
-  - "CENTER_X"：左右中央を揃える（ガイドは無視）
-  - "CENTER_Y"：上下中央を揃える（ガイドは無視）
-  - "CENTER"：上下左右中央を揃える（ガイドは無視）
-- GUIDE_SEARCH_MODE：ガイドの選択方法
-  - "inside"：揃える方向側にあるガイドのみ対象（内側優先）
-  - "nearest"：方向を問わず最も近いガイドを対象
-- BOUNDS_MODE：境界の取得方法
-  - "preference"：環境設定に従う
-  - "preview"：線幅込み（visibleBounds）
-  - "geometric"：線幅なし（geometricBounds）
-- GUIDE_ORIENTATION_TOLERANCE：ガイドの水平・垂直判定に使う許容値
+See the README for details.
 
-処理の流れ：
-1. 選択オブジェクト全体のバウンディングボックスを取得
-2. ALIGNMENT_SIDE に応じて対象端または中心（selection / artboard）を取得
-3. CENTER_X / CENTER_Y / CENTER の場合は、ガイドを無視してアートボード中央を使用
-4. 端揃えで USE_GUIDES が true の場合、対応する向きのガイドを抽出
-5. GUIDE_SEARCH_MODE に従い、最適なガイドを決定
-6. ガイドが無ければアートボード端を使用
-7. 差分を計算し、該当方向へ移動
-
-対象とするオブジェクト：
-- 選択されているすべてのオブジェクト
-
-対象としないオブジェクト：
-- 未選択オブジェクト
-- ロック／非表示オブジェクト（Illustrator仕様に準拠）
-- ALIGNMENT_SIDE に対応しない向きのガイド
-- アートボード外のガイド
-- GUIDE_SEARCH_MODE="inside" の場合、逆側のガイド
-
-補足：
-- 座標系はIllustrator準拠（Yは上方向が大きい）
-- クリッピンググループは内部要素の境界を参照
-
-オリジナル：
-Gorolib Designさん
-https://gorolib.blog.jp/archives/63149753.html
-
-作成日：2025-04-06
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "GroupEdgeAlignCENTERY";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-04-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlignCENTERY.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlignCENTERY.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function main() {
     try {

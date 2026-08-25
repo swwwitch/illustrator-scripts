@@ -5,37 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードにある「見出しと値」のテキスト（空行区切りの縦並び、またはタブ区切りの横並び）を読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
-税込金額から税抜・消費税を計算し、書き出したあとは保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。
+クリップボードにある「見出しと値」のテキストを読み取り、テンプレート内の `<タグ>` を置き換えて、領収書・請求書・納品書のPDFを書き出す作例スクリプトです。
+書き出したあとは、保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。
 
-### 注意
-
-- テンプレートは［指定］で選んだものを記憶します（Illustratorを再起動しても残ります）。置換は作業用の複製ファイルで行うため、テンプレート自体は変更されません。
-- 見出しとタグの対応、税率、ファイル名の付け方、メールの文面はユーザー設定で差し替えられます。
-- PDFは「最小ファイルサイズ」相当で書き出すため、Illustratorで開いても元通りには編集できません。
-
-詳しい機能・使い方はREADMEを参照してください。
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-A worked example that reads heading-and-value text from the clipboard — stacked and blank-line separated, or a
-tab-separated heading row and value row — replaces `<tag>` placeholders in an Illustrator template, and exports
-a receipt, invoice or delivery-note PDF.
-The ex-tax amount and the tax are derived from the tax-inclusive amount; after the export the output folder
-and a pre-filled mail draft are opened.
+A worked example that reads heading-and-value text from the clipboard, replaces `<tag>` placeholders in an Illustrator template, and exports a receipt, invoice or delivery-note PDF.
+Once the export is done it opens the output folder and a pre-filled mail draft.
 
-### Notes
-
-- The template picked with Choose is remembered across Illustrator restarts. Replacement happens on a working
-  copy, so the template itself is never modified.
-- The heading-to-tag map, the tax rate, the file naming and the mail body are all user settings.
-- The PDF is exported at Smallest File Size, so it cannot be reopened in Illustrator with full editability.
-
-See the README for the full feature list and usage.
+See the README for details.
 
 */
 
@@ -54,17 +34,8 @@ var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1901883d86cd"; /* 紹介記事 / article URL */
 
-/**
- * @discussion クリップボードの読み取りは ReplaceTextWithPasteSequential.jsx から流用
- * @discussion タグ置換は VariableDataImport.jsx から流用
- */
-
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User settings
-// =========================================
 
 /*
    クリップボードの見出しと、テンプレート内のタグの対応。

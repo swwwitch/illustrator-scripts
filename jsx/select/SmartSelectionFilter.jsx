@@ -2,25 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
 
-選択中のオブジェクトから、条件に合うテキストやパスだけを残して選択し直すIllustrator用スクリプトです。
-ポイント文字／エリア内文字／パス上文字、行揃え、使用フォント、オープンパス、水平線／垂直線、クローズパスの塗り・線状態を条件にできます。
-［まとめて選択］では、テキスト系、ケイのみ、塗りのみをチェックボックスでまとめて指定できます。
-詳細条件を追加・解除すると、［まとめて選択］側のチェック状態も現在の条件に合わせて同期します。
-対象外オブジェクトは、そのまま、非表示、不透明度指定から選べ、不透明度はスライダーで0〜100%に調整できます。
-不透明度スライダーは、不透明度指定時のみ有効になります。
-チェックボックスやスライダーの変更は、ダイアログを閉じずにカンバスへ反映されます。
-アウトライン表示ボタンで表示モードを一時的に切り替えられ、終了時には元の表示に戻します。
-OKで現在の選択状態を確定し、キャンセルでスクリプト開始前の選択状態と表示状態に戻します。
+### 概要
+
+選択中のオブジェクトから、条件に合うテキストやパスだけを残して選択し直します。
+文字種・行揃え・使用フォント・パスの開閉・塗りや線の状態を条件にでき、変更はダイアログを閉じずにカンバスへ反映されます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Reselects only the text frames and paths in the current selection that match the conditions you set.
+Text kind, justification, font, open/closed paths and fill/stroke state can all be used as conditions, and changes are reflected on the canvas without closing the dialog.
+
+See the README for details.
+
 */
 
 // =========================================
-// バージョンとローカライズ
-// Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "SmartSelectionFilter";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilter.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -163,7 +177,6 @@ var LABELS = {
         en: "No object is selected."
     }
 };
-
 
 function L(key) {
     if (!LABELS[key]) return key;
@@ -850,7 +863,6 @@ function showFilterDialog(originalSelection) {
         updateNonSelectedOpacitySliderEnabled();
         updateCanvasSelection();
     };
-
 
     cbSimpleText.onClick = function () {
         cbText.value = cbSimpleText.value;

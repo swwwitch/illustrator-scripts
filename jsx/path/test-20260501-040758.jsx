@@ -3,71 +3,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-test-20260501-040758.jsx
+PathUniteOffsetTool.jsx の作業用派生テストファイルです。
+選択中のオブジェクトに対して、複合パス解除→パスの合体→アピアランス拡張→グループ解除→オフセットパスを一括で実行します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-（テスト用ファイルのため未公開）
+### Overview
 
-### 概要：
+A working derivative of PathUniteOffsetTool.jsx, kept for testing.
+It runs Release Compound Path, Unite, Expand Appearance, Ungroup and Offset Path on the selection in one pass.
 
-- 更新日：2026-05-01
-- PathUniteOffsetTool.jsx の作業用派生テストファイル
-- 選択中のオブジェクトに対して複合パス解除 → パスの合体 → アピアランス拡張 → グループ解除 → オフセットパスを一括実行
-
-### 主な機能：
-
-- 複合パスの解除
-- パスの合体（ライブパスファインダ）
-- アピアランスの拡張
-- グループ解除
-- 指定値（mm）でオフセットパス効果を適用
-- プレビュー機能
-
-### 更新履歴：
-
-- v1.0.0 (2026-05-01) : 初期テスト版
-
-*/
-
-/*
-
-### Script Name:
-
-test-20260501-040758.jsx
-
-### GitHub:
-
-(Working test file, not published)
-
-### Description:
-
-- Last Updated: 2026-05-01
-- Working test derivative of PathUniteOffsetTool.jsx
-- Applies Release Compound Path → Unite → Expand Appearance → Ungroup → Offset Path in sequence to the current selection
-
-### Main Features:
-
-- Release compound paths
-- Unite paths (Live Pathfinder Add)
-- Expand appearance
-- Ungroup
-- Apply Offset Path effect with the specified value (mm)
-- Live preview
-
-### Changelog:
-
-- v1.0.0 (2026-05-01) : Initial test build
+See the README for details.
 
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "test-20260501-040758";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-01";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/test-20260501-040758.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/test-20260501-040758.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

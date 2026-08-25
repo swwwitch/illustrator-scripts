@@ -1,4 +1,40 @@
 #target illustrator
+
+/*
+
+### 概要
+
+他のスクリプトから `#include` して使う、カラーピッカーの再利用ライブラリです。
+`ColorPicker.show()` を呼ぶとダイアログを開き、選択された色を返します。
+
+詳細は README を参照してください。
+
+### Overview
+
+A reusable color-picker library meant to be pulled in from other scripts with `#include`.
+Calling `ColorPicker.show()` opens the dialog and returns the chosen color.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ColorPicker";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPicker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPicker.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 /*
 --------------------------------------------------
 Reusable Illustrator Color Picker Library
@@ -45,7 +81,6 @@ var ColorPicker = (function () {
         "FF99CC", "996633", "666666",
         "999999"
     ];
-
 
     function isCmykString(s) {
         return String(s).indexOf("cmyk:") === 0;

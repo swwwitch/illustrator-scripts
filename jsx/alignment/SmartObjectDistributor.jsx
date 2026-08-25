@@ -5,91 +5,40 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
-- 配置先は「現在のアートボード」「最背面のオブジェクト」「_target レイヤーの長方形」から選べます。
-- 行数・列数の初期値は、選択数と配置先の縦横比からセルが正方形に近くなるように決めます。
-- セルの扱い（長方形で残す／ガイド化／アートボード化）はラジオボタンで排他的に切り替えます。
-- セル数を超えたオブジェクトだけを、他のオブジェクトやアートボードと重ならない位置へ退避します。
-- プレビューは app.undo() でヒストリから取り除き、取り消し履歴を伸ばさないようにします。
-- app.undo() が戻しきれなかった分だけ、中心座標の復元とプレビュー専用レイヤーの削除で後始末します。
-- 透明グリッドの表示状態はスクリプト内で保持し、終了時に元へ戻します。
+選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
+配置先は「現在のアートボード」「最背面のオブジェクト」「_target レイヤーの長方形」から選べます。
 
-### 主な機能
-
-- 行数・列数・セル間隔・マージンの指定によるグリッド分割
-- 配置先の切り替え（現在のアートボード／最背面のオブジェクト／_target レイヤーの長方形）
-- セルの長方形を残す、ガイドに変換する、セルごとにアートボードを作成する
-- セルの塗り（黒／白／塗りなし）と不透明度の指定
-- シャッフルによるセルへの割り当て順のランダム化
-- 入力と同時に更新される即時プレビュー
-- 上下キーによる数値の増減（Shift：10単位、Option：0.1単位）
-- 入力値の検証（行数・列数は各100まで、セル総数は1000まで。セルが成立しない値では描画しない）
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. 選択オブジェクトと、その元の中心座標を記録する
-2. ダイアログで配置先・分割数・マージン・セルの扱いを設定する（変更ごとにプレビューを更新）
-3. OK でプレビューを破棄してから、本番の描画と配置を実行する
-4. 「長方形で残す」ではセルの長方形を、それ以外では元のオブジェクトを選択状態にする
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Places the selected objects at the center of each cell of a grid with the given rows and columns.
-- The placement area can be the current artboard, the backmost object, or a rectangle in the "_target" layer.
-- Initial rows and columns are derived from the selection count and the area's aspect ratio, so cells stay nearly square.
-- Cell handling (Keep as Rectangle / Convert to Guides / Convert to Artboards) is switched exclusively with radio buttons.
-- Only the objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
-- Preview is rolled back with app.undo() so the edit history does not grow on every change.
-- Whatever app.undo() fails to revert is cleaned up by restoring the recorded centers and dropping the preview-only layers.
-- The transparency grid state is tracked and restored when the script finishes.
+Places the selected objects at the center of each cell of a grid with the rows and columns you specify.
+The target area can be the current artboard, the backmost object, or a rectangle on the `_target` layer.
 
-### Main Features
-
-- Grid division by rows, columns, gutter, and margin
-- Placement area switching (current artboard / backmost object / rectangle in the "_target" layer)
-- Keeping the cell rectangles, converting them to guides, or creating one artboard per cell
-- Cell fill (black / white / no fill) and opacity
-- Shuffling the order in which objects fill the cells
-- Live preview updated as values change
-- Arrow-key stepping (Shift: by 10, Option: by 0.1)
-- Input validation (up to 100 rows and columns, 1000 cells; nothing is drawn when cells cannot fit)
-- Japanese and English user interface
-
-### Workflow
-
-1. Record the selected objects and their original centers.
-2. Configure the placement area, divisions, margins, and cell handling in the dialog (preview updates on change).
-3. On OK, discard the preview and run the final drawing and placement.
-4. Select the cell rectangles for "Keep as Rectangle", or the original objects otherwise.
+See the README for details.
 
 */
 
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.9.5";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function () {
 
-    // =========================================
-    // 基本情報 / Basic info
-    // =========================================
-    var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.9.5";                       /* バージョン / version */
-    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
-
-    // README (Japanese)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md
-    // README (English)
-    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹介記事 / article URL */
-
-    // Released under the MIT license
-    // http://opensource.org/licenses/mit-license.php
-
-    // =========================================
     // ユーザー設定 / User configuration
     // =========================================
     var CONFIG = {

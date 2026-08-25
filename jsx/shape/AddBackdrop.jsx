@@ -4,62 +4,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "MyScriptEngine"
 
 /*
-【概要 / Overview】
-更新日 / Updated: 20260326
-選択したテキスト（またはオブジェクト）の背面に、見た目寸法に基づく図形を生成・配置するスクリプト。既存の背面図形がある場合は検出して置き換えます。プレビューはUndoベースで安全に管理され、OK時に1ステップで確定されます。
 
-- 対象 / Target:
-  - テキスト（pointText / areaText）
-  - 非テキスト選択時は選択範囲全体を対象（複数選択対応）
+### 概要
 
-- 形状 / Shape:
-  - 正円 / スーパー楕円（n=2.5） / 長方形
-  - キー操作: E=正円, S=スーパー楕円, R=長方形
+選択したテキスト（またはオブジェクト）の背面に、見た目寸法に基づく図形を生成して配置します。
+既存の背面図形があれば検出して置き換え、プレビューは［OK］時に1ステップで確定します。
 
-- サイズ計算 / Sizing:
-  - テキストはアウトラインベースの見た目寸法で算出（初回のみキャッシュ）
-  - 非テキストは visibleBounds / geometricBounds を統合
-  - 「1文字」モードではフォントサイズ基準で円を生成
+詳細は README を参照してください。
 
-- マージン / Margin:
-  - 上下・左右（連動可）
-  - デフォルトは短辺の 1/4
-  - 長方形時のみ有効
-  - 「正方形」ONで円ロジック基準の正方形を生成
+### Overview
 
-- 角丸 / Round:
-  - Live Effect（Adobe Round Corners）で非破壊適用
-  - ピル形状（高さの半分）対応
+Generates a shape sized to the visual bounds of the selected text (or objects) and places it behind them.
+An existing backdrop is detected and replaced, and the undo-based preview commits in one step on OK.
 
-- スケール / Scale:
-  - %指定（円系・正方形時に有効）
-  - 長方形は通常100%固定
+See the README for details.
 
-- 位置 / Position:
-  - 対象の直下に配置（背面）
-  - X/Yオフセット対応
-
-- スタイル / Style:
-  - 塗り / 線（線幅指定）
-  - カラー: ブラック / ホワイト / CMYK / テキストカラー参照
-  - 不透明度設定対応
-
-- グループ / Group:
-  - テキストとグループ化
-  - 中マド処理（Pathfinder Exclude）対応
-
-- プレビュー / Preview:
-  - Undoベースで完全ロールバック可能
-  - OK時は単一Undoステップで確定
-
-- 既存図形対応 / Replace:
-  - 既存の背面図形を検出し、非表示または削除して置き換え
-
-- 安全性 / Safety:
-  - remove / undo / selection などの失敗はログ出力（$.writeln）
-
-- ローカライズ / Localization:
-  - UI・メッセージを日英対応（LABELS管理）
 */
 
 // =========================================
@@ -70,6 +29,11 @@ var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBackdrop.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdrop.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -715,7 +679,6 @@ function main() {
     rightCol.orientation = 'column';
     rightCol.alignChildren = ['fill', 'top'];
 
-
     // パネル：スケール（先頭へ移動）
     var pnlScale = leftCol.add('panel', undefined, L('ui.scalePanel'));
     pnlScale.orientation = 'column';
@@ -971,7 +934,6 @@ function main() {
         try { __lastRoundValue = String(roundInput.text); } catch (_) { }
         if (typeof updatePreview === 'function') updatePreview();
     });
-
 
     // パネル：グループ（スケールの直下）
     var pnlGroup = leftCol.add('panel', undefined, L('ui.groupPanel'));
@@ -2108,7 +2070,6 @@ function main() {
     var okBtn = btns.add('button', undefined, __BTN_LABELS.ok[__lang]);
     okBtn.name = 'ok';
 
-
     // 明示的にキャンセルを処理（プレビュー掃除→ダイアログを閉じる）
     cancelBtn.onClick = function () {
         // Cancel: rollback all preview edits
@@ -2136,7 +2097,6 @@ function main() {
             };
         })(dlg.onShow);
     } catch (_) { }
-
 
     if (dlg.show() !== 1) {
         try { saveUIStateFromControls(); } catch (_) { }

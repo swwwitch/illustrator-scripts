@@ -2,51 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
 
 /*
-### スクリプト名：
 
-TextOutlineMemo.jsx
+### 概要
 
-UI messages support Japanese/English. (Note format remains Japanese for compatibility.)
+選択したテキストの文字・段落属性をオブジェクトのメモ（note）へ保存してから、アウトライン化します。
 
-### Readme （GitHub）：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/TextOutlineWithMemo.jsx
+### Overview
 
-### 概要：
+Saves the character and paragraph attributes of the selected text into the object's note, then outlines it.
 
-- 選択したテキストフレームの情報を取得してアウトライン化
-- 情報を note プロパティに保存し、後から参照可能にする
-
-### 主な機能：
-
-- テキスト内容・フォント名・サイズ・行送り・カーニングなどの取得
-- テキストをアウトライン化し、情報を note に書き込む
-
-### 処理の流れ：
-
-1. テキストフレームを選択
-2. 各種情報を取得
-3. テキストをアウトライン化
-4. 取得した情報を outlined オブジェクトのメモに格納
-
-### note
-
-https://note.com/dtp_tranist/n/n3e0f241508db
-
-### 更新履歴：
-
-- v1.0 (20240723) : 初期バージョン
-- v1.1 (20250721) : ローカライズ
-- v1.2 (20260111) : ローカライズ（アラート文言の英語対応）
+See the README for details.
 
 */
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TextOutlineWithMemo";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-07-23";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-11";                   /* 更新日 / last updated */
 
-// ==============================
-// Localization (JP / EN)
-// ==============================
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextOutlineWithMemo.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextOutlineWithMemo.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3e0f241508db"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 var LOCALE = (app.locale && app.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 
 var I18N = {

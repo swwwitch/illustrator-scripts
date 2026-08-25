@@ -1,6 +1,41 @@
 #target illustrator
 #targetengine "smartDistributorPalette"
 
+/*
+
+### 概要
+
+DistributeDownFromTop.jsx / DistributeUpFromTop.jsx を統合した常駐パレットです。
+十字ボタン（↑ / ← 0 → / ↓）を押すたびに、その時点の選択へ1ステップぶん適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+A persistent palette that combines DistributeDownFromTop.jsx and DistributeUpFromTop.jsx.
+Each press of the cross buttons (↑ / ← 0 → / ↓) applies one step to whatever is selected at that moment.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartDistributor";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDistributor.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistributor.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 // 外部 JSX 実行時の警告ダイアログを抑制 / Suppress the external-JSX warning dialog
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -38,19 +73,6 @@ Option + 矢印キーでも十字ボタンと同じ操作ができる。
 いずれも内部では pt 換算して処理する。
 */
 
-// =========================================
-// 基本情報 / Basic info
-// =========================================
-var SCRIPT_NAME     = "SmartDistributor";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
-
-// Released under the MIT license
-// http://opensource.org/licenses/mit-license.php
-
-// =========================================
 // ローカライズ / Localization
 // =========================================
 

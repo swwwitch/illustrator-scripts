@@ -1,51 +1,41 @@
 #target illustrator
 app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
-var SCRIPT_VERSION = "v1.6";
-
 /*
- * FontCatalogGenerator for Adobe Illustrator
- *
- * [概要]
- * 更新日: 2026-01-27
- * システムにインストールされているフォントを一覧化し、
- * アートボード上にフォント見本を自動生成するためのスクリプトです。
- *
- * 表示文字列とフォントサイズはダイアログで指定できます。
- * ドキュメント上でテキストを選択している場合、その文字列とフォントを初期値として利用できます。
- *
- * 以下の条件でフォントを自動的に除外できます：
- * ・除外リスト内のキーワードを含むフォント（永続保存対応）
- * ・斜体フォント（Italic / Oblique）※ダイアログでON/OFF可能
- *
- * また、選択中テキストのフォントを
- * 除外リストに追加するUIを備えています。
- *
- * フォントサイズとアートボードサイズから
- * 1列あたりの行数を自動計算し、左端に10ptの余白を設けて配置します。
- *
- * 処理中はプログレスバーで進捗を表示します。
- *
- * [更新履歴]
- * 2026-01-27
- * - v1.1: Error 9（予約語 'var'）の原因だった配列内 var 宣言を修正（systemFontKeywords と illustratorBundledFontKeywords を分離）
- * - v1.2: 除外判定の精度改善（system/lang/variable を name+family+style の大文字小文字無視検索に統一し、空白差異などによる除外漏れを低減）
- * - v1.3: 中国語（繁体）除外キーワードに「標楷體」系を追加（標楷體-港澳/標楷體-繁 などが除外漏れしていたため）
- * - v1.4: AdobeCleanUX が除外されていなかったため、システムフォント除外キーワードに追加
- * - v1.5: ヘブライ語／タイ語／アラビア系フォントの除外オプションを追加（fontSearchText の大文字小文字無視マッチで判定）
- * - v1.6: 永続除外リストの照合を強化（name+family+style の大文字小文字無視＋空白差異の吸収）— Font Awesome などの除外漏れ対策
- * - ダイアログUIを追加（表示文字／フォントサイズ）
- * - 選択中テキストの内容を初期値に流用
- * - 斜体（Italic / Oblique）除外をダイアログで制御可能に
- * - 除外リストを Preferences（JSON）に永続保存
- * - 選択フォントを除外リストに追加するUIを追加
- * - フォントサイズとアートボードサイズから行数を自動計算
- * - プログレスバーを追加
- *
- * オリジナル：studio TOFU
- * https://note.com/studio_tofu/n/n7b0cf367ec88
- * 
- */
+
+### 概要
+
+システムにインストールされているフォントを一覧化し、アートボード上にフォント見本を自動生成します。
+表示する文字列とフォントサイズはダイアログで指定できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Lists the fonts installed on the system and generates a specimen sheet for them on the artboard.
+The sample string and the font size are set in a dialog.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FontCatalogGenerator";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-01-27";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontCatalogGenerator.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalogGenerator.md
+var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -175,7 +165,6 @@ var LABELS = {
     en: "PostScript name (internal)"
   }
 };
-
 
 function L(key) {
   try {
@@ -602,7 +591,6 @@ function changeValueByArrowKey(editText) {
     if (!(hasSelectedText && selectedFontName)) {
         addSelectedFontToExcludeCheckbox.enabled = false;
     }
-
 
     var buttonGroup = dialog.add("group");
     buttonGroup.alignment = "right";

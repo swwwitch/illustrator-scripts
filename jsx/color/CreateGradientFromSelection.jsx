@@ -4,29 +4,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-# CreateGradientFromSelection.jsx
+### 概要
 
-選択オブジェクトの塗り／線カラーを、配置順（左→右、上→下）で抽出し、
-スウォッチグループに登録してグラデーションを自動生成するスクリプトです。
+選択オブジェクトの塗り／線カラーを配置順（左→右、上→下）で抽出し、スウォッチグループに登録してグラデーションを自動生成します。
 
-## 主な機能
+詳細は README を参照してください。
 
-- グループ／複合パス／テキストを再帰的に走査
-- 塗り（フィル）と線（ストローク）の両方を対象
-- 抽出色をスウォッチ化（オプションでグローバルカラー化）
-- 線形グラデーションを生成し、各ストップにスウォッチ色を割り当て
-- 長方形を作成してグラデーションを適用（任意）
-- 長方形の見た目をグラフィックスタイルに登録（任意・長方形 OFF でも一時長方形で登録可）
-- 選択の並びを判定し、縦並びならアクション（gradient/90degree）で角度を 90° に
-- 「セパレートグラデーション」モード（2〜6 色、100÷色数で自動分割）
-- 選択が 7 つ以上の場合はセパレートを無効化
+### Overview
 
-## 既定の挙動
+Extracts the fill and stroke colors of the selection in layout order (left to right, top to bottom), registers them as a swatch group, and builds a gradient from them.
 
-- ドキュメント無し／選択無し／色 1 色以下／例外発生時は無言で終了
-- ダイアログ値は targetengine 内でセッション保持（再起動では消える）
-
-Version: v1.9.2
+See the README for details.
 
 */
 
@@ -36,15 +24,16 @@ Version: v1.9.2
 var SCRIPT_NAME     = "CreateGradientFromSelection";  /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.9.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-05-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-05-28";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGradientFromSelection.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGradientFromSelection.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-// =========================================
-// ユーザー設定 / User Settings
-// =========================================
 
 /* セパレートグラデーションで許可する最大色数 / Max colors allowed for Separate gradients */
 var SEPARATE_MAX_COLORS = 6;

@@ -5,39 +5,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整する
-- ライブプレビューで結果を確認しながら調整でき、キャンセルで開く前の状態に戻る
-- 「実サイズ↔見かけ」でサイズ×比率の焼き込みと復元を切り替えられる
+選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整する常駐パレットです。
+ライブプレビューで結果を確認しながら調整できます。
 
-### 注意
-
-- 詳しい機能・使い方は README を参照
+詳細は README を参照してください。
 
 ### Overview
 
-- Adjusts the font size and horizontal / vertical scale of the selected characters
-- Live preview; Cancel restores the state from before the dialog opened
-- “Actual ↔ Apparent” toggles between baking size × scale into the size and restoring it
+A persistent palette for adjusting the font size and the horizontal and vertical scale of the selected characters.
+A live preview shows the result as you work.
 
-### Notes
-
-- See the README for the full feature list and usage
+See the README for details.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AdjustFontSize";               /* スクリプト名 / script name */
+var SCRIPT_NAME     = "AdjustFontSizePallete";        /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
 
 // README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustFontSize.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustFontSizePallete.md
 // README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFontSize.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFontSizePallete.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

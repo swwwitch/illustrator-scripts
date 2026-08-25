@@ -4,12 +4,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-AiQuickPrefsPalette.jsx（常駐パレット版 / Persistent palette edition）
+### 概要
 
-Illustrator の使用頻度の高い環境設定の切り替えと、選択オブジェクトの反転・回転を、
-常駐パレットでまとめて操作するユーティリティ。操作した時点で即時反映される。
+Illustratorの使用頻度の高い環境設定の切り替えと、選択オブジェクトの反転・回転を、常駐パレットでまとめて操作します。
+操作した時点で即時反映されます。
 
-機能・使い方・実装メモの詳細は README を参照。
+詳細は README を参照してください。
+
+### Overview
+
+A persistent palette that groups the Illustrator preferences you toggle most often together with flipping and rotating the selection.
+Every change takes effect the moment you make it.
+
+See the README for details.
 
 */
 

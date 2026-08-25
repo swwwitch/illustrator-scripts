@@ -5,17 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- あらかじめ登録しておいたAIファイルを一覧から選び、その中身を現在のドキュメントへ取り込みます。
-- 機能の詳細と使い方はREADME（readme-ja/ImportStyles.md）を参照してください。
+あらかじめ登録しておいたAIファイルを一覧から選び、その中身を現在のドキュメントへ取り込みます。
 
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Pick one of the AI files you registered in advance and import its contents into the current document.
-- See the README (readme-en/ImportStyles.md) for the full feature list and usage.
+Picks one of the registered AI files from a list and imports its contents into the current document.
+
+See the README for details.
 
 */
 

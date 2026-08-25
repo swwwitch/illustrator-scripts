@@ -4,80 +4,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-アートボードサイズを調整 / Fit Artboard Size to Specified Width/Height
+すべてのアートボードのサイズを、指定した幅・高さに合わせて調整します。
 
-### GitHub：
+詳細は README を参照してください。
 
-https://github.com/swwwitch/illustrator-scripts
+### Overview
 
-### 概要：
+Resizes every artboard to a specified width and height.
 
-- ダイアログで指定した「幅」「高さ」に、アートボードをライブプレビューしながら変形します。
-- 選択がない場合は、各アートボード内のオブジェクトを基準に、すべてのアートボードを個別に調整します。
-
-### 主な機能：
-
-- ライブプレビュー（app.redraw のデバウンスで高速化）
-- 対象のアートボード（作業のみ／すべて／指定（1始まりの範囲・カンマ列：例 1-3 / 1,3 / 2-4,7））
-- 基準点の切替（左上／中央）
-- 単位はドキュメントの定規単位に追従（px時は左上座標を整数にスナップ）
-- ダイアログ位置・不透明度の記憶（セッション間で復元）
-- 矢印キー操作：↑↓=±1、Shift+↑↓=10の倍数にスナップ、Option(Alt)+↑↓=±0.1（最終的に整数化）
-
-### 処理の流れ：
-
-1. ダイアログで幅・高さを入力（必要なら対象・基準点を選択）
-2. プレビューで即時にアートボードを更新
-3. OKで確定、Cancelで元に戻す
-
-### note：
-
-- 「指定」は 1 始まりで解釈し、内部で 0 始まりに変換します。
-- px/pt 表示は整数、小数単位（mm/cm/inch/pica）は小数2桁で表示します。
-
-### 更新履歴：
-
-- v1.0 (20250829) : 初期バージョン
-
----
-
-### Script Name:
-
-Fit Artboard Size to Specified Width/Height
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts
-
-### Overview:
-
-- Resize artboards to the specified width/height with live preview.
-- When nothing is selected, each artboard is adjusted individually based on items inside it.
-
-### Key Features:
-
-- Live preview (debounced app.redraw for performance)
-- Target artboards: Active only / All / Specify (1-based ranges & lists, e.g., 1-3 / 1,3 / 2-4,7)
-- Anchor: Top-Left / Center
-- Units follow the document ruler (snap top-left to integer when in px)
-- Dialog position & opacity persistence across sessions
-- Arrow keys: Up/Down = ±1, Shift = snap to multiples of 10, Option(Alt) = ±0.1 (rounded to integer at commit)
-
-### Flow:
-
-1. Enter width/height (optionally choose target & anchor)
-2. See instant preview of artboard updates
-3. Press OK to commit, Cancel to restore
-
-### Changelog:
-
-- v1.0 (2025-08-29): Initial release
+See the README for details.
 
 */
 
-var SCRIPT_VERSION = "v1.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ResizeArtboardsAll";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-08-29";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-08-29";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeArtboardsAll.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtboardsAll.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

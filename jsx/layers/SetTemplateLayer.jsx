@@ -1,12 +1,44 @@
 #target illustrator
 
+/*
+
+### 概要
+
+指定したレイヤーをテンプレート化し、レイヤー名に接頭辞を付けます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Turns a chosen layer into a template layer and prefixes its name.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SetTemplateLayer";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SetTemplateLayer.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetTemplateLayer.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 (function() {
 
     // =========================================================
     // 設定 / Settings
     // =========================================================
 
-    var SCRIPT_VERSION = "v1.0";
     var specifiedLayerName = "下絵"; /* 「指定」選択時の対象レイヤー名 / Target layer name for the "Specified" option */
     var COMMENT_PREFIX = "// "; /* レイヤー名に付ける接頭辞 / Prefix added to the layer name */
 

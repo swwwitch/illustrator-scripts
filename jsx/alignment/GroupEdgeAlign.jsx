@@ -2,73 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要（日本語）
+
+### 概要
 
 選択オブジェクトの端または中心を、アクティブアートボードの端・中央、または条件に合うガイドへ整列します。
+整列方向は3×3のラジオボタンで指定でき、ファイル名からの自動判定にも対応します。
 
-主な機能
-- 3×3ラジオボタンで整列方向を指定
-- ファイル名による整列方向の自動判定に対応
-  例：GroupEdgeAlignLEFT.jsx / GroupEdgeAlignRIGHT.jsx / GroupEdgeAlignCENTER.jsx などのファイル名で既定の整列方向を切り替えます。
-- ダイアログでラジオボタンを選択した場合は、ラジオボタンの指定を優先
-- ラジオボタン使用時は「ガイドを使用」をディム表示にし、整列処理でもガイドを無視
-- 線幅込み／線幅なしの境界を切り替え可能
-- プレビューと矢印キーによるステップ整列に対応
-- ラジオボタンのキーボードショートカット：w/e/r, s/d/f, x/c/v
+詳細は README を参照してください。
 
-対象
-- 選択されているすべてのオブジェクト
+### Overview
 
-対象外
-- 未選択、ロック、非表示のオブジェクト
-- 指定方向に対応しないガイド、アートボード外のガイド
+Aligns the edges or the center of the selected objects to the edge or the center of the active artboard, or to a matching guide.
+The direction is picked on a 3×3 grid of radio buttons, or derived from the filename.
 
-補足
-- 座標系はIllustrator準拠（Yは上方向が大きい）
-- クリッピンググループは内部要素の境界を参照
+See the README for details.
 
-オリジナルアイデア
-Gorolib Designさん
-https://gorolib.blog.jp/archives/63149753.html
-
-キーによるステップ移動のアイデア
-ken @ken_rainy
-
-作成日：2025-04-06
-
---------------------------------------------------
-
-Summary (English)
-
-Aligns the edge or center of selected objects to the active artboard edge/center, or to a matching guide.
-
-Main features
-- Choose alignment direction with a 3×3 radio button grid
-- Supports automatic alignment direction detection from the script file name
-  Example: GroupEdgeAlignLEFT.jsx / RIGHT / CENTER
-- Radio button selection takes priority over file-name defaults
-- When using radio buttons, "Use guides" is disabled and guides are ignored
-- Switch between visible bounds and geometric bounds
-- Supports preview and step alignment with arrow keys
-- Radio button shortcuts: w/e/r, s/d/f, x/c/v
-
-Target
-- All selected objects
-
-Excluded
-- Unselected, locked, or hidden objects
-- Guides that do not match the selected direction or are outside the artboard
-
-Notes
-- Coordinates follow Illustrator conventions (Y increases upward)
-- Clipping groups use internal item bounds
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "GroupEdgeAlign";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-04-06";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlign.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlign.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

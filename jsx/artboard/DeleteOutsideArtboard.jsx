@@ -3,79 +3,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
-
-DeleteOutsideArtboard.jsx
-
 ### 概要
 
-- ドキュメント内のオブジェクトをアートボードとの重なり条件で判定し、外側のオブジェクトを削除または保管用レイヤーに移動します。
-- 「現在のアートボードのみ」または「すべてのアートボード」を対象に選択できます。
-- 新たに「すべてのオブジェクト」または「選択オブジェクト以外（現在のアートボード内）」を対象範囲として選択可能。
-- 新たに「ロックされたオブジェクトを含む」オプションを追加（デフォルトON）。
+ドキュメント内のオブジェクトをアートボードとの重なり条件で判定し、外側のオブジェクトを削除または保管用レイヤーへ移動します。
+対象は「現在のアートボードのみ」または「すべてのアートボード」から選べます。
 
-### 主な機能
-
-- デフォルトは「すべてのアートボード」かつ「すべてのオブジェクト」かつ「ロックされたオブジェクトを含む」。
-- 「選択オブジェクト以外（現在のアートボード内）」モードでは、選択されたオブジェクトを除外して現在のアートボード内のオブジェクトを処理。
-- オブジェクトを選択しておく必要はありません。
-- ロックされたオブジェクト、非表示のオブジェクトも対象です。
-- ［保管用レイヤーに移す］オプションをONにすると、「// backup」レイヤーに移動します。「// backup」レイヤーは非表示になります。
-- ［ロックされたオブジェクトを含む］オプションはデフォルトでONです。
-
-### 処理の流れ
-
-1. ダイアログで対象範囲、対象アートボード、移動オプション、ロック含むオプションを選択
-2. オブジェクトとアートボードの重なりを判定
-3. 重なっていないオブジェクトを削除または保管用レイヤーに移動
-4. 「選択オブジェクト以外」モードでは選択オブジェクトを除外（現在のアートボード内）
-5. 「ロックされたオブジェクトを含む」モードではロックされたオブジェクトも処理対象
-
-### 更新履歴
-
-- v1.0 (20250708) : 初期バージョン
-- v1.1 (20250708) : 微調整
-- v1.2 (20250713) : 「選択オブジェクト以外（現在のアートボード内）」モードを追加
-- v1.3 (20250713) : 「ロックされたオブジェクトを無視する」オプションを追加
-- v1.4 (202507xx) : 「ロックされたオブジェクトを含む」オプションに変更しデフォルトONに
-
-### Script Name:
-
-DeleteOutsideArtboard.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- Checks objects in the document against artboards and deletes or moves objects outside to a backup layer.
-- Allows selection of "Current Artboard Only" or "All Artboards" as target.
-- Added new mode option to select "All Objects" or "Exclude Selected (Current Artboard)".
-- Changed option to "Include locked objects" (default ON).
+Tests the objects in the document against the artboards and either deletes the ones outside or moves them to a holding layer.
+The scope can be the current artboard only, or every artboard.
 
-### Main Features
-
-- Default is "All Artboards", "All Objects", and "Include locked objects" ON.
-- "Exclude Selected (Current Artboard)" mode excludes selected objects within current artboard from deletion.
-- No need to pre-select objects.
-- Locked and hidden objects are included by default.
-- Option to move outside objects to a hidden "// backup" layer.
-- Option to exclude locked objects during processing by unchecking the box.
-
-### Workflow
-
-1. Select target scope, target artboards, move option, and include locked option in dialog
-2. Check object overlap with artboards
-3. Remove or move non-overlapping objects
-4. Exclude selected objects in "Exclude Selected" mode (current artboard only)
-5. Include or exclude locked objects based on option
-
-### Changelog
-
-- v1.0 (20250708): Initial version
-- v1.1 (20250708): Minor adjustments
-- v1.2 (20250713): Added 'Exclude Selected (Current Artboard)' mode option
-- v1.3 (20250713): Added 'Ignore locked objects' option
-- v1.4 (202507xx): Changed to 'Include locked objects' option with default ON
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DeleteOutsideArtboard";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-08";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-13";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DeleteOutsideArtboard.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DeleteOutsideArtboard.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

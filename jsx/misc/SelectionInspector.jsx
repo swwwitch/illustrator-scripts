@@ -6,47 +6,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択中／ドキュメント全体のオブジェクトを集計し、2カラムの常駐パレットで表示します。
-- テキスト、配置画像、透明、グループ、パス、ガイドの内訳を確認でき、選択オブジェクトのメモ（属性パネルのメモ欄）の閲覧・編集にも対応します。
-- 機能の詳細と使い方はREADME（readme-ja/SelectionInspector.md）を参照してください。
+選択中またはドキュメント全体のオブジェクトを集計し、2カラムの常駐パレットで表示します。
+テキスト・配置画像・透明・グループ・パス・ガイドの内訳を確認でき、選択オブジェクトのメモの閲覧・編集にも対応します。
 
-### 仕様・注意
-
-- 常駐パレットです。開いたまま選択を切り替え、［更新］で再集計します。
-- 数値は「選択 / 全体」の形式です（アートボードのみ全体の数）。
-- テキストとパスの統計は、グループ内も再帰的にカウントします。
-- ガイド（guides=true）はパスの統計から除外します。
-- 集計とメモの書き込みは、BridgeTalkでメインエンジンに委譲します（常駐パレットのDOM切断を回避）。
-- ［書き出し］は、デスクトップに「count-ドキュメント名-YYYYMMDD.txt」を保存します。
-- ダイアログの位置はIllustratorの起動中のみ保持し、再起動でリセットされます。
-
-### キーボードショートカット
-
-- ⌥I：情報タブ／⌥M：メモタブ／⌘R：更新／Esc：閉じる
-
-*/
-
-/*
+詳細は README を参照してください。
 
 ### Overview
 
-- Counts the current selection and the whole document, and shows the result in a two-column persistent palette.
-- Breaks down text, placed images, transparency, groups, paths and guides, and lets you view and edit object notes (the Attributes panel note field).
-- See the README (readme-en/SelectionInspector.md) for the full feature list and usage.
+Tallies the objects in the selection, or in the whole document, and shows them in a two-column persistent palette.
+It breaks down text, placed images, transparency, groups, paths and guides, and can view and edit the note on the selected object.
 
-### Notes
-
-- The palette stays open: change the selection, then press Refresh to recount.
-- Values are formatted as "Selection / All" (Artboards is the document total only).
-- Text and path stats are counted recursively inside groups.
-- Guide paths (guides=true) are excluded from the path stats.
-- Counting and note writing are delegated to the main engine via BridgeTalk (the palette engine has no live DOM).
-- Export writes "count-<document>-YYYYMMDD.txt" to the desktop.
-- The palette position is kept for the current Illustrator session only.
-
-### Keyboard shortcuts
-
-- Opt+I: Info tab / Opt+M: Notes tab / Cmd+R: Refresh / Esc: Close
+See the README for details.
 
 */
 
@@ -68,9 +38,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/* ============================================================
-   言語判定・ローカライズ / Language & localization
-   ============================================================ */
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }

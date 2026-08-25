@@ -2,23 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
-選択した外枠の長方形と、その内側にある縦罫・横罫を、外枠の中で
-均等に再配置します。横罫・縦罫はそれぞれ ON/OFF でき、プレビュー
-切り替えにも対応します。
 
-Overview
-Evenly redistributes the vertical and horizontal rules inside the selected
-outer rectangle. Horizontal and vertical rules can be toggled
-independently, with a live preview switch.
+### 概要
+
+選択した外枠の長方形と、その内側にある縦罫・横罫を、外枠の中で均等に再配置します。
+横罫・縦罫はそれぞれON/OFFでき、プレビューの切り替えにも対応します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Evenly redistributes the vertical and horizontal rules inside the selected outer rectangle.
+Horizontal and vertical rules can be toggled independently, with a live preview switch.
+
+See the README for details.
+
 */
 
-
 // =========================================
-// バージョンとローカライズ / Version & Localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "AverageRulesInRectangle";      /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AverageRulesInRectangle.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRulesInRectangle.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -89,8 +105,6 @@ function L(key) {
     }
     return entry[lang] || entry.en;
 }
-
-
 
 // =========================================
 // メイン処理 / Main

@@ -2,56 +2,40 @@
 #targetengine "ApplyLeadingPerTextFrame"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+### 概要
+
+選択された各テキストフレームの各行について、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
+適用する行送りの割合はダイアログで指定できます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Recalculates the leading of each line in the selected text frames from the font size of the first few characters, and applies it.
+The leading percentage is chosen in a dialog.
+
+See the README for details.
+
+*/
+
 // =========================================
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplyLeadingPerTextFrame";     /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-07-08";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-08";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFrame.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFrame.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-
-/*
-
-### ApplyLeadingPerTextFrame （行送りの設定 / 常駐パレット）
-
-選択したテキストフレームの行送りを「自動行送り量（％）」として設定する常駐パレットです。
-行送り値を直接書き込まず、フォントサイズに対する割合（％）を求めて autoLeadingAmount に代入し、
-行送りは常に自動（autoLeading = true）にします。行送りが自動になるため、行ごとにフォントサイズが
-異なっても各行の行送りは自動的に追従します。
-
-- 110% / 125% / 150% は比率×100 をそのまま自動行送り量に代入します。
-- ［その他］は行送り値（pt 等）を直接入力する指定で、「指定行送り ÷ フォントサイズ × 100」を段落ごとに算出します。
-- ％欄を直接編集するとプリセットの選択は解除され、その値がそのまま自動行送り量になります。
-- 段落前後のアキ・行送りの基準（autoLeadingType）も同時に設定します。
-
-常駐パレットの app は表示中に DOM 接続を失うため、DOM を触る処理は worker 関数にまとめ、
-操作のたびに BridgeTalk でメインエンジンへ委譲します。値は絶対値で上書きする冪等な処理のため、
-UI を変更するたびに選択中のテキストフレームへ即適用します。結果はそのまま残り、取り消しは Cmd+Z です。
-
-### ApplyLeadingPerTextFrame (Leading Settings / persistent palette)
-
-A persistent palette that sets the leading of selected text frames as an auto-leading amount (%).
-Instead of writing an explicit leading value, it derives the ratio of leading to font size (%),
-assigns it to autoLeadingAmount, and always turns auto leading on. Because leading becomes auto,
-each line follows its own font size automatically.
-
-- 110% / 125% / 150% assign ratio×100 directly to the auto leading amount.
-- "Other" lets you type an explicit leading value; the % is computed per paragraph as leading ÷ font size × 100.
-- Editing the % field clears the preset selection and uses that value as the auto leading amount.
-- Paragraph spacing and the leading basis (autoLeadingType) are applied together.
-
-Because a resident palette loses its DOM connection while shown, all DOM work is collected into
-worker functions and delegated to the main engine over BridgeTalk on each action. Since the values
-are absolute overwrites (idempotent), every UI change is applied live to the selected text frames.
-Results stay as-is; undo with Cmd+Z.
-
-更新日 / Updated: 2026-07-08
-
-*/
 
 (function () {
 
@@ -109,7 +93,6 @@ Results stay as-is; undo with Cmd+Z.
         return path;
     }
 
-
     // =========================================
     // 単位 / Units
     // =========================================
@@ -164,7 +147,6 @@ Results stay as-is; undo with Cmd+Z.
         };
     }
 
-
     // =========================================
     // 行送りの選択肢 / Leading choices
     // =========================================
@@ -188,7 +170,6 @@ Results stay as-is; undo with Cmd+Z.
             { label: L("type.bottomToBottom"), token: "BOTTOMTOBOTTOM" }
         ];
     }
-
 
     // =========================================
     // worker 関数 / Worker functions (run in the MAIN engine via BridgeTalk)
@@ -404,7 +385,6 @@ Results stay as-is; undo with Cmd+Z.
         w_readInitial
     ];
 
-
     // =========================================
     // BridgeTalk 委譲 / Delegation to the main engine
     // =========================================
@@ -471,7 +451,6 @@ Results stay as-is; undo with Cmd+Z.
         return { ok: false, code: "ERR", msg: res };
     }
 
-
     // =========================================
     // 数値ユーティリティ / Numeric helpers
     // =========================================
@@ -498,7 +477,6 @@ Results stay as-is; undo with Cmd+Z.
         if (isNaN(pt) || pt === null) { return ""; }
         return (Math.round((pt / unit.factor) * 10) / 10).toFixed(1);
     }
-
 
     // =========================================
     // UI: 矢印キーによる数値増減 / Arrow-key stepping
@@ -554,7 +532,6 @@ Results stay as-is; undo with Cmd+Z.
             if (typeof onUpdate === "function") onUpdate();
         });
     }
-
 
     // =========================================
     // 常駐パレット / Persistent palette

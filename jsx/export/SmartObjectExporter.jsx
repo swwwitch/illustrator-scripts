@@ -2,73 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartObjectExporter.jsx
 
 ### 概要
 
-- 選択オブジェクトを一時アートボードとプレビュー用レイヤーに複製し、背景、余白、罫線、倍率、ファイル名設定などを自由に指定してPNGとして書き出すスクリプトです。
-- リアルタイムプレビューとプリセット保存により、効率的に多用途な書き出しが可能です。
+選択オブジェクトを一時アートボードへ複製し、背景・余白・罫線・倍率・ファイル名を指定してPNGとして書き出します。
+設定はリアルタイムプレビューで確認でき、プリセットとして保存できます。
 
-### 主な機能
-
-- 一時アートボード作成と選択オブジェクト複製
-- 背景（透過、白、黒、任意カラー、透明グリッド）設定
-- 余白（なし、左右、上下、四辺）の柔軟設定
-- 罫線追加（色・太さ指定可能）
-- 書き出し倍率または横幅指定
-- ファイル名構成（区切り記号、接尾辞）、プレビュー表示
-- 書き出し先選択（デスクトップまたは同フォルダ）
-- Finder表示（Macのみ）、プリセット保存
-
-### 処理の流れ
-
-1. オプションダイアログで各項目を設定
-2. プレビューで確認
-3. OKでPNGを書き出し、キャンセルで復帰
-
-### 更新履歴
-
-- v0.5.0 (20240527) : 初版作成
-- v0.5.13 (20240527) : 重ね順維持で複製（PLACEATEND）
-- v0.5.14 (20240527) : 余白オプション追加
-
----
-
-### Script Name:
-
-SmartObjectExporter.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script to duplicate selected objects to a temporary artboard and preview layer, then export them as PNG with customizable background, margin, border, scale, and filename options.
-- Real-time preview and preset saving allow versatile and efficient exports.
+Duplicates the selection onto a temporary artboard and exports it as PNG with a chosen background, margin, border, scale and filename.
+The settings are shown in a real-time preview and can be stored as presets.
 
-### Main Features
+See the README for details.
 
-- Create temporary artboard and duplicate selection
-- Background options (transparent, white, black, custom color, transparency grid)
-- Flexible margin settings (none, horizontal, vertical, all sides)
-- Add border (customizable color and thickness)
-- Export by scale or specific width
-- Filename configuration (delimiter, suffix), live preview
-- Choose export location (desktop or same folder)
-- Show folder in Finder (Mac only), save presets
-
-### Process Flow
-
-1. Configure settings in option dialog
-2. Preview the result
-3. Export as PNG with OK, or cancel to revert
-
-### Update History
-
-- v0.5.0 (20240527): Initial version
-- v0.5.13 (20240527): Duplicate with z-order preserved (PLACEATEND)
-- v0.5.14 (20240527): Added margin options
 */
- 
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartObjectExporter";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v0.5.14";                      /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2024-05-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2024-05-27";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectExporter.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectExporter.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // -------------------------------
 // Helper: Restore layer visibility
@@ -549,7 +515,6 @@ function showExportOptionsDialog(selectionBounds, temporaryHiddenItems) {
     bgPanel.orientation = "column";
     bgPanel.alignChildren = "left";
 
-
     // 背景色ラジオボタンを横並びにする（順序: 透過, 黒, 白）
     var bgGroup = bgPanel.add("group");
     bgGroup.orientation = "row";
@@ -1006,8 +971,6 @@ function showExportOptionsDialog(selectionBounds, temporaryHiddenItems) {
     locPanel.alignChildren = "left";
     locPanel.preferredSize.width = 300;
 
-
-
     var locGroup = locPanel.add("group");
     locGroup.orientation = "row";
     locGroup.alignChildren = "left";
@@ -1154,8 +1117,6 @@ function showExportOptionsDialog(selectionBounds, temporaryHiddenItems) {
     if (Folder.fs !== "Macintosh") {
         showFolderGroup.visible = false;
     }
-
-
 
     // --- Filename preview update function (refactored) ---
     function updateFilenamePreview() {
@@ -1447,7 +1408,6 @@ function showExportOptionsDialog(selectionBounds, temporaryHiddenItems) {
         return null;
     }
 }
-
 
 main();
 

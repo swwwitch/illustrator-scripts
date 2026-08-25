@@ -2,73 +2,39 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要 / Overview
-選択オブジェクトに［オブジェクト］>［分割・拡張］を実行し、グラデーションを指定ステップ数で分割する Illustrator スクリプトです。
+
+### 概要
+
+選択オブジェクトに［オブジェクト］＞［分割・拡張］を実行し、グラデーションを指定したステップ数で分割します。
 内部で一時的な .aia アクションを生成・ロード・再生し、実行後にアンロードして一時ファイルを削除します。
-アクションのセット名／アクション名は定数で管理し、.aia 内の名前も同じ値から生成します。
 
-ダイアログ：
-・ステップ数（既定値 5、2 以上の整数）。↑↓で±1、Shift+↑↓で10の倍数にスナップ。
-・「実行後の処理」パネルで次の3モードから選択：
-  - なし：分割・拡張のみ
-  - 単純に拡張：分割・拡張後に
-      ① Pathfinder ＞ クロップ（Live Pathfinder Crop）
-      ② アピアランスを分割（expandStyle）
-      ③ Pathfinder Merge ライブエフェクト（command 8）を適用 → アピアランスを分割
-  - ブレンドに変換：「単純に拡張」と同じ前処理を実行した後に
-      ④ 配下の塗りパスを再帰収集（コンパウンドは subpath まで展開）し、最前面・最背面以外を削除
-      ⑤ 残った2点をアクティブレイヤー直下へ移動し、包んでいたグループ／コンパウンドを除去
-      ⑥ 2点でブレンド作成（Path Blend Make）
-      ⑦ ブレンドオプションを Specified Steps = (gradientSteps − 2) に設定（一時アクション ai_plugin_liveblend）
+詳細は README を参照してください。
 
-安全対策：
-・後処理前に対象ドキュメントをアクティブ化します。
-・Pathfinder Merge を適用できる選択オブジェクトを確認し、対象がない場合は中断します。
-・ブレンド変換時、塗り（または線）のあるパスが2点未満の場合は中断します。
-・一時アクションファイルは finally で close/remove を試みます。
+### Overview
 
-スクリプト冒頭の設定スイッチ：
-・DEFAULT_GRADIENT_STEPS：ステップ数の既定値
-・DEFAULT_POST_PROCESS_MODE：後処理モードの既定値（"none" / "simple" / "blend"）
-・SHOW_DIALOG：false でダイアログを出さず既定値のまま即実行
-・ACTION_SET_NAME / ACTION_NAME：一時アクションのセット名／アクション名
+Runs Object > Expand on the selection to break a gradient into a given number of steps.
+A temporary .aia action is generated, loaded and played internally, then unloaded and deleted.
 
-This Illustrator script runs Object > Expand on the current selection and converts gradients into the specified number of steps.
-It creates, loads, plays, unloads, and removes a temporary .aia action file.
-The action set name and action name are defined as constants, and the names inside the .aia source are generated from the same values.
+See the README for details.
 
-Dialog:
-- Step count (default 5, integer ≥ 2). Arrow keys ±1, Shift+Arrow snaps to multiples of 10.
-- "Post-Processing" panel offers three modes:
-  - None: expand only
-  - Simple expand: after the expand,
-      (1) Pathfinder > Crop (Live Pathfinder Crop)
-      (2) Expand appearance (expandStyle)
-      (3) Apply Pathfinder Merge live effect (command 8) → expand appearance
-  - Convert to blend: run the same pre-processing as Simple expand, then
-      (4) Recursively collect painted leaf paths (compound paths are expanded down to their sub-paths) and remove all except the frontmost and backmost
-      (5) Lift the two remaining paths up to the active layer and drop the empty wrappers
-      (6) Run Path Blend Make on the two items
-      (7) Set the blend's Specified Steps to (gradientSteps − 2) via a temporary action (ai_plugin_liveblend)
-
-Safety:
-- The target document is activated before post-processing.
-- A valid selection item for Pathfinder Merge is checked before applying the effect.
-- Blend conversion aborts when fewer than 2 painted paths remain.
-- The temporary action file is closed/removed in finally whenever possible.
-
-Config switches at the top:
-- DEFAULT_GRADIENT_STEPS: default step count
-- DEFAULT_POST_PROCESS_MODE: default post-process mode ("none" / "simple" / "blend")
-- SHOW_DIALOG: when false, runs silently using the defaults
-- ACTION_SET_NAME / ACTION_NAME: temporary action set/action names
-
-Updated: 2026-05-25
 */
 
 // =========================================
-// 設定スイッチ / Config switches
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "ExpandGradient";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExpandGradient.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExpandGradient.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 分割数（既定値、2 以上の整数） / Default gradient step count (integer ≥ 2) */
 var DEFAULT_GRADIENT_STEPS = 5;
@@ -90,8 +56,6 @@ var BLEND_ACTION_SET_NAME = "ExpandGradient_blend_tmp";
 var BLEND_ACTION_NAME = "setBlendStep";
 
 (function () {
-
-    var SCRIPT_VERSION = "v1.1.0";
 
     // =========================================
     // ローカライズ / Localization

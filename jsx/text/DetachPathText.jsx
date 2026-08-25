@@ -2,25 +2,19 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-DetachPathText.jsx
 
-### 更新日：
-20260303
+### 概要
 
-### 概要：
-選択した「パス上文字（Path Text）」を、同じ文字内容・段落属性・文字属性をできるだけ維持したまま「ポイント文字」に変換します。
-変換時に、「テキストの書式」およびパス設定を選択するダイアログが表示されます。
-元のテキストパス形状は複製され、ダイアログの設定に応じて線属性（1pt黒／線なし）が適用されます。
+パス上文字を、テキストとパスに分離します。
 
-### 使い方：
-1) パス上文字を選択
-2) スクリプトを実行
-3) ダイアログでテキストの書式およびパスのオプションを選択
+詳細は README を参照してください。
 
-### 注意：
-- 文字ごとの属性（フォント/サイズ/色/トラッキング等）は、可能な範囲で復元します。
-- 復元時に設定できない属性は try/catch でスキップします。
+### Overview
+
+Detaches text on a path back into a separate text object and path.
+
+See the README for details.
+
 */
 
 // =========================================
@@ -31,6 +25,11 @@ var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DetachPathText.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DetachPathText.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

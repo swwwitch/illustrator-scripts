@@ -1,54 +1,41 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
 
-// 【概要 / Summary】
-// 配置画像（PlacedItem）を中心に、画像の「埋め込み」「解除（埋め込み解除）」「リセット」「ケイ線」「リンク」を
-// まとめて扱うスクリプトです。
-// ダイアログ上部のモードで処理を切り替え、対応パネルのみ有効化（それ以外はディム表示）します。
-//
-// モード切替ショートカット：
-// ・埋め込み：E / 解除：U / リセット：R / ケイ線：S / リンク：L
-//
-// 【埋め込み / Embed】
-// 選択した、またはドキュメント内すべての PlacedItem を embed() します。
-// PSD（.psd）の場合は embed() 後に ungroup を試行します。
-// ただし親グループがクリッピンググループ（clipped === true）の場合は ungroup を行いません。
-//
-// 【解除 / Unembed】
-// 埋め込み画像（RasterItem、または file を参照できない PlacedItem）を PSD に書き出し、
-// リンク配置（PlacedItem）へ置き換えます。
-// 可能な範囲で位置・回転・拡大率を合わせます
-//（効果が適用されている場合などは差異が出ることがあります）。
-//
-// 【リセット / Reset】
-// 選択した PlacedItem / RasterItem に対して、回転・シアー・縦横比・反転・スケール（任意）を正規化します。
-// 「再配置」を ON にすると、リンクを置き直すことで初期状態に近い形へ戻します（PlacedItem のみ）。
-// スケール（%）は ↑↓ で±1、Shift+↑↓ で±10（10の倍数にスナップ）で増減できます。
-//
-// 【ケイ線 / Stroke】
-// 選択オブジェクトに「新規線」を追加します。
-// ・ケイ線のみ：新規線 → アウトライン
-// ・クリップグループ：必要に応じてクリップ化し、オプションで角丸（LiveEffect）を適用してから
-//   新規線 → パスファインダー（除外）を実行します。
-// 角丸の半径は ↑↓ で±1、Shift+↑↓ で±10（10の倍数にスナップ）で増減できます。
-//
-// 【リンク / Link】
-// ・リンクを更新：ドキュメント内のすべてのリンク配置画像を一括更新します。
-// ・すべてさしかえ：選択した配置画像と同じファイル名のリンク配置画像を、
-//   指定したファイルに一括で差し替えます。
-//
-// 実行後、選択を解除します。
-// 更新日 / Updated: 2025-12-21
+### 概要
 
-// ===== Script info =====
+配置画像に対する「埋め込み」「埋め込み解除」「リセット」「ケイ線」「リンク」を、1つのダイアログでまとめて扱います。
+ダイアログ上部のモードで処理を切り替え、対応するパネルだけが有効になります。
 
-var SCRIPT_NAME = 'ImageLinkManager';
-var SCRIPT_VERSION = '1.2';
+詳細は README を参照してください。
 
-/**
- * ===== Localization =====
- */
+### Overview
+
+Handles Embed, Unembed, Reset, Stroke and Relink for placed images from a single dialog.
+The mode selector at the top switches the operation, and only the matching panel stays enabled.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ImageLinkManager";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-12-21";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-12-21";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageLinkManager.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageLinkManager.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }

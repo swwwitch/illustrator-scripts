@@ -5,16 +5,15 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### 概要
 
-選択したオブジェクトを一時的にグループ化したうえで、整列パネルの「水平方向中央に整列」「垂直方向中央に整列」をダイナミックアクション経由で実行します（選択が現在のアートボード外にある場合は、選択を含むアートボードに切り替えます）。実行中だけ「字形の境界に整列」をONにして終了時に元の状態へ戻し、1行だけのテキストを1つ選択しているときは行揃えも中央揃えにします。
+選択したオブジェクトを一時的にグループ化したうえで、整列パネルの「水平方向中央に整列」「垂直方向中央に整列」をダイナミックアクション経由で実行します。
+実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Temporarily groups the selection, then centers it horizontally and vertically by running
-the Align panel commands through a dynamic action (if the selection sits outside the current artboard,
-the artboard holding it becomes active). "Align to Glyph Bounds" is turned on for the run and restored afterwards,
-and a lone single-line text object also gets centered justification.
+Groups the selection temporarily, then runs Align Horizontal Center and Align Vertical Center from the Align panel through a dynamic action.
+"Align to glyph bounds" is turned on only while it runs and restored afterwards.
 
 See the README for details.
 

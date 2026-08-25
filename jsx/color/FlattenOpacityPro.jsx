@@ -1,5 +1,40 @@
 #target illustrator
 
+/*
+
+### 概要
+
+選択したオブジェクトの不透明度を、塗りのカラーそのものに焼き込んで不透明にします。
+親グループの不透明度も再帰的に合成し、重なったオブジェクトは背面から合成して見た目の色を再現します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Bakes the opacity of the selected objects into their fill colors so that everything becomes fully opaque.
+Parent group opacity is composited recursively, and overlapping objects are composited from the back to reproduce the apparent color.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FlattenOpacityPro";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenOpacityPro.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenOpacityPro.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
 // --- Geometry tolerance (for grouping "same shape") ---
 // Quantize values to reduce tiny float jitter after Pathfinder/Expand.
 var GEOM_TOL_PT = 0.1;        // position/size tolerance in points
