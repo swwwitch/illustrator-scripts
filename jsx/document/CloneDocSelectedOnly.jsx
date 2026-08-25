@@ -36,128 +36,132 @@ var SCRIPT_UPDATED  = "2025-07-02";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-var REMOVE_LOCKED_ITEMS = false; // true: ロックされたアイテムやレイヤーも削除 / Remove locked items and layers if true
+(function () {
 
-// -------------------------------
-// 日英ラベル定義 Define labels
-// -------------------------------
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
+    var REMOVE_LOCKED_ITEMS = false; // true: ロックされたアイテムやレイヤーも削除 / Remove locked items and layers if true
 
-var lang = getCurrentLang();
-var LABELS = {
-    noDocument: { ja: "開いているドキュメントがありません。", en: "No documents are open." },
-    notSaved: { ja: "ドキュメントが一度も保存されていません。先に保存してください。", en: "The document has never been saved. Please save it first." },
-    noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
-};
-
-// スクリプト開始 // Script start
-function main() {
-    if (app.documents.length > 0) {
-        var originalDoc = app.activeDocument;
-        // Check if the document has been saved at least once
-        if (!originalDoc.saved) {
-            alert(LABELS.notSaved[lang]);
-            return;
-        }
-        var originalFilePath = originalDoc.fullName;
-        var originalFileName = originalDoc.name;
-
-        var selectedItems = getSelectedItems(originalDoc);
-        if (selectedItems.length === 0) {
-            alert(LABELS.noSelection[lang]);
-        } else {
-            var tempFileName = generateTempFileName(originalFilePath, getBaseName(originalFileName), getExtension(originalFileName));
-            var tempFilePath = new File(originalFilePath.path + "/" + tempFileName);
-
-            originalDoc.saveAs(tempFilePath);
-            var duplicateDoc = app.open(tempFilePath);
-
-            removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
-        }
-    } else {
-        alert(LABELS.noDocument[lang]);
+    // -------------------------------
+    // 日英ラベル定義 Define labels
+    // -------------------------------
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
-}
-// スクリプト終了 // Script end
 
-// 選択されているオブジェクトを配列で取得 // Get selected items as array
-function getSelectedItems(doc) {
-    var items = [];
-    for (var i = 0; i < doc.selection.length; i++) {
-        items.push(doc.selection[i]);
-    }
-    return items;
-}
+    var lang = getCurrentLang();
+    var LABELS = {
+        noDocument: { ja: "開いているドキュメントがありません。", en: "No documents are open." },
+        notSaved: { ja: "ドキュメントが一度も保存されていません。先に保存してください。", en: "The document has never been saved. Please save it first." },
+        noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
+    };
 
-// 選択されていない非表示のアイテムを削除 // Remove unselected and hidden items
-function removeUnselectedHiddenItems(layers, selectedItems) {
-    for (var i = layers.length - 1; i >= 0; i--) {
-        var layer = layers[i];
+    // スクリプト開始 // Script start
+    function main() {
+        if (app.documents.length > 0) {
+            var originalDoc = app.activeDocument;
+            // Check if the document has been saved at least once
+            if (!originalDoc.saved) {
+                alert(LABELS.notSaved[lang]);
+                return;
+            }
+            var originalFilePath = originalDoc.fullName;
+            var originalFileName = originalDoc.name;
 
-        if (layer.locked) {
-            if (REMOVE_LOCKED_ITEMS) {
-                layer.locked = false;
-                layer.remove();
-                continue;
+            var selectedItems = getSelectedItems(originalDoc);
+            if (selectedItems.length === 0) {
+                alert(LABELS.noSelection[lang]);
             } else {
+                var tempFileName = generateTempFileName(originalFilePath, getBaseName(originalFileName), getExtension(originalFileName));
+                var tempFilePath = new File(originalFilePath.path + "/" + tempFileName);
+
+                originalDoc.saveAs(tempFilePath);
+                var duplicateDoc = app.open(tempFilePath);
+
+                removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
+            }
+        } else {
+            alert(LABELS.noDocument[lang]);
+        }
+    }
+    // スクリプト終了 // Script end
+
+    // 選択されているオブジェクトを配列で取得 // Get selected items as array
+    function getSelectedItems(doc) {
+        var items = [];
+        for (var i = 0; i < doc.selection.length; i++) {
+            items.push(doc.selection[i]);
+        }
+        return items;
+    }
+
+    // 選択されていない非表示のアイテムを削除 // Remove unselected and hidden items
+    function removeUnselectedHiddenItems(layers, selectedItems) {
+        for (var i = layers.length - 1; i >= 0; i--) {
+            var layer = layers[i];
+
+            if (layer.locked) {
+                if (REMOVE_LOCKED_ITEMS) {
+                    layer.locked = false;
+                    layer.remove();
+                    continue;
+                } else {
+                    continue;
+                }
+            }
+            if (!layer.visible) {
                 continue;
             }
-        }
-        if (!layer.visible) {
-            continue;
-        }
 
-        for (var j = layer.pageItems.length - 1; j >= 0; j--) {
-            var item = layer.pageItems[j];
-            if (item.locked) {
-                if (REMOVE_LOCKED_ITEMS) {
-                    item.locked = false;
+            for (var j = layer.pageItems.length - 1; j >= 0; j--) {
+                var item = layer.pageItems[j];
+                if (item.locked) {
+                    if (REMOVE_LOCKED_ITEMS) {
+                        item.locked = false;
+                        item.remove();
+                    }
+                    continue;
+                }
+                if (!isItemSelected(item, selectedItems) && !item.visible) {
                     item.remove();
                 }
-                continue;
-            }
-            if (!isItemSelected(item, selectedItems) && !item.visible) {
-                item.remove();
             }
         }
     }
-}
 
-// アイテムが選択されているか判定 // Check if item is selected
-function isItemSelected(item, selectedItems) {
-    for (var i = 0; i < selectedItems.length; i++) {
-        if (item === selectedItems[i]) {
-            return true;
+    // アイテムが選択されているか判定 // Check if item is selected
+    function isItemSelected(item, selectedItems) {
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (item === selectedItems[i]) {
+                return true;
+            }
         }
+        return false;
     }
-    return false;
-}
 
-// ファイル名のベース部分を取得 // Get base part of file name
-function getBaseName(fileName) {
-    var parts = fileName.split('.');
-    return parts[0];
-}
-
-// ファイル名の拡張子を取得（ドット含む） // Get file extension (with dot)
-function getExtension(fileName) {
-    var parts = fileName.split('.');
-    return parts.length > 1 ? '.' + parts[parts.length - 1] : '';
-}
-
-// 一時ファイル名を生成 // Generate temporary file name
-function generateTempFileName(originalFilePath, baseName, extension) {
-    var tempFileNameBase = "temp-" + baseName;
-    var tempFileName = tempFileNameBase + extension;
-    var counter = 1;
-
-    while (File(originalFilePath.path + "/" + tempFileName).exists) {
-        tempFileName = tempFileNameBase + "-" + counter + extension;
-        counter++;
+    // ファイル名のベース部分を取得 // Get base part of file name
+    function getBaseName(fileName) {
+        var parts = fileName.split('.');
+        return parts[0];
     }
-    return tempFileName;
-}
 
-main();
+    // ファイル名の拡張子を取得（ドット含む） // Get file extension (with dot)
+    function getExtension(fileName) {
+        var parts = fileName.split('.');
+        return parts.length > 1 ? '.' + parts[parts.length - 1] : '';
+    }
+
+    // 一時ファイル名を生成 // Generate temporary file name
+    function generateTempFileName(originalFilePath, baseName, extension) {
+        var tempFileNameBase = "temp-" + baseName;
+        var tempFileName = tempFileNameBase + extension;
+        var counter = 1;
+
+        while (File(originalFilePath.path + "/" + tempFileName).exists) {
+            tempFileName = tempFileNameBase + "-" + counter + extension;
+            counter++;
+        }
+        return tempFileName;
+    }
+
+    main();
+
+})();

@@ -266,6 +266,13 @@ Enable arrow-key increment on EditText
 - Shift + ↑ / ↓ : ±10 (snap to 10)
 - Option(Alt) + ↑ / ↓ : ±0.1
 */
+/**
+ * 入力欄で↑↓キーによる増減を行えるようにする
+ *
+ * 修飾キーは event を優先して読む（keyboardState は macOS で altKey を誤報するため）。
+ * @param {EditText} editText - 対象の入力欄
+ * @returns {void}
+ */
 function changeValueByArrowKey(editText) {
     editText.addEventListener("keydown", function (event) {
         // 矢印キー（↑↓）以外は何もしない（手入力中のカーソル位置や通常入力を壊さない）
@@ -679,7 +686,11 @@ function main() {
         });
     }
 
-    // 任意のスナップショットへ復元 / Restore from a given snapshot
+    /**
+     * 控えておいたスナップショットの位置へオブジェクトを戻す
+     * @param {Array<Object>} snapshot - item / left / top を持つ位置情報の配列
+     * @returns {void}
+     */
     function restoreFrom(snapshot) {
         for (var i = 0; i < snapshot.length; i++) {
             var snapshotEntry = snapshot[i];
@@ -696,6 +707,13 @@ function main() {
 - クリップグループの場合はクリップパスの geometricBounds を優先（=可視領域）
 - それ以外は item.geometricBounds（GroupItem なら子全体の外接 bbox）
 */
+    /**
+     * レイアウト計算に使う外接矩形を返す
+     *
+     * クリップグループはマスクパスの geometricBounds を使い、グループ全体を1つのbboxとして扱う。
+     * @param {PageItem} item - 対象のオブジェクト
+     * @returns {Array<number>} [left, top, right, bottom]
+     */
     function getLayoutBounds(item) {
         try {
             if (item.typename === 'GroupItem' && item.clipped) {
@@ -748,6 +766,10 @@ function main() {
     /*
     行・列の推定 / build layout info
     */
+    /**
+     * 選択オブジェクトの現在位置から、行と列の構成を推定する
+     * @returns {Object} 行・列の中心座標と、各オブジェクトの行列位置を持つレイアウト情報
+     */
     function buildLayoutInfo() {
         var collected = collectBoundsList();
         var boundsList = collected.boundsList;
@@ -852,6 +874,10 @@ function main() {
     - 各行の中はleft(X)でソート
     - 欠け（歯抜け）は許容（行ごとに列数が異なってよい）
     */
+    /**
+     * 選択オブジェクトを強制的に等間隔のグリッドとみなして、行と列の構成を組み立てる
+     * @returns {Object} 行・列の中心座標と、各オブジェクトの行列位置を持つレイアウト情報
+     */
     function buildLayoutInfoForceGrid() {
         var collected = collectBoundsList();
         var boundsList = collected.boundsList;
@@ -941,7 +967,10 @@ function main() {
         };
     }
 
-    // 現在位置を新しい基準（originalPositions + layoutInfo）として再設定 / Reset baseline to current layout
+    /**
+     * 現在の位置を新しい基準として控え直し、レイアウト情報を作り直す
+     * @returns {void}
+     */
     function resetBaselineToCurrent() {
         originalPositions = [];
         for (var kB = 0; kB < selectedItems.length; kB++) {
@@ -958,6 +987,10 @@ function main() {
     - 推定したピッチ（隣接差の中央値）で左上基準に再配置
     - 1行→1列 / 1列→1行 も対応（ピッチ流用）
     */
+    /**
+     * 歯抜けを許容したままグリッドを転置（行⇄列）する
+     * @returns {void}
+     */
     function transposeGridWithHoles() {
         if (!selectedItems || selectedItems.length < 1) return;
 
@@ -965,11 +998,25 @@ function main() {
         var SNAP_X_TOL = 8.0;   // X方向の「同じ列」とみなす許容（pt）
         var SNAP_Y_TOL = 8.0;   // Y方向の「同じ行」とみなす許容（pt）
 
-        // getLayoutBounds: [left, top, right, bottom]（グループは1つのbboxとして扱う）
+        /**
+         * オブジェクトの左端Xを返す
+         * @param {PageItem} targetItem - 対象のオブジェクト
+         * @returns {number} 左端のX座標
+         */
         function leftX(targetItem) { return getLayoutBounds(targetItem)[0]; }
+        /**
+         * オブジェクトの上端Yを返す
+         * @param {PageItem} targetItem - 対象のオブジェクト
+         * @returns {number} 上端のY座標
+         */
         function topY(targetItem) { return getLayoutBounds(targetItem)[1]; }
 
-        // 近い値をクラスタリングして中心値配列を作る / cluster near values into centers
+        /**
+         * 近い値どうしをまとめて、クラスタの中心値の配列を作る
+         * @param {Array<number>} values - まとめる対象の値
+         * @param {number} tolerance - 同じクラスタとみなす許容差
+         * @returns {Array<number>} 昇順に並べたクラスタ中心値の配列
+         */
         function clusterValues(values, tolerance) {
             values.sort(function (a, b) { return a - b; });
             var centers = [];
@@ -986,6 +1033,12 @@ function main() {
             return centers;
         }
 
+        /**
+         * 中心値の配列から、指定した値に最も近い要素の位置を返す
+         * @param {Array<number>} sortedCenters - 昇順に並んだ中心値の配列
+         * @param {number} value - 探す値
+         * @returns {number} 最も近い要素のインデックス
+         */
         function nearestIndex(sortedCenters, value) {
             var bestIndex = 0;
             var bestDistance = Math.abs(value - sortedCenters[0]);
@@ -1086,16 +1139,28 @@ function main() {
     }
 
     /* 元位置に戻す（プレビュー基準）/ restore baseline positions for preview */
+    /**
+     * 基準として控えた位置へオブジェクトを戻す
+     * @returns {void}
+     */
     function restoreOriginalPositions() {
         restoreFrom(originalPositions);
     }
 
     /* キャンセル時に戻す（ダイアログ開始時点）/ restore initial positions on Cancel */
+    /**
+     * ダイアログを開いた時点の位置へオブジェクトを戻す
+     * @returns {void}
+     */
     function restoreInitialPositions() {
         restoreFrom(initialPositions);
     }
 
-    // 数値配列の隣接差分の中央値 / Median of adjacent diffs (ascending)
+    /**
+     * 昇順に並んだ数値配列の、隣接する差分の中央値を返す
+     * @param {Array<number>} sortedAsc - 昇順に並んだ数値配列
+     * @returns {number} 隣接差分の中央値。要素が2未満なら0
+     */
     function medianAdjacentDiff(sortedAsc) {
         if (!sortedAsc || sortedAsc.length < 2) return 0;
         var diffs = [];
@@ -1257,16 +1322,34 @@ function main() {
     }
 
     /* 間隔を適用（通常グリッド）/ apply spacing (normal grid) */
+    /**
+     * 指定した間隔でオブジェクトをグリッド配置する
+     * @param {number} gapX - 左右の間隔（pt）
+     * @param {number} gapY - 上下の間隔（pt）
+     * @returns {void}
+     */
     function applySpacing(gapX, gapY) {
         applyGridLayout(gapX, gapY, false, 1.0);
     }
 
     /* 間隔を適用（レンガ状）/ apply spacing (brick layout) */
+    /**
+     * 指定した間隔でオブジェクトをレンガ状に配置する
+     * @param {number} gapX - 左右の間隔（pt）
+     * @param {number} gapY - 上下の間隔（pt）
+     * @returns {void}
+     */
     function applySpacingBrick(gapX, gapY) {
         applyGridLayout(gapX, gapY, true, 1.0);
     }
 
     /* 間隔を適用（六角形/ハニカム）/ apply spacing (hexagon/honeycomb layout) */
+    /**
+     * 指定した間隔でオブジェクトをハニカム状（六角形配置）に配置する
+     * @param {number} gapX - 左右の間隔（pt）
+     * @param {number} gapY - 上下の間隔（pt）
+     * @returns {void}
+     */
     function applySpacingHexagon(gapX, gapY) {
         applyGridLayout(gapX, gapY, true, 0.75);
     }

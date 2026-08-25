@@ -32,14 +32,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-function setLayerTemplate(doc, name, on) {
-    for (var i = 0; i < doc.layers.length; i++) {
-        if (doc.layers[i].name === name) {
-            doc.layers[i].template = on;
-            return true;
-        }
-    }
-    return false;
-}
+(function () {
 
-setLayerTemplate(app.activeDocument, "下絵", true);  // テンプレート化
+    function setLayerTemplate(doc, name, on) {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === name) {
+                doc.layers[i].template = on;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    setLayerTemplate(app.activeDocument, "下絵", true);  // テンプレート化
+
+})();

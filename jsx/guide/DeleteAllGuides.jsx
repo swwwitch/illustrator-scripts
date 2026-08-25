@@ -36,43 +36,47 @@ var SCRIPT_UPDATED  = "2025-07-11";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-function main() {
-    if (app.documents.length === 0) {
-        alert(LABELS.dialogTitle.ja + " / " + LABELS.dialogTitle.en); // ドキュメントが開かれていません / No document open
-        return;
-    }
+(function () {
 
-    var doc = app.activeDocument;
-
-    // すべてのレイヤーのロック状態を保存 / Save lock states of all layers
-    var layers = doc.layers;
-    var lockStates = [];
-    for (var i = 0; i < layers.length; i++) {
-        lockStates[i] = layers[i].locked;
-        if (layers[i].locked) {
-            layers[i].locked = false; // 一時的にアンロック / Temporarily unlock
+    function main() {
+        if (app.documents.length === 0) {
+            alert(LABELS.dialogTitle.ja + " / " + LABELS.dialogTitle.en); // ドキュメントが開かれていません / No document open
+            return;
         }
-    }
 
-    // ガイドロックを解除 / Unlock guides
-    doc.guidesLocked = false;
+        var doc = app.activeDocument;
 
-    // すべてのガイドを削除 / Remove all guides
-    var paths = doc.pathItems;
-    for (var i = paths.length - 1; i >= 0; i--) {
-        if (paths[i].guides) {
-            try {
-                paths[i].remove();
-            } catch (e) {
-                // 削除できない場合は無視 / Ignore if cannot remove
+        // すべてのレイヤーのロック状態を保存 / Save lock states of all layers
+        var layers = doc.layers;
+        var lockStates = [];
+        for (var i = 0; i < layers.length; i++) {
+            lockStates[i] = layers[i].locked;
+            if (layers[i].locked) {
+                layers[i].locked = false; // 一時的にアンロック / Temporarily unlock
             }
         }
+
+        // ガイドロックを解除 / Unlock guides
+        doc.guidesLocked = false;
+
+        // すべてのガイドを削除 / Remove all guides
+        var paths = doc.pathItems;
+        for (var i = paths.length - 1; i >= 0; i--) {
+            if (paths[i].guides) {
+                try {
+                    paths[i].remove();
+                } catch (e) {
+                    // 削除できない場合は無視 / Ignore if cannot remove
+                }
+            }
+        }
+
+        // ロック状態を元に戻す / Restore original lock states
+        for (var j = 0; j < layers.length; j++) {
+            layers[j].locked = lockStates[j];
+        }
     }
 
-    // ロック状態を元に戻す / Restore original lock states
-    for (var j = 0; j < layers.length; j++) {
-        layers[j].locked = lockStates[j];
-    }
-}
+    main();
 
-main();
+})();

@@ -37,1918 +37,1922 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var lang = getCurrentLang();
+(function () {
 
-var LABELS = {
-    dialogTitle: { ja: "テキストの収集と編集", en: "Collect and Edit Text" },
-    panelTargetText: { ja: "対象テキスト（アートボード）", en: "Text Scope (Artboards)" },
-    panelLayerText: { ja: "対象テキスト（レイヤーなど）", en: "Text Scope (Layers)" },
-    rbCurrentArtboard: { ja: "現在のアートボード内", en: "Current Artboard Only" },
-    rbAllArtboards: { ja: "すべてのアートボード内", en: "All Artboards Only" },
-    cbDedup: { ja: "同じ内容を一括編集", en: "Treat Same Text as One" },
-    cbOutside: { ja: "ドキュメント全体を対象に", en: "Include Entire Document" },
-    cbSkipComment: { ja: "//ではじめるレイヤーも含む", en: "Include Layers That Start with //" },
-    cbIncludeLocked: { ja: "ロックされたテキスト", en: "Locked Text" },
-    cbIncludeHidden: { ja: "非表示のテキスト", en: "Hidden Text" },
-    panelSort: { ja: "ソート", en: "Sort" },
-    sortNone: { ja: "なし", en: "None" },
-    sortXY: { ja: "位置順", en: "Sort by Position" },
-    sortABC: { ja: "ABC順", en: "Sort Alphabetically" },
-    keepFormat: { ja: "段落書式を保持", en: "Keep Paragraph Formatting" },
-    keepFormatTip: { ja: "段落の書式を保持したまま\nテキストを置換します", en: "Replace text while preserving\nparagraph formatting" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    ok: { ja: "OK", en: "OK" },
-    exportText: { ja: "テキスト書き出し", en: "Export Text" },
-    exportDone: { ja: "テキストを書き出しました", en: "Text exported" },
-    exportFailed: { ja: "テキストを書き出せませんでした", en: "Failed to export text" },
-
-    exportDialogTitle: { ja: "書き出しオプション", en: "Export Options" },
-    exportIncludeText: { ja: "テキスト", en: "Text" },
-    exportIncludeFonts: { ja: "フォント名", en: "Font Names" },
-    exportOpenAfter: { ja: "書き出し後にファイルを開く", en: "Open file after export" },
-
-    preview: { ja: "プレビュー", en: "Preview" },
-    previewTip: { ja: "編集結果をリアルタイムで\nプレビューします", en: "Preview the edited result\nin real time" },
-    previewDisabledTip: { ja: "CC 2020ではプレビュー無効", en: "Preview is disabled in CC 2020" },
-    noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open" },
-    itemPrefix: { ja: ": ", en: ": " },
-    symbolTextLabel: { ja: "シンボル内テキスト（編集不可）", en: "Text in Symbols (Read-Only)" },
-    textListLabel: { ja: "テキスト一覧", en: "Text List" },
-    textEditLabel: { ja: "テキスト編集", en: "Edit Text" },
-    tabCanvas: { ja: "カンバス", en: "Canvas" },
-    tabLayerNames: { ja: "レイヤー名", en: "Layer Names" },
-    tabArtboardNames: { ja: "アートボード名", en: "Artboard Names" },
-    tabFontNames: { ja: "フォント名", en: "Font Name" },
-    layerNameListLabel: { ja: "レイヤー名一覧", en: "Layer Name List" },
-    layerScopeAll: { ja: "すべてのレイヤー", en: "All Layers" },
-    layerScopeTop: { ja: "上位レベルのレイヤーのみ", en: "Top-Level Layers Only" },
-    layerScopePanel: { ja: "表示範囲", en: "Scope" },
-    artboardNameListLabel: { ja: "アートボード名一覧", en: "Artboard Name List" },
-    artboardScopeNumbered: { ja: "番号つき", en: "Numbered" },
-    artboardScopeRaw: { ja: "アートボード名のみ", en: "Names Only" },
-    artboardScopePanel: { ja: "表示形式", en: "Display" },
-    fontListLabel: { ja: "フォント一覧", en: "Font List" },
-    fontColumnPS: { ja: "PostScript名", en: "PostScript Name" },
-    fontColumnFamily: { ja: "フォント名", en: "Font Name" },
-    fontColumnStyle: { ja: "スタイル", en: "Style" },
-    fontTogglePS: { ja: "PostScript名", en: "PostScript Name" },
-    fontToggleFamily: { ja: "フォント名", en: "Font Name" },
-    fontToggleStyle: { ja: "スタイル", en: "Style" },
-    outsideArtboards: { ja: "アートボード外", en: "Outside Artboards" },
-    unknownFont: { ja: "不明", en: "Unknown" },
-    noMatchingFontText: { ja: "該当するテキストがありません", en: "No matching text found" }
-};
-
-function L(key) {
-    return LABELS[key][lang];
-}
-
-function main() {
-    if (app.documents.length === 0) {
-        alert(L("noDocument"));
-        return;
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var doc = app.activeDocument;
-    var isUndo = false;
-    try {
+    var lang = getCurrentLang();
 
-        var SOFT_BREAK = '@#'; /* ソフト改行の代替文字 / Placeholder for soft line breaks */
+    var LABELS = {
+        dialogTitle: { ja: "テキストの収集と編集", en: "Collect and Edit Text" },
+        panelTargetText: { ja: "対象テキスト（アートボード）", en: "Text Scope (Artboards)" },
+        panelLayerText: { ja: "対象テキスト（レイヤーなど）", en: "Text Scope (Layers)" },
+        rbCurrentArtboard: { ja: "現在のアートボード内", en: "Current Artboard Only" },
+        rbAllArtboards: { ja: "すべてのアートボード内", en: "All Artboards Only" },
+        cbDedup: { ja: "同じ内容を一括編集", en: "Treat Same Text as One" },
+        cbOutside: { ja: "ドキュメント全体を対象に", en: "Include Entire Document" },
+        cbSkipComment: { ja: "//ではじめるレイヤーも含む", en: "Include Layers That Start with //" },
+        cbIncludeLocked: { ja: "ロックされたテキスト", en: "Locked Text" },
+        cbIncludeHidden: { ja: "非表示のテキスト", en: "Hidden Text" },
+        panelSort: { ja: "ソート", en: "Sort" },
+        sortNone: { ja: "なし", en: "None" },
+        sortXY: { ja: "位置順", en: "Sort by Position" },
+        sortABC: { ja: "ABC順", en: "Sort Alphabetically" },
+        keepFormat: { ja: "段落書式を保持", en: "Keep Paragraph Formatting" },
+        keepFormatTip: { ja: "段落の書式を保持したまま\nテキストを置換します", en: "Replace text while preserving\nparagraph formatting" },
+        cancel: { ja: "キャンセル", en: "Cancel" },
+        ok: { ja: "OK", en: "OK" },
+        exportText: { ja: "テキスト書き出し", en: "Export Text" },
+        exportDone: { ja: "テキストを書き出しました", en: "Text exported" },
+        exportFailed: { ja: "テキストを書き出せませんでした", en: "Failed to export text" },
 
-        /* テキストフレームの参照を保持する配列 / Store references to text frames */
-        var textFrameList = [];
-        /* 重複除外時: duplicateMap[i] = 同じ内容を持つ全フレームの配列 / For duplicate removal: duplicateMap[i] stores all frames with the same content */
-        var duplicateMap = [];
+        exportDialogTitle: { ja: "書き出しオプション", en: "Export Options" },
+        exportIncludeText: { ja: "テキスト", en: "Text" },
+        exportIncludeFonts: { ja: "フォント名", en: "Font Names" },
+        exportOpenAfter: { ja: "書き出し後にファイルを開く", en: "Open file after export" },
 
-        var symbolTextCacheMap = {};
+        preview: { ja: "プレビュー", en: "Preview" },
+        previewTip: { ja: "編集結果をリアルタイムで\nプレビューします", en: "Preview the edited result\nin real time" },
+        previewDisabledTip: { ja: "CC 2020ではプレビュー無効", en: "Preview is disabled in CC 2020" },
+        noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open" },
+        itemPrefix: { ja: ": ", en: ": " },
+        symbolTextLabel: { ja: "シンボル内テキスト（編集不可）", en: "Text in Symbols (Read-Only)" },
+        textListLabel: { ja: "テキスト一覧", en: "Text List" },
+        textEditLabel: { ja: "テキスト編集", en: "Edit Text" },
+        tabCanvas: { ja: "カンバス", en: "Canvas" },
+        tabLayerNames: { ja: "レイヤー名", en: "Layer Names" },
+        tabArtboardNames: { ja: "アートボード名", en: "Artboard Names" },
+        tabFontNames: { ja: "フォント名", en: "Font Name" },
+        layerNameListLabel: { ja: "レイヤー名一覧", en: "Layer Name List" },
+        layerScopeAll: { ja: "すべてのレイヤー", en: "All Layers" },
+        layerScopeTop: { ja: "上位レベルのレイヤーのみ", en: "Top-Level Layers Only" },
+        layerScopePanel: { ja: "表示範囲", en: "Scope" },
+        artboardNameListLabel: { ja: "アートボード名一覧", en: "Artboard Name List" },
+        artboardScopeNumbered: { ja: "番号つき", en: "Numbered" },
+        artboardScopeRaw: { ja: "アートボード名のみ", en: "Names Only" },
+        artboardScopePanel: { ja: "表示形式", en: "Display" },
+        fontListLabel: { ja: "フォント一覧", en: "Font List" },
+        fontColumnPS: { ja: "PostScript名", en: "PostScript Name" },
+        fontColumnFamily: { ja: "フォント名", en: "Font Name" },
+        fontColumnStyle: { ja: "スタイル", en: "Style" },
+        fontTogglePS: { ja: "PostScript名", en: "PostScript Name" },
+        fontToggleFamily: { ja: "フォント名", en: "Font Name" },
+        fontToggleStyle: { ja: "スタイル", en: "Style" },
+        outsideArtboards: { ja: "アートボード外", en: "Outside Artboards" },
+        unknownFont: { ja: "不明", en: "Unknown" },
+        noMatchingFontText: { ja: "該当するテキストがありません", en: "No matching text found" }
+    };
 
-        function getCurrentSymbolCacheKey() {
-            var scopeMode;
-            if (cbOutside.value) {
-                scopeMode = 'all';
-            } else if (rbAll.value) {
-                scopeMode = 'allArtboards';
-            } else {
-                scopeMode = 'current';
+    function L(key) {
+        return LABELS[key][lang];
+    }
+
+    function main() {
+        if (app.documents.length === 0) {
+            alert(L("noDocument"));
+            return;
+        }
+        var doc = app.activeDocument;
+        var isUndo = false;
+        try {
+
+            var SOFT_BREAK = '@#'; /* ソフト改行の代替文字 / Placeholder for soft line breaks */
+
+            /* テキストフレームの参照を保持する配列 / Store references to text frames */
+            var textFrameList = [];
+            /* 重複除外時: duplicateMap[i] = 同じ内容を持つ全フレームの配列 / For duplicate removal: duplicateMap[i] stores all frames with the same content */
+            var duplicateMap = [];
+
+            var symbolTextCacheMap = {};
+
+            function getCurrentSymbolCacheKey() {
+                var scopeMode;
+                if (cbOutside.value) {
+                    scopeMode = 'all';
+                } else if (rbAll.value) {
+                    scopeMode = 'allArtboards';
+                } else {
+                    scopeMode = 'current';
+                }
+
+                var abIndexPart = '';
+                if (scopeMode === 'current') {
+                    try {
+                        abIndexPart = 'ab' + doc.artboards.getActiveArtboardIndex();
+                    } catch (e) {
+                        abIndexPart = 'ab0';
+                    }
+                }
+
+                return [
+                    scopeMode,
+                    abIndexPart,
+                    cbSkipComment.value ? 'comment1' : 'comment0',
+                    cbIncludeLocked.value ? 'locked1' : 'locked0',
+                    cbIncludeHidden.value ? 'hidden1' : 'hidden0'
+                ].join('|');
             }
 
-            var abIndexPart = '';
-            if (scopeMode === 'current') {
+            var TEMP_LAYER_NAME = '__TextScopeEdit_temp_read__';
+            var TEMP_LAYER_NOTE = '__TextScopeEdit_temp_read__';
+
+            var SYMBOL_LIST_MIN_ROWS = 4;
+            var SYMBOL_LIST_MAX_ROWS = 8;
+            var SYMBOL_LIST_ROW_HEIGHT = 18;
+            var SYMBOL_LIST_EXTRA_HEIGHT = 6;
+
+            /* listbox用のラベルを生成（先頭部分を表示） / Build labels for the listbox using the leading part of the text */
+            function makeLabel(text, maxLen) {
+                if (!maxLen) maxLen = 40;
+                var s = text.replace(/[\r\n]+/g, " ");
+                if (s.length > maxLen) s = s.substring(0, maxLen) + "…";
+                return s;
+            }
+
+            function zeroPad2(num) {
+                return (num < 10 ? '0' : '') + num;
+            }
+
+            function getDateTimeStamp() {
+                var now = new Date();
+                return now.getFullYear()
+                    + zeroPad2(now.getMonth() + 1)
+                    + zeroPad2(now.getDate())
+                    + '-'
+                    + zeroPad2(now.getHours())
+                    + zeroPad2(now.getMinutes())
+                    + zeroPad2(now.getSeconds());
+            }
+
+            function getDocumentBaseName(documentRef) {
+                var name = documentRef && documentRef.name ? documentRef.name : 'untitled';
+                return name.replace(/\.[^\.]+$/, '');
+            }
+
+            function sanitizeFileName(name) {
+                return name.replace(/[\\\/\:\*\?\"\<\>\|]+/g, '_');
+            }
+            /* 実質的に空のテキストか判定 / Check whether a text frame is effectively empty */
+            function isEmptyTextFrame(tf) {
                 try {
-                    abIndexPart = 'ab' + doc.artboards.getActiveArtboardIndex();
+                    if (!tf || tf.typename !== "TextFrame") return true;
+                    var s = tf.contents;
+                    if (!s) return true;
+                    s = s.replace(/[\r\n\x03]/g, "").replace(/\s+/g, "");
+                    return s.length === 0;
                 } catch (e) {
-                    abIndexPart = 'ab0';
-                }
-            }
-
-            return [
-                scopeMode,
-                abIndexPart,
-                cbSkipComment.value ? 'comment1' : 'comment0',
-                cbIncludeLocked.value ? 'locked1' : 'locked0',
-                cbIncludeHidden.value ? 'hidden1' : 'hidden0'
-            ].join('|');
-        }
-
-        var TEMP_LAYER_NAME = '__TextScopeEdit_temp_read__';
-        var TEMP_LAYER_NOTE = '__TextScopeEdit_temp_read__';
-
-        var SYMBOL_LIST_MIN_ROWS = 4;
-        var SYMBOL_LIST_MAX_ROWS = 8;
-        var SYMBOL_LIST_ROW_HEIGHT = 18;
-        var SYMBOL_LIST_EXTRA_HEIGHT = 6;
-
-        /* listbox用のラベルを生成（先頭部分を表示） / Build labels for the listbox using the leading part of the text */
-        function makeLabel(text, maxLen) {
-            if (!maxLen) maxLen = 40;
-            var s = text.replace(/[\r\n]+/g, " ");
-            if (s.length > maxLen) s = s.substring(0, maxLen) + "…";
-            return s;
-        }
-
-        function zeroPad2(num) {
-            return (num < 10 ? '0' : '') + num;
-        }
-
-        function getDateTimeStamp() {
-            var now = new Date();
-            return now.getFullYear()
-                + zeroPad2(now.getMonth() + 1)
-                + zeroPad2(now.getDate())
-                + '-'
-                + zeroPad2(now.getHours())
-                + zeroPad2(now.getMinutes())
-                + zeroPad2(now.getSeconds());
-        }
-
-        function getDocumentBaseName(documentRef) {
-            var name = documentRef && documentRef.name ? documentRef.name : 'untitled';
-            return name.replace(/\.[^\.]+$/, '');
-        }
-
-        function sanitizeFileName(name) {
-            return name.replace(/[\\\/\:\*\?\"\<\>\|]+/g, '_');
-        }
-        /* 実質的に空のテキストか判定 / Check whether a text frame is effectively empty */
-        function isEmptyTextFrame(tf) {
-            try {
-                if (!tf || tf.typename !== "TextFrame") return true;
-                var s = tf.contents;
-                if (!s) return true;
-                s = s.replace(/[\r\n\x03]/g, "").replace(/\s+/g, "");
-                return s.length === 0;
-            } catch (e) {
-                return true;
-            }
-        }
-        /* レイヤー名が // ではじまるか判定 / Check whether the layer name starts with // */
-        function isCommentLayer(item) {
-            try {
-                return item.layer.name.indexOf("//") === 0;
-            } catch (err) {
-                return false;
-            }
-        }
-
-        // Helper: Check if any parent group/container is locked or hidden
-        function isParentLockedOrHidden(item, options) {
-            var parent;
-            try {
-                parent = item ? item.parent : null;
-            } catch (e) {
-                parent = null;
-            }
-
-            while (parent) {
-                try {
-                    if (parent.typename === 'Document') break;
-                    if (!options.includeLocked && parent.locked) return true;
-                    if (!options.includeHidden) {
-                        if (parent.hidden) return true;
-                        if (parent.visible === false) return true;
-                    }
-                } catch (e2) { }
-
-                try {
-                    parent = parent.parent;
-                } catch (e3) {
-                    parent = null;
-                }
-            }
-            return false;
-        }
-
-        /* 非表示・ロック状態の判定 / Check visibility and lock state (including parent groups/containers) */
-        function isCollectable(item, options) {
-            try {
-                if (!item) return false;
-                if (!options.includeHidden && item.hidden) return false;
-                if (!options.includeLocked && item.locked) return false;
-                if (item.layer) {
-                    if (!options.includeLocked && item.layer.locked) return false;
-                    if (!options.includeHidden && item.layer.visible === false) return false;
-                    if (!options.includeHidden && item.layer.hidden) return false;
-                }
-                if (isParentLockedOrHidden(item, options)) return false;
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        /* 直下の子かどうか判定 / Check if item is a direct child of parentContainer */
-        function isDirectChildOf(item, parentContainer) {
-            try {
-                return item && parentContainer && item.parent === parentContainer;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        /* 全レイヤーを起点に再帰的に探索する関数（直下のみ） / Recursively collect items starting from container, only direct children */
-        function collectTextFromContainer(container, result, options) {
-            if (!container || !container.pageItems) return;
-            var items = container.pageItems;
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                if (!isDirectChildOf(item, container)) continue;
-                if (!options.includeComment && isCommentLayer(item)) continue;
-                if (!isCollectable(item, options)) continue;
-
-                if (item.typename === "TextFrame") {
-                    if (isEmptyTextFrame(item)) continue;
-                    result.push(item);
-                } else if (item.typename === "GroupItem") {
-                    collectTextFromContainer(item, result, options);
-                }
-            }
-        }
-
-        /* アートボードと重なっているか判定する関数（一部でも重なればtrue） / Check whether an item overlaps an artboard (true even for partial overlap) */
-        function isOnArtboard(item, abRect) {
-            var gb = item.geometricBounds;
-            return (gb[2] > abRect[0] && gb[0] < abRect[2] &&
-                gb[1] > abRect[3] && gb[3] < abRect[1]);
-        }
-
-        /* アートボード内のアイテムだけ収集する関数（直下のみ） / Collect only items inside the target artboard (direct children only) */
-        function collectTextOnArtboardFromContainer(container, result, abRect, options) {
-            if (!container || !container.pageItems) return;
-            var items = container.pageItems;
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                if (!isDirectChildOf(item, container)) continue;
-                if (!options.includeComment && isCommentLayer(item)) continue;
-                if (!isCollectable(item, options)) continue;
-
-                if (item.typename === "TextFrame") {
-                    if (isEmptyTextFrame(item)) continue;
-                    if (isOnArtboard(item, abRect)) {
-                        result.push(item);
-                    }
-                } else if (item.typename === "GroupItem") {
-                    collectTextOnArtboardFromContainer(item, result, abRect, options);
-                }
-            }
-        }
-
-        /* いずれかのアートボードに重なっているか判定する関数 / Check whether an item overlaps any artboard */
-        function isOnAnyArtboard(item) {
-            for (var a = 0; a < doc.artboards.length; a++) {
-                if (isOnArtboard(item, doc.artboards[a].artboardRect)) {
                     return true;
                 }
             }
-            return false;
-        }
-
-        /* すべてのアートボードに属するテキストを収集する関数（直下のみ） / Collect text that overlaps any artboard (direct children only) */
-        function collectTextOnAllArtboardsFromContainer(container, result, options) {
-            if (!container || !container.pageItems) return;
-            var items = container.pageItems;
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                if (!isDirectChildOf(item, container)) continue;
-                if (!options.includeComment && isCommentLayer(item)) continue;
-                if (!isCollectable(item, options)) continue;
-
-                if (item.typename === "TextFrame") {
-                    if (isEmptyTextFrame(item)) continue;
-                    if (isOnAnyArtboard(item)) {
-                        result.push(item);
-                    }
-                } else if (item.typename === "GroupItem") {
-                    collectTextOnAllArtboardsFromContainer(item, result, options);
+            /* レイヤー名が // ではじまるか判定 / Check whether the layer name starts with // */
+            function isCommentLayer(item) {
+                try {
+                    return item.layer.name.indexOf("//") === 0;
+                } catch (err) {
+                    return false;
                 }
             }
-        }
 
-        function collectTextFromLayer(layer, result, options) {
-            if (!layer) return;
-            collectTextFromContainer(layer, result, options);
-            for (var i = 0; i < layer.layers.length; i++) {
-                collectTextFromLayer(layer.layers[i], result, options);
-            }
-        }
-
-        function collectTextOnCurrentArtboardFromLayer(layer, result, abRect, options) {
-            if (!layer) return;
-            collectTextOnArtboardFromContainer(layer, result, abRect, options);
-            for (var i = 0; i < layer.layers.length; i++) {
-                collectTextOnCurrentArtboardFromLayer(layer.layers[i], result, abRect, options);
-            }
-        }
-
-        function collectTextOnAllArtboardsFromLayer(layer, result, options) {
-            if (!layer) return;
-            collectTextOnAllArtboardsFromContainer(layer, result, options);
-            for (var i = 0; i < layer.layers.length; i++) {
-                collectTextOnAllArtboardsFromLayer(layer.layers[i], result, options);
-            }
-        }
-
-        function collectTextFromDocument(result, options) {
-            for (var i = 0; i < doc.layers.length; i++) {
-                collectTextFromLayer(doc.layers[i], result, options);
-            }
-        }
-
-        function collectTextOnCurrentArtboardFromDocument(result, abRect, options) {
-            for (var i = 0; i < doc.layers.length; i++) {
-                collectTextOnCurrentArtboardFromLayer(doc.layers[i], result, abRect, options);
-            }
-        }
-
-        function collectTextOnAllArtboardsFromDocument(result, options) {
-            for (var i = 0; i < doc.layers.length; i++) {
-                collectTextOnAllArtboardsFromLayer(doc.layers[i], result, options);
-            }
-        }
-
-        function collectFramesByScope(scopeMode, options) {
-            var result = [];
-            if (scopeMode === "all") {
-                collectTextFromDocument(result, options);
-            } else if (scopeMode === "allArtboards") {
-                collectTextOnAllArtboardsFromDocument(result, options);
-            } else {
-                var abIndex = doc.artboards.getActiveArtboardIndex();
-                var abRect = doc.artboards[abIndex].artboardRect;
-                collectTextOnCurrentArtboardFromDocument(result, abRect, options);
-            }
-            return result;
-        }
-
-        function getCurrentScopeModeValue() {
-            if (cbOutside.value) {
-                return 'all';
-            }
-            if (rbAll.value) {
-                return 'allArtboards';
-            }
-            return 'current';
-        }
-
-        function getScopedFramesForInfoTabs() {
-            var options = {
-                includeComment: true,
-                includeLocked: true,
-                includeHidden: true
-            };
-            return collectFramesByScope('all', options);
-        }
-
-        function collectAllLayerNamesFromLayer(layer, layerNames, layerMap) {
-            var name = '';
-            var i;
-            if (!layer) return;
-
-            try {
-                name = layer.name;
-            } catch (e) {
-                name = '';
-            }
-            if (name && !layerMap[name]) {
-                layerMap[name] = true;
-                layerNames.push(name);
-            }
-
-            for (i = 0; i < layer.layers.length; i++) {
-                collectAllLayerNamesFromLayer(layer.layers[i], layerNames, layerMap);
-            }
-        }
-
-        function collectAllDocumentLayerNames() {
-            var layerNames = [];
-            var layerMap = {};
-            var i;
-            for (i = 0; i < doc.layers.length; i++) {
-                collectAllLayerNamesFromLayer(doc.layers[i], layerNames, layerMap);
-            }
-            return layerNames;
-        }
-
-        function collectTopLevelLayerNames() {
-            var layerNames = [];
-            var i;
-            var name;
-            for (i = 0; i < doc.layers.length; i++) {
+            // Helper: Check if any parent group/container is locked or hidden
+            function isParentLockedOrHidden(item, options) {
+                var parent;
                 try {
-                    name = doc.layers[i].name;
+                    parent = item ? item.parent : null;
+                } catch (e) {
+                    parent = null;
+                }
+
+                while (parent) {
+                    try {
+                        if (parent.typename === 'Document') break;
+                        if (!options.includeLocked && parent.locked) return true;
+                        if (!options.includeHidden) {
+                            if (parent.hidden) return true;
+                            if (parent.visible === false) return true;
+                        }
+                    } catch (e2) { }
+
+                    try {
+                        parent = parent.parent;
+                    } catch (e3) {
+                        parent = null;
+                    }
+                }
+                return false;
+            }
+
+            /* 非表示・ロック状態の判定 / Check visibility and lock state (including parent groups/containers) */
+            function isCollectable(item, options) {
+                try {
+                    if (!item) return false;
+                    if (!options.includeHidden && item.hidden) return false;
+                    if (!options.includeLocked && item.locked) return false;
+                    if (item.layer) {
+                        if (!options.includeLocked && item.layer.locked) return false;
+                        if (!options.includeHidden && item.layer.visible === false) return false;
+                        if (!options.includeHidden && item.layer.hidden) return false;
+                    }
+                    if (isParentLockedOrHidden(item, options)) return false;
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            /* 直下の子かどうか判定 / Check if item is a direct child of parentContainer */
+            function isDirectChildOf(item, parentContainer) {
+                try {
+                    return item && parentContainer && item.parent === parentContainer;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            /* 全レイヤーを起点に再帰的に探索する関数（直下のみ） / Recursively collect items starting from container, only direct children */
+            function collectTextFromContainer(container, result, options) {
+                if (!container || !container.pageItems) return;
+                var items = container.pageItems;
+                for (var i = 0; i < items.length; i++) {
+                    var item = items[i];
+                    if (!isDirectChildOf(item, container)) continue;
+                    if (!options.includeComment && isCommentLayer(item)) continue;
+                    if (!isCollectable(item, options)) continue;
+
+                    if (item.typename === "TextFrame") {
+                        if (isEmptyTextFrame(item)) continue;
+                        result.push(item);
+                    } else if (item.typename === "GroupItem") {
+                        collectTextFromContainer(item, result, options);
+                    }
+                }
+            }
+
+            /* アートボードと重なっているか判定する関数（一部でも重なればtrue） / Check whether an item overlaps an artboard (true even for partial overlap) */
+            function isOnArtboard(item, abRect) {
+                var gb = item.geometricBounds;
+                return (gb[2] > abRect[0] && gb[0] < abRect[2] &&
+                    gb[1] > abRect[3] && gb[3] < abRect[1]);
+            }
+
+            /* アートボード内のアイテムだけ収集する関数（直下のみ） / Collect only items inside the target artboard (direct children only) */
+            function collectTextOnArtboardFromContainer(container, result, abRect, options) {
+                if (!container || !container.pageItems) return;
+                var items = container.pageItems;
+                for (var i = 0; i < items.length; i++) {
+                    var item = items[i];
+                    if (!isDirectChildOf(item, container)) continue;
+                    if (!options.includeComment && isCommentLayer(item)) continue;
+                    if (!isCollectable(item, options)) continue;
+
+                    if (item.typename === "TextFrame") {
+                        if (isEmptyTextFrame(item)) continue;
+                        if (isOnArtboard(item, abRect)) {
+                            result.push(item);
+                        }
+                    } else if (item.typename === "GroupItem") {
+                        collectTextOnArtboardFromContainer(item, result, abRect, options);
+                    }
+                }
+            }
+
+            /* いずれかのアートボードに重なっているか判定する関数 / Check whether an item overlaps any artboard */
+            function isOnAnyArtboard(item) {
+                for (var a = 0; a < doc.artboards.length; a++) {
+                    if (isOnArtboard(item, doc.artboards[a].artboardRect)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /* すべてのアートボードに属するテキストを収集する関数（直下のみ） / Collect text that overlaps any artboard (direct children only) */
+            function collectTextOnAllArtboardsFromContainer(container, result, options) {
+                if (!container || !container.pageItems) return;
+                var items = container.pageItems;
+                for (var i = 0; i < items.length; i++) {
+                    var item = items[i];
+                    if (!isDirectChildOf(item, container)) continue;
+                    if (!options.includeComment && isCommentLayer(item)) continue;
+                    if (!isCollectable(item, options)) continue;
+
+                    if (item.typename === "TextFrame") {
+                        if (isEmptyTextFrame(item)) continue;
+                        if (isOnAnyArtboard(item)) {
+                            result.push(item);
+                        }
+                    } else if (item.typename === "GroupItem") {
+                        collectTextOnAllArtboardsFromContainer(item, result, options);
+                    }
+                }
+            }
+
+            function collectTextFromLayer(layer, result, options) {
+                if (!layer) return;
+                collectTextFromContainer(layer, result, options);
+                for (var i = 0; i < layer.layers.length; i++) {
+                    collectTextFromLayer(layer.layers[i], result, options);
+                }
+            }
+
+            function collectTextOnCurrentArtboardFromLayer(layer, result, abRect, options) {
+                if (!layer) return;
+                collectTextOnArtboardFromContainer(layer, result, abRect, options);
+                for (var i = 0; i < layer.layers.length; i++) {
+                    collectTextOnCurrentArtboardFromLayer(layer.layers[i], result, abRect, options);
+                }
+            }
+
+            function collectTextOnAllArtboardsFromLayer(layer, result, options) {
+                if (!layer) return;
+                collectTextOnAllArtboardsFromContainer(layer, result, options);
+                for (var i = 0; i < layer.layers.length; i++) {
+                    collectTextOnAllArtboardsFromLayer(layer.layers[i], result, options);
+                }
+            }
+
+            function collectTextFromDocument(result, options) {
+                for (var i = 0; i < doc.layers.length; i++) {
+                    collectTextFromLayer(doc.layers[i], result, options);
+                }
+            }
+
+            function collectTextOnCurrentArtboardFromDocument(result, abRect, options) {
+                for (var i = 0; i < doc.layers.length; i++) {
+                    collectTextOnCurrentArtboardFromLayer(doc.layers[i], result, abRect, options);
+                }
+            }
+
+            function collectTextOnAllArtboardsFromDocument(result, options) {
+                for (var i = 0; i < doc.layers.length; i++) {
+                    collectTextOnAllArtboardsFromLayer(doc.layers[i], result, options);
+                }
+            }
+
+            function collectFramesByScope(scopeMode, options) {
+                var result = [];
+                if (scopeMode === "all") {
+                    collectTextFromDocument(result, options);
+                } else if (scopeMode === "allArtboards") {
+                    collectTextOnAllArtboardsFromDocument(result, options);
+                } else {
+                    var abIndex = doc.artboards.getActiveArtboardIndex();
+                    var abRect = doc.artboards[abIndex].artboardRect;
+                    collectTextOnCurrentArtboardFromDocument(result, abRect, options);
+                }
+                return result;
+            }
+
+            function getCurrentScopeModeValue() {
+                if (cbOutside.value) {
+                    return 'all';
+                }
+                if (rbAll.value) {
+                    return 'allArtboards';
+                }
+                return 'current';
+            }
+
+            function getScopedFramesForInfoTabs() {
+                var options = {
+                    includeComment: true,
+                    includeLocked: true,
+                    includeHidden: true
+                };
+                return collectFramesByScope('all', options);
+            }
+
+            function collectAllLayerNamesFromLayer(layer, layerNames, layerMap) {
+                var name = '';
+                var i;
+                if (!layer) return;
+
+                try {
+                    name = layer.name;
                 } catch (e) {
                     name = '';
                 }
-                if (name) {
+                if (name && !layerMap[name]) {
+                    layerMap[name] = true;
                     layerNames.push(name);
                 }
+
+                for (i = 0; i < layer.layers.length; i++) {
+                    collectAllLayerNamesFromLayer(layer.layers[i], layerNames, layerMap);
+                }
             }
-            return layerNames;
-        }
 
-        function getTextFrameFontNames(tf) {
-            var names = {};
-            var result = [];
-            var chars;
-            var i;
-            var fontName;
+            function collectAllDocumentLayerNames() {
+                var layerNames = [];
+                var layerMap = {};
+                var i;
+                for (i = 0; i < doc.layers.length; i++) {
+                    collectAllLayerNamesFromLayer(doc.layers[i], layerNames, layerMap);
+                }
+                return layerNames;
+            }
 
-            if (!tf) return result;
-
-            try {
-                chars = tf.characters;
-                for (i = 0; i < chars.length; i++) {
+            function collectTopLevelLayerNames() {
+                var layerNames = [];
+                var i;
+                var name;
+                for (i = 0; i < doc.layers.length; i++) {
                     try {
-                        fontName = chars[i].characterAttributes.textFont.name;
+                        name = doc.layers[i].name;
                     } catch (e) {
-                        fontName = '';
+                        name = '';
                     }
-                    if (!fontName) continue;
-                    if (!names[fontName]) {
-                        names[fontName] = true;
-                        result.push(fontName);
+                    if (name) {
+                        layerNames.push(name);
                     }
                 }
-            } catch (err) { }
-
-            if (result.length === 0) {
-                result.push(L('unknownFont'));
+                return layerNames;
             }
-            return result;
-        }
 
-        function getTextFrameFontStyles(tf) {
-            var names = {};
-            var result = [];
-            var chars;
-            var i;
-            var styleName;
-            if (!tf) return result;
+            function getTextFrameFontNames(tf) {
+                var names = {};
+                var result = [];
+                var chars;
+                var i;
+                var fontName;
 
-            try {
-                chars = tf.characters;
-                for (i = 0; i < chars.length; i++) {
-                    try {
-                        styleName = chars[i].characterAttributes.textFont.style;
-                    } catch (e) {
-                        styleName = '';
+                if (!tf) return result;
+
+                try {
+                    chars = tf.characters;
+                    for (i = 0; i < chars.length; i++) {
+                        try {
+                            fontName = chars[i].characterAttributes.textFont.name;
+                        } catch (e) {
+                            fontName = '';
+                        }
+                        if (!fontName) continue;
+                        if (!names[fontName]) {
+                            names[fontName] = true;
+                            result.push(fontName);
+                        }
                     }
-                    if (!styleName) continue;
-                    if (!names[styleName]) {
-                        names[styleName] = true;
-                        result.push(styleName);
+                } catch (err) { }
+
+                if (result.length === 0) {
+                    result.push(L('unknownFont'));
+                }
+                return result;
+            }
+
+            function getTextFrameFontStyles(tf) {
+                var names = {};
+                var result = [];
+                var chars;
+                var i;
+                var styleName;
+                if (!tf) return result;
+
+                try {
+                    chars = tf.characters;
+                    for (i = 0; i < chars.length; i++) {
+                        try {
+                            styleName = chars[i].characterAttributes.textFont.style;
+                        } catch (e) {
+                            styleName = '';
+                        }
+                        if (!styleName) continue;
+                        if (!names[styleName]) {
+                            names[styleName] = true;
+                            result.push(styleName);
+                        }
+                    }
+                } catch (err) { }
+
+                if (result.length === 0) {
+                    result.push('');
+                }
+                return result;
+            }
+
+            function getTextFrameFontTriples(tf) {
+                var triples = [];
+                var seen = {};
+                var chars;
+                var i;
+                var fontObj;
+                var psName;
+                var familyName;
+                var styleName;
+                var key;
+
+                if (!tf) return triples;
+
+                try {
+                    chars = tf.characters;
+                    for (i = 0; i < chars.length; i++) {
+                        try {
+                            fontObj = chars[i].characterAttributes.textFont;
+                            psName = fontObj.name || L('unknownFont');
+                            familyName = fontObj.family || L('unknownFont');
+                            styleName = fontObj.style || '';
+                        } catch (e) {
+                            psName = L('unknownFont');
+                            familyName = L('unknownFont');
+                            styleName = '';
+                        }
+                        key = psName + '\t' + familyName + '\t' + styleName;
+                        if (!seen[key]) {
+                            seen[key] = true;
+                            triples.push({
+                                psName: psName,
+                                familyName: familyName,
+                                styleName: styleName
+                            });
+                        }
+                    }
+                } catch (err) { }
+
+                if (triples.length === 0) {
+                    triples.push({
+                        psName: L('unknownFont'),
+                        familyName: L('unknownFont'),
+                        styleName: ''
+                    });
+                }
+                return triples;
+            }
+
+            // Helper function: getTextFrameFontFamilies
+            function getTextFrameFontFamilies(tf) {
+                var names = {};
+                var result = [];
+                var chars;
+                var i;
+                var fontFamily;
+                var fontStyle;
+                var combined;
+                if (!tf) return result;
+
+                try {
+                    chars = tf.characters;
+                    for (i = 0; i < chars.length; i++) {
+                        try {
+                            var fontObj = chars[i].characterAttributes.textFont;
+                            fontFamily = fontObj.family;
+                            fontStyle = fontObj.style;
+                            combined = fontStyle ? (fontFamily + " " + fontStyle) : fontFamily;
+                        } catch (e) {
+                            combined = '';
+                        }
+
+                        if (!combined) continue;
+                        if (!names[combined]) {
+                            names[combined] = true;
+                            result.push(combined);
+                        }
+                    }
+                } catch (err) { }
+
+                if (result.length === 0) {
+                    result.push(L('unknownFont'));
+                }
+                return result;
+            }
+
+            function refreshInfoTabs() {
+                var frames = getScopedFramesForInfoTabs();
+                var fontDisplayMap = {};
+                var layerNames = rbLayerScopeTop.value ? collectTopLevelLayerNames() : collectAllDocumentLayerNames();
+                var artboardNames = [];
+                var fontRows = [];
+                var i;
+                var j;
+                var triples;
+                var key;
+
+                // Make artboard scope switch robust if rbArtboardScopeRaw is not defined
+                for (i = 0; i < doc.artboards.length; i++) {
+                    var useRaw = (typeof rbArtboardScopeRaw !== 'undefined' && rbArtboardScopeRaw && rbArtboardScopeRaw.value);
+                    artboardNames.push(useRaw ? getRawArtboardName(i) : getArtboardTabDisplayName(i));
+                }
+
+                for (i = 0; i < frames.length; i++) {
+                    triples = getTextFrameFontTriples(frames[i]);
+                    for (j = 0; j < triples.length; j++) {
+                        key = triples[j].psName + '\t' + triples[j].familyName + '\t' + triples[j].styleName;
+                        if (!fontDisplayMap[key]) {
+                            fontDisplayMap[key] = true;
+                            fontRows.push(triples[j]);
+                        }
                     }
                 }
-            } catch (err) { }
 
-            if (result.length === 0) {
-                result.push('');
-            }
-            return result;
-        }
-
-        function getTextFrameFontTriples(tf) {
-            var triples = [];
-            var seen = {};
-            var chars;
-            var i;
-            var fontObj;
-            var psName;
-            var familyName;
-            var styleName;
-            var key;
-
-            if (!tf) return triples;
-
-            try {
-                chars = tf.characters;
-                for (i = 0; i < chars.length; i++) {
-                    try {
-                        fontObj = chars[i].characterAttributes.textFont;
-                        psName = fontObj.name || L('unknownFont');
-                        familyName = fontObj.family || L('unknownFont');
-                        styleName = fontObj.style || '';
-                    } catch (e) {
-                        psName = L('unknownFont');
-                        familyName = L('unknownFont');
-                        styleName = '';
-                    }
-                    key = psName + '\t' + familyName + '\t' + styleName;
-                    if (!seen[key]) {
-                        seen[key] = true;
-                        triples.push({
-                            psName: psName,
-                            familyName: familyName,
-                            styleName: styleName
-                        });
-                    }
-                }
-            } catch (err) { }
-
-            if (triples.length === 0) {
-                triples.push({
-                    psName: L('unknownFont'),
-                    familyName: L('unknownFont'),
-                    styleName: ''
+                layerNames.sort();
+                artboardNames.sort();
+                fontRows.sort(function (a, b) {
+                    var ak = a.psName + '\t' + a.familyName + '\t' + a.styleName;
+                    var bk = b.psName + '\t' + b.familyName + '\t' + b.styleName;
+                    if (ak < bk) return -1;
+                    if (ak > bk) return 1;
+                    return 0;
                 });
+
+                layerNameEdit.text = layerNames.join("\n");
+                artboardNameEdit.text = artboardNames.join("\n");
+                fontNameListBox.removeAll();
+                for (i = 0; i < fontRows.length; i++) {
+                    var firstColText = cbFontPS.value ? fontRows[i].psName : '';
+                    var secondColText = cbFontFamily.value ? fontRows[i].familyName : '';
+                    var thirdColText = cbFontStyle.value ? fontRows[i].styleName : '';
+                    var item = fontNameListBox.add('item', firstColText);
+                    item.subItems[0].text = secondColText;
+                    item.subItems[1].text = thirdColText;
+                    item.psNameKey = fontRows[i].psName;
+                }
             }
-            return triples;
-        }
 
-        // Helper function: getTextFrameFontFamilies
-        function getTextFrameFontFamilies(tf) {
-            var names = {};
-            var result = [];
-            var chars;
-            var i;
-            var fontFamily;
-            var fontStyle;
-            var combined;
-            if (!tf) return result;
+            function gatherFrames(mode) {
+                var options = {
+                    includeComment: cbSkipComment.value,
+                    includeLocked: cbIncludeLocked.value,
+                    includeHidden: cbIncludeHidden.value
+                };
+                duplicateMap = [];
+                return collectFramesByScope(mode, options);
+            }
 
-            try {
-                chars = tf.characters;
-                for (i = 0; i < chars.length; i++) {
+            /* 重複を除外（同じ内容のフレームをグループ化して保持） / Remove duplicates by grouping frames with identical contents */
+            function removeDuplicateFrames() {
+                var unique = [];
+                var groups = {}; /* contents -> index in unique array / Map contents to the index in the unique array */
+                duplicateMap = [];
+                for (var i = 0; i < textFrameList.length; i++) {
+                    var c = textFrameList[i].contents;
+                    if (groups[c] === undefined) {
+                        groups[c] = unique.length;
+                        unique.push(textFrameList[i]);
+                        duplicateMap.push([textFrameList[i]]);
+                    } else {
+                        duplicateMap[groups[c]].push(textFrameList[i]);
+                    }
+                }
+                textFrameList = unique;
+            }
+
+            // =========================================
+            // 段落書式保持のためのユーティリティ / Utilities for keeping paragraph formatting
+            // =========================================
+
+            function getProps(obj, keys) {
+                var props = {};
+                for (var i = 0; i < keys.length; i++) {
+                    var key = keys[i];
                     try {
-                        var fontObj = chars[i].characterAttributes.textFont;
-                        fontFamily = fontObj.family;
-                        fontStyle = fontObj.style;
-                        combined = fontStyle ? (fontFamily + " " + fontStyle) : fontFamily;
-                    } catch (e) {
-                        combined = '';
-                    }
-
-                    if (!combined) continue;
-                    if (!names[combined]) {
-                        names[combined] = true;
-                        result.push(combined);
-                    }
+                        props[key] = obj[key];
+                    } catch (err) { }
                 }
-            } catch (err) { }
-
-            if (result.length === 0) {
-                result.push(L('unknownFont'));
-            }
-            return result;
-        }
-
-        function refreshInfoTabs() {
-            var frames = getScopedFramesForInfoTabs();
-            var fontDisplayMap = {};
-            var layerNames = rbLayerScopeTop.value ? collectTopLevelLayerNames() : collectAllDocumentLayerNames();
-            var artboardNames = [];
-            var fontRows = [];
-            var i;
-            var j;
-            var triples;
-            var key;
-
-            // Make artboard scope switch robust if rbArtboardScopeRaw is not defined
-            for (i = 0; i < doc.artboards.length; i++) {
-                var useRaw = (typeof rbArtboardScopeRaw !== 'undefined' && rbArtboardScopeRaw && rbArtboardScopeRaw.value);
-                artboardNames.push(useRaw ? getRawArtboardName(i) : getArtboardTabDisplayName(i));
+                return props;
             }
 
-            for (i = 0; i < frames.length; i++) {
-                triples = getTextFrameFontTriples(frames[i]);
-                for (j = 0; j < triples.length; j++) {
-                    key = triples[j].psName + '\t' + triples[j].familyName + '\t' + triples[j].styleName;
-                    if (!fontDisplayMap[key]) {
-                        fontDisplayMap[key] = true;
-                        fontRows.push(triples[j]);
-                    }
-                }
-            }
-
-            layerNames.sort();
-            artboardNames.sort();
-            fontRows.sort(function (a, b) {
-                var ak = a.psName + '\t' + a.familyName + '\t' + a.styleName;
-                var bk = b.psName + '\t' + b.familyName + '\t' + b.styleName;
-                if (ak < bk) return -1;
-                if (ak > bk) return 1;
-                return 0;
-            });
-
-            layerNameEdit.text = layerNames.join("\n");
-            artboardNameEdit.text = artboardNames.join("\n");
-            fontNameListBox.removeAll();
-            for (i = 0; i < fontRows.length; i++) {
-                var firstColText = cbFontPS.value ? fontRows[i].psName : '';
-                var secondColText = cbFontFamily.value ? fontRows[i].familyName : '';
-                var thirdColText = cbFontStyle.value ? fontRows[i].styleName : '';
-                var item = fontNameListBox.add('item', firstColText);
-                item.subItems[0].text = secondColText;
-                item.subItems[1].text = thirdColText;
-                item.psNameKey = fontRows[i].psName;
-            }
-        }
-
-        function gatherFrames(mode) {
-            var options = {
-                includeComment: cbSkipComment.value,
-                includeLocked: cbIncludeLocked.value,
-                includeHidden: cbIncludeHidden.value
-            };
-            duplicateMap = [];
-            return collectFramesByScope(mode, options);
-        }
-
-        /* 重複を除外（同じ内容のフレームをグループ化して保持） / Remove duplicates by grouping frames with identical contents */
-        function removeDuplicateFrames() {
-            var unique = [];
-            var groups = {}; /* contents -> index in unique array / Map contents to the index in the unique array */
-            duplicateMap = [];
-            for (var i = 0; i < textFrameList.length; i++) {
-                var c = textFrameList[i].contents;
-                if (groups[c] === undefined) {
-                    groups[c] = unique.length;
-                    unique.push(textFrameList[i]);
-                    duplicateMap.push([textFrameList[i]]);
-                } else {
-                    duplicateMap[groups[c]].push(textFrameList[i]);
-                }
-            }
-            textFrameList = unique;
-        }
-
-        // =========================================
-        // 段落書式保持のためのユーティリティ / Utilities for keeping paragraph formatting
-        // =========================================
-
-        function getProps(obj, keys) {
-            var props = {};
-            for (var i = 0; i < keys.length; i++) {
-                var key = keys[i];
-                try {
-                    props[key] = obj[key];
-                } catch (err) { }
-            }
-            return props;
-        }
-
-        function pasteProps(props, obj, keys) {
-            for (var i = 0; i < keys.length; i++) {
-                var key = keys[i];
-                if (props[key] === undefined) continue;
-                try {
-                    obj[key] = props[key];
-                } catch (err) { }
-            }
-        }
-
-        function getParagraphs(obj) {
-            if (!obj || !obj.story) return [];
-            return obj.paragraphs;
-        }
-
-        /* 一時的に編集可能状態にして処理し、終了後に元へ戻す / Temporarily make an item editable, then restore its original state */
-        function withTemporarilyEditableItem(item, fn) {
-            var targetLayer = null;
-            var originalItemLocked = null;
-            var originalItemHidden = null;
-            var originalLayerLocked = null;
-            var originalLayerVisible = null;
-
-            try {
-                if (!item) return;
-                targetLayer = item.layer ? item.layer : null;
-
-                originalItemLocked = item.locked;
-                originalItemHidden = item.hidden;
-                if (targetLayer) {
-                    originalLayerLocked = targetLayer.locked;
-                    originalLayerVisible = targetLayer.visible;
-                }
-
-                if (targetLayer) {
-                    if (targetLayer.visible === false) targetLayer.visible = true;
-                    if (targetLayer.locked) targetLayer.locked = false;
-                }
-                if (item.hidden) item.hidden = false;
-                if (item.locked) item.locked = false;
-
-                fn();
-            } finally {
-                try {
-                    if (item && originalItemLocked !== null) item.locked = originalItemLocked;
-                } catch (e) { }
-                try {
-                    if (item && originalItemHidden !== null) item.hidden = originalItemHidden;
-                } catch (e) { }
-                try {
-                    if (targetLayer && originalLayerLocked !== null) targetLayer.locked = originalLayerLocked;
-                } catch (e) { }
-                try {
-                    if (targetLayer && originalLayerVisible !== null) targetLayer.visible = originalLayerVisible;
-                } catch (e) { }
-            }
-        }
-
-        /* ローカル書式は保持せず、段落単位の書式のみ保持 / Keep paragraph-level formatting only; do not preserve local character formatting */
-        function replaceContent(tf, str, isKeepStyle) {
-            if (!/text/i.test(tf.typename)) return;
-
-            withTemporarilyEditableItem(tf, function () {
-                if (!isKeepStyle) {
-                    tf.contents = str;
-                    return;
-                }
-
-                var paras = getParagraphs(tf);
-                var styles = [];
-                var paraKeys = [
-                    'justification', 'firstLineIndent', 'leftIndent', 'rightIndent',
-                    'spaceBefore', 'spaceAfter', 'hyphenation', 'hyphenationZone',
-                    'desiredWordSpacing', 'minimumWordSpacing', 'maximumWordSpacing',
-                    'desiredLetterSpacing', 'minimumLetterSpacing', 'maximumLetterSpacing',
-                    'desiredGlyphScaling', 'minimumGlyphScaling', 'maximumGlyphScaling',
-                    'singleWordJustification', 'everyLineComposer', 'kinsokuOrder',
-                    'bunriKinshi', 'kurikaeshiMojiShori', 'romanHanging', 'mojikumi',
-                    'kinsoku', 'leadingType'
-                ];
-
-                try {
-                    for (var i = 0; i < paras.length; i++) {
-                        styles.push(getProps(paras[i], paraKeys));
-                    }
-                } catch (err) { }
-
-                tf.contents = str;
-                paras = getParagraphs(tf);
-
-                if (styles.length === 0) {
-                    return;
-                }
-
-                var style = null;
-                for (var j = 0; j < paras.length; j++) {
-                    style = styles[j] ? styles[j] : styles[styles.length - 1];
-                    pasteProps(style, paras[j], paraKeys);
-                }
-            });
-        }
-
-        // =========================================
-        // ソート / Sorting
-        // =========================================
-
-        function sortByPosition(coll, tolerance) {
-            if (!tolerance) tolerance = 10;
-            coll.sort(function (a, b) {
-                if (Math.abs(b.top - a.top) <= tolerance) {
-                    return a.left - b.left;
-                }
-                return b.top - a.top;
-            });
-        }
-
-        function sortByContent(coll) {
-            coll.sort(function (a, b) {
-                var ca = a.contents.toLowerCase();
-                var cb = b.contents.toLowerCase();
-                if (ca < cb) return -1;
-                if (ca > cb) return 1;
-                return 0;
-            });
-        }
-
-        // =========================================
-        function getOrCreateTempLayer() {
-            for (var i = 0; i < doc.layers.length; i++) {
-                if (doc.layers[i].name === TEMP_LAYER_NAME && doc.layers[i].note === TEMP_LAYER_NOTE) {
-                    return { layer: doc.layers[i], created: false };
-                }
-            }
-            var layer = doc.layers.add();
-            layer.name = TEMP_LAYER_NAME;
-            layer.note = TEMP_LAYER_NOTE;
-            return { layer: layer, created: true };
-        }
-
-        function clearTempLayer(layer) {
-            if (!layer) return;
-            try {
-                while (layer.pageItems.length > 0) {
-                    layer.pageItems[0].remove();
-                }
-            } catch (e) { }
-        }
-
-        function removeTempLayer() {
-            for (var i = doc.layers.length - 1; i >= 0; i--) {
-                if (doc.layers[i].name === TEMP_LAYER_NAME && doc.layers[i].note === TEMP_LAYER_NOTE) {
+            function pasteProps(props, obj, keys) {
+                for (var i = 0; i < keys.length; i++) {
+                    var key = keys[i];
+                    if (props[key] === undefined) continue;
                     try {
-                        clearTempLayer(doc.layers[i]);
+                        obj[key] = props[key];
+                    } catch (err) { }
+                }
+            }
+
+            function getParagraphs(obj) {
+                if (!obj || !obj.story) return [];
+                return obj.paragraphs;
+            }
+
+            /* 一時的に編集可能状態にして処理し、終了後に元へ戻す / Temporarily make an item editable, then restore its original state */
+            function withTemporarilyEditableItem(item, fn) {
+                var targetLayer = null;
+                var originalItemLocked = null;
+                var originalItemHidden = null;
+                var originalLayerLocked = null;
+                var originalLayerVisible = null;
+
+                try {
+                    if (!item) return;
+                    targetLayer = item.layer ? item.layer : null;
+
+                    originalItemLocked = item.locked;
+                    originalItemHidden = item.hidden;
+                    if (targetLayer) {
+                        originalLayerLocked = targetLayer.locked;
+                        originalLayerVisible = targetLayer.visible;
+                    }
+
+                    if (targetLayer) {
+                        if (targetLayer.visible === false) targetLayer.visible = true;
+                        if (targetLayer.locked) targetLayer.locked = false;
+                    }
+                    if (item.hidden) item.hidden = false;
+                    if (item.locked) item.locked = false;
+
+                    fn();
+                } finally {
+                    try {
+                        if (item && originalItemLocked !== null) item.locked = originalItemLocked;
                     } catch (e) { }
                     try {
-                        doc.layers[i].remove();
-                    } catch (e2) { }
-                    break;
-                }
-            }
-        }
-
-        function duplicateSymbolItemToLayer(symbolItem, targetLayer) {
-            var duplicateItem = symbolItem.duplicate(targetLayer, ElementPlacement.PLACEATBEGINNING);
-            duplicateItem.selected = false;
-            return duplicateItem;
-        }
-        // シンボル内テキスト収集 / Collect text inside symbols
-        // =========================================
-
-        function collectTextFramesFromItem(item, result) {
-            if (!item) return;
-            if (!result) return;
-
-            if (item.typename === 'TextFrame') {
-                if (!isEmptyTextFrame(item)) {
-                    result.push(item);
-                }
-                return;
-            }
-
-            if (!item.pageItems) return;
-            for (var i = 0; i < item.pageItems.length; i++) {
-                collectTextFramesFromItem(item.pageItems[i], result);
-            }
-        }
-
-        function extractTextContentsFromItems(items) {
-            var textFrames = [];
-            var texts = [];
-
-            for (var i = 0; i < items.length; i++) {
-                collectTextFramesFromItem(items[i], textFrames);
-            }
-
-            for (var j = 0; j < textFrames.length; j++) {
-                texts.push(textFrames[j].contents);
-            }
-
-            return texts;
-        }
-
-        function removeItems(items) {
-            for (var i = items.length - 1; i >= 0; i--) {
-                try {
-                    if (items[i] && items[i].isValid !== false) {
-                        items[i].remove();
-                    }
-                } catch (e) { }
-            }
-        }
-
-        function withSelectionRestored(fn) {
-            var prevSelection = [];
-            try {
-                for (var i = 0; i < doc.selection.length; i++) {
-                    prevSelection.push(doc.selection[i]);
-                }
-            } catch (e) { }
-
-            try {
-                fn();
-            } finally {
-                try {
-                    doc.selection = null;
-                } catch (e2) { }
-                for (var j = 0; j < prevSelection.length; j++) {
+                        if (item && originalItemHidden !== null) item.hidden = originalItemHidden;
+                    } catch (e) { }
                     try {
-                        prevSelection[j].selected = true;
-                    } catch (e3) { }
+                        if (targetLayer && originalLayerLocked !== null) targetLayer.locked = originalLayerLocked;
+                    } catch (e) { }
+                    try {
+                        if (targetLayer && originalLayerVisible !== null) targetLayer.visible = originalLayerVisible;
+                    } catch (e) { }
                 }
             }
-        }
 
-        function buildSymbolCollectOptions() {
-            return {
-                includeComment: cbSkipComment.value,
-                includeLocked: cbIncludeLocked.value,
-                includeHidden: cbIncludeHidden.value
-            };
-        }
+            /* ローカル書式は保持せず、段落単位の書式のみ保持 / Keep paragraph-level formatting only; do not preserve local character formatting */
+            function replaceContent(tf, str, isKeepStyle) {
+                if (!/text/i.test(tf.typename)) return;
 
-        function isSymbolItemInScope(symbolItem, scopeMode, activeArtboardIndex) {
-            var artboardIndex = getItemArtboardIndex(symbolItem);
-            if (scopeMode === 'current') {
-                return artboardIndex === activeArtboardIndex;
-            }
-            if (scopeMode === 'allArtboards') {
-                return artboardIndex >= 0;
-            }
-            return true;
-        }
+                withTemporarilyEditableItem(tf, function () {
+                    if (!isKeepStyle) {
+                        tf.contents = str;
+                        return;
+                    }
 
-        function getSymbolProcessKey(symbolName, artboardIndex) {
-            return symbolName + '||' + artboardIndex;
-        }
+                    var paras = getParagraphs(tf);
+                    var styles = [];
+                    var paraKeys = [
+                        'justification', 'firstLineIndent', 'leftIndent', 'rightIndent',
+                        'spaceBefore', 'spaceAfter', 'hyphenation', 'hyphenationZone',
+                        'desiredWordSpacing', 'minimumWordSpacing', 'maximumWordSpacing',
+                        'desiredLetterSpacing', 'minimumLetterSpacing', 'maximumLetterSpacing',
+                        'desiredGlyphScaling', 'minimumGlyphScaling', 'maximumGlyphScaling',
+                        'singleWordJustification', 'everyLineComposer', 'kinsokuOrder',
+                        'bunriKinshi', 'kurikaeshiMojiShori', 'romanHanging', 'mojikumi',
+                        'kinsoku', 'leadingType'
+                    ];
 
-        function collectScopedSymbolItems(options, scopeMode) {
-            var symbolItems = doc.symbolItems;
-            var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
-            var siList = [];
-            var processed = {};
+                    try {
+                        for (var i = 0; i < paras.length; i++) {
+                            styles.push(getProps(paras[i], paraKeys));
+                        }
+                    } catch (err) { }
 
-            for (var i = 0; i < symbolItems.length; i++) {
-                var symbolItem = symbolItems[i];
-                var symbolName = '';
-                var artboardIndex = -1;
-                var processKey = '';
+                    tf.contents = str;
+                    paras = getParagraphs(tf);
 
-                if (!symbolItem || symbolItem.isValid === false) continue;
-                if (!options.includeComment && isCommentLayer(symbolItem)) continue;
-                if (!isCollectable(symbolItem, options)) continue;
-                if (!isSymbolItemInScope(symbolItem, scopeMode, activeArtboardIndex)) continue;
+                    if (styles.length === 0) {
+                        return;
+                    }
 
-                try {
-                    symbolName = symbolItem.symbol.name;
-                } catch (e) { }
-                if (!symbolName) continue;
-
-                artboardIndex = getItemArtboardIndex(symbolItem);
-                processKey = getSymbolProcessKey(symbolName, artboardIndex);
-                if (processed[processKey]) continue;
-
-                processed[processKey] = true;
-                siList.push({
-                    item: symbolItem,
-                    symbolName: symbolName,
-                    artboardIndex: artboardIndex
+                    var style = null;
+                    for (var j = 0; j < paras.length; j++) {
+                        style = styles[j] ? styles[j] : styles[styles.length - 1];
+                        pasteProps(style, paras[j], paraKeys);
+                    }
                 });
             }
 
-            return siList;
-        }
+            // =========================================
+            // ソート / Sorting
+            // =========================================
 
-        function collectTextsFromScopedSymbolItems(scopedItems, onText) {
-            var tempInfo;
-            var tempLayer;
-
-            if (!scopedItems || scopedItems.length === 0) {
-                return;
+            function sortByPosition(coll, tolerance) {
+                if (!tolerance) tolerance = 10;
+                coll.sort(function (a, b) {
+                    if (Math.abs(b.top - a.top) <= tolerance) {
+                        return a.left - b.left;
+                    }
+                    return b.top - a.top;
+                });
             }
 
-            tempInfo = getOrCreateTempLayer();
-            tempLayer = tempInfo.layer;
-            clearTempLayer(tempLayer);
+            function sortByContent(coll) {
+                coll.sort(function (a, b) {
+                    var ca = a.contents.toLowerCase();
+                    var cb = b.contents.toLowerCase();
+                    if (ca < cb) return -1;
+                    if (ca > cb) return 1;
+                    return 0;
+                });
+            }
 
-            withSelectionRestored(function () {
-                for (var index = scopedItems.length - 1; index >= 0; index--) {
-                    var entry = scopedItems[index];
-                    var symbolItem = entry.item;
-                    var symbolName = entry.symbolName;
-                    var artboardIndex = entry.artboardIndex;
-                    var brokenItems = [];
-                    var newSel = [];
-                    var texts;
-                    var t;
-
-                    if (!symbolItem || symbolItem.isValid === false) continue;
-
-                    try {
-                        var workingSymbolItem = duplicateSymbolItemToLayer(symbolItem, tempLayer);
-                        try {
-                            doc.selection = null;
-                        } catch (e2) { }
-                        workingSymbolItem.selected = true;
-                        workingSymbolItem.breakLink();
-
-                        try {
-                            for (var s = 0; s < doc.selection.length; s++) {
-                                newSel.push(doc.selection[s]);
-                            }
-                        } catch (e3) { }
-
-                        for (var m = 0; m < newSel.length; m++) {
-                            brokenItems.push(newSel[m]);
-                        }
-
-                        if (brokenItems.length > 0) {
-                            texts = extractTextContentsFromItems(brokenItems);
-                            for (t = 0; t < texts.length; t++) {
-                                onText(symbolName, artboardIndex, texts[t]);
-                            }
-                            removeItems(brokenItems);
-                        }
-                    } catch (e4) {
-                    } finally {
-                        try {
-                            doc.selection = null;
-                        } catch (e5) { }
+            // =========================================
+            function getOrCreateTempLayer() {
+                for (var i = 0; i < doc.layers.length; i++) {
+                    if (doc.layers[i].name === TEMP_LAYER_NAME && doc.layers[i].note === TEMP_LAYER_NOTE) {
+                        return { layer: doc.layers[i], created: false };
                     }
                 }
-            });
-
-            clearTempLayer(tempLayer);
-            if (tempInfo.created) {
-                removeTempLayer();
-            }
-            try {
-                doc.selection = null;
-            } catch (e6) { }
-        }
-
-        function collectSymbolTexts() {
-            var results = [];
-            var exportScopeMode = getCurrentScopeModeValue();
-            var options = buildSymbolCollectOptions();
-            var scopedItems = collectScopedSymbolItems(options, exportScopeMode);
-
-            collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
-                var sep = (lang === 'ja') ? '：' : ': ';
-                results.push(symbolName + sep + text.replace(/[\r\n]+/g, ' '));
-            });
-
-            return results;
-        }
-
-        // =========================================
-        // listboxを更新 / Update listbox
-        // =========================================
-
-        function updateList() {
-            clearPreviewIfNeeded();
-            var mode;
-            if (cbOutside.value) {
-                mode = "all";
-            } else if (rbAll.value) {
-                mode = "allArtboards";
-            } else {
-                mode = "current";
-            }
-            textFrameList = gatherFrames(mode);
-
-            /* ソート / Sorting */
-            if (rbSortXY.value) {
-                sortByPosition(textFrameList);
-            } else if (rbSortABC.value) {
-                sortByContent(textFrameList);
+                var layer = doc.layers.add();
+                layer.name = TEMP_LAYER_NAME;
+                layer.note = TEMP_LAYER_NOTE;
+                return { layer: layer, created: true };
             }
 
-            if (cbDedup.value) {
-                removeDuplicateFrames();
-            }
-
-            listBox.removeAll();
-            for (var i = 0; i < textFrameList.length; i++) {
-                listBox.add("item", (i + 1) + L("itemPrefix") + makeLabel(textFrameList[i].contents));
-            }
-            editBox.text = "";
-            if (textFrameList.length > 0) {
-                listBox.selection = 0;
-            }
-            refreshInfoTabs();
-        }
-
-        function getSymbolTexts(forceRefresh) {
-            var cacheKey = getCurrentSymbolCacheKey();
-            if (forceRefresh) {
-                delete symbolTextCacheMap[cacheKey];
-            }
-            if (symbolTextCacheMap.hasOwnProperty(cacheKey)) {
-                return symbolTextCacheMap[cacheKey];
-            }
-            symbolTextCacheMap[cacheKey] = collectSymbolTexts();
-            return symbolTextCacheMap[cacheKey];
-        }
-
-        function updateSymbolListHeight(itemCount) {
-            var rows = itemCount;
-            if (rows < SYMBOL_LIST_MIN_ROWS) rows = SYMBOL_LIST_MIN_ROWS;
-            if (rows > SYMBOL_LIST_MAX_ROWS) rows = SYMBOL_LIST_MAX_ROWS;
-            symbolListBox.preferredSize.height = rows * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT;
-            try {
-                dlg.layout.layout(true);
-                dlg.layout.resize();
-            } catch (e) { }
-        }
-
-        function refreshSymbolList(forceRefresh) {
-            symbolListBox.removeAll();
-            var symTexts = getSymbolTexts(forceRefresh);
-            for (var s = 0; s < symTexts.length; s++) {
-                symbolListBox.add("item", symTexts[s]);
-            }
-            updateSymbolListHeight(symTexts.length);
-        }
-
-        // =========================================
-        // ダイアログ / Dialog
-        // =========================================
-
-        function buildDialogUI() {
-            var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-            dlg.orientation = "column";
-            dlg.alignChildren = ["fill", "top"];
-
-            /* ダイアログ全体をタブで構成 / Use tabs for the whole dialog */
-            var infoTabs = dlg.add("tabbedpanel");
-            infoTabs.alignChildren = ["fill", "fill"];
-            infoTabs.preferredSize = [550, 350];
-            infoTabs.margins = [15, 10, 1, 10];
-
-            var canvasTab = infoTabs.add("tab", undefined, L("tabCanvas"));
-            canvasTab.orientation = "row";
-            canvasTab.alignChildren = ["fill", "fill"];
-            canvasTab.margins = [15, 20, 1, 10];
-            canvasTab.spacing = 15;
-
-            var mainGroup = canvasTab.add("group");
-            mainGroup.orientation = "row";
-            mainGroup.alignChildren = ["fill", "fill"];
-
-            /* 左カラム / Left column */
-            var leftCol = mainGroup.add("group");
-            leftCol.orientation = "column";
-            leftCol.alignChildren = ["fill", "fill"];
-
-            leftCol.add("statictext", undefined, L("textListLabel"));
-            var listBox = leftCol.add("listbox", [0, 0, 250, 194], []);
-            leftCol.add("statictext", undefined, L("textEditLabel"));
-            var editBox = leftCol.add("edittext", [0, 0, 250, 72], "", { multiline: true, scrolling: true });
-
-            leftCol.add("statictext", undefined, L("symbolTextLabel"));
-            var symbolListBox = leftCol.add("listbox", [0, 0, 250, SYMBOL_LIST_MIN_ROWS * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT], []);
-            symbolListBox.alignment = ["fill", "fill"];
-
-            /* 右カラム / Right column */
-            var rightCol = mainGroup.add("group");
-            rightCol.orientation = "column";
-            rightCol.alignChildren = ["fill", "top"];
-
-            /* 対象テキストパネル / Target text panel */
-            var targetPanel = rightCol.add("panel", undefined, L("panelTargetText"));
-            targetPanel.orientation = "column";
-            targetPanel.alignChildren = ["left", "top"];
-            targetPanel.margins = [15, 20, 1, 10];
-
-            var rbGroup = targetPanel.add("group");
-            rbGroup.orientation = "column";
-            rbGroup.alignChildren = ["left", "top"];
-            var rbArtboard = rbGroup.add("radiobutton", undefined, L("rbCurrentArtboard"));
-            var rbAll = rbGroup.add("radiobutton", undefined, L("rbAllArtboards"));
-            rbArtboard.value = true;
-
-            var cbRow = targetPanel.add("group");
-            cbRow.orientation = "row";
-            var cbOutside = cbRow.add("checkbox", undefined, L("cbOutside"));
-            cbOutside.value = false;
-            cbOutside.enabled = false;
-
-            var layerPanel = rightCol.add("panel", undefined, L("panelLayerText"));
-            layerPanel.orientation = "column";
-            layerPanel.alignChildren = ["left", "top"];
-            layerPanel.margins = [15, 20, 1, 10];
-
-            var cbSkipComment = layerPanel.add("checkbox", undefined, L("cbSkipComment"));
-            cbSkipComment.value = false;
-
-            var cbIncludeLocked = layerPanel.add("checkbox", undefined, L("cbIncludeLocked"));
-            cbIncludeLocked.value = false;
-            var cbIncludeHidden = layerPanel.add("checkbox", undefined, L("cbIncludeHidden"));
-            cbIncludeHidden.value = false;
-
-            var sortPanel = rightCol.add("panel", undefined, L("panelSort"));
-            sortPanel.orientation = "column";
-            sortPanel.alignChildren = ["left", "top"];
-            sortPanel.margins = [15, 20, 1, 10];
-            var sortGroup = sortPanel.add("group");
-            sortGroup.orientation = "row";
-            sortGroup.alignChildren = ["left", "center"];
-            var rbSortNone = sortGroup.add("radiobutton", undefined, L("sortNone"));
-            var rbSortXY = sortGroup.add("radiobutton", undefined, L("sortXY"));
-            var rbSortABC = sortGroup.add("radiobutton", undefined, L("sortABC"));
-            rbSortNone.value = true;
-
-            var optionsGroup = rightCol.add("group");
-            optionsGroup.orientation = "column";
-            optionsGroup.alignChildren = ["left", "top"];
-            optionsGroup.margins = [15, 5, 15, 10];
-
-            var cbDedup = optionsGroup.add("checkbox", undefined, L("cbDedup"));
-            cbDedup.value = true;
-
-            var isFormat = optionsGroup.add("checkbox", undefined, L("keepFormat"));
-            isFormat.value = true;
-            isFormat.helpTip = L("keepFormatTip");
-
-            var isPreview = optionsGroup.add("checkbox", undefined, L("preview"));
-            isPreview.helpTip = L("previewTip");
-
-            var layerNamesTab = infoTabs.add("tab", undefined, L("tabLayerNames"));
-            layerNamesTab.orientation = "column";
-            layerNamesTab.alignChildren = ["fill", "top"];
-            layerNamesTab.margins = [15, 20, 0, 10];
-            layerNamesTab.spacing = 10;
-
-            layerNamesTab.add("statictext", undefined, L("layerNameListLabel"));
-
-            var layerScopePanel = layerNamesTab.add("group");
-            layerScopePanel.orientation = "row";
-            layerScopePanel.alignChildren = ["left", "center"];
-            layerScopePanel.spacing = 15;
-
-            var rbLayerScopeTop = layerScopePanel.add("radiobutton", undefined, L("layerScopeTop"));
-            var rbLayerScopeAll = layerScopePanel.add("radiobutton", undefined, L("layerScopeAll"));
-            rbLayerScopeTop.value = true;
-
-            var layerNameEdit = layerNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
-            layerNameEdit.alignment = ["fill", "fill"];
-
-            var artboardNamesTab = infoTabs.add("tab", undefined, L("tabArtboardNames"));
-            artboardNamesTab.orientation = "column";
-            artboardNamesTab.alignChildren = ["fill", "top"];
-            artboardNamesTab.margins = [15, 20, 0, 10];
-            artboardNamesTab.spacing = 10;
-
-            artboardNamesTab.add("statictext", undefined, L("artboardNameListLabel"));
-
-            var artboardScopeGroup = artboardNamesTab.add("group");
-            artboardScopeGroup.orientation = "row";
-            artboardScopeGroup.alignChildren = ["left", "center"];
-            artboardScopeGroup.spacing = 15;
-
-            var rbArtboardScopeNumbered = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeNumbered"));
-            var rbArtboardScopeRaw = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeRaw"));
-            rbArtboardScopeNumbered.value = true;
-
-            var artboardNameEdit = artboardNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
-            artboardNameEdit.alignment = ["fill", "fill"];
-
-            var fontNamesTab = infoTabs.add("tab", undefined, L("tabFontNames"));
-            fontNamesTab.orientation = "column";
-            fontNamesTab.alignChildren = ["fill", "top"];
-            fontNamesTab.margins = [15, 20, 0, 10];
-            fontNamesTab.spacing = 10;
-
-            fontNamesTab.add("statictext", undefined, L("fontListLabel"));
-
-            var fontToggleGroup = fontNamesTab.add("group");
-            fontToggleGroup.orientation = "row";
-            fontToggleGroup.alignChildren = ["left", "center"];
-            fontToggleGroup.spacing = 15;
-
-            var cbFontPS = fontToggleGroup.add("checkbox", undefined, L("fontTogglePS"));
-            cbFontPS.value = true;
-            var cbFontFamily = fontToggleGroup.add("checkbox", undefined, L("fontToggleFamily"));
-            cbFontFamily.value = true;
-            var cbFontStyle = fontToggleGroup.add("checkbox", undefined, L("fontToggleStyle"));
-            cbFontStyle.value = true;
-
-            var fontNameListBox = fontNamesTab.add("listbox", undefined, [], {
-                numberOfColumns: 3,
-                showHeaders: true,
-                columnTitles: [L("fontColumnPS"), L("fontColumnFamily"), L("fontColumnStyle")],
-                columnWidths: [180, 180, 120]
-            });
-            fontNameListBox.alignment = ["fill", "fill"];
-
-            infoTabs.selection = canvasTab;
-
-            var buttonRow = dlg.add("group");
-            buttonRow.orientation = "row";
-            buttonRow.alignChildren = ["fill", "center"];
-
-            var leftButtons = buttonRow.add("group");
-            leftButtons.orientation = "row";
-            leftButtons.alignChildren = ["left", "center"];
-            var exportTextBtn = leftButtons.add("button", undefined, L("exportText"));
-
-            var spacer = buttonRow.add("group");
-            spacer.alignment = ["fill", "fill"];
-            spacer.minimumSize.width = 0;
-
-            var rightButtons = buttonRow.add("group");
-            rightButtons.orientation = "row";
-            rightButtons.alignChildren = ["right", "center"];
-            var cancelBtn = rightButtons.add("button", undefined, L("cancel"), { name: "cancel" });
-            var closeBtn = rightButtons.add("button", undefined, L("ok"), { name: "ok" });
-            dlg.defaultElement = closeBtn;
-
-            /* CC 2020 v24.3 はプレビュー時にクラッシュするため無効化 / Disable preview in CC 2020 v24.3 because it may crash */
-            if (parseInt(app.version) == 24) {
-                isPreview.enabled = false;
-                isPreview.helpTip = L("previewDisabledTip");
-            }
-
-            return {
-                dlg: dlg,
-                rbArtboard: rbArtboard,
-                rbAll: rbAll,
-                cbDedup: cbDedup,
-                cbOutside: cbOutside,
-                cbSkipComment: cbSkipComment,
-                cbIncludeLocked: cbIncludeLocked,
-                cbIncludeHidden: cbIncludeHidden,
-                listBox: listBox,
-                editBox: editBox,
-                rbSortNone: rbSortNone,
-                rbSortXY: rbSortXY,
-                rbSortABC: rbSortABC,
-                isFormat: isFormat,
-                cancelBtn: cancelBtn,
-                closeBtn: closeBtn,
-                exportTextBtn: exportTextBtn,
-                isPreview: isPreview,
-                symbolListBox: symbolListBox,
-                layerNameEdit: layerNameEdit,
-                rbLayerScopeAll: rbLayerScopeAll,
-                rbLayerScopeTop: rbLayerScopeTop,
-                artboardNameEdit: artboardNameEdit,
-                rbArtboardScopeNumbered: rbArtboardScopeNumbered,
-                rbArtboardScopeRaw: rbArtboardScopeRaw,
-                fontNameListBox: fontNameListBox,
-                cbFontPS: cbFontPS,
-                cbFontFamily: cbFontFamily,
-                cbFontStyle: cbFontStyle
-            };
-        }
-
-        var ui = buildDialogUI();
-        var dlg = ui.dlg;
-        var rbArtboard = ui.rbArtboard;
-        var rbAll = ui.rbAll;
-        var cbDedup = ui.cbDedup;
-        var cbOutside = ui.cbOutside;
-        var cbSkipComment = ui.cbSkipComment;
-        var cbIncludeLocked = ui.cbIncludeLocked;
-        var cbIncludeHidden = ui.cbIncludeHidden;
-        var listBox = ui.listBox;
-        var editBox = ui.editBox;
-        var rbSortNone = ui.rbSortNone;
-        var rbSortXY = ui.rbSortXY;
-        var rbSortABC = ui.rbSortABC;
-        var isFormat = ui.isFormat;
-        var cancelBtn = ui.cancelBtn;
-        var closeBtn = ui.closeBtn;
-        var exportTextBtn = ui.exportTextBtn;
-        var isPreview = ui.isPreview;
-        var symbolListBox = ui.symbolListBox;
-        var layerNameEdit = ui.layerNameEdit;
-        var rbLayerScopeAll = ui.rbLayerScopeAll;
-        var rbLayerScopeTop = ui.rbLayerScopeTop;
-        var artboardNameEdit = ui.artboardNameEdit;
-        var rbArtboardScopeNumbered = ui.rbArtboardScopeNumbered;
-        var rbArtboardScopeRaw = ui.rbArtboardScopeRaw;
-        var fontNameListBox = ui.fontNameListBox;
-        var cbFontPS = ui.cbFontPS;
-        var cbFontFamily = ui.cbFontFamily;
-        var cbFontStyle = ui.cbFontStyle;
-
-        // =========================================
-        // イベントハンドラ / Event handlers
-        // =========================================
-
-        /* listbox選択時にeditboxを更新 / Update the edit box when the listbox selection changes */
-        listBox.onChange = function () {
-            if (listBox.selection !== null) {
-                var idx = listBox.selection.index;
-                editBox.text = textFrameList[idx].contents.replace(/\x03/g, SOFT_BREAK);
-            }
-        };
-
-        fontNameListBox.onChange = function () {
-            if (fontNameListBox.selection !== null) {
-                selectTextFramesByFontMatch(fontNameListBox.selection.psNameKey);
-            }
-        };
-        function selectTextFramesByFontMatch(targetPSName) {
-            var frames = getScopedFramesForInfoTabs();
-            var matches = [];
-            var i;
-
-            if (!targetPSName) return;
-
-            for (i = 0; i < frames.length; i++) {
-                if (getTextFrameFontNames(frames[i]).join('\n').indexOf(targetPSName) >= 0) {
-                    matches.push(frames[i]);
-                }
-            }
-
-            try {
-                doc.selection = null;
-            } catch (e1) { }
-
-            if (matches.length === 0) {
-                alert(L('noMatchingFontText'));
-                return;
-            }
-
-            for (i = 0; i < matches.length; i++) {
+            function clearTempLayer(layer) {
+                if (!layer) return;
                 try {
-                    matches[i].selected = true;
-                } catch (e2) { }
+                    while (layer.pageItems.length > 0) {
+                        layer.pageItems[0].remove();
+                    }
+                } catch (e) { }
             }
 
-            try {
-                app.redraw();
-            } catch (e3) { }
-        }
-
-        cbFontPS.onClick = function () { refreshInfoTabs(); };
-        cbFontFamily.onClick = function () { refreshInfoTabs(); };
-        cbFontStyle.onClick = function () { refreshInfoTabs(); };
-
-        function reflectPreviewEnabledState() {
-            if (parseInt(app.version) != 24) {
-                isPreview.enabled = !isFormat.value;
-            }
-        }
-
-        /* 段落書式保持とプレビューの排他制御 / Make paragraph formatting and preview mutually exclusive */
-        isFormat.onClick = function () {
-            if (isFormat.value && isPreview.value) {
-                isPreview.value = false;
-                preview();
-            }
-            reflectPreviewEnabledState();
-        };
-
-        /* Shift+Enter でソフト改行文字を挿入 / Insert the soft-break placeholder with Shift+Enter */
-        editBox.addEventListener('keydown', function (kd) {
-            var isShift = ScriptUI.environment.keyboardState['shiftKey'];
-            if (isShift && kd.keyName === 'Enter') {
-                this.textselection = SOFT_BREAK;
-                kd.preventDefault();
-            }
-        });
-
-        /* プレビュー / Preview */
-        function preview() {
-            if (parseInt(app.version) == 24) return;
-            try {
-                if (isPreview.enabled && isPreview.value && listBox.selection !== null) {
-                    if (isUndo) app.undo();
-                    else isUndo = true;
-                    applyCurrentEdit();
-                    app.redraw();
-                } else if (isUndo) {
-                    app.undo();
-                    app.redraw();
-                    isUndo = false;
+            function removeTempLayer() {
+                for (var i = doc.layers.length - 1; i >= 0; i--) {
+                    if (doc.layers[i].name === TEMP_LAYER_NAME && doc.layers[i].note === TEMP_LAYER_NOTE) {
+                        try {
+                            clearTempLayer(doc.layers[i]);
+                        } catch (e) { }
+                        try {
+                            doc.layers[i].remove();
+                        } catch (e2) { }
+                        break;
+                    }
                 }
-            } catch (err) { }
-        }
+            }
 
-        function clearPreviewIfNeeded() {
-            if (!isUndo) return false;
-            try {
-                app.undo();
-                app.redraw();
-            } catch (err) { }
-            isUndo = false;
-            return true;
-        }
+            function duplicateSymbolItemToLayer(symbolItem, targetLayer) {
+                var duplicateItem = symbolItem.duplicate(targetLayer, ElementPlacement.PLACEATBEGINNING);
+                duplicateItem.selected = false;
+                return duplicateItem;
+            }
+            // シンボル内テキスト収集 / Collect text inside symbols
+            // =========================================
 
-        function restorePreviewIfNeeded(wasPreviewActive) {
-            if (!wasPreviewActive) return;
-            if (parseInt(app.version) == 24) return;
-            if (!isPreview.enabled || !isPreview.value) return;
-            try {
-                preview();
-            } catch (err) { }
-        }
+            function collectTextFramesFromItem(item, result) {
+                if (!item) return;
+                if (!result) return;
 
-        editBox.onChanging = function () { preview(); };
-        isPreview.onClick = function () { preview(); };
-        exportTextBtn.onClick = function () {
-            var filePath;
-            var file = null;
-            var content;
-            var wasPreviewActive = isUndo;
-            var exportSettings;
-            try {
-                clearPreviewIfNeeded();
-                exportSettings = showExportOptionsDialog();
-                if (!exportSettings) {
-                    restorePreviewIfNeeded(wasPreviewActive);
+                if (item.typename === 'TextFrame') {
+                    if (!isEmptyTextFrame(item)) {
+                        result.push(item);
+                    }
                     return;
                 }
-                content = buildExportText(exportSettings);
-                filePath = Folder.desktop.fsName + '/text-' + sanitizeFileName(getDocumentBaseName(doc)) + '-' + getDateTimeStamp() + '.txt';
-                file = new File(filePath);
-                file.encoding = 'UTF-8';
-                file.lineFeed = 'Unix';
-                if (!file.open('w')) {
-                    throw new Error('open failed: ' + filePath);
+
+                if (!item.pageItems) return;
+                for (var i = 0; i < item.pageItems.length; i++) {
+                    collectTextFramesFromItem(item.pageItems[i], result);
                 }
-                file.write(content);
-                file.close();
-                restorePreviewIfNeeded(wasPreviewActive);
-                if (exportSettings.openAfter) {
+            }
+
+            function extractTextContentsFromItems(items) {
+                var textFrames = [];
+                var texts = [];
+
+                for (var i = 0; i < items.length; i++) {
+                    collectTextFramesFromItem(items[i], textFrames);
+                }
+
+                for (var j = 0; j < textFrames.length; j++) {
+                    texts.push(textFrames[j].contents);
+                }
+
+                return texts;
+            }
+
+            function removeItems(items) {
+                for (var i = items.length - 1; i >= 0; i--) {
                     try {
-                        file.execute();
-                    } catch (openErr) { }
+                        if (items[i] && items[i].isValid !== false) {
+                            items[i].remove();
+                        }
+                    } catch (e) { }
                 }
-            } catch (e) {
+            }
+
+            function withSelectionRestored(fn) {
+                var prevSelection = [];
                 try {
-                    if (file && file.opened) file.close();
-                } catch (closeErr) { }
-                restorePreviewIfNeeded(wasPreviewActive);
-                alert(L('exportFailed') + '\n' + e);
-            }
-        };
+                    for (var i = 0; i < doc.selection.length; i++) {
+                        prevSelection.push(doc.selection[i]);
+                    }
+                } catch (e) { }
 
-        /* 選択中のテキストフレームに編集を反映（重複があれば全フレームに適用） / Apply the current edit to the selected text frame, or all duplicates when enabled */
-        function applyCurrentEdit() {
-            if (listBox.selection === null) return;
-            var idx = listBox.selection.index;
-            var newText = editBox.text.replace(new RegExp(SOFT_BREAK, 'gmi'), '\x03');
-            if (cbDedup.value && duplicateMap[idx]) {
-                for (var d = 0; d < duplicateMap[idx].length; d++) {
-                    replaceContent(duplicateMap[idx][d], newText, isFormat.value);
+                try {
+                    fn();
+                } finally {
+                    try {
+                        doc.selection = null;
+                    } catch (e2) { }
+                    for (var j = 0; j < prevSelection.length; j++) {
+                        try {
+                            prevSelection[j].selected = true;
+                        } catch (e3) { }
+                    }
                 }
-            } else {
-                replaceContent(textFrameList[idx], newText, isFormat.value);
             }
-        }
 
-        /* テキスト書き出し用テキスト生成 / Build export text grouped by artboard */
-        function buildExportText(exportSettings) {
-            var exportOptions = {
-                includeComment: cbSkipComment.value,
-                includeLocked: cbIncludeLocked.value,
-                includeHidden: cbIncludeHidden.value
-            };
-            var exportScopeMode = getCurrentScopeModeValue();
-            var artboardGroups = collectArtboardGroupedExportData(exportOptions, exportScopeMode);
-            var artboardFontGroups = collectArtboardGroupedFontFrames(exportOptions, exportScopeMode);
-
-            if (!exportSettings) {
-                exportSettings = {
-                    includeText: true,
-                    includeFonts: true,
-                    openAfter: false
+            function buildSymbolCollectOptions() {
+                return {
+                    includeComment: cbSkipComment.value,
+                    includeLocked: cbIncludeLocked.value,
+                    includeHidden: cbIncludeHidden.value
                 };
             }
 
-            var lines = [];
-            var i;
-            var j;
+            function isSymbolItemInScope(symbolItem, scopeMode, activeArtboardIndex) {
+                var artboardIndex = getItemArtboardIndex(symbolItem);
+                if (scopeMode === 'current') {
+                    return artboardIndex === activeArtboardIndex;
+                }
+                if (scopeMode === 'allArtboards') {
+                    return artboardIndex >= 0;
+                }
+                return true;
+            }
 
-            for (i = 0; i < artboardGroups.length; i++) {
-                if (i > 0) lines.push('');
-                lines.push('---' + artboardGroups[i].name + '---');
+            function getSymbolProcessKey(symbolName, artboardIndex) {
+                return symbolName + '||' + artboardIndex;
+            }
 
-                if (exportSettings.includeText) {
-                    lines.push('[Text]');
-                    for (j = 0; j < artboardGroups[i].texts.length; j++) {
-                        lines.push(artboardGroups[i].texts[j]);
+            function collectScopedSymbolItems(options, scopeMode) {
+                var symbolItems = doc.symbolItems;
+                var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
+                var siList = [];
+                var processed = {};
+
+                for (var i = 0; i < symbolItems.length; i++) {
+                    var symbolItem = symbolItems[i];
+                    var symbolName = '';
+                    var artboardIndex = -1;
+                    var processKey = '';
+
+                    if (!symbolItem || symbolItem.isValid === false) continue;
+                    if (!options.includeComment && isCommentLayer(symbolItem)) continue;
+                    if (!isCollectable(symbolItem, options)) continue;
+                    if (!isSymbolItemInScope(symbolItem, scopeMode, activeArtboardIndex)) continue;
+
+                    try {
+                        symbolName = symbolItem.symbol.name;
+                    } catch (e) { }
+                    if (!symbolName) continue;
+
+                    artboardIndex = getItemArtboardIndex(symbolItem);
+                    processKey = getSymbolProcessKey(symbolName, artboardIndex);
+                    if (processed[processKey]) continue;
+
+                    processed[processKey] = true;
+                    siList.push({
+                        item: symbolItem,
+                        symbolName: symbolName,
+                        artboardIndex: artboardIndex
+                    });
+                }
+
+                return siList;
+            }
+
+            function collectTextsFromScopedSymbolItems(scopedItems, onText) {
+                var tempInfo;
+                var tempLayer;
+
+                if (!scopedItems || scopedItems.length === 0) {
+                    return;
+                }
+
+                tempInfo = getOrCreateTempLayer();
+                tempLayer = tempInfo.layer;
+                clearTempLayer(tempLayer);
+
+                withSelectionRestored(function () {
+                    for (var index = scopedItems.length - 1; index >= 0; index--) {
+                        var entry = scopedItems[index];
+                        var symbolItem = entry.item;
+                        var symbolName = entry.symbolName;
+                        var artboardIndex = entry.artboardIndex;
+                        var brokenItems = [];
+                        var newSel = [];
+                        var texts;
+                        var t;
+
+                        if (!symbolItem || symbolItem.isValid === false) continue;
+
+                        try {
+                            var workingSymbolItem = duplicateSymbolItemToLayer(symbolItem, tempLayer);
+                            try {
+                                doc.selection = null;
+                            } catch (e2) { }
+                            workingSymbolItem.selected = true;
+                            workingSymbolItem.breakLink();
+
+                            try {
+                                for (var s = 0; s < doc.selection.length; s++) {
+                                    newSel.push(doc.selection[s]);
+                                }
+                            } catch (e3) { }
+
+                            for (var m = 0; m < newSel.length; m++) {
+                                brokenItems.push(newSel[m]);
+                            }
+
+                            if (brokenItems.length > 0) {
+                                texts = extractTextContentsFromItems(brokenItems);
+                                for (t = 0; t < texts.length; t++) {
+                                    onText(symbolName, artboardIndex, texts[t]);
+                                }
+                                removeItems(brokenItems);
+                            }
+                        } catch (e4) {
+                        } finally {
+                            try {
+                                doc.selection = null;
+                            } catch (e5) { }
+                        }
                     }
-                    lines.push('');
-                }
-
-                if (exportSettings.includeFonts) {
-                    lines.push('[Font Names]');
-                    var fontLines = collectFontDisplayNamesFromFrames(artboardFontGroups[i].frames);
-                    for (var k = 0; k < fontLines.length; k++) {
-                        lines.push(fontLines[k]);
-                    }
-                    lines.push('');
-                }
-            }
-
-            return lines.join('\n');
-        }
-
-        function getArtboardTabDisplayName(index) {
-            return (index + 1) + ': ' + getRawArtboardName(index);
-        }
-
-        function getRawArtboardName(index) {
-            var name = '';
-            try {
-                name = doc.artboards[index].name;
-            } catch (e) { }
-            if (!name) {
-                name = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
-            }
-            return name;
-        }
-
-        function getArtboardDisplayName(index) {
-            var numberText = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
-            return numberText + ': ' + getRawArtboardName(index);
-        }
-
-        function getItemArtboardIndex(item) {
-            for (var i = 0; i < doc.artboards.length; i++) {
-                if (isOnArtboard(item, doc.artboards[i].artboardRect)) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        function collectSymbolTextsByArtboard(options, scopeMode) {
-            var results = [];
-            var scopedItems = collectScopedSymbolItems(options, scopeMode);
-
-            collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
-                var openParen = (lang === 'ja') ? '〈' : ' «';
-                var closeParen = (lang === 'ja') ? '〉' : '»';
-                var prefix = (lang === 'ja') ? 'シンボル：' : 'Symbol: ';
-                results.push({
-                    artboardIndex: artboardIndex,
-                    text: text + openParen + prefix + symbolName + closeParen
                 });
+
+                clearTempLayer(tempLayer);
+                if (tempInfo.created) {
+                    removeTempLayer();
+                }
+                try {
+                    doc.selection = null;
+                } catch (e6) { }
+            }
+
+            function collectSymbolTexts() {
+                var results = [];
+                var exportScopeMode = getCurrentScopeModeValue();
+                var options = buildSymbolCollectOptions();
+                var scopedItems = collectScopedSymbolItems(options, exportScopeMode);
+
+                collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
+                    var sep = (lang === 'ja') ? '：' : ': ';
+                    results.push(symbolName + sep + text.replace(/[\r\n]+/g, ' '));
+                });
+
+                return results;
+            }
+
+            // =========================================
+            // listboxを更新 / Update listbox
+            // =========================================
+
+            function updateList() {
+                clearPreviewIfNeeded();
+                var mode;
+                if (cbOutside.value) {
+                    mode = "all";
+                } else if (rbAll.value) {
+                    mode = "allArtboards";
+                } else {
+                    mode = "current";
+                }
+                textFrameList = gatherFrames(mode);
+
+                /* ソート / Sorting */
+                if (rbSortXY.value) {
+                    sortByPosition(textFrameList);
+                } else if (rbSortABC.value) {
+                    sortByContent(textFrameList);
+                }
+
+                if (cbDedup.value) {
+                    removeDuplicateFrames();
+                }
+
+                listBox.removeAll();
+                for (var i = 0; i < textFrameList.length; i++) {
+                    listBox.add("item", (i + 1) + L("itemPrefix") + makeLabel(textFrameList[i].contents));
+                }
+                editBox.text = "";
+                if (textFrameList.length > 0) {
+                    listBox.selection = 0;
+                }
+                refreshInfoTabs();
+            }
+
+            function getSymbolTexts(forceRefresh) {
+                var cacheKey = getCurrentSymbolCacheKey();
+                if (forceRefresh) {
+                    delete symbolTextCacheMap[cacheKey];
+                }
+                if (symbolTextCacheMap.hasOwnProperty(cacheKey)) {
+                    return symbolTextCacheMap[cacheKey];
+                }
+                symbolTextCacheMap[cacheKey] = collectSymbolTexts();
+                return symbolTextCacheMap[cacheKey];
+            }
+
+            function updateSymbolListHeight(itemCount) {
+                var rows = itemCount;
+                if (rows < SYMBOL_LIST_MIN_ROWS) rows = SYMBOL_LIST_MIN_ROWS;
+                if (rows > SYMBOL_LIST_MAX_ROWS) rows = SYMBOL_LIST_MAX_ROWS;
+                symbolListBox.preferredSize.height = rows * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT;
+                try {
+                    dlg.layout.layout(true);
+                    dlg.layout.resize();
+                } catch (e) { }
+            }
+
+            function refreshSymbolList(forceRefresh) {
+                symbolListBox.removeAll();
+                var symTexts = getSymbolTexts(forceRefresh);
+                for (var s = 0; s < symTexts.length; s++) {
+                    symbolListBox.add("item", symTexts[s]);
+                }
+                updateSymbolListHeight(symTexts.length);
+            }
+
+            // =========================================
+            // ダイアログ / Dialog
+            // =========================================
+
+            function buildDialogUI() {
+                var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+                dlg.orientation = "column";
+                dlg.alignChildren = ["fill", "top"];
+
+                /* ダイアログ全体をタブで構成 / Use tabs for the whole dialog */
+                var infoTabs = dlg.add("tabbedpanel");
+                infoTabs.alignChildren = ["fill", "fill"];
+                infoTabs.preferredSize = [550, 350];
+                infoTabs.margins = [15, 10, 1, 10];
+
+                var canvasTab = infoTabs.add("tab", undefined, L("tabCanvas"));
+                canvasTab.orientation = "row";
+                canvasTab.alignChildren = ["fill", "fill"];
+                canvasTab.margins = [15, 20, 1, 10];
+                canvasTab.spacing = 15;
+
+                var mainGroup = canvasTab.add("group");
+                mainGroup.orientation = "row";
+                mainGroup.alignChildren = ["fill", "fill"];
+
+                /* 左カラム / Left column */
+                var leftCol = mainGroup.add("group");
+                leftCol.orientation = "column";
+                leftCol.alignChildren = ["fill", "fill"];
+
+                leftCol.add("statictext", undefined, L("textListLabel"));
+                var listBox = leftCol.add("listbox", [0, 0, 250, 194], []);
+                leftCol.add("statictext", undefined, L("textEditLabel"));
+                var editBox = leftCol.add("edittext", [0, 0, 250, 72], "", { multiline: true, scrolling: true });
+
+                leftCol.add("statictext", undefined, L("symbolTextLabel"));
+                var symbolListBox = leftCol.add("listbox", [0, 0, 250, SYMBOL_LIST_MIN_ROWS * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT], []);
+                symbolListBox.alignment = ["fill", "fill"];
+
+                /* 右カラム / Right column */
+                var rightCol = mainGroup.add("group");
+                rightCol.orientation = "column";
+                rightCol.alignChildren = ["fill", "top"];
+
+                /* 対象テキストパネル / Target text panel */
+                var targetPanel = rightCol.add("panel", undefined, L("panelTargetText"));
+                targetPanel.orientation = "column";
+                targetPanel.alignChildren = ["left", "top"];
+                targetPanel.margins = [15, 20, 1, 10];
+
+                var rbGroup = targetPanel.add("group");
+                rbGroup.orientation = "column";
+                rbGroup.alignChildren = ["left", "top"];
+                var rbArtboard = rbGroup.add("radiobutton", undefined, L("rbCurrentArtboard"));
+                var rbAll = rbGroup.add("radiobutton", undefined, L("rbAllArtboards"));
+                rbArtboard.value = true;
+
+                var cbRow = targetPanel.add("group");
+                cbRow.orientation = "row";
+                var cbOutside = cbRow.add("checkbox", undefined, L("cbOutside"));
+                cbOutside.value = false;
+                cbOutside.enabled = false;
+
+                var layerPanel = rightCol.add("panel", undefined, L("panelLayerText"));
+                layerPanel.orientation = "column";
+                layerPanel.alignChildren = ["left", "top"];
+                layerPanel.margins = [15, 20, 1, 10];
+
+                var cbSkipComment = layerPanel.add("checkbox", undefined, L("cbSkipComment"));
+                cbSkipComment.value = false;
+
+                var cbIncludeLocked = layerPanel.add("checkbox", undefined, L("cbIncludeLocked"));
+                cbIncludeLocked.value = false;
+                var cbIncludeHidden = layerPanel.add("checkbox", undefined, L("cbIncludeHidden"));
+                cbIncludeHidden.value = false;
+
+                var sortPanel = rightCol.add("panel", undefined, L("panelSort"));
+                sortPanel.orientation = "column";
+                sortPanel.alignChildren = ["left", "top"];
+                sortPanel.margins = [15, 20, 1, 10];
+                var sortGroup = sortPanel.add("group");
+                sortGroup.orientation = "row";
+                sortGroup.alignChildren = ["left", "center"];
+                var rbSortNone = sortGroup.add("radiobutton", undefined, L("sortNone"));
+                var rbSortXY = sortGroup.add("radiobutton", undefined, L("sortXY"));
+                var rbSortABC = sortGroup.add("radiobutton", undefined, L("sortABC"));
+                rbSortNone.value = true;
+
+                var optionsGroup = rightCol.add("group");
+                optionsGroup.orientation = "column";
+                optionsGroup.alignChildren = ["left", "top"];
+                optionsGroup.margins = [15, 5, 15, 10];
+
+                var cbDedup = optionsGroup.add("checkbox", undefined, L("cbDedup"));
+                cbDedup.value = true;
+
+                var isFormat = optionsGroup.add("checkbox", undefined, L("keepFormat"));
+                isFormat.value = true;
+                isFormat.helpTip = L("keepFormatTip");
+
+                var isPreview = optionsGroup.add("checkbox", undefined, L("preview"));
+                isPreview.helpTip = L("previewTip");
+
+                var layerNamesTab = infoTabs.add("tab", undefined, L("tabLayerNames"));
+                layerNamesTab.orientation = "column";
+                layerNamesTab.alignChildren = ["fill", "top"];
+                layerNamesTab.margins = [15, 20, 0, 10];
+                layerNamesTab.spacing = 10;
+
+                layerNamesTab.add("statictext", undefined, L("layerNameListLabel"));
+
+                var layerScopePanel = layerNamesTab.add("group");
+                layerScopePanel.orientation = "row";
+                layerScopePanel.alignChildren = ["left", "center"];
+                layerScopePanel.spacing = 15;
+
+                var rbLayerScopeTop = layerScopePanel.add("radiobutton", undefined, L("layerScopeTop"));
+                var rbLayerScopeAll = layerScopePanel.add("radiobutton", undefined, L("layerScopeAll"));
+                rbLayerScopeTop.value = true;
+
+                var layerNameEdit = layerNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
+                layerNameEdit.alignment = ["fill", "fill"];
+
+                var artboardNamesTab = infoTabs.add("tab", undefined, L("tabArtboardNames"));
+                artboardNamesTab.orientation = "column";
+                artboardNamesTab.alignChildren = ["fill", "top"];
+                artboardNamesTab.margins = [15, 20, 0, 10];
+                artboardNamesTab.spacing = 10;
+
+                artboardNamesTab.add("statictext", undefined, L("artboardNameListLabel"));
+
+                var artboardScopeGroup = artboardNamesTab.add("group");
+                artboardScopeGroup.orientation = "row";
+                artboardScopeGroup.alignChildren = ["left", "center"];
+                artboardScopeGroup.spacing = 15;
+
+                var rbArtboardScopeNumbered = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeNumbered"));
+                var rbArtboardScopeRaw = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeRaw"));
+                rbArtboardScopeNumbered.value = true;
+
+                var artboardNameEdit = artboardNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
+                artboardNameEdit.alignment = ["fill", "fill"];
+
+                var fontNamesTab = infoTabs.add("tab", undefined, L("tabFontNames"));
+                fontNamesTab.orientation = "column";
+                fontNamesTab.alignChildren = ["fill", "top"];
+                fontNamesTab.margins = [15, 20, 0, 10];
+                fontNamesTab.spacing = 10;
+
+                fontNamesTab.add("statictext", undefined, L("fontListLabel"));
+
+                var fontToggleGroup = fontNamesTab.add("group");
+                fontToggleGroup.orientation = "row";
+                fontToggleGroup.alignChildren = ["left", "center"];
+                fontToggleGroup.spacing = 15;
+
+                var cbFontPS = fontToggleGroup.add("checkbox", undefined, L("fontTogglePS"));
+                cbFontPS.value = true;
+                var cbFontFamily = fontToggleGroup.add("checkbox", undefined, L("fontToggleFamily"));
+                cbFontFamily.value = true;
+                var cbFontStyle = fontToggleGroup.add("checkbox", undefined, L("fontToggleStyle"));
+                cbFontStyle.value = true;
+
+                var fontNameListBox = fontNamesTab.add("listbox", undefined, [], {
+                    numberOfColumns: 3,
+                    showHeaders: true,
+                    columnTitles: [L("fontColumnPS"), L("fontColumnFamily"), L("fontColumnStyle")],
+                    columnWidths: [180, 180, 120]
+                });
+                fontNameListBox.alignment = ["fill", "fill"];
+
+                infoTabs.selection = canvasTab;
+
+                var buttonRow = dlg.add("group");
+                buttonRow.orientation = "row";
+                buttonRow.alignChildren = ["fill", "center"];
+
+                var leftButtons = buttonRow.add("group");
+                leftButtons.orientation = "row";
+                leftButtons.alignChildren = ["left", "center"];
+                var exportTextBtn = leftButtons.add("button", undefined, L("exportText"));
+
+                var spacer = buttonRow.add("group");
+                spacer.alignment = ["fill", "fill"];
+                spacer.minimumSize.width = 0;
+
+                var rightButtons = buttonRow.add("group");
+                rightButtons.orientation = "row";
+                rightButtons.alignChildren = ["right", "center"];
+                var cancelBtn = rightButtons.add("button", undefined, L("cancel"), { name: "cancel" });
+                var closeBtn = rightButtons.add("button", undefined, L("ok"), { name: "ok" });
+                dlg.defaultElement = closeBtn;
+
+                /* CC 2020 v24.3 はプレビュー時にクラッシュするため無効化 / Disable preview in CC 2020 v24.3 because it may crash */
+                if (parseInt(app.version) == 24) {
+                    isPreview.enabled = false;
+                    isPreview.helpTip = L("previewDisabledTip");
+                }
+
+                return {
+                    dlg: dlg,
+                    rbArtboard: rbArtboard,
+                    rbAll: rbAll,
+                    cbDedup: cbDedup,
+                    cbOutside: cbOutside,
+                    cbSkipComment: cbSkipComment,
+                    cbIncludeLocked: cbIncludeLocked,
+                    cbIncludeHidden: cbIncludeHidden,
+                    listBox: listBox,
+                    editBox: editBox,
+                    rbSortNone: rbSortNone,
+                    rbSortXY: rbSortXY,
+                    rbSortABC: rbSortABC,
+                    isFormat: isFormat,
+                    cancelBtn: cancelBtn,
+                    closeBtn: closeBtn,
+                    exportTextBtn: exportTextBtn,
+                    isPreview: isPreview,
+                    symbolListBox: symbolListBox,
+                    layerNameEdit: layerNameEdit,
+                    rbLayerScopeAll: rbLayerScopeAll,
+                    rbLayerScopeTop: rbLayerScopeTop,
+                    artboardNameEdit: artboardNameEdit,
+                    rbArtboardScopeNumbered: rbArtboardScopeNumbered,
+                    rbArtboardScopeRaw: rbArtboardScopeRaw,
+                    fontNameListBox: fontNameListBox,
+                    cbFontPS: cbFontPS,
+                    cbFontFamily: cbFontFamily,
+                    cbFontStyle: cbFontStyle
+                };
+            }
+
+            var ui = buildDialogUI();
+            var dlg = ui.dlg;
+            var rbArtboard = ui.rbArtboard;
+            var rbAll = ui.rbAll;
+            var cbDedup = ui.cbDedup;
+            var cbOutside = ui.cbOutside;
+            var cbSkipComment = ui.cbSkipComment;
+            var cbIncludeLocked = ui.cbIncludeLocked;
+            var cbIncludeHidden = ui.cbIncludeHidden;
+            var listBox = ui.listBox;
+            var editBox = ui.editBox;
+            var rbSortNone = ui.rbSortNone;
+            var rbSortXY = ui.rbSortXY;
+            var rbSortABC = ui.rbSortABC;
+            var isFormat = ui.isFormat;
+            var cancelBtn = ui.cancelBtn;
+            var closeBtn = ui.closeBtn;
+            var exportTextBtn = ui.exportTextBtn;
+            var isPreview = ui.isPreview;
+            var symbolListBox = ui.symbolListBox;
+            var layerNameEdit = ui.layerNameEdit;
+            var rbLayerScopeAll = ui.rbLayerScopeAll;
+            var rbLayerScopeTop = ui.rbLayerScopeTop;
+            var artboardNameEdit = ui.artboardNameEdit;
+            var rbArtboardScopeNumbered = ui.rbArtboardScopeNumbered;
+            var rbArtboardScopeRaw = ui.rbArtboardScopeRaw;
+            var fontNameListBox = ui.fontNameListBox;
+            var cbFontPS = ui.cbFontPS;
+            var cbFontFamily = ui.cbFontFamily;
+            var cbFontStyle = ui.cbFontStyle;
+
+            // =========================================
+            // イベントハンドラ / Event handlers
+            // =========================================
+
+            /* listbox選択時にeditboxを更新 / Update the edit box when the listbox selection changes */
+            listBox.onChange = function () {
+                if (listBox.selection !== null) {
+                    var idx = listBox.selection.index;
+                    editBox.text = textFrameList[idx].contents.replace(/\x03/g, SOFT_BREAK);
+                }
+            };
+
+            fontNameListBox.onChange = function () {
+                if (fontNameListBox.selection !== null) {
+                    selectTextFramesByFontMatch(fontNameListBox.selection.psNameKey);
+                }
+            };
+            function selectTextFramesByFontMatch(targetPSName) {
+                var frames = getScopedFramesForInfoTabs();
+                var matches = [];
+                var i;
+
+                if (!targetPSName) return;
+
+                for (i = 0; i < frames.length; i++) {
+                    if (getTextFrameFontNames(frames[i]).join('\n').indexOf(targetPSName) >= 0) {
+                        matches.push(frames[i]);
+                    }
+                }
+
+                try {
+                    doc.selection = null;
+                } catch (e1) { }
+
+                if (matches.length === 0) {
+                    alert(L('noMatchingFontText'));
+                    return;
+                }
+
+                for (i = 0; i < matches.length; i++) {
+                    try {
+                        matches[i].selected = true;
+                    } catch (e2) { }
+                }
+
+                try {
+                    app.redraw();
+                } catch (e3) { }
+            }
+
+            cbFontPS.onClick = function () { refreshInfoTabs(); };
+            cbFontFamily.onClick = function () { refreshInfoTabs(); };
+            cbFontStyle.onClick = function () { refreshInfoTabs(); };
+
+            function reflectPreviewEnabledState() {
+                if (parseInt(app.version) != 24) {
+                    isPreview.enabled = !isFormat.value;
+                }
+            }
+
+            /* 段落書式保持とプレビューの排他制御 / Make paragraph formatting and preview mutually exclusive */
+            isFormat.onClick = function () {
+                if (isFormat.value && isPreview.value) {
+                    isPreview.value = false;
+                    preview();
+                }
+                reflectPreviewEnabledState();
+            };
+
+            /* Shift+Enter でソフト改行文字を挿入 / Insert the soft-break placeholder with Shift+Enter */
+            editBox.addEventListener('keydown', function (kd) {
+                var isShift = ScriptUI.environment.keyboardState['shiftKey'];
+                if (isShift && kd.keyName === 'Enter') {
+                    this.textselection = SOFT_BREAK;
+                    kd.preventDefault();
+                }
             });
 
-            return results;
-        }
-
-        function collectExportTextFrames(options, scopeMode) {
-            return collectFramesByScope(scopeMode, options);
-        }
-
-        function collectFontDisplayNamesFromFrames(frames) {
-            var fontMap = {};
-            var fontLines = [];
-            var i;
-            var m;
-            var triples;
-            var key;
-            var line;
-
-            for (i = 0; i < frames.length; i++) {
-                triples = getTextFrameFontTriples(frames[i]);
-                for (m = 0; m < triples.length; m++) {
-                    key = triples[m].psName + '\t' + triples[m].familyName + '\t' + triples[m].styleName;
-                    line = triples[m].psName + '  ' + triples[m].familyName + (triples[m].styleName ? ('  ' + triples[m].styleName) : '');
-                    if (!fontMap[key]) {
-                        fontMap[key] = true;
-                        fontLines.push(line);
+            /* プレビュー / Preview */
+            function preview() {
+                if (parseInt(app.version) == 24) return;
+                try {
+                    if (isPreview.enabled && isPreview.value && listBox.selection !== null) {
+                        if (isUndo) app.undo();
+                        else isUndo = true;
+                        applyCurrentEdit();
+                        app.redraw();
+                    } else if (isUndo) {
+                        app.undo();
+                        app.redraw();
+                        isUndo = false;
                     }
+                } catch (err) { }
+            }
+
+            function clearPreviewIfNeeded() {
+                if (!isUndo) return false;
+                try {
+                    app.undo();
+                    app.redraw();
+                } catch (err) { }
+                isUndo = false;
+                return true;
+            }
+
+            function restorePreviewIfNeeded(wasPreviewActive) {
+                if (!wasPreviewActive) return;
+                if (parseInt(app.version) == 24) return;
+                if (!isPreview.enabled || !isPreview.value) return;
+                try {
+                    preview();
+                } catch (err) { }
+            }
+
+            editBox.onChanging = function () { preview(); };
+            isPreview.onClick = function () { preview(); };
+            exportTextBtn.onClick = function () {
+                var filePath;
+                var file = null;
+                var content;
+                var wasPreviewActive = isUndo;
+                var exportSettings;
+                try {
+                    clearPreviewIfNeeded();
+                    exportSettings = showExportOptionsDialog();
+                    if (!exportSettings) {
+                        restorePreviewIfNeeded(wasPreviewActive);
+                        return;
+                    }
+                    content = buildExportText(exportSettings);
+                    filePath = Folder.desktop.fsName + '/text-' + sanitizeFileName(getDocumentBaseName(doc)) + '-' + getDateTimeStamp() + '.txt';
+                    file = new File(filePath);
+                    file.encoding = 'UTF-8';
+                    file.lineFeed = 'Unix';
+                    if (!file.open('w')) {
+                        throw new Error('open failed: ' + filePath);
+                    }
+                    file.write(content);
+                    file.close();
+                    restorePreviewIfNeeded(wasPreviewActive);
+                    if (exportSettings.openAfter) {
+                        try {
+                            file.execute();
+                        } catch (openErr) { }
+                    }
+                } catch (e) {
+                    try {
+                        if (file && file.opened) file.close();
+                    } catch (closeErr) { }
+                    restorePreviewIfNeeded(wasPreviewActive);
+                    alert(L('exportFailed') + '\n' + e);
+                }
+            };
+
+            /* 選択中のテキストフレームに編集を反映（重複があれば全フレームに適用） / Apply the current edit to the selected text frame, or all duplicates when enabled */
+            function applyCurrentEdit() {
+                if (listBox.selection === null) return;
+                var idx = listBox.selection.index;
+                var newText = editBox.text.replace(new RegExp(SOFT_BREAK, 'gmi'), '\x03');
+                if (cbDedup.value && duplicateMap[idx]) {
+                    for (var d = 0; d < duplicateMap[idx].length; d++) {
+                        replaceContent(duplicateMap[idx][d], newText, isFormat.value);
+                    }
+                } else {
+                    replaceContent(textFrameList[idx], newText, isFormat.value);
                 }
             }
 
-            fontLines.sort();
-            return fontLines;
-        }
+            /* テキスト書き出し用テキスト生成 / Build export text grouped by artboard */
+            function buildExportText(exportSettings) {
+                var exportOptions = {
+                    includeComment: cbSkipComment.value,
+                    includeLocked: cbIncludeLocked.value,
+                    includeHidden: cbIncludeHidden.value
+                };
+                var exportScopeMode = getCurrentScopeModeValue();
+                var artboardGroups = collectArtboardGroupedExportData(exportOptions, exportScopeMode);
+                var artboardFontGroups = collectArtboardGroupedFontFrames(exportOptions, exportScopeMode);
 
-        function collectArtboardGroupedFontFrames(options, scopeMode) {
-            var groups = [];
-            var outsideGroup = {
-                name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
-                frames: []
-            };
-            var i;
-            var frames = collectExportTextFrames(options, scopeMode);
-            var abIndex;
-            var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
-            var groupIndexMap = {};
+                if (!exportSettings) {
+                    exportSettings = {
+                        includeText: true,
+                        includeFonts: true,
+                        openAfter: false
+                    };
+                }
 
-            if (scopeMode === 'current') {
-                groups.push({
-                    name: getArtboardDisplayName(activeArtboardIndex),
-                    frames: []
+                var lines = [];
+                var i;
+                var j;
+
+                for (i = 0; i < artboardGroups.length; i++) {
+                    if (i > 0) lines.push('');
+                    lines.push('---' + artboardGroups[i].name + '---');
+
+                    if (exportSettings.includeText) {
+                        lines.push('[Text]');
+                        for (j = 0; j < artboardGroups[i].texts.length; j++) {
+                            lines.push(artboardGroups[i].texts[j]);
+                        }
+                        lines.push('');
+                    }
+
+                    if (exportSettings.includeFonts) {
+                        lines.push('[Font Names]');
+                        var fontLines = collectFontDisplayNamesFromFrames(artboardFontGroups[i].frames);
+                        for (var k = 0; k < fontLines.length; k++) {
+                            lines.push(fontLines[k]);
+                        }
+                        lines.push('');
+                    }
+                }
+
+                return lines.join('\n');
+            }
+
+            function getArtboardTabDisplayName(index) {
+                return (index + 1) + ': ' + getRawArtboardName(index);
+            }
+
+            function getRawArtboardName(index) {
+                var name = '';
+                try {
+                    name = doc.artboards[index].name;
+                } catch (e) { }
+                if (!name) {
+                    name = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
+                }
+                return name;
+            }
+
+            function getArtboardDisplayName(index) {
+                var numberText = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
+                return numberText + ': ' + getRawArtboardName(index);
+            }
+
+            function getItemArtboardIndex(item) {
+                for (var i = 0; i < doc.artboards.length; i++) {
+                    if (isOnArtboard(item, doc.artboards[i].artboardRect)) {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+
+            function collectSymbolTextsByArtboard(options, scopeMode) {
+                var results = [];
+                var scopedItems = collectScopedSymbolItems(options, scopeMode);
+
+                collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
+                    var openParen = (lang === 'ja') ? '〈' : ' «';
+                    var closeParen = (lang === 'ja') ? '〉' : '»';
+                    var prefix = (lang === 'ja') ? 'シンボル：' : 'Symbol: ';
+                    results.push({
+                        artboardIndex: artboardIndex,
+                        text: text + openParen + prefix + symbolName + closeParen
+                    });
                 });
-                groupIndexMap[activeArtboardIndex] = 0;
-            } else {
-                for (i = 0; i < doc.artboards.length; i++) {
-                    groupIndexMap[i] = groups.length;
+
+                return results;
+            }
+
+            function collectExportTextFrames(options, scopeMode) {
+                return collectFramesByScope(scopeMode, options);
+            }
+
+            function collectFontDisplayNamesFromFrames(frames) {
+                var fontMap = {};
+                var fontLines = [];
+                var i;
+                var m;
+                var triples;
+                var key;
+                var line;
+
+                for (i = 0; i < frames.length; i++) {
+                    triples = getTextFrameFontTriples(frames[i]);
+                    for (m = 0; m < triples.length; m++) {
+                        key = triples[m].psName + '\t' + triples[m].familyName + '\t' + triples[m].styleName;
+                        line = triples[m].psName + '  ' + triples[m].familyName + (triples[m].styleName ? ('  ' + triples[m].styleName) : '');
+                        if (!fontMap[key]) {
+                            fontMap[key] = true;
+                            fontLines.push(line);
+                        }
+                    }
+                }
+
+                fontLines.sort();
+                return fontLines;
+            }
+
+            function collectArtboardGroupedFontFrames(options, scopeMode) {
+                var groups = [];
+                var outsideGroup = {
+                    name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
+                    frames: []
+                };
+                var i;
+                var frames = collectExportTextFrames(options, scopeMode);
+                var abIndex;
+                var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
+                var groupIndexMap = {};
+
+                if (scopeMode === 'current') {
                     groups.push({
-                        name: getArtboardDisplayName(i),
+                        name: getArtboardDisplayName(activeArtboardIndex),
                         frames: []
                     });
-                }
-            }
-
-            for (i = 0; i < frames.length; i++) {
-                abIndex = getItemArtboardIndex(frames[i]);
-                if (scopeMode === 'current') {
-                    if (abIndex === activeArtboardIndex) {
-                        groups[groupIndexMap[activeArtboardIndex]].frames.push(frames[i]);
-                    }
-                } else if (scopeMode === 'allArtboards') {
-                    if (abIndex >= 0) {
-                        groups[groupIndexMap[abIndex]].frames.push(frames[i]);
-                    }
+                    groupIndexMap[activeArtboardIndex] = 0;
                 } else {
-                    if (abIndex >= 0) {
-                        groups[groupIndexMap[abIndex]].frames.push(frames[i]);
-                    } else {
-                        outsideGroup.frames.push(frames[i]);
+                    for (i = 0; i < doc.artboards.length; i++) {
+                        groupIndexMap[i] = groups.length;
+                        groups.push({
+                            name: getArtboardDisplayName(i),
+                            frames: []
+                        });
                     }
                 }
+
+                for (i = 0; i < frames.length; i++) {
+                    abIndex = getItemArtboardIndex(frames[i]);
+                    if (scopeMode === 'current') {
+                        if (abIndex === activeArtboardIndex) {
+                            groups[groupIndexMap[activeArtboardIndex]].frames.push(frames[i]);
+                        }
+                    } else if (scopeMode === 'allArtboards') {
+                        if (abIndex >= 0) {
+                            groups[groupIndexMap[abIndex]].frames.push(frames[i]);
+                        }
+                    } else {
+                        if (abIndex >= 0) {
+                            groups[groupIndexMap[abIndex]].frames.push(frames[i]);
+                        } else {
+                            outsideGroup.frames.push(frames[i]);
+                        }
+                    }
+                }
+
+                if (scopeMode === 'all' && outsideGroup.frames.length > 0) {
+                    groups.push(outsideGroup);
+                }
+                return groups;
             }
 
-            if (scopeMode === 'all' && outsideGroup.frames.length > 0) {
-                groups.push(outsideGroup);
+            function showExportOptionsDialog() {
+                var exportDlg = new Window('dialog', L('exportDialogTitle'));
+                var optionsPanel;
+                var cbExportText;
+                var cbExportFonts;
+                var cbOpenAfter;
+                var buttonRow;
+                var cancelButton;
+                var okButton;
+
+                exportDlg.orientation = 'column';
+                exportDlg.alignChildren = ['fill', 'top'];
+
+                optionsPanel = exportDlg.add('panel', undefined, L('exportDialogTitle'));
+                optionsPanel.orientation = 'column';
+                optionsPanel.alignChildren = ['left', 'top'];
+                optionsPanel.margins = [15, 20, 15, 10];
+
+                cbExportText = optionsPanel.add('checkbox', undefined, L('exportIncludeText'));
+                cbExportText.value = true;
+
+                cbExportFonts = optionsPanel.add('checkbox', undefined, L('exportIncludeFonts'));
+                cbExportFonts.value = true;
+
+                // Move "Open file after export" checkbox below the panel
+                // (see below)
+
+                // Add "Open file after export" checkbox below the panel
+                cbOpenAfter = exportDlg.add('checkbox', undefined, L('exportOpenAfter'));
+                cbOpenAfter.value = true;
+
+                buttonRow = exportDlg.add('group');
+                buttonRow.orientation = 'row';
+                buttonRow.alignChildren = ['center', 'center'];
+                buttonRow.alignment = ['center', 'center'];
+
+                cancelButton = buttonRow.add('button', undefined, L('cancel'), { name: 'cancel' });
+                okButton = buttonRow.add('button', undefined, L('ok'), { name: 'ok' });
+                exportDlg.defaultElement = okButton;
+
+                if (exportDlg.show() !== 1) {
+                    return null;
+                }
+
+                return {
+                    includeText: cbExportText.value,
+                    includeFonts: cbExportFonts.value,
+                    openAfter: cbOpenAfter.value
+                };
             }
-            return groups;
-        }
 
-        function showExportOptionsDialog() {
-            var exportDlg = new Window('dialog', L('exportDialogTitle'));
-            var optionsPanel;
-            var cbExportText;
-            var cbExportFonts;
-            var cbOpenAfter;
-            var buttonRow;
-            var cancelButton;
-            var okButton;
-
-            exportDlg.orientation = 'column';
-            exportDlg.alignChildren = ['fill', 'top'];
-
-            optionsPanel = exportDlg.add('panel', undefined, L('exportDialogTitle'));
-            optionsPanel.orientation = 'column';
-            optionsPanel.alignChildren = ['left', 'top'];
-            optionsPanel.margins = [15, 20, 15, 10];
-
-            cbExportText = optionsPanel.add('checkbox', undefined, L('exportIncludeText'));
-            cbExportText.value = true;
-
-            cbExportFonts = optionsPanel.add('checkbox', undefined, L('exportIncludeFonts'));
-            cbExportFonts.value = true;
-
-            // Move "Open file after export" checkbox below the panel
-            // (see below)
-
-            // Add "Open file after export" checkbox below the panel
-            cbOpenAfter = exportDlg.add('checkbox', undefined, L('exportOpenAfter'));
-            cbOpenAfter.value = true;
-
-            buttonRow = exportDlg.add('group');
-            buttonRow.orientation = 'row';
-            buttonRow.alignChildren = ['center', 'center'];
-            buttonRow.alignment = ['center', 'center'];
-
-            cancelButton = buttonRow.add('button', undefined, L('cancel'), { name: 'cancel' });
-            okButton = buttonRow.add('button', undefined, L('ok'), { name: 'ok' });
-            exportDlg.defaultElement = okButton;
-
-            if (exportDlg.show() !== 1) {
-                return null;
-            }
-
-            return {
-                includeText: cbExportText.value,
-                includeFonts: cbExportFonts.value,
-                openAfter: cbOpenAfter.value
-            };
-        }
-
-        function collectArtboardGroupedExportData(options, scopeMode) {
-            var groups = [];
-            var outsideGroup = {
-                name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
-                texts: []
-            };
-            var i;
-            var frames = collectExportTextFrames(options, scopeMode);
-            var symbols = collectSymbolTextsByArtboard(options, scopeMode);
-            var abIndex;
-            var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
-            var groupIndexMap = {};
-
-            if (scopeMode === 'current') {
-                groups.push({
-                    name: getArtboardDisplayName(activeArtboardIndex),
+            function collectArtboardGroupedExportData(options, scopeMode) {
+                var groups = [];
+                var outsideGroup = {
+                    name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
                     texts: []
-                });
-                groupIndexMap[activeArtboardIndex] = 0;
-            } else {
-                for (i = 0; i < doc.artboards.length; i++) {
-                    groupIndexMap[i] = groups.length;
+                };
+                var i;
+                var frames = collectExportTextFrames(options, scopeMode);
+                var symbols = collectSymbolTextsByArtboard(options, scopeMode);
+                var abIndex;
+                var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
+                var groupIndexMap = {};
+
+                if (scopeMode === 'current') {
                     groups.push({
-                        name: getArtboardDisplayName(i),
+                        name: getArtboardDisplayName(activeArtboardIndex),
                         texts: []
                     });
-                }
-            }
-
-            for (i = 0; i < frames.length; i++) {
-                abIndex = getItemArtboardIndex(frames[i]);
-                if (scopeMode === 'current') {
-                    if (abIndex === activeArtboardIndex) {
-                        groups[groupIndexMap[activeArtboardIndex]].texts.push(frames[i].contents);
-                    }
-                } else if (scopeMode === 'allArtboards') {
-                    if (abIndex >= 0) {
-                        groups[groupIndexMap[abIndex]].texts.push(frames[i].contents);
-                    }
+                    groupIndexMap[activeArtboardIndex] = 0;
                 } else {
-                    if (abIndex >= 0) {
-                        groups[groupIndexMap[abIndex]].texts.push(frames[i].contents);
-                    } else {
-                        outsideGroup.texts.push(frames[i].contents);
+                    for (i = 0; i < doc.artboards.length; i++) {
+                        groupIndexMap[i] = groups.length;
+                        groups.push({
+                            name: getArtboardDisplayName(i),
+                            texts: []
+                        });
                     }
                 }
-            }
 
-            for (i = 0; i < symbols.length; i++) {
-                abIndex = symbols[i].artboardIndex;
-                if (scopeMode === 'current') {
-                    if (abIndex === activeArtboardIndex) {
-                        groups[groupIndexMap[activeArtboardIndex]].texts.push(symbols[i].text);
-                    }
-                } else if (scopeMode === 'allArtboards') {
-                    if (abIndex >= 0) {
-                        groups[groupIndexMap[abIndex]].texts.push(symbols[i].text);
-                    }
-                } else {
-                    if (abIndex >= 0) {
-                        groups[groupIndexMap[abIndex]].texts.push(symbols[i].text);
+                for (i = 0; i < frames.length; i++) {
+                    abIndex = getItemArtboardIndex(frames[i]);
+                    if (scopeMode === 'current') {
+                        if (abIndex === activeArtboardIndex) {
+                            groups[groupIndexMap[activeArtboardIndex]].texts.push(frames[i].contents);
+                        }
+                    } else if (scopeMode === 'allArtboards') {
+                        if (abIndex >= 0) {
+                            groups[groupIndexMap[abIndex]].texts.push(frames[i].contents);
+                        }
                     } else {
-                        outsideGroup.texts.push(symbols[i].text);
+                        if (abIndex >= 0) {
+                            groups[groupIndexMap[abIndex]].texts.push(frames[i].contents);
+                        } else {
+                            outsideGroup.texts.push(frames[i].contents);
+                        }
                     }
                 }
+
+                for (i = 0; i < symbols.length; i++) {
+                    abIndex = symbols[i].artboardIndex;
+                    if (scopeMode === 'current') {
+                        if (abIndex === activeArtboardIndex) {
+                            groups[groupIndexMap[activeArtboardIndex]].texts.push(symbols[i].text);
+                        }
+                    } else if (scopeMode === 'allArtboards') {
+                        if (abIndex >= 0) {
+                            groups[groupIndexMap[abIndex]].texts.push(symbols[i].text);
+                        }
+                    } else {
+                        if (abIndex >= 0) {
+                            groups[groupIndexMap[abIndex]].texts.push(symbols[i].text);
+                        } else {
+                            outsideGroup.texts.push(symbols[i].text);
+                        }
+                    }
+                }
+
+                if (scopeMode === 'all' && outsideGroup.texts.length > 0) {
+                    groups.push(outsideGroup);
+                }
+                return groups;
             }
 
-            if (scopeMode === 'all' && outsideGroup.texts.length > 0) {
-                groups.push(outsideGroup);
-            }
-            return groups;
-        }
-
-        /* 初回収集 / Initial collection */
-        updateList();
-        refreshSymbolList(false);
-        refreshInfoTabs();
-
-        /* ラジオボタン・チェックボックス切り替え時に更新 / Refresh when radio buttons or checkboxes change */
-        rbArtboard.onClick = function () {
-            cbOutside.enabled = false;
-            cbOutside.value = false;
+            /* 初回収集 / Initial collection */
             updateList();
-            refreshSymbolList(true);
-        };
-        rbAll.onClick = function () {
-            cbOutside.enabled = true;
-            updateList();
-            refreshSymbolList(true);
-        };
-        cbDedup.onClick = function () { updateList(); };
+            refreshSymbolList(false);
+            refreshInfoTabs();
 
-        cbOutside.onClick = function () { updateList(); refreshSymbolList(true); };
-        cbSkipComment.onClick = function () { updateList(); refreshSymbolList(true); };
-        cbIncludeLocked.onClick = function () { updateList(); refreshSymbolList(true); };
-        cbIncludeHidden.onClick = function () { updateList(); refreshSymbolList(true); };
-        rbSortNone.onClick = function () { updateList(); };
-        rbSortXY.onClick = function () { updateList(); };
-        rbSortABC.onClick = function () { updateList(); };
-        rbLayerScopeAll.onClick = function () { refreshInfoTabs(); };
-        rbLayerScopeTop.onClick = function () { refreshInfoTabs(); };
+            /* ラジオボタン・チェックボックス切り替え時に更新 / Refresh when radio buttons or checkboxes change */
+            rbArtboard.onClick = function () {
+                cbOutside.enabled = false;
+                cbOutside.value = false;
+                updateList();
+                refreshSymbolList(true);
+            };
+            rbAll.onClick = function () {
+                cbOutside.enabled = true;
+                updateList();
+                refreshSymbolList(true);
+            };
+            cbDedup.onClick = function () { updateList(); };
 
-        rbArtboardScopeNumbered.onClick = function () { refreshInfoTabs(); };
-        rbArtboardScopeRaw.onClick = function () { refreshInfoTabs(); };
+            cbOutside.onClick = function () { updateList(); refreshSymbolList(true); };
+            cbSkipComment.onClick = function () { updateList(); refreshSymbolList(true); };
+            cbIncludeLocked.onClick = function () { updateList(); refreshSymbolList(true); };
+            cbIncludeHidden.onClick = function () { updateList(); refreshSymbolList(true); };
+            rbSortNone.onClick = function () { updateList(); };
+            rbSortXY.onClick = function () { updateList(); };
+            rbSortABC.onClick = function () { updateList(); };
+            rbLayerScopeAll.onClick = function () { refreshInfoTabs(); };
+            rbLayerScopeTop.onClick = function () { refreshInfoTabs(); };
 
-        /* キャンセルボタンで閉じる / Close the dialog when Cancel is pressed */
-        cancelBtn.onClick = function () {
-            dlg.close();
-        };
+            rbArtboardScopeNumbered.onClick = function () { refreshInfoTabs(); };
+            rbArtboardScopeRaw.onClick = function () { refreshInfoTabs(); };
 
-        /* OKボタンで現在の編集を反映して閉じる / Apply the current edit and close when OK is pressed */
-        closeBtn.onClick = function () {
-            if (isUndo && isPreview.value) {
-                app.undo();
+            /* キャンセルボタンで閉じる / Close the dialog when Cancel is pressed */
+            cancelBtn.onClick = function () {
+                dlg.close();
+            };
+
+            /* OKボタンで現在の編集を反映して閉じる / Apply the current edit and close when OK is pressed */
+            closeBtn.onClick = function () {
+                if (isUndo && isPreview.value) {
+                    app.undo();
+                    isUndo = false;
+                }
+                applyCurrentEdit();
+                dlg.close();
+            };
+
+            /* ダイアログを閉じるとき、プレビュー中ならundoで元に戻す / Undo the preview when the dialog closes */
+            dlg.onClose = function () {
+                try {
+                    if (isUndo) app.undo();
+                    isUndo = false;
+                } catch (err) { }
+            };
+
+            dlg.show();
+        } finally {
+            if (isUndo) {
+                try {
+                    app.undo();
+                } catch (err) { }
                 isUndo = false;
             }
-            applyCurrentEdit();
-            dlg.close();
-        };
-
-        /* ダイアログを閉じるとき、プレビュー中ならundoで元に戻す / Undo the preview when the dialog closes */
-        dlg.onClose = function () {
-            try {
-                if (isUndo) app.undo();
-                isUndo = false;
-            } catch (err) { }
-        };
-
-        dlg.show();
-    } finally {
-        if (isUndo) {
-            try {
-                app.undo();
-            } catch (err) { }
-            isUndo = false;
         }
     }
-}
 
-main();
+    main();
+
+})();

@@ -35,112 +35,116 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne38eeee5abc8?nt=_30841
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-function getCurrentLang() {
-    // 言語を取得し、"ja" または "en" で返す / Get language code as "ja" or "en"
-    var lang = app.locale || $.locale || "en";
-    if (lang.indexOf("ja") === 0) {
-        return "ja";
-    } else {
-        return "en";
+(function () {
+
+    function getCurrentLang() {
+        // 言語を取得し、"ja" または "en" で返す / Get language code as "ja" or "en"
+        var lang = app.locale || $.locale || "en";
+        if (lang.indexOf("ja") === 0) {
+            return "ja";
+        } else {
+            return "en";
+        }
     }
-}
 
-var LANG = getCurrentLang();
+    var LANG = getCurrentLang();
 
-var LABELS = {
-    fileSelect: {
-        ja: "置換するファイルを選択してください",
-        en: "Please select a file to replace"
-    },
-    cancelSelect: {
-        ja: "ファイルの選択がキャンセルされました。",
-        en: "File selection was cancelled."
-    },
-    notPlacedItem: {
-        ja: "選択されたアイテムは配置画像ではありません。",
-        en: "The selected item is not a placed image."
-    },
-    noSelection: {
-        ja: "アイテムが選択されていません。",
-        en: "No item is selected."
-    },
-    noDocument: {
-        ja: "ドキュメントが開かれていません。",
-        en: "No document is open."
-    },
-    selectOneOnly: {
-        ja: "1つだけ選択してください。",
-        en: "Please select only one item."
-    }
-};
+    var LABELS = {
+        fileSelect: {
+            ja: "置換するファイルを選択してください",
+            en: "Please select a file to replace"
+        },
+        cancelSelect: {
+            ja: "ファイルの選択がキャンセルされました。",
+            en: "File selection was cancelled."
+        },
+        notPlacedItem: {
+            ja: "選択されたアイテムは配置画像ではありません。",
+            en: "The selected item is not a placed image."
+        },
+        noSelection: {
+            ja: "アイテムが選択されていません。",
+            en: "No item is selected."
+        },
+        noDocument: {
+            ja: "ドキュメントが開かれていません。",
+            en: "No document is open."
+        },
+        selectOneOnly: {
+            ja: "1つだけ選択してください。",
+            en: "Please select only one item."
+        }
+    };
 
-function main() {
-    /* ドキュメントが開かれているか確認 / Check if any document is open */
-    if (app.documents.length > 0) {
-        var doc = app.activeDocument;
-        
-        /* アイテムが選択されているか確認 / Check if any item is selected */
-        if (doc.selection.length > 0) {
-            if (doc.selection.length > 1) {
-                alert(LABELS.selectOneOnly[LANG]);
-                return;
-            }
-            var selectedItem = doc.selection[0];
-            
-            /* 選択されたアイテムが配置画像か確認 / Check if the selected item is a placed image */
-            if (selectedItem.typename == "PlacedItem") {
-                if (!selectedItem.file || !selectedItem.file.name) {
-                    alert("リンク画像のファイル名が取得できません。");
+    function main() {
+        /* ドキュメントが開かれているか確認 / Check if any document is open */
+        if (app.documents.length > 0) {
+            var doc = app.activeDocument;
+
+            /* アイテムが選択されているか確認 / Check if any item is selected */
+            if (doc.selection.length > 0) {
+                if (doc.selection.length > 1) {
+                    alert(LABELS.selectOneOnly[LANG]);
                     return;
                 }
-                /* ファイル名を取得 / Get file name */
-                var fileName = selectedItem.file.name;
+                var selectedItem = doc.selection[0];
 
-                /* 同名のリンク画像を収集 / Collect all placed items with the same file name */
-                var linkedItems = doc.placedItems;
-                var selectedItems = [];
-                for (var i = 0; i < linkedItems.length; i++) {
-                    if (linkedItems[i].file.name.toLowerCase() == fileName.toLowerCase()) {
-                        selectedItems.push(linkedItems[i]);
+                /* 選択されたアイテムが配置画像か確認 / Check if the selected item is a placed image */
+                if (selectedItem.typename == "PlacedItem") {
+                    if (!selectedItem.file || !selectedItem.file.name) {
+                        alert("リンク画像のファイル名が取得できません。");
+                        return;
                     }
-                }
+                    /* ファイル名を取得 / Get file name */
+                    var fileName = selectedItem.file.name;
 
-                /* ユーザーに置換用ファイルを選択させる / Let user select replacement file */
-                var fileToReplace = File.openDialog(LABELS.fileSelect[LANG]);
-                
-                if (fileToReplace != null) {
-                    /* すべての対象画像を新しいファイルに置換 / Replace each matched image with selected file */
-                    var replacedCount = replaceLinkedItems(selectedItems, fileToReplace);
-                    alert(replacedCount + " 件のリンク画像を置換しました。");
-                    /* 選択を解除 / Clear selection */
-                    doc.selection = null;
+                    /* 同名のリンク画像を収集 / Collect all placed items with the same file name */
+                    var linkedItems = doc.placedItems;
+                    var selectedItems = [];
+                    for (var i = 0; i < linkedItems.length; i++) {
+                        if (linkedItems[i].file.name.toLowerCase() == fileName.toLowerCase()) {
+                            selectedItems.push(linkedItems[i]);
+                        }
+                    }
+
+                    /* ユーザーに置換用ファイルを選択させる / Let user select replacement file */
+                    var fileToReplace = File.openDialog(LABELS.fileSelect[LANG]);
+
+                    if (fileToReplace != null) {
+                        /* すべての対象画像を新しいファイルに置換 / Replace each matched image with selected file */
+                        var replacedCount = replaceLinkedItems(selectedItems, fileToReplace);
+                        alert(replacedCount + " 件のリンク画像を置換しました。");
+                        /* 選択を解除 / Clear selection */
+                        doc.selection = null;
+                    } else {
+                        alert(LABELS.cancelSelect[LANG]);
+                    }
                 } else {
-                    alert(LABELS.cancelSelect[LANG]);
+                    alert(LABELS.notPlacedItem[LANG]);
                 }
             } else {
-                alert(LABELS.notPlacedItem[LANG]);
+                alert(LABELS.noSelection[LANG]);
             }
         } else {
-            alert(LABELS.noSelection[LANG]);
-        }
-    } else {
-        alert(LABELS.noDocument[LANG]);
-    }
-}
-
-/**
- * 指定したリンクアイテム群を新しいファイルで置換する
- * Replace each linked item with the new file
- */
-function replaceLinkedItems(items, newFile) {
-    var count = 0;
-    for (var i = 0; i < items.length; i++) {
-        if (items[i].file && items[i].file.fsName !== newFile.fsName) {
-            items[i].file = newFile;
-            count++;
+            alert(LABELS.noDocument[LANG]);
         }
     }
-    return count;
-}
 
-main();
+    /**
+     * 指定したリンクアイテム群を新しいファイルで置換する
+     * Replace each linked item with the new file
+     */
+    function replaceLinkedItems(items, newFile) {
+        var count = 0;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].file && items[i].file.fsName !== newFile.fsName) {
+                items[i].file = newFile;
+                count++;
+            }
+        }
+        return count;
+    }
+
+    main();
+
+})();

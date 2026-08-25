@@ -1398,6 +1398,13 @@ function quoteString(value) {
         .replace(/\n/g, "\\n") + '"';
 }
 
+/**
+ * BridgeTalkへ同梱するソースからコメントを取り除く
+ *
+ * 文字列リテラルの中身は保持し、ブロックコメントとJSDocだけを落とす。
+ * @param {string} source - 対象のソース文字列
+ * @returns {string} コメントを取り除いたソース
+ */
 function stripWorkerComments(source) {
     var output = "";
     var quoteCharacter = null;
@@ -1630,6 +1637,12 @@ function getIconColors() {
  */
 function dimIconColors(colors) {
     var towardBg = 0.6; /* 0=そのまま / 1=背景色 / blend factor toward background */
+    /**
+     * カラーを背景色の方向へ混ぜて、淡くした色を返す
+     * @param {Array<number>} color - 元のカラー [r, g, b]
+     * @param {Array<number>} background - 背景のカラー [r, g, b]
+     * @returns {Array<number>} 混色した [r, g, b, a]
+     */
     function blendTowardBackground(color, background) {
         return [
             color[0] + (background[0] - color[0]) * towardBg,
@@ -1816,6 +1829,12 @@ function setupPanel(panel, spacing) {
 }
 
 /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
+/**
+ * ボタンの高さを指定ピクセルぶん詰める
+ * @param {Button} button - 対象のボタン
+ * @param {number} px - 詰める量（px）
+ * @returns {void}
+ */
 function trimButtonHeight(button, px) {
     try {
         button.size = [button.size.width, button.size.height - px];
@@ -2092,6 +2111,11 @@ function showPalette() {
     selectToolButton.alignment = "left";
 
     /* isBusy ガード付きで委譲を実行する / guarded delegate */
+    /**
+     * 処理中の多重実行を防ぎながら、渡した処理を実行する
+     * @param {Function} produceStatus - 実行する処理
+     * @returns {void}
+     */
     function runExclusive(produceStatus) {
         if (isBusy) { return; }
         isBusy = true;
@@ -2107,6 +2131,13 @@ function showPalette() {
      * B 複合シェイプ → ダイナミックアクション（複合シェイプのまま）
      * A 実行 / C 効果 → XML ライブ効果（value は Adobe Pathfinder の Command 番号と一致）。A は拡張＋グループ解除、C はライブのまま
      * ※ ダイナミックアクションの複合シェイプは expandStyle で綺麗に焼き込めないため A も XML を使う
+     */
+    /**
+     * 形状モードのボタン用に、クリックハンドラーを生成する
+     *
+     * Option＋クリックのときは複合シェイプとして適用する。
+     * @param {Object} mode - 形状モードの定義
+     * @returns {Function} onClick に割り当てるハンドラー
      */
     function makeApplyHandler(mode) {
         return function () {
@@ -2129,6 +2160,13 @@ function showPalette() {
 
     /* mousedown で Option（alt）状態をボタンに記録する（onClick は event を持たない）
      * record the Option (alt) state on mousedown; onClick has no event to read it from */
+    /**
+     * mousedown時のOptionキー状態をボタンへ記録するハンドラーを生成する
+     *
+     * onClick は event を持たないため、直前の mousedown で状態を控えておく。
+     * @param {Button} button - 状態を記録する対象のボタン
+     * @returns {Function} mousedown に割り当てるハンドラー
+     */
     function makeAltRecorder(button) {
         return function (mouseEvent) {
             button.__altPressed = (mouseEvent.altKey === true);
@@ -2147,6 +2185,11 @@ function showPalette() {
      * C 効果 → ライブ効果のまま / A 実行 → 拡張＋グループ解除で実際にパスへ
      * Option+クリック → 出力モードに関係なく効果として適用（＝モード C と同じ）
      * ※ B（複合シェイプ）選択時は下段が無効化されクリックできない。removeUnpainted は分割・アウトラインのみ有効
+     */
+    /**
+     * パスファインダーのボタン用に、クリックハンドラーを生成する
+     * @param {Object} pathfinder - パスファインダー操作の定義
+     * @returns {Function} onClick に割り当てるハンドラー
      */
     function makePathfinderHandler(pathfinder) {
         return function () {
@@ -2181,6 +2224,10 @@ function showPalette() {
     unifyIconCellWidths(pathfinderButtons);
 
     /* B（複合シェイプ）は形状モード専用 → 選択時は下段パスファインダーを無効化 / disable Pathfinders under mode B */
+    /**
+     * 出力モードに応じて、パスファインダーのボタンの有効／無効を更新する
+     * @returns {void}
+     */
     function updatePathfinderEnabled() {
         var enabled = !modeCompoundRadio.value;
         for (var buttonIndex = 0; buttonIndex < pathfinderButtons.length; buttonIndex++) {
@@ -2217,6 +2264,11 @@ function showPalette() {
      * ボタン上での mousemove（Option 状態を含む）と、ウィンドウの keydown/keyup で更新する
      * ※ macOS の ScriptUI では修飾キー単独の keydown が発火しないことがあるため、ボタンにマウスを重ねる mousemove を主トリガにする
      * swap the label to Release while Option is held (cosmetic; the action is decided in onClick) */
+    /**
+     * Optionキーの状態に応じて、拡張ボタンのラベルを切り替える
+     * @param {boolean} withOption - Optionキーが押されているか
+     * @returns {void}
+     */
     function updateExpandButtonLabel(withOption) {
         expandButton.text = withOption
             ? getLocalizedText("button.expandRelease")
@@ -2314,6 +2366,11 @@ function showPalette() {
     };
 
     /* 出力モードを選択し、パスファインダーの有効状態を更新する / select an output mode and refresh Pathfinder state */
+    /**
+     * 出力モードのラジオボタンを排他的に切り替える
+     * @param {RadioButton} targetRadio - 選択状態にするラジオボタン
+     * @returns {void}
+     */
     function selectOutputMode(targetRadio) {
         modeExecuteRadio.value = (targetRadio === modeExecuteRadio);
         modeCompoundRadio.value = (targetRadio === modeCompoundRadio);

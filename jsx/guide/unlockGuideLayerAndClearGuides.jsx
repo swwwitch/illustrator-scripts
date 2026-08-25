@@ -36,59 +36,63 @@ var SCRIPT_UPDATED  = "2025-07-16";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/* 「_guide」レイヤーがあれば、そのロックを解除して、ガイドを解除後、「UnlockedGuides」レイヤーに移動し再ロックする / If a "_guide" layer exists, unlock it, remove guides, move to "UnlockedGuides" layer, and relock */
-function unlockGuideLayerAndClearGuides() {
-    var doc = app.activeDocument;
-    var guideLayer = null;
-    for (var i = 0; i < doc.layers.length; i++) {
-        if (doc.layers[i].name == "_guide") {
-            guideLayer = doc.layers[i];
-            break;
-        }
-    }
-    if (guideLayer) {
-        guideLayer.locked = false; /* ロックを解除 / Unlock the layer */
+(function () {
 
-        /* 「UnlockedGuides」レイヤーを探す / Find "UnlockedGuides" layer */
-        var newLayer = null;
+    /* 「_guide」レイヤーがあれば、そのロックを解除して、ガイドを解除後、「UnlockedGuides」レイヤーに移動し再ロックする / If a "_guide" layer exists, unlock it, remove guides, move to "UnlockedGuides" layer, and relock */
+    function unlockGuideLayerAndClearGuides() {
+        var doc = app.activeDocument;
+        var guideLayer = null;
         for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name == "UnlockedGuides") {
-                newLayer = doc.layers[i];
-                /* ロック解除が必要なら解除 / Unlock if necessary */
-                if (newLayer.locked) {
-                    newLayer.locked = false; /* ロックを解除 / Unlock the layer */
-                }
+            if (doc.layers[i].name == "_guide") {
+                guideLayer = doc.layers[i];
                 break;
             }
         }
-        /* 見つからなければ作成 / Create if not found */
-        if (!newLayer) {
-            newLayer = doc.layers.add();
-            newLayer.name = "UnlockedGuides";
-        }
+        if (guideLayer) {
+            guideLayer.locked = false; /* ロックを解除 / Unlock the layer */
 
-        var items = guideLayer.pageItems;
-        for (var j = items.length - 1; j >= 0; j--) {
-            /* ガイドフラグがあれば解除 / Remove guide flag if present */
-            if (items[j].guides) {
-                items[j].guides = false; /* ガイドを解除 / Remove guide flag */
+            /* 「UnlockedGuides」レイヤーを探す / Find "UnlockedGuides" layer */
+            var newLayer = null;
+            for (var i = 0; i < doc.layers.length; i++) {
+                if (doc.layers[i].name == "UnlockedGuides") {
+                    newLayer = doc.layers[i];
+                    /* ロック解除が必要なら解除 / Unlock if necessary */
+                    if (newLayer.locked) {
+                        newLayer.locked = false; /* ロックを解除 / Unlock the layer */
+                    }
+                    break;
+                }
             }
-            /* 外観設定：塗りなし、線はK100、1pt / Set appearance: no fill, stroke K100, 1pt */
-            items[j].filled = false;
-            items[j].stroked = true;
-            items[j].strokeColor = new GrayColor();
-            items[j].strokeColor.gray = 100;
-            items[j].strokeWidth = 1;
-            /* 「UnlockedGuides」レイヤーに移動 / Move to "UnlockedGuides" layer */
-            items[j].move(newLayer, ElementPlacement.PLACEATBEGINNING);
+            /* 見つからなければ作成 / Create if not found */
+            if (!newLayer) {
+                newLayer = doc.layers.add();
+                newLayer.name = "UnlockedGuides";
+            }
+
+            var items = guideLayer.pageItems;
+            for (var j = items.length - 1; j >= 0; j--) {
+                /* ガイドフラグがあれば解除 / Remove guide flag if present */
+                if (items[j].guides) {
+                    items[j].guides = false; /* ガイドを解除 / Remove guide flag */
+                }
+                /* 外観設定：塗りなし、線はK100、1pt / Set appearance: no fill, stroke K100, 1pt */
+                items[j].filled = false;
+                items[j].stroked = true;
+                items[j].strokeColor = new GrayColor();
+                items[j].strokeColor.gray = 100;
+                items[j].strokeWidth = 1;
+                /* 「UnlockedGuides」レイヤーに移動 / Move to "UnlockedGuides" layer */
+                items[j].move(newLayer, ElementPlacement.PLACEATBEGINNING);
+            }
+
+            guideLayer.locked = true; /* 再ロック / Relock the layer */
         }
-
-        guideLayer.locked = true; /* 再ロック / Relock the layer */
     }
-}
 
-function main() {
-    unlockGuideLayerAndClearGuides();
-}
+    function main() {
+        unlockGuideLayerAndClearGuides();
+    }
 
-main();
+    main();
+
+})();

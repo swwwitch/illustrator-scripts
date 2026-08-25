@@ -31,5 +31,9 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-app.executeMenuCommand('TrimView');
-app.executeMenuCommand('showguide');
+(function () {
+
+    app.executeMenuCommand('TrimView');
+    app.executeMenuCommand('showguide');
+
+})();

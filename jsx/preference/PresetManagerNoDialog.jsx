@@ -34,121 +34,125 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/* 環境設定を変更 */
-function main() {
-    // 詳細なツールヒントを表示
-    // true=表示, false=非表示
-    // app.preferences.setBooleanPreference("showRichToolTips", true); // default
-    app.preferences.setBooleanPreference("showRichToolTips", false);
+(function () {
 
-    // ドキュメントを開いていないときにホーム画面を表示
-    // true=表示, false=非表示
-    // app.preferences.setBooleanPreference("Hello/ShowHomeScreenWS", true); // default
-    app.preferences.setBooleanPreference("Hello/ShowHomeScreenWS", false);
+    /* 環境設定を変更 */
+    function main() {
+        // 詳細なツールヒントを表示
+        // true=表示, false=非表示
+        // app.preferences.setBooleanPreference("showRichToolTips", true); // default
+        app.preferences.setBooleanPreference("showRichToolTips", false);
 
-    // 以前の「新規ドキュメント」インターフェイスを使用
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference("Hello/NewDoc", false); // default
-    app.preferences.setBooleanPreference("Hello/NewDoc", true);
+        // ドキュメントを開いていないときにホーム画面を表示
+        // true=表示, false=非表示
+        // app.preferences.setBooleanPreference("Hello/ShowHomeScreenWS", true); // default
+        app.preferences.setBooleanPreference("Hello/ShowHomeScreenWS", false);
 
-    // 裁ち落とし部分に「裁ち落としを印刷」生成AIボタンを表示
-    // true=表示, false=非表示
-    // app.preferences.setBooleanPreference("enablePrintBleedWidget", true); // default
-    app.preferences.setBooleanPreference("enablePrintBleedWidget", false);
+        // 以前の「新規ドキュメント」インターフェイスを使用
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("Hello/NewDoc", false); // default
+        app.preferences.setBooleanPreference("Hello/NewDoc", true);
 
-    /* ==============
-    選択・表示 / Selection and Display
-    */
+        // 裁ち落とし部分に「裁ち落としを印刷」生成AIボタンを表示
+        // true=表示, false=非表示
+        // app.preferences.setBooleanPreference("enablePrintBleedWidget", true); // default
+        app.preferences.setBooleanPreference("enablePrintBleedWidget", false);
 
-    // ロックまたは非表示オブジェクトをアートボードと一緒に移動
-    // true=移動可能, false=移動不可
-    // app.preferences.setBooleanPreference("moveLockedAndHiddenArt", false); // default
-    app.preferences.setBooleanPreference("moveLockedAndHiddenArt", true);
+        /* ==============
+        選択・表示 / Selection and Display
+        */
 
-    // 選択範囲へズーム
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference("zoomToSelection", true); // default
-    app.preferences.setBooleanPreference("zoomToSelection", false);
+        // ロックまたは非表示オブジェクトをアートボードと一緒に移動
+        // true=移動可能, false=移動不可
+        // app.preferences.setBooleanPreference("moveLockedAndHiddenArt", false); // default
+        app.preferences.setBooleanPreference("moveLockedAndHiddenArt", true);
 
-    /* ==============
-    テキスト / Text
-    */
+        // 選択範囲へズーム
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("zoomToSelection", true); // default
+        app.preferences.setBooleanPreference("zoomToSelection", false);
 
-    // 新規エリア内文字の自動サイズ調整
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference("text/autoSizing", false); // default
-    app.preferences.setBooleanPreference("text/autoSizing", true);
+        /* ==============
+        テキスト / Text
+        */
 
-    // 最近使用したフォントの表示数
-    // 0=非表示, 1以上=表示数
-    // app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", 10); // default
-    app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", 0);
+        // 新規エリア内文字の自動サイズ調整
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("text/autoSizing", false); // default
+        app.preferences.setBooleanPreference("text/autoSizing", true);
 
-    // 見つからない字形の保護を有効にする
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference("text/doFontLocking", true); // default
-    app.preferences.setBooleanPreference("text/doFontLocking", false);
+        // 最近使用したフォントの表示数
+        // 0=非表示, 1以上=表示数
+        // app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", 10); // default
+        app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", 0);
 
-    // 選択された文字の異体字を表示
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference("text/enableAlternateGlyph", true); // default
-    app.preferences.setBooleanPreference("text/enableAlternateGlyph", false);
+        // 見つからない字形の保護を有効にする
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("text/doFontLocking", true); // default
+        app.preferences.setBooleanPreference("text/doFontLocking", false);
 
-    /* ==============
-    UI / User Interface
-    */
+        // 選択された文字の異体字を表示
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("text/enableAlternateGlyph", true); // default
+        app.preferences.setBooleanPreference("text/enableAlternateGlyph", false);
 
-    // カンバスカラー
-    // 0=黒, 1=白
-    // app.preferences.setIntegerPreference("uiCanvasIsWhite", 0); // default
-    app.preferences.setIntegerPreference("uiCanvasIsWhite", 1);
+        /* ==============
+        UI / User Interface
+        */
 
-    /* ==============
-    パフォーマンス / Performance
-    */
+        // カンバスカラー
+        // 0=黒, 1=白
+        // app.preferences.setIntegerPreference("uiCanvasIsWhite", 0); // default
+        app.preferences.setIntegerPreference("uiCanvasIsWhite", 1);
 
-    // アニメーションズーム
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference("Performance/AnimZoom", true); // default
-    app.preferences.setBooleanPreference("Performance/AnimZoom", false);
+        /* ==============
+        パフォーマンス / Performance
+        */
 
-    // ヒストリー数
-    // app.preferences.setIntegerPreference("maximumUndoDepth", 100); // default
-    app.preferences.setIntegerPreference("maximumUndoDepth", 50);
+        // アニメーションズーム
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("Performance/AnimZoom", true); // default
+        app.preferences.setBooleanPreference("Performance/AnimZoom", false);
 
-    // リアルタイムの描画と編集
-    // true=有効, false=無効 
-    // app.preferences.setBooleanPreference("LiveEdit_State_Machine", true); // default
-    app.preferences.setBooleanPreference("LiveEdit_State_Machine", true);
+        // ヒストリー数
+        // app.preferences.setIntegerPreference("maximumUndoDepth", 100); // default
+        app.preferences.setIntegerPreference("maximumUndoDepth", 50);
 
-    /* ==============
-    ファイル管理 / File Management
-    */
+        // リアルタイムの描画と編集
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("LiveEdit_State_Machine", true); // default
+        app.preferences.setBooleanPreference("LiveEdit_State_Machine", true);
 
-    // Adobe Fontsを自動アクティベート
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference("AutoActivateMissingFont", false); // default
-    app.preferences.setBooleanPreference("AutoActivateMissingFont", true);
+        /* ==============
+        ファイル管理 / File Management
+        */
 
-    // ファイルの保存先：クラウド/コンピューター
-    // true=クラウド, false=コンピューター
-    // app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true); // default
-    app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false);
+        // Adobe Fontsを自動アクティベート
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference("AutoActivateMissingFont", false); // default
+        app.preferences.setBooleanPreference("AutoActivateMissingFont", true);
 
-    // コンテキストタスクバー
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference('ContextualTaskBarEnabled', true);
-    app.preferences.setBooleanPreference('ContextualTaskBarEnabled', false);
+        // ファイルの保存先：クラウド/コンピューター
+        // true=クラウド, false=コンピューター
+        // app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true); // default
+        app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false);
 
-    //  パスファインダー適用時のアラートをOFFに
-    // true=有効, false=無効
-    // app.preferences.setBooleanPreference('plugin/DontShowWarningAgain/ShowPathfinderGroupWarning', true);
-    app.preferences.setBooleanPreference('plugin/DontShowWarningAgain/ShowPathfinderGroupWarning', false);
+        // コンテキストタスクバー
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference('ContextualTaskBarEnabled', true);
+        app.preferences.setBooleanPreference('ContextualTaskBarEnabled', false);
 
-    //［シェイプ形成ツール］の［次のカラー］をオブジェクトに
-    // 再起動が必要
-    // app.preferences.setIntegerPreference("Planar/MergeTool/PaintFills", 1); // 1：スウォッチ
-    app.preferences.setIntegerPreference("Planar/MergeTool/PaintFills", 0); // 0：オブジェクト
-}
+        //  パスファインダー適用時のアラートをOFFに
+        // true=有効, false=無効
+        // app.preferences.setBooleanPreference('plugin/DontShowWarningAgain/ShowPathfinderGroupWarning', true);
+        app.preferences.setBooleanPreference('plugin/DontShowWarningAgain/ShowPathfinderGroupWarning', false);
 
-main();
+        //［シェイプ形成ツール］の［次のカラー］をオブジェクトに
+        // 再起動が必要
+        // app.preferences.setIntegerPreference("Planar/MergeTool/PaintFills", 1); // 1：スウォッチ
+        app.preferences.setIntegerPreference("Planar/MergeTool/PaintFills", 0); // 0：オブジェクト
+    }
+
+    main();
+
+})();

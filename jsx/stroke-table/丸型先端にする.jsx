@@ -32,32 +32,36 @@ var SCRIPT_UPDATED  = "2026-04-12";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/* パスアイテムに丸型線端を適用する再帰関数 / Apply a round cap to path items recursively */
-function applyProjectingCap(item) {
-    if (item.typename === "GroupItem") {
-        // グループの場合、子アイテムを再帰的に処理
-        for (var i = 0; i < item.pageItems.length; i++) {
-            applyProjectingCap(item.pageItems[i]);
-        }
-    } else if (item.typename === "PathItem" || item.typename === "CompoundPathItem") {
-        if (item.stroked && item.strokeCap !== StrokeCap.ROUNDENDCAP) {
-            item.strokeCap = StrokeCap.ROUNDENDCAP;
+(function () {
+
+    /* パスアイテムに丸型線端を適用する再帰関数 / Apply a round cap to path items recursively */
+    function applyProjectingCap(item) {
+        if (item.typename === "GroupItem") {
+            // グループの場合、子アイテムを再帰的に処理
+            for (var i = 0; i < item.pageItems.length; i++) {
+                applyProjectingCap(item.pageItems[i]);
+            }
+        } else if (item.typename === "PathItem" || item.typename === "CompoundPathItem") {
+            if (item.stroked && item.strokeCap !== StrokeCap.ROUNDENDCAP) {
+                item.strokeCap = StrokeCap.ROUNDENDCAP;
+            }
         }
     }
-}
 
-if (app.documents.length > 0) {
-    var doc = app.activeDocument;
-    var sel = doc.selection;
+    if (app.documents.length > 0) {
+        var doc = app.activeDocument;
+        var sel = doc.selection;
 
-    if (sel.length > 0) {
-        for (var i = 0; i < sel.length; i++) {
-            applyProjectingCap(sel[i]);
+        if (sel.length > 0) {
+            for (var i = 0; i < sel.length; i++) {
+                applyProjectingCap(sel[i]);
+            }
+            // alert("選択されたパスアイテムの線端を突出先端に設定しました。");
+        } else {
+            alert("パスアイテムが選択されていません。パスアイテムを選択してください。");
         }
-        // alert("選択されたパスアイテムの線端を突出先端に設定しました。");
     } else {
-        alert("パスアイテムが選択されていません。パスアイテムを選択してください。");
+        alert("ドキュメントが開かれていません。ドキュメントを開いてください。");
     }
-} else {
-    alert("ドキュメントが開かれていません。ドキュメントを開いてください。");
-}
+
+})();

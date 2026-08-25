@@ -36,49 +36,53 @@ var SCRIPT_UPDATED  = "2024-06-25";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-var TARGET_LAYER_NAME = "bg"; // 利用者が変更可能なレイヤー名 / User-editable target layer name
+(function () {
 
-/* メイン処理 / Main process */
-function main() {
-    var activeDoc = app.activeDocument;
-    var originalLayer = activeDoc.activeLayer; // 元のアクティブレイヤーを記憶
+    var TARGET_LAYER_NAME = "bg"; // 利用者が変更可能なレイヤー名 / User-editable target layer name
 
-    // 「bg」レイヤーが存在するか確認し、なければ作成し、元の可視状態を記憶
-    var bgLayer;
-    try {
-        bgLayer = activeDoc.layers.getByName(TARGET_LAYER_NAME);
-    } catch (e) {
-        bgLayer = activeDoc.layers.add();
-        bgLayer.name = TARGET_LAYER_NAME;
-    }
-    var wasHidden = !bgLayer.visible;
-    if (wasHidden) bgLayer.visible = true;
-    bgLayer.locked = false; // ロックを解除
+    /* メイン処理 / Main process */
+    function main() {
+        var activeDoc = app.activeDocument;
+        var originalLayer = activeDoc.activeLayer; // 元のアクティブレイヤーを記憶
 
-    var selectedItems;
-    try {
-        selectedItems = activeDoc.selection; // 現在の選択オブジェクトを取得
-    } catch (e) {
-        selectedItems = [];
-    }
+        // 「bg」レイヤーが存在するか確認し、なければ作成し、元の可視状態を記憶
+        var bgLayer;
+        try {
+            bgLayer = activeDoc.layers.getByName(TARGET_LAYER_NAME);
+        } catch (e) {
+            bgLayer = activeDoc.layers.add();
+            bgLayer.name = TARGET_LAYER_NAME;
+        }
+        var wasHidden = !bgLayer.visible;
+        if (wasHidden) bgLayer.visible = true;
+        bgLayer.locked = false; // ロックを解除
 
-    if (selectedItems && selectedItems.length > 0) {
-        // 選択オブジェクトを重ね順を維持したまま「bg」レイヤーに移動
-        for (var i = 0; i < selectedItems.length; i++) {
-            try {
-                selectedItems[i].move(bgLayer, ElementPlacement.PLACEATEND);
-            } catch (e) {
-                // エラーがあっても処理を続行
+        var selectedItems;
+        try {
+            selectedItems = activeDoc.selection; // 現在の選択オブジェクトを取得
+        } catch (e) {
+            selectedItems = [];
+        }
+
+        if (selectedItems && selectedItems.length > 0) {
+            // 選択オブジェクトを重ね順を維持したまま「bg」レイヤーに移動
+            for (var i = 0; i < selectedItems.length; i++) {
+                try {
+                    selectedItems[i].move(bgLayer, ElementPlacement.PLACEATEND);
+                } catch (e) {
+                    // エラーがあっても処理を続行
+                }
             }
         }
+
+        bgLayer.zOrder(ZOrderMethod.SENDTOBACK); // 「bg」レイヤー自体を最背面に
+        if (wasHidden) bgLayer.visible = false;
+        bgLayer.locked = true; // 「bg」レイヤーを再ロック
+
+        // 処理終了後、元のレイヤーを再アクティブ化
+        activeDoc.activeLayer = originalLayer;
     }
 
-    bgLayer.zOrder(ZOrderMethod.SENDTOBACK); // 「bg」レイヤー自体を最背面に
-    if (wasHidden) bgLayer.visible = false;
-    bgLayer.locked = true; // 「bg」レイヤーを再ロック
+    main();
 
-    // 処理終了後、元のレイヤーを再アクティブ化
-    activeDoc.activeLayer = originalLayer;
-}
-
-main();
+})();

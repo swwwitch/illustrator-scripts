@@ -165,41 +165,43 @@ var SCRIPT_UPDATED  = "2026-01-03";                   /* 更新日 / last update
 
     // --- アピアランス消去（クリップグループ対象） ---
     // executeMenuCommand("clearAppearance") では環境差が出ることがあるため、アクションを一時生成して実行
-    var CLEAR_APPEARANCE_ACTION_CODE = '''/version 3
-/name [ 20
-    5f5f7374746b335f617070656172616e63655f5f
-]
-/isOpen 1
-/actionCount 1
-/action-1 {
-    /name [ 5
-        636c656172
-    ]
-    /keyIndex 0
-    /colorIndex 0
-    /isOpen 0
-    /eventCount 1
-    /event-1 {
-        /useRulersIn1stQuadrant 0
-        /internalName (ai_plugin_appearance)
-        /localizedName [ 18
-            e382a2e38394e382a2e383a9e383b3e382b9
-        ]
-        /isOpen 0
-        /isOn 1
-        /hasDialog 0
-        /parameterCount 1
-        /parameter-1 {
-            /key 1835363957
-            /showInPalette 4294967295
-            /type (enumerated)
-            /name [ 27
-                e382a2e38394e382a2e383a9e383b3e382b9e38292e6b688e58ebb
-            ]
-            /value 6
-        }
-    }
-}''';
+    var CLEAR_APPEARANCE_ACTION_CODE = [
+        "/version 3",
+        "/name [ 20",
+        "    5f5f7374746b335f617070656172616e63655f5f",
+        "]",
+        "/isOpen 1",
+        "/actionCount 1",
+        "/action-1 {",
+        "    /name [ 5",
+        "        636c656172",
+        "    ]",
+        "    /keyIndex 0",
+        "    /colorIndex 0",
+        "    /isOpen 0",
+        "    /eventCount 1",
+        "    /event-1 {",
+        "        /useRulersIn1stQuadrant 0",
+        "        /internalName (ai_plugin_appearance)",
+        "        /localizedName [ 18",
+        "            e382a2e38394e382a2e383a9e383b3e382b9",
+        "        ]",
+        "        /isOpen 0",
+        "        /isOn 1",
+        "        /hasDialog 0",
+        "        /parameterCount 1",
+        "        /parameter-1 {",
+        "            /key 1835363957",
+        "            /showInPalette 4294967295",
+        "            /type (enumerated)",
+        "            /name [ 27",
+        "                e382a2e38394e382a2e383a9e383b3e382b9e38292e6b688e58ebb",
+        "            ]",
+        "            /value 6",
+        "        }",
+        "    }",
+        "}"
+    ].join("\n");
 
     function tempAction(actionCode, func) {
         var hexToString = function (hex) {

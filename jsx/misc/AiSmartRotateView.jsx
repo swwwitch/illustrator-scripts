@@ -35,790 +35,794 @@ var SCRIPT_UPDATED  = "2026-08-11";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/* 同一リポジトリ内の transform フォルダのパス（外部スクリプト実行用）/ Path to the sibling transform folder (for running external scripts) */
-var TRANSFORM_FOLDER = (function () {
-    try {
-        return File($.fileName).parent.parent.fsName + "/transform";
-    } catch (e) {
-        return "";
-    }
-})();
-
-// =========================================
-// セッション記憶 / Session memory
-// #targetengine で確保した永続エンジンの $.global に置くため、パレットを閉じて開き直しても
-// Illustrator を終了するまで保持される（環境設定には書き込まない）
-// Kept on $.global of the persistent engine declared by #targetengine, so it survives closing and
-// reopening the palette until Illustrator quits. Nothing is written to the application preferences.
-// =========================================
-
-/* 回転角度と制限角度はドキュメントと環境設定から取り直せるので、再現できない項目だけを残す
-   / The rotation and constrain angles are re-read from the document and preferences, so only the values that cannot be recovered are stored */
-var SESSION_STATE_KEY = "__aiSmartRotateViewSession";
-if (typeof $.global[SESSION_STATE_KEY] === "undefined") {
-    $.global[SESSION_STATE_KEY] = {
-        linkRotation: false, /* 「ビューの回転に連動」の状態 / the "Link to view rotation" state */
-        location: null       /* パレットの表示位置 / the palette position */
-    };
-}
-var sessionState = $.global[SESSION_STATE_KEY];
-
-/* 開いているパレット自体の置き場所（多重起動の防止とGC回避）/ Where the open palette itself is kept (prevents duplicates and GC) */
-var PALETTE_KEY = "__aiSmartRotateViewPalette";
-
-// =========================================
-// ローカライズ / Localization
-// =========================================
-
-/* 言語判定 / Detect language */
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var currentLanguage = getCurrentLang();
-
-/* ラベル定義 / Label definitions */
-var LABELS = {
-    dialog: {
-        title: { ja: "ビューの回転角度", en: "View Rotation Angle" }
-    },
-    panel: {
-        info: { ja: "アクティブビューの回転角度", en: "Active View Rotation Angle" },
-        selection: { ja: "選択したオブジェクト", en: "Selected Object" },
-        reset: { ja: "リセット", en: "Reset" },
-        constrain: { ja: "角度の制限", en: "Constrain Angle" }
-    },
-    label: {
-        rotation: { ja: "アクティブビューの回転角度", en: "Active view rotation angle" },
-        selection: { ja: "選択したオブジェクトの角度", en: "Selected object angle" },
-        constrain: { ja: "角度の制限", en: "Constrain angle" },
-        linkRotation: { ja: "ビューの回転に連動", en: "Link to view rotation" }
-    },
-    button: {
-        rotateToSelection: { ja: "選択したオブジェクトに合わせてビューを回転", en: "Rotate view to match selection" },
-        rotateSelectionToView: { ja: "選択したオブジェクトをビューの回転に合わせて回転", en: "Rotate selection to match view" },
-        resetSelectionRotation: { ja: "選択したオブジェクトの回転をリセット", en: "Reset selection rotation" },
-        resetTextTilt: { ja: "テキストの傾きをリセット", en: "Reset text tilt" },
-        resetImageTilt: { ja: "画像の傾きをリセット", en: "Reset image tilt" },
-        resetRotation: { ja: "リセット", en: "Reset" },
-        refresh: { ja: "更新", en: "Refresh" },
-        close: { ja: "閉じる", en: "Close" }
-    },
-    status: {
-        applied: { ja: "制限角度に適用しました。", en: "Applied to the constrain angle." },
-        resetRotation: { ja: "ビューの回転を0°にリセットしました。", en: "Reset the view rotation to 0°." },
-        rotatedToSelection: { ja: "選択したオブジェクトに合わせてビューを回転しました。", en: "Rotated the view to match the selection." },
-        rotatedSelectionToView: { ja: "選択したオブジェクトをビューの回転に合わせて回転しました。", en: "Rotated the selection to match the view." },
-        resetSelectionRotation: { ja: "選択したオブジェクトの回転をリセットしました。", en: "Reset the selection's rotation." }
-    },
-    alert: {
-        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        noSelection: { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
-        noAngle: { ja: "角度を取得できるパスを選択してください。", en: "Select a path whose angle can be measured." },
-        noRotation: { ja: "ビューが回転していません。", en: "The view is not rotated." },
-        noTag: { ja: "回転情報（BBAccumRotation）が見つかりません。", en: "Rotation data (BBAccumRotation) not found." },
-        noFile: { ja: "スクリプトファイルが見つかりません。", en: "Script file not found." },
-        invalidAngle: { ja: "角度には数値を入力してください。", en: "Please enter a numeric angle." },
-        error: { ja: "エラーが発生しました：", en: "An error occurred:" }
-    }
-};
-
-/* ネストしたラベルをドット区切りパスで取得 / Get a nested label by dot-separated path */
-function getLabel(path) {
-    var parts = path.split(".");
-    var node = LABELS;
-    for (var i = 0; i < parts.length; i++) {
-        node = node[parts[i]];
-    }
-    return node[currentLanguage];
-}
-function L(path) {
-    return getLabel(path);
-}
-
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-function labelText(path) {
-    return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
-}
-
-// =========================================
-// 結果ハンドリング / Result handling
-// =========================================
-
-/* ワーカーの 'ERR:XXX' コードを対応するアラート文へ変換 / Map a worker 'ERR:XXX' code to its alert text */
-var RESULT_ERROR_LABELS = {
-    NODOC: "alert.noDocument",
-    NOSEL: "alert.noSelection",
-    NOANGLE: "alert.noAngle",
-    NOROTATION: "alert.noRotation",
-    NOTAG: "alert.noTag",
-    NOFILE: "alert.noFile"
-};
-
-/* 結果文字列を表示用ステータスへ変換（既知コードは専用文、未知は汎用エラー）
-   / Convert a result string to status text (known codes get a specific message, unknown ones the generic error) */
-function statusFromResult(result) {
-    for (var code in RESULT_ERROR_LABELS) {
-        if (RESULT_ERROR_LABELS.hasOwnProperty(code) && result.indexOf(code) !== -1) {
-            return L(RESULT_ERROR_LABELS[code]);
-        }
-    }
-    return L("alert.error") + " " + result;
-}
-
-// =========================================
-// UI共通設定 / UI helpers
-// =========================================
-
-/* パネルの余白と間隔 / Panel margins and spacing */
-var PANEL_MARGINS = [16, 20, 16, 12];
-var PANEL_SPACING = 8;
-
-/* パネルの共通設定 / Apply shared panel layout */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-function setupGroup(group, orientation, spacing) {
-    var groupOrientation = orientation || "column";
-    group.orientation = groupOrientation;
-    /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-    group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-    group.alignment = "fill";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/* テキストフィールドを↑↓キーで増減できるようにする（±1、shiftで±10）
-   / Let a text field be stepped with the arrow keys (±1, ±10 with shift) */
-function changeValueByArrowKey(editText) {
-    editText.addEventListener("keydown", function (event) {
-        var value = Number(editText.text);
-        if (isNaN(value)) return;
-
-        var keyboard = ScriptUI.environment.keyboardState;
-        var delta = 1;
-
-        if (keyboard.shiftKey) {
-            delta = 10;
-            /* Shiftキー押下時は10の倍数にスナップ / Snap to multiples of 10 while shift is held */
-            if (event.keyName === "Up") {
-                value = Math.ceil((value + 1) / delta) * delta;
-                event.preventDefault();
-            } else if (event.keyName === "Down") {
-                value = Math.floor((value - 1) / delta) * delta;
-                event.preventDefault();
-            }
-        } else {
-            delta = 1;
-            if (event.keyName === "Up") {
-                value += delta;
-                event.preventDefault();
-            } else if (event.keyName === "Down") {
-                value -= delta;
-                event.preventDefault();
-            }
-        }
-
-        /* 整数に丸め、扱う角度の範囲に収める（負の角度もあるので0では止めない）
-           / Round to an integer and keep it inside the angle range (negative angles are valid, so do not stop at 0) */
-        value = Math.round(value);
-        if (value > 180) { value = 180; }
-        if (value < -180) { value = -180; }
-
-        editText.text = value;
-        /* text の代入では onChange が起きないので、押すたびに適用されるよう自前で通知
-           / Assigning to text does not fire onChange, so notify manually to apply on every press */
-        editText.notify("onChange");
-    });
-}
-
-// =========================================
-// 角度の計算 / Angle helpers
-// =========================================
-
-/* 角度を -180〜180 に正規化 / Normalize an angle into the -180..180 range */
-function normalizeAngle(angle) {
-    var a = angle % 360;
-    if (a > 180) { a -= 360; }
-    if (a < -180) { a += 360; }
-    return a;
-}
-
-/* スライダー値を整数に丸める。Shift併用時は15°単位にクランプ / Round the slider value to an integer; clamp to 15° steps when Shift is held */
-function snapAngle(angle, useShift) {
-    if (useShift) {
-        return Math.round(angle / 15) * 15;
-    }
-    return Math.round(angle);
-}
-
-/* 表示用に小数2桁へ丸める（atan2 由来の 30.00000001 のような桁あふれを抑える）
-   / Round to 2 decimals for display (suppresses float noise like 30.00000001 from atan2) */
-function roundAngle(angle) {
-    return Math.round(angle * 100) / 100;
-}
-
-/* 角度を表示用文字列にする（丸め＋°付き）/ Format an angle for display (rounded, with the degree sign) */
-function formatAngle(angle) {
-    return roundAngle(angle) + "°";
-}
-
-// =========================================
-// メインエンジンへの委譲 / Delegation to the main engine
-// =========================================
-
-/* メインエンジンでコードを実行する（常駐パレットの app は DOM 接続を失うため）。
-   本文は encodeURIComponent + eval で送り、バックスラッシュ・多バイト文字を無傷で渡す。
-   / Run code in the main engine (the palette's app loses DOM access).
-   The body is sent via encodeURIComponent + eval so backslashes and multibyte chars survive intact. */
-function runInMainEngine(code, onResult) {
-    var bridge = new BridgeTalk();
-    bridge.target = "illustrator";
-    bridge.body = 'eval(decodeURIComponent("' + encodeURIComponent(code) + '"));';
-    bridge.onResult = function (response) {
-        onResult(String(response.body));
-    };
-    bridge.onError = function (response) {
-        onResult("ERR:" + String(response.body));
-    };
-    bridge.send();
-}
-
-/* worker 本文を IIFE で包む / Wrap a worker body in an IIFE */
-function workerBody(body) {
-    return "(function(){" + body + "})()";
-}
-
-/* worker 断片：ドキュメント有無を確認し doc を確保 / Worker fragment: guard the open document, bind `doc` */
-var W_DOC = "if(app.documents.length===0){return 'ERR:NODOC';}var doc=app.activeDocument;";
-
-/* worker 断片：選択を確認し sel を確保（W_DOC の後に置く）/ Worker fragment: guard the selection, bind `sel` (place after W_DOC) */
-var W_SEL = "var sel=doc.selection;if(!sel||sel.length===0){return 'ERR:NOSEL';}";
-
-/* worker 断片：sel[0] が2点以上のパスか確認し、最初の2点を結ぶ線の傾き deg を算出（W_SEL の後）
-   / Worker fragment: verify sel[0] is a path with >=2 points and compute the slope `deg` of its first two anchors (place after W_SEL) */
-var W_PATH_DEG =
-    "var item=sel[0];" +
-    "if(item.typename!=='PathItem'||item.pathPoints.length<2){return 'ERR:NOANGLE';}" +
-    "var a=item.pathPoints[0].anchor,b=item.pathPoints[1].anchor;" +
-    "var deg=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;";
-
-/* worker 断片：「角度の制限」を読む。実際の拘束方向は constrain/sin・constrain/cos が持っているため、
-   constrain/angle ではなくこの2つから角度を復元する（angle は書いても拘束に反映されない）
-   / Worker fragment: read the constrain angle. The real constraint direction lives in constrain/sin and
-   constrain/cos, so recover the angle from those instead of constrain/angle (writing `angle` alone has no effect) */
-var W_CONSTRAIN_GET =
-    "var c=Math.atan2(app.preferences.getRealPreference('constrain/sin')," +
-    "app.preferences.getRealPreference('constrain/cos'))*180/Math.PI;";
-
-/* worker 断片を作る：「角度の制限」を書き込む。angle は環境設定ダイアログの表示用で度、
-   sin・cos は実際の拘束方向でラジアン由来。angle だけでは拘束に効かないので3つとも書く
-   / Build a worker fragment that writes the constrain angle. `angle` is the value shown in the
-   Preferences dialog and is in degrees; sin and cos carry the real constraint direction and are
-   derived from radians. Writing `angle` alone does not affect the constraint, so all three are written */
-function constrainSetter(deg) {
-    return "var rad=(" + deg + ")*Math.PI/180;" +
-        "app.preferences.setRealPreference('constrain/angle'," + deg + ");" +
-        "app.preferences.setRealPreference('constrain/sin',Math.sin(rad));" +
-        "app.preferences.setRealPreference('constrain/cos',Math.cos(rad));";
-}
-
-/* ビュー回転角度・制限角度・選択角度を1回の委譲でまとめて取得（"OK:回転,制限,選択"。選択は無効なら空）
-   状態取得を1本化することで、別々に投げていた頃の表示ズレを防ぐ。
-   / Fetch the view rotation, constrain angle, and selection angle in a single delegation ("OK:rotation,constrain,selection"; selection is empty when invalid).
-   Consolidating the state read avoids the display drift from issuing two separate calls. */
-function fetchState(onResult) {
-    runInMainEngine(workerBody(
-        W_DOC +
-        "var r=doc.activeView.rotateAngle;" +
-        W_CONSTRAIN_GET +
-        "var s='';" +
-        "var sel=doc.selection;" +
-        "if(sel&&sel.length>0){var item=sel[0];" +
-        "if(item.typename==='PathItem'&&item.pathPoints.length>=2){" +
-        "var a=item.pathPoints[0].anchor,b=item.pathPoints[1].anchor;" +
-        "s=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;}}" +
-        "return 'OK:'+r+','+c+','+s;"
-    ), onResult);
-}
-
-/* ビューの回転角度を設定（制限角度は自動では変えず、ユーザーが適用ボタンを押したときだけ反映）
-   / Set the view rotation angle only (the constrain angle is not changed automatically; it is applied only when the user presses the Apply button) */
-function applyViewRotation(angle, onResult) {
-    runInMainEngine(workerBody(
-        W_DOC +
-        "doc.activeView.rotateAngle=" + angle + ";" +
-        "return 'OK';"
-    ), onResult);
-}
-
-/* 制限角度をメインエンジンで環境設定に適用 / Apply the constrain angle to the preference in the main engine */
-function applyConstrainAngle(angle, onResult) {
-    runInMainEngine(workerBody(
-        constrainSetter(angle) +
-        "return 'OK';"
-    ), onResult);
-}
-
-/* ビューの回転角度だけ0°に戻す / Reset only the view rotation to 0° */
-function resetViewRotation(onResult) {
-    runInMainEngine(workerBody(
-        W_DOC +
-        "doc.activeView.rotateAngle=0;" +
-        "return 'OK';"
-    ), onResult);
-}
-
-/* 選択パスの角度（最初の2アンカー点を結ぶ線の傾き）を取得してビューを回転（"OK:角度"）
-   / Measure the selected path's angle (slope of the first two anchors), rotate the view to it ("OK:angle") */
-function rotateViewToSelection(onResult) {
-    runInMainEngine(workerBody(
-        W_DOC + W_SEL + W_PATH_DEG +
-        "doc.activeView.rotateAngle=deg;" +
-        "return 'OK:'+deg;"
-    ), onResult);
-}
-
-/* 選択オブジェクトをビューの回転角度だけ回転し、バウンディングボックスをリセット。
-   複数選択のときは選択全体の外接矩形の中心を軸にまとめて回す（1つずつその場で回すと配置が崩れるため）。
-   基準ボックスは環境設定「プレビュー境界を使用」に合わせ、回転角度はUIの表示ではなく実行時のビューから読む。
-   / Rotate the selected objects by the view rotation angle, then reset the bounding box.
-   With several objects selected they turn as a unit around the center of the combined bounds, because
-   rotating each one in place would scramble the arrangement. The reference box follows the
-   "Use Preview Bounds" preference, and the angle is read from the view at run time rather than from the UI. */
-function rotateSelectionToView(onResult) {
-    runInMainEngine(workerBody(
-        W_DOC + W_SEL +
-        "var ang=doc.activeView.rotateAngle;" +
-        "if(ang===0){return 'ERR:NOROTATION';}" +
-        "var pv=app.preferences.getBooleanPreference('includeStrokeInBounds');" +
-        "function bb(it){return pv?it.visibleBounds:it.geometricBounds;}" +
-        /* 選択全体の外接矩形（[左,上,右,下]、上下はY軸が上向き）/ Combined bounds of the selection ([l,t,r,b] with Y pointing up) */
-        "var u=bb(sel[0]).slice(0);" +
-        "for(var i=1;i<sel.length;i++){var g=bb(sel[i]);" +
-        "if(g[0]<u[0]){u[0]=g[0];}if(g[1]>u[1]){u[1]=g[1];}" +
-        "if(g[2]>u[2]){u[2]=g[2];}if(g[3]<u[3]){u[3]=g[3];}}" +
-        "var px=(u[0]+u[2])/2,py=(u[1]+u[3])/2;" +
-        "var rad=ang*Math.PI/180,cs=Math.cos(rad),sn=Math.sin(rad);" +
-        /* 各オブジェクトを自身の中心で回し、その中心が共通の軸まわりに動くぶんだけ平行移動して補正
-           / Rotate each object about its own center, then translate it by however far that center moves around the shared pivot */
-        "for(var j=0;j<sel.length;j++){var it=sel[j];var b=bb(it);" +
-        "var cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2;" +
-        "it.rotate(ang,true,true,true,true,Transformation.CENTER);" +
-        "var dx=cx-px,dy=cy-py;" +
-        "it.translate(px+dx*cs-dy*sn-cx,py+dx*sn+dy*cs-cy);}" +
-        "app.executeMenuCommand('AI Reset Bounding Box');" +
-        "return 'OK';"
-    ), onResult);
-}
-
-/* 指定したスクリプトファイルをメインエンジンで実行（各スクリプトが自前で選択チェック・アラートを行う）
-   / Run a script file in the main engine (each script handles its own selection checks and alerts) */
-function runScriptFile(path, onResult) {
-    runInMainEngine(workerBody(
-        "var f=new File('" + path + "');" +
-        "if(!f.exists){return 'ERR:NOFILE';}" +
-        "$.evalFile(f);" +
-        "return 'OK';"
-    ), onResult);
-}
-
-/* 選択オブジェクトの回転をリセット（BBAccumRotation タグの蓄積回転を戻す）
-   / Reset the selected object's rotation (undo the accumulated rotation in the BBAccumRotation tag) */
-function resetSelectionRotation(onResult) {
-    runInMainEngine(workerBody(
-        W_DOC + W_SEL +
-        "var item=sel[0];" +
-        "if(item.tags.length>0&&item.tags[0].name==='BBAccumRotation'){" +
-        "var deg=180*parseFloat(item.tags[0].value)/Math.PI;" +
-        "item.rotate(deg);" +
-        "return 'OK';" +
-        "}" +
-        "return 'ERR:NOTAG';"
-    ), onResult);
-}
-
-// =========================================
-// パレット / Palette
-// =========================================
-
-/* パレットを作成して表示する（IIFEで即時実行）/ Build and show the palette (run immediately as an IIFE) */
 (function () {
-    /* 多重起動の防止：すでに開いているパレットがあれば閉じてから作り直す（閉じる際に位置がセッションへ残る）
-       / Prevent duplicates: close an already open palette before rebuilding (closing stores its position in the session) */
-    if ($.global[PALETTE_KEY]) {
-        try { $.global[PALETTE_KEY].close(); } catch (e) {}
-        $.global[PALETTE_KEY] = null;
+
+    /* 同一リポジトリ内の transform フォルダのパス（外部スクリプト実行用）/ Path to the sibling transform folder (for running external scripts) */
+    var TRANSFORM_FOLDER = (function () {
+        try {
+            return File($.fileName).parent.parent.fsName + "/transform";
+        } catch (e) {
+            return "";
+        }
+    })();
+
+    // =========================================
+    // セッション記憶 / Session memory
+    // #targetengine で確保した永続エンジンの $.global に置くため、パレットを閉じて開き直しても
+    // Illustrator を終了するまで保持される（環境設定には書き込まない）
+    // Kept on $.global of the persistent engine declared by #targetengine, so it survives closing and
+    // reopening the palette until Illustrator quits. Nothing is written to the application preferences.
+    // =========================================
+
+    /* 回転角度と制限角度はドキュメントと環境設定から取り直せるので、再現できない項目だけを残す
+       / The rotation and constrain angles are re-read from the document and preferences, so only the values that cannot be recovered are stored */
+    var SESSION_STATE_KEY = "__aiSmartRotateViewSession";
+    if (typeof $.global[SESSION_STATE_KEY] === "undefined") {
+        $.global[SESSION_STATE_KEY] = {
+            linkRotation: false, /* 「ビューの回転に連動」の状態 / the "Link to view rotation" state */
+            location: null       /* パレットの表示位置 / the palette position */
+        };
+    }
+    var sessionState = $.global[SESSION_STATE_KEY];
+
+    /* 開いているパレット自体の置き場所（多重起動の防止とGC回避）/ Where the open palette itself is kept (prevents duplicates and GC) */
+    var PALETTE_KEY = "__aiSmartRotateViewPalette";
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 言語判定 / Detect language */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var currentLanguage = getCurrentLang();
+
+    /* ラベル定義 / Label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "ビューの回転角度", en: "View Rotation Angle" }
+        },
+        panel: {
+            info: { ja: "アクティブビューの回転角度", en: "Active View Rotation Angle" },
+            selection: { ja: "選択したオブジェクト", en: "Selected Object" },
+            reset: { ja: "リセット", en: "Reset" },
+            constrain: { ja: "角度の制限", en: "Constrain Angle" }
+        },
+        label: {
+            rotation: { ja: "アクティブビューの回転角度", en: "Active view rotation angle" },
+            selection: { ja: "選択したオブジェクトの角度", en: "Selected object angle" },
+            constrain: { ja: "角度の制限", en: "Constrain angle" },
+            linkRotation: { ja: "ビューの回転に連動", en: "Link to view rotation" }
+        },
+        button: {
+            rotateToSelection: { ja: "選択したオブジェクトに合わせてビューを回転", en: "Rotate view to match selection" },
+            rotateSelectionToView: { ja: "選択したオブジェクトをビューの回転に合わせて回転", en: "Rotate selection to match view" },
+            resetSelectionRotation: { ja: "選択したオブジェクトの回転をリセット", en: "Reset selection rotation" },
+            resetTextTilt: { ja: "テキストの傾きをリセット", en: "Reset text tilt" },
+            resetImageTilt: { ja: "画像の傾きをリセット", en: "Reset image tilt" },
+            resetRotation: { ja: "リセット", en: "Reset" },
+            refresh: { ja: "更新", en: "Refresh" },
+            close: { ja: "閉じる", en: "Close" }
+        },
+        status: {
+            applied: { ja: "制限角度に適用しました。", en: "Applied to the constrain angle." },
+            resetRotation: { ja: "ビューの回転を0°にリセットしました。", en: "Reset the view rotation to 0°." },
+            rotatedToSelection: { ja: "選択したオブジェクトに合わせてビューを回転しました。", en: "Rotated the view to match the selection." },
+            rotatedSelectionToView: { ja: "選択したオブジェクトをビューの回転に合わせて回転しました。", en: "Rotated the selection to match the view." },
+            resetSelectionRotation: { ja: "選択したオブジェクトの回転をリセットしました。", en: "Reset the selection's rotation." }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection: { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
+            noAngle: { ja: "角度を取得できるパスを選択してください。", en: "Select a path whose angle can be measured." },
+            noRotation: { ja: "ビューが回転していません。", en: "The view is not rotated." },
+            noTag: { ja: "回転情報（BBAccumRotation）が見つかりません。", en: "Rotation data (BBAccumRotation) not found." },
+            noFile: { ja: "スクリプトファイルが見つかりません。", en: "Script file not found." },
+            invalidAngle: { ja: "角度には数値を入力してください。", en: "Please enter a numeric angle." },
+            error: { ja: "エラーが発生しました：", en: "An error occurred:" }
+        }
+    };
+
+    /* ネストしたラベルをドット区切りパスで取得 / Get a nested label by dot-separated path */
+    function getLabel(path) {
+        var parts = path.split(".");
+        var node = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            node = node[parts[i]];
+        }
+        return node[currentLanguage];
+    }
+    function L(path) {
+        return getLabel(path);
     }
 
-    var palette = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION);
-    palette.orientation = "column";
-    palette.alignChildren = "fill";
-    palette.margins = 16;
-    palette.spacing = 12;
+    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+    function labelText(path) {
+        return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
+    }
 
-    /* ビューの回転角度を表示するパネル / Panel showing the view rotation angle */
-    var infoPanel = palette.add("panel", undefined, L("panel.info"));
-    setupPanel(infoPanel, 6);
+    // =========================================
+    // 結果ハンドリング / Result handling
+    // =========================================
 
-    /* アクティブビューの回転角度（パネルタイトルと重複するため内側ラベルは省略）/ Active view rotation angle (inner label omitted; the panel title already states it) */
-    var rotationGroup = infoPanel.add("group");
-    setupGroup(rotationGroup, "row");
-    var rotationValue = rotationGroup.add("statictext", undefined, "—°");
-    rotationValue.preferredSize.width = 50;
+    /* ワーカーの 'ERR:XXX' コードを対応するアラート文へ変換 / Map a worker 'ERR:XXX' code to its alert text */
+    var RESULT_ERROR_LABELS = {
+        NODOC: "alert.noDocument",
+        NOSEL: "alert.noSelection",
+        NOANGLE: "alert.noAngle",
+        NOROTATION: "alert.noRotation",
+        NOTAG: "alert.noTag",
+        NOFILE: "alert.noFile"
+    };
 
-    /* 回転角度スライダー（-180〜180、Shiftで15°単位にクランプ）/ Rotation slider (-180..180, snaps to 15° with Shift) */
-    var rotationSlider = infoPanel.add("slider", undefined, 0, -180, 180);
-    rotationSlider.alignment = "fill";
+    /* 結果文字列を表示用ステータスへ変換（既知コードは専用文、未知は汎用エラー）
+       / Convert a result string to status text (known codes get a specific message, unknown ones the generic error) */
+    function statusFromResult(result) {
+        for (var code in RESULT_ERROR_LABELS) {
+            if (RESULT_ERROR_LABELS.hasOwnProperty(code) && result.indexOf(code) !== -1) {
+                return L(RESULT_ERROR_LABELS[code]);
+            }
+        }
+        return L("alert.error") + " " + result;
+    }
 
-    /* ビューの回転だけ0°に戻す / Reset only the view rotation to 0° */
-    var resetRotationButton = infoPanel.add("button", undefined, L("button.resetRotation"));
-    resetRotationButton.alignment = "right";
+    // =========================================
+    // UI共通設定 / UI helpers
+    // =========================================
 
-    /* 角度の制限を変更するパネル / Panel for changing the constrain angle */
-    var constrainPanel = palette.add("panel", undefined, L("panel.constrain"));
-    setupPanel(constrainPanel, 6);
+    /* パネルの余白と間隔 / Panel margins and spacing */
+    var PANEL_MARGINS = [16, 20, 16, 12];
+    var PANEL_SPACING = 8;
 
-    /* 角度の制限（編集可。入力の確定・↑↓キー・スライダー・プリセットのいずれでもその場で環境設定へ適用）
-       / Constrain angle (editable; committing the field, the arrow keys, the slider, and the presets all apply it to the preference right away) */
-    var constrainGroup = constrainPanel.add("group");
-    setupGroup(constrainGroup, "row");
-    constrainGroup.add("statictext", undefined, labelText("label.constrain"));
-    var constrainInput = constrainGroup.add("edittext", undefined, "");
-    constrainInput.characters = 6;
-    changeValueByArrowKey(constrainInput);
-    constrainGroup.add("statictext", undefined, "°");
+    /* パネルの共通設定 / Apply shared panel layout */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
-    /* 角度の制限スライダー（-180〜180、Shiftで15°単位にクランプ。離した時点で環境設定へ適用）
-       / Constrain angle slider (-180..180, snaps to 15° with Shift; applied to the preference on release) */
-    var constrainSlider = constrainPanel.add("slider", undefined, 0, -180, 180);
-    constrainSlider.alignment = "fill";
+    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
+    function setupGroup(group, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        group.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        group.alignment = "fill";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
-    /* よく使う角度をワンクリックで適用するプリセットボタン（0°は従来のリセットを兼ねる）
-       / Preset buttons that apply a common angle in one click (0° doubles as the former Reset) */
-    var constrainPresetGroup = constrainPanel.add("group");
-    setupGroup(constrainPresetGroup, "row");
-    constrainPresetGroup.alignment = "left";
+    /* テキストフィールドを↑↓キーで増減できるようにする（±1、shiftで±10）
+       / Let a text field be stepped with the arrow keys (±1, ±10 with shift) */
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener("keydown", function (event) {
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
 
-    /* プリセットの角度とボタンの対（現在値と同じものをディムするために保持）/ Preset angle-button pairs (kept so the one matching the current value can be dimmed) */
-    var constrainPresets = [];
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
 
-    /* プリセットボタンを1つ追加（ループ変数を閉じ込めるため関数に切り出す）/ Add one preset button (kept in a function so the loop variable is captured) */
-    function addConstrainPreset(angle) {
-        var button = constrainPresetGroup.add("button", undefined, angle + "°");
-        button.preferredSize.width = 56;
-        button.onClick = function () {
+            if (keyboard.shiftKey) {
+                delta = 10;
+                /* Shiftキー押下時は10の倍数にスナップ / Snap to multiples of 10 while shift is held */
+                if (event.keyName === "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                    event.preventDefault();
+                } else if (event.keyName === "Down") {
+                    value = Math.floor((value - 1) / delta) * delta;
+                    event.preventDefault();
+                }
+            } else {
+                delta = 1;
+                if (event.keyName === "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName === "Down") {
+                    value -= delta;
+                    event.preventDefault();
+                }
+            }
+
+            /* 整数に丸め、扱う角度の範囲に収める（負の角度もあるので0では止めない）
+               / Round to an integer and keep it inside the angle range (negative angles are valid, so do not stop at 0) */
+            value = Math.round(value);
+            if (value > 180) { value = 180; }
+            if (value < -180) { value = -180; }
+
+            editText.text = value;
+            /* text の代入では onChange が起きないので、押すたびに適用されるよう自前で通知
+               / Assigning to text does not fire onChange, so notify manually to apply on every press */
+            editText.notify("onChange");
+        });
+    }
+
+    // =========================================
+    // 角度の計算 / Angle helpers
+    // =========================================
+
+    /* 角度を -180〜180 に正規化 / Normalize an angle into the -180..180 range */
+    function normalizeAngle(angle) {
+        var a = angle % 360;
+        if (a > 180) { a -= 360; }
+        if (a < -180) { a += 360; }
+        return a;
+    }
+
+    /* スライダー値を整数に丸める。Shift併用時は15°単位にクランプ / Round the slider value to an integer; clamp to 15° steps when Shift is held */
+    function snapAngle(angle, useShift) {
+        if (useShift) {
+            return Math.round(angle / 15) * 15;
+        }
+        return Math.round(angle);
+    }
+
+    /* 表示用に小数2桁へ丸める（atan2 由来の 30.00000001 のような桁あふれを抑える）
+       / Round to 2 decimals for display (suppresses float noise like 30.00000001 from atan2) */
+    function roundAngle(angle) {
+        return Math.round(angle * 100) / 100;
+    }
+
+    /* 角度を表示用文字列にする（丸め＋°付き）/ Format an angle for display (rounded, with the degree sign) */
+    function formatAngle(angle) {
+        return roundAngle(angle) + "°";
+    }
+
+    // =========================================
+    // メインエンジンへの委譲 / Delegation to the main engine
+    // =========================================
+
+    /* メインエンジンでコードを実行する（常駐パレットの app は DOM 接続を失うため）。
+       本文は encodeURIComponent + eval で送り、バックスラッシュ・多バイト文字を無傷で渡す。
+       / Run code in the main engine (the palette's app loses DOM access).
+       The body is sent via encodeURIComponent + eval so backslashes and multibyte chars survive intact. */
+    function runInMainEngine(code, onResult) {
+        var bridge = new BridgeTalk();
+        bridge.target = "illustrator";
+        bridge.body = 'eval(decodeURIComponent("' + encodeURIComponent(code) + '"));';
+        bridge.onResult = function (response) {
+            onResult(String(response.body));
+        };
+        bridge.onError = function (response) {
+            onResult("ERR:" + String(response.body));
+        };
+        bridge.send();
+    }
+
+    /* worker 本文を IIFE で包む / Wrap a worker body in an IIFE */
+    function workerBody(body) {
+        return "(function(){" + body + "})()";
+    }
+
+    /* worker 断片：ドキュメント有無を確認し doc を確保 / Worker fragment: guard the open document, bind `doc` */
+    var W_DOC = "if(app.documents.length===0){return 'ERR:NODOC';}var doc=app.activeDocument;";
+
+    /* worker 断片：選択を確認し sel を確保（W_DOC の後に置く）/ Worker fragment: guard the selection, bind `sel` (place after W_DOC) */
+    var W_SEL = "var sel=doc.selection;if(!sel||sel.length===0){return 'ERR:NOSEL';}";
+
+    /* worker 断片：sel[0] が2点以上のパスか確認し、最初の2点を結ぶ線の傾き deg を算出（W_SEL の後）
+       / Worker fragment: verify sel[0] is a path with >=2 points and compute the slope `deg` of its first two anchors (place after W_SEL) */
+    var W_PATH_DEG =
+        "var item=sel[0];" +
+        "if(item.typename!=='PathItem'||item.pathPoints.length<2){return 'ERR:NOANGLE';}" +
+        "var a=item.pathPoints[0].anchor,b=item.pathPoints[1].anchor;" +
+        "var deg=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;";
+
+    /* worker 断片：「角度の制限」を読む。実際の拘束方向は constrain/sin・constrain/cos が持っているため、
+       constrain/angle ではなくこの2つから角度を復元する（angle は書いても拘束に反映されない）
+       / Worker fragment: read the constrain angle. The real constraint direction lives in constrain/sin and
+       constrain/cos, so recover the angle from those instead of constrain/angle (writing `angle` alone has no effect) */
+    var W_CONSTRAIN_GET =
+        "var c=Math.atan2(app.preferences.getRealPreference('constrain/sin')," +
+        "app.preferences.getRealPreference('constrain/cos'))*180/Math.PI;";
+
+    /* worker 断片を作る：「角度の制限」を書き込む。angle は環境設定ダイアログの表示用で度、
+       sin・cos は実際の拘束方向でラジアン由来。angle だけでは拘束に効かないので3つとも書く
+       / Build a worker fragment that writes the constrain angle. `angle` is the value shown in the
+       Preferences dialog and is in degrees; sin and cos carry the real constraint direction and are
+       derived from radians. Writing `angle` alone does not affect the constraint, so all three are written */
+    function constrainSetter(deg) {
+        return "var rad=(" + deg + ")*Math.PI/180;" +
+            "app.preferences.setRealPreference('constrain/angle'," + deg + ");" +
+            "app.preferences.setRealPreference('constrain/sin',Math.sin(rad));" +
+            "app.preferences.setRealPreference('constrain/cos',Math.cos(rad));";
+    }
+
+    /* ビュー回転角度・制限角度・選択角度を1回の委譲でまとめて取得（"OK:回転,制限,選択"。選択は無効なら空）
+       状態取得を1本化することで、別々に投げていた頃の表示ズレを防ぐ。
+       / Fetch the view rotation, constrain angle, and selection angle in a single delegation ("OK:rotation,constrain,selection"; selection is empty when invalid).
+       Consolidating the state read avoids the display drift from issuing two separate calls. */
+    function fetchState(onResult) {
+        runInMainEngine(workerBody(
+            W_DOC +
+            "var r=doc.activeView.rotateAngle;" +
+            W_CONSTRAIN_GET +
+            "var s='';" +
+            "var sel=doc.selection;" +
+            "if(sel&&sel.length>0){var item=sel[0];" +
+            "if(item.typename==='PathItem'&&item.pathPoints.length>=2){" +
+            "var a=item.pathPoints[0].anchor,b=item.pathPoints[1].anchor;" +
+            "s=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;}}" +
+            "return 'OK:'+r+','+c+','+s;"
+        ), onResult);
+    }
+
+    /* ビューの回転角度を設定（制限角度は自動では変えず、ユーザーが適用ボタンを押したときだけ反映）
+       / Set the view rotation angle only (the constrain angle is not changed automatically; it is applied only when the user presses the Apply button) */
+    function applyViewRotation(angle, onResult) {
+        runInMainEngine(workerBody(
+            W_DOC +
+            "doc.activeView.rotateAngle=" + angle + ";" +
+            "return 'OK';"
+        ), onResult);
+    }
+
+    /* 制限角度をメインエンジンで環境設定に適用 / Apply the constrain angle to the preference in the main engine */
+    function applyConstrainAngle(angle, onResult) {
+        runInMainEngine(workerBody(
+            constrainSetter(angle) +
+            "return 'OK';"
+        ), onResult);
+    }
+
+    /* ビューの回転角度だけ0°に戻す / Reset only the view rotation to 0° */
+    function resetViewRotation(onResult) {
+        runInMainEngine(workerBody(
+            W_DOC +
+            "doc.activeView.rotateAngle=0;" +
+            "return 'OK';"
+        ), onResult);
+    }
+
+    /* 選択パスの角度（最初の2アンカー点を結ぶ線の傾き）を取得してビューを回転（"OK:角度"）
+       / Measure the selected path's angle (slope of the first two anchors), rotate the view to it ("OK:angle") */
+    function rotateViewToSelection(onResult) {
+        runInMainEngine(workerBody(
+            W_DOC + W_SEL + W_PATH_DEG +
+            "doc.activeView.rotateAngle=deg;" +
+            "return 'OK:'+deg;"
+        ), onResult);
+    }
+
+    /* 選択オブジェクトをビューの回転角度だけ回転し、バウンディングボックスをリセット。
+       複数選択のときは選択全体の外接矩形の中心を軸にまとめて回す（1つずつその場で回すと配置が崩れるため）。
+       基準ボックスは環境設定「プレビュー境界を使用」に合わせ、回転角度はUIの表示ではなく実行時のビューから読む。
+       / Rotate the selected objects by the view rotation angle, then reset the bounding box.
+       With several objects selected they turn as a unit around the center of the combined bounds, because
+       rotating each one in place would scramble the arrangement. The reference box follows the
+       "Use Preview Bounds" preference, and the angle is read from the view at run time rather than from the UI. */
+    function rotateSelectionToView(onResult) {
+        runInMainEngine(workerBody(
+            W_DOC + W_SEL +
+            "var ang=doc.activeView.rotateAngle;" +
+            "if(ang===0){return 'ERR:NOROTATION';}" +
+            "var pv=app.preferences.getBooleanPreference('includeStrokeInBounds');" +
+            "function bb(it){return pv?it.visibleBounds:it.geometricBounds;}" +
+            /* 選択全体の外接矩形（[左,上,右,下]、上下はY軸が上向き）/ Combined bounds of the selection ([l,t,r,b] with Y pointing up) */
+            "var u=bb(sel[0]).slice(0);" +
+            "for(var i=1;i<sel.length;i++){var g=bb(sel[i]);" +
+            "if(g[0]<u[0]){u[0]=g[0];}if(g[1]>u[1]){u[1]=g[1];}" +
+            "if(g[2]>u[2]){u[2]=g[2];}if(g[3]<u[3]){u[3]=g[3];}}" +
+            "var px=(u[0]+u[2])/2,py=(u[1]+u[3])/2;" +
+            "var rad=ang*Math.PI/180,cs=Math.cos(rad),sn=Math.sin(rad);" +
+            /* 各オブジェクトを自身の中心で回し、その中心が共通の軸まわりに動くぶんだけ平行移動して補正
+               / Rotate each object about its own center, then translate it by however far that center moves around the shared pivot */
+            "for(var j=0;j<sel.length;j++){var it=sel[j];var b=bb(it);" +
+            "var cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2;" +
+            "it.rotate(ang,true,true,true,true,Transformation.CENTER);" +
+            "var dx=cx-px,dy=cy-py;" +
+            "it.translate(px+dx*cs-dy*sn-cx,py+dx*sn+dy*cs-cy);}" +
+            "app.executeMenuCommand('AI Reset Bounding Box');" +
+            "return 'OK';"
+        ), onResult);
+    }
+
+    /* 指定したスクリプトファイルをメインエンジンで実行（各スクリプトが自前で選択チェック・アラートを行う）
+       / Run a script file in the main engine (each script handles its own selection checks and alerts) */
+    function runScriptFile(path, onResult) {
+        runInMainEngine(workerBody(
+            "var f=new File('" + path + "');" +
+            "if(!f.exists){return 'ERR:NOFILE';}" +
+            "$.evalFile(f);" +
+            "return 'OK';"
+        ), onResult);
+    }
+
+    /* 選択オブジェクトの回転をリセット（BBAccumRotation タグの蓄積回転を戻す）
+       / Reset the selected object's rotation (undo the accumulated rotation in the BBAccumRotation tag) */
+    function resetSelectionRotation(onResult) {
+        runInMainEngine(workerBody(
+            W_DOC + W_SEL +
+            "var item=sel[0];" +
+            "if(item.tags.length>0&&item.tags[0].name==='BBAccumRotation'){" +
+            "var deg=180*parseFloat(item.tags[0].value)/Math.PI;" +
+            "item.rotate(deg);" +
+            "return 'OK';" +
+            "}" +
+            "return 'ERR:NOTAG';"
+        ), onResult);
+    }
+
+    // =========================================
+    // パレット / Palette
+    // =========================================
+
+    /* パレットを作成して表示する（IIFEで即時実行）/ Build and show the palette (run immediately as an IIFE) */
+    (function () {
+        /* 多重起動の防止：すでに開いているパレットがあれば閉じてから作り直す（閉じる際に位置がセッションへ残る）
+           / Prevent duplicates: close an already open palette before rebuilding (closing stores its position in the session) */
+        if ($.global[PALETTE_KEY]) {
+            try { $.global[PALETTE_KEY].close(); } catch (e) {}
+            $.global[PALETTE_KEY] = null;
+        }
+
+        var palette = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION);
+        palette.orientation = "column";
+        palette.alignChildren = "fill";
+        palette.margins = 16;
+        palette.spacing = 12;
+
+        /* ビューの回転角度を表示するパネル / Panel showing the view rotation angle */
+        var infoPanel = palette.add("panel", undefined, L("panel.info"));
+        setupPanel(infoPanel, 6);
+
+        /* アクティブビューの回転角度（パネルタイトルと重複するため内側ラベルは省略）/ Active view rotation angle (inner label omitted; the panel title already states it) */
+        var rotationGroup = infoPanel.add("group");
+        setupGroup(rotationGroup, "row");
+        var rotationValue = rotationGroup.add("statictext", undefined, "—°");
+        rotationValue.preferredSize.width = 50;
+
+        /* 回転角度スライダー（-180〜180、Shiftで15°単位にクランプ）/ Rotation slider (-180..180, snaps to 15° with Shift) */
+        var rotationSlider = infoPanel.add("slider", undefined, 0, -180, 180);
+        rotationSlider.alignment = "fill";
+
+        /* ビューの回転だけ0°に戻す / Reset only the view rotation to 0° */
+        var resetRotationButton = infoPanel.add("button", undefined, L("button.resetRotation"));
+        resetRotationButton.alignment = "right";
+
+        /* 角度の制限を変更するパネル / Panel for changing the constrain angle */
+        var constrainPanel = palette.add("panel", undefined, L("panel.constrain"));
+        setupPanel(constrainPanel, 6);
+
+        /* 角度の制限（編集可。入力の確定・↑↓キー・スライダー・プリセットのいずれでもその場で環境設定へ適用）
+           / Constrain angle (editable; committing the field, the arrow keys, the slider, and the presets all apply it to the preference right away) */
+        var constrainGroup = constrainPanel.add("group");
+        setupGroup(constrainGroup, "row");
+        constrainGroup.add("statictext", undefined, labelText("label.constrain"));
+        var constrainInput = constrainGroup.add("edittext", undefined, "");
+        constrainInput.characters = 6;
+        changeValueByArrowKey(constrainInput);
+        constrainGroup.add("statictext", undefined, "°");
+
+        /* 角度の制限スライダー（-180〜180、Shiftで15°単位にクランプ。離した時点で環境設定へ適用）
+           / Constrain angle slider (-180..180, snaps to 15° with Shift; applied to the preference on release) */
+        var constrainSlider = constrainPanel.add("slider", undefined, 0, -180, 180);
+        constrainSlider.alignment = "fill";
+
+        /* よく使う角度をワンクリックで適用するプリセットボタン（0°は従来のリセットを兼ねる）
+           / Preset buttons that apply a common angle in one click (0° doubles as the former Reset) */
+        var constrainPresetGroup = constrainPanel.add("group");
+        setupGroup(constrainPresetGroup, "row");
+        constrainPresetGroup.alignment = "left";
+
+        /* プリセットの角度とボタンの対（現在値と同じものをディムするために保持）/ Preset angle-button pairs (kept so the one matching the current value can be dimmed) */
+        var constrainPresets = [];
+
+        /* プリセットボタンを1つ追加（ループ変数を閉じ込めるため関数に切り出す）/ Add one preset button (kept in a function so the loop variable is captured) */
+        function addConstrainPreset(angle) {
+            var button = constrainPresetGroup.add("button", undefined, angle + "°");
+            button.preferredSize.width = 56;
+            button.onClick = function () {
+                commitConstrain(angle);
+            };
+            constrainPresets.push({ angle: angle, button: button });
+        }
+        var CONSTRAIN_PRESET_ANGLES = [-30, 0, 30];
+        for (var i = 0; i < CONSTRAIN_PRESET_ANGLES.length; i++) {
+            addConstrainPreset(CONSTRAIN_PRESET_ANGLES[i]);
+        }
+
+        /* ビューの回転に連動するかどうか（ONで回転角度と同じ値、OFFでは現在の制限角度のまま）
+           / Whether to follow the view rotation (on: the same value as the rotation; off: leaves the current constrain angle alone) */
+        var linkRotationCheck = constrainPanel.add("checkbox", undefined, L("label.linkRotation"));
+        linkRotationCheck.alignment = "left";
+        /* 前回の状態を復元（Illustrator のセッション中のみ）/ Restore the previous state (only within the Illustrator session) */
+        linkRotationCheck.value = sessionState.linkRotation;
+
+        /* 選択したオブジェクトのパネル / Selected-object panel */
+        var selectionPanel = palette.add("panel", undefined, L("panel.selection"));
+        setupPanel(selectionPanel, 6);
+
+        /* 選択したオブジェクトの角度（表示）/ Selected object angle (display) */
+        var selectionGroup = selectionPanel.add("group");
+        setupGroup(selectionGroup, "row");
+        selectionGroup.add("statictext", undefined, labelText("label.selection"));
+        var selectionValue = selectionGroup.add("statictext", undefined, "—°");
+        selectionValue.preferredSize.width = 50;
+
+        /* 選択に合わせてビューを回転 / Rotate the view to match the selection */
+        var rotateViewButton = selectionPanel.add("button", undefined, L("button.rotateToSelection"));
+        rotateViewButton.alignment = "left";
+
+        /* 選択をビューの回転に合わせて回転 / Rotate the selection to match the view rotation */
+        var rotateSelectionButton = selectionPanel.add("button", undefined, L("button.rotateSelectionToView"));
+        rotateSelectionButton.alignment = "left";
+
+        /* 選択の回転をリセット / Reset the selection's rotation */
+        var resetSelectionButton = selectionPanel.add("button", undefined, L("button.resetSelectionRotation"));
+        resetSelectionButton.alignment = "left";
+
+        /* リセットパネル（外部スクリプトを実行）/ Reset panel (runs external scripts) */
+        var resetPanel = palette.add("panel", undefined, L("panel.reset"));
+        setupPanel(resetPanel, 6);
+
+        /* テキストの傾き（ResetText.jsx）/ Text tilt (ResetText.jsx) */
+        var resetTextButton = resetPanel.add("button", undefined, L("button.resetTextTilt"));
+        resetTextButton.alignment = "left";
+
+        /* 画像の傾き（ResetRotation.jsx）/ Image tilt (ResetRotation.jsx) */
+        var resetImageButton = resetPanel.add("button", undefined, L("button.resetImageTilt"));
+        resetImageButton.alignment = "left";
+
+        /* 最新の状態を手動で取得し直す / Manually re-fetch the latest state */
+        var refreshButton = palette.add("button", undefined, L("button.refresh"));
+        refreshButton.alignment = "right";
+
+        /* ステータス表示 / Status line */
+        var statusText = palette.add("statictext", undefined, "");
+        statusText.alignment = "fill";
+
+        /* 現在の状態（各リセットボタンのディム判定に使用）/ Current state (used to dim each Reset button) */
+        var currentRotation = 0;
+        var currentConstrain = 0;
+
+        /* 押しても値が変わらないボタンをディム。ビューの回転が0°ならリセットと「ビューの回転に合わせて回転」、
+           制限角度と同じ値のプリセットもディムして、いま効いている角度が分かるようにする
+           / Dim the buttons that would not change anything: at 0° view rotation both Reset and "rotate selection to match view",
+           plus the preset that already matches the constrain angle, which doubles as an indicator of the active angle */
+        function updateButtonState() {
+            resetRotationButton.enabled = (currentRotation !== 0);
+            rotateSelectionButton.enabled = (currentRotation !== 0);
+            for (var i = 0; i < constrainPresets.length; i++) {
+                constrainPresets[i].button.enabled = (constrainPresets[i].angle !== currentConstrain);
+            }
+        }
+
+        /* 制限角度を入力欄とスライダーの両方に表示 / Show the constrain angle in both the field and the slider */
+        function showConstrain(angle) {
+            constrainInput.text = roundAngle(angle);
+            constrainSlider.value = normalizeAngle(angle);
+        }
+
+        /* 制限入力欄の表示を更新。連動ONなら回転角度に追従し、OFFなら現在の制限角度をそのまま残す
+           / Refresh the constrain field: it follows the rotation while linking is on, and keeps the current constrain angle while it is off */
+        function updateConstrainSuggestion() {
+            showConstrain(linkRotationCheck.value ? currentRotation : currentConstrain);
+        }
+
+        /* 回転表示・スライダー・状態を更新し、制限入力欄の候補値も更新
+           / Update the rotation display, slider, and state, then refresh the constrain suggestion */
+        function setRotation(angle) {
+            currentRotation = normalizeAngle(angle);
+            rotationValue.text = formatAngle(currentRotation);
+            rotationSlider.value = currentRotation;
+            updateConstrainSuggestion();
+            updateButtonState();
+        }
+
+        /* 制限角度を状態に記録。連動OFFのときは入力欄にも実際の値を反映し、ONのときは回転追従の候補値を残す
+           / Record the constrain angle in state; while linking is off the field shows the actual value, and while it is on the rotation-following suggestion is kept */
+        function setConstrain(angle) {
+            currentConstrain = roundAngle(angle);
+            if (!linkRotationCheck.value) {
+                showConstrain(currentConstrain);
+            }
+            updateButtonState();
+        }
+
+        /* 制限角度を環境設定へ適用し、成功したら状態と表示を更新 / Apply the constrain angle to the preference, then update the state and display on success */
+        function commitConstrain(angle) {
+            applyConstrainAngle(angle, function (result) {
+                if (result.indexOf("OK") === 0) {
+                    setConstrain(angle);
+                    showConstrain(angle);
+                    statusText.text = L("status.applied");
+                } else {
+                    statusText.text = statusFromResult(result);
+                }
+            });
+        }
+
+        /* 連動ONのとき、入力欄の候補値を環境設定へ自動適用（値が変わっていないときは何もしない）
+           / While linking is on, push the suggested value to the preference automatically (skipped when unchanged) */
+        function applyLinkedConstrain() {
+            if (!linkRotationCheck.value) { return; }
+            var target = roundAngle(currentRotation);
+            if (target === currentConstrain) { return; }
+            commitConstrain(target);
+        }
+
+        /* ビュー回転角度・制限角度・選択角度を1回の委譲で取得して表示へ反映 / Fetch the view rotation, constrain angle, and selection angle in a single delegation and reflect them in the display */
+        function refresh() {
+            fetchState(function (result) {
+                if (result.indexOf("OK:") === 0) {
+                    var parts = result.substring(3).split(",");
+                    setRotation(parseFloat(parts[0]));
+                    setConstrain(parseFloat(parts[1]));
+                    selectionValue.text = (parts[2] === "") ? "—°" : formatAngle(normalizeAngle(parseFloat(parts[2])));
+                    statusText.text = "";
+                    applyLinkedConstrain();
+                } else {
+                    if (result.indexOf("NODOC") !== -1) {
+                        rotationValue.text = "—°";
+                        selectionValue.text = "—°";
+                    }
+                    statusText.text = statusFromResult(result);
+                }
+            });
+        }
+
+        /* スライダー操作中：表示だけ更新（Shiftで15°クランプ）/ While dragging: update the display only (snap to 15° with Shift) */
+        rotationSlider.onChanging = function () {
+            var useShift = ScriptUI.environment.keyboardState.shiftKey;
+            var angle = snapAngle(rotationSlider.value, useShift);
+            if (useShift) { rotationSlider.value = angle; }
+            rotationValue.text = angle + "°";
+        };
+
+        /* スライダー確定：ビューの回転を適用 / On release: apply the view rotation */
+        rotationSlider.onChange = function () {
+            var useShift = ScriptUI.environment.keyboardState.shiftKey;
+            var angle = snapAngle(rotationSlider.value, useShift);
+            setRotation(angle);
+            applyViewRotation(angle, function (result) {
+                if (result.indexOf("OK") === 0) {
+                    statusText.text = "";
+                    applyLinkedConstrain();
+                } else {
+                    statusText.text = statusFromResult(result);
+                }
+            });
+        };
+
+        /* スライダー操作中：入力欄だけ更新（Shiftで15°クランプ）/ While dragging: update the field only (snap to 15° with Shift) */
+        constrainSlider.onChanging = function () {
+            var useShift = ScriptUI.environment.keyboardState.shiftKey;
+            var angle = snapAngle(constrainSlider.value, useShift);
+            if (useShift) { constrainSlider.value = angle; }
+            constrainInput.text = angle;
+        };
+
+        /* スライダー確定：「角度の制限」へ適用 / On release: apply to the constrain angle */
+        constrainSlider.onChange = function () {
+            var useShift = ScriptUI.environment.keyboardState.shiftKey;
+            commitConstrain(snapAngle(constrainSlider.value, useShift));
+        };
+
+        /* 入力欄の確定（Enter・フォーカス移動・↑↓キー）でそのまま適用 / Apply as soon as the field is committed (Enter, focus change, or the arrow keys) */
+        constrainInput.onChange = function () {
+            var angle = parseFloat(constrainInput.text);
+            if (isNaN(angle)) {
+                statusText.text = L("alert.invalidAngle");
+                return;
+            }
             commitConstrain(angle);
         };
-        constrainPresets.push({ angle: angle, button: button });
-    }
-    var CONSTRAIN_PRESET_ANGLES = [-30, 0, 30];
-    for (var i = 0; i < CONSTRAIN_PRESET_ANGLES.length; i++) {
-        addConstrainPreset(CONSTRAIN_PRESET_ANGLES[i]);
-    }
 
-    /* ビューの回転に連動するかどうか（ONで回転角度と同じ値、OFFでは現在の制限角度のまま）
-       / Whether to follow the view rotation (on: the same value as the rotation; off: leaves the current constrain angle alone) */
-    var linkRotationCheck = constrainPanel.add("checkbox", undefined, L("label.linkRotation"));
-    linkRotationCheck.alignment = "left";
-    /* 前回の状態を復元（Illustrator のセッション中のみ）/ Restore the previous state (only within the Illustrator session) */
-    linkRotationCheck.value = sessionState.linkRotation;
-
-    /* 選択したオブジェクトのパネル / Selected-object panel */
-    var selectionPanel = palette.add("panel", undefined, L("panel.selection"));
-    setupPanel(selectionPanel, 6);
-
-    /* 選択したオブジェクトの角度（表示）/ Selected object angle (display) */
-    var selectionGroup = selectionPanel.add("group");
-    setupGroup(selectionGroup, "row");
-    selectionGroup.add("statictext", undefined, labelText("label.selection"));
-    var selectionValue = selectionGroup.add("statictext", undefined, "—°");
-    selectionValue.preferredSize.width = 50;
-
-    /* 選択に合わせてビューを回転 / Rotate the view to match the selection */
-    var rotateViewButton = selectionPanel.add("button", undefined, L("button.rotateToSelection"));
-    rotateViewButton.alignment = "left";
-
-    /* 選択をビューの回転に合わせて回転 / Rotate the selection to match the view rotation */
-    var rotateSelectionButton = selectionPanel.add("button", undefined, L("button.rotateSelectionToView"));
-    rotateSelectionButton.alignment = "left";
-
-    /* 選択の回転をリセット / Reset the selection's rotation */
-    var resetSelectionButton = selectionPanel.add("button", undefined, L("button.resetSelectionRotation"));
-    resetSelectionButton.alignment = "left";
-
-    /* リセットパネル（外部スクリプトを実行）/ Reset panel (runs external scripts) */
-    var resetPanel = palette.add("panel", undefined, L("panel.reset"));
-    setupPanel(resetPanel, 6);
-
-    /* テキストの傾き（ResetText.jsx）/ Text tilt (ResetText.jsx) */
-    var resetTextButton = resetPanel.add("button", undefined, L("button.resetTextTilt"));
-    resetTextButton.alignment = "left";
-
-    /* 画像の傾き（ResetRotation.jsx）/ Image tilt (ResetRotation.jsx) */
-    var resetImageButton = resetPanel.add("button", undefined, L("button.resetImageTilt"));
-    resetImageButton.alignment = "left";
-
-    /* 最新の状態を手動で取得し直す / Manually re-fetch the latest state */
-    var refreshButton = palette.add("button", undefined, L("button.refresh"));
-    refreshButton.alignment = "right";
-
-    /* ステータス表示 / Status line */
-    var statusText = palette.add("statictext", undefined, "");
-    statusText.alignment = "fill";
-
-    /* 現在の状態（各リセットボタンのディム判定に使用）/ Current state (used to dim each Reset button) */
-    var currentRotation = 0;
-    var currentConstrain = 0;
-
-    /* 押しても値が変わらないボタンをディム。ビューの回転が0°ならリセットと「ビューの回転に合わせて回転」、
-       制限角度と同じ値のプリセットもディムして、いま効いている角度が分かるようにする
-       / Dim the buttons that would not change anything: at 0° view rotation both Reset and "rotate selection to match view",
-       plus the preset that already matches the constrain angle, which doubles as an indicator of the active angle */
-    function updateButtonState() {
-        resetRotationButton.enabled = (currentRotation !== 0);
-        rotateSelectionButton.enabled = (currentRotation !== 0);
-        for (var i = 0; i < constrainPresets.length; i++) {
-            constrainPresets[i].button.enabled = (constrainPresets[i].angle !== currentConstrain);
-        }
-    }
-
-    /* 制限角度を入力欄とスライダーの両方に表示 / Show the constrain angle in both the field and the slider */
-    function showConstrain(angle) {
-        constrainInput.text = roundAngle(angle);
-        constrainSlider.value = normalizeAngle(angle);
-    }
-
-    /* 制限入力欄の表示を更新。連動ONなら回転角度に追従し、OFFなら現在の制限角度をそのまま残す
-       / Refresh the constrain field: it follows the rotation while linking is on, and keeps the current constrain angle while it is off */
-    function updateConstrainSuggestion() {
-        showConstrain(linkRotationCheck.value ? currentRotation : currentConstrain);
-    }
-
-    /* 回転表示・スライダー・状態を更新し、制限入力欄の候補値も更新
-       / Update the rotation display, slider, and state, then refresh the constrain suggestion */
-    function setRotation(angle) {
-        currentRotation = normalizeAngle(angle);
-        rotationValue.text = formatAngle(currentRotation);
-        rotationSlider.value = currentRotation;
-        updateConstrainSuggestion();
-        updateButtonState();
-    }
-
-    /* 制限角度を状態に記録。連動OFFのときは入力欄にも実際の値を反映し、ONのときは回転追従の候補値を残す
-       / Record the constrain angle in state; while linking is off the field shows the actual value, and while it is on the rotation-following suggestion is kept */
-    function setConstrain(angle) {
-        currentConstrain = roundAngle(angle);
-        if (!linkRotationCheck.value) {
-            showConstrain(currentConstrain);
-        }
-        updateButtonState();
-    }
-
-    /* 制限角度を環境設定へ適用し、成功したら状態と表示を更新 / Apply the constrain angle to the preference, then update the state and display on success */
-    function commitConstrain(angle) {
-        applyConstrainAngle(angle, function (result) {
-            if (result.indexOf("OK") === 0) {
-                setConstrain(angle);
-                showConstrain(angle);
-                statusText.text = L("status.applied");
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
-    }
-
-    /* 連動ONのとき、入力欄の候補値を環境設定へ自動適用（値が変わっていないときは何もしない）
-       / While linking is on, push the suggested value to the preference automatically (skipped when unchanged) */
-    function applyLinkedConstrain() {
-        if (!linkRotationCheck.value) { return; }
-        var target = roundAngle(currentRotation);
-        if (target === currentConstrain) { return; }
-        commitConstrain(target);
-    }
-
-    /* ビュー回転角度・制限角度・選択角度を1回の委譲で取得して表示へ反映 / Fetch the view rotation, constrain angle, and selection angle in a single delegation and reflect them in the display */
-    function refresh() {
-        fetchState(function (result) {
-            if (result.indexOf("OK:") === 0) {
-                var parts = result.substring(3).split(",");
-                setRotation(parseFloat(parts[0]));
-                setConstrain(parseFloat(parts[1]));
-                selectionValue.text = (parts[2] === "") ? "—°" : formatAngle(normalizeAngle(parseFloat(parts[2])));
-                statusText.text = "";
-                applyLinkedConstrain();
-            } else {
-                if (result.indexOf("NODOC") !== -1) {
-                    rotationValue.text = "—°";
-                    selectionValue.text = "—°";
+        /* 選択に合わせてビューを回転：選択パスの角度を取得し、表示とビュー回転へ反映 / Rotate view to match selection: measure the path angle and reflect it in the display and view */
+        rotateViewButton.onClick = function () {
+            rotateViewToSelection(function (result) {
+                if (result.indexOf("OK:") === 0) {
+                    var angle = parseFloat(result.substring(3));
+                    selectionValue.text = formatAngle(normalizeAngle(angle));
+                    setRotation(angle);
+                    statusText.text = L("status.rotatedToSelection");
+                    applyLinkedConstrain();
+                } else {
+                    statusText.text = statusFromResult(result);
                 }
-                statusText.text = statusFromResult(result);
-            }
-        });
-    }
+            });
+        };
 
-    /* スライダー操作中：表示だけ更新（Shiftで15°クランプ）/ While dragging: update the display only (snap to 15° with Shift) */
-    rotationSlider.onChanging = function () {
-        var useShift = ScriptUI.environment.keyboardState.shiftKey;
-        var angle = snapAngle(rotationSlider.value, useShift);
-        if (useShift) { rotationSlider.value = angle; }
-        rotationValue.text = angle + "°";
-    };
+        /* 選択をビューの回転に合わせて回転 / Rotate the selection to match the view rotation */
+        rotateSelectionButton.onClick = function () {
+            rotateSelectionToView(function (result) {
+                if (result.indexOf("OK") === 0) {
+                    statusText.text = L("status.rotatedSelectionToView");
+                } else {
+                    statusText.text = statusFromResult(result);
+                }
+            });
+        };
 
-    /* スライダー確定：ビューの回転を適用 / On release: apply the view rotation */
-    rotationSlider.onChange = function () {
-        var useShift = ScriptUI.environment.keyboardState.shiftKey;
-        var angle = snapAngle(rotationSlider.value, useShift);
-        setRotation(angle);
-        applyViewRotation(angle, function (result) {
-            if (result.indexOf("OK") === 0) {
-                statusText.text = "";
-                applyLinkedConstrain();
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
-    };
+        /* 選択の回転をリセット / Reset the selection's rotation */
+        resetSelectionButton.onClick = function () {
+            resetSelectionRotation(function (result) {
+                if (result.indexOf("OK") === 0) {
+                    statusText.text = L("status.resetSelectionRotation");
+                } else {
+                    statusText.text = statusFromResult(result);
+                }
+            });
+        };
 
-    /* スライダー操作中：入力欄だけ更新（Shiftで15°クランプ）/ While dragging: update the field only (snap to 15° with Shift) */
-    constrainSlider.onChanging = function () {
-        var useShift = ScriptUI.environment.keyboardState.shiftKey;
-        var angle = snapAngle(constrainSlider.value, useShift);
-        if (useShift) { constrainSlider.value = angle; }
-        constrainInput.text = angle;
-    };
-
-    /* スライダー確定：「角度の制限」へ適用 / On release: apply to the constrain angle */
-    constrainSlider.onChange = function () {
-        var useShift = ScriptUI.environment.keyboardState.shiftKey;
-        commitConstrain(snapAngle(constrainSlider.value, useShift));
-    };
-
-    /* 入力欄の確定（Enter・フォーカス移動・↑↓キー）でそのまま適用 / Apply as soon as the field is committed (Enter, focus change, or the arrow keys) */
-    constrainInput.onChange = function () {
-        var angle = parseFloat(constrainInput.text);
-        if (isNaN(angle)) {
-            statusText.text = L("alert.invalidAngle");
-            return;
+        /* 外部スクリプトを実行する共通ハンドラ / Shared handler that runs an external script */
+        function runExternalScript(fileName) {
+            runScriptFile(TRANSFORM_FOLDER + "/" + fileName, function (result) {
+                if (result.indexOf("OK") === 0) {
+                    statusText.text = "";
+                } else {
+                    statusText.text = statusFromResult(result);
+                }
+            });
         }
-        commitConstrain(angle);
-    };
 
-    /* 選択に合わせてビューを回転：選択パスの角度を取得し、表示とビュー回転へ反映 / Rotate view to match selection: measure the path angle and reflect it in the display and view */
-    rotateViewButton.onClick = function () {
-        rotateViewToSelection(function (result) {
-            if (result.indexOf("OK:") === 0) {
-                var angle = parseFloat(result.substring(3));
-                selectionValue.text = formatAngle(normalizeAngle(angle));
-                setRotation(angle);
-                statusText.text = L("status.rotatedToSelection");
-                applyLinkedConstrain();
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
-    };
+        /* テキストの傾きをリセット（ResetText.jsx）/ Reset text tilt (ResetText.jsx) */
+        resetTextButton.onClick = function () {
+            runExternalScript("ResetText.jsx");
+        };
 
-    /* 選択をビューの回転に合わせて回転 / Rotate the selection to match the view rotation */
-    rotateSelectionButton.onClick = function () {
-        rotateSelectionToView(function (result) {
-            if (result.indexOf("OK") === 0) {
-                statusText.text = L("status.rotatedSelectionToView");
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
-    };
+        /* 画像の傾きをリセット（ResetRotation.jsx）/ Reset image tilt (ResetRotation.jsx) */
+        resetImageButton.onClick = function () {
+            runExternalScript("ResetRotation.jsx");
+        };
 
-    /* 選択の回転をリセット / Reset the selection's rotation */
-    resetSelectionButton.onClick = function () {
-        resetSelectionRotation(function (result) {
-            if (result.indexOf("OK") === 0) {
-                statusText.text = L("status.resetSelectionRotation");
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
-    };
+        /* リセット（ビューの回転だけ）：0°に戻して表示を更新 / Reset (view rotation only): set it to 0° and refresh the display */
+        resetRotationButton.onClick = function () {
+            resetViewRotation(function (result) {
+                if (result.indexOf("OK") === 0) {
+                    setRotation(0);
+                    statusText.text = L("status.resetRotation");
+                    applyLinkedConstrain();
+                } else {
+                    statusText.text = statusFromResult(result);
+                }
+            });
+        };
 
-    /* 外部スクリプトを実行する共通ハンドラ / Shared handler that runs an external script */
-    function runExternalScript(fileName) {
-        runScriptFile(TRANSFORM_FOLDER + "/" + fileName, function (result) {
-            if (result.indexOf("OK") === 0) {
-                statusText.text = "";
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
-    }
+        /* 連動の切り替え：ONなら現在の回転角度を環境設定へ適用、OFFなら現在の制限角度を表示し直すだけ。状態はセッションに残す
+           / Toggle linking: on, push the current rotation to the preference; off, just redisplay the current constrain angle. The state is kept in the session */
+        linkRotationCheck.onClick = function () {
+            sessionState.linkRotation = linkRotationCheck.value;
+            updateConstrainSuggestion();
+            applyLinkedConstrain();
+        };
 
-    /* テキストの傾きをリセット（ResetText.jsx）/ Reset text tilt (ResetText.jsx) */
-    resetTextButton.onClick = function () {
-        runExternalScript("ResetText.jsx");
-    };
+        /* 更新ボタン：最新の状態を取得し直す / Refresh button: re-fetch the latest state */
+        refreshButton.onClick = refresh;
 
-    /* 画像の傾きをリセット（ResetRotation.jsx）/ Reset image tilt (ResetRotation.jsx) */
-    resetImageButton.onClick = function () {
-        runExternalScript("ResetRotation.jsx");
-    };
+        /* 初期表示時、およびパレットがアクティブになるたびに最新のビュー回転角度を取得
+           / Fetch the latest view rotation on first show and whenever the palette becomes active */
+        palette.onShow = refresh;
+        palette.onActivate = refresh;
 
-    /* リセット（ビューの回転だけ）：0°に戻して表示を更新 / Reset (view rotation only): set it to 0° and refresh the display */
-    resetRotationButton.onClick = function () {
-        resetViewRotation(function (result) {
-            if (result.indexOf("OK") === 0) {
-                setRotation(0);
-                statusText.text = L("status.resetRotation");
-                applyLinkedConstrain();
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
-    };
+        /* 閉じるときに表示位置をセッションへ控え、常駐エンジンの参照も解放
+           / Store the position in the session on close, and release the reference held by the resident engine */
+        palette.onClose = function () {
+            try {
+                if (palette.location) {
+                    sessionState.location = [palette.location[0], palette.location[1]];
+                }
+            } catch (e) {}
+            try { $.global[PALETTE_KEY] = null; } catch (e2) {}
+        };
 
-    /* 連動の切り替え：ONなら現在の回転角度を環境設定へ適用、OFFなら現在の制限角度を表示し直すだけ。状態はセッションに残す
-       / Toggle linking: on, push the current rotation to the preference; off, just redisplay the current constrain angle. The state is kept in the session */
-    linkRotationCheck.onClick = function () {
-        sessionState.linkRotation = linkRotationCheck.value;
-        updateConstrainSuggestion();
-        applyLinkedConstrain();
-    };
+        /* 常駐エンジンに保持してGCを避ける / Keep it in the resident engine so it is not garbage-collected */
+        $.global[PALETTE_KEY] = palette;
 
-    /* 更新ボタン：最新の状態を取得し直す / Refresh button: re-fetch the latest state */
-    refreshButton.onClick = refresh;
-
-    /* 初期表示時、およびパレットがアクティブになるたびに最新のビュー回転角度を取得
-       / Fetch the latest view rotation on first show and whenever the palette becomes active */
-    palette.onShow = refresh;
-    palette.onActivate = refresh;
-
-    /* 閉じるときに表示位置をセッションへ控え、常駐エンジンの参照も解放
-       / Store the position in the session on close, and release the reference held by the resident engine */
-    palette.onClose = function () {
+        /* 前回の位置を復元（記憶がなければ中央）/ Restore the previous position (centered when there is none) */
         try {
-            if (palette.location) {
-                sessionState.location = [palette.location[0], palette.location[1]];
+            if (sessionState.location && sessionState.location.length === 2) {
+                palette.location = [sessionState.location[0], sessionState.location[1]];
+            } else {
+                palette.center();
             }
-        } catch (e) {}
-        try { $.global[PALETTE_KEY] = null; } catch (e2) {}
-    };
-
-    /* 常駐エンジンに保持してGCを避ける / Keep it in the resident engine so it is not garbage-collected */
-    $.global[PALETTE_KEY] = palette;
-
-    /* 前回の位置を復元（記憶がなければ中央）/ Restore the previous position (centered when there is none) */
-    try {
-        if (sessionState.location && sessionState.location.length === 2) {
-            palette.location = [sessionState.location[0], sessionState.location[1]];
-        } else {
+        } catch (e) {
             palette.center();
         }
-    } catch (e) {
-        palette.center();
-    }
 
-    palette.show();
+        palette.show();
+    })();
+
 })();

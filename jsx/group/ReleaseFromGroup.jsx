@@ -38,6 +38,10 @@ var SCRIPT_UPDATED  = "2026-03-06";                   /* 更新日 / last update
 
 (function () {
 
+/**
+ * 現在のUIロケールが日本語かどうかを判定する
+ * @returns {string} 日本語環境なら "ja"、それ以外は "en"
+ */
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
@@ -55,6 +59,11 @@ var LABELS = {
   }
 };
 
+/**
+ * LABELS から現在のロケールに対応する文言を取得する
+ * @param {string} key - LABELS のキー
+ * @returns {string} ロケールに対応する文言。見つからない場合は英語、それも無ければキーをそのまま返す
+ */
 function L(key) {
   var obj = LABELS[key];
   if (!obj) return key;

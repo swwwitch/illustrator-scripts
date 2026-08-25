@@ -416,6 +416,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne0934ee22972"; /* 紹�
         var collectedFrames = [];
 
         /* 非表示・ロックされたレイヤーは除外して再帰 / Skip hidden or locked layers while recursing */
+        /**
+         * レイヤーとサブレイヤーを再帰的にたどり、テキストフレームを集める
+         *
+         * 非表示・ロックされたレイヤーは対象外。
+         * @param {Layer} targetLayer - 走査するレイヤー
+         * @returns {void}
+         */
         function collectInLayer(targetLayer) {
             if (!targetLayer.visible || targetLayer.locked) return;
             collectTextFramesInContainer(targetLayer, collectedFrames);

@@ -36,594 +36,598 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-var SHOW_OPTIONS_DIALOG = true; // 起動時にオプションダイアログを表示する
-
-var UNGROUP_SINGLE_ITEM_GROUP_DEFAULT = true; // 1アイテムだけのグループを自動的に解除する
-var INHERIT_SYMBOL_NAME_DEFAULT = true; // 解除後の名前に元のシンボル名を使う
-var USE_PREFIX_DEFAULT = true; // 解除後の名前に接頭辞を付ける
-var UNLINKED_SYMBOL_ITEM_NAME_PREFIX_DEFAULT = "symbol_unlinked_"; // 解除後の名前に付ける接頭辞
-var USE_TEXT_CONTENT_AS_NAME_DEFAULT = true; // 単一テキストの場合は内容を名前にする
-
-/* =========================================
-   バージョンとローカライズ / Version and localization
-   ========================================= */
-
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-
-var lang = getCurrentLang();
-
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
-    title: {
-        ja: "シンボルのリンクを解除",
-        en: "Break Symbol Links"
-    },
-    optionsPanelTitle: {
-        ja: "オプション",
-        en: "Options"
-    },
-    ungroupSingleItem: {
-        ja: "1アイテムだけのグループを解除",
-        en: "Ungroup one-item groups"
-    },
-    namePanelTitle: {
-        ja: "解除後の名前",
-        en: "Result Name"
-    },
-    inheritSymbolName: {
-        ja: "元のシンボル名を使う",
-        en: "Use original symbol name"
-    },
-    prefix: {
-        ja: "名前の接頭辞",
-        en: "Name prefix"
-    },
-    useTextContentAsName: {
-        ja: "単一テキストは内容を名前にする",
-        en: "Use single text content as name"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    logMoveStaticSubLayerItem: {
-        ja: "static 解除結果のサブレイヤーアイテムを変換後グループへ移動",
-        en: "Move static sublayer item into converted group"
-    },
-    logRemoveConvertedSubLayer: {
-        ja: "変換済みサブレイヤーの削除",
-        en: "Remove converted sublayer"
-    },
-    logMoveSingleItemBeforeConvertedGroup: {
-        ja: "単一アイテムを変換後グループの前へ移動",
-        en: "Move single item before converted group"
-    },
-    logRemoveSingleItemConvertedGroup: {
-        ja: "単一アイテム化した変換後グループの削除",
-        en: "Remove single-item converted group"
-    },
-    logMoveStaticBreakItemIntoResultGroup: {
-        ja: "static 解除結果アイテムを結果グループへ移動",
-        en: "Move static break item into result group"
-    },
-    logSelectDynamicBreakItem: {
-        ja: "dynamic 解除結果アイテムを選択",
-        en: "Select dynamic break item"
-    },
-    logSelectTargetSymbolItem: {
-        ja: "解除対象のシンボルを選択",
-        en: "Select target symbol item"
-    },
-    logUngroupNestedDynamicBreakGroup: {
-        ja: "dynamic 解除結果のネストグループを解除",
-        en: "Ungroup nested dynamic break group"
-    },
-    logMoveDynamicBreakItemIntoResultGroup: {
-        ja: "dynamic 解除結果アイテムを結果グループへ移動",
-        en: "Move dynamic break item into result group"
-    },
-    logDetectBreakLinkResult: {
-        ja: "breakLink 結果の判定",
-        en: "Detect breakLink result"
-    },
-    logMixedBreakLinkResult: {
-        ja: "新規サブレイヤーと新規ページアイテムの両方が見つかりました。static として処理します。",
-        en: "Both generated sublayers and page items were found. Treating the result as static."
-    },
-    logNoBreakLinkResult: {
-        ja: "新規サブレイヤーも新規ページアイテムも見つかりませんでした。",
-        en: "No generated sublayers or page items were found."
-    },
-    logBreakNormalizeAndNameSymbol: {
-        ja: "シンボルのリンク解除・正規化・命名",
-        en: "Break, normalize, and name symbol"
-    }
-};
-
-function L(key) {
-    if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
-    if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
-    return key;
-}
-
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-function labelText(key) {
-    return L(key) + (lang === "ja" ? "：" : ":");
-}
-
 (function () {
 
-    if (app.documents.length === 0) {
-        return;
+    var SHOW_OPTIONS_DIALOG = true; // 起動時にオプションダイアログを表示する
+
+    var UNGROUP_SINGLE_ITEM_GROUP_DEFAULT = true; // 1アイテムだけのグループを自動的に解除する
+    var INHERIT_SYMBOL_NAME_DEFAULT = true; // 解除後の名前に元のシンボル名を使う
+    var USE_PREFIX_DEFAULT = true; // 解除後の名前に接頭辞を付ける
+    var UNLINKED_SYMBOL_ITEM_NAME_PREFIX_DEFAULT = "symbol_unlinked_"; // 解除後の名前に付ける接頭辞
+    var USE_TEXT_CONTENT_AS_NAME_DEFAULT = true; // 単一テキストの場合は内容を名前にする
+
+    /* =========================================
+       バージョンとローカライズ / Version and localization
+       ========================================= */
+
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var activeDocument = app.activeDocument;
+    var lang = getCurrentLang();
 
-    if (activeDocument.selection.length === 0) {
-        return;
-    }
-
-    var PANEL_MARGINS = [15, 20, 15, 10];
-
-    var UNGROUP_SINGLE_ITEM_GROUP = UNGROUP_SINGLE_ITEM_GROUP_DEFAULT;
-    var INHERIT_SYMBOL_NAME = INHERIT_SYMBOL_NAME_DEFAULT;
-    var USE_PREFIX = USE_PREFIX_DEFAULT;
-    var UNLINKED_SYMBOL_ITEM_NAME_PREFIX = UNLINKED_SYMBOL_ITEM_NAME_PREFIX_DEFAULT;
-    var USE_TEXT_CONTENT_AS_NAME = USE_TEXT_CONTENT_AS_NAME_DEFAULT;
-
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = "left";
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        if (typeof spacing === "number") {
-            panel.spacing = spacing;
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        title: {
+            ja: "シンボルのリンクを解除",
+            en: "Break Symbol Links"
+        },
+        optionsPanelTitle: {
+            ja: "オプション",
+            en: "Options"
+        },
+        ungroupSingleItem: {
+            ja: "1アイテムだけのグループを解除",
+            en: "Ungroup one-item groups"
+        },
+        namePanelTitle: {
+            ja: "解除後の名前",
+            en: "Result Name"
+        },
+        inheritSymbolName: {
+            ja: "元のシンボル名を使う",
+            en: "Use original symbol name"
+        },
+        prefix: {
+            ja: "名前の接頭辞",
+            en: "Name prefix"
+        },
+        useTextContentAsName: {
+            ja: "単一テキストは内容を名前にする",
+            en: "Use single text content as name"
+        },
+        cancel: {
+            ja: "キャンセル",
+            en: "Cancel"
+        },
+        ok: {
+            ja: "OK",
+            en: "OK"
+        },
+        logMoveStaticSubLayerItem: {
+            ja: "static 解除結果のサブレイヤーアイテムを変換後グループへ移動",
+            en: "Move static sublayer item into converted group"
+        },
+        logRemoveConvertedSubLayer: {
+            ja: "変換済みサブレイヤーの削除",
+            en: "Remove converted sublayer"
+        },
+        logMoveSingleItemBeforeConvertedGroup: {
+            ja: "単一アイテムを変換後グループの前へ移動",
+            en: "Move single item before converted group"
+        },
+        logRemoveSingleItemConvertedGroup: {
+            ja: "単一アイテム化した変換後グループの削除",
+            en: "Remove single-item converted group"
+        },
+        logMoveStaticBreakItemIntoResultGroup: {
+            ja: "static 解除結果アイテムを結果グループへ移動",
+            en: "Move static break item into result group"
+        },
+        logSelectDynamicBreakItem: {
+            ja: "dynamic 解除結果アイテムを選択",
+            en: "Select dynamic break item"
+        },
+        logSelectTargetSymbolItem: {
+            ja: "解除対象のシンボルを選択",
+            en: "Select target symbol item"
+        },
+        logUngroupNestedDynamicBreakGroup: {
+            ja: "dynamic 解除結果のネストグループを解除",
+            en: "Ungroup nested dynamic break group"
+        },
+        logMoveDynamicBreakItemIntoResultGroup: {
+            ja: "dynamic 解除結果アイテムを結果グループへ移動",
+            en: "Move dynamic break item into result group"
+        },
+        logDetectBreakLinkResult: {
+            ja: "breakLink 結果の判定",
+            en: "Detect breakLink result"
+        },
+        logMixedBreakLinkResult: {
+            ja: "新規サブレイヤーと新規ページアイテムの両方が見つかりました。static として処理します。",
+            en: "Both generated sublayers and page items were found. Treating the result as static."
+        },
+        logNoBreakLinkResult: {
+            ja: "新規サブレイヤーも新規ページアイテムも見つかりませんでした。",
+            en: "No generated sublayers or page items were found."
+        },
+        logBreakNormalizeAndNameSymbol: {
+            ja: "シンボルのリンク解除・正規化・命名",
+            en: "Break, normalize, and name symbol"
         }
+    };
+
+    function L(key) {
+        if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
+        if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
+        return key;
     }
 
-    function showOptionsDialog(defaultUngroupSingleItem, defaultInheritSymbolName, defaultUsePrefix, defaultPrefix, defaultUseTextContentAsName) {
-        var dialog = new Window("dialog", L("title") + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "fill";
-        dialog.margins = 16;
-        dialog.spacing = 12;
+    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+    function labelText(key) {
+        return L(key) + (lang === "ja" ? "：" : ":");
+    }
 
-        var optionsPanel = dialog.add("panel", undefined, L("optionsPanelTitle"));
-        setupPanel(optionsPanel, 6);
+    (function () {
 
-        var ungroupCheckbox = optionsPanel.add("checkbox", undefined, L("ungroupSingleItem"));
-        ungroupCheckbox.value = defaultUngroupSingleItem;
-
-        var namePanel = dialog.add("panel", undefined, L("namePanelTitle"));
-        setupPanel(namePanel, 6);
-
-        var inheritNameCheckbox = namePanel.add("checkbox", undefined, L("inheritSymbolName"));
-        inheritNameCheckbox.value = defaultInheritSymbolName;
-
-        var prefixGroup = namePanel.add("group");
-        prefixGroup.orientation = "row";
-        prefixGroup.alignChildren = "center";
-        var prefixCheckbox = prefixGroup.add("checkbox", undefined, labelText("prefix"));
-        prefixCheckbox.value = defaultUsePrefix;
-        var prefixInput = prefixGroup.add("edittext", undefined, defaultPrefix);
-        prefixInput.characters = 20;
-
-        var useTextNameCheckbox = namePanel.add("checkbox", undefined, L("useTextContentAsName"));
-        useTextNameCheckbox.value = defaultUseTextContentAsName;
-
-        function syncEnabledStates() {
-            prefixCheckbox.enabled = inheritNameCheckbox.value;
-            prefixInput.enabled = inheritNameCheckbox.value && prefixCheckbox.value;
-            useTextNameCheckbox.enabled = true;
+        if (app.documents.length === 0) {
+            return;
         }
-        syncEnabledStates();
-        inheritNameCheckbox.onClick = syncEnabledStates;
-        ungroupCheckbox.onClick = syncEnabledStates;
-        prefixCheckbox.onClick = syncEnabledStates;
 
-        var buttonGroup = dialog.add("group");
-        buttonGroup.alignment = "right";
-        buttonGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        buttonGroup.add("button", undefined, L("ok"), { name: "ok" });
+        var activeDocument = app.activeDocument;
 
-        if (dialog.show() !== 1) return null;
-
-        return {
-            ungroupSingleItem: ungroupCheckbox.value,
-            inheritSymbolName: inheritNameCheckbox.value,
-            usePrefix: prefixCheckbox.value,
-            unlinkedPrefix: prefixInput.text,
-            useTextContentAsName: useTextNameCheckbox.value
-        };
-    }
-
-    function logScriptError(context, errorObject) {
-        try {
-            $.writeln("[" + SCRIPT_VERSION + "] " + context + ": " + errorObject);
-        } catch (logError) {
-            /* ログ出力できない環境では何もしない / Ignore when log output is unavailable */
+        if (activeDocument.selection.length === 0) {
+            return;
         }
-    }
 
-    function tryRemoveItem(item, context) {
-        try {
-            item.remove();
-            return true;
-        } catch (errorObject) {
-            logScriptError(context, errorObject);
+        var PANEL_MARGINS = [15, 20, 15, 10];
+
+        var UNGROUP_SINGLE_ITEM_GROUP = UNGROUP_SINGLE_ITEM_GROUP_DEFAULT;
+        var INHERIT_SYMBOL_NAME = INHERIT_SYMBOL_NAME_DEFAULT;
+        var USE_PREFIX = USE_PREFIX_DEFAULT;
+        var UNLINKED_SYMBOL_ITEM_NAME_PREFIX = UNLINKED_SYMBOL_ITEM_NAME_PREFIX_DEFAULT;
+        var USE_TEXT_CONTENT_AS_NAME = USE_TEXT_CONTENT_AS_NAME_DEFAULT;
+
+        function setupPanel(panel, spacing) {
+            panel.orientation = "column";
+            panel.alignChildren = "left";
+            panel.alignment = "fill";
+            panel.margins = PANEL_MARGINS;
+            if (typeof spacing === "number") {
+                panel.spacing = spacing;
+            }
+        }
+
+        function showOptionsDialog(defaultUngroupSingleItem, defaultInheritSymbolName, defaultUsePrefix, defaultPrefix, defaultUseTextContentAsName) {
+            var dialog = new Window("dialog", L("title") + " " + SCRIPT_VERSION);
+            dialog.alignChildren = "fill";
+            dialog.margins = 16;
+            dialog.spacing = 12;
+
+            var optionsPanel = dialog.add("panel", undefined, L("optionsPanelTitle"));
+            setupPanel(optionsPanel, 6);
+
+            var ungroupCheckbox = optionsPanel.add("checkbox", undefined, L("ungroupSingleItem"));
+            ungroupCheckbox.value = defaultUngroupSingleItem;
+
+            var namePanel = dialog.add("panel", undefined, L("namePanelTitle"));
+            setupPanel(namePanel, 6);
+
+            var inheritNameCheckbox = namePanel.add("checkbox", undefined, L("inheritSymbolName"));
+            inheritNameCheckbox.value = defaultInheritSymbolName;
+
+            var prefixGroup = namePanel.add("group");
+            prefixGroup.orientation = "row";
+            prefixGroup.alignChildren = "center";
+            var prefixCheckbox = prefixGroup.add("checkbox", undefined, labelText("prefix"));
+            prefixCheckbox.value = defaultUsePrefix;
+            var prefixInput = prefixGroup.add("edittext", undefined, defaultPrefix);
+            prefixInput.characters = 20;
+
+            var useTextNameCheckbox = namePanel.add("checkbox", undefined, L("useTextContentAsName"));
+            useTextNameCheckbox.value = defaultUseTextContentAsName;
+
+            function syncEnabledStates() {
+                prefixCheckbox.enabled = inheritNameCheckbox.value;
+                prefixInput.enabled = inheritNameCheckbox.value && prefixCheckbox.value;
+                useTextNameCheckbox.enabled = true;
+            }
+            syncEnabledStates();
+            inheritNameCheckbox.onClick = syncEnabledStates;
+            ungroupCheckbox.onClick = syncEnabledStates;
+            prefixCheckbox.onClick = syncEnabledStates;
+
+            var buttonGroup = dialog.add("group");
+            buttonGroup.alignment = "right";
+            buttonGroup.add("button", undefined, L("cancel"), { name: "cancel" });
+            buttonGroup.add("button", undefined, L("ok"), { name: "ok" });
+
+            if (dialog.show() !== 1) return null;
+
+            return {
+                ungroupSingleItem: ungroupCheckbox.value,
+                inheritSymbolName: inheritNameCheckbox.value,
+                usePrefix: prefixCheckbox.value,
+                unlinkedPrefix: prefixInput.text,
+                useTextContentAsName: useTextNameCheckbox.value
+            };
+        }
+
+        function logScriptError(context, errorObject) {
+            try {
+                $.writeln("[" + SCRIPT_VERSION + "] " + context + ": " + errorObject);
+            } catch (logError) {
+                /* ログ出力できない環境では何もしない / Ignore when log output is unavailable */
+            }
+        }
+
+        function tryRemoveItem(item, context) {
+            try {
+                item.remove();
+                return true;
+            } catch (errorObject) {
+                logScriptError(context, errorObject);
+                return false;
+            }
+        }
+
+        function tryMoveItem(item, destination, placement, context) {
+            try {
+                item.move(destination, placement);
+                return true;
+            } catch (errorObject) {
+                logScriptError(context, errorObject);
+                return false;
+            }
+        }
+
+        function trySetItemSelected(item, selectedValue, context) {
+            try {
+                item.selected = selectedValue;
+                return true;
+            } catch (errorObject) {
+                logScriptError(context, errorObject);
+                return false;
+            }
+        }
+
+        function tryExecuteMenuCommand(commandName, context) {
+            try {
+                app.executeMenuCommand(commandName);
+                return true;
+            } catch (errorObject) {
+                logScriptError(context, errorObject);
+                return false;
+            }
+        }
+
+        /* 指定サブレイヤーを親 Layer 直下のグループに変換 / Convert the specified sublayer into a group directly under the parent Layer */
+        /* 単一アイテムのグループは設定に応じて解除 / Ungroup single-item groups depending on the option */
+        function convertGeneratedSubLayerToGroup(parentLayer, generatedSubLayer) {
+            if (!parentLayer || !generatedSubLayer) return null;
+
+            flattenSubLayersToGroups(generatedSubLayer);
+
+            var convertedGroup = parentLayer.groupItems.add();
+            for (var pageItemIndex = generatedSubLayer.pageItems.length - 1; pageItemIndex >= 0; pageItemIndex--) {
+                tryMoveItem(generatedSubLayer.pageItems[pageItemIndex], convertedGroup, ElementPlacement.PLACEATBEGINNING, L("logMoveStaticSubLayerItem"));
+            }
+
+            tryRemoveItem(generatedSubLayer, L("logRemoveConvertedSubLayer"));
+
+            if (UNGROUP_SINGLE_ITEM_GROUP && convertedGroup.pageItems.length === 1) {
+                var singleItem = convertedGroup.pageItems[0];
+                tryMoveItem(singleItem, convertedGroup, ElementPlacement.PLACEBEFORE, L("logMoveSingleItemBeforeConvertedGroup"));
+                tryRemoveItem(convertedGroup, L("logRemoveSingleItemConvertedGroup"));
+                return singleItem;
+            }
+
+            return convertedGroup;
+        }
+
+        /* 指定 Layer 配下のサブレイヤーを再帰的にグループ化してフラット化 / Flatten sublayers under the specified Layer by converting them into groups recursively */
+        function flattenSubLayersToGroups(parentLayer) {
+            for (var subLayerIndex = parentLayer.layers.length - 1; subLayerIndex >= 0; subLayerIndex--) {
+                convertGeneratedSubLayerToGroup(parentLayer, parentLayer.layers[subLayerIndex]);
+            }
+        }
+
+        /* 選択範囲内に GroupItem が含まれるか / Check whether the selection contains any GroupItem */
+        function selectionContainsGroupItem(selectedItems) {
+            for (var selectionIndex = 0; selectionIndex < selectedItems.length; selectionIndex++) {
+                if (selectedItems[selectionIndex].typename === "GroupItem") return true;
+            }
             return false;
         }
-    }
 
-    function tryMoveItem(item, destination, placement, context) {
-        try {
-            item.move(destination, placement);
-            return true;
-        } catch (errorObject) {
-            logScriptError(context, errorObject);
-            return false;
-        }
-    }
-
-    function trySetItemSelected(item, selectedValue, context) {
-        try {
-            item.selected = selectedValue;
-            return true;
-        } catch (errorObject) {
-            logScriptError(context, errorObject);
-            return false;
-        }
-    }
-
-    function tryExecuteMenuCommand(commandName, context) {
-        try {
-            app.executeMenuCommand(commandName);
-            return true;
-        } catch (errorObject) {
-            logScriptError(context, errorObject);
-            return false;
-        }
-    }
-
-    /* 指定サブレイヤーを親 Layer 直下のグループに変換 / Convert the specified sublayer into a group directly under the parent Layer */
-    /* 単一アイテムのグループは設定に応じて解除 / Ungroup single-item groups depending on the option */
-    function convertGeneratedSubLayerToGroup(parentLayer, generatedSubLayer) {
-        if (!parentLayer || !generatedSubLayer) return null;
-
-        flattenSubLayersToGroups(generatedSubLayer);
-
-        var convertedGroup = parentLayer.groupItems.add();
-        for (var pageItemIndex = generatedSubLayer.pageItems.length - 1; pageItemIndex >= 0; pageItemIndex--) {
-            tryMoveItem(generatedSubLayer.pageItems[pageItemIndex], convertedGroup, ElementPlacement.PLACEATBEGINNING, L("logMoveStaticSubLayerItem"));
+        /* 指定アイテムを含む Layer を返す / Return the Layer that contains the specified item */
+        function getContainingLayer(pageItem) {
+            var currentParent = pageItem.parent;
+            while (currentParent && currentParent.typename !== "Layer") {
+                currentParent = currentParent.parent;
+            }
+            return currentParent;
         }
 
-        tryRemoveItem(generatedSubLayer, L("logRemoveConvertedSubLayer"));
-
-        if (UNGROUP_SINGLE_ITEM_GROUP && convertedGroup.pageItems.length === 1) {
-            var singleItem = convertedGroup.pageItems[0];
-            tryMoveItem(singleItem, convertedGroup, ElementPlacement.PLACEBEFORE, L("logMoveSingleItemBeforeConvertedGroup"));
-            tryRemoveItem(convertedGroup, L("logRemoveSingleItemConvertedGroup"));
-            return singleItem;
+        function getUnlinkedSymbolItemName(symbolName) {
+            return (USE_PREFIX ? UNLINKED_SYMBOL_ITEM_NAME_PREFIX : "") + symbolName;
         }
 
-        return convertedGroup;
-    }
+        /* 単一 TextFrame の文字列を取得 / Get the text content when the result is a single TextFrame */
+        /* 改行は空白に置換し、対象外の場合は null を返す / Replace line breaks with spaces and return null when not applicable */
+        function getSingleTextFrameContent(item) {
+            if (!item) return null;
 
-    /* 指定 Layer 配下のサブレイヤーを再帰的にグループ化してフラット化 / Flatten sublayers under the specified Layer by converting them into groups recursively */
-    function flattenSubLayersToGroups(parentLayer) {
-        for (var subLayerIndex = parentLayer.layers.length - 1; subLayerIndex >= 0; subLayerIndex--) {
-            convertGeneratedSubLayerToGroup(parentLayer, parentLayer.layers[subLayerIndex]);
-        }
-    }
+            var textFrame = null;
+            if (item.typename === "TextFrame") {
+                textFrame = item;
+            } else if (item.typename === "GroupItem" && item.pageItems.length === 1 && item.pageItems[0].typename === "TextFrame") {
+                textFrame = item.pageItems[0];
+            }
 
-    /* 選択範囲内に GroupItem が含まれるか / Check whether the selection contains any GroupItem */
-    function selectionContainsGroupItem(selectedItems) {
-        for (var selectionIndex = 0; selectionIndex < selectedItems.length; selectionIndex++) {
-            if (selectedItems[selectionIndex].typename === "GroupItem") return true;
-        }
-        return false;
-    }
+            if (!textFrame) return null;
 
-    /* 指定アイテムを含む Layer を返す / Return the Layer that contains the specified item */
-    function getContainingLayer(pageItem) {
-        var currentParent = pageItem.parent;
-        while (currentParent && currentParent.typename !== "Layer") {
-            currentParent = currentParent.parent;
-        }
-        return currentParent;
-    }
+            var contents = textFrame.contents;
+            if (contents === null || typeof contents === "undefined") return null;
 
-    function getUnlinkedSymbolItemName(symbolName) {
-        return (USE_PREFIX ? UNLINKED_SYMBOL_ITEM_NAME_PREFIX : "") + symbolName;
-    }
+            contents = contents.replace(/[\r\n]+/g, " ");
+            if (contents.length === 0) return null;
 
-    /* 単一 TextFrame の文字列を取得 / Get the text content when the result is a single TextFrame */
-    /* 改行は空白に置換し、対象外の場合は null を返す / Replace line breaks with spaces and return null when not applicable */
-    function getSingleTextFrameContent(item) {
-        if (!item) return null;
-
-        var textFrame = null;
-        if (item.typename === "TextFrame") {
-            textFrame = item;
-        } else if (item.typename === "GroupItem" && item.pageItems.length === 1 && item.pageItems[0].typename === "TextFrame") {
-            textFrame = item.pageItems[0];
+            return contents;
         }
 
-        if (!textFrame) return null;
+        function collectGeneratedPageItemsByReference(currentPageItems, existingPageItems) {
+            var newItems = [];
 
-        var contents = textFrame.contents;
-        if (contents === null || typeof contents === "undefined") return null;
+            for (var currentItemIndex = 0; currentItemIndex < currentPageItems.length; currentItemIndex++) {
+                var currentItem = currentPageItems[currentItemIndex];
+                var isExistingItem = false;
 
-        contents = contents.replace(/[\r\n]+/g, " ");
-        if (contents.length === 0) return null;
+                for (var existingItemIndex = 0; existingItemIndex < existingPageItems.length; existingItemIndex++) {
+                    if (existingPageItems[existingItemIndex] === currentItem) {
+                        isExistingItem = true;
+                        break;
+                    }
+                }
 
-        return contents;
-    }
-
-    function collectGeneratedPageItemsByReference(currentPageItems, existingPageItems) {
-        var newItems = [];
-
-        for (var currentItemIndex = 0; currentItemIndex < currentPageItems.length; currentItemIndex++) {
-            var currentItem = currentPageItems[currentItemIndex];
-            var isExistingItem = false;
-
-            for (var existingItemIndex = 0; existingItemIndex < existingPageItems.length; existingItemIndex++) {
-                if (existingPageItems[existingItemIndex] === currentItem) {
-                    isExistingItem = true;
-                    break;
+                if (!isExistingItem) {
+                    newItems.push(currentItem);
                 }
             }
 
-            if (!isExistingItem) {
-                newItems.push(currentItem);
-            }
+            return newItems;
         }
 
-        return newItems;
-    }
+        function collectGeneratedSubLayersByReference(currentSubLayers, existingSubLayers) {
+            var newLayers = [];
 
-    function collectGeneratedSubLayersByReference(currentSubLayers, existingSubLayers) {
-        var newLayers = [];
+            for (var currentLayerIndex = 0; currentLayerIndex < currentSubLayers.length; currentLayerIndex++) {
+                var currentLayer = currentSubLayers[currentLayerIndex];
+                var isExistingLayer = false;
 
-        for (var currentLayerIndex = 0; currentLayerIndex < currentSubLayers.length; currentLayerIndex++) {
-            var currentLayer = currentSubLayers[currentLayerIndex];
-            var isExistingLayer = false;
+                for (var existingLayerIndex = 0; existingLayerIndex < existingSubLayers.length; existingLayerIndex++) {
+                    if (existingSubLayers[existingLayerIndex] === currentLayer) {
+                        isExistingLayer = true;
+                        break;
+                    }
+                }
 
-            for (var existingLayerIndex = 0; existingLayerIndex < existingSubLayers.length; existingLayerIndex++) {
-                if (existingSubLayers[existingLayerIndex] === currentLayer) {
-                    isExistingLayer = true;
-                    break;
+                if (!isExistingLayer) {
+                    newLayers.push(currentLayer);
                 }
             }
 
-            if (!isExistingLayer) {
-                newLayers.push(currentLayer);
+            return newLayers;
+        }
+
+        function classifyBreakResult(generatedSubLayers, generatedPageItems) {
+            var hasGeneratedSubLayers = generatedSubLayers.length > 0;
+            var hasGeneratedPageItems = generatedPageItems.length > 0;
+
+            if (hasGeneratedSubLayers && !hasGeneratedPageItems) return "static";
+            if (!hasGeneratedSubLayers && hasGeneratedPageItems) return "dynamic";
+            if (hasGeneratedSubLayers && hasGeneratedPageItems) return "mixed";
+            return "none";
+        }
+
+        function breakSymbolLink(symbolItem) {
+            symbolItem.breakLink();
+        }
+
+        function normalizeBreakResult(documentObject, targetLayer, existingLayerItemsBeforeBreak, generatedSubLayers, generatedPageItems) {
+            var breakResultType = classifyBreakResult(generatedSubLayers, generatedPageItems);
+
+            if (breakResultType === "static") {
+                return organizeStaticBreakResult(targetLayer, existingLayerItemsBeforeBreak, generatedSubLayers);
+            }
+
+            if (breakResultType === "dynamic") {
+                return organizeDynamicBreakResult(documentObject, targetLayer, existingLayerItemsBeforeBreak);
+            }
+
+            if (breakResultType === "mixed") {
+                logScriptError(L("logDetectBreakLinkResult"), L("logMixedBreakLinkResult"));
+                return organizeStaticBreakResult(targetLayer, existingLayerItemsBeforeBreak, generatedSubLayers);
+            }
+
+            logScriptError(L("logDetectBreakLinkResult"), L("logNoBreakLinkResult"));
+            return null;
+        }
+
+        function applyNaming(finalOutputItem, symbolName) {
+            if (!finalOutputItem) return;
+
+            if (USE_TEXT_CONTENT_AS_NAME) {
+                var textContent = getSingleTextFrameContent(finalOutputItem);
+                if (textContent !== null) {
+                    finalOutputItem.name = textContent;
+                    return;
+                }
+            }
+
+            if (INHERIT_SYMBOL_NAME) {
+                finalOutputItem.name = getUnlinkedSymbolItemName(symbolName);
             }
         }
 
-        return newLayers;
-    }
+        /* 選択範囲から SymbolItem を収集 / Collect SymbolItems from the selection */
+        function collectSymbolItemsRecursively(pageItem, symbolItems) {
+            if (!pageItem) return;
 
-    function classifyBreakResult(generatedSubLayers, generatedPageItems) {
-        var hasGeneratedSubLayers = generatedSubLayers.length > 0;
-        var hasGeneratedPageItems = generatedPageItems.length > 0;
-
-        if (hasGeneratedSubLayers && !hasGeneratedPageItems) return "static";
-        if (!hasGeneratedSubLayers && hasGeneratedPageItems) return "dynamic";
-        if (hasGeneratedSubLayers && hasGeneratedPageItems) return "mixed";
-        return "none";
-    }
-
-    function breakSymbolLink(symbolItem) {
-        symbolItem.breakLink();
-    }
-
-    function normalizeBreakResult(documentObject, targetLayer, existingLayerItemsBeforeBreak, generatedSubLayers, generatedPageItems) {
-        var breakResultType = classifyBreakResult(generatedSubLayers, generatedPageItems);
-
-        if (breakResultType === "static") {
-            return organizeStaticBreakResult(targetLayer, existingLayerItemsBeforeBreak, generatedSubLayers);
-        }
-
-        if (breakResultType === "dynamic") {
-            return organizeDynamicBreakResult(documentObject, targetLayer, existingLayerItemsBeforeBreak);
-        }
-
-        if (breakResultType === "mixed") {
-            logScriptError(L("logDetectBreakLinkResult"), L("logMixedBreakLinkResult"));
-            return organizeStaticBreakResult(targetLayer, existingLayerItemsBeforeBreak, generatedSubLayers);
-        }
-
-        logScriptError(L("logDetectBreakLinkResult"), L("logNoBreakLinkResult"));
-        return null;
-    }
-
-    function applyNaming(finalOutputItem, symbolName) {
-        if (!finalOutputItem) return;
-
-        if (USE_TEXT_CONTENT_AS_NAME) {
-            var textContent = getSingleTextFrameContent(finalOutputItem);
-            if (textContent !== null) {
-                finalOutputItem.name = textContent;
+            if (pageItem.typename === "SymbolItem") {
+                symbolItems.push(pageItem);
                 return;
             }
-        }
 
-        if (INHERIT_SYMBOL_NAME) {
-            finalOutputItem.name = getUnlinkedSymbolItemName(symbolName);
-        }
-    }
-
-    /* 選択範囲から SymbolItem を収集 / Collect SymbolItems from the selection */
-    function collectSymbolItemsRecursively(pageItem, symbolItems) {
-        if (!pageItem) return;
-
-        if (pageItem.typename === "SymbolItem") {
-            symbolItems.push(pageItem);
-            return;
-        }
-
-        /* グループ内も探す / Search inside groups as well */
-        if (pageItem.typename === "GroupItem") {
-            for (var pageItemIndex = 0; pageItemIndex < pageItem.pageItems.length; pageItemIndex++) {
-                collectSymbolItemsRecursively(pageItem.pageItems[pageItemIndex], symbolItems);
+            /* グループ内も探す / Search inside groups as well */
+            if (pageItem.typename === "GroupItem") {
+                for (var pageItemIndex = 0; pageItemIndex < pageItem.pageItems.length; pageItemIndex++) {
+                    collectSymbolItemsRecursively(pageItem.pageItems[pageItemIndex], symbolItems);
+                }
             }
         }
-    }
 
-    function collectSymbolItemsFromSelection(selectedItems) {
-        var symbolItems = [];
+        function collectSymbolItemsFromSelection(selectedItems) {
+            var symbolItems = [];
 
-        for (var selectionIndex = 0; selectionIndex < selectedItems.length; selectionIndex++) {
-            collectSymbolItemsRecursively(selectedItems[selectionIndex], symbolItems);
+            for (var selectionIndex = 0; selectionIndex < selectedItems.length; selectionIndex++) {
+                collectSymbolItemsRecursively(selectedItems[selectionIndex], symbolItems);
+            }
+
+            return symbolItems;
         }
 
-        return symbolItems;
-    }
+        function organizeStaticBreakResult(targetLayer, existingLayerItemsBeforeBreak, newlyCreatedSubLayers) {
+            if (!targetLayer) return null;
 
-    function organizeStaticBreakResult(targetLayer, existingLayerItemsBeforeBreak, newlyCreatedSubLayers) {
-        if (!targetLayer) return null;
+            for (var subLayerIndex = 0; subLayerIndex < newlyCreatedSubLayers.length; subLayerIndex++) {
+                convertGeneratedSubLayerToGroup(targetLayer, newlyCreatedSubLayers[subLayerIndex]);
+            }
 
-        for (var subLayerIndex = 0; subLayerIndex < newlyCreatedSubLayers.length; subLayerIndex++) {
-            convertGeneratedSubLayerToGroup(targetLayer, newlyCreatedSubLayers[subLayerIndex]);
+            var newlyCreatedItems = collectGeneratedPageItemsByReference(targetLayer.pageItems, existingLayerItemsBeforeBreak);
+
+            if (newlyCreatedItems.length > 1) {
+                var resultGroup = targetLayer.groupItems.add();
+                for (var newItemIndex = 0; newItemIndex < newlyCreatedItems.length; newItemIndex++) {
+                    tryMoveItem(newlyCreatedItems[newItemIndex], resultGroup, ElementPlacement.PLACEATEND, L("logMoveStaticBreakItemIntoResultGroup"));
+                }
+                return resultGroup;
+            }
+
+            if (newlyCreatedItems.length === 1) {
+                return newlyCreatedItems[0];
+            }
+
+            return null;
         }
 
-        var newlyCreatedItems = collectGeneratedPageItemsByReference(targetLayer.pageItems, existingLayerItemsBeforeBreak);
+        function organizeDynamicBreakResult(documentObject, targetLayer, existingLayerItemsBeforeBreak) {
+            if (!targetLayer) return null;
 
-        if (newlyCreatedItems.length > 1) {
-            var resultGroup = targetLayer.groupItems.add();
+            /* breakLink 直後の selection に依存せず、Layer 配下の差分で新規アイテムを特定 / Detect generated items by Layer reference differences instead of relying on the selection after breakLink */
+            var newlyCreatedItems = collectGeneratedPageItemsByReference(targetLayer.pageItems, existingLayerItemsBeforeBreak);
+            if (newlyCreatedItems.length === 0) return null;
+
+            documentObject.selection = null;
             for (var newItemIndex = 0; newItemIndex < newlyCreatedItems.length; newItemIndex++) {
-                tryMoveItem(newlyCreatedItems[newItemIndex], resultGroup, ElementPlacement.PLACEATEND, L("logMoveStaticBreakItemIntoResultGroup"));
-            }
-            return resultGroup;
-        }
-
-        if (newlyCreatedItems.length === 1) {
-            return newlyCreatedItems[0];
-        }
-
-        return null;
-    }
-
-    function organizeDynamicBreakResult(documentObject, targetLayer, existingLayerItemsBeforeBreak) {
-        if (!targetLayer) return null;
-
-        /* breakLink 直後の selection に依存せず、Layer 配下の差分で新規アイテムを特定 / Detect generated items by Layer reference differences instead of relying on the selection after breakLink */
-        var newlyCreatedItems = collectGeneratedPageItemsByReference(targetLayer.pageItems, existingLayerItemsBeforeBreak);
-        if (newlyCreatedItems.length === 0) return null;
-
-        documentObject.selection = null;
-        for (var newItemIndex = 0; newItemIndex < newlyCreatedItems.length; newItemIndex++) {
-            trySetItemSelected(newlyCreatedItems[newItemIndex], true, L("logSelectDynamicBreakItem"));
-        }
-
-        var safety = 0;
-        while (selectionContainsGroupItem(documentObject.selection) && safety < 50) {
-            if (!tryExecuteMenuCommand("ungroup", L("logUngroupNestedDynamicBreakGroup"))) break;
-            safety++;
-        }
-
-        if (documentObject.selection.length > 1) {
-            var dynamicTargetLayer = getContainingLayer(documentObject.selection[0]) || targetLayer;
-            if (!dynamicTargetLayer) return null;
-
-            var selectedItems = [];
-            for (var selectionIndex = 0; selectionIndex < documentObject.selection.length; selectionIndex++) {
-                selectedItems.push(documentObject.selection[selectionIndex]);
+                trySetItemSelected(newlyCreatedItems[newItemIndex], true, L("logSelectDynamicBreakItem"));
             }
 
-            var resultGroup = dynamicTargetLayer.groupItems.add();
-            for (var selectedItemIndex = 0; selectedItemIndex < selectedItems.length; selectedItemIndex++) {
-                tryMoveItem(selectedItems[selectedItemIndex], resultGroup, ElementPlacement.PLACEATEND, L("logMoveDynamicBreakItemIntoResultGroup"));
+            var safety = 0;
+            while (selectionContainsGroupItem(documentObject.selection) && safety < 50) {
+                if (!tryExecuteMenuCommand("ungroup", L("logUngroupNestedDynamicBreakGroup"))) break;
+                safety++;
             }
 
-            return resultGroup;
-        }
+            if (documentObject.selection.length > 1) {
+                var dynamicTargetLayer = getContainingLayer(documentObject.selection[0]) || targetLayer;
+                if (!dynamicTargetLayer) return null;
 
-        if (documentObject.selection.length === 1) {
-            return documentObject.selection[0];
-        }
+                var selectedItems = [];
+                for (var selectionIndex = 0; selectionIndex < documentObject.selection.length; selectionIndex++) {
+                    selectedItems.push(documentObject.selection[selectionIndex]);
+                }
 
-        return null;
-    }
+                var resultGroup = dynamicTargetLayer.groupItems.add();
+                for (var selectedItemIndex = 0; selectedItemIndex < selectedItems.length; selectedItemIndex++) {
+                    tryMoveItem(selectedItems[selectedItemIndex], resultGroup, ElementPlacement.PLACEATEND, L("logMoveDynamicBreakItemIntoResultGroup"));
+                }
 
-    /* SymbolItem ごとの処理フローをまとめる / Coordinate the per-symbol flow: break link, classify, normalize, and name */
-    function breakNormalizeAndNameSymbol(symbolItem, documentObject) {
-        if (symbolItem.locked || symbolItem.hidden) return;
-        /* 外側で初期選択を解除済みの前提で、この SymbolItem だけを処理対象として選択 / Select only this SymbolItem, assuming the outer flow already cleared the initial selection */
-        if (!trySetItemSelected(symbolItem, true, L("logSelectTargetSymbolItem"))) return;
-
-        var symbolName = symbolItem.symbol.name;
-        var targetLayer = getContainingLayer(symbolItem);
-        var existingLayerItemsBeforeBreak = [];
-        var existingSubLayersBeforeBreak = [];
-        if (targetLayer) {
-            for (var preItemIndex = 0; preItemIndex < targetLayer.pageItems.length; preItemIndex++) {
-                existingLayerItemsBeforeBreak.push(targetLayer.pageItems[preItemIndex]);
+                return resultGroup;
             }
-            for (var preLayerIndex = 0; preLayerIndex < targetLayer.layers.length; preLayerIndex++) {
-                existingSubLayersBeforeBreak.push(targetLayer.layers[preLayerIndex]);
+
+            if (documentObject.selection.length === 1) {
+                return documentObject.selection[0];
             }
+
+            return null;
         }
-        breakSymbolLink(symbolItem);
 
-        var newlyCreatedSubLayers = targetLayer ? collectGeneratedSubLayersByReference(targetLayer.layers, existingSubLayersBeforeBreak) : [];
-        var newlyCreatedLayerItems = targetLayer ? collectGeneratedPageItemsByReference(targetLayer.pageItems, existingLayerItemsBeforeBreak) : [];
+        /* SymbolItem ごとの処理フローをまとめる / Coordinate the per-symbol flow: break link, classify, normalize, and name */
+        function breakNormalizeAndNameSymbol(symbolItem, documentObject) {
+            if (symbolItem.locked || symbolItem.hidden) return;
+            /* 外側で初期選択を解除済みの前提で、この SymbolItem だけを処理対象として選択 / Select only this SymbolItem, assuming the outer flow already cleared the initial selection */
+            if (!trySetItemSelected(symbolItem, true, L("logSelectTargetSymbolItem"))) return;
 
-        var finalOutputItem = normalizeBreakResult(
-            documentObject,
-            targetLayer,
-            existingLayerItemsBeforeBreak,
-            newlyCreatedSubLayers,
-            newlyCreatedLayerItems
-        );
+            var symbolName = symbolItem.symbol.name;
+            var targetLayer = getContainingLayer(symbolItem);
+            var existingLayerItemsBeforeBreak = [];
+            var existingSubLayersBeforeBreak = [];
+            if (targetLayer) {
+                for (var preItemIndex = 0; preItemIndex < targetLayer.pageItems.length; preItemIndex++) {
+                    existingLayerItemsBeforeBreak.push(targetLayer.pageItems[preItemIndex]);
+                }
+                for (var preLayerIndex = 0; preLayerIndex < targetLayer.layers.length; preLayerIndex++) {
+                    existingSubLayersBeforeBreak.push(targetLayer.layers[preLayerIndex]);
+                }
+            }
+            breakSymbolLink(symbolItem);
 
-        applyNaming(finalOutputItem, symbolName);
-    }
+            var newlyCreatedSubLayers = targetLayer ? collectGeneratedSubLayersByReference(targetLayer.layers, existingSubLayersBeforeBreak) : [];
+            var newlyCreatedLayerItems = targetLayer ? collectGeneratedPageItemsByReference(targetLayer.pageItems, existingLayerItemsBeforeBreak) : [];
 
-    var symbolItems = collectSymbolItemsFromSelection(activeDocument.selection);
+            var finalOutputItem = normalizeBreakResult(
+                documentObject,
+                targetLayer,
+                existingLayerItemsBeforeBreak,
+                newlyCreatedSubLayers,
+                newlyCreatedLayerItems
+            );
 
-    if (symbolItems.length === 0) {
-        return;
-    }
+            applyNaming(finalOutputItem, symbolName);
+        }
 
-    if (SHOW_OPTIONS_DIALOG) {
-        var dialogResult = showOptionsDialog(
-            UNGROUP_SINGLE_ITEM_GROUP_DEFAULT,
-            INHERIT_SYMBOL_NAME_DEFAULT,
-            USE_PREFIX_DEFAULT,
-            UNLINKED_SYMBOL_ITEM_NAME_PREFIX_DEFAULT,
-            USE_TEXT_CONTENT_AS_NAME_DEFAULT
-        );
-        if (!dialogResult) {
+        var symbolItems = collectSymbolItemsFromSelection(activeDocument.selection);
+
+        if (symbolItems.length === 0) {
             return;
         }
-        UNGROUP_SINGLE_ITEM_GROUP = dialogResult.ungroupSingleItem;
-        INHERIT_SYMBOL_NAME = dialogResult.inheritSymbolName;
-        USE_PREFIX = dialogResult.usePrefix;
-        UNLINKED_SYMBOL_ITEM_NAME_PREFIX = dialogResult.unlinkedPrefix;
-        USE_TEXT_CONTENT_AS_NAME = dialogResult.useTextContentAsName;
-    } else {
-        /* ダイアログ非表示時は単一テキスト名を優先 / When dialog is hidden, prioritize text content as name */
-        USE_TEXT_CONTENT_AS_NAME = true;
-    }
 
-    /* 処理後の選択方針 / Post-processing selection policy */
-    /* 元の選択は復元せず、解除後に生成されたアイテムを選択状態として残す / Do not restore the original selection; keep the generated unlinked items selected */
-    /* 初期選択はここで一度だけ解除し、dynamic 整理時のみ生成アイテムを選び直す / Clear the initial selection only once here; reselect generated items only while organizing dynamic results */
-    activeDocument.selection = null;
-
-    for (var symbolIndex = 0; symbolIndex < symbolItems.length; symbolIndex++) {
-        try {
-            breakNormalizeAndNameSymbol(symbolItems[symbolIndex], activeDocument);
-        } catch (errorObject) {
-            logScriptError(L("logBreakNormalizeAndNameSymbol"), errorObject);
+        if (SHOW_OPTIONS_DIALOG) {
+            var dialogResult = showOptionsDialog(
+                UNGROUP_SINGLE_ITEM_GROUP_DEFAULT,
+                INHERIT_SYMBOL_NAME_DEFAULT,
+                USE_PREFIX_DEFAULT,
+                UNLINKED_SYMBOL_ITEM_NAME_PREFIX_DEFAULT,
+                USE_TEXT_CONTENT_AS_NAME_DEFAULT
+            );
+            if (!dialogResult) {
+                return;
+            }
+            UNGROUP_SINGLE_ITEM_GROUP = dialogResult.ungroupSingleItem;
+            INHERIT_SYMBOL_NAME = dialogResult.inheritSymbolName;
+            USE_PREFIX = dialogResult.usePrefix;
+            UNLINKED_SYMBOL_ITEM_NAME_PREFIX = dialogResult.unlinkedPrefix;
+            USE_TEXT_CONTENT_AS_NAME = dialogResult.useTextContentAsName;
+        } else {
+            /* ダイアログ非表示時は単一テキスト名を優先 / When dialog is hidden, prioritize text content as name */
+            USE_TEXT_CONTENT_AS_NAME = true;
         }
-    }
+
+        /* 処理後の選択方針 / Post-processing selection policy */
+        /* 元の選択は復元せず、解除後に生成されたアイテムを選択状態として残す / Do not restore the original selection; keep the generated unlinked items selected */
+        /* 初期選択はここで一度だけ解除し、dynamic 整理時のみ生成アイテムを選び直す / Clear the initial selection only once here; reselect generated items only while organizing dynamic results */
+        activeDocument.selection = null;
+
+        for (var symbolIndex = 0; symbolIndex < symbolItems.length; symbolIndex++) {
+            try {
+                breakNormalizeAndNameSymbol(symbolItems[symbolIndex], activeDocument);
+            } catch (errorObject) {
+                logScriptError(L("logBreakNormalizeAndNameSymbol"), errorObject);
+            }
+        }
+
+    })();
 
 })();

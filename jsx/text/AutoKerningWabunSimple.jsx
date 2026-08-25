@@ -34,7 +34,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-var selection = app.activeDocument.selection;
-for (var i = 0; i < selection.length; i++) {
-    selection[i].textRange.characterAttributes.kerningMethod = AutoKernType.OPTICAL;
-}
+(function () {
+
+    var selection = app.activeDocument.selection;
+    for (var i = 0; i < selection.length; i++) {
+        selection[i].textRange.characterAttributes.kerningMethod = AutoKernType.OPTICAL;
+    }
+
+})();

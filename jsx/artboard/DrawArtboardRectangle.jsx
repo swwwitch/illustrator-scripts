@@ -34,43 +34,47 @@ var SCRIPT_UPDATED  = "2025-08-20";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-function createBlackColor(doc) {
-    if (doc.documentColorSpace == DocumentColorSpace.RGB) {
-        var blackColor = new RGBColor();
-        blackColor.red = 0;
-        blackColor.green = 0;
-        blackColor.blue = 0;
-        return blackColor;
-    } else {
-        var blackColor = new CMYKColor();
-        blackColor.black = 100;
-        blackColor.cyan = 0;
-        blackColor.magenta = 0;
-        blackColor.yellow = 0;
-        return blackColor;
+(function () {
+
+    function createBlackColor(doc) {
+        if (doc.documentColorSpace == DocumentColorSpace.RGB) {
+            var blackColor = new RGBColor();
+            blackColor.red = 0;
+            blackColor.green = 0;
+            blackColor.blue = 0;
+            return blackColor;
+        } else {
+            var blackColor = new CMYKColor();
+            blackColor.black = 100;
+            blackColor.cyan = 0;
+            blackColor.magenta = 0;
+            blackColor.yellow = 0;
+            return blackColor;
+        }
     }
-}
 
-function drawArtboardRectangle() {
-    if (app.documents.length === 0) return;
+    function drawArtboardRectangle() {
+        if (app.documents.length === 0) return;
 
-    var doc = app.activeDocument;
-    var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-    var abRect = ab.artboardRect; // [left, top, right, bottom]
+        var doc = app.activeDocument;
+        var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+        var abRect = ab.artboardRect; // [left, top, right, bottom]
 
-    var abWidth = abRect[2] - abRect[0];
-    var abHeight = abRect[1] - abRect[3];
+        var abWidth = abRect[2] - abRect[0];
+        var abHeight = abRect[1] - abRect[3];
 
-    app.executeMenuCommand('deselectall'); // 既存選択を解除
+        app.executeMenuCommand('deselectall'); // 既存選択を解除
 
-    var rect = doc.pathItems.rectangle(abRect[1], abRect[0], abWidth, abHeight);
-    rect.filled = true;
-    rect.fillColor = createBlackColor(doc);
-    rect.stroked = false;
-    rect.opacity = 15;
-    rect.name = "Artboard Bounds";
-    rect.selected = true;
-    rect.zOrder(ZOrderMethod.SENDTOBACK);
-}
+        var rect = doc.pathItems.rectangle(abRect[1], abRect[0], abWidth, abHeight);
+        rect.filled = true;
+        rect.fillColor = createBlackColor(doc);
+        rect.stroked = false;
+        rect.opacity = 15;
+        rect.name = "Artboard Bounds";
+        rect.selected = true;
+        rect.zOrder(ZOrderMethod.SENDTOBACK);
+    }
 
-drawArtboardRectangle();
+    drawArtboardRectangle();
+
+})();

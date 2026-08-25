@@ -49,7 +49,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         objectsRightToLeft[i].translate(-i * keyboardIncrementPt, 0)
     }
 
-    // 選択オブジェクトを左端 X（position[0]）の降順で並べ替えた新しい配列を返す
+    /**
+     * 選択オブジェクトを左端X（position[0]）の降順で並べ替えた新しい配列を返す
+     * @param {Array<PageItem>} objects - 並べ替える対象のオブジェクト
+     * @returns {Array<PageItem>} 左端Xの降順に並べ替えた新しい配列
+     */
     function sortByHorizontalPosition(objects) {
         var sortedObjects = []
         for (var i = 0; i < objects.length; i++) sortedObjects.push(objects[i])

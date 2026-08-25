@@ -410,6 +410,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
          * 手動で他のラジオを OFF にして相互排他を成立させる。
          * Radios live in separate parent groups, so ScriptUI's built-in exclusion
          * does not apply. Toggle the others off manually to enforce exclusivity. */
+        /**
+         * 並び順モードのラジオボタンを排他的に切り替え、関連するUIを同期する
+         * @param {RadioButton} targetRadio - 選択状態にするラジオボタン
+         * @returns {void}
+         */
         function selectSortMode(targetRadio) {
             sortRadios.byName.value = (targetRadio === sortRadios.byName);
             sortRadios.byPosition.value = (targetRadio === sortRadios.byPosition);
@@ -419,17 +424,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
 
         /* 許容差はパネル並び順と「配置位置から作成」の両方で使うため、どちらかが有効なら操作できるようにする
          * The tolerance drives both the panel order and position-based naming, so enable it for either */
+        /**
+         * 許容差スライダーの有効／無効を、パネル並び順と「配置位置から作成」の状態に合わせる
+         * @returns {void}
+         */
         function syncToleranceEnabled() {
             var usedByPanelOrder = sortRadios.byPosition.value;
             var usedByNaming = ui.naming.enableCheckbox.value && ui.naming.source.fromPosition.value;
             ui.preview.toleranceSlider.enabled = usedByPanelOrder || usedByNaming;
         }
 
+        /**
+         * 並び順モードの変更をUIとプレビューに反映する
+         * @returns {void}
+         */
         function syncSortMode() {
             syncToleranceEnabled();
             updateReorderPreview(previewContext, ui, Math.round(ui.preview.toleranceSlider.value));
         }
 
+        /**
+         * リネーム設定グループの有効／無効を、リネームのON/OFFに合わせる
+         * @returns {void}
+         */
         function syncNamingState() {
             ui.naming.settingsGroup.enabled = ui.naming.enableCheckbox.value;
             syncToleranceEnabled();
@@ -728,6 +745,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         var spacingControls = buildRearrangeSpacingControls(rearrangeSettingsGroup);
         var duplicateRadios = buildDuplicateHandlingPanel(rearrangePanel);
 
+        /**
+         * 再配置パネルの各コントロールの有効／無効を、選択中のモードに合わせる
+         * @returns {void}
+         */
         function syncEnabled() {
             syncRearrangePanelState(modeChecks, rearrangeSettingsGroup, columnsRow, duplicateRadios.panel);
         }
@@ -817,6 +838,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
      * @returns {void}
      */
     function bindGapLinkControls(columnGapInput, rowGapInput, rowGapControlRow, gapLinkCheckbox) {
+        /**
+         * 行間の入力欄の有効／無効を、間隔の連動チェックボックスに合わせる
+         * @returns {void}
+         */
         function syncRowGapEnabled() {
             rowGapControlRow.enabled = !gapLinkCheckbox.value;
         }

@@ -1,3 +1,6 @@
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 /*
 
 ### 概要
@@ -21,7 +24,8 @@ See the README for details.
 // =========================================
 var SCRIPT_NAME     = "AddArtboardPlus";              /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_AUTHOR   = "Takeshi Umeda (noellabo)";     /* 作者 / author */
+var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-04-15";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
 
@@ -34,16 +38,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-﻿#target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
-// オリジナル / Original
-// Copyright (c) 2018 Takeshi Umeda (noellabo)
-// https://dtp-discourse.jp/t/illustrator/99
-// Modified by Masahiro Takano in 2026
-
-// Released under the MIT license
-// http://opensource.org/licenses/mit-license.php
+/**
+ * @author Takeshi Umeda (noellabo)
+ * @discussion https://dtp-discourse.jp/t/illustrator/99
+ */
 
 (function () {
 

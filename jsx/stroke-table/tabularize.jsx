@@ -37,975 +37,938 @@ var SCRIPT_UPDATED  = "2026-02-11";                   /* 更新日 / last update
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-$.global.__tabularizeState = $.global.__tabularizeState || {
-    presetIndex: 0,
-    // Options
-    useGutter: true,
-    gutterText: "",
-    headerRow: true,
-    // Fill
-    doFill: false,
-    zebra: false,
-    fillJoinRow: false,
-    fillHeaderOnly: false,
-    // Lines
-    doRule: true,
-    vRuleMode: "gapsOnly" // 'none' | 'gapsOnly' | 'all'
-};
-
 (function () {
-    // 単位変換用の定数 (ポイント換算) / Unit conversion constant (pt)
-    var MM_TO_PT = 2.83464567;
 
-    // 言語判定 / Language detection
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var lang = getCurrentLang();
-
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-        dialogTitle: {
-            ja: "表組み化" + ' ' + SCRIPT_VERSION,
-            en: "Tabularize" + ' ' + SCRIPT_VERSION
-        },
-        vRulePanel: {
-            ja: "線",
-            en: "Strokes"
-        },
-        fillPanel: {
-            ja: "塗り",
-            en: "Fill"
-        },
-        fillCheck: {
-            ja: "塗り",
-            en: "Fill"
-        },
-        fillOptionPanel: {
-            ja: "オプション",
-            en: "Options"
-        },
-        zebra: {
-            ja: "ゼブラ",
-            en: "Zebra"
-        },
-        fillJoinRow: {
-            ja: "行方向に連結",
-            en: "Join by row"
-        },
-        fillHeaderOnly: {
-            ja: "ヘッダー行のみ",
-            en: "Header only"
-        },
-        ruleCheck: {
-            ja: "線",
-            en: "Rules"
-        },
-        fillNone: {
-            ja: "塗りなし",
-            en: "No fill"
-        },
-        fillOnly: {
-            ja: "塗りのみ",
-            en: "Fill only"
-        },
-        fillAndRule: {
-            ja: "塗りとケイ",
-            en: "Fill + rules"
-        },
-        gutter: {
-            ja: "ガター",
-            en: "Gutter"
-        },
-        useGutter: {
-            ja: "ガター",
-            en: "Gutter"
-        },
-        headerRow: {
-            ja: "1行目をヘッダー行にする",
-            en: "Treat first row as header"
-        },
-        gapsOnly: {
-            ja: "列間のみ",
-            en: "Gaps only"
-        },
-        all: {
-            ja: "すべて",
-            en: "All"
-        },
-        none: {
-            ja: "なし",
-            en: "None"
-        },
-        vRuleLabel: {
-            ja: "縦ケイ",
-            en: "Vertical"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        preset: {
-            ja: "プリセット",
-            en: "Preset"
-        },
-        alertOpenDoc: {
-            ja: "ドキュメントを開いてください。",
-            en: "Please open a document."
-        },
-        alertSelectObj: {
-            ja: "オブジェクトを選択してください。",
-            en: "Please select objects."
-        },
-        optionPanel: {
-            ja: "オプション",
-            en: "Options"
-        }
+    $.global.__tabularizeState = $.global.__tabularizeState || {
+        presetIndex: 0,
+        // Options
+        useGutter: true,
+        gutterText: "",
+        headerRow: true,
+        // Fill
+        doFill: false,
+        zebra: false,
+        fillJoinRow: false,
+        fillHeaderOnly: false,
+        // Lines
+        doRule: true,
+        vRuleMode: "gapsOnly" // 'none' | 'gapsOnly' | 'all'
     };
 
-    function L(key) {
-        var o = LABELS[key];
-        if (!o) return key;
-        return o[lang] || o.ja || key;
-    }
+    (function () {
+        // 単位変換用の定数 (ポイント換算) / Unit conversion constant (pt)
+        var MM_TO_PT = 2.83464567;
 
-    /* 単位ユーティリティ / Unit utilities */
-
-    // --- 外部定義：共通単位マップ ---
-    var unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
-
-    /**
-     * 単位コードと設定キーから適切な単位ラベルを返す（Q/H分岐含む） / Get unit label (with Q/H)
-     */
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
+        // 言語判定 / Language detection
+        function getCurrentLang() {
+            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
-        return unitMap[code] || "pt";
-    }
+        var lang = getCurrentLang();
 
-    /**
-     * 単位コードから pt 換算係数を返す / Get pt factor from unit code
-     */
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
-
-    /**
-     * rulerType の単位コードを取得 / Get rulerType unit code
-     */
-    function getRulerUnitCode() {
-        return app.preferences.getIntegerPreference("rulerType");
-    }
-
-    /* 設定項目 / Settings */
-    var lineWeightMM = 0.1; // 線の太さ (mm) ※細めが良い場合は0.1など
-    var paddingMM = 0.0;    // テキストの左右に少し余白を持たせるか (mm)
-    // ----------------
-
-    var lineWeightPt = lineWeightMM * MM_TO_PT;
-    var paddingPt = paddingMM * MM_TO_PT;
-    var HEADER_LINE_WEIGHT_MM = 0.3; // チェックON時、上から1本目と2本目だけ太くする(mm)
-    var headerLineWeightPt = HEADER_LINE_WEIGHT_MM * MM_TO_PT;
-
-    // --- Shared document/layer/color references (must be declared to avoid ReferenceError in ExtendScript) ---
-    var doc = null;
-    var sel = null;
-    var baseLayer = null;
-    var lineLayer = null;
-    var fillLayer = null;
-
-    var blackColor = null;
-    var fillGray = null;
-    var fillGrayHeader = null;
-    var fillGrayHeaderZebra = null;
-    var fillGrayZebra = null;
-
-    // ドキュメントチェックと選択チェックをダイアログより前に移動
-    // 横罫ガターなど単位周辺の初期値計算はこのまま
-
-    /* ダイアログ位置・透明度 / Dialog position & opacity */
-    var offsetX = 300;
-    var offsetY = 0;
-    var dialogOpacity = 0.98;
-
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function () {
-            try { requestPreviewUpdate(); } catch (_) { }
-
-            try {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
-            } catch (_) { }
+        /* 日英ラベル定義 / Japanese-English label definitions */
+        var LABELS = {
+            dialogTitle: {
+                ja: "表組み化" + ' ' + SCRIPT_VERSION,
+                en: "Tabularize" + ' ' + SCRIPT_VERSION
+            },
+            vRulePanel: {
+                ja: "線",
+                en: "Strokes"
+            },
+            fillPanel: {
+                ja: "塗り",
+                en: "Fill"
+            },
+            fillCheck: {
+                ja: "塗り",
+                en: "Fill"
+            },
+            fillOptionPanel: {
+                ja: "オプション",
+                en: "Options"
+            },
+            zebra: {
+                ja: "ゼブラ",
+                en: "Zebra"
+            },
+            fillJoinRow: {
+                ja: "行方向に連結",
+                en: "Join by row"
+            },
+            fillHeaderOnly: {
+                ja: "ヘッダー行のみ",
+                en: "Header only"
+            },
+            ruleCheck: {
+                ja: "線",
+                en: "Rules"
+            },
+            fillNone: {
+                ja: "塗りなし",
+                en: "No fill"
+            },
+            fillOnly: {
+                ja: "塗りのみ",
+                en: "Fill only"
+            },
+            fillAndRule: {
+                ja: "塗りとケイ",
+                en: "Fill + rules"
+            },
+            gutter: {
+                ja: "ガター",
+                en: "Gutter"
+            },
+            useGutter: {
+                ja: "ガター",
+                en: "Gutter"
+            },
+            headerRow: {
+                ja: "1行目をヘッダー行にする",
+                en: "Treat first row as header"
+            },
+            gapsOnly: {
+                ja: "列間のみ",
+                en: "Gaps only"
+            },
+            all: {
+                ja: "すべて",
+                en: "All"
+            },
+            none: {
+                ja: "なし",
+                en: "None"
+            },
+            vRuleLabel: {
+                ja: "縦ケイ",
+                en: "Vertical"
+            },
+            cancel: {
+                ja: "キャンセル",
+                en: "Cancel"
+            },
+            ok: {
+                ja: "OK",
+                en: "OK"
+            },
+            preset: {
+                ja: "プリセット",
+                en: "Preset"
+            },
+            alertOpenDoc: {
+                ja: "ドキュメントを開いてください。",
+                en: "Please open a document."
+            },
+            alertSelectObj: {
+                ja: "オブジェクトを選択してください。",
+                en: "Please select objects."
+            },
+            optionPanel: {
+                ja: "オプション",
+                en: "Options"
+            }
         };
-    }
 
-    function setDialogOpacity(dlg, opacityValue) {
-        try {
-            dlg.opacity = opacityValue;
-        } catch (_) { }
-    }
+        function L(key) {
+            var o = LABELS[key];
+            if (!o) return key;
+            return o[lang] || o.ja || key;
+        }
 
-    // --- Preview state ---
-    var cbPreview = null;
-    var isPreviewing = false;
-    var previewItems = []; // created items for preview (lines + fills)
-    var previewIsCurrent = false;
+        /* 単位ユーティリティ / Unit utilities */
 
-    function clearPreview() {
-        try {
-            for (var i = 0; i < previewItems.length; i++) {
-                try { previewItems[i].remove(); } catch (_) { }
+        // --- 外部定義：共通単位マップ ---
+        var unitMap = {
+            0: "in",
+            1: "mm",
+            2: "pt",
+            3: "pica",
+            4: "cm",
+            6: "px",
+            7: "ft/in",
+            8: "m",
+            9: "yd",
+            10: "ft"
+        };
+
+        /**
+         * 単位コードと設定キーから適切な単位ラベルを返す（Q/H分岐含む） / Get unit label (with Q/H)
+         */
+        function getUnitLabel(code, prefKey) {
+            if (code === 5) {
+                var hKeys = {
+                    "text/asianunits": true,
+                    "rulerType": true,
+                    "strokeUnits": true
+                };
+                return hKeys[prefKey] ? "H" : "Q";
             }
-        } catch (_) { }
-        previewItems = [];
-        previewIsCurrent = false;
-        try { app.redraw(); } catch (_) { }
-    }
+            return unitMap[code] || "pt";
+        }
 
-    /* ダイアログ / Dialog */
-    var dlg = new Window('dialog', L('dialogTitle'));
-    dlg.orientation = 'column';
-    dlg.alignChildren = 'left';
+        /**
+         * 単位コードから pt 換算係数を返す / Get pt factor from unit code
+         */
+        function getPtFactorFromUnitCode(code) {
+            switch (code) {
+                case 0: return 72.0;                        // in
+                case 1: return 72.0 / 25.4;                 // mm
+                case 2: return 1.0;                         // pt
+                case 3: return 12.0;                        // pica
+                case 4: return 72.0 / 2.54;                 // cm
+                case 5: return 72.0 / 25.4 * 0.25;          // Q or H
+                case 6: return 1.0;                         // px
+                case 7: return 72.0 * 12.0;                 // ft/in
+                case 8: return 72.0 / 25.4 * 1000.0;        // m
+                case 9: return 72.0 * 36.0;                 // yd
+                case 10: return 72.0 * 12.0;                // ft
+                default: return 1.0;
+            }
+        }
 
-    setDialogOpacity(dlg, dialogOpacity);
-    shiftDialogPosition(dlg, offsetX, offsetY);
+        /**
+         * rulerType の単位コードを取得 / Get rulerType unit code
+         */
+        function getRulerUnitCode() {
+            return app.preferences.getIntegerPreference("rulerType");
+        }
 
-    /* ダイアログ状態の復元/保存 / Restore & save dialog state */
-    function restoreDialogState(controls) {
-        var st = $.global.__tabularizeState || {};
-        // ガード：プリセット変更で手動へ戻す処理を抑制
-        isApplyingPreset = true;
-        try {
-            // プリセット復元：まず安定ID（presetKey）で復元、次に旧方式（表示テキスト）で復元
-            var restored = false;
+        /* 設定項目 / Settings */
+        var lineWeightMM = 0.1; // 線の太さ (mm) ※細めが良い場合は0.1など
+        var paddingMM = 0.0;    // テキストの左右に少し余白を持たせるか (mm)
+        // ----------------
+
+        var lineWeightPt = lineWeightMM * MM_TO_PT;
+        var paddingPt = paddingMM * MM_TO_PT;
+        var HEADER_LINE_WEIGHT_MM = 0.3; // チェックON時、上から1本目と2本目だけ太くする(mm)
+        var headerLineWeightPt = HEADER_LINE_WEIGHT_MM * MM_TO_PT;
+
+        // --- Shared document/layer/color references (must be declared to avoid ReferenceError in ExtendScript) ---
+        var doc = null;
+        var sel = null;
+        var baseLayer = null;
+        var lineLayer = null;
+        var fillLayer = null;
+
+        var blackColor = null;
+        var fillGray = null;
+        var fillGrayHeader = null;
+        var fillGrayHeaderZebra = null;
+        var fillGrayZebra = null;
+
+        // ドキュメントチェックと選択チェックをダイアログより前に移動
+        // 横罫ガターなど単位周辺の初期値計算はこのまま
+
+        /* ダイアログ位置・透明度 / Dialog position & opacity */
+        var offsetX = 300;
+        var offsetY = 0;
+        var dialogOpacity = 0.98;
+
+        function shiftDialogPosition(dlg, offsetX, offsetY) {
+            dlg.onShow = function () {
+                try { requestPreviewUpdate(); } catch (_) { }
+
+                try {
+                    var currentX = dlg.location[0];
+                    var currentY = dlg.location[1];
+                    dlg.location = [currentX + offsetX, currentY + offsetY];
+                } catch (_) { }
+            };
+        }
+
+        function setDialogOpacity(dlg, opacityValue) {
             try {
-                if (st.presetKey && controls.ddPreset.items && controls.ddPreset.items.length) {
-                    // 1) presetKey is a stable ID
-                    if (PRESET_IDS && PRESET_IDS.length) {
-                        for (var pi = 0; pi < controls.ddPreset.items.length; pi++) {
-                            if (String(PRESET_IDS[pi]) === String(st.presetKey)) {
-                                controls.ddPreset.selection = pi;
-                                restored = true;
-                                break;
+                dlg.opacity = opacityValue;
+            } catch (_) { }
+        }
+
+        // --- Preview state ---
+        var cbPreview = null;
+        var isPreviewing = false;
+        var previewItems = []; // created items for preview (lines + fills)
+        var previewIsCurrent = false;
+
+        function clearPreview() {
+            try {
+                for (var i = 0; i < previewItems.length; i++) {
+                    try { previewItems[i].remove(); } catch (_) { }
+                }
+            } catch (_) { }
+            previewItems = [];
+            previewIsCurrent = false;
+            try { app.redraw(); } catch (_) { }
+        }
+
+        /* ダイアログ / Dialog */
+        var dlg = new Window('dialog', L('dialogTitle'));
+        dlg.orientation = 'column';
+        dlg.alignChildren = 'left';
+
+        setDialogOpacity(dlg, dialogOpacity);
+        shiftDialogPosition(dlg, offsetX, offsetY);
+
+        /* ダイアログ状態の復元/保存 / Restore & save dialog state */
+        function restoreDialogState(controls) {
+            var st = $.global.__tabularizeState || {};
+            // ガード：プリセット変更で手動へ戻す処理を抑制
+            isApplyingPreset = true;
+            try {
+                // プリセット復元：まず安定ID（presetKey）で復元、次に旧方式（表示テキスト）で復元
+                var restored = false;
+                try {
+                    if (st.presetKey && controls.ddPreset.items && controls.ddPreset.items.length) {
+                        // 1) presetKey is a stable ID
+                        if (PRESET_IDS && PRESET_IDS.length) {
+                            for (var pi = 0; pi < controls.ddPreset.items.length; pi++) {
+                                if (String(PRESET_IDS[pi]) === String(st.presetKey)) {
+                                    controls.ddPreset.selection = pi;
+                                    restored = true;
+                                    break;
+                                }
+                            }
+                        }
+                        // 2) Backward compatibility: presetKey might be the old display text
+                        if (!restored) {
+                            for (var pj = 0; pj < controls.ddPreset.items.length; pj++) {
+                                if (String(controls.ddPreset.items[pj].text) === String(st.presetKey)) {
+                                    controls.ddPreset.selection = pj;
+                                    restored = true;
+                                    break;
+                                }
                             }
                         }
                     }
-                    // 2) Backward compatibility: presetKey might be the old display text
-                    if (!restored) {
-                        for (var pj = 0; pj < controls.ddPreset.items.length; pj++) {
-                            if (String(controls.ddPreset.items[pj].text) === String(st.presetKey)) {
-                                controls.ddPreset.selection = pj;
-                                restored = true;
-                                break;
-                            }
-                        }
+                } catch (_) { restored = false; }
+                if (!restored) {
+                    if (typeof st.presetIndex === 'number' && controls.ddPreset.items && controls.ddPreset.items.length > st.presetIndex) {
+                        controls.ddPreset.selection = st.presetIndex;
                     }
                 }
-            } catch (_) { restored = false; }
-            if (!restored) {
-                if (typeof st.presetIndex === 'number' && controls.ddPreset.items && controls.ddPreset.items.length > st.presetIndex) {
-                    controls.ddPreset.selection = st.presetIndex;
+
+                // Options
+                if (typeof st.useGutter === 'boolean') controls.cbUseGutter.value = st.useGutter;
+                if (typeof st.gutterText === 'string' && st.gutterText !== "") controls.etHGutter.text = st.gutterText;
+                if (typeof st.headerRow === 'boolean') controls.cbHeader.value = st.headerRow;
+
+                // Fill
+                if (typeof st.doFill === 'boolean') controls.cbFill.value = st.doFill;
+                if (typeof st.zebra === 'boolean') controls.cbZebra.value = st.zebra;
+                if (typeof st.fillJoinRow === 'boolean') controls.cbFillJoinRow.value = st.fillJoinRow;
+                if (typeof st.fillHeaderOnly === 'boolean') controls.cbFillHeaderOnly.value = st.fillHeaderOnly;
+
+                // Lines
+                if (typeof st.doRule === 'boolean') controls.cbRule.value = st.doRule;
+                if (st.vRuleMode === 'none') {
+                    controls.rbVruleNone.value = true;
+                } else if (st.vRuleMode === 'all') {
+                    controls.rbVruleAll.value = true;
+                } else {
+                    controls.rbVruleGapsOnly.value = true;
                 }
+
+            } catch (_) {
+            } finally {
+                isApplyingPreset = false;
             }
 
+            // 依存UIの反映
+            try { controls.applyGutterEnabled(); } catch (_) { }
+            try { controls.applyFillEnabled(); } catch (_) { }
+            try { controls.applyRuleEnabled(); } catch (_) { }
+            try { controls.applyFillJoinRow(); } catch (_) { }
+            try { controls.applyFillHeaderOnly(); } catch (_) { }
+        }
+
+        function saveDialogState(controls) {
+            $.global.__tabularizeState = $.global.__tabularizeState || {};
+            var st = $.global.__tabularizeState;
+
+            // プリセット
+            st.presetIndex = (controls.ddPreset.selection) ? controls.ddPreset.selection.index : 0;
+            // Store stable preset ID instead of display text (safer across renames)
+            try {
+                var _pi = (controls.ddPreset.selection) ? controls.ddPreset.selection.index : 0;
+                st.presetKey = (PRESET_IDS && PRESET_IDS[_pi]) ? String(PRESET_IDS[_pi]) : '';
+            } catch (_) {
+                st.presetKey = '';
+            }
             // Options
-            if (typeof st.useGutter === 'boolean') controls.cbUseGutter.value = st.useGutter;
-            if (typeof st.gutterText === 'string' && st.gutterText !== "") controls.etHGutter.text = st.gutterText;
-            if (typeof st.headerRow === 'boolean') controls.cbHeader.value = st.headerRow;
+            st.useGutter = !!controls.cbUseGutter.value;
+            st.gutterText = String(controls.etHGutter.text || "");
+            st.headerRow = !!controls.cbHeader.value;
 
             // Fill
-            if (typeof st.doFill === 'boolean') controls.cbFill.value = st.doFill;
-            if (typeof st.zebra === 'boolean') controls.cbZebra.value = st.zebra;
-            if (typeof st.fillJoinRow === 'boolean') controls.cbFillJoinRow.value = st.fillJoinRow;
-            if (typeof st.fillHeaderOnly === 'boolean') controls.cbFillHeaderOnly.value = st.fillHeaderOnly;
+            st.doFill = !!controls.cbFill.value;
+            st.zebra = !!controls.cbZebra.value;
+            st.fillJoinRow = !!controls.cbFillJoinRow.value;
+            st.fillHeaderOnly = !!controls.cbFillHeaderOnly.value;
 
             // Lines
-            if (typeof st.doRule === 'boolean') controls.cbRule.value = st.doRule;
-            if (st.vRuleMode === 'none') {
-                controls.rbVruleNone.value = true;
-            } else if (st.vRuleMode === 'all') {
-                controls.rbVruleAll.value = true;
-            } else {
-                controls.rbVruleGapsOnly.value = true;
-            }
-
-        } catch (_) {
-        } finally {
-            isApplyingPreset = false;
+            st.doRule = !!controls.cbRule.value;
+            st.vRuleMode = controls.rbVruleNone.value ? 'none' : (controls.rbVruleAll.value ? 'all' : 'gapsOnly');
         }
+        var gPreset = dlg.add('group');
+        gPreset.orientation = 'row';
+        gPreset.alignChildren = ['left', 'center'];
 
-        // 依存UIの反映
-        try { controls.applyGutterEnabled(); } catch (_) { }
-        try { controls.applyFillEnabled(); } catch (_) { }
-        try { controls.applyRuleEnabled(); } catch (_) { }
-        try { controls.applyFillJoinRow(); } catch (_) { }
-        try { controls.applyFillHeaderOnly(); } catch (_) { }
-    }
+        // Preset label
+        var stPreset = gPreset.add('statictext', undefined, (lang === 'ja') ? 'プリセット：' : 'Preset:');
 
-    function saveDialogState(controls) {
-        $.global.__tabularizeState = $.global.__tabularizeState || {};
-        var st = $.global.__tabularizeState;
+        var ddPreset = gPreset.add('dropdownlist', undefined, [
+            (lang === 'ja') ? '（手動）' : '(Manual)',
+            (lang === 'ja') ? '塗りA' : 'Fill A',
+            (lang === 'ja') ? '塗りB' : 'Fill B',
+            (lang === 'ja') ? '塗りC' : 'Fill C',
+            (lang === 'ja') ? '塗り＋線A' : 'Fill+Stroke A',
+            (lang === 'ja') ? '塗り＋線B' : 'Fill+Stroke B',
+            (lang === 'ja') ? '線A-1' : 'Stroke A-1',
+            (lang === 'ja') ? '線A-2' : 'Stroke A-2',
+            (lang === 'ja') ? '線B-1' : 'Stroke B-1',
+            (lang === 'ja') ? '線B-2' : 'Stroke B-2',
+            (lang === 'ja') ? '線C-1' : 'Stroke C-1',
+            (lang === 'ja') ? '線C-2' : 'Stroke C-2'
+        ]);
+        ddPreset.selection = 0;
+        // 初期状態は手動（＝何もしない）
 
-        // プリセット
-        st.presetIndex = (controls.ddPreset.selection) ? controls.ddPreset.selection.index : 0;
-        // Store stable preset ID instead of display text (safer across renames)
-        try {
-            var _pi = (controls.ddPreset.selection) ? controls.ddPreset.selection.index : 0;
-            st.presetKey = (PRESET_IDS && PRESET_IDS[_pi]) ? String(PRESET_IDS[_pi]) : '';
-        } catch (_) {
-            st.presetKey = '';
-        }
-        // Options
-        st.useGutter = !!controls.cbUseGutter.value;
-        st.gutterText = String(controls.etHGutter.text || "");
-        st.headerRow = !!controls.cbHeader.value;
+        // Stable preset IDs aligned with ddPreset items order
+        var PRESET_IDS = [
+            "manual",
+            "fillA",
+            "fillB",
+            "fillC",
+            "fillStrokeA",
+            "fillStrokeB",
+            "strokeA1",
+            "strokeA2",
+            "strokeB1",
+            "strokeB2",
+            "strokeC1",
+            "strokeC2"
+        ];
 
-        // Fill
-        st.doFill = !!controls.cbFill.value;
-        st.zebra = !!controls.cbZebra.value;
-        st.fillJoinRow = !!controls.cbFillJoinRow.value;
-        st.fillHeaderOnly = !!controls.cbFillHeaderOnly.value;
-
-        // Lines
-        st.doRule = !!controls.cbRule.value;
-        st.vRuleMode = controls.rbVruleNone.value ? 'none' : (controls.rbVruleAll.value ? 'all' : 'gapsOnly');
-    }
-    var gPreset = dlg.add('group');
-    gPreset.orientation = 'row';
-    gPreset.alignChildren = ['left', 'center'];
-
-    // Preset label
-    var stPreset = gPreset.add('statictext', undefined, (lang === 'ja') ? 'プリセット：' : 'Preset:');
-
-    var ddPreset = gPreset.add('dropdownlist', undefined, [
-        (lang === 'ja') ? '（手動）' : '(Manual)',
-        (lang === 'ja') ? '塗りA' : 'Fill A',
-        (lang === 'ja') ? '塗りB' : 'Fill B',
-        (lang === 'ja') ? '塗りC' : 'Fill C',
-        (lang === 'ja') ? '塗り＋線A' : 'Fill+Stroke A',
-        (lang === 'ja') ? '塗り＋線B' : 'Fill+Stroke B',
-        (lang === 'ja') ? '線A-1' : 'Stroke A-1',
-        (lang === 'ja') ? '線A-2' : 'Stroke A-2',
-        (lang === 'ja') ? '線B-1' : 'Stroke B-1',
-        (lang === 'ja') ? '線B-2' : 'Stroke B-2',
-        (lang === 'ja') ? '線C-1' : 'Stroke C-1',
-        (lang === 'ja') ? '線C-2' : 'Stroke C-2'
-    ]);
-    ddPreset.selection = 0;
-    // 初期状態は手動（＝何もしない）
-
-    // Stable preset IDs aligned with ddPreset items order
-    var PRESET_IDS = [
-        "manual",
-        "fillA",
-        "fillB",
-        "fillC",
-        "fillStrokeA",
-        "fillStrokeB",
-        "strokeA1",
-        "strokeA2",
-        "strokeB1",
-        "strokeB2",
-        "strokeC1",
-        "strokeC2"
-    ];
-
-    function getSelectedPresetId() {
-        try {
-            var i = (ddPreset && ddPreset.selection) ? ddPreset.selection.index : 0;
-            if (i < 0 || i >= PRESET_IDS.length) return "manual";
-            return PRESET_IDS[i] || "manual";
-        } catch (_) {
-            return "manual";
-        }
-    }
-
-    // 手動操作が入ったらプリセットを「手動」に戻す / Switch preset to Manual on any manual change
-    var isApplyingPreset = false;
-    function setPresetManual() {
-        if (isApplyingPreset) return;
-        if (ddPreset.selection && ddPreset.selection.index !== 0) {
-            ddPreset.selection = 0;
-        }
-    }
-
-    /* オプション / Options */
-    var pOpt = dlg.add('panel', undefined, L('optionPanel'));
-    pOpt.orientation = 'column';
-    pOpt.alignChildren = 'left';
-    pOpt.margins = [15, 20, 15, 10];
-
-    /* ガター設定 / Gutter */
-    var gGutter = pOpt.add('group');
-    gGutter.orientation = 'row';
-    gGutter.alignChildren = ['left', 'center'];
-
-    // チェックOFF時はガター=0＆ディム表示 / When OFF, set gutter=0 and dim
-    var cbUseGutter = gGutter.add('checkbox', undefined, L('useGutter'));
-    cbUseGutter.value = true;
-
-    var rulerUnitCode = getRulerUnitCode();
-    var rulerFactorPt = getPtFactorFromUnitCode(rulerUnitCode);
-    var rulerUnitLabel = getUnitLabel(rulerUnitCode, 'rulerType');
-    // デフォルトガター：1mm 相当を rulerType に変換 / Default gutter ≈ 1mm in rulerType
-    var defaultGutterMm = 1;
-    var defaultGutterPt = defaultGutterMm * MM_TO_PT;
-    var defaultGutterVal = defaultGutterPt / rulerFactorPt;
-
-    // 表示用に丸め（pt/pxは整数、その他は小数1桁）
-    if (rulerUnitLabel === 'pt' || rulerUnitLabel === 'px') {
-        defaultGutterVal = Math.round(defaultGutterVal);
-    } else {
-        defaultGutterVal = Math.round(defaultGutterVal * 10) / 10;
-    }
-
-    var etHGutter = gGutter.add('edittext', undefined, String(defaultGutterVal)); // rulerType
-    etHGutter.characters = 3;
-    changeValueByArrowKey(etHGutter);
-
-    var stGutterUnit = gGutter.add('statictext', undefined, rulerUnitLabel);
-
-    // OFF→0固定 & ディム / ON→復帰
-    var lastGutterText = etHGutter.text;
-    function applyGutterEnabled() {
-        if (!cbUseGutter.value) {
-            lastGutterText = etHGutter.text;
-            etHGutter.text = '0';
-            etHGutter.enabled = false;
-            stGutterUnit.enabled = false;
-        } else {
-            etHGutter.enabled = true;
-            stGutterUnit.enabled = true;
-            // 0のまま戻したくない場合は直前値に戻す
-            if (etHGutter.text === '0' && lastGutterText && lastGutterText !== '0') {
-                etHGutter.text = lastGutterText;
+        function getSelectedPresetId() {
+            try {
+                var i = (ddPreset && ddPreset.selection) ? ddPreset.selection.index : 0;
+                if (i < 0 || i >= PRESET_IDS.length) return "manual";
+                return PRESET_IDS[i] || "manual";
+            } catch (_) {
+                return "manual";
             }
         }
-    }
-    cbUseGutter.onClick = applyGutterEnabled;
-    applyGutterEnabled();
 
-    // ガター値をmm指定でセット（rulerTypeに変換して入力欄へ）
-    function setGutterByMm(mmVal) {
-        var val = (mmVal * MM_TO_PT) / rulerFactorPt;
+        // 手動操作が入ったらプリセットを「手動」に戻す / Switch preset to Manual on any manual change
+        var isApplyingPreset = false;
+        function setPresetManual() {
+            if (isApplyingPreset) return;
+            if (ddPreset.selection && ddPreset.selection.index !== 0) {
+                ddPreset.selection = 0;
+            }
+        }
+
+        /* オプション / Options */
+        var pOpt = dlg.add('panel', undefined, L('optionPanel'));
+        pOpt.orientation = 'column';
+        pOpt.alignChildren = 'left';
+        pOpt.margins = [15, 20, 15, 10];
+
+        /* ガター設定 / Gutter */
+        var gGutter = pOpt.add('group');
+        gGutter.orientation = 'row';
+        gGutter.alignChildren = ['left', 'center'];
+
+        // チェックOFF時はガター=0＆ディム表示 / When OFF, set gutter=0 and dim
+        var cbUseGutter = gGutter.add('checkbox', undefined, L('useGutter'));
+        cbUseGutter.value = true;
+
+        var rulerUnitCode = getRulerUnitCode();
+        var rulerFactorPt = getPtFactorFromUnitCode(rulerUnitCode);
+        var rulerUnitLabel = getUnitLabel(rulerUnitCode, 'rulerType');
+        // デフォルトガター：1mm 相当を rulerType に変換 / Default gutter ≈ 1mm in rulerType
+        var defaultGutterMm = 1;
+        var defaultGutterPt = defaultGutterMm * MM_TO_PT;
+        var defaultGutterVal = defaultGutterPt / rulerFactorPt;
+
         // 表示用に丸め（pt/pxは整数、その他は小数1桁）
         if (rulerUnitLabel === 'pt' || rulerUnitLabel === 'px') {
-            val = Math.round(val);
+            defaultGutterVal = Math.round(defaultGutterVal);
         } else {
-            val = Math.round(val * 10) / 10;
+            defaultGutterVal = Math.round(defaultGutterVal * 10) / 10;
         }
-        etHGutter.text = String(val);
-    }
 
-    /* 1行目をヘッダー行にする / Treat first row as header */
-    var cbHeader = pOpt.add('checkbox', undefined, L('headerRow'));
-    cbHeader.value = true;
+        var etHGutter = gGutter.add('edittext', undefined, String(defaultGutterVal)); // rulerType
+        etHGutter.characters = 3;
+        changeValueByArrowKey(etHGutter);
 
-    /* 2カラムレイアウト / Two-column layout */
-    var gCols = dlg.add('group');
-    gCols.orientation = 'row';
-    gCols.alignChildren = ['fill', 'top'];
+        var stGutterUnit = gGutter.add('statictext', undefined, rulerUnitLabel);
 
-    var gLeft = gCols.add('group');
-    gLeft.orientation = 'column';
-    gLeft.alignChildren = 'fill';
-
-    var gRight = gCols.add('group');
-    gRight.orientation = 'column';
-    gRight.alignChildren = 'fill';
-
-    /* 塗り / Fill */
-    var pFill = gLeft.add('panel', undefined, L('fillPanel'));
-    pFill.orientation = 'column';
-    pFill.alignChildren = 'left';
-    pFill.margins = [15, 20, 15, 10];
-
-    var gFill = pFill.add('group');
-    gFill.orientation = 'row';
-    gFill.alignChildren = ['left', 'center'];
-
-    var cbFill = gFill.add('checkbox', undefined, L('fillCheck'));
-
-    // デフォルト：塗りOFF
-    cbFill.value = false;
-
-    /* 塗りオプション / Fill options */
-    var pFillOpt = pFill.add('panel', undefined, L('fillOptionPanel'));
-    pFillOpt.orientation = 'column';
-    pFillOpt.alignChildren = 'left';
-    pFillOpt.margins = [15, 20, 15, 10];
-
-    // 行方向に連結（UI）
-    var cbFillJoinRow = pFillOpt.add('checkbox', undefined, L('fillJoinRow'));
-    cbFillJoinRow.value = false;
-
-    // ゼブラ（UI）
-    var cbZebra = pFillOpt.add('checkbox', undefined, L('zebra'));
-    cbZebra.value = false;
-
-    // ヘッダー行のみ（UI）
-    var cbFillHeaderOnly = pFillOpt.add('checkbox', undefined, L('fillHeaderOnly'));
-    cbFillHeaderOnly.value = false;
-
-    // 塗りOFFならゼブラ/行方向に連結/ヘッダー行のみ はディム表示
-    function applyFillEnabled() {
-        var on = !!cbFill.value;
-
-        pFillOpt.enabled = on;
-        cbZebra.enabled = on;
-        cbFillJoinRow.enabled = on;
-        cbFillHeaderOnly.enabled = on;
-
-        if (!on) {
-            cbZebra.value = false;
-            cbFillJoinRow.value = false;
-            cbFillHeaderOnly.value = false;
+        // OFF→0固定 & ディム / ON→復帰
+        var lastGutterText = etHGutter.text;
+        function applyGutterEnabled() {
+            if (!cbUseGutter.value) {
+                lastGutterText = etHGutter.text;
+                etHGutter.text = '0';
+                etHGutter.enabled = false;
+                stGutterUnit.enabled = false;
+            } else {
+                etHGutter.enabled = true;
+                stGutterUnit.enabled = true;
+                // 0のまま戻したくない場合は直前値に戻す
+                if (etHGutter.text === '0' && lastGutterText && lastGutterText !== '0') {
+                    etHGutter.text = lastGutterText;
+                }
+            }
         }
-    }
+        cbUseGutter.onClick = applyGutterEnabled;
+        applyGutterEnabled();
 
-    // ON時：ガターを0にして横方向に連結 / When ON: force gutter=0 and join horizontally
-    function applyFillJoinRow() {
-        if (cbFillJoinRow.value) {
-            cbUseGutter.value = false;
-            applyGutterEnabled();
+        // ガター値をmm指定でセット（rulerTypeに変換して入力欄へ）
+        function setGutterByMm(mmVal) {
+            var val = (mmVal * MM_TO_PT) / rulerFactorPt;
+            // 表示用に丸め（pt/pxは整数、その他は小数1桁）
+            if (rulerUnitLabel === 'pt' || rulerUnitLabel === 'px') {
+                val = Math.round(val);
+            } else {
+                val = Math.round(val * 10) / 10;
+            }
+            etHGutter.text = String(val);
         }
-    }
-    cbFillJoinRow.onClick = applyFillJoinRow;
 
-    // ON時：ガター0 + ヘッダーON + 塗りは1行目のみ
-    function applyFillHeaderOnly() {
-        if (cbFillHeaderOnly.value) {
-            // ガターを0に
-            cbUseGutter.value = false;
-            applyGutterEnabled();
+        /* 1行目をヘッダー行にする / Treat first row as header */
+        var cbHeader = pOpt.add('checkbox', undefined, L('headerRow'));
+        cbHeader.value = true;
 
-            // 1行目をヘッダーに
-            cbHeader.value = true;
+        /* 2カラムレイアウト / Two-column layout */
+        var gCols = dlg.add('group');
+        gCols.orientation = 'row';
+        gCols.alignChildren = ['fill', 'top'];
 
-            // 競合回避：ゼブラはOFF（排他）
-            cbZebra.value = false;
+        var gLeft = gCols.add('group');
+        gLeft.orientation = 'column';
+        gLeft.alignChildren = 'fill';
 
-            // 競合回避：行方向に連結はOFF
-            cbFillJoinRow.value = false;
+        var gRight = gCols.add('group');
+        gRight.orientation = 'column';
+        gRight.alignChildren = 'fill';
+
+        /* 塗り / Fill */
+        var pFill = gLeft.add('panel', undefined, L('fillPanel'));
+        pFill.orientation = 'column';
+        pFill.alignChildren = 'left';
+        pFill.margins = [15, 20, 15, 10];
+
+        var gFill = pFill.add('group');
+        gFill.orientation = 'row';
+        gFill.alignChildren = ['left', 'center'];
+
+        var cbFill = gFill.add('checkbox', undefined, L('fillCheck'));
+
+        // デフォルト：塗りOFF
+        cbFill.value = false;
+
+        /* 塗りオプション / Fill options */
+        var pFillOpt = pFill.add('panel', undefined, L('fillOptionPanel'));
+        pFillOpt.orientation = 'column';
+        pFillOpt.alignChildren = 'left';
+        pFillOpt.margins = [15, 20, 15, 10];
+
+        // 行方向に連結（UI）
+        var cbFillJoinRow = pFillOpt.add('checkbox', undefined, L('fillJoinRow'));
+        cbFillJoinRow.value = false;
+
+        // ゼブラ（UI）
+        var cbZebra = pFillOpt.add('checkbox', undefined, L('zebra'));
+        cbZebra.value = false;
+
+        // ヘッダー行のみ（UI）
+        var cbFillHeaderOnly = pFillOpt.add('checkbox', undefined, L('fillHeaderOnly'));
+        cbFillHeaderOnly.value = false;
+
+        // 塗りOFFならゼブラ/行方向に連結/ヘッダー行のみ はディム表示
+        function applyFillEnabled() {
+            var on = !!cbFill.value;
+
+            pFillOpt.enabled = on;
+            cbZebra.enabled = on;
+            cbFillJoinRow.enabled = on;
+            cbFillHeaderOnly.enabled = on;
+
+            if (!on) {
+                cbZebra.value = false;
+                cbFillJoinRow.value = false;
+                cbFillHeaderOnly.value = false;
+            }
         }
-    }
-    cbFillHeaderOnly.onClick = applyFillHeaderOnly;
 
-    // 排他制御：ゼブラON時は「ヘッダー行のみ」をOFF
-    cbZebra.onClick = function () {
-        if (cbZebra.value) {
-            cbFillHeaderOnly.value = false;
+        // ON時：ガターを0にして横方向に連結 / When ON: force gutter=0 and join horizontally
+        function applyFillJoinRow() {
+            if (cbFillJoinRow.value) {
+                cbUseGutter.value = false;
+                applyGutterEnabled();
+            }
         }
-    };
+        cbFillJoinRow.onClick = applyFillJoinRow;
 
-    cbFill.onClick = function () {
+        // ON時：ガター0 + ヘッダーON + 塗りは1行目のみ
+        function applyFillHeaderOnly() {
+            if (cbFillHeaderOnly.value) {
+                // ガターを0に
+                cbUseGutter.value = false;
+                applyGutterEnabled();
+
+                // 1行目をヘッダーに
+                cbHeader.value = true;
+
+                // 競合回避：ゼブラはOFF（排他）
+                cbZebra.value = false;
+
+                // 競合回避：行方向に連結はOFF
+                cbFillJoinRow.value = false;
+            }
+        }
+        cbFillHeaderOnly.onClick = applyFillHeaderOnly;
+
+        // 排他制御：ゼブラON時は「ヘッダー行のみ」をOFF
+        cbZebra.onClick = function () {
+            if (cbZebra.value) {
+                cbFillHeaderOnly.value = false;
+            }
+        };
+
+        cbFill.onClick = function () {
+            applyFillEnabled();
+            // 塗りOFFになったら状態をリセット
+            if (!cbFill.value) {
+                cbZebra.value = false;
+                cbFillJoinRow.value = false;
+                cbFillHeaderOnly.value = false;
+            }
+        };
+
+        // 初期反映
         applyFillEnabled();
-        // 塗りOFFになったら状態をリセット
-        if (!cbFill.value) {
-            cbZebra.value = false;
-            cbFillJoinRow.value = false;
-            cbFillHeaderOnly.value = false;
+
+        /* 縦罫 / Vertical rules */
+        var pVrule = gRight.add('panel', undefined, L('vRulePanel'));
+        pVrule.orientation = 'column';
+        pVrule.alignChildren = 'left';
+        pVrule.margins = [15, 20, 15, 10];
+
+        // 線（横ケイ＋縦ケイの有効/無効）
+        var cbRule = pVrule.add('checkbox', undefined, L('ruleCheck'));
+        cbRule.value = true;
+
+        // 縦ケイ
+        var pVkei = pVrule.add('panel', undefined, L('vRuleLabel'));
+        pVkei.orientation = 'column';
+        pVkei.alignChildren = 'left';
+        pVkei.margins = [15, 20, 15, 10];
+
+        var gVrule = pVkei.add('group');
+        gVrule.orientation = 'column';
+        gVrule.alignChildren = ['left', 'top'];
+
+        var rbVruleNone = gVrule.add('radiobutton', undefined, L('none'));
+        var rbVruleGapsOnly = gVrule.add('radiobutton', undefined, L('gapsOnly'));
+        var rbVruleAll = gVrule.add('radiobutton', undefined, L('all'));
+
+        // デフォルト：列間のみ
+        rbVruleGapsOnly.value = true;
+
+        // 「線」OFF時は縦ケイを「なし」にしてディム表示 / If Rules OFF, force vertical rules to None and dim
+        function applyRuleEnabled() {
+            if (!cbRule.value) {
+                rbVruleNone.value = true;
+                pVkei.enabled = false;
+            } else {
+                pVkei.enabled = true;
+            }
         }
-    };
+        cbRule.onClick = applyRuleEnabled;
+        applyRuleEnabled();
 
-    // 初期反映
-    applyFillEnabled();
+        // プリセット適用（UIのみ。設定ロジックは後で追加可能）
+        function applyPreset() {
+            isApplyingPreset = true;
+            try {
+                var presetId = getSelectedPresetId();
+                if (presetId === "manual") return; // 手動
 
-    /* 縦罫 / Vertical rules */
-    var pVrule = gRight.add('panel', undefined, L('vRulePanel'));
-    pVrule.orientation = 'column';
-    pVrule.alignChildren = 'left';
-    pVrule.margins = [15, 20, 15, 10];
+                // 共通：1行目ON
+                cbHeader.value = true;
+                cbFillJoinRow.value = false;
 
-    // 線（横ケイ＋縦ケイの有効/無効）
-    var cbRule = pVrule.add('checkbox', undefined, L('ruleCheck'));
-    cbRule.value = true;
+                // プリセット用：ヘッダー行のみ（現状のプリセットはすべてOFF）
+                var presetHeaderOnly = false;
+                cbFillHeaderOnly.value = presetHeaderOnly;
 
-    // 縦ケイ
-    var pVkei = pVrule.add('panel', undefined, L('vRuleLabel'));
-    pVkei.orientation = 'column';
-    pVkei.alignChildren = 'left';
-    pVkei.margins = [15, 20, 15, 10];
+                // 1) 塗りA：アイテムをセルとして扱い、各セルに塗りを設定
+                if (presetId === "fillA") {
+                    cbFill.value = true;
+                    applyFillEnabled();
 
-    var gVrule = pVkei.add('group');
-    gVrule.orientation = 'column';
-    gVrule.alignChildren = ['left', 'top'];
+                    // 塗りオプション（明示）
+                    cbFillJoinRow.value = false;
+                    cbFillHeaderOnly.value = false;
+                    cbZebra.value = false; // ←重要：ゼブラは必ずOFF
 
-    var rbVruleNone = gVrule.add('radiobutton', undefined, L('none'));
-    var rbVruleGapsOnly = gVrule.add('radiobutton', undefined, L('gapsOnly'));
-    var rbVruleAll = gVrule.add('radiobutton', undefined, L('all'));
+                    cbRule.value = false;
+                    applyRuleEnabled();
 
-    // デフォルト：列間のみ
-    rbVruleGapsOnly.value = true;
+                    cbUseGutter.value = true;
+                    applyGutterEnabled();
+                    setGutterByMm(1);
 
-    // 「線」OFF時は縦ケイを「なし」にしてディム表示 / If Rules OFF, force vertical rules to None and dim
-    function applyRuleEnabled() {
-        if (!cbRule.value) {
-            rbVruleNone.value = true;
-            pVkei.enabled = false;
-        } else {
-            pVkei.enabled = true;
+                    // 線OFFのため縦ケイは「なし」
+                    rbVruleNone.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 2) 塗りB (idx==2): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：列間のみ）
+                if (presetId === "fillB") {
+                    cbFill.value = true;
+                    applyFillEnabled();
+
+                    // 塗りオプション（明示）
+                    cbFillJoinRow.value = false;
+                    cbFillHeaderOnly.value = false;
+                    cbZebra.value = true;
+
+                    cbRule.value = false;
+                    applyRuleEnabled();
+
+                    cbUseGutter.value = true;
+                    applyGutterEnabled();
+                    setGutterByMm(1);
+
+                    // 線OFFのため縦ケイは「なし」
+                    rbVruleNone.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 3) 塗りC (idx==3): 塗りBの複製（ガターOFF）
+                if (presetId === "fillC") {
+                    cbFill.value = true;
+                    applyFillEnabled();
+
+                    // 塗りオプション（明示）
+                    cbFillJoinRow.value = true;
+                    cbFillHeaderOnly.value = false;
+                    cbZebra.value = true;
+
+                    cbRule.value = false;
+                    applyRuleEnabled();
+
+                    cbUseGutter.value = false; // 0扱い（連結）
+                    applyGutterEnabled();
+                    setGutterByMm(1);
+
+                    // 線OFFのため縦ケイは「なし」
+                    rbVruleNone.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 4) 塗り＋線A (idx==4): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：すべて）
+                if (presetId === "fillStrokeA") {
+                    cbFill.value = true;
+                    applyFillEnabled();
+
+                    // 塗りオプション（明示）
+                    cbFillJoinRow.value = false;
+                    cbZebra.value = false;
+
+                    cbRule.value = true;
+                    applyRuleEnabled();
+
+                    cbUseGutter.value = false; // 0扱い
+                    applyGutterEnabled();
+
+                    cbHeader.value = true;
+
+                    // 縦ケイ：すべて
+                    rbVruleAll.value = true;
+                    applyRuleEnabled();
+
+                    // 見出し行のみ
+                    cbFillHeaderOnly.value = true;
+                    applyFillHeaderOnly();
+                    return;
+                }
+
+                // 5) 塗り＋線B (idx==5): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：列間のみ）
+                if (presetId === "fillStrokeB") {
+                    cbFill.value = true;
+                    applyFillEnabled();
+
+                    // 塗りオプション（明示）
+                    cbFillJoinRow.value = false;
+                    cbZebra.value = false;
+
+                    cbRule.value = true;
+                    applyRuleEnabled();
+
+                    cbUseGutter.value = false; // 0扱い
+                    applyGutterEnabled();
+
+                    cbHeader.value = true;
+
+                    // 縦ケイ：列間のみ
+                    rbVruleGapsOnly.value = true;
+                    applyRuleEnabled();
+
+                    // 見出し行のみ
+                    cbFillHeaderOnly.value = true;
+                    applyFillHeaderOnly();
+                    return;
+                }
+
+                // 6) 線A-1 (idx==6): セルごとにすべての罫線（ガターあり）
+                if (presetId === "strokeA1") {
+                    cbFill.value = false;
+                    applyFillEnabled();
+                    cbFillHeaderOnly.value = presetHeaderOnly;
+                    cbRule.value = true;
+
+                    cbUseGutter.value = true;
+                    applyGutterEnabled();
+                    setGutterByMm(2);
+
+                    rbVruleAll.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 7) 線A-2 (idx==7): セルごとにすべての罫線（ガターあり）左右の縦ケイなし
+                if (presetId === "strokeA2") {
+                    cbFill.value = false;
+                    applyFillEnabled();
+                    cbFillHeaderOnly.value = presetHeaderOnly;
+                    cbRule.value = true;
+
+                    cbUseGutter.value = true;
+                    applyGutterEnabled();
+                    setGutterByMm(1);
+
+                    rbVruleGapsOnly.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 8) 線B-1 (idx==8): 罫線（ガターあり）左右の縦ケイなし
+                if (presetId === "strokeB1") {
+                    cbFill.value = false;
+                    applyFillEnabled();
+                    cbFillHeaderOnly.value = presetHeaderOnly;
+                    cbRule.value = true;
+
+                    cbUseGutter.value = false; // 0扱い（連結）
+                    applyGutterEnabled();
+
+                    rbVruleGapsOnly.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 9) 線B-2 (idx==9): 罫線（ガターあり）ケイなし
+                if (presetId === "strokeB2") {
+                    cbFill.value = false;
+                    applyFillEnabled();
+                    cbFillHeaderOnly.value = presetHeaderOnly;
+                    cbRule.value = true;
+
+                    cbUseGutter.value = false; // 0扱い（連結）
+                    applyGutterEnabled();
+
+                    rbVruleNone.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 10) 線C-1 (idx==10): すべてのセルに罫線（ガターなし）
+                if (presetId === "strokeC1") {
+                    cbFill.value = false;
+                    applyFillEnabled();
+                    cbFillHeaderOnly.value = presetHeaderOnly;
+
+                    cbRule.value = true;
+
+                    cbUseGutter.value = false; // 0扱い（連結）
+                    applyGutterEnabled();
+
+                    // ヘッダーOFF
+                    cbHeader.value = false;
+
+                    rbVruleAll.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+
+                // 11) 線C-2 (idx==11): すべてのセルに罫線（ガターなし）＋見出し行
+                if (presetId === "strokeC2") {
+                    cbFill.value = false;
+                    applyFillEnabled();
+                    cbFillHeaderOnly.value = presetHeaderOnly;
+
+                    cbRule.value = true;
+
+                    cbUseGutter.value = false; // 0扱い（連結）
+                    applyGutterEnabled();
+
+                    // ヘッダーON
+                    cbHeader.value = true;
+
+                    rbVruleAll.value = true;
+                    applyRuleEnabled();
+                    return;
+                }
+                // NOTE: 今後プリセットでヘッダー行のみをONにする場合は presetHeaderOnly=true にしてから
+                // cbFillHeaderOnly.value を反映し、必要なら applyFillHeaderOnly() を呼ぶ。
+            } finally {
+                isApplyingPreset = false;
+                // プリセット適用後にプレビュー更新（return で抜けても finally は必ず通る）
+                try { requestPreviewUpdate(); } catch (_) { }
+            }
         }
-    }
-    cbRule.onClick = applyRuleEnabled;
-    applyRuleEnabled();
 
-    // プリセット適用（UIのみ。設定ロジックは後で追加可能）
-    function applyPreset() {
-        isApplyingPreset = true;
-        try {
-            var presetId = getSelectedPresetId();
-            if (presetId === "manual") return; // 手動
+        ddPreset.onChange = function () {
+            applyPreset();
+        };
 
-            // 共通：1行目ON
-            cbHeader.value = true;
-            cbFillJoinRow.value = false;
-
-            // プリセット用：ヘッダー行のみ（現状のプリセットはすべてOFF）
-            var presetHeaderOnly = false;
-            cbFillHeaderOnly.value = presetHeaderOnly;
-
-            // 1) 塗りA：アイテムをセルとして扱い、各セルに塗りを設定
-            if (presetId === "fillA") {
-                cbFill.value = true;
-                applyFillEnabled();
-
-                // 塗りオプション（明示）
-                cbFillJoinRow.value = false;
-                cbFillHeaderOnly.value = false;
-                cbZebra.value = false; // ←重要：ゼブラは必ずOFF
-
-                cbRule.value = false;
-                applyRuleEnabled();
-
-                cbUseGutter.value = true;
-                applyGutterEnabled();
-                setGutterByMm(1);
-
-                // 線OFFのため縦ケイは「なし」
-                rbVruleNone.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 2) 塗りB (idx==2): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：列間のみ）
-            if (presetId === "fillB") {
-                cbFill.value = true;
-                applyFillEnabled();
-
-                // 塗りオプション（明示）
-                cbFillJoinRow.value = false;
-                cbFillHeaderOnly.value = false;
-                cbZebra.value = true;
-
-                cbRule.value = false;
-                applyRuleEnabled();
-
-                cbUseGutter.value = true;
-                applyGutterEnabled();
-                setGutterByMm(1);
-
-                // 線OFFのため縦ケイは「なし」
-                rbVruleNone.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 3) 塗りC (idx==3): 塗りBの複製（ガターOFF）
-            if (presetId === "fillC") {
-                cbFill.value = true;
-                applyFillEnabled();
-
-                // 塗りオプション（明示）
-                cbFillJoinRow.value = true;
-                cbFillHeaderOnly.value = false;
-                cbZebra.value = true;
-
-                cbRule.value = false;
-                applyRuleEnabled();
-
-                cbUseGutter.value = false; // 0扱い（連結）
-                applyGutterEnabled();
-                setGutterByMm(1);
-
-                // 線OFFのため縦ケイは「なし」
-                rbVruleNone.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 4) 塗り＋線A (idx==4): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：すべて）
-            if (presetId === "fillStrokeA") {
-                cbFill.value = true;
-                applyFillEnabled();
-
-                // 塗りオプション（明示）
-                cbFillJoinRow.value = false;
-                cbZebra.value = false;
-
-                cbRule.value = true;
-                applyRuleEnabled();
-
-                cbUseGutter.value = false; // 0扱い
-                applyGutterEnabled();
-
-                cbHeader.value = true;
-
-                // 縦ケイ：すべて
-                rbVruleAll.value = true;
-                applyRuleEnabled();
-
-                // 見出し行のみ
-                cbFillHeaderOnly.value = true;
-                applyFillHeaderOnly();
-                return;
-            }
-
-            // 5) 塗り＋線B (idx==5): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：列間のみ）
-            if (presetId === "fillStrokeB") {
-                cbFill.value = true;
-                applyFillEnabled();
-
-                // 塗りオプション（明示）
-                cbFillJoinRow.value = false;
-                cbZebra.value = false;
-
-                cbRule.value = true;
-                applyRuleEnabled();
-
-                cbUseGutter.value = false; // 0扱い
-                applyGutterEnabled();
-
-                cbHeader.value = true;
-
-                // 縦ケイ：列間のみ
-                rbVruleGapsOnly.value = true;
-                applyRuleEnabled();
-
-                // 見出し行のみ
-                cbFillHeaderOnly.value = true;
-                applyFillHeaderOnly();
-                return;
-            }
-
-            // 6) 線A-1 (idx==6): セルごとにすべての罫線（ガターあり）
-            if (presetId === "strokeA1") {
-                cbFill.value = false;
-                applyFillEnabled();
-                cbFillHeaderOnly.value = presetHeaderOnly;
-                cbRule.value = true;
-
-                cbUseGutter.value = true;
-                applyGutterEnabled();
-                setGutterByMm(2);
-
-                rbVruleAll.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 7) 線A-2 (idx==7): セルごとにすべての罫線（ガターあり）左右の縦ケイなし
-            if (presetId === "strokeA2") {
-                cbFill.value = false;
-                applyFillEnabled();
-                cbFillHeaderOnly.value = presetHeaderOnly;
-                cbRule.value = true;
-
-                cbUseGutter.value = true;
-                applyGutterEnabled();
-                setGutterByMm(1);
-
-                rbVruleGapsOnly.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 8) 線B-1 (idx==8): 罫線（ガターあり）左右の縦ケイなし
-            if (presetId === "strokeB1") {
-                cbFill.value = false;
-                applyFillEnabled();
-                cbFillHeaderOnly.value = presetHeaderOnly;
-                cbRule.value = true;
-
-                cbUseGutter.value = false; // 0扱い（連結）
-                applyGutterEnabled();
-
-                rbVruleGapsOnly.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 9) 線B-2 (idx==9): 罫線（ガターあり）ケイなし
-            if (presetId === "strokeB2") {
-                cbFill.value = false;
-                applyFillEnabled();
-                cbFillHeaderOnly.value = presetHeaderOnly;
-                cbRule.value = true;
-
-                cbUseGutter.value = false; // 0扱い（連結）
-                applyGutterEnabled();
-
-                rbVruleNone.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 10) 線C-1 (idx==10): すべてのセルに罫線（ガターなし）
-            if (presetId === "strokeC1") {
-                cbFill.value = false;
-                applyFillEnabled();
-                cbFillHeaderOnly.value = presetHeaderOnly;
-
-                cbRule.value = true;
-
-                cbUseGutter.value = false; // 0扱い（連結）
-                applyGutterEnabled();
-
-                // ヘッダーOFF
-                cbHeader.value = false;
-
-                rbVruleAll.value = true;
-                applyRuleEnabled();
-                return;
-            }
-
-            // 11) 線C-2 (idx==11): すべてのセルに罫線（ガターなし）＋見出し行
-            if (presetId === "strokeC2") {
-                cbFill.value = false;
-                applyFillEnabled();
-                cbFillHeaderOnly.value = presetHeaderOnly;
-
-                cbRule.value = true;
-
-                cbUseGutter.value = false; // 0扱い（連結）
-                applyGutterEnabled();
-
-                // ヘッダーON
-                cbHeader.value = true;
-
-                rbVruleAll.value = true;
-                applyRuleEnabled();
-                return;
-            }
-            // NOTE: 今後プリセットでヘッダー行のみをONにする場合は presetHeaderOnly=true にしてから
-            // cbFillHeaderOnly.value を反映し、必要なら applyFillHeaderOnly() を呼ぶ。
-        } finally {
-            isApplyingPreset = false;
-            // プリセット適用後にプレビュー更新（return で抜けても finally は必ず通る）
-            try { requestPreviewUpdate(); } catch (_) { }
+        // --- 手動変更検知 / Manual change detection ---
+        function hookManual(control) {
+            var prev = control.onClick;
+            control.onClick = function () {
+                if (prev) prev();
+                setPresetManual();
+                try { requestPreviewUpdate(); } catch (_) { }
+            };
         }
-    }
 
-    ddPreset.onChange = function () {
-        applyPreset();
-    };
+        // チェックボックス類
+        hookManual(cbFill);
+        hookManual(cbZebra);
+        hookManual(cbFillJoinRow);
+        hookManual(cbFillHeaderOnly);
+        hookManual(cbUseGutter);
+        hookManual(cbHeader);
+        hookManual(cbRule);
 
-    // --- 手動変更検知 / Manual change detection ---
-    function hookManual(control) {
-        var prev = control.onClick;
-        control.onClick = function () {
-            if (prev) prev();
+        // ラジオボタン
+        hookManual(rbVruleNone);
+        hookManual(rbVruleGapsOnly);
+        hookManual(rbVruleAll);
+
+        // ガター数値の手動変更
+        etHGutter.onChanging = function () {
             setPresetManual();
             try { requestPreviewUpdate(); } catch (_) { }
         };
-    }
 
-    // チェックボックス類
-    hookManual(cbFill);
-    hookManual(cbZebra);
-    hookManual(cbFillJoinRow);
-    hookManual(cbFillHeaderOnly);
-    hookManual(cbUseGutter);
-    hookManual(cbHeader);
-    hookManual(cbRule);
-
-    // ラジオボタン
-    hookManual(rbVruleNone);
-    hookManual(rbVruleGapsOnly);
-    hookManual(rbVruleAll);
-
-    // ガター数値の手動変更
-    etHGutter.onChanging = function () {
-        setPresetManual();
-        try { requestPreviewUpdate(); } catch (_) { }
-    };
-
-    // セッション状態を復元
-    restoreDialogState({
-        ddPreset: ddPreset,
-        cbUseGutter: cbUseGutter,
-        etHGutter: etHGutter,
-        cbHeader: cbHeader,
-        cbFill: cbFill,
-        cbZebra: cbZebra,
-        cbFillJoinRow: cbFillJoinRow,
-        cbFillHeaderOnly: cbFillHeaderOnly,
-        cbRule: cbRule,
-        rbVruleNone: rbVruleNone,
-        rbVruleGapsOnly: rbVruleGapsOnly,
-        rbVruleAll: rbVruleAll,
-        applyGutterEnabled: applyGutterEnabled,
-        applyFillEnabled: applyFillEnabled,
-        applyRuleEnabled: applyRuleEnabled,
-        applyFillJoinRow: applyFillJoinRow,
-        applyFillHeaderOnly: applyFillHeaderOnly
-    });
-
-    var btnGroup = dlg.add('group');
-    btnGroup.orientation = 'row';
-    btnGroup.alignChildren = ['left', 'center'];
-
-    // Preview toggle (left)
-    cbPreview = btnGroup.add('checkbox', undefined, (lang === 'ja') ? 'プレビュー' : 'Preview');
-    cbPreview.value = true;
-
-    // Spacer
-    var _sp = btnGroup.add('statictext', undefined, '');
-    _sp.alignment = 'fill';
-
-    // Buttons (right)
-    var btnCancel = btnGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
-    var btnOK = btnGroup.add('button', undefined, L('ok'), { name: 'ok' });
-    btnCancel.alignment = 'right';
-    btnOK.alignment = 'right';
-
-    btnCancel.onClick = function () {
-        saveDialogState({
+        // セッション状態を復元
+        restoreDialogState({
             ddPreset: ddPreset,
             cbUseGutter: cbUseGutter,
             etHGutter: etHGutter,
@@ -1017,31 +980,33 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             cbRule: cbRule,
             rbVruleNone: rbVruleNone,
             rbVruleGapsOnly: rbVruleGapsOnly,
-            rbVruleAll: rbVruleAll
+            rbVruleAll: rbVruleAll,
+            applyGutterEnabled: applyGutterEnabled,
+            applyFillEnabled: applyFillEnabled,
+            applyRuleEnabled: applyRuleEnabled,
+            applyFillJoinRow: applyFillJoinRow,
+            applyFillHeaderOnly: applyFillHeaderOnly
         });
-        try { clearPreview(); } catch (_) { }
-        dlg.close(0);
-    };
-    btnOK.onClick = function () {
-        saveDialogState({
-            ddPreset: ddPreset,
-            cbUseGutter: cbUseGutter,
-            etHGutter: etHGutter,
-            cbHeader: cbHeader,
-            cbFill: cbFill,
-            cbZebra: cbZebra,
-            cbFillJoinRow: cbFillJoinRow,
-            cbFillHeaderOnly: cbFillHeaderOnly,
-            cbRule: cbRule,
-            rbVruleNone: rbVruleNone,
-            rbVruleGapsOnly: rbVruleGapsOnly,
-            rbVruleAll: rbVruleAll
-        });
-        dlg.close(1);
-    };
-    dlg.onClose = function () {
-        try { clearPreview(); } catch (_) { }
-        try {
+
+        var btnGroup = dlg.add('group');
+        btnGroup.orientation = 'row';
+        btnGroup.alignChildren = ['left', 'center'];
+
+        // Preview toggle (left)
+        cbPreview = btnGroup.add('checkbox', undefined, (lang === 'ja') ? 'プレビュー' : 'Preview');
+        cbPreview.value = true;
+
+        // Spacer
+        var _sp = btnGroup.add('statictext', undefined, '');
+        _sp.alignment = 'fill';
+
+        // Buttons (right)
+        var btnCancel = btnGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
+        var btnOK = btnGroup.add('button', undefined, L('ok'), { name: 'ok' });
+        btnCancel.alignment = 'right';
+        btnOK.alignment = 'right';
+
+        btnCancel.onClick = function () {
             saveDialogState({
                 ddPreset: ddPreset,
                 cbUseGutter: cbUseGutter,
@@ -1056,854 +1021,893 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 rbVruleGapsOnly: rbVruleGapsOnly,
                 rbVruleAll: rbVruleAll
             });
-        } catch (_) { }
-    };
-
-    function requestPreviewUpdate() {
-        try {
-            if (cbPreview && cbPreview.value) {
-                applyPreviewNow();
-            } else {
-                clearPreview();
-            }
-        } catch (_) { }
-    }
-
-    // Helper to ensure doc/sel/layers/colors for both preview and final
-    function ensureDocSelAndLayers() {
-        try {
-            if (app.documents.length === 0) return false;
-            doc = app.activeDocument;
-            sel = doc.selection;
-            baseLayer = doc.activeLayer;
-            if (!sel || sel.length === 0) return false;
-
-            // Layers
+            try { clearPreview(); } catch (_) { }
+            dlg.close(0);
+        };
+        btnOK.onClick = function () {
+            saveDialogState({
+                ddPreset: ddPreset,
+                cbUseGutter: cbUseGutter,
+                etHGutter: etHGutter,
+                cbHeader: cbHeader,
+                cbFill: cbFill,
+                cbZebra: cbZebra,
+                cbFillJoinRow: cbFillJoinRow,
+                cbFillHeaderOnly: cbFillHeaderOnly,
+                cbRule: cbRule,
+                rbVruleNone: rbVruleNone,
+                rbVruleGapsOnly: rbVruleGapsOnly,
+                rbVruleAll: rbVruleAll
+            });
+            dlg.close(1);
+        };
+        dlg.onClose = function () {
+            try { clearPreview(); } catch (_) { }
             try {
-                if (!lineLayer) lineLayer = doc.layers.getByName('罫線レイヤー');
-            } catch (e1) {
-                try {
-                    lineLayer = doc.layers.add();
-                    lineLayer.name = '罫線レイヤー';
-                } catch (_) { }
-            }
-            try {
-                if (!fillLayer) fillLayer = doc.layers.getByName('塗りレイヤー');
-            } catch (e2) {
-                try {
-                    fillLayer = doc.layers.add();
-                    fillLayer.name = '塗りレイヤー';
-                } catch (_) { }
-            }
-            try { if (lineLayer && baseLayer && lineLayer !== baseLayer) lineLayer.move(baseLayer, ElementPlacement.PLACEAFTER); } catch (_) { }
-            try { if (fillLayer && lineLayer && fillLayer !== lineLayer) fillLayer.move(lineLayer, ElementPlacement.PLACEAFTER); } catch (_) { }
+                saveDialogState({
+                    ddPreset: ddPreset,
+                    cbUseGutter: cbUseGutter,
+                    etHGutter: etHGutter,
+                    cbHeader: cbHeader,
+                    cbFill: cbFill,
+                    cbZebra: cbZebra,
+                    cbFillJoinRow: cbFillJoinRow,
+                    cbFillHeaderOnly: cbFillHeaderOnly,
+                    cbRule: cbRule,
+                    rbVruleNone: rbVruleNone,
+                    rbVruleGapsOnly: rbVruleGapsOnly,
+                    rbVruleAll: rbVruleAll
+                });
+            } catch (_) { }
+        };
 
-            // Colors
+        function requestPreviewUpdate() {
             try {
-                if (!blackColor) {
-                    blackColor = new CMYKColor();
-                    blackColor.cyan = 0; blackColor.magenta = 0; blackColor.yellow = 0; blackColor.black = 100;
-                }
-                if (!fillGray) {
-                    fillGray = new CMYKColor();
-                    fillGray.cyan = 0; fillGray.magenta = 0; fillGray.yellow = 0; fillGray.black = 15;
-                }
-                if (!fillGrayHeader) {
-                    fillGrayHeader = new CMYKColor();
-                    fillGrayHeader.cyan = 0; fillGrayHeader.magenta = 0; fillGrayHeader.yellow = 0; fillGrayHeader.black = 40;
-                }
-                if (!fillGrayHeaderZebra) {
-                    fillGrayHeaderZebra = new CMYKColor();
-                    fillGrayHeaderZebra.cyan = 0; fillGrayHeaderZebra.magenta = 0; fillGrayHeaderZebra.yellow = 0; fillGrayHeaderZebra.black = 50;
-                }
-                if (!fillGrayZebra) {
-                    fillGrayZebra = new CMYKColor();
-                    fillGrayZebra.cyan = 0; fillGrayZebra.magenta = 0; fillGrayZebra.yellow = 0; fillGrayZebra.black = 30;
+                if (cbPreview && cbPreview.value) {
+                    applyPreviewNow();
+                } else {
+                    clearPreview();
                 }
             } catch (_) { }
-
-            return true;
-        } catch (_) {
-            return false;
         }
-    }
 
-    function applyPreviewNow() {
-        if (!cbPreview || !cbPreview.value) {
+        // Helper to ensure doc/sel/layers/colors for both preview and final
+        function ensureDocSelAndLayers() {
+            try {
+                if (app.documents.length === 0) return false;
+                doc = app.activeDocument;
+                sel = doc.selection;
+                baseLayer = doc.activeLayer;
+                if (!sel || sel.length === 0) return false;
+
+                // Layers
+                try {
+                    if (!lineLayer) lineLayer = doc.layers.getByName('罫線レイヤー');
+                } catch (e1) {
+                    try {
+                        lineLayer = doc.layers.add();
+                        lineLayer.name = '罫線レイヤー';
+                    } catch (_) { }
+                }
+                try {
+                    if (!fillLayer) fillLayer = doc.layers.getByName('塗りレイヤー');
+                } catch (e2) {
+                    try {
+                        fillLayer = doc.layers.add();
+                        fillLayer.name = '塗りレイヤー';
+                    } catch (_) { }
+                }
+                try { if (lineLayer && baseLayer && lineLayer !== baseLayer) lineLayer.move(baseLayer, ElementPlacement.PLACEAFTER); } catch (_) { }
+                try { if (fillLayer && lineLayer && fillLayer !== lineLayer) fillLayer.move(lineLayer, ElementPlacement.PLACEAFTER); } catch (_) { }
+
+                // Colors
+                try {
+                    if (!blackColor) {
+                        blackColor = new CMYKColor();
+                        blackColor.cyan = 0; blackColor.magenta = 0; blackColor.yellow = 0; blackColor.black = 100;
+                    }
+                    if (!fillGray) {
+                        fillGray = new CMYKColor();
+                        fillGray.cyan = 0; fillGray.magenta = 0; fillGray.yellow = 0; fillGray.black = 15;
+                    }
+                    if (!fillGrayHeader) {
+                        fillGrayHeader = new CMYKColor();
+                        fillGrayHeader.cyan = 0; fillGrayHeader.magenta = 0; fillGrayHeader.yellow = 0; fillGrayHeader.black = 40;
+                    }
+                    if (!fillGrayHeaderZebra) {
+                        fillGrayHeaderZebra = new CMYKColor();
+                        fillGrayHeaderZebra.cyan = 0; fillGrayHeaderZebra.magenta = 0; fillGrayHeaderZebra.yellow = 0; fillGrayHeaderZebra.black = 50;
+                    }
+                    if (!fillGrayZebra) {
+                        fillGrayZebra = new CMYKColor();
+                        fillGrayZebra.cyan = 0; fillGrayZebra.magenta = 0; fillGrayZebra.yellow = 0; fillGrayZebra.black = 30;
+                    }
+                } catch (_) { }
+
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function applyPreviewNow() {
+            if (!cbPreview || !cbPreview.value) {
+                clearPreview();
+                return;
+            }
+
+            // Rebuild preview from current dialog state
             clearPreview();
+
+            if (!ensureDocSelAndLayers()) return;
+
+            try {
+                isPreviewing = true;
+                previewIsCurrent = false;
+
+                // Columns + params from UI
+                buildCalcColumnsAndParams();
+
+                // Draw preview
+                generateMain();
+                try { app.redraw(); } catch (_) { }
+
+                // Cleanup calc proxies only (outlined duplicates)
+                try {
+                    var _pc = 0;
+                    try { _pc = (calcCleanups && typeof calcCleanups.length === 'number') ? calcCleanups.length : 0; } catch (eLen2) { _pc = 0; }
+                    for (var ii = 0; ii < _pc; ii++) {
+                        try {
+                            var fn2 = null;
+                            try { fn2 = calcCleanups[ii]; } catch (eGet2) { fn2 = null; }
+                            if (fn2) { try { fn2(); } catch (eRun2) { } }
+                        } catch (_) { }
+                    }
+                } catch (_) { }
+
+                previewIsCurrent = true;
+                try { app.redraw(); } catch (_) { }
+            } catch (_) {
+                try { clearPreview(); } catch (__) { }
+                previewIsCurrent = false;
+            } finally {
+                isPreviewing = false;
+            }
+        }
+
+        // ドキュメントチェック（ダイアログより前に移動）
+        // Ensure doc/sel/layers/colors
+        // Declare variables as globals (remove var to avoid shadowing)
+        if (!ensureDocSelAndLayers()) {
+            if (app.documents.length === 0) { alert(L('alertOpenDoc')); } else { alert(L('alertSelectObj')); }
+            return;
+        }
+        // --- Calculation proxy layer and outline proxies for geometricBounds ---
+        // Build calculation proxies for selection after dialog confirmation
+        // After dlg.show() confirmed:
+        // 1. Create temp layer
+        // 2. For each selection, duplicate & outline as needed
+        // 3. Build srcItems, calcItems, columns based on outlined proxies
+        // 4. Clean up all proxies/layer at the end
+
+        // Proxy/calc data
+        var srcItems = [];
+        var calcProxyList = [];
+        var calcCleanups = [];
+        var calcLayer = null;
+        var columns = [];
+        var calcItems = [];
+
+        if (dlg.show() !== 1) return;
+
+        // OK: if preview is on and current, keep it as final (no regeneration)
+        if (cbPreview && cbPreview.value && previewIsCurrent) {
+            previewItems = [];      // keep objects (do not remove on exit)
+            previewIsCurrent = false;
             return;
         }
 
-        // Rebuild preview from current dialog state
-        clearPreview();
+        function buildCalcColumnsAndParams() {
+            // Reset containers
+            srcItems = [];
+            calcProxyList = [];
+            calcCleanups = [];
+            calcLayer = null;
+            columns = [];
+            calcItems = [];
 
-        if (!ensureDocSelAndLayers()) return;
+            // 1) temp layer
+            var calcLayerName = "__TabularizeCalc__";
+            try { calcLayer = doc.layers.getByName(calcLayerName); }
+            catch (e) { calcLayer = doc.layers.add(); calcLayer.name = calcLayerName; }
+            try { calcLayer.zOrder(ZOrderMethod.SENDTOFRONT); } catch (_) { }
+            try { calcLayer.visible = true; } catch (_) { }
+            try { calcLayer.locked = false; } catch (_) { }
+
+            // 2) proxies
+            var seenSrc = [];
+            for (var i = 0; i < sel.length; i++) {
+                var it = sel[i];
+                var g = getSelectedAncestorGroup(it);
+                if (g) it = g;
+                if (arrayHasRef(seenSrc, it)) continue;
+                seenSrc.push(it);
+                srcItems.push(it);
+
+                var proxy = { src: it, calc: it, cleanup: null };
+
+                if (it.typename === "TextFrame") {
+                    var dup = it.duplicate(calcLayer, ElementPlacement.PLACEATBEGINNING);
+                    var outlined = null;
+                    try { outlined = dup.createOutline(); } catch (eO) { outlined = null; }
+                    try { if (dup && dup.parent) dup.remove(); } catch (_) { }
+                    if (outlined) {
+                        try { outlined.opacity = 0; } catch (_) { }
+                        proxy.calc = outlined;
+                        proxy.cleanup = (function (gg) { return function () { try { gg.remove(); } catch (_) { } }; })(outlined);
+                    }
+                } else if (it.typename === "GroupItem" && hasAnyTextFrame(it)) {
+                    var dupg = it.duplicate(calcLayer, ElementPlacement.PLACEATBEGINNING);
+                    try { while (dupg.textFrames.length > 0) { dupg.textFrames[0].createOutline(); } } catch (_) { }
+                    try { dupg.opacity = 0; } catch (_) { }
+                    proxy.calc = dupg;
+                    proxy.cleanup = (function (gg2) { return function () { try { gg2.remove(); } catch (_) { } }; })(dupg);
+                }
+
+                calcProxyList.push(proxy);
+                if (proxy.cleanup) calcCleanups.push(proxy.cleanup);
+            }
+
+            // 3) columns
+            calcItems = [];
+            for (var ci = 0; ci < calcProxyList.length; ci++) calcItems.push(calcProxyList[ci].calc);
+            calcItems.sort(function (a, b) { return a.geometricBounds[0] - b.geometricBounds[0]; });
+
+            columns = [];
+            if (calcItems.length > 0) {
+                var currentColumn = [calcItems[0]];
+                columns.push(currentColumn);
+                for (var j = 1; j < calcItems.length; j++) {
+                    var item = calcItems[j];
+                    var itemLeft = item.geometricBounds[0];
+                    var prevColMaxRight = getMaxRightInColumn(currentColumn);
+                    if (itemLeft < prevColMaxRight) currentColumn.push(item);
+                    else { currentColumn = [item]; columns.push(currentColumn); }
+                }
+            }
+
+            // 4) params from UI
+            isZebra = cbZebra.value;
+            isFillJoinRow = cbFillJoinRow.value;
+            isFillHeaderOnly = cbFillHeaderOnly.value;
+            isHeaderRow = cbHeader.value;
+
+            hGutterVal = cbUseGutter.value ? parseFloat(etHGutter.text) : 0;
+            if (isNaN(hGutterVal) || hGutterVal < 0) hGutterVal = 0;
+            hGutterPt = hGutterVal * rulerFactorPt;
+
+            vRuleMode = rbVruleNone.value ? 'none' : (rbVruleAll.value ? 'all' : 'gapsOnly');
+
+            doFill = cbFill.value;
+            doRule = cbRule.value;
+
+            fillMode = (doFill && doRule) ? 'fillAndRule' : (doFill ? 'fillOnly' : 'none');
+            KEEP_GAP_PT = hGutterPt;
+        }
 
         try {
-            isPreviewing = true;
-            previewIsCurrent = false;
-
-            // Columns + params from UI
             buildCalcColumnsAndParams();
-
-            // Draw preview
             generateMain();
-            try { app.redraw(); } catch (_) { }
-
-            // Cleanup calc proxies only (outlined duplicates)
+        } finally {
+            // --- Cleanup calc proxies (outlined duplicates only) ---
             try {
-                var _pc = 0;
-                try { _pc = (calcCleanups && typeof calcCleanups.length === 'number') ? calcCleanups.length : 0; } catch (eLen2) { _pc = 0; }
-                for (var ii = 0; ii < _pc; ii++) {
+                var _cleanupCount = 0;
+                try { _cleanupCount = (calcCleanups && typeof calcCleanups.length === 'number') ? calcCleanups.length : 0; } catch (_) { _cleanupCount = 0; }
+                for (var cl = 0; cl < _cleanupCount; cl++) {
                     try {
-                        var fn2 = null;
-                        try { fn2 = calcCleanups[ii]; } catch (eGet2) { fn2 = null; }
-                        if (fn2) { try { fn2(); } catch (eRun2) { } }
+                        var fn = null;
+                        try { fn = calcCleanups[cl]; } catch (_) { fn = null; }
+                        if (fn) { try { fn(); } catch (_) { } }
                     } catch (_) { }
                 }
             } catch (_) { }
-
-            previewIsCurrent = true;
-            try { app.redraw(); } catch (_) { }
-        } catch (_) {
-            try { clearPreview(); } catch (__) { }
-            previewIsCurrent = false;
-        } finally {
-            isPreviewing = false;
         }
-    }
 
-    // ドキュメントチェック（ダイアログより前に移動）
-    // Ensure doc/sel/layers/colors
-    // Declare variables as globals (remove var to avoid shadowing)
-    if (!ensureDocSelAndLayers()) {
-        if (app.documents.length === 0) { alert(L('alertOpenDoc')); } else { alert(L('alertSelectObj')); }
-        return;
-    }
-    // --- Calculation proxy layer and outline proxies for geometricBounds ---
-    // Build calculation proxies for selection after dialog confirmation
-    // After dlg.show() confirmed:
-    // 1. Create temp layer
-    // 2. For each selection, duplicate & outline as needed
-    // 3. Build srcItems, calcItems, columns based on outlined proxies
-    // 4. Clean up all proxies/layer at the end
+        // 生成処理本体 / Main generation
+        function generateMain() {
 
-    // Proxy/calc data
-    var srcItems = [];
-    var calcProxyList = [];
-    var calcCleanups = [];
-    var calcLayer = null;
-    var columns = [];
-    var calcItems = [];
-
-    if (dlg.show() !== 1) return;
-
-    // OK: if preview is on and current, keep it as final (no regeneration)
-    if (cbPreview && cbPreview.value && previewIsCurrent) {
-        previewItems = [];      // keep objects (do not remove on exit)
-        previewIsCurrent = false;
-        return;
-    }
-
-    function buildCalcColumnsAndParams() {
-        // Reset containers
-        srcItems = [];
-        calcProxyList = [];
-        calcCleanups = [];
-        calcLayer = null;
-        columns = [];
-        calcItems = [];
-
-        // 1) temp layer
-        var calcLayerName = "__TabularizeCalc__";
-        try { calcLayer = doc.layers.getByName(calcLayerName); }
-        catch (e) { calcLayer = doc.layers.add(); calcLayer.name = calcLayerName; }
-        try { calcLayer.zOrder(ZOrderMethod.SENDTOFRONT); } catch (_) { }
-        try { calcLayer.visible = true; } catch (_) { }
-        try { calcLayer.locked = false; } catch (_) { }
-
-        // 2) proxies
-        var seenSrc = [];
-        for (var i = 0; i < sel.length; i++) {
-            var it = sel[i];
-            var g = getSelectedAncestorGroup(it);
-            if (g) it = g;
-            if (arrayHasRef(seenSrc, it)) continue;
-            seenSrc.push(it);
-            srcItems.push(it);
-
-            var proxy = { src: it, calc: it, cleanup: null };
-
-            if (it.typename === "TextFrame") {
-                var dup = it.duplicate(calcLayer, ElementPlacement.PLACEATBEGINNING);
-                var outlined = null;
-                try { outlined = dup.createOutline(); } catch (eO) { outlined = null; }
-                try { if (dup && dup.parent) dup.remove(); } catch (_) { }
-                if (outlined) {
-                    try { outlined.opacity = 0; } catch (_) { }
-                    proxy.calc = outlined;
-                    proxy.cleanup = (function (gg) { return function () { try { gg.remove(); } catch (_) { } }; })(outlined);
+            // 列ごとの左右端を先に計算しておく（列間Aを求めるため）
+            var colBounds = []; // {minX, maxX}
+            for (var c0 = 0; c0 < columns.length; c0++) {
+                var colItems0 = columns[c0];
+                var minX0 = 999999;
+                var maxX0 = -999999;
+                for (var k0 = 0; k0 < colItems0.length; k0++) {
+                    var bb0 = colItems0[k0].geometricBounds; // [left, top, right, bottom]
+                    if (bb0[0] < minX0) minX0 = bb0[0];
+                    if (bb0[2] > maxX0) maxX0 = bb0[2];
                 }
-            } else if (it.typename === "GroupItem" && hasAnyTextFrame(it)) {
-                var dupg = it.duplicate(calcLayer, ElementPlacement.PLACEATBEGINNING);
-                try { while (dupg.textFrames.length > 0) { dupg.textFrames[0].createOutline(); } } catch (_) { }
-                try { dupg.opacity = 0; } catch (_) { }
-                proxy.calc = dupg;
-                proxy.cleanup = (function (gg2) { return function () { try { gg2.remove(); } catch (_) { } }; })(dupg);
+                colBounds.push({ minX: minX0, maxX: maxX0 });
             }
 
-            calcProxyList.push(proxy);
-            if (proxy.cleanup) calcCleanups.push(proxy.cleanup);
-        }
+            // --- 行（ロウ）を全体で共通化 ---
+            // 高さが異なるテキストが混在しても、同じ行として扱い、全列で同じYに横罫を引く
+            var rowTol = 2.0; // 同一行とみなす中心Yの許容値(pt) ※必要に応じて調整
 
-        // 3) columns
-        calcItems = [];
-        for (var ci = 0; ci < calcProxyList.length; ci++) calcItems.push(calcProxyList[ci].calc);
-        calcItems.sort(function (a, b) { return a.geometricBounds[0] - b.geometricBounds[0]; });
-
-        columns = [];
-        if (calcItems.length > 0) {
-            var currentColumn = [calcItems[0]];
-            columns.push(currentColumn);
-            for (var j = 1; j < calcItems.length; j++) {
-                var item = calcItems[j];
-                var itemLeft = item.geometricBounds[0];
-                var prevColMaxRight = getMaxRightInColumn(currentColumn);
-                if (itemLeft < prevColMaxRight) currentColumn.push(item);
-                else { currentColumn = [item]; columns.push(currentColumn); }
-            }
-        }
-
-        // 4) params from UI
-        isZebra = cbZebra.value;
-        isFillJoinRow = cbFillJoinRow.value;
-        isFillHeaderOnly = cbFillHeaderOnly.value;
-        isHeaderRow = cbHeader.value;
-
-        hGutterVal = cbUseGutter.value ? parseFloat(etHGutter.text) : 0;
-        if (isNaN(hGutterVal) || hGutterVal < 0) hGutterVal = 0;
-        hGutterPt = hGutterVal * rulerFactorPt;
-
-        vRuleMode = rbVruleNone.value ? 'none' : (rbVruleAll.value ? 'all' : 'gapsOnly');
-
-        doFill = cbFill.value;
-        doRule = cbRule.value;
-
-        fillMode = (doFill && doRule) ? 'fillAndRule' : (doFill ? 'fillOnly' : 'none');
-        KEEP_GAP_PT = hGutterPt;
-    }
-
-    try {
-        buildCalcColumnsAndParams();
-        generateMain();
-    } finally {
-        // --- Cleanup calc proxies (outlined duplicates only) ---
-        try {
-            var _cleanupCount = 0;
-            try { _cleanupCount = (calcCleanups && typeof calcCleanups.length === 'number') ? calcCleanups.length : 0; } catch (_) { _cleanupCount = 0; }
-            for (var cl = 0; cl < _cleanupCount; cl++) {
-                try {
-                    var fn = null;
-                    try { fn = calcCleanups[cl]; } catch (_) { fn = null; }
-                    if (fn) { try { fn(); } catch (_) { } }
-                } catch (_) { }
-            }
-        } catch (_) { }
-    }
-
-    // 生成処理本体 / Main generation
-    function generateMain() {
-
-        // 列ごとの左右端を先に計算しておく（列間Aを求めるため）
-        var colBounds = []; // {minX, maxX}
-        for (var c0 = 0; c0 < columns.length; c0++) {
-            var colItems0 = columns[c0];
-            var minX0 = 999999;
-            var maxX0 = -999999;
-            for (var k0 = 0; k0 < colItems0.length; k0++) {
-                var bb0 = colItems0[k0].geometricBounds; // [left, top, right, bottom]
-                if (bb0[0] < minX0) minX0 = bb0[0];
-                if (bb0[2] > maxX0) maxX0 = bb0[2];
-            }
-            colBounds.push({ minX: minX0, maxX: maxX0 });
-        }
-
-        // --- 行（ロウ）を全体で共通化 ---
-        // 高さが異なるテキストが混在しても、同じ行として扱い、全列で同じYに横罫を引く
-        var rowTol = 2.0; // 同一行とみなす中心Yの許容値(pt) ※必要に応じて調整
-
-        // 行（ロウ）定義は「最も行数が多い列」を基準にする
-        // 例：別列に複数行をまたぐグループ（背の高い要素）があっても、行グリッドが歪まない
-        var baseColIdx = 0;
-        var maxCount = -1;
-        for (var bc = 0; bc < columns.length; bc++) {
-            if (columns[bc].length > maxCount) {
-                maxCount = columns[bc].length;
-                baseColIdx = bc;
-            }
-        }
-
-        // 基準列のアイテムだけで行をクラスタリング
-        // 行の高さは「その行で一番高さのあるアイテム」を基準にする（基準列内で）
-        var allRows = []; // {centerY, maxH}
-        var baseItemsSorted = columns[baseColIdx].slice(0);
-        baseItemsSorted.sort(function (a, b) { return b.geometricBounds[1] - a.geometricBounds[1]; });
-
-        for (var ai = 0; ai < baseItemsSorted.length; ai++) {
-            var it = baseItemsSorted[ai];
-            var bb = it.geometricBounds; // [left, top, right, bottom]
-            var top = bb[1];
-            var bottom = bb[3];
-            var h = top - bottom;
-            var center = (top + bottom) / 2;
-
-            var ridx = findRowIndex(allRows, center, rowTol);
-            if (ridx === -1) {
-                allRows.push({ centerY: center, maxH: h });
-            } else {
-                if (h > allRows[ridx].maxH) allRows[ridx].maxH = h;
-                // centerは軽く追従（安定化）
-                allRows[ridx].centerY = (allRows[ridx].centerY + center) / 2;
-            }
-        }
-
-        // 上→下に並び替え（centerYで）
-        allRows.sort(function (a, b) { return b.centerY - a.centerY; });
-
-        // 罫線Yを確定：各行間の中間（全列共通）
-        // 行ボックスは centerY ± (maxH/2) で定義（行内で一番高い要素に合わせる）
-        var yListGlobal = [];
-
-        function rowTop(i) {
-            return allRows[i].centerY + (allRows[i].maxH / 2);
-        }
-        function rowBottom(i) {
-            return allRows[i].centerY - (allRows[i].maxH / 2);
-        }
-
-        if (allRows.length >= 2) {
-            // 行間の中間（行区切り）
-            for (var r = 0; r < allRows.length - 1; r++) {
-                var upperBottom = rowBottom(r);
-                var lowerTop = rowTop(r + 1);
-                var gap = upperBottom - lowerTop;
-                var mid = upperBottom - (gap / 2);
-                yListGlobal.push(mid);
-            }
-
-            // 最上段：次の行間から算出
-            var firstGap = rowBottom(0) - rowTop(1);
-            yListGlobal.push(rowTop(0) + (firstGap / 2));
-
-            // 最下段：直前の行間から算出
-            var last = allRows.length - 1;
-            var lastGap = rowBottom(last - 1) - rowTop(last);
-            yListGlobal.push(rowBottom(last) - (lastGap / 2));
-
-        } else if (allRows.length === 1) {
-            var t0 = rowTop(0);
-            var b0 = rowBottom(0);
-            var rowH = t0 - b0;
-            yListGlobal.push(t0 + (rowH / 2));
-            yListGlobal.push(b0 - (rowH / 2));
-        }
-
-        // 近いYを統合してから描画（最後の保険）
-        var yTol = 0.4;
-        var yUniqGlobal = [];
-        for (var yiG = 0; yiG < yListGlobal.length; yiG++) {
-            addUniqueY(yUniqGlobal, yListGlobal[yiG], yTol);
-        }
-        yUniqGlobal.sort(function (a, b) { return b - a; });
-
-        var yTopBorder = (yUniqGlobal.length > 0) ? yUniqGlobal[0] : 0;
-        var yBottomBorder = (yUniqGlobal.length > 0) ? yUniqGlobal[yUniqGlobal.length - 1] : 0;
-
-        // 列ごとのセル領域（塗り）の左右境界を作る / Build fill boundaries per column
-        // 列境界は中央（xMid）を共有し、塗り側のinsetでガター見かけを作る
-        var colFillLeft = [];
-        var colFillRight = [];
-        var halfGap = 0;
-
-        for (var cc2 = 0; cc2 < columns.length; cc2++) {
-            // 左境界
-            if (cc2 === 0) {
-                // 外側は現行の延長ロジックと整合（padding + 端の伸ばし）
-                var minX_0 = colBounds[cc2].minX;
-                var maxX_0 = colBounds[cc2].maxX;
-                var extL0 = 0;
-                if (columns.length >= 2) {
-                    var A0_ = colBounds[1].minX - maxX_0;
-                    extL0 = (A0_ - KEEP_GAP_PT) / 2;
-                    if (extL0 < 0) extL0 = 0;
+            // 行（ロウ）定義は「最も行数が多い列」を基準にする
+            // 例：別列に複数行をまたぐグループ（背の高い要素）があっても、行グリッドが歪まない
+            var baseColIdx = 0;
+            var maxCount = -1;
+            for (var bc = 0; bc < columns.length; bc++) {
+                if (columns[bc].length > maxCount) {
+                    maxCount = columns[bc].length;
+                    baseColIdx = bc;
                 }
-                colFillLeft[cc2] = minX_0 - paddingPt - extL0;
-            } else {
-                var xMidL = (colBounds[cc2 - 1].maxX + colBounds[cc2].minX) / 2;
-                colFillLeft[cc2] = xMidL;
             }
 
-            // 右境界
-            if (cc2 === columns.length - 1) {
-                var minX_n = colBounds[cc2].minX;
-                var maxX_n = colBounds[cc2].maxX;
-                var extRn = 0;
-                if (columns.length >= 2) {
-                    var An_ = minX_n - colBounds[cc2 - 1].maxX;
-                    extRn = (An_ - KEEP_GAP_PT) / 2;
-                    if (extRn < 0) extRn = 0;
+            // 基準列のアイテムだけで行をクラスタリング
+            // 行の高さは「その行で一番高さのあるアイテム」を基準にする（基準列内で）
+            var allRows = []; // {centerY, maxH}
+            var baseItemsSorted = columns[baseColIdx].slice(0);
+            baseItemsSorted.sort(function (a, b) { return b.geometricBounds[1] - a.geometricBounds[1]; });
+
+            for (var ai = 0; ai < baseItemsSorted.length; ai++) {
+                var it = baseItemsSorted[ai];
+                var bb = it.geometricBounds; // [left, top, right, bottom]
+                var top = bb[1];
+                var bottom = bb[3];
+                var h = top - bottom;
+                var center = (top + bottom) / 2;
+
+                var ridx = findRowIndex(allRows, center, rowTol);
+                if (ridx === -1) {
+                    allRows.push({ centerY: center, maxH: h });
+                } else {
+                    if (h > allRows[ridx].maxH) allRows[ridx].maxH = h;
+                    // centerは軽く追従（安定化）
+                    allRows[ridx].centerY = (allRows[ridx].centerY + center) / 2;
                 }
-                colFillRight[cc2] = maxX_n + paddingPt + extRn;
-            } else {
-                var xMidR = (colBounds[cc2].maxX + colBounds[cc2 + 1].minX) / 2;
-                colFillRight[cc2] = xMidR;
             }
-        }
 
-        // --- 塗り / Fill ---
-        if (doFill && yUniqGlobal.length >= 2) {
-            if (isFillHeaderOnly) {
-                // ヘッダー行のみ：1行目だけ塗る（横方向に連結）
-                var xL0 = colFillLeft[0];
-                var xR0 = colFillRight[columns.length - 1];
+            // 上→下に並び替え（centerYで）
+            allRows.sort(function (a, b) { return b.centerY - a.centerY; });
 
-                var yTopH = yUniqGlobal[0];
-                var yBotH = yUniqGlobal[1];
+            // 罫線Yを確定：各行間の中間（全列共通）
+            // 行ボックスは centerY ± (maxH/2) で定義（行内で一番高い要素に合わせる）
+            var yListGlobal = [];
 
-                var wH = xR0 - xL0;
-                var hH = yTopH - yBotH;
-                if (wH > 0 && hH > 0) {
-                    var rectH = fillLayer.pathItems.rectangle(yTopH, xL0, wH, hH);
-                    rectH.stroked = false;
-                    rectH.filled = true;
-                    // 塗り色：ヘッダーを優先し、ゼブラONならK50
-                    rectH.fillColor = isZebra ? fillGrayHeaderZebra : fillGrayHeader;
-                    if (isPreviewing) { try { previewItems.push(rectH); } catch (_) { } }
+            function rowTop(i) {
+                return allRows[i].centerY + (allRows[i].maxH / 2);
+            }
+            function rowBottom(i) {
+                return allRows[i].centerY - (allRows[i].maxH / 2);
+            }
+
+            if (allRows.length >= 2) {
+                // 行間の中間（行区切り）
+                for (var r = 0; r < allRows.length - 1; r++) {
+                    var upperBottom = rowBottom(r);
+                    var lowerTop = rowTop(r + 1);
+                    var gap = upperBottom - lowerTop;
+                    var mid = upperBottom - (gap / 2);
+                    yListGlobal.push(mid);
                 }
 
-            } else if (isFillJoinRow) {
-                // 行方向に連結：各行1つの矩形（横方向に連結）
-                var xL0 = colFillLeft[0];
-                var xR0 = colFillRight[columns.length - 1];
+                // 最上段：次の行間から算出
+                var firstGap = rowBottom(0) - rowTop(1);
+                yListGlobal.push(rowTop(0) + (firstGap / 2));
 
-                for (var fr = 0; fr < yUniqGlobal.length - 1; fr++) {
-                    var yTop = yUniqGlobal[fr];
-                    var yBot = yUniqGlobal[fr + 1];
+                // 最下段：直前の行間から算出
+                var last = allRows.length - 1;
+                var lastGap = rowBottom(last - 1) - rowTop(last);
+                yListGlobal.push(rowBottom(last) - (lastGap / 2));
 
-                    var left = xL0;
-                    var right = xR0;
-                    var top = yTop;
-                    var bottom = yBot;
+            } else if (allRows.length === 1) {
+                var t0 = rowTop(0);
+                var b0 = rowBottom(0);
+                var rowH = t0 - b0;
+                yListGlobal.push(t0 + (rowH / 2));
+                yListGlobal.push(b0 - (rowH / 2));
+            }
 
-                    var w = right - left;
-                    var h = top - bottom;
-                    if (w <= 0 || h <= 0) continue;
+            // 近いYを統合してから描画（最後の保険）
+            var yTol = 0.4;
+            var yUniqGlobal = [];
+            for (var yiG = 0; yiG < yListGlobal.length; yiG++) {
+                addUniqueY(yUniqGlobal, yListGlobal[yiG], yTol);
+            }
+            yUniqGlobal.sort(function (a, b) { return b - a; });
 
-                    var rect = fillLayer.pathItems.rectangle(top, left, w, h);
-                    rect.stroked = false;
-                    rect.filled = true;
+            var yTopBorder = (yUniqGlobal.length > 0) ? yUniqGlobal[0] : 0;
+            var yBottomBorder = (yUniqGlobal.length > 0) ? yUniqGlobal[yUniqGlobal.length - 1] : 0;
 
-                    // 塗り色：ヘッダーを優先し、ゼブラONなら奇数行をK30
-                    if (isHeaderRow && fr === 0) {
-                        rect.fillColor = isZebra ? fillGrayHeaderZebra : fillGrayHeader;
-                    } else if (isZebra && ((fr + 1) % 2 === 1)) {
-                        rect.fillColor = fillGrayZebra;
-                    } else {
-                        rect.fillColor = fillGray;
+            // 列ごとのセル領域（塗り）の左右境界を作る / Build fill boundaries per column
+            // 列境界は中央（xMid）を共有し、塗り側のinsetでガター見かけを作る
+            var colFillLeft = [];
+            var colFillRight = [];
+            var halfGap = 0;
+
+            for (var cc2 = 0; cc2 < columns.length; cc2++) {
+                // 左境界
+                if (cc2 === 0) {
+                    // 外側は現行の延長ロジックと整合（padding + 端の伸ばし）
+                    var minX_0 = colBounds[cc2].minX;
+                    var maxX_0 = colBounds[cc2].maxX;
+                    var extL0 = 0;
+                    if (columns.length >= 2) {
+                        var A0_ = colBounds[1].minX - maxX_0;
+                        extL0 = (A0_ - KEEP_GAP_PT) / 2;
+                        if (extL0 < 0) extL0 = 0;
                     }
-                    if (isPreviewing) { try { previewItems.push(rect); } catch (_) { } }
+                    colFillLeft[cc2] = minX_0 - paddingPt - extL0;
+                } else {
+                    var xMidL = (colBounds[cc2 - 1].maxX + colBounds[cc2].minX) / 2;
+                    colFillLeft[cc2] = xMidL;
                 }
 
-            } else {
-                // 通常：セルごと
-                // 見かけのガターを統一：列間・段間ともに KEEP_GAP_PT/2 にする
-                // 各方向をinsetずつ詰めるので、間隔は 2*inset になる
-                var insetX = KEEP_GAP_PT / 2;
-                var insetY = KEEP_GAP_PT / 2;
+                // 右境界
+                if (cc2 === columns.length - 1) {
+                    var minX_n = colBounds[cc2].minX;
+                    var maxX_n = colBounds[cc2].maxX;
+                    var extRn = 0;
+                    if (columns.length >= 2) {
+                        var An_ = minX_n - colBounds[cc2 - 1].maxX;
+                        extRn = (An_ - KEEP_GAP_PT) / 2;
+                        if (extRn < 0) extRn = 0;
+                    }
+                    colFillRight[cc2] = maxX_n + paddingPt + extRn;
+                } else {
+                    var xMidR = (colBounds[cc2].maxX + colBounds[cc2 + 1].minX) / 2;
+                    colFillRight[cc2] = xMidR;
+                }
+            }
 
-                for (var fc = 0; fc < columns.length; fc++) {
-                    var xL = colFillLeft[fc];
-                    var xR = colFillRight[fc];
+            // --- 塗り / Fill ---
+            if (doFill && yUniqGlobal.length >= 2) {
+                if (isFillHeaderOnly) {
+                    // ヘッダー行のみ：1行目だけ塗る（横方向に連結）
+                    var xL0 = colFillLeft[0];
+                    var xR0 = colFillRight[columns.length - 1];
 
-                    for (var fr2 = 0; fr2 < yUniqGlobal.length - 1; fr2++) {
-                        var yTop2 = yUniqGlobal[fr2];
-                        var yBot2 = yUniqGlobal[fr2 + 1];
+                    var yTopH = yUniqGlobal[0];
+                    var yBotH = yUniqGlobal[1];
 
-                        // 内側へ詰める（負のオフセット相当）
-                        var left2 = xL + insetX;
-                        var right2 = xR - insetX;
-                        var top2 = yTop2 - insetY;
-                        var bottom2 = yBot2 + insetY;
+                    var wH = xR0 - xL0;
+                    var hH = yTopH - yBotH;
+                    if (wH > 0 && hH > 0) {
+                        var rectH = fillLayer.pathItems.rectangle(yTopH, xL0, wH, hH);
+                        rectH.stroked = false;
+                        rectH.filled = true;
+                        // 塗り色：ヘッダーを優先し、ゼブラONならK50
+                        rectH.fillColor = isZebra ? fillGrayHeaderZebra : fillGrayHeader;
+                        if (isPreviewing) { try { previewItems.push(rectH); } catch (_) { } }
+                    }
 
-                        var w2 = right2 - left2;
-                        var h2 = top2 - bottom2;
-                        if (w2 <= 0 || h2 <= 0) continue;
+                } else if (isFillJoinRow) {
+                    // 行方向に連結：各行1つの矩形（横方向に連結）
+                    var xL0 = colFillLeft[0];
+                    var xR0 = colFillRight[columns.length - 1];
 
-                        var rect2 = fillLayer.pathItems.rectangle(top2, left2, w2, h2);
-                        rect2.stroked = false;
-                        rect2.filled = true;
+                    for (var fr = 0; fr < yUniqGlobal.length - 1; fr++) {
+                        var yTop = yUniqGlobal[fr];
+                        var yBot = yUniqGlobal[fr + 1];
+
+                        var left = xL0;
+                        var right = xR0;
+                        var top = yTop;
+                        var bottom = yBot;
+
+                        var w = right - left;
+                        var h = top - bottom;
+                        if (w <= 0 || h <= 0) continue;
+
+                        var rect = fillLayer.pathItems.rectangle(top, left, w, h);
+                        rect.stroked = false;
+                        rect.filled = true;
 
                         // 塗り色：ヘッダーを優先し、ゼブラONなら奇数行をK30
-                        if (isHeaderRow && fr2 === 0) {
-                            rect2.fillColor = isZebra ? fillGrayHeaderZebra : fillGrayHeader;
-                        } else if (isZebra && ((fr2 + 1) % 2 === 1)) {
-                            rect2.fillColor = fillGrayZebra;
+                        if (isHeaderRow && fr === 0) {
+                            rect.fillColor = isZebra ? fillGrayHeaderZebra : fillGrayHeader;
+                        } else if (isZebra && ((fr + 1) % 2 === 1)) {
+                            rect.fillColor = fillGrayZebra;
                         } else {
-                            rect2.fillColor = fillGray;
+                            rect.fillColor = fillGray;
                         }
-                        if (isPreviewing) { try { previewItems.push(rect2); } catch (_) { } }
+                        if (isPreviewing) { try { previewItems.push(rect); } catch (_) { } }
+                    }
+
+                } else {
+                    // 通常：セルごと
+                    // 見かけのガターを統一：列間・段間ともに KEEP_GAP_PT/2 にする
+                    // 各方向をinsetずつ詰めるので、間隔は 2*inset になる
+                    var insetX = KEEP_GAP_PT / 2;
+                    var insetY = KEEP_GAP_PT / 2;
+
+                    for (var fc = 0; fc < columns.length; fc++) {
+                        var xL = colFillLeft[fc];
+                        var xR = colFillRight[fc];
+
+                        for (var fr2 = 0; fr2 < yUniqGlobal.length - 1; fr2++) {
+                            var yTop2 = yUniqGlobal[fr2];
+                            var yBot2 = yUniqGlobal[fr2 + 1];
+
+                            // 内側へ詰める（負のオフセット相当）
+                            var left2 = xL + insetX;
+                            var right2 = xR - insetX;
+                            var top2 = yTop2 - insetY;
+                            var bottom2 = yBot2 + insetY;
+
+                            var w2 = right2 - left2;
+                            var h2 = top2 - bottom2;
+                            if (w2 <= 0 || h2 <= 0) continue;
+
+                            var rect2 = fillLayer.pathItems.rectangle(top2, left2, w2, h2);
+                            rect2.stroked = false;
+                            rect2.filled = true;
+
+                            // 塗り色：ヘッダーを優先し、ゼブラONなら奇数行をK30
+                            if (isHeaderRow && fr2 === 0) {
+                                rect2.fillColor = isZebra ? fillGrayHeaderZebra : fillGrayHeader;
+                            } else if (isZebra && ((fr2 + 1) % 2 === 1)) {
+                                rect2.fillColor = fillGrayZebra;
+                            } else {
+                                rect2.fillColor = fillGray;
+                            }
+                            if (isPreviewing) { try { previewItems.push(rect2); } catch (_) { } }
+                        }
                     }
                 }
             }
-        }
 
-        // --- 横罫（行ごと） ---
-        if (doRule) {
-            // ガターOFF（=0）なら、横ケイも表全体で連結して1本にする
-            if (!cbUseGutter.value || KEEP_GAP_PT === 0) {
-                // 表全体の左右端（外側の伸ばしも考慮）
-                var minXLeft = colBounds[0].minX;
-                var maxXLeft = colBounds[0].maxX;
-                var minXRight = colBounds[columns.length - 1].minX;
-                var maxXRight = colBounds[columns.length - 1].maxX;
+            // --- 横罫（行ごと） ---
+            if (doRule) {
+                // ガターOFF（=0）なら、横ケイも表全体で連結して1本にする
+                if (!cbUseGutter.value || KEEP_GAP_PT === 0) {
+                    // 表全体の左右端（外側の伸ばしも考慮）
+                    var minXLeft = colBounds[0].minX;
+                    var maxXLeft = colBounds[0].maxX;
+                    var minXRight = colBounds[columns.length - 1].minX;
+                    var maxXRight = colBounds[columns.length - 1].maxX;
 
-                var extLeft = 0;
-                var extRight = 0;
+                    var extLeft = 0;
+                    var extRight = 0;
 
-                if (columns.length >= 2) {
-                    // 左端：1列目と2列目の間隔Aから B=(A-KEEP)/2
-                    var A0 = colBounds[1].minX - maxXLeft;
-                    extLeft = (A0 - KEEP_GAP_PT) / 2;
-                    if (extLeft < 0) extLeft = 0;
+                    if (columns.length >= 2) {
+                        // 左端：1列目と2列目の間隔Aから B=(A-KEEP)/2
+                        var A0 = colBounds[1].minX - maxXLeft;
+                        extLeft = (A0 - KEEP_GAP_PT) / 2;
+                        if (extLeft < 0) extLeft = 0;
 
-                    // 右端：最終-1列目と最終列目の間隔Aから B=(A-KEEP)/2
+                        // 右端：最終-1列目と最終列目の間隔Aから B=(A-KEEP)/2
+                        var lastIdx = columns.length - 1;
+                        var An = minXRight - colBounds[lastIdx - 1].maxX;
+                        extRight = (An - KEEP_GAP_PT) / 2;
+                        if (extRight < 0) extRight = 0;
+                    }
+
+                    var globalStartX = minXLeft - paddingPt - extLeft;
+                    var globalEndX = maxXRight + paddingPt + extRight;
+
+                    // When gutter is 0 and vertical rules are "all",
+                    // draw the outer frame as a single rectangle (avoid 4 separate border lines)
+                    var useRectBorder = (vRuleMode === 'all');
+                    if (useRectBorder) {
+                        try {
+                            var bw = globalEndX - globalStartX;
+                            var bh = yTopBorder - yBottomBorder;
+                            if (bw > 0 && bh > 0) {
+                                var borderRect = lineLayer.pathItems.rectangle(yTopBorder, globalStartX, bw, bh);
+                                borderRect.filled = false;
+                                borderRect.stroked = true;
+                                borderRect.strokeColor = blackColor;
+                                // If header row is ON, use the header line weight for the outer frame
+                                borderRect.strokeWidth = isHeaderRow ? headerLineWeightPt : lineWeightPt;
+                                try { borderRect.strokeJoin = StrokeJoin.MITERENDJOIN; } catch (_) { }
+                                if (isPreviewing) { try { previewItems.push(borderRect); } catch (_) { } }
+                            }
+                        } catch (_) { }
+                    }
+
+                    var hStart = useRectBorder ? 1 : 0;
+                    var hEnd = useRectBorder ? (yUniqGlobal.length - 1) : yUniqGlobal.length;
+                    for (var iLine = hStart; iLine < hEnd; iLine++) {
+                        // ヘッダーON時は「上から1本目と2本目」だけ 0.25mm、それ以外は基本 0.1mm
+                        var strokeW = lineWeightPt;
+                        if (isHeaderRow && iLine < 2) strokeW = headerLineWeightPt;
+                        drawLine(globalStartX, yUniqGlobal[iLine], globalEndX, yUniqGlobal[iLine], strokeW);
+                    }
+
+                } else {
+                    // ガターON：従来どおり、列ごとに線長を計算して描画
+                    for (var c = 0; c < columns.length; c++) {
+                        var colItems = columns[c];
+
+                        var minX = colBounds[c].minX;
+                        var maxX = colBounds[c].maxX;
+
+                        // A：列間を計算（左/右）
+                        // B = (A - 1mm) / 2 （マイナスなら0）
+                        var extendLeft = 0;
+                        var extendRight = 0;
+
+                        // 内側（隣接列に向かう側）の伸ばし：列間Aから B=(A-1mm)/2 を算出
+                        if (c > 0) {
+                            var prevMaxX = colBounds[c - 1].maxX;
+                            var A_left = minX - prevMaxX;
+                            extendLeft = (A_left - KEEP_GAP_PT) / 2;
+                            if (extendLeft < 0) extendLeft = 0;
+                        }
+                        if (c < columns.length - 1) {
+                            var nextMinX = colBounds[c + 1].minX;
+                            var A_right = nextMinX - maxX;
+                            extendRight = (A_right - KEEP_GAP_PT) / 2;
+                            if (extendRight < 0) extendRight = 0;
+                        }
+
+                        // 外側（端）の伸ばし：
+                        // 1列目の左は「1列目と2列目の間隔A」から B=(A-1mm)/2
+                        if (c === 0 && columns.length >= 2) {
+                            var nextMinX0 = colBounds[1].minX;
+                            var A0a = nextMinX0 - maxX;
+                            var ext0 = (A0a - KEEP_GAP_PT) / 2;
+                            if (ext0 < 0) ext0 = 0;
+                            extendLeft = ext0;
+                        }
+
+                        // 最終列の右は「最終-1列目と最終列目の間隔A」から B=(A-1mm)/2
+                        if (c === columns.length - 1 && columns.length >= 2) {
+                            var prevMaxXn = colBounds[columns.length - 2].maxX;
+                            var An2 = minX - prevMaxXn;
+                            var extn = (An2 - KEEP_GAP_PT) / 2;
+                            if (extn < 0) extn = 0;
+                            extendRight = extn;
+                        }
+
+                        // パディング＋延長を適用
+                        var lineStartX = minX - paddingPt - extendLeft;
+                        var lineEndX = maxX + paddingPt + extendRight;
+
+                        // 横罫線は全列共通のY（yUniqGlobal）で描画する
+                        for (var iLine2 = 0; iLine2 < yUniqGlobal.length; iLine2++) {
+                            var strokeW2 = lineWeightPt;
+                            if (isHeaderRow && iLine2 < 2) strokeW2 = headerLineWeightPt;
+                            drawLine(lineStartX, yUniqGlobal[iLine2], lineEndX, yUniqGlobal[iLine2], strokeW2);
+                        }
+                    }
+                }
+            }
+
+            // --- 縦罫（列間のみ / すべて） ---
+            if (doRule && vRuleMode !== 'none' && yUniqGlobal && yUniqGlobal.length > 0 && columns.length >= 2) {
+                // 縦罫のX位置（列境界）を作る
+                var vXs = [];
+
+                // 列間のみ：列間（ガターの中央）
+                for (var cc = 0; cc < columns.length - 1; cc++) {
+                    var xMid = (colBounds[cc].maxX + colBounds[cc + 1].minX) / 2;
+                    vXs.push(xMid);
+                }
+
+                // すべて：外枠（左/右）も追加
+                if (vRuleMode === 'all') {
+                    // 左端は「1列目と2列目の間隔A」から B=(A-KEEP)/2 を算出して外側に広げる
+                    var leftMinX = colBounds[0].minX;
+                    var leftExtend = 0;
+                    {
+                        var A0 = colBounds[1].minX - colBounds[0].maxX;
+                        leftExtend = (A0 - KEEP_GAP_PT) / 2;
+                        if (leftExtend < 0) leftExtend = 0;
+                    }
+                    var xLeftBorder = leftMinX - paddingPt - leftExtend;
+
+                    // 右端は「最終-1列目と最終列目の間隔A」から B=(A-KEEP)/2
                     var lastIdx = columns.length - 1;
-                    var An = minXRight - colBounds[lastIdx - 1].maxX;
-                    extRight = (An - KEEP_GAP_PT) / 2;
-                    if (extRight < 0) extRight = 0;
+                    var rightMaxX = colBounds[lastIdx].maxX;
+                    var rightExtend = 0;
+                    {
+                        var An = colBounds[lastIdx].minX - colBounds[lastIdx - 1].maxX;
+                        rightExtend = (An - KEEP_GAP_PT) / 2;
+                        if (rightExtend < 0) rightExtend = 0;
+                    }
+                    var xRightBorder = rightMaxX + paddingPt + rightExtend;
+
+                    // 先頭/末尾に追加（重複しない順番で）
+                    vXs.unshift(xLeftBorder);
+                    vXs.push(xRightBorder);
                 }
 
-                var globalStartX = minXLeft - paddingPt - extLeft;
-                var globalEndX = maxXRight + paddingPt + extRight;
+                // If outer border is drawn as a rectangle, remove the left/right border lines from vXs
+                if ((!cbUseGutter.value || KEEP_GAP_PT === 0) && vRuleMode === 'all' && vXs.length >= 2) {
+                    try { vXs = vXs.slice(1, vXs.length - 1); } catch (_) { }
+                }
 
-                // When gutter is 0 and vertical rules are "all",
-                // draw the outer frame as a single rectangle (avoid 4 separate border lines)
-                var useRectBorder = (vRuleMode === 'all');
-                if (useRectBorder) {
-                    try {
-                        var bw = globalEndX - globalStartX;
-                        var bh = yTopBorder - yBottomBorder;
-                        if (bw > 0 && bh > 0) {
-                            var borderRect = lineLayer.pathItems.rectangle(yTopBorder, globalStartX, bw, bh);
-                            borderRect.filled = false;
-                            borderRect.stroked = true;
-                            borderRect.strokeColor = blackColor;
-                            // If header row is ON, use the header line weight for the outer frame
-                            borderRect.strokeWidth = isHeaderRow ? headerLineWeightPt : lineWeightPt;
-                            try { borderRect.strokeJoin = StrokeJoin.MITERENDJOIN; } catch (_) { }
-                            if (isPreviewing) { try { previewItems.push(borderRect); } catch (_) { } }
+                // 縦罫を描画
+                if (!cbUseGutter.value) {
+                    // ガターOFF：縦罫は連結して1本で描画
+                    for (var vx = 0; vx < vXs.length; vx++) {
+                        drawLine(vXs[vx], yTopBorder, vXs[vx], yBottomBorder, lineWeightPt);
+                    }
+                } else {
+                    // ガターON：セルごとに分割して描画（既存挙動）
+                    // 端をvTrimずつ詰める（段間=2*vTrim）
+                    var vTrim = KEEP_GAP_PT / 2;
+                    for (var vx = 0; vx < vXs.length; vx++) {
+                        for (var ry = 0; ry < yUniqGlobal.length - 1; ry++) {
+                            var y1 = yUniqGlobal[ry];
+                            var y2 = yUniqGlobal[ry + 1];
+
+                            // y1 は上、y2 は下（y1 > y2）の想定
+                            var segH = y1 - y2;
+                            if (segH <= vTrim * 2) {
+                                // 短すぎる場合は無理に詰めない（0長さや逆転防止）
+                                drawLine(vXs[vx], y1, vXs[vx], y2, lineWeightPt);
+                                continue;
+                            }
+
+                            var ys = y1 - vTrim;
+                            var ye = y2 + vTrim;
+                            drawLine(vXs[vx], ys, vXs[vx], ye, lineWeightPt);
                         }
-                    } catch (_) { }
-                }
-
-                var hStart = useRectBorder ? 1 : 0;
-                var hEnd = useRectBorder ? (yUniqGlobal.length - 1) : yUniqGlobal.length;
-                for (var iLine = hStart; iLine < hEnd; iLine++) {
-                    // ヘッダーON時は「上から1本目と2本目」だけ 0.25mm、それ以外は基本 0.1mm
-                    var strokeW = lineWeightPt;
-                    if (isHeaderRow && iLine < 2) strokeW = headerLineWeightPt;
-                    drawLine(globalStartX, yUniqGlobal[iLine], globalEndX, yUniqGlobal[iLine], strokeW);
-                }
-
-            } else {
-                // ガターON：従来どおり、列ごとに線長を計算して描画
-                for (var c = 0; c < columns.length; c++) {
-                    var colItems = columns[c];
-
-                    var minX = colBounds[c].minX;
-                    var maxX = colBounds[c].maxX;
-
-                    // A：列間を計算（左/右）
-                    // B = (A - 1mm) / 2 （マイナスなら0）
-                    var extendLeft = 0;
-                    var extendRight = 0;
-
-                    // 内側（隣接列に向かう側）の伸ばし：列間Aから B=(A-1mm)/2 を算出
-                    if (c > 0) {
-                        var prevMaxX = colBounds[c - 1].maxX;
-                        var A_left = minX - prevMaxX;
-                        extendLeft = (A_left - KEEP_GAP_PT) / 2;
-                        if (extendLeft < 0) extendLeft = 0;
-                    }
-                    if (c < columns.length - 1) {
-                        var nextMinX = colBounds[c + 1].minX;
-                        var A_right = nextMinX - maxX;
-                        extendRight = (A_right - KEEP_GAP_PT) / 2;
-                        if (extendRight < 0) extendRight = 0;
-                    }
-
-                    // 外側（端）の伸ばし：
-                    // 1列目の左は「1列目と2列目の間隔A」から B=(A-1mm)/2
-                    if (c === 0 && columns.length >= 2) {
-                        var nextMinX0 = colBounds[1].minX;
-                        var A0a = nextMinX0 - maxX;
-                        var ext0 = (A0a - KEEP_GAP_PT) / 2;
-                        if (ext0 < 0) ext0 = 0;
-                        extendLeft = ext0;
-                    }
-
-                    // 最終列の右は「最終-1列目と最終列目の間隔A」から B=(A-1mm)/2
-                    if (c === columns.length - 1 && columns.length >= 2) {
-                        var prevMaxXn = colBounds[columns.length - 2].maxX;
-                        var An2 = minX - prevMaxXn;
-                        var extn = (An2 - KEEP_GAP_PT) / 2;
-                        if (extn < 0) extn = 0;
-                        extendRight = extn;
-                    }
-
-                    // パディング＋延長を適用
-                    var lineStartX = minX - paddingPt - extendLeft;
-                    var lineEndX = maxX + paddingPt + extendRight;
-
-                    // 横罫線は全列共通のY（yUniqGlobal）で描画する
-                    for (var iLine2 = 0; iLine2 < yUniqGlobal.length; iLine2++) {
-                        var strokeW2 = lineWeightPt;
-                        if (isHeaderRow && iLine2 < 2) strokeW2 = headerLineWeightPt;
-                        drawLine(lineStartX, yUniqGlobal[iLine2], lineEndX, yUniqGlobal[iLine2], strokeW2);
                     }
                 }
             }
+
+        } // end generateMain
+
+        /* ユーティリティ関数 / Utilities */
+
+        /* 選択の正規化 / Normalize selection */
+
+        /* グループを1アイテム扱い / Treat group as a single item */
+
+        // 選択オブジェクトがグループ内にある場合、最上位の親グループを返す（グループ選択の有無は問わない）
+        // If the item is inside a group, return the topmost parent group (regardless of group selection state).
+        function getSelectedAncestorGroup(item) {
+            var p = item;
+            var found = null;
+            while (p && p.parent && p.parent.typename === 'GroupItem') {
+                found = p.parent;
+                p = p.parent;
+            }
+            return found;
         }
 
-        // --- 縦罫（列間のみ / すべて） ---
-        if (doRule && vRuleMode !== 'none' && yUniqGlobal && yUniqGlobal.length > 0 && columns.length >= 2) {
-            // 縦罫のX位置（列境界）を作る
-            var vXs = [];
-
-            // 列間のみ：列間（ガターの中央）
-            for (var cc = 0; cc < columns.length - 1; cc++) {
-                var xMid = (colBounds[cc].maxX + colBounds[cc + 1].minX) / 2;
-                vXs.push(xMid);
+        // 参照でユニーク追加（同じオブジェクトを重複追加しない）
+        function pushUniqueRef(arr, obj) {
+            for (var i = 0; i < arr.length; i++) {
+                if (arr[i] === obj) return;
             }
+            arr.push(obj);
+        }
 
-            // すべて：外枠（左/右）も追加
-            if (vRuleMode === 'all') {
-                // 左端は「1列目と2列目の間隔A」から B=(A-KEEP)/2 を算出して外側に広げる
-                var leftMinX = colBounds[0].minX;
-                var leftExtend = 0;
-                {
-                    var A0 = colBounds[1].minX - colBounds[0].maxX;
-                    leftExtend = (A0 - KEEP_GAP_PT) / 2;
-                    if (leftExtend < 0) leftExtend = 0;
-                }
-                var xLeftBorder = leftMinX - paddingPt - leftExtend;
-
-                // 右端は「最終-1列目と最終列目の間隔A」から B=(A-KEEP)/2
-                var lastIdx = columns.length - 1;
-                var rightMaxX = colBounds[lastIdx].maxX;
-                var rightExtend = 0;
-                {
-                    var An = colBounds[lastIdx].minX - colBounds[lastIdx - 1].maxX;
-                    rightExtend = (An - KEEP_GAP_PT) / 2;
-                    if (rightExtend < 0) rightExtend = 0;
-                }
-                var xRightBorder = rightMaxX + paddingPt + rightExtend;
-
-                // 先頭/末尾に追加（重複しない順番で）
-                vXs.unshift(xLeftBorder);
-                vXs.push(xRightBorder);
+        // ExtendScript互換：参照配列にobjが含まれるか（indexOfが無い環境向け）
+        function arrayHasRef(arr, obj) {
+            for (var i = 0; i < arr.length; i++) {
+                if (arr[i] === obj) return true;
             }
+            return false;
+        }
 
-            // If outer border is drawn as a rectangle, remove the left/right border lines from vXs
-            if ((!cbUseGutter.value || KEEP_GAP_PT === 0) && vRuleMode === 'all' && vXs.length >= 2) {
-                try { vXs = vXs.slice(1, vXs.length - 1); } catch (_) { }
-            }
+        /* 値の変更（↑↓キー） / Change value by arrow keys */
 
-            // 縦罫を描画
-            if (!cbUseGutter.value) {
-                // ガターOFF：縦罫は連結して1本で描画
-                for (var vx = 0; vx < vXs.length; vx++) {
-                    drawLine(vXs[vx], yTopBorder, vXs[vx], yBottomBorder, lineWeightPt);
-                }
-            } else {
-                // ガターON：セルごとに分割して描画（既存挙動）
-                // 端をvTrimずつ詰める（段間=2*vTrim）
-                var vTrim = KEEP_GAP_PT / 2;
-                for (var vx = 0; vx < vXs.length; vx++) {
-                    for (var ry = 0; ry < yUniqGlobal.length - 1; ry++) {
-                        var y1 = yUniqGlobal[ry];
-                        var y2 = yUniqGlobal[ry + 1];
+        function changeValueByArrowKey(editText) {
+            editText.addEventListener("keydown", function (event) {
+                var value = Number(editText.text);
+                if (isNaN(value)) return;
 
-                        // y1 は上、y2 は下（y1 > y2）の想定
-                        var segH = y1 - y2;
-                        if (segH <= vTrim * 2) {
-                            // 短すぎる場合は無理に詰めない（0長さや逆転防止）
-                            drawLine(vXs[vx], y1, vXs[vx], y2, lineWeightPt);
-                            continue;
-                        }
+                var keyboard = ScriptUI.environment.keyboardState;
+                var delta = 1;
 
-                        var ys = y1 - vTrim;
-                        var ye = y2 + vTrim;
-                        drawLine(vXs[vx], ys, vXs[vx], ye, lineWeightPt);
+                if (keyboard.shiftKey) {
+                    delta = 10;
+                    // Shiftキー押下時は10の倍数にスナップ
+                    if (event.keyName == "Up") {
+                        value = Math.ceil((value + 1) / delta) * delta;
+                        event.preventDefault();
+                    } else if (event.keyName == "Down") {
+                        value = Math.floor((value - 1) / delta) * delta;
+                        if (value < 0) value = 0;
+                        event.preventDefault();
+                    }
+                } else if (keyboard.altKey) {
+                    delta = 0.1;
+                    // Optionキー押下時は0.1単位で増減
+                    if (event.keyName == "Up") {
+                        value += delta;
+                        event.preventDefault();
+                    } else if (event.keyName == "Down") {
+                        value -= delta;
+                        event.preventDefault();
+                    }
+                } else {
+                    delta = 1;
+                    if (event.keyName == "Up") {
+                        value += delta;
+                        event.preventDefault();
+                    } else if (event.keyName == "Down") {
+                        value -= delta;
+                        if (value < 0) value = 0;
+                        event.preventDefault();
                     }
                 }
+
+                if (keyboard.altKey) {
+                    // 小数第1位までに丸め
+                    value = Math.round(value * 10) / 10;
+                } else {
+                    // 整数に丸め
+                    value = Math.round(value);
+                }
+
+                editText.text = value;
+                // Trigger onChanging/onChange so preview updates even when value is changed by arrow keys
+                try {
+                    if (typeof editText.onChanging === 'function') editText.onChanging();
+                } catch (_) { }
+                try {
+                    if (typeof editText.onChange === 'function') editText.onChange();
+                } catch (_) { }
+            });
+        }
+
+        // 近いYを同一とみなしてユニークに追加する
+        function addUniqueY(list, y, tol) {
+            for (var i = 0; i < list.length; i++) {
+                if (Math.abs(list[i] - y) <= tol) return;
             }
+            list.push(y);
         }
 
-    } // end generateMain
-
-    /* ユーティリティ関数 / Utilities */
-
-    /* 選択の正規化 / Normalize selection */
-
-    /* グループを1アイテム扱い / Treat group as a single item */
-
-    // 選択オブジェクトがグループ内にある場合、最上位の親グループを返す（グループ選択の有無は問わない）
-    // If the item is inside a group, return the topmost parent group (regardless of group selection state).
-    function getSelectedAncestorGroup(item) {
-        var p = item;
-        var found = null;
-        while (p && p.parent && p.parent.typename === 'GroupItem') {
-            found = p.parent;
-            p = p.parent;
+        // rows配列から、centerYが近い行のインデックスを返す（見つからなければ-1）
+        function findRowIndex(rows, centerY, tol) {
+            for (var i = 0; i < rows.length; i++) {
+                if (Math.abs(rows[i].centerY - centerY) <= tol) return i;
+            }
+            return -1;
         }
-        return found;
-    }
 
-    // 参照でユニーク追加（同じオブジェクトを重複追加しない）
-    function pushUniqueRef(arr, obj) {
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i] === obj) return;
+        // 列内の最大右端座標を取得する関数
+        function getMaxRightInColumn(colAry) {
+            var maxR = -999999;
+            for (var i = 0; i < colAry.length; i++) {
+                var r = colAry[i].geometricBounds[2];
+                if (r > maxR) maxR = r;
+            }
+            return maxR;
         }
-        arr.push(obj);
-    }
 
-    // ExtendScript互換：参照配列にobjが含まれるか（indexOfが無い環境向け）
-    function arrayHasRef(arr, obj) {
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i] === obj) return true;
-        }
-        return false;
-    }
-
-    /* 値の変更（↑↓キー） / Change value by arrow keys */
-
-    function changeValueByArrowKey(editText) {
-        editText.addEventListener("keydown", function (event) {
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
-
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
-            if (keyboard.shiftKey) {
-                delta = 10;
-                // Shiftキー押下時は10の倍数にスナップ
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                // Optionキー押下時は0.1単位で増減
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                delta = 1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
+        // グループまたは子孫にTextFrameが含まれるか
+        function hasAnyTextFrame(item) {
+            if (!item) return false;
+            if (item.typename === "TextFrame") return true;
+            if (item.typename === "GroupItem") {
+                if (item.textFrames && item.textFrames.length > 0) return true;
+                // Recursively check subgroups
+                for (var i = 0; i < item.groupItems.length; i++) {
+                    if (hasAnyTextFrame(item.groupItems[i])) return true;
                 }
             }
-
-            if (keyboard.altKey) {
-                // 小数第1位までに丸め
-                value = Math.round(value * 10) / 10;
-            } else {
-                // 整数に丸め
-                value = Math.round(value);
-            }
-
-            editText.text = value;
-            // Trigger onChanging/onChange so preview updates even when value is changed by arrow keys
-            try {
-                if (typeof editText.onChanging === 'function') editText.onChanging();
-            } catch (_) { }
-            try {
-                if (typeof editText.onChange === 'function') editText.onChange();
-            } catch (_) { }
-        });
-    }
-
-    // 近いYを同一とみなしてユニークに追加する
-    function addUniqueY(list, y, tol) {
-        for (var i = 0; i < list.length; i++) {
-            if (Math.abs(list[i] - y) <= tol) return;
+            return false;
         }
-        list.push(y);
-    }
 
-    // rows配列から、centerYが近い行のインデックスを返す（見つからなければ-1）
-    function findRowIndex(rows, centerY, tol) {
-        for (var i = 0; i < rows.length; i++) {
-            if (Math.abs(rows[i].centerY - centerY) <= tol) return i;
-        }
-        return -1;
-    }
+        // 線描画関数
+        function drawLine(x1, y1, x2, y2, strokeW) {
+            var pathItem = lineLayer.pathItems.add();
+            pathItem.setEntirePath([[x1, y1], [x2, y2]]);
+            pathItem.stroked = true;
 
-    // 列内の最大右端座標を取得する関数
-    function getMaxRightInColumn(colAry) {
-        var maxR = -999999;
-        for (var i = 0; i < colAry.length; i++) {
-            var r = colAry[i].geometricBounds[2];
-            if (r > maxR) maxR = r;
-        }
-        return maxR;
-    }
+            // 端部が重なってガターが黒く見えるのを防ぐ（端部をバットに固定）
+            try { pathItem.strokeCap = StrokeCap.BUTTENDCAP; } catch (_) { }
+            try { pathItem.strokeJoin = StrokeJoin.MITERENDJOIN; } catch (_) { }
 
-    // グループまたは子孫にTextFrameが含まれるか
-    function hasAnyTextFrame(item) {
-        if (!item) return false;
-        if (item.typename === "TextFrame") return true;
-        if (item.typename === "GroupItem") {
-            if (item.textFrames && item.textFrames.length > 0) return true;
-            // Recursively check subgroups
-            for (var i = 0; i < item.groupItems.length; i++) {
-                if (hasAnyTextFrame(item.groupItems[i])) return true;
+            pathItem.strokeWidth = (typeof strokeW === 'number') ? strokeW : lineWeightPt;
+            pathItem.strokeColor = blackColor;
+            pathItem.filled = false;
+            if (isPreviewing) {
+                try { previewItems.push(pathItem); } catch (_) { }
             }
         }
-        return false;
-    }
 
-    // 線描画関数
-    function drawLine(x1, y1, x2, y2, strokeW) {
-        var pathItem = lineLayer.pathItems.add();
-        pathItem.setEntirePath([[x1, y1], [x2, y2]]);
-        pathItem.stroked = true;
-
-        // 端部が重なってガターが黒く見えるのを防ぐ（端部をバットに固定）
-        try { pathItem.strokeCap = StrokeCap.BUTTENDCAP; } catch (_) { }
-        try { pathItem.strokeJoin = StrokeJoin.MITERENDJOIN; } catch (_) { }
-
-        pathItem.strokeWidth = (typeof strokeW === 'number') ? strokeW : lineWeightPt;
-        pathItem.strokeColor = blackColor;
-        pathItem.filled = false;
-        if (isPreviewing) {
-            try { previewItems.push(pathItem); } catch (_) { }
-        }
-    }
+    })();
 
 })();
