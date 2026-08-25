@@ -41,21 +41,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     var lang = getCurrentLang();
 
     var LABELS = {
-        noDocument: { ja: 'ドキュメントが開かれていません', en: 'No document is open.' },
-        noTargetText: { ja: '対象のポイント文字が見つかりません', en: 'No target point text found.' },
-        needPath: { ja: 'パスを一緒に選択してください', en: 'Please select a path together with the text.' },
-        duplicateFailed: { ja: 'パスの複製に失敗しました', en: 'Failed to duplicate the path.' }
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open." },
+            noTargetText: { ja: "対象のポイント文字が見つかりません", en: "No target point text found." },
+            needPath: { ja: "パスを一緒に選択してください", en: "Please select a path together with the text." },
+            duplicateFailed: { ja: "パスの複製に失敗しました", en: "Failed to duplicate the path." }
+        }
     };
 
-    function L(key) {
-        var o = LABELS[key];
-        if (!o) return key;
-        return o[lang] || o.en || key;
+    function L(path) {
+        var parts = String(path).split(".");
+        var node = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            if (node == null) return path;
+            node = node[parts[i]];
+        }
+        if (node == null) return path;
+        if (node[lang] != null) return node[lang];
+        return (node.en != null) ? node.en : path;
     }
 
     // Get items
     if (app.documents.length === 0) {
-        alert(L('noDocument'));
+        alert(L('alert.noDocument'));
         return false;
     }
     var doc = app.activeDocument;
@@ -66,12 +74,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
 
     // Validation
     if (targetItems.length === 0) {
-        alert(L('noTargetText'));
+        alert(L('alert.noTargetText'));
         return false;
     }
 
     if (!selectedPaths || selectedPaths.length === 0) {
-        alert(L('needPath'));
+        alert(L('alert.needPath'));
         return false;
     }
 
@@ -95,7 +103,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             var basePath = resolveBasePathForText(selectedPaths, targetItems.length, j);
             if (!basePath) {
                 // Should not happen because of Validation, but keep defensive
-                alert(L('needPath'));
+                alert(L('alert.needPath'));
                 continue;
             }
 
@@ -104,7 +112,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
 
             var textPath = duplicatePathForText(basePath, currentLayer);
             if (!textPath) {
-                alert(L('duplicateFailed'));
+                alert(L('alert.duplicateFailed'));
                 continue;
             }
 

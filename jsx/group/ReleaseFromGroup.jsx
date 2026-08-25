@@ -49,14 +49,10 @@ var lang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
-  noDocument: {
-    ja: "ドキュメントが開かれていません。",
-    en: "No document is open."
-  },
-  noSelection: {
-    ja: "オブジェクトを選択して実行してください。",
-    en: "Please select objects and run the script."
-  }
+    alert: {
+        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+        noSelection: { ja: "オブジェクトを選択して実行してください。", en: "Please select objects and run the script." }
+    }
 };
 
 /**
@@ -64,10 +60,16 @@ var LABELS = {
  * @param {string} key - LABELS のキー
  * @returns {string} ロケールに対応する文言。見つからない場合は英語、それも無ければキーをそのまま返す
  */
-function L(key) {
-  var obj = LABELS[key];
-  if (!obj) return key;
-  return obj[lang] || obj.en || key;
+function L(path) {
+    var parts = String(path).split(".");
+    var node = LABELS;
+    for (var i = 0; i < parts.length; i++) {
+        if (node == null) return path;
+        node = node[parts[i]];
+    }
+    if (node == null) return path;
+    if (node[lang] != null) return node[lang];
+    return (node.en != null) ? node.en : path;
 }
 
 // main

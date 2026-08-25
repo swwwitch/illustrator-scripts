@@ -38,9 +38,15 @@ var SCRIPT_UPDATED  = "2025-07-11";                   /* 更新日 / last update
 
 (function () {
 
+    var LABELS = {
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open." }
+        }
+    };
+
     function main() {
         if (app.documents.length === 0) {
-            alert(LABELS.dialogTitle.ja + " / " + LABELS.dialogTitle.en); // ドキュメントが開かれていません / No document open
+            alert(LABELS.alert.noDocument.ja + " / " + LABELS.alert.noDocument.en);
             return;
         }
 

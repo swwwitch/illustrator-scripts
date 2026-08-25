@@ -46,37 +46,49 @@ var SCRIPT_UPDATED  = "2025-07-13";                   /* 更新日 / last update
     /* 日英ラベル定義 / Japanese-English label definitions */
 
     var LABELS = {
-        dialogTitle: { ja: "オブジェクトを削除", en: "Delete Objects" },
-        scopePanel: { ja: "アートボード内", en: "Inside Artboard" },
-        excludeSelectedRadio: { ja: "選択オブジェクトを残す", en: "Exclude Selected Objects" },
-        allObjectsRadio: { ja: "すべて残す", en: "Keep All Objects" },
-        outsidePanel: { ja: "アートボード外", en: "Outside Artboard" },
-        deleteRadio: { ja: "削除", en: "Delete" },
-        ignoreRadio: { ja: "無視（残す）", en: "Ignore (Keep)" },
-        includeLockedCheckbox: { ja: "ロックされたオブジェクトを含む", en: "Include Locked Objects" },
-        backupCheckbox: { ja: "保管用レイヤーに移す", en: "Move to Backup Layer" },
-        cancelButton: { ja: "キャンセル", en: "Cancel" },
-        okButton: { ja: "削除", en: "Delete" },
-        alertNoSelection: { ja: "選択オブジェクトがありません。", en: "No objects selected." },
-        alertNoTargets: { ja: "削除対象のオブジェクトはありません。", en: "No objects to delete." }
+        dialog: {
+            title: { ja: "オブジェクトを削除", en: "Delete Objects" }
+        },
+        panel: {
+            scope: { ja: "アートボード内", en: "Inside Artboard" },
+            outside: { ja: "アートボード外", en: "Outside Artboard" }
+        },
+        radio: {
+            excludeSelected: { ja: "選択オブジェクトを残す", en: "Exclude Selected Objects" },
+            allObjects: { ja: "すべて残す", en: "Keep All Objects" },
+            remove: { ja: "削除", en: "Delete" },
+            ignore: { ja: "無視（残す）", en: "Ignore (Keep)" }
+        },
+        checkbox: {
+            includeLocked: { ja: "ロックされたオブジェクトを含む", en: "Include Locked Objects" },
+            moveToBackup: { ja: "保管用レイヤーに移す", en: "Move to Backup Layer" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "削除", en: "Delete" }
+        },
+        alert: {
+            noSelection: { ja: "選択オブジェクトがありません。", en: "No objects selected." },
+            noTargets: { ja: "削除対象のオブジェクトはありません。", en: "No objects to delete." }
+        }
     };
 
     /* ダイアログを表示し、ユーザーの選択を取得 / Show dialog and get user selection */
     function showDialog() {
         /* ダイアログタイトル（日本語固定） / Dialog title (fixed Japanese) */
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialog.title[lang]);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
         /* 対象範囲パネル / Target scope panel */
-        var scopeGroup = dialog.add("panel", undefined, LABELS.scopePanel[lang]);
+        var scopeGroup = dialog.add("panel", undefined, LABELS.panel.scope[lang]);
         scopeGroup.orientation = "column";
         scopeGroup.alignChildren = "left";
         scopeGroup.margins = [15, 20, 15, 10];
 
         var scopeRadios = {
-            excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.excludeSelectedRadio[lang]),
-            allObjects: scopeGroup.add("radiobutton", undefined, LABELS.allObjectsRadio[lang])
+            excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.radio.excludeSelected[lang]),
+            allObjects: scopeGroup.add("radiobutton", undefined, LABELS.radio.allObjects[lang])
         };
 
         /* Set radio default based on selection */
@@ -93,13 +105,13 @@ var SCRIPT_UPDATED  = "2025-07-13";                   /* 更新日 / last update
         }
 
         /* アートボード外処理パネル / Outside artboard action panel */
-        var abGroup = dialog.add("panel", undefined, LABELS.outsidePanel[lang]);
+        var abGroup = dialog.add("panel", undefined, LABELS.panel.outside[lang]);
         abGroup.orientation = "column";
         abGroup.alignChildren = "left";
         abGroup.margins = [15, 20, 15, 10];
 
-        var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.deleteRadio[lang]);
-        var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.ignoreRadio[lang]);
+        var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.radio.remove[lang]);
+        var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.radio.ignore[lang]);
         ignoreRadio.value = true;
 
         /* オプション（保管用レイヤー、ロック含む） / Option (backup layer, include locked) */
@@ -108,18 +120,18 @@ var SCRIPT_UPDATED  = "2025-07-13";                   /* 更新日 / last update
         optionGroup.alignChildren = "left";
         optionGroup.margins = [15, 0, 15, 10];
 
-        var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.includeLockedCheckbox[lang]);
+        var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.includeLocked[lang]);
         ignoreLockedCheckbox.value = true;
 
-        var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.backupCheckbox[lang]);
+        var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.moveToBackup[lang]);
         backupCheckbox.value = false;
 
         /* ボタン / Buttons */
         var buttonGroup = dialog.add("group");
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "center";
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelButton[lang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.okButton[lang], {
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.button.cancel[lang]);
+        var okBtn = buttonGroup.add("button", undefined, LABELS.button.ok[lang], {
             name: "ok"
         });
 
@@ -252,7 +264,7 @@ var SCRIPT_UPDATED  = "2025-07-13";                   /* 更新日 / last update
             /* 「選択オブジェクトを残す」: Delete/move all objects inside current artboard except selected */
             var sel = doc.selection;
             if (!sel || sel.length === 0) {
-                alert(LABELS.alertNoSelection[lang]);
+                alert(LABELS.alert.noSelection[lang]);
                 return;
             }
             /* Collect all objects inside current artboard (including locked/hidden as per includeLocked) */
@@ -311,7 +323,7 @@ var SCRIPT_UPDATED  = "2025-07-13";                   /* 更新日 / last update
         }
 
         if (outsideItems.length === 0) {
-            alert(LABELS.alertNoTargets[lang]);
+            alert(LABELS.alert.noTargets[lang]);
             return;
         }
 
