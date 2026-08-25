@@ -1,8 +1,8 @@
-# ScriptLauncher
+# AiScriptLauncher
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ScriptLauncher.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AiScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AiScriptLauncher.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ScriptLauncher.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiScriptLauncher.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -103,8 +103,19 @@ Changing the folder and pressing OK rebuilds the list against the new folder.
 - Option double-click reveals the file with the Automator app at `/Applications/RevealInFinder.app` when it is installed. Without it, or outside macOS, it just opens the enclosing folder
 - If this launcher itself lives inside the target folder, it is left out of the list
 - File names written only in Japanese produce no keyword buttons, since the extractor looks for ASCII words
-- The target folder and keyword settings live in Illustrator's own preferences (`ScriptLauncher.*`). No external settings file is created
+- The target folder and keyword settings live in Illustrator's own preferences (`AiScriptLauncher.*`). No external settings file is created
 - On launch the script turns `ShowExternalJSXWarning` off, so running scripts from outside the Scripts folder does not raise a warning every time. This preference applies to Illustrator as a whole
+
+### Article
+
+- [Introducing ScriptLauncher (note, in Japanese)](https://note.com/dtp_tranist/n/n86fe7e6251ec)
+
+### Related articles
+
+- [【Illustrator】スクリプトファイルの格納場所と実行方法](https://note.com/dtp_tranist/n/n9de5e22a4854) — where to keep script files, and five ways to run them
+- [【Illustrator】面倒くさがり屋さんのためのスクリプトの管理と実行](https://note.com/dtp_tranist/n/n5da05c2e8c4e) — managing scripts on cloud storage and running them with Keyboard Maestro
+
+Both cover where scripts should live and how to run them without a launcher.
 
 ### Reference
 
@@ -114,4 +125,5 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
-- v1.4.0 (2026-08-26): Initial public release
+- v1.4.0 (2026-08-26): Switched to two side-by-side lists; added keyword buttons, Finder reveal and the Preferences dialog
+- v1.0.0 (2025-11-13): Initial release

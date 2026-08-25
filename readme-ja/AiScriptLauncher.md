@@ -1,8 +1,8 @@
-# ScriptLauncher
+# AiScriptLauncher
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ScriptLauncher.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AiScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AiScriptLauncher.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ScriptLauncher.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLauncher.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -103,8 +103,19 @@ root/
 - option + ダブルクリックは、Automatorで作成した `/Applications/RevealInFinder.app` があればファイルを選択した状態で表示します。アプリが無い場合やmacOS以外では、囲みフォルダーを開くだけになります
 - 検索対象フォルダー内にこのランチャー自身がある場合、一覧には表示されません
 - 日本語だけのファイル名からはキーワードボタンを生成できません（英単語を抽出する仕組みのため）
-- 対象フォルダーとキーワード設定はIllustratorの環境設定に保存されます（`ScriptLauncher.*`）。外部に設定ファイルは作りません
+- 対象フォルダーとキーワード設定はIllustratorの環境設定に保存されます（`AiScriptLauncher.*`）。外部に設定ファイルは作りません
 - 起動時に `ShowExternalJSXWarning` をオフにします。スクリプトフォルダー外のスクリプトを実行するたびに警告が出るのを避けるためで、この設定はIllustrator全体に効きます
+
+### 紹介記事
+
+- [ScriptLauncher の紹介記事（note）](https://note.com/dtp_tranist/n/n86fe7e6251ec)
+
+### 関連記事
+
+- [【Illustrator】スクリプトファイルの格納場所と実行方法](https://note.com/dtp_tranist/n/n9de5e22a4854)
+- [【Illustrator】面倒くさがり屋さんのためのスクリプトの管理と実行](https://note.com/dtp_tranist/n/n5da05c2e8c4e)
+
+スクリプトの置き場所そのものや、ランチャー以外の実行方法（SPAi、Keyboard Maestro など）については上記を参照してください。
 
 ### 参考
 
@@ -114,4 +125,5 @@ ExtendScript には Finder でファイルを選択表示する手段がない�
 
 ### 更新履歴
 
-- v1.4.0（2026-08-26）：初版公開
+- v1.4.0（2026-08-26）：左右2リスト構成に変更。キーワードボタン、Finder表示、環境設定ダイアログを追加
+- v1.0.0（2025-11-13）：初版

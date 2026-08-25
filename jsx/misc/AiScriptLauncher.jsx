@@ -22,17 +22,17 @@ See the README for details.
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ScriptLauncher";               /* スクリプト名 / script name */
+var SCRIPT_NAME     = "AiScriptLauncher";             /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-08-26";                   /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2025-11-13";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-26";                   /* 更新日 / last updated */
 
 // README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ScriptLauncher.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiScriptLauncher.md
 // README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ScriptLauncher.md
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiScriptLauncher.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -81,9 +81,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // =========================================
 
     /* Illustratorの環境設定に保存する。再起動しても残り、余分なファイルを作らない / Stored in Illustrator preferences */
-    var PREF_KEY_FOLDER      = "ScriptLauncher.targetFolder";
-    var PREF_KEY_MIN_COUNT   = "ScriptLauncher.keywordMinCount";
-    var PREF_KEY_MAX_BUTTONS = "ScriptLauncher.keywordMaxButtons";
+    var PREF_KEY_FOLDER      = "AiScriptLauncher.targetFolder";
+    var PREF_KEY_MIN_COUNT   = "AiScriptLauncher.keywordMinCount";
+    var PREF_KEY_MAX_BUTTONS = "AiScriptLauncher.keywordMaxButtons";
 
     /**
      * 前回使った対象フォルダーを読み出す
