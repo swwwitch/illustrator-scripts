@@ -1,6 +1,6 @@
 # AiApplySwatchesToSelection-dialog
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AiApplySwatchesToSelection-dialog.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AiApplySwatchesToSelection-dialog.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AiApplySwatchesToSelection--dialog.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AiApplySwatchesToSelection-dialog.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiApplySwatchesToSelection-dialog.md)
 

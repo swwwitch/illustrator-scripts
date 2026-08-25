@@ -1,6 +1,6 @@
 # swap-2-objects
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-swap-2-objects.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/swap-2-objects.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-swap--2--objects.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/swap-2-objects.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/swap-2-objects.md)
 

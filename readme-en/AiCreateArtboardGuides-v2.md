@@ -1,6 +1,6 @@
 # AiCreateArtboardGuides-v2
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AiCreateArtboardGuides-v2.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/AiCreateArtboardGuides-v2.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AiCreateArtboardGuides--v2.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/AiCreateArtboardGuides-v2.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCreateArtboardGuides-v2.md)
 

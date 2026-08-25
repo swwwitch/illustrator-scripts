@@ -1,6 +1,6 @@
 # SmartShapeMaker-v2
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartShapeMaker-v2.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/SmartShapeMaker-v2.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartShapeMaker--v2.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/SmartShapeMaker-v2.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker-v2.md)
 

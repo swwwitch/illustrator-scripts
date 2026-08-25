@@ -1,6 +1,6 @@
 # SmartAlignAndTile-tate
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignAndTile-tate.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile-tate.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignAndTile--tate.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile-tate.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-tate.md)
 

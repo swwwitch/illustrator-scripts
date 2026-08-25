@@ -1,6 +1,6 @@
 # bg-template-only
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-bg-template-only.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/bg-template-only.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-bg--template--only.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/bg-template-only.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template-only.md)
 

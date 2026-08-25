@@ -1,6 +1,6 @@
 # register-temp-style
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-register-temp-style.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/register-temp-style.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-register--temp--style.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/register-temp-style.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/register-temp-style.md)
 

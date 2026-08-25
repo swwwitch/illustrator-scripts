@@ -1,6 +1,6 @@
 # AiTextOutlineRestorePalette-e
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AiTextOutlineRestorePalette-e.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/AiTextOutlineRestorePalette-e.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AiTextOutlineRestorePalette--e.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/AiTextOutlineRestorePalette-e.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette-e.md)
 

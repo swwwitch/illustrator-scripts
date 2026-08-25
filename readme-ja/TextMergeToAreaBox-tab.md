@@ -1,6 +1,6 @@
 # TextMergeToAreaBox-tab
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-TextMergeToAreaBox-tab.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextMergeToAreaBox-tab.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TextMergeToAreaBox--tab.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextMergeToAreaBox-tab.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextMergeToAreaBox-tab.md)
 
