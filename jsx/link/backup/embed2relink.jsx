@@ -1,4 +1,5 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // =========================================
 // ユーザー設定 / User settings

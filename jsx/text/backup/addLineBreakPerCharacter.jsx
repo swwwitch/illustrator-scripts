@@ -1,4 +1,5 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 (function () {
     // 選択オブジェクトの確認

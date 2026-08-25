@@ -1,5 +1,6 @@
 #targetengine "MyScriptEngine"
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 

@@ -1,4 +1,5 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 function main() {
     if (app.documents.length === 0) {

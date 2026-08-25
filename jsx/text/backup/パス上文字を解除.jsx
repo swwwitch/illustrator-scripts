@@ -1,3 +1,6 @@
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 /*
 ### スクリプト名：
 DetachPathText.jsx
