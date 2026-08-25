@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。テキストフレームを選択していないときは、クリップボードの内容をアートボード中央にそのまま貼り付けます。
+クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。適用した行はクリップボードから取り除かれるため繰り返し実行すると次の行へ順に進み、テキストフレームを選択していないときはウィンドウ中央に貼り付けます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Takes the first line of the multi-line text on the clipboard, skipping blank lines, and applies it to the selected text frames. The applied line is removed from the clipboard, so running the script repeatedly walks through the lines one by one. With no text frame selected, the clipboard is simply pasted at the center of the artboard.
+Takes the first line of the multi-line text on the clipboard, skipping blank lines, and applies it to the selected text frames. The applied line is removed from the clipboard, so running the script repeatedly walks through the lines one by one, pasting at the center of the window when no text frame is selected.
 
 See the README for details.
 
@@ -21,7 +21,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceTextWithPasteSequential"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
@@ -421,20 +421,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
     }
 
     // =========================================
-    // アートボードへの配置 / Placement on the artboard
+    // ウィンドウ中央への配置 / Placement at the center of the window
     // =========================================
 
     /**
-     * アクティブアートボードの中心座標を返す
+     * 表示中のウィンドウの中心座標を返す
      * @param {Document} doc - 対象ドキュメント
-     * @returns {{x: number, y: number}} アートボード中心の座標
+     * @returns {{x: number, y: number}} ウィンドウ中心の座標
      */
-    function getActiveArtboardCenter(doc) {
-        var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-        return {
-            x: (artboardRect[0] + artboardRect[2]) / 2,
-            y: (artboardRect[1] + artboardRect[3]) / 2
-        };
+    function getActiveViewCenter(doc) {
+        var viewCenter = doc.activeView.centerPoint;
+        return { x: viewCenter[0], y: viewCenter[1] };
     }
 
     /**
@@ -466,13 +463,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
     }
 
     /**
-     * クリップボードの内容をアクティブアートボードの中央へ貼り付ける。
-     * 適用先のテキストフレームが無いときの動作で、行の取り出しもクリップボードの書き戻しも行わない。
-     * ペースト位置は画面の中央になるため、貼り付いたあとにアートボード中央へ移動する。
+     * オブジェクト群をまとめてウィンドウの中央へ移動する。
+     * 複数まとめて貼り付いた場合も並びを崩さないよう、全体を同じ量だけ動かす。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<Object>} targetItems - 移動するページアイテム
+     * @returns {void}
+     */
+    function moveItemsToViewCenter(doc, targetItems) {
+        var itemsCenter = getItemsCenter(targetItems);
+        if (!itemsCenter) return;
+
+        var viewCenter = getActiveViewCenter(doc);
+        var offsetX = viewCenter.x - itemsCenter.x;
+        var offsetY = viewCenter.y - itemsCenter.y;
+
+        for (var i = 0; i < targetItems.length; i++) {
+            try {
+                targetItems[i].translate(offsetX, offsetY);
+            } catch (e) {
+                // 動かせないものはその位置に残す / Leave behind whatever cannot be moved
+            }
+        }
+    }
+
+    /**
+     * 貼り付いたテキストフレームの内容を1行目だけに切り詰め、2行目以降を返す。
+     * @param {TextFrame} pastedTextFrame - 貼り付いたテキストフレーム
+     * @returns {string|null} 2行目以降の文字列。1行しかなければ空文字、使えるテキストが無ければ null
+     */
+    function trimPastedTextToFirstLine(pastedTextFrame) {
+        /* ここで空行を落としておけば、1行目の取り出しも書き戻しも空行を意識しなくてよい / Strip blank lines once, so neither the split nor the write-back has to care */
+        var pastedText = removeEmptyLines(pastedTextFrame.contents);
+        if (pastedText.length === 0) return null;
+
+        var splitResult = splitFirstLine(pastedText);
+        pastedTextFrame.contents = splitResult.firstLine;
+        /* 切り詰めた分を座標へ反映させてから中央を測る / Flush the trim before the bounds are measured */
+        app.redraw();
+        return splitResult.remainder;
+    }
+
+    /**
+     * クリップボードの1行目だけをウィンドウの中央へ貼り付ける。
+     * 適用先のテキストフレームが無いときの動作で、貼り付いたフレームを1行目だけに切り詰め、
+     * 2行目以降はクリップボードへ書き戻して次の実行に引き継ぐ。
+     * ペースト位置もウィンドウの中央だが、1行目に切り詰めるとフレームの大きさが変わるため、
+     * 切り詰めたあとに測り直して中央へ置き直す。
+     * テキストを含まない内容は切り詰めも書き戻しも行わず、そのまま中央へ置く。
      * @param {Document} doc - 対象ドキュメント
      * @returns {void}
      */
-    function pasteAtArtboardCenter(doc) {
+    function pasteFirstLineAtViewCenter(doc) {
         var pastedItems = null;
         var pasteError = null;
 
@@ -491,25 +532,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
             return;
         }
 
-        var pastedCenter = getItemsCenter(pastedItems);
-        if (pastedCenter) {
-            var artboardCenter = getActiveArtboardCenter(doc);
-            var offsetX = artboardCenter.x - pastedCenter.x;
-            var offsetY = artboardCenter.y - pastedCenter.y;
+        /* テキスト以外は取り出す行が無いので、貼り付いたまま中央へ置く / Non-text has no line to take, so leave the paste as it is */
+        var pastedTextFrame = findFirstTextFrame(pastedItems);
+        var remainder = pastedTextFrame ? trimPastedTextToFirstLine(pastedTextFrame) : "";
 
-            /* 複数まとめて貼り付いた場合も並びを崩さないよう、同じ量だけ動かす / Move everything by the same delta so the paste keeps its layout */
-            for (var i = 0; i < pastedItems.length; i++) {
-                try {
-                    pastedItems[i].translate(offsetX, offsetY);
-                } catch (e) {
-                    // 動かせないものはその位置に残す / Leave behind whatever cannot be moved
-                }
-            }
+        if (remainder === null) {
+            /* 空行だけの内容は、貼り付けた分を片付けてから知らせる / Clean up before reporting a paste of blank lines only */
+            removeItems(pastedItems);
+            setSelection(doc, null);
+            alert(getLabel("alert.noTextInClipboard"));
+            return;
+        }
+
+        moveItemsToViewCenter(doc, pastedItems);
+
+        /* 貼り付けた行を取り除いた残りをクリップボードへ戻し、次の実行で続きから進めるようにする / Put the remaining lines back so the next run continues where this one stopped */
+        var hasRemainder = (remainder.length > 0);
+        if (hasRemainder) {
+            writeTextToClipboard(doc, remainder);
         }
 
         /* 貼り付けた直後に手を加えられるよう選択したままにする / Keep the paste selected so it can be edited right away */
         setSelection(doc, pastedItems);
         app.redraw();
+
+        if (pastedTextFrame && !hasRemainder) {
+            alert(getLabel("alert.lastLineApplied"));
+        }
     }
 
     // =========================================
@@ -569,7 +618,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
 
     /**
      * クリップボードの1行目を選択中のテキストフレームへ適用し、残りをクリップボードへ書き戻す。
-     * 適用先が無い場合は、クリップボードの内容をアートボード中央へ貼り付けるだけにとどめる。
+     * 適用先が無い場合は、1行目をウィンドウ中央へ貼り付ける。
      * @returns {void}
      */
     function main() {
@@ -591,9 +640,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹�
 
         /* グループやクリップグループの中は、ペーストを挟んで参照が古くなる前にたどっておく / Walk into groups before the paste cycle can stale the references */
         var targetFrames = collectTextFramesFrom(originalSelection);
-        /* 適用先が無いときは行を消費せず、クリップボードの内容をアートボード中央へそのまま貼り付ける / Without a target, paste the clipboard as it is instead of consuming a line */
+        /* 適用先が無いときは、1行目をウィンドウ中央へ貼り付けて残りをクリップボードへ戻す / Without a target, paste the first line at the center of the window and keep the rest */
         if (targetFrames.length === 0) {
-            pasteAtArtboardCenter(doc);
+            pasteFirstLineAtViewCenter(doc);
             return;
         }
 
