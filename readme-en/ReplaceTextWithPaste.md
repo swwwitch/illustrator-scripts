@@ -12,14 +12,14 @@
 
 This script replaces the contents of the selected text frames with the text on the clipboard.
 
-With nothing selected, it creates a new text frame with the default formatting where the paste lands. When a group is selected, every text frame inside it is processed.
+With nothing selected, it creates a new text frame with the default formatting where the paste lands, which is the center of the view. When a group is selected, every text frame inside it is processed.
 
-To fill in the lines one at a time instead, use the derived [ReplaceTextWithPasteSequential.jsx](ReplaceTextWithPasteSequential.md).
+To fill in the lines one at a time instead, use the derived [ReplaceTextWithPasteSequential.jsx](ReplaceTextWithPasteSequential.md). That one pastes the clipboard at the center of the artboard when nothing is selected.
 
 ## Main features
 
 - Replaces the contents of every selected text frame at once
-- Creates a new text frame with the default formatting where the paste lands when nothing is selected
+- Creates a new text frame with the default formatting where the paste lands — the center of the view — when nothing is selected
 - Walks into groups and clip groups, and processes the text frames inside them
 - Supports point type, area type, and type on a path
 - Keeps the selection intact across the run
@@ -57,6 +57,7 @@ To fill in the lines one at a time instead, use the derived [ReplaceTextWithPast
 
 ## Changelog
 
+- v1.1.4 (20260825): Spelled out in the overview that a new text frame lands at the center of the view, and noted that the derived `ReplaceTextWithPasteSequential.jsx` now pastes the clipboard at the center of the artboard when nothing is selected (the behavior of this script is unchanged)
 - v1.1.3 (20260816): Fixed text inside a selected group or clip group sometimes not being replaced. The walk into groups now runs before the paste, so the targets are collected while the references are still valid, and the frames are all collected before any of them is rewritten
 - v1.1.1 (20260814): Fixed text copied in an application other than Illustrator not coming through. Illustrator holds on to whatever it copied itself, so the first paste after another application changes the clipboard brings back the old contents; the script now discards that first paste and uses the result of a second one. It also looks for a text frame inside a pasted group, and reports when nothing was pasted at all
 - v1.1.0 (20260814): Clear the selection before pasting, fixing a case where the original selection — or the characters selected with the Type tool — could be deleted when the paste did not go through. Added a message for when no text is found on the clipboard. Replacement errors are now deduplicated and reported in a single alert instead of one per selected object. Corrected the description of where a new text frame is placed

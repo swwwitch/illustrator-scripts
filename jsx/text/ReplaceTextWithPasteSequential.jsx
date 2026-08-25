@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。
+クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。テキストフレームを選択していないときは、クリップボードの内容をアートボード中央にそのまま貼り付けます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Takes the first line of the multi-line text on the clipboard, skipping blank lines, and applies it to the selected text frames. The applied line is removed from the clipboard, so running the script repeatedly walks through the lines one by one.
+Takes the first line of the multi-line text on the clipboard, skipping blank lines, and applies it to the selected text frames. The applied line is removed from the clipboard, so running the script repeatedly walks through the lines one by one. With no text frame selected, the clipboard is simply pasted at the center of the artboard.
 
 See the README for details.
 
@@ -21,15 +21,16 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReplaceTextWithPasteSequential"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-25";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf4b285b87940"; /* 紹介記事 / article URL */
 
 /**
  * @discussion 原案 / Original idea by Gorolib Design
@@ -51,7 +52,6 @@ var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last update
     var LABELS = {
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
-            noSelection: { ja: "テキストフレームを選択してください。", en: "Please select a text frame." },
             emptyClipboard: {
                 ja: "クリップボードが空か、Illustrator に貼り付けられない内容です。",
                 en: "The clipboard is empty, or Illustrator cannot paste its contents."
@@ -421,6 +421,98 @@ var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last update
     }
 
     // =========================================
+    // アートボードへの配置 / Placement on the artboard
+    // =========================================
+
+    /**
+     * アクティブアートボードの中心座標を返す
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {{x: number, y: number}} アートボード中心の座標
+     */
+    function getActiveArtboardCenter(doc) {
+        var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+        return {
+            x: (artboardRect[0] + artboardRect[2]) / 2,
+            y: (artboardRect[1] + artboardRect[3]) / 2
+        };
+    }
+
+    /**
+     * オブジェクト群を囲む矩形の中心座標を返す
+     * @param {Array<Object>} targetItems - 対象のページアイテム
+     * @returns {{x: number, y: number}|null} 中心座標。座標を取れるものが無ければ null
+     */
+    function getItemsCenter(targetItems) {
+        var left = null, top = null, right = null, bottom = null;
+
+        for (var i = 0; i < targetItems.length; i++) {
+            var bounds = null;
+            try {
+                bounds = targetItems[i].geometricBounds;
+            } catch (e) {
+                /* TextRange など座標を持たないものは対象外にする / Skip what has no geometry, such as a TextRange */
+                continue;
+            }
+            if (!bounds || bounds.length < 4) continue;
+
+            if (left === null || bounds[0] < left) left = bounds[0];
+            if (top === null || bounds[1] > top) top = bounds[1];
+            if (right === null || bounds[2] > right) right = bounds[2];
+            if (bottom === null || bounds[3] < bottom) bottom = bounds[3];
+        }
+
+        if (left === null) return null;
+        return { x: (left + right) / 2, y: (top + bottom) / 2 };
+    }
+
+    /**
+     * クリップボードの内容をアクティブアートボードの中央へ貼り付ける。
+     * 適用先のテキストフレームが無いときの動作で、行の取り出しもクリップボードの書き戻しも行わない。
+     * ペースト位置は画面の中央になるため、貼り付いたあとにアートボード中央へ移動する。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function pasteAtArtboardCenter(doc) {
+        var pastedItems = null;
+        var pasteError = null;
+
+        try {
+            pastedItems = pasteClipboardItems(doc);
+        } catch (e) {
+            pasteError = String(e);
+        }
+
+        if (pasteError) {
+            alert(getLabel("alert.clipboardError") + pasteError);
+            return;
+        }
+        if (!pastedItems || pastedItems.length === 0) {
+            alert(getLabel("alert.emptyClipboard"));
+            return;
+        }
+
+        var pastedCenter = getItemsCenter(pastedItems);
+        if (pastedCenter) {
+            var artboardCenter = getActiveArtboardCenter(doc);
+            var offsetX = artboardCenter.x - pastedCenter.x;
+            var offsetY = artboardCenter.y - pastedCenter.y;
+
+            /* 複数まとめて貼り付いた場合も並びを崩さないよう、同じ量だけ動かす / Move everything by the same delta so the paste keeps its layout */
+            for (var i = 0; i < pastedItems.length; i++) {
+                try {
+                    pastedItems[i].translate(offsetX, offsetY);
+                } catch (e) {
+                    // 動かせないものはその位置に残す / Leave behind whatever cannot be moved
+                }
+            }
+        }
+
+        /* 貼り付けた直後に手を加えられるよう選択したままにする / Keep the paste selected so it can be edited right away */
+        setSelection(doc, pastedItems);
+        app.redraw();
+    }
+
+    // =========================================
     // テキストの適用 / Text application
     // =========================================
 
@@ -476,7 +568,8 @@ var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last update
     // =========================================
 
     /**
-     * クリップボードの1行目を選択中のテキストフレームへ適用し、残りをクリップボードへ書き戻す
+     * クリップボードの1行目を選択中のテキストフレームへ適用し、残りをクリップボードへ書き戻す。
+     * 適用先が無い場合は、クリップボードの内容をアートボード中央へ貼り付けるだけにとどめる。
      * @returns {void}
      */
     function main() {
@@ -498,9 +591,9 @@ var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last update
 
         /* グループやクリップグループの中は、ペーストを挟んで参照が古くなる前にたどっておく / Walk into groups before the paste cycle can stale the references */
         var targetFrames = collectTextFramesFrom(originalSelection);
-        /* 対象が無いまま進むと、適用先が無いのにクリップボードの行だけ消える / Without a target, a line would be consumed with nowhere to apply it */
+        /* 適用先が無いときは行を消費せず、クリップボードの内容をアートボード中央へそのまま貼り付ける / Without a target, paste the clipboard as it is instead of consuming a line */
         if (targetFrames.length === 0) {
-            alert(getLabel("alert.noSelection"));
+            pasteAtArtboardCenter(doc);
             return;
         }
 
