@@ -152,15 +152,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
     /**
      * 元の位置を起点にランダム移動を繰り返し、互いに重ならない位置へ配置する
      * @param {Array<{item: PageItem, position: number[]}>} states - 対象と元の位置の組
-     * @param {object} options - PLACEMENT_OPTIONS と同じ形の探索条件
+     * @param {object} placementOptions - PLACEMENT_OPTIONS と同じ形の探索条件
      * @returns {boolean} 全件を配置できたら true
      */
-    function placeItemsAvoidOverlap(states, options) {
+    function placeItemsAvoidOverlap(states, placementOptions) {
         if (!states || states.length === 0) return false;
 
         var scaleFactor = 1;
 
-        while (scaleFactor <= options.maxScaleFactor) {
+        while (scaleFactor <= placementOptions.maxScaleFactor) {
             var placedBounds = [];
             var allPlaced = true;
 
@@ -168,15 +168,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
                 var state = states[i];
                 var placed = false;
 
-                for (var attempt = 0; attempt < options.attemptsPerItem; attempt++) {
-                    var randX = (Math.random() * 2 - 1) * options.baseX * scaleFactor;
-                    var randY = (Math.random() * 2 - 1) * options.baseY * scaleFactor;
+                for (var attempt = 0; attempt < placementOptions.attemptsPerItem; attempt++) {
+                    var randX = (Math.random() * 2 - 1) * placementOptions.baseX * scaleFactor;
+                    var randY = (Math.random() * 2 - 1) * placementOptions.baseY * scaleFactor;
                     state.item.position = [state.position[0] + randX, state.position[1] + randY];
 
                     var bounds = state.item.visibleBounds;
                     var overlap = false;
                     for (var j = 0; j < placedBounds.length; j++) {
-                        if (isOverlapping(bounds, placedBounds[j], options.padding)) {
+                        if (isOverlapping(bounds, placedBounds[j], placementOptions.padding)) {
                             overlap = true;
                             break;
                         }
@@ -209,13 +209,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
      * @param {Layer} layer - 対象レイヤー
      * @param {number} rectTop - 判定する上端座標
      * @param {number} rectLeft - 判定する左端座標
+     * @param {number} rectSize - 判定する一辺の長さ
      * @returns {void}
      */
-    function removeExistingCenterRect(layer, rectTop, rectLeft) {
+    function removeExistingCenterRect(layer, rectTop, rectLeft, rectSize) {
         for (var i = layer.pathItems.length - 1; i >= 0; i--) {
             var pathItem = layer.pathItems[i];
             if (Math.abs(pathItem.top - rectTop) < 1 && Math.abs(pathItem.left - rectLeft) < 1 &&
-                Math.abs(pathItem.width - RECT_SIZE) < 1 && Math.abs(pathItem.height - RECT_SIZE) < 1) {
+                Math.abs(pathItem.width - rectSize) < 1 && Math.abs(pathItem.height - rectSize) < 1) {
                 try {
                     pathItem.remove();
                 } catch (e) {
@@ -253,7 +254,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
         var viewCenterY = doc.activeView.centerPoint[1];
 
         /* 中央に残っている既存の長方形を削除 / Remove the existing center rectangle if any */
-        removeExistingCenterRect(targetLayer, viewCenterY + RECT_SIZE / 2, viewCenterX - RECT_SIZE / 2);
+        removeExistingCenterRect(targetLayer, viewCenterY + RECT_SIZE / 2, viewCenterX - RECT_SIZE / 2, RECT_SIZE);
 
         /* いったん表示中心付近に作成し、後で重なり回避で再配置する / Create near the center, reposition later */
         var rects = [];

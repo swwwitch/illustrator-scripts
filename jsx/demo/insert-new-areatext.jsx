@@ -153,12 +153,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n509eb6aa0a19"; /* 紹�
     /**
      * 指定オブジェクトだけを選択状態にする
      * @param {Document} doc - 対象ドキュメント
-     * @param {PageItem} item - 選択するオブジェクト
+     * @param {PageItem} pageItem - 選択するオブジェクト
      * @returns {void}
      */
-    function selectOnly(doc, item) {
+    function selectOnly(doc, pageItem) {
         doc.selection = null;
-        doc.selection = [item];
+        doc.selection = [pageItem];
         app.redraw();
     }
 
