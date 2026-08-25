@@ -91,10 +91,12 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
     // =========================================
     // ユーザー設定 / User settings
     // =========================================
-    /* チェックボックスの初期状態。環境設定は読まず、この値を整列のあいだだけワーカーが書き込む
-       （整列が終わったら、ワーカーが元の環境設定へ戻す）
-       Initial checkbox states; the preferences are not read back. The worker applies these for the duration
-       of an align and restores the previous preferences afterwards */
+    /* チェックボックスの初期状態。［プレビュー境界］［字形の境界に整列］はパレットを開くときに
+       環境設定の現在値で上書きするので、この値は読めなかったときの控えになる
+       （整列のあいだだけワーカーが環境設定へ書き込み、終わったら元の設定に戻す）
+       Initial checkbox states. Preview Bounds and Align to Glyph Bounds are overwritten with the current
+       preferences when the palette opens, so these are only the fallback; the worker applies them for the
+       duration of an align and restores the previous preferences afterwards */
     var DEFAULT_PREVIEW_BOUNDS       = false; /* プレビュー境界 / preview bounds */
     var DEFAULT_GLYPH_BOUNDS         = true;  /* 字形の境界に整列 / align to glyph bounds */
     var DEFAULT_CHANGE_JUSTIFICATION = true;  /* 行揃えを変更 / change justification */
@@ -782,9 +784,9 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         optionsPanel.margins = PANEL_MARGINS;
         optionsPanel.spacing = OPTION_SPACING;
 
-        /* 環境設定は読まない（常駐パレットからは信頼できないため）。ここでの値は整列のあいだだけ
-           環境設定へ書き込まれ、終わったら元の設定に戻る
-           The preferences are not read here; these values are applied only for the duration of an align */
+        /* ここでは控えの値を置くだけで、実際の初期値は loadBoundsPreferences() が入れ直す
+           （常駐パレットの app は当てにならないため、環境設定はメインエンジンへ問い合わせる）
+           Only the fallbacks are set here; loadBoundsPreferences() replaces them with the real preferences */
         previewBoundsCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox", "previewBounds"));
         previewBoundsCheckbox.helpTip = getLabel("tooltip", "previewBounds");
         previewBoundsCheckbox.value = DEFAULT_PREVIEW_BOUNDS;
@@ -798,6 +800,21 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         changeJustificationCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox", "changeJustification"));
         changeJustificationCheckbox.helpTip = getLabel("tooltip", "changeJustification");
         changeJustificationCheckbox.value = DEFAULT_CHANGE_JUSTIFICATION;
+    }
+
+    /**
+     * ［プレビュー境界］［字形の境界に整列］の現在の環境設定をチェックボックスへ反映する
+     * 常駐パレットの app は当てにならないためメインエンジンへ問い合わせ、取れなければ DEFAULT_* のままにする
+     * @returns {void}
+     */
+    function loadBoundsPreferences() {
+        if (previewBoundsCheckbox === null || glyphBoundsCheckbox === null) { return; }
+        var workerResult = runWorker("btGetPreferenceFlags();");
+        if (workerResult === null || workerResult.indexOf("ERR:") === 0) { return; }
+        var parts = workerResult.split("|");
+        if (parts.length < 2) { return; }
+        previewBoundsCheckbox.value = (parts[0] === "1");
+        glyphBoundsCheckbox.value = (parts[1] === "1");
     }
 
     /**
@@ -877,6 +894,9 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         /* 常駐参照：GC 回避と多重起動の検出を兼ねる / Persistent reference: avoids GC and detects a second launch */
         paletteWindow = win;
         $.global.__aiAlignToArtboardWindow = win;
+        /* 環境設定の現在値をチェックボックスに入れてから表示する（表示後だと目の前で切り替わる）
+           Load the preferences before showing, so the checkboxes do not flip in front of the user */
+        loadBoundsPreferences();
         win.layout.layout(true);
         win.show();
         refreshPaletteState();
@@ -1179,6 +1199,13 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         };
     }
 
+    function btGetPreferenceFlags() {
+        var preferences;
+        preferences = btReadPreferences();
+        /* 字形の境界はポイント文字・エリア内文字のどちらかがONならON扱いにする */
+        return (preferences.previewBounds ? "1" : "0") + "|" + ((preferences.pointText || preferences.areaText) ? "1" : "0");
+    }
+
     function btWritePreferences(previewBounds, pointText, areaText) {
         app.preferences.setBooleanPreference("includeStrokeInBounds", previewBounds === true);
         app.preferences.setBooleanPreference("EnableActualPointTextSpaceAlign", pointText === true);
@@ -1312,7 +1339,7 @@ var paletteWindow = $.global.__aiAlignToArtboardWindow || null;
         btApplyGlyphCorrection, btAlignDeltaX, btAlignDeltaY, btHasTextFrame,
         btGetGlyphAwareBounds, btGetMeasureBounds, btGetOutlineBounds, btSafeRemove,
         btGetPaletteState, btGetSelectionKind, btJustificationByName,
-        btNudgeSelection, btReadPreferences, btWritePreferences, btPromoteTextRange,
+        btNudgeSelection, btReadPreferences, btGetPreferenceFlags, btWritePreferences, btPromoteTextRange,
         btGetLayerKey, btSpansMultipleLayers,
         btGetSelectionBounds, btGetOverlapArea,
         btFindOverlappingArtboardIndex, btFindNearestArtboardIndex, btActivateArtboardForSelection,
