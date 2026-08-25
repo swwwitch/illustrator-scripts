@@ -1,0 +1,117 @@
+# ScriptLauncher
+
+[![Direct](https://img.shields.io/badge/Direct%20Link-ScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ScriptLauncher.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ScriptLauncher.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+
+---
+
+### Overview
+
+Once your script collection grows, just finding the one you want takes time. This launcher filters the `.jsx` / `.js` / `.jsxbin` files in a chosen folder by keyword and runs the selected script on the spot.
+
+Folders and file names are shown in two side-by-side lists, so you reach the script you want without walking the hierarchy.
+
+### Features
+
+- Incremental search that narrows the candidates as you type
+- Two lists: folders on the left, file names on the right. Picking a folder fills the right list with its contents
+- AND search with space-separated terms
+- Words that appear often in the filtered results become one-click buttons, so you can drill down step by step
+- Option double-click reveals a script in the Finder; double-clicking a folder opens it
+- Nested subfolders (such as `artboard/backup`) can be excluded in one click
+- The target folder and keyword settings are remembered in Illustrator's preferences, so they survive a restart
+
+### Usage
+
+1. Choose your script folder on the first run. Later runs reopen the remembered folder
+2. Type in the keyword field to narrow the candidates
+3. Pick a folder in the left list to list only that folder's file names on the right
+4. Select in the right list and press `Enter`, double-click, or click **Run**
+
+Option double-click reveals the script in the Finder instead of running it. Double-clicking a folder in the left list opens that folder in the Finder.
+
+Keyboard:
+
+| Key | Action |
+|---|---|
+| Down | Move from the keyword field to the file name list |
+| Enter | Run the selected script (works wherever the focus is) |
+| Option + double-click | Reveal in the Finder instead of running |
+| Double-click a folder | Open that folder in the Finder |
+
+### Options
+
+**Keyword buttons**
+
+Script names are split into words, and the most frequent ones are laid out as buttons. `SmartDistributor.jsx` yields `Smart` and `Distributor`. Camel case, hyphens, underscores and digits are all treated as separators.
+
+The buttons are **recomputed on every filter change**. Words the query already covers are dropped, since pressing them would narrow nothing, so what remains is the set of useful next steps.
+
+```
+(no keyword)   469 files  Text  Smart  Align  Artboard  Group …
+  -> click Text
+text           126 files  Auto  Type  Area  Leading  Kerning …
+  -> option-click Align
+text align       2 files  (no buttons left)
+```
+
+| Action | Result |
+|---|---|
+| Click | Replace the keyword with that word |
+| Option + click | Append the word to the current keyword to narrow further |
+
+**Preferences** lets you change how the buttons are chosen.
+
+| Field | Meaning | Default |
+|---|---|---|
+| Occurrences | Minimum number of files a word must appear in | 4 |
+| Keywords | Maximum number of buttons | 10 |
+
+The number fields step by ±1 with the arrow keys, or ±10 with shift. Settings are stored in Illustrator's preferences and survive a restart.
+
+**Include subdirectories**
+
+When off, folders more than one level below the target folder are dropped from the list. This is aimed at hiding nested backup folders.
+
+```
+root/
+├ Foo.jsx              shown
+├ artboard/            shown
+│  ├ Bar.jsx           shown
+│  └ backup/           excluded
+│     └ Bar-v2.jsx     hidden
+```
+
+**Preferences dialog**
+
+Opened with the **Preferences** button. It holds the target folder and the keyword button rules together.
+
+| Item | Meaning |
+|---|---|
+| Target folder | Shows the current path. **Change Folder** picks a new one |
+| Full path | When off, the home folder is abbreviated to `~` |
+| Occurrences / Keywords | The keyword button rules described above |
+
+Changing the folder and pressing OK rebuilds the list against the new folder.
+
+### Notes
+
+- The launcher window itself does not show the target folder. Open **Preferences** to see where you are pointed
+- Option double-click reveals the file with the Automator app at `/Applications/RevealInFinder.app` when it is installed. Without it, or outside macOS, it just opens the enclosing folder
+- If this launcher itself lives inside the target folder, it is left out of the list
+- File names written only in Japanese produce no keyword buttons, since the extractor looks for ASCII words
+- The target folder and keyword settings live in Illustrator's own preferences (`ScriptLauncher.*`). No external settings file is created
+- On launch the script turns `ShowExternalJSXWarning` off, so running scripts from outside the Scripts folder does not raise a warning every time. This preference applies to Illustrator as a whole
+
+### Reference
+
+Revealing a file with it selected in the Finder (option double-click) uses the Automator bridge published in [「真の「Finderで表示」をイラレでも」 by 自分用メモ (@mute_racoon3631)](https://note.com/mute_racoon3631/n/n9e0e08f5d5f7).
+
+ExtendScript has no way to reveal a file with selection, so the path is handed to an Automator app through a temporary file.
+
+### Update History
+
+- v1.4.0 (2026-08-26): Initial public release
