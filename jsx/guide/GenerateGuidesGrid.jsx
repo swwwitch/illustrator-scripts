@@ -167,7 +167,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             artboardEdge: { ja: "アートボードのエッジ", en: "Artboard Edges" },
             clearGuides: { ja: "既存ガイドを削除", en: "Clear Existing Guides" }
         },
-        /* フィールド見出し（コロンは labelWithColon で付与）/ Field labels (colon added by labelWithColon) */
+        /* フィールド見出し（コロンは labelText で付与）/ Field labels (colon added by labelText) */
         field: {
             preset: { ja: "プリセット", en: "Preset" },
             rowCount: { ja: "行数", en: "Number" },
@@ -190,7 +190,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             roundCorner: { ja: "各長方形に角丸（ライブエフェクト）を適用します。", en: "Apply the Round Corners live effect to each rectangle." },
             opacity: { ja: "長方形の不透明度（0〜100%）。", en: "Opacity of the rectangles (0–100%)." },
             splitCell: { ja: "各セルの左右中央に縦ガイドを作成します。", en: "Create a vertical guide at each cell's horizontal center." },
-            guideExtension: { ja: "アートボード／オブジェクトの外側へガイドを伸ばす距離。", en: "Distance to mergeInto guides beyond the artboard/object." },
+            guideExtension: { ja: "アートボード／オブジェクトの外側へガイドを伸ばす距離。", en: "Distance to extend guides beyond the artboard/object." },
             artboardEdge: { ja: "アートボードの上下左右4辺にガイドを引きます。対象が選択オブジェクトのときは使えません。", en: "Draw guides on the four edges of the artboard. Unavailable when the target is the selected objects." },
             clearGuides: { ja: "描画前に専用レイヤー（grid_guides）内の既存ガイドを削除します。「すべてのアートボード」以外は、アクティブなアートボード上のガイドだけが対象です。", en: "Remove existing guides in the dedicated layer (grid_guides) before drawing. Unless all artboards are targeted, only guides on the active artboard are removed." },
             toGuide: { ja: "元の選択オブジェクトをガイドに変換します。", en: "Convert the original selected objects into guides." },
@@ -224,7 +224,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelWithColon(key) {
+    function labelText(key) {
         return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
     }
 
@@ -474,6 +474,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     // プレビュー時にapp.undo()で巻き戻して履歴を汚さない / Manage preview with rollback using app.undo()
     function PreviewManager() {
         this.undoDepth = 0; // number of preview actions applied
+        this.errorReported = false; // 同じ失敗を何度も知らせない / report a failure only once
     }
 
     // プレビュー手順を1つ実行してカウント / Run an action as a preview step and count it
@@ -484,10 +485,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             if (step() !== false) {
                 this.undoDepth++;
             }
-            app.redraw();
         } catch (e) {
+            // 途中で失敗した手順もドキュメントを変更している可能性があるため数える
+            // （数えないと rollback もキャンセルも巻き戻せない）
+            // A step that threw may already have changed the document, so count it:
+            // otherwise rollback and Cancel cannot undo it
+            this.undoDepth++;
             $.writeln("[GenerateGuidesGrid] preview step error: " + e);
+            if (!this.errorReported) {
+                this.errorReported = true;
+                alert("プレビューの処理に失敗しました。\nPreview step failed.\n" + e);
+            }
         }
+        app.redraw();
     };
 
     // すべてのプレビュー手順を巻き戻す / Roll back all preview actions
@@ -729,10 +739,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
 
             // アートボードの上下左右4辺（マージンに関係なく引く）/ The artboard's four edges (independent of the margins)
             if (drawArtboardEdge && gridLayer) {
-                addGuideLine(doc, gridLayer, [extendedLeft, targetTop], [extendedRight, targetTop]);
-                addGuideLine(doc, gridLayer, [extendedLeft, targetBottom], [extendedRight, targetBottom]);
-                addGuideLine(doc, gridLayer, [targetLeft, extendedTop], [targetLeft, extendedBottom]);
-                addGuideLine(doc, gridLayer, [targetRight, extendedTop], [targetRight, extendedBottom]);
+                // マージン0の辺はグリッド側の外周ガイドと同じ位置になるので引かない
+                // A zero-margin edge coincides with the grid's outer guide, so skip it
+                if (!drawGridGuides || marginTop > 0) {
+                    addGuideLine(doc, gridLayer, [extendedLeft, targetTop], [extendedRight, targetTop]);
+                }
+                if (!drawGridGuides || marginBottom > 0) {
+                    addGuideLine(doc, gridLayer, [extendedLeft, targetBottom], [extendedRight, targetBottom]);
+                }
+                if (!drawGridGuides || marginLeft > 0) {
+                    addGuideLine(doc, gridLayer, [targetLeft, extendedTop], [targetLeft, extendedBottom]);
+                }
+                if (!drawGridGuides || marginRight > 0) {
+                    addGuideLine(doc, gridLayer, [targetRight, extendedTop], [targetRight, extendedBottom]);
+                }
             }
 
             var usableWidth = contentRight - contentLeft;
@@ -886,7 +906,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         presetGroup.alignment = ["center", "top"]; // 左右中央 / horizontally centered
         presetGroup.margins = [0, 0, 0, 10]; // 下に少し余白 / add some bottom margin
 
-        presetGroup.add("statictext", undefined, labelWithColon("field.preset"));
+        presetGroup.add("statictext", undefined, labelText("field.preset"));
         var presetDropdown = presetGroup.add("dropdownlist", undefined, []);
         presetDropdown.selection = 0;
         var btnExportPreset = presetGroup.add("button", undefined, getLabel("button.exportPreset"));
@@ -1026,7 +1046,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
 
         var rowCountGroup = rowSettingPanel.add("group");
         setupGroup(rowCountGroup, "row");
-        var rowCountLabel = rowCountGroup.add("statictext", undefined, labelWithColon("field.rowCount"));
+        var rowCountLabel = rowCountGroup.add("statictext", undefined, labelText("field.rowCount"));
         rowCountLabel.justification = "right";
         rowCountLabel.minimumSize.width = gridLabelWidth;
         rowCountLabel.maximumSize.width = gridLabelWidth;
@@ -1035,12 +1055,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
 
         var rowGutterGroup = rowSettingPanel.add("group");
         setupGroup(rowGutterGroup, "row");
-        var rowGutterLabel = rowGutterGroup.add("statictext", undefined, labelWithColon("field.rowGutter"));
+        var rowGutterLabel = rowGutterGroup.add("statictext", undefined, labelText("field.rowGutter"));
         rowGutterLabel.justification = "right";
         rowGutterLabel.minimumSize.width = gridLabelWidth;
         rowGutterLabel.maximumSize.width = gridLabelWidth;
         var rowGutterInput = rowGutterGroup.add("edittext", undefined, "0");
-        rowGutterInput.characters = 3;
+        /* 単位換算後は小数2桁になるため桁数を確保 / Room for the 2 decimals unit conversion produces */
+        rowGutterInput.characters = 5;
         rowGutterGroup.add("statictext", undefined, unitLabel);
 
         // 列設定パネル / Column settings panel
@@ -1049,7 +1070,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
 
         var columnCountGroup = columnSettingPanel.add("group");
         setupGroup(columnCountGroup, "row");
-        var columnCountLabel = columnCountGroup.add("statictext", undefined, labelWithColon("field.columnCount"));
+        var columnCountLabel = columnCountGroup.add("statictext", undefined, labelText("field.columnCount"));
         columnCountLabel.justification = "right";
         columnCountLabel.minimumSize.width = gridLabelWidth;
         columnCountLabel.maximumSize.width = gridLabelWidth;
@@ -1058,12 +1079,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
 
         var columnGutterGroup = columnSettingPanel.add("group");
         setupGroup(columnGutterGroup, "row");
-        var columnGutterLabel = columnGutterGroup.add("statictext", undefined, labelWithColon("field.columnGutter"));
+        var columnGutterLabel = columnGutterGroup.add("statictext", undefined, labelText("field.columnGutter"));
         columnGutterLabel.justification = "right";
         columnGutterLabel.minimumSize.width = gridLabelWidth;
         columnGutterLabel.maximumSize.width = gridLabelWidth;
         var columnGutterInput = columnGutterGroup.add("edittext", undefined, "0");
-        columnGutterInput.characters = 3;
+        columnGutterInput.characters = 5;
         columnGutterGroup.add("statictext", undefined, unitLabel);
 
         // 行間に連動（列パネル下部）/ Link to row gutter (under column panel)
@@ -1099,9 +1120,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             cellGroup.orientation = "row";
             cellGroup.alignment = ["center", "center"];
             cellGroup.minimumSize.width = MARGIN_CELL_WIDTH;
-            cellGroup.add("statictext", undefined, labelWithColon(labelKey));
+            cellGroup.add("statictext", undefined, labelText(labelKey));
             var marginInput = cellGroup.add("edittext", undefined, "0");
-            marginInput.characters = 3;
+            marginInput.characters = 5;
             return { group: cellGroup, input: marginInput };
         }
         // 位置合わせ用の空セル / Empty cell for alignment
@@ -1174,7 +1195,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         // 不透明度スライダー（0-100、ラベルの次の行にスライダー）/ Opacity slider (0-100, slider on the line below the label)
         var opacityGroup = cellPanel.add("group");
         setupGroup(opacityGroup, "column", ROW_SPACING);
-        opacityGroup.add("statictext", undefined, labelWithColon("field.opacity"));
+        opacityGroup.add("statictext", undefined, labelText("field.opacity"));
         var opacitySlider = opacityGroup.add("slider", undefined, CELL_OPACITY, 0, 100);
         opacitySlider.helpTip = getLabel("tooltip.opacity");
         opacitySlider.alignment = ["fill", "center"];
@@ -1197,7 +1218,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         extensionCheckbox.helpTip = getLabel("tooltip.guideExtension");
         extensionCheckbox.value = true;
         var extensionInput = extensionGroup.add("edittext", undefined, "10");
-        extensionInput.characters = 2;
+        extensionInput.characters = 5;
         extensionGroup.add("statictext", undefined, unitLabel);
         extensionCheckbox.onClick = function () {
             extensionInput.enabled = extensionCheckbox.value;
@@ -1227,6 +1248,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         clearGuidesCheckbox.onClick = function () {
             safeUpdatePreview();
         };
+
+        // 実際に削除するか（ディム中は値が残っていても削除しない）/ Whether to clear (a dimmed checkbox never clears)
+        function shouldClearGuides() {
+            return clearGuidesCheckbox.enabled && clearGuidesCheckbox.value;
+        }
 
         // 数値フィールドを矢印キーで増減（Shift で10の倍数にスナップ）/ Adjust a numeric field with arrow keys (Shift snaps to multiples of 10)
         function changeValueByArrowKey(editText) {
@@ -1285,7 +1311,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
 
             // 「既存ガイドを削除」ONなら、この時点で削除して見た目に反映する
             // キャンセル時は rollback の app.undo() で元に戻る / Cancel restores them via rollback
-            if (clearGuidesCheckbox.value) {
+            if (shouldClearGuides()) {
                 previewManager.addStep(function () {
                     return clearExistingGuides(); // 何も消さなければ false / false when nothing was removed
                 });
@@ -1434,13 +1460,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             marginLeftInput.text = ptToUnit(presetMarginLeft);
             marginRightInput.text = ptToUnit(presetMarginRight);
             rowGutterInput.text = ptToUnit(pickPresetValue(preset.rowGutter, undefined, 0));
-            columnGutterInput.text = ptToUnit(pickPresetValue(preset.columnGutter, undefined, 0));
+            columnGutterInput.text = ptToUnit(pickPresetValue(preset.columnGutter, preset.colGutter, 0));
             // 上下左右が異なるプリセットは連動をOFF（連動が値を上書きして壊すのを防ぐ）
             // If margins differ, turn the link off so it won't overwrite the distinct values
             linkMarginCheckbox.value = (presetMarginTop === presetMarginBottom && presetMarginTop === presetMarginLeft && presetMarginTop === presetMarginRight);
             cellRectCheckbox.value = (typeof preset.drawCells !== "undefined") ? preset.drawCells : false;
             drawGuidesCheckbox.value = (typeof preset.drawGuides !== "undefined") ? preset.drawGuides : true;
             extensionGroup.enabled = drawGuidesCheckbox.value;
+            extensionInput.enabled = drawGuidesCheckbox.value && extensionCheckbox.value;
+            clearGuidesCheckbox.enabled = drawGuidesCheckbox.value;
         }
 
         // プリセット選択時に入力値へ反映 / Apply preset values to inputs on selection
@@ -1546,8 +1574,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         // 行・列・ガター・伸張・ガイド系の設定を収集 / Collect grid (rows/cols/gutters/extension/guide) settings
         function collectGridSettings() {
             return {
-                columnCount: toInteger(columnCountInput.text, 0),
-                rowCount: toInteger(rowCountInput.text, 0),
+                /* 空欄・不正値は書き出し側と同じく 1 として扱う（0 だと削除だけ走って何も描かれない）
+                   Treat blank/invalid as 1 like the exporter (0 would clear without drawing) */
+                columnCount: toInteger(columnCountInput.text, 1),
+                rowCount: toInteger(rowCountInput.text, 1),
                 guideExtension: (extensionCheckbox.value ? toNumber(extensionInput.text, 0) : 0) * unitFactor,
                 rowGutter: toNumber(rowGutterInput.text, 0) * unitFactor,
                 columnGutter: toNumber(columnGutterInput.text, 0) * unitFactor,
@@ -1671,10 +1701,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             previewManager.confirm(function () {
                 // プレビューレイヤーを先に削除（最後に消すと選択が解除されるため）/ Remove preview layer first (removing it later clears the selection)
                 safeRemoveLayerByName(doc, PREVIEW_LAYER_NAME);
-                if (clearGuidesCheckbox.value) {
+                var finalContext = buildDrawContext(false);
+                // 描画できない設定のときは削除もしない（消すだけで終わる事故を防ぐ）
+                // Do not clear when nothing can be drawn (avoids a delete-only outcome)
+                if (shouldClearGuides() && canDrawGrid(finalContext)) {
                     clearExistingGuides();
                 }
-                drawnCellItems = drawGrid(buildDrawContext(false));
+                drawnCellItems = drawGrid(finalContext);
                 // 選択オブジェクトの処理 / Handle original selected objects
                 if (cachedSelectionItems.length > 0 && isSelectionMode()) {
                     if (removeOriginalRadio && removeOriginalRadio.value) {

@@ -30,12 +30,15 @@ Defaults to 5; any integer of 2 or more. Up/Down adjusts by 1, Shift+Up/Down sna
 
 - None: expand only
 - Simple expand: expand the appearance afterwards
-- Crop and expand: run Pathfinder Crop first, then expand
+- Convert to blend: after expanding, build a blend from the two end objects
 
 ### Notes
 
 - The action set and action names are kept in constants, and the names inside the .aia are generated from the same values.
-- ExpandGradient-v2.jsx is a variant with simpler post-processing.
+
+### Article
+
+[Split a gradient into solid-color objects (Japanese)](https://note.com/dtp_tranist/n/nbe084e691ba5)
 
 ### Update History
 

@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "AiAdjustVerticalGap";          /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGap.md
@@ -523,14 +523,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* 判定で動かしたオブジェクトを元の位置へ戻す / Move every probed item back to its original position */
     function restoreItemPositions(items, positions) {
+        var restored = true;
         for (var i = 0; i < items.length; i++) {
             try {
                 items[i].position = [positions[i][0], positions[i][1]];
             } catch (e) {
-                return false;
+                /* 1つ失敗しても残りは必ず戻す / Keep restoring the rest even if one fails */
+                restored = false;
             }
         }
-        return true;
+        return restored;
     }
 
     /* 整列で動いたオブジェクトを候補から外す / Drop candidates that moved during an align probe */
@@ -546,6 +548,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
                 candidates[i] = false;
             }
         }
+    }
+
+    /* 他のオブジェクトを完全に内包しているか。内包している側は整列コマンドで動かないため、
+       キーオブジェクトが無くても4方向すべてで残ってしまう /
+       Whether the item's bounds enclose every other item: such an item never moves during the
+       probes, so it survives all four of them even when no key object is set */
+    function enclosesAllOthers(item, items) {
+        var bounds = getItemBounds(item, false);
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] === item) {
+                continue;
+            }
+            var otherBounds = getItemBounds(items[i], false);
+            /* [left, top, right, bottom] */
+            if (otherBounds[0] < bounds[0] || otherBounds[2] > bounds[2] ||
+                otherBounds[1] > bounds[1] || otherBounds[3] < bounds[3]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /* キーオブジェクトを判定（4方向の整列で動かなかった1点）。ExtendScript には
@@ -577,6 +599,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
                 /* 候補が1つになっても打ち切らず、4方向すべてで動かないことを確認する /
                    Keep probing all four directions to avoid a false positive */
                 rejectMovedCandidates(items, positions, candidates, tolerance);
+                /* 候補が尽きたら残りのプローブは結果を変えられないので打ち切る /
+                   No candidate left: the remaining probes cannot change the result */
+                var remaining = 0;
+                for (var j = 0; j < candidates.length; j++) {
+                    if (candidates[j]) {
+                        remaining++;
+                    }
+                }
+                if (remaining === 0) {
+                    break;
+                }
             }
         } catch (e) {
             return null;
@@ -592,8 +625,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
                 candidateCount++;
             }
         }
-        /* 一意に決まったときだけ採用 / Accept only a unique candidate */
-        return (candidateCount === 1) ? keyItem : null;
+        /* 一意に決まり、かつ内包による居座りでないときだけ採用 /
+           Accept only a unique candidate that is not merely enclosing the others */
+        if (candidateCount !== 1) {
+            return null;
+        }
+        return enclosesAllOthers(keyItem, items) ? null : keyItem;
     }
 
     /* 選択2点のキーオブジェクトが上下どちらかを返す / Report whether the key object is the upper or lower item */
@@ -646,6 +683,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         getItemPosition,
         restoreItemPositions,
         rejectMovedCandidates,
+        enclosesAllOthers,
         findKeyObject,
         findKeyObjectAnchor
     ];
@@ -1006,15 +1044,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
            Detect Illustrator's key object and update the anchor used by Auto */
         function loadAnchorFromKeyObject() {
             var result = detectKeyObjectAnchor(controls.gap.previewBoundsCheckbox.value);
-            if (result !== "TOP" && result !== "BOTTOM") {
-                /* 判定できなければ「上」へ切り替え、実際に使う基準を見えるようにする /
-                   Fall back to Top so the anchor actually in use stays visible */
-                controls.anchor.autoAnchorTop = true;
-                controls.anchor.anchorTopRadio.value = true;
+            if (result === "TOP" || result === "BOTTOM") {
+                controls.anchor.autoAnchorTop = (result === "TOP");
+                return true;
+            }
+            controls.anchor.autoAnchorTop = true;
+            if (result === "NOSEL" || result === "NODOC") {
+                /* 2点選択以外は判定そのものができない。グループ選択や複数ペアでも「自動」を
+                   残したまま既定（上）を使う / Detection needs exactly two selected items;
+                   keep Auto selected for groups and batches and fall back to the default (top) */
                 return false;
             }
-            controls.anchor.autoAnchorTop = (result === "TOP");
-            return true;
+            /* 2点選択でキーオブジェクトが無いときだけ「上」へ切り替え、実際に使う基準を見せる /
+               Switch to Top only when two items are selected but no key object exists */
+            controls.anchor.anchorTopRadio.value = true;
+            return false;
         }
 
         /* 「自動判定」：判定し直してからプレビュー（判定は整列コマンドでドキュメントを触るため、
@@ -1119,8 +1163,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             /* プレビュー分の取り消しは worker 側でまとめて行う（二重適用を防ぐ）/
                The worker undoes the preview in the same send (avoids double-applying it) */
             options.undoFirst = previewState.active;
-            previewState.active = false;
-            runBatchAdjustmentDelegate(options);
+            var result = runBatchAdjustmentDelegate(options);
+            /* 送信に失敗した場合はプレビューが適用されたまま残るので active を維持する /
+               On a failed send the preview is still applied, so keep tracking it */
+            if (String(result).indexOf("ERR:") !== 0) {
+                previewState.active = false;
+            }
         }
 
         /* 1カラム：間隔値・キーオブジェクト・左右の整列・テキストの行揃えを縦に並べる /

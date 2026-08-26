@@ -26,12 +26,13 @@ var SCRIPT_NAME     = "ExpandGradient";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExpandGradient.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExpandGradient.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -40,6 +41,9 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
 
     /* 分割数（既定値、2 以上の整数） / Default gradient step count (integer ≥ 2) */
     var DEFAULT_GRADIENT_STEPS = 5;
+
+    /* 分割・拡張の補正値（Illustrator は指定値より1つ少ないオブジェクトを生成する） / Offset for Expand (Illustrator yields one object fewer than specified) */
+    var EXPAND_STEP_OFFSET = 1;
 
     /* 後処理モードの既定値（"none" / "simple" / "blend"） / Default post-process mode ("none" / "simple" / "blend") */
     var DEFAULT_POST_PROCESS_MODE = "simple";
@@ -76,11 +80,6 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
                 ja: "キャンセル",
                 en: "Cancel"
             },
-            ok: {
-                ja: "OK",
-                en: "OK"
-            },
-
             /* === ダイアログ / Dialog === */
             dialogTitle: {
                 ja: "グラデーションを分割・拡張",
@@ -167,7 +166,7 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
             postProcessMode = dialogResult.postProcessMode;
         }
 
-        playEmbeddedAction(buildExpandActionSource(gradientSteps, ACTION_SET_NAME, ACTION_NAME), ACTION_SET_NAME, ACTION_NAME);
+        playEmbeddedAction(buildExpandActionSource(gradientSteps + EXPAND_STEP_OFFSET, ACTION_SET_NAME, ACTION_NAME), ACTION_SET_NAME, ACTION_NAME);
 
         if (postProcessMode === "simple") {
             if (!furtherExpandSelection(activeDoc)) {
@@ -187,6 +186,11 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
     // 後処理 / Post-processing
     // =========================================
 
+    /**
+     * 分割・拡張の結果をクロップし、Pathfinder Merge で同色の重なりを整理する。
+     * @param {Document} targetDoc - 対象ドキュメント
+     * @returns {boolean} 整理できたら true、対象が見つからなければ false
+     */
     function furtherExpandSelection(targetDoc) {
         targetDoc.activate();
         app.executeMenuCommand('Live Pathfinder Crop');
@@ -211,25 +215,52 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
         return true;
     }
 
+    /**
+     * 分割結果の両端だけを残し、ブレンドに置き換える。
+     * @param {Document} targetDoc - 対象ドキュメント
+     * @param {number} gradientSteps - ステップ数
+     * @returns {boolean} 変換できたら true、対象が足りなければ false
+     */
     function convertToBlend(targetDoc, gradientSteps) {
         /* furtherExpandSelection と同じ前処理（Crop → expandStyle → Merge → expandStyle）
            Same pre-processing as furtherExpandSelection */
         if (!furtherExpandSelection(targetDoc)) return false;
 
-        /* 包んでいるグループ／コンパウンドを後で片付けるため記録
+        var endPaths = reduceToEndPaths(targetDoc);
+        if (endPaths === null) return false;
+
+        /* 2点を選択してブレンド作成 / Select the two items and run Blend Make */
+        app.executeMenuCommand("deselectall");
+        endPaths.backItem.selected = true;
+        endPaths.frontItem.selected = true;
+        app.executeMenuCommand('Path Blend Make');
+
+        /* ブレンドのステップ数を gradientSteps - 2 で設定 / Set blend specified steps */
+        var blendSteps = (gradientSteps - 2 > 0) ? gradientSteps - 2 : 0;
+        playEmbeddedAction(
+            buildBlendOptionsActionSource(blendSteps, BLEND_ACTION_SET_NAME, BLEND_ACTION_NAME),
+            BLEND_ACTION_SET_NAME,
+            BLEND_ACTION_NAME
+        );
+
+        return true;
+    }
+
+    /**
+     * 選択配下の塗りパスから最前面・最背面だけを残し、レイヤー直下へ移動する。
+     * @param {Document} targetDoc - 対象ドキュメント
+     * @returns {object} frontItem / backItem を持つオブジェクト、2つ揃わなければ null
+     */
+    function reduceToEndPaths(targetDoc) {
+        /* 包んでいるグループ／コンパウンドは後で片付けるため記録
            Remember the wrapping containers so we can drop them later */
         var originalContainers = [];
-        for (var i = 0; i < targetDoc.selection.length; i++) {
-            originalContainers.push(targetDoc.selection[i]);
-        }
-
-        /* 選択配下から塗り（または線）のある葉パスを再帰収集
-           Recursively collect painted leaf paths under the selection */
         var paintedPaths = [];
         for (var i = 0; i < targetDoc.selection.length; i++) {
+            originalContainers.push(targetDoc.selection[i]);
             collectPaintedDescendantPaths(targetDoc.selection[i], paintedPaths);
         }
-        if (paintedPaths.length < 2) return false;
+        if (paintedPaths.length < 2) return null;
 
         /* 親共通なら親内 z 順（前面=0）で並べ替え / Sort by parent's z-order when parents are shared */
         paintedPaths = sortByZOrderWhenShared(paintedPaths);
@@ -246,26 +277,21 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
         frontItem.move(hostLayer, ElementPlacement.PLACEATEND);
         backItem.move(hostLayer, ElementPlacement.PLACEATEND);
         for (var i = 0; i < originalContainers.length; i++) {
+            /* 選択項目自体が両端のパスだった場合は消さない / Keep the end paths when they were selected directly */
+            if (originalContainers[i] === frontItem || originalContainers[i] === backItem) continue;
+            /* 移動で空になった包みは既に消えている場合がある / The wrapper may already be gone */
             try { originalContainers[i].remove(); } catch (e) { }
         }
 
-        /* 2点を選択してブレンド作成 / Select the two items and run Blend Make */
-        app.executeMenuCommand("deselectall");
-        backItem.selected = true;
-        frontItem.selected = true;
-        app.executeMenuCommand('Path Blend Make');
-
-        /* ブレンドのステップ数を gradientSteps - 2 で設定 / Set blend specified steps */
-        var blendSteps = (gradientSteps - 2 > 0) ? gradientSteps - 2 : 0;
-        playEmbeddedAction(
-            buildBlendOptionsActionSource(blendSteps, BLEND_ACTION_SET_NAME, BLEND_ACTION_NAME),
-            BLEND_ACTION_SET_NAME,
-            BLEND_ACTION_NAME
-        );
-
-        return true;
+        return { frontItem: frontItem, backItem: backItem };
     }
 
+    /**
+     * 塗りまたは線を持つ葉パスを再帰的に収集する。
+     * @param {object} item - 走査対象のページアイテム
+     * @param {object[]} result - 収集先の配列
+     * @returns {void}
+     */
     function collectPaintedDescendantPaths(item, result) {
         if (!item) return;
         if (item.typename === "GroupItem") {
@@ -284,27 +310,39 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
         }
     }
 
+    /**
+     * 親が共通のときだけ、親内の z 順（前面が先頭）に並べ替える。
+     * @param {object[]} paths - 並べ替えるパスの配列
+     * @returns {object[]} 並べ替えた配列、親がばらけていれば元の配列
+     */
     function sortByZOrderWhenShared(paths) {
         if (paths.length < 2) return paths;
+
         var sharedParent = paths[0].parent;
         for (var i = 1; i < paths.length; i++) {
             if (paths[i].parent !== sharedParent) return paths;
         }
-        var indexed = [];
-        for (var i = 0; i < paths.length; i++) {
-            for (var j = 0; j < sharedParent.pageItems.length; j++) {
-                if (sharedParent.pageItems[j] === paths[i]) {
-                    indexed.push({ item: paths[i], zIndex: j });
+
+        /* 親の pageItems は前面から後面の順なので、その順に拾い直す
+           The parent's pageItems run front to back, so collect in that order */
+        var sorted = [];
+        for (var i = 0; i < sharedParent.pageItems.length; i++) {
+            for (var j = 0; j < paths.length; j++) {
+                if (paths[j] === sharedParent.pageItems[i]) {
+                    sorted.push(paths[j]);
                     break;
                 }
             }
         }
-        indexed.sort(function (a, b) { return a.zIndex - b.zIndex; });
-        var sorted = [];
-        for (var i = 0; i < indexed.length; i++) sorted.push(indexed[i].item);
-        return sorted;
+
+        return (sorted.length === paths.length) ? sorted : paths;
     }
 
+    /**
+     * 選択中でライブ効果を適用できる最初のアイテムを返す。
+     * @param {Document} targetDoc - 対象ドキュメント
+     * @returns {object} 適用できるアイテム、見つからなければ null
+     */
     function getFirstEffectApplicableSelectionItem(targetDoc) {
         if (!targetDoc || !targetDoc.selection || targetDoc.selection.length === 0) return null;
 
@@ -322,6 +360,15 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
     // ダイアログUI / Dialog UI
     // =========================================
 
+    /**
+     * ステップ数と実行後の処理を指定するダイアログを表示する。
+     * @param {string} scriptVersion - タイトルに表示するバージョン
+     * @param {number} defaultSteps - ステップ数の初期値
+     * @param {string} defaultPostProcessMode - 実行後の処理の初期値（"none" / "simple" / "blend"）
+     * @param {function} L - ラベル取得関数
+     * @param {function} labelText - コロン付きラベル取得関数
+     * @returns {object} steps / postProcessMode を持つオブジェクト、キャンセル時は null
+     */
     function showStepsDialog(scriptVersion, defaultSteps, defaultPostProcessMode, L, labelText) {
 
         var stepsDialog = new Window("dialog", L("dialogTitle") + " " + scriptVersion);
@@ -347,18 +394,14 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
         var postProcessSimpleRb = postProcessPanel.add("radiobutton", undefined, L("postProcessSimple"));
         var postProcessBlendRb = postProcessPanel.add("radiobutton", undefined, L("postProcessBlend"));
 
-        if (defaultPostProcessMode === "blend") {
-            postProcessBlendRb.value = true;
-        } else if (defaultPostProcessMode === "simple") {
-            postProcessSimpleRb.value = true;
-        } else {
-            postProcessNoneRb.value = true;
-        }
+        postProcessSimpleRb.value = (defaultPostProcessMode === "simple");
+        postProcessBlendRb.value = (defaultPostProcessMode === "blend");
+        postProcessNoneRb.value = (!postProcessSimpleRb.value && !postProcessBlendRb.value);
 
         var okCancelGroup = stepsDialog.add("group");
         okCancelGroup.alignment = ["right", "center"];
         okCancelGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        okCancelGroup.add("button", undefined, L("ok"), { name: "ok" });
+        okCancelGroup.add("button", undefined, "OK", { name: "ok" });
 
         if (stepsDialog.show() !== 1) return null;
 
@@ -376,6 +419,11 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
 
     }
 
+    /**
+     * 数値入力欄を↑↓キーで増減できるようにする（Shiftで10の倍数にスナップ）。
+     * @param {object} editText - 対象の edittext
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText) {
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
@@ -401,39 +449,54 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
     // 一時アクション生成 / Temporary action generation
     // =========================================
 
+    /**
+     * 分割・拡張（ai_plugin_expand）のアクションソースを組み立てる。
+     * @param {number} gradientSteps - グラデーションの分割数
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @returns {string} .aia のソース
+     */
     function buildExpandActionSource(gradientSteps, setName, actionName) {
-        return ''
-            + '/version 3'
-            + buildActionNameLine(setName)
-            + '/isOpen 1'
-            + '/actionCount 1'
-            + '/action-1 {'
-            + ' ' + buildActionNameLine(actionName)
-            + ' /keyIndex 0'
-            + ' /colorIndex 0'
-            + ' /isOpen 1'
-            + ' /eventCount 1'
-            + ' /event-1 {'
-            + ' /useRulersIn1stQuadrant 0'
-            + ' /internalName (ai_plugin_expand)'
-            + ' /localizedName [ 15 e58886e589b2e383bbe68ba1e5bcb5 ]'
-            + ' /isOpen 1'
-            + ' /isOn 1'
-            + ' /hasDialog 1'
-            + ' /showDialog 0'
-            + ' /parameterCount 5'
-            + ' /parameter-1 { /key 1868720756 /showInPalette 4294967295 /type (boolean) /value 0 }'
-            + ' /parameter-2 { /key 1718185068 /showInPalette 4294967295 /type (boolean) /value 1 }'
-            + ' /parameter-3 { /key 1937011307 /showInPalette 4294967295 /type (boolean) /value 0 }'
-            + ' /parameter-4 { /key 1936553064 /showInPalette 4294967295 /type (boolean) /value 0 }'
-            + ' /parameter-5 { /key 1937007984 /showInPalette 4294967295 /type (integer) /value ' + gradientSteps + ' }'
-            + ' }'
-            + '}';
+        var parameters = [
+            buildParameterLine(1, 1868720756, "boolean", 0, ""),
+            buildParameterLine(2, 1718185068, "boolean", 1, ""),
+            buildParameterLine(3, 1937011307, "boolean", 0, ""),
+            buildParameterLine(4, 1936553064, "boolean", 0, ""),
+            buildParameterLine(5, 1937007984, "integer", gradientSteps, "")
+        ];
+        /* 表示名「分割・拡張」 / Localized name */
+        return buildActionSource(setName, actionName, "ai_plugin_expand", "e58886e589b2e383bbe68ba1e5bcb5", parameters);
     }
 
+    /**
+     * ブレンドオプション（ai_plugin_liveblend）のアクションソースを組み立てる。
+     * @param {number} blendSteps - 中間オブジェクトの数
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @returns {string} .aia のソース
+     */
     function buildBlendOptionsActionSource(blendSteps, setName, actionName) {
-        /* ai_plugin_liveblend に Specified Steps / step 数 / 方向(Page) を渡す
-           Pass Specified Steps mode, step count, and orientation (Page) to ai_plugin_liveblend */
+        /* オプション（ステップ数）・step 数・方向（垂直方向）を渡す
+           Pass Specified Steps mode, step count, and orientation */
+        var parameters = [
+            buildParameterLine(1, 1835363957, "enumerated", 5, "e382aae38397e382b7e383a7e383b3"),
+            buildParameterLine(2, 1937007984, "integer", blendSteps, ""),
+            buildParameterLine(3, 1919906913, "enumerated", 0, "e59e82e79bb4e696b9e59091")
+        ];
+        /* 表示名「ブレンド」 / Localized name */
+        return buildActionSource(setName, actionName, "ai_plugin_liveblend", "e38396e383ace383b3e38389", parameters);
+    }
+
+    /**
+     * 1イベントだけのアクションセットを組み立てる。
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @param {string} internalName - プラグインの内部名
+     * @param {string} localizedNameHex - パネル表示名のUTF-8 16進表現
+     * @param {string[]} parameters - パラメーター行の配列
+     * @returns {string} .aia のソース
+     */
+    function buildActionSource(setName, actionName, internalName, localizedNameHex, parameters) {
         return ''
             + '/version 3'
             + buildActionNameLine(setName)
@@ -447,24 +510,59 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
             + ' /eventCount 1'
             + ' /event-1 {'
             + ' /useRulersIn1stQuadrant 0'
-            + ' /internalName (ai_plugin_liveblend)'
-            + ' /localizedName [ 12 e38396e383ace383b3e38389 ]'
-            + ' /isOpen 0'
+            + ' /internalName (' + internalName + ')'
+            + ' /localizedName ' + buildHexTextBlock(localizedNameHex)
+            + ' /isOpen 1'
             + ' /isOn 1'
             + ' /hasDialog 1'
             + ' /showDialog 0'
-            + ' /parameterCount 3'
-            + ' /parameter-1 { /key 1835363957 /showInPalette 4294967295 /type (enumerated) /name [ 15 e382aae38397e382b7e383a7e383b3 ] /value 5 }'
-            + ' /parameter-2 { /key 1937007984 /showInPalette 4294967295 /type (integer) /value ' + blendSteps + ' }'
-            + ' /parameter-3 { /key 1919906913 /showInPalette 4294967295 /type (enumerated) /name [ 12 e59e82e79bb4e696b9e59091 ] /value 0 }'
+            + ' /parameterCount ' + parameters.length
+            + parameters.join('')
             + ' }'
             + '}';
     }
 
-    function buildActionNameLine(actionName) {
-        return '/name [ ' + actionName.length + ' ' + stringToHex(actionName) + ' ]\n';
+    /**
+     * アクションのパラメーター1行を組み立てる。
+     * @param {number} index - パラメーター番号（1始まり）
+     * @param {number} key - パラメーターキー
+     * @param {string} type - 値の型（boolean / integer / enumerated）
+     * @param {number} value - 値
+     * @param {string} localizedNameHex - 表示名のUTF-8 16進表現（不要なら空文字）
+     * @returns {string} パラメーター行
+     */
+    function buildParameterLine(index, key, type, value, localizedNameHex) {
+        return ' /parameter-' + index
+            + ' { /key ' + key
+            + ' /showInPalette 4294967295'
+            + ' /type (' + type + ')'
+            + (localizedNameHex ? ' /name ' + buildHexTextBlock(localizedNameHex) : '')
+            + ' /value ' + value + ' }';
     }
 
+    /**
+     * アクション名の行を組み立てる。
+     * @param {string} actionName - アクション名（ASCII）
+     * @returns {string} /name の行
+     */
+    function buildActionNameLine(actionName) {
+        return '/name ' + buildHexTextBlock(stringToHex(actionName)) + '\n';
+    }
+
+    /**
+     * .aia の文字列表記 [ バイト数 16進 ] を組み立てる。
+     * @param {string} hexText - 16進表現
+     * @returns {string} [ バイト数 16進 ] の形式
+     */
+    function buildHexTextBlock(hexText) {
+        return '[ ' + (hexText.length / 2) + ' ' + hexText + ' ]';
+    }
+
+    /**
+     * 文字列を16進表現に変換する。
+     * @param {string} sourceText - 変換元の文字列（ASCII）
+     * @returns {string} 16進表現
+     */
     function stringToHex(sourceText) {
         var hexText = "";
         for (var i = 0; i < sourceText.length; i++) {
@@ -479,11 +577,16 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
     // 一時アクション実行 / Temporary action playback
     // =========================================
 
+    /**
+     * 一時的な .aia を書き出してロード・再生し、後始末まで行う。
+     * @param {string} actionSource - .aia のソース
+     * @param {string} setName - アクションセット名
+     * @param {string} actionName - アクション名
+     * @returns {void}
+     */
     function playEmbeddedAction(actionSource, setName, actionName) {
 
         var actionFile = new File('~/ExpandGradientAction.aia');
-        var isActionLoaded = false;
-        var isActionFileOpen = false;
 
         /* 既存の同名セットが残っているとロードが効かないので、先に外す / Unload first in case the set is still loaded */
         try { app.unloadAction(setName, ""); } catch (e) { }
@@ -492,28 +595,16 @@ var SCRIPT_UPDATED  = "2026-05-25";                   /* 更新日 / last update
             if (!actionFile.open('w')) {
                 throw new Error('Failed to open temporary action file for writing.');
             }
-            isActionFileOpen = true;
-
             actionFile.write(actionSource);
             actionFile.close();
-            isActionFileOpen = false;
 
             app.loadAction(actionFile);
-            isActionLoaded = true;
-
             app.doScript(actionName, setName, false);
         } finally {
-            if (isActionFileOpen) {
-                try { actionFile.close(); } catch (e) { }
-            }
-
-            if (actionFile.exists) {
-                try { actionFile.remove(); } catch (e) { }
-            }
-
-            if (isActionLoaded) {
-                try { app.unloadAction(setName, ""); } catch (e) { }
-            }
+            /* close / remove は失敗しても false を返すだけ / close and remove just return false on failure */
+            actionFile.close();
+            actionFile.remove();
+            try { app.unloadAction(setName, ""); } catch (e) { }
         }
 
     }
