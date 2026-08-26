@@ -64,8 +64,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     var KEYWORD_STOP_WORDS = ["and", "the", "for", "with", "from", "into", "その他"];
 
     /* Finder表示に使うAutomatorアプリと、パスを受け渡す一時ファイル / Automator app used to reveal a file */
+    /* 一時ファイル名はアプリ内のAppleScriptが読む固定名。アプリを旧名 IllustratorRevealLink.app から
+       改名した名残で綴りが揃っていないが、アプリ側を直すまでここは変えない
+       / The temp file name is hard-coded in the app; leave it until the app itself is updated */
     var REVEAL_APP_PATH  = "/Applications/RevealInFinder.app";
-    var REVEAL_PATH_FILE = "/tmp/reveal_in_finder_path.txt";
+    var REVEAL_PATH_FILE = "/tmp/illustrator_reveal_path.txt";
 
     /* 「サブディレクトリを含む」の初期状態 / Initial state of the subfolder checkbox */
     var INCLUDE_SUBFOLDERS_DEFAULT = false;
