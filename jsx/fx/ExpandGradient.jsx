@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトに［オブジェクト］＞［分割・拡張］を実行し、グラデーションを指定したステップ数で分割します。
-内部で一時的な .aia アクションを生成・ロード・再生し、実行後にアンロードして一時ファイルを削除します。
+選択オブジェクトのグラデーションを、指定した数の単色オブジェクトに分割します。
+分割後の後処理として、重なりを整理してひとまとめにする／両端からブレンドを作成する、を選べます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Runs Object > Expand on the selection to break a gradient into a given number of steps.
-A temporary .aia action is generated, loaded and played internally, then unloaded and deleted.
+Splits the gradient on the selected objects into a given number of solid-color objects.
+Post-processing can tidy the overlaps into a single set or build a blend from the two end objects.
 
 See the README for details.
 
@@ -23,7 +23,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExpandGradient";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
@@ -45,6 +45,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
     /* 分割・拡張の補正値（Illustrator は指定値より1つ少ないオブジェクトを生成する） / Offset for Expand (Illustrator yields one object fewer than specified) */
     var EXPAND_STEP_OFFSET = 1;
 
+    /* 「ブレンドに変換」時のステップ数（固定・ダイアログではディム表示） / Fixed step count for "Convert to blend" (dimmed in the dialog) */
+    var BLEND_FIXED_STEPS = 2;
+
     /* 後処理モードの既定値（"none" / "simple" / "blend"） / Default post-process mode ("none" / "simple" / "blend") */
     var DEFAULT_POST_PROCESS_MODE = "simple";
 
@@ -57,9 +60,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
     /* 一時アクションのアクション名 / Temporary action name */
     var ACTION_NAME = "Expand-gradient";
 
-    /* ブレンドオプション用の一時アクション名 / Temporary action names for blend options */
-    var BLEND_ACTION_SET_NAME = "ExpandGradient_blend_tmp";
-    var BLEND_ACTION_NAME = "setBlendStep";
 
     (function () {
 
@@ -174,7 +174,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
                 return;
             }
         } else if (postProcessMode === "blend") {
-            if (!convertToBlend(activeDoc, gradientSteps)) {
+            if (!convertToBlend(activeDoc)) {
                 alert(L("alertBlendTargetNotFound"));
                 return;
             }
@@ -218,10 +218,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
     /**
      * 分割結果の両端だけを残し、ブレンドに置き換える。
      * @param {Document} targetDoc - 対象ドキュメント
-     * @param {number} gradientSteps - ステップ数
      * @returns {boolean} 変換できたら true、対象が足りなければ false
      */
-    function convertToBlend(targetDoc, gradientSteps) {
+    function convertToBlend(targetDoc) {
         /* furtherExpandSelection と同じ前処理（Crop → expandStyle → Merge → expandStyle）
            Same pre-processing as furtherExpandSelection */
         if (!furtherExpandSelection(targetDoc)) return false;
@@ -234,14 +233,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
         endPaths.backItem.selected = true;
         endPaths.frontItem.selected = true;
         app.executeMenuCommand('Path Blend Make');
-
-        /* ブレンドのステップ数を gradientSteps - 2 で設定 / Set blend specified steps */
-        var blendSteps = (gradientSteps - 2 > 0) ? gradientSteps - 2 : 0;
-        playEmbeddedAction(
-            buildBlendOptionsActionSource(blendSteps, BLEND_ACTION_SET_NAME, BLEND_ACTION_NAME),
-            BLEND_ACTION_SET_NAME,
-            BLEND_ACTION_NAME
-        );
 
         return true;
     }
@@ -398,6 +389,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
         postProcessBlendRb.value = (defaultPostProcessMode === "blend");
         postProcessNoneRb.value = (!postProcessSimpleRb.value && !postProcessBlendRb.value);
 
+        /* 「ブレンドに変換」はステップ数を固定し、入力欄をディムにする（戻したときは元の値へ）
+           Convert to blend fixes the step count and dims the field; the previous value returns on switch back */
+        var keptStepsText = String(defaultSteps);
+        function updateStepsAvailability() {
+            if (postProcessBlendRb.value) {
+                if (stepsInput.enabled) keptStepsText = stepsInput.text;
+                stepsInput.text = String(BLEND_FIXED_STEPS);
+                stepsInput.enabled = false;
+                return;
+            }
+            if (!stepsInput.enabled) stepsInput.text = keptStepsText;
+            stepsInput.enabled = true;
+        }
+        postProcessNoneRb.onClick = updateStepsAvailability;
+        postProcessSimpleRb.onClick = updateStepsAvailability;
+        postProcessBlendRb.onClick = updateStepsAvailability;
+        updateStepsAvailability();
+
         var okCancelGroup = stepsDialog.add("group");
         okCancelGroup.alignment = ["right", "center"];
         okCancelGroup.add("button", undefined, L("cancel"), { name: "cancel" });
@@ -466,25 +475,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
         ];
         /* 表示名「分割・拡張」 / Localized name */
         return buildActionSource(setName, actionName, "ai_plugin_expand", "e58886e589b2e383bbe68ba1e5bcb5", parameters);
-    }
-
-    /**
-     * ブレンドオプション（ai_plugin_liveblend）のアクションソースを組み立てる。
-     * @param {number} blendSteps - 中間オブジェクトの数
-     * @param {string} setName - アクションセット名
-     * @param {string} actionName - アクション名
-     * @returns {string} .aia のソース
-     */
-    function buildBlendOptionsActionSource(blendSteps, setName, actionName) {
-        /* オプション（ステップ数）・step 数・方向（垂直方向）を渡す
-           Pass Specified Steps mode, step count, and orientation */
-        var parameters = [
-            buildParameterLine(1, 1835363957, "enumerated", 5, "e382aae38397e382b7e383a7e383b3"),
-            buildParameterLine(2, 1937007984, "integer", blendSteps, ""),
-            buildParameterLine(3, 1919906913, "enumerated", 0, "e59e82e79bb4e696b9e59091")
-        ];
-        /* 表示名「ブレンド」 / Localized name */
-        return buildActionSource(setName, actionName, "ai_plugin_liveblend", "e38396e383ace383b3e38389", parameters);
     }
 
     /**

@@ -10,9 +10,9 @@
 
 ### Overview
 
-Runs Object > Expand on the selection to break a gradient into a given number of steps.
+Splits the gradient on the selected objects into a given number of solid-color objects.
 
-A temporary .aia action is generated, loaded and played internally, then unloaded and deleted.
+Post-processing can tidy the overlaps into a single set, or build a blend from the two end objects.
 
 ### Usage
 
@@ -24,17 +24,21 @@ A temporary .aia action is generated, loaded and played internally, then unloade
 
 **Steps**
 
-Defaults to 5; any integer of 2 or more. Up/Down adjusts by 1, Shift+Up/Down snaps to multiples of 10.
+The number of solid-color objects to produce. Defaults to 5; any integer of 2 or more. Up/Down adjusts by 1, Shift+Up/Down snaps to multiples of 10.
+
+With "Convert to blend" selected the value is fixed at 2 and the field is dimmed.
 
 **Post-processing**
 
-- None: expand only
-- Simple expand: expand the appearance afterwards
-- Convert to blend: after expanding, build a blend from the two end objects
+- None: Object > Expand only (the clipping group is kept)
+- Simple expand: apply Pathfinder Crop and Merge to tidy the result into solid-color objects
+- Convert to blend: after the above, keep only the two end objects and build a blend
 
 ### Notes
 
-- The action set and action names are kept in constants, and the names inside the .aia are generated from the same values.
+- A temporary .aia action is generated, loaded and played internally, then unloaded and deleted. The action set and action names are kept in constants, and the names inside the .aia are generated from the same values.
+- Illustrator's Expand yields one object fewer than specified, so the script compensates for it.
+- The step count of "Convert to blend" comes from Illustrator's current Blend Options setting.
 
 ### Article
 
@@ -42,4 +46,5 @@ Defaults to 5; any integer of 2 or more. Up/Down adjusts by 1, Shift+Up/Down sna
 
 ### Update History
 
+- v1.1.2 (2026-08-27): Fixed the object count coming out one short; the step count is fixed at 2 and dimmed for "Convert to blend"; added the article link; removed ExpandGradient-v2.jsx; cleaned up the code
 - v1.1.0 (2026-05-25)
