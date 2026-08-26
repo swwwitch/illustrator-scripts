@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したオブジェクトを、最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落としのいずれかの基準でリサイズし、あわせて横位置・縦位置の整列も行えます。
+選択したオブジェクトを、最大／最小／キーオブジェクト／指定サイズ／基準辺／面積／アートボード／裁ち落としのいずれかの基準でリサイズし、あわせて横位置・縦位置の整列も行えます。
 縦横比保持と片辺のみを切り替えでき、操作はリアルタイムにプレビューされます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Resizes the selected objects to the largest, the smallest, a given size, a reference edge, an area, the artboard, or the bleed, and can align them horizontally and vertically at the same time.
+Resizes the selected objects to the largest, the smallest, the key object, a given size, a reference edge, an area, the artboard, or the bleed, and can align them horizontally and vertically at the same time.
 You can switch between keeping the aspect ratio and constraining a single edge, with a real-time preview.
 
 See the README for details.
@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectResizer";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-26";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectResizer.md
@@ -38,6 +38,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
+/**
+ * @discussion 参考 / Reference
+ * キーオブジェクトの取得方法
+ * 自分用メモ (@mute_racoon3631)
+ * https://note.com/mute_racoon3631/n/n5dfae854988a
+ */
+
 (function () {
     // =========================================
     // ユーザー設定 / User Settings
@@ -47,7 +54,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 15;                 /* 2カラムの間隔 / gap between columns */
-    var LABEL_WIDTH    = 90;                 /* 行ラベルの共通幅 / shared row-label width */
+    var LABEL_WIDTH    = 122;                /* 行ラベルの共通幅（右揃え）/ shared row-label width (right-aligned) */
     var BLEED_OFFSET_PT = 6 * 2.83464567;    /* 裁ち落とし: 片側3mm＝幅/高さそれぞれ+6mm / bleed 3mm per side */
 
     /* ダイアログ位置をセッション内で記憶（Illustrator終了でリセット） */
@@ -121,13 +128,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             vAlign: { ja: "整列{openParen}縦{closeParen}", en: "Align {openParen}V{closeParen}" }
         },
         field: {
-            max:      { ja: "最大",         en: "Max" },
-            min:      { ja: "最小",         en: "Min" },
-            fixed:    { ja: "指定サイズ",   en: "Fixed Size" },
-            base:     { ja: "基準辺",       en: "Ref. side" },
-            area:     { ja: "面積",         en: "Area" },
-            artboard: { ja: "アートボード", en: "Artboard" },
-            bleed:    { ja: "裁ち落とし",   en: "Bleed" }
+            max:      { ja: "最大",             en: "Max" },
+            min:      { ja: "最小",             en: "Min" },
+            key:      { ja: "キーオブジェクト", en: "Key object" },
+            fixed:    { ja: "指定サイズ",       en: "Fixed Size" },
+            base:     { ja: "基準辺",           en: "Ref. side" },
+            area:     { ja: "面積",             en: "Area" },
+            artboard: { ja: "アートボード",     en: "Artboard" },
+            bleed:    { ja: "裁ち落とし",       en: "Bleed" }
         },
         radio: {
             keepAspect:  { ja: "縦横比保持", en: "Keep aspect" },
@@ -159,6 +167,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         tooltip: {
             keepAspect:  { ja: "縦横比を保ったまま拡大／縮小します。", en: "Scale while keeping the aspect ratio." },
             oneSideOnly: { ja: "幅または高さの片辺だけを変更します（縦横比は保持しません）。", en: "Change only one side (width or height); aspect ratio is not preserved." },
+            key:         { ja: "キーオブジェクト（整列の基準に指定したオブジェクト）の幅／高さに、各オブジェクトをそろえます。", en: "Match every object to the width / height of the key object (the one set as the align target)." },
+            keyNone:     { ja: "キーオブジェクトが設定されていません。選択したうえで、基準にしたいオブジェクトをもう一度クリックしてください。", en: "No key object is set. With the objects selected, click the one you want as the key again." },
             base:        { ja: "基準となる辺（長辺／短辺）の長さに合わせて、各オブジェクトをリサイズします。", en: "Resize each object to match the chosen reference side (long / short)." },
             area:        { ja: "選択オブジェクトの面積を、最大／最小のものにそろえます。", en: "Match object areas to the largest / smallest in the selection." },
             artboard:    { ja: "選択全体をアートボードの幅／高さに合わせ、中央に配置します。", en: "Fit the whole selection to the artboard width / height and center it." },
@@ -297,6 +307,64 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         for (var i = 0; i < originalSelectedItems.length; i++) appliedLineScales.push(100);
     }
     resetAppliedLineScales();
+
+    // --- キーオブジェクトの検出 / Key object detection ---
+    // Illustrator の DOM にキーオブジェクトを示すプロパティは無いため、整列コマンドで実測して特定する。
+    // キーオブジェクトが設定されていると、どの向きに整列してもそのオブジェクトだけは動かない。
+    // 左右上下の4方向すべてで動かなかったものだけを採用する。1方向だけだと「たまたま端にいた
+    // オブジェクト」を拾ってしまうが、4方向すべての端を兼ねることは（同一バウンズでない限り）無い。
+    // 候補が0個または2個以上のときは判定不能として null を返し、UI 側でこの基準をディムする。
+    // Illustrator exposes no key-object property, so probe it: run the align commands and see
+    // which item stays put in all four directions. Ambiguous results yield null.
+
+    /* 整列後の位置差をどこまで「動いていない」とみなすか（pt） / Move tolerance in points */
+    var KEY_DETECT_TOLERANCE_PT = 0.001;
+
+    /**
+     * 選択オブジェクトからキーオブジェクトを検出する / Detect the key object in the selection
+     * @param {array} items 判定対象のオブジェクト配列
+     * @returns {object} キーオブジェクト。判定できないときは null
+     */
+    function detectKeyObject(items) {
+        if (!items || items.length < 2) return null;
+        var alignCommands = ["Horizontal Align Left", "Horizontal Align Right", "Vertical Align Top", "Vertical Align Bottom"];
+        var stayedPut = [];
+        for (var i = 0; i < items.length; i++) stayedPut.push(true);
+
+        for (var c = 0; c < alignCommands.length; c++) {
+            var saved = [];
+            for (var i = 0; i < items.length; i++) saved.push([items[i].left, items[i].top]);
+            app.redraw(); // executeMenuCommand は直前の DOM 変更が反映されていないと空振りする
+            app.executeMenuCommand(alignCommands[c]);
+            for (var i = 0; i < items.length; i++) {
+                if (Math.abs(items[i].left - saved[i][0]) > KEY_DETECT_TOLERANCE_PT ||
+                    Math.abs(items[i].top - saved[i][1]) > KEY_DETECT_TOLERANCE_PT) {
+                    stayedPut[i] = false;
+                }
+                // 整列は検出のための試行なので、その場で元の位置へ戻す
+                items[i].left = saved[i][0];
+                items[i].top = saved[i][1];
+            }
+        }
+        app.redraw();
+
+        var found = null;
+        for (var i = 0; i < items.length; i++) {
+            if (!stayedPut[i]) continue;
+            if (found !== null) return null; // 複数残った＝判定不能
+            found = items[i];
+        }
+        return found;
+    }
+
+    var keyObject = null;
+    try {
+        keyObject = detectKeyObject(originalSelectedItems);
+    } catch (e) {
+        // 検出に失敗してもスクリプト自体は続行する（この基準がディムされるだけ）
+        $.writeln("SmartObjectResizer: キーオブジェクトの検出に失敗 / key object detection failed — " + e);
+        keyObject = null;
+    }
 
     var outlineBoundsCache = {};
     var outlineBoundsCacheSeq = 1;
@@ -467,13 +535,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         });
     }
 
+    /**
+     * 共通幅で右揃えの行ラベルを追加する / Add a right-aligned row label of the shared width
+     * @param {object} parent 追加先のグループ
+     * @param {string} text ラベル文字列（空文字なら幅だけのスペーサーになる）
+     * @returns {object} 追加した statictext
+     */
+    function addRowLabel(parent, text) {
+        var labelText = parent.add("statictext", undefined, text);
+        labelText.preferredSize.width = LABEL_WIDTH;
+        labelText.justify = "right";
+        return labelText;
+    }
+
     // 単純な「ラベル＋ラジオ複数」の1行を作る
     function createRadioGroup(label, optionLabels, parent) {
         var group = parent.add("group");
         group.orientation = "row";
         group.alignChildren = ["left", "center"];
-        var labelText = group.add("statictext", undefined, label);
-        labelText.preferredSize.width = LABEL_WIDTH;
+        addRowLabel(group, label);
         var buttons = [];
         for (var i = 0; i < optionLabels.length; i++) {
             var radioButton = group.add("radiobutton", undefined, optionLabels[i]);
@@ -490,8 +570,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         var sizeHeaderGroup = parent.add("group");
         sizeHeaderGroup.orientation = "row";
         sizeHeaderGroup.alignChildren = ["left", "center"];
-        var sizeLabel = sizeHeaderGroup.add("statictext", undefined, label);
-        sizeLabel.preferredSize.width = LABEL_WIDTH;
+        addRowLabel(sizeHeaderGroup, label);
         var widthRadio = sizeHeaderGroup.add("radiobutton", undefined, optionLabels[0]);
         var heightRadio = sizeHeaderGroup.add("radiobutton", undefined, optionLabels[1]);
         allRadioButtons.push(widthRadio, heightRadio);
@@ -500,8 +579,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         var sizeInputGroup = parent.add("group");
         sizeInputGroup.orientation = "row";
         sizeInputGroup.alignChildren = ["left", "center"];
-        var labelSpacer = sizeInputGroup.add("statictext", undefined, ""); // 空ラベル
-        labelSpacer.preferredSize.width = LABEL_WIDTH;
+        addRowLabel(sizeInputGroup, ""); // 空ラベル（入力欄の左端をそろえる）
 
         // 選択オブジェクトの平均幅を初期値に
         var totalWidth = 0;
@@ -538,7 +616,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     var maxRadios = createRadioGroup(fieldLabel("field.max"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 2. 最小
     var minRadios = createRadioGroup(fieldLabel("field.min"), [L("radio.width"), L("radio.height")], resizeBasePanel);
-    // 3. 指定サイズ（ラジオ＋数値欄一体）
+    // 3. キーオブジェクト
+    var keyRadios = createRadioGroup(fieldLabel("field.key"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    // 4. 指定サイズ（ラジオ＋数値欄一体）
     var fixedRadios = createFixedSizeGroup(fieldLabel("field.fixed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 5. 基準辺
     var baseRadios = createRadioGroup(fieldLabel("field.base"), [L("radio.longSide"), L("radio.shortSide")], resizeBasePanel);
@@ -551,11 +631,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // 9. 裁ち落とし
     var bleedRadios = createRadioGroup(fieldLabel("field.bleed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
 
+    // キーオブジェクトが特定できなかったときは、この行だけディムする
+    keyRadios[0].parent.enabled = !!keyObject;
+
     // radioGroupsの並び順も新順に
-    // [最大, 最小, 指定サイズ, 基準辺, 面積, アートボード, 裁ち落とし]
-    radioGroups.push(maxRadios, minRadios, fixedRadios, baseRadios, areaRadios, artboardRadios, bleedRadios);
+    // [最大, 最小, キーオブジェクト, 指定サイズ, 基準辺, 面積, アートボード, 裁ち落とし]
+    radioGroups.push(maxRadios, minRadios, keyRadios, fixedRadios, baseRadios, areaRadios, artboardRadios, bleedRadios);
 
     // 意味が自明でない基準にツールチップを設定（最大／最小／指定サイズは自明なため付けない）
+    setHelpTip(keyRadios, keyObject ? L("tooltip.key") : L("tooltip.keyNone"));
     setHelpTip(baseRadios, L("tooltip.base"));
     setHelpTip(areaRadios, L("tooltip.area"));
     setHelpTip(artboardRadios, L("tooltip.artboard"));
@@ -1013,7 +1097,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     }
 
     // 選択中のラジオからリサイズモードをフラグ付きで取得
-    // 基準グループの並び: 0=最大 1=最小 2=指定サイズ 3=基準(長/短) 4=面積 5=アートボード 6=裁ち落とし
+    // 基準グループの並び: 0=最大 1=最小 2=キーオブジェクト 3=指定サイズ 4=基準(長/短) 5=面積 6=アートボード 7=裁ち落とし
     function getSelectedResizeMode() {
         for (var groupIndex = 0; groupIndex < radioGroups.length; groupIndex++) {
             var sideIndex = -1;
@@ -1024,13 +1108,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
                 isWidth: sideIndex === 0,
                 isMax: groupIndex === 0,
                 isMin: groupIndex === 1,
-                isFixed: groupIndex === 2,
-                isLong: groupIndex === 3 && sideIndex === 0,
-                isShort: groupIndex === 3 && sideIndex === 1,
-                isArea: groupIndex === 4,
-                isAreaMax: groupIndex === 4 && sideIndex === 0,
-                isArtboard: groupIndex === 5,
-                isBleed: groupIndex === 6
+                isKey: groupIndex === 2,
+                isFixed: groupIndex === 3,
+                isLong: groupIndex === 4 && sideIndex === 0,
+                isShort: groupIndex === 4 && sideIndex === 1,
+                isArea: groupIndex === 5,
+                isAreaMax: groupIndex === 5 && sideIndex === 0,
+                isArtboard: groupIndex === 6,
+                isBleed: groupIndex === 7
             };
         }
         return null;
@@ -1086,6 +1171,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
     // 目標寸法（ポイント）を算出。面積モードは applyAreaResize で別処理
     function computeReferenceValue(mode) {
+        if (mode.isKey) {
+            if (!keyObject) return null;
+            var keyBounds = getReferenceBounds(keyObject);
+            return mode.isWidth ? keyBounds.width : keyBounds.height;
+        }
         if (mode.isFixed) {
             var parsed = parseFloat(createRadioGroup.sizeInput.text);
             if (isNaN(parsed) || parsed <= 0) return null;
