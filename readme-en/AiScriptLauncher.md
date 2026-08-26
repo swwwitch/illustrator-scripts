@@ -1,4 +1,4 @@
-# AiScriptLauncher
+# Filter scripts by keyword and run them
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AiScriptLauncher.jsx)
 
@@ -19,6 +19,7 @@ Folders and file names are shown in two side-by-side lists, so you reach the scr
 - Incremental search that narrows the candidates as you type
 - Two lists: folders on the left, file names on the right. Picking a folder fills the right list with its contents
 - AND search with space-separated terms
+- A clear (×) button next to the keyword field empties it in one click, and is dimmed while the field is empty
 - Words that appear often in the filtered results become one-click buttons, so you can drill down step by step
 - Option double-click reveals a script in the Finder; double-clicking a folder opens it
 - Nested subfolders (such as `artboard/backup`) can be excluded in one click
@@ -41,6 +42,7 @@ Keyboard:
 | Enter | Run the selected script (works wherever the focus is) |
 | Option + double-click | Reveal in the Finder instead of running |
 | Double-click a folder | Open that folder in the Finder |
+| Click the × in the keyword field | Clear the keyword and drop the filter |
 
 ### Options
 
@@ -125,5 +127,6 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.4.1 (2026-08-27): Added a clear (×) button to the keyword field
 - v1.4.0 (2026-08-26): Switched to two side-by-side lists; added keyword buttons, Finder reveal and the Preferences dialog
 - v1.0.0 (2025-11-13): Initial release

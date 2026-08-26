@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiScriptLauncher.md
@@ -172,6 +172,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     var PRESET_BUTTON_PADDING = 16;          /* 文字幅に足す左右の余白 / horizontal padding */
     var PRESET_CHAR_WIDTH     = 7;           /* 実測できない環境用の1文字概算幅 / fallback char width */
 
+    /* キーワード欄のクリアボタン（自前描画） / Clear button next to the keyword field (custom drawn) */
+    var CLEAR_BUTTON_SIZE    = 20;           /* クリアボタンの一辺 / clear button size */
+    var CLEAR_CIRCLE_INSET   = 2;            /* 円と外周の間隔 / inset of the circle */
+    var CLEAR_GLYPH_INSET    = 6;            /* ×と外周の間隔 / inset of the × glyph */
+    var CLEAR_STROKE_WIDTH   = 1.5;          /* 円と×の線幅 / stroke width */
+
     /**
      * ウィンドウの共通設定を適用する
      * @param {Window} win - 対象ウィンドウ
@@ -257,6 +263,98 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var buttonWidth = Math.ceil(textWidth) + PRESET_BUTTON_PADDING;
         button.preferredSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
         button.minimumSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
+    }
+
+    /**
+     * IllustratorのUIが明るい設定かどうかを返す
+     * @returns {boolean} 明るいUIなら true
+     */
+    function isLightUI() {
+        try {
+            return app.preferences.getRealPreference("uiBrightness") > 0.5;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * クリアボタンの丸と×を描く
+     * @param {Button} button - 対象ボタン
+     * @returns {void}
+     */
+    function drawClearButton(button) {
+        var graphics = button.graphics;
+        var size = button.size[0];
+        var useLightUI = isLightUI();
+
+        /* 主役ではないので、通常時も少し薄めに描く。押している間は濃くして手応えを出す / Slightly muted, darker while pressed */
+        var glyphColor = useLightUI ? [0.45, 0.45, 0.45, 1] : [0.72, 0.72, 0.72, 1];
+        if (button.pressed) glyphColor = useLightUI ? [0.20, 0.20, 0.20, 1] : [0.95, 0.95, 0.95, 1];
+
+        /* キーワードが空のときは無効にしてあるので、さらに淡くする / Dim further while disabled */
+        if (button.enabled === false) glyphColor = useLightUI ? [0.78, 0.78, 0.78, 1] : [0.42, 0.42, 0.42, 1];
+
+        /* 前回の描画を消すため、まず親と同じ色で塗りつぶす / Repaint the background first */
+        try {
+            graphics.newPath();
+            graphics.rectPath(0, 0, size, size);
+            graphics.fillPath(graphics.backgroundColor);
+        } catch (e) {}
+
+        var pen = graphics.newPen(graphics.PenType.SOLID_COLOR, glyphColor, CLEAR_STROKE_WIDTH);
+        var circleSize = size - CLEAR_CIRCLE_INSET * 2;
+        graphics.newPath();
+        graphics.ellipsePath(CLEAR_CIRCLE_INSET, CLEAR_CIRCLE_INSET, circleSize, circleSize);
+        graphics.strokePath(pen);
+
+        var glyphStart = CLEAR_GLYPH_INSET;
+        var glyphEnd = size - CLEAR_GLYPH_INSET;
+        graphics.newPath();
+        graphics.moveTo(glyphStart, glyphStart);
+        graphics.lineTo(glyphEnd, glyphEnd);
+        graphics.strokePath(pen);
+        graphics.newPath();
+        graphics.moveTo(glyphEnd, glyphStart);
+        graphics.lineTo(glyphStart, glyphEnd);
+        graphics.strokePath(pen);
+    }
+
+    /**
+     * キーワードを消すクリアボタンを作る
+     * @param {Group} parent - 追加先のグループ
+     * @returns {Button} 丸に×を自前描画したボタン
+     */
+    function addClearButton(parent) {
+        var button = parent.add("button", undefined, "");
+        button.helpTip = getLabel(LABELS.button.clearKeyword);
+        button.alignment = ["right", "center"];
+        button.preferredSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
+        button.minimumSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
+        button.maximumSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
+        button.pressed = false;
+
+        /* キーワード欄は空の状態で開くので、ディム表示から始める / Start dimmed for the empty field */
+        button.enabled = false;
+
+        button.onDraw = function () {
+            drawClearButton(this);
+        };
+        button.addEventListener("mousedown", function () {
+            this.pressed = true;
+            this.notify("onDraw");
+        });
+        button.addEventListener("mouseup", function () {
+            this.pressed = false;
+            this.notify("onDraw");
+        });
+        /* ボタンの外でマウスを離したときも押下表示を戻す / Reset the pressed look on mouseout */
+        button.addEventListener("mouseout", function () {
+            if (!this.pressed) return;
+            this.pressed = false;
+            this.notify("onDraw");
+        });
+
+        return button;
     }
 
     /**
@@ -365,6 +463,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         },
         button: {
             changeFolder:    { ja: "フォルダー変更", en: "Change Folder" },
+            clearKeyword:    { ja: "キーワードをクリア", en: "Clear keyword" },
             preferences:     { ja: "環境設定", en: "Preferences" },
             cancel:          { ja: "キャンセル", en: "Cancel" },
             run:             { ja: "実行", en: "Run" },
@@ -882,7 +981,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     /**
      * 絞り込みパネルを組み立てる
      * @param {Window} parent - 追加先のウィンドウ
-     * @returns {{panel: Panel, input: EditText, presetContainer: Group}} パネル・入力欄・ボタン置き場
+     * @returns {{panel: Panel, input: EditText, clearButton: Button, presetContainer: Group}} パネル・入力欄・クリアボタン・ボタン置き場
      */
     function buildKeywordPanel(parent) {
         var panel = parent.add("panel", undefined, formatLabel(getLabel(LABELS.panel.keyword), [0]));
@@ -895,6 +994,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var input = row.add("edittext", undefined, "");
         input.alignment = ["fill", "center"];
 
+        var clearButton = addClearButton(row);
+
         /* ボタンは絞り込みのたびに作り直すので、置き場だけ先に用意する / Reserve the area for the preset buttons */
         var presetContainer = panel.add("group");
         presetContainer.orientation = "column";
@@ -902,7 +1003,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         presetContainer.alignment = ["fill", "top"];
         presetContainer.spacing = DENSE_SPACING;
 
-        return { panel: panel, input: input, presetContainer: presetContainer };
+        return { panel: panel, input: input, clearButton: clearButton, presetContainer: presetContainer };
     }
 
     /**
@@ -1029,6 +1130,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var keywordUI = buildKeywordPanel(launcherDialog);
         var keywordPanel = keywordUI.panel;
         var keywordInput = keywordUI.input;
+        var keywordClearButton = keywordUI.clearButton;
         var keywordPresetContainer = keywordUI.presetContainer;
 
         /* 絞り込み結果によく出る語をワンクリックで入れる / One-click presets from the filtered results */
@@ -1107,6 +1209,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
                 /* 押されたボタンは組み直しで消える。先にフォーカスを入力欄へ移しておく */
                 keywordInput.active = true;
+                updateClearButtonState();
                 refreshFolderList();
             };
         }
@@ -1266,8 +1369,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             refreshFolderList();
         }
 
-        keywordInput.onChanging = refreshListIfQueryChanged;
-        keywordInput.onChange = refreshListIfQueryChanged;
+        /**
+         * キーワードの有無に合わせてクリアボタンのディム表示を切り替える
+         * @returns {void}
+         */
+        function updateClearButtonState() {
+            var hasKeyword = trimWhitespace(keywordInput.text) !== "";
+            if (keywordClearButton.enabled === hasKeyword) return;
+            keywordClearButton.enabled = hasKeyword;
+            keywordClearButton.notify("onDraw");
+        }
+
+        /**
+         * キーワードが変わったときの処理をまとめる
+         * @returns {void}
+         */
+        function handleKeywordChanged() {
+            updateClearButtonState();
+            refreshListIfQueryChanged();
+        }
+
+        keywordInput.onChanging = handleKeywordChanged;
+        keywordInput.onChange = handleKeywordChanged;
+        keywordClearButton.onClick = function () {
+            keywordInput.text = "";
+            /* 続けて打ち直せるよう、フォーカスは入力欄へ戻す / Put the focus back in the field */
+            keywordInput.active = true;
+            handleKeywordChanged();
+        };
         btnPreferences.onClick = function () {
             var settings = showPreferencesDialog(targetFolder, presetMinCount, presetMaxButtons);
             if (!settings) return;

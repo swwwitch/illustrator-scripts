@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 アートボードまたは選択オブジェクトの外接矩形を、指定した行数・列数に分割してグリッド用のガイドを生成します。
-アートボードのエッジ、セルの長方形化、中心点の表示、プリセットの読み込み／書き出しにも対応します。
+アートボードのエッジ、セルの長方形化（角丸・中心点の表示）、プリセットの読み込み／書き出しにも対応します。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Divides the artboard, or the bounding box of the selection, into the specified rows and columns and generates grid guides.
-It can also draw the artboard edges, draw the cells as rectangles, mark center points, and import/export presets.
+It can also draw the artboard edges, draw the cells as rectangles (with round corners and center points), and import/export presets.
 
 See the README for details.
 
@@ -23,7 +23,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
