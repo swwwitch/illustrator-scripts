@@ -26,13 +26,14 @@ See the README for details.
 var SCRIPT_NAME     = "AiAdjustVerticalGap";          /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-26";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGap.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVerticalGap.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -66,7 +67,8 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         anchor: {
             title: { ja: "キーオブジェクト", en: "Key object" },
             top: { ja: "上", en: "Top" },
-            bottom: { ja: "下", en: "Bottom" }
+            bottom: { ja: "下", en: "Bottom" },
+            auto: { ja: "自動判定", en: "Auto" }
         },
         gap: {
             title: { ja: "上下間隔", en: "Vertical Gap" }
@@ -101,6 +103,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             anchorBottom: {
                 ja: "基準にする（動かさない）キーオブジェクト。下を選択（ショートカット: B）。",
                 en: "Key object to keep in place. Select bottom (shortcut: B)."
+            },
+            anchorAuto: {
+                ja: "Illustrator で設定したキーオブジェクトを判定して、上下どちらを基準にするか決めます（ショートカット: K）。整列コマンドで一時的に動かして判定し、元の位置へ戻します。判定できないときは「上」になります。",
+                en: "Detect the key object set in Illustrator and use it as the anchor (shortcut: K). Align commands probe temporarily and every item is moved back. Falls back to Top when it cannot be detected."
             },
             gap: {
                 ja: "上下に並ぶ2つのオブジェクト間の距離です。負の値で重なります。↑↓キーで増減（Shiftで±10／Optionで±0.1）。単位は定規に従います。",
@@ -273,16 +279,20 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
     /* TextFrame なら段落の行揃えを設定。実際に変更したら true を返す（no-op 検出用）/
        Set justification on a TextFrame; return true if it actually changed (for no-op detection) */
-    function applyJustification(item, justification) {
+    function applyJustification(item, justification, force) {
         if (justification === null) {
             return false;
         }
         if (item.constructor.name !== "TextFrame") {
             return false;
         }
-        /* 既に目的の行揃えなら何もしない（無駄な undo ステップを作らない）/
-           Skip if already at the target justification (avoids a spurious undo step) */
-        if (item.textRange.paragraphAttributes.justification === justification) {
+        /* 既に目的の行揃えなら何もしない（無駄な undo ステップを作らない）。
+           ただし確定時（force）は取得値に頼らず必ず代入する。undo 直後の
+           paragraphAttributes は前の値を返すことがあり、代入を飛ばすと戻ってしまう /
+           Skip if already at the target justification (avoids a spurious undo step), except on
+           commit (force): paragraphAttributes can report the pre-undo value right after an undo,
+           and skipping the assignment there would leave the justification reverted */
+        if (force !== true && item.textRange.paragraphAttributes.justification === justification) {
             return false;
         }
         if (justification === Justification.LEFT) {
@@ -367,10 +377,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var justifyKey = resolveJustifyKey(options.justify, options.align);
         if (justifyKey !== "none") {
             var justification = resolveJustification(justifyKey);
-            if (applyJustification(itemA, justification)) {
+            if (applyJustification(itemA, justification, options.forceJustify)) {
                 changed = true;
             }
-            if (applyJustification(itemB, justification)) {
+            if (applyJustification(itemB, justification, options.forceJustify)) {
                 changed = true;
             }
         }
@@ -479,6 +489,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         if (app.documents.length === 0) {
             return "NODOC";
         }
+        /* プレビュー分はここで取り消す（別送信で取り消すとプレビューと条件が変わる）/
+           Undo the preview here, in the same send as the apply */
+        if (options.undoFirst === true) {
+            app.undo();
+        }
+        /* 確定なので行揃えは取得値で判定せず必ず適用する / Commit: always assign the justification */
+        options.forceJustify = true;
         var pairs = collectTargetPairs(app.activeDocument.selection);
         if (pairs.length === 0) {
             app.redraw();
@@ -489,6 +506,116 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
         app.redraw();
         return "OK";
+    }
+
+    /* オブジェクトの位置を [x, y] で返す（取得できなければ null）/ Return the item position as [x, y], or null */
+    function getItemPosition(item) {
+        try {
+            var itemPosition = item.position;
+            if (!itemPosition || itemPosition.length !== 2) {
+                return null;
+            }
+            return [Number(itemPosition[0]), Number(itemPosition[1])];
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* 判定で動かしたオブジェクトを元の位置へ戻す / Move every probed item back to its original position */
+    function restoreItemPositions(items, positions) {
+        for (var i = 0; i < items.length; i++) {
+            try {
+                items[i].position = [positions[i][0], positions[i][1]];
+            } catch (e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /* 整列で動いたオブジェクトを候補から外す / Drop candidates that moved during an align probe */
+    function rejectMovedCandidates(items, positions, candidates, tolerance) {
+        for (var i = 0; i < items.length; i++) {
+            if (!candidates[i]) {
+                continue;
+            }
+            var currentPosition = getItemPosition(items[i]);
+            if (currentPosition === null ||
+                Math.abs(currentPosition[0] - positions[i][0]) > tolerance ||
+                Math.abs(currentPosition[1] - positions[i][1]) > tolerance) {
+                candidates[i] = false;
+            }
+        }
+    }
+
+    /* キーオブジェクトを判定（4方向の整列で動かなかった1点）。ExtendScript には
+       キーオブジェクトを取得する API が無いため、整列コマンドを一時的に実行して
+       位置が変わらないオブジェクトを探し、最後に必ず元の位置へ戻す /
+       Detect the key object: the single item that stays put through all four align probes.
+       ExtendScript has no API for it, so align commands are run temporarily and every
+       item is moved back afterwards */
+    function findKeyObject(items) {
+        var alignCommands = ["Horizontal Align Left", "Vertical Align Top", "Horizontal Align Right", "Vertical Align Bottom"];
+        var tolerance = 0.001;
+        var positions = [];
+        var candidates = [];
+        var i;
+        for (i = 0; i < items.length; i++) {
+            positions[i] = getItemPosition(items[i]);
+            if (positions[i] === null) {
+                return null;
+            }
+            candidates[i] = true;
+        }
+        try {
+            for (i = 0; i < alignCommands.length; i++) {
+                /* 2回目以降だけ元位置へ戻す（初回は余計な移動をしない）/ Restore only from the second probe on */
+                if (i > 0 && !restoreItemPositions(items, positions)) {
+                    return null;
+                }
+                app.executeMenuCommand(alignCommands[i]);
+                /* 候補が1つになっても打ち切らず、4方向すべてで動かないことを確認する /
+                   Keep probing all four directions to avoid a false positive */
+                rejectMovedCandidates(items, positions, candidates, tolerance);
+            }
+        } catch (e) {
+            return null;
+        } finally {
+            /* 判定中は redraw せず、最後に一度だけ元位置へ戻す / No redraw while probing; restore once at the end */
+            restoreItemPositions(items, positions);
+        }
+        var keyItem = null;
+        var candidateCount = 0;
+        for (i = 0; i < candidates.length; i++) {
+            if (candidates[i]) {
+                keyItem = items[i];
+                candidateCount++;
+            }
+        }
+        /* 一意に決まったときだけ採用 / Accept only a unique candidate */
+        return (candidateCount === 1) ? keyItem : null;
+    }
+
+    /* 選択2点のキーオブジェクトが上下どちらかを返す / Report whether the key object is the upper or lower item */
+    function findKeyObjectAnchor(options) {
+        if (app.documents.length === 0) {
+            return "NODOC";
+        }
+        var sel = app.activeDocument.selection;
+        /* 整列コマンドは選択に対して働くため、2点選択のときだけ判定する /
+           Align commands act on the selection, so only exactly two selected items qualify */
+        if (!sel || sel.length !== 2) {
+            return "NOSEL";
+        }
+        var keyItem = findKeyObject(sel);
+        app.redraw();
+        if (keyItem === null) {
+            return "NONE";
+        }
+        var keyBounds = getItemBounds(keyItem, options.usePreviewBounds);
+        var otherBounds = getItemBounds((sel[0] === keyItem) ? sel[1] : sel[0], options.usePreviewBounds);
+        /* top が大きい方が上 / The item with the larger top is the upper one */
+        return (keyBounds[1] >= otherBounds[1]) ? "TOP" : "BOTTOM";
     }
 
     // =========================================
@@ -511,6 +638,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         runBatchAdjustment
     ];
 
+    /* キーオブジェクト判定だけで使う worker 関数（プレビューの送信量を増やさないため別立て）/
+       Worker functions used only by key-object detection (kept apart so previews stay small) */
+    var KEY_OBJECT_FUNCS = [
+        getClippingPath,
+        getItemBounds,
+        getItemPosition,
+        restoreItemPositions,
+        rejectMovedCandidates,
+        findKeyObject,
+        findKeyObjectAnchor
+    ];
+
     /* options を JS リテラル文字列に変換 / Serialize options to a JS object literal */
     function optionsToLiteral(options) {
         return "{"
@@ -525,10 +664,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     }
 
     /* worker 関数群 + ディスパッチ式のコードを組み立てる / Build worker source + a dispatch expression */
-    function buildWorkerCode(dispatchExpr) {
+    function buildWorkerCode(workerFuncs, dispatchExpr) {
         var bodies = [];
-        for (var i = 0; i < WORKER_FUNCS.length; i++) {
-            bodies.push(WORKER_FUNCS[i].toString());
+        for (var i = 0; i < workerFuncs.length; i++) {
+            bodies.push(workerFuncs[i].toString());
         }
         return bodies.join("\n") + "\n" + dispatchExpr + ";";
     }
@@ -551,22 +690,27 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
     /* プレビューを適用（前回分は worker 側で取り消し）/ Apply a preview (worker undoes the previous one) */
     function runAdjustmentPreview(options) {
-        return delegateToMainEngine(buildWorkerCode("runAdjustment(" + optionsToLiteral(options) + ")"));
+        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "runAdjustment(" + optionsToLiteral(options) + ")"));
     }
 
     /* 記録設定を選択中の全対象ペアへ一括適用・確定 / Batch-apply recorded settings to all target pairs */
     function runBatchAdjustmentDelegate(options) {
-        return delegateToMainEngine(buildWorkerCode("runBatchAdjustment(" + optionsToLiteral(options) + ")"));
+        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "runBatchAdjustment(" + optionsToLiteral(options) + ")"));
     }
 
     /* 選択2点の現在の間隔を計測（pt 文字列 / NODOC / NOSEL）/ Measure the current gap (pt string / NODOC / NOSEL) */
     function measureCurrentGap(options) {
-        return delegateToMainEngine(buildWorkerCode("measureGap(" + optionsToLiteral(options) + ")"));
+        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "measureGap(" + optionsToLiteral(options) + ")"));
+    }
+
+    /* キーオブジェクトを判定（TOP / BOTTOM / NONE / NODOC / NOSEL）/ Detect the key object (TOP / BOTTOM / NONE / NODOC / NOSEL) */
+    function detectKeyObjectAnchor(usePreviewBounds) {
+        return delegateToMainEngine(buildWorkerCode(KEY_OBJECT_FUNCS, "findKeyObjectAnchor({usePreviewBounds:" + (usePreviewBounds === true) + "})"));
     }
 
     /* 直前のプレビューを取り消す / Revert the last preview */
     function revertLastPreview() {
-        return delegateToMainEngine(buildWorkerCode("undoLast()"));
+        return delegateToMainEngine(buildWorkerCode(WORKER_FUNCS, "undoLast()"));
     }
 
     // =========================================
@@ -666,23 +810,31 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
 
     /* 固定するオブジェクトパネル / Fixed-object panel */
-    function buildAnchorPanel(parent, onPreview) {
+    function buildAnchorPanel(parent, onPreview, onAutoDetect) {
         var panel = parent.add("panel", undefined, L("anchor.title"));
         setupPanel(panel);
-        panel.helpTip = L("tooltip.anchorTop") + " / " + L("tooltip.anchorBottom");
+        panel.helpTip = L("tooltip.anchorTop") + " / " + L("tooltip.anchorBottom") + " / " + L("tooltip.anchorAuto");
 
-        /* 上下は横並び（ショートカット T/B はラベル非表示）/ Top/bottom in a row (T/B shortcuts are not shown) */
+        /* 上・下・自動判定は横並び（ショートカット T/B/K はラベル非表示）/ Top, bottom and auto in a row (T/B/K shortcuts are not shown) */
         var row = panel.add("group");
         setupGroup(row, "row");
         var anchorTopRadio = row.add("radiobutton", undefined, L("anchor.top"));
         var anchorBottomRadio = row.add("radiobutton", undefined, L("anchor.bottom"));
-        anchorTopRadio.value = true;
+        var anchorAutoRadio = row.add("radiobutton", undefined, L("anchor.auto"));
+        anchorAutoRadio.value = true; /* 既定は自動判定 / Auto by default */
         anchorTopRadio.helpTip = L("tooltip.anchorTop");
         anchorBottomRadio.helpTip = L("tooltip.anchorBottom");
+        anchorAutoRadio.helpTip = L("tooltip.anchorAuto");
         anchorTopRadio.onClick = onPreview;
         anchorBottomRadio.onClick = onPreview;
+        anchorAutoRadio.onClick = onAutoDetect;
 
-        return { anchorTopRadio: anchorTopRadio, anchorBottomRadio: anchorBottomRadio };
+        return {
+            anchorTopRadio: anchorTopRadio,
+            anchorBottomRadio: anchorBottomRadio,
+            anchorAutoRadio: anchorAutoRadio,
+            autoAnchorTop: true /* 自動判定の結果（上が基準なら true）/ Detection result (true when the top item is the key object) */
+        };
     }
 
     /* 間隔値＋プレビュー境界パネル / Gap + preview-bounds panel */
@@ -791,6 +943,14 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return keys[0];
     }
 
+    /* 上を基準にするかを解決（自動判定は直近の判定結果を使う）/ Resolve whether the top item is the anchor (auto uses the last detection) */
+    function resolveAnchorTop(anchor) {
+        if (anchor.anchorAutoRadio.value) {
+            return anchor.autoAnchorTop;
+        }
+        return anchor.anchorTopRadio.value;
+    }
+
     // =========================================
     // パレット / Palette
     // =========================================
@@ -813,7 +973,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
 
         return {
-            anchorTop: controls.anchor.anchorTopRadio.value,
+            anchorTop: resolveAnchorTop(controls.anchor),
             gapPoints: gapValue * rulerUnit.factor,
             align: selectedRadioKey(controls.align, ["none", "left", "center", "right"]),
             adjustPoints: adjustValue * rulerUnit.factor,
@@ -841,6 +1001,38 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var controls = {};
         var previewState = { active: false }; /* プレビューが反映中か / Whether a preview is currently applied */
         var isBusy = false; /* 同期委譲中の再入防止 / Guard against re-entry during a synchronous delegation */
+
+        /* Illustrator のキーオブジェクトを判定して自動判定の基準を更新 /
+           Detect Illustrator's key object and update the anchor used by Auto */
+        function loadAnchorFromKeyObject() {
+            var result = detectKeyObjectAnchor(controls.gap.previewBoundsCheckbox.value);
+            if (result !== "TOP" && result !== "BOTTOM") {
+                /* 判定できなければ「上」へ切り替え、実際に使う基準を見えるようにする /
+                   Fall back to Top so the anchor actually in use stays visible */
+                controls.anchor.autoAnchorTop = true;
+                controls.anchor.anchorTopRadio.value = true;
+                return false;
+            }
+            controls.anchor.autoAnchorTop = (result === "TOP");
+            return true;
+        }
+
+        /* 「自動判定」：判定し直してからプレビュー（判定は整列コマンドでドキュメントを触るため、
+           先にプレビューを戻す）/ Auto: re-detect then preview (the preview is reverted first
+           because detection moves objects with align commands) */
+        function refreshAutoAnchor() {
+            if (isBusy) return; /* 委譲中の割り込みを無視（同期送信中もUIは動く）/ ignore clicks during a delegation */
+            isBusy = true;
+            try {
+                controls.anchor.anchorAutoRadio.value = true;
+                revertActivePreview();
+                loadAnchorFromKeyObject();
+            } finally {
+                isBusy = false;
+            }
+            /* updatePreview 自身が再入ガードを張るのでガードの外で呼ぶ / updatePreview sets the guard itself */
+            updatePreview();
+        }
 
         /* 選択2点の現在の間隔をフィールドへ取り込む / Load the current gap of the two selected items into the field */
         function loadGapFromSelection() {
@@ -923,9 +1115,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         /* 「適用」：記録設定（無ければ現在値）を選択中の全対象ペアへ一括適用・確定 /
            Apply: batch-apply the recorded settings (or current values) to every target pair, committed */
         function applyBatch() {
-            revertActivePreview(); /* プレビュー分の二重適用を防ぐ / avoid double-applying the preview */
             var options = recordedOptions ? recordedOptions : readOptions(controls, rulerUnit);
-            options.undoFirst = false;
+            /* プレビュー分の取り消しは worker 側でまとめて行う（二重適用を防ぐ）/
+               The worker undoes the preview in the same send (avoids double-applying it) */
+            options.undoFirst = previewState.active;
+            previewState.active = false;
             runBatchAdjustmentDelegate(options);
         }
 
@@ -934,7 +1128,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var settingsColumn = win.add("group");
         setupGroup(settingsColumn, "column");
         controls.gap = buildGapPanel(settingsColumn, rulerUnit, updatePreview);
-        controls.anchor = buildAnchorPanel(settingsColumn, updatePreview);
+        controls.anchor = buildAnchorPanel(settingsColumn, updatePreview, refreshAutoAnchor);
         controls.align = buildAlignPanel(settingsColumn, rulerUnit, updatePreview);
         controls.justify = buildJustifyPanel(settingsColumn, updatePreview);
 
@@ -967,6 +1161,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             { key: "Escape", run: function () { win.close(); } },
             { key: "T", gated: true, run: pickThenPreview(controls.anchor.anchorTopRadio, updatePreview) },
             { key: "B", gated: true, run: pickThenPreview(controls.anchor.anchorBottomRadio, updatePreview) },
+            { key: "K", gated: true, run: refreshAutoAnchor },
             { key: "N", gated: true, run: pickThenPreview(controls.align.none, updatePreview) },
             { key: "L", gated: true, run: pickThenPreview(controls.align.left, updatePreview) },
             { key: "C", gated: true, run: controls.align.selectCenter },
@@ -977,6 +1172,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
         win.center();
         win.show();
+        loadAnchorFromKeyObject(); /* 「自動判定」の初期値としてキーオブジェクトを判定 / Detect the key object for the initial Auto anchor */
         loadGapFromSelection(); /* 現在の間隔を取り込む（取り込めれば初期プレビューで動かない）/ Load current gap (no movement on initial preview when available) */
         updatePreview(); /* 初期プレビュー / Initial preview */
         controls.gap.gapValueInput.active = true; /* 開いたら間隔値にフォーカス / Focus the gap field on open */

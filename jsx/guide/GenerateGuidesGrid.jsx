@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 アートボードまたは選択オブジェクトの外接矩形を、指定した行数・列数に分割してグリッド用のガイドを生成します。
-セルの長方形化、角丸、中心点の表示、プリセットの書き出しにも対応します。
+アートボードのエッジ、セルの長方形化、中心点の表示、プリセットの読み込み／書き出しにも対応します。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Divides the artboard, or the bounding box of the selection, into the specified rows and columns and generates grid guides.
-It can also draw the cells as rectangles, round their corners, mark center points, and export presets.
+It can also draw the artboard edges, draw the cells as rectangles, mark center points, and import/export presets.
 
 See the README for details.
 
@@ -23,16 +23,16 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenerateGuidesGrid.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGuidesGrid.md
-var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -46,18 +46,86 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
     var CELL_LAYER_NAME = "cell-rectangle";      /* セル長方形を格納するレイヤー名 / Layer name for cell rectangles */
     var PREVIEW_LAYER_NAME = "_Preview_Guides";  /* プレビュー用レイヤー名 / Layer name for live preview */
     var CELL_OPACITY = 15;                        /* セル長方形の不透明度（%）/ Cell rectangle opacity (%) */
+    var RECT_TOLERANCE = 0.5;                    /* アートボード内外判定の許容値（pt）/ Tolerance for the inside-artboard test (pt) */
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var ROW_SPACING    = 8;                  /* 行内の要素間隔 / gap inside a row */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} win - 対象ウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = "fill";
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定
+     * @param {Panel} panel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループの共通設定（row は縦中央、column は左揃え）
+     * @param {Group} group - 対象グループ
+     * @param {string} [orientation] - "row" または "column"（省略時は "column"）
+     * @param {number} [spacing] - 要素間隔（省略時は ROW_SPACING）
+     * @returns {void}
+     */
+    function setupGroup(group, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        group.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        group.alignment = "fill";
+        group.spacing = (typeof spacing === "number") ? spacing : ROW_SPACING;
+    }
+
+    /**
+     * 行グループの共通設定（ボタン列・入力行など）
+     * @param {Group} group - 対象グループ
+     * @param {string} [alignment] - グループ自身の整列（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        /* alignment と alignChildren は対で指定する（片方だけだと天地がずれ、中のボタンが横に伸びる）
+           Set both: alone, either one lets the row drift vertically or stretch its buttons */
+        group.alignment = [alignment || "left", "center"];
+        group.alignChildren = ["left", "center"];
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
-    function getCurrentLang() {
+    function getUiLanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var currentLanguage = getUiLanguage();
 
     /* 日英ラベル定義（カテゴリ別）/ Japanese-English label definitions (by category) */
     var LABELS = {
@@ -96,9 +164,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             roundCorner: { ja: "角丸", en: "Round Corners" },
             splitCell: { ja: "各セルを左右分割", en: "Split Each Cell Horizontally" },
             drawGuides: { ja: "ガイドを引く", en: "Draw Guides" },
+            artboardEdge: { ja: "アートボードのエッジ", en: "Artboard Edges" },
             clearGuides: { ja: "既存ガイドを削除", en: "Clear Existing Guides" }
         },
-        /* フィールド見出し（コロンは labelText で付与）/ Field labels (colon added by labelText) */
+        /* フィールド見出し（コロンは labelWithColon で付与）/ Field labels (colon added by labelWithColon) */
         field: {
             preset: { ja: "プリセット", en: "Preset" },
             rowCount: { ja: "行数", en: "Number" },
@@ -121,8 +190,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             roundCorner: { ja: "各長方形に角丸（ライブエフェクト）を適用します。", en: "Apply the Round Corners live effect to each rectangle." },
             opacity: { ja: "長方形の不透明度（0〜100%）。", en: "Opacity of the rectangles (0–100%)." },
             splitCell: { ja: "各セルの左右中央に縦ガイドを作成します。", en: "Create a vertical guide at each cell's horizontal center." },
-            guideExtension: { ja: "アートボード／オブジェクトの外側へガイドを伸ばす距離。", en: "Distance to extend guides beyond the artboard/object." },
-            clearGuides: { ja: "描画前に専用レイヤー（grid_guides）内の既存ガイドを削除します。", en: "Remove existing guides in the dedicated layer (grid_guides) before drawing." },
+            guideExtension: { ja: "アートボード／オブジェクトの外側へガイドを伸ばす距離。", en: "Distance to mergeInto guides beyond the artboard/object." },
+            artboardEdge: { ja: "アートボードの上下左右4辺にガイドを引きます。対象が選択オブジェクトのときは使えません。", en: "Draw guides on the four edges of the artboard. Unavailable when the target is the selected objects." },
+            clearGuides: { ja: "描画前に専用レイヤー（grid_guides）内の既存ガイドを削除します。「すべてのアートボード」以外は、アクティブなアートボード上のガイドだけが対象です。", en: "Remove existing guides in the dedicated layer (grid_guides) before drawing. Unless all artboards are targeted, only guides on the active artboard are removed." },
             toGuide: { ja: "元の選択オブジェクトをガイドに変換します。", en: "Convert the original selected objects into guides." },
             outline: { ja: "アウトライン表示とプレビュー表示を切り替えます。", en: "Toggle between Outline and Preview view." },
             exportPreset: { ja: "現在の設定をプリセットファイルに書き出します。", en: "Export the current settings to a preset file." }
@@ -132,49 +202,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             cancel: { ja: "キャンセル", en: "Cancel" },
             apply: { ja: "適用", en: "Apply" },
             ok: { ja: "OK", en: "OK" },
-            outline: { ja: "アウトライン", en: "Outline" },
-            preview: { ja: "プレビュー", en: "Preview" },
+            outline: { ja: "アウトライン表示", en: "Outline" },
+            preview: { ja: "プレビュー表示", en: "Preview" },
             exportPreset: { ja: "書き出し", en: "Export" }
         }
     };
 
     /* ラベル取得（ドット区切りキー、{slash} は "/" に置換）/ Get label (dotted key, {slash} replaced with "/") */
     function getLabel(key) {
-        var parts = key.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (node && node[parts[i]] !== undefined) {
-                node = node[parts[i]];
+        var keyParts = key.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < keyParts.length; i++) {
+            if (labelNode && labelNode[keyParts[i]] !== undefined) {
+                labelNode = labelNode[keyParts[i]];
             } else {
                 return key;
             }
         }
-        var text = (node && node[currentLanguage] !== undefined) ? node[currentLanguage] : key;
-        return String(text).replace(/\{slash\}/g, "/");
+        var labelValue = (labelNode && labelNode[currentLanguage] !== undefined) ? labelNode[currentLanguage] : key;
+        return String(labelValue).replace(/\{slash\}/g, "/");
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
+    function labelWithColon(key) {
         return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
-    }
-
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function setupGroup(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /* 見出しに単位を付与（日本語は全角括弧、英語は半角括弧）/ Append unit to a title (full-width parens JA, half-width EN) */
@@ -202,18 +253,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
     var unitFactor = unitInfo.factor;
 
     /* プリセット値は pt 基準で保持。表示は現在単位へ換算する / Preset values are stored in points; convert to the current ruler unit for display */
-    var PRESET_UNIT_SCALE = 0.5; /* 換算時の控えめ係数（pt/px のときは等倍）/ Modest coefficient when converting (1:1 for pt/px) */
-    /* pt/px（unitFactor が 1）のときは等倍、それ以外へ換算するときだけ係数を掛ける / Scale only when actually converting to a non-point unit */
-    function presetScale() {
-        return (unitFactor === 1.0) ? 1.0 : PRESET_UNIT_SCALE;
+    var UNIT_DECIMALS = 2; /* 換算時に残す小数桁数 / decimals kept when converting */
+
+    /**
+     * 指定桁数で丸める
+     * @param {number} value - 対象の値
+     * @param {number} decimals - 残す小数桁数
+     * @returns {number} 丸めた値
+     */
+    function roundTo(value, decimals) {
+        var digitScale = Math.pow(10, decimals);
+        return Math.round(Number(value) * digitScale) / digitScale;
     }
-    /* pt → 現在単位（必要時のみ係数を掛けて整数に丸め）/ points → current unit (scaled when converting, rounded to an integer) */
+
+    /**
+     * pt → 現在単位
+     * @param {number} ptValue - pt 値
+     * @returns {number} 現在単位の値
+     */
     function ptToUnit(ptValue) {
-        return Math.round(Number(ptValue) / unitFactor * presetScale());
+        return roundTo(Number(ptValue) / unitFactor, UNIT_DECIMALS);
     }
-    /* 現在単位 → pt（係数で割り戻して整数に丸め）/ current unit → points (inverse scale, rounded to an integer) */
-    function unitToPt(value) {
-        return Math.round(Number(value) * unitFactor / presetScale());
+
+    /**
+     * 現在単位 → pt
+     * @param {number|string} unitValue - 現在単位の値
+     * @returns {number} pt 値
+     */
+    function unitToPt(unitValue) {
+        return roundTo(Number(unitValue) * unitFactor, UNIT_DECIMALS);
+    }
+
+    /**
+     * 入力欄のテキストを数値として読む（空欄・不正値は fallback）
+     * @param {string} inputText - 入力文字列
+     * @param {number} [fallbackValue] - 数値にならないときの値（省略時は 0）
+     * @returns {number} 数値
+     */
+    function toNumber(inputText, fallbackValue) {
+        var parsedValue = parseFloat(inputText);
+        if (isNaN(parsedValue)) return (typeof fallbackValue === "number") ? fallbackValue : 0;
+        return parsedValue;
+    }
+
+    /**
+     * 入力欄のテキストを整数として読む（空欄・不正値は fallback）
+     * @param {string} inputText - 入力文字列
+     * @param {number} [fallbackValue] - 整数にならないときの値（省略時は 0）
+     * @returns {number} 整数
+     */
+    function toInteger(inputText, fallbackValue) {
+        var parsedValue = parseInt(inputText, 10);
+        if (isNaN(parsedValue)) return (typeof fallbackValue === "number") ? fallbackValue : 0;
+        return parsedValue;
     }
 
     // =========================================
@@ -231,7 +323,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 0,
             marginRight: 0,
             rowGutter: 0,
-            colGutter: 0,
+            columnGutter: 0,
             drawCells: true,
             drawGuides: true
         }, {
@@ -244,7 +336,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 0,
             marginRight: 0,
             rowGutter: 0,
-            colGutter: 0,
+            columnGutter: 0,
             drawCells: true,
             drawGuides: true
         },
@@ -258,7 +350,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 0,
             marginRight: 0,
             rowGutter: 0,
-            colGutter: 0,
+            columnGutter: 0,
             drawCells: false,
             drawGuides: true
         },
@@ -272,7 +364,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 100,
             marginRight: 100,
             rowGutter: 0,
-            colGutter: 0,
+            columnGutter: 0,
             drawCells: true,
             drawGuides: true
         },
@@ -286,7 +378,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 0,
             marginRight: 0,
             rowGutter: 50,
-            colGutter: 50,
+            columnGutter: 50,
             drawCells: true,
             drawGuides: true
         },
@@ -300,7 +392,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 30,
             marginRight: 30,
             rowGutter: 0,
-            colGutter: 30,
+            columnGutter: 30,
             drawCells: true,
             drawGuides: true
         },
@@ -314,7 +406,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 0,
             marginRight: 0,
             rowGutter: 20,
-            colGutter: 20,
+            columnGutter: 20,
             drawCells: true,
             drawGuides: true
         },
@@ -328,7 +420,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 100,
             marginRight: 100,
             rowGutter: 20,
-            colGutter: 20,
+            columnGutter: 20,
             drawCells: true,
             drawGuides: true
         },
@@ -342,7 +434,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 200,
             marginRight: 0,
             rowGutter: 0,
-            colGutter: 0,
+            columnGutter: 0,
             drawCells: true,
             drawGuides: true
         },
@@ -356,7 +448,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 0,
             marginRight: 0,
             rowGutter: 0,
-            colGutter: 0,
+            columnGutter: 0,
             drawCells: true,
             drawGuides: true
         },
@@ -370,7 +462,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             marginLeft: 0,
             marginRight: 0,
             rowGutter: 0,
-            colGutter: 0,
+            columnGutter: 0,
             drawCells: true,
             drawGuides: false
         }
@@ -385,13 +477,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
     }
 
     // プレビュー手順を1つ実行してカウント / Run an action as a preview step and count it
-    PreviewManager.prototype.addStep = function (func) {
+    // func が false を返した手順はドキュメントを変更していないので数えない（余分な undo でユーザーの作業を巻き戻さない）
+    // A step returning false changed nothing, so it is not counted (a surplus undo would roll back the user's own work)
+    PreviewManager.prototype.addStep = function (step) {
         try {
-            func();
-            this.undoDepth++;
+            if (step() !== false) {
+                this.undoDepth++;
+            }
             app.redraw();
         } catch (e) {
-            alert("Preview Error: " + e);
+            $.writeln("[GenerateGuidesGrid] preview step error: " + e);
         }
     };
 
@@ -422,51 +517,109 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
     // 描画ヘルパー（doc を受け取り、UI/クロージャに依存しない）/ Drawing helpers (take doc; no UI/closure deps)
     // =========================================
 
-    // 関数を実行し、例外を握りつぶす（try/catch の重複を集約）/ Run a function, swallowing errors (centralizes the try/catch pattern)
-    function safeExecute(fn) {
+    /**
+     * 外接矩形（geometricBounds）を持つオブジェクトか
+     * @param {object} item - 判定するオブジェクト
+     * @returns {boolean} 座標を取得できるなら true
+     */
+    function hasGeometricBounds(item) {
         try {
-            fn();
+            return !!(item && item.geometricBounds && item.geometricBounds.length === 4);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
+     * オブジェクトの中心が矩形の中にあるか（ガイドは矩形の外へ伸びるので中心で判定）
+     * @param {PageItem} item - 判定するオブジェクト
+     * @param {Array} boundsRect - 矩形 [左, 上, 右, 下]
+     * @returns {boolean} 中心が矩形内なら true
+     */
+    function isCenterInsideRect(item, boundsRect) {
+        if (!hasGeometricBounds(item)) return false;
+        var itemBounds = item.geometricBounds;
+        var centerX = (itemBounds[0] + itemBounds[2]) / 2;
+        var centerY = (itemBounds[1] + itemBounds[3]) / 2;
+        return (centerX >= boundsRect[0] - RECT_TOLERANCE && centerX <= boundsRect[2] + RECT_TOLERANCE &&
+            centerY <= boundsRect[1] + RECT_TOLERANCE && centerY >= boundsRect[3] - RECT_TOLERANCE);
+    }
+
+    /**
+     * 関数を実行し、例外を握りつぶす（try/catch の重複を集約）
+     * @param {function} action - 実行する処理
+     * @returns {void}
+     */
+    function safeExecute(action) {
+        try {
+            action();
         } catch (e) {
             $.writeln("[GenerateGuidesGrid] safeExecute error: " + e);
         }
     }
 
-    // src の自前プロパティを target にコピー / Copy own properties from src into target
-    function extend(target, src) {
-        for (var k in src) {
-            if (src.hasOwnProperty(k)) target[k] = src[k];
+    /**
+     * source の自前プロパティを target にコピーする
+     * @param {object} target - コピー先
+     * @param {object} source - コピー元
+     * @returns {object} コピー先（target）
+     */
+    function mergeInto(target, source) {
+        for (var key in source) {
+            if (source.hasOwnProperty(key)) target[key] = source[key];
         }
         return target;
     }
 
-    // レイヤーのロックを安全に解除 / Safely unlock a layer
+    /**
+     * レイヤーのロックを安全に解除する
+     * @param {Layer} layer - 対象レイヤー
+     * @returns {void}
+     */
     function safeUnlockLayer(layer) {
         safeExecute(function () {
             if (layer && layer.locked) layer.locked = false;
         });
     }
 
-    // 指定名のレイヤーを安全に削除 / Safely remove a layer by name
-    function safeRemoveLayerByName(doc, name) {
+    /**
+     * 指定名のレイヤーを安全に削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {void}
+     */
+    function safeRemoveLayerByName(doc, layerName) {
         safeExecute(function () {
-            var layer = doc.layers.getByName(name);
+            var layer = doc.layers.getByName(layerName);
             if (layer) layer.remove();
         });
     }
 
-    // 指定名のレイヤーを取得、なければ作成 / Get a layer by name, creating it if missing
-    function getOrCreateLayer(doc, name) {
+    /**
+     * 指定名のレイヤーを取得する。なければ作成する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer} 取得または作成したレイヤー
+     */
+    function getOrCreateLayer(doc, layerName) {
         var layer;
         try {
-            layer = doc.layers.getByName(name);
+            layer = doc.layers.getByName(layerName);
         } catch (e) {
             layer = doc.layers.add();
-            layer.name = name;
+            layer.name = layerName;
         }
         return layer;
     }
 
-    // ガイド線を1本追加（塗り・線なしのパスをガイド化してレイヤー先頭へ）/ Add one guide line
+    /**
+     * ガイド線を1本追加する（塗り・線なしのパスをガイド化してレイヤー先頭へ）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} layer - 追加先レイヤー
+     * @param {Array} startPoint - 始点 [x, y]
+     * @param {Array} endPoint - 終点 [x, y]
+     * @returns {PathItem} 追加したガイド
+     */
     function addGuideLine(doc, layer, startPoint, endPoint) {
         var guideLine = doc.pathItems.add();
         guideLine.setEntirePath([startPoint, endPoint]);
@@ -477,13 +630,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         return guideLine;
     }
 
-    // 角丸ライブエフェクトのXML（radius は pt）/ Round Corners live-effect XML (radius in pt)
+    /**
+     * 角丸ライブエフェクトのXMLを作る
+     * @param {number} radius - 角丸半径（pt）
+     * @returns {string} ライブエフェクトのXML
+     */
     function roundCornersEffectXML(radius) {
-        var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius #value# "/></LiveEffect>';
-        return xml.replace('#value#', radius);
+        var effectXml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius #value# "/></LiveEffect>';
+        return effectXml.replace('#value#', radius);
     }
 
-    // 黒色作成（CMYK／RGB対応）/ Create black color (CMYK/RGB)
+    /**
+     * 黒色を作る（CMYK／RGB対応）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {CMYKColor|RGBColor} 黒のカラーオブジェクト
+     */
     function createBlackColor(doc) {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
             var cmyk = new CMYKColor();
@@ -500,26 +661,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         return rgb;
     }
 
-    // グリッド（ガイド＋セル長方形）を描画し、作成したセル長方形の配列を返す / Draw the grid; return created cell rects
-    function drawGrid(ctx) {
-        var doc = ctx.doc;
-        var isPreview = ctx.isPreview;
-        var columnCount = ctx.columnCount;
-        var rowCount = ctx.rowCount;
-        if (isNaN(columnCount) || columnCount <= 0 || isNaN(rowCount) || rowCount <= 0) return [];
+    /**
+     * 描画できるコンテキストか（行数・列数が正か）
+     * @param {object} drawContext - 描画コンテキスト
+     * @returns {boolean} 描画できるなら true
+     */
+    function canDrawGrid(drawContext) {
+        return !(isNaN(drawContext.columnCount) || drawContext.columnCount <= 0 || isNaN(drawContext.rowCount) || drawContext.rowCount <= 0);
+    }
 
-        var ext = ctx.ext;
-        var top = ctx.marginTop, bottom = ctx.marginBottom, left = ctx.marginLeft, right = ctx.marginRight;
-        var rowGutter = ctx.rowGutter, colGutter = ctx.colGutter;
-        var drawCells = ctx.drawCells, drawGuidesNow = ctx.drawGuidesNow, cornerRadius = ctx.cornerRadius;
-        var splitCells = ctx.splitCells;
-        var cellOpacity = (typeof ctx.cellOpacity === "number") ? ctx.cellOpacity : CELL_OPACITY;
+    // グリッド（ガイド＋セル長方形）を描画し、作成したセル長方形の配列を返す / Draw the grid; return created cell rects
+    function drawGrid(drawContext) {
+        var doc = drawContext.doc;
+        var isPreview = drawContext.isPreview;
+        var columnCount = drawContext.columnCount;
+        var rowCount = drawContext.rowCount;
+        if (!canDrawGrid(drawContext)) return [];
+
+        var guideExtension = drawContext.guideExtension;
+        var marginTop = drawContext.marginTop, marginBottom = drawContext.marginBottom, marginLeft = drawContext.marginLeft, marginRight = drawContext.marginRight;
+        var rowGutter = drawContext.rowGutter, columnGutter = drawContext.columnGutter;
+        var drawCells = drawContext.drawCells, drawGridGuides = drawContext.drawGridGuides, cornerRadius = drawContext.cornerRadius;
+        var splitCells = drawContext.splitCells;
+        // 選択オブジェクトが対象のときはアートボードの辺を引かない / No artboard edges when the target is the selection
+        var drawArtboardEdge = drawContext.drawArtboardEdge && !drawContext.selBounds;
+        var cellOpacity = (typeof drawContext.cellOpacity === "number") ? drawContext.cellOpacity : CELL_OPACITY;
         var createdCells = [];
 
         // プレビューは1枚に全部描く。確定時はガイド用レイヤーはガイド系を描くときだけ作る
         // Preview draws everything on one layer; on commit, create the guide layer only when guides are drawn
         var gridLayerName = isPreview ? PREVIEW_LAYER_NAME : GUIDE_LAYER_NAME;
-        var needGridLayer = isPreview ? (drawGuidesNow || splitCells || drawCells) : (drawGuidesNow || splitCells);
+        var needGridLayer = isPreview ? (drawGridGuides || splitCells || drawCells || drawArtboardEdge) : (drawGridGuides || splitCells || drawArtboardEdge);
         var gridLayer = needGridLayer ? getOrCreateLayer(doc, gridLayerName) : null;
         safeUnlockLayer(gridLayer);
 
@@ -530,83 +702,93 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         }
 
         var targetRects = [];
-        if (ctx.selBounds) {
-            targetRects.push(ctx.selBounds);
+        if (drawContext.selBounds) {
+            targetRects.push(drawContext.selBounds);
         } else {
-            for (var b = 0; b < doc.artboards.length; b++) {
-                if (!ctx.allBoards && b !== doc.artboards.getActiveArtboardIndex()) continue;
-                targetRects.push(doc.artboards[b].artboardRect);
+            for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
+                if (!drawContext.allBoards && artboardIndex !== doc.artboards.getActiveArtboardIndex()) continue;
+                targetRects.push(doc.artboards[artboardIndex].artboardRect);
             }
         }
 
-        for (var ti = 0; ti < targetRects.length; ti++) {
-            var targetRect = targetRects[ti];
-            var abLeft = targetRect[0],
-                abTop = targetRect[1],
-                abRight = targetRect[2],
-                abBottom = targetRect[3];
-            var baseLeft = abLeft + left;
-            var baseRight = abRight - right;
-            var baseTop = abTop - top;
-            var baseBottom = abBottom + bottom;
+        for (var targetIndex = 0; targetIndex < targetRects.length; targetIndex++) {
+            var targetRect = targetRects[targetIndex];
+            var targetLeft = targetRect[0],
+                targetTop = targetRect[1],
+                targetRight = targetRect[2],
+                targetBottom = targetRect[3];
+            var contentLeft = targetLeft + marginLeft;
+            var contentRight = targetRight - marginRight;
+            var contentTop = targetTop - marginTop;
+            var contentBottom = targetBottom + marginBottom;
 
-            var usableWidth = baseRight - baseLeft;
-            var usableHeight = baseTop - baseBottom;
-            var totalColGutter = (columnCount - 1) * colGutter;
+            var extendedLeft = targetLeft - guideExtension;
+            var extendedRight = targetRight + guideExtension;
+            var extendedTop = targetTop + guideExtension;
+            var extendedBottom = targetBottom - guideExtension;
+
+            // アートボードの上下左右4辺（マージンに関係なく引く）/ The artboard's four edges (independent of the margins)
+            if (drawArtboardEdge && gridLayer) {
+                addGuideLine(doc, gridLayer, [extendedLeft, targetTop], [extendedRight, targetTop]);
+                addGuideLine(doc, gridLayer, [extendedLeft, targetBottom], [extendedRight, targetBottom]);
+                addGuideLine(doc, gridLayer, [targetLeft, extendedTop], [targetLeft, extendedBottom]);
+                addGuideLine(doc, gridLayer, [targetRight, extendedTop], [targetRight, extendedBottom]);
+            }
+
+            var usableWidth = contentRight - contentLeft;
+            var usableHeight = contentTop - contentBottom;
+            var totalColumnGutter = (columnCount - 1) * columnGutter;
             var totalRowGutter = (rowCount - 1) * rowGutter;
             // マージン・ガターが過大でセル幅/高さが0以下になる場合はこの対象をスキップ
             // Skip this target if margins/gutters are too large (cell width/height would be <= 0)
-            if (usableWidth - totalColGutter <= 0 || usableHeight - totalRowGutter <= 0) continue;
-            var cellWidth = (usableWidth - totalColGutter) / columnCount;
+            if (usableWidth - totalColumnGutter <= 0 || usableHeight - totalRowGutter <= 0) continue;
+            var cellWidth = (usableWidth - totalColumnGutter) / columnCount;
             var cellHeight = (usableHeight - totalRowGutter) / rowCount;
 
-            var guideLeft = abLeft - ext;
-            var guideRight = abRight + ext;
-            var guideTop = abTop + ext;
-            var guideBottom = abBottom - ext;
-
-            if (drawGuidesNow) {
+            if (drawGridGuides) {
                 if (columnCount === 1 && rowCount === 1) {
                     // 四辺（マージン適用後の有効領域）をガイド化 / Four edges of the usable area
-                    addGuideLine(doc, gridLayer, [guideLeft, baseTop], [guideRight, baseTop]);
-                    addGuideLine(doc, gridLayer, [guideLeft, baseBottom], [guideRight, baseBottom]);
-                    addGuideLine(doc, gridLayer, [baseLeft, guideTop], [baseLeft, guideBottom]);
-                    addGuideLine(doc, gridLayer, [baseRight, guideTop], [baseRight, guideBottom]);
+                    addGuideLine(doc, gridLayer, [extendedLeft, contentTop], [extendedRight, contentTop]);
+                    addGuideLine(doc, gridLayer, [extendedLeft, contentBottom], [extendedRight, contentBottom]);
+                    addGuideLine(doc, gridLayer, [contentLeft, extendedTop], [contentLeft, extendedBottom]);
+                    addGuideLine(doc, gridLayer, [contentRight, extendedTop], [contentRight, extendedBottom]);
                 } else {
                     // 通常ガイド描画（行・列）/ Normal grid guides (rows and columns)
-                    var y = baseTop;
-                    addGuideLine(doc, gridLayer, [guideLeft, y], [guideRight, y]);
+                    // 最終行は contentBottom にちょうど着地するので、末尾に足すと重なる
+                    // The last row lands exactly on contentBottom, so a trailing guide would overlap
+                    var lineY = contentTop;
+                    addGuideLine(doc, gridLayer, [extendedLeft, lineY], [extendedRight, lineY]);
                     for (var j = 0; j < rowCount; j++) {
-                        y -= cellHeight;
-                        addGuideLine(doc, gridLayer, [guideLeft, y], [guideRight, y]);
-                        if (j < rowCount - 1) {
-                            y -= rowGutter;
-                            addGuideLine(doc, gridLayer, [guideLeft, y], [guideRight, y]);
+                        lineY -= cellHeight;
+                        addGuideLine(doc, gridLayer, [extendedLeft, lineY], [extendedRight, lineY]);
+                        // ガター0のときは同じ位置に重なるので引かない / Gutter 0 would draw on the same line
+                        if (j < rowCount - 1 && rowGutter > 0) {
+                            lineY -= rowGutter;
+                            addGuideLine(doc, gridLayer, [extendedLeft, lineY], [extendedRight, lineY]);
                         }
                     }
-                    addGuideLine(doc, gridLayer, [guideLeft, baseBottom], [guideRight, baseBottom]);
 
-                    var x = baseLeft;
-                    addGuideLine(doc, gridLayer, [x, guideTop], [x, guideBottom]);
-                    for (var i2 = 0; i2 < columnCount; i2++) {
-                        x += cellWidth;
-                        addGuideLine(doc, gridLayer, [x, guideTop], [x, guideBottom]);
-                        if (i2 < columnCount - 1) {
-                            x += colGutter;
-                            addGuideLine(doc, gridLayer, [x, guideTop], [x, guideBottom]);
+                    var lineX = contentLeft;
+                    addGuideLine(doc, gridLayer, [lineX, extendedTop], [lineX, extendedBottom]);
+                    for (var k = 0; k < columnCount; k++) {
+                        lineX += cellWidth;
+                        addGuideLine(doc, gridLayer, [lineX, extendedTop], [lineX, extendedBottom]);
+                        // ガター0のときは同じ位置に重なるので足さない / Gutter 0 would draw on the same line
+                        if (k < columnCount - 1 && columnGutter > 0) {
+                            lineX += columnGutter;
+                            addGuideLine(doc, gridLayer, [lineX, extendedTop], [lineX, extendedBottom]);
                         }
                     }
-                    addGuideLine(doc, gridLayer, [baseRight, guideTop], [baseRight, guideBottom]);
                 }
             }
 
             if (drawCells && cellLayer) {
-                var startX = baseLeft;
-                var startY = baseTop;
+                var cellOriginX = contentLeft;
+                var cellOriginY = contentTop;
                 for (var row = 0; row < rowCount; row++) {
-                    var cellY = startY - (cellHeight + rowGutter) * row;
-                    for (var col = 0; col < columnCount; col++) {
-                        var cellX = startX + (cellWidth + colGutter) * col;
+                    var cellY = cellOriginY - (cellHeight + rowGutter) * row;
+                    for (var column = 0; column < columnCount; column++) {
+                        var cellX = cellOriginX + (cellWidth + columnGutter) * column;
                         var cellRect = cellLayer.pathItems.rectangle(cellY, cellX, cellWidth, cellHeight);
                         cellRect.stroked = false;
                         cellRect.filled = true;
@@ -620,13 +802,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
 
             // 各セルを分割：セルの左右中央に縦ガイド / Split each cell: vertical guide at each cell's horizontal center
             if (splitCells && gridLayer) {
-                var splitStartX = baseLeft;
-                var splitStartY = baseTop;
-                for (var sr = 0; sr < rowCount; sr++) {
-                    var splitCellTop = splitStartY - (cellHeight + rowGutter) * sr;
+                var splitOriginX = contentLeft;
+                var splitOriginY = contentTop;
+                for (var splitRow = 0; splitRow < rowCount; splitRow++) {
+                    var splitCellTop = splitOriginY - (cellHeight + rowGutter) * splitRow;
                     var splitCellBottom = splitCellTop - cellHeight;
-                    for (var sc = 0; sc < columnCount; sc++) {
-                        var splitCenterX = splitStartX + (cellWidth + colGutter) * sc + cellWidth / 2;
+                    for (var splitColumn = 0; splitColumn < columnCount; splitColumn++) {
+                        var splitCenterX = splitOriginX + (cellWidth + columnGutter) * splitColumn + cellWidth / 2;
                         addGuideLine(doc, gridLayer, [splitCenterX, splitCellTop], [splitCenterX, splitCellBottom]);
                     }
                 }
@@ -654,7 +836,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         var doc = app.activeDocument;
 
         // Preview manager (Undo-safe live preview)
-        var previewMgr = new PreviewManager();
+        var previewManager = new PreviewManager();
 
         // 確定描画したセル長方形（中心点表示の対象）/ Cell rects from final draw (targets for center-point display)
         var drawnCellItems = [];
@@ -662,21 +844,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         // 選択オブジェクトの参照と外接矩形をキャッシュ / Cache selection refs and bounds before dialog
         var cachedSelectionItems = [];
         var cachedSelectionBounds = (function () {
-            var sel = doc.selection;
-            if (!sel || sel.length === 0) return null;
-            for (var si = 0; si < sel.length; si++) {
-                cachedSelectionItems.push(sel[si]);
+            var selection = doc.selection;
+            // 文字選択中（TextRange）は座標を持たないので対象外 / A TextRange has no bounds, so it is not a target
+            if (!selection || selection.typename === "TextRange" || selection.length === 0) return null;
+            for (var i = 0; i < selection.length; i++) {
+                if (hasGeometricBounds(selection[i])) cachedSelectionItems.push(selection[i]);
             }
-            var firstBounds = sel[0].geometricBounds;
-            var sLeft = firstBounds[0], sTop = firstBounds[1], sRight = firstBounds[2], sBottom = firstBounds[3];
-            for (var s = 1; s < sel.length; s++) {
-                var itemBounds = sel[s].geometricBounds;
-                if (itemBounds[0] < sLeft) sLeft = itemBounds[0];
-                if (itemBounds[1] > sTop) sTop = itemBounds[1];
-                if (itemBounds[2] > sRight) sRight = itemBounds[2];
-                if (itemBounds[3] < sBottom) sBottom = itemBounds[3];
+            if (cachedSelectionItems.length === 0) return null;
+            var firstItemBounds = cachedSelectionItems[0].geometricBounds;
+            var selectionLeft = firstItemBounds[0], selectionTop = firstItemBounds[1], selectionRight = firstItemBounds[2], selectionBottom = firstItemBounds[3];
+            for (var j = 1; j < cachedSelectionItems.length; j++) {
+                var itemBounds = cachedSelectionItems[j].geometricBounds;
+                if (itemBounds[0] < selectionLeft) selectionLeft = itemBounds[0];
+                if (itemBounds[1] > selectionTop) selectionTop = itemBounds[1];
+                if (itemBounds[2] > selectionRight) selectionRight = itemBounds[2];
+                if (itemBounds[3] < selectionBottom) selectionBottom = itemBounds[3];
             }
-            return [sLeft, sTop, sRight, sBottom];
+            return [selectionLeft, selectionTop, selectionRight, selectionBottom];
         })();
         // 初期対象モード / Initial target mode
         // 選択あり→選択オブジェクト、なし→（複数AB→すべて／単一→アートボード）
@@ -694,9 +878,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
 
         // ダイアログ作成 / Create dialog
         var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.spacing = 10;
+        setupWindow(dialog);
 
         // プリセット選択＋書き出し / Preset selection and export
         var presetGroup = dialog.add("group");
@@ -704,14 +886,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         presetGroup.alignment = ["center", "top"]; // 左右中央 / horizontally centered
         presetGroup.margins = [0, 0, 0, 10]; // 下に少し余白 / add some bottom margin
 
-        presetGroup.add("statictext", undefined, labelText("field.preset"));
+        presetGroup.add("statictext", undefined, labelWithColon("field.preset"));
         var presetDropdown = presetGroup.add("dropdownlist", undefined, []);
         presetDropdown.selection = 0;
-        var exportPresetButton = presetGroup.add("button", undefined, getLabel("button.exportPreset"));
-        exportPresetButton.helpTip = getLabel("tooltip.exportPreset");
+        var btnExportPreset = presetGroup.add("button", undefined, getLabel("button.exportPreset"));
+        btnExportPreset.alignment = ["left", "center"]; // 横に伸ばさず天地中央 / natural width, vertically centered
+        btnExportPreset.helpTip = getLabel("tooltip.exportPreset");
 
         // プリセット書き出し / Export the current settings as a preset
-        exportPresetButton.onClick = function () {
+        btnExportPreset.onClick = function () {
             var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください / Choose where to save the preset", "*.txt");
             if (!saveFile) {
                 return;
@@ -727,15 +910,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
 
             // 長さ系は pt に換算して保存（プリセットは pt 基準）/ Store length values in pt (presets are pt-based)
             var currentPreset = {
-                columns: parseInt(columnCountInput.text, 10),
-                rows: parseInt(rowCountInput.text, 10),
-                guideExtension: unitToPt(extensionInput.text),
-                marginTop: unitToPt(inputTop.text),
-                marginBottom: unitToPt(inputBottom.text),
-                marginLeft: unitToPt(inputLeft.text),
-                marginRight: unitToPt(inputRight.text),
-                rowGutter: unitToPt(inputRowGutter.text),
-                colGutter: unitToPt(inputColGutter.text),
+                columns: toInteger(columnCountInput.text, 1),
+                rows: toInteger(rowCountInput.text, 1),
+                guideExtension: unitToPt(toNumber(extensionInput.text, 0)),
+                marginTop: unitToPt(toNumber(marginTopInput.text, 0)),
+                marginBottom: unitToPt(toNumber(marginBottomInput.text, 0)),
+                marginLeft: unitToPt(toNumber(marginLeftInput.text, 0)),
+                marginRight: unitToPt(toNumber(marginRightInput.text, 0)),
+                rowGutter: unitToPt(toNumber(rowGutterInput.text, 0)),
+                columnGutter: unitToPt(toNumber(columnGutterInput.text, 0)),
                 drawCells: cellRectCheckbox.value,
                 drawGuides: drawGuidesCheckbox.value
             };
@@ -749,7 +932,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
                 'marginLeft: ' + currentPreset.marginLeft + ', ' +
                 'marginRight: ' + currentPreset.marginRight + ', ' +
                 'rowGutter: ' + currentPreset.rowGutter + ', ' +
-                'colGutter: ' + currentPreset.colGutter + ', ' +
+                'columnGutter: ' + currentPreset.columnGutter + ', ' +
                 'drawCells: ' + currentPreset.drawCells + ', ' +
                 'drawGuides: ' + currentPreset.drawGuides +
                 ' }';
@@ -768,7 +951,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         // =========================================
         // 対象パネルと元のオブジェクトパネルを横並び（別パネル）/ Target panel and Original-object panel side by side (separate panels)
         var targetRow = dialog.add("group");
-        setupGroup(targetRow, "row", 12);
+        setupGroup(targetRow, "row", COLUMN_SPACING);
         targetRow.alignChildren = ["left", "fill"];
 
         // 対象パネル：対象の種類（縦並び）/ Target panel: target type (vertical)
@@ -776,39 +959,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         setupPanel(targetPanel);
         var targetTypeGroup = targetPanel.add("group");
         setupGroup(targetTypeGroup, "column");
-        var rbTargetSelection = targetTypeGroup.add("radiobutton", undefined, getLabel("target.selection"));
-        var rbTargetArtboard = targetTypeGroup.add("radiobutton", undefined, getLabel("target.artboard"));
-        var rbTargetAllArtboards = targetTypeGroup.add("radiobutton", undefined, getLabel("target.allArtboards"));
+        var targetSelectionRadio = targetTypeGroup.add("radiobutton", undefined, getLabel("target.selection"));
+        var targetArtboardRadio = targetTypeGroup.add("radiobutton", undefined, getLabel("target.artboard"));
+        var targetAllArtboardsRadio = targetTypeGroup.add("radiobutton", undefined, getLabel("target.allArtboards"));
 
         // 元のオブジェクトパネル（対象パネルの外・横並び、選択オブジェクト時のみ有効）/ Original-object panel (outside target panel, selection mode only)
-        var objActionGroup = targetRow.add("panel", undefined, getLabel("panel.originalObject"));
-        setupPanel(objActionGroup);
-        var objActionRow = objActionGroup.add("group");
-        setupGroup(objActionRow, "column");
-        var removeOriginalRadio = objActionRow.add("radiobutton", undefined, getLabel("radio.remove"));
-        var keepOriginalRadio = objActionRow.add("radiobutton", undefined, getLabel("radio.keep"));
-        var makeOriginalGuidesRadio = objActionRow.add("radiobutton", undefined, getLabel("radio.toGuide"));
+        var originalObjectPanel = targetRow.add("panel", undefined, getLabel("panel.originalObject"));
+        setupPanel(originalObjectPanel);
+        var originalObjectGroup = originalObjectPanel.add("group");
+        setupGroup(originalObjectGroup, "column");
+        var removeOriginalRadio = originalObjectGroup.add("radiobutton", undefined, getLabel("radio.remove"));
+        var keepOriginalRadio = originalObjectGroup.add("radiobutton", undefined, getLabel("radio.keep"));
+        var makeOriginalGuidesRadio = originalObjectGroup.add("radiobutton", undefined, getLabel("radio.toGuide"));
         makeOriginalGuidesRadio.helpTip = getLabel("tooltip.toGuide");
         keepOriginalRadio.value = true; // デフォルト / default
 
         // 選択がなければ「選択オブジェクト」を無効化 / Disable selection option when nothing is selected
         if (!cachedSelectionBounds) {
-            rbTargetSelection.enabled = false;
+            targetSelectionRadio.enabled = false;
         }
         // アートボードが1つだけなら「すべてのアートボード」を無効化 / Disable "All Artboards" when only one artboard
         if (!hasMultipleArtboards) {
-            rbTargetAllArtboards.enabled = false;
+            targetAllArtboardsRadio.enabled = false;
         }
         // 初期選択 / Initial target radio
-        rbTargetSelection.value = (targetMode === "selection");
-        rbTargetArtboard.value = (targetMode === "artboard");
-        rbTargetAllArtboards.value = (targetMode === "allArtboards");
+        targetSelectionRadio.value = (targetMode === "selection");
+        targetArtboardRadio.value = (targetMode === "artboard");
+        targetAllArtboardsRadio.value = (targetMode === "allArtboards");
 
         // 対象モード変更 / Target mode change
         function onTargetChange() {
-            if (rbTargetSelection.value) {
+            if (targetSelectionRadio.value) {
                 targetMode = "selection";
-            } else if (rbTargetAllArtboards.value) {
+            } else if (targetAllArtboardsRadio.value) {
                 targetMode = "allArtboards";
             } else {
                 targetMode = "artboard";
@@ -816,7 +999,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             updateTargetMode();
             safeUpdatePreview();
         }
-        rbTargetSelection.onClick = rbTargetArtboard.onClick = rbTargetAllArtboards.onClick = onTargetChange;
+        targetSelectionRadio.onClick = targetArtboardRadio.onClick = targetAllArtboardsRadio.onClick = onTargetChange;
 
         // 元オブジェクト処理の切替でプレビュー更新 / Update preview on original-object radio change
         removeOriginalRadio.onClick = keepOriginalRadio.onClick = makeOriginalGuidesRadio.onClick = function () {
@@ -825,75 +1008,77 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
 
         // 対象モードに応じた表示制御 / Enable/disable controls by target mode
         function updateTargetMode() {
-            var selMode = isSelectionMode();
-            objActionGroup.enabled = selMode;
+            var isSelectionTarget = isSelectionMode();
+            originalObjectPanel.enabled = isSelectionTarget;
+            // 選択オブジェクトにはアートボードの辺がないのでディム / No artboard edges when the target is the selection
+            artboardEdgeCheckbox.enabled = !isSelectionTarget;
         }
 
         // グリッド設定グループ / Grid settings group
-        var rowColumnGroup = dialog.add("group");
-        setupGroup(rowColumnGroup, "row", 12);
-        rowColumnGroup.alignChildren = ["left", "top"];
+        var gridSettingRow = dialog.add("group");
+        setupGroup(gridSettingRow, "row", COLUMN_SPACING);
+        gridSettingRow.alignChildren = ["left", "top"];
         var gridLabelWidth = (currentLanguage === "ja") ? 40 : 50; // unify Number/Gutter label width and right-align
 
         // 行設定パネル / Row settings panel
-        var rowPanel = rowColumnGroup.add("panel", undefined, getLabel("panel.row"));
-        setupPanel(rowPanel);
+        var rowSettingPanel = gridSettingRow.add("panel", undefined, getLabel("panel.row"));
+        setupPanel(rowSettingPanel);
 
-        var rowCountGroup = rowPanel.add("group");
+        var rowCountGroup = rowSettingPanel.add("group");
         setupGroup(rowCountGroup, "row");
-        var lblRows = rowCountGroup.add("statictext", undefined, labelText("field.rowCount"));
-        lblRows.justification = "right";
-        lblRows.minimumSize.width = gridLabelWidth;
-        lblRows.maximumSize.width = gridLabelWidth;
+        var rowCountLabel = rowCountGroup.add("statictext", undefined, labelWithColon("field.rowCount"));
+        rowCountLabel.justification = "right";
+        rowCountLabel.minimumSize.width = gridLabelWidth;
+        rowCountLabel.maximumSize.width = gridLabelWidth;
         var rowCountInput = rowCountGroup.add("edittext", undefined, "2");
         rowCountInput.characters = 3;
 
-        var rowGutterGroup = rowPanel.add("group");
+        var rowGutterGroup = rowSettingPanel.add("group");
         setupGroup(rowGutterGroup, "row");
-        var lblRowGutter = rowGutterGroup.add("statictext", undefined, labelText("field.rowGutter"));
-        lblRowGutter.justification = "right";
-        lblRowGutter.minimumSize.width = gridLabelWidth;
-        lblRowGutter.maximumSize.width = gridLabelWidth;
-        var inputRowGutter = rowGutterGroup.add("edittext", undefined, "0");
-        inputRowGutter.characters = 3;
+        var rowGutterLabel = rowGutterGroup.add("statictext", undefined, labelWithColon("field.rowGutter"));
+        rowGutterLabel.justification = "right";
+        rowGutterLabel.minimumSize.width = gridLabelWidth;
+        rowGutterLabel.maximumSize.width = gridLabelWidth;
+        var rowGutterInput = rowGutterGroup.add("edittext", undefined, "0");
+        rowGutterInput.characters = 3;
         rowGutterGroup.add("statictext", undefined, unitLabel);
 
         // 列設定パネル / Column settings panel
-        var columnPanel = rowColumnGroup.add("panel", undefined, getLabel("panel.column"));
-        setupPanel(columnPanel);
+        var columnSettingPanel = gridSettingRow.add("panel", undefined, getLabel("panel.column"));
+        setupPanel(columnSettingPanel);
 
-        var columnCountGroup = columnPanel.add("group");
+        var columnCountGroup = columnSettingPanel.add("group");
         setupGroup(columnCountGroup, "row");
-        var lblCols = columnCountGroup.add("statictext", undefined, labelText("field.columnCount"));
-        lblCols.justification = "right";
-        lblCols.minimumSize.width = gridLabelWidth;
-        lblCols.maximumSize.width = gridLabelWidth;
+        var columnCountLabel = columnCountGroup.add("statictext", undefined, labelWithColon("field.columnCount"));
+        columnCountLabel.justification = "right";
+        columnCountLabel.minimumSize.width = gridLabelWidth;
+        columnCountLabel.maximumSize.width = gridLabelWidth;
         var columnCountInput = columnCountGroup.add("edittext", undefined, "2");
         columnCountInput.characters = 3;
 
-        var colGutterGroup = columnPanel.add("group");
-        setupGroup(colGutterGroup, "row");
-        var lblColGutter = colGutterGroup.add("statictext", undefined, labelText("field.columnGutter"));
-        lblColGutter.justification = "right";
-        lblColGutter.minimumSize.width = gridLabelWidth;
-        lblColGutter.maximumSize.width = gridLabelWidth;
-        var inputColGutter = colGutterGroup.add("edittext", undefined, "0");
-        inputColGutter.characters = 3;
-        colGutterGroup.add("statictext", undefined, unitLabel);
+        var columnGutterGroup = columnSettingPanel.add("group");
+        setupGroup(columnGutterGroup, "row");
+        var columnGutterLabel = columnGutterGroup.add("statictext", undefined, labelWithColon("field.columnGutter"));
+        columnGutterLabel.justification = "right";
+        columnGutterLabel.minimumSize.width = gridLabelWidth;
+        columnGutterLabel.maximumSize.width = gridLabelWidth;
+        var columnGutterInput = columnGutterGroup.add("edittext", undefined, "0");
+        columnGutterInput.characters = 3;
+        columnGutterGroup.add("statictext", undefined, unitLabel);
 
         // 行間に連動（列パネル下部）/ Link to row gutter (under column panel)
-        var linkGutterCheckbox = columnPanel.add("checkbox", undefined, getLabel("checkbox.linkGutter"));
+        var linkGutterCheckbox = columnSettingPanel.add("checkbox", undefined, getLabel("checkbox.linkGutter"));
         linkGutterCheckbox.helpTip = getLabel("tooltip.linkGutter");
         linkGutterCheckbox.value = true;
 
         // 連動ON時は列間を行間と同じ値にする / When linked, sync col gutter to row gutter
         function syncGutterLink() {
             if (linkGutterCheckbox.value) {
-                inputColGutter.text = inputRowGutter.text;
-                colGutterGroup.enabled = false;
+                columnGutterInput.text = rowGutterInput.text;
+                columnGutterGroup.enabled = false;
             } else {
-                var xVal = parseInt(columnCountInput.text, 10);
-                colGutterGroup.enabled = (xVal > 1);
+                var columnCount = parseInt(columnCountInput.text, 10);
+                columnGutterGroup.enabled = (columnCount > 1);
             }
         }
 
@@ -910,65 +1095,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
 
         // ラベル＋数値のセル / A label+field cell
         function addMarginCell(parentRow, labelKey) {
-            var cell = parentRow.add("group");
-            cell.orientation = "row";
-            cell.alignment = ["center", "center"];
-            cell.minimumSize.width = MARGIN_CELL_WIDTH;
-            cell.add("statictext", undefined, labelText(labelKey));
-            var input = cell.add("edittext", undefined, "0");
-            input.characters = 3;
-            return { group: cell, input: input };
+            var cellGroup = parentRow.add("group");
+            cellGroup.orientation = "row";
+            cellGroup.alignment = ["center", "center"];
+            cellGroup.minimumSize.width = MARGIN_CELL_WIDTH;
+            cellGroup.add("statictext", undefined, labelWithColon(labelKey));
+            var marginInput = cellGroup.add("edittext", undefined, "0");
+            marginInput.characters = 3;
+            return { group: cellGroup, input: marginInput };
         }
         // 位置合わせ用の空セル / Empty cell for alignment
         function addMarginSpacer(parentRow) {
-            var cell = parentRow.add("group");
-            cell.minimumSize.width = MARGIN_CELL_WIDTH;
+            var spacerGroup = parentRow.add("group");
+            spacerGroup.minimumSize.width = MARGIN_CELL_WIDTH;
         }
 
         // 1行目：［空］［上］［空］/ Row 1: [empty][top][empty]
-        var marginRow1 = marginPanel.add("group");
-        marginRow1.orientation = "row";
-        marginRow1.alignment = ["center", "top"];
-        addMarginSpacer(marginRow1);
-        var topCell = addMarginCell(marginRow1, "field.top");
-        var inputTop = topCell.input;
-        addMarginSpacer(marginRow1);
+        var marginTopRow = marginPanel.add("group");
+        marginTopRow.orientation = "row";
+        marginTopRow.alignment = ["center", "top"];
+        addMarginSpacer(marginTopRow);
+        var marginTopCell = addMarginCell(marginTopRow, "field.top");
+        var marginTopInput = marginTopCell.input;
+        addMarginSpacer(marginTopRow);
 
         // 2行目：［左］［連動］［右］/ Row 2: [left][link][right]
-        var marginRow2 = marginPanel.add("group");
-        marginRow2.orientation = "row";
-        marginRow2.alignment = ["center", "top"];
-        var leftCell = addMarginCell(marginRow2, "field.left");
-        var marginLeftGroup = leftCell.group;
-        var inputLeft = leftCell.input;
-        var marginCommonGroup = marginRow2.add("group");
-        marginCommonGroup.orientation = "row";
-        marginCommonGroup.alignment = ["center", "center"];
-        marginCommonGroup.minimumSize.width = MARGIN_CELL_WIDTH;
-        var commonMarginCheckbox = marginCommonGroup.add("checkbox", undefined, getLabel("checkbox.linkMargin"));
-        commonMarginCheckbox.helpTip = getLabel("tooltip.linkMargin");
-        commonMarginCheckbox.value = true; // デフォルトでON / on by default
-        var rightCell = addMarginCell(marginRow2, "field.right");
-        var marginRightGroup = rightCell.group;
-        var inputRight = rightCell.input;
+        var marginMiddleRow = marginPanel.add("group");
+        marginMiddleRow.orientation = "row";
+        marginMiddleRow.alignment = ["center", "top"];
+        var marginLeftCell = addMarginCell(marginMiddleRow, "field.left");
+        var marginLeftGroup = marginLeftCell.group;
+        var marginLeftInput = marginLeftCell.input;
+        var linkMarginGroup = marginMiddleRow.add("group");
+        linkMarginGroup.orientation = "row";
+        linkMarginGroup.alignment = ["center", "center"];
+        linkMarginGroup.minimumSize.width = MARGIN_CELL_WIDTH;
+        var linkMarginCheckbox = linkMarginGroup.add("checkbox", undefined, getLabel("checkbox.linkMargin"));
+        linkMarginCheckbox.helpTip = getLabel("tooltip.linkMargin");
+        linkMarginCheckbox.value = true; // デフォルトでON / on by default
+        var marginRightCell = addMarginCell(marginMiddleRow, "field.right");
+        var marginRightGroup = marginRightCell.group;
+        var marginRightInput = marginRightCell.input;
 
         // 3行目：［空］［下］［空］/ Row 3: [empty][bottom][empty]
-        var marginRow3 = marginPanel.add("group");
-        marginRow3.orientation = "row";
-        marginRow3.alignment = ["center", "top"];
-        addMarginSpacer(marginRow3);
-        var bottomCell = addMarginCell(marginRow3, "field.bottom");
-        var marginBottomGroup = bottomCell.group;
-        var inputBottom = bottomCell.input;
-        addMarginSpacer(marginRow3);
+        var marginBottomRow = marginPanel.add("group");
+        marginBottomRow.orientation = "row";
+        marginBottomRow.alignment = ["center", "top"];
+        addMarginSpacer(marginBottomRow);
+        var marginBottomCell = addMarginCell(marginBottomRow, "field.bottom");
+        var marginBottomGroup = marginBottomCell.group;
+        var marginBottomInput = marginBottomCell.input;
+        addMarginSpacer(marginBottomRow);
 
         // セルパネル＋ガイドパネルを横並び（左：セル、右：ガイド）/ Cell panel + Guides panel side by side (left: cell, right: guides)
-        var guideRow = dialog.add("group");
-        setupGroup(guideRow, "row", 12);
-        guideRow.alignChildren = ["left", "fill"];
+        var cellGuideRow = dialog.add("group");
+        setupGroup(cellGuideRow, "row", COLUMN_SPACING);
+        cellGuideRow.alignChildren = ["left", "fill"];
 
         // セルパネル（ガイドパネルの左）/ Cell panel (left of Guides panel)
-        var cellPanel = guideRow.add("panel", undefined, getLabel("panel.options"));
+        var cellPanel = cellGuideRow.add("panel", undefined, getLabel("panel.options"));
         setupPanel(cellPanel);
         var cellRectCheckbox = cellPanel.add("checkbox", undefined, getLabel("checkbox.cellRect"));
         cellRectCheckbox.helpTip = getLabel("tooltip.cellRect");
@@ -982,23 +1167,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         var roundCornerCheckbox = roundCornerGroup.add("checkbox", undefined, getLabel("checkbox.roundCorner"));
         roundCornerCheckbox.helpTip = getLabel("tooltip.roundCorner");
         roundCornerCheckbox.value = false;
-        var inputRoundCorner = roundCornerGroup.add("edittext", undefined, "3");
-        inputRoundCorner.characters = 2;
+        var roundCornerInput = roundCornerGroup.add("edittext", undefined, "3");
+        roundCornerInput.characters = 2;
         roundCornerGroup.add("statictext", undefined, unitLabel);
 
-        // 不透明度スライダー（0-100、数値表示なし）/ Opacity slider (0-100, no numeric readout)
+        // 不透明度スライダー（0-100、ラベルの次の行にスライダー）/ Opacity slider (0-100, slider on the line below the label)
         var opacityGroup = cellPanel.add("group");
-        setupGroup(opacityGroup, "row");
-        opacityGroup.add("statictext", undefined, labelText("field.opacity"));
+        setupGroup(opacityGroup, "column", ROW_SPACING);
+        opacityGroup.add("statictext", undefined, labelWithColon("field.opacity"));
         var opacitySlider = opacityGroup.add("slider", undefined, CELL_OPACITY, 0, 100);
         opacitySlider.helpTip = getLabel("tooltip.opacity");
-        opacitySlider.preferredSize.width = 100;
+        opacitySlider.alignment = ["fill", "center"];
         opacitySlider.onChanging = function () {
             safeUpdatePreview();
         };
 
         // ガイドパネル / Guides panel
-        var guidesPanel = guideRow.add("panel", undefined, getLabel("panel.guides"));
+        var guidesPanel = cellGuideRow.add("panel", undefined, getLabel("panel.guides"));
         setupPanel(guidesPanel);
 
         // ガイドを引く / Draw guides
@@ -1019,6 +1204,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             safeUpdatePreview();
         };
 
+        // アートボードのエッジ（上下左右4辺）/ Artboard edges (all four sides)
+        var artboardEdgeCheckbox = guidesPanel.add("checkbox", undefined, getLabel("checkbox.artboardEdge"));
+        artboardEdgeCheckbox.helpTip = getLabel("tooltip.artboardEdge");
+        artboardEdgeCheckbox.value = false;
+        artboardEdgeCheckbox.onClick = function () {
+            safeUpdatePreview();
+        };
+
         // 各セルを分割（各セルの左右中央に縦ガイド）/ Split each cell (vertical guide at each cell's horizontal center)
         var splitCellCheckbox = guidesPanel.add("checkbox", undefined, getLabel("checkbox.splitCell"));
         splitCellCheckbox.helpTip = getLabel("tooltip.splitCell");
@@ -1030,13 +1223,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         // レイヤークリア / Clear layer
         var clearGuidesCheckbox = guidesPanel.add("checkbox", undefined, getLabel("checkbox.clearGuides"));
         clearGuidesCheckbox.helpTip = getLabel("tooltip.clearGuides");
-        clearGuidesCheckbox.value = true;
+        clearGuidesCheckbox.value = false;
+        clearGuidesCheckbox.onClick = function () {
+            safeUpdatePreview();
+        };
 
         // 数値フィールドを矢印キーで増減（Shift で10の倍数にスナップ）/ Adjust a numeric field with arrow keys (Shift snaps to multiples of 10)
         function changeValueByArrowKey(editText) {
             editText.addEventListener("keydown", function (event) {
-                var value = Number(editText.text);
-                if (isNaN(value)) return;
+                var fieldValue = Number(editText.text);
+                if (isNaN(fieldValue)) return;
 
                 var keyboard = ScriptUI.environment.keyboardState;
 
@@ -1046,24 +1242,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
 
                     if (keyboard.shiftKey) {
                         // Shiftキー押下時は10の倍数にスナップ
-                        value = Math.floor(value / 10) * 10;
+                        fieldValue = Math.floor(fieldValue / 10) * 10;
                         delta = 10;
                     }
 
-                    value += isUp ? delta : -delta;
-                    if (value < 0) value = 0; // 必要なら下限チェック
+                    fieldValue += isUp ? delta : -delta;
+                    if (fieldValue < 0) fieldValue = 0; // 必要なら下限チェック
 
                     event.preventDefault();
-                    editText.text = value;
+                    editText.text = fieldValue;
                     // 連動・ガター・列間同期をまとめて反映 / Apply linked margin / gutter enable / col gutter sync together
-                    if (editText === inputTop && commonMarginCheckbox.value) {
-                        syncCommonMargin();
+                    if (editText === marginTopInput && linkMarginCheckbox.value) {
+                        syncLinkedMargins();
                     }
                     if (editText === columnCountInput || editText === rowCountInput) {
-                        updateGutterEnable();
+                        updateGutterEnabled();
                     }
-                    if (editText === inputRowGutter && linkGutterCheckbox.value) {
-                        inputColGutter.text = inputRowGutter.text;
+                    if (editText === rowGutterInput && linkGutterCheckbox.value) {
+                        columnGutterInput.text = rowGutterInput.text;
                     }
                     // 入力変更を即時プレビューに反映 / Refresh preview immediately (Undo-safe)
                     safeUpdatePreview();
@@ -1082,24 +1278,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         function updatePreview() {
             try {
                 // If there was a previous preview step, rollback first
-                previewMgr.rollback();
+                previewManager.rollback();
             } catch (e) {
                 $.writeln("[GenerateGuidesGrid] preview rollback error: " + e);
             }
 
+            // 「既存ガイドを削除」ONなら、この時点で削除して見た目に反映する
+            // キャンセル時は rollback の app.undo() で元に戻る / Cancel restores them via rollback
+            if (clearGuidesCheckbox.value) {
+                previewManager.addStep(function () {
+                    return clearExistingGuides(); // 何も消さなければ false / false when nothing was removed
+                });
+            }
+
             // Draw preview as one undoable step
-            previewMgr.addStep(function () {
-                drawGrid(buildDrawContext(true)); // プレビュー描画 / draw as preview
+            previewManager.addStep(function () {
+                var drawContext = buildDrawContext(true);
+                if (!canDrawGrid(drawContext)) return false; // 何も描かない＝undo対象なし / nothing drawn, nothing to undo
+                drawGrid(drawContext); // プレビュー描画 / draw as preview
+                return true;
             });
 
             // 選択オブジェクトの表示/非表示をプレビュー / Preview hide/show of selected objects
             if (isSelectionMode() && cachedSelectionItems.length > 0) {
                 var shouldHide = (removeOriginalRadio && removeOriginalRadio.value);
                 if (shouldHide) {
-                    previewMgr.addStep(function () {
-                        for (var ph = 0; ph < cachedSelectionItems.length; ph++) {
-                            cachedSelectionItems[ph].hidden = true;
+                    previewManager.addStep(function () {
+                        for (var i = 0; i < cachedSelectionItems.length; i++) {
+                            cachedSelectionItems[i].hidden = true;
                         }
+                        return true;
                     });
                 }
             }
@@ -1118,91 +1326,88 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         changeValueByArrowKey(columnCountInput);
         changeValueByArrowKey(rowCountInput);
         changeValueByArrowKey(extensionInput);
-        changeValueByArrowKey(inputTop);
-        changeValueByArrowKey(inputBottom);
-        changeValueByArrowKey(inputLeft);
-        changeValueByArrowKey(inputRight);
-        changeValueByArrowKey(inputRowGutter);
-        changeValueByArrowKey(inputColGutter);
+        changeValueByArrowKey(marginTopInput);
+        changeValueByArrowKey(marginBottomInput);
+        changeValueByArrowKey(marginLeftInput);
+        changeValueByArrowKey(marginRightInput);
+        changeValueByArrowKey(rowGutterInput);
+        changeValueByArrowKey(columnGutterInput);
 
         // 入力中の変更もリアルタイム反映 / Attach onChanging for live preview
         attachLivePreview(columnCountInput);
         attachLivePreview(rowCountInput);
         attachLivePreview(extensionInput);
         // 上マージン変更時に連動ONなら左右下も同期 / Sync margins when top changes (if linked)
-        inputTop.onChanging = function () {
-            if (commonMarginCheckbox.value) {
-                inputBottom.text = inputTop.text;
-                inputLeft.text = inputTop.text;
-                inputRight.text = inputTop.text;
+        marginTopInput.onChanging = function () {
+            if (linkMarginCheckbox.value) {
+                marginBottomInput.text = marginTopInput.text;
+                marginLeftInput.text = marginTopInput.text;
+                marginRightInput.text = marginTopInput.text;
             }
             safeUpdatePreview();
         };
-        attachLivePreview(inputBottom);
-        attachLivePreview(inputLeft);
-        attachLivePreview(inputRight);
+        attachLivePreview(marginBottomInput);
+        attachLivePreview(marginLeftInput);
+        attachLivePreview(marginRightInput);
         // 行間変更時に連動チェックONなら列間も同期 / Sync col gutter when row gutter changes (if linked)
-        inputRowGutter.onChanging = function () {
+        rowGutterInput.onChanging = function () {
             if (linkGutterCheckbox.value) {
-                inputColGutter.text = inputRowGutter.text;
+                columnGutterInput.text = rowGutterInput.text;
             }
             safeUpdatePreview();
         };
-        attachLivePreview(inputColGutter);
+        attachLivePreview(columnGutterInput);
 
         // === ボタンエリア（3カラム：左アウトライン／中央スペーサー／右キャンセル・OK）/ Button area (3 columns: left outline / center spacer / right cancel+ok)
-        var buttonArea = dialog.add("group");
-        buttonArea.alignment = ["fill", "top"];
-        buttonArea.orientation = "row";
-        buttonArea.alignChildren = ["fill", "center"];
-        buttonArea.margins = [0, 5, 0, 0]; // ボタンエリア上マージン +5 / extra top margin
-        buttonArea.spacing = 0;
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.alignment = ["fill", "top"];
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["fill", "center"];
+        btnRowGroup.margins = [0, 5, 0, 0]; // ボタンエリア上マージン +5 / extra top margin
+        btnRowGroup.spacing = 0;
 
         // 左グループ（アウトラインボタン）/ Left group (Outline button)
-        var buttonLeftGroup = buttonArea.add("group");
-        buttonLeftGroup.orientation = "row";
-        buttonLeftGroup.alignChildren = "left";
-        var outlineButton = buttonLeftGroup.add("button", undefined, getLabel("button.outline"));
-        outlineButton.helpTip = getLabel("tooltip.outline");
+        var btnLeftGroup = btnRowGroup.add("group");
+        setupRow(btnLeftGroup, "left");
+        var btnOutline = btnLeftGroup.add("button", undefined, getLabel("button.outline"));
+        btnOutline.helpTip = getLabel("tooltip.outline");
         // アウトライン⇔プレビュー表示を切り替え、ラベルもトグル / Toggle Outline/Preview view and the button label
-        outlineButton.onClick = function () {
+        btnOutline.onClick = function () {
             app.executeMenuCommand('preview');
-            outlineButton.text = (outlineButton.text === getLabel("button.outline"))
+            btnOutline.text = (btnOutline.text === getLabel("button.outline"))
                 ? getLabel("button.preview")
                 : getLabel("button.outline");
         };
 
         // スペーサー（横に伸びる空白）/ Spacer (horizontal stretch)
-        var spacer = buttonArea.add("group");
+        var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 0;
         spacer.maximumSize.height = 0;
 
         // 右グループ（キャンセル・OKボタン）/ Right group (Cancel/OK buttons)
-        var buttonRightGroup = buttonArea.add("group");
-        buttonRightGroup.alignment = ["right", "center"];
-        buttonRightGroup.orientation = "row";
-        buttonRightGroup.alignChildren = "right";
-        buttonRightGroup.spacing = 10;
-        var cancelButton = buttonRightGroup.add("button", undefined, getLabel("button.cancel"), {
+        var btnRightGroup = btnRowGroup.add("group");
+        setupRow(btnRightGroup, "right", 10);
+        btnRightGroup.alignChildren = ["right", "center"];
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), {
             name: "cancel"
         });
-        var okButton = buttonRightGroup.add("button", undefined, getLabel("button.ok"), {
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), {
             name: "ok"
         });
-        okButton.alignment = ["right", "center"];
+        btnOK.alignment = ["right", "center"];
 
         // 表示用ラベルをローカライズ / Localize display label for dropdown
-        function presetDisplayLabel(raw) {
+        function presetDisplayLabel(rawLabel) {
             // 日本語UIのときは「 / 」以降を隠す / In Japanese UI, hide text after " / "
-            if (currentLanguage === "ja") return String(raw).replace(/\s*\/.*$/, "");
-            return raw;
+            if (currentLanguage === "ja") return String(rawLabel).replace(/\s*\/.*$/, "");
+            return rawLabel;
         }
 
         // プリセットをドロップダウンに追加 / Add presets to dropdown
         for (var i = 0; i < presets.length; i++) {
-            var display = presetDisplayLabel(presets[i].label);
-            presetDropdown.add("item", display);
+            var presetLabel = presetDisplayLabel(presets[i].label);
+            presetDropdown.add("item", presetLabel);
         }
         presetDropdown.selection = 0;
 
@@ -1210,29 +1415,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         // 旧キー（x/y/top/bottom/left/right）も後方互換で受け付ける / Accept legacy keys for backward compatibility
         function applyPreset(preset) {
             /* 値を取得（新キー→旧キー→既定値の順）/ Pick a value: new key → legacy key → default */
-            function pick(primary, legacy, dflt) {
-                if (primary !== undefined) return primary;
+            function pickPresetValue(preferred, legacy, fallbackValue) {
+                if (preferred !== undefined) return preferred;
                 if (legacy !== undefined) return legacy;
-                return dflt;
+                return fallbackValue;
             }
             // 行数・列数（換算なし）/ Counts (no unit conversion)
-            columnCountInput.text = pick(preset.columns, preset.x, 1);
-            rowCountInput.text = pick(preset.rows, preset.y, 1);
+            columnCountInput.text = pickPresetValue(preset.columns, preset.x, 1);
+            rowCountInput.text = pickPresetValue(preset.rows, preset.y, 1);
             // 長さ系は pt 基準なので現在単位へ換算 / Length values are stored in pt — convert to the current unit
-            extensionInput.text = ptToUnit(pick(preset.guideExtension, undefined, 0));
-            var mTop = pick(preset.marginTop, preset.top, 0);
-            var mBottom = pick(preset.marginBottom, preset.bottom, 0);
-            var mLeft = pick(preset.marginLeft, preset.left, 0);
-            var mRight = pick(preset.marginRight, preset.right, 0);
-            inputTop.text = ptToUnit(mTop);
-            inputBottom.text = ptToUnit(mBottom);
-            inputLeft.text = ptToUnit(mLeft);
-            inputRight.text = ptToUnit(mRight);
-            inputRowGutter.text = ptToUnit(pick(preset.rowGutter, undefined, 0));
-            inputColGutter.text = ptToUnit(pick(preset.colGutter, undefined, 0));
+            extensionInput.text = ptToUnit(pickPresetValue(preset.guideExtension, undefined, 0));
+            var presetMarginTop = pickPresetValue(preset.marginTop, preset.top, 0);
+            var presetMarginBottom = pickPresetValue(preset.marginBottom, preset.bottom, 0);
+            var presetMarginLeft = pickPresetValue(preset.marginLeft, preset.left, 0);
+            var presetMarginRight = pickPresetValue(preset.marginRight, preset.right, 0);
+            marginTopInput.text = ptToUnit(presetMarginTop);
+            marginBottomInput.text = ptToUnit(presetMarginBottom);
+            marginLeftInput.text = ptToUnit(presetMarginLeft);
+            marginRightInput.text = ptToUnit(presetMarginRight);
+            rowGutterInput.text = ptToUnit(pickPresetValue(preset.rowGutter, undefined, 0));
+            columnGutterInput.text = ptToUnit(pickPresetValue(preset.columnGutter, undefined, 0));
             // 上下左右が異なるプリセットは連動をOFF（連動が値を上書きして壊すのを防ぐ）
             // If margins differ, turn the link off so it won't overwrite the distinct values
-            commonMarginCheckbox.value = (mTop === mBottom && mTop === mLeft && mTop === mRight);
+            linkMarginCheckbox.value = (presetMarginTop === presetMarginBottom && presetMarginTop === presetMarginLeft && presetMarginTop === presetMarginRight);
             cellRectCheckbox.value = (typeof preset.drawCells !== "undefined") ? preset.drawCells : false;
             drawGuidesCheckbox.value = (typeof preset.drawGuides !== "undefined") ? preset.drawGuides : true;
             extensionGroup.enabled = drawGuidesCheckbox.value;
@@ -1241,10 +1446,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         // プリセット選択時に入力値へ反映 / Apply preset values to inputs on selection
         presetDropdown.onChange = function () {
             applyPreset(presets[presetDropdown.selection.index]);
-            updateGutterEnable();
+            updateGutterEnabled();
             updateTargetMode();
-            updateCenterEnable();
-            syncCommonMargin();
+            updateCellOptionEnabled();
+            syncLinkedMargins();
             safeUpdatePreview();
         };
 
@@ -1252,12 +1457,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         applyPreset(presets[0]);
 
         // 「連動」同期処理 / Sync for "Link" margin
-        function syncCommonMargin() {
-            if (commonMarginCheckbox.value) {
-                var val = inputTop.text;
-                inputBottom.text = val;
-                inputLeft.text = val;
-                inputRight.text = val;
+        function syncLinkedMargins() {
+            if (linkMarginCheckbox.value) {
+                var topValue = marginTopInput.text;
+                marginBottomInput.text = topValue;
+                marginLeftInput.text = topValue;
+                marginRightInput.text = topValue;
                 marginBottomGroup.enabled = false;
                 marginLeftGroup.enabled = false;
                 marginRightGroup.enabled = false;
@@ -1267,86 +1472,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
                 marginRightGroup.enabled = true;
             }
         }
-        commonMarginCheckbox.onClick = function () {
-            syncCommonMargin();
+        linkMarginCheckbox.onClick = function () {
+            syncLinkedMargins();
             safeUpdatePreview();
         };
 
         // ガター有効無効切り替え / Enable/disable gutter fields
-        function updateGutterEnable() {
-            var xVal = parseInt(columnCountInput.text, 10);
-            var yVal = parseInt(rowCountInput.text, 10);
-            rowGutterGroup.enabled = (yVal > 1);
+        function updateGutterEnabled() {
+            var columnCount = parseInt(columnCountInput.text, 10);
+            var rowCount = parseInt(rowCountInput.text, 10);
+            rowGutterGroup.enabled = (rowCount > 1);
             // 行数・列数が両方2以上のときのみ連動を有効 / Enable link only when both >= 2
-            var bothMulti = (xVal > 1 && yVal > 1);
-            linkGutterCheckbox.enabled = bothMulti;
-            if (linkGutterCheckbox.value && bothMulti) {
-                inputColGutter.text = inputRowGutter.text;
-                colGutterGroup.enabled = false;
+            var hasMultipleRowsAndColumns = (columnCount > 1 && rowCount > 1);
+            linkGutterCheckbox.enabled = hasMultipleRowsAndColumns;
+            if (linkGutterCheckbox.value && hasMultipleRowsAndColumns) {
+                columnGutterInput.text = rowGutterInput.text;
+                columnGutterGroup.enabled = false;
             } else {
-                colGutterGroup.enabled = (xVal > 1);
+                columnGutterGroup.enabled = (columnCount > 1);
             }
         }
 
         // 行数・列数変更時：ガター有効/無効を更新して即時プレビュー / On row/col change: refresh gutter enable + preview
         columnCountInput.onChanging = rowCountInput.onChanging = function () {
-            updateGutterEnable();
+            updateGutterEnabled();
             safeUpdatePreview();
         };
 
         // 「ガイドを引く」切替：伸張・クリアをディム制御してプレビュー / Toggle draw-guides: dim extension/clear, then preview
         drawGuidesCheckbox.onClick = function () {
-            var enable = drawGuidesCheckbox.value;
-            extensionGroup.enabled = enable;
-            extensionInput.enabled = enable && extensionCheckbox.value;
-            clearGuidesCheckbox.enabled = enable; // ガイドOFFならクリアをディム / dim clear when guides off
+            var guidesEnabled = drawGuidesCheckbox.value;
+            extensionGroup.enabled = guidesEnabled;
+            extensionInput.enabled = guidesEnabled && extensionCheckbox.value;
+            clearGuidesCheckbox.enabled = guidesEnabled; // ガイドOFFならクリアをディム / dim clear when guides off
             safeUpdatePreview();
         };
 
         // 長方形化の有無でセル系オプション（中心点・角丸・不透明度）をディム制御 / Cell options dim unless rectangles are drawn
         // 角丸の数値欄は「長方形化ON かつ 角丸ON」のときだけ有効 / The round-corner field is enabled only when both rectangles and round corners are on
-        function updateCenterEnable() {
-            var cellsOn = cellRectCheckbox.value;
-            centerPointCheckbox.enabled = cellsOn;
-            roundCornerCheckbox.enabled = cellsOn;
-            inputRoundCorner.enabled = cellsOn && roundCornerCheckbox.value;
-            opacitySlider.enabled = cellsOn;
+        function updateCellOptionEnabled() {
+            var cellsEnabled = cellRectCheckbox.value;
+            centerPointCheckbox.enabled = cellsEnabled;
+            roundCornerCheckbox.enabled = cellsEnabled;
+            roundCornerInput.enabled = cellsEnabled && roundCornerCheckbox.value;
+            opacitySlider.enabled = cellsEnabled;
         }
 
         cellRectCheckbox.onClick = function () {
-            updateCenterEnable();
+            updateCellOptionEnabled();
             safeUpdatePreview();
         };
 
         // 角丸トグルで数値欄の有効/無効を更新してプレビュー / Toggle round corners: refresh the field enable, then preview
         roundCornerCheckbox.onClick = function () {
-            updateCenterEnable();
+            updateCellOptionEnabled();
             safeUpdatePreview();
         };
-        changeValueByArrowKey(inputRoundCorner);
-        attachLivePreview(inputRoundCorner);
+        changeValueByArrowKey(roundCornerInput);
+        attachLivePreview(roundCornerInput);
 
         // OKボタン押下時（ドキュメントは変更せず閉じるだけ。クリア/描画は確定処理 finalAction で実行）
         // OK button: just close (no document mutation here — clear/draw happens in finalAction to keep undo bookkeeping correct)
-        okButton.onClick = function () {
-            updateGutterEnable();
+        btnOK.onClick = function () {
+            updateGutterEnabled();
             dialog.close(1);
         };
 
         // キャンセル：ダイアログを閉じるだけ（後処理は dialog.show() 後の分岐で rollback）/ Cancel: just close; cleanup/rollback happens after dialog.show()
-        cancelButton.onClick = function () {
+        btnCancel.onClick = function () {
             dialog.close(0);
         };
 
         // 行・列・ガター・伸張・ガイド系の設定を収集 / Collect grid (rows/cols/gutters/extension/guide) settings
         function collectGridSettings() {
             return {
-                columnCount: parseInt(columnCountInput.text, 10),
-                rowCount: parseInt(rowCountInput.text, 10),
-                ext: (extensionCheckbox.value ? parseFloat(extensionInput.text) : 0) * unitFactor,
-                rowGutter: parseFloat(inputRowGutter.text) * unitFactor,
-                colGutter: parseFloat(inputColGutter.text) * unitFactor,
-                drawGuidesNow: drawGuidesCheckbox.value,
+                columnCount: toInteger(columnCountInput.text, 0),
+                rowCount: toInteger(rowCountInput.text, 0),
+                guideExtension: (extensionCheckbox.value ? toNumber(extensionInput.text, 0) : 0) * unitFactor,
+                rowGutter: toNumber(rowGutterInput.text, 0) * unitFactor,
+                columnGutter: toNumber(columnGutterInput.text, 0) * unitFactor,
+                drawGridGuides: drawGuidesCheckbox.value,
+                drawArtboardEdge: artboardEdgeCheckbox.value,
                 splitCells: splitCellCheckbox.value
             };
         }
@@ -1354,10 +1560,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         // 上下左右マージンを収集 / Collect top/bottom/left/right margins
         function collectMarginSettings() {
             return {
-                marginTop: parseFloat(inputTop.text) * unitFactor,
-                marginBottom: parseFloat(inputBottom.text) * unitFactor,
-                marginLeft: parseFloat(inputLeft.text) * unitFactor,
-                marginRight: parseFloat(inputRight.text) * unitFactor
+                marginTop: toNumber(marginTopInput.text, 0) * unitFactor,
+                marginBottom: toNumber(marginBottomInput.text, 0) * unitFactor,
+                marginLeft: toNumber(marginLeftInput.text, 0) * unitFactor,
+                marginRight: toNumber(marginRightInput.text, 0) * unitFactor
             };
         }
 
@@ -1365,28 +1571,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         function collectCellSettings() {
             return {
                 drawCells: cellRectCheckbox.value,
-                cornerRadius: roundCornerCheckbox.value ? parseFloat(inputRoundCorner.text) * unitFactor : 0,
+                cornerRadius: roundCornerCheckbox.value ? toNumber(roundCornerInput.text, 0) * unitFactor : 0,
                 cellOpacity: Math.round(opacitySlider.value)
             };
         }
 
         // 各 collector をまとめて描画コンテキストを構築 / Combine the collectors into a draw context
         function buildDrawContext(isPreview) {
-            var ctx = {
+            var drawContext = {
                 doc: doc,
                 isPreview: isPreview,
                 allBoards: isAllArtboards(),
                 selBounds: isSelectionMode() ? cachedSelectionBounds : null
             };
-            extend(ctx, collectGridSettings());
-            extend(ctx, collectMarginSettings());
-            extend(ctx, collectCellSettings());
-            return ctx;
+            mergeInto(drawContext, collectGridSettings());
+            mergeInto(drawContext, collectMarginSettings());
+            mergeInto(drawContext, collectCellSettings());
+            return drawContext;
         }
 
         // 属性パネルの「中心を表示」を選択オブジェクトに適用 / Apply Attributes-panel "Show Center" to the current selection
         // API で直接設定できないため、一時アクション（.aia）を読み込んで再生 / No direct API, so load and play a temporary action
-        function act_ShowCenter() {
+        function applyShowCenterAction() {
             var actionSource = '/version 3' + '/name [ 9' + ' 417474726962757465' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 10' + ' 53686f7743656e746572' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_attributePalette)' + ' /localizedName [ 12' + ' e5b19ee680a7e8a8ade5ae9a' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1668183154' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 1' + ' }' + ' }' + '}';
 
             // 他スクリプトと衝突しないよう temp 配下に固有名で書き出す / Write to temp with a script-specific name to avoid collisions
@@ -1407,24 +1613,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             }
         }
 
-        // grid_guidesレイヤーのガイドだけ削除 / Remove only guides from grid_guides layer
+        /**
+         * grid_guidesレイヤーのガイドを削除する。
+         * 対象が「すべてのアートボード」なら全部、それ以外はアクティブなアートボード上のガイドのみ。
+         * Remove guides from the grid_guides layer: all of them for "all artboards", otherwise only those on the active artboard.
+         * @returns {boolean} 1つ以上削除したら true
+         */
         function clearExistingGuides() {
             var guidesLayer = null;
-            for (var i3 = 0; i3 < doc.layers.length; i3++) {
-                if (doc.layers[i3].name === GUIDE_LAYER_NAME) {
-                    guidesLayer = doc.layers[i3];
+            for (var i = 0; i < doc.layers.length; i++) {
+                if (doc.layers[i].name === GUIDE_LAYER_NAME) {
+                    guidesLayer = doc.layers[i];
                     break;
                 }
             }
-            if (guidesLayer) {
-                safeUnlockLayer(guidesLayer);
-                for (var j = guidesLayer.pageItems.length - 1; j >= 0; j--) {
-                    var item = guidesLayer.pageItems[j];
-                    if (item.guides) {
-                        item.remove();
-                    }
-                }
+            if (!guidesLayer) return false;
+
+            // すべてのアートボードが対象なら範囲を絞らない / No limit when every artboard is a target
+            var limitRect = isAllArtboards()
+                ? null
+                : doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+
+            safeUnlockLayer(guidesLayer);
+            var removedCount = 0;
+            for (var j = guidesLayer.pageItems.length - 1; j >= 0; j--) {
+                var item = guidesLayer.pageItems[j];
+                if (!item.guides) continue;
+                if (limitRect && !isCenterInsideRect(item, limitRect)) continue;
+                item.remove();
+                removedCount++;
             }
+            return removedCount > 0;
         }
 
         // 元の選択を復元（プレビューのundo繰り返しで選択が外れるため）/ Restore original selection (preview undo cycles clear it)
@@ -1441,15 +1660,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
         }
 
         // ダイアログ初期プレビュー＆終了時処理 / Initial dialog preview & post-process
-        updateGutterEnable();
-        updateCenterEnable();
-        syncCommonMargin();
+        updateGutterEnabled();
+        updateCellOptionEnabled();
+        syncLinkedMargins();
         updateTargetMode();
         safeUpdatePreview();
 
         if (dialog.show() === 1) {
             // OK: rollback preview and execute final drawing once so user can undo in one step
-            previewMgr.confirm(function () {
+            previewManager.confirm(function () {
                 // プレビューレイヤーを先に削除（最後に消すと選択が解除されるため）/ Remove preview layer first (removing it later clears the selection)
                 safeRemoveLayerByName(doc, PREVIEW_LAYER_NAME);
                 if (clearGuidesCheckbox.value) {
@@ -1459,8 +1678,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
                 // 選択オブジェクトの処理 / Handle original selected objects
                 if (cachedSelectionItems.length > 0 && isSelectionMode()) {
                     if (removeOriginalRadio && removeOriginalRadio.value) {
-                        for (var sd = cachedSelectionItems.length - 1; sd >= 0; sd--) {
-                            var itemToRemove = cachedSelectionItems[sd];
+                        for (var i = cachedSelectionItems.length - 1; i >= 0; i--) {
+                            var itemToRemove = cachedSelectionItems[i];
                             // ロック・非表示などで失敗しても他を続行 / Keep going even if one remove fails (locked/hidden, etc.)
                             safeExecute(function () { itemToRemove.remove(); });
                         }
@@ -1468,8 +1687,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
                         // 元オブジェクトをガイド化 / Convert originals to guides
                         try {
                             doc.selection = null;
-                            for (var sg = 0; sg < cachedSelectionItems.length; sg++) {
-                                cachedSelectionItems[sg].selected = true;
+                            for (var j = 0; j < cachedSelectionItems.length; j++) {
+                                cachedSelectionItems[j].selected = true;
                             }
                             app.executeMenuCommand("Make Guides");
                         } catch (e) {
@@ -1484,10 +1703,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
                 try {
                     doc.selection = null;
                     if (centerPointCheckbox.value && drawnCellItems.length > 0) {
-                        for (var cc = 0; cc < drawnCellItems.length; cc++) {
-                            drawnCellItems[cc].selected = true;
+                        for (var k = 0; k < drawnCellItems.length; k++) {
+                            drawnCellItems[k].selected = true;
                         }
-                        act_ShowCenter();
+                        applyShowCenterAction();
                         doc.selection = null;
                     }
                 } catch (e) {
@@ -1496,7 +1715,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/sgswkn/n/nee8c3ec1a14c"; /* 紹介記
             });
         } else {
             // Cancel: rollback preview changes
-            previewMgr.rollback();
+            previewManager.rollback();
             // Cleanup preview layer just in case (fallback)
             safeRemoveLayerByName(doc, PREVIEW_LAYER_NAME);
             // プレビューで外れた選択を元に戻す / Restore selection lost during preview
