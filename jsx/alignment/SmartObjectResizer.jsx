@@ -43,6 +43,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
  * キーオブジェクトの取得方法
  * 自分用メモ (@mute_racoon3631)
  * https://note.com/mute_racoon3631/n/n5dfae854988a
+ *
+ * ロゴなどの大きさ調整（面積を使うアイデア）
+ * Gorolib Design
+ * https://gorolib.blog.jp/archives/75031515.html
  */
 
 (function () {
@@ -417,14 +421,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     ratioGroup.orientation = "row";
     ratioGroup.alignChildren = ["left", "center"];
     ratioGroup.margins = [20, 20, 0, 0];
+    // コントロール単体の margins は ScriptUI では無視されるため、間隔は親の spacing で取る
+    // Per-control margins are ignored in ScriptUI; use the parent group's spacing instead.
+    ratioGroup.spacing = 20;
     ratioGroup.alignment = ["center", "top"]; // 中央揃え
 
     // 「縦横比保持」「片辺のみ」ラジオボタン
     var keepRatioRadio = ratioGroup.add("radiobutton", undefined, L("radio.keepAspect"));
     var oneSideOnlyRadio = ratioGroup.add("radiobutton", undefined, L("radio.oneSideOnly"));
-    // ラジオボタン間のスペースを明示的に設定
-    keepRatioRadio.margins = [0, 0, 20, 0]; // 右側に20px相当の余白
-    oneSideOnlyRadio.margins = [0, 0, 0, 0];
 
     keepRatioRadio.value = true; // デフォルトで「縦横比保持」を選択
     setHelpTip(keepRatioRadio, L("tooltip.keepAspect"));
@@ -581,12 +585,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         sizeInputGroup.alignChildren = ["left", "center"];
         addRowLabel(sizeInputGroup, ""); // 空ラベル（入力欄の左端をそろえる）
 
-        // 選択オブジェクトの平均幅を初期値に
+        // 選択オブジェクトの平均幅を初期値に。
+        // getReferenceBounds() は pt を返すが、入力欄は定規単位（unitLabel）で扱うため必ず換算する。
+        // 換算を忘れると mm 定規で「283」と表示され、そのまま 283mm にリサイズされる。
+        // Bounds are in points but this field is in ruler units — always convert.
         var totalWidth = 0;
         for (var i = 0; i < originalSelectedItems.length; i++) {
             totalWidth += getReferenceBounds(originalSelectedItems[i], true).width;
         }
-        var avgWidth = originalSelectedItems.length > 0 ? (totalWidth / originalSelectedItems.length) : 100;
+        var avgWidthPt = originalSelectedItems.length > 0 ? (totalWidth / originalSelectedItems.length) : 100;
+        var avgWidth = avgWidthPt / pointsPerUnit();
         var sizeInput = sizeInputGroup.add("edittext", undefined, avgWidth.toFixed(0));
         sizeInput.characters = 5;
         changeValueByArrowKey(sizeInput, false);
@@ -833,16 +841,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             workingItems[i].left += minLeft - getAlignmentBounds(workingItems[i]).left;
         }
     }
+    // 中央の基準は「各中心の平均」ではなく選択全体のバウンディングボックス中心。
+    // 平均だと幅のばらつきで寄る位置がずれ、Illustrator 標準の整列と結果が食い違う。
+    // Center on the selection's bounding box, matching Illustrator's own align command.
     function alignToCenterX() {
-        var sum = 0;
+        var clusterBounds = getCombinedReferenceBounds(workingItems);
+        var centerX = clusterBounds.left + clusterBounds.width / 2;
         for (var i = 0; i < workingItems.length; i++) {
             var bounds = getAlignmentBounds(workingItems[i]);
-            sum += bounds.left + bounds.width / 2;
-        }
-        var average = sum / workingItems.length;
-        for (var i = 0; i < workingItems.length; i++) {
-            var bounds = getAlignmentBounds(workingItems[i]);
-            workingItems[i].left += average - (bounds.left + bounds.width / 2);
+            workingItems[i].left += centerX - (bounds.left + bounds.width / 2);
         }
     }
     function alignToMaxRight() {
@@ -870,15 +877,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         }
     }
     function alignToCenterY() {
-        var sum = 0;
+        var clusterBounds = getCombinedReferenceBounds(workingItems);
+        var centerY = clusterBounds.top - clusterBounds.height / 2;
         for (var i = 0; i < workingItems.length; i++) {
             var bounds = getAlignmentBounds(workingItems[i]);
-            sum += bounds.top - bounds.height / 2;
-        }
-        var average = sum / workingItems.length;
-        for (var i = 0; i < workingItems.length; i++) {
-            var bounds = getAlignmentBounds(workingItems[i]);
-            workingItems[i].top += average - (bounds.top - bounds.height / 2);
+            workingItems[i].top += centerY - (bounds.top - bounds.height / 2);
         }
     }
     function alignToMinBottom() {
@@ -969,6 +972,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     ];
 
     // onClick を割り当て（同一軸の他チェックを siblings として排他）
+    // あわせて minItems を有効・無効にも反映する。反映しないと、2個選択で「均等」を
+    // チェックできてしまうのに reapplyActiveAlignments() 側で弾かれ、何も起きない。
+    // minItems also drives enabled state, so an inapplicable checkbox cannot be checked.
     for (var i = 0; i < alignAxes.length; i++) {
         var axis = alignAxes[i];
         for (var j = 0; j < axis.length; j++) {
@@ -977,6 +983,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
                 if (k !== j) siblings.push(axis[k].check);
             }
             axis[j].check.onClick = makeAlignHandler(axis[j].check, siblings);
+            axis[j].check.enabled = workingItems.length >= axis[j].minItems;
         }
     }
 
@@ -1224,13 +1231,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             if (!keepOneSideOnly) {
                 workingItems[i].resize(scale, scale, true, true, true, true, scale, Transformation.TOPLEFT);
                 appliedLineScales[i] = scale;
-            } else if (mode.isFixed) {
-                var currentSide = mode.isWidth ? bounds.width : bounds.height;
-                if (currentSide === 0) continue;
-                var scaleFixed = getScaleFactor(currentSide, referenceValue);
-                resizeOneSide(workingItems[i], mode.isWidth, scaleFixed);
-                appliedLineScales[i] = 100;
             } else {
+                // 指定サイズも measureSide() が幅／高さを返すので、ここは共通で扱える
                 resizeOneSide(workingItems[i], mode.isWidth, scale);
                 appliedLineScales[i] = 100;
             }
@@ -1270,6 +1272,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
     // --- リサイズ適用（オーケストレーション） / Apply resize by current selection ---
     function applyResizeBySelection() {
+        // 呼び出し側は必ず元のジオメトリへ復元してから来る。ここで基準状態も捨てておく。
+        // 捨てないと、以降の早期 return（基準未選択・指定サイズが 0 など）で古いリサイズ結果が
+        // resizeBaseStates に残り、整列クリック時の restoreResizeBaseState() がそれを復元してしまう。
+        // Callers restore the original geometry first, so drop the stale base state here —
+        // otherwise an early return would leave a previous resize for restoreResizeBaseState().
+        resizeBaseStates = [];
+
         var mode = getSelectedResizeMode();
         if (!mode) return;
         clearOutlineBoundsCache();
@@ -1428,47 +1437,83 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         return measured;
     }
 
+    // 計測用の一時オブジェクトは、ドキュメント全体の差分ではなく生成物を直接ためて追跡する。
+    // 全件差分は参照の線形探索と組み合わさって O(N^2) になり、アイテム数の多いドキュメントでは
+    // ラジオを押すたびに膨大な参照比較が走っていた。
+    // Track the temporaries we create instead of diffing every page item (that was O(N^2)).
     function measureOutlinedBoundsByDuplicate(item, useVisibleBounds) {
-        var beforeItems = snapshotAllPageItems(doc);
+        var createdItems = [];
         try {
             var duplicateItem = item.duplicate();
+            createdItems.push(duplicateItem);
 
             // テキスト計測用の複製では、アウトライン化の前に分割を適用する
             // For duplicated text used for measurement, apply expand appearance before outlining
             if (containsTextForOutlineBounds(duplicateItem)) {
-                var previousSelection = doc.selection;
-                try {
-                    doc.selection = null;
-                    duplicateItem.selected = true;
-                    app.executeMenuCommand('expandStyle');
-                    if (doc.selection && doc.selection.length > 0) {
-                        duplicateItem = doc.selection[0];
-                    }
-                } catch (_) {
-                } finally {
-                    try {
-                        doc.selection = previousSelection;
-                    } catch (__restoreSelErr) { }
+                var expandedItems = expandDuplicateAppearance(duplicateItem);
+                if (expandedItems.length > 0) {
+                    // expandStyle は元の複製を作り直すので、追跡対象ごと差し替える
+                    createdItems = expandedItems;
+                    duplicateItem = expandedItems[0];
                 }
             }
 
             if (duplicateItem.typename === "TextFrame") {
+                // createOutline() は元のテキストフレームを置き換える
                 duplicateItem = duplicateItem.createOutline();
+                createdItems = [duplicateItem];
             } else if (duplicateItem.typename === "GroupItem") {
+                // グループ自体は残り、中のテキストフレームだけが置き換わる
                 outlineTextFramesInGroupDuplicate(duplicateItem);
             }
 
-            var newItems = collectNewPageItems(doc, beforeItems);
-            if (newItems.length > 0) {
-                return getBoundsFromItems(newItems, useVisibleBounds);
-            }
-            return getPageItemBoundsObject(duplicateItem, useVisibleBounds);
+            if (createdItems.length === 0) return getPageItemBoundsObject(item, useVisibleBounds);
+            return getBoundsFromItems(createdItems, useVisibleBounds);
         } catch (_) {
             return getPageItemBoundsObject(item, useVisibleBounds);
         } finally {
-            var createdItems = collectNewPageItems(doc, beforeItems);
             removeItemsSafe(createdItems);
         }
+    }
+
+    // 複製に「アピアランスを分割」を適用し、生成された新しいアイテムの配列を返す。
+    // 失敗時は空配列（呼び出し側は元の複製をそのまま使う）。
+    // Expand the duplicate's appearance; returns the resulting items ([] on failure).
+    function expandDuplicateAppearance(duplicateItem) {
+        var expandedItems = [];
+        var previousSelection = copyCurrentSelection();
+        try {
+            doc.selection = null;
+            duplicateItem.selected = true;
+            app.executeMenuCommand('expandStyle');
+            expandedItems = copyCurrentSelection();
+        } catch (_) {
+        } finally {
+            restoreSelectionItems(previousSelection);
+        }
+        return expandedItems;
+    }
+
+    // doc.selection はライブ参照になりうるため、必ず配列にコピーしてから保持する
+    // （doc.selection = null の時点で中身を失い、そのまま代入し直しても復元できない）
+    // doc.selection can be a live reference — copy it before clearing the selection.
+    function copyCurrentSelection() {
+        var copied = [];
+        var current = doc.selection;
+        if (!current) return copied;
+        for (var i = 0; i < current.length; i++) copied.push(current[i]);
+        return copied;
+    }
+
+    // 配列を doc.selection に直接代入せず、1件ずつ selected を立てて復元する
+    // Re-select item by item rather than assigning the array back to doc.selection.
+    function restoreSelectionItems(items) {
+        try {
+            doc.selection = null;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i] && items[i].isValid) items[i].selected = true;
+            }
+        } catch (_) { }
     }
 
     function outlineTextFramesInGroupDuplicate(groupItem) {
@@ -1489,32 +1534,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             left: boundsArray[0],
             top: boundsArray[1]
         };
-    }
-
-    function snapshotAllPageItems(docRef) {
-        var items = [];
-        for (var i = 0; i < docRef.pageItems.length; i++) {
-            items.push(docRef.pageItems[i]);
-        }
-        return items;
-    }
-
-    function collectNewPageItems(docRef, beforeItems) {
-        var result = [];
-        for (var i = 0; i < docRef.pageItems.length; i++) {
-            var item = docRef.pageItems[i];
-            if (!containsPageItemRef(beforeItems, item)) {
-                result.push(item);
-            }
-        }
-        return result;
-    }
-
-    function containsPageItemRef(list, item) {
-        for (var i = 0; i < list.length; i++) {
-            if (list[i] === item) return true;
-        }
-        return false;
     }
 
     function getBoundsFromItems(items, useVisibleBounds) {

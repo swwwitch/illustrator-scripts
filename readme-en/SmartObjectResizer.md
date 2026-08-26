@@ -95,7 +95,7 @@ Set this with the two panels on the right.
 | Align (H) | Behavior |
 | --- | --- |
 | Left | Matches left edges to the leftmost object |
-| Center | Matches center X to the average position |
+| Center | Matches center X to the center of the selection's bounding box |
 | Right | Matches right edges to the rightmost object |
 | Distribute evenly | Distributes with equal gaps along the vertical axis |
 | Zero gap | Stacks vertically with no gaps |
@@ -103,7 +103,7 @@ Set this with the two panels on the right.
 | Align (V) | Behavior |
 | --- | --- |
 | Top | Matches top edges to the topmost object |
-| Middle | Matches center Y to the average position |
+| Middle | Matches center Y to the center of the selection's bounding box |
 | Bottom | Matches bottom edges to the bottommost object |
 | Distribute evenly | Distributes with equal gaps along the horizontal axis |
 | Zero gap | Butts objects together horizontally |
@@ -118,7 +118,7 @@ The "Align (V)" panel is the mirror image: match the top edges and lay them out 
 
 The unit of exclusivity is not the panel but **the coordinate axis being moved**. Everything that moves X (Left / Center / Right, plus the distribution controls in "Align (V)") is mutually exclusive, and everything that moves Y (Top / Middle / Bottom, plus the distribution controls in "Align (H)") is mutually exclusive. **Different axes can be combined**, which is what lets you check both "Left" and "Distribute evenly" inside the "Align (H)" panel.
 
-Note that "Distribute evenly" pins both ends and divides the space between, so it needs **3 or more** objects; "Zero gap" needs **2 or more**.
+Note that "Distribute evenly" pins both ends and divides the space between, so it needs **3 or more** objects; "Zero gap" needs **2 or more**. The checkbox is dimmed when the selection is too small.
 
 Alignment survives a change of resize base. After the selection is resized under the new base, the alignment is re-applied to the new sizes.
 
@@ -152,7 +152,7 @@ If no document is open, or if nothing is selected, the script shows an alert and
 
 ## Notes
 
-"Measure text by outline bounds" works by **duplicating → expanding the appearance → creating outlines → measuring → deleting immediately**, so the original text is never touched. Running that on every measurement would be slow, so results are cached. The cache key includes the object's current bounds (rounded), so resizing changes the key and stale values are never reused.
+"Measure text by outline bounds" works by **duplicating → expanding the appearance → creating outlines → measuring → deleting immediately**, so the original text is never touched. The temporaries are tracked directly as they are created rather than diffed against every page item in the document, so the cost does not grow with document size. Running that on every measurement would still be slow, so results are cached. The cache key includes the object's current bounds (rounded), so resizing changes the key and stale values are never reused.
 
 For the Artboard and Bleed bases, the selection used to be grouped temporarily and scaled as a group. It now scales without any temporary group: the top-left of the cluster is used as the origin, and each item's size and relative position are scaled by the same factor. Because no grouping or ungrouping is involved, there is no structural risk of changing the parent hierarchy or the stacking order.
 
@@ -172,7 +172,7 @@ The key-object detection is based on the idea published in this article.
 
 ## Update history
 
-- v1.4.4 (2026-08-26): Added "Key object" (width / height) as a resize base — the key object is detected by probing the align commands, and the row is dimmed when it cannot be identified. Row labels are now right-aligned at a shared width
+- v1.4.4 (2026-08-26): Added "Key object" (width / height) as a resize base — the key object is detected by probing the align commands, and the row is dimmed when it cannot be identified. Row labels are now right-aligned at a shared width. Fixed: the "Fixed Size" field started at a value in points instead of the ruler units it is labelled with (a mm ruler resized to 283 mm). Fixed: when a resize was aborted (Fixed Size of 0, or the base being cleared by "One side only"), a later alignment click restored the stale resized geometry. Center / Middle alignment now uses the center of the selection's bounding box instead of the average of the object centers, matching Illustrator's own align command. "Distribute evenly" and "Zero gap" are dimmed when the selection is too small. Outline-bounds measurement now tracks its temporary objects directly instead of diffing every page item in the document (slow on large documents), and its selection save / restore was fixed
 - v1.4.3 (2026-08-22): Artboard and Bleed can now be used as bases in "One side only" mode (only the base axis is stretched; the other axis keeps its size, and centering is unchanged). "One side only" now dims only Ref. side and Area. Fixed line widths drifting on revert (restoring a one-side resize, which never changes line widths, still applied the shrink factor to them). Condensed the header overview so it points to the README for details, and removed duplicate / unused code
 - v1.4.2 (2026-07-22): Added Japanese and English READMEs, linked from the script's basic info. Fixed: Esc and the window close box now cancel instead of committing the transform. Fixed: Reset now also clears the resize-base radios and the internal base state (clicking an alignment after Reset used to restore the resized geometry). Switching to "One side only" now clears the bases it dims (Ref. side / Area / Artboard / Bleed). Distribution (evenly / zero gap) now moves by delta so it follows "Measure by preview bounds". "Distribute evenly" now requires 3+ objects and "Zero gap" 2+. Added a guard for when no document is open. One-side-only resize now anchors at the top-left like every other mode
 - v1.4.1 (2026-07-04): No base is selected when the dialog opens, so it performs no transform on show; resolved the duplicate "Base" label (panel = "Resize base" / row = "Ref. side"); added tooltips to non-obvious options. Fixed a bug where clicking an alignment checkbox wiped the other axis's alignment; alignment now follows "Measure by preview bounds" so stroked and effected objects align by their visual edges
