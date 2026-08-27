@@ -1,4 +1,4 @@
-# Find .ai files across several folders
+# Find .ai/.svg files across several folders
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiFileFinder.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/AiFileFinder.jsx)
 
@@ -12,18 +12,20 @@
 
 You want to reopen an `.ai` file you made a while ago, but you cannot remember which year's folder it went into. Searching in the Finder takes you a long way from the canvas, and File > Open Recent only goes back a few dozen entries.
 
-This script is a finder that filters `.ai` files across several registered folders by keyword and opens the selected file on the spot. The index is cached, so thousands of files do not keep you waiting.
+This script is a finder that filters `.ai` and `.svg` files across several registered folders by keyword and opens the selected file on the spot. The index is cached, so thousands of files do not keep you waiting.
 
 ### Features
 
 - Searches across several registered folders, including everything in their subfolders
 - Filters as you type (incremental search)
-- Space-separated AND search, insensitive to case, width, hiragana/katakana, and voiced marks
+- Space-separated AND / OR search, insensitive to case, width, hiragana/katakana, and voiced marks
+- `ai` / `svg` checkboxes pick which kinds are listed (`svg` starts unchecked)
 - Your own keyword buttons: click to replace, Option-click to add to the current keyword
 - Two lists: search folders on the left, file names with modified dates on the right
-- Filter by year, or by a period (from / to)
-- Sort by newest first or by name
-- Exclusions: hide files whose name or folder contains a given word
+- Filter by year, or by a period (year and month)
+- Sort by modified date or name, ascending or descending
+- File names are listed without their extension
+- Exclusions: hide files whose name or folder contains a given word; typing an excluded word as a keyword lifts that one exclusion
 - A file that is already open is brought to the front instead of being opened twice
 - Option-double-click reveals in the Finder; double-clicking a folder opens that folder
 - The index is cached for quicker later launches, and settings live in the Illustrator preferences
@@ -49,9 +51,35 @@ Keyboard:
 
 ### Options
 
+**AND / OR**
+
+The radio buttons on the row under the keyword field decide how space-separated words are treated. AND is the default.
+
+| Setting | Behaviour |
+|---|---|
+| AND | Keep files that contain **all** of the words; each word narrows the result |
+| OR | Keep files that contain **any** of the words, which gathers spelling variants such as `ロゴ logo` |
+
+With a single word the two behave the same.
+
+**Extensions (ai / svg)**
+
+The checkboxes at the right end of the AND / OR row pick which kinds of file are listed. Only `ai` starts checked.
+
+Both extensions are in the index, so checking `svg` lists them at once, with no rescan. Unchecking both leaves the list empty.
+
+To search for more extensions, add them to `FILE_EXTENSIONS` near the top of the script; the checkboxes follow that same order.
+
+```js
+var FILE_EXTENSIONS = [
+    { ext: "ai",  isChecked: true },
+    { ext: "svg", isChecked: false }
+];
+```
+
 **Keyword buttons**
 
-Buttons shown in the filter panel. Enter one word per line in the preferences. The defaults are `icon` / `logo` / `ロゴ` / `アップデート`.
+Buttons shown at the bottom of the filter panel. Enter one word per line in the preferences. The twelve defaults are `icon` / `logo` / `font` / `keyboard` / `アイコン` / `ロゴ` / `カラー` / `フォント` / `アップデート` / `ツール` / `パネル` / `線`.
 
 | Action | Result |
 |---|---|
@@ -60,32 +88,47 @@ Buttons shown in the filter panel. Enter one word per line in the preferences. T
 
 The buttons wrap automatically to the width of the dialog.
 
-**Year**
+**Year and period**
 
-Filters by the year of the modified date. The list holds only the years that actually occur in the index, newest first. It is built when the dialog opens, so the choices do not shift while you type.
-
-**Period**
-
-Filters by a start and an end date. Any of these forms is accepted, and the field is rewritten as `2023/01/05` once committed.
+Dropdowns on the row above the keyword buttons narrow the list by modified date.
 
 ```
-2023.1.5    2023-01-05    2023/1/5    20230105
+Year: [All ▼]  Period: [None▼][01▼] – [None▼][12▼]
 ```
 
-| Input | As a start date | As an end date |
-|---|---|---|
-| `2023.1.5` | From 2023-01-05 00:00 | Through 2023-01-05 23:59:59 |
-| `2024.2` | From 2024-02-01 00:00 | Through 2024-02-29 23:59:59 |
-| `2024` | From 2024-01-01 00:00 | Through 2024-12-31 23:59:59 |
-| (empty) | No limit | No limit |
+**Year** picks a single year. **Period** picks a start and an end as year and month: the start begins on day 1 at 00:00, and the end runs through the last day at 23:59:59 (leap years included).
 
-Anything that cannot be read is cleared on commit and the limit goes back off. `Enter` in a date field commits the value; it does not open a file.
+The year dropdowns hold only the years that actually occur in the index, newest first. They are built when the dialog opens, so the choices do not shift while you type.
+
+The month defaults to `01` on the left and `12` on the right, so picking a year alone covers it whole. While a year reads "None", the month next to it is dimmed.
+
+| Setting | Range |
+|---|---|
+| 2024/01 – 2026/08 | From 2024-01-01 00:00 through 2026-08-31 23:59:59 |
+| 2024/01 – None | From 2024-01-01 00:00, no upper limit |
+| None – 2026/08 | No lower limit, through 2026-08-31 23:59:59 |
+
+**Sort order**
+
+Set on the row under the lists. `Modified` / `Name` radio buttons pick the key, and the ▲ (ascending) / ▼ (descending) buttons pick the direction.
+
+```
+Sort by: (•)Modified ( )Name  [▲][▼]
+```
+
+The default is Modified plus ▼, that is newest first. Files with the same date fall back to the name.
+
+The ▲▼ buttons are drawn by the script, and the chosen one is filled.
+
+Note that clicking a list header does not sort; a ScriptUI header cannot receive clicks.
 
 **Exclusions**
 
 Hides files whose name or folder contains one of these words. One word per line, and a single match is enough (OR). Exclusions apply immediately, without rebuilding the index.
 
-The defaults are `note-cover-` / `backup` / `_old` / `_outlined`, meant for backup folders and for routine files that are numerous enough to get in the way.
+The defaults are `note-cover-` / `backup` / `_old` / `_outlined` / `test` / `copy` / `名称未設定`, meant for backup folders and for routine files that are numerous enough to get in the way.
+
+Typing an excluded word as a keyword lifts that one exclusion. With `backup` excluded, searching for `backup` still lists the backups. Only the word you typed is lifted, so `logo_old.ai` stays hidden when you search for `logo` while `_old` is excluded.
 
 **Preferences**
 
@@ -117,9 +160,11 @@ It is rebuilt when:
 - The list on the left holds search folders only. Subfolders are always searched, but they do not get their own rows
 - Exclusions also match folder names. Adding `backup` hides everything under a folder with that name
 - Files whose modified date cannot be read are left out of the year and period filters
+- Setting a start later than the end simply matches nothing; the two are not swapped for you
 - Option-double-click selects the file in the Finder when `/Applications/RevealInFinder.app`, built with Automator, is present. Without it, or outside macOS, it just opens the enclosing folder
 - Search folders, keyword buttons, and exclusions are stored in the Illustrator preferences (`AiFileFinder.*`)
-- The extension searched for is `.ai`. To change it, edit `FILE_EXT_RE` near the top of the script
+- The extensions searched for are `.ai` and `.svg`. To change them, edit `FILE_EXTENSIONS` near the top of the script
+- File names are listed without their extension, so an `.ai` and an `.svg` of the same name look alike. Set `SHOW_FILE_EXTENSION` near the top of the script to `true` to tell them apart
 - The default search folders are in `SEARCH_FOLDER_DEFAULTS` near the top of the script. Edit them for your own setup, or register your folders in the preferences
 
 ### Reference
