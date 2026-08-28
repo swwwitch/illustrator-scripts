@@ -165,7 +165,9 @@ It is rebuilt when:
 - Search folders, keyword buttons, and exclusions are stored in the Illustrator preferences (`AiFileFinder.*`)
 - The extensions searched for are `.ai` and `.svg`. To change them, edit `FILE_EXTENSIONS` near the top of the script
 - File names are listed without their extension, so an `.ai` and an `.svg` of the same name look alike. Set `SHOW_FILE_EXTENSION` near the top of the script to `true` to tell them apart
-- The default search folders are in `SEARCH_FOLDER_DEFAULTS` near the top of the script. Edit them for your own setup, or register your folders in the preferences
+- The default search folders are in `SEARCH_FOLDER_DEFAULTS` near the top of the script. The list ships empty, so register your folders in the preferences on first run (or write the ones you use most into the script)
+- A search folder that cannot be found (unmounted, renamed, and so on) is marked `(missing)` in the preferences list. It is never dropped from the settings, so it works again as soon as the folder is back
+- A scan that hit a folder it could not read does not save an index, so a half-built one is never left behind
 
 ### Reference
 
@@ -175,4 +177,5 @@ ExtendScript has no way to select a file in the Finder, so the path is handed to
 
 ### Version history
 
+- v1.0.1 (2026-08-28): Keep unmounted search folders in the settings; skip saving the index when a folder could not be read; fix the keyword button wrapping width, the year list against the exclusions, and the period filter for files with no modified date
 - v1.0.0 (2026-08-27): First release

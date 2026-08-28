@@ -1,4 +1,5 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
@@ -22,7 +23,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFileFinder";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-28";                   /* 更新日 / last updated */
@@ -60,15 +61,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     var FILE_EXT_RE = makeFileExtRegExp(FILE_EXTENSIONS);
 
     /* 検索フォルダーの初期値。環境設定で追加・削除できる / Default search folders, editable in the preferences */
-    var SEARCH_FOLDER_DEFAULTS = [
-        "~/sw Dropbox/takano masahiro/Dropbox-shared/DTPTransit_neta2026",
-        "~/sw Dropbox/takano masahiro/Dropbox-shared/DTPTransit_neta2024",
-        "~/sw Dropbox/takano masahiro/Dropbox-shared/DTPTransit_neta2021",
-        "~/sw Dropbox/takano masahiro/Dropbox-shared/DTPTransit_neta2019",
-        "~/sw Dropbox/takano masahiro/Dropbox-shared/DTPTransit_neta2017",
-        "~/sw Dropbox/takano masahiro/Dropbox-shared/DTPTransit_neta",
-        "~/sw Dropbox/takano masahiro/Dropbox-shared/AT-doc"
-    ];
+    /* 空のまま実行すると、最初に環境設定を開いて登録を促す / An empty list opens the preferences on first run */
+    var SEARCH_FOLDER_DEFAULTS = [];
 
     /* キーワードボタンに並べる語。環境設定で編集できる / Keyword buttons, editable in the preferences */
     var KEYWORD_PRESET_DEFAULTS = ["icon", "logo", "font", "keyboard", "アイコン", "ロゴ", "カラー", "フォント", "アップデート", "ツール", "パネル", "線"];
@@ -122,17 +116,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * 文字列を検索フォルダーの配列に変換する
+     * 実在するかは確かめない。未マウントのフォルダーを落とすと、次に保存したときに登録が消えてしまう
      * @param {Array<string>} pathList - フォルダーのパス
-     * @returns {Array<Folder>} 実在するフォルダーだけを並び順のまま返す
+     * @returns {Array<Folder>} 並び順のまま返したフォルダー
      */
-    function toExistingFolders(pathList) {
+    function toFolderList(pathList) {
         var folders = [];
         for (var i = 0; i < pathList.length; i++) {
             var path = trimWhitespace(pathList[i]);
             if (path === "") continue;
 
-            var folder = new Folder(path);
-            if (folder.exists) folders.push(folder);
+            folders.push(new Folder(path));
         }
         return folders;
     }
@@ -142,9 +136,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @returns {Array<Folder>} 記録がなければ初期値のフォルダー
      */
     function readSearchFolders() {
-        var savedPaths = trimWhitespace(app.preferences.getStringPreference(PREF_KEY_FOLDERS));
-        if (savedPaths === "") return toExistingFolders(SEARCH_FOLDER_DEFAULTS);
-        return toExistingFolders(savedPaths.split(SETTING_LIST_SEPARATOR));
+        var savedPaths = trimWhitespace(app.preferences.getStringPreference(PREF_KEY_FOLDERS) || "");
+        if (savedPaths === "") return toFolderList(SEARCH_FOLDER_DEFAULTS);
+        return toFolderList(savedPaths.split(SETTING_LIST_SEPARATOR));
     }
 
     /**
@@ -402,14 +396,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     /**
-     * キーワードボタンの寸法を文字幅に合わせて詰める
+     * キーワードボタンの幅を文字幅から求める
+     * 折り返しの判定にも同じ値を使う。概算と実測が混ざると行から溢れる
+     * @param {Object} control - 文字幅を測るのに使う部品
+     * @param {string} text - ボタンに並べる文字
+     * @returns {number} ボタンの幅（px）
+     */
+    function measurePresetButtonWidth(control, text) {
+        return Math.ceil(measureTextWidth(control, text)) + PRESET_BUTTON_PADDING;
+    }
+
+    /**
+     * キーワードボタンの寸法を、求めた幅に合わせて詰める
      * @param {Button} button - 対象ボタン
+     * @param {number} buttonWidth - ボタンの幅（px）
      * @returns {void}
      */
-    function applyPresetButtonSize(button) {
-        var textWidth = measureTextWidth(button, button.text);
-
-        var buttonWidth = Math.ceil(textWidth) + PRESET_BUTTON_PADDING;
+    function applyPresetButtonSize(button, buttonWidth) {
         button.preferredSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
         button.minimumSize = [buttonWidth, PRESET_BUTTON_HEIGHT];
     }
@@ -590,7 +593,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             modified: { ja: "更新日", en: "Modified" }
         },
         folderRow: {
-            allFolders: { ja: "（すべて）", en: "(All)" }
+            allFolders: { ja: "（すべて）", en: "(All)" },
+            missing:    { ja: "（見つかりません）", en: "(missing)" }
         },
         fieldLabel: {
             keyword:   { ja: "キーワード", en: "Keyword" },
@@ -1023,23 +1027,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * @param {Folder} targetFolder - 走査するフォルダー
      * @param {RootFolderInfo} rootInfo - 相対パスの基準になる検索フォルダー
      * @param {Array<FileEntry>} collectedEntries - 収集結果の追加先
+     * @param {{failedCount: number}} scanState - 読めなかったフォルダーの数（破壊的に変更する）
      * @returns {void}
      */
-    function collectFilesInFolder(targetFolder, rootInfo, collectedEntries) {
+    function collectFilesInFolder(targetFolder, rootInfo, collectedEntries, scanState) {
         var childItems = null;
         try {
             childItems = targetFolder.getFiles();
         } catch (e) {}
 
         /* 読めないフォルダーは null が返る。ここで止めないと length を読んだ時点で落ちる / getFiles() can return null */
-        if (!childItems) return;
+        /* 未マウントや権限エラーで中身が丸ごと抜けるので、数えておいて索引を残さない判断に使う
+           / A skipped subtree means an incomplete index; count it so the cache is not written */
+        if (!childItems) {
+            scanState.failedCount++;
+            return;
+        }
 
         for (var i = 0; i < childItems.length; i++) {
             var childItem = childItems[i];
 
             if (childItem instanceof Folder) {
                 /* エイリアスは循環の元になるのでたどらない / Aliases can loop back into an ancestor */
-                if (!childItem.alias && !/^\./.test(childItem.name)) collectFilesInFolder(childItem, rootInfo, collectedEntries);
+                if (!childItem.alias && !/^\./.test(childItem.name)) collectFilesInFolder(childItem, rootInfo, collectedEntries, scanState);
                 continue;
             }
 
@@ -1102,6 +1112,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var years = [];
 
         for (var i = 0; i < fileEntries.length; i++) {
+            /* 除外条件で落としたファイルの年は選べても0件にしかならない / Excluded files would only give an empty year */
+            if (fileEntries[i].isExcluded) continue;
+
             /* 更新日時が取れなかったものは年で絞り込めないので数えない / Skip entries without a date */
             var year = fileEntries[i].modifiedYear;
             if (!year) continue;
@@ -1332,18 +1345,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         }
 
         var fileEntries = [];
+        var scanState = { failedCount: 0 };
         var progress = createScanProgress(rootInfoList.length);
         try {
             for (var i = 0; i < rootInfoList.length; i++) {
                 progress.update(i, rootInfoList[i].label);
-                collectFilesInFolder(rootInfoList[i].folder, rootInfoList[i], fileEntries);
+                collectFilesInFolder(rootInfoList[i].folder, rootInfoList[i], fileEntries, scanState);
             }
             progress.update(rootInfoList.length, "");
         } finally {
             progress.close();
         }
 
-        writeIndexCache(folders, fileEntries);
+        /* 1つでも読めないフォルダーがあれば索引は欠けている。書き残すと、直ったあとも
+           キャッシュの有効期間いっぱい欠けたまま出てしまう
+           / An unreadable folder leaves the index short; caching it would hide those files for hours */
+        if (scanState.failedCount === 0) writeIndexCache(folders, fileEntries);
         sortFileEntries(fileEntries, true);
         return fileEntries;
     }
@@ -1357,9 +1374,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * 一覧の中身はこのパネルの中で持ち、外へは読み出しと初期化の窓口だけを返す
      * @param {Window} parent - 追加先のウィンドウ
      * @param {Array<Folder>} initialFolders - 最初に表示するフォルダー
+     * @param {function(number): void} onFolderCountChanged - 件数が変わったときに呼ぶ関数
      * @returns {{getFolders: function(): Array<Folder>, reset: function(): void}} 編集結果の窓口
      */
-    function buildSearchFolderPanel(parent, initialFolders) {
+    function buildSearchFolderPanel(parent, initialFolders, onFolderCountChanged) {
         var editedFolders = initialFolders.slice(0);
 
         var folderPanel = parent.add("panel", undefined, getLabel(LABELS.panel.searchFolders));
@@ -1382,9 +1400,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         function refreshFolderListBox() {
             folderListBox.removeAll();
             for (var i = 0; i < editedFolders.length; i++) {
-                folderListBox.add("item", editedFolders[i].fsName);
+                /* 未マウントのフォルダーも消さずに残す。見つからないことが分かるよう印を添える
+                   / Unmounted folders stay on the list, marked so the state is visible */
+                var missingMark = editedFolders[i].exists ? "" : "  " + getLabel(LABELS.folderRow.missing);
+                folderListBox.add("item", editedFolders[i].fsName + missingMark);
             }
             btnRemoveFolder.enabled = editedFolders.length > 0;
+            onFolderCountChanged(editedFolders.length);
         }
 
         /**
@@ -1436,7 +1458,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
              * @returns {void}
              */
             reset: function () {
-                editedFolders = toExistingFolders(SEARCH_FOLDER_DEFAULTS);
+                /* 初期値が空のときは、いま登録してあるフォルダーを消さない。戻す先が無い
+                   / With no default to fall back on, leave the registered folders alone */
+                if (SEARCH_FOLDER_DEFAULTS.length === 0) return;
+
+                editedFolders = toFolderList(SEARCH_FOLDER_DEFAULTS);
                 refreshFolderListBox();
             }
         };
@@ -1475,7 +1501,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var settingsDialog = new Window("dialog", getLabel(LABELS.dialog.preferences));
         setupWindow(settingsDialog, DENSE_SPACING);
 
-        var folderPanelUI = buildSearchFolderPanel(settingsDialog, currentFolders);
+        /**
+         * フォルダーが1つも無いときは、索引を作れないボタンを止める
+         * @param {number} folderCount - いま並んでいるフォルダーの数
+         * @returns {void}
+         */
+        function updateFolderCountState(folderCount) {
+            /* パネルの組み立て中はまだボタンが無い / The buttons do not exist while the panel is being built */
+            if (!btnOk) return;
+
+            btnOk.enabled = folderCount > 0;
+            btnRescan.enabled = folderCount > 0;
+        }
+
+        var folderPanelUI = buildSearchFolderPanel(settingsDialog, currentFolders, updateFolderCountState);
 
         /* キーワードボタンと除外条件は、どちらも「1行に1語」の同じ形なので横に並べる
            / Both lists take one word per line, so they sit side by side */
@@ -1498,6 +1537,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         applyButtonSize(btnReset, WIDE_BUTTON_WIDTH);
         applyButtonSize(btnCancel, DIALOG_BUTTON_WIDTH);
         applyButtonSize(btnOk, DIALOG_BUTTON_WIDTH);
+
+        /* パネルを組み立てたときの呼び出しはボタンより先なので、ここで一度そろえる
+           / The panel called back before the buttons existed, so settle the state here */
+        updateFolderCountState(folderPanelUI.getFolders().length);
 
         /* 3つの設定をまとめて初期値に戻す。ここで書き戻すだけで、保存はOKを押したとき
            / Puts the defaults back into the fields; nothing is stored until OK */
@@ -1806,6 +1849,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var finderDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(finderDialog);
 
+        /* 除外条件は年の顔ぶれにも効くので、UIを組む前に印を付けておく
+           / Flag the excluded files first; the year list is built from what survives */
+        var excludeKeywords = readWordList(PREF_KEY_EXCLUDES, EXCLUDE_KEYWORD_DEFAULTS);
+        var excludeTerms = toNormalizedTerms(excludeKeywords);
+        applyExcludeFlags(fileEntries, excludeTerms);
+
         /* 年の顔ぶれは絞り込みで変えない。打つたびに選択肢が消えると選びにくい
            / The year list is built once so the choices do not shift while typing */
         var modifiedYears = collectModifiedYears(fileEntries);
@@ -1840,10 +1889,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var keywordPresets = readWordList(PREF_KEY_KEYWORDS, KEYWORD_PRESET_DEFAULTS);
         var keywordPresetRows = [];
 
-        var excludeKeywords = readWordList(PREF_KEY_EXCLUDES, EXCLUDE_KEYWORD_DEFAULTS);
-        var excludeTerms = toNormalizedTerms(excludeKeywords);
-        applyExcludeFlags(fileEntries, excludeTerms);
-
         /* 並べ替え済みの並びを覚えておく。並び順を変えるたびに数千件を並べ替え直すと待たされる
            / Cached orders; re-sorting thousands of entries on every toggle would stall the dialog */
         var sortedByModified = fileEntries;
@@ -1859,6 +1904,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
         /* 組み直し中の選択変更でファイルリストが何度も再構築されるのを防ぐ / Suppress cascaded rebuilds */
         var isRebuildingFolderList = false;
+
+        /* いま左のリストに並んでいる検索フォルダーの顔ぶれ / The folders currently listed on the left */
+        var listedRootSignature = null;
 
         /**
          * 年別で選択中の年を返す
@@ -1937,12 +1985,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
          * @returns {void}
          */
         function refreshFolderList() {
-            var previousRootIndex = selectedRootIndex();
-            isRebuildingFolderList = true;
+            var rootIndexes = collectFilteredEntries();
 
-            rebuildFolderListBox(collectFilteredEntries(), previousRootIndex);
+            /* 顔ぶれが変わっていなければ組み直さない。1打鍵ごとの removeAll はちらつきの元
+               / Skip the rebuild when the folders are the same; removeAll on every keystroke flickers */
+            var rootSignature = rootIndexes.join(",");
+            if (rootSignature !== listedRootSignature) {
+                listedRootSignature = rootSignature;
 
-            isRebuildingFolderList = false;
+                var previousRootIndex = selectedRootIndex();
+                isRebuildingFolderList = true;
+                rebuildFolderListBox(rootIndexes, previousRootIndex);
+                isRebuildingFolderList = false;
+            }
+
             refreshFileList();
         }
 
@@ -1990,6 +2046,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                 if (entry.isExcluded &&
                     (!isExcludeLifted || matchesAnyTerm(entry.normalizedSearchText, activeExcludeTerms))) continue;
                 if (filterYear !== null && entry.modifiedYear !== filterYear) continue;
+
+                /* 更新日時が取れなかったファイルは期間に置けない。年別と揃えて対象から外す
+                   / Without a date an entry cannot sit in a period; drop it like the year filter does */
+                if ((periodFrom !== null || periodTo !== null) && !entry.modifiedTime) continue;
                 if (periodFrom !== null && entry.modifiedTime < periodFrom) continue;
                 if (periodTo !== null && entry.modifiedTime > periodTo) continue;
                 if (!matchesKeyword(entry.normalizedSearchText, searchTerms, isMatchAll)) continue;
@@ -2135,7 +2195,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             var presetRow = null;
             var rowWidth = 0;
             for (var j = 0; j < keywordPresets.length; j++) {
-                var buttonWidth = estimateTextWidth(keywordPresets[j]) + PRESET_BUTTON_PADDING;
+                var buttonWidth = measurePresetButtonWidth(keywordPresetContainer, keywordPresets[j]);
                 var filledWidth = (rowWidth === 0) ? buttonWidth : rowWidth + DENSE_SPACING + buttonWidth;
 
                 if (presetRow === null || filledWidth > PRESET_ROW_WIDTH) {
@@ -2147,7 +2207,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
                 var presetButton = presetRow.add("button", undefined, keywordPresets[j]);
                 presetButton.helpTip = getLabel(LABELS.button.appendKeyword);
-                applyPresetButtonSize(presetButton);
+                applyPresetButtonSize(presetButton, buttonWidth);
                 presetButton.onClick = makeKeywordPresetHandler(keywordPresets[j]);
                 rowWidth = filledWidth;
             }
