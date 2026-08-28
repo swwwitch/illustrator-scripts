@@ -247,11 +247,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     var PRESET_CHAR_WIDTH     = 7;           /* 実測できない環境用の半角1文字の概算幅 / fallback char width */
 
     /* 環境設定ダイアログ / Preferences dialog */
-    var SETTINGS_LIST_SIZE    = [440, 180];  /* 検索フォルダーリストの寸法 [幅,高さ] / search folder list size */
-    var SETTINGS_COLUMN_WIDTH = 214;         /* 2カラムに割ったパネルの幅 / width of one of the two columns */
+    var SETTINGS_LIST_SIZE    = [500, 180];  /* 検索フォルダーリストの寸法 [幅,高さ]。環境設定ダイアログの幅はここで決まる / search folder list size, drives the preferences dialog width */
+    /* キーワードボタンと除外条件は左右で半分ずつにする。フォルダーパネルの外寸から間隔を引いて割る
+       / The two word panels split the row evenly, derived from the folder panel so they stay 50/50 */
+    var SETTINGS_CONTENT_WIDTH = SETTINGS_LIST_SIZE[0] + PANEL_MARGINS[0] + PANEL_MARGINS[2];
+    var SETTINGS_COLUMN_WIDTH  = Math.floor((SETTINGS_CONTENT_WIDTH - COLUMN_SPACING) / 2);  /* 2カラムに割ったパネルの幅 / width of one of the two columns */
+
     var SETTINGS_KEYWORD_ROWS = 9;           /* キーワード入力欄の行数 / rows in the keyword field */
     var SETTINGS_KEYWORD_ROW_HEIGHT = 18;    /* 1行の高さ / height of one row */
-    var SETTINGS_KEYWORD_SIZE = [182, SETTINGS_KEYWORD_ROWS * SETTINGS_KEYWORD_ROW_HEIGHT];  /* キーワード入力欄の寸法 [幅,高さ] / keyword field size */
+
+    /* 入力欄はパネルの余白を除いた残り全部 / The field takes the panel width minus its margins */
+    var SETTINGS_KEYWORD_SIZE = [SETTINGS_COLUMN_WIDTH - PANEL_MARGINS[0] - PANEL_MARGINS[2],
+                                 SETTINGS_KEYWORD_ROWS * SETTINGS_KEYWORD_ROW_HEIGHT];
 
     /* 年別・並び順・期間 / Year, sort order and period */
     var YEAR_DROPDOWN_WIDTH = 74;            /* 年別ドロップダウンの幅 / year dropdown width */
@@ -987,6 +994,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         return rest === "" || rest.charAt(0) === "/" || rest.charAt(0) === "\\";
     }
 
+    /* ホームフォルダーの絶対パス。表示を ~ に縮めるのに使う / Home path, used to shorten what is shown */
+    var HOME_PATH = new Folder("~").fsName;
+
+    /**
+     * 表示用にホームフォルダー以下のパスを ~ で縮める
+     * 記録するのは fsName のままで、縮めるのは見せるときだけ
+     * @param {string} targetPath - 絶対パス
+     * @returns {string} ホームフォルダー以下なら ~ から始まるパス。外なら元のまま
+     */
+    function toDisplayPath(targetPath) {
+        if (!isInsideFolder(targetPath, HOME_PATH)) return targetPath;
+        return "~" + targetPath.substring(HOME_PATH.length);
+    }
+
     /**
      * ファイル1件分の情報を作る
      * @param {File} file - 対象ファイル
@@ -1403,7 +1424,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                 /* 未マウントのフォルダーも消さずに残す。見つからないことが分かるよう印を添える
                    / Unmounted folders stay on the list, marked so the state is visible */
                 var missingMark = editedFolders[i].exists ? "" : "  " + getLabel(LABELS.folderRow.missing);
-                folderListBox.add("item", editedFolders[i].fsName + missingMark);
+                folderListBox.add("item", toDisplayPath(editedFolders[i].fsName) + missingMark);
             }
             btnRemoveFolder.enabled = editedFolders.length > 0;
             onFolderCountChanged(editedFolders.length);
@@ -1480,7 +1501,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         var wordPanel = parent.add("panel", undefined, getLabel(titleSet));
         setupPanel(wordPanel, DENSE_SPACING);
 
-        /* 見出しの長さでカラム幅がずれないよう、幅は決め打ちにする / Fix the width so the columns stay even */
+        /* 見出しの長さでカラム幅がずれないよう、左右とも同じ幅を決め打ちにする / Same fixed width on both, so the headings cannot skew the split */
         wordPanel.preferredSize.width = SETTINGS_COLUMN_WIDTH;
         wordPanel.add("statictext", undefined, getLabel(LABELS.hint.onePerLine));
 
