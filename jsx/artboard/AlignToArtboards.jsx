@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-複数アートボードのドキュメントで、選択したオブジェクトを各アートボード上の指定位置へ整列します。
+選択したオブジェクトを、アートボード上の指定位置へ整列します。
 整列先は3×3の9点から選べ、辺からのマージンも指定できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Aligns the selected objects to a chosen position on each artboard of a multi-artboard document.
-The target is picked from a 3×3 grid of nine points, with a margin from the edges.
+Aligns the selected objects to a chosen position on the artboard.
+The target is picked from a 3x3 grid of nine points, with a margin from the edges.
 
 See the README for details.
 
@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "AlignToArtboards";             /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-30";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignToArtboards.md
@@ -173,16 +173,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
                 en: "Groups selected objects by the artboard containing their center point, then aligns them to the selected position on each artboard."
             },
             activeArtboard: {
-                ja: "アクティブアートボード上の選択を基準に、他のアートボード上の選択を同じ相対位置へ整列します。アクティブ側は動かしません。",
-                en: "Uses the selection on the active artboard as the reference and aligns selections on other artboards to the same relative position. Objects on the active artboard are not moved."
+                ja: "アクティブアートボード上の選択を、相対位置を保ったまま整列先＋マージンの位置へそろえ、他のアートボード上の選択も同じ相対位置へ整列します。",
+                en: "Aligns the selection on the active artboard to the target position plus margin while keeping its internal layout, then places selections on other artboards at the same relative position."
             },
             anchor: {
-                ja: "整列先の9点を選択します。アクティブなアートボードを基準にする場合は、その時点の選択が維持されます。",
-                en: "Choose one of the 9 alignment positions. When using Based on Active Artboard, the current choice is preserved."
+                ja: "整列先の9点を選択します。",
+                en: "Choose one of the 9 alignment positions."
             },
             margin: {
-                ja: "対応する辺から内側へオフセットします。中央、またはアクティブなアートボードを基準にする場合は無効です。",
-                en: "Offsets objects inward from the corresponding edge. Disabled for Center and Based on Active Artboard."
+                ja: "対応する辺から内側へオフセットします。整列先が中央のときは無効です。",
+                en: "Offsets objects inward from the corresponding edge. Disabled when the target is Center."
             },
             linkMargins: {
                 ja: "ONのときは左右の値を上下にも連動します。",
@@ -522,22 +522,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @param {Document} doc - 対象ドキュメント
      * @param {Object} itemsByArtboard - アートボードごとに振り分けたアイテム
      * @param {string} anchorCode - アンカーコード
+     * @param {number} marginX - 左右のマージン（pt）
+     * @param {number} marginY - 上下のマージン（pt）
      * @param {Object} previewState - プレビュー状態。確定時は null
      * @returns {void}
      */
-    function alignUsingActiveArtboardReference(doc, itemsByArtboard, anchorCode, previewState) {
+    function alignUsingActiveArtboardReference(doc, itemsByArtboard, anchorCode, marginX, marginY, previewState) {
         var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
         if (activeArtboardIndex < 0) return;
 
         var referenceItems = itemsByArtboard[activeArtboardIndex];
         if (!referenceItems) return;
 
+        /* まず基準側を、相対位置を保ったままマージンぶん内側の基準点へ寄せる
+           アートボードが1つでも整列が効くのはこの一手があるため
+           Move the reference group to the anchor inside the margin first; this is what makes the
+           alignment work even when the document has only one artboard */
+        var activeArtboardRect = doc.artboards[activeArtboardIndex].artboardRect;
+        alignItemGroupToArtboardAnchor(
+            referenceItems,
+            insetBounds(activeArtboardRect, marginX, marginY),
+            anchorCode,
+            { x: 0, y: 0 },
+            previewState
+        );
+
+        /* 寄せたあとの位置を測り直す / Re-measure after the reference group has moved */
         var referenceBounds = getUnionBounds(referenceItems);
         if (!referenceBounds) return;
 
         /* 基準アートボードのアンカーから見た、基準オブジェクト群の相対位置
            Relative position of the reference group as seen from the artboard anchor */
-        var referenceAnchor = getAnchorPoint(doc.artboards[activeArtboardIndex].artboardRect, anchorCode);
+        var referenceAnchor = getAnchorPoint(activeArtboardRect, anchorCode);
         var groupAnchor = getAnchorPoint(referenceBounds, anchorCode);
         var offset = { x: groupAnchor[0] - referenceAnchor[0], y: groupAnchor[1] - referenceAnchor[1] };
 
@@ -567,7 +583,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         var itemsByArtboard = groupItemsByArtboard(doc, items);
 
         if (settings.useActiveArtboardAsReference) {
-            alignUsingActiveArtboardReference(doc, itemsByArtboard, settings.anchorCode, previewState);
+            alignUsingActiveArtboardReference(
+                doc,
+                itemsByArtboard,
+                settings.anchorCode,
+                settings.marginX,
+                settings.marginY,
+                previewState
+            );
             return;
         }
 
@@ -646,7 +669,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /* UIの明暗に合わせて initAnchorColors() で設定 / Set from the light/dark UI in initAnchorColors() */
     var anchorLineColor = [0.6, 0.6, 0.6, 1];
     var anchorSelectedFillColor = [0.4, 0.4, 0.4, 1];
-    var anchorDimmedLineColor = [0.8, 0.8, 0.8, 1];
 
     /**
      * IllustratorのUIが明るいテーマか判定する
@@ -665,7 +687,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         /* 選択セルの塗り：ライトは濃いグレー、ダークは明るいグレー / Selected-cell fill: dark gray in light UI, bright gray in dark UI */
         anchorLineColor = lightUI ? [0.6, 0.6, 0.6, 1] : [0.55, 0.55, 0.55, 1];
         anchorSelectedFillColor = lightUI ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
-        anchorDimmedLineColor = lightUI ? [0.8, 0.8, 0.8, 1] : [0.38, 0.38, 0.38, 1];
     }
 
     /**
@@ -712,7 +733,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         var graphics = anchorWidget.graphics;
         var widgetWidth = anchorWidget.size[0];
         var widgetHeight = anchorWidget.size[1];
-        var lineColor = anchorWidget.enabled ? anchorLineColor : anchorDimmedLineColor;
 
         /* 背景はコントロールの地色で塗り、パネルと同色に見せる / Paint the control background so the widget blends into the panel */
         try {
@@ -737,7 +757,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             ];
         }
 
-        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, lineColor, 1);
+        var linePen = graphics.newPen(graphics.PenType.SOLID_COLOR, anchorLineColor, 1);
         for (var i = 0; i < ANCHOR_CONNECTIONS.length; i++) {
             var fromCell = getCellOrigin(ANCHOR_CONNECTIONS[i][0]);
             var toCell = getCellOrigin(ANCHOR_CONNECTIONS[i][1]);
@@ -761,8 +781,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
                 graphics,
                 cellOrigin[0],
                 cellOrigin[1],
-                cellIndex === anchorWidget.selectedAnchorIndex,
-                lineColor
+                cellIndex === anchorWidget.selectedAnchorIndex
             );
         }
     }
@@ -773,10 +792,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
      * @param {number} cellX - セルの左端
      * @param {number} cellY - セルの上端
      * @param {boolean} isSelected - 選択中なら true
-     * @param {number[]} lineColor - 枠線の色
      * @returns {void}
      */
-    function drawAnchorCell(graphics, cellX, cellY, isSelected, lineColor) {
+    function drawAnchorCell(graphics, cellX, cellY, isSelected) {
         /**
          * セルの四角形パスを作る
          * @returns {void}
@@ -796,7 +814,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
             graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, anchorSelectedFillColor));
         }
         addCellPath();
-        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, lineColor, 1));
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, anchorLineColor, 1));
     }
 
     // =========================================
@@ -817,10 +835,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /**
      * 整列の基準パネル（すべてのアートボード／アクティブを基準）を構築する
      * @param {Window} parentContainer - 追加先のダイアログ
+     * @param {number} artboardCount - ドキュメントのアートボード数
      * @param {Function} onSettingsChanged - 選択が変わったときに呼ぶ関数
      * @returns {Object} 基準の取得・設定用インターフェース
      */
-    function buildAlignmentBasePanel(parentContainer, onSettingsChanged) {
+    function buildAlignmentBasePanel(parentContainer, artboardCount, onSettingsChanged) {
         var basePanel = parentContainer.add("panel", undefined, getLabel("panel.alignmentBase"));
         applyPanelLayout(basePanel, "column");
         basePanel.alignChildren = ["left", "center"];
@@ -830,14 +849,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         eachArtboardRadio.helpTip = getLabel("tooltip.eachArtboard");
         activeArtboardRadio.helpTip = getLabel("tooltip.activeArtboard");
 
+        /* アートボードが1つのときは振り分け先がないので「すべてのアートボード」を選べない
+           With a single artboard there is nothing to distribute, so All Artboards stays unavailable */
+        var allowsEachArtboard = artboardCount > 1;
+        eachArtboardRadio.enabled = allowsEachArtboard;
+
         /**
-         * 整列の基準を切り替える
+         * 整列の基準を切り替える（選べないときはアクティブ基準に固定）
          * @param {boolean} useActiveArtboard - アクティブを基準にするなら true
          * @returns {void}
          */
         function selectAlignmentBase(useActiveArtboard) {
-            eachArtboardRadio.value = !useActiveArtboard;
-            activeArtboardRadio.value = useActiveArtboard;
+            var usesActive = useActiveArtboard || !allowsEachArtboard;
+            eachArtboardRadio.value = !usesActive;
+            activeArtboardRadio.value = usesActive;
         }
 
         selectAlignmentBase(DEFAULT_SETTINGS.useActiveArtboardAsReference);
@@ -899,16 +924,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         selectAnchorAt(anchorWidget.selectedAnchorIndex);
 
         return {
-            isEnabled: function () {
-                return anchorWidget.enabled === true;
-            },
-            setEnabled: function (isEnabled) {
-                /* パネルとウィジェットの両方を切り替える（描画の淡色化はウィジェット側を見る）
-                   Toggle both the panel and the widget; the dimmed drawing follows the widget state */
-                anchorPanel.enabled = isEnabled;
-                anchorWidget.enabled = isEnabled;
-                redrawAnchorWidget(anchorWidget);
-            },
             getAnchorCode: function () {
                 return ANCHOR_DEFINITIONS[anchorWidget.selectedAnchorIndex].code;
             },
@@ -1114,8 +1129,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
                 return;
             }
 
-            /* 整列先が無効のときは9軸のショートカットも無効 / Skip anchor shortcuts when the widget is disabled */
-            if (!anchorControls.isEnabled()) return;
             if (!anchorControls.selectByShortcutKey(pressedKey)) return;
             event.preventDefault();
             onSettingsChanged();
@@ -1136,7 +1149,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         var previewState = createPreviewState(doc.selection);
         initAnchorColors();
 
-        var baseControls = buildAlignmentBasePanel(dialog, handleSettingsChanged);
+        var baseControls = buildAlignmentBasePanel(dialog, doc.artboards.length, handleSettingsChanged);
 
         var contentGroup = dialog.add("group");
         contentGroup.orientation = "row";
@@ -1166,8 +1179,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         function readSettingsFromDialog() {
             var anchorCode = anchorControls.getAnchorCode();
             var useActiveArtboardAsReference = baseControls.usesActiveArtboard();
-            /* 中央整列時とアクティブ基準時はマージンを使わない / Margins are unused for center and active-artboard modes */
-            var marginIsAvailable = (anchorCode !== CENTER_ANCHOR_CODE) && !useActiveArtboardAsReference;
+            /* 中央整列時はマージンを使わない / Margins are unused for the center anchor */
+            var marginIsAvailable = (anchorCode !== CENTER_ANCHOR_CODE);
             var margin = marginIsAvailable ? marginControls.getMarginInPoints() : { x: 0, y: 0 };
             return {
                 anchorCode: anchorCode,
@@ -1184,7 +1197,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
          */
         function handleSettingsChanged() {
             var settings = readSettingsFromDialog();
-            anchorControls.setEnabled(!settings.useActiveArtboardAsReference);
             marginControls.panel.enabled = settings.marginIsAvailable;
             marginControls.linkCheckbox.enabled = settings.marginIsAvailable;
 
