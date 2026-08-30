@@ -106,6 +106,7 @@ Changing the folder and pressing OK rebuilds the list against the new folder.
 - If this launcher itself lives inside the target folder, it is left out of the list
 - File names written only in Japanese produce no keyword buttons, since the extractor looks for ASCII words
 - The target folder and keyword settings live in Illustrator's own preferences (`AiScriptLauncher.*`). No external settings file is created
+- The keyword, the “Include subdirectories” and “Full path” states and the list selections carry over only until Illustrator quits. They are not written to the preferences, so a restart brings back the defaults
 - On launch the script turns `ShowExternalJSXWarning` off, so running scripts from outside the Scripts folder does not raise a warning every time. This preference applies to Illustrator as a whole
 
 ### Article
@@ -127,6 +128,7 @@ ExtendScript has no way to reveal a file with selection, so the path is handed t
 
 ### Update History
 
+- v1.4.2 (2026-08-30): The keyword and the list selections now carry over between runs within an Illustrator session
 - v1.4.1 (2026-08-27): Added a clear (×) button to the keyword field
 - v1.4.0 (2026-08-26): Switched to two side-by-side lists; added keyword buttons, Finder reveal and the Preferences dialog
 - v1.0.0 (2025-11-13): Initial release

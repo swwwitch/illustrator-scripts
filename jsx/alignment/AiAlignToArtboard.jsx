@@ -24,7 +24,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboard";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-30";                   /* 更新日 / last updated */
@@ -104,6 +104,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var DEFAULT_GLYPH_BOUNDS         = true;  /* 字形の境界に整列 / align to glyph bounds */
         var DEFAULT_CHANGE_JUSTIFICATION = true;  /* 行揃えを変更 / change justification */
         var DEFAULT_MARGIN               = 0;     /* マージン欄の初期値（定規の単位）/ initial margin, in ruler units */
+        var DEFAULT_SHOW_GUIDE           = false; /* ガイドを表示 / show the margin guide */
         var DEFAULT_KEEP_GUIDE           = false; /* ガイドを保持（閉じても残す）/ keep the guide when the palette closes */
 
         /* マージンのガイドを作るレイヤー名（他のガイド系スクリプトと共通）
@@ -112,6 +113,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /* このスクリプトが作るガイドの名前。張り替えるときの目印にする
            The name given to the guide, used to find and replace it */
         var GUIDE_NAME = "AiAlignToArtboard-margin";
+
+        /* 常駐エンジン（$.global）に控える値のキー
+           ガイドの設定はパレットを開き直しても引き継ぐ（［ガイドを保持］で残したガイドを、
+           次に閉じたときに消してしまわないため）
+           Keys kept on $.global: the guide settings survive a close-and-reopen, so a guide left by
+           "Keep Guides" is not deleted the next time the palette closes */
+        var SETTINGS_KEY     = "__aiAlignToArtboardSettings";
+        /* メインエンジンへ送り込んだワーカー定義の刻印を控えるキー / Key holding the stamp of the loaded worker source */
+        var WORKER_STAMP_KEY = "__aiAlignToArtboardWorkerStamp";
 
         /* メインエンジンからの応答を待つ秒数 / seconds to wait for the main engine */
         var WORKER_TIMEOUT = 10;
@@ -581,9 +591,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 if (isNaN(currentValue)) return;
 
                 editText.text = computeArrowValue(currentValue, direction, ScriptUI.environment.keyboardState);
-                /* プログラムからの変更では onChanging が発火しないため明示的に呼ぶ
-                   Programmatic changes do not fire onChanging, so call it explicitly */
-                if (typeof editText.onChanging === "function") { editText.onChanging(); }
+                /* ↑↓での増減は確定値なので、確定時と同じ処理を走らせる
+                   プログラムからの変更では onChange が発火しないため明示的に呼ぶ
+                   An arrow step is a committed value; programmatic changes do not fire onChange, so call it */
+                if (typeof editText.onChange === "function") { editText.onChange(); }
                 event.preventDefault();
             });
         }
@@ -729,9 +740,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             marginPanel.margins = PANEL_MARGINS;
             marginPanel.spacing = OPTION_SPACING;
 
+            /* 前回の設定を引き継ぐ（残したガイドと表示が食い違わないように）/ Carry over the previous settings */
+            var guideSettings = loadGuideSettings();
+
             showGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "showGuide"));
             showGuideCheckbox.helpTip = getLabel("tooltip", "showGuide");
-            showGuideCheckbox.value = false;
+            showGuideCheckbox.value = guideSettings.showGuide;
             showGuideCheckbox.onClick = function() { syncGuideControls(); runExclusive(refreshMarginGuide); };
 
             var fieldRow = marginPanel.add("group");
@@ -739,7 +753,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             /* 上下のチェックボックスのラベルに頭をそろえ、下は少し空ける
                Indented to line up with the checkbox labels, with a little room below */
             fieldRow.margins = [FIELD_INDENT, 0, 0, FIELD_BOTTOM_GAP];
-            marginField = fieldRow.add("edittext", undefined, String(DEFAULT_MARGIN));
+            marginField = fieldRow.add("edittext", undefined, guideSettings.margin);
             marginField.characters = FIELD_CHARS;
             marginField.helpTip = getLabel("tooltip", "margin");
             changeValueByArrowKey(marginField);
@@ -751,11 +765,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             /* 確定（Enter・フォーカス移動）でガイドを描き直す
                入力途中で毎回描き直すとそのつど委譲が走るため、描き直しは onChange だけにする
                Only redraw the guide when the field commits, not on every keystroke */
-            marginField.onChange = function() { runExclusive(refreshMarginGuide); };
+            marginField.onChange = function() { runExclusive(refreshMarginGuide); saveGuideSettings(); };
 
             keepGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "keepGuide"));
             keepGuideCheckbox.helpTip = getLabel("tooltip", "keepGuide");
-            keepGuideCheckbox.value = DEFAULT_KEEP_GUIDE;
+            keepGuideCheckbox.value = guideSettings.keepGuide;
             keepGuideCheckbox.onClick = function() { syncGuideControls(); };
 
             syncGuideControls();
@@ -770,6 +784,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             if (showGuideCheckbox === null || keepGuideCheckbox === null) { return; }
             keepGuideCheckbox.enabled = showGuideCheckbox.value === true;
             keepGuideOnClose = keepGuideCheckbox.value === true;
+            saveGuideSettings();
+        }
+
+        /**
+         * 前回のガイド設定を常駐エンジンから読み出す（控えが無ければ既定値）
+         * @returns {object} { showGuide: boolean, keepGuide: boolean, margin: string }
+         */
+        function loadGuideSettings() {
+            var stored = $.global[SETTINGS_KEY];
+            if (!stored) {
+                return { showGuide: DEFAULT_SHOW_GUIDE, keepGuide: DEFAULT_KEEP_GUIDE, margin: String(DEFAULT_MARGIN) };
+            }
+            return {
+                showGuide: stored.showGuide === true,
+                keepGuide: stored.keepGuide === true,
+                margin: (stored.margin != null) ? String(stored.margin) : String(DEFAULT_MARGIN)
+            };
+        }
+
+        /**
+         * 現在のガイド設定を常駐エンジンに控える
+         * @returns {void}
+         */
+        function saveGuideSettings() {
+            $.global[SETTINGS_KEY] = {
+                showGuide: showGuideCheckbox !== null && showGuideCheckbox.value === true,
+                keepGuide: keepGuideCheckbox !== null && keepGuideCheckbox.value === true,
+                margin:    (marginField !== null) ? String(marginField.text) : String(DEFAULT_MARGIN)
+            };
         }
 
         /**
@@ -903,6 +946,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             win.layout.layout(true);
             win.show();
             refreshPaletteState();
+            /* 引き継いだ設定でガイドを描き直す（前回残したガイドと入力欄の値をそろえる）
+               Redraw the guide from the carried-over settings so it matches the field */
+            if (showGuideCheckbox !== null && showGuideCheckbox.value === true) { runExclusive(refreshMarginGuide); }
         }
 
         // =========================================
@@ -916,7 +962,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
            - パレット側の変数は参照しない。必要な値は options で受け取る */
 
         function btAlignSelection(options) {
-            var doc, selectedItems, needsGroup, previousPreferences, previousJustification, changedJustification;
+            var doc, selectedItems, needsGroup, didGroup, previousPreferences, previousJustification, changedJustification, failure;
             if (app.documents.length === 0) { return "NODOC"; }
             doc = app.activeDocument;
             selectedItems = doc.selection;
@@ -930,6 +976,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             previousPreferences = btReadPreferences();
             previousJustification = null;
             changedJustification = null;
+            /* 実際にグループ化できたかを控える。needsGroup で解除すると、グループ化の前で例外が出たときに
+               選択していた既存のグループを解除してしまう
+               Track whether the group actually happened; keying the ungroup off needsGroup would
+               dissolve the user's own groups when something throws before the group runs */
+            didGroup = false;
+            /* 整列できなかった理由。finally で後始末をしてから返す / Why the align failed; returned after the teardown */
+            failure = null;
             try {
                 btWritePreferences(options.previewBounds === true, options.glyphBounds === true, options.glyphBounds === true);
                 /* 書いた環境設定を整列コマンドに拾わせるため、いったん反映させる
@@ -942,22 +995,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                         changedJustification = options.justification;
                     }
                 }
-                if (needsGroup) { app.executeMenuCommand("group"); }
-                if (!btRunAlignCommands(doc, options)) {
-                    if (previousJustification !== null) {
-                        selectedItems[0].textRange.paragraphAttributes.justification = previousJustification;
-                    }
-                    return "NOTARGET";
+                if (needsGroup) {
+                    app.executeMenuCommand("group");
+                    didGroup = true;
                 }
-                btNudgeSelection(doc, options.offsetX * options.marginPt, options.offsetY * options.marginPt);
+                if (!btRunAlignCommands(doc, options)) {
+                    failure = "NOTARGET";
+                } else {
+                    btNudgeSelection(doc, options.offsetX * options.marginPt, options.offsetY * options.marginPt);
+                }
             } catch (alignError) {
-                return "ERR:" + alignError;
+                failure = "ERR:" + alignError;
             } finally {
-                if (needsGroup) { app.executeMenuCommand("ungroup"); }
+                if (didGroup) { app.executeMenuCommand("ungroup"); }
                 /* 整列が環境設定を使い終えてから戻す（先に戻すと反映前の値で整列されることがある）*/
                 app.redraw();
                 btWritePreferences(previousPreferences.previewBounds, previousPreferences.pointText, previousPreferences.areaText);
+                /* 整列できなかったときは、先に変えた行揃えも元に戻す（例外で抜けた場合も同じ）
+                   Roll the justification back whenever the align did not go through, exceptions included */
+                if (failure !== null && previousJustification !== null) {
+                    try { selectedItems[0].textRange.paragraphAttributes.justification = previousJustification; } catch (restoreError) {}
+                }
             }
+            if (failure !== null) { return failure; }
             try {
                 /* 整列コマンドが「字形の境界に整列」を拾えていないことがあるため、
                    字形を実測して目標位置との差を打ち消す（拾えていれば差は0で何も動かない）*/
@@ -979,7 +1039,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         function btDrawMarginGuide(doc, options) {
-            var artboardRect, left, top, right, bottom, guideRectangle;
+            var layer, previousLayerState, artboardRect, left, top, right, bottom, guideRectangle;
             btRemoveGuidesByName(doc, options.guideName, options.guideLayerName);
             if (options.showGuide !== true || !(options.guideMarginPt > 0)) { return; }
             if (doc.artboards.length === 0) { return; }
@@ -990,11 +1050,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             bottom = artboardRect[3] + options.guideMarginPt;
             /* マージンが大きすぎて内側が残らないときは何も描かない */
             if (right <= left || top <= bottom) { return; }
-            guideRectangle = btGetGuideLayer(doc, options.guideLayerName).pathItems.rectangle(top, left, right - left, top - bottom);
-            guideRectangle.name = options.guideName;
-            guideRectangle.stroked = false;
-            guideRectangle.filled = false;
-            guideRectangle.guides = true;
+            layer = btGetGuideLayer(doc, options.guideLayerName);
+            previousLayerState = btUnlockLayer(layer);
+            try {
+                guideRectangle = layer.pathItems.rectangle(top, left, right - left, top - bottom);
+                guideRectangle.name = options.guideName;
+                guideRectangle.stroked = false;
+                guideRectangle.filled = false;
+                guideRectangle.guides = true;
+            } finally {
+                btRestoreLayer(layer, previousLayerState);
+            }
         }
 
         function btGetGuideLayer(doc, layerName) {
@@ -1005,51 +1071,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 layer = doc.layers.add();
                 layer.name = layerName;
             }
-            layer.locked = false;
-            layer.visible = true;
             return layer;
         }
 
+        function btUnlockLayer(layer) {
+            var previousLayerState;
+            /* ロック・非表示のままでは書き換えられないので一時的に外し、戻せるよう控える */
+            previousLayerState = { locked: layer.locked, visible: layer.visible };
+            layer.locked = false;
+            layer.visible = true;
+            return previousLayerState;
+        }
+
+        function btRestoreLayer(layer, previousLayerState) {
+            try {
+                layer.visible = previousLayerState.visible;
+                layer.locked = previousLayerState.locked;
+            } catch (restoreLayerError) {}
+        }
+
         function btRemoveGuidesByName(doc, guideName, layerName) {
-            var layer, items, i, item;
+            var layer, previousLayerState, items, i, item;
             try {
                 layer = doc.layers.getByName(layerName);
             } catch (missingLayerError) {
                 return;
             }
-            items = layer.pathItems;
-            for (i = items.length - 1; i >= 0; i--) {
-                item = items[i];
-                if (item.name !== guideName) { continue; }
-                try {
-                    layer.locked = false;
-                    layer.visible = true;
-                    item.locked = false;
-                    item.hidden = false;
-                    item.remove();
-                } catch (removeError) {}
+            previousLayerState = btUnlockLayer(layer);
+            try {
+                items = layer.pathItems;
+                for (i = items.length - 1; i >= 0; i--) {
+                    item = items[i];
+                    if (item.name !== guideName) { continue; }
+                    try {
+                        item.locked = false;
+                        item.hidden = false;
+                        item.remove();
+                    } catch (removeError) {}
+                }
+            } finally {
+                btRestoreLayer(layer, previousLayerState);
+            }
+        }
+
+        function btExecuteAlignCommands(alignCommands) {
+            var i;
+            for (i = 0; i < alignCommands.length; i++) {
+                app.executeMenuCommand(alignCommands[i]);
             }
         }
 
         function btRunAlignCommands(doc, options) {
-            var boundsBefore, boundsAfter, i;
+            var boundsBefore, boundsAfter;
             boundsBefore = btGetSelectionBounds(doc.selection);
-            for (i = 0; i < options.alignCommands.length; i++) {
-                app.executeMenuCommand(options.alignCommands[i]);
-            }
+            btExecuteAlignCommands(options.alignCommands);
             boundsAfter = btGetSelectionBounds(doc.selection);
             if (!btSameBounds(boundsBefore, boundsAfter)) { return true; }
             return btProbeAlignTarget(doc, options);
         }
 
         function btProbeAlignTarget(doc, options) {
-            var boundsBefore, boundsAfter, i;
+            var boundsBefore, boundsAfter;
             btNudgeSelection(doc, options.probeX, options.probeY);
             try {
                 boundsBefore = btGetSelectionBounds(doc.selection);
-                for (i = 0; i < options.alignCommands.length; i++) {
-                    app.executeMenuCommand(options.alignCommands[i]);
-                }
+                btExecuteAlignCommands(options.alignCommands);
                 boundsAfter = btGetSelectionBounds(doc.selection);
             } catch (probeError) {
                 btNudgeSelection(doc, -options.probeX, -options.probeY);
@@ -1080,24 +1166,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             bounds = btGetGlyphAwareBounds(items, options.previewBounds === true);
             if (bounds === null) { return; }
             artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            deltaX = btAlignDeltaX(bounds, artboardRect, options.modeX, options.marginPt);
-            deltaY = btAlignDeltaY(bounds, artboardRect, options.modeY, options.marginPt);
+            /* artboardRect は [左, 上, 右, 下] で、X は右へ・Y は下へ向かって内側になるため符号が逆になる */
+            deltaX = btAlignDelta(bounds, artboardRect, options.modeX, options.marginPt, 0, 2, 1);
+            deltaY = btAlignDelta(bounds, artboardRect, options.modeY, options.marginPt, 1, 3, -1);
             if (Math.abs(deltaX) < 0.001) { deltaX = 0; }
             if (Math.abs(deltaY) < 0.001) { deltaY = 0; }
             btNudgeSelection(doc, deltaX, deltaY);
         }
 
-        function btAlignDeltaX(bounds, artboardRect, mode, marginPt) {
-            if (mode === "start") { return (artboardRect[0] + marginPt) - bounds[0]; }
-            if (mode === "end") { return (artboardRect[2] - marginPt) - bounds[2]; }
-            if (mode === "center") { return (artboardRect[0] + artboardRect[2]) / 2 - (bounds[0] + bounds[2]) / 2; }
-            return 0;
-        }
-
-        function btAlignDeltaY(bounds, artboardRect, mode, marginPt) {
-            if (mode === "start") { return (artboardRect[1] - marginPt) - bounds[1]; }
-            if (mode === "end") { return (artboardRect[3] + marginPt) - bounds[3]; }
-            if (mode === "center") { return (artboardRect[1] + artboardRect[3]) / 2 - (bounds[1] + bounds[3]) / 2; }
+        function btAlignDelta(bounds, artboardRect, mode, marginPt, startIndex, endIndex, inwardSign) {
+            if (mode === "start") { return (artboardRect[startIndex] + inwardSign * marginPt) - bounds[startIndex]; }
+            if (mode === "end") { return (artboardRect[endIndex] - inwardSign * marginPt) - bounds[endIndex]; }
+            if (mode === "center") { return (artboardRect[startIndex] + artboardRect[endIndex]) / 2 - (bounds[startIndex] + bounds[endIndex]) / 2; }
             return 0;
         }
 
@@ -1337,9 +1417,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /* 送信するワーカー関数の一覧（追加したらここにも必ず登録する）/ Every worker function shipped to the main engine */
         var WORKER_FUNCS = [
-            btAlignSelection, btRunAlignCommands, btProbeAlignTarget, btSameBounds,
-            btUpdateMarginGuide, btDrawMarginGuide, btGetGuideLayer, btRemoveGuidesByName,
-            btApplyGlyphCorrection, btAlignDeltaX, btAlignDeltaY, btHasTextFrame,
+            btAlignSelection, btExecuteAlignCommands, btRunAlignCommands, btProbeAlignTarget, btSameBounds,
+            btUpdateMarginGuide, btDrawMarginGuide, btGetGuideLayer, btUnlockLayer, btRestoreLayer, btRemoveGuidesByName,
+            btApplyGlyphCorrection, btAlignDelta, btHasTextFrame,
             btGetGlyphAwareBounds, btGetMeasureBounds, btGetOutlineBounds, btSafeRemove,
             btGetPaletteState, btGetSelectionKind, btJustificationByName,
             btNudgeSelection, btReadPreferences, btGetPreferenceFlags, btWritePreferences, btPromoteTextRange,
@@ -1407,8 +1487,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             return lines.slice(firstIndex, lastIndex + 1).join("\n");
         }
 
-        /* 連結済みのワーカーソース（1回だけ組み立てて使い回す）/ The assembled worker source, built once and reused */
+        /* 連結済みのワーカーソースと、その刻印（1回だけ組み立てて使い回す）
+           The assembled worker source and its stamp, built once and reused */
         var workerSourceCache = null;
+        var workerStampCache = null;
+
+        /**
+         * ソースの取り違えを防ぐ刻印を作る（内容が1文字でも変われば別の値になる）
+         * @param {string} source - 対象のソース
+         * @returns {string} 刻印
+         */
+        function buildWorkerStamp(source) {
+            var checksum = 0;
+            for (var i = 0; i < source.length; i++) {
+                checksum = (checksum * 31 + source.charCodeAt(i)) % 2147483647;
+            }
+            return SCRIPT_VERSION + "-" + source.length + "-" + checksum;
+        }
 
         /**
          * ワーカー関数の定義をひとつの文字列にまとめる（2回目以降はキャッシュを返す）
@@ -1421,37 +1516,100 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 sources.push(sliceFunctionSource(WORKER_FUNCS[i]));
             }
             workerSourceCache = sources.join("\n");
+            workerStampCache = buildWorkerStamp(workerSourceCache);
             return workerSourceCache;
+        }
+
+        /* メインエンジンに送り込んだはずのワーカー定義の刻印（送り直しの要否を判断する）
+           The stamp of the worker source believed to be loaded in the main engine */
+        var loadedWorkerStamp = $.global[WORKER_STAMP_KEY] || null;
+
+        /**
+         * 本文をメインエンジンで同期実行し、結果を受け取る
+         * @param {string} body - メインエンジンで評価する本文
+         * @returns {string} 評価結果（応答がなければ null）
+         */
+        function sendToMainEngine(body) {
+            /* 同期送信の結果は holder 経由で受け取る / The synchronous send hands its result back through holder */
+            var holder = { result: null };
+            var bridge = new BridgeTalk();
+            bridge.target = "illustrator";
+            bridge.body = body;
+            bridge.onResult = function(message) { holder.result = String(message.body); };
+            bridge.onError = function(message) { holder.result = "ERR:" + String(message.body); };
+            bridge.send(WORKER_TIMEOUT);
+            return holder.result;
+        }
+
+        /**
+         * ワーカー定義ごと送る本文を組み立てる
+         * 定義をメインエンジンのグローバルに残したいので、eval はトップレベルで実行する
+         * （関数の中で eval するとその関数のローカルになり、次の呼び出しから見えない）
+         * @param {string} workerSource - 連結したワーカー関数のソース
+         * @param {string} stamp - そのソースの刻印
+         * @param {string} functionCall - 評価する呼び出し式
+         * @returns {string} 送信する本文
+         */
+        function buildFullBody(workerSource, stamp, functionCall) {
+            /* バックスラッシュ・多バイト文字・改行が途中で壊れないよう、ソースはURIエンコードして送る
+               URI-encode the source so backslashes, multi-byte characters and newlines survive the trip */
+            /* 全体をひとつの式にして、最後に評価される呼び出しの値がそのまま結果として返るようにする
+               One comma expression, so the value of the trailing call is what comes back */
+            return "eval(decodeURIComponent(\"" + encodeURIComponent(workerSource) + "\")), " +
+                "$.global." + WORKER_STAMP_KEY + " = \"" + stamp + "\", " +
+                functionCall;
+        }
+
+        /**
+         * 呼び出し式だけを送る本文を組み立てる（定義が残っていなければ "RELOAD" を返させる）
+         * @param {string} stamp - 送り込んだはずのソースの刻印
+         * @param {string} functionCall - 評価する呼び出し式
+         * @returns {string} 送信する本文
+         */
+        function buildCallOnlyBody(stamp, functionCall) {
+            return "(function() {" +
+                "if ($.global." + WORKER_STAMP_KEY + " !== \"" + stamp + "\") { return \"RELOAD\"; }" +
+                "if (typeof btAlignSelection !== \"function\") { return \"RELOAD\"; }" +
+                "return " + functionCall +
+                "})();";
         }
 
         /**
          * ワーカー関数の呼び出しをメインエンジンで同期実行し、戻り値のマーカーを受け取る
+         * 定義はメインエンジンのグローバルに残るので、2回目以降は呼び出し式だけを送る
+         * （毎回ソースを丸ごと送ると、選択を問い合わせるたびに10KB近いやり取りになる）
          * @param {string} functionCall - メインエンジンで評価する呼び出し式
          * @returns {string} ワーカーが返したマーカー（応答がなければ null）
          */
         function runWorker(functionCall) {
-            var workerCode = buildWorkerSource() + "\n" + functionCall;
-            /* 同期送信の結果は holder 経由で受け取る / The synchronous send hands its result back through holder */
-            var holder = { result: null };
+            var workerSource = buildWorkerSource();
+            var stamp = workerStampCache;
             try {
-                var bridge = new BridgeTalk();
-                bridge.target = "illustrator";
-                /* バックスラッシュ・多バイト文字・改行が途中で壊れないよう、ソースはURIエンコードして送る
-                   URI-encode the source so backslashes, multi-byte characters and newlines survive the trip */
-                bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(workerCode) + "\"));";
-                bridge.onResult = function(message) { holder.result = String(message.body); };
-                bridge.onError = function(message) { holder.result = "ERR:" + String(message.body); };
-                bridge.send(WORKER_TIMEOUT);
+                var workerResult = null;
+                var needsFullBody = (loadedWorkerStamp !== stamp);
+                if (!needsFullBody) {
+                    workerResult = sendToMainEngine(buildCallOnlyBody(stamp, functionCall));
+                    /* 定義が消えていた（別のエンジンが再起動した）ときは送り直す
+                       Ship the source again when the definitions are gone */
+                    needsFullBody = (workerResult === "RELOAD");
+                }
+                if (needsFullBody) {
+                    workerResult = sendToMainEngine(buildFullBody(workerSource, stamp, functionCall));
+                    if (workerResult !== null) {
+                        loadedWorkerStamp = stamp;
+                        $.global[WORKER_STAMP_KEY] = stamp;
+                    }
+                }
+                return workerResult;
             } catch (bridgeError) {
                 /* BridgeTalk が使えない環境では、このエンジンで直接実行する
                    Fallback: run in this engine when BridgeTalk is unavailable */
                 try {
-                    holder.result = String(eval(workerCode));
+                    return String(eval(workerSource + "\n" + functionCall));
                 } catch (evalError) {
-                    holder.result = "ERR:" + evalError;
+                    return "ERR:" + evalError;
                 }
             }
-            return holder.result;
         }
 
         /**
@@ -1580,9 +1738,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             options.modeX               = spec.modeX;
             options.modeY               = spec.modeY;
             options.marginPt            = altPressed ? 0 : options.guideMarginPt;
-            options.previewBounds       = previewBoundsCheckbox.value === true;
-            options.glyphBounds         = glyphBoundsCheckbox.value === true || altPressed;
-            options.changeJustification = changeJustificationCheckbox.value === true;
+            options.previewBounds       = previewBoundsCheckbox !== null && previewBoundsCheckbox.value === true;
+            options.glyphBounds         = altPressed || (glyphBoundsCheckbox !== null && glyphBoundsCheckbox.value === true);
+            options.changeJustification = changeJustificationCheckbox !== null && changeJustificationCheckbox.value === true;
             options.justification       = spec.justification;
             return options;
         }
