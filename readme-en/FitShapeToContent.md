@@ -35,6 +35,8 @@ Quickly creates and adjusts a backing shape that fits a text frame or a group. P
 | Radius | Corner radius; turn it off for square corners |
 | Pill Shape | Sets the radius to half the height and caps both ends; the width is computed automatically |
 
+The radius cannot exceed half the shorter side of the backing shape; a larger entry is clamped automatically.
+
 Padding and radius are shown and entered in the document's ruler unit. The arrow keys step the values.
 
 | Key | Step |
@@ -59,5 +61,5 @@ https://note.com/dtp_tranist/n/n6e4a6a2b175f
 
 ### Update History
 
-- v2.0.3 (2026-08-31) Padding and radius now honor the ruler unit. A selected text+shape group keeps its group and original shape. Padding is measured from the path instead of the stroke
+- v2.0.3 (2026-08-31) Padding and radius now honor the ruler unit. A selected text+shape group keeps its group and original shape. Padding is measured from the path instead of the stroke. The corner radius is capped at half the shorter side
 - v2.0.2 (2026-05-25)

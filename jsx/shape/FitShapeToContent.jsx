@@ -287,6 +287,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
     }
 
     /**
+     * 右寄せのボタンバーを生成する
+     * @param {Window} targetWindow - 追加先のウィンドウ
+     * @returns {{btnCancel: Button, btnOK: Button}} 生成したボタン
+     */
+    function addButtonBar(targetWindow) {
+        var btnRowGroup = targetWindow.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
+
+        /* 伸縮スペーサーで右側グループを右端へ押し出す / A stretchable spacer pushes the buttons right */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        return {
+            btnCancel: btnRightGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" }),
+            btnOK: btnRightGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok" })
+        };
+    }
+
+    /**
      * 「項目名＋数値入力欄＋単位」の行を生成する
      * @param {Group|Panel} parentContainer - 追加先
      * @param {string} fieldLabelText - 右揃えで表示する項目名
@@ -399,17 +423,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
     // =========================================
 
     /**
+     * @typedef {object} ContentBounds
+     * @property {number} left - 左端
+     * @property {number} top - 上端
+     * @property {number} width - 幅
+     * @property {number} height - 高さ
+     * @property {number} centerX - 中心X
+     * @property {number} centerY - 中心Y
+     */
+
+    /**
      * アイテムの境界情報を取得する
      * @param {PageItem} item - 対象アイテム
-     * @returns {{left:number, top:number, right:number, bottom:number, width:number, height:number, centerX:number, centerY:number}} 境界情報
+     * @returns {ContentBounds} 境界情報
      */
     function getBoundsFromItem(item) {
         var vb = item.visibleBounds;
         return {
             left: vb[0],
             top: vb[1],
-            right: vb[2],
-            bottom: vb[3],
             width: vb[2] - vb[0],
             height: vb[1] - vb[3],
             centerX: vb[0] + ((vb[2] - vb[0]) / 2),
@@ -679,6 +711,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
     }
 
     // =========================================
+    // プレビュー値の計算 / Preview value math
+    // =========================================
+
+    /**
+     * パディングを加えた座布団に収まる角丸半径の上限を求める（短辺の半分）
+     * @param {number} addW - 幅のパディング（pt）
+     * @param {number} addH - 高さのパディング（pt）
+     * @param {ContentBounds} bounds - コンテンツの境界情報
+     * @returns {number} 半径の上限（pt）
+     */
+    function getMaxRadius(addW, addH, bounds) {
+        var shapeWidth = Math.max(MIN_PREVIEW_SIZE, bounds.width + addW);
+        var shapeHeight = Math.max(MIN_PREVIEW_SIZE, bounds.height + addH);
+        return Math.min(shapeWidth, shapeHeight) / 2;
+    }
+
+    /**
+     * UI の入力値から、プレビューに使う実値（pt）と表示用テキストを求める
+     * @param {{adjustEnabled:boolean, radiusEnabled:boolean, pill:boolean, addW:number, addH:number, radius:number}} uiValues - 入力欄の状態（数値は pt）
+     * @param {ContentBounds} bounds - コンテンツの境界情報
+     * @param {number} unitFactor - 表示単位1つあたりの pt 数
+     * @returns {{addW:number, addH:number, radius:number, widthText:string, heightText:string, radiusText:string}} 計算結果
+     */
+    function computePreviewValues(uiValues, bounds, unitFactor) {
+        var addW = uiValues.addW;
+        var addH = uiValues.addH;
+        var radius = (uiValues.radius < 0) ? 0 : uiValues.radius;
+
+        if (!uiValues.adjustEnabled) {
+            addW = 0;
+            addH = 0;
+            radius = 0;
+        } else if (!uiValues.radiusEnabled) {
+            radius = 0;
+        } else if (uiValues.pill) {
+            /* 半径＝高さの半分。幅も両端の半円分だけ広げる / Radius is half the height; widen by both caps */
+            radius = Math.max(MIN_PREVIEW_SIZE, bounds.height + addH) / 2;
+            addW = Math.max(MIN_PREVIEW_SIZE, radius * 2);
+        } else {
+            radius = Math.min(radius, getMaxRadius(addW, addH, bounds));
+        }
+
+        return {
+            addW: addW,
+            addH: addH,
+            radius: radius,
+            widthText: formatUnitValue(addW, unitFactor),
+            heightText: formatUnitValue(addH, unitFactor),
+            radiusText: formatUnitValue(radius, unitFactor)
+        };
+    }
+
+    // =========================================
     // プレビューコントローラ / Preview controller
     // =========================================
 
@@ -694,14 +779,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
      */
 
     /**
-     * @typedef {object} PreviewGeometry
-     * @property {number} outWidth - コンテンツの幅
-     * @property {number} outHeight - コンテンツの高さ
-     * @property {number} contentCenterX - コンテンツの中心X
-     * @property {number} contentCenterY - コンテンツの中心Y
-     */
-
-    /**
      * @typedef {object} PreviewTemplates
      * @property {PageItem|null} previewSourceShapeItem - 整列専用の複製（元のアピアランスを保持）
      * @property {PageItem} previewBaseShapeItem - 調整用の複製（アピアランス消去済み）
@@ -710,22 +787,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
     /**
      * プレビューの計算・描画・確定を束ねたコントローラを生成する
      * @param {PreviewWidgets} widgets - ダイアログの各ウィジェット
-     * @param {PreviewGeometry} geometry - コンテンツの寸法と中心
+     * @param {ContentBounds} bounds - コンテンツの境界情報
      * @param {PreviewTemplates} templates - プレビュー元の複製図形
      * @param {{isUndo: boolean}} previewState - プレビューの undo 状態
      * @param {number} unitFactor - 入力欄の単位1つあたりの pt 数
      * @returns {{reflectEnabled: function, refresh: function, getFinalValues: function, commitFinal: function}} コントローラ
      */
-    function createPreviewController(widgets, geometry, templates, previewState, unitFactor) {
-
-        /**
-         * 幅のパディングから取りうる角丸半径の上限を求める
-         * @param {number} addW - 幅のパディング
-         * @returns {number} 半径の上限
-         */
-        function getMaxRadiusFromAddW(addW) {
-            return Math.max(MIN_PREVIEW_SIZE, geometry.outWidth + addW) / 2;
-        }
+    function createPreviewController(widgets, bounds, templates, previewState, unitFactor) {
 
         /**
          * チェック状態から各ウィジェットの有効／無効を反映する
@@ -759,54 +827,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         function readUIValues() {
             return {
                 adjustEnabled: widgets.chkAdjustEnabled.value,
-                addW: parseNumberOrDefault(widgets.inputW.text, 0) * unitFactor,
-                addH: parseNumberOrDefault(widgets.inputH.text, 0) * unitFactor,
-                radius: parseNumberOrDefault(widgets.inputR.text, 0) * unitFactor,
                 radiusEnabled: widgets.chkRadiusEnabled.value,
                 pill: widgets.chkPill.value,
-                link: widgets.chkLink.value,
-                widthText: widgets.inputW.text,
-                heightText: widgets.inputH.text,
-                radiusText: widgets.inputR.text
-            };
-        }
-
-        /**
-         * UI の入力値からプレビューに使う実値（pt）を求める
-         * @param {object} uiValues - readUIValues() の戻り値
-         * @returns {object} pt 単位のパディングと半径、および表示用テキスト
-         */
-        function computePreviewValues(uiValues) {
-            var addW = uiValues.addW;
-            var addH = uiValues.addH;
-            var radius = (uiValues.radius < 0) ? 0 : uiValues.radius;
-
-            if (!uiValues.adjustEnabled) {
-                return {
-                    addW: 0, addH: 0, radius: 0,
-                    widthText: uiValues.widthText,
-                    heightText: uiValues.heightText,
-                    radiusText: uiValues.radiusText
-                };
-            }
-
-            if (!uiValues.radiusEnabled) {
-                radius = 0;
-            } else if (uiValues.pill) {
-                /* 半径＝高さの半分。幅も両端の半円分だけ広げる / Radius is half the height; widen by both caps */
-                var previewHeight = Math.max(MIN_PREVIEW_SIZE, geometry.outHeight + addH);
-                radius = previewHeight / 2;
-                addW = Math.max(MIN_PREVIEW_SIZE, radius * 2);
-            } else {
-                var maxRadius = getMaxRadiusFromAddW(addW);
-                if (radius > maxRadius) radius = maxRadius;
-            }
-
-            return {
-                addW: addW, addH: addH, radius: radius,
-                widthText: formatUnitValue(addW, unitFactor),
-                heightText: formatUnitValue(addH, unitFactor),
-                radiusText: formatUnitValue(radius, unitFactor)
+                addW: parseNumberOrDefault(widgets.inputW.text, 0) * unitFactor,
+                addH: parseNumberOrDefault(widgets.inputH.text, 0) * unitFactor,
+                radius: parseNumberOrDefault(widgets.inputR.text, 0) * unitFactor
             };
         }
 
@@ -836,7 +861,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
          * @returns {void}
          */
         function process() {
-            var previewValues = computePreviewValues(readUIValues());
+            var previewValues = computePreviewValues(readUIValues(), bounds, unitFactor);
             applyDerivedUIValues(previewValues);
 
             var doc = app.activeDocument;
@@ -849,10 +874,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
             if (useAdjustedPreview) {
                 /* パディングは線の外側ではなくパス基準。線幅を変えても余白が変わらない /
                    Padding is measured from the path, not the stroke, so stroke weight does not shift it */
-                var newWidth = Math.max(MIN_PREVIEW_SIZE, geometry.outWidth + previewValues.addW);
-                var newHeight = Math.max(MIN_PREVIEW_SIZE, geometry.outHeight + previewValues.addH);
+                var newWidth = Math.max(MIN_PREVIEW_SIZE, bounds.width + previewValues.addW);
+                var newHeight = Math.max(MIN_PREVIEW_SIZE, bounds.height + previewValues.addH);
                 resizeAndCenterByGeometry(
-                    previewItem, newWidth, newHeight, geometry.contentCenterX, geometry.contentCenterY
+                    previewItem, newWidth, newHeight, bounds.centerX, bounds.centerY
                 );
 
                 if (previewValues.radius > 0) {
@@ -861,7 +886,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
                 }
             } else {
                 /* 調整なしのときは元図形の寸法のまま、コンテンツの中心に合わせるだけ / Align only */
-                centerByGeometry(previewItem, geometry.contentCenterX, geometry.contentCenterY);
+                centerByGeometry(previewItem, bounds.centerX, bounds.centerY);
             }
 
             /* 確定後に特定するため選択しておく / Select so the caller can identify it after OK */
@@ -942,42 +967,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
 
     /**
      * @typedef {object} DialogContext
-     * @property {number} outWidth - コンテンツの幅
-     * @property {number} outHeight - コンテンツの高さ
-     * @property {number} contentCenterX - コンテンツの中心X
-     * @property {number} contentCenterY - コンテンツの中心Y
+     * @property {ContentBounds} bounds - コンテンツの境界情報
      * @property {PageItem|null} previewSourceShapeItem - 整列専用の複製
      * @property {PageItem} previewBaseShapeItem - 調整用の複製
      * @property {boolean} shapeIsAutoCreated - 長方形を自動作成したかどうか
      */
 
     /**
-     * 設定ダイアログを表示し、確定した内容を返す
-     * @param {DialogContext} dialogContext - ダイアログに渡す情報
-     * @returns {{shouldRunPathfinder: boolean, previewItem: PageItem}|null} 確定結果、キャンセル時は null
+     * ダイアログのウィジェットを組み立てる
+     * @param {Window} targetWindow - 追加先のウィンドウ
+     * @param {object} sessionState - 前回の設定
+     * @param {{label: string, factor: number}} rulerUnit - 定規の単位
+     * @param {boolean} shapeIsAutoCreated - 長方形を自動作成したかどうか
+     * @returns {PreviewWidgets} 生成したウィジェット一式
      */
-    function showDialog(dialogContext) {
-        var rulerUnit = getRulerUnit();
-        var sessionState = getSessionState(rulerUnit.factor);
-
-        var finalPreviewItem = null;
-        var confirmedDialogValues = null;
-        var previewState = { isUndo: false };
-
-        /* コントローラは全ウィジェット生成後に代入する（各ハンドラからは巻き上げ済みの ctrl を参照）/
-           ctrl is assigned after every widget exists; handlers see the hoisted var */
-        var ctrl;
-
-        var win = new Window('dialog', getLabel('dialog', 'title') + ' ' + SCRIPT_VERSION);
-        setupWindow(win);
-
-        var adjustRow = win.add("group");
+    function buildDialogWidgets(targetWindow, sessionState, rulerUnit, shapeIsAutoCreated) {
+        var adjustRow = targetWindow.add("group");
         setupRow(adjustRow, "center");
         var chkAdjustEnabled = adjustRow.add("checkbox", undefined, getLabel("checkbox", "adjustEnabled"));
-        chkAdjustEnabled.value = !!dialogContext.shapeIsAutoCreated;
+        chkAdjustEnabled.value = !!shapeIsAutoCreated;
 
         /* パディング / Padding */
-        var paddingPanel = addPanel(win, getLabel("panel", "padding"));
+        var paddingPanel = addPanel(targetWindow, getLabel("panel", "padding"));
         var paddingRow = paddingPanel.add("group");
         setupRow(paddingRow, "left", COLUMN_SPACING);
 
@@ -994,7 +1005,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         chkLink.value = sessionState.link;
 
         /* 角丸 / Rounded corners */
-        var cornerPanel = addPanel(win, getLabel("panel", "corner"));
+        var cornerPanel = addPanel(targetWindow, getLabel("panel", "corner"));
         var radiusRow = cornerPanel.add("group");
         setupRow(radiusRow);
         var chkRadiusEnabled = radiusRow.add("checkbox", undefined, labelText("fieldLabel", "radius"));
@@ -1008,30 +1019,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         var chkPill = pillRow.add("checkbox", undefined, getLabel("checkbox", "pill"));
         chkPill.value = !!sessionState.pill;
 
-        /* 全ウィジェットが揃ったのでコントローラを生成 / All widgets exist; instantiate the controller */
-        ctrl = createPreviewController(
-            {
-                chkAdjustEnabled: chkAdjustEnabled,
-                chkRadiusEnabled: chkRadiusEnabled,
-                chkPill: chkPill,
-                chkLink: chkLink,
-                inputW: inputW,
-                inputH: inputH,
-                inputR: inputR
-            },
-            {
-                outWidth: dialogContext.outWidth,
-                outHeight: dialogContext.outHeight,
-                contentCenterX: dialogContext.contentCenterX,
-                contentCenterY: dialogContext.contentCenterY
-            },
-            {
-                previewSourceShapeItem: dialogContext.previewSourceShapeItem,
-                previewBaseShapeItem: dialogContext.previewBaseShapeItem
-            },
-            previewState,
-            rulerUnit.factor
-        );
+        return {
+            chkAdjustEnabled: chkAdjustEnabled,
+            chkRadiusEnabled: chkRadiusEnabled,
+            chkPill: chkPill,
+            chkLink: chkLink,
+            inputW: inputW,
+            inputH: inputH,
+            inputR: inputR
+        };
+    }
+
+    /**
+     * 入力欄・チェックボックスにイベントを結び付ける
+     * @param {PreviewWidgets} widgets - ダイアログのウィジェット
+     * @param {{reflectEnabled: function, refresh: function}} ctrl - プレビューコントローラ
+     * @returns {void}
+     */
+    function bindDialogEvents(widgets, ctrl) {
+
+        /**
+         * 連動がONなら高さを幅にそろえる
+         * @returns {void}
+         */
+        function syncHeightToWidth() {
+            if (widgets.chkLink.value) widgets.inputH.text = widgets.inputW.text;
+        }
+
+        /**
+         * 連動がONなら幅を高さにそろえる
+         * @returns {void}
+         */
+        function syncWidthToHeight() {
+            if (widgets.chkLink.value) widgets.inputW.text = widgets.inputH.text;
+        }
 
         /**
          * 入力欄の負値を 0 に丸める
@@ -1044,105 +1065,123 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         }
 
         /**
-         * 連動時に高さを幅にそろえてプレビューを更新する
+         * 幅を変えたあと、連動を反映してプレビューを更新する
          * @returns {void}
          */
         function syncAndPreviewW() {
-            if (chkLink.value) inputH.text = inputW.text;
+            syncHeightToWidth();
             ctrl.refresh();
         }
 
         /**
-         * 連動時に幅を高さにそろえてプレビューを更新する
+         * 高さを変えたあと、連動を反映してプレビューを更新する
          * @returns {void}
          */
         function syncAndPreviewH() {
-            if (chkLink.value) inputW.text = inputH.text;
+            syncWidthToHeight();
             ctrl.refresh();
         }
 
-        /* 初期状態：連動ONなら高さは幅に追従 / Initial state: height follows width when linked */
-        if (chkLink.value) inputH.text = inputW.text;
-
-        inputW.onChanging = function () {
-            clampNonNegativeText(inputW);
-            syncAndPreviewW();
-        };
-        inputH.onChanging = function () {
-            clampNonNegativeText(inputH);
-            syncAndPreviewH();
-        };
-        inputR.onChanging = function () {
-            clampNonNegativeText(inputR);
-            ctrl.refresh();
-        };
-
-        changeValueByArrowKey(inputW, syncAndPreviewW, 0);
-        changeValueByArrowKey(inputH, syncAndPreviewH, 0);
-        changeValueByArrowKey(inputR, ctrl.refresh, 0);
-
-        chkAdjustEnabled.onClick = function () {
-            ctrl.reflectEnabled();
-            ctrl.refresh();
-        };
-
-        chkLink.onClick = function () {
-            if (chkLink.value) inputH.text = inputW.text;
-            ctrl.reflectEnabled();
-            ctrl.refresh();
-        };
-
-        chkPill.onClick = function () {
-            if (!chkPill.value && chkLink.value) inputH.text = inputW.text;
-            ctrl.reflectEnabled();
-            ctrl.refresh();
-        };
-
-        chkRadiusEnabled.onClick = function () {
-            if (!chkRadiusEnabled.value) {
-                inputR.text = "0";
-                chkPill.value = false;
-            }
-            if (chkLink.value) inputH.text = inputW.text;
-            ctrl.reflectEnabled();
-            ctrl.refresh();
-        };
-
-        /* ボタンエリア / Button bar */
-        var btnRowGroup = win.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = ["fill", "bottom"];
-        btnRowGroup.margins = BUTTON_BAR_MARGINS;
-
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok" });
-
         /**
-         * 現在の UI 状態からセッション保存用の設定を作る
-         * @returns {object} 保存する設定
+         * チェックボックス用のハンドラを作る（変更を適用してから有効状態とプレビューを更新）
+         * @param {function|null} mutateFn - 先に適用する処理（不要なら null）
+         * @returns {function} onClick に割り当てるハンドラ
          */
-        function buildSessionPayload() {
-            return {
-                addW: inputW.text,
-                addH: inputH.text,
-                radius: inputR.text,
-                radiusEnabled: chkRadiusEnabled.value,
-                link: chkLink.value,
-                pill: chkPill.value
+        function checkboxHandler(mutateFn) {
+            return function () {
+                if (mutateFn) mutateFn();
+                ctrl.reflectEnabled();
+                ctrl.refresh();
             };
         }
 
-        btnOK.onClick = function () {
-            confirmedDialogValues = ctrl.getFinalValues();
-            if (!confirmedDialogValues) return;
+        widgets.inputW.onChanging = function () {
+            clampNonNegativeText(widgets.inputW);
+            syncAndPreviewW();
+        };
+        widgets.inputH.onChanging = function () {
+            clampNonNegativeText(widgets.inputH);
+            syncAndPreviewH();
+        };
+        widgets.inputR.onChanging = function () {
+            clampNonNegativeText(widgets.inputR);
+            ctrl.refresh();
+        };
 
-            saveSessionState(buildSessionPayload());
+        changeValueByArrowKey(widgets.inputW, syncAndPreviewW, 0);
+        changeValueByArrowKey(widgets.inputH, syncAndPreviewH, 0);
+        changeValueByArrowKey(widgets.inputR, ctrl.refresh, 0);
+
+        widgets.chkAdjustEnabled.onClick = checkboxHandler(null);
+        widgets.chkLink.onClick = checkboxHandler(syncHeightToWidth);
+        widgets.chkPill.onClick = checkboxHandler(function () {
+            /* ピル解除で幅が手入力に戻るので、連動していれば高さを合わせ直す /
+               Leaving pill mode hands the width back to the user; re-mirror it when linked */
+            if (!widgets.chkPill.value) syncHeightToWidth();
+        });
+        widgets.chkRadiusEnabled.onClick = checkboxHandler(function () {
+            if (!widgets.chkRadiusEnabled.value) {
+                widgets.inputR.text = "0";
+                widgets.chkPill.value = false;
+            }
+            syncHeightToWidth();
+        });
+
+        /* 初期状態：連動ONなら高さは幅に追従 / Initial state: height follows width when linked */
+        syncHeightToWidth();
+    }
+
+    /**
+     * 現在の UI 状態からセッション保存用の設定を作る
+     * @param {PreviewWidgets} widgets - ダイアログのウィジェット
+     * @returns {object} 保存する設定
+     */
+    function buildSessionPayload(widgets) {
+        return {
+            addW: widgets.inputW.text,
+            addH: widgets.inputH.text,
+            radius: widgets.inputR.text,
+            radiusEnabled: widgets.chkRadiusEnabled.value,
+            link: widgets.chkLink.value,
+            pill: widgets.chkPill.value
+        };
+    }
+
+    /**
+     * 設定ダイアログを表示し、確定した内容を返す
+     * @param {DialogContext} dialogContext - ダイアログに渡す情報
+     * @returns {{shouldRunPathfinder: boolean, previewItem: PageItem}|null} 確定結果、キャンセル時は null
+     */
+    function showDialog(dialogContext) {
+        var rulerUnit = getRulerUnit();
+        var sessionState = getSessionState(rulerUnit.factor);
+        var previewState = { isUndo: false };
+        var confirmedValues = null;
+        var finalPreviewItem = null;
+
+        var win = new Window('dialog', getLabel('dialog', 'title') + ' ' + SCRIPT_VERSION);
+        setupWindow(win);
+
+        var widgets = buildDialogWidgets(win, sessionState, rulerUnit, dialogContext.shapeIsAutoCreated);
+        var ctrl = createPreviewController(
+            widgets,
+            dialogContext.bounds,
+            {
+                previewSourceShapeItem: dialogContext.previewSourceShapeItem,
+                previewBaseShapeItem: dialogContext.previewBaseShapeItem
+            },
+            previewState,
+            rulerUnit.factor
+        );
+        bindDialogEvents(widgets, ctrl);
+
+        var buttons = addButtonBar(win);
+
+        buttons.btnOK.onClick = function () {
+            confirmedValues = ctrl.getFinalValues();
+            if (!confirmedValues) return;
+
+            saveSessionState(buildSessionPayload(widgets));
 
             /* 前回プレビューを巻き戻して、本番として1回だけ確定 / Undo the preview, then commit once */
             ctrl.commitFinal();
@@ -1154,8 +1193,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
             win.close(1);
         };
 
-        btnCancel.onClick = function () {
-            saveSessionState(buildSessionPayload());
+        buttons.btnCancel.onClick = function () {
+            saveSessionState(buildSessionPayload(widgets));
             /* 残ったプレビューは win.onClose で巻き戻す / onClose reverts the leftover preview */
             win.close(0);
         };
@@ -1171,26 +1210,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
            Initial preview is fired from win.onShow — calling it synchronously risks a later
            app.undo() rolling back main()'s template setup. */
         win.onShow = function () {
-            inputW.active = true;
-            inputW.selection = [0, inputW.text.length];
-            if (chkPill.value) chkLink.value = false;
+            widgets.inputW.active = true;
+            widgets.inputW.selection = [0, widgets.inputW.text.length];
+            if (widgets.chkPill.value) widgets.chkLink.value = false;
             ctrl.reflectEnabled();
             ctrl.refresh();
         };
 
-        if (win.show() !== 1) {
+        if (win.show() !== 1 || !confirmedValues) {
             /* キャンセル時は onClose の undo で未適用に戻っている / onClose already reverted everything */
-            return null;
-        }
-
-        var finalValues = confirmedDialogValues;
-        if (!finalValues) {
             safeRemove(finalPreviewItem);
             return null;
         }
 
         return {
-            shouldRunPathfinder: finalValues.shouldRunPathfinder,
+            shouldRunPathfinder: confirmedValues.shouldRunPathfinder,
             previewItem: finalPreviewItem
         };
     }
@@ -1257,10 +1291,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
                     return null;
                 }
             }
-            if (!contentItem || !shapeItem) {
-                alertSelectionError("selectOne");
-                return null;
-            }
         } else {
             /* 1つ選択：テキスト＋図形のグループなら、グループを保ったまま中身を使い分ける。
                それ以外はコンテンツとみなして長方形を自動作成する /
@@ -1298,12 +1328,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
     /**
      * コンテンツを複製して境界を計測する（テキストはアウトライン化して字面を測る）
      * @param {PageItem} contentItem - 計測対象
-     * @returns {object|null} 境界情報、失敗時は null（警告表示済み）
+     * @returns {ContentBounds|null} 境界情報、失敗時は null（警告表示済み）
      */
     function measureContent(contentItem) {
         var measureItem = null;
         var dupText = null;
-        var boundsInfo = null;
+        var bounds = null;
 
         try {
             if (contentItem.typename === "TextFrame") {
@@ -1312,19 +1342,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
             } else {
                 measureItem = contentItem.duplicate();
             }
-            boundsInfo = getBoundsFromItem(measureItem);
+            bounds = getBoundsFromItem(measureItem);
         } catch (err) {
-            boundsInfo = null;
+            bounds = null;
         } finally {
             safeRemove(measureItem);
             safeRemove(dupText);
         }
 
-        if (!boundsInfo) {
+        if (!bounds) {
             alertSelectionError("measureFailed");
             return null;
         }
-        return boundsInfo;
+        return bounds;
     }
 
     // =========================================
@@ -1337,34 +1367,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
      * @param {PageItem} contentItem - コンテンツ
      * @param {PageItem|null} shapeItem - 選択された図形（自動作成時は null）
      * @param {boolean} shapeIsAutoCreated - 長方形を自動作成するかどうか
-     * @param {object} boundsInfo - コンテンツの境界情報
+     * @param {ContentBounds} bounds - コンテンツの境界情報
      * @returns {{shapeItem: PageItem, previewSourceShapeItem: PageItem|null, previewBaseShapeItem: PageItem}} 準備結果
      */
-    function prepareShapeAndPreviews(doc, contentItem, shapeItem, shapeIsAutoCreated, boundsInfo) {
+    function prepareShapeAndPreviews(doc, contentItem, shapeItem, shapeIsAutoCreated, bounds) {
+        var previewSourceShapeItem = null;
+        var previewBaseShapeItem;
+
         if (shapeIsAutoCreated) {
-            shapeItem = doc.pathItems.rectangle(
-                boundsInfo.top, boundsInfo.left, boundsInfo.width, boundsInfo.height
-            );
+            /* コンテンツと同じ大きさの長方形を作り、それをプレビューの元にする /
+               Create a rectangle the size of the content and use it as the preview template */
+            shapeItem = doc.pathItems.rectangle(bounds.top, bounds.left, bounds.width, bounds.height);
             shapeItem.opacity = AUTO_CREATED_SHAPE_OPACITY;
             shapeItem.move(contentItem, ElementPlacement.PLACEAFTER);
-        }
-
-        var previewSourceShapeItem = null;
-
-        if (!shapeIsAutoCreated) {
-            /* 2つ選択：整列専用（アピアランスそのまま）と調整専用（アピアランス消去）の2本立て /
-               Two-item: keep one duplicate as-is for align-only, one cleared for adjustment */
+            previewBaseShapeItem = shapeItem.duplicate();
+        } else {
+            /* 既存図形：整列専用（アピアランスそのまま）と調整専用（アピアランス消去）の2本立て。
+               アピアランスが載ったままだと拡大縮小で見た目が崩れる /
+               Existing shape: one duplicate as-is for align-only, one cleared so resizing cannot distort it */
             previewSourceShapeItem = shapeItem.duplicate();
             previewSourceShapeItem.hidden = true;
-        }
 
-        var previewBaseShapeItem = shapeItem.duplicate();
-        if (!shapeIsAutoCreated) {
-            /* アピアランスが載ったままだと拡大縮小で見た目が崩れる / Effects would distort on resize */
+            previewBaseShapeItem = shapeItem.duplicate();
             clearAppearanceByAction(previewBaseShapeItem);
         }
-        previewBaseShapeItem.hidden = true;
 
+        previewBaseShapeItem.hidden = true;
         shapeItem.hidden = true;
         app.redraw();
 
@@ -1418,21 +1446,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         if (result.shouldRunPathfinder) {
             /* ピル形状は角丸効果を実体化してから合成する / Flatten the round-corner effect for pill shapes */
             doc.selection = null;
-            try {
-                finalPreviewItem.selected = true;
-            } catch (e) {
-                throw new Error('Preview item became invalid before Live Pathfinder Add.');
-            }
+            finalPreviewItem.selected = true;
             app.executeMenuCommand('Live Pathfinder Add');
             if (!doc.selection || doc.selection.length !== 1) {
                 throw new Error('Live Pathfinder Add did not return exactly one selected item.');
             }
             finalPreviewItem = doc.selection[0];
-            try {
-                finalPreviewItem.hidden = false;
-            } catch (e) {
-                throw new Error('Live Pathfinder Add returned an invalid item.');
-            }
+            finalPreviewItem.hidden = false;
         }
 
         try {
@@ -1466,18 +1486,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         var parsed = parseSelection(doc.selection);
         if (!parsed) return;
 
-        var boundsInfo = measureContent(parsed.contentItem);
-        if (!boundsInfo) return;
+        var bounds = measureContent(parsed.contentItem);
+        if (!bounds) return;
 
         var prepared = prepareShapeAndPreviews(
-            doc, parsed.contentItem, parsed.shapeItem, parsed.shapeIsAutoCreated, boundsInfo
+            doc, parsed.contentItem, parsed.shapeItem, parsed.shapeIsAutoCreated, bounds
         );
 
         var result = showDialog({
-            outWidth: boundsInfo.width,
-            outHeight: boundsInfo.height,
-            contentCenterX: boundsInfo.centerX,
-            contentCenterY: boundsInfo.centerY,
+            bounds: bounds,
             previewSourceShapeItem: prepared.previewSourceShapeItem,
             previewBaseShapeItem: prepared.previewBaseShapeItem,
             shapeIsAutoCreated: parsed.shapeIsAutoCreated
