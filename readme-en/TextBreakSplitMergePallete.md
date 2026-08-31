@@ -169,9 +169,13 @@ The buttons on the right apply to all lines at once.
 | Remove Duplicates | Remove duplicate lines, keeping the first occurrence |
 | Remove Empty Lines | Remove empty lines |
 
-## Alphanumeric tab
+## Convert tab
 
-Letter case conversion. **A preview of the result** sits next to each button, so you can see the outcome before pressing it. The preview uses the first selected text and is truncated past 40 characters.
+**Every button shows a preview of its result on the right**, so you can see the outcome before pressing it. The preview uses the first selected text and is truncated past 40 characters.
+
+### Letter case
+
+Letter case conversion.
 
 | Button | Action |
 | --- | --- |
@@ -184,6 +188,40 @@ Letter case conversion. **A preview of the result** sits next to each button, so
 *Title Case* is a Title Caps implementation: articles, prepositions and conjunctions (a, the, of, and, in …) stay lowercase, except at the start and end. Exceptions such as `v.` / `vs.`, `AT&T` and `Q&A` are handled.
 
 *Capitalize Words* and *Sentence case* lowercase the whole text first, so all-caps input produces the intended result.
+
+### Kana conversion
+
+Converts freely between hiragana, katakana and halfwidth kana. The source does not matter: *Hiragana* accepts both fullwidth katakana and halfwidth kana, and *Katakana* accepts both hiragana and halfwidth kana.
+
+| Button | Action |
+| --- | --- |
+| Hiragana | Katakana and halfwidth kana to hiragana |
+| Katakana | Hiragana and halfwidth kana to katakana |
+| Halfwidth Kana | Hiragana and katakana to halfwidth kana |
+
+Anything involving halfwidth kana is first normalised to fullwidth kana and then converted. Voiced and semi-voiced marks are composed into a single character in fullwidth (`ｶﾞ` → `ガ`, `ｳﾞ` → `ヴ`) and decomposed into two in halfwidth (`パ` → `ﾊﾟ`). `｡｢｣､･` and the long vowel mark are converted as well.
+
+The long vowel mark `ー` is left as is. `ヵ` and `ヶ` are not converted to hiragana, so counters such as `ヶ月` stay intact.
+
+### Alphanumeric
+
+Converts digits between fullwidth, halfwidth and kanji numerals. **All five accept halfwidth digits, fullwidth digits or kanji numerals as input.**
+
+| Button | Action |
+| --- | --- |
+| Halfwidth Digits | Normalise to halfwidth digits |
+| Fullwidth Digits | Normalise to fullwidth digits |
+| Fullwidth if Single Digit | Single digits to fullwidth, runs of two or more to halfwidth |
+| Kanji Numerals | To kanji (`2026` → `二〇二六`) |
+| Kanji (Positional) | To positional kanji (`1234` → `千二百三十四`) |
+
+*Fullwidth if Single Digit* is meant for vertical text: each run of digits is counted as a unit, so `8月` becomes `８月` while `31日` stays `31日`.
+
+*Kanji Numerals* replaces digit by digit without positional markers (十/百/千); `0` becomes `〇`. *Kanji (Positional)* writes them with positional markers up to 兆 (`25000` → `二万五千`). Both accept fullwidth digits.
+
+Kanji numerals are read back into arabic numerals first, then converted. Both digit-by-digit (`二〇二六`) and positional (`千二百三十四`, up to 億) notation is understood, so `三十一日` → *Kanji Numerals* → `三一日` and `二〇二六年` → *Kanji (Positional)* → `二千二十六年` work as well.
+
+**It works purely on the characters, so words that merely contain a numeral are converted too: `十分` becomes `10分` and `一部` becomes `1部`.** Narrow the selection before running it.
 
 ## Hidden characters button
 

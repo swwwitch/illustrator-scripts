@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-改行・分割・連結・整形に加えて、行の入れ替えや英字のケース変換までを1つのパレットに集約し、選択中のテキストへ即時に適用します。
+改行・分割・連結・整形に加えて、行の入れ替えや英字のケース変換、かな変換までを1つのパレットに集約し、選択中のテキストへ即時に適用します。
 選択状態に応じて、実行できる処理のボタンだけを有効化します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-A palette that gathers breaking, splitting, joining and tidying — plus reordering lines and changing letter case — and applies them to the current selection immediately.
+A palette that gathers breaking, splitting, joining and tidying — plus reordering lines, changing letter case and converting kana — and applies them to the current selection immediately.
 Only the buttons that make sense for the current selection stay enabled.
 
 See the README for details.
@@ -46,8 +46,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
     /* 「指定文字数で改行」の初期値 / Default character count for "break at character count" */
     var DEFAULT_BREAK_COUNT = "35";
 
-    /* ケース変換プレビューに表示する最大文字数 / Maximum characters shown in the letter-case preview */
-    var CASE_PREVIEW_MAX_CHARS = 40;
+    /* 変換プレビューに表示する最大文字数 / Maximum characters shown in the conversion preview */
+    var PREVIEW_MAX_CHARS = 40;
 
     /* 選択ステータスを取り直す最小間隔（ミリ秒）/ Minimum interval between selection status polls */
     var STATUS_POLL_INTERVAL_MS = 400;
@@ -76,8 +76,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
     var STATUS_LABEL_WIDTH  = 72;                /* ステータス右カラムのラベル幅 */
     var LINE_LIST_SIZE      = [200, 460];        /* 行リストボックスのサイズ */
     var LINE_LIST_FONT_SIZE = 18;                /* 行リストボックスの文字サイズ */
-    var CASE_BUTTON_SIZE    = [150, 24];         /* ケース変換ボタンのサイズ */
-    var CASE_PREVIEW_SIZE   = [120, 24];         /* ケース変換プレビューのサイズ */
+    var CONVERT_BUTTON_SIZE    = [150, 24];         /* 変換ボタンのサイズ */
+    var CONVERT_PREVIEW_SIZE   = [120, 24];         /* 変換プレビューのサイズ */
 
     /**
      * パネルへ共通のレイアウトを適用する
@@ -176,6 +176,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             status: { ja: "ステータス", en: "Status" },
             letterCase: { ja: "大文字{slash}小文字", en: "Letter Case" },
             kanaConvert: { ja: "かな変換", en: "Kana Conversion" },
+            digitConvert: { ja: "英数字", en: "Alphanumeric" },
             symbolConvert: { ja: "スペースや記号の変換", en: "Spaces & Symbols" },
             symbolBefore: { ja: "変換前", en: "Before" },
             symbolAfter: { ja: "変換後", en: "After" },
@@ -232,6 +233,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             toHiragana: { ja: "ひらがなに", en: "Hiragana" },
             toKatakana: { ja: "カタカナに", en: "Katakana" },
             toHalfKana: { ja: "半角カナに", en: "Halfwidth Kana" },
+            toHalfDigit: { ja: "半角数字に", en: "Halfwidth Digits" },
+            toFullDigit: { ja: "全角数字に", en: "Fullwidth Digits" },
+            singleDigitFull: { ja: "1桁は全角", en: "Fullwidth if Single Digit" },
+            toKanjiNumeral: { ja: "漢数字に", en: "Kanji Numerals" },
+            toKanjiPositional: { ja: "漢数字（位取り）", en: "Kanji (Positional)" },
             convertSymbol: { ja: "変換", en: "Convert" },
             spaceAfterPunct: { ja: ".と,の後", en: "Space After . and ," },
             showHiddenChar: { ja: "制御文字の表示{slash}非表示", en: "Show{slash}Hide Hidden Characters" }
@@ -1056,6 +1062,137 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 }
             }
             return result;
+        }
+
+        /* 全角数字を半角数字へ変換した文字列を返す */
+        function toHalfWidthDigitText(txt) {
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var code = txt.charCodeAt(i);
+                /* ０(0xFF10)〜９(0xFF19) */
+                result += (code >= 0xFF10 && code <= 0xFF19) ? String.fromCharCode(code - 0xFF10 + 0x30) : txt.charAt(i);
+            }
+            return result;
+        }
+
+        /* 半角数字を全角数字へ変換した文字列を返す */
+        function toFullWidthDigitText(txt) {
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var code = txt.charCodeAt(i);
+                /* 0(0x30)〜9(0x39) */
+                result += (code >= 0x30 && code <= 0x39) ? String.fromCharCode(code - 0x30 + 0xFF10) : txt.charAt(i);
+            }
+            return result;
+        }
+
+        /* 1桁の数字だけを全角、2桁以上を半角に揃えた文字列を返す（縦組み向け）*/
+        function toSingleDigitFullWidthText(txt) {
+            return txt.replace(/[0-9０-９]+/g, function (run) {
+                return (run.length === 1) ? toFullWidthDigitText(run) : toHalfWidthDigitText(run);
+            });
+        }
+
+        /* 漢数字を算用数字（半角）へ変換した文字列を返す。
+           位取りなしの表記（二〇二六）と、位取りありの表記（三十一・千二百三十四）の両方に対応する */
+        function toArabicNumeralText(txt) {
+            var kanjiDigits = "〇一二三四五六七八九";
+            var kanjiUnits = "十百千万億";
+            return txt.replace(/[〇零一二三四五六七八九十百千万億]+/g, function (run) {
+                /* 単位の文字を含まないときは1文字ずつ置き換える（二〇二六 → 2026）*/
+                var hasUnit = false;
+                for (var i = 0; i < run.length; i++) {
+                    if (kanjiUnits.indexOf(run.charAt(i)) >= 0) { hasUnit = true; break; }
+                }
+                if (!hasUnit) {
+                    var plain = "";
+                    for (var j = 0; j < run.length; j++) {
+                        var plainChar = run.charAt(j);
+                        plain += (plainChar === "零") ? "0" : String(kanjiDigits.indexOf(plainChar));
+                    }
+                    return plain;
+                }
+
+                /* 位取りありは、万・億でいったん確定させながら積み上げる（二万五千 → 25000）*/
+                var total = 0;
+                var section = 0;
+                var current = 0;
+                for (var k = 0; k < run.length; k++) {
+                    var unitChar = run.charAt(k);
+                    var digitIndex = kanjiDigits.indexOf(unitChar);
+                    if (unitChar === "零") { current = 0; }
+                    else if (digitIndex >= 0) { current = digitIndex; }
+                    else if (unitChar === "十") { section += (current || 1) * 10; current = 0; }
+                    else if (unitChar === "百") { section += (current || 1) * 100; current = 0; }
+                    else if (unitChar === "千") { section += (current || 1) * 1000; current = 0; }
+                    else if (unitChar === "万") { total += (section + current) * 10000; section = 0; current = 0; }
+                    else if (unitChar === "億") { total += (section + current) * 100000000; section = 0; current = 0; }
+                }
+                return String(total + section + current);
+            });
+        }
+
+        /* 算用数字を漢数字へ1文字ずつ置き換えた文字列を返す（位取りは付けない）*/
+        function toKanjiNumeralText(txt) {
+            var kanjiDigits = "〇一二三四五六七八九";
+            return toHalfWidthDigitText(txt).replace(/[0-9]/g, function (digit) {
+                return kanjiDigits.charAt(Number(digit));
+            });
+        }
+
+        /* 算用数字を位取りありの漢数字へ変換した文字列を返す（31 → 三十一、1234 → 千二百三十四）*/
+        function toKanjiPositionalText(txt) {
+            var kanjiDigits = "〇一二三四五六七八九";
+            var smallUnits = ["", "十", "百", "千"];
+            var bigUnits = ["", "万", "億", "兆", "京"];
+            return toHalfWidthDigitText(txt).replace(/[0-9]+/g, function (run) {
+                /* 先頭の0は落とす（"0" 自体は残す）*/
+                var digits = run.replace(/^0+(?=[0-9])/, "");
+                if (digits === "0") return "〇";
+                /* 京を超える桁は表記できないのでそのまま返す */
+                if (digits.length > 20) return run;
+
+                var result = "";
+                var sectionCount = Math.ceil(digits.length / 4);
+                for (var section = 0; section < sectionCount; section++) {
+                    var end = digits.length - section * 4;
+                    var sectionDigits = digits.substring(Math.max(0, end - 4), end);
+                    var sectionText = "";
+                    for (var i = 0; i < sectionDigits.length; i++) {
+                        var digit = Number(sectionDigits.charAt(i));
+                        if (digit === 0) continue;
+                        var unit = smallUnits[sectionDigits.length - 1 - i];
+                        /* 十・百・千の位が1のときは「一」を書かない（一十 → 十）*/
+                        sectionText += ((digit === 1 && unit !== "") ? "" : kanjiDigits.charAt(digit)) + unit;
+                    }
+                    if (sectionText !== "") result = sectionText + bigUnits[section] + result;
+                }
+                return result;
+            });
+        }
+
+        /* 文字変換系アクション（ケース・かな・数字）のテキスト変換関数を返す。
+           パレットのプレビューとメインエンジンの実処理で同じものを使うため1か所にまとめている。
+           該当しないアクションIDでは null を返す */
+        function getTextConverter(actionName) {
+            switch (actionName) {
+                case "caseUpper": return function (txt) { return txt.toUpperCase(); };
+                case "caseLower": return function (txt) { return txt.toLowerCase(); };
+                case "caseWord": return toWordCap;
+                case "caseSentence": return toSentenceCase;
+                case "caseTitle": return toTitleCase;
+                /* かな変換は半角カナも受け付けるため、いったん全角カナへ寄せてから変換する */
+                case "toHiragana": return function (txt) { return toHiraganaText(toFullWidthKanaText(txt)); };
+                case "toKatakana": return function (txt) { return toKatakanaText(toFullWidthKanaText(txt)); };
+                case "toHalfKana": return function (txt) { return toHalfWidthKanaText(toKatakanaText(txt)); };
+                /* 数字変換は漢数字も受け付けるため、いったん算用数字へ寄せてから変換する */
+                case "toHalfDigit": return function (txt) { return toHalfWidthDigitText(toArabicNumeralText(txt)); };
+                case "toFullDigit": return function (txt) { return toFullWidthDigitText(toArabicNumeralText(txt)); };
+                case "singleDigitFull": return function (txt) { return toSingleDigitFullWidthText(toArabicNumeralText(txt)); };
+                case "toKanjiNumeral": return function (txt) { return toKanjiNumeralText(toArabicNumeralText(txt)); };
+                case "toKanjiPositional": return function (txt) { return toKanjiPositionalText(toArabicNumeralText(txt)); };
+            }
+            return null;
         }
 
         /* 全角英数字を半角に変換する関数 */
@@ -2280,6 +2417,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             removeLineBreaks, removeAllBreaks, joinBreaksToOneLine, flattenToOneLine, removeEmptyLines, removeTabs, tabsToSpaces,
             trimSpaces, collapseSpaces, removeLinePrefix, toHalfWidthAlnumText, toFullWidthKanaText,
             toHiraganaText, toKatakanaText, toHalfWidthKanaText,
+            toHalfWidthDigitText, toFullWidthDigitText, toSingleDigitFullWidthText, toKanjiNumeralText, toArabicNumeralText, toKanjiPositionalText, getTextConverter,
             fullToHalfAlnum, halfToFullKana, removeBulletMarkers, removeNumberMarkers,
             clearListFormatting, getCharStyleProps, getParagraphStyleProps,
             captureTextStyles, restoreTextStyles, snapshotAttributes, restoreAttributes,
@@ -2395,6 +2533,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
         /* テキスト内容だけを書き換える処理（対象フレームはそのまま）*/
         function runContentAction(actionName, targets, params) {
+            /* ケース・かな・数字の変換は getTextConverter へ委譲する */
+            var convertText = getTextConverter(actionName);
+            if (convertText) { transformContents(targets, convertText); return; }
+
             switch (actionName) {
                 case "removeLineBreaks": if (params.forced) removeAllBreaks(targets); else removeLineBreaks(targets); return;
                 case "addLineBreakPerChar": addLineBreakPerChar(targets); return;
@@ -2411,12 +2553,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 case "removeAllSpaces": transformContents(targets, function (txt) { return txt.replace(/[ 　]/g, ""); }); return;
                 case "fullToHalfAlnum": fullToHalfAlnum(targets); return;
                 case "halfToFullKana": halfToFullKana(targets); return;
-                /* 半角カナも対象にするため、いったん全角へ寄せてからひらがなへ変換する */
-                case "toHiragana": transformContents(targets, function (txt) { return toHiraganaText(toFullWidthKanaText(txt)); }); return;
-                /* 半角カナも対象にするため、いったん全角へ寄せてからカタカナへ変換する */
-                case "toKatakana": transformContents(targets, function (txt) { return toKatakanaText(toFullWidthKanaText(txt)); }); return;
-                /* ひらがなも対象にするため、いったんカタカナへ寄せてから半角カナへ変換する */
-                case "toHalfKana": transformContents(targets, function (txt) { return toHalfWidthKanaText(toKatakanaText(txt)); }); return;
                 /* Illustrator標準のリスト書式を先に外してから、本文に打たれた行頭マーカーを除去する */
                 case "removeBulletMarkers": clearListFormatting(targets); removeBulletMarkers(targets); return;
                 case "removeNumberMarkers": clearListFormatting(targets); removeNumberMarkers(targets); return;
@@ -2425,11 +2561,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 case "sortByCharCode": sortByCharCode(targets); return;
                 case "sortByLength": sortByLength(targets); return;
                 case "removeEmptyLines": removeEmptyLines(targets); return;
-                case "caseUpper": transformContents(targets, function (txt) { return txt.toUpperCase(); }); return;
-                case "caseLower": transformContents(targets, function (txt) { return txt.toLowerCase(); }); return;
-                case "caseWord": transformContents(targets, toWordCap); return;
-                case "caseSentence": transformContents(targets, toSentenceCase); return;
-                case "caseTitle": transformContents(targets, toTitleCase); return;
                 case "spaceAfterPunct": transformContents(targets, function (txt) { return txt.replace(/([.,])(?=[^\s\d.,])/g, "$1 "); }); return;
                 case "convertSymbol": {
                     /* ES の入れ子三項は左結合に誤評価されるため括弧で右結合を明示 */
@@ -3271,97 +3402,90 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
             var panelLetterCase = addPanel(tabConvert, getLabel(LABELS.panel.letterCase), ["fill", "top"]);
 
-            /* モード名 → プレビュー用 statictext */
-            var casePreviewFields = {};
+            /* プレビュー行の一覧（{ field: statictext, convert: 変換関数 }）*/
+            var previewRows = [];
 
             /**
              * 1行 = [変換ボタン] [変換結果プレビュー] を追加する
-             * @param {string} modeKey - プレビューを引くためのモード名
+             * @param {Panel} parentPanel - 追加先のパネル
              * @param {Object} labelNode - ボタンのラベルノード
              * @param {string} actionId - 実行するアクションID
              * @returns {void}
              */
-            function addCaseRow(modeKey, labelNode, actionId) {
-                var caseRow = panelLetterCase.add("group");
-                caseRow.orientation = "row";
-                caseRow.alignment = ["fill", "center"];
-                caseRow.alignChildren = ["left", "center"];
+            function addConvertRow(parentPanel, labelNode, actionId) {
+                var convertRow = parentPanel.add("group");
+                convertRow.orientation = "row";
+                convertRow.alignment = ["fill", "center"];
+                convertRow.alignChildren = ["left", "center"];
 
-                var caseButton = caseRow.add("button", undefined, getLabel(labelNode));
-                caseButton.preferredSize = CASE_BUTTON_SIZE;
-                caseButton.onClick = function () {
-                    executeActionThen(actionId, {}, refreshCasePreview);
+                var convertButton = convertRow.add("button", undefined, getLabel(labelNode));
+                convertButton.preferredSize = CONVERT_BUTTON_SIZE;
+                convertButton.onClick = function () {
+                    executeActionThen(actionId, {}, refreshConvertPreview);
                 };
 
-                var previewText = caseRow.add("statictext", undefined, "", { justify: "left" });
-                previewText.preferredSize = CASE_PREVIEW_SIZE;
-                casePreviewFields[modeKey] = previewText;
+                var previewText = convertRow.add("statictext", undefined, "", { justify: "left" });
+                previewText.preferredSize = CONVERT_PREVIEW_SIZE;
+                previewRows.push({ field: previewText, convert: getTextConverter(actionId) });
             }
 
-            addCaseRow("upper", LABELS.button.caseUpper, "caseUpper");
-            addCaseRow("lower", LABELS.button.caseLower, "caseLower");
-            addCaseRow("word", LABELS.button.caseWord, "caseWord");
-            addCaseRow("sentence", LABELS.button.caseSentence, "caseSentence");
-            addCaseRow("title", LABELS.button.caseTitle, "caseTitle");
+            addConvertRow(panelLetterCase, LABELS.button.caseUpper, "caseUpper");
+            addConvertRow(panelLetterCase, LABELS.button.caseLower, "caseLower");
+            addConvertRow(panelLetterCase, LABELS.button.caseWord, "caseWord");
+            addConvertRow(panelLetterCase, LABELS.button.caseSentence, "caseSentence");
+            addConvertRow(panelLetterCase, LABELS.button.caseTitle, "caseTitle");
 
             /* かな変換：カタカナ・ひらがな・半角カナの相互変換 */
-            var panelKanaConvert = addPanel(tabConvert, getLabel(LABELS.panel.kanaConvert), ["left", "top"]);
+            var panelKanaConvert = addPanel(tabConvert, getLabel(LABELS.panel.kanaConvert), ["fill", "top"]);
 
-            /**
-             * かな変換パネルへボタンを1つ追加する
-             * @param {Object} labelNode - ボタンのラベルノード
-             * @param {string} actionId - 実行するアクションID
-             * @returns {void}
-             */
-            function addKanaButton(labelNode, actionId) {
-                var kanaButton = panelKanaConvert.add("button", undefined, getLabel(labelNode));
-                kanaButton.preferredSize = CASE_BUTTON_SIZE;
-                kanaButton.onClick = function () {
-                    executeActionThen(actionId, {}, refreshCasePreview);
-                };
-            }
+            addConvertRow(panelKanaConvert, LABELS.button.toHiragana, "toHiragana");
+            addConvertRow(panelKanaConvert, LABELS.button.toKatakana, "toKatakana");
+            addConvertRow(panelKanaConvert, LABELS.button.toHalfKana, "toHalfKana");
 
-            addKanaButton(LABELS.button.toHiragana, "toHiragana");
-            addKanaButton(LABELS.button.toKatakana, "toKatakana");
-            addKanaButton(LABELS.button.toHalfKana, "toHalfKana");
+            /* 英数字：数字の全角・半角・漢数字の変換 */
+            var panelDigitConvert = addPanel(tabConvert, getLabel(LABELS.panel.digitConvert), ["fill", "top"]);
+
+            addConvertRow(panelDigitConvert, LABELS.button.toHalfDigit, "toHalfDigit");
+            addConvertRow(panelDigitConvert, LABELS.button.toFullDigit, "toFullDigit");
+            addConvertRow(panelDigitConvert, LABELS.button.singleDigitFull, "singleDigitFull");
+            addConvertRow(panelDigitConvert, LABELS.button.toKanjiNumeral, "toKanjiNumeral");
+            addConvertRow(panelDigitConvert, LABELS.button.toKanjiPositional, "toKanjiPositional");
 
             /**
              * プレビュー表示用にテキストを1行へ詰めて短く整える
              * @param {string} text - 元テキスト
              * @returns {string} 整形後のテキスト
              */
-            function normalizeCaseSample(text) {
+            function normalizePreviewSample(text) {
                 if (text == null) return "";
                 var sample = String(text).replace(/[\r\n]+/g, " ").replace(/[ 　\t]+/g, " ").replace(/^\s+|\s+$/g, "");
-                if (sample.length > CASE_PREVIEW_MAX_CHARS) sample = sample.substring(0, CASE_PREVIEW_MAX_CHARS) + "…";
+                if (sample.length > PREVIEW_MAX_CHARS) sample = sample.substring(0, PREVIEW_MAX_CHARS) + "…";
                 return sample;
             }
 
             /* プレビュー更新の多重実行ガード */
-            var casePreviewRefreshing = false;
+            var convertPreviewRefreshing = false;
 
             /**
-             * メインエンジンから先頭テキストを取得し、各モードのプレビューを更新する
+             * メインエンジンから先頭テキストを取得し、各行のプレビューを更新する
              * @returns {void}
              */
-            function refreshCasePreview() {
-                if (casePreviewRefreshing) return;
-                casePreviewRefreshing = true;
+            function refreshConvertPreview() {
+                if (convertPreviewRefreshing) return;
+                convertPreviewRefreshing = true;
 
                 runWorker("getFirstText", {}, function (status, payload) {
-                    casePreviewRefreshing = false;
-                    var sample = normalizeCaseSample((status === "text" && payload) ? decodeURIComponent(payload) : "");
-                    casePreviewFields.upper.text = normalizeCaseSample(sample.toUpperCase());
-                    casePreviewFields.lower.text = normalizeCaseSample(sample.toLowerCase());
-                    casePreviewFields.word.text = normalizeCaseSample(toWordCap(sample));
-                    casePreviewFields.sentence.text = normalizeCaseSample(toSentenceCase(sample));
-                    casePreviewFields.title.text = normalizeCaseSample(toTitleCase(sample));
+                    convertPreviewRefreshing = false;
+                    var sample = normalizePreviewSample((status === "text" && payload) ? decodeURIComponent(payload) : "");
+                    for (var i = 0; i < previewRows.length; i++) {
+                        previewRows[i].field.text = normalizePreviewSample(previewRows[i].convert(sample));
+                    }
                 });
             }
 
             applySelectionState(computeSelectionState(selectedObjects));
             loadLinesToList();
-            refreshCasePreview();
+            refreshConvertPreview();
 
             /* === 選択のリアルタイム反映 ===
              * Illustrator 30.x には app.scheduleTask / setTimeout 等のタイマー API が無いため、
@@ -3400,7 +3524,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
 
                 refreshStatusFromSelection();
                 /* 変換タブ表示中は選択変化に合わせてプレビューも更新 */
-                if (tabbedPanel.selection === tabConvert) refreshCasePreview();
+                if (tabbedPanel.selection === tabConvert) refreshConvertPreview();
             }
 
             paletteWindow.onActivate = function () { onPaletteFocus(true); };
@@ -3412,7 +3536,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 if (tabbedPanel.selection === tabLineArrange) {
                     loadLinesToList();
                 } else if (tabbedPanel.selection === tabConvert) {
-                    refreshCasePreview();
+                    refreshConvertPreview();
                 }
             };
 
