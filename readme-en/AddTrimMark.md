@@ -1,6 +1,8 @@
-# AddTrimMark.jsx
+# Create trim marks
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AddTrimMark.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AddTrimMark.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMark.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -26,7 +28,11 @@
 4. Move trim marks to "Trim" layer and lock it
 5. Duplicate the original object and convert to guide
 
+### note
+
+- [【Illustrator】現在のアートボードにトンボを作成する｜DTP Transit 別館](https://note.com/dtp_tranist/n/n40e3e39cf9f2)
+
 ### Update History
 
-- v1.0.0 (20250205): Initial version
-- v1.0.1 (20250603): Refined comments and stabilized process
+- v1.2.0 (20260401): Initial release
+- v1.2.1 (20260831): Restore the preference, active layer, and layer visibility after the run; make the rectangle tolerance check effective and reject degenerate zero-area paths; stop accumulating duplicate layers on the All Artboards run

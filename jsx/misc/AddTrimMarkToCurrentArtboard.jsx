@@ -30,6 +30,7 @@ var SCRIPT_UPDATED  = "2026-04-01";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMarkToCurrentArtboard.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMarkToCurrentArtboard.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n40e3e39cf9f2"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

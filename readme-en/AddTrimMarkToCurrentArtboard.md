@@ -32,6 +32,10 @@
 5. Turn the same rectangle into guides
 6. In `finally`, clear the selection and restore the トンボ layer's lock state
 
+### note
+
+- [【Illustrator】現在のアートボードにトンボを作成する｜DTP Transit 別館](https://note.com/dtp_tranist/n/n40e3e39cf9f2)
+
 ### Update History
 
 - v1.0 (20250205): Initial version
