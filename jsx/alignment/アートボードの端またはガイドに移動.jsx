@@ -32,6 +32,7 @@ var SCRIPT_UPDATED  = "2026-08-31";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/アートボードの端またはガイドに移動.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/アートボードの端またはガイドに移動.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
