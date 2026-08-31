@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextBreakSplitMergePallete";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-31";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePallete.md
@@ -155,7 +155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             basic: { ja: "基本", en: "Basic" },
             cleanup: { ja: "整形", en: "Cleanup" },
             lineArrange: { ja: "行の編集", en: "Line Edit" },
-            alnum: { ja: "英数字", en: "Alphanumeric" }
+            convert: { ja: "変換", en: "Convert" }
         },
         panel: {
             breakGroup: { ja: "改行", en: "Breaks" },
@@ -175,6 +175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             space: { ja: "スペース削除", en: "Remove Spaces" },
             status: { ja: "ステータス", en: "Status" },
             letterCase: { ja: "大文字{slash}小文字", en: "Letter Case" },
+            kanaConvert: { ja: "かな変換", en: "Kana Conversion" },
             symbolConvert: { ja: "スペースや記号の変換", en: "Spaces & Symbols" },
             symbolBefore: { ja: "変換前", en: "Before" },
             symbolAfter: { ja: "変換後", en: "After" },
@@ -228,6 +229,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             caseWord: { ja: "単語の先頭を大文字", en: "Capitalize Words" },
             caseSentence: { ja: "文頭のみ大文字", en: "Sentence case" },
             caseTitle: { ja: "英語タイトル形式", en: "Title Case" },
+            toHiragana: { ja: "ひらがなに", en: "Hiragana" },
+            toKatakana: { ja: "カタカナに", en: "Katakana" },
+            toHalfKana: { ja: "半角カナに", en: "Halfwidth Kana" },
             convertSymbol: { ja: "変換", en: "Convert" },
             spaceAfterPunct: { ja: ".と,の後", en: "Space After . and ," },
             showHiddenChar: { ja: "制御文字の表示{slash}非表示", en: "Show{slash}Hide Hidden Characters" }
@@ -950,8 +954,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             var halfKana = "ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ";
             var fullKana = "ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
             /* 濁点・半濁点の合成対応表 */
-            var dakutenBase = "ｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾊﾋﾌﾍﾎ";
-            var dakutenFull = "ガギグゲゴザジズゼゾダヂヅデドバビブベボ";
+            var dakutenBase = "ｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾊﾋﾌﾍﾎｳ";
+            var dakutenFull = "ガギグゲゴザジズゼゾダヂヅデドバビブベボヴ";
             var handakutenBase = "ﾊﾋﾌﾍﾎ";
             var handakutenFull = "パピプペポ";
             /* 単独で置き換える約物（濁点・半濁点・句読点・カギ括弧・中黒）*/
@@ -980,6 +984,73 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                     result += fullKana.charAt(kanaIndex);
                 } else if (punctIndex >= 0) {
                     result += fullPunct.charAt(punctIndex);
+                } else {
+                    result += currentChar;
+                }
+            }
+            return result;
+        }
+
+        /* 全角カタカナをひらがなへ変換した文字列を返す（長音記号「ー」はそのまま）*/
+        function toHiraganaText(txt) {
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var code = txt.charCodeAt(i);
+                /* ァ(0x30A1)〜ヴ(0x30F4) と 踊り字 ヽヾ(0x30FD-0x30FE) は 0x60 引くとひらがなになる。
+                   ヵヶ(0x30F5-0x30F6) は「ヶ月」などの用例を壊すため対象外 */
+                if ((code >= 0x30A1 && code <= 0x30F4) || (code >= 0x30FD && code <= 0x30FE)) {
+                    result += String.fromCharCode(code - 0x60);
+                } else {
+                    result += txt.charAt(i);
+                }
+            }
+            return result;
+        }
+
+        /* ひらがなを全角カタカナへ変換した文字列を返す（長音記号「ー」はそのまま）*/
+        function toKatakanaText(txt) {
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var code = txt.charCodeAt(i);
+                /* ぁ(0x3041)〜ゖ(0x3096) と 踊り字 ゝゞ(0x309D-0x309E) は 0x60 足すとカタカナになる */
+                if ((code >= 0x3041 && code <= 0x3096) || (code >= 0x309D && code <= 0x309E)) {
+                    result += String.fromCharCode(code + 0x60);
+                } else {
+                    result += txt.charAt(i);
+                }
+            }
+            return result;
+        }
+
+        /* 全角カタカナを半角カナへ変換した文字列を返す（濁点・半濁点は2文字に分解、約物も対象）*/
+        function toHalfWidthKanaText(txt) {
+            var fullKana = "ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
+            var halfKana = "ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ";
+            /* 濁点・半濁点つきの文字を「素の半角カナ＋濁点」へ分解する対応表 */
+            var dakutenFull = "ガギグゲゴザジズゼゾダヂヅデドバビブベボヴ";
+            var dakutenBase = "ｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾊﾋﾌﾍﾎｳ";
+            var handakutenFull = "パピプペポ";
+            var handakutenBase = "ﾊﾋﾌﾍﾎ";
+            /* 単独で置き換える約物（濁点・半濁点・句読点・カギ括弧・中黒）*/
+            var fullPunct = "゛゜。「」、・";
+            var halfPunct = "ﾞﾟ｡｢｣､･";
+
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var currentChar = txt.charAt(i);
+                var dakutenIndex = dakutenFull.indexOf(currentChar);
+                var handakutenIndex = handakutenFull.indexOf(currentChar);
+                var kanaIndex = fullKana.indexOf(currentChar);
+                var punctIndex = fullPunct.indexOf(currentChar);
+
+                if (dakutenIndex >= 0) {
+                    result += dakutenBase.charAt(dakutenIndex) + "ﾞ";
+                } else if (handakutenIndex >= 0) {
+                    result += handakutenBase.charAt(handakutenIndex) + "ﾟ";
+                } else if (kanaIndex >= 0) {
+                    result += halfKana.charAt(kanaIndex);
+                } else if (punctIndex >= 0) {
+                    result += halfPunct.charAt(punctIndex);
                 } else {
                     result += currentChar;
                 }
@@ -2208,6 +2279,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             groupByLineY, getUnionBounds, groupTextFrames, applySplitGrouping,
             removeLineBreaks, removeAllBreaks, joinBreaksToOneLine, flattenToOneLine, removeEmptyLines, removeTabs, tabsToSpaces,
             trimSpaces, collapseSpaces, removeLinePrefix, toHalfWidthAlnumText, toFullWidthKanaText,
+            toHiraganaText, toKatakanaText, toHalfWidthKanaText,
             fullToHalfAlnum, halfToFullKana, removeBulletMarkers, removeNumberMarkers,
             clearListFormatting, getCharStyleProps, getParagraphStyleProps,
             captureTextStyles, restoreTextStyles, snapshotAttributes, restoreAttributes,
@@ -2339,6 +2411,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 case "removeAllSpaces": transformContents(targets, function (txt) { return txt.replace(/[ 　]/g, ""); }); return;
                 case "fullToHalfAlnum": fullToHalfAlnum(targets); return;
                 case "halfToFullKana": halfToFullKana(targets); return;
+                /* 半角カナも対象にするため、いったん全角へ寄せてからひらがなへ変換する */
+                case "toHiragana": transformContents(targets, function (txt) { return toHiraganaText(toFullWidthKanaText(txt)); }); return;
+                /* 半角カナも対象にするため、いったん全角へ寄せてからカタカナへ変換する */
+                case "toKatakana": transformContents(targets, function (txt) { return toKatakanaText(toFullWidthKanaText(txt)); }); return;
+                /* ひらがなも対象にするため、いったんカタカナへ寄せてから半角カナへ変換する */
+                case "toHalfKana": transformContents(targets, function (txt) { return toHalfWidthKanaText(toKatakanaText(txt)); }); return;
                 /* Illustrator標準のリスト書式を先に外してから、本文に打たれた行頭マーカーを除去する */
                 case "removeBulletMarkers": clearListFormatting(targets); removeBulletMarkers(targets); return;
                 case "removeNumberMarkers": clearListFormatting(targets); removeNumberMarkers(targets); return;
@@ -3187,11 +3265,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 executeActionThen("removeEmptyLines", {}, loadLinesToList);
             };
 
-            /* === タブ4: 英数字 === */
-            var tabAlnum = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.alnum));
-            setupTab(tabAlnum, "column");
+            /* === タブ4: 変換 === */
+            var tabConvert = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.convert));
+            setupTab(tabConvert, "column");
 
-            var panelLetterCase = addPanel(tabAlnum, getLabel(LABELS.panel.letterCase), ["fill", "top"]);
+            var panelLetterCase = addPanel(tabConvert, getLabel(LABELS.panel.letterCase), ["fill", "top"]);
 
             /* モード名 → プレビュー用 statictext */
             var casePreviewFields = {};
@@ -3225,6 +3303,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             addCaseRow("word", LABELS.button.caseWord, "caseWord");
             addCaseRow("sentence", LABELS.button.caseSentence, "caseSentence");
             addCaseRow("title", LABELS.button.caseTitle, "caseTitle");
+
+            /* かな変換：カタカナ・ひらがな・半角カナの相互変換 */
+            var panelKanaConvert = addPanel(tabConvert, getLabel(LABELS.panel.kanaConvert), ["left", "top"]);
+
+            /**
+             * かな変換パネルへボタンを1つ追加する
+             * @param {Object} labelNode - ボタンのラベルノード
+             * @param {string} actionId - 実行するアクションID
+             * @returns {void}
+             */
+            function addKanaButton(labelNode, actionId) {
+                var kanaButton = panelKanaConvert.add("button", undefined, getLabel(labelNode));
+                kanaButton.preferredSize = CASE_BUTTON_SIZE;
+                kanaButton.onClick = function () {
+                    executeActionThen(actionId, {}, refreshCasePreview);
+                };
+            }
+
+            addKanaButton(LABELS.button.toHiragana, "toHiragana");
+            addKanaButton(LABELS.button.toKatakana, "toKatakana");
+            addKanaButton(LABELS.button.toHalfKana, "toHalfKana");
 
             /**
              * プレビュー表示用にテキストを1行へ詰めて短く整える
@@ -3300,8 +3399,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 lastFocusRefreshTime = now;
 
                 refreshStatusFromSelection();
-                /* 英数字タブ表示中は選択変化に合わせてプレビューも更新 */
-                if (tabbedPanel.selection === tabAlnum) refreshCasePreview();
+                /* 変換タブ表示中は選択変化に合わせてプレビューも更新 */
+                if (tabbedPanel.selection === tabConvert) refreshCasePreview();
             }
 
             paletteWindow.onActivate = function () { onPaletteFocus(true); };
@@ -3312,7 +3411,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             tabbedPanel.onChange = function () {
                 if (tabbedPanel.selection === tabLineArrange) {
                     loadLinesToList();
-                } else if (tabbedPanel.selection === tabAlnum) {
+                } else if (tabbedPanel.selection === tabConvert) {
                     refreshCasePreview();
                 }
             };
