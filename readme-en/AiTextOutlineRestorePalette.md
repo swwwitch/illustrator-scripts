@@ -78,9 +78,11 @@ This is the part that is easy to misread, so here is a summary.
 | Keep outline data | The original outlines are moved to the `outlined_text` layer | The outlines are deleted after restore and no `outlined_text` layer is created |
 | Restore text to a separate layer | Text is restored to the `restored_text` layer | Text is restored to the same layer as the outline and no `restored_text` layer is created |
 
-The stashed outlines are set to 30% opacity and locked. The layer itself is sent to the back, given the template-layer attribute, and locked, so it does not get in the way of the restored text.
+The stashed outlines are set to 30% opacity and locked. The layer itself is sent to the back, given the template-layer attribute, and locked, so it does not get in the way of the restored text. They are placed directly on the `outlined_text` layer, not wrapped in a group of their own.
 
 The `outlined_text` layer is not created again and again: an existing one is unlocked and reused, so all outlines are collected on a single layer.
+
+Once the restore finishes, the active layer is set back to the restore target (`restored_text`, or the layer the text actually landed on when Restore text to a separate layer is off).
 
 ## The two buttons
 
@@ -110,8 +112,9 @@ The template-layer attribute cannot be set through the API, so a temporary actio
 
 ## Update history
 
+- v2.0.4 (2026-09-02): Fixed a missing redraw after restore when Keep outline data is off, which left the deleted outlines visible on screen. The active layer is now always set back to the restore target (a locked `outlined_text` layer could stay selected when Restore text to a separate layer was off). Stashed outlines are no longer wrapped in a group of their own. The list display order is now driven by the note field table. Japanese-only attributes are no longer read at all in English locales. The busy flag is reset in a `finally` block
 - v2.0.1 (2026-07-31): Moved the overview into the README, tidied the basic info block, updated the article URL
-- v1.0 (2024-07-23): Initial version
-- v1.9 (2026-07-04): Persistent palette, text restore, note display, kerning and fill color restore, multi-line support, robustness
-- v1.10 (2026-07-05): Added saving and restoring of alignment, the auto-leading flag, horizontal/vertical scale, kinsoku and mojikumi
 - v2.0.0 (2026-07-05): Japanese labels for kinsoku and mojikumi in the listbox, reordered display, `outlined_text` layer reuse, new title, localized listbox item names and values, split Outline and Restore Text panels, added the Keep outline data and Restore text to a separate layer options, helpTips on panels and listbox, unified note wording, and Japanese-only attributes skipped in English locales
+- v1.10 (2026-07-05): Added saving and restoring of alignment, the auto-leading flag, horizontal/vertical scale, kinsoku and mojikumi
+- v1.9 (2026-07-04): Persistent palette, text restore, note display, kerning and fill color restore, multi-line support, robustness
+- v1.0 (2024-07-23): Initial version

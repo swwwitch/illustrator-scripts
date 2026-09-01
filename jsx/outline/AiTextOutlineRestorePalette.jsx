@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiTextOutlineRestorePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-07-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md
@@ -159,9 +159,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
     // ==============================
 
     /* 項目名（左列）の英訳。日本語環境では note の表記をそのまま使うので en だけ持つ / Item labels (left column) */
+    /* 和文専用（jpOnly）の項目は英語環境では workerDisplayLabels が一覧から外すので、ここには持たない */
     var LIST_ITEM_LABELS_EN = {
         '文字列':                     'Text',
-        '組み方向':                   'Orientation',
         'フォント':                   'Font',
         'フォントサイズ':             'Font size',
         '行送り':                     'Leading',
@@ -171,17 +171,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         'カーニング':                 'Kerning',
         'プロポーショナルメトリクス': 'Proportional metrics',
         'トラッキング':               'Tracking',
-        '文字ツメ':                   'Tsume',
         '行揃え':                     'Alignment',
-        '禁則':                       'Kinsoku',
-        '文字組み':                   'Mojikumi',
         '文字カラー':                 'Fill color'
     };
 
     /* 列挙値（右列）の英訳。ここに無い値（数値・フォント名・カラー・true/false）は素通し / Enumerated values (right column) */
+    /* 組み方向・禁則・文字組みは jpOnly なので英語環境の一覧には出ない。残るのはカーニング方式と行揃えだけ */
     var LIST_VALUE_LABELS_EN = {
-        '縦組み':                 'Vertical',
-        '横組み':                 'Horizontal',
         'メトリクス':             'Metrics',
         'オプティカル':           'Optical',
         '和文等幅':               'Metrics (Roman Only)',
@@ -192,17 +188,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         '均等配置':               'Justify all lines',
         '均等配置（最終行左）':   'Justify (last left)',
         '均等配置（最終行中央）': 'Justify (last center)',
-        '均等配置（最終行右）':   'Justify (last right)',
-        '強い禁則':               'Hard',
-        '弱い禁則':               'Soft',
-        '弱い禁則 v2':            'Soft v2',
-        '行末約物全角/半角':      'Line end full/half-width',
-        '約物半角':               'Half-width punctuation',
-        '行末約物半角':           'Line end half-width',
-        '行末約物全角':           'Line end full-width',
-        '約物全角':               'Full-width punctuation',
-        'ツメ組み':               'Tight',
-        'ベタ組み':               'Solid'
+        '均等配置（最終行右）':   'Justify (last right)'
     };
 
     /* 日本語表記を現在言語へ（未知＝数値・フォント名・カラー等はそのまま）/ Localize a Japanese label or value */
@@ -297,25 +283,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
     /* --- note のフィールド定義（保存順）。組み立て・解析・一覧表示の共通ソース
            Note field table (in saved order): drives build, parse and list display --- */
     /* type は body=複数行の本文／num=数値／bool=true,false／text=そのまま。jpOnly は英語環境で書き出さない属性 */
+    /* order は listbox の一覧表示順。配列の並び（＝note の保存順）とは別物で、表示順だけをここで一元管理する */
     /* 本文は "文字列：\n" 〜 "\n\nフォント：" で切り出すので、文字列とフォントの並びは変更しないこと */
     function workerNoteFields() {
         return [
-            { label: "文字列",                     key: "text",                type: "body" },
-            { label: "フォント",                   key: "font",                type: "text" },
-            { label: "フォントサイズ",             key: "fontSize",            type: "num" },
-            { label: "行送り",                     key: "leading",             type: "num" },
-            { label: "カーニング",                 key: "kerningText",         type: "text" },
-            { label: "プロポーショナルメトリクス", key: "proportionalMetrics", type: "bool" },
-            { label: "トラッキング",               key: "tracking",            type: "num" },
-            { label: "文字ツメ",                   key: "tsume",               type: "num",  jpOnly: true },
-            { label: "組み方向",                   key: "orientation",         type: "text", jpOnly: true },
-            { label: "文字カラー",                 key: "colorText",           type: "text" },
-            { label: "行揃え",                     key: "justificationText",   type: "text" },
-            { label: "禁則",                       key: "kinsokuText",         type: "text", jpOnly: true },
-            { label: "文字組み",                   key: "mojikumiText",        type: "text", jpOnly: true },
-            { label: "自動行送り",                 key: "autoLeading",         type: "bool" },
-            { label: "水平比率",                   key: "horizontalScale",     type: "num" },
-            { label: "垂直比率",                   key: "verticalScale",       type: "num" }
+            { label: "文字列",                     key: "text",                type: "body", order:  0 },
+            { label: "フォント",                   key: "font",                type: "text", order:  2 },
+            { label: "フォントサイズ",             key: "fontSize",            type: "num",  order:  3 },
+            { label: "行送り",                     key: "leading",             type: "num",  order:  4 },
+            { label: "カーニング",                 key: "kerningText",         type: "text", order:  8 },
+            { label: "プロポーショナルメトリクス", key: "proportionalMetrics", type: "bool", order:  9 },
+            { label: "トラッキング",               key: "tracking",            type: "num",  order: 10 },
+            { label: "文字ツメ",                   key: "tsume",               type: "num",  order: 11, jpOnly: true },
+            { label: "組み方向",                   key: "orientation",         type: "text", order:  1, jpOnly: true },
+            { label: "文字カラー",                 key: "colorText",           type: "text", order: 15 },
+            { label: "行揃え",                     key: "justificationText",   type: "text", order: 12 },
+            { label: "禁則",                       key: "kinsokuText",         type: "text", order: 13, jpOnly: true },
+            { label: "文字組み",                   key: "mojikumiText",        type: "text", order: 14, jpOnly: true },
+            { label: "自動行送り",                 key: "autoLeading",         type: "bool", order:  5 },
+            { label: "水平比率",                   key: "horizontalScale",     type: "num",  order:  6 },
+            { label: "垂直比率",                   key: "verticalScale",       type: "num",  order:  7 }
         ];
     }
 
@@ -367,10 +354,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
            Outline one text frame and write the note onto the resulting group --- */
     /* 戻り値は生成された GroupItem。作れなかったときは null（呼び出し側で失敗として数える） */
     function workerProcessTextFrame(textFrame, handleJp) {
+        var jp = (handleJp !== false);
         var textRange = textFrame.textRange;
         var charAttrs = textRange.characterAttributes;
+        var paraAttrs = textRange.paragraphAttributes;
         var bounds = textFrame.geometricBounds;
-        var memoText = workerBuildMemoText({
+        var info = {
             text: textRange.contents,
             font: charAttrs.textFont.name,
             fontSize: workerRound(charAttrs.size),
@@ -378,12 +367,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
             kerningText: workerKerningToText(charAttrs.kerningMethod),
             proportionalMetrics: charAttrs.proportionalMetrics ? "true" : "false",
             tracking: charAttrs.tracking,
-            tsume: charAttrs.Tsume,
-            orientation: (textFrame.orientation == TextOrientation.VERTICAL) ? "縦組み" : "横組み",
             colorText: workerColorToText(charAttrs.fillColor),
-            justificationText: workerJustificationToText(textRange.paragraphAttributes.justification),
-            kinsokuText: workerKinsokuToText(textRange.paragraphAttributes),
-            mojikumiText: workerMojikumiToText(textRange.paragraphAttributes),
+            justificationText: workerJustificationToText(paraAttrs.justification),
             autoLeading: charAttrs.autoLeading ? "true" : "false",
             horizontalScale: workerRound(charAttrs.horizontalScale),
             verticalScale: workerRound(charAttrs.verticalScale),
@@ -391,7 +376,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
             top: workerRound(bounds[1]),
             right: workerRound(bounds[2]),
             bottom: workerRound(bounds[3])
-        }, handleJp);
+        };
+        /* 和文専用属性は英語環境では note に書き出さないので、値の取得ごとスキップする
+           （workerKinsokuToText／workerMojikumiToText は doc.mojikumiSet を舐めるため無駄が大きい） */
+        if (jp) {
+            info.tsume = charAttrs.Tsume;
+            info.orientation = (textFrame.orientation == TextOrientation.VERTICAL) ? "縦組み" : "横組み";
+            info.kinsokuText = workerKinsokuToText(paraAttrs);
+            info.mojikumiText = workerMojikumiToText(paraAttrs);
+        }
+        var memoText = workerBuildMemoText(info, handleJp);
         /* createOutline() の戻り値（生成された GroupItem）へ直接書く。選択に頼るとメモが付かないまま
            テキストだけ失われることがあるため */
         var outlineGroup = textFrame.createOutline();
@@ -506,20 +500,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
     }
 
     /* --- 一覧に出す項目名（表示順）/ Item labels to list, in display order --- */
-    /* handleJp が false（英語環境）のときは和文専用属性を一覧に出さない（旧 note に含まれていてもスキップ） */
+    /* 表示順は workerNoteFields の order から組み立てる（別配列に持つとフィールド追加時の書き漏れで一覧から落ちるため）。
+       handleJp が false（英語環境）のときは和文専用属性を一覧に出さない（旧 note に含まれていてもスキップ） */
     function workerDisplayLabels(handleJp) {
-        var displayOrder = ["文字列", "組み方向", "フォント", "フォントサイズ", "行送り", "自動行送り", "水平比率", "垂直比率", "カーニング", "プロポーショナルメトリクス", "トラッキング", "文字ツメ", "行揃え", "禁則", "文字組み", "文字カラー"];
-        if (handleJp !== false) { return displayOrder; }
+        var jp = (handleJp !== false);
         var fields = workerNoteFields();
-        var jpOnlyLabels = {};
+        var ordered = [];
         var fieldIndex;
         for (fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
-            if (fields[fieldIndex].jpOnly) { jpOnlyLabels[fields[fieldIndex].label] = true; }
+            if (fields[fieldIndex].jpOnly && !jp) { continue; }
+            ordered[fields[fieldIndex].order] = fields[fieldIndex].label;
         }
         var labels = [];
         var orderIndex;
-        for (orderIndex = 0; orderIndex < displayOrder.length; orderIndex++) {
-            if (!jpOnlyLabels[displayOrder[orderIndex]]) { labels.push(displayOrder[orderIndex]); }
+        for (orderIndex = 0; orderIndex < ordered.length; orderIndex++) {
+            if (ordered[orderIndex] != null) { labels.push(ordered[orderIndex]); }
         }
         return labels;
     }
@@ -1146,6 +1141,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         var targetLayer = restoredLayer || sourceItem.layer;
         var textFrame = targetLayer.textFrames.add();
         textFrame.contents = attributes.text;
+        /* この位置は直後の workerAlignTextFrameByBounds で上書きされる。位置合わせが例外で抜けたときの
+           フォールバックであり、旧 note の "座標：X =, Y =" もここでしか使われない */
         textFrame.position = [
             (attributes.x !== null) ? attributes.x : sourceItem.left,
             (attributes.y !== null) ? attributes.y : sourceItem.top
@@ -1155,16 +1152,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         return textFrame;
     }
 
-    /* --- 復元：退避レイヤーへ移動（失敗時はレイヤー直下へフォールバック） / Restore: move source to stash layer --- */
-    function workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer) {
-        try {
-            sourceItem.moveToBeginning(outlinedTextLayer.groupItems.add());
-        } catch (e) {
-            /* グループ生成／移動に失敗したらレイヤー直下へ退避 */
-            try { sourceItem.moveToBeginning(outlinedTextLayer); } catch (e2) {}
-        }
-    }
-
     /* --- 復元：1オブジェクトを復元（Path / Group 共通） / Restore one item (path or group) --- */
     function workerRestoreItem(sourceItem, outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline, handleJp) {
         var noteText = sourceItem.note;
@@ -1172,14 +1159,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         var attributes = workerExtractTextAttributes(noteText);
         if (!attributes || attributes.text == null) { return false; }
         var textFrame = workerCreateRestoredTextFrame(sourceItem, attributes, restoredTextLayer, restoreReport, handleJp);
+        /* 復元後にアクティブへ戻すレイヤー。別レイヤー OFF のときは復元先が sourceItem.layer になるので実測して控える */
+        if (restoreReport && !restoreReport.targetLayer) { try { restoreReport.targetLayer = textFrame.layer; } catch (eLayer) {} }
         /* 位置合わせは元アウトラインを削除する前に行う（savedBounds が無い旧 note は sourceItem を参照するため） */
         workerAlignTextFrameByBounds(attributes.savedBounds || sourceItem, textFrame);
         if (stashOutline === false) {
             /* 「アウトラインデータを残す」OFF：元アウトラインは退避せず削除 */
             try { sourceItem.remove(); } catch (eDel) {}
         } else {
-            /* 先に退避してから淡く＋ロック（ロック解除状態で移動する方が確実） */
-            workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer);
+            /* 先に退避してから淡く＋ロック（ロック解除状態で移動する方が確実）。
+               ラップ用のグループは作らずレイヤー直下へ置く（1件ごとに空グループが1階層増えるのを避ける） */
+            try { sourceItem.moveToBeginning(outlinedTextLayer); } catch (eMove) {}
             /* 種別を問わず淡く＋ロック。失敗しても復元処理は止めない */
             try {
                 sourceItem.opacity = 30;
@@ -1217,7 +1207,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         var outlinedTextLayer = stashOutline ? workerCreateOutlineStashLayer(doc) : null;
         /* 既定は復元テキストを別レイヤー（restored_text）へ。false のときは元アウトラインと同じレイヤーへ置く（null で sourceItem.layer にフォールバック） */
         var restoredTextLayer = (separateLayer !== false) ? workerCreateRestoredTextLayer(doc) : null;
-        var restoreReport = { restored: 0, fontFallback: false };
+        var restoreReport = { restored: 0, fontFallback: false, targetLayer: null };
         /* 1件ずつ try で囲み、途中で失敗しても残りの復元を続ける */
         var runError = null;
         var restoreIndex;
@@ -1234,7 +1224,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         }
         /* 一部でも成功していれば、その分を確定（途中エラーでも退避レイヤーを宙ぶらりんにしない） */
         if (stashOutline && outlinedTextLayer) { workerFinalizeTemplateLayer(outlinedTextLayer); }
-        workerSetAttr(doc, "activeLayer", restoredTextLayer);
+        /* workerFinalizeTemplateLayer は outlined_text をアクティブにしたうえでロックするので、必ず復元先へ戻す。
+           別レイヤー OFF のときは restoredTextLayer が null なので、実際に復元したレイヤーを使う */
+        workerSetAttr(doc, "activeLayer", restoredTextLayer || restoreReport.targetLayer);
+        /* 最後にもう一度だけ再描画する。ループ内の redraw は位置合わせ用で「フレーム生成の直後」にしか入らないため、
+           その後の元アウトラインの削除・退避（とくに最終件）が画面に反映されないまま残る */
+        try { app.redraw(); } catch (eRedraw) {}
         return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "") + (runError ? ":PARTIAL" : "");
     }
 
@@ -1290,7 +1285,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         workerApplyCharacterAttributes,
         workerApplyParagraphAttributes,
         workerCreateRestoredTextFrame,
-        workerMoveToOutlinedLayer,
         workerRestoreItem,
         workerDiscardUnusedLayers,
         workerRestoreText
@@ -1423,6 +1417,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         return (result != null && STATUS_CODE_KEYS[result]) ? L(STATUS_CODE_KEYS[result]) : null;
     }
 
+    /* "ERR:" 付きの戻り値は詳細まで出す / Error text, with the detail when present */
+    /**
+     * ワーカーの戻り値に対応するエラー文言を返す
+     * @param {string} result - ワーカーの戻り値
+     * @returns {string} "ERR:" で始まる場合は詳細付き、それ以外は汎用のエラー文言
+     */
+    function errorStatusText(result) {
+        if (result != null && result.indexOf("ERR") === 0) { return L('status.err') + ": " + result.substring(4); }
+        return L('status.err');
+    }
+
     /**
      * ワーカーの戻り値を解釈して、ステータス表示へ反映する
      * @param {Window} win - 対象のパレット
@@ -1431,7 +1436,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      * @returns {void}
      */
     function applyResultToStatus(win, result, doneKey) {
-        if (result == null) { setStatus(win, L('status.err')); return; }
+        if (result == null) { setStatus(win, errorStatusText(null)); return; }
         if (result.indexOf("OK") === 0) {
             var parts = result.split(":");
             var count = (parts.length > 1) ? parts[1] : "";
@@ -1443,7 +1448,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         }
         var codeText = statusTextForCode(result);
         if (codeText) { setStatus(win, codeText); return; }
-        if (result.indexOf("ERR") === 0) { setStatus(win, L('status.err') + ": " + result.substring(4)); return; }
+        if (result.indexOf("ERR") === 0) { setStatus(win, errorStatusText(result)); return; }
         setStatus(win, result);
     }
 
@@ -1485,10 +1490,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      */
     function runWorkerTask(win, entryCall, doneKey) {
         if (isBusy) { return null; }
+        var result;
         isBusy = true;
-        setStatus(win, L('status.busy'));
-        var result = callWorkerSafely(entryCall);
-        isBusy = false;
+        try {
+            setStatus(win, L('status.busy'));
+            result = callWorkerSafely(entryCall);
+        } finally {
+            // 例外で抜けても必ず戻す（立ちっぱなしだと以降のボタンが黙って無反応になる）
+            isBusy = false;
+        }
         applyResultToStatus(win, result, doneKey);
         return result;
     }
@@ -1567,17 +1577,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      */
     function refreshSelectedNote(win, keepStatus) {
         if (isBusy) return;
+        var result;
         isBusy = true;
-        var result = callWorkerSafely("workerInspectSelection(" + argBool(HANDLE_JP) + ");", INSPECT_FUNCS);
-        isBusy = false;
-        win.noteList.removeAll();
+        try {
+            result = callWorkerSafely("workerInspectSelection(" + argBool(HANDLE_JP) + ");", INSPECT_FUNCS);
+        } finally {
+            isBusy = false;
+        }
         if (result != null && result.indexOf("NOTE:") === 0) {
+            // 一覧の作り直し（removeAll）は populateNoteList 側で行う
             populateNoteList(win, result.substring(5));
             if (!keepStatus) { setStatus(win, L('status.memoLoaded')); }
             return;
         }
+        win.noteList.removeAll();
         if (keepStatus) { return; }
-        setStatus(win, statusTextForCode(result) || L('status.err'));
+        setStatus(win, statusTextForCode(result) || errorStatusText(result));
     }
 
     /* パレットを閉じるときの後始末：読み込んだアクションを解放 */
