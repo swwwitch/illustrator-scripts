@@ -113,16 +113,23 @@ Arrow buttons:
 
 ### Script info
 
-- Version: v1.2.0
+- Version: v1.2.1
 
 ### Changelog
 
-- v1.2.0 (20260901)
-	- Add a Division & Edge Guides panel: None / Cross / Custom, with rows, columns, gutters and an extension
-	- Add Artboard Edges, drawing guides on the four edges of the artboard
-	- Rework the panels: Measurement Options and Destination are merged into Options, and Margin Guide is renamed Margin
+- v1.2.1 (20260901)
+	- Rework the panels: Measurement Options and Destination are merged into Options, Margin Guide becomes Margin, and Division Guides becomes Division & Edge Guides
 	- Drop Keep Guides — the guides now always stay when the palette closes
-	- Drop the bleed field; the amount comes from `BLEED_MM` at the top of the script
+	- Drop the bleed field; the amount comes from `BLEED_MM` at the top of the script (3 mm by default)
+	- Remember where the palette was closed and reopen it there
+	- Move Extension below Artboard Edges and give it a starting value per ruler unit (10 for mm, 20 for px, …)
+	- Show the division unit in the panel title instead of beside each field
+	- Rename Rows / Columns fields and Align per Artboard to Per Artboard
+	- Report "Moved." for the outer buttons and settle on "artboard edge" throughout
+	- Add tooltips to the Margin and Division & Edge Guides panels, and correct the ones that no longer matched
+- v1.2.0 (20260901)
+	- Add a Division Guides panel: None / Cross / Custom, with rows, columns, gutters and an extension
+	- Add Artboard Edges, drawing guides on the four edges of the artboard
 	- Fold every button into the 3×3 grid: drop the row of seven align icons, put Align Center on Both Axes in the middle and Horizontal / Vertical Center below it
 	- Give the eight outer buttons the bleed stop, Change Justification, and the temporary grouping of a multiple selection
 	- Option-click on the three centred buttons now centres inside the margin
