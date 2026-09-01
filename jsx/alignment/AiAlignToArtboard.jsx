@@ -7,14 +7,15 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 ### 概要
 
 選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。
-整列アイコンと8方向の移動ボタンがあり、押すたびにマージン・アートボードの端・裁ち落としへと寄せ先が進みます。
+3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードの端・裁ち落としへと寄せ先が進みます。マージンや分割のガイドも引けます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 A persistent palette that aligns the selected objects to the artboard.
-It offers align icons and eight move buttons, and each press steps the destination outwards: the margin, the artboard edge, then the bleed.
+A 3x3 grid of buttons moves the selection in eight directions, stepping the destination outwards on each
+press: the guide, the artboard edge, then the bleed. It also draws margin and division guides.
 
 See the README for details.
 
@@ -24,7 +25,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboard";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
@@ -75,23 +76,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         // 定規の単位 / Ruler units
         // =========================================
         /* rulerType の単位コード→ラベルと pt 換算係数 / Unit code to label and points-per-unit */
-        /* defaultMargin はマージン欄の初期値。換算値ではなく、その単位で扱いやすい丸めた数にする
-           defaultMargin is the initial margin: a round number that reads well in that unit, not a conversion */
+        /* defaultMargin はマージン欄、defaultExtension は伸張欄の初期値
+           どちらも換算値ではなく、その単位で扱いやすい丸めた数にする
+           defaultMargin and defaultExtension are the initial margin and extension: round numbers that
+           read well in that unit, not conversions */
         var UNIT_INFO = {
-            "0":  { label: "in",    points: 72.0,                      defaultMargin: 0.25 },
-            "1":  { label: "mm",    points: 72.0 / 25.4,               defaultMargin: 5 },
-            "2":  { label: "pt",    points: 1.0,                       defaultMargin: 20 },
-            "3":  { label: "pica",  points: 12.0,                      defaultMargin: 1.5 },
-            "4":  { label: "cm",    points: 72.0 / 2.54,               defaultMargin: 0.5 },
-            "5":  { label: "Q/H",   points: (72.0 / 25.4) * 0.25,      defaultMargin: 20 },
-            "6":  { label: "px",    points: 1.0,                       defaultMargin: 20 },
-            "7":  { label: "ft/in", points: 864.0,                     defaultMargin: 0.02 },
-            "8":  { label: "m",     points: (72.0 / 25.4) * 1000.0,    defaultMargin: 0.005 },
-            "9":  { label: "yd",    points: 2592.0,                    defaultMargin: 0.006 },
-            "10": { label: "ft",    points: 864.0,                     defaultMargin: 0.02 }
+            "0":  { label: "in",    points: 72.0,                      defaultMargin: 0.25,  defaultExtension: 0.5 },
+            "1":  { label: "mm",    points: 72.0 / 25.4,               defaultMargin: 5,     defaultExtension: 10 },
+            "2":  { label: "pt",    points: 1.0,                       defaultMargin: 20,    defaultExtension: 20 },
+            "3":  { label: "pica",  points: 12.0,                      defaultMargin: 1.5,   defaultExtension: 2 },
+            "4":  { label: "cm",    points: 72.0 / 2.54,               defaultMargin: 0.5,   defaultExtension: 1 },
+            "5":  { label: "Q/H",   points: (72.0 / 25.4) * 0.25,      defaultMargin: 20,    defaultExtension: 40 },
+            "6":  { label: "px",    points: 1.0,                       defaultMargin: 20,    defaultExtension: 20 },
+            "7":  { label: "ft/in", points: 864.0,                     defaultMargin: 0.02,  defaultExtension: 0.04 },
+            "8":  { label: "m",     points: (72.0 / 25.4) * 1000.0,    defaultMargin: 0.005, defaultExtension: 0.01 },
+            "9":  { label: "yd",    points: 2592.0,                    defaultMargin: 0.006, defaultExtension: 0.012 },
+            "10": { label: "ft",    points: 864.0,                     defaultMargin: 0.02,  defaultExtension: 0.04 }
         };
         /* 単位が取れないときの既定 / Fallback when the ruler unit cannot be read */
-        var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0, defaultMargin: 20 };
+        var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0, defaultMargin: 20, defaultExtension: 20 };
 
         // =========================================
         // ユーザー設定 / User settings
@@ -115,6 +118,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var BLEED_UNIT_POINTS = 72.0 / 25.4;
         var DEFAULT_SHOW_GUIDE           = false; /* ガイドを追加 / add the margin guide */
         var DEFAULT_KEEP_GUIDE           = false; /* ガイドを保持（閉じても残す）/ keep the guide when the palette closes */
+        /* 分割ガイドの初期状態。行・列はマージンの内側をいくつに分けるかで、1 のときはガイドを引かない
+           行間・列間・伸張は定規の単位で扱う（伸張はアートボードの外へ伸ばす距離）
+           Division guides: rows and columns split the area inside the margin, so 1 draws no guide;
+           the gutters and the extension are in ruler units, the extension reaching outside the artboard */
+        var DEFAULT_DIVIDE_MODE          = "none";
+        var DEFAULT_ARTBOARD_EDGE        = false; /* アートボードのエッジにガイドを引く / draw guides on the artboard edges */
+        /* 伸張の初期値は単位ごとに決まるので、ここには持たない（UNIT_INFO の defaultExtension を使う）
+           The extension's default comes from the unit, so it is not listed here */
+        var DEFAULT_DIVIDE_VALUES        = { rows: 1, columns: 2, rowGutter: 0, columnGutter: 0 };
+        /* ［十字］の行数・列数（縦横とも2等分＝中央に十字のガイドが1本ずつ）
+           "Cross" halves both directions, leaving one guide on each axis through the centre */
+        var CROSS_DIVIDE_COUNTS          = { rows: 2, columns: 2 };
+        /* 行数・列数の上限（大きな値でガイドを何千本も作らないための歯止め）/ Cap on the counts, so a large number cannot flood the document */
+        var DIVIDE_COUNT_MAX             = 100;
 
         /* マージンのガイドを作るレイヤー名（他のガイド系スクリプトと共通）
            Layer that receives the margin guide, shared with the other guide scripts */
@@ -122,6 +139,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /* このスクリプトが作るガイドの名前。張り替えるときの目印にする
            The name given to the guide, used to find and replace it */
         var GUIDE_NAME = "AiAlignToArtboard-margin";
+        /* 分割ガイドの名前。マージンのガイドと分けて、片方だけ張り替えられるようにする
+           The name given to the division guides, kept apart from the margin guide */
+        var DIVIDE_GUIDE_NAME = "AiAlignToArtboard-divide";
 
         /* 常駐エンジン（$.global）に控える値のキー
            ガイドの設定はパレットを開き直しても引き継ぐ（［ガイドを保持］で残したガイドを、
@@ -156,9 +176,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var WINDOW_SPACING  = 12;   /* パレット内の要素間隔 / window spacing */
         var ICON_SIZE       = 30;   /* 整列アイコン1個の大きさ（px）/ size of each align icon (px) */
         var ICON_GAP        = 6;    /* 整列アイコンどうしの間隔 / gap between align icons */
-        var ICON_GROUP_GAP  = 14;   /* 水平・中央・垂直の3グループの間隔 / gap between the three icon groups */
+        var RADIO_GAP       = 14;   /* ラジオボタンどうしの間隔 / gap between the radio buttons */
         var CROSS_GAP       = 2;    /* 移動ボタン（十字）どうしの間隔 / gap between the move buttons */
-        var ICON_ROW_BOTTOM = 10;   /* ボタンエリアの下の余白 / margin below the icon row */
+        var CENTER_ROW_TOP  = 8;    /* 十字と中央揃えボタンの間隔 / gap between the cross and the centre-align buttons */
         var PANEL_MARGINS   = [12, 16, 12, 10]; /* オプションパネルの余白 [左,上,右,下]（上はタイトルのぶん広め）/ options panel margins */
         var COLUMN_SPACING  = 18;   /* 方向ボタンの十字と計測オプションのパネルの間隔 / gap between the move-button cross and the options panel */
         var FIELD_CHARS     = 3;    /* マージン入力欄の文字数 / width of the margin field */
@@ -166,6 +186,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /* マージン欄を3×3に並べるときの1セルの幅（日英で文字数が違うので分ける）
            Width of one cell in the 3x3 margin grid; the labels differ in length by language */
         var MARGIN_CELL_WIDTH = { ja: 70, en: 84 };
+        /* 分割ガイドの項目名の幅。右そろえにして数値欄の頭をそろえる（日英で文字数が違うので分ける）
+           Width of the division labels; right-aligned so the fields line up, and the labels differ by language */
+        var DIVIDE_LABEL_WIDTH        = { ja: 40, en: 72 };
+        var DIVIDE_GUTTER_LABEL_WIDTH = { ja: 40, en: 52 };
+        /* 単位ラベルの幅（定規の単位が変わっても欄の位置が動かないよう固定）
+           Fixed width for the unit labels, so the fields stay put when the ruler unit changes */
+        var UNIT_LABEL_WIDTH          = 28;
         var STATUS_WIDTH    = 260;  /* 状況表示の幅（中身でパレット幅が変わらないよう固定）/ fixed width of the status line */
         var OPTION_SPACING  = 4;    /* オプションのチェックボックスどうしの間隔 / gap between the option checkboxes */
 
@@ -181,13 +208,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var ICON_RULE_INSET     = 0.12;  /* 基準線の端の余白 / inset at both ends of the reference rule */
         var ICON_RULE_OFFSET    = 0.17;  /* 端に置く基準線の位置 / position of the rule when it sits at an edge */
         var ICON_RULE_CLEARANCE = 0.05;  /* 端の基準線とバーのすき間（中央の基準線はバーの下を通す）/ gap between an edge rule and the bars (a center rule runs behind them) */
-        var ICON_BLOCK_WIDTH    = 0.38;  /* 中央揃えアイコンの中央に置くオブジェクトの幅 / width of the object block in the center icon */
-        var ICON_BLOCK_HEIGHT   = 0.30;  /* 同・高さ / height of that block */
-        var ICON_LINE_WIDTH     = 1;     /* 白抜きアイコンの線幅（px。比率ではない）/ stroke width of the knocked-out icons (px, not a ratio) */
-        var ICON_ARROW_TIP      = 0.32;  /* 中心から矢印の先端までの距離 / distance from the center to the arrow tip */
-        var ICON_ARROW_SHAFT    = 0.11;  /* 矢印の軸の半分の太さ / half thickness of the arrow shaft */
-        var ICON_ARROW_HEAD     = 0.27;  /* 矢じりの半分の高さ / half height of the arrowhead */
-        var ICON_ARROW_HEAD_LEN = 0.34;  /* 矢じりの長さ（先端から付け根まで）/ length of the arrowhead, from the tip to its base */
+        /* アイコンに置くオブジェクトの大きさ。どのアイコンも同じ横長の長方形にする
+           The object block: every icon uses the same landscape rectangle */
+        var ICON_BLOCK_WIDTH    = 0.38;  /* オブジェクトの幅 / width of the object block */
+        var ICON_BLOCK_HEIGHT   = 0.30;  /* オブジェクトの高さ / height of the object block */
 
         // =========================================
         // ローカライズ / Localization
@@ -210,6 +234,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             },
             panel: {
                 guide:       { ja: "マージンガイド", en: "Margin Guide" },
+                divide:      { ja: "分割ガイド", en: "Division Guides" },
                 options:     { ja: "計測オプション", en: "Measurement Options" },
                 destination: { ja: "整列オプション", en: "Align Options" }
             },
@@ -217,7 +242,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 top:    { ja: "上", en: "Top" },
                 bottom: { ja: "下", en: "Bottom" },
                 left:   { ja: "左", en: "Left" },
-                right:  { ja: "右", en: "Right" }
+                right:  { ja: "右", en: "Right" },
+                rows:         { ja: "行", en: "Rows" },
+                columns:      { ja: "列", en: "Columns" },
+                rowGutter:    { ja: "行間", en: "Gutter" },
+                columnGutter: { ja: "列間", en: "Gutter" },
+                extension:    { ja: "伸張", en: "Extension" }
             },
             direction: {
                 up:        { ja: "上", en: "Up" },
@@ -230,13 +260,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 downRight: { ja: "右下", en: "Bottom right" }
             },
             tooltip: {
-                alignLeft:      { ja: "水平方向左に整列", en: "Horizontal Align Left" },
                 alignCenterH:   { ja: "水平方向中央に整列", en: "Horizontal Align Center" },
-                alignRight:     { ja: "水平方向右に整列", en: "Horizontal Align Right" },
-                alignCenterAll: { ja: "水平・垂直方向中央に整列", en: "Align Center on Both Axes" },
-                alignTop:       { ja: "垂直方向上に整列", en: "Vertical Align Top" },
                 alignCenterV:   { ja: "垂直方向中央に整列", en: "Vertical Align Center" },
-                alignBottom:    { ja: "垂直方向下に整列", en: "Vertical Align Bottom" },
+                alignCenterAll: { ja: "水平・垂直方向中央に整列", en: "Align Center on Both Axes" },
                 margin: { ja: "アートボードの端から空ける距離", en: "Distance to keep from the artboard edge" },
                 linkMargins: {
                     ja: "上下左右のマージンを同じ値にする（どれかを変えると残りもそろえる）",
@@ -251,8 +277,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     en: "Align each object to the artboard it sits on (off: everything goes to a single artboard)"
                 },
                 moveToEdge: {
-                    ja: "その方向のガイド、無ければアートボードの端へ移動（↑↓←→キーでも実行）",
-                    en: "Move to the guide in that direction, or the artboard edge (the arrow keys do the same)"
+                    ja: "その方向のガイド → アートボードの端 → 裁ち落とし の順に寄せる（↑↓←→キーでも実行）",
+                    en: "Step to the guide in that direction, then the artboard edge, then the bleed (the arrow keys do the same)"
                 },
                 keepGuide: {
                     ja: "パレットを閉じてもガイドを残す（OFFのときは閉じるときに削除）",
@@ -262,7 +288,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     ja: "マージンの位置に長方形のガイドを作る（「_guide」レイヤー、アクティブなアートボードに1つ）",
                     en: "Draw a rectangle guide at the margin (on the \"_guide\" layer, one on the active artboard)"
                 },
+                divideNone: {
+                    ja: "分割のガイドを引かない",
+                    en: "Draw no division guides"
+                },
+                divideCross: {
+                    ja: "マージンの内側の中央に、縦横1本ずつの十字のガイドを引く",
+                    en: "Draw a cross through the centre of the area inside the margin"
+                },
+                divideCustom: {
+                    ja: "横方向・縦方向それぞれの分割数で、マージンの内側を等分するガイドを引く",
+                    en: "Split the area inside the margin into the number of columns and rows below"
+                },
+                divideRows: {
+                    ja: "マージンの内側を上下に何段に分けるか（1のときはガイドを引かない）",
+                    en: "How many rows to split the area inside the margin into (1 draws no guide)"
+                },
+                divideColumns: {
+                    ja: "マージンの内側を左右に何列に分けるか（1のときはガイドを引かない）",
+                    en: "How many columns to split the area inside the margin into (1 draws no guide)"
+                },
+                divideRowGutter: {
+                    ja: "行と行のあいだに空ける距離（0より大きいと、段の上下2本のガイドを引く）",
+                    en: "Space between two rows; above zero, each split gets a guide on both sides"
+                },
+                divideColumnGutter: {
+                    ja: "列と列のあいだに空ける距離（0より大きいと、列の左右2本のガイドを引く）",
+                    en: "Space between two columns; above zero, each split gets a guide on both sides"
+                },
+                divideExtension: {
+                    ja: "分割のガイドをアートボードの外へ伸ばす距離",
+                    en: "Distance the division guides reach outside the artboard"
+                },
+                artboardEdge: {
+                    ja: "アートボードの上下左右4辺にガイドを引く（伸張のぶんだけ外へ伸ばす）",
+                    en: "Draw guides on the four edges of the artboard, reaching outside by the extension"
+                },
                 optionGlyphBounds: { ja: "Option＋クリックで字形の境界に整列", en: "Option-click to align to glyph bounds" },
+                optionMarginCenter: {
+                    ja: "Option＋クリックでマージンの内側の中央に整列（通常はアートボードの中央）",
+                    en: "Option-click to centre inside the margin instead of the artboard"
+                },
                 optionNoMargin: {
                     ja: "Option＋クリックでマージンなし・字形の境界に整列",
                     en: "Option-click: ignore the margin, align to glyph bounds"
@@ -280,9 +346,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     en: "Match the justification of a lone single-line text object to the horizontal alignment"
                 }
             },
+            radio: {
+                divideNone:   { ja: "なし", en: "None" },
+                divideCross:  { ja: "十字", en: "Cross" },
+                divideCustom: { ja: "カスタム", en: "Custom" }
+            },
             checkbox: {
                 showGuide:     { ja: "ガイドを追加", en: "Add Guides" },
                 keepGuide:     { ja: "ガイドを保持", en: "Keep Guides" },
+                artboardEdge:  { ja: "アートボードのエッジ", en: "Artboard Edges" },
                 linkMargins:   { ja: "連動", en: "Link" },
                 previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" },
                 glyphBounds:   { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
@@ -295,6 +367,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 moved:          { ja: "移動しました。", en: "Moved." },
                 noBounds:       { ja: "境界を取得できません。", en: "Could not measure the selection." },
                 doneJustified:  { ja: "整列し、行揃えを{0}に変更しました。", en: "Aligned; justification set to {0}." },
+                movedJustified: { ja: "移動し、行揃えを{0}に変更しました。", en: "Moved; justification set to {0}." },
                 noDocument:     { ja: "ドキュメントが開かれていません。", en: "No document is open." },
                 noSelection:    { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
                 multipleLayers: { ja: "レイヤーをまたぐ選択は整列できません。", en: "Cannot align a selection spanning layers." },
@@ -518,6 +591,92 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
+         * アイコンの中心線の座標を返す（ケイ線もオブジェクトもここを中心に置く）
+         * 太さ1のケイ線がピクセル境界に乗るよう、中心は .5 の位置に取る
+         * @param {number} size - アイコンの一辺の長さ
+         * @returns {number} 中心の座標
+         */
+        function getIconCenter(size) {
+            return Math.round(size / 2) + 0.5;
+        }
+
+        /**
+         * 辺の長さを奇数に丸める
+         * 中心が .5 の位置にあるので、奇数にすると両側が同じ幅で割り振られ、中心がぴったり合う
+         * @param {number} value - 丸める前の長さ
+         * @returns {number} 奇数の長さ
+         */
+        function roundToOddLength(value) {
+            var rounded = Math.round(value);
+            if (rounded % 2 !== 0) { return rounded; }
+            return (rounded > 1) ? rounded - 1 : 1;
+        }
+
+        /**
+         * アイコンに置くオブジェクトの大きさを求める（どのアイコンも同じ長方形）
+         * @param {number} size - アイコンの一辺の長さ
+         * @returns {number[]} [幅, 高さ]
+         */
+        function getBlockSize(size) {
+            return [roundToOddLength(size * ICON_BLOCK_WIDTH), roundToOddLength(size * ICON_BLOCK_HEIGHT)];
+        }
+
+        /**
+         * 端のケイ線（寄せ先を表す線）を1本描く
+         * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
+         * @param {number} size - アイコンの一辺の長さ
+         * @param {string} side - "top" / "bottom" / "left" / "right"
+         * @param {number[]} color - RGBA の配列
+         * @returns {number} 引いたケイ線の座標
+         */
+        function drawEdgeRule(graphics, size, side, color) {
+            var ruleInset = Math.round(size * ICON_RULE_INSET);
+            var ruleLength = size - ruleInset * 2;
+            var isTopOrLeft = (side === "top" || side === "left");
+            var rulePosition = getRulePosition(size, isTopOrLeft ? "start" : "end");
+            if (side === "top" || side === "bottom") {
+                fillRect(graphics, ruleInset, rulePosition - 0.5, ruleLength, 1, color);
+            } else {
+                fillRect(graphics, rulePosition - 0.5, ruleInset, 1, ruleLength, color);
+            }
+            return rulePosition;
+        }
+
+        /**
+         * アイコンの中央を貫くケイ線を1本描く
+         * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
+         * @param {number} size - アイコンの一辺の長さ
+         * @param {string} ruleDirection - "vertical"＝縦のケイ線 / "horizontal"＝横のケイ線
+         * @param {number[]} color - RGBA の配列
+         * @returns {void}
+         */
+        function drawCenterRule(graphics, size, ruleDirection, color) {
+            var ruleInset = Math.round(size * ICON_RULE_INSET);
+            var ruleLength = size - ruleInset * 2;
+            var center = getIconCenter(size);
+            if (ruleDirection === "vertical") {
+                fillRect(graphics, center - 0.5, ruleInset, 1, ruleLength, color);
+            } else {
+                fillRect(graphics, ruleInset, center - 0.5, ruleLength, 1, color);
+            }
+        }
+
+        /**
+         * オブジェクトをアイコンの中央に置く
+         * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
+         * @param {number} size - アイコンの一辺の長さ
+         * @param {number[]} blockSize - [幅, 高さ]
+         * @param {number[]} color - RGBA の配列
+         * @returns {void}
+         */
+        function fillCenteredBlock(graphics, size, blockSize, color) {
+            var center = getIconCenter(size);
+            fillRect(graphics,
+                center - blockSize[0] / 2, center - blockSize[1] / 2,
+                blockSize[0], blockSize[1], color);
+        }
+
+        /**
          * 水平・垂直の中央に整列するアイコン（十字のケイ線＋中央に置いたオブジェクト）を描く
          * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
          * @param {number} size - アイコンの一辺の長さ
@@ -525,66 +684,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * @returns {void}
          */
         function drawCenterBothIcon(graphics, size, color) {
-            /* ケイ線は他のアイコンの基準線と同じ太さ・長さにそろえる / Match the rules in the other icons */
-            var ruleInset = Math.round(size * ICON_RULE_INSET);
-            var ruleLength = size - ruleInset * 2;
-            var center = Math.round(size / 2) + 0.5;
-            fillRect(graphics, center - 0.5, ruleInset, 1, ruleLength, color);
-            fillRect(graphics, ruleInset, center - 0.5, ruleLength, 1, color);
-
-            /* 中央のオブジェクトはケイ線の上に重ねる / The block sits on top of the rules */
-            var blockWidth = Math.round(size * ICON_BLOCK_WIDTH);
-            var blockHeight = Math.round(size * ICON_BLOCK_HEIGHT);
-            fillRect(graphics,
-                Math.round(center - blockWidth / 2), Math.round(center - blockHeight / 2),
-                blockWidth, blockHeight, color);
+            /* ケイ線を先に描き、オブジェクトを上に重ねる（ケイ線がオブジェクトの下を通って見える）
+               Draw the rules first and the block on top, so they run behind it */
+            drawCenterRule(graphics, size, "vertical", color);
+            drawCenterRule(graphics, size, "horizontal", color);
+            fillCenteredBlock(graphics, size, getBlockSize(size), color);
         }
 
         /**
-         * 右向き矢印の1点を、方向に合わせて回転する
-         * @param {string} directionKey - MOVE_ARROW_ANGLE のキー
-         * @param {number} x - 回転前のX
-         * @param {number} y - 回転前のY
-         * @returns {number[]} 回転後の [x, y]
-         */
-        function transformArrowPoint(directionKey, x, y) {
-            var radians = (MOVE_ARROW_ANGLE[directionKey] || 0) * Math.PI / 180;
-            var cosine = Math.cos(radians);
-            var sine = Math.sin(radians);
-            return [x * cosine - y * sine, x * sine + y * cosine];
-        }
-
-        /**
-         * 方向の矢印を白抜き（輪郭線だけ）で描く
+         * 片方の軸だけ中央に整列するアイコン（中央を貫くケイ線1本＋オブジェクト）を描く
+         * 水平方向中央は縦のケイ線、垂直方向中央は横のケイ線で見分ける
          * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
-         * @param {string} directionKey - MOVE_ARROW_ANGLE のキー
-         * @param {number} size - ボタンの一辺
-         * @param {number[]} color - 線の RGBA
+         * @param {number} size - アイコンの一辺の長さ
+         * @param {string} iconType - "horizontal" または "vertical"
+         * @param {number[]} color - RGBA の配列
          * @returns {void}
          */
-        function drawArrow(graphics, directionKey, size, color) {
-            var tip = size * ICON_ARROW_TIP;
-            var shaft = size * ICON_ARROW_SHAFT;
-            var headHalf = size * ICON_ARROW_HEAD;
-            var headBase = tip - size * ICON_ARROW_HEAD_LEN; /* 矢じりの付け根（先端から手前へ）/ base of the arrowhead, back from the tip */
-            var basePoints = [
-                [-tip, -shaft], [headBase, -shaft], [headBase, -headHalf],
-                [tip, 0],
-                [headBase, headHalf], [headBase, shaft], [-tip, shaft]
-            ];
-            var center = size / 2;
+        function drawCenterOneIcon(graphics, size, iconType, color) {
+            drawCenterRule(graphics, size, (iconType === "horizontal") ? "vertical" : "horizontal", color);
+            fillCenteredBlock(graphics, size, getBlockSize(size), color);
+        }
 
-            graphics.newPath();
-            for (var i = 0; i < basePoints.length; i++) {
-                var point = transformArrowPoint(directionKey, basePoints[i][0], basePoints[i][1]);
-                if (i === 0) {
-                    graphics.moveTo(center + point[0], center + point[1]);
-                } else {
-                    graphics.lineTo(center + point[0], center + point[1]);
-                }
+        /**
+         * 方向ボタンのアイコン（寄せ先のケイ線と、そこへ寄せたオブジェクト）を描く
+         * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
+         * @param {string} directionKey - MOVE_ICON_RULES のキー
+         * @param {number} size - ボタンの一辺
+         * @param {number[]} color - RGBA の配列
+         * @returns {void}
+         */
+        function drawMoveIcon(graphics, directionKey, size, color) {
+            var rules, blockSize, clearance, center, blockX, blockY, side, rulePosition, i;
+            rules = MOVE_ICON_RULES[directionKey];
+            if (!rules) { return; }
+            blockSize = getBlockSize(size);
+            clearance = Math.round(size * ICON_RULE_CLEARANCE);
+            center = getIconCenter(size);
+            /* ケイ線のない軸では中央に置く / Centred on any axis without a rule */
+            blockX = center - blockSize[0] / 2;
+            blockY = center - blockSize[1] / 2;
+
+            for (i = 0; i < rules.length; i++) {
+                side = rules[i];
+                rulePosition = drawEdgeRule(graphics, size, side, color);
+                /* ケイ線は太さ1なので、その端から数えてすき間を取る / The rule is 1 unit thick, so measure from its edge */
+                if (side === "top")    { blockY = rulePosition + 0.5 + clearance; }
+                if (side === "bottom") { blockY = rulePosition - 0.5 - clearance - blockSize[1]; }
+                if (side === "left")   { blockX = rulePosition + 0.5 + clearance; }
+                if (side === "right")  { blockX = rulePosition - 0.5 - clearance - blockSize[0]; }
             }
-            graphics.closePath();
-            graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, color, ICON_LINE_WIDTH));
+
+            fillRect(graphics, blockX, blockY, blockSize[0], blockSize[1], color);
         }
 
         /**
@@ -633,19 +783,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             drawButtonBase(button);
             if (button.iconType === "center") {
                 drawCenterBothIcon(button.graphics, button.size[0], iconColor);
+            } else if (button.alignMode === "center") {
+                drawCenterOneIcon(button.graphics, button.size[0], button.iconType, iconColor);
             } else {
                 drawAlignIcon(button.graphics, button.size[0], button.alignMode, iconColor, button.iconType);
             }
         }
 
         /**
-         * 移動ボタン（方向の矢印）を描画する
+         * 移動ボタン（寄せ先のケイ線とオブジェクト）を描画する
          * @param {Button} button - 対象のボタン（directionKey を持つ）
          * @returns {void}
          */
         function drawMoveButton(button) {
             drawButtonBase(button);
-            drawArrow(button.graphics, button.directionKey, button.size[0], iconColor);
+            drawMoveIcon(button.graphics, button.directionKey, button.size[0], iconColor);
         }
 
         // =========================================
@@ -776,46 +928,89 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /* マージン欄がまだ既定値のままか。定規の単位が分かった時点で、その単位の既定値に入れ直す
            Whether the margin fields still hold defaults; they are refilled once the ruler unit is known */
         var marginsAreDefault = false;
+        /* 伸張欄がまだ既定値のままか。マージン欄と同じく、定規の単位が分かった時点でその単位の既定値に入れ直す
+           Whether the extension field still holds a default; like the margins, it is refilled once the ruler unit is known */
+        var extensionIsDefault = false;
         var bleedField = null;
         var alignToBleedCheckbox = null;
         var alignPerArtboardCheckbox = null;
         var showGuideCheckbox = null;
         var keepGuideCheckbox = null;
+        /* 分割ガイドの切り替えラジオと分割数の入力欄（どちらも軸・モードの名前をキーにする）
+           The division mode radios and count fields, keyed by mode and axis */
+        var divideRadios = {};
+        var divideFields = {};
+        /* 分割ガイドの間隔・伸張に添える単位ラベル（定規の単位が変わったら書き換える）
+           The unit labels beside the gutter and extension fields, rewritten when the ruler unit changes */
+        var divideUnitLabels = [];
+        var artboardEdgeCheckbox = null;
         /* パレットを閉じてもガイドを残すか。閉じる処理でコントロールを触らずに済むよう値を控えておく
            Whether to keep the guide on close; mirrored so teardown never has to read a control */
         var keepGuideOnClose = DEFAULT_KEEP_GUIDE;
+        /* パレットを組み立て終えたか。組み立てのあいだは控えを書かない
+           （まだ作っていないコントロールを既定値として読み、引き継いだ設定を消してしまうため）
+           Whether the palette is fully built; settings are not stored until it is, or controls that do not
+           exist yet would be read as defaults and wipe the carried-over settings */
+        var isPaletteReady = false;
         /* 現在の定規単位（パレットへフォーカスが来るたびに取り直す）/ The current ruler unit, re-read on focus */
         var currentUnitInfo = FALLBACK_UNIT_INFO;
         /* 状況表示の参照 / The status line */
         var statusText = null;
 
-        /* 整列アイコンの定義（グループが変わるところで区切る）/ Align icon definitions, grouped as they appear in the row */
-        var ALIGN_BUTTON_GROUPS = [
-            [
-                { iconType: "horizontal", alignMode: "start",  tooltip: "alignLeft",    alignKeys: ["horizontalLeft"] },
-                { iconType: "horizontal", alignMode: "center", tooltip: "alignCenterH", alignKeys: ["horizontalCenter"] },
-                { iconType: "horizontal", alignMode: "end",    tooltip: "alignRight",   alignKeys: ["horizontalRight"] }
-            ],
-            [
-                { iconType: "center", alignMode: "center", tooltip: "alignCenterAll", alignKeys: ["horizontalCenter", "verticalCenter"] }
-            ],
-            [
-                { iconType: "vertical", alignMode: "start",  tooltip: "alignTop",      alignKeys: ["verticalTop"] },
-                { iconType: "vertical", alignMode: "center", tooltip: "alignCenterV",  alignKeys: ["verticalCenter"] },
-                { iconType: "vertical", alignMode: "end",    tooltip: "alignBottom",   alignKeys: ["verticalBottom"] }
-            ]
+        /* 水平・垂直方向中央に整列するボタンの定義。移動ボタンの十字の中央に置く
+           The centre-on-both-axes button; it sits in the middle of the move-button cross */
+        var CENTER_ALIGN_BUTTON = { iconType: "center", alignMode: "center", tooltip: "alignCenterAll", alignKeys: ["horizontalCenter", "verticalCenter"] };
+
+        /* 片方の軸だけ中央に整列するボタン2つ。十字の下に横に並べる
+           The two single-axis centre buttons, in a row below the cross */
+        var CENTER_ALIGN_BUTTONS = [
+            { iconType: "horizontal", alignMode: "center", tooltip: "alignCenterH", alignKeys: ["horizontalCenter"] },
+            { iconType: "vertical",   alignMode: "center", tooltip: "alignCenterV", alignKeys: ["verticalCenter"] }
         ];
 
-        /* 移動ボタンの並び（"" は位置合わせの空セル）
-           Layout of the move buttons ("" is an empty cell that keeps the alignment) */
+        /* ショートカットから引くためのボタン定義の一覧
+           端に寄せる整列は十字の外周ボタンが受け持つので、整列ボタンは中央揃えの3つだけになる
+           Every align button definition in one list; the cross handles the edge alignments, so only the
+           three centred buttons remain */
+        var ALL_ALIGN_BUTTONS = CENTER_ALIGN_BUTTONS.concat([CENTER_ALIGN_BUTTON]);
+
+        /* 移動ボタンの並び（中央は移動ではなく、水平・垂直方向中央に整列するボタン）
+           Layout of the move buttons; the middle one aligns on both axes instead of moving */
         var MOVE_BUTTON_ROWS = [
-            ["upLeft",   "up",   "upRight"],
-            ["left",     "",     "right"],
-            ["downLeft", "down", "downRight"]
+            ["upLeft",   "up",     "upRight"],
+            ["left",     "center", "right"],
+            ["downLeft", "down",   "downRight"]
         ];
 
         /* 値を持つ辺（設定の読み書きはこの並びで回す）/ The sides that hold a value */
         var MARGIN_SIDES = ["top", "bottom", "left", "right"];
+
+        /* 分割ガイドの入力欄（設定の読み書きはこの並びで回す。ラベルのキーも兼ねる）
+           The division fields; the settings are read and written in this order, and the keys double as label keys */
+        var DIVIDE_VALUE_KEYS = ["rows", "columns", "rowGutter", "columnGutter", "extension"];
+
+        /* 分割数と、その間隔を横に並べる2行（伸張はこの下に単独で置く）
+           The two rows pairing a count with its gutter; the extension sits below them on its own */
+        var DIVIDE_FIELD_ROWS = [
+            { count: "rows",    gutter: "rowGutter" },
+            { count: "columns", gutter: "columnGutter" }
+        ];
+
+        /* 分割ガイドのモード（ラジオボタンの並び）/ The division modes, in the order the radio buttons appear */
+        var DIVIDE_MODES = [
+            { key: "none",   labelKey: "divideNone" },
+            { key: "cross",  labelKey: "divideCross" },
+            { key: "custom", labelKey: "divideCustom" }
+        ];
+
+        /* 数値欄のツールチップのキー（項目名のキーから引く）/ Tooltip keys, looked up by the field key */
+        var DIVIDE_TOOLTIP_KEYS = {
+            rows:         "divideRows",
+            columns:      "divideColumns",
+            rowGutter:    "divideRowGutter",
+            columnGutter: "divideColumnGutter",
+            extension:    "divideExtension"
+        };
 
         /* マージン欄の並び（3×3、真ん中は連動のチェック、"" は位置合わせの空セル）
            The 3x3 margin grid: the link checkbox sits in the middle, "" is an empty spacer cell */
@@ -838,7 +1033,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             downRight: ["right", "bottom"]
         };
 
-        /* 文字キーで実行する整列（値は ALIGN_BUTTON_GROUPS の tooltip キー）
+        /* 文字キーで実行する整列（値は整列ボタンの定義の tooltip キー）
            C は左右中央（Center）、M は上下中央（Middle）、X は上下左右中央
            The letter keys that run an align: C centres horizontally, M vertically, X on both axes */
         var ALIGN_KEY_SHORTCUTS = { C: "alignCenterH", M: "alignCenterV", X: "alignCenterAll" };
@@ -850,23 +1045,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
            The arrow keys that fire a move button; the diagonals have no key of their own */
         var MOVE_DIRECTION_BY_KEY_NAME = { Up: "up", Left: "left", Right: "right", Down: "down" };
 
-        /* 矢印アイコンの回転角（度）。右向きを0とし、画面座標なので時計回りが正
-           Rotation of the arrow icon in degrees: 0 points right, and clockwise is positive in screen coordinates */
-        var MOVE_ARROW_ANGLE = {
-            up:        -90,
-            left:      180,
-            right:     0,
-            down:      90,
-            upLeft:    -135,
-            upRight:   -45,
-            downLeft:  135,
-            downRight: 45
+        /* 方向ボタンのアイコンで、寄せ先を表すケイ線を引く辺（斜めは2辺）
+           The edges that get a rule in each move-button icon; a diagonal gets two */
+        var MOVE_ICON_RULES = {
+            up:        ["top"],
+            down:      ["bottom"],
+            left:      ["left"],
+            right:     ["right"],
+            upLeft:    ["top", "left"],
+            upRight:   ["top", "right"],
+            downLeft:  ["bottom", "left"],
+            downRight: ["bottom", "right"]
         };
 
         /**
          * 整列アイコンボタンを1つ生成する
          * @param {Group} parentRow - 追加先の行グループ
-         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @param {object} buttonDef - 整列ボタンの定義
          * @returns {void}
          */
         function addAlignButton(parentRow, buttonDef) {
@@ -876,7 +1071,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             fixControlSize(button, ICON_SIZE, ICON_SIZE);
             /* キー操作はラベルに出さず helpTip に書く / Shortcuts belong in the tooltip, not the label */
             button.helpTip = getLabel("tooltip", buttonDef.tooltip) + shortcutSuffix(buttonDef) + "  —  " +
-                getLabel("tooltip", usesMargin(buttonDef) ? "optionNoMargin" : "optionGlyphBounds");
+                getLabel("tooltip", optionTooltipKey(buttonDef));
             button.iconType = buttonDef.iconType;
             button.alignMode = buttonDef.alignMode;
             button.isHover = false;
@@ -887,7 +1082,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * そのボタンに割り当てたショートカットを「（C）」の形で返す（無ければ空文字）
-         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @param {object} buttonDef - 整列ボタンの定義
          * @returns {string} helpTip に添える文字列
          */
         function shortcutSuffix(buttonDef) {
@@ -970,7 +1165,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 整列ボタンを1つ実行する（クリックとショートカットで共通）
-         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @param {object} buttonDef - 整列ボタンの定義
          * @returns {void}
          */
         function runAlignButton(buttonDef) {
@@ -985,46 +1180,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * tooltip キーから整列ボタンの定義を探す
-         * @param {string} tooltipKey - ALIGN_BUTTON_GROUPS の tooltip
+         * @param {string} tooltipKey - 整列ボタンの定義の tooltip
          * @returns {object} 見つかったボタン定義。無ければ null
          */
         function findAlignButtonDef(tooltipKey) {
-            for (var i = 0; i < ALIGN_BUTTON_GROUPS.length; i++) {
-                for (var j = 0; j < ALIGN_BUTTON_GROUPS[i].length; j++) {
-                    if (ALIGN_BUTTON_GROUPS[i][j].tooltip === tooltipKey) { return ALIGN_BUTTON_GROUPS[i][j]; }
-                }
+            for (var i = 0; i < ALL_ALIGN_BUTTONS.length; i++) {
+                if (ALL_ALIGN_BUTTONS[i].tooltip === tooltipKey) { return ALL_ALIGN_BUTTONS[i]; }
             }
             return null;
         }
 
         /**
-         * 整列アイコンの行を組み立てる
-         * @param {Window} targetWindow - 追加先のパレット
-         * @returns {void}
-         */
-        function addAlignButtonRow(targetWindow) {
-            var alignRow = targetWindow.add("group");
-            setupRow(alignRow, "center", ICON_GROUP_GAP);
-            /* 下の2カラムとの間を空ける（ウィンドウの spacing に上乗せ）/ Extra room before the two columns */
-            alignRow.margins = [0, 0, 0, ICON_ROW_BOTTOM];
-            for (var i = 0; i < ALIGN_BUTTON_GROUPS.length; i++) {
-                var iconGroup = alignRow.add("group");
-                setupRow(iconGroup, "left", ICON_GAP);
-                for (var j = 0; j < ALIGN_BUTTON_GROUPS[i].length; j++) {
-                    addAlignButton(iconGroup, ALIGN_BUTTON_GROUPS[i][j]);
-                }
-            }
-        }
-
-        /**
-         * 移動ボタンを1つ生成する（directionKey が空文字なら位置合わせの空セル）
+         * 移動ボタンを1つ生成する（directionKey が "center" なら中央揃えの整列ボタン）
          * @param {Group} parentRow - 追加先の行グループ
-         * @param {string} directionKey - MOVE_SIDES_BY_DIRECTION のキー（"" は空セル）
+         * @param {string} directionKey - MOVE_SIDES_BY_DIRECTION のキー（"center" は十字の中央）
          * @returns {void}
          */
         function addMoveButton(parentRow, directionKey) {
-            if (directionKey === "") {
-                fixControlSize(parentRow.add("statictext", undefined, ""), ICON_SIZE, ICON_SIZE);
+            /* 十字の中央は、整列アイコンの列と同じ「水平・垂直方向中央に整列」にする
+               The middle of the cross is the same centre-on-both-axes align button as in the icon row */
+            if (directionKey === "center") {
+                addAlignButton(parentRow, CENTER_ALIGN_BUTTON);
                 return;
             }
             /* 整列アイコンと同じ理由で iconbutton ではなく button を使う / Same reason as the align icons: button, not iconbutton */
@@ -1100,6 +1276,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     addMoveButton(crossRow, MOVE_BUTTON_ROWS[i][j]);
                 }
             }
+
+            addCenterAlignRow(crossGroup);
+        }
+
+        /**
+         * 十字の下に、片方の軸だけ中央に整列するボタン2つを並べる
+         * @param {Group} crossGroup - 追加先の十字のグループ
+         * @returns {void}
+         */
+        function addCenterAlignRow(crossGroup) {
+            var centerRow = crossGroup.add("group");
+            setupRow(centerRow, "center", CROSS_GAP);
+            /* 十字と続けて見えないよう、上に少し余白を取る / A little room so it does not read as a fourth row of the cross */
+            centerRow.margins = [0, CENTER_ROW_TOP, 0, 0];
+            for (var i = 0; i < CENTER_ALIGN_BUTTONS.length; i++) {
+                addAlignButton(centerRow, CENTER_ALIGN_BUTTONS[i]);
+            }
         }
 
         /**
@@ -1145,8 +1338,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 if (showGuideCheckbox.value === true && linkMarginsCheckbox !== null && linkMarginsCheckbox.value !== true) {
                     linkMarginsCheckbox.value = true;
                     copyMarginToLinkedFields(marginFields.top);
-                    syncMarginFields();
                 }
+                syncMarginFields();
                 syncGuideControls();
                 runExclusive(refreshMarginGuide);
             };
@@ -1193,18 +1386,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * ［連動］の状態に合わせてマージン欄の使える・使えないを切り替える
-         * 連動しているあいだは［上］の1つで4辺が決まるので、ほかはディムにする
+         * ［ガイドを追加］と［連動］の状態に合わせてマージン欄の使える・使えないを切り替える
+         * ガイドを出していないあいだは4辺まとめてディムにし、連動しているあいだは［上］の1つで4辺が決まるので、ほかをディムにする
          * @returns {void}
          */
         function syncMarginFields() {
-            var isLinked, side, i;
+            var addsGuide, isLinked, side, i;
             if (linkMarginsCheckbox === null) { return; }
+            addsGuide = showGuideCheckbox !== null && showGuideCheckbox.value === true;
             isLinked = linkMarginsCheckbox.value === true;
+            linkMarginsCheckbox.enabled = addsGuide;
             for (i = 0; i < MARGIN_SIDES.length; i++) {
                 side = MARGIN_SIDES[i];
                 if (!marginFields[side]) { continue; }
-                marginFields[side].enabled = isLinked ? (side === "top") : true;
+                marginFields[side].enabled = addsGuide && (isLinked ? (side === "top") : true);
             }
         }
 
@@ -1276,6 +1471,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
+         * 伸張欄がまだ既定値のままなら、いまの定規の単位の既定値に入れ直す
+         * @returns {void}
+         */
+        function fillDefaultExtension() {
+            if (!extensionIsDefault || !divideFields.extension) { return; }
+            divideFields.extension.text = String(currentUnitInfo.defaultExtension);
+            savePaletteSettings();
+        }
+
+        /**
          * ［連動］がONのとき、編集した欄の値を残りのマージン欄へ写す
          * @param {EditText} sourceField - 値の元にする入力欄
          * @returns {void}
@@ -1291,20 +1496,196 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * ［ガイドを追加］の状態に合わせて［ガイドを保持］を更新する
+         * 分割ガイドのパネル（なし・十字・カスタムの切り替えと、行・列・行間・列間・伸張）を組み立てる
+         * マージンの内側を等分する位置にガイドを引き、伸張のぶんだけアートボードの外へ伸ばす
+         * @param {Window} targetWindow - 追加先のパレット
+         * @returns {void}
+         */
+        function addDividePanel(targetWindow) {
+            var dividePanel, paletteSettings, extensionRow, i;
+
+            /* 前回の設定を引き継ぐ（残したガイドと表示が食い違わないように）/ Carry over the previous settings */
+            paletteSettings = loadPaletteSettings();
+            extensionIsDefault = paletteSettings.usesDefaultExtension;
+
+            dividePanel = targetWindow.add("panel", undefined, getLabel("panel", "divide"));
+            dividePanel.orientation = "column";
+            dividePanel.alignment = ["fill", "top"];
+            dividePanel.alignChildren = ["left", "top"];
+            dividePanel.margins = PANEL_MARGINS;
+            dividePanel.spacing = OPTION_SPACING;
+
+            addDivideModeRow(dividePanel, paletteSettings);
+            for (i = 0; i < DIVIDE_FIELD_ROWS.length; i++) {
+                addDivideFieldRow(dividePanel, DIVIDE_FIELD_ROWS[i], paletteSettings);
+            }
+
+            /* 伸張は行・列のどちらにも掛かるので、対にせず単独の行に置く
+               The extension applies to both axes, so it sits on its own row instead of pairing off */
+            extensionRow = dividePanel.add("group");
+            setupRow(extensionRow, "left", LABEL_FIELD_SPACING);
+            addDivideField(extensionRow, "extension", paletteSettings, DIVIDE_LABEL_WIDTH[uiLang], true);
+
+            artboardEdgeCheckbox = dividePanel.add("checkbox", undefined, getLabel("checkbox", "artboardEdge"));
+            artboardEdgeCheckbox.helpTip = getLabel("tooltip", "artboardEdge");
+            artboardEdgeCheckbox.value = paletteSettings.artboardEdge;
+            artboardEdgeCheckbox.onClick = function() {
+                syncDivideFields();
+                runExclusive(refreshMarginGuide);
+            };
+
+            syncDivideFields();
+        }
+
+        /**
+         * 分割の仕方を選ぶラジオボタンの行（なし・十字・カスタム）を組み立てる
+         * @param {Panel} dividePanel - 追加先のパネル
+         * @param {object} paletteSettings - 引き継いだ設定
+         * @returns {void}
+         */
+        function addDivideModeRow(dividePanel, paletteSettings) {
+            var modeRow, modeDef, radio, i;
+            modeRow = dividePanel.add("group");
+            setupRow(modeRow, "left", RADIO_GAP);
+            for (i = 0; i < DIVIDE_MODES.length; i++) {
+                modeDef = DIVIDE_MODES[i];
+                radio = modeRow.add("radiobutton", undefined, getLabel("radio", modeDef.labelKey));
+                radio.helpTip = getLabel("tooltip", modeDef.labelKey);
+                radio.value = (modeDef.key === paletteSettings.divideMode);
+                radio.onClick = function() {
+                    syncDivideFields();
+                    runExclusive(refreshMarginGuide);
+                };
+                divideRadios[modeDef.key] = radio;
+            }
+        }
+
+        /**
+         * 分割数と、その間隔を横に並べた1行を組み立てる
+         * @param {Panel} dividePanel - 追加先のパネル
+         * @param {object} rowDef - DIVIDE_FIELD_ROWS の1行
+         * @param {object} paletteSettings - 引き継いだ設定
+         * @returns {void}
+         */
+        function addDivideFieldRow(dividePanel, rowDef, paletteSettings) {
+            var fieldRow = dividePanel.add("group");
+            setupRow(fieldRow, "left", LABEL_FIELD_SPACING);
+            addDivideField(fieldRow, rowDef.count, paletteSettings, DIVIDE_LABEL_WIDTH[uiLang], false);
+            addDivideField(fieldRow, rowDef.gutter, paletteSettings, DIVIDE_GUTTER_LABEL_WIDTH[uiLang], true);
+        }
+
+        /**
+         * 分割ガイドの「項目名＋数値欄」を1組ぶん作る
+         * 項目名は右そろえにして、日英で長さが違っても数値欄の頭がそろうようにする
+         * @param {Group} fieldRow - 追加先の行グループ
+         * @param {string} valueKey - DIVIDE_VALUE_KEYS のキー
+         * @param {object} paletteSettings - 引き継いだ設定
+         * @param {number} labelWidth - 項目名の幅
+         * @param {boolean} hasUnit - 定規の単位ラベルを添えるなら true（分割数は単位を持たない）
+         * @returns {void}
+         */
+        function addDivideField(fieldRow, valueKey, paletteSettings, labelWidth, hasUnit) {
+            var label, field, unitLabel;
+
+            label = fieldRow.add("statictext", undefined, labelText("fieldLabel", valueKey));
+            label.preferredSize.width = labelWidth;
+            label.justify = "right";
+
+            field = fieldRow.add("edittext", undefined, paletteSettings.divideValues[valueKey]);
+            field.characters = FIELD_CHARS;
+            field.helpTip = getLabel("tooltip", DIVIDE_TOOLTIP_KEYS[valueKey]);
+            changeValueByArrowKey(field);
+            /* 確定（Enter・フォーカス移動）でガイドを描き直す / Only redraw the guide when the field commits */
+            field.onChange = function() {
+                /* 一度でも触られたら、単位が変わっても既定値では上書きしない */
+                if (valueKey === "extension") { extensionIsDefault = false; }
+                runExclusive(refreshMarginGuide);
+                savePaletteSettings();
+            };
+            divideFields[valueKey] = field;
+
+            if (!hasUnit) { return; }
+            unitLabel = fieldRow.add("statictext", undefined, currentUnitInfo.label);
+            unitLabel.preferredSize.width = UNIT_LABEL_WIDTH;
+            divideUnitLabels.push(unitLabel);
+        }
+
+        /**
+         * 分割の仕方に合わせて数値欄のディムを切り替える
+         * ［なし］はすべて、［十字］は行・列と間隔をディムにする（伸張は十字にも効く）
+         * @returns {void}
+         */
+        function syncDivideFields() {
+            var mode, isCustom, usesExtension, valueKey, i;
+            mode = readDivideMode();
+            isCustom = (mode === "custom");
+            /* 伸張は分割のガイドとアートボードのエッジの両方に掛かるので、どちらかがあれば使える
+               The extension applies to the division guides and to the artboard edges alike */
+            usesExtension = (mode !== "none") || readArtboardEdge();
+            for (i = 0; i < DIVIDE_VALUE_KEYS.length; i++) {
+                valueKey = DIVIDE_VALUE_KEYS[i];
+                if (!divideFields[valueKey]) { continue; }
+                divideFields[valueKey].enabled = (valueKey === "extension") ? usesExtension : isCustom;
+            }
+            syncGuideControls();
+        }
+
+        /**
+         * ［アートボードのエッジ］が入っているかを返す
+         * @returns {boolean} 入っていれば true
+         */
+        function readArtboardEdge() {
+            return artboardEdgeCheckbox !== null && artboardEdgeCheckbox.value === true;
+        }
+
+        /**
+         * 分割ガイドの単位ラベルを、いまの定規の単位に書き換える
+         * @returns {void}
+         */
+        function updateDivideUnitLabels() {
+            for (var i = 0; i < divideUnitLabels.length; i++) {
+                divideUnitLabels[i].text = currentUnitInfo.label;
+            }
+        }
+
+        /**
+         * いま選ばれている分割の仕方を返す
+         * @returns {string} "none" / "cross" / "custom"
+         */
+        function readDivideMode() {
+            var mode, i;
+            for (i = 0; i < DIVIDE_MODES.length; i++) {
+                mode = DIVIDE_MODES[i].key;
+                if (divideRadios[mode] && divideRadios[mode].value === true) { return mode; }
+            }
+            return DEFAULT_DIVIDE_MODE;
+        }
+
+        /**
+         * ガイドを描くものがあるか（マージンのガイドか分割ガイドのどちらかが有効なら true）
+         * @returns {boolean} 描くものがあれば true
+         */
+        function hasGuideToDraw() {
+            if (showGuideCheckbox !== null && showGuideCheckbox.value === true) { return true; }
+            if (readArtboardEdge()) { return true; }
+            return readDivideMode() !== "none";
+        }
+
+        /**
+         * ガイドの有無に合わせて［ガイドを保持］を更新する
          * ガイドを出していないときは保持しようがないのでディムする（設定は残したいので値は落とさない）
          * @returns {void}
          */
         function syncGuideControls() {
             if (showGuideCheckbox === null || keepGuideCheckbox === null) { return; }
-            keepGuideCheckbox.enabled = showGuideCheckbox.value === true;
+            keepGuideCheckbox.enabled = hasGuideToDraw();
             keepGuideOnClose = keepGuideCheckbox.value === true;
             savePaletteSettings();
         }
 
         /**
          * 前回のパレット設定を常駐エンジンから読み出す（控えが無ければ既定値）
-         * @returns {object} { showGuide, keepGuide, usesDefaultMargins, margins, linkMargins, alignToBleed, bleed, perArtboard }
+         * @returns {object} { showGuide, keepGuide, usesDefaultMargins, margins, divideMode, divideValues, usesDefaultExtension, artboardEdge, linkMargins, alignToBleed, bleed, perArtboard }
          */
         function loadPaletteSettings() {
             var stored = $.global[SETTINGS_KEY];
@@ -1314,6 +1695,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     keepGuide:    DEFAULT_KEEP_GUIDE,
                     usesDefaultMargins: true,
                     margins:      marginStrings(null, String(currentUnitInfo.defaultMargin)),
+                    divideMode:   DEFAULT_DIVIDE_MODE,
+                    divideValues: divideValueStrings(null),
+                    usesDefaultExtension: true,
+                    artboardEdge: DEFAULT_ARTBOARD_EDGE,
                     linkMargins:  DEFAULT_LINK_MARGINS,
                     alignToBleed: DEFAULT_ALIGN_TO_BLEED,
                     bleed:        String(DEFAULT_BLEED),
@@ -1325,6 +1710,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 keepGuide:    stored.keepGuide === true,
                 usesDefaultMargins: stored.margins == null,
                 margins:      marginStrings(stored.margins, String(currentUnitInfo.defaultMargin)),
+                divideMode:   knownDivideMode(stored.divideMode),
+                divideValues: divideValueStrings(stored.divideValues),
+                usesDefaultExtension: !(stored.divideValues && stored.divideValues.extension != null),
+                artboardEdge: stored.artboardEdge === true,
                 linkMargins:  (stored.linkMargins != null) ? (stored.linkMargins === true) : DEFAULT_LINK_MARGINS,
                 alignToBleed: stored.alignToBleed === true,
                 bleed:        (stored.bleed != null) ? String(stored.bleed) : String(DEFAULT_BLEED),
@@ -1349,14 +1738,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
+         * 控えの分割の仕方が並びにあるものか確かめる（無ければ既定値）
+         * @param {string} storedMode - 控えの値
+         * @returns {string} "none" / "cross" / "custom"
+         */
+        function knownDivideMode(storedMode) {
+            for (var i = 0; i < DIVIDE_MODES.length; i++) {
+                if (DIVIDE_MODES[i].key === storedMode) { return storedMode; }
+            }
+            return DEFAULT_DIVIDE_MODE;
+        }
+
+        /**
+         * 控えの分割ガイドの値を、欠けている項目を既定値で埋めた文字列の組にそろえる
+         * @param {object} storedValues - 控えの値（無ければ null）
+         * @returns {object} DIVIDE_VALUE_KEYS をキーにした文字列の組
+         */
+        function divideValueStrings(storedValues) {
+            var values, valueKey, i;
+            values = {};
+            for (i = 0; i < DIVIDE_VALUE_KEYS.length; i++) {
+                valueKey = DIVIDE_VALUE_KEYS[i];
+                values[valueKey] = (storedValues && storedValues[valueKey] != null) ?
+                    String(storedValues[valueKey]) : defaultDivideValue(valueKey);
+            }
+            return values;
+        }
+
+        /**
+         * 分割ガイドの欄の初期値を返す（伸張だけは定規の単位ごとに決まる）
+         * @param {string} valueKey - DIVIDE_VALUE_KEYS のキー
+         * @returns {string} 初期値
+         */
+        function defaultDivideValue(valueKey) {
+            if (valueKey === "extension") { return String(currentUnitInfo.defaultExtension); }
+            return String(DEFAULT_DIVIDE_VALUES[valueKey]);
+        }
+
+        /**
          * 現在のパレット設定を常駐エンジンに控える
          * @returns {void}
          */
         function savePaletteSettings() {
+            if (!isPaletteReady) { return; }
             $.global[SETTINGS_KEY] = {
                 showGuide:    showGuideCheckbox !== null && showGuideCheckbox.value === true,
                 keepGuide:    keepGuideCheckbox !== null && keepGuideCheckbox.value === true,
                 margins:      readMarginTexts(),
+                divideMode:   readDivideMode(),
+                divideValues: readDivideValueTexts(),
+                artboardEdge: readArtboardEdge(),
                 linkMargins:  linkMarginsCheckbox !== null && linkMarginsCheckbox.value === true,
                 alignToBleed: alignToBleedCheckbox !== null && alignToBleedCheckbox.value === true,
                 bleed:        (bleedField !== null) ? String(bleedField.text) : String(DEFAULT_BLEED),
@@ -1506,6 +1937,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function showPalette() {
             /* 多重起動防止：開いているパレットは必ず閉じてから作り直す / Close any open palette first */
             closeExistingPalette();
+            isPaletteReady = false;
             initIconColors();
 
             var win = new Window("palette", getLabel("dialog", "title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
@@ -1514,11 +1946,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             win.margins = WINDOW_MARGINS;
             win.spacing = WINDOW_SPACING;
 
-            addAlignButtonRow(win);
             addColumnsRow(win);
             addMarginPanel(win);
+            addDividePanel(win);
             addDestinationPanel(win);
             addStatusLine(win);
+            /* ここまでで全コントロールがそろうので、以降は操作のたびに控える
+               Every control now exists, so from here on each change is stored */
+            isPaletteReady = true;
 
             attachPaletteEvents(win);
 
@@ -1533,7 +1968,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             refreshPaletteState();
             /* 引き継いだ設定でガイドを描き直す（前回残したガイドと入力欄の値をそろえる）
                Redraw the guide from the carried-over settings so it matches the field */
-            if (showGuideCheckbox !== null && showGuideCheckbox.value === true) { runExclusive(refreshMarginGuide); }
+            if (hasGuideToDraw()) { runExclusive(refreshMarginGuide); }
         }
 
         // =========================================
@@ -1665,7 +2100,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 if (!btRunAlignCommands(doc, options)) {
                     failure = "NOTARGET";
                 } else {
-                    btNudgeSelection(doc, options.offsetX * options.marginPt, options.offsetY * options.marginPt);
+                    btNudgeSelection(doc,
+                        options.offsetX * options.marginPt + options.centerOffsetX,
+                        options.offsetY * options.marginPt + options.centerOffsetY);
                 }
             } catch (alignError) {
                 failure = "ERR:" + alignError;
@@ -1704,7 +2141,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             btWritePreferences(previousPreferences.previewBounds, previousPreferences.pointText, previousPreferences.areaText);
             /* 整列できなかったときは、先に変えた行揃えも元に戻す（例外で抜けた場合も同じ）
                Roll the justification back whenever the align did not go through, exceptions included */
-            if (failure === null || previousJustification === null) { return; }
+            if (failure === null) { return; }
+            btRestoreJustification(selectedItems, previousJustification);
+        }
+
+        function btRestoreJustification(selectedItems, previousJustification) {
+            if (previousJustification === null) { return; }
             try {
                 selectedItems[0].textRange.paragraphAttributes.justification = previousJustification;
             } catch (restoreError) {}
@@ -1721,25 +2163,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         function btMoveItems(doc, selectedItems, options) {
-            var bounds, artboardRect, deltaX, deltaY, side, delta, i;
+            var needsGroup, didGroup, justification, failure, bounds, artboardRect, deltaX, deltaY, side, delta, i;
+            needsGroup = selectedItems.length > 1;
+            if (needsGroup && btSpansMultipleLayers(selectedItems)) { return "MULTILAYER"; }
+            btActivateArtboardForSelection(doc, selectedItems);
+            justification = { previous: null, changed: null };
+            /* 実際にグループ化できたかを控える（例外で抜けたときに、選択していた既存のグループを解除しないため）*/
+            didGroup = false;
+            failure = null;
             try {
-                btActivateArtboardForSelection(doc, selectedItems);
+                /* 行揃えを先に変える。ポイント文字は行揃えを変えると文字が動くので、
+                   変えたあとの境界で移動量を出さないと、そのぶんズレる */
+                justification = btApplyJustification(selectedItems, options);
                 bounds = btUnionBounds(selectedItems, options.previewBounds === true, options.glyphBounds === true);
-                if (bounds === null) { return "NOBOUNDS"; }
-                artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-                deltaX = 0;
-                deltaY = 0;
-                /* 斜めは2辺ぶんの移動量を、どちらも動かす前の境界から出して1回で動かす
-                   先に片方だけ動かすと、もう一方のガイド探しが動いたあとの位置で走ってしまう */
-                for (i = 0; i < options.sides.length; i++) {
-                    side = options.sides[i];
-                    delta = btEdgeDelta(doc, artboardRect, bounds, side, options);
-                    if (side === "left" || side === "right") { deltaX = delta; } else { deltaY = delta; }
+                if (bounds === null) {
+                    failure = "NOBOUNDS";
+                } else {
+                    artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+                    deltaX = 0;
+                    deltaY = 0;
+                    /* 斜めは2辺ぶんの移動量を、どちらも動かす前の境界から出して1回で動かす
+                       先に片方だけ動かすと、もう一方のガイド探しが動いたあとの位置で走ってしまう */
+                    for (i = 0; i < options.sides.length; i++) {
+                        side = options.sides[i];
+                        delta = btEdgeDelta(doc, artboardRect, bounds, side, options);
+                        if (side === "left" || side === "right") { deltaX = delta; } else { deltaY = delta; }
+                    }
+                    if (needsGroup) {
+                        app.executeMenuCommand("group");
+                        didGroup = true;
+                    }
+                    btNudgeSelection(doc, deltaX, deltaY);
                 }
-                btNudgeSelection(doc, deltaX, deltaY);
             } catch (moveError) {
-                return "ERR:" + moveError;
+                failure = "ERR:" + moveError;
+            } finally {
+                if (didGroup) { app.executeMenuCommand("ungroup"); }
+                /* 動かせなかったときは、先に変えた行揃えも元に戻す */
+                if (failure !== null) { btRestoreJustification(selectedItems, justification.previous); }
             }
+            if (failure !== null) { return failure; }
+            if (justification.changed !== null) { return "MOVED:" + justification.changed; }
             return "MOVED";
         }
 
@@ -1858,27 +2322,126 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         function btDrawMarginGuide(doc, options) {
-            var layer, previousLayerState, artboardRect, left, top, right, bottom, guideRectangle;
+            var layer, previousLayerState, artboardRect, area, drawsFrame, divideLines;
             btRemoveGuidesByName(doc, options.guideName, options.guideLayerName);
-            if (options.showGuide !== true || !btHasMargin(options.guideMargins)) { return; }
+            btRemoveGuidesByName(doc, options.divideName, options.guideLayerName);
             if (doc.artboards.length === 0) { return; }
             artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            left = artboardRect[0] + options.guideMargins.left;
-            top = artboardRect[1] - options.guideMargins.top;
-            right = artboardRect[2] - options.guideMargins.right;
-            bottom = artboardRect[3] + options.guideMargins.bottom;
-            /* マージンが大きすぎて内側が残らないときは何も描かない */
-            if (right <= left || top <= bottom) { return; }
+            /* マージンが大きすぎて内側が残らないときは null。マージンに依らないエッジのガイドは引ける */
+            area = btMarginArea(artboardRect, options.guideMargins);
+            drawsFrame = area !== null && options.showGuide === true && btHasMargin(options.guideMargins);
+            divideLines = btDivideLines(area, artboardRect, options.divisions);
+            /* 描くものが無いときは、ガイド用レイヤーを作らずに戻る */
+            if (!drawsFrame && divideLines.length === 0) { return; }
             layer = btGetGuideLayer(doc, options.guideLayerName);
             previousLayerState = btUnlockLayer(layer);
             try {
-                guideRectangle = layer.pathItems.rectangle(top, left, right - left, top - bottom);
-                guideRectangle.name = options.guideName;
-                guideRectangle.stroked = false;
-                guideRectangle.filled = false;
-                guideRectangle.guides = true;
+                if (drawsFrame) { btAddGuideRectangle(layer, area, options.guideName); }
+                btAddGuideLines(layer, divideLines, options.divideName);
             } finally {
                 btRestoreLayer(layer, previousLayerState);
+            }
+        }
+
+        function btMarginArea(artboardRect, margins) {
+            var area = {
+                left:   artboardRect[0] + margins.left,
+                top:    artboardRect[1] - margins.top,
+                right:  artboardRect[2] - margins.right,
+                bottom: artboardRect[3] + margins.bottom
+            };
+            if (area.right <= area.left || area.top <= area.bottom) { return null; }
+            return area;
+        }
+
+        function btAddGuideRectangle(layer, area, guideName) {
+            btMakeGuide(layer.pathItems.rectangle(area.top, area.left, area.right - area.left, area.top - area.bottom), guideName);
+        }
+
+        function btAddGuideLines(layer, lines, guideName) {
+            var guideLine, i;
+            for (i = 0; i < lines.length; i++) {
+                guideLine = layer.pathItems.add();
+                guideLine.setEntirePath(lines[i]);
+                btMakeGuide(guideLine, guideName);
+            }
+        }
+
+        function btMakeGuide(pathItem, guideName) {
+            var isGuide = false;
+            try {
+                /* 名前を先に付ける。ガイドにできずに消し損ねても、次の描き直しで名前を頼りに消せる */
+                pathItem.name = guideName;
+                pathItem.stroked = false;
+                pathItem.filled = false;
+                pathItem.guides = true;
+                isGuide = (pathItem.guides === true);
+            } catch (guideError) {}
+            if (isGuide) { return; }
+            /* ガイドにできなかったときは、描画時の塗り・線を持ったオブジェクトとして残さずに消す */
+            try { pathItem.remove(); } catch (removeError) {}
+        }
+
+        function btDivideLines(area, artboardRect, divisions) {
+            var lines, extension, span;
+            lines = [];
+            if (!divisions) { return lines; }
+            /* 分割の線はアートボードの幅・高さいっぱいに引き、伸張のぶんだけその外へ伸ばす */
+            extension = divisions.extension > 0 ? divisions.extension : 0;
+            span = {
+                left:   artboardRect[0] - extension,
+                top:    artboardRect[1] + extension,
+                right:  artboardRect[2] + extension,
+                bottom: artboardRect[3] - extension
+            };
+            btPushRowLines(lines, area, divisions, span);
+            btPushColumnLines(lines, area, divisions, span);
+            btPushArtboardEdgeLines(lines, artboardRect, divisions, span);
+            return lines;
+        }
+
+        function btPushArtboardEdgeLines(lines, artboardRect, divisions, span) {
+            if (divisions.artboardEdge !== true) { return; }
+            lines.push([[span.left, artboardRect[1]], [span.right, artboardRect[1]]]);
+            lines.push([[span.left, artboardRect[3]], [span.right, artboardRect[3]]]);
+            lines.push([[artboardRect[0], span.top], [artboardRect[0], span.bottom]]);
+            lines.push([[artboardRect[2], span.top], [artboardRect[2], span.bottom]]);
+        }
+
+        function btPushRowLines(lines, area, divisions, span) {
+            var usableHeight, cellHeight, lineY, i;
+            if (area === null || !(divisions.rows > 1)) { return; }
+            usableHeight = (area.top - area.bottom) - (divisions.rows - 1) * divisions.rowGutter;
+            /* 行間が大きすぎて段の高さが残らないときは引かない */
+            if (usableHeight <= 0) { return; }
+            cellHeight = usableHeight / divisions.rows;
+            lineY = area.top;
+            /* 最後の段は area.bottom にちょうど着地するので、内側の区切りだけを引く */
+            for (i = 0; i < divisions.rows - 1; i++) {
+                lineY -= cellHeight;
+                lines.push([[span.left, lineY], [span.right, lineY]]);
+                /* 行間が0のときは同じ位置に重なるので引かない */
+                if (divisions.rowGutter > 0) {
+                    lineY -= divisions.rowGutter;
+                    lines.push([[span.left, lineY], [span.right, lineY]]);
+                }
+            }
+        }
+
+        function btPushColumnLines(lines, area, divisions, span) {
+            var usableWidth, cellWidth, lineX, i;
+            if (area === null || !(divisions.columns > 1)) { return; }
+            usableWidth = (area.right - area.left) - (divisions.columns - 1) * divisions.columnGutter;
+            if (usableWidth <= 0) { return; }
+            cellWidth = usableWidth / divisions.columns;
+            lineX = area.left;
+            for (i = 0; i < divisions.columns - 1; i++) {
+                lineX += cellWidth;
+                lines.push([[lineX, span.top], [lineX, span.bottom]]);
+                if (divisions.columnGutter > 0) {
+                    lineX += divisions.columnGutter;
+                    lines.push([[lineX, span.top], [lineX, span.bottom]]);
+                }
             }
         }
 
@@ -1986,17 +2549,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             if (bounds === null) { return; }
             artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
             /* artboardRect は [左, 上, 右, 下] で、X は右へ・Y は下へ向かって内側になるため符号が逆になる */
-            deltaX = btAlignDelta(bounds, artboardRect, options.modeX, options.marginPt, 0, 2, 1);
-            deltaY = btAlignDelta(bounds, artboardRect, options.modeY, options.marginPt, 1, 3, -1);
+            deltaX = btAlignDelta(bounds, artboardRect, options.modeX, options.marginPt, options.centerOffsetX, 0, 2, 1);
+            deltaY = btAlignDelta(bounds, artboardRect, options.modeY, options.marginPt, options.centerOffsetY, 1, 3, -1);
             if (Math.abs(deltaX) < 0.001) { deltaX = 0; }
             if (Math.abs(deltaY) < 0.001) { deltaY = 0; }
             btNudgeSelection(doc, deltaX, deltaY);
         }
 
-        function btAlignDelta(bounds, artboardRect, mode, marginPt, startIndex, endIndex, inwardSign) {
+        function btAlignDelta(bounds, artboardRect, mode, marginPt, centerOffset, startIndex, endIndex, inwardSign) {
             if (mode === "start") { return (artboardRect[startIndex] + inwardSign * marginPt) - bounds[startIndex]; }
             if (mode === "end") { return (artboardRect[endIndex] - inwardSign * marginPt) - bounds[endIndex]; }
-            if (mode === "center") { return (artboardRect[startIndex] + artboardRect[endIndex]) / 2 - (bounds[startIndex] + bounds[endIndex]) / 2; }
+            /* 中央はアートボードの中心。Option＋クリックのときは centerOffset のぶんマージンの内側の中心へずらす */
+            if (mode === "center") {
+                return (artboardRect[startIndex] + artboardRect[endIndex]) / 2 + centerOffset - (bounds[startIndex] + bounds[endIndex]) / 2;
+            }
             return 0;
         }
 
@@ -2029,8 +2595,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         function btIsAtAlignTarget(bounds, artboardRect, options, marginPt) {
-            if (Math.abs(btAlignDelta(bounds, artboardRect, options.modeX, marginPt, 0, 2, 1)) > options.minDeltaPt) { return false; }
-            if (Math.abs(btAlignDelta(bounds, artboardRect, options.modeY, marginPt, 1, 3, -1)) > options.minDeltaPt) { return false; }
+            if (Math.abs(btAlignDelta(bounds, artboardRect, options.modeX, marginPt, options.centerOffsetX, 0, 2, 1)) > options.minDeltaPt) { return false; }
+            if (Math.abs(btAlignDelta(bounds, artboardRect, options.modeY, marginPt, options.centerOffsetY, 1, 3, -1)) > options.minDeltaPt) { return false; }
             return true;
         }
 
@@ -2399,8 +2965,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             btAlignSelection, btResolveSelection, btSelectItems, btRunPerArtboard, btAlignItems,
             btGroupItemsByArtboard, btCopyOptions, btApplyJustification, btFinishAlign,
             btMoveItems, btAlignMovedSelection, btRunAlignCommands, btProbeAlignTarget, btSameBounds,
-            btMoveToEdgeOrGuide, btEdgeDelta, btOutsetValue, btEdgeValue, btOppositeSide, btFindGuideSnapValue, btGuideEdgeValues, btIsInsideArtboard, btIsAhead,
-            btUpdateMarginGuide, btDrawMarginGuide, btHasMargin, btGetGuideLayer, btUnlockLayer, btRestoreLayer, btRemoveGuidesByName,
+            btMoveToEdgeOrGuide, btRestoreJustification, btEdgeDelta, btOutsetValue, btEdgeValue, btOppositeSide, btFindGuideSnapValue, btGuideEdgeValues, btIsInsideArtboard, btIsAhead,
+            btUpdateMarginGuide, btDrawMarginGuide, btMarginArea, btAddGuideRectangle, btAddGuideLines,
+            btDivideLines, btPushRowLines, btPushColumnLines, btPushArtboardEdgeLines, btMakeGuide,
+            btHasMargin, btGetGuideLayer, btUnlockLayer, btRestoreLayer, btRemoveGuidesByName,
             btApplyGlyphCorrection, btAlignDelta, btAlignStops, btResolveStepMargin, btIsAtAlignTarget, btHasGlyphBoundsTarget,
             btUnionBounds, btGetMeasureBounds, btGetPlainBounds, btGetClipPathBounds, btFindClipPath,
             btGetOutlineBounds, btSafeRemove,
@@ -2629,6 +3197,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
+         * 分割ガイドの数値欄を、入力されたままの文字列で読む（控え用）
+         * @returns {object} DIVIDE_VALUE_KEYS をキーにした文字列の組
+         */
+        function readDivideValueTexts() {
+            var texts, valueKey, i;
+            texts = {};
+            for (i = 0; i < DIVIDE_VALUE_KEYS.length; i++) {
+                valueKey = DIVIDE_VALUE_KEYS[i];
+                texts[valueKey] = (divideFields[valueKey]) ?
+                    String(divideFields[valueKey].text) : defaultDivideValue(valueKey);
+            }
+            return texts;
+        }
+
+        /**
+         * 分割数の欄を読む（読めない値と1未満は1＝分割なし、上限は DIVIDE_COUNT_MAX）
+         * @param {string} valueKey - "rows" または "columns"
+         * @returns {number} 分割数
+         */
+        function readDivideCount(valueKey) {
+            var count = Math.floor(Number(divideFields[valueKey] ? divideFields[valueKey].text : ""));
+            if (isNaN(count) || count < 1) { return 1; }
+            return (count > DIVIDE_COUNT_MAX) ? DIVIDE_COUNT_MAX : count;
+        }
+
+        /**
+         * 分割ガイドの設定を読んでワーカーに渡す形にする
+         * ［なし］は分割なし、［十字］は縦横2等分（伸張はどちらにも効く）
+         * @returns {object} { rows: number, columns: number, rowGutter: number, columnGutter: number, extension: number }（長さは pt）
+         */
+        function readDivisions() {
+            var mode, divisions;
+            mode = readDivideMode();
+            divisions = {
+                rows:         1,
+                columns:      1,
+                rowGutter:    0,
+                columnGutter: 0,
+                extension:    readFieldPt(divideFields.extension || null, currentUnitInfo.points),
+                artboardEdge: readArtboardEdge()
+            };
+            if (mode === "cross") {
+                divisions.rows    = CROSS_DIVIDE_COUNTS.rows;
+                divisions.columns = CROSS_DIVIDE_COUNTS.columns;
+                return divisions;
+            }
+            if (mode === "custom") {
+                divisions.rows         = readDivideCount("rows");
+                divisions.columns      = readDivideCount("columns");
+                divisions.rowGutter    = readFieldPt(divideFields.rowGutter || null, currentUnitInfo.points);
+                divisions.columnGutter = readFieldPt(divideFields.columnGutter || null, currentUnitInfo.points);
+            }
+            return divisions;
+        }
+
+        /**
          * マージン4欄を読んで pt に換算する
          * @returns {object} { top: number, bottom: number, left: number, right: number }（pt）
          */
@@ -2669,7 +3293,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * ボタン定義から、そのクリックに必要な値をまとめて求める
          * 実行するメニューコマンド、整列後にマージンぶん動かす向き（中央揃えは0）、整列先の判定に使う仮移動量、
          * 軸ごとの寄せ先（字形の境界での補正が目標位置の計算に使う）、合わせる行揃えを、ALIGN_COMMANDS の1周で得る
-         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @param {object} buttonDef - 整列ボタンの定義
          * @returns {object} { commands: string[], offsetX: number, offsetY: number, probeX: number, probeY: number, modeX: string, modeY: string, justification: string }
          */
         function readAlignSpec(buttonDef) {
@@ -2707,13 +3331,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * その整列がマージンの影響を受けるか判定する（上下左右のボタンだけ true）
-         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
-         * @returns {boolean} 影響を受けるなら true
+         * 中央に寄せる軸を持つ整列か判定する
+         * @param {object} spec - readAlignSpec() の戻り値
+         * @returns {boolean} 片方でも中央に寄せるなら true
          */
-        function usesMargin(buttonDef) {
+        function isCenterAlign(spec) {
+            return spec.modeX === "center" || spec.modeY === "center";
+        }
+
+        /**
+         * そのボタンの Option＋クリックの説明を選ぶ
+         * 中央揃えはマージンの内側の中央へ、端に寄せる整列はマージンを無視して字形の境界に寄せる
+         * @param {object} buttonDef - 整列ボタンの定義
+         * @returns {string} tooltip のキー
+         */
+        function optionTooltipKey(buttonDef) {
             var spec = readAlignSpec(buttonDef);
-            return spec.offsetX !== 0 || spec.offsetY !== 0;
+            if (isCenterAlign(spec)) { return "optionMarginCenter"; }
+            /* マージンの影響を受けるのは上下左右に寄せるボタンだけ / Only the edge alignments use a margin */
+            return (spec.offsetX !== 0 || spec.offsetY !== 0) ? "optionNoMargin" : "optionGlyphBounds";
+        }
+
+        /**
+         * Option＋クリックでマージンの内側の中央へ寄せるための、アートボードの中央からのずれを求める
+         * 中央に寄せる軸だけ、向かい合うマージンの差の半分だけ内側へずらす
+         * @param {object} spec - readAlignSpec() の戻り値
+         * @param {object} margins - readMarginsPt() の戻り値
+         * @returns {object} { x: number, y: number }（pt）
+         */
+        function centerOffsetInMargin(spec, margins) {
+            return {
+                x: (spec.modeX === "center") ? (margins.left - margins.right) / 2 : 0,
+                y: (spec.modeY === "center") ? (margins.bottom - margins.top) / 2 : 0
+            };
         }
 
         /**
@@ -2725,13 +3375,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             return {
                 showGuide:      showGuideCheckbox !== null && showGuideCheckbox.value === true,
                 guideMargins:   readMarginsPt(),
+                divisions:      readDivisions(),
                 guideName:      GUIDE_NAME,
+                divideName:     DIVIDE_GUIDE_NAME,
                 guideLayerName: GUIDE_LAYER_NAME
             };
         }
 
         /**
-         * このスクリプトが作ったガイドを削除する
+         * このスクリプトが作ったガイド（マージン・分割の両方）を削除する
          * パレットを閉じるときに呼ぶため、コントロールを参照せず値を直接組み立てる
          * （閉じる処理は何があっても止めないよう、失敗は握りつぶす）
          * @returns {void}
@@ -2741,7 +3393,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 var options = {
                     showGuide:      false,
                     guideMargins:   { top: 0, bottom: 0, left: 0, right: 0 },
+                    divisions:      { rows: 1, columns: 1, rowGutter: 0, columnGutter: 0, extension: 0, artboardEdge: false },
                     guideName:      GUIDE_NAME,
+                    divideName:     DIVIDE_GUIDE_NAME,
                     guideLayerName: GUIDE_LAYER_NAME
                 };
                 runWorker("btUpdateMarginGuide(" + options.toSource() + ");");
@@ -2761,15 +3415,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * ワーカーに渡すオプションを組み立てる（パレット側の状態はすべてここで値にする）
-         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @param {object} buttonDef - 整列ボタンの定義
          * @returns {object} ワーカーへ渡すオプション
          */
         function buildAlignOptions(buttonDef) {
             var spec = readAlignSpec(buttonDef);
-            /* Option＋クリックは、字形の境界をONにしたうえでマージンを無視し、アートボードの四辺にぴったり寄せる
-               Option-click turns glyph bounds on and ignores the margin, sitting flush against the artboard edge */
+            /* Option＋クリックの意味はボタンによって変わる
+               中央揃え：アートボードではなくマージンの内側の中央へ寄せる
+               上下左右：字形の境界をONにしたうえでマージンを無視し、アートボードの辺にぴったり寄せる
+               Option-click means different things per button: centre inside the margin for the centred
+               alignments, and flush against the artboard edge with glyph bounds for the edge ones */
             var altPressed = isAltPressed();
+            var centersInMargin = altPressed && isCenterAlign(spec);
+            var ignoresMargin = altPressed && !centersInMargin;
             var options = buildGuideOptions();
+            var centerOffset = centersInMargin ?
+                centerOffsetInMargin(spec, options.guideMargins) : { x: 0, y: 0 };
             options.alignCommands       = spec.commands;
             options.offsetX             = spec.offsetX;
             options.offsetY             = spec.offsetY;
@@ -2777,14 +3438,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             options.probeY              = spec.probeY;
             options.modeX               = spec.modeX;
             options.modeY               = spec.modeY;
+            /* 中央からのずれ。Option＋クリックの中央揃えだけ 0 以外になる
+               The shift from the artboard centre; only an Option-clicked centre alignment sets it */
+            options.centerOffsetX       = centerOffset.x;
+            options.centerOffsetY       = centerOffset.y;
             /* Option＋クリックは段階を踏まず、アートボードの端にぴったり寄せる
                Option-click skips the steps and sits flush against the artboard edge */
-            options.marginPt            = altPressed ? 0 : marginForAlign(spec, options.guideMargins);
-            options.bleedPt             = altPressed ? 0 : readBleedPt();
+            options.marginPt            = ignoresMargin ? 0 : marginForAlign(spec, options.guideMargins);
+            options.bleedPt             = ignoresMargin ? 0 : readBleedPt();
             options.perArtboard         = alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true;
             options.minDeltaPt          = MOVE_MIN_DELTA_PT;
             options.previewBounds       = previewBoundsCheckbox !== null && previewBoundsCheckbox.value === true;
-            options.glyphBounds         = altPressed || (glyphBoundsCheckbox !== null && glyphBoundsCheckbox.value === true);
+            options.glyphBounds         = ignoresMargin || (glyphBoundsCheckbox !== null && glyphBoundsCheckbox.value === true);
             options.changeJustification = changeJustificationCheckbox !== null && changeJustificationCheckbox.value === true;
             options.justification       = spec.justification;
             return options;
@@ -2797,15 +3462,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * @returns {object} ワーカーへ渡すオプション
          */
         function buildMoveOptions(directionKey) {
+            var sides = MOVE_SIDES_BY_DIRECTION[directionKey];
             return {
-                sides:          MOVE_SIDES_BY_DIRECTION[directionKey],
+                sides:          sides,
                 bleedPt:        readBleedPt(),
                 perArtboard:    alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true,
                 previewBounds:  previewBoundsCheckbox !== null && previewBoundsCheckbox.value === true,
                 glyphBounds:    glyphBoundsCheckbox !== null && glyphBoundsCheckbox.value === true,
+                changeJustification: changeJustificationCheckbox !== null && changeJustificationCheckbox.value === true,
+                justification:  justificationForSides(sides),
                 guideTolerance: GUIDE_ORIENTATION_TOLERANCE,
                 minDeltaPt:     MOVE_MIN_DELTA_PT
             };
+        }
+
+        /**
+         * その移動で合わせる行揃えを求める（左右へ寄せるときだけ。上下では変えない）
+         * @param {string[]} sides - 寄せる辺
+         * @returns {string} 行揃えの名前。合わせないときは null
+         */
+        function justificationForSides(sides) {
+            for (var i = 0; i < sides.length; i++) {
+                if (sides[i] === "left") { return ALIGN_COMMANDS.horizontalLeft.justification; }
+                if (sides[i] === "right") { return ALIGN_COMMANDS.horizontalRight.justification; }
+            }
+            return null;
         }
 
         /**
@@ -2825,14 +3506,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             /* 「OK:CENTER」のように行揃えを変えたときは、変更後の行揃えも知らせる
                An "OK:CENTER" marker also reports the justification that was applied */
             if (workerResult.indexOf("OK:") === 0) {
-                var justificationLabel = getLabel("status", "justification", workerResult.substring(3));
-                setStatus(justificationLabel ?
-                    getLabel("status", "doneJustified").replace("{0}", justificationLabel) :
-                    getLabel("status", "done"));
+                showJustifiedResult(workerResult.substring(3), "doneJustified", "done");
+                return;
+            }
+            if (workerResult.indexOf("MOVED:") === 0) {
+                showJustifiedResult(workerResult.substring(6), "movedJustified", "moved");
                 return;
             }
             var statusKey = STATUS_BY_MARKER[workerResult];
             setStatus(statusKey ? getLabel("status", statusKey) : workerResult);
+        }
+
+        /**
+         * 行揃えを変えたときの状況表示を出す（名前が引けなければ、変えなかったときと同じ文言にする）
+         * @param {string} justificationName - ワーカーが返した行揃えの名前
+         * @param {string} justifiedKey - 行揃えを添える文言のキー
+         * @param {string} plainKey - 添えないときの文言のキー
+         * @returns {void}
+         */
+        function showJustifiedResult(justificationName, justifiedKey, plainKey) {
+            var justificationLabel = getLabel("status", "justification", justificationName);
+            setStatus(justificationLabel ?
+                getLabel("status", justifiedKey).replace("{0}", justificationLabel) :
+                getLabel("status", plainKey));
         }
 
         /* 取り直しの状態 / State of the refresh */
@@ -2867,6 +3563,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 }
                 currentUnitInfo = UNIT_INFO[parts[1]] || FALLBACK_UNIT_INFO;
                 if (marginPanel !== null) { marginPanel.text = marginPanelTitle(); }
+                updateDivideUnitLabels();
+                fillDefaultExtension();
                 fillDefaultMargins();
                 var selectionSignature = parts[0] + "|" + parts[2];
                 if (lastSelectionSignature !== null && selectionSignature !== lastSelectionSignature) {
@@ -2893,7 +3591,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 整列をメインエンジンへ委譲する
-         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @param {object} buttonDef - 整列ボタンの定義
          * @returns {string} ワーカーが返したマーカー（応答がなければ null）
          */
         function runAlign(buttonDef) {

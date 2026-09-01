@@ -1,0 +1,119 @@
+cd /Users/takano/Git/ai-scripts/jsx/text && python3 - <<'PYEOF'
+import io, re
+p = "SplitTextToArtboards.jsx"
+s = io.open(p, encoding="utf-8").read()
+
+# 1) レイアウト設定に列数を追加
+old = '''    /* 段落数が足りないときに追加するアートボードの間隔（pt）
+       Gap between artboards added when there are not enough of them (pt) */
+    var NEW_ARTBOARD_GAP = 20;
+'''
+new = '''    /* 段落数が足りないときに追加するアートボードの間隔（pt）
+       Gap between artboards added when there are not enough of them (pt) */
+    var NEW_ARTBOARD_GAP = 20;
+
+    /* 追加するアートボードを何列で折り返すか（0 で横一列）
+       Number of columns for the added artboards (0 keeps them in a single row) */
+    var NEW_ARTBOARD_COLUMNS = 5;
+'''
+assert old in s
+s = s.replace(old, new)
+
+# 2) ラベル追加
+old = '''            noParagraph: { ja: "分配できる段落がありません。", en: "There is no paragraph to distribute." }'''
+new = '''            noParagraph: { ja: "分配できる段落がありません。", en: "There is no paragraph to distribute." },
+            artboardLimit: {
+                ja: "アートボードをこれ以上追加できないため、先頭の %1 段落だけを配置しました。",
+                en: "No more artboards could be added, so only the first %1 paragraph(s) were placed."
+            }'''
+assert old in s
+s = s.replace(old, new)
+
+# 3) ensureArtboardCount をグリッド配置＋失敗時の打ち切りに差し替え
+old = '''    /**
+     * 必要な枚数に足りるまで、最後のアートボードと同じ大きさのアートボードを右方向に追加する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number} requiredCount - 必要なアートボードの枚数
+     * @returns {void}
+     */
+    function ensureArtboardCount(doc, requiredCount) {
+        while (doc.artboards.length < requiredCount) {
+            var lastRect = doc.artboards[doc.artboards.length - 1].artboardRect;
+            var offsetX = (lastRect[2] - lastRect[0]) + NEW_ARTBOARD_GAP;
+            doc.artboards.add([lastRect[0] + offsetX, lastRect[1], lastRect[2] + offsetX, lastRect[3]]);
+        }
+    }
+'''
+new = '''    /**
+     * 必要な枚数に足りるまで、最後のアートボードと同じ大きさのアートボードをグリッド状に追加する
+     * カンバス（227×227inch）を外れる位置は Illustrator が受け付けないため、
+     * 横一列に伸ばさず NEW_ARTBOARD_COLUMNS 列で折り返す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number} requiredCount - 必要なアートボードの枚数
+     * @returns {number} 実際に用意できたアートボードの枚数
+     */
+    function ensureArtboardCount(doc, requiredCount) {
+        if (doc.artboards.length >= requiredCount) {
+            return doc.artboards.length;
+        }
+        var originRect = doc.artboards[doc.artboards.length - 1].artboardRect;
+        var stepX = (originRect[2] - originRect[0]) + NEW_ARTBOARD_GAP;
+        var stepY = (originRect[1] - originRect[3]) + NEW_ARTBOARD_GAP;
+        var columnCount = (NEW_ARTBOARD_COLUMNS > 0) ? NEW_ARTBOARD_COLUMNS : requiredCount;
+        var addCount = requiredCount - doc.artboards.length;
+        for (var i = 1; i <= addCount; i++) {
+            var offsetX = (i % columnCount) * stepX;
+            var offsetY = Math.floor(i / columnCount) * stepY;
+            /* カンバス外の矩形は Error 1200 になるので、そこで打ち切る / Illustrator rejects rects outside the canvas */
+            try {
+                doc.artboards.add([
+                    originRect[0] + offsetX, originRect[1] - offsetY,
+                    originRect[2] + offsetX, originRect[3] - offsetY
+                ]);
+            } catch (err) {
+                break;
+            }
+        }
+        return doc.artboards.length;
+    }
+'''
+assert old in s
+s = s.replace(old, new)
+
+# 4) main の呼び出し側を打ち切り対応に
+old = '''        var startIndex = findStartArtboardIndex(doc, getItemBounds(sourceFrame));
+        ensureArtboardCount(doc, startIndex + paragraphIndexes.length);
+
+        var createdFrames = [];
+        for (var i = 0; i < paragraphIndexes.length; i++) {'''
+new = '''        var startIndex = findStartArtboardIndex(doc, getItemBounds(sourceFrame));
+        var artboardCount = ensureArtboardCount(doc, startIndex + paragraphIndexes.length);
+        /* アートボードを増やしきれなかったときは、置ける分だけ処理する / Place only what fits */
+        var placeCount = Math.min(paragraphIndexes.length, artboardCount - startIndex);
+
+        var createdFrames = [];
+        for (var i = 0; i < placeCount; i++) {'''
+assert old in s
+s = s.replace(old, new)
+
+old = '''        doc.selection = null;
+        for (var j = 0; j < createdFrames.length; j++) {
+            createdFrames[j].selected = true;
+        }
+        app.redraw();'''
+new = '''        doc.selection = null;
+        for (var j = 0; j < createdFrames.length; j++) {
+            createdFrames[j].selected = true;
+        }
+        app.redraw();
+
+        if (placeCount < paragraphIndexes.length) {
+            alert(getLabel("alert", "artboardLimit").replace("%1", placeCount));
+        }'''
+assert old in s
+s = s.replace(old, new)
+
+io.open(p, "w", encoding="utf-8").write(s)
+print("patched")
+PYEOF
+tail -n +2 SplitTextToArtboards.jsx > /private/tmp/_sc.js && node --check /private/tmp/_sc.js && echo "SYNTAX OK"; rm -f /private/tmp/_sc.js

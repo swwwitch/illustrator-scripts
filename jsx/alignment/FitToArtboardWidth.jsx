@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### 概要
 
-選択したオブジェクト全体をひとまとまりとして、縦横比を保ったままアートボードの幅（既定は90%）に合わせてリサイズし、アートボードの中央に配置します。
+選択したオブジェクトを重なるアートボードごとにまとめ、それぞれひとまとまりとして、縦横比を保ったままアートボードの幅（既定は90%）に合わせてリサイズし、中央に配置します。幅に合わせるとアートボードの高さを超える場合は、高さ（既定は90%）を基準にリサイズします。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Treats the whole selection as one unit, resizes it to the artboard width (90% by default) while keeping its aspect ratio, and centers it on the artboard.
+Groups the selection by the artboard each object sits on, resizes every group as one unit to the artboard width (90% by default) while keeping its aspect ratio, and centers it on that artboard. When fitting to the width would exceed the artboard height, it fits to the height (90% by default) instead.
 
 See the README for details.
 
@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FitToArtboardWidth";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-21";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitToArtboardWidth.md
@@ -44,6 +44,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /* アートボード幅に対する仕上がり幅の割合（%）。100 でアートボード幅ぴったり
        Target width as a percentage of the artboard width (100 = full artboard width) */
     var WIDTH_PERCENT = 90;
+
+    /* 幅に合わせるとアートボードの高さを超える場合に使う、高さに対する仕上がり高さの割合（%）
+       Target height as a percentage of the artboard height, used when fitting to the width would overflow it */
+    var HEIGHT_PERCENT = 90;
 
     /* 計測に使う境界 / Bounds used for measuring
        true : プレビュー境界（線幅・効果込みの見た目の端） / preview bounds (incl. strokes & effects)
@@ -204,27 +208,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     /**
-     * 基準にするアートボードを決める（選択と最も広く重なるもの、なければ中心が最も近いもの）
+     * 基準にするアートボードを決める（最も広く重なるもの、なければ中心が最も近いもの）
      * @param {Document} doc - 対象ドキュメント
-     * @param {number[]} selectionBounds - [左, 上, 右, 下] の座標
-     * @returns {number[]} 基準にするアートボードの [左, 上, 右, 下] の座標
+     * @param {number[]} targetBounds - [左, 上, 右, 下] の座標
+     * @returns {number} 基準にするアートボード番号
      */
-    function findTargetArtboardRect(doc, selectionBounds) {
+    function findTargetArtboardIndex(doc, targetBounds) {
         var activeIndex = doc.artboards.getActiveArtboardIndex();
         if (doc.artboards.length < 2) {
-            return doc.artboards[activeIndex].artboardRect;
+            return activeIndex;
         }
-        var targetIndex = findOverlappingArtboardIndex(doc, selectionBounds, activeIndex);
+        var targetIndex = findOverlappingArtboardIndex(doc, targetBounds, activeIndex);
         /* どのアートボードにも重ならないときは一番近いアートボードを使う / Fall back to the nearest artboard */
         if (targetIndex < 0) {
-            targetIndex = findNearestArtboardIndex(doc, selectionBounds);
+            targetIndex = findNearestArtboardIndex(doc, targetBounds);
         }
-        return doc.artboards[targetIndex].artboardRect;
+        return targetIndex;
+    }
+
+    /**
+     * 選択オブジェクトを、それぞれが属するアートボードごとに振り分ける
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} items - 対象オブジェクト
+     * @returns {Array} { artboardRect: number[], items: Array } の配列（最初に見つかったアートボード順）
+     */
+    function groupItemsByArtboard(doc, items) {
+        var groups = [];
+        var groupByIndex = {};
+        for (var i = 0; i < items.length; i++) {
+            var artboardIndex = findTargetArtboardIndex(doc, getItemBounds(items[i]));
+            if (!groupByIndex[artboardIndex]) {
+                groupByIndex[artboardIndex] = { artboardRect: doc.artboards[artboardIndex].artboardRect, items: [] };
+                groups.push(groupByIndex[artboardIndex]);
+            }
+            groupByIndex[artboardIndex].items.push(items[i]);
+        }
+        return groups;
     }
 
     // =========================================
     // リサイズと配置 / Resize & placement
     // =========================================
+
+    /**
+     * アートボードに収めるための倍率を求める
+     * 幅を基準にした結果が高さを超える場合は、高さ基準の倍率に切り替える
+     * @param {number[]} selectionBounds - 選択全体の [左, 上, 右, 下] の座標
+     * @param {number[]} artboardRect - アートボードの [左, 上, 右, 下] の座標
+     * @returns {number} 倍率（1 で等倍）
+     */
+    function getFitScaleFactor(selectionBounds, artboardRect) {
+        var currentWidth = selectionBounds[2] - selectionBounds[0];
+        var currentHeight = selectionBounds[1] - selectionBounds[3];
+        var artboardHeight = artboardRect[1] - artboardRect[3];
+        var scaleFactor = (artboardRect[2] - artboardRect[0]) * WIDTH_PERCENT / 100 / currentWidth;
+        /* 判定は誤差を見込んで少しだけ余裕を持たせる / Allow a small tolerance for rounding */
+        if (currentHeight > 0 && currentHeight * scaleFactor > artboardHeight + 0.001) {
+            scaleFactor = artboardHeight * HEIGHT_PERCENT / 100 / currentHeight;
+        }
+        return scaleFactor;
+    }
 
     /**
      * 選択全体をひとまとまりとして等倍スケールする（グループ化しない）
@@ -325,7 +368,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // =========================================
 
     /**
-     * ドキュメントと選択を確認し、選択全体をアートボードの幅に合わせてリサイズして中央に配置する
+     * ドキュメントと選択を確認し、アートボードごとにまとめた選択を収まる倍率でリサイズして中央に配置する
      * @returns {void}
      */
     function main() {
@@ -341,17 +384,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
             return;
         }
 
-        var selectionBounds = getCombinedBounds(items);
-        var currentWidth = selectionBounds[2] - selectionBounds[0];
-        var artboardRect = findTargetArtboardRect(doc, selectionBounds);
-        var targetWidth = (artboardRect[2] - artboardRect[0]) * WIDTH_PERCENT / 100;
-        if (currentWidth <= 0 || targetWidth <= 0) {
+        /* 重なるアートボードごとに分けて、それぞれを1つのまとまりとして処理する
+           Split the selection per artboard and handle each group as its own cluster */
+        var groups = groupItemsByArtboard(doc, items);
+        var resizedCount = 0;
+        for (var i = 0; i < groups.length; i++) {
+            var groupBounds = getCombinedBounds(groups[i].items);
+            var scaleFactor = getFitScaleFactor(groupBounds, groups[i].artboardRect);
+            /* 幅が0のときは倍率を求められないので、そのグループは飛ばす / Skip a group with no measurable width */
+            if (!isFinite(scaleFactor) || scaleFactor <= 0) {
+                continue;
+            }
+            scaleItemsAsCluster(groups[i].items, scaleFactor);
+            centerItemsOnArtboard(groups[i].items, groups[i].artboardRect, CENTER_VERTICALLY);
+            resizedCount++;
+        }
+        if (resizedCount === 0) {
             alert(getLabel("alert", "zeroWidth"));
             return;
         }
-
-        scaleItemsAsCluster(items, targetWidth / currentWidth);
-        centerItemsOnArtboard(items, artboardRect, CENTER_VERTICALLY);
         app.redraw();
     }
 
