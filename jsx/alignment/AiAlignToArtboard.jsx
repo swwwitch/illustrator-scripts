@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 ### 概要
 
 選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。
-3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードの端・裁ち落としへと寄せ先が進みます。マージンや分割のガイドも引けます。
+3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードのエッジ・裁ち落としへと寄せ先が進みます。マージンや分割のガイドも引けます。
 
 詳細は README を参照してください。
 
@@ -111,13 +111,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var DEFAULT_LINK_MARGINS         = true;  /* マージンの4値を連動させる / keep the four margins in sync */
         var DEFAULT_ALIGN_TO_BLEED       = false; /* 裁ち落としに整列 / align to the bleed */
         var DEFAULT_ALIGN_PER_ARTBOARD   = false; /* アートボードごとに整列 / align per artboard */
-        var DEFAULT_BLEED                = 3;     /* 裁ち落とし欄の初期値（mm）/ initial bleed, in millimetres */
-        /* 裁ち落としは印刷の値なので、定規の単位に追従させず mm で扱う
-           The bleed is a print value, so it stays in millimetres instead of following the ruler */
-        var BLEED_UNIT_LABEL  = "mm";
+        /* 裁ち落としの量（mm）。パレットには数値欄を置かないので、変えたいときはここを書き換える
+           裁ち落としは印刷の値なので、定規の単位に追従させず mm で扱う
+           The bleed in millimetres; the palette has no field for it, so change it here.
+           Being a print value it stays in millimetres instead of following the ruler */
+        var BLEED_MM          = 3;
         var BLEED_UNIT_POINTS = 72.0 / 25.4;
         var DEFAULT_SHOW_GUIDE           = false; /* ガイドを追加 / add the margin guide */
-        var DEFAULT_KEEP_GUIDE           = false; /* ガイドを保持（閉じても残す）/ keep the guide when the palette closes */
         /* 分割ガイドの初期状態。行・列はマージンの内側をいくつに分けるかで、1 のときはガイドを引かない
            行間・列間・伸張は定規の単位で扱う（伸張はアートボードの外へ伸ばす距離）
            Division guides: rows and columns split the area inside the margin, so 1 draws no guide;
@@ -151,6 +151,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var SETTINGS_KEY     = "__aiAlignToArtboardSettings";
         /* メインエンジンへ送り込んだワーカー定義の刻印を控えるキー / Key holding the stamp of the loaded worker source */
         var WORKER_STAMP_KEY = "__aiAlignToArtboardWorkerStamp";
+        /* 閉じたときのパレットの位置を控えるキー / Key holding the palette's location when it was closed */
+        var WINDOW_LOCATION_KEY = "__aiAlignToArtboardWindowLocation";
+        /* 控えた位置を使う条件。左上がこのぶん画面の内側にあること（掴めない位置に出さないため）
+           The stored location is used only when its top-left sits at least this far inside a screen */
+        var WINDOW_ONSCREEN_MARGIN = 60;
 
         /* メインエンジンからの応答を待つ秒数 / seconds to wait for the main engine */
         var WORKER_TIMEOUT = 10;
@@ -179,8 +184,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var RADIO_GAP       = 14;   /* ラジオボタンどうしの間隔 / gap between the radio buttons */
         var CROSS_GAP       = 2;    /* 移動ボタン（十字）どうしの間隔 / gap between the move buttons */
         var CENTER_ROW_TOP  = 8;    /* 十字と中央揃えボタンの間隔 / gap between the cross and the centre-align buttons */
+        var EDGE_ROW_TOP    = 5;    /* 分割の欄と［アートボードのエッジ］の間隔 / gap above the artboard-edge checkbox */
         var PANEL_MARGINS   = [12, 16, 12, 10]; /* オプションパネルの余白 [左,上,右,下]（上はタイトルのぶん広め）/ options panel margins */
-        var COLUMN_SPACING  = 18;   /* 方向ボタンの十字と計測オプションのパネルの間隔 / gap between the move-button cross and the options panel */
+        var COLUMN_SPACING  = 18;   /* ボタンの十字とオプションのパネルの間隔 / gap between the button cross and the options panel */
         var FIELD_CHARS     = 3;    /* マージン入力欄の文字数 / width of the margin field */
         var LABEL_FIELD_SPACING = 4; /* 入力欄と単位ラベルの間隔（既定は広すぎる）/ gap between the field and its unit label */
         /* マージン欄を3×3に並べるときの1セルの幅（日英で文字数が違うので分ける）
@@ -188,11 +194,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var MARGIN_CELL_WIDTH = { ja: 70, en: 84 };
         /* 分割ガイドの項目名の幅。右そろえにして数値欄の頭をそろえる（日英で文字数が違うので分ける）
            Width of the division labels; right-aligned so the fields line up, and the labels differ by language */
-        var DIVIDE_LABEL_WIDTH        = { ja: 40, en: 72 };
-        var DIVIDE_GUTTER_LABEL_WIDTH = { ja: 40, en: 52 };
-        /* 単位ラベルの幅（定規の単位が変わっても欄の位置が動かないよう固定）
-           Fixed width for the unit labels, so the fields stay put when the ruler unit changes */
-        var UNIT_LABEL_WIDTH          = 28;
+        var DIVIDE_LABEL_WIDTH        = { ja: 48, en: 72 };
+        var DIVIDE_GUTTER_LABEL_WIDTH = { ja: 48, en: 52 };
         var STATUS_WIDTH    = 260;  /* 状況表示の幅（中身でパレット幅が変わらないよう固定）/ fixed width of the status line */
         var OPTION_SPACING  = 4;    /* オプションのチェックボックスどうしの間隔 / gap between the option checkboxes */
 
@@ -233,18 +236,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 title: { ja: "ガイドやアートボードのエッジに整列", en: "Align to Guides or Artboard Edges" }
             },
             panel: {
-                guide:       { ja: "マージンガイド", en: "Margin Guide" },
-                divide:      { ja: "分割ガイド", en: "Division Guides" },
-                options:     { ja: "計測オプション", en: "Measurement Options" },
-                destination: { ja: "整列オプション", en: "Align Options" }
+                guide:       { ja: "マージン", en: "Margin" },
+                divide:      { ja: "分割とエッジのガイド", en: "Division & Edge Guides" },
+                options:     { ja: "オプション", en: "Options" }
             },
             fieldLabel: {
                 top:    { ja: "上", en: "Top" },
                 bottom: { ja: "下", en: "Bottom" },
                 left:   { ja: "左", en: "Left" },
                 right:  { ja: "右", en: "Right" },
-                rows:         { ja: "行", en: "Rows" },
-                columns:      { ja: "列", en: "Columns" },
+                rows:         { ja: "行数", en: "Rows" },
+                columns:      { ja: "列数", en: "Columns" },
                 rowGutter:    { ja: "行間", en: "Gutter" },
                 columnGutter: { ja: "列間", en: "Gutter" },
                 extension:    { ja: "伸張", en: "Extension" }
@@ -263,30 +265,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 alignCenterH:   { ja: "水平方向中央に整列", en: "Horizontal Align Center" },
                 alignCenterV:   { ja: "垂直方向中央に整列", en: "Vertical Align Center" },
                 alignCenterAll: { ja: "水平・垂直方向中央に整列", en: "Align Center on Both Axes" },
-                margin: { ja: "アートボードの端から空ける距離", en: "Distance to keep from the artboard edge" },
+                panelGuide: {
+                    ja: "整列の寄せ先になる余白。ガイドとしても引ける",
+                    en: "The inset that alignment steps to; it can be drawn as a guide too"
+                },
+                panelDivide: {
+                    ja: "マージンの内側を等分する位置と、アートボードのエッジにガイドを引く",
+                    en: "Draw guides that split the area inside the margin, and guides on the artboard edges"
+                },
+                margin: { ja: "アートボードのエッジから空ける距離", en: "Distance to keep from the artboard edge" },
                 linkMargins: {
                     ja: "上下左右のマージンを同じ値にする（どれかを変えると残りもそろえる）",
                     en: "Keep the four margins equal; changing one updates the rest"
                 },
                 alignToBleed: {
-                    ja: "アートボードの端の次の寄せ先として、その外側の裁ち落としの位置を使う",
-                    en: "Add the bleed outside the artboard as the stop after the artboard edge"
+                    ja: "アートボードのエッジの次の寄せ先として、その外側の裁ち落とし（{0}mm）の位置を使う",
+                    en: "Add the bleed ({0} mm) outside the artboard as the stop after the artboard edge"
                 },
                 perArtboard: {
                     ja: "選択したオブジェクトを、それぞれが乗っているアートボードに整列（OFFのときは1つのアートボードにまとめて整列）",
                     en: "Align each object to the artboard it sits on (off: everything goes to a single artboard)"
                 },
                 moveToEdge: {
-                    ja: "その方向のガイド → アートボードの端 → 裁ち落とし の順に寄せる（↑↓←→キーでも実行）",
+                    ja: "その方向のガイド → アートボードのエッジ → 裁ち落とし の順に寄せる（↑↓←→キーでも実行）",
                     en: "Step to the guide in that direction, then the artboard edge, then the bleed (the arrow keys do the same)"
                 },
-                keepGuide: {
-                    ja: "パレットを閉じてもガイドを残す（OFFのときは閉じるときに削除）",
-                    en: "Leave the guide in place when the palette closes (deleted on close when off)"
-                },
                 showGuide: {
-                    ja: "マージンの位置に長方形のガイドを作る（「_guide」レイヤー、アクティブなアートボードに1つ）",
-                    en: "Draw a rectangle guide at the margin (on the \"_guide\" layer, one on the active artboard)"
+                    ja: "マージンの位置に長方形のガイドを作る（「_guide」レイヤー、アクティブなアートボードに1つ）。パレットを閉じても残る。OFFのあいだは上下左右の欄をディムにする",
+                    en: "Draw a rectangle guide at the margin (on the \"_guide\" layer, one on the active artboard). It stays when the palette closes, and the four fields are dimmed while this is off"
                 },
                 divideNone: {
                     ja: "分割のガイドを引かない",
@@ -297,16 +303,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     en: "Draw a cross through the centre of the area inside the margin"
                 },
                 divideCustom: {
-                    ja: "横方向・縦方向それぞれの分割数で、マージンの内側を等分するガイドを引く",
-                    en: "Split the area inside the margin into the number of columns and rows below"
+                    ja: "行数・列数のぶんだけ、マージンの内側を等分するガイドを引く",
+                    en: "Split the area inside the margin into the number of rows and columns below"
                 },
                 divideRows: {
-                    ja: "マージンの内側を上下に何段に分けるか（1のときはガイドを引かない）",
-                    en: "How many rows to split the area inside the margin into (1 draws no guide)"
+                    ja: "マージンの内側（マージンが0ならアートボード全体）を上下に何段に分けるか（1のときはガイドを引かない）",
+                    en: "How many rows to split the area inside the margin into, or the whole artboard at margin 0 (1 draws no guide)"
                 },
                 divideColumns: {
-                    ja: "マージンの内側を左右に何列に分けるか（1のときはガイドを引かない）",
-                    en: "How many columns to split the area inside the margin into (1 draws no guide)"
+                    ja: "マージンの内側（マージンが0ならアートボード全体）を左右に何列に分けるか（1のときはガイドを引かない）",
+                    en: "How many columns to split the area inside the margin into, or the whole artboard at margin 0 (1 draws no guide)"
                 },
                 divideRowGutter: {
                     ja: "行と行のあいだに空ける距離（0より大きいと、段の上下2本のガイドを引く）",
@@ -353,21 +359,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             },
             checkbox: {
                 showGuide:     { ja: "ガイドを追加", en: "Add Guides" },
-                keepGuide:     { ja: "ガイドを保持", en: "Keep Guides" },
                 artboardEdge:  { ja: "アートボードのエッジ", en: "Artboard Edges" },
                 linkMargins:   { ja: "連動", en: "Link" },
                 previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" },
                 glyphBounds:   { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
                 alignToBleed:  { ja: "裁ち落としに整列", en: "Align to Bleed" },
-                perArtboard:   { ja: "アートボードごとに整列", en: "Align per Artboard" },
+                perArtboard:   { ja: "アートボードごと", en: "Per Artboard" },
                 changeJustification: { ja: "行揃えを変更", en: "Change Justification" }
             },
             status: {
                 done:           { ja: "整列しました。", en: "Aligned." },
-                moved:          { ja: "移動しました。", en: "Moved." },
+                moved:          { ja: "寄せました。", en: "Moved." },
                 noBounds:       { ja: "境界を取得できません。", en: "Could not measure the selection." },
                 doneJustified:  { ja: "整列し、行揃えを{0}に変更しました。", en: "Aligned; justification set to {0}." },
-                movedJustified: { ja: "移動し、行揃えを{0}に変更しました。", en: "Moved; justification set to {0}." },
+                movedJustified: { ja: "寄せて、行揃えを{0}に変更しました。", en: "Moved; justification set to {0}." },
                 noDocument:     { ja: "ドキュメントが開かれていません。", en: "No document is open." },
                 noSelection:    { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
                 multipleLayers: { ja: "レイヤーをまたぐ選択は整列できません。", en: "Cannot align a selection spanning layers." },
@@ -931,22 +936,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /* 伸張欄がまだ既定値のままか。マージン欄と同じく、定規の単位が分かった時点でその単位の既定値に入れ直す
            Whether the extension field still holds a default; like the margins, it is refilled once the ruler unit is known */
         var extensionIsDefault = false;
-        var bleedField = null;
         var alignToBleedCheckbox = null;
         var alignPerArtboardCheckbox = null;
         var showGuideCheckbox = null;
-        var keepGuideCheckbox = null;
         /* 分割ガイドの切り替えラジオと分割数の入力欄（どちらも軸・モードの名前をキーにする）
            The division mode radios and count fields, keyed by mode and axis */
         var divideRadios = {};
         var divideFields = {};
-        /* 分割ガイドの間隔・伸張に添える単位ラベル（定規の単位が変わったら書き換える）
-           The unit labels beside the gutter and extension fields, rewritten when the ruler unit changes */
-        var divideUnitLabels = [];
+        var dividePanel = null;
         var artboardEdgeCheckbox = null;
-        /* パレットを閉じてもガイドを残すか。閉じる処理でコントロールを触らずに済むよう値を控えておく
-           Whether to keep the guide on close; mirrored so teardown never has to read a control */
-        var keepGuideOnClose = DEFAULT_KEEP_GUIDE;
         /* パレットを組み立て終えたか。組み立てのあいだは控えを書かない
            （まだ作っていないコントロールを既定値として読み、引き継いだ設定を消してしまうため）
            Whether the palette is fully built; settings are not stored until it is, or controls that do not
@@ -1117,10 +1115,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
             win.addEventListener("keydown", function(event) { onPaletteKeyDown(win, event); });
 
-            /* 閉じるとき：［ガイドを保持］がOFFならこのパレットが作ったガイドを消し、参照を解放する
-               On close: delete the guide unless "Keep Guides" is on, then release the reference */
+            /* 閉じるとき：ガイドはドキュメントに残したまま、参照だけ解放する
+               （消したいときは［ガイドを追加］を外すか、分割を［なし］にする）
+               On close: the guides stay in the document and only the reference is released */
             win.onClose = function() {
-                if (!keepGuideOnClose) { removeMarginGuide(); }
+                saveWindowLocation(win);
                 paletteWindow = null;
                 $.global.__aiAlignToArtboardWindow = null;
                 return true;
@@ -1151,7 +1150,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             if (event.keyName === BLEED_TOGGLE_KEY && alignToBleedCheckbox !== null) {
                 event.preventDefault();
                 alignToBleedCheckbox.value = alignToBleedCheckbox.value !== true;
-                syncBleedField();
+                savePaletteSettings();
                 return;
             }
 
@@ -1296,8 +1295,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * ボタンの下を2カラムに分け、左に移動ボタンの十字・右に計測オプションのパネルを置く
-         * マージンガイドと整列オプションはここには入れず、パレットの下に幅いっぱいで並べる
+         * パレットの上段を2カラムに分け、左にボタンの十字・右にオプションのパネルを置く
+         * マージンガイドと分割ガイドはここには入れず、その下に幅いっぱいで並べる
          * @param {Window} targetWindow - 追加先のパレット
          * @returns {void}
          */
@@ -1318,7 +1317,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * @returns {void}
          */
         function addMarginPanel(targetWindow) {
-            marginPanel = targetWindow.add("panel", undefined, marginPanelTitle());
+            marginPanel = targetWindow.add("panel", undefined, panelTitleWithUnit("guide"));
+            marginPanel.helpTip = getLabel("tooltip", "panelGuide");
             marginPanel.orientation = "column";
             marginPanel.alignment = ["fill", "top"];
             marginPanel.alignChildren = ["left", "top"];
@@ -1340,28 +1340,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     copyMarginToLinkedFields(marginFields.top);
                 }
                 syncMarginFields();
-                syncGuideControls();
+                savePaletteSettings();
                 runExclusive(refreshMarginGuide);
             };
 
             addMarginFieldRows(marginPanel, paletteSettings);
-
-            keepGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "keepGuide"));
-            keepGuideCheckbox.helpTip = getLabel("tooltip", "keepGuide");
-            keepGuideCheckbox.value = paletteSettings.keepGuide;
-            keepGuideCheckbox.onClick = function() { syncGuideControls(); };
-
-            syncGuideControls();
         }
 
         /**
-         * マージンガイドのパネル名に、いまの定規の単位を添える
-         * 欄が4つあるので、単位は欄ごとではなくパネル名にまとめて出す
+         * パネル名に、いまの定規の単位を添える
+         * 数値欄が多いので、単位は欄ごとではなくパネル名にまとめて出す
+         * @param {string} panelKey - LABELS.panel のキー
          * @returns {string} パネル名
          */
-        function marginPanelTitle() {
+        function panelTitleWithUnit(panelKey) {
             var unitLabel = currentUnitInfo.label;
-            return getLabel("panel", "guide") + (uiLang === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
+            return getLabel("panel", panelKey) + (uiLang === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
         }
 
         /**
@@ -1502,13 +1496,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * @returns {void}
          */
         function addDividePanel(targetWindow) {
-            var dividePanel, paletteSettings, extensionRow, i;
+            var paletteSettings, edgeRow, extensionRow, i;
 
             /* 前回の設定を引き継ぐ（残したガイドと表示が食い違わないように）/ Carry over the previous settings */
             paletteSettings = loadPaletteSettings();
             extensionIsDefault = paletteSettings.usesDefaultExtension;
 
-            dividePanel = targetWindow.add("panel", undefined, getLabel("panel", "divide"));
+            dividePanel = targetWindow.add("panel", undefined, panelTitleWithUnit("divide"));
+            dividePanel.helpTip = getLabel("tooltip", "panelDivide");
             dividePanel.orientation = "column";
             dividePanel.alignment = ["fill", "top"];
             dividePanel.alignChildren = ["left", "top"];
@@ -1520,19 +1515,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 addDivideFieldRow(dividePanel, DIVIDE_FIELD_ROWS[i], paletteSettings);
             }
 
-            /* 伸張は行・列のどちらにも掛かるので、対にせず単独の行に置く
-               The extension applies to both axes, so it sits on its own row instead of pairing off */
-            extensionRow = dividePanel.add("group");
-            setupRow(extensionRow, "left", LABEL_FIELD_SPACING);
-            addDivideField(extensionRow, "extension", paletteSettings, DIVIDE_LABEL_WIDTH[uiLang], true);
+            /* 分割の指定とは別の設定なので、上に少し余白を取って切り分ける
+               It is separate from the division settings, so a little room above sets it apart */
+            edgeRow = dividePanel.add("group");
+            setupRow(edgeRow, "left", LABEL_FIELD_SPACING);
+            edgeRow.margins = [0, EDGE_ROW_TOP, 0, 0];
 
-            artboardEdgeCheckbox = dividePanel.add("checkbox", undefined, getLabel("checkbox", "artboardEdge"));
+            artboardEdgeCheckbox = edgeRow.add("checkbox", undefined, getLabel("checkbox", "artboardEdge"));
             artboardEdgeCheckbox.helpTip = getLabel("tooltip", "artboardEdge");
             artboardEdgeCheckbox.value = paletteSettings.artboardEdge;
             artboardEdgeCheckbox.onClick = function() {
                 syncDivideFields();
                 runExclusive(refreshMarginGuide);
             };
+
+            /* 伸張は行・列とアートボードのエッジのどれにも掛かるので、対にせず、すべての下に単独で置く
+               The extension applies to the rows, the columns and the artboard edges alike, so it sits on
+               its own row below all of them */
+            extensionRow = dividePanel.add("group");
+            setupRow(extensionRow, "left", LABEL_FIELD_SPACING);
+            addDivideField(extensionRow, "extension", paletteSettings, DIVIDE_LABEL_WIDTH[uiLang]);
 
             syncDivideFields();
         }
@@ -1570,8 +1572,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function addDivideFieldRow(dividePanel, rowDef, paletteSettings) {
             var fieldRow = dividePanel.add("group");
             setupRow(fieldRow, "left", LABEL_FIELD_SPACING);
-            addDivideField(fieldRow, rowDef.count, paletteSettings, DIVIDE_LABEL_WIDTH[uiLang], false);
-            addDivideField(fieldRow, rowDef.gutter, paletteSettings, DIVIDE_GUTTER_LABEL_WIDTH[uiLang], true);
+            addDivideField(fieldRow, rowDef.count, paletteSettings, DIVIDE_LABEL_WIDTH[uiLang]);
+            addDivideField(fieldRow, rowDef.gutter, paletteSettings, DIVIDE_GUTTER_LABEL_WIDTH[uiLang]);
         }
 
         /**
@@ -1581,11 +1583,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * @param {string} valueKey - DIVIDE_VALUE_KEYS のキー
          * @param {object} paletteSettings - 引き継いだ設定
          * @param {number} labelWidth - 項目名の幅
-         * @param {boolean} hasUnit - 定規の単位ラベルを添えるなら true（分割数は単位を持たない）
          * @returns {void}
          */
-        function addDivideField(fieldRow, valueKey, paletteSettings, labelWidth, hasUnit) {
-            var label, field, unitLabel;
+        function addDivideField(fieldRow, valueKey, paletteSettings, labelWidth) {
+            var label, field;
 
             label = fieldRow.add("statictext", undefined, labelText("fieldLabel", valueKey));
             label.preferredSize.width = labelWidth;
@@ -1603,11 +1604,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 savePaletteSettings();
             };
             divideFields[valueKey] = field;
-
-            if (!hasUnit) { return; }
-            unitLabel = fieldRow.add("statictext", undefined, currentUnitInfo.label);
-            unitLabel.preferredSize.width = UNIT_LABEL_WIDTH;
-            divideUnitLabels.push(unitLabel);
         }
 
         /**
@@ -1627,7 +1623,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 if (!divideFields[valueKey]) { continue; }
                 divideFields[valueKey].enabled = (valueKey === "extension") ? usesExtension : isCustom;
             }
-            syncGuideControls();
+            savePaletteSettings();
         }
 
         /**
@@ -1636,16 +1632,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          */
         function readArtboardEdge() {
             return artboardEdgeCheckbox !== null && artboardEdgeCheckbox.value === true;
-        }
-
-        /**
-         * 分割ガイドの単位ラベルを、いまの定規の単位に書き換える
-         * @returns {void}
-         */
-        function updateDivideUnitLabels() {
-            for (var i = 0; i < divideUnitLabels.length; i++) {
-                divideUnitLabels[i].text = currentUnitInfo.label;
-            }
         }
 
         /**
@@ -1672,27 +1658,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * ガイドの有無に合わせて［ガイドを保持］を更新する
-         * ガイドを出していないときは保持しようがないのでディムする（設定は残したいので値は落とさない）
-         * @returns {void}
-         */
-        function syncGuideControls() {
-            if (showGuideCheckbox === null || keepGuideCheckbox === null) { return; }
-            keepGuideCheckbox.enabled = hasGuideToDraw();
-            keepGuideOnClose = keepGuideCheckbox.value === true;
-            savePaletteSettings();
-        }
-
-        /**
          * 前回のパレット設定を常駐エンジンから読み出す（控えが無ければ既定値）
-         * @returns {object} { showGuide, keepGuide, usesDefaultMargins, margins, divideMode, divideValues, usesDefaultExtension, artboardEdge, linkMargins, alignToBleed, bleed, perArtboard }
+         * @returns {object} { showGuide, usesDefaultMargins, margins, divideMode, divideValues, usesDefaultExtension, artboardEdge, linkMargins, alignToBleed, perArtboard }
          */
         function loadPaletteSettings() {
             var stored = $.global[SETTINGS_KEY];
             if (!stored) {
                 return {
                     showGuide:    DEFAULT_SHOW_GUIDE,
-                    keepGuide:    DEFAULT_KEEP_GUIDE,
                     usesDefaultMargins: true,
                     margins:      marginStrings(null, String(currentUnitInfo.defaultMargin)),
                     divideMode:   DEFAULT_DIVIDE_MODE,
@@ -1701,13 +1674,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     artboardEdge: DEFAULT_ARTBOARD_EDGE,
                     linkMargins:  DEFAULT_LINK_MARGINS,
                     alignToBleed: DEFAULT_ALIGN_TO_BLEED,
-                    bleed:        String(DEFAULT_BLEED),
                     perArtboard:  DEFAULT_ALIGN_PER_ARTBOARD
                 };
             }
             return {
                 showGuide:    stored.showGuide === true,
-                keepGuide:    stored.keepGuide === true,
                 usesDefaultMargins: stored.margins == null,
                 margins:      marginStrings(stored.margins, String(currentUnitInfo.defaultMargin)),
                 divideMode:   knownDivideMode(stored.divideMode),
@@ -1716,7 +1687,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 artboardEdge: stored.artboardEdge === true,
                 linkMargins:  (stored.linkMargins != null) ? (stored.linkMargins === true) : DEFAULT_LINK_MARGINS,
                 alignToBleed: stored.alignToBleed === true,
-                bleed:        (stored.bleed != null) ? String(stored.bleed) : String(DEFAULT_BLEED),
                 perArtboard:  stored.perArtboard === true
             };
         }
@@ -1783,25 +1753,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             if (!isPaletteReady) { return; }
             $.global[SETTINGS_KEY] = {
                 showGuide:    showGuideCheckbox !== null && showGuideCheckbox.value === true,
-                keepGuide:    keepGuideCheckbox !== null && keepGuideCheckbox.value === true,
                 margins:      readMarginTexts(),
                 divideMode:   readDivideMode(),
                 divideValues: readDivideValueTexts(),
                 artboardEdge: readArtboardEdge(),
                 linkMargins:  linkMarginsCheckbox !== null && linkMarginsCheckbox.value === true,
                 alignToBleed: alignToBleedCheckbox !== null && alignToBleedCheckbox.value === true,
-                bleed:        (bleedField !== null) ? String(bleedField.text) : String(DEFAULT_BLEED),
                 perArtboard:  alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true
             };
         }
 
         /**
-         * 計測オプションパネル（プレビュー境界・字形の境界に整列・行揃えを変更）を組み立てる
-         * 境界の測り方と、それに付随する行揃えの変更だけを置く（整列オプションは別パネル）
+         * オプションパネル（境界の測り方・行揃えの変更・寄せ先の指定）を組み立てる
          * @param {Group} parentRow - 追加先の2カラムの行グループ
          * @returns {void}
          */
         function addOptionsPanel(parentRow) {
+            var paletteSettings = loadPaletteSettings();
+
             var optionsPanel = parentRow.add("panel", undefined, getLabel("panel", "options"));
             optionsPanel.orientation = "column";
             /* パネル自身は右カラムの幅いっぱいに、中のチェックボックスは左そろえ（fill の継承を打ち消す）
@@ -1827,57 +1796,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             changeJustificationCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox", "changeJustification"));
             changeJustificationCheckbox.helpTip = getLabel("tooltip", "changeJustification");
             changeJustificationCheckbox.value = DEFAULT_CHANGE_JUSTIFICATION;
-        }
 
-        /**
-         * 整列オプションパネル（裁ち落としに整列・アートボードごとに整列）を組み立てる
-         * 裁ち落としは印刷の値なので、定規の単位に追従させず mm で扱う
-         * @param {Window} targetWindow - 追加先のパレット
-         * @returns {void}
-         */
-        function addDestinationPanel(targetWindow) {
-            var paletteSettings = loadPaletteSettings();
-
-            var destinationPanel = targetWindow.add("panel", undefined, getLabel("panel", "destination"));
-            destinationPanel.orientation = "column";
-            destinationPanel.alignment = ["fill", "top"];
-            destinationPanel.alignChildren = ["left", "center"];
-            destinationPanel.margins = PANEL_MARGINS;
-            destinationPanel.spacing = OPTION_SPACING;
-
-            var bleedRow = destinationPanel.add("group");
-            setupRow(bleedRow, "left", LABEL_FIELD_SPACING);
-
-            alignToBleedCheckbox = bleedRow.add("checkbox", undefined, getLabel("checkbox", "alignToBleed"));
-            alignToBleedCheckbox.helpTip = getLabel("tooltip", "alignToBleed") + keyHint(BLEED_TOGGLE_KEY);
+            /* 裁ち落としの量は BLEED_MM 固定なので、チェックボックスだけを置く
+               The bleed amount is fixed at BLEED_MM, so only the checkbox is needed */
+            alignToBleedCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox", "alignToBleed"));
+            alignToBleedCheckbox.helpTip = getLabel("tooltip", "alignToBleed").replace("{0}", BLEED_MM) + keyHint(BLEED_TOGGLE_KEY);
             alignToBleedCheckbox.value = paletteSettings.alignToBleed;
-            alignToBleedCheckbox.onClick = function() { syncBleedField(); };
+            alignToBleedCheckbox.onClick = function() { savePaletteSettings(); };
 
-            bleedField = bleedRow.add("edittext", undefined, paletteSettings.bleed);
-            bleedField.characters = FIELD_CHARS;
-            bleedField.helpTip = getLabel("tooltip", "alignToBleed");
-            changeValueByArrowKey(bleedField);
-            bleedField.onChange = function() { savePaletteSettings(); };
-
-            bleedRow.add("statictext", undefined, BLEED_UNIT_LABEL);
-
-            alignPerArtboardCheckbox = destinationPanel.add("checkbox", undefined, getLabel("checkbox", "perArtboard"));
+            alignPerArtboardCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox", "perArtboard"));
             alignPerArtboardCheckbox.helpTip = getLabel("tooltip", "perArtboard");
             alignPerArtboardCheckbox.value = paletteSettings.perArtboard;
             alignPerArtboardCheckbox.onClick = function() { savePaletteSettings(); };
-
-            syncBleedField();
-        }
-
-        /**
-         * ［裁ち落としに整列］の状態に合わせて裁ち落としの数値欄を更新する
-         * OFFのときは使わない値なのでディムする（設定は残したいので値は落とさない）
-         * @returns {void}
-         */
-        function syncBleedField() {
-            if (alignToBleedCheckbox === null || bleedField === null) { return; }
-            bleedField.enabled = alignToBleedCheckbox.value === true;
-            savePaletteSettings();
         }
 
         /**
@@ -1919,6 +1849,52 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
+         * パレットを閉じた位置を控える（次に開いたときに同じ場所へ出すため）
+         * @param {Window} win - 対象のパレット
+         * @returns {void}
+         */
+        function saveWindowLocation(win) {
+            try {
+                $.global[WINDOW_LOCATION_KEY] = [win.location[0], win.location[1]];
+            } catch (locationError) {}
+        }
+
+        /**
+         * 控えておいた位置にパレットを移す（画面の外に出る位置なら使わない）
+         * @param {Window} win - 対象のパレット
+         * @returns {void}
+         */
+        function restoreWindowLocation(win) {
+            var stored = $.global[WINDOW_LOCATION_KEY];
+            if (!stored || stored.length !== 2) { return; }
+            if (!isLocationOnScreen(stored[0], stored[1])) { return; }
+            try { win.location = [stored[0], stored[1]]; } catch (locationError) {}
+        }
+
+        /**
+         * その座標がいずれかのディスプレイの内側かを判定する
+         * ディスプレイ構成が変わったときに、掴めない位置へパレットを出さないために見る
+         * @param {number} x - 左端
+         * @param {number} y - 上端
+         * @returns {boolean} 内側なら true（判定できない環境では true）
+         */
+        function isLocationOnScreen(x, y) {
+            var screens, bounds, i;
+            try {
+                screens = $.screens;
+            } catch (screenError) {
+                return true;
+            }
+            if (!screens || screens.length === 0) { return true; }
+            for (i = 0; i < screens.length; i++) {
+                bounds = screens[i];
+                if (x >= bounds.left && x <= bounds.right - WINDOW_ONSCREEN_MARGIN &&
+                    y >= bounds.top && y <= bounds.bottom - WINDOW_ONSCREEN_MARGIN) { return true; }
+            }
+            return false;
+        }
+
+        /**
          * すでに開いているパレットがあれば閉じる（多重起動防止と、修正後のコードで開き直すため）
          * @returns {void}
          */
@@ -1949,7 +1925,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             addColumnsRow(win);
             addMarginPanel(win);
             addDividePanel(win);
-            addDestinationPanel(win);
             addStatusLine(win);
             /* ここまでで全コントロールがそろうので、以降は操作のたびに控える
                Every control now exists, so from here on each change is stored */
@@ -1964,6 +1939,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                Load the preferences before showing, so the checkboxes do not flip in front of the user */
             loadBoundsPreferences();
             win.layout.layout(true);
+            restoreWindowLocation(win);
             win.show();
             refreshPaletteState();
             /* 引き継いだ設定でガイドを描き直す（前回残したガイドと入力欄の値をそろえる）
@@ -2076,7 +2052,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             needsGroup = selectedItems.length > 1;
             if (needsGroup && btSpansMultipleLayers(selectedItems)) { return "MULTILAYER"; }
             btActivateArtboardForSelection(doc, selectedItems);
-            /* すでにマージンの位置に寄っているなら、次はその外のアートボードの端へ寄せる（方向ボタンと同じ二段階）*/
+            /* すでにマージンの位置に寄っているなら、次はその外のアートボードのエッジへ寄せる（方向ボタンと同じ二段階）*/
             options.marginPt = btResolveStepMargin(doc, selectedItems, options);
             previousPreferences = btReadPreferences();
             justification = { previous: null, changed: null };
@@ -2211,13 +2187,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             var selectionEdge, artboardEdge, bleedEdge, targetEdge, delta;
             selectionEdge = btEdgeValue(bounds, side);
             artboardEdge = btEdgeValue(artboardRect, side);
-            /* 進む向きにガイドがあればそこで止め、無ければアートボードの端まで動かす */
+            /* 進む向きにガイドがあればそこで止め、無ければアートボードのエッジまで動かす */
             targetEdge = btFindGuideSnapValue(doc, artboardRect, bounds, side, options.guideTolerance, options.minDeltaPt);
             if (targetEdge === null) {
                 targetEdge = artboardEdge;
                 if (options.bleedPt > 0) {
                     bleedEdge = btOutsetValue(artboardEdge, side, options.bleedPt);
-                    /* 裁ち落としまで出ていればそこに留め、アートボードの端に乗っていれば次は裁ち落としへ */
+                    /* 裁ち落としまで出ていればそこに留め、アートボードのエッジに乗っていれば次は裁ち落としへ */
                     if (Math.abs(bleedEdge - selectionEdge) < options.minDeltaPt) { return 0; }
                     if (Math.abs(artboardEdge - selectionEdge) < options.minDeltaPt) { targetEdge = bleedEdge; }
                 }
@@ -2272,7 +2248,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             }
             if (ahead !== null) { return ahead; }
             /* 進む向きにガイドが無く、なおかつオブジェクトがガイド全体をまたいでいる（ガイドの間隔より大きい）ときだけ、
-               戻る向きの最も近いガイドに合わせる。またいでいなければ null を返し、呼び出し側がアートボードの端を使う */
+               戻る向きの最も近いガイドに合わせる。またいでいなければ null を返し、呼び出し側がアートボードのエッジを使う */
             if (behindNear !== null && btIsAhead(behindFar, oppositeEdge, side, epsilon)) { return behindNear; }
             return null;
         }
@@ -2568,7 +2544,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         function btAlignStops(options) {
             var stops;
-            /* 内側から順に、マージン → アートボードの端 → 裁ち落とし。
+            /* 内側から順に、マージン → アートボードのエッジ → 裁ち落とし。
                値はアートボードの辺からの内向きの量なので、裁ち落としは負になる */
             stops = [];
             if (options.marginPt > 0) { stops.push(options.marginPt); }
@@ -3286,7 +3262,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          */
         function readBleedPt() {
             if (alignToBleedCheckbox === null || alignToBleedCheckbox.value !== true) { return 0; }
-            return readFieldPt(bleedField, BLEED_UNIT_POINTS);
+            return BLEED_MM * BLEED_UNIT_POINTS;
         }
 
         /**
@@ -3383,26 +3359,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * このスクリプトが作ったガイド（マージン・分割の両方）を削除する
-         * パレットを閉じるときに呼ぶため、コントロールを参照せず値を直接組み立てる
-         * （閉じる処理は何があっても止めないよう、失敗は握りつぶす）
-         * @returns {void}
-         */
-        function removeMarginGuide() {
-            try {
-                var options = {
-                    showGuide:      false,
-                    guideMargins:   { top: 0, bottom: 0, left: 0, right: 0 },
-                    divisions:      { rows: 1, columns: 1, rowGutter: 0, columnGutter: 0, extension: 0, artboardEdge: false },
-                    guideName:      GUIDE_NAME,
-                    divideName:     DIVIDE_GUIDE_NAME,
-                    guideLayerName: GUIDE_LAYER_NAME
-                };
-                runWorker("btUpdateMarginGuide(" + options.toSource() + ");");
-            } catch (removeGuideError) {}
-        }
-
-        /**
          * マージンのガイドを作り直す（チェックがOFFなら消すだけ）
          * 結果は状況表示に出さず、エラーのときだけ知らせる
          * @returns {void}
@@ -3442,7 +3398,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                The shift from the artboard centre; only an Option-clicked centre alignment sets it */
             options.centerOffsetX       = centerOffset.x;
             options.centerOffsetY       = centerOffset.y;
-            /* Option＋クリックは段階を踏まず、アートボードの端にぴったり寄せる
+            /* Option＋クリックは段階を踏まず、アートボードのエッジにぴったり寄せる
                Option-click skips the steps and sits flush against the artboard edge */
             options.marginPt            = ignoresMargin ? 0 : marginForAlign(spec, options.guideMargins);
             options.bleedPt             = ignoresMargin ? 0 : readBleedPt();
@@ -3457,7 +3413,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 移動ボタンのオプションを組み立てる
-         * マージンは使わず（ガイドかアートボードの端にぴったり寄せる）、境界の測り方だけオプションに従う
+         * マージンは使わず（ガイドかアートボードのエッジにぴったり寄せる）、境界の測り方だけオプションに従う
          * @param {string} directionKey - MOVE_SIDES_BY_DIRECTION のキー
          * @returns {object} ワーカーへ渡すオプション
          */
@@ -3562,8 +3518,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     alignPerArtboardCheckbox.enabled = (Number(parts[3]) > 1);
                 }
                 currentUnitInfo = UNIT_INFO[parts[1]] || FALLBACK_UNIT_INFO;
-                if (marginPanel !== null) { marginPanel.text = marginPanelTitle(); }
-                updateDivideUnitLabels();
+                if (marginPanel !== null) { marginPanel.text = panelTitleWithUnit("guide"); }
+                if (dividePanel !== null) { dividePanel.text = panelTitleWithUnit("divide"); }
                 fillDefaultExtension();
                 fillDefaultMargins();
                 var selectionSignature = parts[0] + "|" + parts[2];

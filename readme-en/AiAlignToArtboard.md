@@ -17,7 +17,7 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 	- The middle button centres on both axes. **Option-click centres inside the margin** instead of on the artboard
 	- The two buttons below centre on one axis each; Option-click centres that axis inside the margin
 	- Each icon shows a rule at the destination edge with the object pushed against it; on the three centred ones the rule runs through the object instead
-- Margin Guide: the inset from each artboard edge, set individually for top, bottom, left and right (unit follows the ruler). Only the left/right/top/bottom alignments are affected; the three centered ones and the arrow buttons do not use it
+- Margin: the inset from each artboard edge, set individually for top, bottom, left and right (unit follows the ruler). Only the left/right/top/bottom alignments are affected; the three centered ones and the arrow buttons do not use it
 	- Option-click ignores the margin and sits flush against the artboard edge
 	- Pressing again once the selection already sits at the margin carries it on to the artboard edge beyond it (and it stays there on any further press)
 	- The fields step with ↑↓ (Shift = ±10, snapping to multiples of 10 / Option = ±0.1); negative values are clamped to 0
@@ -25,10 +25,9 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 	- While Add Guides is off, all four fields and Link are dimmed together (their values are kept)
 	- The starting value depends on the ruler unit (5 for mm, 20 for pt / px / Q, 0.5 for cm, 0.25 for inches). Until a value is typed in, changing the ruler unit swaps in that unit's starting value
 	- Turning Add Guides on turns Link on as well and levels the four values off, since an even inset is the usual case
-	- The ruler unit is shown once in the panel title ("Margin Guide (mm)") rather than beside each field
-	- Add Guides: draws a rectangle guide inset from the artboard edges by the margin. That guide is a destination for the arrow buttons as well
-	- Keep Guides: leaves the guide in place when the palette closes (off by default). Dimmed while no guide is drawn at all, but its own state is preserved. It covers the division guides and the artboard edges too
-- Division Guides: draw guides that split the area inside the margin into rows and columns. Choose None, Cross or Custom
+	- The ruler unit is shown once in the panel title ("Margin (mm)") rather than beside each field
+	- Add Guides: draws a rectangle guide inset from the artboard edges by the margin. That guide is a destination for the arrow buttons as well, and **it stays when the palette closes**
+- Division & Edge Guides: draw guides that split the area inside the margin into rows and columns, and guides on the four artboard edges. The division is None, Cross or Custom
 	- None: no division guides (default)
 	- Cross: one horizontal and one vertical guide through the centre of the area inside the margin
 	- Custom: split into the given number of Rows and Columns; a count of 1 draws no guide on that axis
@@ -36,14 +35,13 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 	- Extension: how far the division guides reach outside the artboard. At zero they span the artboard's width and height
 	- Artboard Edges: also draw guides on the four edges of the artboard, reaching outside by the extension. It works independently of the division settings
 	- The guides are drawn on the "_guide" layer under the name `AiAlignToArtboard-divide`. As with the margin guide, every redraw deletes the existing guides of that name first. They are destinations for the arrow buttons as well
-- Measurement Options
+- Options
 	- Preview Bounds: align using the visible bounds, including stroke and effects (off by default)
 	- Align to Glyph Bounds: toggles point type and area type together (on by default); Option-click treats it as on even when unchecked. Symbol instances are covered too — the type inside them is measured and aligned to its glyph bounds
-- Destination
-	- Align to Bleed: adds the bleed outside the artboard as the **stop after the artboard edge** (off by default; the field beside it starts at 3 mm). Being a print value it never follows the ruler unit and is always read as millimetres
-	- Align per Artboard: aligns each selected object to **the artboard it sits on** (off by default). Objects sharing an artboard still move together as one block, and the arrow buttons follow the same rule. It is dimmed in a document with only one artboard
 	- Both are written to the preferences only for the duration of an align, and the previous values are restored afterwards
 	- Change Justification: match the justification of a lone single-line text object to the horizontal alignment (on by default) — left align to left, horizontal center to centered, right align to right. Vertical alignments leave it alone. Dimmed while no text is selected
+	- Align to Bleed: adds the bleed outside the artboard as the **stop after the artboard edge** (off by default). The amount comes from `BLEED_MM` at the top of the script (3 mm by default); being a print value it never follows the ruler unit
+	- Per Artboard: aligns each selected object to **the artboard it sits on** (off by default). Objects sharing an artboard still move together as one block, and the outer buttons follow the same rule. It is dimmed in a document with only one artboard
 - Keyboard: Esc closes the palette; ↑↓←→ fire the four side move buttons (the diagonals have no key); C centres horizontally, M vertically and X on both axes; B toggles Align to Bleed
 - A status line at the bottom reports the result (aligned / moved / nothing selected / wrong align target / error). Text too long for the fixed width can be read in full by hovering over it
 
@@ -81,7 +79,7 @@ Arrow buttons:
 - Which of the four margins applies follows the edge being aligned to: Left for a left align, Right for a right align, Top for a top align and Bottom for a bottom align. None of the three centered alignments use one.
 - The four edge alignments and the arrow buttons **step outwards on each press**: a guide (the margin guide included), then the artboard edge, then the bleed. Stops with no value are skipped, and once out at the last one further presses leave the selection where it is. The check measures bounds the same way Preview Bounds and Align to Glyph Bounds do. The three centered alignments never use the margin and are unchanged, and Option-click skips the steps and goes straight to the artboard edge.
 - Align to Bleed draws no guide; it only adds one more stop to that sequence.
-- With Align per Artboard on, the selection is **bucketed by artboard** and each bucket is aligned or moved on its own. Within a bucket the objects are still grouped temporarily and move as one block, and the original selection is restored at the end. If one bucket fails, the run stops there and reports why.
+- With Per Artboard on, the selection is **bucketed by artboard** and each bucket is aligned or moved on its own. Within a bucket the objects are still grouped temporarily and move as one block, and the original selection is restored at the end. If one bucket fails, the run stops there and reports why.
 - **The bleed value cannot be read from Illustrator.** The document's bleed setting is not exposed in the DOM — it appears on neither `Document` nor `Artboard`, and is not recorded in the XMP — so it has to be typed in.
 - Preview Bounds and Align to Glyph Bounds are not read back from the preferences at startup, because reading preferences from a persistent palette is not reliable. The checkbox states are applied only for the duration of an align and **the previous preferences are restored afterwards**. Preview Bounds in particular is an application-wide setting, so running an align never leaves it changed.
 - `app.redraw()` is called right after the preferences are written and right before they are restored, so the align command does not run against the old values.
@@ -94,7 +92,7 @@ Arrow buttons:
 - Grouping and ungrouping add steps to the undo stack. They also collapse the stacking order of a multiple selection into a contiguous run at the frontmost object's position.
 - Running it with characters selected in threaded text targets every text object in that story.
 - Justification is only changed for single-line text. Changing it on multi-line text would shift every line and alter the appearance significantly; area type wrapped onto two or more lines is excluded as well.
-- The Change Justification checkbox is dimmed based on whether the selection is text, and Align per Artboard based on whether the document has more than one artboard. Illustrator has no timer API, so the selection is re-read when the palette regains focus and when the mouse moves over it. If the selection has changed by then, the previous result is cleared from the status line.
+- The Change Justification checkbox is dimmed based on whether the selection is text, and Per Artboard based on whether the document has more than one artboard. Illustrator has no timer API, so the selection is re-read when the palette regains focus and when the mouse moves over it. If the selection has changed by then, the previous result is cleared from the status line.
 - In a document with multiple artboards, the one overlapping the selection most becomes active. If the selection overlaps none, the artboard nearest to its center is used.
 - The ↑↓←→ keys do exactly what pressing the matching move button does, and C / M / X do the same for the centring icons. B toggles the Align to Bleed checkbox. **A focused field takes the keystroke first**, so typing a margin or a bleed never moves the selection by accident, and nothing is stolen while Command (Ctrl) is held.
 - The outer buttons move the selection so that its edge on that side lands on a guide; with no guide it goes to the artboard edge. The margin fields themselves are not used. With Add Guides on, the first press stops at the margin guide, a second carries on to the artboard edge, and with Align to Bleed on a third reaches the bleed beyond it.
@@ -107,7 +105,7 @@ Arrow buttons:
 - The outer buttons measure bounds the same way as the centred ones (Preview Bounds / Align to Glyph Bounds; type is duplicated and outlined to measure it). They never write the preferences, but a multiple selection is grouped temporarily just as it is when aligning.
 - The guide is drawn on the "_guide" layer (created if missing; unlocked and shown) as a rectangle named `AiAlignToArtboard-margin`. Every redraw deletes the existing guide of that name first, so there is **always exactly one, on the active artboard**. Aligning on a different artboard moves the guide there.
 - The guides are redrawn when Add Guides is toggled, when a margin or division field commits (Enter or focus loss), when the division mode or Artboard Edges is switched, and when an align runs. While stepping with ↑↓ only the dimming follows along, so Illustrator is not queried on every keypress.
-- Unchecking Add Guides deletes the guide. **Closing the palette deletes it too** (whether closed with Esc or rebuilt by re-running the script); turn on Keep Guides to leave it behind. A guide moved off the "_guide" layer is left alone.
+- The guides **stay when the palette closes** (whether closed with Esc or rebuilt by re-running the script). To remove them, uncheck Add Guides, set the division to None, or uncheck Artboard Edges. A guide moved off the "_guide" layer is left alone.
 - The selection kind, the ruler unit and the selection count come back in a single round trip. When Illustrator does not answer, or answers with an error, the dimming and the unit label are left as they are rather than rewritten from an unreliable value.
 - DOM work is delegated to the main engine over BridgeTalk; where BridgeTalk is unavailable it runs in the palette's own engine instead.
 - Re-running the script closes the open palette and rebuilds it (this also prevents a second instance), so edited code can be applied by simply running it again.
@@ -120,8 +118,11 @@ Arrow buttons:
 ### Changelog
 
 - v1.2.0 (20260901)
-	- Add a Division Guides panel: None / Cross / Custom, with rows, columns, gutters and an extension
+	- Add a Division & Edge Guides panel: None / Cross / Custom, with rows, columns, gutters and an extension
 	- Add Artboard Edges, drawing guides on the four edges of the artboard
+	- Rework the panels: Measurement Options and Destination are merged into Options, and Margin Guide is renamed Margin
+	- Drop Keep Guides — the guides now always stay when the palette closes
+	- Drop the bleed field; the amount comes from `BLEED_MM` at the top of the script
 	- Fold every button into the 3×3 grid: drop the row of seven align icons, put Align Center on Both Axes in the middle and Horizontal / Vertical Center below it
 	- Give the eight outer buttons the bleed stop, Change Justification, and the temporary grouping of a multiple selection
 	- Option-click on the three centred buttons now centres inside the margin
