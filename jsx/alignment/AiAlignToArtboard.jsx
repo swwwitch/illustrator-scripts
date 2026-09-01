@@ -7,14 +7,14 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 ### 概要
 
 選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。
-アイコンのクリックで即時に整列するほか、方向ボタンでぶつかるガイドやアートボードの端へ寄せられます。
+整列アイコンと8方向の移動ボタンがあり、押すたびにマージン・アートボードの端・裁ち落としへと寄せ先が進みます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 A persistent palette that aligns the selected objects to the artboard.
-Clicking an icon aligns them immediately, and the arrow buttons move the selection to the guide it would run into, or to the artboard edge.
+It offers align icons and eight move buttons, and each press steps the destination outwards: the margin, the artboard edge, then the bleed.
 
 See the README for details.
 
@@ -24,7 +24,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboard";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
@@ -75,21 +75,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         // 定規の単位 / Ruler units
         // =========================================
         /* rulerType の単位コード→ラベルと pt 換算係数 / Unit code to label and points-per-unit */
+        /* defaultMargin はマージン欄の初期値。換算値ではなく、その単位で扱いやすい丸めた数にする
+           defaultMargin is the initial margin: a round number that reads well in that unit, not a conversion */
         var UNIT_INFO = {
-            "0":  { label: "in",    points: 72.0 },
-            "1":  { label: "mm",    points: 72.0 / 25.4 },
-            "2":  { label: "pt",    points: 1.0 },
-            "3":  { label: "pica",  points: 12.0 },
-            "4":  { label: "cm",    points: 72.0 / 2.54 },
-            "5":  { label: "Q/H",   points: (72.0 / 25.4) * 0.25 },
-            "6":  { label: "px",    points: 1.0 },
-            "7":  { label: "ft/in", points: 864.0 },
-            "8":  { label: "m",     points: (72.0 / 25.4) * 1000.0 },
-            "9":  { label: "yd",    points: 2592.0 },
-            "10": { label: "ft",    points: 864.0 }
+            "0":  { label: "in",    points: 72.0,                      defaultMargin: 0.25 },
+            "1":  { label: "mm",    points: 72.0 / 25.4,               defaultMargin: 5 },
+            "2":  { label: "pt",    points: 1.0,                       defaultMargin: 20 },
+            "3":  { label: "pica",  points: 12.0,                      defaultMargin: 1.5 },
+            "4":  { label: "cm",    points: 72.0 / 2.54,               defaultMargin: 0.5 },
+            "5":  { label: "Q/H",   points: (72.0 / 25.4) * 0.25,      defaultMargin: 20 },
+            "6":  { label: "px",    points: 1.0,                       defaultMargin: 20 },
+            "7":  { label: "ft/in", points: 864.0,                     defaultMargin: 0.02 },
+            "8":  { label: "m",     points: (72.0 / 25.4) * 1000.0,    defaultMargin: 0.005 },
+            "9":  { label: "yd",    points: 2592.0,                    defaultMargin: 0.006 },
+            "10": { label: "ft",    points: 864.0,                     defaultMargin: 0.02 }
         };
         /* 単位が取れないときの既定 / Fallback when the ruler unit cannot be read */
-        var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0 };
+        var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0, defaultMargin: 20 };
 
         // =========================================
         // ユーザー設定 / User settings
@@ -103,7 +105,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var DEFAULT_PREVIEW_BOUNDS       = false; /* プレビュー境界 / preview bounds */
         var DEFAULT_GLYPH_BOUNDS         = true;  /* 字形の境界に整列 / align to glyph bounds */
         var DEFAULT_CHANGE_JUSTIFICATION = true;  /* 行揃えを変更 / change justification */
-        var DEFAULT_MARGIN               = 0;     /* マージン欄の初期値（定規の単位）/ initial margin, in ruler units */
+        var DEFAULT_LINK_MARGINS         = true;  /* マージンの4値を連動させる / keep the four margins in sync */
+        var DEFAULT_ALIGN_TO_BLEED       = false; /* 裁ち落としに整列 / align to the bleed */
+        var DEFAULT_ALIGN_PER_ARTBOARD   = false; /* アートボードごとに整列 / align per artboard */
+        var DEFAULT_BLEED                = 3;     /* 裁ち落とし欄の初期値（mm）/ initial bleed, in millimetres */
+        /* 裁ち落としは印刷の値なので、定規の単位に追従させず mm で扱う
+           The bleed is a print value, so it stays in millimetres instead of following the ruler */
+        var BLEED_UNIT_LABEL  = "mm";
+        var BLEED_UNIT_POINTS = 72.0 / 25.4;
         var DEFAULT_SHOW_GUIDE           = false; /* ガイドを追加 / add the margin guide */
         var DEFAULT_KEEP_GUIDE           = false; /* ガイドを保持（閉じても残す）/ keep the guide when the palette closes */
 
@@ -151,12 +160,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var CROSS_GAP       = 2;    /* 移動ボタン（十字）どうしの間隔 / gap between the move buttons */
         var ICON_ROW_BOTTOM = 10;   /* ボタンエリアの下の余白 / margin below the icon row */
         var PANEL_MARGINS   = [12, 16, 12, 10]; /* オプションパネルの余白 [左,上,右,下]（上はタイトルのぶん広め）/ options panel margins */
-        var COLUMN_SPACING  = 8;    /* マージンパネルとオプションパネルの間隔 / gap between the two columns */
+        var COLUMN_SPACING  = 18;   /* 方向ボタンの十字と計測オプションのパネルの間隔 / gap between the move-button cross and the options panel */
         var FIELD_CHARS     = 3;    /* マージン入力欄の文字数 / width of the margin field */
         var LABEL_FIELD_SPACING = 4; /* 入力欄と単位ラベルの間隔（既定は広すぎる）/ gap between the field and its unit label */
-        var FIELD_INDENT    = 18;   /* 入力欄の字下げ（チェックボックスのラベルに頭をそろえる）/ indent of the margin field */
-        var FIELD_BOTTOM_GAP = 5;   /* 入力欄の下の余白（［ガイドを保持］との間を空ける）/ gap below the margin field */
-        var UNIT_LABEL_WIDTH = 34;  /* 単位ラベルの幅（単位が変わっても幅が動かないよう固定）/ fixed width of the unit label */
+        /* マージン欄を3×3に並べるときの1セルの幅（日英で文字数が違うので分ける）
+           Width of one cell in the 3x3 margin grid; the labels differ in length by language */
+        var MARGIN_CELL_WIDTH = { ja: 70, en: 84 };
         var STATUS_WIDTH    = 260;  /* 状況表示の幅（中身でパレット幅が変わらないよう固定）/ fixed width of the status line */
         var OPTION_SPACING  = 4;    /* オプションのチェックボックスどうしの間隔 / gap between the option checkboxes */
 
@@ -200,14 +209,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 title: { ja: "ガイドやアートボードのエッジに整列", en: "Align to Guides or Artboard Edges" }
             },
             panel: {
-                guide:   { ja: "マージンガイド", en: "Margin Guide" },
-                options: { ja: "オプション", en: "Options" }
+                guide:       { ja: "マージンガイド", en: "Margin Guide" },
+                options:     { ja: "計測オプション", en: "Measurement Options" },
+                destination: { ja: "整列オプション", en: "Align Options" }
+            },
+            fieldLabel: {
+                top:    { ja: "上", en: "Top" },
+                bottom: { ja: "下", en: "Bottom" },
+                left:   { ja: "左", en: "Left" },
+                right:  { ja: "右", en: "Right" }
             },
             direction: {
-                up:    { ja: "上", en: "Up" },
-                left:  { ja: "左", en: "Left" },
-                right: { ja: "右", en: "Right" },
-                down:  { ja: "下", en: "Down" }
+                up:        { ja: "上", en: "Up" },
+                left:      { ja: "左", en: "Left" },
+                right:     { ja: "右", en: "Right" },
+                down:      { ja: "下", en: "Down" },
+                upLeft:    { ja: "左上", en: "Top left" },
+                upRight:   { ja: "右上", en: "Top right" },
+                downLeft:  { ja: "左下", en: "Bottom left" },
+                downRight: { ja: "右下", en: "Bottom right" }
             },
             tooltip: {
                 alignLeft:      { ja: "水平方向左に整列", en: "Horizontal Align Left" },
@@ -218,9 +238,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 alignCenterV:   { ja: "垂直方向中央に整列", en: "Vertical Align Center" },
                 alignBottom:    { ja: "垂直方向下に整列", en: "Vertical Align Bottom" },
                 margin: { ja: "アートボードの端から空ける距離", en: "Distance to keep from the artboard edge" },
+                linkMargins: {
+                    ja: "上下左右のマージンを同じ値にする（どれかを変えると残りもそろえる）",
+                    en: "Keep the four margins equal; changing one updates the rest"
+                },
+                alignToBleed: {
+                    ja: "アートボードの端の次の寄せ先として、その外側の裁ち落としの位置を使う",
+                    en: "Add the bleed outside the artboard as the stop after the artboard edge"
+                },
+                perArtboard: {
+                    ja: "選択したオブジェクトを、それぞれが乗っているアートボードに整列（OFFのときは1つのアートボードにまとめて整列）",
+                    en: "Align each object to the artboard it sits on (off: everything goes to a single artboard)"
+                },
                 moveToEdge: {
-                    ja: "その方向のガイド、無ければアートボードの端へ移動",
-                    en: "Move to the guide in that direction, or the artboard edge"
+                    ja: "その方向のガイド、無ければアートボードの端へ移動（↑↓←→キーでも実行）",
+                    en: "Move to the guide in that direction, or the artboard edge (the arrow keys do the same)"
                 },
                 keepGuide: {
                     ja: "パレットを閉じてもガイドを残す（OFFのときは閉じるときに削除）",
@@ -251,8 +283,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             checkbox: {
                 showGuide:     { ja: "ガイドを追加", en: "Add Guides" },
                 keepGuide:     { ja: "ガイドを保持", en: "Keep Guides" },
+                linkMargins:   { ja: "連動", en: "Link" },
                 previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" },
                 glyphBounds:   { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
+                alignToBleed:  { ja: "裁ち落としに整列", en: "Align to Bleed" },
+                perArtboard:   { ja: "アートボードごとに整列", en: "Align per Artboard" },
                 changeJustification: { ja: "行揃えを変更", en: "Change Justification" }
             },
             status: {
@@ -293,6 +328,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 labelNode = labelNode[arguments[i]];
             }
             return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
+        }
+
+        /**
+         * 項目名の末尾にコロンを付けて取得する（日本語は全角、英語は半角）
+         * @param {string} category - LABELS のカテゴリ
+         * @param {string} key - ラベルのキー
+         * @returns {string} コロン付きのラベル
+         */
+        function labelText(category, key) {
+            return getLabel(category, key) + (uiLang === "ja" ? "：" : ":");
         }
 
         // =========================================
@@ -497,22 +542,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * 右向き矢印の1点を、方向に合わせて回転する
-         * @param {string} directionKey - "up" / "left" / "right" / "down"
+         * @param {string} directionKey - MOVE_ARROW_ANGLE のキー
          * @param {number} x - 回転前のX
          * @param {number} y - 回転前のY
          * @returns {number[]} 回転後の [x, y]
          */
         function transformArrowPoint(directionKey, x, y) {
-            if (directionKey === "left") { return [-x, y]; }
-            if (directionKey === "down") { return [-y, x]; }
-            if (directionKey === "up")   { return [y, -x]; }
-            return [x, y]; /* right */
+            var radians = (MOVE_ARROW_ANGLE[directionKey] || 0) * Math.PI / 180;
+            var cosine = Math.cos(radians);
+            var sine = Math.sin(radians);
+            return [x * cosine - y * sine, x * sine + y * cosine];
         }
 
         /**
          * 方向の矢印を白抜き（輪郭線だけ）で描く
          * @param {ScriptUIGraphics} graphics - 描画対象のグラフィックス
-         * @param {string} directionKey - "up" / "left" / "right" / "down"
+         * @param {string} directionKey - MOVE_ARROW_ANGLE のキー
          * @param {number} size - ボタンの一辺
          * @param {number[]} color - 線の RGBA
          * @returns {void}
@@ -724,8 +769,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var changeJustificationCheckbox = null;
         /* マージン欄・単位ラベル・ガイド表示チェックボックスの参照
            The margin field, its unit label, and the guide checkbox */
-        var marginField = null;
-        var marginUnitText = null;
+        /* 辺の名前をキーにしたマージンの入力欄 / Margin fields, keyed by side */
+        var marginFields = {};
+        var marginPanel = null;
+        var linkMarginsCheckbox = null;
+        /* マージン欄がまだ既定値のままか。定規の単位が分かった時点で、その単位の既定値に入れ直す
+           Whether the margin fields still hold defaults; they are refilled once the ruler unit is known */
+        var marginsAreDefault = false;
+        var bleedField = null;
+        var alignToBleedCheckbox = null;
+        var alignPerArtboardCheckbox = null;
         var showGuideCheckbox = null;
         var keepGuideCheckbox = null;
         /* パレットを閉じてもガイドを残すか。閉じる処理でコントロールを触らずに済むよう値を控えておく
@@ -753,16 +806,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             ]
         ];
 
-        /* 移動ボタンの十字の並び（"" は位置合わせの空セル）
-           Cross layout of the move buttons ("" is an empty cell that keeps the alignment) */
+        /* 移動ボタンの並び（"" は位置合わせの空セル）
+           Layout of the move buttons ("" is an empty cell that keeps the alignment) */
         var MOVE_BUTTON_ROWS = [
-            ["",     "up",   ""],
-            ["left", "",     "right"],
-            ["",     "down", ""]
+            ["upLeft",   "up",   "upRight"],
+            ["left",     "",     "right"],
+            ["downLeft", "down", "downRight"]
         ];
 
-        /* 方向キーと、寄せる辺の対応 / The edge each direction moves to */
-        var MOVE_SIDE_BY_DIRECTION = { up: "top", left: "left", right: "right", down: "bottom" };
+        /* 値を持つ辺（設定の読み書きはこの並びで回す）/ The sides that hold a value */
+        var MARGIN_SIDES = ["top", "bottom", "left", "right"];
+
+        /* マージン欄の並び（3×3、真ん中は連動のチェック、"" は位置合わせの空セル）
+           The 3x3 margin grid: the link checkbox sits in the middle, "" is an empty spacer cell */
+        var MARGIN_FIELD_ROWS = [
+            ["",     "top",    ""],
+            ["left", "link",   "right"],
+            ["",     "bottom", ""]
+        ];
+
+        /* 方向キーと、寄せる辺の対応（斜めは2辺へ同時に寄せる）
+           The edges each direction moves to; a diagonal moves to both of them at once */
+        var MOVE_SIDES_BY_DIRECTION = {
+            up:        ["top"],
+            left:      ["left"],
+            right:     ["right"],
+            down:      ["bottom"],
+            upLeft:    ["left", "top"],
+            upRight:   ["right", "top"],
+            downLeft:  ["left", "bottom"],
+            downRight: ["right", "bottom"]
+        };
+
+        /* 文字キーで実行する整列（値は ALIGN_BUTTON_GROUPS の tooltip キー）
+           C は左右中央（Center）、M は上下中央（Middle）、X は上下左右中央
+           The letter keys that run an align: C centres horizontally, M vertically, X on both axes */
+        var ALIGN_KEY_SHORTCUTS = { C: "alignCenterH", M: "alignCenterV", X: "alignCenterAll" };
+
+        /* ［裁ち落としに整列］を切り替えるキー / The key that toggles Align to Bleed */
+        var BLEED_TOGGLE_KEY = "B";
+
+        /* 矢印キーで実行する方向ボタン（斜めはキーが無いので4方向だけ）
+           The arrow keys that fire a move button; the diagonals have no key of their own */
+        var MOVE_DIRECTION_BY_KEY_NAME = { Up: "up", Left: "left", Right: "right", Down: "down" };
+
+        /* 矢印アイコンの回転角（度）。右向きを0とし、画面座標なので時計回りが正
+           Rotation of the arrow icon in degrees: 0 points right, and clockwise is positive in screen coordinates */
+        var MOVE_ARROW_ANGLE = {
+            up:        -90,
+            left:      180,
+            right:     0,
+            down:      90,
+            upLeft:    -135,
+            upRight:   -45,
+            downLeft:  135,
+            downRight: 45
+        };
 
         /**
          * 整列アイコンボタンを1つ生成する
@@ -776,22 +875,126 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             var button = parentRow.add("button", undefined, "");
             fixControlSize(button, ICON_SIZE, ICON_SIZE);
             /* キー操作はラベルに出さず helpTip に書く / Shortcuts belong in the tooltip, not the label */
-            button.helpTip = getLabel("tooltip", buttonDef.tooltip) + "  —  " +
+            button.helpTip = getLabel("tooltip", buttonDef.tooltip) + shortcutSuffix(buttonDef) + "  —  " +
                 getLabel("tooltip", usesMargin(buttonDef) ? "optionNoMargin" : "optionGlyphBounds");
             button.iconType = buttonDef.iconType;
             button.alignMode = buttonDef.alignMode;
             button.isHover = false;
             button.onDraw = function() { drawAlignButton(this); };
-            button.onClick = function() {
-                var workerResult = null;
-                var didRun = runExclusive(function() { workerResult = runAlign(buttonDef); });
-                /* 実行後の選択に合わせてディムと単位を更新してから、今回の結果を表示する
-                   （先に表示すると、この更新で選択が変わったと見なされて消えてしまう）
-                   Refresh first, then show this run's result; showing it first would be wiped by the refresh */
-                onPaletteFocus(true);
-                if (didRun) { showWorkerResult(workerResult); }
-            };
+            button.onClick = function() { runAlignButton(buttonDef); };
             attachHover(button);
+        }
+
+        /**
+         * そのボタンに割り当てたショートカットを「（C）」の形で返す（無ければ空文字）
+         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @returns {string} helpTip に添える文字列
+         */
+        function shortcutSuffix(buttonDef) {
+            for (var keyName in ALIGN_KEY_SHORTCUTS) {
+                if (!ALIGN_KEY_SHORTCUTS.hasOwnProperty(keyName)) { continue; }
+                if (ALIGN_KEY_SHORTCUTS[keyName] === buttonDef.tooltip) { return keyHint(keyName); }
+            }
+            return "";
+        }
+
+        /**
+         * ショートカットのキーを「（B）」の形にする（日本語は全角括弧、英語は半角）
+         * @param {string} keyName - キー名
+         * @returns {string} helpTip に添える文字列
+         */
+        function keyHint(keyName) {
+            return (uiLang === "ja") ? "（" + keyName + "）" : " (" + keyName + ")";
+        }
+
+        /**
+         * パレットのイベント（選択の取り直し・キー操作・閉じるときの後始末）を結線する
+         * @param {Window} win - 対象のパレット
+         * @returns {void}
+         */
+        function attachPaletteEvents(win) {
+            /* 選択の変化はパレットへ操作しに来た瞬間に拾う（Illustrator にタイマーAPIが無いため）
+               Illustrator has no timer API, so the selection is re-read when the user comes to the palette */
+            win.onActivate = function() { onPaletteFocus(true); };
+            try {
+                win.addEventListener("mouseover", function() { onPaletteFocus(false); });
+            } catch (mouseoverError) {}
+
+            win.addEventListener("keydown", function(event) { onPaletteKeyDown(win, event); });
+
+            /* 閉じるとき：［ガイドを保持］がOFFならこのパレットが作ったガイドを消し、参照を解放する
+               On close: delete the guide unless "Keep Guides" is on, then release the reference */
+            win.onClose = function() {
+                if (!keepGuideOnClose) { removeMarginGuide(); }
+                paletteWindow = null;
+                $.global.__aiAlignToArtboardWindow = null;
+                return true;
+            };
+        }
+
+        /**
+         * パレット上のキー操作を振り分ける
+         * Esc で閉じ、↑↓←→ で方向ボタン、C/M/X で中央揃え、B で裁ち落としの切り替えを行う
+         * @param {Window} win - 対象のパレット
+         * @param {object} event - keydown イベント
+         * @returns {void}
+         */
+        function onPaletteKeyDown(win, event) {
+            if (event.keyName === "Escape") { win.close(); return; }
+            /* 入力欄の打鍵と、コピーなどのショートカットには割り込まない
+               Never steal a keystroke meant for a field, or a Cmd/Ctrl shortcut */
+            if (isTextFieldTarget(event) || isCommandKeyPressed()) { return; }
+
+            var directionKey = MOVE_DIRECTION_BY_KEY_NAME[event.keyName];
+            if (directionKey) {
+                /* フォーカスの移動に使われないよう、ここで止める / Stop the key from moving the focus */
+                event.preventDefault();
+                runMoveButton(directionKey);
+                return;
+            }
+
+            if (event.keyName === BLEED_TOGGLE_KEY && alignToBleedCheckbox !== null) {
+                event.preventDefault();
+                alignToBleedCheckbox.value = alignToBleedCheckbox.value !== true;
+                syncBleedField();
+                return;
+            }
+
+            var tooltipKey = ALIGN_KEY_SHORTCUTS[event.keyName];
+            var buttonDef = tooltipKey ? findAlignButtonDef(tooltipKey) : null;
+            if (buttonDef !== null) {
+                event.preventDefault();
+                runAlignButton(buttonDef);
+            }
+        }
+
+        /**
+         * 整列ボタンを1つ実行する（クリックとショートカットで共通）
+         * @param {object} buttonDef - ALIGN_BUTTON_GROUPS のボタン定義
+         * @returns {void}
+         */
+        function runAlignButton(buttonDef) {
+            var workerResult = null;
+            var didRun = runExclusive(function() { workerResult = runAlign(buttonDef); });
+            /* 実行後の選択に合わせてディムと単位を更新してから、今回の結果を表示する
+               （先に表示すると、この更新で選択が変わったと見なされて消えてしまう）
+               Refresh first, then show this run's result; showing it first would be wiped by the refresh */
+            onPaletteFocus(true);
+            if (didRun) { showWorkerResult(workerResult); }
+        }
+
+        /**
+         * tooltip キーから整列ボタンの定義を探す
+         * @param {string} tooltipKey - ALIGN_BUTTON_GROUPS の tooltip
+         * @returns {object} 見つかったボタン定義。無ければ null
+         */
+        function findAlignButtonDef(tooltipKey) {
+            for (var i = 0; i < ALIGN_BUTTON_GROUPS.length; i++) {
+                for (var j = 0; j < ALIGN_BUTTON_GROUPS[i].length; j++) {
+                    if (ALIGN_BUTTON_GROUPS[i][j].tooltip === tooltipKey) { return ALIGN_BUTTON_GROUPS[i][j]; }
+                }
+            }
+            return null;
         }
 
         /**
@@ -816,7 +1019,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /**
          * 移動ボタンを1つ生成する（directionKey が空文字なら位置合わせの空セル）
          * @param {Group} parentRow - 追加先の行グループ
-         * @param {string} directionKey - "up" / "left" / "right" / "down"（"" は空セル）
+         * @param {string} directionKey - MOVE_SIDES_BY_DIRECTION のキー（"" は空セル）
          * @returns {void}
          */
         function addMoveButton(parentRow, directionKey) {
@@ -831,15 +1034,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             button.directionKey = directionKey;
             button.isHover = false;
             button.onDraw = function() { drawMoveButton(this); };
-            button.onClick = function() {
-                var workerResult = null;
-                var didRun = runExclusive(function() { workerResult = runMove(directionKey); });
-                /* 整列ボタンと同じ順序：先に選択を取り直してから今回の結果を出す
-                   Same order as the align buttons: refresh first, then show this run's result */
-                onPaletteFocus(true);
-                if (didRun) { showWorkerResult(workerResult); }
-            };
+            button.onClick = function() { runMoveButton(directionKey); };
             attachHover(button);
+        }
+
+        /**
+         * 方向ボタンを1つ実行する（クリックと矢印キーで共通）
+         * @param {string} directionKey - MOVE_SIDES_BY_DIRECTION のキー
+         * @returns {void}
+         */
+        function runMoveButton(directionKey) {
+            var workerResult = null;
+            var didRun = runExclusive(function() { workerResult = runMove(directionKey); });
+            /* 整列ボタンと同じ順序：先に選択を取り直してから今回の結果を出す
+               Same order as the align buttons: refresh first, then show this run's result */
+            onPaletteFocus(true);
+            if (didRun) { showWorkerResult(workerResult); }
+        }
+
+        /**
+         * Command（Mac）または Ctrl（Windows）が押されているか判定する
+         * コピーなどのショートカットをこのパレットで横取りしないために見る
+         * @returns {boolean} 押されていれば true（取得できない環境では false）
+         */
+        function isCommandKeyPressed() {
+            try {
+                var keyboardState = ScriptUI.environment.keyboardState;
+                return keyboardState.metaKey === true || keyboardState.ctrlKey === true;
+            } catch (keyboardError) {
+                return false;
+            }
+        }
+
+        /**
+         * キーイベントの発生元が数値の入力欄かを判定する
+         * 入力欄の↑↓は値の増減なので、方向ボタンの実行には使わない
+         * @param {object} event - keydown イベント
+         * @returns {boolean} 入力欄なら true
+         */
+        function isTextFieldTarget(event) {
+            try {
+                return event.target != null && event.target.type === "edittext";
+            } catch (targetError) {
+                return false;
+            }
         }
 
         /**
@@ -865,7 +1103,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * ボタンの下を2カラムに分け、左に移動ボタンの十字・右にマージンとオプションのパネルを縦に並べる
+         * ボタンの下を2カラムに分け、左に移動ボタンの十字・右に計測オプションのパネルを置く
+         * マージンガイドと整列オプションはここには入れず、パレットの下に幅いっぱいで並べる
          * @param {Window} targetWindow - 追加先のパレット
          * @returns {void}
          */
@@ -877,23 +1116,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             columnsRow.spacing = COLUMN_SPACING;
 
             addMoveButtonCross(columnsRow);
-
-            var panelColumn = columnsRow.add("group");
-            panelColumn.orientation = "column";
-            panelColumn.alignment = ["fill", "top"];
-            panelColumn.alignChildren = ["fill", "top"];
-            panelColumn.spacing = COLUMN_SPACING;
-            addMarginPanel(panelColumn);
-            addOptionsPanel(panelColumn);
+            addOptionsPanel(columnsRow);
         }
 
         /**
-         * マージンパネル（数値欄＋定規の単位ラベル）を組み立てる
-         * @param {Group} parentColumn - 追加先のカラムグループ
+         * マージンガイドのパネル（上下左右の数値欄＋定規の単位ラベル）を組み立てる
+         * @param {Window} targetWindow - 追加先のパレット
          * @returns {void}
          */
-        function addMarginPanel(parentColumn) {
-            var marginPanel = parentColumn.add("panel", undefined, getLabel("panel", "guide"));
+        function addMarginPanel(targetWindow) {
+            marginPanel = targetWindow.add("panel", undefined, marginPanelTitle());
             marginPanel.orientation = "column";
             marginPanel.alignment = ["fill", "top"];
             marginPanel.alignChildren = ["left", "top"];
@@ -901,38 +1133,161 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             marginPanel.spacing = OPTION_SPACING;
 
             /* 前回の設定を引き継ぐ（残したガイドと表示が食い違わないように）/ Carry over the previous settings */
-            var guideSettings = loadGuideSettings();
+            var paletteSettings = loadPaletteSettings();
+            marginsAreDefault = paletteSettings.usesDefaultMargins;
 
             showGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "showGuide"));
             showGuideCheckbox.helpTip = getLabel("tooltip", "showGuide");
-            showGuideCheckbox.value = guideSettings.showGuide;
-            showGuideCheckbox.onClick = function() { syncGuideControls(); runExclusive(refreshMarginGuide); };
+            showGuideCheckbox.value = paletteSettings.showGuide;
+            showGuideCheckbox.onClick = function() {
+                /* ガイドを出すときは四辺をそろえたいことが多いので、連動も入れて4つの値をそろえる
+                   Turning the guide on usually means an even inset, so the link goes on with it */
+                if (showGuideCheckbox.value === true && linkMarginsCheckbox !== null && linkMarginsCheckbox.value !== true) {
+                    linkMarginsCheckbox.value = true;
+                    copyMarginToLinkedFields(marginFields.top);
+                    syncMarginFields();
+                }
+                syncGuideControls();
+                runExclusive(refreshMarginGuide);
+            };
 
-            var fieldRow = marginPanel.add("group");
-            setupRow(fieldRow, "left", LABEL_FIELD_SPACING);
-            /* 上下のチェックボックスのラベルに頭をそろえ、下は少し空ける
-               Indented to line up with the checkbox labels, with a little room below */
-            fieldRow.margins = [FIELD_INDENT, 0, 0, FIELD_BOTTOM_GAP];
-            marginField = fieldRow.add("edittext", undefined, guideSettings.margin);
-            marginField.characters = FIELD_CHARS;
-            marginField.helpTip = getLabel("tooltip", "margin");
-            changeValueByArrowKey(marginField);
-            /* 単位ラベルは幅を固定する（単位が変わってもパレット幅が動かないように）
-               The unit label has a fixed width so the palette does not resize when the unit changes */
-            marginUnitText = fieldRow.add("statictext", undefined, currentUnitInfo.label);
-            marginUnitText.preferredSize.width = UNIT_LABEL_WIDTH;
-            marginUnitText.maximumSize.width = UNIT_LABEL_WIDTH;
-            /* 確定（Enter・フォーカス移動）でガイドを描き直す
-               入力途中で毎回描き直すとそのつど委譲が走るため、描き直しは onChange だけにする
-               Only redraw the guide when the field commits, not on every keystroke */
-            marginField.onChange = function() { runExclusive(refreshMarginGuide); saveGuideSettings(); };
+            addMarginFieldRows(marginPanel, paletteSettings);
 
             keepGuideCheckbox = marginPanel.add("checkbox", undefined, getLabel("checkbox", "keepGuide"));
             keepGuideCheckbox.helpTip = getLabel("tooltip", "keepGuide");
-            keepGuideCheckbox.value = guideSettings.keepGuide;
+            keepGuideCheckbox.value = paletteSettings.keepGuide;
             keepGuideCheckbox.onClick = function() { syncGuideControls(); };
 
             syncGuideControls();
+        }
+
+        /**
+         * マージンガイドのパネル名に、いまの定規の単位を添える
+         * 欄が4つあるので、単位は欄ごとではなくパネル名にまとめて出す
+         * @returns {string} パネル名
+         */
+        function marginPanelTitle() {
+            var unitLabel = currentUnitInfo.label;
+            return getLabel("panel", "guide") + (uiLang === "ja" ? "（" + unitLabel + "）" : " (" + unitLabel + ")");
+        }
+
+        /**
+         * 上下左右のマージン欄を3×3で組み立てる
+         * @param {Panel} marginPanel - 追加先のパネル
+         * @param {object} paletteSettings - 引き継いだ設定
+         * @returns {void}
+         */
+        function addMarginFieldRows(marginPanel, paletteSettings) {
+            for (var i = 0; i < MARGIN_FIELD_ROWS.length; i++) {
+                var fieldRow = marginPanel.add("group");
+                fieldRow.orientation = "row";
+                /* パネルの幅いっぱいに広げず、真ん中に置く / Centred in the panel instead of stretched */
+                fieldRow.alignment = ["center", "top"];
+                fieldRow.alignChildren = ["center", "center"];
+                fieldRow.spacing = LABEL_FIELD_SPACING;
+                for (var j = 0; j < MARGIN_FIELD_ROWS[i].length; j++) {
+                    addMarginCell(fieldRow, MARGIN_FIELD_ROWS[i][j], paletteSettings);
+                }
+            }
+            syncMarginFields();
+        }
+
+        /**
+         * ［連動］の状態に合わせてマージン欄の使える・使えないを切り替える
+         * 連動しているあいだは［上］の1つで4辺が決まるので、ほかはディムにする
+         * @returns {void}
+         */
+        function syncMarginFields() {
+            var isLinked, side, i;
+            if (linkMarginsCheckbox === null) { return; }
+            isLinked = linkMarginsCheckbox.value === true;
+            for (i = 0; i < MARGIN_SIDES.length; i++) {
+                side = MARGIN_SIDES[i];
+                if (!marginFields[side]) { continue; }
+                marginFields[side].enabled = isLinked ? (side === "top") : true;
+            }
+        }
+
+        /**
+         * 3×3の1セルを生成する（辺なら「ラベル＋入力欄」、"link" なら連動のチェック、"" なら空セル）
+         * どのセルも同じ幅にして、上下左右が十字に並ぶようにする
+         * @param {Group} fieldRow - 追加先の行グループ
+         * @param {string} cellKey - "top" / "bottom" / "left" / "right" / "link" / ""
+         * @param {object} paletteSettings - 引き継いだ設定
+         * @returns {void}
+         */
+        function addMarginCell(fieldRow, cellKey, paletteSettings) {
+            var cellGroup = fieldRow.add("group");
+            cellGroup.orientation = "row";
+            cellGroup.alignment = ["center", "center"];
+            cellGroup.alignChildren = ["center", "center"];
+            cellGroup.spacing = LABEL_FIELD_SPACING;
+            cellGroup.minimumSize.width = MARGIN_CELL_WIDTH[uiLang];
+            if (cellKey === "") { return; }
+
+            if (cellKey === "link") {
+                linkMarginsCheckbox = cellGroup.add("checkbox", undefined, getLabel("checkbox", "linkMargins"));
+                linkMarginsCheckbox.helpTip = getLabel("tooltip", "linkMargins");
+                linkMarginsCheckbox.value = paletteSettings.linkMargins;
+                /* 連動に切り替えた時点で、4つを上のマージンにそろえる
+                   Turning the link back on levels the four values off against the top margin */
+                linkMarginsCheckbox.onClick = function() {
+                    copyMarginToLinkedFields(marginFields.top);
+                    syncMarginFields();
+                    runExclusive(refreshMarginGuide);
+                    savePaletteSettings();
+                };
+                return;
+            }
+
+            cellGroup.add("statictext", undefined, labelText("fieldLabel", cellKey));
+            var field = cellGroup.add("edittext", undefined, paletteSettings.margins[cellKey]);
+            field.characters = FIELD_CHARS;
+            field.helpTip = getLabel("tooltip", "margin");
+            changeValueByArrowKey(field);
+            /* 確定（Enter・フォーカス移動）でガイドを描き直す
+               入力途中で毎回描き直すとそのつど委譲が走るため、描き直しは onChange だけにする
+               Only redraw the guide when the field commits, not on every keystroke */
+            field.onChange = function() {
+                /* 一度でも触られたら、単位が変わっても既定値では上書きしない */
+                marginsAreDefault = false;
+                copyMarginToLinkedFields(field);
+                runExclusive(refreshMarginGuide);
+                savePaletteSettings();
+            };
+            marginFields[cellKey] = field;
+        }
+
+        /**
+         * まだ触られていないマージン欄を、いまの定規の単位の既定値で埋め直す
+         * パネルを組み立てる時点では定規の単位が分からないため、分かった時点で入れ直す
+         * @returns {void}
+         */
+        function fillDefaultMargins() {
+            var defaultText, side, i;
+            if (!marginsAreDefault) { return; }
+            defaultText = String(currentUnitInfo.defaultMargin);
+            for (i = 0; i < MARGIN_SIDES.length; i++) {
+                side = MARGIN_SIDES[i];
+                if (!marginFields[side]) { continue; }
+                marginFields[side].text = defaultText;
+            }
+            savePaletteSettings();
+        }
+
+        /**
+         * ［連動］がONのとき、編集した欄の値を残りのマージン欄へ写す
+         * @param {EditText} sourceField - 値の元にする入力欄
+         * @returns {void}
+         */
+        function copyMarginToLinkedFields(sourceField) {
+            if (linkMarginsCheckbox === null || linkMarginsCheckbox.value !== true) { return; }
+            if (!sourceField) { return; }
+            for (var side in marginFields) {
+                if (!marginFields.hasOwnProperty(side)) { continue; }
+                if (marginFields[side] === sourceField) { continue; }
+                marginFields[side].text = sourceField.text;
+            }
         }
 
         /**
@@ -944,44 +1299,79 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             if (showGuideCheckbox === null || keepGuideCheckbox === null) { return; }
             keepGuideCheckbox.enabled = showGuideCheckbox.value === true;
             keepGuideOnClose = keepGuideCheckbox.value === true;
-            saveGuideSettings();
+            savePaletteSettings();
         }
 
         /**
-         * 前回のガイド設定を常駐エンジンから読み出す（控えが無ければ既定値）
-         * @returns {object} { showGuide: boolean, keepGuide: boolean, margin: string }
+         * 前回のパレット設定を常駐エンジンから読み出す（控えが無ければ既定値）
+         * @returns {object} { showGuide, keepGuide, usesDefaultMargins, margins, linkMargins, alignToBleed, bleed, perArtboard }
          */
-        function loadGuideSettings() {
+        function loadPaletteSettings() {
             var stored = $.global[SETTINGS_KEY];
             if (!stored) {
-                return { showGuide: DEFAULT_SHOW_GUIDE, keepGuide: DEFAULT_KEEP_GUIDE, margin: String(DEFAULT_MARGIN) };
+                return {
+                    showGuide:    DEFAULT_SHOW_GUIDE,
+                    keepGuide:    DEFAULT_KEEP_GUIDE,
+                    usesDefaultMargins: true,
+                    margins:      marginStrings(null, String(currentUnitInfo.defaultMargin)),
+                    linkMargins:  DEFAULT_LINK_MARGINS,
+                    alignToBleed: DEFAULT_ALIGN_TO_BLEED,
+                    bleed:        String(DEFAULT_BLEED),
+                    perArtboard:  DEFAULT_ALIGN_PER_ARTBOARD
+                };
             }
             return {
-                showGuide: stored.showGuide === true,
-                keepGuide: stored.keepGuide === true,
-                margin: (stored.margin != null) ? String(stored.margin) : String(DEFAULT_MARGIN)
+                showGuide:    stored.showGuide === true,
+                keepGuide:    stored.keepGuide === true,
+                usesDefaultMargins: stored.margins == null,
+                margins:      marginStrings(stored.margins, String(currentUnitInfo.defaultMargin)),
+                linkMargins:  (stored.linkMargins != null) ? (stored.linkMargins === true) : DEFAULT_LINK_MARGINS,
+                alignToBleed: stored.alignToBleed === true,
+                bleed:        (stored.bleed != null) ? String(stored.bleed) : String(DEFAULT_BLEED),
+                perArtboard:  stored.perArtboard === true
             };
         }
 
         /**
-         * 現在のガイド設定を常駐エンジンに控える
+         * 控えのマージン4値を、欠けている辺を既定値で埋めた文字列の組にそろえる
+         * @param {object} storedMargins - 控えの値（無ければ null）
+         * @param {string} fallback - 欠けている辺に使う値
+         * @returns {object} { top: string, bottom: string, left: string, right: string }
+         */
+        function marginStrings(storedMargins, fallback) {
+            var margins, side, i;
+            margins = {};
+            for (i = 0; i < MARGIN_SIDES.length; i++) {
+                side = MARGIN_SIDES[i];
+                margins[side] = (storedMargins && storedMargins[side] != null) ? String(storedMargins[side]) : fallback;
+            }
+            return margins;
+        }
+
+        /**
+         * 現在のパレット設定を常駐エンジンに控える
          * @returns {void}
          */
-        function saveGuideSettings() {
+        function savePaletteSettings() {
             $.global[SETTINGS_KEY] = {
-                showGuide: showGuideCheckbox !== null && showGuideCheckbox.value === true,
-                keepGuide: keepGuideCheckbox !== null && keepGuideCheckbox.value === true,
-                margin:    (marginField !== null) ? String(marginField.text) : String(DEFAULT_MARGIN)
+                showGuide:    showGuideCheckbox !== null && showGuideCheckbox.value === true,
+                keepGuide:    keepGuideCheckbox !== null && keepGuideCheckbox.value === true,
+                margins:      readMarginTexts(),
+                linkMargins:  linkMarginsCheckbox !== null && linkMarginsCheckbox.value === true,
+                alignToBleed: alignToBleedCheckbox !== null && alignToBleedCheckbox.value === true,
+                bleed:        (bleedField !== null) ? String(bleedField.text) : String(DEFAULT_BLEED),
+                perArtboard:  alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true
             };
         }
 
         /**
-         * オプションパネル（プレビュー境界・字形の境界に整列・行揃えを変更）を組み立てる
-         * @param {Group} parentColumn - 追加先のカラムグループ
+         * 計測オプションパネル（プレビュー境界・字形の境界に整列・行揃えを変更）を組み立てる
+         * 境界の測り方と、それに付随する行揃えの変更だけを置く（整列オプションは別パネル）
+         * @param {Group} parentRow - 追加先の2カラムの行グループ
          * @returns {void}
          */
-        function addOptionsPanel(parentColumn) {
-            var optionsPanel = parentColumn.add("panel", undefined, getLabel("panel", "options"));
+        function addOptionsPanel(parentRow) {
+            var optionsPanel = parentRow.add("panel", undefined, getLabel("panel", "options"));
             optionsPanel.orientation = "column";
             /* パネル自身は右カラムの幅いっぱいに、中のチェックボックスは左そろえ（fill の継承を打ち消す）
                The panel fills the width of its column while its checkboxes stay left-aligned, cancelling the inherited fill */
@@ -1006,6 +1396,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             changeJustificationCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox", "changeJustification"));
             changeJustificationCheckbox.helpTip = getLabel("tooltip", "changeJustification");
             changeJustificationCheckbox.value = DEFAULT_CHANGE_JUSTIFICATION;
+        }
+
+        /**
+         * 整列オプションパネル（裁ち落としに整列・アートボードごとに整列）を組み立てる
+         * 裁ち落としは印刷の値なので、定規の単位に追従させず mm で扱う
+         * @param {Window} targetWindow - 追加先のパレット
+         * @returns {void}
+         */
+        function addDestinationPanel(targetWindow) {
+            var paletteSettings = loadPaletteSettings();
+
+            var destinationPanel = targetWindow.add("panel", undefined, getLabel("panel", "destination"));
+            destinationPanel.orientation = "column";
+            destinationPanel.alignment = ["fill", "top"];
+            destinationPanel.alignChildren = ["left", "center"];
+            destinationPanel.margins = PANEL_MARGINS;
+            destinationPanel.spacing = OPTION_SPACING;
+
+            var bleedRow = destinationPanel.add("group");
+            setupRow(bleedRow, "left", LABEL_FIELD_SPACING);
+
+            alignToBleedCheckbox = bleedRow.add("checkbox", undefined, getLabel("checkbox", "alignToBleed"));
+            alignToBleedCheckbox.helpTip = getLabel("tooltip", "alignToBleed") + keyHint(BLEED_TOGGLE_KEY);
+            alignToBleedCheckbox.value = paletteSettings.alignToBleed;
+            alignToBleedCheckbox.onClick = function() { syncBleedField(); };
+
+            bleedField = bleedRow.add("edittext", undefined, paletteSettings.bleed);
+            bleedField.characters = FIELD_CHARS;
+            bleedField.helpTip = getLabel("tooltip", "alignToBleed");
+            changeValueByArrowKey(bleedField);
+            bleedField.onChange = function() { savePaletteSettings(); };
+
+            bleedRow.add("statictext", undefined, BLEED_UNIT_LABEL);
+
+            alignPerArtboardCheckbox = destinationPanel.add("checkbox", undefined, getLabel("checkbox", "perArtboard"));
+            alignPerArtboardCheckbox.helpTip = getLabel("tooltip", "perArtboard");
+            alignPerArtboardCheckbox.value = paletteSettings.perArtboard;
+            alignPerArtboardCheckbox.onClick = function() { savePaletteSettings(); };
+
+            syncBleedField();
+        }
+
+        /**
+         * ［裁ち落としに整列］の状態に合わせて裁ち落としの数値欄を更新する
+         * OFFのときは使わない値なのでディムする（設定は残したいので値は落とさない）
+         * @returns {void}
+         */
+        function syncBleedField() {
+            if (alignToBleedCheckbox === null || bleedField === null) { return; }
+            bleedField.enabled = alignToBleedCheckbox.value === true;
+            savePaletteSettings();
         }
 
         /**
@@ -1075,27 +1516,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
             addAlignButtonRow(win);
             addColumnsRow(win);
+            addMarginPanel(win);
+            addDestinationPanel(win);
             addStatusLine(win);
 
-            /* 選択の変化はパレットへ操作しに来た瞬間に拾う（Illustrator にタイマーAPIが無いため）
-               Illustrator has no timer API, so the selection is re-read when the user comes to the palette */
-            win.onActivate = function() { onPaletteFocus(true); };
-            try {
-                win.addEventListener("mouseover", function() { onPaletteFocus(false); });
-            } catch (e) {}
-
-            /* Esc で閉じる / Esc closes */
-            win.addEventListener("keydown", function(event) {
-                if (event.keyName === "Escape") { win.close(); }
-            });
-            /* 閉じるとき：［ガイドを保持］がOFFならこのパレットが作ったガイドを消し、参照を解放する
-               On close: delete the guide unless "Keep Guides" is on, then release the reference */
-            win.onClose = function() {
-                if (!keepGuideOnClose) { removeMarginGuide(); }
-                paletteWindow = null;
-                $.global.__aiAlignToArtboardWindow = null;
-                return true;
-            };
+            attachPaletteEvents(win);
 
             /* 常駐参照：GC 回避と多重起動の検出を兼ねる / Persistent reference: avoids GC and detects a second launch */
             paletteWindow = win;
@@ -1122,20 +1547,104 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
            - パレット側の変数は参照しない。必要な値は options で受け取る */
 
         function btAlignSelection(options) {
-            var doc, selectedItems, needsGroup, didGroup, previousPreferences, previousJustification, changedJustification, failure;
+            var doc, selectedItems, result;
             if (app.documents.length === 0) { return "NODOC"; }
             doc = app.activeDocument;
+            selectedItems = btResolveSelection(doc);
+            if (selectedItems === null) { return "NOSEL"; }
+            result = btRunPerArtboard(doc, selectedItems, options, btAlignItems, "OK");
+            if (result.indexOf("OK") !== 0) { return result; }
+            /* ガイドは最後に1回だけ描く（アートボードごとに回すと、そのつど張り替えることになる）*/
+            try {
+                btDrawMarginGuide(doc, options);
+            } catch (guideError) {
+                return "ERR:" + guideError;
+            }
+            return result;
+        }
+
+        function btResolveSelection(doc) {
+            var selectedItems;
             selectedItems = doc.selection;
+            /* 文字を選択しているときは、そのストーリーのテキストオブジェクトに置き換える */
             if (selectedItems && !(selectedItems instanceof Array)) {
                 selectedItems = btPromoteTextRange(doc, selectedItems);
             }
-            if (!(selectedItems instanceof Array) || selectedItems.length === 0) { return "NOSEL"; }
+            if (!(selectedItems instanceof Array) || selectedItems.length === 0) { return null; }
+            return selectedItems;
+        }
+
+        function btSelectItems(doc, items) {
+            var i;
+            doc.selection = null;
+            for (i = 0; i < items.length; i++) {
+                try { items[i].selected = true; } catch (selectError) {}
+            }
+        }
+
+        function btRunPerArtboard(doc, selectedItems, options, runBucket, okMarker) {
+            var buckets, result, lastResult, i;
+            /* ［アートボードごとに整列］がOFF、またはアートボードが1つなら、まとめて1回で済ませる */
+            if (options.perArtboard !== true || doc.artboards.length < 2) {
+                return runBucket(doc, selectedItems, options);
+            }
+            buckets = btGroupItemsByArtboard(doc, selectedItems);
+            lastResult = okMarker;
+            for (i = 0; i < buckets.length; i++) {
+                /* 整列も移動も選択を見て動くので、そのアートボードのぶんだけ選び直す */
+                btSelectItems(doc, buckets[i]);
+                result = runBucket(doc, buckets[i], options);
+                /* 1つでも失敗したら、そこで止めて理由を返す */
+                if (result.indexOf(okMarker) !== 0) { return result; }
+                if (result !== okMarker) { lastResult = result; }
+            }
+            /* アートボードごとに選び直したので、最後に元の選択へ戻す */
+            btSelectItems(doc, selectedItems);
+            return lastResult;
+        }
+
+        function btGroupItemsByArtboard(doc, items) {
+            var buckets, artboardIndexes, itemBounds, artboardIndex, position, i, j;
+            buckets = [];
+            artboardIndexes = [];
+            for (i = 0; i < items.length; i++) {
+                itemBounds = btUnionBounds([items[i]], true, false);
+                artboardIndex = btFindOverlappingArtboardIndex(doc, itemBounds, doc.artboards.getActiveArtboardIndex());
+                if (artboardIndex < 0) { artboardIndex = btFindNearestArtboardIndex(doc, itemBounds); }
+                position = -1;
+                for (j = 0; j < artboardIndexes.length; j++) {
+                    if (artboardIndexes[j] === artboardIndex) { position = j; break; }
+                }
+                if (position < 0) {
+                    artboardIndexes.push(artboardIndex);
+                    buckets.push([]);
+                    position = buckets.length - 1;
+                }
+                buckets[position].push(items[i]);
+            }
+            return buckets;
+        }
+
+        function btCopyOptions(options) {
+            var copy, key;
+            copy = {};
+            for (key in options) {
+                if (options.hasOwnProperty(key)) { copy[key] = options[key]; }
+            }
+            return copy;
+        }
+
+        function btAlignItems(doc, selectedItems, options) {
+            var needsGroup, didGroup, previousPreferences, justification, failure;
+            /* 寄せ先はこの組だけの判定で決まるので、呼び出し元の options は書き換えない */
+            options = btCopyOptions(options);
             needsGroup = selectedItems.length > 1;
             if (needsGroup && btSpansMultipleLayers(selectedItems)) { return "MULTILAYER"; }
             btActivateArtboardForSelection(doc, selectedItems);
+            /* すでにマージンの位置に寄っているなら、次はその外のアートボードの端へ寄せる（方向ボタンと同じ二段階）*/
+            options.marginPt = btResolveStepMargin(doc, selectedItems, options);
             previousPreferences = btReadPreferences();
-            previousJustification = null;
-            changedJustification = null;
+            justification = { previous: null, changed: null };
             /* 実際にグループ化できたかを控える。needsGroup で解除すると、グループ化の前で例外が出たときに
                選択していた既存のグループを解除してしまう
                Track whether the group actually happened; keying the ungroup off needsGroup would
@@ -1148,13 +1657,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 /* 書いた環境設定を整列コマンドに拾わせるため、いったん反映させる
                    ここを飛ばすと「字形の境界に整列」が効かないまま整列されることがある */
                 app.redraw();
-                if (options.changeJustification && options.justification && btIsSingleLineTextFrame(selectedItems)) {
-                    previousJustification = btSetJustification(selectedItems[0], options.justification);
-                    /* もとから同じ行揃えだったときは「変更した」と言わない */
-                    if (previousJustification !== null && previousJustification !== btJustificationByName(options.justification)) {
-                        changedJustification = options.justification;
-                    }
-                }
+                justification = btApplyJustification(selectedItems, options);
                 if (needsGroup) {
                     app.executeMenuCommand("group");
                     didGroup = true;
@@ -1167,57 +1670,104 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             } catch (alignError) {
                 failure = "ERR:" + alignError;
             } finally {
-                if (didGroup) { app.executeMenuCommand("ungroup"); }
-                /* 整列が環境設定を使い終えてから戻す（先に戻すと反映前の値で整列されることがある）*/
-                app.redraw();
-                btWritePreferences(previousPreferences.previewBounds, previousPreferences.pointText, previousPreferences.areaText);
-                /* 整列できなかったときは、先に変えた行揃えも元に戻す（例外で抜けた場合も同じ）
-                   Roll the justification back whenever the align did not go through, exceptions included */
-                if (failure !== null && previousJustification !== null) {
-                    try { selectedItems[0].textRange.paragraphAttributes.justification = previousJustification; } catch (restoreError) {}
-                }
+                btFinishAlign(selectedItems, didGroup, previousPreferences, justification.previous, failure);
             }
             if (failure !== null) { return failure; }
             try {
                 /* 整列コマンドが「字形の境界に整列」を拾えていないことがあるため、
                    字形を実測して目標位置との差を打ち消す（拾えていれば差は0で何も動かない）*/
                 btApplyGlyphCorrection(doc, options);
-                btDrawMarginGuide(doc, options);
-            } catch (guideError) {
-                return "ERR:" + guideError;
+            } catch (correctionError) {
+                return "ERR:" + correctionError;
             }
-            if (changedJustification !== null) { return "OK:" + changedJustification; }
+            if (justification.changed !== null) { return "OK:" + justification.changed; }
             return "OK";
         }
 
+        function btApplyJustification(selectedItems, options) {
+            var previousJustification;
+            if (!options.changeJustification || !options.justification) { return { previous: null, changed: null }; }
+            if (!btIsSingleLineTextFrame(selectedItems)) { return { previous: null, changed: null }; }
+            previousJustification = btSetJustification(selectedItems[0], options.justification);
+            if (previousJustification === null) { return { previous: null, changed: null }; }
+            /* もとから同じ行揃えだったときは「変更した」と言わない */
+            if (previousJustification === btJustificationByName(options.justification)) {
+                return { previous: previousJustification, changed: null };
+            }
+            return { previous: previousJustification, changed: options.justification };
+        }
+
+        function btFinishAlign(selectedItems, didGroup, previousPreferences, previousJustification, failure) {
+            if (didGroup) { app.executeMenuCommand("ungroup"); }
+            /* 整列が環境設定を使い終えてから戻す（先に戻すと反映前の値で整列されることがある）*/
+            app.redraw();
+            btWritePreferences(previousPreferences.previewBounds, previousPreferences.pointText, previousPreferences.areaText);
+            /* 整列できなかったときは、先に変えた行揃えも元に戻す（例外で抜けた場合も同じ）
+               Roll the justification back whenever the align did not go through, exceptions included */
+            if (failure === null || previousJustification === null) { return; }
+            try {
+                selectedItems[0].textRange.paragraphAttributes.justification = previousJustification;
+            } catch (restoreError) {}
+        }
+
         function btMoveToEdgeOrGuide(options) {
-            var doc, selectedItems, bounds, artboardRect, selectionEdge, targetEdge, guideValue, delta, isHorizontal;
+            var doc, selectedItems;
             if (app.documents.length === 0) { return "NODOC"; }
             doc = app.activeDocument;
-            selectedItems = doc.selection;
-            if (selectedItems && !(selectedItems instanceof Array)) {
-                selectedItems = btPromoteTextRange(doc, selectedItems);
-            }
-            if (!(selectedItems instanceof Array) || selectedItems.length === 0) { return "NOSEL"; }
+            selectedItems = btResolveSelection(doc);
+            if (selectedItems === null) { return "NOSEL"; }
             if (doc.artboards.length === 0) { return "NODOC"; }
+            return btRunPerArtboard(doc, selectedItems, options, btMoveItems, "MOVED");
+        }
+
+        function btMoveItems(doc, selectedItems, options) {
+            var bounds, artboardRect, deltaX, deltaY, side, delta, i;
             try {
                 btActivateArtboardForSelection(doc, selectedItems);
-                bounds = btGetGlyphAwareBounds(selectedItems, options.previewBounds === true, options.glyphBounds === true);
+                bounds = btUnionBounds(selectedItems, options.previewBounds === true, options.glyphBounds === true);
                 if (bounds === null) { return "NOBOUNDS"; }
                 artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-                selectionEdge = btEdgeValue(bounds, options.side);
-                /* 進む向きにガイドがあればそこで止め、無ければアートボードの端まで動かす */
-                targetEdge = btEdgeValue(artboardRect, options.side);
-                guideValue = btFindGuideSnapValue(doc, artboardRect, bounds, options.side, options.guideTolerance, options.minDeltaPt);
-                if (guideValue !== null) { targetEdge = guideValue; }
-                delta = targetEdge - selectionEdge;
-                if (Math.abs(delta) < options.minDeltaPt) { delta = 0; }
-                isHorizontal = (options.side === "left" || options.side === "right");
-                btNudgeSelection(doc, isHorizontal ? delta : 0, isHorizontal ? 0 : delta);
+                deltaX = 0;
+                deltaY = 0;
+                /* 斜めは2辺ぶんの移動量を、どちらも動かす前の境界から出して1回で動かす
+                   先に片方だけ動かすと、もう一方のガイド探しが動いたあとの位置で走ってしまう */
+                for (i = 0; i < options.sides.length; i++) {
+                    side = options.sides[i];
+                    delta = btEdgeDelta(doc, artboardRect, bounds, side, options);
+                    if (side === "left" || side === "right") { deltaX = delta; } else { deltaY = delta; }
+                }
+                btNudgeSelection(doc, deltaX, deltaY);
             } catch (moveError) {
                 return "ERR:" + moveError;
             }
             return "MOVED";
+        }
+
+        function btEdgeDelta(doc, artboardRect, bounds, side, options) {
+            var selectionEdge, artboardEdge, bleedEdge, targetEdge, delta;
+            selectionEdge = btEdgeValue(bounds, side);
+            artboardEdge = btEdgeValue(artboardRect, side);
+            /* 進む向きにガイドがあればそこで止め、無ければアートボードの端まで動かす */
+            targetEdge = btFindGuideSnapValue(doc, artboardRect, bounds, side, options.guideTolerance, options.minDeltaPt);
+            if (targetEdge === null) {
+                targetEdge = artboardEdge;
+                if (options.bleedPt > 0) {
+                    bleedEdge = btOutsetValue(artboardEdge, side, options.bleedPt);
+                    /* 裁ち落としまで出ていればそこに留め、アートボードの端に乗っていれば次は裁ち落としへ */
+                    if (Math.abs(bleedEdge - selectionEdge) < options.minDeltaPt) { return 0; }
+                    if (Math.abs(artboardEdge - selectionEdge) < options.minDeltaPt) { targetEdge = bleedEdge; }
+                }
+            }
+            delta = targetEdge - selectionEdge;
+            if (Math.abs(delta) < options.minDeltaPt) { delta = 0; }
+            return delta;
+        }
+
+        function btOutsetValue(edgeValue, side, bleedPt) {
+            if (side === "left") { return edgeValue - bleedPt; }
+            if (side === "right") { return edgeValue + bleedPt; }
+            if (side === "top") { return edgeValue + bleedPt; }
+            return edgeValue - bleedPt;
         }
 
         function btEdgeValue(bounds, side) {
@@ -1310,13 +1860,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function btDrawMarginGuide(doc, options) {
             var layer, previousLayerState, artboardRect, left, top, right, bottom, guideRectangle;
             btRemoveGuidesByName(doc, options.guideName, options.guideLayerName);
-            if (options.showGuide !== true || !(options.guideMarginPt > 0)) { return; }
+            if (options.showGuide !== true || !btHasMargin(options.guideMargins)) { return; }
             if (doc.artboards.length === 0) { return; }
             artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            left = artboardRect[0] + options.guideMarginPt;
-            top = artboardRect[1] - options.guideMarginPt;
-            right = artboardRect[2] - options.guideMarginPt;
-            bottom = artboardRect[3] + options.guideMarginPt;
+            left = artboardRect[0] + options.guideMargins.left;
+            top = artboardRect[1] - options.guideMargins.top;
+            right = artboardRect[2] - options.guideMargins.right;
+            bottom = artboardRect[3] + options.guideMargins.bottom;
             /* マージンが大きすぎて内側が残らないときは何も描かない */
             if (right <= left || top <= bottom) { return; }
             layer = btGetGuideLayer(doc, options.guideLayerName);
@@ -1330,6 +1880,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             } finally {
                 btRestoreLayer(layer, previousLayerState);
             }
+        }
+
+        function btHasMargin(margins) {
+            return margins.top > 0 || margins.bottom > 0 || margins.left > 0 || margins.right > 0;
         }
 
         function btGetGuideLayer(doc, layerName) {
@@ -1383,38 +1937,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             }
         }
 
-        function btExecuteAlignCommands(alignCommands) {
-            var i;
-            for (i = 0; i < alignCommands.length; i++) {
-                app.executeMenuCommand(alignCommands[i]);
+        function btAlignMovedSelection(doc, options) {
+            var boundsBefore, boundsAfter, i;
+            boundsBefore = btUnionBounds(doc.selection, true, false);
+            for (i = 0; i < options.alignCommands.length; i++) {
+                app.executeMenuCommand(options.alignCommands[i]);
             }
+            boundsAfter = btUnionBounds(doc.selection, true, false);
+            return !btSameBounds(boundsBefore, boundsAfter);
         }
 
         function btRunAlignCommands(doc, options) {
-            var boundsBefore, boundsAfter;
-            boundsBefore = btGetSelectionBounds(doc.selection);
-            btExecuteAlignCommands(options.alignCommands);
-            boundsAfter = btGetSelectionBounds(doc.selection);
-            if (!btSameBounds(boundsBefore, boundsAfter)) { return true; }
+            if (btAlignMovedSelection(doc, options)) { return true; }
             return btProbeAlignTarget(doc, options);
         }
 
         function btProbeAlignTarget(doc, options) {
-            var boundsBefore, boundsAfter;
+            var moved;
+            /* 整列で動かなかったときだけ、いったんずらして整列し直し、
+               戻ってくるかどうかで整列先がアートボードかを見る */
             btNudgeSelection(doc, options.probeX, options.probeY);
             try {
-                boundsBefore = btGetSelectionBounds(doc.selection);
-                btExecuteAlignCommands(options.alignCommands);
-                boundsAfter = btGetSelectionBounds(doc.selection);
+                moved = btAlignMovedSelection(doc, options);
             } catch (probeError) {
                 btNudgeSelection(doc, -options.probeX, -options.probeY);
                 throw probeError;
             }
-            if (btSameBounds(boundsBefore, boundsAfter)) {
-                btNudgeSelection(doc, -options.probeX, -options.probeY);
-                return false;
-            }
-            return true;
+            if (!moved) { btNudgeSelection(doc, -options.probeX, -options.probeY); }
+            return moved;
         }
 
         function btSameBounds(boundsA, boundsB) {
@@ -1430,9 +1980,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             if (options.glyphBounds !== true) { return; }
             items = doc.selection;
             if (!(items instanceof Array) || items.length === 0) { return; }
-            if (!btHasTextFrame(items)) { return; }
+            if (!btHasGlyphBoundsTarget(items)) { return; }
             if (doc.artboards.length === 0) { return; }
-            bounds = btGetGlyphAwareBounds(items, options.previewBounds === true, true);
+            bounds = btUnionBounds(items, options.previewBounds === true, true);
             if (bounds === null) { return; }
             artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
             /* artboardRect は [左, 上, 右, 下] で、X は右へ・Y は下へ向かって内側になるため符号が逆になる */
@@ -1450,19 +2000,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             return 0;
         }
 
-        function btHasTextFrame(items) {
-            var i;
+        function btAlignStops(options) {
+            var stops;
+            /* 内側から順に、マージン → アートボードの端 → 裁ち落とし。
+               値はアートボードの辺からの内向きの量なので、裁ち落としは負になる */
+            stops = [];
+            if (options.marginPt > 0) { stops.push(options.marginPt); }
+            stops.push(0);
+            if (options.bleedPt > 0) { stops.push(-options.bleedPt); }
+            return stops;
+        }
+
+        function btResolveStepMargin(doc, selectedItems, options) {
+            var stops, bounds, artboardRect, i;
+            stops = btAlignStops(options);
+            if (stops.length < 2) { return stops[0]; }
+            if (doc.artboards.length === 0) { return stops[0]; }
+            bounds = btUnionBounds(selectedItems, options.previewBounds === true, options.glyphBounds === true);
+            if (bounds === null) { return stops[0]; }
+            artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+            /* いま乗っている停止位置の次へ進める。いちばん外まで来ていればそこに留める */
+            for (i = 0; i < stops.length; i++) {
+                if (btIsAtAlignTarget(bounds, artboardRect, options, stops[i])) {
+                    return (i + 1 < stops.length) ? stops[i + 1] : stops[i];
+                }
+            }
+            return stops[0];
+        }
+
+        function btIsAtAlignTarget(bounds, artboardRect, options, marginPt) {
+            if (Math.abs(btAlignDelta(bounds, artboardRect, options.modeX, marginPt, 0, 2, 1)) > options.minDeltaPt) { return false; }
+            if (Math.abs(btAlignDelta(bounds, artboardRect, options.modeY, marginPt, 1, 3, -1)) > options.minDeltaPt) { return false; }
+            return true;
+        }
+
+        function btHasGlyphBoundsTarget(items) {
+            var i, typeName;
             for (i = 0; i < items.length; i++) {
-                if (items[i].typename === "TextFrame") { return true; }
+                typeName = items[i].typename;
+                if (typeName === "TextFrame" || typeName === "SymbolItem") { return true; }
             }
             return false;
         }
 
-        function btGetGlyphAwareBounds(items, usePreviewBounds, useGlyphBounds) {
-            var bounds, i, itemBounds;
+        function btUnionBounds(items, usePreviewBounds, useGlyphBounds) {
+            var bounds, itemBounds, i;
             bounds = null;
             for (i = 0; i < items.length; i++) {
-                itemBounds = btGetMeasureBounds(items[i], usePreviewBounds, useGlyphBounds);
+                /* 削除済みの参照が混ざることがあるので、測れないものは飛ばす */
+                try {
+                    itemBounds = btGetMeasureBounds(items[i], usePreviewBounds, useGlyphBounds);
+                } catch (boundsError) {
+                    continue;
+                }
                 if (!itemBounds) { continue; }
                 if (bounds === null) {
                     bounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
@@ -1478,11 +2068,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         function btGetMeasureBounds(item, usePreviewBounds, useGlyphBounds) {
             var bounds;
-            if (useGlyphBounds === true && item.typename === "TextFrame") {
-                bounds = btGetOutlineBounds(item, usePreviewBounds);
+            bounds = null;
+            if (useGlyphBounds === true) {
+                if (item.typename === "TextFrame") { bounds = btGetOutlineBounds(item, usePreviewBounds); }
+                else if (item.typename === "SymbolItem") { bounds = btGetSymbolGlyphBounds(item, usePreviewBounds); }
+                if (bounds !== null) { return bounds; }
+            }
+            return btGetPlainBounds(item, usePreviewBounds);
+        }
+
+        function btGetPlainBounds(item, usePreviewBounds) {
+            var bounds;
+            /* クリップグループの境界はマスクを無視した中身全体を返すため、マスクのパスで測り直す */
+            if (item.typename === "GroupItem" && item.clipped === true) {
+                bounds = btGetClipPathBounds(item, usePreviewBounds);
                 if (bounds !== null) { return bounds; }
             }
             return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
+        }
+
+        function btGetClipPathBounds(groupItem, usePreviewBounds) {
+            var clipPath;
+            clipPath = btFindClipPath(groupItem);
+            if (clipPath === null) { return null; }
+            return usePreviewBounds ? clipPath.visibleBounds : clipPath.geometricBounds;
+        }
+
+        function btFindClipPath(groupItem) {
+            var child, typeName, i;
+            for (i = 0; i < groupItem.pageItems.length; i++) {
+                child = groupItem.pageItems[i];
+                typeName = child.typename;
+                if (typeName === "PathItem" && child.clipping === true) { return child; }
+                /* 複合パスのマスクは、束ねているパスの clipping にだけ立つ */
+                if (typeName === "CompoundPathItem" && child.pathItems.length > 0 && child.pathItems[0].clipping === true) { return child; }
+            }
+            return null;
         }
 
         function btGetOutlineBounds(textFrame, usePreviewBounds) {
@@ -1501,6 +2122,109 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 btSafeRemove(duplicated);
             }
             return bounds;
+        }
+
+        function btGetSymbolGlyphBounds(symbolItem, usePreviewBounds) {
+            var doc, layer, selectionBefore, itemsBefore, layersBefore, brokenItems, hasText, bounds, i;
+            layer = symbolItem.layer;
+            if (!layer) { return null; }
+            doc = app.activeDocument;
+            selectionBefore = doc.selection;
+            itemsBefore = btCollectionToArray(layer.pageItems);
+            layersBefore = btCollectionToArray(layer.layers);
+            bounds = null;
+            try {
+                /* 複製をレイヤー直下に置いてからリンクを解除する
+                   グループの中で解除すると生成物の行き先が読めないため、いったん外へ出す */
+                symbolItem.duplicate(layer, ElementPlacement.PLACEATBEGINNING).breakLink();
+                /* breakLink は複製そのものを別のオブジェクトに置き換えるので、参照ではなく
+                   レイヤー直下の差分で生成物を拾う（静的シンボルはサブレイヤーを作る）*/
+                brokenItems = btCollectBrokenItems(layer, itemsBefore, layersBefore);
+                hasText = false;
+                for (i = 0; i < brokenItems.length; i++) {
+                    if (btOutlineTextFramesIn(brokenItems[i])) { hasText = true; }
+                }
+                /* 文字が無ければシンボルの通常の境界と変わらないので、呼び出し元の既定に任せる */
+                if (hasText) {
+                    /* アウトライン化でテキストは別のオブジェクトに置き換わるため、拾い直してから測る */
+                    bounds = btUnionBounds(btCollectBrokenItems(layer, itemsBefore, layersBefore), usePreviewBounds, false);
+                }
+            } catch (symbolError) {
+                bounds = null;
+            } finally {
+                btRemoveBrokenItems(layer, itemsBefore, layersBefore);
+                /* breakLink は生成物を選択状態にするため、元の選択に戻す */
+                if (selectionBefore instanceof Array) {
+                    try { doc.selection = selectionBefore; } catch (selectionError) {}
+                }
+            }
+            return bounds;
+        }
+
+        function btCollectionToArray(collection) {
+            var items, i;
+            items = [];
+            for (i = 0; i < collection.length; i++) { items.push(collection[i]); }
+            return items;
+        }
+
+        function btCollectNewEntries(current, existing) {
+            var newEntries, isExisting, i, j;
+            newEntries = [];
+            for (i = 0; i < current.length; i++) {
+                isExisting = false;
+                for (j = 0; j < existing.length; j++) {
+                    if (existing[j] === current[i]) { isExisting = true; break; }
+                }
+                if (!isExisting) { newEntries.push(current[i]); }
+            }
+            return newEntries;
+        }
+
+        function btCollectBrokenItems(layer, itemsBefore, layersBefore) {
+            var brokenItems, newLayers, i, j;
+            brokenItems = btCollectNewEntries(layer.pageItems, itemsBefore);
+            newLayers = btCollectNewEntries(layer.layers, layersBefore);
+            for (i = 0; i < newLayers.length; i++) {
+                for (j = 0; j < newLayers[i].pageItems.length; j++) { brokenItems.push(newLayers[i].pageItems[j]); }
+            }
+            return brokenItems;
+        }
+
+        function btRemoveBrokenItems(layer, itemsBefore, layersBefore) {
+            var newItems, newLayers, i;
+            try {
+                newItems = btCollectNewEntries(layer.pageItems, itemsBefore);
+                newLayers = btCollectNewEntries(layer.layers, layersBefore);
+            } catch (collectError) {
+                return;
+            }
+            for (i = 0; i < newItems.length; i++) { btSafeRemove(newItems[i]); }
+            for (i = 0; i < newLayers.length; i++) { btSafeRemove(newLayers[i]); }
+        }
+
+        function btOutlineTextFramesIn(item) {
+            var textFrames, outlined, i;
+            textFrames = [];
+            btCollectTextFrames(item, textFrames);
+            /* 先に集めてからアウトライン化する。createOutline は元のテキストを置き換えるので、
+               pageItems をたどりながらだと取りこぼす */
+            outlined = false;
+            for (i = 0; i < textFrames.length; i++) {
+                try {
+                    textFrames[i].createOutline();
+                    outlined = true;
+                } catch (outlineError) {}
+            }
+            return outlined;
+        }
+
+        function btCollectTextFrames(item, textFrames) {
+            var i;
+            if (!item) { return; }
+            if (item.typename === "TextFrame") { textFrames.push(item); return; }
+            if (item.typename !== "GroupItem") { return; }
+            for (i = 0; i < item.pageItems.length; i++) { btCollectTextFrames(item.pageItems[i], textFrames); }
         }
 
         function btSafeRemove(item) {
@@ -1523,14 +2247,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         function btGetPaletteState() {
-            var doc, count;
+            var doc, count, artboardCount;
             count = 0;
+            artboardCount = 0;
             if (app.documents.length > 0) {
                 doc = app.activeDocument;
                 if (doc.selection instanceof Array) { count = doc.selection.length; }
                 else if (doc.selection) { count = 1; }
+                artboardCount = doc.artboards.length;
             }
-            return btGetSelectionKind() + "|" + app.preferences.getIntegerPreference("rulerType") + "|" + count;
+            return btGetSelectionKind() + "|" + app.preferences.getIntegerPreference("rulerType") +
+                "|" + count + "|" + artboardCount;
         }
 
         function btNudgeSelection(doc, deltaX, deltaY) {
@@ -1594,23 +2321,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             return false;
         }
 
-        function btGetSelectionBounds(selectedItems) {
-            var bounds, left, top, right, bottom, i, itemBounds;
-            bounds = selectedItems[0].visibleBounds;
-            left = bounds[0];
-            top = bounds[1];
-            right = bounds[2];
-            bottom = bounds[3];
-            for (i = 1; i < selectedItems.length; i++) {
-                itemBounds = selectedItems[i].visibleBounds;
-                if (itemBounds[0] < left) { left = itemBounds[0]; }
-                if (itemBounds[1] > top) { top = itemBounds[1]; }
-                if (itemBounds[2] > right) { right = itemBounds[2]; }
-                if (itemBounds[3] < bottom) { bottom = itemBounds[3]; }
-            }
-            return [left, top, right, bottom];
-        }
-
         function btGetOverlapArea(boundsA, boundsB) {
             var overlapWidth, overlapHeight;
             overlapWidth = Math.min(boundsA[2], boundsB[2]) - Math.max(boundsA[0], boundsB[0]);
@@ -1656,7 +2366,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function btActivateArtboardForSelection(doc, selectedItems) {
             var selectionBounds, currentIndex, targetIndex;
             if (doc.artboards.length < 2) { return; }
-            selectionBounds = btGetSelectionBounds(selectedItems);
+            selectionBounds = btUnionBounds(selectedItems, true, false);
             currentIndex = doc.artboards.getActiveArtboardIndex();
             targetIndex = btFindOverlappingArtboardIndex(doc, selectionBounds, currentIndex);
             if (targetIndex < 0) { targetIndex = btFindNearestArtboardIndex(doc, selectionBounds); }
@@ -1686,15 +2396,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /* 送信するワーカー関数の一覧（追加したらここにも必ず登録する）/ Every worker function shipped to the main engine */
         var WORKER_FUNCS = [
-            btAlignSelection, btExecuteAlignCommands, btRunAlignCommands, btProbeAlignTarget, btSameBounds,
-            btMoveToEdgeOrGuide, btEdgeValue, btOppositeSide, btFindGuideSnapValue, btGuideEdgeValues, btIsInsideArtboard, btIsAhead,
-            btUpdateMarginGuide, btDrawMarginGuide, btGetGuideLayer, btUnlockLayer, btRestoreLayer, btRemoveGuidesByName,
-            btApplyGlyphCorrection, btAlignDelta, btHasTextFrame,
-            btGetGlyphAwareBounds, btGetMeasureBounds, btGetOutlineBounds, btSafeRemove,
+            btAlignSelection, btResolveSelection, btSelectItems, btRunPerArtboard, btAlignItems,
+            btGroupItemsByArtboard, btCopyOptions, btApplyJustification, btFinishAlign,
+            btMoveItems, btAlignMovedSelection, btRunAlignCommands, btProbeAlignTarget, btSameBounds,
+            btMoveToEdgeOrGuide, btEdgeDelta, btOutsetValue, btEdgeValue, btOppositeSide, btFindGuideSnapValue, btGuideEdgeValues, btIsInsideArtboard, btIsAhead,
+            btUpdateMarginGuide, btDrawMarginGuide, btHasMargin, btGetGuideLayer, btUnlockLayer, btRestoreLayer, btRemoveGuidesByName,
+            btApplyGlyphCorrection, btAlignDelta, btAlignStops, btResolveStepMargin, btIsAtAlignTarget, btHasGlyphBoundsTarget,
+            btUnionBounds, btGetMeasureBounds, btGetPlainBounds, btGetClipPathBounds, btFindClipPath,
+            btGetOutlineBounds, btSafeRemove,
+            btGetSymbolGlyphBounds, btCollectionToArray, btCollectNewEntries, btCollectBrokenItems,
+            btRemoveBrokenItems, btOutlineTextFramesIn, btCollectTextFrames,
             btGetPaletteState, btGetSelectionKind, btJustificationByName,
             btNudgeSelection, btReadPreferences, btGetPreferenceFlags, btWritePreferences, btPromoteTextRange,
             btGetLayerKey, btSpansMultipleLayers,
-            btGetSelectionBounds, btGetOverlapArea,
+            btGetOverlapArea,
             btFindOverlappingArtboardIndex, btFindNearestArtboardIndex, btActivateArtboardForSelection,
             btIsSingleLineTextFrame, btSetJustification
         ];
@@ -1885,16 +2600,69 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         }
 
         /**
-         * マージン欄を読んで pt に換算する（数値以外と負数は0に丸め、欄の表示もそろえる）
+         * 数値の入力欄を読んで pt に換算する（数値以外と負数は0に丸め、欄の表示もそろえる）
+         * @param {EditText} field - 読み取る入力欄
+         * @param {number} pointsPerUnit - 1単位あたりの pt
+         * @returns {number} 入力値（pt）
+         */
+        function readFieldPt(field, pointsPerUnit) {
+            if (field === null) { return 0; }
+            var fieldValue = Number(field.text);
+            if (isNaN(fieldValue) || fieldValue < 0) { fieldValue = 0; }
+            /* 手入力が丸められたときは欄の表示も実際に使う値にそろえる / Show the value actually used */
+            if (String(fieldValue) !== field.text) { field.text = fieldValue; }
+            return fieldValue * pointsPerUnit;
+        }
+
+        /**
+         * マージン4欄の表示中の文字列を辺ごとに読む（控え用）
+         * @returns {object} { top: string, bottom: string, left: string, right: string }
+         */
+        function readMarginTexts() {
+            var texts, side;
+            texts = {};
+            for (side in marginFields) {
+                if (!marginFields.hasOwnProperty(side)) { continue; }
+                texts[side] = String(marginFields[side].text);
+            }
+            return texts;
+        }
+
+        /**
+         * マージン4欄を読んで pt に換算する
+         * @returns {object} { top: number, bottom: number, left: number, right: number }（pt）
+         */
+        function readMarginsPt() {
+            var margins, side, i;
+            margins = {};
+            for (i = 0; i < MARGIN_SIDES.length; i++) {
+                side = MARGIN_SIDES[i];
+                margins[side] = readFieldPt(marginFields[side] || null, currentUnitInfo.points);
+            }
+            return margins;
+        }
+
+        /**
+         * その整列が使うマージンを、寄せる辺から1つ選ぶ（中央揃えは使わないので0）
+         * @param {object} spec - readAlignSpec() の戻り値
+         * @param {object} margins - readMarginsPt() の戻り値
          * @returns {number} マージン（pt）
          */
-        function readMarginPt() {
-            if (marginField === null) { return 0; }
-            var marginValue = Number(marginField.text);
-            if (isNaN(marginValue) || marginValue < 0) { marginValue = 0; }
-            /* 手入力が丸められたときは欄の表示も実際に使う値にそろえる / Show the value actually used */
-            if (String(marginValue) !== marginField.text) { marginField.text = marginValue; }
-            return marginValue * currentUnitInfo.points;
+        function marginForAlign(spec, margins) {
+            if (spec.modeX === "start") { return margins.left; }
+            if (spec.modeX === "end") { return margins.right; }
+            if (spec.modeY === "start") { return margins.top; }
+            if (spec.modeY === "end") { return margins.bottom; }
+            return 0;
+        }
+
+        /**
+         * 裁ち落としの距離を pt で読む（［裁ち落としに整列］がOFFなら0）
+         * @returns {number} 裁ち落とし（pt）
+         */
+        function readBleedPt() {
+            if (alignToBleedCheckbox === null || alignToBleedCheckbox.value !== true) { return 0; }
+            return readFieldPt(bleedField, BLEED_UNIT_POINTS);
         }
 
         /**
@@ -1956,7 +2724,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function buildGuideOptions() {
             return {
                 showGuide:      showGuideCheckbox !== null && showGuideCheckbox.value === true,
-                guideMarginPt:  readMarginPt(),
+                guideMargins:   readMarginsPt(),
                 guideName:      GUIDE_NAME,
                 guideLayerName: GUIDE_LAYER_NAME
             };
@@ -1972,7 +2740,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             try {
                 var options = {
                     showGuide:      false,
-                    guideMarginPt:  0,
+                    guideMargins:   { top: 0, bottom: 0, left: 0, right: 0 },
                     guideName:      GUIDE_NAME,
                     guideLayerName: GUIDE_LAYER_NAME
                 };
@@ -2009,7 +2777,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             options.probeY              = spec.probeY;
             options.modeX               = spec.modeX;
             options.modeY               = spec.modeY;
-            options.marginPt            = altPressed ? 0 : options.guideMarginPt;
+            /* Option＋クリックは段階を踏まず、アートボードの端にぴったり寄せる
+               Option-click skips the steps and sits flush against the artboard edge */
+            options.marginPt            = altPressed ? 0 : marginForAlign(spec, options.guideMargins);
+            options.bleedPt             = altPressed ? 0 : readBleedPt();
+            options.perArtboard         = alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true;
+            options.minDeltaPt          = MOVE_MIN_DELTA_PT;
             options.previewBounds       = previewBoundsCheckbox !== null && previewBoundsCheckbox.value === true;
             options.glyphBounds         = altPressed || (glyphBoundsCheckbox !== null && glyphBoundsCheckbox.value === true);
             options.changeJustification = changeJustificationCheckbox !== null && changeJustificationCheckbox.value === true;
@@ -2020,12 +2793,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         /**
          * 移動ボタンのオプションを組み立てる
          * マージンは使わず（ガイドかアートボードの端にぴったり寄せる）、境界の測り方だけオプションに従う
-         * @param {string} directionKey - "up" / "left" / "right" / "down"
+         * @param {string} directionKey - MOVE_SIDES_BY_DIRECTION のキー
          * @returns {object} ワーカーへ渡すオプション
          */
         function buildMoveOptions(directionKey) {
             return {
-                side:           MOVE_SIDE_BY_DIRECTION[directionKey],
+                sides:          MOVE_SIDES_BY_DIRECTION[directionKey],
+                bleedPt:        readBleedPt(),
+                perArtboard:    alignPerArtboardCheckbox !== null && alignPerArtboardCheckbox.value === true,
                 previewBounds:  previewBoundsCheckbox !== null && previewBoundsCheckbox.value === true,
                 glyphBounds:    glyphBoundsCheckbox !== null && glyphBoundsCheckbox.value === true,
                 guideTolerance: GUIDE_ORIENTATION_TOLERANCE,
@@ -2068,8 +2843,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var lastSelectionSignature = null;
 
         /**
-         * 選択の種類・定規の単位・選択数をメインエンジンに問い合わせ、ディムと単位ラベルを更新する
-         * 1往復でまとめて受け取り（"TEXT|2|3" の形）、選択が変わっていれば状況表示も消す
+         * 選択の種類・定規の単位・選択数・アートボード数をメインエンジンに問い合わせ、ディムと単位ラベルを更新する
+         * 1往復でまとめて受け取り（"TEXT|2|3|1" の形）、選択が変わっていれば状況表示も消す
          * @returns {void}
          */
         function refreshPaletteState() {
@@ -2086,8 +2861,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 if (changeJustificationCheckbox !== null) {
                     changeJustificationCheckbox.enabled = (parts[0] === "TEXT");
                 }
+                /* アートボードが1つしかないなら束ね分ける先が無いので、［アートボードごとに整列］はディムにする */
+                if (alignPerArtboardCheckbox !== null) {
+                    alignPerArtboardCheckbox.enabled = (Number(parts[3]) > 1);
+                }
                 currentUnitInfo = UNIT_INFO[parts[1]] || FALLBACK_UNIT_INFO;
-                if (marginUnitText !== null) { marginUnitText.text = currentUnitInfo.label; }
+                if (marginPanel !== null) { marginPanel.text = marginPanelTitle(); }
+                fillDefaultMargins();
                 var selectionSignature = parts[0] + "|" + parts[2];
                 if (lastSelectionSignature !== null && selectionSignature !== lastSelectionSignature) {
                     setStatus("");
