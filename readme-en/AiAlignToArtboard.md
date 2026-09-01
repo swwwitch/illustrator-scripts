@@ -14,11 +14,11 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 
 - Buttons: a 3×3 grid (eight around the edge plus the middle) with two centre buttons below it; every one runs immediately on click
 	- The eight outer buttons step the destination outwards on each press: the guide they would run into in that direction, then the artboard edge, then the bleed. A diagonal moves to both edges at once. A multiple selection is grouped temporarily so it moves as one, and Change Justification applies
-	- The middle button centres on both axes. **Option-click centres inside the margin** instead of on the artboard
-	- The two buttons below centre on one axis each; Option-click centres that axis inside the margin
+	- The middle button centres on both axes, **inside the margin** where one is set. **Option-click centres on the artboard** instead
+	- The two buttons below centre on one axis each, inside the margin; Option-click centres that axis on the artboard
 	- Each icon shows a rule at the destination edge with the object pushed against it; on the three centred ones the rule runs through the object instead
-- Margin: the inset from each artboard edge, set individually for top, bottom, left and right (unit follows the ruler). Only the left/right/top/bottom alignments are affected; the three centered ones and the arrow buttons do not use it
-	- Option-click ignores the margin and sits flush against the artboard edge
+- Margin: the inset from each artboard edge, set individually for top, bottom, left and right (unit follows the ruler). The left/right/top/bottom alignments and the three centred ones are affected; the arrow buttons do not use it
+	- On the edge alignments, Option-click ignores the margin and sits flush against the artboard edge; on the three centred ones it centres on the artboard
 	- Pressing again once the selection already sits at the margin carries it on to the artboard edge beyond it (and it stays there on any further press)
 	- The fields step with ↑↓ (Shift = ±10, snapping to multiples of 10 / Option = ±0.1); negative values are clamped to 0
 	- The four fields sit in a cross (3×3) with Link in the middle. While it is on, Top alone decides all four sides and the other three are dimmed (on by default); turn it off to set them individually
@@ -40,7 +40,7 @@ A persistent palette that aligns the selection to the artboard. A 3×3 grid of b
 	- Align to Glyph Bounds: toggles point type and area type together (on by default); Option-click treats it as on even when unchecked. Symbol instances are covered too — the type inside them is measured and aligned to its glyph bounds
 	- Both are written to the preferences only for the duration of an align, and the previous values are restored afterwards
 	- Change Justification: match the justification of a lone single-line text object to the horizontal alignment (on by default) — left align to left, horizontal center to centered, right align to right. Vertical alignments leave it alone. Dimmed while no text is selected
-	- Align to Bleed: adds the bleed outside the artboard as the **stop after the artboard edge** (off by default). The amount comes from `BLEED_MM` at the top of the script (3 mm by default); being a print value it never follows the ruler unit
+	- Align to Bleed: adds the bleed outside the artboard as the **stop after the artboard edge** (on by default). The amount comes from `BLEED_MM` at the top of the script (3 mm by default); being a print value it never follows the ruler unit
 	- Per Artboard: aligns each selected object to **the artboard it sits on** (off by default). Objects sharing an artboard still move together as one block, and the outer buttons follow the same rule. It is dimmed in a document with only one artboard
 - Keyboard: Esc closes the palette; ↑↓←→ fire the four side move buttons (the diagonals have no key); C centres horizontally, M vertically and X on both axes; B toggles Align to Bleed
 - A status line at the bottom reports the result (aligned / moved / nothing selected / wrong align target / error). Text too long for the fixed width can be read in full by hovering over it
@@ -76,8 +76,8 @@ Arrow buttons:
 - The align target (selection / key object / artboard) follows the Align panel. **With "Align to Selection" active nothing moves, because grouping reduces the target to a single object.** Set "Align to Artboard" before running.
 - Any target other than the artboard is detected and reported as "Set Align To: Artboard." — **neither the margin offset nor the glyph-bounds correction is applied**, so nothing moves and any justification change is rolled back. The check runs only when an align moved nothing: the selection is nudged 4 pt and aligned again to see whether it comes back. An object already in the right place ends up exactly where it started.
 - The margin is applied by moving inward after the align command has snapped the object to the artboard edge. The offset is a fixed amount, so it stays exact with either preview or geometric bounds.
-- Which of the four margins applies follows the edge being aligned to: Left for a left align, Right for a right align, Top for a top align and Bottom for a bottom align. None of the three centered alignments use one.
-- The four edge alignments and the arrow buttons **step outwards on each press**: a guide (the margin guide included), then the artboard edge, then the bleed. Stops with no value are skipped, and once out at the last one further presses leave the selection where it is. The check measures bounds the same way Preview Bounds and Align to Glyph Bounds do. The three centered alignments never use the margin and are unchanged, and Option-click skips the steps and goes straight to the artboard edge.
+- Which of the four margins applies follows the edge being aligned to: Left for a left align, Right for a right align, Top for a top align and Bottom for a bottom align. The three centred alignments use the two opposing margins, shifting the centre by half their difference (with equal values on both sides that is the artboard centre).
+- The four edge alignments and the arrow buttons **step outwards on each press**: a guide (the margin guide included), then the artboard edge, then the bleed. Stops with no value are skipped, and once out at the last one further presses leave the selection where it is. The check measures bounds the same way Preview Bounds and Align to Glyph Bounds do. The three centred alignments take no steps: one press goes to the centre inside the margin, or to the artboard centre with Option held. Option-click on an edge alignment likewise skips the steps and goes straight to the artboard edge.
 - Align to Bleed draws no guide; it only adds one more stop to that sequence.
 - With Per Artboard on, the selection is **bucketed by artboard** and each bucket is aligned or moved on its own. Within a bucket the objects are still grouped temporarily and move as one block, and the original selection is restored at the end. If one bucket fails, the run stops there and reports why.
 - **The bleed value cannot be read from Illustrator.** The document's bleed setting is not exposed in the DOM — it appears on neither `Document` nor `Artboard`, and is not recorded in the XMP — so it has to be typed in.
@@ -113,9 +113,13 @@ Arrow buttons:
 
 ### Script info
 
-- Version: v1.2.1
+- Version: v1.2.2
 
 ### Changelog
+
+- v1.2.2 (20260902)
+	- Swap the behaviour of the three centred buttons: a plain click now centres inside the margin, and Option-click centres on the artboard
+	- Turn Align to Bleed on by default
 
 - v1.2.1 (20260901)
 	- Rework the panels: Measurement Options and Destination are merged into Options, Margin Guide becomes Margin, and Division Guides becomes Division & Edge Guides

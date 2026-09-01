@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 ### 概要
 
 選択したオブジェクトを、アートボードを対象に整列する常駐パレットです。
-3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードのエッジ・裁ち落としへと寄せ先が進みます。マージンや分割のガイドも引けます。
+3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードのエッジ・裁ち落としへと寄せ先が進みます。中央揃えはマージンの内側の中央へ寄せ、マージンや分割のガイドも引けます。
 
 詳細は README を参照してください。
 
@@ -15,7 +15,8 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 A persistent palette that aligns the selected objects to the artboard.
 A 3x3 grid of buttons moves the selection in eight directions, stepping the destination outwards on each
-press: the guide, the artboard edge, then the bleed. It also draws margin and division guides.
+press: the guide, the artboard edge, then the bleed. The centred buttons align to the centre inside the
+margin, and it also draws margin and division guides.
 
 See the README for details.
 
@@ -25,10 +26,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboard";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboard.md
@@ -109,7 +110,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         var DEFAULT_GLYPH_BOUNDS         = true;  /* 字形の境界に整列 / align to glyph bounds */
         var DEFAULT_CHANGE_JUSTIFICATION = true;  /* 行揃えを変更 / change justification */
         var DEFAULT_LINK_MARGINS         = true;  /* マージンの4値を連動させる / keep the four margins in sync */
-        var DEFAULT_ALIGN_TO_BLEED       = false; /* 裁ち落としに整列 / align to the bleed */
+        var DEFAULT_ALIGN_TO_BLEED       = true;  /* 裁ち落としに整列 / align to the bleed */
         var DEFAULT_ALIGN_PER_ARTBOARD   = false; /* アートボードごとに整列 / align per artboard */
         /* 裁ち落としの量（mm）。パレットには数値欄を置かないので、変えたいときはここを書き換える
            裁ち落としは印刷の値なので、定規の単位に追従させず mm で扱う
@@ -331,9 +332,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                     en: "Draw guides on the four edges of the artboard, reaching outside by the extension"
                 },
                 optionGlyphBounds: { ja: "Option＋クリックで字形の境界に整列", en: "Option-click to align to glyph bounds" },
-                optionMarginCenter: {
-                    ja: "Option＋クリックでマージンの内側の中央に整列（通常はアートボードの中央）",
-                    en: "Option-click to centre inside the margin instead of the artboard"
+                optionArtboardCenter: {
+                    ja: "Option＋クリックでアートボードの中央に整列（通常はマージンの内側の中央）",
+                    en: "Option-click to centre on the artboard instead of inside the margin"
                 },
                 optionNoMargin: {
                     ja: "Option＋クリックでマージンなし・字形の境界に整列",
@@ -1686,7 +1687,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 usesDefaultExtension: !(stored.divideValues && stored.divideValues.extension != null),
                 artboardEdge: stored.artboardEdge === true,
                 linkMargins:  (stored.linkMargins != null) ? (stored.linkMargins === true) : DEFAULT_LINK_MARGINS,
-                alignToBleed: stored.alignToBleed === true,
+                alignToBleed: (stored.alignToBleed != null) ? (stored.alignToBleed === true) : DEFAULT_ALIGN_TO_BLEED,
                 perArtboard:  stored.perArtboard === true
             };
         }
@@ -3317,19 +3318,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
 
         /**
          * そのボタンの Option＋クリックの説明を選ぶ
-         * 中央揃えはマージンの内側の中央へ、端に寄せる整列はマージンを無視して字形の境界に寄せる
+         * 中央揃えはアートボードの中央へ、端に寄せる整列はマージンを無視して字形の境界に寄せる
          * @param {object} buttonDef - 整列ボタンの定義
          * @returns {string} tooltip のキー
          */
         function optionTooltipKey(buttonDef) {
             var spec = readAlignSpec(buttonDef);
-            if (isCenterAlign(spec)) { return "optionMarginCenter"; }
+            if (isCenterAlign(spec)) { return "optionArtboardCenter"; }
             /* マージンの影響を受けるのは上下左右に寄せるボタンだけ / Only the edge alignments use a margin */
             return (spec.offsetX !== 0 || spec.offsetY !== 0) ? "optionNoMargin" : "optionGlyphBounds";
         }
 
         /**
-         * Option＋クリックでマージンの内側の中央へ寄せるための、アートボードの中央からのずれを求める
+         * マージンの内側の中央へ寄せるための、アートボードの中央からのずれを求める
          * 中央に寄せる軸だけ、向かい合うマージンの差の半分だけ内側へずらす
          * @param {object} spec - readAlignSpec() の戻り値
          * @param {object} margins - readMarginsPt() の戻り値
@@ -3377,13 +3378,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
         function buildAlignOptions(buttonDef) {
             var spec = readAlignSpec(buttonDef);
             /* Option＋クリックの意味はボタンによって変わる
-               中央揃え：アートボードではなくマージンの内側の中央へ寄せる
+               中央揃え：マージンの内側ではなくアートボードの中央へ寄せる
                上下左右：字形の境界をONにしたうえでマージンを無視し、アートボードの辺にぴったり寄せる
-               Option-click means different things per button: centre inside the margin for the centred
-               alignments, and flush against the artboard edge with glyph bounds for the edge ones */
+               Option-click means different things per button: centre on the artboard instead of inside
+               the margin for the centred alignments, and flush against the artboard edge with glyph
+               bounds for the edge ones */
             var altPressed = isAltPressed();
-            var centersInMargin = altPressed && isCenterAlign(spec);
-            var ignoresMargin = altPressed && !centersInMargin;
+            var centersInMargin = isCenterAlign(spec) && !altPressed;
+            var ignoresMargin = altPressed && !isCenterAlign(spec);
             var options = buildGuideOptions();
             var centerOffset = centersInMargin ?
                 centerOffsetInMargin(spec, options.guideMargins) : { x: 0, y: 0 };
@@ -3394,8 +3396,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             options.probeY              = spec.probeY;
             options.modeX               = spec.modeX;
             options.modeY               = spec.modeY;
-            /* 中央からのずれ。Option＋クリックの中央揃えだけ 0 以外になる
-               The shift from the artboard centre; only an Option-clicked centre alignment sets it */
+            /* 中央からのずれ。Option を押していない中央揃えだけ 0 以外になる
+               The shift from the artboard centre; only a centre alignment without Option sets it */
             options.centerOffsetX       = centerOffset.x;
             options.centerOffsetY       = centerOffset.y;
             /* Option＋クリックは段階を踏まず、アートボードのエッジにぴったり寄せる
