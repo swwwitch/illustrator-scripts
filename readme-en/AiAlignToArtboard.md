@@ -107,7 +107,16 @@ Arrow buttons:
 
 ### Changelog
 
-- v1.1.0 (20260901) : Toggle Align to Bleed with the B key; Split the settings into a Measurement Options panel (how bounds are measured) and a Destination panel (bleed and per-artboard); add four diagonal arrow buttons (top left, top right, bottom left, bottom right) for eight directions in a 3×3 grid; fire the move buttons from the ↑↓←→ keys and the centring icons from C / M / X; make the four edge alignments step outwards on each press (the margin first, then the artboard edge); split the margin into separate top/bottom/left/right fields laid out in a cross (3×3, Link in the middle) and use the margin for the edge being aligned to; move the Margin Guide panel out of the two columns to the full width of the palette's bottom row, with the unit in the panel title; add an Align to Bleed option (with a mm field defaulting to 3) that adds the bleed as the stop after the artboard edge; add an Align per Artboard option; make Align to Glyph Bounds work on symbol instances by duplicating the symbol, breaking its link, and measuring the type inside it as outlines; fix the arrow buttons moving a clipping group by its unclipped bounds instead of its mask path
+- v1.1.0 (20260901)
+	- Add four diagonal arrow buttons (top left, top right, bottom left, bottom right) for eight directions in a 3×3 grid
+	- Step the destination outwards on each press: margin, then the artboard edge, then the bleed
+	- Split the margin into top/bottom/left/right fields (laid out in a cross, Link in the middle) and use the margin for the edge being aligned to
+	- Add an Align to Bleed option (mm field, 3 by default)
+	- Add an Align per Artboard option
+	- Add keyboard shortcuts: ↑↓←→ for the move buttons, C / M / X for the centring icons, B to toggle Align to Bleed
+	- Rework the panels into Measurement Options (how bounds are measured) and Align Options (bleed and per-artboard), with Margin Guide moved to the full width of the bottom row and its unit in the panel title
+	- Fix Align to Glyph Bounds having no effect on symbol instances (duplicate, break the link, and measure the type inside as outlines)
+	- Fix the arrow buttons moving a clipping group by its unclipped bounds instead of its mask path
 - v1.0.3 (20260901) : Add four arrow buttons that move the selection to a guide or the artboard edge; lay the palette out in two columns (arrow buttons on the left, Margin Guide and Options on the right); rename the panel to Margin Guide and the checkbox to Add Guides, and retitle the palette "Align to Guides or Artboard Edges"
 - v1.0.0 (20260824) : Add "Use the margin", Show Guides and Keep Guides (the guide is deleted when the palette closes unless Keep Guides is on); align to glyph bounds by measuring the outlined glyphs, which also makes it work on a multiple selection; detect and refuse an align target other than the artboard; restore the preferences after aligning; fix decimals being impossible to type in the margin field
 - v1.0.0 (20260823) : Initial release
