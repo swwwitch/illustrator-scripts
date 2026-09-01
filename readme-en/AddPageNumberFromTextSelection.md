@@ -60,6 +60,10 @@ Z and A do not toggle while a text field has focus — typing takes precedence t
 - During preview and on commit, existing text on the `_pagenumber` layer is replaced by copies of the template.
 - If the `_pagenumber` layer did not exist beforehand, it is removed on Cancel. On OK it is kept.
 
+### Article
+
+- [DTP Transit 別館 (Japanese)](https://note.com/dtp_tranist/n/ndc3d96ffc335)
+
 ### Update History
 
 - v2.1.0 (2026-07-27): Unified UI wording around "page number". Added tooltips. Checkbox toggles and committed field edits now refresh the preview. Fixed detection of a nested `_pagenumber` layer, excluded off-artboard text from numbering, and made a failed cut abort instead of deleting the existing text. Consolidated internal routines.

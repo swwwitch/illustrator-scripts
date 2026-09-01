@@ -32,6 +32,7 @@ var SCRIPT_UPDATED  = "2026-08-19";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddPageNumberFromTextSelection.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddPageNumberFromTextSelection.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndc3d96ffc335"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
