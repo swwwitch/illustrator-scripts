@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストフレームの各行（段落）の文字列をフォント名とみなして検索し、行単位でそのフォントを適用します。
-グループ内のテキストフレームも再帰的に対象にし、ロック・非表示のものは除外します。
+選択したテキストフレームの各行（段落）を「フォント名（＋サイズ・行送り）」の指定とみなし、行単位でフォントを適用します。
+「ヒラギノ角ゴシック W3 12pt↓16pt」のようにサイズ・行送りを併記でき、併記のない行はフォントだけを適用します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Treats each line (paragraph) of the selected text frames as a font name, looks it up, and applies that font to the line.
-Text frames inside groups are handled recursively, while locked and hidden ones are skipped.
+Reads each line (paragraph) of the selected text frames as a "font name (plus size and leading)" spec and applies it line by line.
+Sizes and leading can be written after the name, as in "Hiragino Kaku Gothic W3 12pt↓16pt"; a line without them only changes the font.
 
 See the README for details.
 
@@ -23,69 +23,68 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplyFontByLine";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-06-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontByLine.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontByLine.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc1769b1640e7"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
-    // ============================================================
-    // 設定 / バージョン / ローカライズ（Settings / Version / Localization）
-    // ============================================================
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    // クラッシュ箇所を特定するためのデバッグログ（true でデスクトップにログ出力）。
-    // 各ステップで「開く→書く→閉じる」を行い、その都度ディスクへ確定させるので、
-    // Illustrator が落ちてもログの最終行までは残る＝その次の処理が犯人。
-    var DEBUG_LOG = true;
-
-    // ============================================================
-    // 【カスタム置換ルール】
-    // 特定の行のテキストに対して、強制的に適用したいフォントを定義できます。
-    // ============================================================
-    var CUSTOM_MAP = {
+    /* 特定の文字列に強制的に割り当てるフォント（照合前に置き換える）/ Forced font per line text */
+    var CUSTOM_FONT_MAP = {
         "Jenson": "Adobe Jenson Pro",
         "Garamond": "Adobe Garamond Pro",
         "Myriad": "Myriad Pro",
         "Frutiger": "Neue Frutiger World",
         "FF DIN": "DIN 2014",
-        "Minion": "Minion Pro",
+        "Minion": "Minion Pro"
     };
 
-    // 未適用の行を含むフレームの「目印」を置くレイヤー名と長方形の不透明度
-    var MARKER_LAYER_NAME = "// missing-fonts";
-    var MARKER_OPACITY = 35; // ％
-
-    // 対話ピッカーで対象へズームするときの、表示領域に対する占有率（0〜1）
-    var ZOOM_FIT_RATIO = 0.6;
-
-    // ファミリー名一致などで複数スタイルが候補になったとき、どのスタイルを選ぶかの優先順位。
-    // 先頭にあるスタイルほど優先される（小文字で比較。どれにも該当しなければ候補の先頭）。
-    // Regular 優先にしたいときは ["regular", "medium", "semibold", "bold"] に並べ替える。
+    /* 複数スタイルが候補になったときの優先順位（先頭ほど優先。小文字で比較）/ Style preference order */
     var STYLE_PRIORITY = ["bold", "semibold", "medium", "regular"];
 
-    // showFontPicker が「終了」されたときに返す番兵（選択ループを打ち切る合図）
-    var PICKER_QUIT = {};
+    var MARKER_LAYER_NAME = "// missing-fonts";  /* 未適用の目印を置くレイヤー名 / marker layer name */
+    var MARKER_OPACITY    = 35;                  /* 目印の不透明度（％）/ marker opacity in percent */
 
-    var fontIndex;
+    var ZOOM_FIT_RATIO = 0.6;   /* ピッカー表示時、対象が表示領域を占める割合 / zoom fit ratio */
+    var ZOOM_MIN       = 0.03;  /* Illustrator のズーム下限（3%）/ minimum zoom of Illustrator */
+    var ZOOM_MAX       = 64;    /* Illustrator のズーム上限（6400%）/ maximum zoom of Illustrator */
 
-    // ============================================================
-    // ローカライズ
-    // ============================================================
+    // =========================================
+    // レイアウト設定 / Layout settings
+    // =========================================
+
+    var DIALOG_MARGINS      = 15;             /* ダイアログの余白 / dialog margins */
+    var BUTTON_BAR_MARGINS  = [0, 10, 0, 0];  /* ボタンバーの余白 / margins of the button bar */
+    var PROGRESS_BAR_SIZE   = [320, 9];       /* プログレスバーの寸法 / size of the progress bar */
+    var PROGRESS_TEXT_WIDTH = 320;            /* 進捗表示の幅 / width of the progress count label */
+    var RESULT_FIELD_SIZE   = [380, 220];     /* 未適用一覧の寸法 / size of the unapplied list field */
+    var PICKER_LABEL_WIDTH  = 70;             /* ピッカーの項目名の幅 / width of the picker row labels */
+    var PICKER_FIELD_WIDTH  = 200;            /* ピッカーの入力欄・プルダウンの幅 / width of the picker fields */
+    var PICKER_TARGET_WIDTH = 260;            /* 対象テキスト表示の幅 / width of the target text label */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
     var currentLanguage = (String(app.locale).indexOf("ja") === 0) ? "ja" : "en";
 
     var LABELS = {
-        message: {
-            noDoc: {
+        alert: {
+            noDocument: {
                 ja: "ドキュメントが開かれていません。",
                 en: "No document is open."
             },
@@ -94,16 +93,46 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
                 en: "Please select a text object."
             }
         },
-        progress: {
-            title: {
+        dialog: {
+            progressTitle: {
                 ja: "フォントを適用中…",
                 en: "Applying fonts…"
-            }
-        },
-        result: {
-            header: {
+            },
+            resultTitle: {
+                ja: "適用結果",
+                en: "Apply results"
+            },
+            resultHeader: {
                 ja: "フォントを適用できなかった文字列：",
                 en: "Strings with no matching font:"
+            },
+            pickerTitle: {
+                ja: "フォントを選択",
+                en: "Choose font"
+            }
+        },
+        panel: {
+            applyFont: {
+                ja: "適用するフォント",
+                en: "Font to apply"
+            }
+        },
+        fieldLabel: {
+            targetText: {
+                ja: "対象テキスト",
+                en: "Target text"
+            },
+            search: {
+                ja: "検索",
+                en: "Search"
+            },
+            family: {
+                ja: "フォント",
+                en: "Font"
+            },
+            style: {
+                ja: "スタイル",
+                en: "Style"
             }
         },
         button: {
@@ -111,39 +140,9 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
                 ja: "クリップボードにコピー",
                 en: "Copy to clipboard"
             },
-            copied: {
-                ja: "コピーしました",
-                en: "Copied"
-            },
             close: {
                 ja: "閉じる",
                 en: "Close"
-            }
-        },
-        picker: {
-            title: {
-                ja: "フォントを選択",
-                en: "Choose font"
-            },
-            target: {
-                ja: "対象テキスト：",
-                en: "Target text:"
-            },
-            replace: {
-                ja: "適用するフォント",
-                en: "Font to apply"
-            },
-            search: {
-                ja: "検索：",
-                en: "Search:"
-            },
-            family: {
-                ja: "フォント：",
-                en: "Font:"
-            },
-            style: {
-                ja: "スタイル：",
-                en: "Style:"
             },
             apply: {
                 ja: "適用",
@@ -160,10 +159,16 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     };
 
-    // ラベルのリーフ（{ ja, en }）を渡すと現在の言語の文字列を返す。
-    // 現在の言語が未定義の場合は英語へ、それも無ければ空文字へフォールバックする。
-    // 文中の {slash} は "/" に置換する。
-    function L(labelNode) {
+    /* showFontPicker が「終了」で返す番兵（選択ループを打ち切る合図）/ Sentinel returned on Quit */
+    var PICKER_QUIT = {};
+
+    /**
+     * ラベルのリーフ（{ ja, en }）から現在の言語の文字列を返す
+     * 現在の言語が未定義なら英語、それも無ければ空文字へフォールバックする
+     * @param {Object} labelNode - { ja, en } を持つラベル
+     * @returns {string} 現在の言語の文字列
+     */
+    function getLabel(labelNode) {
         var text = "";
         if (labelNode) {
             text = labelNode[currentLanguage] || labelNode.en || "";
@@ -171,691 +176,520 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return String(text).replace(/\{slash\}/g, "/");
     }
 
+    /**
+     * 項目名に言語別のコロンを付けて返す（日本語は全角、英語は半角）
+     * @param {Object} labelNode - { ja, en } を持つラベル
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelNode) {
+        var text = getLabel(labelNode);
+        if (text === "") return "";
+        return text + (currentLanguage === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
     if (app.documents.length === 0) {
-        alert(L(LABELS.message.noDoc));
+        alert(getLabel(LABELS.alert.noDocument));
         return;
     }
 
     var doc = app.activeDocument;
+    var fontIndex = null; /* 全インストールフォントの索引（選択チェック後に作成）/ index of installed fonts */
+
+    var selectedItems = doc.selection;
+    if (!selectedItems || selectedItems.length === 0) {
+        alert(getLabel(LABELS.alert.noSelection));
+        return;
+    }
+
+    /* 選択物からテキストフレームを再帰収集（グループ内も対象）/ Collect text frames recursively */
+    var targetTextFrames = [];
+    collectTextFrames(selectedItems, targetTextFrames);
+
+    if (targetTextFrames.length === 0) {
+        alert(getLabel(LABELS.alert.noSelection));
+        return;
+    }
+
+    /* 対象が確定してから索引化する（重い処理なので選択チェックの後）/ Build the index once the target is fixed */
     fontIndex = createFontIndex();
-    var currentSelection = doc.selection;
-    var selection = [];
-    if (currentSelection) {
-        for (var i = 0; i < currentSelection.length; i++) {
-            selection.push(currentSelection[i]);
+
+    /* フェーズ1：厳密一致だけ自動適用し、判断が要る行は保留にする / Phase 1: apply confident matches */
+    var pendingLines = autoApplyFonts(targetTextFrames);
+
+    /* フェーズ2：保留分を対話ピッカーで1件ずつ決める / Phase 2: resolve the queue interactively */
+    var unapplied = resolvePendingLines(pendingLines);
+
+    /* 未適用の行を含むフレームに目印を置く / Mark the frames that still have unapplied lines */
+    markUnappliedFrames(unapplied.frames);
+
+    /* 適用できなかった文字列を一覧表示し、要求があればクリップボードへコピー / Show and optionally copy */
+    if (unapplied.texts.length > 0 && showUnappliedDialog(unapplied.texts)) {
+        copyTextToClipboard(unapplied.texts.join("\n"));
+    }
+
+    // =========================================
+    // 処理フロー / Processing flow
+    // =========================================
+
+    /**
+     * 選択物（配列やコレクション）を再帰的にたどり、テキストフレームを集める
+     * ロック・非表示のオブジェクトは無視する（グループならその中身ごとスキップ）
+     * @param {Object} sourceItems - PageItem の配列またはコレクション
+     * @param {TextFrame[]} collectedFrames - 収集先の配列
+     * @returns {void}
+     */
+    function collectTextFrames(sourceItems, collectedFrames) {
+        for (var k = 0; k < sourceItems.length; k++) {
+            var currentItem = sourceItems[k];
+
+            /* テキスト編集中の選択（TextRange）などは要素を取り出せないので無視 / Skip non page items */
+            if (!currentItem || currentItem.locked || currentItem.hidden) continue;
+
+            if (currentItem.typename === "TextFrame") {
+                collectedFrames.push(currentItem);
+            } else if (currentItem.typename === "GroupItem") {
+                collectTextFrames(currentItem.pageItems, collectedFrames);
+            }
         }
     }
 
-    if (selection.length === 0) {
-        alert(L(LABELS.message.noSelection));
-        return;
+    /**
+     * フェーズ1：全フレームを走査し、厳密一致のフォントだけを自動適用する
+     * 判断が要る行（あいまい一致・未一致・適用失敗）は保留リストに積んで返す
+     * @param {TextFrame[]} textFrameList - 対象のテキストフレーム
+     * @returns {Object[]} 保留行（{ frame, index, lineText, fontName, fontSize, fontLeading, initialFont }）
+     */
+    function autoApplyFonts(textFrameList) {
+        var pendingLines = [];
+        var progress = createProgressPalette(textFrameList.length);
+
+        for (var i = 0; i < textFrameList.length; i++) {
+            progress.update(i + 1);
+            autoApplyLinesInFrame(textFrameList[i], pendingLines);
+        }
+
+        progress.window.close();
+        return pendingLines;
     }
 
-    // 選択物からテキストフレームを再帰収集（グループ内も対象にする）
-    var textFrames = [];
-    collectTextFrames(selection, textFrames);
+    /**
+     * 1つのテキストフレームの各行を照合し、厳密一致は適用、それ以外は保留に積む
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {Object[]} pendingLines - 保留行の追加先
+     * @returns {void}
+     */
+    function autoApplyLinesInFrame(textFrame, pendingLines) {
+        /* 段落コレクションはキャッシュしない。適用のたびに参照が無効化され Error 1302 になるため
+           / Fetch paragraphs live: applying a font invalidates a cached collection */
+        var paragraphCount = textFrame.paragraphs.length;
 
-    if (textFrames.length === 0) {
-        alert(L(LABELS.message.noSelection));
-        return;
+        /* 下から上へたどると、適用によるインデックスのズレを避けられる / Loop upwards to keep indexes valid */
+        for (var j = paragraphCount - 1; j >= 0; j--) {
+            var lineText = textFrame.paragraphs[j].contents.replace(/^[\s　]+|[\s　]+$/g, "");
+            if (lineText === "") continue; /* 空行・空白だけの行は対象外 / Skip blank lines */
+
+            /* 行末に併記されたサイズ・行送りを切り出す（照合は名前部分だけで行う）/ Split off size and leading */
+            var fontSpec = parseFontSpec(lineText);
+            var fontMatch = findFont(fontSpec.name);
+
+            var isApplied = fontMatch.confident
+                && applyFontSpecToLine(textFrame, j, fontMatch.font, fontSpec.size, fontSpec.leading);
+
+            if (!isApplied) {
+                pendingLines.push({
+                    frame: textFrame,
+                    index: j,
+                    lineText: lineText,
+                    fontName: fontSpec.name,
+                    fontSize: fontSpec.size,
+                    fontLeading: fontSpec.leading,
+                    initialFont: fontMatch.font
+                });
+            }
+        }
     }
 
-    // フェーズ1：プログレスバー表示中は「厳密一致だけ自動適用」。
-    // あいまい／未一致の行は保留キュー（pendingPicks）に貯め、確認は後回しにする。
-    var progress = createProgress(textFrames.length);
-    var pendingPicks = [];
-    for (var i = 0; i < textFrames.length; i++) {
-        progress.bar.value = i + 1;
-        progress.countLabel.text = (i + 1) + " / " + textFrames.length;
-        progress.window.update();
-        autoApplyAndQueue(textFrames[i], pendingPicks);
-    }
-    progress.window.close();
+    /**
+     * フェーズ2：保留行を対話ピッカーで1件ずつ決める
+     * 同じフォント名は実行中に一度決めたら再質問せず、その結果を使い回す
+     * @param {Object[]} pendingLines - 保留行
+     * @returns {Object} 未適用の記録（{ frames: TextFrame[], texts: string[] }）
+     */
+    function resolvePendingLines(pendingLines) {
+        var unapplied = { frames: [], texts: [] };
+        var decidedFonts = {}; /* フォント名 -> TextFont（適用）/ null（スキップ）/ decision per font name */
+        var fontPicker = null; /* ピッカーは初回だけ生成して使い回す / Build the picker only once */
 
-    // フェーズ2：プログレスバー終了後に、保留分を対話ピッカーで1件ずつ決めさせる。
-    // スキップされた行（＝未適用）はフレームと文字列を控える。
-    // pickMemo は「同じ文字列をこの実行中に一度決めたら、以降は再質問せず結果を再利用」する。
-    var unappliedFrames = [];
-    var unappliedTexts = [];
-    var pickMemo = {}; // lineText -> TextFont（適用）/ null（スキップ）
-    var picker = null; // ピッカーは初回だけ生成して全ピックで使い回す（dropdownlist 再生成クラッシュ対策）
-    dlog("=== run start === pendingPicks=" + pendingPicks.length);
-    for (var i = 0; i < pendingPicks.length; i++) {
-        var pick = pendingPicks[i];
-        dlog("pick[" + i + "] index=" + pick.index + " text=[" + pick.lineText + "]");
+        for (var i = 0; i < pendingLines.length; i++) {
+            var pendingLine = pendingLines[i];
 
-        // 同じ文字列を既に決めていれば、その結果を再利用（ピッカーを出さない）
-        if (pickMemo.hasOwnProperty(pick.lineText)) {
-            var remembered = pickMemo[pick.lineText];
-            var reapplied = false;
-            if (remembered) {
-                // 段落は保持参照を使い回さず、使用直前にライブ取得する（無効化クラッシュ対策）
-                var rememberParagraph = getLiveParagraph(pick.frame, pick.index);
-                if (rememberParagraph) {
-                    try {
-                        rememberParagraph.characterAttributes.textFont = remembered;
-                        reapplied = true;
-                    } catch (e) { }
+            /* 決定済みのフォント名は再質問しない。サイズ・行送りは行ごとの値を適用する
+               / Reuse the earlier decision; size and leading still come from this line */
+            if (decidedFonts.hasOwnProperty(pendingLine.fontName)) {
+                if (!applyPendingLine(pendingLine, decidedFonts[pendingLine.fontName])) {
+                    recordUnapplied(unapplied, pendingLine);
                 }
+                continue;
             }
-            if (!reapplied) recordUnapplied(unappliedFrames, unappliedTexts, pick);
-            continue;
+
+            if (!fontPicker) fontPicker = createFontPickerDialog(fontIndex.families);
+            var pickedFont = showFontPicker(fontPicker, pendingLine);
+
+            /* 「終了」：残りの保留分をすべて未適用として記録し、ループを打ち切る / Quit stops the queue */
+            if (pickedFont === PICKER_QUIT) {
+                for (var q = i; q < pendingLines.length; q++) {
+                    recordUnapplied(unapplied, pendingLines[q]);
+                }
+                break;
+            }
+
+            decidedFonts[pendingLine.fontName] = pickedFont;
+            if (!pickedFont) recordUnapplied(unapplied, pendingLine);
         }
 
-        // 初登場の文字列はピッカーで決めさせ、結果を記憶する
-        dlog("  -> showFontPicker open");
-        if (!picker) {
-            dlog("  -> createFontPickerDialog (once, families=" + fontIndex.families.length + ")");
-            picker = createFontPickerDialog(fontIndex.families);
-            dlog("  -> createFontPickerDialog done");
-        }
-        var picked = showFontPicker(picker, pick.frame, pick.index, pick.lineText, pick.initialFont);
-        dlog("  -> showFontPicker closed: " + (picked === PICKER_QUIT ? "QUIT" : (picked === null ? "SKIP" : "APPLIED")));
-        if (picked === PICKER_QUIT) {
-            // 「終了」：このピック以降の保留分をすべて未適用として記録し、選択を打ち切る
-            for (var q = i; q < pendingPicks.length; q++) {
-                recordUnapplied(unappliedFrames, unappliedTexts, pendingPicks[q]);
-            }
-            break;
-        }
-        pickMemo[pick.lineText] = picked; // TextFont or null
-        if (picked === null) {
-            recordUnapplied(unappliedFrames, unappliedTexts, pick);
-        }
+        return unapplied;
     }
 
-    dlog("loop done. unappliedFrames=" + unappliedFrames.length + " unappliedTexts=" + unappliedTexts.length);
+    /**
+     * 未適用の行を含むフレームの背面に、赤・半透明の長方形を目印として置く
+     * 実行のたびに古い目印レイヤーは削除し、作成後はレイヤーをロックする
+     * @param {TextFrame[]} frameList - 未適用の行を含むフレーム
+     * @returns {void}
+     */
+    function markUnappliedFrames(frameList) {
+        removeLayerByName(MARKER_LAYER_NAME);
+        if (frameList.length === 0) return;
 
-    // 未適用の行を含むフレームには、背面に赤・半透明（MARKER_OPACITY%）の長方形を置いて目印にする
-    // （テキスト自体は変更しない非破壊マーカー）。実行のたびに古い目印レイヤーは削除する。
-    dlog("before removeLayerByName");
-    removeLayerByName(MARKER_LAYER_NAME);
-    dlog("after removeLayerByName");
-
-    // 未適用があれば、目印レイヤーを新規作成して長方形を置く
-    if (unappliedFrames.length > 0) {
-        dlog("before createMarkerLayer");
+        var previousActiveLayer = doc.activeLayer;
         var markerLayer = createMarkerLayer(MARKER_LAYER_NAME);
-        dlog("after createMarkerLayer");
-        for (var i = 0; i < unappliedFrames.length; i++) {
-            dlog("  createMarkerRect[" + i + "]");
-            createMarkerRect(unappliedFrames[i], markerLayer);
+
+        for (var i = 0; i < frameList.length; i++) {
+            createMarkerRect(frameList[i], markerLayer);
         }
-        // 目印を誤って動かさないよう、作成後にレイヤーをロック
-        dlog("before markerLayer.locked");
+
+        /* 目印を誤って動かさないようロックし、作業レイヤーは元へ戻す / Lock it and restore the active layer */
         markerLayer.locked = true;
-        dlog("after markerLayer.locked");
+        try { doc.activeLayer = previousActiveLayer; } catch (e) { }
     }
 
-    // 適用できなかった文字列のみをダイアログで表示（コピー用ボタン付き）
-    if (unappliedTexts.length > 0) {
-        dlog("before showResultDialog");
-        showResultDialog(unappliedTexts);
-        dlog("after showResultDialog");
+    /**
+     * 未適用の行（スキップ・適用失敗）をフレーム・文字列として記録する
+     * @param {Object} unapplied - 記録先（{ frames, texts }）
+     * @param {Object} pendingLine - 対象の保留行
+     * @returns {void}
+     */
+    function recordUnapplied(unapplied, pendingLine) {
+        pushUnique(unapplied.texts, pendingLine.lineText);
+        pushUnique(unapplied.frames, pendingLine.frame); /* 同一参照なので === で重複排除できる */
     }
-    dlog("=== run end ===");
 
-    // ============================================================
-    // 関数（Functions）
-    // ============================================================
+    /**
+     * 配列に未登録の値だけ追加する（重複防止）
+     * @param {Array} targetList - 追加先の配列
+     * @param {Object} newValue - 追加する値
+     * @returns {void}
+     */
+    function pushUnique(targetList, newValue) {
+        for (var i = 0; i < targetList.length; i++) {
+            if (targetList[i] === newValue) return;
+        }
+        targetList.push(newValue);
+    }
 
-    // デバッグログを1行追記する。書き込みごとに close() してディスクへ確定させる。
-    function dlog(message) {
-        if (!DEBUG_LOG) return;
+    // =========================================
+    // フォントの適用 / Applying fonts
+    // =========================================
+
+    /**
+     * 保留行に、決定したフォントとその行のサイズ・行送りを適用する
+     * @param {Object} pendingLine - 対象の保留行
+     * @param {TextFont} font - 適用するフォント（null なら適用しない）
+     * @returns {boolean} 適用できたかどうか
+     */
+    function applyPendingLine(pendingLine, font) {
+        return applyFontSpecToLine(pendingLine.frame, pendingLine.index, font,
+            pendingLine.fontSize, pendingLine.fontLeading);
+    }
+
+    /**
+     * 段落へフォント・サイズ・行送りを適用する（サイズ・行送りは指定があるものだけ）
+     * 段落は使用直前にライブ取得する。保持した参照を使い回すと無効化され、
+     * try/catch でも拾えないネイティブクラッシュを起こすため
+     * 行送りは絶対値では入れず、行送り÷サイズの百分率を自動行送りに代入する
+     * （例：12pt↓16pt → 16/12 ≒ 133.3%）
+     * @param {TextFrame} frame - 対象のテキストフレーム
+     * @param {number} paragraphIndex - 段落インデックス
+     * @param {TextFont} font - 適用するフォント（null なら適用しない）
+     * @param {number} sizePt - 文字サイズ（ポイント。null なら変更しない）
+     * @param {number} leadingPt - 行送り（ポイント。null なら変更しない）
+     * @returns {boolean} 適用できたかどうか
+     */
+    function applyFontSpecToLine(frame, paragraphIndex, font, sizePt, leadingPt) {
+        if (!font) return false;
+
         try {
-            var logFile = new File(Folder.desktop + "/ApplyFontByLine-debug.log");
-            logFile.encoding = "UTF-8";
-            logFile.open("a");
-            logFile.writeln(message);
-            logFile.close();
-        } catch (e) { }
-    }
+            var paragraph = frame.paragraphs[paragraphIndex];
+            var attributes = paragraph.characterAttributes;
 
-    // 適用中に表示するプログレスバー（パレット）を作成して返す
-    function createProgress(total) {
-        var progressWindow = new Window("palette", L(LABELS.progress.title) + " " + SCRIPT_VERSION);
-        progressWindow.alignChildren = "fill";
-        progressWindow.margins = 15;
-
-        var progressBar = progressWindow.add("progressbar", undefined, 0, total);
-        progressBar.preferredSize = [320, 9];
-
-        var countLabel = progressWindow.add("statictext", undefined, "0 / " + total);
-        countLabel.preferredSize.width = 320;
-
-        progressWindow.show();
-        progressWindow.update();
-        return { window: progressWindow, bar: progressBar, countLabel: countLabel };
-    }
-
-    // 適用できなかった文字列を一覧表示するダイアログ（コピー用ボタン付き）
-    function showResultDialog(lines) {
-        var listText = lines.join("\n");
-
-        var dialog = new Window("dialog", L(LABELS.result.header) + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "fill";
-        dialog.margins = 15;
-
-        dialog.add("statictext", undefined, L(LABELS.result.header));
-
-        // 一覧（読み取り専用・複数行・スクロール可）。手動選択もできる
-        var listField = dialog.add("edittext", undefined, listText, { multiline: true, scrolling: true, readonly: true });
-        listField.preferredSize = [380, 220];
-
-        // === ボタン（Mac 規約：左にコピー、右に閉じる）===
-        var buttonGroup = dialog.add("group");
-        buttonGroup.alignment = "right";
-        var copyButton = buttonGroup.add("button", undefined, L(LABELS.button.copy));
-        buttonGroup.add("button", undefined, L(LABELS.button.close), { name: "ok" });
-
-        copyButton.onClick = function () {
-            copyTextToClipboard(listText);
-            copyButton.text = L(LABELS.button.copied);
-            copyButton.enabled = false;
-        };
-
-        dialog.show();
-    }
-
-    // 文字列をクリップボードへコピーする。
-    // 一時テキストフレームを作って app.copy() する方式（pbcopy は非同期で失敗するため）
-    function copyTextToClipboard(textToCopy) {
-        var tempFrame = null;
-        try {
-            tempFrame = doc.textFrames.add();
-            tempFrame.contents = textToCopy;
-            tempFrame.position = [-100000, -100000]; // 画面外に逃がす
-            doc.selection = null;
-            tempFrame.selected = true;
-            app.copy();
+            attributes.textFont = font;
+            if (sizePt) attributes.size = sizePt;
+            if (leadingPt && sizePt) {
+                paragraph.paragraphAttributes.autoLeadingAmount = (leadingPt / sizePt) * 100;
+                attributes.autoLeading = true;
+            }
+            return true;
         } catch (e) {
-        } finally {
-            if (tempFrame) {
-                try { tempFrame.remove(); } catch (e2) { }
-            }
-            doc.selection = null;
+            return false;
         }
     }
 
-    // 候補が曖昧／未適用の行について、フォントを対話的に選ばせる。
-    // 「適用」で選んだ TextFont を返し、「スキップ」／閉じるでは null を返す。
-    // モーダルダイアログ表示中はドキュメントを一切変更しない（ライブプレビューは
-    // Illustrator のハードクラッシュ要因のため廃止）。実適用は閉じた後にまとめて行う。
-    // ダイアログ（picker）は作り直さず使い回す。ここでは対象テキストと選択をリセットするだけ。
-    function showFontPicker(picker, targetFrame, paragraphIndex, lineText, initialFont) {
-        // 対象テキストを画面にフィット（モーダル表示前に行う）
-        dlog("    showFontPicker: before zoomToFrame");
-        zoomToFrame(targetFrame);
-        dlog("    showFontPicker: after zoomToFrame");
+    /**
+     * 行末に併記されたフォントサイズ・行送りを切り出し、{ name, size, leading } で返す
+     * 例）"ヒラギノ角ゴシック W3 12pt↓16pt" → { name: "ヒラギノ角ゴシック W3", size: 12, leading: 16 }
+     * 　　"Helvetica Neue, 14"            → { name: "Helvetica Neue", size: 14, leading: null }
+     * 　　"DIN 2014"                      → { name: "DIN 2014", size: null, leading: null }
+     * サイズは「単位付き」か「、」「,」「/」区切りのどちらかで必ずアンカーされるため、
+     * フォント名末尾の数字（"DIN 2014" など）はサイズと誤認されない
+     * @param {string} rawText - 行の文字列
+     * @returns {Object} { name: string, size: number, leading: number }（size / leading は未指定なら null）
+     */
+    function parseFontSpec(rawText) {
+        var text = String(rawText).replace(/^[\s　]+|[\s　]+$/g, "");
+        var fontSpec = { name: text, size: null, leading: null };
 
-        // このピック用に UI をリセット（対象テキスト差し替え／検索クリア／一覧と選択の再設定）
-        dlog("    showFontPicker: before reset");
-        picker.targetLabel.text = lineText;
-        picker.searchField.text = "";
-        resetFamilyListToAll(picker.familyList, picker.families);
-        initializeFontPickerSelection(picker.familyList, picker.styleList, picker.families, initialFont);
-        dlog("    showFontPicker: after reset");
+        /* 末尾の行送りは任意：[区切り（↓含む）→ 数値 →（任意で単位）] / Trailing leading is optional */
+        var trailingLeading = "(?:[ \\t　、,/↓]+([0-9]+(?:\\.[0-9]+)?)(pt|px|q)?)?$";
 
-        // 「適用」=1 / 「スキップ」=2（閉じる含む）/ 「終了」=3
-        dlog("    showFontPicker: before dialog.show()");
-        var result = picker.dialog.show();
-        dlog("    showFontPicker: after dialog.show() result=" + result);
+        /* パターン1：サイズに単位（pt/px/Q）が付くケース / Size with an explicit unit */
+        var sizeWithUnit = new RegExp(
+            "^([\\s\\S]*?)[ \\t　、,/]+([0-9]+(?:\\.[0-9]+)?)(pt|px|q)" + trailingLeading, "i");
 
-        return handleFontPickerResult(result, targetFrame, paragraphIndex, picker.familyList, picker.styleList);
+        /* パターン2：単位は無いが「、」「,」「/」で区切られているケース / Size after a list separator */
+        var sizeWithListSeparator = new RegExp(
+            "^([\\s\\S]*?)[ \\t　]*[、,/][ \\t　]*([0-9]+(?:\\.[0-9]+)?)(pt|px|q)?" + trailingLeading, "i");
+
+        /* groups: 1=名前 / 2=サイズ数値 / 3=サイズ単位 / 4=行送り数値 / 5=行送り単位 */
+        var matched = text.match(sizeWithUnit) || text.match(sizeWithListSeparator);
+        if (!matched) return fontSpec;
+
+        var name = String(matched[1]).replace(/[\s　]+$/g, "");
+        if (name === "") return fontSpec; /* 名前が空ならサイズ扱いしない / Not a size when the name is empty */
+
+        var sizePt = unitToPoints(matched[2], matched[3]);
+        if (sizePt === null) return fontSpec;
+
+        fontSpec.name = name;
+        fontSpec.size = sizePt;
+
+        /* サイズが確定したときだけ行送りを見る / Read the leading only once the size is settled */
+        if (matched[4]) fontSpec.leading = unitToPoints(matched[4], matched[5]);
+
+        return fontSpec;
     }
 
-    // 検索で絞り込まれている可能性のある familyList を全件に戻す。
-    // 全件と同数なら何もしない（スキップ連打のような未検索ケースで再構築を避ける）。
-    // ※ 既存コントロールへの item 追加は安全。落ちるのは「巨大配列での新規 dropdownlist 生成」だけ。
-    function resetFamilyListToAll(familyList, families) {
-        if (familyList.items.length === families.length) return;
-        familyList.removeAll();
-        for (var i = 0; i < families.length; i++) {
-            familyList.add("item", families[i]);
+    /**
+     * 数値文字列＋単位をポイント値へ換算する（1Q = 0.25mm、px/pt/単位なしは 1px = 1pt）
+     * @param {string} numberText - 数値の文字列
+     * @param {string} unitText - 単位（pt / px / q / 未指定）
+     * @returns {number} ポイント値。正の値でなければ null
+     */
+    function unitToPoints(numberText, unitText) {
+        var value = parseFloat(numberText);
+        if (!(value > 0)) return null;
+        if (unitText && String(unitText).toLowerCase() === "q") {
+            return value * (72 / 25.4 / 4); /* 1Q = 0.25mm → pt */
         }
+        return value;
     }
 
-    // frame と段落インデックスから段落（TextRange）を毎回ライブ取得する。
-    // フォント適用後に保持参照を使い回すと無効化され、try/catch でも拾えない
-    // ネイティブクラッシュ（Illustrator ごと落ちる）を起こすため、使用直前に都度取り直す。
-    function getLiveParagraph(frame, index) {
-        try {
-            return frame.paragraphs[index];
-        } catch (e) {
-            return null;
-        }
-    }
+    // =========================================
+    // フォントの照合 / Font matching
+    // =========================================
 
-    // フォントピッカーの結果を処理して返す。
-    // 実適用はダイアログを閉じた後（＝モーダル表示外）に行うため安全。
-    function handleFontPickerResult(result, targetFrame, paragraphIndex, familyList, styleList) {
-        if (result === 1 && familyList.selection && styleList.selection) {
-            var chosenFont = fontFor(familyList.selection.text, styleList.selection.text);
-            if (chosenFont) {
-                // 段落は保持参照を使い回さず、使用直前にライブ取得（無効化クラッシュ対策）
-                var applyParagraph = getLiveParagraph(targetFrame, paragraphIndex);
-                if (applyParagraph) {
-                    try {
-                        applyParagraph.characterAttributes.textFont = chosenFont;
-                        return chosenFont;
-                    } catch (e) { }
-                }
-            }
-        }
-
-        // スキップ／終了：ダイアログ中にドキュメントを変更していないので復元は不要。
-        return (result === 3) ? PICKER_QUIT : null;
-    }
-
-    // フォントピッカーの UI を生成して { dialog, familyList, styleList } を返す。
-    // ボタンは name:"ok"/"cancel" なので、判定は dialog.show() の戻り値で行う。
-    function createFontPickerDialog(families) {
-        var dialog = new Window("dialog", L(LABELS.picker.title) + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "fill";
-        dialog.margins = 15;
-
-        // 対象テキスト（パネルの外）。値はピックごとに差し替えるので空で作り、幅だけ確保する
-        var targetRow = dialog.add("group");
-        targetRow.add("statictext", undefined, L(LABELS.picker.target));
-        var targetLabel = targetRow.add("statictext", undefined, "", { truncate: "end" });
-        targetLabel.preferredSize.width = 260;
-
-        // 置換パネル（フォント／スタイル）
-        var replacePanel = dialog.add("panel", undefined, L(LABELS.picker.replace));
-        replacePanel.orientation = "column";
-        replacePanel.alignChildren = "left";
-        replacePanel.margins = 15;
-
-        // 各行のラベル幅をそろえる
-        var labelWidth = 70;
-
-        // 検索フィルター（入力した文字列でファミリーのプルダウンを絞り込む）
-        var searchRow = replacePanel.add("group");
-        var searchLabel = searchRow.add("statictext", undefined, L(LABELS.picker.search));
-        searchLabel.preferredSize.width = labelWidth;
-        var searchField = searchRow.add("edittext", undefined, "");
-        searchField.preferredSize.width = 200;
-
-        // フォント（ファミリー）プルダウン
-        var familyRow = replacePanel.add("group");
-        var familyLabel = familyRow.add("statictext", undefined, L(LABELS.picker.family));
-        familyLabel.preferredSize.width = labelWidth;
-        // 巨大配列での dropdownlist 生成を繰り返すと Illustrator が落ちるため、
-        // このダイアログ（と familyList）は実行中に1回だけ生成して使い回す。
-        dlog("      createFontPickerDialog: before family dropdownlist add");
-        var familyList = familyRow.add("dropdownlist", undefined, families);
-        dlog("      createFontPickerDialog: after family dropdownlist add");
-        familyList.preferredSize.width = 200;
-
-        // スタイルプルダウン
-        var styleRow = replacePanel.add("group");
-        var styleLabel = styleRow.add("statictext", undefined, L(LABELS.picker.style));
-        styleLabel.preferredSize.width = labelWidth;
-        var styleList = styleRow.add("dropdownlist", undefined, []);
-        styleList.preferredSize.width = 200;
-
-        // === ボタンエリア（左右分割：左=終了／右=スキップ・適用）===
-        // メイングループ（横並び） / Main group (horizontal layout)
-        var btnRowGroup = dialog.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.margins = [0, 10, 0, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
-
-        // 左側グループ / Left-side button group
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        var btnQuit = btnLeftGroup.add("button", undefined, L(LABELS.picker.quit));
-        btnQuit.onClick = function () { dialog.close(3); }; // 3 = 終了（選択ロジックを打ち切る）
-
-        // スペーサー（伸縮）/ Spacer (stretchable)
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        // 右側グループ / Right-side button group
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.add("button", undefined, L(LABELS.picker.skip), { name: "cancel" });
-        btnRightGroup.add("button", undefined, L(LABELS.picker.apply), { name: "ok" });
-
-        // イベントもダイアログ生成時に1回だけ接続する（使い回すため）
-        bindFontPickerEvents(familyList, styleList, searchField, families);
-
-        return {
-            dialog: dialog,
-            familyList: familyList,
-            styleList: styleList,
-            searchField: searchField,
-            targetLabel: targetLabel,
-            families: families
-        };
-    }
-
-    // フォントピッカーの検索・ファミリー変更イベントを接続する。
-    // （ドキュメントは変更しない。実適用は「適用」確定後にまとめて行う）
-    function bindFontPickerEvents(familyList, styleList, searchField, families) {
-        // 検索フィールドに入力するたびに、ファミリーのプルダウンを絞り込む
-        searchField.onChanging = function () {
-            filterFamilyList(familyList, families, searchField.text);
-            updateFontPickerStyleSelection(familyList, styleList);
-        };
-
-        familyList.onChange = function () {
-            updateFontPickerStyleSelection(familyList, styleList);
-        };
-    }
-
-    // 選択中のファミリーに合わせてスタイル一覧を更新し、先頭スタイルを選択する
-    function updateFontPickerStyleSelection(familyList, styleList) {
-        populateFontPickerStyles(familyList, styleList);
-        if (styleList.items.length > 0) styleList.selection = 0;
-    }
-
-    // フォントピッカーのスタイル一覧を、選択中のファミリーに合わせて更新する
-    function populateFontPickerStyles(familyList, styleList) {
-        styleList.removeAll();
-        if (!familyList.selection) return;
-        var styles = stylesForFamily(familyList.selection.text);
-        for (var i = 0; i < styles.length; i++) {
-            styleList.add("item", styles[i]);
-        }
-    }
-
-    // フォントピッカーの初期ファミリー／スタイルを選択する
-    function initializeFontPickerSelection(familyList, styleList, families, initialFont) {
-        selectInList(familyList, initialFont ? initialFont.family : families[0]);
-        if (!familyList.selection) familyList.selection = 0;
-
-        populateFontPickerStyles(familyList, styleList);
-
-        if (initialFont) selectInList(styleList, initialFont.style);
-        if (!styleList.selection && styleList.items.length > 0) styleList.selection = 0;
-    }
-
-    // 検索クエリ（部分一致・大文字小文字を無視）でファミリーのドロップダウンを絞り込む。
-    // 絞り込み後も、可能なら直前に選択していたファミリーを選び直す。
-    // 一致が無くなった場合は空のまま（プレビュー側でガードしている）。
-    function filterFamilyList(familyList, allFamilies, query) {
-        var previousFamily = familyList.selection ? familyList.selection.text : null;
-        var needle = String(query).toLowerCase();
-
-        familyList.removeAll();
-        for (var i = 0; i < allFamilies.length; i++) {
-            if (needle === "" || allFamilies[i].toLowerCase().indexOf(needle) !== -1) {
-                familyList.add("item", allFamilies[i]);
-            }
-        }
-
-        if (previousFamily) selectInList(familyList, previousFamily);
-        if (!familyList.selection && familyList.items.length > 0) familyList.selection = 0;
-    }
-
-    // dropdownlist で指定テキストの項目を選択する（無ければ何もしない）
-    function selectInList(list, text) {
-        for (var i = 0; i < list.items.length; i++) {
-            if (list.items[i].text === text) {
-                list.selection = i;
-                return;
-            }
-        }
-    }
-
-    // 対象フレームが画面にフィットするようズーム＋センタリングする
-    function zoomToFrame(frame) {
-        try {
-            var view = doc.activeView;
-            var bounds = frame.geometricBounds; // [left, top, right, bottom]
-            var frameWidth = bounds[2] - bounds[0];
-            var frameHeight = bounds[1] - bounds[3];
-            if (frameWidth <= 0 || frameHeight <= 0) return;
-
-            var visible = view.bounds; // 現在の表示範囲（ドキュメント座標）
-            var visibleWidth = visible[2] - visible[0];
-            var visibleHeight = visible[1] - visible[3];
-
-            // 画面の ZOOM_FIT_RATIO に収まる倍率を現在ズームから算出
-            var fitZoom = Math.min(visibleWidth / frameWidth, visibleHeight / frameHeight) * view.zoom * ZOOM_FIT_RATIO;
-            if (fitZoom > 0) view.zoom = fitZoom;
-
-            view.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
-        } catch (e) { }
-    }
-
-    // インストール済みフォントを索引化する
+    /**
+     * インストール済みフォントを索引化する（照合と一覧表示の両方で使う）
+     * @returns {Object} フォント索引
+     */
     function createFontIndex() {
-        var fonts = app.textFonts;
+        var installedFonts = app.textFonts;
         var index = {
-            fonts: fonts,
-            families: [],
-            stylesByFamily: {},
-            fontByFamilyStyle: {},
-            normalizedFonts: []
+            families: [],                /* 表示用のファミリー名（重複なし・ソート済み）*/
+            stylesByFamily: {},          /* ファミリー名 -> スタイル名の配列 */
+            fontByFamilyStyle: {},       /* ファミリー名＋スタイル名 -> TextFont */
+            fontsByNormalizedFamily: {}, /* 正規化ファミリー名 -> TextFont の配列 */
+            fontsByNormalizedFull: {},   /* 正規化「ファミリー名＋スタイル名」-> TextFont の配列 */
+            normalizedFonts: [],         /* 部分一致の走査用 */
+            customFontByNormalized: {}   /* 正規化した CUSTOM_FONT_MAP のキー -> 置換後のフォント名 */
         };
 
-        for (var i = 0; i < fonts.length; i++) {
-            var family = fonts[i].family;
-            var style = fonts[i].style;
+        for (var i = 0; i < installedFonts.length; i++) {
+            var currentFont = installedFonts[i];
+            var family = currentFont.family;
+            var style = currentFont.style;
 
             if (!index.stylesByFamily.hasOwnProperty(family)) {
                 index.stylesByFamily[family] = [];
                 index.families.push(family);
             }
-
             index.stylesByFamily[family].push(style);
-            index.fontByFamilyStyle[makeFamilyStyleKey(family, style)] = fonts[i];
+            index.fontByFamilyStyle[makeFamilyStyleKey(family, style)] = currentFont;
+
+            var normalizedFamily = normalize(family);
+            var normalizedFull = normalize(family + " " + style);
+            pushToBucket(index.fontsByNormalizedFamily, normalizedFamily, currentFont);
+            pushToBucket(index.fontsByNormalizedFull, normalizedFull, currentFont);
+
             index.normalizedFonts.push({
-                font: fonts[i],
-                family: normalize(family),
-                full: normalize(family + " " + style),
-                name: normalize(fonts[i].name)
+                font: currentFont,
+                family: normalizedFamily,
+                full: normalizedFull,
+                name: normalize(currentFont.name)
             });
         }
 
         index.families.sort();
-
         for (var familyName in index.stylesByFamily) {
             if (index.stylesByFamily.hasOwnProperty(familyName)) {
                 index.stylesByFamily[familyName].sort();
             }
         }
 
+        /* カスタム置換ルールも正規化しておき、大文字小文字やスペースのゆれを吸収する
+           / Normalize the custom map so case and spacing differences still hit */
+        for (var customKey in CUSTOM_FONT_MAP) {
+            if (CUSTOM_FONT_MAP.hasOwnProperty(customKey)) {
+                index.customFontByNormalized[normalize(customKey)] = CUSTOM_FONT_MAP[customKey];
+            }
+        }
+
         return index;
     }
 
-    // ファミリー名＋スタイル名の索引用キーを作る
+    /**
+     * 索引のバケット（キー -> 配列）へ値を追加する
+     * @param {Object} bucketMap - バケットを保持するオブジェクト
+     * @param {string} key - キー
+     * @param {Object} value - 追加する値
+     * @returns {void}
+     */
+    function pushToBucket(bucketMap, key, value) {
+        if (!bucketMap.hasOwnProperty(key)) bucketMap[key] = [];
+        bucketMap[key].push(value);
+    }
+
+    /**
+     * ファミリー名＋スタイル名の索引用キーを作る
+     * @param {string} family - ファミリー名
+     * @param {string} style - スタイル名
+     * @returns {string} 索引用のキー
+     */
     function makeFamilyStyleKey(family, style) {
-        return family + "\u0000" + style;
+        return family + " " + style;
     }
 
-    // 指定ファミリーに属するスタイル名の一覧
-    function stylesForFamily(family) {
-        return fontIndex.stylesByFamily[family] || [];
+    /**
+     * 指定ファミリーに属するスタイル名の一覧を返す
+     * @param {string} familyName - ファミリー名
+     * @returns {string[]} スタイル名の配列（無ければ空配列）
+     */
+    function stylesForFamily(familyName) {
+        return fontIndex.stylesByFamily[familyName] || [];
     }
 
-    // ファミリー名＋スタイル名から TextFont を取得（無ければ null）
-    function fontFor(family, style) {
-        return fontIndex.fontByFamilyStyle[makeFamilyStyleKey(family, style)] || null;
+    /**
+     * ファミリー名＋スタイル名から TextFont を取得する
+     * @param {string} familyName - ファミリー名
+     * @param {string} styleName - スタイル名
+     * @returns {TextFont} 該当するフォント（無ければ null）
+     */
+    function fontFor(familyName, styleName) {
+        return fontIndex.fontByFamilyStyle[makeFamilyStyleKey(familyName, styleName)] || null;
     }
 
-    // 選択物（配列）を再帰的にたどり、TextFrame を collected に集める
-    function collectTextFrames(items, collected) {
-        for (var k = 0; k < items.length; k++) {
-            var item = items[k];
+    /**
+     * 文字列に対応するフォントを、厳密一致 → あいまい一致の順に探す
+     * @param {string} fontName - 行から切り出したフォント名
+     * @returns {Object} { font: TextFont, confident: boolean }
+     *   confident=true … 厳密一致。自動適用してよい
+     *   confident=false 且つ font!=null … あいまい一致。ピッカーの初期値に使う
+     *   font=null … 未一致。ピッカーで一から選ばせる
+     */
+    function findFont(fontName) {
+        var normalizedName = normalize(fontName);
+        var targetName = fontIndex.customFontByNormalized.hasOwnProperty(normalizedName)
+            ? fontIndex.customFontByNormalized[normalizedName]
+            : fontName;
 
-            // ロック・非表示のオブジェクトは無視（グループならその中身ごとスキップ）
-            if (item.locked || item.hidden) continue;
+        var exactFont = findExactFont(targetName);
+        if (exactFont) return { font: exactFont, confident: true };
 
-            if (item.typename === "TextFrame") {
-                collected.push(item);
-            } else if (item.typename === "GroupItem") {
-                // グループの中身（pageItems）をさらにたどる
-                collectTextFrames(item.pageItems, collected);
-            }
-        }
+        return { font: findFuzzyFont(targetName), confident: false };
     }
 
-    // 1つのテキストフレームの各行（段落）について、厳密一致のフォントは自動適用し、
-    // あいまい／未一致の行は { frame, index, lineText, initialFont } を pendingPicks に積む。
-    // （対話ピッカーはプログレスバー終了後にまとめて出すため、ここでは出さない）
-    function autoApplyAndQueue(textFrame, pendingPicks) {
-        // 段落数だけ先に取得（コレクション自体はキャッシュしない）。
-        // フォント適用でテキストが変更されると paragraphs コレクションの
-        // 参照が無効化され、Error 1302 になるため毎回ライブ取得する。
-        var paragraphCount = textFrame.paragraphs.length;
-
-        // 下から上にループすると、フォント適用によるズレを防げて安全です
-        for (var j = paragraphCount - 1; j >= 0; j--) {
-            var paragraph = textFrame.paragraphs[j]; // 毎回ライブ取得
-
-            // 改行コードや前後の空白（半角・全角スペース含む）を除外して、純粋なテキストを取得
-            var lineText = paragraph.contents.replace(/^[\s　]+|[\s　]+$/g, "");
-
-            // 空行・空白だけの行は無視
-            if (lineText === "") continue;
-
-            // フォントを検索（{ font, confident }）
-            var match = findFont(lineText);
-
-            var autoApplied = false;
-            if (match.confident && match.font) {
-                // 厳密一致 → 自動適用
-                try {
-                    paragraph.characterAttributes.textFont = match.font;
-                    autoApplied = true;
-                } catch (e) {
-                    autoApplied = false;
-                }
-            }
-
-            // あいまい一致／未一致／適用失敗 → 後で対話ピッカーに回す
-            if (!autoApplied) {
-                pendingPicks.push({
-                    frame: textFrame,
-                    index: j,
-                    lineText: lineText,
-                    initialFont: match.font
-                });
-            }
-        }
-    }
-
-    // 配列に未登録の値だけ追加する（重複防止）
-    function pushUnique(list, value) {
-        for (var i = 0; i < list.length; i++) {
-            if (list[i] === value) return;
-        }
-        list.push(value);
-    }
-
-    // 未適用の行（スキップ／適用失敗）をフレーム・文字列リストへ記録する
-    function recordUnapplied(frames, texts, pick) {
-        pushUnique(texts, pick.lineText);
-        pushUnique(frames, pick.frame); // 同一フレーム参照なので === で重複排除できる
-    }
-
-    // 指定名のレイヤーがあれば削除する（無ければ何もしない）
-    function removeLayerByName(name) {
-        var layer = getLayerByName(name);
-        if (!layer) return;
-
-        unlockLayerTree(layer);
-
+    /**
+     * 厳密一致でフォントを探す（PostScript 名 → ファミリー名＋スタイル名 → ファミリー名）
+     * 照合はスペース・ピリオドを除いた正規化文字列で行う
+     * @param {string} fontName - 探すフォント名
+     * @returns {TextFont} 該当するフォント（無ければ null）
+     */
+    function findExactFont(fontName) {
         try {
-            layer.remove();
-        } catch (e) { }
-    }
-
-    // 指定名のレイヤーを取得する（無ければ null）
-    function getLayerByName(name) {
-        try {
-            return doc.layers.getByName(name);
-        } catch (e) {
-            return null;
-        }
-    }
-
-    // レイヤーと配下アイテムを、可能な範囲でロック解除・表示する
-    function unlockLayerTree(layer) {
-        unlockContainer(layer);
-        unlockPageItems(layer.pageItems);
-    }
-
-    // レイヤー／アイテム共通のロック解除・表示処理
-    function unlockContainer(item) {
-        try {
-            item.locked = false;
+            return app.textFonts.getByName(fontName); /* PostScript 名の完全一致 */
         } catch (e) { }
 
-        try {
-            item.visible = true;
-        } catch (e2) { }
+        var query = normalize(fontName);
 
-        try {
-            item.hidden = false;
-        } catch (e3) { }
+        var exactFull = fontIndex.fontsByNormalizedFull[query];
+        if (exactFull) return getBestStyle(exactFull);
+
+        var exactFamily = fontIndex.fontsByNormalizedFamily[query];
+        if (exactFamily) return getBestStyle(exactFamily);
+
+        return null;
     }
 
-    // PageItems コレクション内を再帰的にロック解除・表示する
-    function unlockPageItems(items) {
-        for (var i = 0; i < items.length; i++) {
-            unlockContainer(items[i]);
+    /**
+     * あいまい一致でフォントを探す（ファミリー名の部分一致 → フォント名全体の部分一致 → 先頭ワード）
+     * 例）"Jenson" → "Adobe Jenson Pro"、"Myriad Pro Cond"（未インストール）→ "Myriad Pro"
+     * @param {string} fontName - 探すフォント名
+     * @returns {TextFont} 該当するフォント（無ければ null）
+     */
+    function findFuzzyFont(fontName) {
+        var query = normalize(fontName);
 
-            if (items[i].typename === "GroupItem") {
-                unlockPageItems(items[i].pageItems);
-            }
+        var partialFamily = collectIndexedFonts(function (fontInfo) {
+            return fontInfo.family.indexOf(query) !== -1;
+        });
+        if (partialFamily.length > 0) return getBestStyle(partialFamily);
+
+        var partialFull = collectIndexedFonts(function (fontInfo) {
+            return fontInfo.full.indexOf(query) !== -1 || fontInfo.name.indexOf(query) !== -1;
+        });
+        if (partialFull.length > 0) return getBestStyle(partialFull);
+
+        /* 最終手段：先頭ワードがファミリー名に含まれればOK。2文字以下は誤マッチ防止のため対象外
+           / Last resort: match on the first word, ignoring words of two characters or fewer */
+        var firstWord = String(fontName).toLowerCase()
+            .replace(/[.　]+/g, " ").replace(/^\s+/, "").split(/\s+/)[0] || "";
+        if (firstWord.length >= 3) {
+            var looseFamily = collectIndexedFonts(function (fontInfo) {
+                return fontInfo.family.indexOf(firstWord) !== -1;
+            });
+            if (looseFamily.length > 0) return getBestStyle(looseFamily);
         }
+
+        return null;
     }
 
-    // 目印レイヤーを新規作成し、テキストの背面に来るよう最背面へ送る
-    function createMarkerLayer(name) {
-        var layer = doc.layers.add();
-        layer.name = name;
-
-        var lastLayer = doc.layers[doc.layers.length - 1];
-        if (lastLayer.name !== layer.name) {
-            try {
-                layer.move(lastLayer, ElementPlacement.PLACEAFTER);
-            } catch (e) { }
-        }
-        return layer;
-    }
-
-    // テキストフレームの背面（＝目印レイヤー上）に、赤・半透明の長方形を作る
-    function createMarkerRect(frame, layer) {
-        try {
-            // geometricBounds: [left, top, right, bottom]（線幅は含まない）
-            var bounds = frame.geometricBounds;
-            var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
-            var width = right - left;
-            var height = top - bottom;
-            if (width <= 0 || height <= 0) return;
-
-            var markerRect = layer.pathItems.rectangle(top, left, width, height);
-            markerRect.stroked = false;
-            markerRect.filled = true;
-            markerRect.fillColor = makeRedColor();
-            markerRect.opacity = MARKER_OPACITY;
-        } catch (e) { }
-    }
-
-    // ドキュメントのカラースペースに合わせた赤色を返す
-    function makeRedColor() {
-        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-            var cmyk = new CMYKColor();
-            cmyk.cyan = 0;
-            cmyk.magenta = 100;
-            cmyk.yellow = 100;
-            cmyk.black = 0;
-            return cmyk;
-        }
-        var rgb = new RGBColor();
-        rgb.red = 255;
-        rgb.green = 0;
-        rgb.blue = 0;
-        return rgb;
-    }
-
-    // 正規化済みフォント索引から条件に合うフォントを集めて配列で返す
+    /**
+     * 正規化済みフォント索引から、条件に合うフォントを集めて返す
+     * @param {function} isMatch - 判定関数（{ font, family, full, name } を受け取る）
+     * @returns {TextFont[]} 条件に合ったフォント
+     */
     function collectIndexedFonts(isMatch) {
         var matchedFonts = [];
         var normalizedFonts = fontIndex.normalizedFonts;
@@ -867,85 +701,505 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return matchedFonts;
     }
 
-    // 文字列に対応するフォントを段階的に（厳密→ゆるい）探す。
-    // 戻り値は { font, confident }:
-    //   confident=true … 厳密一致。自動適用してよい
-    //   confident=false 且つ font!=null … あいまい一致。ピッカーの初期値に使う
-    //   font=null … 未一致。ピッカーで一から選ばせる
-    function findFont(fontName) {
-        // 1. カスタム置換マップ（hasOwnProperty で prototype のメソッド名への誤ヒットを防ぐ）
-        if (CUSTOM_MAP.hasOwnProperty(fontName)) {
-            fontName = CUSTOM_MAP[fontName];
-        }
-
-        // 2. PostScript名での完全一致（厳密）
-        try {
-            return { font: fontIndex.fonts.getByName(fontName), confident: true };
-        } catch (e) { }
-
-        // 以降はあいまい照合。スペース・ピリオドを除去した文字列で比較する
-        var query = normalize(fontName);
-
-        // 3. ファミリー名＋スタイル名の完全一致（厳密）
-        var exactFull = collectIndexedFonts(function (fontInfo) {
-            return fontInfo.full === query;
-        });
-        if (exactFull.length > 0) return { font: getBestStyle(exactFull), confident: true };
-
-        // 4. ファミリー名のみの完全一致（厳密。スタイルは Bold 優先で確定）
-        var exactFamily = collectIndexedFonts(function (fontInfo) {
-            return fontInfo.family === query;
-        });
-        if (exactFamily.length > 0) return { font: getBestStyle(exactFamily), confident: true };
-
-        // 5. ファミリー名への部分一致（あいまい。例: "Jenson" → "Adobe Jenson Pro"）
-        var partialFamily = collectIndexedFonts(function (fontInfo) {
-            return fontInfo.family.indexOf(query) !== -1;
-        });
-        if (partialFamily.length > 0) return { font: getBestStyle(partialFamily), confident: false };
-
-        // 6. フォント名全体への部分一致（あいまい）
-        var partialFull = collectIndexedFonts(function (fontInfo) {
-            return fontInfo.full.indexOf(query) !== -1
-                || fontInfo.name.indexOf(query) !== -1;
-        });
-        if (partialFull.length > 0) return { font: getBestStyle(partialFull), confident: false };
-
-        // 7. 最終手段（ゆるめ）：先頭ワードがファミリー名に含まれればOK（あいまい）。
-        // 例: "Myriad Pro Cond" が未インストールでも "myriad" で "Myriad Pro" にフォールバック。
-        // 短すぎる語（2文字以下）は誤マッチ防止のため対象外。
-        var firstWord = String(fontName).toLowerCase()
-            .replace(/[.　]+/g, " ").replace(/^\s+/, "").split(/\s+/)[0] || "";
-        if (firstWord.length >= 3) {
-            var looseFamily = collectIndexedFonts(function (fontInfo) {
-                return fontInfo.family.indexOf(firstWord) !== -1;
-            });
-            if (looseFamily.length > 0) return { font: getBestStyle(looseFamily), confident: false };
-        }
-
-        return { font: null, confident: false };
-    }
-
-    // フォント名照合用の正規化：小文字化し、空白（半角・全角）とピリオドを
-    // すべて除去して連結する。これにより「Bank Gothic」⇄「BankGothic」、
-    // 「Mrs. Eaves」⇄「Mrs Eaves OT」のようなスペース・記号ゆれを吸収する。
+    /**
+     * フォント名照合用の正規化：小文字化し、空白（半角・全角）とピリオドを除去する
+     * 「Bank Gothic」と「BankGothic」、「Mrs. Eaves」と「Mrs Eaves」のゆれを吸収する
+     * @param {string} text - 対象の文字列
+     * @returns {string} 正規化した文字列
+     */
     function normalize(text) {
         return String(text)
             .toLowerCase()
             .replace(/[.\s　]+/g, "");
     }
 
-    // マッチしたフォント群から、最適なスタイルを選択して返す。
-    // 優先順位は STYLE_PRIORITY の並び順に従う（いずれにも該当しなければ候補の先頭）。
-    function getBestStyle(candidates) {
-        var preferredStyles = STYLE_PRIORITY;
-        for (var k = 0; k < preferredStyles.length; k++) {
-            for (var j = 0; j < candidates.length; j++) {
-                if (candidates[j].style.toLowerCase() === preferredStyles[k]) {
-                    return candidates[j];
+    /**
+     * 候補フォントから STYLE_PRIORITY の順で最適なスタイルを選ぶ
+     * @param {TextFont[]} candidateFonts - 候補のフォント
+     * @returns {TextFont} 選ばれたフォント（該当が無ければ候補の先頭）
+     */
+    function getBestStyle(candidateFonts) {
+        for (var k = 0; k < STYLE_PRIORITY.length; k++) {
+            for (var j = 0; j < candidateFonts.length; j++) {
+                if (candidateFonts[j].style.toLowerCase() === STYLE_PRIORITY[k]) {
+                    return candidateFonts[j];
                 }
             }
         }
-        return candidates[0];
+        return candidateFonts[0];
+    }
+
+    // =========================================
+    // ダイアログ / Dialogs
+    // =========================================
+
+    /**
+     * 適用中に表示するプログレスバー（パレット）を作成する
+     * @param {number} totalCount - 対象の総数
+     * @returns {Object} { window: Window, update: function }
+     */
+    function createProgressPalette(totalCount) {
+        var progressWindow = new Window("palette", getLabel(LABELS.dialog.progressTitle) + " " + SCRIPT_VERSION);
+        progressWindow.alignChildren = "fill";
+        progressWindow.margins = DIALOG_MARGINS;
+
+        var progressBar = progressWindow.add("progressbar", undefined, 0, totalCount);
+        progressBar.preferredSize = PROGRESS_BAR_SIZE;
+
+        var countLabel = progressWindow.add("statictext", undefined, "0 / " + totalCount);
+        countLabel.preferredSize.width = PROGRESS_TEXT_WIDTH;
+
+        progressWindow.show();
+        progressWindow.update();
+
+        return {
+            window: progressWindow,
+            update: function (doneCount) {
+                progressBar.value = doneCount;
+                countLabel.text = doneCount + " / " + totalCount;
+                progressWindow.update();
+            }
+        };
+    }
+
+    /**
+     * 適用できなかった文字列を一覧表示する
+     * コピーはダイアログを閉じてから行う（モーダル表示中はドキュメントを触らない）
+     * @param {string[]} unappliedTexts - 未適用の文字列
+     * @returns {boolean} クリップボードへのコピーが要求されたか
+     */
+    function showUnappliedDialog(unappliedTexts) {
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.resultTitle) + " " + SCRIPT_VERSION);
+        dialog.alignChildren = "fill";
+        dialog.margins = DIALOG_MARGINS;
+
+        dialog.add("statictext", undefined, getLabel(LABELS.dialog.resultHeader));
+
+        /* 一覧（読み取り専用・複数行・スクロール可）。手動で選択もできる / Read-only scrollable list */
+        var listField = dialog.add("edittext", undefined, unappliedTexts.join("\n"),
+            { multiline: true, scrolling: true, readonly: true });
+        listField.preferredSize = RESULT_FIELD_SIZE;
+
+        /* === ボタンエリア（左右分割：左=コピー／右=閉じる）=== */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnCopy = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.copy));
+        btnCopy.onClick = function () { dialog.close(2); }; /* 2 = コピーして閉じる / copy and close */
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
+
+        return dialog.show() === 2;
+    }
+
+    /**
+     * 文字列をクリップボードへコピーする
+     * ExtendScript には直接コピーする API が無いため、一時テキストフレーム経由でコピーする
+     * app.copy() は黙って無視されることがあるので、再描画とメニューコマンドを挟む
+     * @param {string} textToCopy - コピーする文字列
+     * @returns {void}
+     */
+    function copyTextToClipboard(textToCopy) {
+        var previousSelection = doc.selection; /* コピー後に元へ戻すため控える / Keep it to restore later */
+        var editableLayer = getEditableLayer();
+        if (!editableLayer) return;
+
+        var tempFrame = null;
+        try {
+            doc.activeLayer = editableLayer;
+            tempFrame = doc.textFrames.add();
+            tempFrame.contents = textToCopy;
+            tempFrame.position = [-100000, -100000]; /* 画面外に逃がす / Move it off-canvas */
+
+            app.redraw(); /* 追加直後のフレームは再描画しないとコピー対象にならない */
+            app.executeMenuCommand("deselectall");
+            tempFrame.selected = true;
+            app.redraw();
+            app.executeMenuCommand("copy"); /* app.copy() は黙って無視されることがある */
+            app.redraw(); /* コピー確定前に削除すると空になる */
+        } catch (e) {
+        } finally {
+            if (tempFrame) {
+                try { tempFrame.remove(); } catch (err) { }
+            }
+            try { doc.selection = previousSelection; } catch (err) { doc.selection = null; }
+        }
+    }
+
+    /**
+     * 一時オブジェクトを置ける（ロックも非表示もされていない）レイヤーを返す
+     * @returns {Layer} 編集できるレイヤー（無ければ null）
+     */
+    function getEditableLayer() {
+        if (!doc.activeLayer.locked && doc.activeLayer.visible) return doc.activeLayer;
+
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (!doc.layers[i].locked && doc.layers[i].visible) return doc.layers[i];
+        }
+        return null;
+    }
+
+    // =========================================
+    // フォントピッカー / Font picker
+    // =========================================
+
+    /**
+     * 保留行のフォントを対話的に選ばせる
+     * ダイアログは作り直さず使い回し、ここでは対象テキストと選択のリセットだけ行う
+     * モーダル表示中はドキュメントを変更しない（ライブプレビューはクラッシュ要因のため廃止）
+     * @param {Object} fontPicker - createFontPickerDialog が返したピッカー
+     * @param {Object} pendingLine - 対象の保留行
+     * @returns {TextFont} 適用したフォント／スキップは null／終了は PICKER_QUIT
+     */
+    function showFontPicker(fontPicker, pendingLine) {
+        zoomToFrame(pendingLine.frame); /* 対象を画面にフィット（モーダル表示前に行う）*/
+
+        fontPicker.targetLabel.text = pendingLine.lineText;
+        fontPicker.searchField.text = "";
+        filterFamilyDropdown(fontPicker, "");
+        initializePickerSelection(fontPicker, pendingLine.initialFont);
+
+        /* 「適用」=1 /「スキップ」=2（閉じるを含む）/「終了」=3 */
+        var dialogResult = fontPicker.dialog.show();
+
+        if (dialogResult === 1 && fontPicker.familyDropdown.selection && fontPicker.styleDropdown.selection) {
+            var chosenFont = fontFor(fontPicker.familyDropdown.selection.text,
+                fontPicker.styleDropdown.selection.text);
+            /* 実適用はダイアログを閉じた後（＝モーダル表示外）なので安全 / Apply once the modal is closed */
+            if (applyPendingLine(pendingLine, chosenFont)) return chosenFont;
+        }
+
+        return (dialogResult === 3) ? PICKER_QUIT : null;
+    }
+
+    /**
+     * フォントピッカーの UI を生成する
+     * ボタンは name:"ok"/"cancel" なので、判定は dialog.show() の戻り値で行う
+     * @param {string[]} familyNames - ファミリー名の一覧
+     * @returns {Object} ピッカー（{ dialog, familyDropdown, styleDropdown, searchField, targetLabel, familyNames }）
+     */
+    function createFontPickerDialog(familyNames) {
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.pickerTitle) + " " + SCRIPT_VERSION);
+        dialog.alignChildren = "fill";
+        dialog.margins = DIALOG_MARGINS;
+
+        /* 対象テキスト（パネルの外）。値はピックごとに差し替えるので空で作り、幅だけ確保する */
+        var targetRow = dialog.add("group");
+        targetRow.add("statictext", undefined, labelText(LABELS.fieldLabel.targetText));
+        var targetLabel = targetRow.add("statictext", undefined, "", { truncate: "end" });
+        targetLabel.preferredSize.width = PICKER_TARGET_WIDTH;
+
+        var applyFontPanel = dialog.add("panel", undefined, getLabel(LABELS.panel.applyFont));
+        applyFontPanel.orientation = "column";
+        applyFontPanel.alignChildren = "left";
+        applyFontPanel.margins = DIALOG_MARGINS;
+
+        var searchField = addPickerRow(applyFontPanel, LABELS.fieldLabel.search, "edittext", "");
+
+        /* 巨大配列での dropdownlist 生成を繰り返すと Illustrator が落ちるため、
+           このダイアログ（と familyDropdown）は実行中に1回だけ生成して使い回す */
+        var familyDropdown = addPickerRow(applyFontPanel, LABELS.fieldLabel.family, "dropdownlist", familyNames);
+        var styleDropdown = addPickerRow(applyFontPanel, LABELS.fieldLabel.style, "dropdownlist", []);
+
+        /* === ボタンエリア（左右分割：左=終了／右=スキップ・適用）=== */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnQuit = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.quit));
+        btnQuit.onClick = function () { dialog.close(3); }; /* 3 = 終了（保留分を打ち切る）/ quit the queue */
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.skip), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.apply), { name: "ok" });
+
+        var fontPicker = {
+            dialog: dialog,
+            familyDropdown: familyDropdown,
+            styleDropdown: styleDropdown,
+            searchField: searchField,
+            targetLabel: targetLabel,
+            familyNames: familyNames
+        };
+
+        bindFontPickerEvents(fontPicker); /* イベントも生成時に1回だけ接続する / Bind the events once too */
+        return fontPicker;
+    }
+
+    /**
+     * ピッカーのパネルへ「項目名＋コントロール」の行を追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @param {Object} labelNode - 項目名のラベル（{ ja, en }）
+     * @param {string} controlType - コントロールの種類（"edittext" / "dropdownlist"）
+     * @param {Object} initialValue - 初期値（edittext は文字列、dropdownlist は項目の配列）
+     * @returns {Object} 追加したコントロール
+     */
+    function addPickerRow(parentPanel, labelNode, controlType, initialValue) {
+        var row = parentPanel.add("group");
+        var rowLabel = row.add("statictext", undefined, labelText(labelNode));
+        rowLabel.preferredSize.width = PICKER_LABEL_WIDTH;
+
+        var control = row.add(controlType, undefined, initialValue);
+        control.preferredSize.width = PICKER_FIELD_WIDTH;
+        return control;
+    }
+
+    /**
+     * フォントピッカーの検索・ファミリー変更イベントを接続する
+     * （ドキュメントは変更しない。実適用は「適用」確定後に行う）
+     * @param {Object} fontPicker - 対象のピッカー
+     * @returns {void}
+     */
+    function bindFontPickerEvents(fontPicker) {
+        fontPicker.searchField.onChanging = function () {
+            filterFamilyDropdown(fontPicker, fontPicker.searchField.text);
+            populateStyleDropdown(fontPicker, null);
+        };
+
+        fontPicker.familyDropdown.onChange = function () {
+            populateStyleDropdown(fontPicker, null);
+        };
+    }
+
+    /**
+     * ピッカーの初期選択（ファミリー・スタイル）を設定する
+     * @param {Object} fontPicker - 対象のピッカー
+     * @param {TextFont} initialFont - 初期値にするフォント（無ければ null）
+     * @returns {void}
+     */
+    function initializePickerSelection(fontPicker, initialFont) {
+        selectDropdownItemByText(fontPicker.familyDropdown,
+            initialFont ? initialFont.family : fontPicker.familyNames[0]);
+        if (!fontPicker.familyDropdown.selection) fontPicker.familyDropdown.selection = 0;
+
+        populateStyleDropdown(fontPicker, initialFont ? initialFont.style : null);
+    }
+
+    /**
+     * 選択中のファミリーに合わせてスタイル一覧を作り直し、選ぶべきスタイルを選択する
+     * @param {Object} fontPicker - 対象のピッカー
+     * @param {string} preferredStyleName - 優先して選ぶスタイル名（無ければ null）
+     * @returns {void}
+     */
+    function populateStyleDropdown(fontPicker, preferredStyleName) {
+        var styleDropdown = fontPicker.styleDropdown;
+        styleDropdown.removeAll();
+        if (!fontPicker.familyDropdown.selection) return;
+
+        var styles = stylesForFamily(fontPicker.familyDropdown.selection.text);
+        for (var i = 0; i < styles.length; i++) {
+            styleDropdown.add("item", styles[i]);
+        }
+
+        if (preferredStyleName) selectDropdownItemByText(styleDropdown, preferredStyleName);
+        if (!styleDropdown.selection && styleDropdown.items.length > 0) styleDropdown.selection = 0;
+    }
+
+    /**
+     * 検索クエリ（部分一致・大文字小文字を無視）でファミリーのプルダウンを絞り込む
+     * 絞り込み後も、可能なら直前に選択していたファミリーを選び直す
+     * 空クエリで全件表示済みなら作り直さない（既存コントロールへの item 追加は安全だが、無駄を避ける）
+     * @param {Object} fontPicker - 対象のピッカー
+     * @param {string} searchQuery - 検索クエリ（空文字なら全件）
+     * @returns {void}
+     */
+    function filterFamilyDropdown(fontPicker, searchQuery) {
+        var familyDropdown = fontPicker.familyDropdown;
+        var familyNames = fontPicker.familyNames;
+        var needle = String(searchQuery).toLowerCase();
+
+        if (needle === "" && familyDropdown.items.length === familyNames.length) return;
+
+        var previousFamily = familyDropdown.selection ? familyDropdown.selection.text : null;
+        familyDropdown.removeAll();
+        for (var i = 0; i < familyNames.length; i++) {
+            if (needle === "" || familyNames[i].toLowerCase().indexOf(needle) !== -1) {
+                familyDropdown.add("item", familyNames[i]);
+            }
+        }
+
+        if (previousFamily) selectDropdownItemByText(familyDropdown, previousFamily);
+        if (!familyDropdown.selection && familyDropdown.items.length > 0) familyDropdown.selection = 0;
+    }
+
+    /**
+     * プルダウンで指定テキストの項目を選択する（無ければ何もしない）
+     * @param {DropDownList} dropdown - 対象のプルダウン
+     * @param {string} itemText - 選択する項目のテキスト
+     * @returns {void}
+     */
+    function selectDropdownItemByText(dropdown, itemText) {
+        for (var i = 0; i < dropdown.items.length; i++) {
+            if (dropdown.items[i].text === itemText) {
+                dropdown.selection = i;
+                return;
+            }
+        }
+    }
+
+    /**
+     * 対象フレームが画面にフィットするようズーム＋センタリングする
+     * @param {TextFrame} frame - 対象のテキストフレーム
+     * @returns {void}
+     */
+    function zoomToFrame(frame) {
+        try {
+            var view = doc.activeView;
+            var bounds = frame.geometricBounds; /* [left, top, right, bottom] */
+            var frameWidth = bounds[2] - bounds[0];
+            var frameHeight = bounds[1] - bounds[3];
+            if (frameWidth <= 0 || frameHeight <= 0) return;
+
+            var viewBounds = view.bounds; /* 現在の表示範囲（ドキュメント座標）/ current view in document coordinates */
+            var viewWidth = viewBounds[2] - viewBounds[0];
+            var viewHeight = viewBounds[1] - viewBounds[3];
+
+            /* 表示領域の ZOOM_FIT_RATIO に収まる倍率を現在ズームから算出し、上下限に収める */
+            var fitZoom = Math.min(viewWidth / frameWidth, viewHeight / frameHeight) * view.zoom * ZOOM_FIT_RATIO;
+            view.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
+            view.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+        } catch (e) { }
+    }
+
+    // =========================================
+    // 目印レイヤー / Marker layer
+    // =========================================
+
+    /**
+     * 目印レイヤーを新規作成し、テキストの背面に来るよう最背面へ送る
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer} 作成したレイヤー
+     */
+    function createMarkerLayer(layerName) {
+        var markerLayer = doc.layers.add();
+        markerLayer.name = layerName;
+
+        try {
+            markerLayer.move(doc.layers[doc.layers.length - 1], ElementPlacement.PLACEAFTER);
+        } catch (e) { }
+
+        return markerLayer;
+    }
+
+    /**
+     * テキストフレームの背面（＝目印レイヤー上）に、赤・半透明の長方形を作る
+     * @param {TextFrame} frame - 対象のテキストフレーム
+     * @param {Layer} layer - 目印を置くレイヤー
+     * @returns {void}
+     */
+    function createMarkerRect(frame, layer) {
+        try {
+            var bounds = frame.geometricBounds; /* [left, top, right, bottom]（線幅は含まない）*/
+            var width = bounds[2] - bounds[0];
+            var height = bounds[1] - bounds[3];
+            if (width <= 0 || height <= 0) return;
+
+            var markerRect = layer.pathItems.rectangle(bounds[1], bounds[0], width, height);
+            markerRect.stroked = false;
+            markerRect.filled = true;
+            markerRect.fillColor = makeRedColor();
+            markerRect.opacity = MARKER_OPACITY;
+        } catch (e) { }
+    }
+
+    /**
+     * ドキュメントのカラースペースに合わせた赤色を返す
+     * @returns {Object} CMYKColor または RGBColor
+     */
+    function makeRedColor() {
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmyk = new CMYKColor();
+            cmyk.cyan = 0;
+            cmyk.magenta = 100;
+            cmyk.yellow = 100;
+            cmyk.black = 0;
+            return cmyk;
+        }
+
+        var rgb = new RGBColor();
+        rgb.red = 255;
+        rgb.green = 0;
+        rgb.blue = 0;
+        return rgb;
+    }
+
+    /**
+     * 指定名のレイヤーがあれば削除する（ロックされていても解除してから削除する）
+     * @param {string} layerName - レイヤー名
+     * @returns {void}
+     */
+    function removeLayerByName(layerName) {
+        var layer = getLayerByName(layerName);
+        if (!layer) return;
+
+        unlockContainer(layer);
+        unlockPageItems(layer.pageItems);
+
+        try {
+            layer.remove();
+        } catch (e) { }
+    }
+
+    /**
+     * 指定名のレイヤーを取得する
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer} 該当するレイヤー（無ければ null）
+     */
+    function getLayerByName(layerName) {
+        try {
+            return doc.layers.getByName(layerName);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * レイヤー／ページアイテムのロックを解除し、表示状態に戻す
+     * 表示のプロパティはレイヤーが visible、ページアイテムが hidden と異なる
+     * @param {Object} target - Layer または PageItem
+     * @returns {void}
+     */
+    function unlockContainer(target) {
+        try {
+            target.locked = false;
+            if (target.typename === "Layer") {
+                target.visible = true;
+            } else {
+                target.hidden = false;
+            }
+        } catch (e) { }
+    }
+
+    /**
+     * ページアイテムを再帰的にロック解除・表示する
+     * @param {Object} items - PageItems コレクション
+     * @returns {void}
+     */
+    function unlockPageItems(items) {
+        for (var i = 0; i < items.length; i++) {
+            unlockContainer(items[i]);
+
+            if (items[i].typename === "GroupItem") {
+                unlockPageItems(items[i].pageItems);
+            }
+        }
     }
 })();
