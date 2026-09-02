@@ -55,6 +55,8 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [PDFをイラレで開いたときのバラバラ文字を、ひとつのエリア内文字に再構成するスクリプト](readme-ja/TextMergeToAreaBox.md)
 - [特定の文字のフォントサイズやベースラインの調整](readme-ja/AdjustTextScaleBaseline.md)
 - [段落を選択](readme-ja/AiSelectParagraph.md)
+- [カーソルのある段落をひとつ上へ移動](readme-ja/moveParagraphUp.md)
+- [カーソルのある段落をひとつ下へ移動](readme-ja/moveParagraphDown.md)
 - [2つのテキストの内容を入れ替える](readme-ja/SwapText.md)
 - [テキストと図形をエリア内文字に変換](readme-ja/TextWithShapeToAreaType.md)
 - [テキストの分割・結合パレット](readme-ja/TextBreakSplitMergePallete.md)

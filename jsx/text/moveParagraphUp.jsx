@@ -25,11 +25,16 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "moveParagraphUp";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "sky-chaser-high";              /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-08-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/moveParagraphUp.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/moveParagraphUp.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
