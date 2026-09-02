@@ -22,17 +22,17 @@ See the README for details.
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ApplyFontByLine";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_NAME     = "ApplyFontWithFontsize";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
 
 // README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontByLine.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontWithFontsize.md
 // README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontByLine.md
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc1769b1640e7"; /* 紹介記事 / article URL */
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontWithFontsize.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

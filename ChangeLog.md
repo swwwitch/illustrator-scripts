@@ -4,7 +4,7 @@
 
 ### 調整
 
-- [行のテキストをフォント名（＋サイズ・行送り）とみなして行単位で適用](readme-ja/ApplyFontByLine.md)（v1.2.0）：ApplyFontWithFontsize.jsx を統合し、サイズ・行送りの併記に対応
+- [行のテキストをフォント名（＋サイズ・行送り）とみなして行単位で適用](readme-ja/ApplyFontWithFontsize.md)（v1.3.5）：ApplyFontByLine.jsx を統合し、サイズ・行送りの併記に対応（名称を ApplyFontWithFontsize.jsx に変更）
 
 ## 20260817
 

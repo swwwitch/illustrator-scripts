@@ -1,8 +1,8 @@
 # 行のテキストをフォント名（＋サイズ・行送り）とみなして行単位で適用
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyFontByLine.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ApplyFontByLine.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyFontWithFontsize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ApplyFontWithFontsize.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontByLine.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontWithFontsize.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -69,10 +69,10 @@
 
 ### 紹介記事
 
-- [【Illustrator】フォント名からフォントを適用するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nc1769b1640e7)
+- [【Illustrator】フォント名からフォントを適用するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n33d152e73f35)
 
 ### 更新履歴
 
 - v1.0.0 : 初期バージョン
 - v1.1.1
-- v1.2.0 : ApplyFontWithFontsize.jsx を統合し、サイズ・行送りの併記に対応（現行バージョン）
+- v1.3.5 : ApplyFontByLine.jsx を統合し、サイズ・行送りの併記に対応。名称を ApplyFontWithFontsize.jsx に変更（現行バージョン）

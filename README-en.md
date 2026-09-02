@@ -40,7 +40,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Apply document fonts](readme-en/ApplyDocumentFonts.md)
 - [List fonts in weight order by category and instantly create font samples](readme-en/TypefaceSampler.md)
 - [Export font information used in the document](readme-en/ExportFontInfoFromXMP.md)
-- [Apply fonts line by line, treating each line's text as a font name](readme-en/ApplyFontByLine.md)
+- [Apply fonts line by line, treating each line's text as a font name](readme-en/ApplyFontWithFontsize.md)
 - [Switches font variants (character set, P, UD, N, NT, w…](readme-en/AiFontConverter.md)
 - [An Illustrator script that converts selected text into…](readme-en/ConvertFontInfo.md)
 - [A docked palette that lists the text-composition combi…](readme-en/DocumentFontListSelector.md)

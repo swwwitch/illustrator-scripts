@@ -1,8 +1,8 @@
-# ApplyFontByLine
+# ApplyFontWithFontsize
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyFontByLine.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ApplyFontByLine.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyFontWithFontsize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ApplyFontWithFontsize.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontByLine.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontWithFontsize.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -69,10 +69,10 @@ A line can carry the font name alone, or the name followed by a size and a leadi
 
 ### Article
 
-- [Applying fonts by font name (Japanese)](https://note.com/dtp_tranist/n/nc1769b1640e7)
+- [Applying fonts by font name (Japanese)](https://note.com/dtp_tranist/n/n33d152e73f35)
 
 ### Update History
 
 - v1.0.0: Initial release
 - v1.1.1
-- v1.2.0: Merged ApplyFontWithFontsize.jsx and added support for sizes and leading (current version)
+- v1.3.5: Merged ApplyFontByLine.jsx, added support for sizes and leading, and renamed to ApplyFontWithFontsize.jsx (current version)
