@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-最前面のドキュメントで選択したオブジェクトの座標に合わせて、ほかの開いているドキュメントの選択オブジェクトを移動します。
+最前面のドキュメントの選択範囲の左上を基準に、ほかの開いているドキュメントの選択オブジェクトを同じ座標へ移動します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Moves the selected objects in every other open document so that they match the position of the selection in the frontmost document.
+Moves the selected objects in every other open document to the same position, using the top-left corner of the selection in the frontmost document as the reference.
 
 See the README for details.
 
@@ -21,123 +21,159 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SyncSelectionPosition";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-12-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SyncSelectionPosition.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SyncSelectionPosition.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1f8155daeac4"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-/*
-  Align Selection Across Documents
-  最前面のドキュメントの選択オブジェクトの座標に、他ドキュメントの選択オブジェクトを合わせる
-*/
-
 (function() {
-    // ドキュメントが2つ以上開かれていない場合は終了
+
+    // =========================================
+    // 日英ラベル定義 / Japanese-English labels
+    // =========================================
+
+    /**
+     * UIロケールに応じた言語コードを返す
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
+        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            needTwoDocuments: { ja: "2つ以上のドキュメントを開いてください。", en: "Please open at least two documents." },
+            noSelection:      { ja: "最前面のドキュメントでオブジェクトを選択してください。", en: "Please select objects in the frontmost document." },
+            done: {
+                ja: "完了しました。\n座標 X: {0}, Y: {1} に統一しました。",
+                en: "Done.\nEvery selection was aligned to X: {0}, Y: {1}."
+            }
+        }
+    };
+
+    /**
+     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('alert','done')）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} 該当するラベル（見つからない場合は空文字）
+     */
+    function getLabel() {
+        var labelNode = LABELS;
+        for (var i = 0; i < arguments.length; i++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[arguments[i]];
+        }
+        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
+    }
+
+    /**
+     * ラベル内の {0} {1} … を値で置き換える
+     * @param {string} template - プレースホルダーを含む文字列
+     * @param {Array} values - 差し込む値
+     * @returns {string} 置き換え後の文字列
+     */
+    function fillPlaceholders(template, values) {
+        var filledText = template;
+        for (var i = 0; i < values.length; i++) {
+            filledText = filledText.replace("{" + i + "}", values[i]);
+        }
+        return filledText;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /* ドキュメントが2つ未満なら処理できない / Need at least two open documents */
     if (app.documents.length < 2) {
-        alert("2つ以上のドキュメントを開いてください。");
+        alert(getLabel("alert", "needTwoDocuments"));
         return;
     }
 
-    // 1. 最前面（ソース）のドキュメントの処理
     var sourceDoc = app.activeDocument;
-    var sourceSelection = sourceDoc.selection;
+    var sourceItems = sourceDoc.selection;
 
-    // 何も選択されていない場合はエラー
-    if (sourceSelection.length === 0) {
-        alert("最前面のドキュメントでオブジェクトを選択してください。");
+    /* 基準にする選択がなければ終了 / Exit when the reference selection is empty */
+    if (!sourceItems || sourceItems.length === 0) {
+        alert(getLabel("alert", "noSelection"));
         return;
     }
 
-    // 基準となる座標（X, Y）を取得
-    // 複数選択されている場合、全体のバウンディングボックスの左上(Left, Top)を基準とします
-    // Illustratorの座標系: Y軸は上がプラス、下がマイナス（ただしPositionプロパティは通常 [x, y] で扱います）
-    // 注意: Illustrator Scriptingでの position[1] (Y) は、画面上の見た目のY座標です。
-    
-    var targetX, targetY;
+    /* 基準は選択範囲全体の左上（Left / Top）/ Reference is the top-left corner of the whole selection */
+    var referencePoint = getSelectionTopLeft(sourceItems);
 
-    // グループ化されていない複数選択の場合でも、個別のPositionではなく
-    // 「選択範囲全体」の左上を取得して基準にするのが一般的ですが、
-    // ここではシンプルに「選択されている最初のオブジェクト（最前面）」を基準にします。
-    // もし選択範囲全体の左上がよければロジックを少し変える必要がありますが、通常はこれで十分機能します。
-    
-    // 選択オブジェクトの座標を取得 (Left, Top)
-    var sourcePos = getSelectionPosition(sourceSelection);
-    targetX = sourcePos[0];
-    targetY = sourcePos[1];
+    applyPositionToOtherDocuments(sourceDoc, referencePoint);
 
-    // 2. 他のすべてのドキュメントに対する処理
-    for (var i = 0; i < app.documents.length; i++) {
-        var currentDoc = app.documents[i];
-
-        // ソースドキュメントはスキップ
-        if (currentDoc === sourceDoc) continue;
-
-        // ドキュメントをアクティブにする
-        app.activeDocument = currentDoc;
-        
-        var currentSelection = currentDoc.selection;
-
-        if (currentSelection.length > 0) {
-            // 移動処理
-            setSelectionPosition(currentSelection, targetX, targetY);
-        } else {
-            // 選択がない場合はコンソール等にログを出すか、無視するか
-            // 今回は無視します
-        }
-    }
-
-    // 最後に元のドキュメントをアクティブに戻す
+    /* 元のドキュメントに戻す / Restore the original active document */
     app.activeDocument = sourceDoc;
-    alert("完了しました。\n座標 X: " + targetX.toFixed(2) + ", Y: " + targetY.toFixed(2) + " に統一しました。");
 
-    // ---------------------------------------------------------
-    // ヘルパー関数: 選択範囲の左上座標を取得する
-    // ---------------------------------------------------------
-    function getSelectionPosition(sel) {
-        // 単一オブジェクトの場合
-        if (sel.length === 1) {
-            return sel[0].position; // [x, y]
-        }
-        
-        // 複数オブジェクトの場合、最も左(minX)と最も上(maxY)を探す
-        // Illustratorの座標系ではYは上がプラスなので、Topは最大値を探すことになる
-        var minX = sel[0].position[0];
-        var maxY = sel[0].position[1];
+    alert(fillPlaceholders(getLabel("alert", "done"), [referencePoint[0].toFixed(2), referencePoint[1].toFixed(2)]));
 
-        for (var k = 1; k < sel.length; k++) {
-            var itemX = sel[k].position[0];
-            var itemY = sel[k].position[1];
-            
-            if (itemX < minX) minX = itemX;
-            if (itemY > maxY) maxY = itemY;
+    /**
+     * 選択範囲全体の左上座標を求める
+     * Illustratorの座標系ではY軸は上がプラスなので、Topは最大値になる
+     * @param {Array} selectedItems - 対象の選択オブジェクト
+     * @returns {Array<number>} [x, y] 形式の左上座標
+     */
+    function getSelectionTopLeft(selectedItems) {
+        var leftMost = selectedItems[0].position[0];
+        var topMost = selectedItems[0].position[1];
+
+        for (var i = 1; i < selectedItems.length; i++) {
+            var itemLeft = selectedItems[i].position[0];
+            var itemTop = selectedItems[i].position[1];
+            if (itemLeft < leftMost) leftMost = itemLeft;
+            if (itemTop > topMost) topMost = itemTop;
         }
-        return [minX, maxY];
+        return [leftMost, topMost];
     }
 
-    // ---------------------------------------------------------
-    // ヘルパー関数: 選択範囲を指定座標に移動する
-    // ---------------------------------------------------------
-    function setSelectionPosition(sel, x, y) {
-        // 現在の選択範囲の左上座標を取得
-        var currentPos = getSelectionPosition(sel);
-        var currentX = currentPos[0];
-        var currentY = currentPos[1];
+    /**
+     * 選択範囲全体の左上が指定座標に来るように移動する
+     * @param {Array} selectedItems - 移動する選択オブジェクト
+     * @param {Array<number>} topLeft - 移動先の左上座標 [x, y]
+     * @returns {void}
+     */
+    function moveSelectionTopLeftTo(selectedItems, topLeft) {
+        var currentTopLeft = getSelectionTopLeft(selectedItems);
+        var dx = topLeft[0] - currentTopLeft[0];
+        var dy = topLeft[1] - currentTopLeft[1];
 
-        // 移動すべき差分（デルタ）を計算
-        var deltaX = x - currentX;
-        var deltaY = y - currentY;
+        for (var i = 0; i < selectedItems.length; i++) {
+            selectedItems[i].translate(dx, dy);
+        }
+    }
 
-        // すべての選択オブジェクトを差分だけ移動する
-        for (var k = 0; k < sel.length; k++) {
-            sel[k].translate(deltaX, deltaY);
+    /**
+     * 基準ドキュメント以外の開いているドキュメントで、選択オブジェクトを基準座標に揃える
+     * 選択がないドキュメントは何もせずスキップする
+     * @param {Document} referenceDoc - 基準にするドキュメント（処理対象から除外）
+     * @param {Array<number>} topLeft - 揃える左上座標 [x, y]
+     * @returns {void}
+     */
+    function applyPositionToOtherDocuments(referenceDoc, topLeft) {
+        for (var i = 0; i < app.documents.length; i++) {
+            var otherDoc = app.documents[i];
+            if (otherDoc === referenceDoc) continue;
+
+            /* selection を読むにはアクティブにする必要がある / The document must be active to read its selection */
+            app.activeDocument = otherDoc;
+
+            var otherItems = otherDoc.selection;
+            if (otherItems && otherItems.length > 0) {
+                moveSelectionTopLeftTo(otherItems, topLeft);
+            }
         }
     }
 
