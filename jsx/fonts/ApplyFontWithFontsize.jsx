@@ -162,6 +162,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
     /* showFontPicker が「終了」で返す番兵（選択ループを打ち切る合図）/ Sentinel returned on Quit */
     var PICKER_QUIT = {};
 
+    /* showFontPicker が「適用したが失敗した」ときに返す番兵（スキップと区別する）/ Sentinel for a failed apply */
+    var PICKER_FAILED = {};
+
     /**
      * ラベルのリーフ（{ ja, en }）から現在の言語の文字列を返す
      * 現在の言語が未定義なら英語、それも無ければ空文字へフォールバックする
@@ -169,11 +172,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
      * @returns {string} 現在の言語の文字列
      */
     function getLabel(labelNode) {
-        var text = "";
-        if (labelNode) {
-            text = labelNode[currentLanguage] || labelNode.en || "";
-        }
-        return String(text).replace(/\{slash\}/g, "/");
+        if (!labelNode) return "";
+        return String(labelNode[currentLanguage] || labelNode.en || "");
     }
 
     /**
@@ -221,7 +221,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
     var pendingLines = autoApplyFonts(targetTextFrames);
 
     /* フェーズ2：保留分を対話ピッカーで1件ずつ決める / Phase 2: resolve the queue interactively */
+    var previousView = captureView(); /* ピッカーでズームするので現在の表示を控える / Keep the current view */
     var unapplied = resolvePendingLines(pendingLines);
+    restoreView(previousView);
 
     /* 未適用の行を含むフレームに目印を置く / Mark the frames that still have unapplied lines */
     markUnappliedFrames(unapplied.frames);
@@ -246,12 +248,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         for (var k = 0; k < sourceItems.length; k++) {
             var currentItem = sourceItems[k];
 
-            /* テキスト編集中の選択（TextRange）などは要素を取り出せないので無視 / Skip non page items */
-            if (!currentItem || currentItem.locked || currentItem.hidden) continue;
+            /* テキスト編集中の選択（TextRange）は locked を持たず、読むとエラーになるので
+               typename の判定を先に行う / Check the typename first: a TextRange has no locked */
+            if (!currentItem) continue;
 
             if (currentItem.typename === "TextFrame") {
+                if (currentItem.locked || currentItem.hidden) continue;
                 collectedFrames.push(currentItem);
             } else if (currentItem.typename === "GroupItem") {
+                if (currentItem.locked || currentItem.hidden) continue;
                 collectTextFrames(currentItem.pageItems, collectedFrames);
             }
         }
@@ -267,12 +272,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         var pendingLines = [];
         var progress = createProgressPalette(textFrameList.length);
 
-        for (var i = 0; i < textFrameList.length; i++) {
-            progress.update(i + 1);
-            autoApplyLinesInFrame(textFrameList[i], pendingLines);
+        /* 途中で例外が出てもパレットを残さない / Never leave the palette open on an error */
+        try {
+            for (var i = 0; i < textFrameList.length; i++) {
+                progress.update(i + 1);
+                autoApplyLinesInFrame(textFrameList[i], pendingLines);
+            }
+        } finally {
+            progress.window.close();
         }
 
-        progress.window.close();
         return pendingLines;
     }
 
@@ -345,6 +354,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
                     recordUnapplied(unapplied, pendingLines[q]);
                 }
                 break;
+            }
+
+            /* 適用に失敗した行は記録するだけで決定として残さない（同名の次の行では改めて確認する）
+               / A failed apply is recorded but not remembered, so the next line asks again */
+            if (pickedFont === PICKER_FAILED) {
+                recordUnapplied(unapplied, pendingLine);
+                continue;
             }
 
             decidedFonts[pendingLine.fontName] = pickedFont;
@@ -582,6 +598,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
     }
 
     /**
+     * 素のオブジェクトを辞書として引く（"constructor" などで Object.prototype を拾わないようにする）
+     * @param {Object} dictionary - 辞書として使うオブジェクト
+     * @param {string} key - キー
+     * @returns {Object} 対応する値（無ければ null）
+     */
+    function getOwn(dictionary, key) {
+        return dictionary.hasOwnProperty(key) ? dictionary[key] : null;
+    }
+
+    /**
      * ファミリー名＋スタイル名の索引用キーを作る
      * @param {string} family - ファミリー名
      * @param {string} style - スタイル名
@@ -597,7 +623,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
      * @returns {string[]} スタイル名の配列（無ければ空配列）
      */
     function stylesForFamily(familyName) {
-        return fontIndex.stylesByFamily[familyName] || [];
+        return getOwn(fontIndex.stylesByFamily, familyName) || [];
     }
 
     /**
@@ -607,7 +633,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
      * @returns {TextFont} 該当するフォント（無ければ null）
      */
     function fontFor(familyName, styleName) {
-        return fontIndex.fontByFamilyStyle[makeFamilyStyleKey(familyName, styleName)] || null;
+        return getOwn(fontIndex.fontByFamilyStyle, makeFamilyStyleKey(familyName, styleName));
     }
 
     /**
@@ -619,10 +645,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
      *   font=null … 未一致。ピッカーで一から選ばせる
      */
     function findFont(fontName) {
-        var normalizedName = normalize(fontName);
-        var targetName = fontIndex.customFontByNormalized.hasOwnProperty(normalizedName)
-            ? fontIndex.customFontByNormalized[normalizedName]
-            : fontName;
+        var targetName = getOwn(fontIndex.customFontByNormalized, normalize(fontName)) || fontName;
 
         var exactFont = findExactFont(targetName);
         if (exactFont) return { font: exactFont, confident: true };
@@ -643,10 +666,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
 
         var query = normalize(fontName);
 
-        var exactFull = fontIndex.fontsByNormalizedFull[query];
+        var exactFull = getOwn(fontIndex.fontsByNormalizedFull, query);
         if (exactFull) return getBestStyle(exactFull);
 
-        var exactFamily = fontIndex.fontsByNormalizedFamily[query];
+        var exactFamily = getOwn(fontIndex.fontsByNormalizedFamily, query);
         if (exactFamily) return getBestStyle(exactFamily);
 
         return null;
@@ -789,7 +812,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         var btnLeftGroup = btnRowGroup.add("group");
         btnLeftGroup.alignChildren = ["left", "center"];
         var btnCopy = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.copy));
-        btnCopy.onClick = function () { dialog.close(2); }; /* 2 = コピーして閉じる / copy and close */
+        /* ESC・ウィンドウの閉じるボタンは 2 を返すため、コピーには別の値を使う
+           / ESC and the close box return 2, so copy uses its own result code */
+        btnCopy.onClick = function () { dialog.close(3); }; /* 3 = コピーして閉じる / copy and close */
 
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
@@ -799,7 +824,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         btnRightGroup.alignChildren = ["right", "center"];
         btnRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
 
-        return dialog.show() === 2;
+        return dialog.show() === 3;
     }
 
     /**
@@ -819,7 +844,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
             doc.activeLayer = editableLayer;
             tempFrame = doc.textFrames.add();
             tempFrame.contents = textToCopy;
-            tempFrame.position = [-100000, -100000]; /* 画面外に逃がす / Move it off-canvas */
+            /* カンバスの範囲（±約16000pt）を超えると位置指定に失敗するため控えめに逃がす
+               / Keep it inside the canvas bounds, otherwise the move fails */
+            tempFrame.position = [-5000, -5000]; /* 画面外に逃がす / Move it off-canvas */
 
             app.redraw(); /* 追加直後のフレームは再描画しないとコピー対象にならない */
             app.executeMenuCommand("deselectall");
@@ -859,7 +886,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
      * モーダル表示中はドキュメントを変更しない（ライブプレビューはクラッシュ要因のため廃止）
      * @param {Object} fontPicker - createFontPickerDialog が返したピッカー
      * @param {Object} pendingLine - 対象の保留行
-     * @returns {TextFont} 適用したフォント／スキップは null／終了は PICKER_QUIT
+     * @returns {TextFont} 適用したフォント／スキップは null／適用失敗は PICKER_FAILED／終了は PICKER_QUIT
      */
     function showFontPicker(fontPicker, pendingLine) {
         zoomToFrame(pendingLine.frame); /* 対象を画面にフィット（モーダル表示前に行う）*/
@@ -877,6 +904,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
                 fontPicker.styleDropdown.selection.text);
             /* 実適用はダイアログを閉じた後（＝モーダル表示外）なので安全 / Apply once the modal is closed */
             if (applyPendingLine(pendingLine, chosenFont)) return chosenFont;
+            return PICKER_FAILED;
         }
 
         return (dialogResult === 3) ? PICKER_QUIT : null;
@@ -1076,6 +1104,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
             var fitZoom = Math.min(viewWidth / frameWidth, viewHeight / frameHeight) * view.zoom * ZOOM_FIT_RATIO;
             view.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitZoom));
             view.centerPoint = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
+        } catch (e) { }
+    }
+
+    /**
+     * 現在の表示（ズーム率・中心点）を控える
+     * @returns {Object} 表示状態（{ zoom, centerPoint }。取得できなければ null）
+     */
+    function captureView() {
+        try {
+            var view = doc.activeView;
+            return { zoom: view.zoom, centerPoint: view.centerPoint };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
+     * 控えておいた表示（ズーム率・中心点）へ戻す
+     * @param {Object} viewState - captureView が返した表示状態（null なら何もしない）
+     * @returns {void}
+     */
+    function restoreView(viewState) {
+        if (!viewState) return;
+
+        try {
+            var view = doc.activeView;
+            view.zoom = viewState.zoom;
+            view.centerPoint = viewState.centerPoint;
         } catch (e) { }
     }
 

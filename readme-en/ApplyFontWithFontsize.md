@@ -30,6 +30,7 @@ A line can carry the font name alone, or the name followed by a size and a leadi
 - Sizes and leading take pt / px / Q (1Q = 0.25mm); a bare number is read as pt
 - A size is always anchored by an explicit unit or by a "、" "," "/" separator, so trailing digits in a font name (such as `DIN 2014`) are never mistaken for one
 - The leading is not set as an absolute value: leading ÷ size becomes the auto-leading percentage (12pt↓16pt gives about 133.3%)
+- Because of that, a line that sets only a size still changes the leading of a paragraph using auto leading, since it is recalculated as size × the auto-leading percentage
 
 ### Main Features
 
@@ -47,6 +48,8 @@ A line can carry the font name alone, or the name followed by a size and a leadi
   - The **Search** field filters the family dropdown; pick a **Font** and a **Style**
   - **Apply** / **Skip** / **Quit** (marks all remaining queued lines as unapplied and stops)
   - The same font name is never asked twice in one run; the earlier choice is reused (the size and leading still come from each line)
+  - A failed apply is not remembered, so the next line with that name is asked again
+  - Once the queue is done, the zoom and view position moved by the picker are restored
 - Creates a red rectangle at 35% opacity behind each frame with unapplied lines, on a layer named "// missing-fonts", then locks that layer (an existing marker layer is removed on every run)
 - Lists the unapplied strings in a dialog with a copy-to-clipboard button
 - Automatic Japanese / English UI
@@ -55,7 +58,7 @@ A line can carry the font name alone, or the name followed by a size and a leadi
 
 1. Collect text frames recursively from the selection and build the font index
 2. Split off the size and leading, match on the name: apply confident matches, queue everything else
-3. Resolve the queue one entry at a time in the font picker (Skip and Quit are recorded as unapplied)
+3. Resolve the queue one entry at a time in the font picker (Skip and Quit are recorded as unapplied), then restore the view
 4. Place markers on the frames with unapplied lines and show the list of unapplied strings
 
 ### Not Supported
