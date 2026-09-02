@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトの領域を基準に、紙吹雪を生成します。
-形状は円・長方形・三角形・スター・ハート・リボン・シンボルなどから選べ、プレビューを見ながら設定できます。
+選択オブジェクト（未選択のときはアートボード）の領域に、紙吹雪を散らします。
+形状・生成数・分布・ランダム量をプレビューで確かめながら調整し、［OK］で Confetti レイヤーへ出力します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Generates confetti across the area of the selected objects.
-The shape can be a circle, rectangle, triangle, star, heart, ribbon, symbol and more, all set with a preview.
+Scatters confetti across the selected object, or across the artboard when nothing is selected.
+Shape, count, distribution and randomness are tuned against a live preview, and OK commits the result onto a Confetti layer.
 
 See the README for details.
 
@@ -23,1275 +23,1288 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConfettiMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-03-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-11";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConfettiMaker.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMaker.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-// コンフェティ（紙吹雪）作成スクリプト
-
 (function () {
 
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 生成物のレイヤー名・グループ名 / Names of generated layers and groups */
+    var PREVIEW_LAYER_NAME = "__ConfettiPreview__"; /* プレビュー専用レイヤー / preview-only layer */
+    var OUTPUT_LAYER_NAME  = "Confetti";            /* 確定時の出力先レイヤー / output layer */
+    var MASK_GROUP_NAME    = "__ConfettiMasked__";  /* マスク処理用グループ / group to be clipped */
+    var OUTPUT_GROUP_NAME  = "__ConfettiGroup__";   /* マスクOFF時のまとめグループ / group used when masking is off */
+    var SYMBOL_WRAP_NAME   = "__ConfettiSymbol__";  /* シンボルを包むグループ / wrapper group for a symbol */
+
+    /* 初期値 / Initial values */
+    var DEFAULT_BASE_SIZE_PT = 6;   /* 基準サイズ（pt）/ base size in points */
+    var DEFAULT_COUNT        = 150; /* 生成数 / number of confetti */
+    var DEFAULT_OPACITY_MIN  = 70;  /* 不透明度の下限（%）/ lower bound of random opacity */
+    var DEFAULT_ROTATE_MAX   = 360; /* 最大回転角（度）/ maximum rotation in degrees */
+    var DEFAULT_STRENGTH       = 2.0; /* 分布の強度 / distribution strength */
+
+    /* 挙動の調整値 / Behavior tuning */
+    var SOLO_RANDOM_SIZE      = 167; /* Option+クリックの単独選択時に設定する大きさランダム量 / size randomness applied on solo click */
+    var MARGIN_STEP_ON_ENABLE = 30;  /* マージンをONにしたときに加算する量（pt）/ amount added when margin is switched on */
+    var PREVIEW_DEBOUNCE_MS   = 140; /* プレビュー再描画の間引き時間（ms）/ debounce delay for preview redraw */
+    var SKEW_MAX_DEG          = 45;  /* 歪みの上限（度）/ upper bound of skew */
+
+    /* カラフルな配色 / Confetti colors */
+    var CONFETTI_COLORS = [
+        [255, 77, 77],   /* 赤 / red */
+        [255, 153, 51],  /* オレンジ / orange */
+        [255, 255, 51],  /* 黄色 / yellow */
+        [102, 255, 102], /* 緑 / green */
+        [51, 153, 255],  /* 青 / blue */
+        [153, 102, 255], /* 紫 / purple */
+        [255, 102, 178], /* ピンク / pink */
+        [255, 204, 51]   /* 金色 / gold */
+    ];
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var WINDOW_MARGINS         = 16;               /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING         = 12;               /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS          = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING          = 6;                /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING         = 12;               /* 2カラムの間隔 / gap between columns */
+    var LABEL_WIDTH            = 80;               /* 行ラベルの共通幅 / shared width of row labels */
+    var SLIDER_WIDTH           = 240;              /* スライダーの幅 / slider width */
+    var NARROW_SLIDER_WIDTH    = 200;              /* 補助スライダーの幅 / width of a secondary slider */
+    var SYMBOL_DROPDOWN_WIDTH  = 120;              /* シンボル選択の幅 / width of the symbol dropdown */
+    var BUTTON_ROW_TOP_MARGIN  = 10;               /* ボタンエリアの上余白 / top margin of the button row */
+    var DIALOG_OFFSET_X        = 300;              /* ダイアログの横方向オフセット / horizontal offset of the dialog */
+    var DIALOG_OFFSET_Y        = 0;                /* ダイアログの縦方向オフセット / vertical offset of the dialog */
+    var DIALOG_OPACITY         = 0.98;             /* ダイアログの不透明度 / opacity of the dialog */
+
+    /**
+     * ダイアログ全体の並びと余白を設定する
+     * @param {Window} targetWindow - 対象ウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = ["fill", "top"];
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
-    function getEarlyLabel(key) {
-        var __lang = getCurrentLang();
-        var __labels = {
-            noDocumentOpen: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
-        };
+    /**
+     * パネルの並びと余白を設定する
+     * @param {Panel} targetPanel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループを横並びの行として設定する
+     * @param {Group} targetGroup - 対象グループ
+     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, horizontalAlign, spacing) {
+        targetGroup.orientation = "row";
+        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
+        targetGroup.alignment = [horizontalAlign || "left", "center"];
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Window|Group} parentContainer - 追加先
+     * @param {string} panelTitle - パネルの見出し
+     * @returns {Panel} 生成したパネル
+     */
+    function addPanel(parentContainer, panelTitle) {
+        var createdPanel = parentContainer.add("panel");
+        createdPanel.text = panelTitle;
+        setupPanel(createdPanel);
+        return createdPanel;
+    }
+
+    /**
+     * 横並びの行グループを生成する
+     * @param {Window|Group|Panel} parentContainer - 追加先
+     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * @returns {Group} 生成したグループ
+     */
+    function addRow(parentContainer, horizontalAlign) {
+        var createdGroup = parentContainer.add("group");
+        setupRow(createdGroup, horizontalAlign);
+        return createdGroup;
+    }
+
+    /**
+     * 共通幅で右揃えした行ラベルを追加する
+     * @param {Group} parentGroup - 追加先グループ
+     * @param {string} text - ラベル文字列
+     * @returns {StaticText} 追加した statictext
+     */
+    function addRowLabel(parentGroup, text) {
+        var rowLabel = parentGroup.add("statictext", undefined, text);
+        rowLabel.preferredSize.width = LABEL_WIDTH;
+        rowLabel.justify = "right";
+        return rowLabel;
+    }
+
+    /**
+     * スライダーを追加する
+     * @param {Group} parentGroup - 追加先グループ
+     * @param {number} value - 初期値
+     * @param {number} minValue - 最小値
+     * @param {number} maxValue - 最大値
+     * @param {number} [width] - 幅（省略時は SLIDER_WIDTH）
+     * @returns {Slider} 追加したスライダー
+     */
+    function addSlider(parentGroup, value, minValue, maxValue, width) {
+        var slider = parentGroup.add("slider", undefined, value, minValue, maxValue);
+        slider.preferredSize.width = (typeof width === "number") ? width : SLIDER_WIDTH;
+        return slider;
+    }
+
+    /**
+     * チェックボックスのラベル幅を最長のものにそろえる
+     * @param {Array<Checkbox>} checkboxList - 対象チェックボックス
+     * @returns {void}
+     */
+    function unifyCheckboxLabelWidth(checkboxList) {
+        var unifiedWidth = 0;
+        for (var i = 0; i < checkboxList.length; i++) {
+            var checkboxText = String(checkboxList[i].text || "");
+            var textWidth;
+            try {
+                /* measureString が使える場合は実測 / Measure the string when the API is available */
+                textWidth = checkboxList[i].graphics.measureString(checkboxText).width;
+            } catch (_) {
+                /* フォールバック: 文字数ベース / Fall back to a character-count estimate */
+                textWidth = checkboxText.length * 7;
+            }
+            var candidateWidth = Math.ceil(textWidth + 18); /* チェック部分の余白を足す / Add room for the check box itself */
+            if (candidateWidth > unifiedWidth) unifiedWidth = candidateWidth;
+        }
+        for (var j = 0; j < checkboxList.length; j++) {
+            checkboxList[j].preferredSize.width = unifiedWidth;
+        }
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在の表示言語を取得する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        var localeText = ($.locale || "") + "";
+        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "紙吹雪を生成", en: "Generate Confetti" }
+        },
+        panel: {
+            basic:  { ja: "基本設定", en: "Basic" },
+            shape:  { ja: "形状", en: "Shapes" },
+            random: { ja: "ランダム", en: "Randomize" }
+        },
+        fieldLabel: {
+            baseSize:     { ja: "基準サイズ", en: "Base Size" },
+            count:        { ja: "生成数", en: "Count" },
+            distribution: { ja: "分布", en: "Distribution" },
+            strength:     { ja: "強度", en: "Strength" },
+            zoom:         { ja: "画面ズーム", en: "Zoom" }
+        },
+        radio: {
+            distEven:   { ja: "全体に均等", en: "Uniform" },
+            distGrad:   { ja: "垂直方向", en: "Top to Bottom" },
+            distHollow: { ja: "放射状", en: "Radial Outward" }
+        },
+        checkbox: {
+            circle:     { ja: "円", en: "Circle" },
+            rect:       { ja: "長方形", en: "Rectangle" },
+            square:     { ja: "正方形", en: "Square" },
+            triangle:   { ja: "三角形", en: "Triangle" },
+            star:       { ja: "スター", en: "Star" },
+            sparkleA:   { ja: "キラキラA", en: "Sparkle A" },
+            sparkleB:   { ja: "キラキラB", en: "Sparkle B" },
+            heart:      { ja: "ハート", en: "Heart" },
+            ribbon:     { ja: "リボン", en: "Ribbon" },
+            symbol:     { ja: "シンボル", en: "Symbol" },
+            mask:       { ja: "マスク処理", en: "Mask" },
+            margin:     { ja: "マージン", en: "Margin" },
+            randomSize: { ja: "大きさ", en: "Size" },
+            opacity:    { ja: "不透明度", en: "Opacity" },
+            skew:       { ja: "歪み", en: "Skew" },
+            rotate:     { ja: "回転", en: "Rotation" }
+        },
+        dropdown: {
+            symbolNone: { ja: "（なし）", en: "(None)" }
+        },
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
+        }
+    };
+
+    /**
+     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('panel','shape')）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} 該当するラベル（見つからない場合は空文字）
+     */
+    function getLabel() {
+        var labelNode = LABELS;
+        for (var i = 0; i < arguments.length; i++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[arguments[i]];
+        }
+        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} コロンを付けたラベル
+     */
+    function labelText() {
+        var label = getLabel.apply(null, arguments);
+        return label + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * デバッグ用にエラー内容を ExtendScript コンソールへ出力する
+     * @param {Error} err - 捕捉した例外
+     * @param {string} context - 発生箇所を示す文字列
+     * @returns {void}
+     */
+    function logError(err, context) {
+        var message = "[" + SCRIPT_NAME + "] " + String(context || "Error");
         try {
-            if (__labels[key] && __labels[key][__lang]) return __labels[key][__lang];
-            if (__labels[key] && __labels[key].ja) return __labels[key].ja;
+            if (err) {
+                message += " :: " + String(err.message || err);
+                if (err.line) message += " (line: " + String(err.line) + ")";
+            }
+            $.writeln(message);
         } catch (_) { }
-        return key;
     }
 
     if (!app.documents.length) {
-        alert(getEarlyLabel("noDocumentOpen"));
+        alert(getLabel("alert", "noDocument"));
         return;
     }
 
-    var lang = getCurrentLang();
-
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-        dialogTitle: { ja: "紙吹雪を生成", en: "Generate Confetti" },
-        noDocumentOpen: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-
-        pnlShape: { ja: "形状", en: "Shapes" },
-        circle: { ja: "円", en: "Circle" },
-        rect: { ja: "長方形", en: "Rectangle" },
-        square: { ja: "正方形", en: "Square" },
-        triangle: { ja: "三角形", en: "Triangle" },
-        star: { ja: "スター", en: "Star" },
-        sparkle: { ja: "キラキラA", en: "Sparkle A" },
-        sparkleB: { ja: "キラキラB", en: "Sparkle B" },
-        heart: { ja: "ハート", en: "Heart" },
-        ribbon: { ja: "リボン", en: "Ribbon" },
-
-        distEven: { ja: "全体に均等", en: "Uniform" },
-        distGrad: { ja: "垂直方向", en: "Top to Bottom" },
-        distHollow: { ja: "放射状", en: "Radial Outward" },
-        distStrength: { ja: "強度", en: "Strength" },
-        distLabel: { ja: "分布", en: "Distribution" },
-
-        pnlCount: { ja: "生成数", en: "Count" },
-
-        pnlBaseSize: { ja: "基準サイズ", en: "Base Size" },
-        pnlBasic: { ja: "基本設定", en: "Basic" },
-
-        pnlRandom: { ja: "ランダム", en: "Randomize" },
-        mask: { ja: "マスク処理", en: "Mask" },
-        margin: { ja: "マージン", en: "Margin" },
-        random: { ja: "大きさ", en: "Size" },
-        zoom: { ja: "画面ズーム", en: "Zoom" },
-        opacity: { ja: "不透明度", en: "Opacity" },
-        skew: { ja: "歪み", en: "Skew" },
-        rotate: { ja: "回転", en: "Rotation" },
-        btnCancel: { ja: "キャンセル", en: "Cancel" },
-        btnOK: { ja: "OK", en: "OK" },
-        symbol: { ja: "シンボル", en: "Symbol" },
-        symbolNone: { ja: "（なし）", en: "(None)" }
-    };
-
-    function L(key) {
-        try {
-            if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
-            if (LABELS[key] && LABELS[key].ja) return LABELS[key].ja;
-        } catch (_) { }
-        return key;
-    }
-
-    function __logError(err, context) {
-        try {
-            var msg = "[ConfettiMaker] " + String(context || "Error");
-            if (err) {
-                try {
-                    if (err.message) msg += " :: " + String(err.message);
-                    else msg += " :: " + String(err);
-                } catch (_) { }
-                try {
-                    if (err.line) msg += " (line: " + String(err.line) + ")";
-                } catch (_) { }
-            }
-            $.writeln(msg);
-        } catch (_) { }
-    }
+    // =========================================
+    // 対象の判定 / Target detection
+    // =========================================
 
     var doc = app.activeDocument;
 
-    // 選択オブジェクト取得（なければアートボードを対象）
-    var selectedObj = null;
-    var __useArtboard = false;
-
-    if (doc.selection.length > 0) {
-        selectedObj = doc.selection[0];
-    } else {
-        __useArtboard = true;
-    }
-
-    // テキスト選択時フラグ / Flag for text selection
-    var __isTextSelection = false;
-    try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame"); } catch (_) { __isTextSelection = false; }
+    /* 選択オブジェクト（なければアートボードを対象にする）/ Selected object, or the artboard when nothing is selected */
+    var selectedItem = (doc.selection.length > 0) ? doc.selection[0] : null;
+    var useArtboardBounds = !selectedItem;
+    var isTextSelection = !!(selectedItem && selectedItem.typename === "TextFrame");
 
     // =========================================
-    // Zoom UI module (reusable)
-    // - Capture/restore view state
-    // - Create a zoom slider UI and apply zoom on drag
+    // ビュー・ズーム / View & zoom
     // =========================================
 
-    function captureViewState(doc) {
-        var st = { view: null, zoom: null, center: null };
+    /**
+     * 現在のビュー状態（ズーム・中心）を控える
+     * @param {Document} targetDoc - 対象ドキュメント
+     * @returns {object} ビュー状態 { view, zoom, center }
+     */
+    function captureViewState(targetDoc) {
+        var viewState = { view: null, zoom: null, center: null };
         try {
-            st.view = doc.activeView;
-            st.zoom = st.view.zoom;
-            st.center = st.view.centerPoint;
-        } catch (_) { }
-        return st;
+            viewState.view = targetDoc.activeView;
+            viewState.zoom = viewState.view.zoom;
+            viewState.center = viewState.view.centerPoint;
+        } catch (eCaptureView) {
+            logError(eCaptureView, "captureViewState");
+        }
+        return viewState;
     }
 
-    function restoreViewState(doc, state) {
-        if (!state) return;
+    /**
+     * 控えておいたビュー状態を復元する
+     * @param {Document} targetDoc - 対象ドキュメント
+     * @param {object} viewState - captureViewState() の戻り値
+     * @returns {void}
+     */
+    function restoreViewState(targetDoc, viewState) {
+        if (!viewState) return;
         try {
-            var v = state.view || doc.activeView;
-            if (v && state.zoom != null) v.zoom = state.zoom;
-            if (v && state.center != null) v.centerPoint = state.center;
-        } catch (_) { }
+            var view = viewState.view || targetDoc.activeView;
+            if (!view) return;
+            if (viewState.zoom != null) view.zoom = viewState.zoom;
+            if (viewState.center != null) view.centerPoint = viewState.center;
+        } catch (eRestoreView) {
+            logError(eRestoreView, "restoreViewState");
+        }
     }
 
-    function addZoomControls(parent, doc, labelText, initialState, options) {
-        options = options || {};
-        var minZoom = (typeof options.min === "number") ? options.min : 0.1;
-        var maxZoom = (typeof options.max === "number") ? options.max : 16;
-        var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 240;
-        var doRedraw = (options.redraw !== false);
+    /**
+     * 画面ズーム用のスライダー行を追加する
+     * @param {Window|Group|Panel} parentContainer - 追加先
+     * @param {Document} targetDoc - 対象ドキュメント
+     * @param {string} zoomLabelText - 行ラベル
+     * @param {object} initialViewState - 初期ビュー状態
+     * @param {object} zoomOptions - { min, max, sliderWidth, redraw }
+     * @returns {object} ズーム操作用のインターフェイス
+     */
+    function addZoomControls(parentContainer, targetDoc, zoomLabelText, initialViewState, zoomOptions) {
+        var minZoom = zoomOptions.min;
+        var maxZoom = zoomOptions.max;
+        var doRedraw = (zoomOptions.redraw !== false);
 
-        // UI
-        var g = parent.add("group");
-        g.orientation = "row";
-        g.alignChildren = ["center", "center"];
-        g.alignment = "center";
-        try { if (options.margins) g.margins = options.margins; } catch (_) { }
+        var zoomGroup = addRow(parentContainer, "center");
+        var zoomLabel = addRowLabel(zoomGroup, String(zoomLabelText));
 
-        var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
-        var initZoom = 1;
+        var initialZoom = 1;
         try {
-            if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
-            else initZoom = Number(doc.activeView.zoom);
-        } catch (_) { }
-        if (!initZoom || isNaN(initZoom)) initZoom = 1;
+            initialZoom = Number((initialViewState && initialViewState.zoom != null) ? initialViewState.zoom : targetDoc.activeView.zoom);
+        } catch (eReadZoom) {
+            logError(eReadZoom, "addZoomControls.readZoom");
+        }
+        if (!initialZoom || isNaN(initialZoom)) initialZoom = 1;
 
-        var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
-        try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+        var zoomSlider = addSlider(zoomGroup, initialZoom, minZoom, maxZoom, zoomOptions.sliderWidth);
 
-        function applyZoom(z) {
+        /**
+         * 指定倍率をビューへ適用する
+         * @param {number} zoomValue - 倍率
+         * @returns {void}
+         */
+        function applyZoom(zoomValue) {
             try {
-                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
-                if (!v) return;
-                v.zoom = z;
-                if (doRedraw) { try { app.redraw(); } catch (_) { } }
-            } catch (_) { }
+                var view = (initialViewState && initialViewState.view) ? initialViewState.view : targetDoc.activeView;
+                if (!view) return;
+                view.zoom = zoomValue;
+                if (doRedraw) app.redraw();
+            } catch (eApplyZoom) {
+                logError(eApplyZoom, "addZoomControls.applyZoom");
+            }
         }
 
+        /**
+         * 現在のビュー倍率をスライダーへ反映する
+         * @returns {void}
+         */
         function syncFromView() {
             try {
-                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
-                if (!v) return;
-                sld.value = v.zoom;
-            } catch (_) { }
+                var view = (initialViewState && initialViewState.view) ? initialViewState.view : targetDoc.activeView;
+                if (view) zoomSlider.value = view.zoom;
+            } catch (eSyncZoom) {
+                logError(eSyncZoom, "addZoomControls.syncFromView");
+            }
         }
 
-        sld.onChanging = function () {
-            applyZoom(Number(sld.value));
+        zoomSlider.onChanging = function () {
+            applyZoom(Number(zoomSlider.value));
         };
 
         return {
-            group: g,
-            label: stLabel,
-            slider: sld,
+            group: zoomGroup,
+            label: zoomLabel,
+            slider: zoomSlider,
             applyZoom: applyZoom,
             syncFromView: syncFromView,
-            restoreInitial: function () { restoreViewState(doc, initialState); }
+            restoreInitial: function () { restoreViewState(targetDoc, initialViewState); }
         };
     }
 
-    // ビュー初期値（ズーム復元用） / Initial view state
-    var __viewState = captureViewState(doc);
+    var initialViewState = captureViewState(doc);
 
-    // ダイアログ作成
-    var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-    dlg.orientation = "column";
-    dlg.alignChildren = "left";
-    try { dlg.spacing = 15; } catch (_) { }
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
-    // ダイアログの位置・透明度 / Dialog position & opacity
-    var offsetX = 300;
-    var offsetY = 0;
-    var dialogOpacity = 0.98;
-
-    function shiftDialogPosition(dlg, dx, dy) {
-        try {
-            var currentX = dlg.location[0];
-            var currentY = dlg.location[1];
-            dlg.location = [currentX + dx, currentY + dy];
-        } catch (_) { }
+    /**
+     * ダイアログの表示位置をずらす
+     * @param {Window} targetWindow - 対象ウィンドウ
+     * @param {number} dx - 横方向の移動量
+     * @param {number} dy - 縦方向の移動量
+     * @returns {void}
+     */
+    function shiftDialogPosition(targetWindow, dx, dy) {
+        targetWindow.location = [targetWindow.location[0] + dx, targetWindow.location[1] + dy];
     }
 
-    function setDialogOpacity(dlg, opacityValue) {
-        try { dlg.opacity = opacityValue; } catch (_) { }
+    var dialog = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
+    setupWindow(dialog);
+    dialog.opacity = DIALOG_OPACITY;
+
+    /* 基本設定 / Basic */
+    var basicPanel = addPanel(dialog, getLabel("panel", "basic"));
+
+    var baseSizeRow = addRow(basicPanel);
+    addRowLabel(baseSizeRow, labelText("fieldLabel", "baseSize"));
+    /* スライダーの 0 が DEFAULT_BASE_SIZE_PT に対応する相対指定 / Slider 0 maps to DEFAULT_BASE_SIZE_PT */
+    var baseSizeSlider = addSlider(baseSizeRow, 0, -5, 45);
+
+    var countRow = addRow(basicPanel);
+    addRowLabel(countRow, labelText("fieldLabel", "count"));
+    var countSlider = addSlider(countRow, DEFAULT_COUNT, 10, 500);
+    var confettiCount = DEFAULT_COUNT;
+
+    /* マスク処理・マージン / Mask & margin */
+    var maskMarginGroup = basicPanel.add("group");
+    maskMarginGroup.orientation = "column";
+    maskMarginGroup.alignChildren = ["left", "top"];
+    maskMarginGroup.margins = [0, 10, 0, 10];
+
+    var maskRow = addRow(maskMarginGroup);
+    var maskCheckbox = maskRow.add("checkbox", undefined, getLabel("checkbox", "mask"));
+    maskCheckbox.value = true;
+    if (isTextSelection || useArtboardBounds) {
+        maskCheckbox.value = false;
+        maskCheckbox.enabled = false;
     }
 
-    // チェックボックスのラベル幅を揃える / Unify checkbox label widths
-    function unifyCheckboxLabelWidth(chkList, minWidth) {
-        if (!chkList || !chkList.length) return;
-        var w = (typeof minWidth === "number") ? minWidth : 0;
+    var marginRow = addRow(maskMarginGroup);
+    var marginCheckbox = marginRow.add("checkbox", undefined, getLabel("checkbox", "margin"));
+    marginCheckbox.value = false;
+    var marginSlider = addSlider(marginRow, 0, 0, 50);
+    marginSlider.enabled = marginCheckbox.value;
+    var generationMarginPt = 0;
 
-        for (var i = 0; i < chkList.length; i++) {
-            var c = chkList[i];
-            if (!c) continue;
-            try {
-                var t = (c.text != null) ? String(c.text) : "";
-                var gw = 0;
-                try {
-                    // measureString が使える場合は実測
-                    gw = c.graphics.measureString(t).width;
-                } catch (_) {
-                    // フォールバック: 文字数ベース
-                    gw = t.length * 7;
-                }
-                // 余白を足す
-                var ww = Math.ceil(gw + 18);
-                if (ww > w) w = ww;
-            } catch (_) { }
-        }
+    /* 配置分布 / Distribution */
+    var distributionGroup = basicPanel.add("group");
+    distributionGroup.orientation = "column";
+    distributionGroup.alignChildren = ["left", "top"];
 
-        for (var j = 0; j < chkList.length; j++) {
-            var c2 = chkList[j];
-            if (!c2) continue;
-            try { c2.preferredSize.width = w; } catch (_) { }
-        }
-    }
+    var distributionRow = addRow(distributionGroup);
+    addRowLabel(distributionRow, labelText("fieldLabel", "distribution"));
+    var evenRadio = distributionRow.add("radiobutton", undefined, getLabel("radio", "distEven"));
+    var verticalRadio = distributionRow.add("radiobutton", undefined, getLabel("radio", "distGrad"));
+    var radialRadio = distributionRow.add("radiobutton", undefined, getLabel("radio", "distHollow"));
+    evenRadio.value = true;
 
-    setDialogOpacity(dlg, dialogOpacity);
-
-    /* 基本設定 / Basic（ダイアログ最上部・全幅） */
-    var pnlBasic = dlg.add("panel", undefined, L("pnlBasic"));
-    pnlBasic.orientation = "column";
-    pnlBasic.alignChildren = "fill";
-    pnlBasic.margins = [15, 20, 15, 10];
-
-    // 1行構成：ラベル + スライダー
-    var gBaseRow = pnlBasic.add("group");
-    gBaseRow.orientation = "row";
-    gBaseRow.alignChildren = ["left", "center"];
-
-    var stBaseSizeLabel = gBaseRow.add("statictext", undefined, L("pnlBaseSize"));
-
-    // baseSizePt（例：6）がスライダーの 0 に対応（相対調整）
-    var baseSizePt = 6;
-    var sldBaseSize = gBaseRow.add("slider", undefined, 0, -5, 45); // 0 => 6pt, -5..45 => 1..51pt
-    try { sldBaseSize.preferredSize.width = 240; } catch (_) { }
-
-    function getBaseSizePt() {
-        var v = baseSizePt + Number(sldBaseSize.value);
-        if (isNaN(v)) v = baseSizePt;
-        if (v < 0.1) v = 0.1;
-        // 見た目は 0.1pt 刻み
-        v = Math.round(v * 10) / 10;
-        return v;
-    }
-
-    sldBaseSize.onChanging = function () {
-        requestPreviewDebounced();
-    };
-
-    /* 生成数 / Count（基本設定panel内） */
-    var gCountRow = pnlBasic.add("group");
-    gCountRow.orientation = "row";
-    gCountRow.alignChildren = ["left", "center"];
-
-    var stCountLabel = gCountRow.add("statictext", undefined, L("pnlCount"));
-    // ラベル幅を揃える（基準サイズ / 生成数）
-    try {
-        var maxLabelWidth = Math.max(
-            stBaseSizeLabel.preferredSize.width || 0,
-            stCountLabel.preferredSize.width || 0
-        );
-        stBaseSizeLabel.preferredSize.width = maxLabelWidth;
-        stCountLabel.preferredSize.width = maxLabelWidth;
-    } catch (_) { }
-
-    var confettiCount = 150;
-    var sldCount = gCountRow.add("slider", undefined, 150, 10, 500);
-    try { sldCount.preferredSize.width = 240; } catch (_) { }
-
-    sldCount.onChanging = function () {
-        confettiCount = Math.round(sldCount.value);
-        requestPreviewDebounced();
-    };
-
-    /* マスク処理 / Mask（基本設定panel内に移動） */
-    // マスク処理 + マージン をまとめる
-    var gMaskMargin = pnlBasic.add("group");
-    gMaskMargin.orientation = "column";
-    gMaskMargin.alignChildren = "left";
-    try { gMaskMargin.margins = [0, 10, 0, 10]; } catch (_) { }
-
-    var gMaskRow = gMaskMargin.add("group");
-
-    gMaskRow.orientation = "row";
-    gMaskRow.alignChildren = ["left", "center"];
-
-    var chkMask = gMaskRow.add("checkbox", undefined, L("mask"));
-    chkMask.value = true;
-    try {
-        if (__isTextSelection || __useArtboard) {
-            chkMask.value = false;
-            chkMask.enabled = false;
-        }
-    } catch (_) { }
-
-    /* マージン（生成エリア用） */
-    var gMarginRow = gMaskMargin.add("group");
-    gMarginRow.orientation = "row";
-    gMarginRow.alignChildren = ["left", "center"];
-
-    var chkMargin = gMarginRow.add("checkbox", undefined, L("margin"));
-    chkMargin.value = false;
-
-    var sldMargin = gMarginRow.add("slider", undefined, 0, 0, 50);
-    try { sldMargin.preferredSize.width = 240; } catch (_) { }
-    sldMargin.enabled = chkMargin.value;
-
-    var maskMarginPt = 0;
-
-    // マージン最大値を対象サイズから設定
-    try { applyMarginMaxToUI(); } catch (_) { }
-
-    /* 配置分布 / Distribution（基本設定panel内・group） */
-    var gDistWrap = pnlBasic.add("group");
-    gDistWrap.orientation = "column";
-    gDistWrap.alignChildren = "left";
-
-    var gDistRow = gDistWrap.add("group");
-    gDistRow.orientation = "row";
-    gDistRow.alignChildren = ["left", "center"];
-
-    var stDistLabel = gDistRow.add("statictext", undefined, L("distLabel"));
-
-    var rbEven = gDistRow.add("radiobutton", undefined, L("distEven"));
-    var rbGradY = gDistRow.add("radiobutton", undefined, L("distGrad"));
-    var rbHollow = gDistRow.add("radiobutton", undefined, L("distHollow"));
-
-    var gHollow = gDistWrap.add("group");
-    gHollow.orientation = "row";
-    gHollow.alignChildren = ["left", "center"];
-
-    var stHollowLabel = gHollow.add("statictext", undefined, L("distStrength"));
-
-    var sldHollow = gHollow.add("slider", undefined, 2.0, 1.0, 6.0);
-    try { sldHollow.preferredSize.width = 200; } catch (_) { }
-
-    var hollowStrength = 2.0;
-
-    rbEven.value = true;
-    rbHollow.value = false;
-    rbGradY.value = false;
-
-    gHollow.enabled = (rbHollow.value || rbGradY.value);
+    var strengthRow = addRow(distributionGroup);
+    addRowLabel(strengthRow, labelText("fieldLabel", "strength"));
+    var strengthSlider = addSlider(strengthRow, DEFAULT_STRENGTH, 1.0, 6.0, NARROW_SLIDER_WIDTH);
+    var distributionStrength = DEFAULT_STRENGTH;
+    strengthRow.enabled = false;
 
     /* 形状 / Shapes */
-    var pnlShape = dlg.add("panel", undefined, L("pnlShape"));
-    pnlShape.orientation = "column";
-    pnlShape.alignChildren = "left";
-    pnlShape.margins = [15, 20, 15, 10];
-    try { pnlShape.alignment = ["fill", "top"]; } catch (_) { }
+    var shapePanel = addPanel(dialog, getLabel("panel", "shape"));
 
-    // --- 3カラム構成 ---
-    var gShapeCols = pnlShape.add("group");
-    gShapeCols.orientation = "row";
-    gShapeCols.alignChildren = ["left", "top"];
-    gShapeCols.spacing = 0;
+    var shapeColumnsGroup = shapePanel.add("group");
+    shapeColumnsGroup.orientation = "row";
+    shapeColumnsGroup.alignment = ["left", "top"];
+    shapeColumnsGroup.alignChildren = ["left", "top"];
+    shapeColumnsGroup.spacing = 0;
 
-    // カラム1（円 / 三角形 / ハート）
-    var col1 = gShapeCols.add("group");
-    col1.orientation = "column";
-    col1.alignChildren = "left";
-
-    var chkCircle = col1.add("checkbox", undefined, L("circle"));
-    var chkTriangle = col1.add("checkbox", undefined, L("triangle"));
-    var chkHeart = col1.add("checkbox", undefined, L("heart"));
-
-    // カラム2（正方形 / 長方形 / リボン）
-    var col2 = gShapeCols.add("group");
-    col2.orientation = "column";
-    col2.alignChildren = "left";
-
-    var chkSquare = col2.add("checkbox", undefined, L("square"));
-    var chkRect = col2.add("checkbox", undefined, L("rect"));
-    var chkRibbon = col2.add("checkbox", undefined, L("ribbon"));
-
-    // カラム3（スター / キラキラA / キラキラB）
-    var col3 = gShapeCols.add("group");
-    col3.orientation = "column";
-    col3.alignChildren = "left";
-
-    var chkStar = col3.add("checkbox", undefined, L("star"));
-    var chkStar4 = col3.add("checkbox", undefined, L("sparkle"));
-    var chkSparkleB = col3.add("checkbox", undefined, L("sparkleB"));
-
-    // シンボル行（チェック + ドロップダウン）
-    var gSymbolRow = pnlShape.add("group");
-    gSymbolRow.orientation = "row";
-    gSymbolRow.alignChildren = ["left", "center"];
-
-    var chkSymbolShape = gSymbolRow.add("checkbox", undefined, L("symbol"));
-
-    var ddSymbol = gSymbolRow.add("dropdownlist", undefined, [L("symbolNone")]);
-
-    // 形状ラベル幅を揃える
-    try {
-        unifyCheckboxLabelWidth([
-            chkCircle,
-            chkRect,
-            chkSquare,
-            chkTriangle,
-            chkRibbon,
-            chkStar,
-            chkStar4,
-            chkSparkleB,
-            chkHeart,
-            chkSymbolShape
-        ]);
-    } catch (_) { }
-    ddSymbol.selection = 0;
-    ddSymbol.preferredSize.width = 120;
-
-    // デフォルトはすべてON
-    chkCircle.value = true;
-    chkRect.value = true;
-    chkSquare.value = false; // 追加機能なのでデフォルトOFF（既存の出力を変えない）
-    chkTriangle.value = true;
-    chkStar.value = false;
-    chkStar4.value = false;
-    chkSparkleB.value = false; // ロジック未実装のためデフォルトOFF
-    chkHeart.value = false;
-    chkRibbon.value = false;
-    chkSymbolShape.value = false;
-    // 初期状態ではシンボル未選択のためディム
-    chkSymbolShape.enabled = false;
-
-    /* Option(Alt)+クリックで単独選択 / Option(Alt)+click to solo */
-    function soloShape(activeChk) {
-        try {
-            chkCircle.value = (activeChk === chkCircle);
-            chkRect.value = (activeChk === chkRect);
-            chkSquare.value = (activeChk === chkSquare);
-            chkTriangle.value = (activeChk === chkTriangle);
-            chkStar.value = (activeChk === chkStar);
-            chkStar4.value = (activeChk === chkStar4);
-            chkSparkleB.value = (activeChk === chkSparkleB);
-            chkHeart.value = (activeChk === chkHeart);
-            chkRibbon.value = (activeChk === chkRibbon);
-            chkSymbolShape.value = (activeChk === chkSymbolShape);
-            activeChk.value = true;
-        } catch (_) { }
+    var shapeColumns = [];
+    for (var i = 0; i < 3; i++) {
+        var shapeColumn = shapeColumnsGroup.add("group");
+        shapeColumn.orientation = "column";
+        shapeColumn.alignChildren = ["left", "top"];
+        shapeColumns.push(shapeColumn);
     }
 
-    // ⌘+Option(Alt)+クリックで「それ以外」を選択 / Cmd+Option(Alt)+click to select others
-    function selectOthers(activeChk) {
-        try {
-            chkCircle.value = (activeChk !== chkCircle);
-            chkRect.value = (activeChk !== chkRect);
-            chkSquare.value = (activeChk !== chkSquare);
-            chkTriangle.value = (activeChk !== chkTriangle);
-            chkStar.value = (activeChk !== chkStar);
-            chkStar4.value = (activeChk !== chkStar4);
-            chkSparkleB.value = (activeChk !== chkSparkleB);
-            chkHeart.value = (activeChk !== chkHeart);
-            chkRibbon.value = (activeChk !== chkRibbon);
-            chkSymbolShape.value = (activeChk !== chkSymbolShape);
-        } catch (_) { }
+    /**
+     * 形状の定義（表示位置・既定値・生成関数・単独選択時のプリセット）
+     * @typedef {object} ShapeDef
+     * @property {string} key - LABELS.checkbox のキー
+     * @property {number} column - 表示するカラム番号（0..2）
+     * @property {boolean} defaultOn - 初期状態でONにするか
+     * @property {number} sizeScale - 基準サイズに掛ける倍率
+     * @property {string} soloPreset - Option+クリック時のプリセット（"" / "noRotate" / "noRotateNoSkew"）
+     * @property {function} create - 形状を生成する関数
+     */
+    var SHAPE_DEFS = [
+        { key: "circle",   column: 0, defaultOn: true,  sizeScale: 1.0,        soloPreset: "noRotate",       create: createCircle },
+        { key: "triangle", column: 0, defaultOn: true,  sizeScale: 1.0,        soloPreset: "",               create: createTriangle },
+        { key: "heart",    column: 0, defaultOn: false, sizeScale: 1.3 * 0.9,  soloPreset: "noRotateNoSkew", create: createHeart },
+        { key: "square",   column: 1, defaultOn: false, sizeScale: 1.0,        soloPreset: "",               create: createSquare },
+        { key: "rect",     column: 1, defaultOn: true,  sizeScale: 1.0,        soloPreset: "",               create: createRectangle },
+        { key: "ribbon",   column: 1, defaultOn: false, sizeScale: 1.0,        soloPreset: "",               create: createRibbon },
+        { key: "star",     column: 2, defaultOn: false, sizeScale: 1.2,        soloPreset: "",               create: createStar },
+        { key: "sparkleA", column: 2, defaultOn: false, sizeScale: 1.4,        soloPreset: "",               create: createSparkleA },
+        { key: "sparkleB", column: 2, defaultOn: false, sizeScale: 1.6,        soloPreset: "noRotateNoSkew", create: createSparkleB }
+    ];
+
+    /* 形状チェックボックスの一覧（シンボルを含む）/ Shape toggles including the symbol entry */
+    var shapeToggles = [];
+    for (var i = 0; i < SHAPE_DEFS.length; i++) {
+        var shapeItem = SHAPE_DEFS[i];
+        shapeItem.checkbox = shapeColumns[shapeItem.column].add("checkbox", undefined, getLabel("checkbox", shapeItem.key));
+        shapeItem.checkbox.value = shapeItem.defaultOn;
+        shapeToggles.push(shapeItem);
     }
 
-    // --- 形状/シンボル相互排他ヘルパー ---
-    function turnOffAllShapes() {
-        try {
-            chkCircle.value = false;
-            chkRect.value = false;
-            chkSquare.value = false;
-            chkTriangle.value = false;
-            chkStar.value = false;
-            chkStar4.value = false;
-            chkSparkleB.value = false;
-            chkHeart.value = false;
-            chkRibbon.value = false;
-            chkSymbolShape.value = false;
-        } catch (_) { }
+    /* シンボル行（チェック + ドロップダウン）/ Symbol row */
+    var symbolRow = addRow(shapePanel);
+    var symbolCheckbox = symbolRow.add("checkbox", undefined, getLabel("checkbox", "symbol"));
+    symbolCheckbox.value = false;
+    symbolCheckbox.enabled = false; /* シンボル未選択のうちはディム / Dimmed until a symbol is picked */
+    var symbolDropdown = symbolRow.add("dropdownlist", undefined, [getLabel("dropdown", "symbolNone")]);
+    symbolDropdown.selection = 0;
+    symbolDropdown.preferredSize.width = SYMBOL_DROPDOWN_WIDTH;
+
+    var symbolToggle = { key: "symbol", checkbox: symbolCheckbox, soloPreset: "" };
+    shapeToggles.push(symbolToggle);
+
+    var shapeCheckboxes = [];
+    for (var i = 0; i < shapeToggles.length; i++) {
+        shapeCheckboxes.push(shapeToggles[i].checkbox);
     }
+    unifyCheckboxLabelWidth(shapeCheckboxes);
 
-    function clearSymbolSelection() {
-        try {
-            if (ddSymbol) {
-                ddSymbol.selection = 0;
-            }
-        } catch (_) { }
-        selectedSymbolName = "";
-        selectedSymbolRef = null;
-    }
+    /* ランダム / Randomize */
+    var randomPanel = addPanel(dialog, getLabel("panel", "random"));
 
-    function isAltDown() {
-        try {
-            return !!(ScriptUI.environment && ScriptUI.environment.keyboardState && ScriptUI.environment.keyboardState.altKey);
-        } catch (_) { }
-        return false;
-    }
+    var randomSizeRow = addRow(randomPanel);
+    var randomSizeCheckbox = randomSizeRow.add("checkbox", undefined, getLabel("checkbox", "randomSize"));
+    randomSizeCheckbox.value = true;
+    var randomSizeSlider = addSlider(randomSizeRow, 100, 100, 300);
+    randomSizeSlider.enabled = randomSizeCheckbox.value;
+    var randomSizeStrength = 100;
 
-    function isCmdAltDown() {
-        try {
-            var ks = ScriptUI.environment && ScriptUI.environment.keyboardState;
-            // macOS: Command = metaKey
-            return !!(ks && ks.metaKey && ks.altKey);
-        } catch (_) { }
-        return false;
-    }
+    var opacityRow = addRow(randomPanel);
+    var opacityCheckbox = opacityRow.add("checkbox", undefined, getLabel("checkbox", "opacity"));
+    opacityCheckbox.value = true;
+    /* スライダーは反転指定（値 = 100 − 不透明度の下限）/ Reversed slider: value = 100 − minimum opacity */
+    var opacitySlider = addSlider(opacityRow, 100 - DEFAULT_OPACITY_MIN, 0, 100);
+    opacitySlider.enabled = opacityCheckbox.value;
+    var opacityMin = DEFAULT_OPACITY_MIN;
 
-    // キラキラB/ハートをOption+クリックで単独選択したときの共通プリセット（基準サイズは変更しない）
-    function applyShapeSoloPresetDisableRotateSkew() {
-        // ランダム/回転をOFF（完全に0固定）
-        try {
-            if (chkRotate) {
-                try { __rotPrevMaxDeg = rotMaxDeg; } catch (_) { }
-                try { chkRotate.value = false; } catch (_) { }
-                try { rotMaxDeg = 0; } catch (_) { }
-                try {
-                    if (sldRotate) {
-                        sldRotate.enabled = false;
-                        sldRotate.value = 0;
-                    }
-                } catch (_) { }
-            }
-        } catch (_) { }
-
-        // ランダム/歪みをOFF
-        try {
-            if (chkSkew) {
-                try { chkSkew.value = false; } catch (_) { }
-                try { skewMaxDeg = 0; } catch (_) { }
-                try {
-                    if (sldSkew) {
-                        sldSkew.enabled = false;
-                        sldSkew.value = 0;
-                    }
-                } catch (_) { }
-            }
-        } catch (_) { }
-
-        try {
-            if (chkRandSize) chkRandSize.value = true;
-            if (sldRandSize) {
-                sldRandSize.enabled = true;
-                sldRandSize.value = 167;
-            }
-            randSizeStrength = 167;
-        } catch (_) { }
-    }
-
-    chkCircle.onClick = function () {
-        if (isCmdAltDown()) {
-            selectOthers(chkCircle);
-            drawPreview();
-            return;
-        }
-        if (isAltDown()) {
-            soloShape(chkCircle);
-
-            // 円をOption+クリックで単独選択したときは、ランダム/回転をOFF（0固定）
-            try {
-                if (chkRotate) {
-                    try { __rotPrevMaxDeg = rotMaxDeg; } catch (_) { __rotPrevMaxDeg = 360; }
-                    try { chkRotate.value = false; } catch (_) { }
-                    try { rotMaxDeg = 0; } catch (_) { }
-                    try {
-                        if (sldRotate) {
-                            sldRotate.enabled = false;
-                            sldRotate.value = 0;
-                        }
-                    } catch (_) { }
-                }
-            } catch (_) { }
-
-            drawPreview();
-            return;
-        }
-        drawPreview();
-    };
-    chkRect.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkRect);
-        else if (isAltDown()) soloShape(chkRect);
-        drawPreview();
-    };
-    chkSquare.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkSquare);
-        else if (isAltDown()) soloShape(chkSquare);
-        drawPreview();
-    };
-    chkTriangle.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkTriangle);
-        else if (isAltDown()) soloShape(chkTriangle);
-        drawPreview();
-    };
-    chkStar.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkStar);
-        else if (isAltDown()) soloShape(chkStar);
-        drawPreview();
-    };
-    chkStar4.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkStar4);
-        else if (isAltDown()) soloShape(chkStar4);
-        drawPreview();
-    };
-    chkSparkleB.onClick = function () {
-        if (isCmdAltDown()) {
-            selectOthers(chkSparkleB);
-            drawPreview();
-            return;
-        }
-        if (isAltDown()) {
-            soloShape(chkSparkleB);
-            // Option+クリック時は、キラキラB/ハート向けに回転OFF＋歪みOFFを適用（基準サイズは維持）
-            applyShapeSoloPresetDisableRotateSkew();
-            drawPreview();
-            return;
-        }
-        drawPreview();
-    };
-    chkRibbon.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkRibbon);
-        else if (isAltDown()) soloShape(chkRibbon);
-        drawPreview();
-    };
-    chkHeart.onClick = function () {
-        if (isCmdAltDown()) {
-            selectOthers(chkHeart);
-            drawPreview();
-            return;
-        }
-        if (isAltDown()) {
-            soloShape(chkHeart);
-            // Option+クリック時は、ハートもキラキラBと同じく回転OFF＋歪みOFFを適用（基準サイズは維持）
-            applyShapeSoloPresetDisableRotateSkew();
-            drawPreview();
-            return;
-        }
-        drawPreview();
-    };
-    chkSymbolShape.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkSymbolShape);
-        else if (isAltDown()) soloShape(chkSymbolShape);
-        drawPreview();
-    };
-
-    // 現在選択中のシンボル情報
-    var selectedSymbolName = "";
-    var selectedSymbolRef = null;
-
-    function refreshSymbolDropdown() {
-        try {
-            ddSymbol.removeAll();
-        } catch (_) { }
-
-        var hasSymbols = false;
-        try {
-            if (doc && doc.symbols && doc.symbols.length > 0) hasSymbols = true;
-        } catch (_) { hasSymbols = false; }
-
-        // (None)
-        try { ddSymbol.add("item", L("symbolNone")); } catch (_) { }
-
-        if (hasSymbols) {
-            for (var si2 = 0; si2 < doc.symbols.length; si2++) {
-                try {
-                    var s = doc.symbols[si2];
-                    var nm = (s && s.name) ? String(s.name) : ("Symbol " + (si2 + 1));
-                    var it = ddSymbol.add("item", nm);
-                    try { it._sym = s; } catch (_) { }
-                } catch (_) { }
-            }
-            ddSymbol.enabled = true;
-        } else {
-            ddSymbol.enabled = false;
-        }
-
-        try { ddSymbol.selection = 0; } catch (_) { }
-        selectedSymbolName = "";
-        selectedSymbolRef = null;
-        // シンボル未選択なので形状パネルの「シンボル」はディム
-        try {
-            chkSymbolShape.value = false;
-            chkSymbolShape.enabled = false;
-        } catch (_) { }
-    }
-
-    ddSymbol.onChange = function () {
-        try {
-            if (!ddSymbol.selection || ddSymbol.selection.index === 0) {
-                selectedSymbolName = "";
-                selectedSymbolRef = null;
-                // None → ディム + OFF
-                try {
-                    chkSymbolShape.value = false;
-                    chkSymbolShape.enabled = false;
-                } catch (_) { }
-                drawPreview();
-                return;
-            }
-
-            // 実在するシンボルが選択された
-            selectedSymbolName = String(ddSymbol.selection.text);
-            try {
-                selectedSymbolRef = ddSymbol.selection._sym || null;
-            } catch (_) {
-                selectedSymbolRef = null;
-            }
-
-            try {
-                chkSymbolShape.enabled = true;
-                chkSymbolShape.value = true; // 自動でON
-            } catch (_) { }
-        } catch (_) {
-            selectedSymbolName = "";
-            selectedSymbolRef = null;
-        }
-
-        drawPreview();
-    };
-
-    /* ランダム / Random */
-    var pnlRandom = dlg.add("panel", undefined, L("pnlRandom"));
-    pnlRandom.orientation = "column";
-    pnlRandom.alignChildren = "left";
-    pnlRandom.margins = [15, 20, 15, 10];
-
-    // 大きさ（□大きさ <=====>）
-    var gRandSize = pnlRandom.add("group");
-    gRandSize.orientation = "row";
-    gRandSize.alignChildren = ["left", "center"];
-
-    var chkRandSize = gRandSize.add("checkbox", undefined, L("random"));
-    chkRandSize.value = true; // デフォルトON（現状の挙動を維持）
-
-    var sldRandSize = gRandSize.add("slider", undefined, 100, 100, 300);
-    sldRandSize.preferredSize.width = 235;
-    sldRandSize.enabled = chkRandSize.value;
-
-    var randSizeStrength = 100;
-
-    // 不透明度（□不透明度 <=====>）
-    var gOpacity = pnlRandom.add("group");
-    gOpacity.orientation = "row";
-    gOpacity.alignChildren = ["left", "center"];
-
-    var chkOpacity = gOpacity.add("checkbox", undefined, L("opacity"));
-    chkOpacity.value = true;
-
-    // 70..100 を指定（ON時のみランダムに適用）
-    var sldOpacity = gOpacity.add("slider", undefined, 30, 0, 100); // reversed: value = (100 - opacityMin)
-    sldOpacity.preferredSize.width = 235;
-    sldOpacity.enabled = chkOpacity.value;
-
-    var opacityMin = 70;
-    try { sldOpacity.value = 100 - opacityMin; } catch (_) { }
-
-    // 歪み（□歪み <=====>）
-    var gSkew = pnlRandom.add("group");
-    gSkew.orientation = "row";
-    gSkew.alignChildren = ["left", "center"];
-
-    var chkSkew = gSkew.add("checkbox", undefined, L("skew"));
-    chkSkew.value = false; // デフォルトOFF（既存の見た目を変えない）
-
-    // 最大歪み角度（度）: 0..45
-    var sldSkew = gSkew.add("slider", undefined, 0, 0, 45);
-    sldSkew.preferredSize.width = 235;
-    sldSkew.enabled = chkSkew.value;
-
+    var skewRow = addRow(randomPanel);
+    var skewCheckbox = skewRow.add("checkbox", undefined, getLabel("checkbox", "skew"));
+    skewCheckbox.value = false;
+    var skewSlider = addSlider(skewRow, 0, 0, SKEW_MAX_DEG);
+    skewSlider.enabled = skewCheckbox.value;
     var skewMaxDeg = 0;
 
-    // 回転（□回転 <=====>）
-    var gRotate = pnlRandom.add("group");
-    gRotate.orientation = "row";
-    gRotate.alignChildren = ["left", "center"];
+    var rotateRow = addRow(randomPanel);
+    var rotateCheckbox = rotateRow.add("checkbox", undefined, getLabel("checkbox", "rotate"));
+    rotateCheckbox.value = true;
+    var rotateSlider = addSlider(rotateRow, DEFAULT_ROTATE_MAX, 0, 360);
+    rotateSlider.enabled = rotateCheckbox.value;
+    var rotateMaxDeg = DEFAULT_ROTATE_MAX;
+    var previousRotateMaxDeg = DEFAULT_ROTATE_MAX; /* 回転を一時OFFにしたときの復元値 / Value restored when rotation is turned back on */
 
-    var chkRotate = gRotate.add("checkbox", undefined, L("rotate"));
-    chkRotate.value = true; // デフォルトON（従来どおりランダム回転）
-
-    // 最大回転角度（度）: 0..360
-    var sldRotate = gRotate.add("slider", undefined, 360, 0, 360);
-    sldRotate.preferredSize.width = 235;
-    sldRotate.enabled = chkRotate.value;
-
-    var rotMaxDeg = 360;
-    var __rotPrevMaxDeg = 360; // 回転を一時OFFにしたときに復元するための保持値
-
-    // ランダム項目（大きさ/不透明度/歪み/回転）のチェックボックスラベル幅を統一
-    try {
-        unifyCheckboxLabelWidth([chkRandSize, chkOpacity, chkSkew, chkRotate]);
-    } catch (_) { }
+    unifyCheckboxLabelWidth([randomSizeCheckbox, opacityCheckbox, skewCheckbox, rotateCheckbox]);
 
     /* ズーム / Zoom */
-    var zoomCtrl = addZoomControls(dlg, doc, L("zoom"), __viewState, {
+    var zoomControls = addZoomControls(dialog, doc, labelText("fieldLabel", "zoom"), initialViewState, {
         min: 0.1,
         max: 16,
-        sliderWidth: 240,
-        margins: [0, 0, 0, 10],
+        sliderWidth: SLIDER_WIDTH,
         redraw: true
     });
 
-    /* OK / Cancel */
-    var gBtns = dlg.add("group");
-    gBtns.alignment = "right";
-    gBtns.alignChildren = ["right", "center"];
+    /* ボタンエリア / Button row */
+    var btnRowGroup = dialog.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.alignment = ["fill", "bottom"];
 
-    var btnCancel = gBtns.add("button", undefined, L("btnCancel"), { name: "cancel" });
-    var btnOK = gBtns.add("button", undefined, L("btnOK"), { name: "ok" });
-    dlg.defaultElement = btnOK;
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
 
-    // 有効なバウンディングボックスを取得する関数（マージン考慮）
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    var btnCancel = btnRightGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
+    var btnOK = btnRightGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok" });
+    dialog.defaultElement = btnOK;
+
+    // =========================================
+    // 生成エリアの算出 / Generation area
+    // =========================================
+
+    /**
+     * 基準となる領域（選択オブジェクトまたはアートボード）を取得する
+     * @returns {Array<number>|null} [左, 上, 右, 下]（取得できない場合は null）
+     */
+    function getTargetBounds() {
+        try {
+            if (useArtboardBounds) {
+                return doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+            }
+            if (selectedItem) return selectedItem.geometricBounds;
+        } catch (eTargetBounds) {
+            logError(eTargetBounds, "getTargetBounds");
+        }
+        return null;
+    }
+
+    /**
+     * マージンを反映した生成エリアを取得する
+     * @returns {Array<number>|null} [左, 上, 右, 下]（取得できない場合は null）
+     */
     function getEffectiveBounds() {
-        var b = null;
+        var bounds = getTargetBounds();
+        if (!bounds) return null;
 
-        try {
-            if (__useArtboard) {
-                var abIndex = doc.artboards.getActiveArtboardIndex();
-                b = doc.artboards[abIndex].artboardRect; // [L, T, R, B]
-            } else if (selectedObj) {
-                b = selectedObj.geometricBounds; // [L, T, R, B]
-            }
-        } catch (e) {
-            b = null;
+        var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
+        if (marginCheckbox.value && generationMarginPt !== 0) {
+            left -= generationMarginPt;
+            top += generationMarginPt;
+            right += generationMarginPt;
+            bottom -= generationMarginPt;
         }
-
-        if (!b) return null;
-
-        var L = b[0], T = b[1], R = b[2], B = b[3];
-
-        try {
-            if (chkMargin && chkMargin.value && typeof maskMarginPt === "number" && maskMarginPt !== 0) {
-                L -= maskMarginPt;
-                T += maskMarginPt;
-                R += maskMarginPt;
-                B -= maskMarginPt;
-            }
-        } catch (_) { }
-
-        return [L, T, R, B];
+        return [left, top, right, bottom];
     }
 
-    // max = (width + height) / 6
+    /**
+     * 対象サイズからマージンの上限値を求める（幅と高さの合計の 1/6）
+     * @returns {number} マージンの最大値（pt）
+     */
     function computeMaxMarginFromTarget() {
-        var b = null;
-        try {
-            if (__useArtboard) {
-                var abIndex = doc.artboards.getActiveArtboardIndex();
-                b = doc.artboards[abIndex].artboardRect; // [L, T, R, B]
-            } else if (selectedObj) {
-                b = selectedObj.geometricBounds; // [L, T, R, B]
-            }
-        } catch (_) { b = null; }
+        var bounds = getTargetBounds();
+        if (!bounds) return 50;
 
-        if (!b) return 50;
+        var width = Math.abs(Number(bounds[2]) - Number(bounds[0]));
+        var height = Math.abs(Number(bounds[1]) - Number(bounds[3]));
+        var maxMargin = (width + height) / 6;
 
-        var L = Number(b[0]), T = Number(b[1]), R = Number(b[2]), B = Number(b[3]);
-        if (isNaN(L) || isNaN(T) || isNaN(R) || isNaN(B)) return 50;
-
-        var w = Math.abs(R - L);
-        var h = Math.abs(T - B);
-        var maxM = (w + h) / 6;
-
-        if (!maxM || isNaN(maxM) || maxM < 0) maxM = 50;
-        if (maxM > 100000) maxM = 100000; // 念のため上限
-        return maxM;
+        if (!maxMargin || isNaN(maxMargin) || maxMargin < 0) return 50;
+        return Math.min(maxMargin, 100000); /* 念のため上限 / Guard against absurd values */
     }
 
+    /**
+     * マージンスライダーの上限を対象サイズに合わせて更新する
+     * @returns {void}
+     */
     function applyMarginMaxToUI() {
-        if (!sldMargin) return;
-        var maxM = computeMaxMarginFromTarget();
-        try { sldMargin.maxvalue = maxM; } catch (_) { }
-        try { if (Number(sldMargin.value) > maxM) sldMargin.value = maxM; } catch (_) { }
-        try { if (maskMarginPt > maxM) maskMarginPt = maxM; } catch (_) { }
+        var maxMargin = computeMaxMarginFromTarget();
+        marginSlider.maxvalue = maxMargin;
+        if (Number(marginSlider.value) > maxMargin) marginSlider.value = maxMargin;
+        if (generationMarginPt > maxMargin) generationMarginPt = maxMargin;
     }
 
-    // 設定
-    // 旧 min/max は互換のため残すが、現在は基準サイズ（pt）を中心に計算する
-    var minSize = 3; // (legacy) not used directly
-    var maxSize = 8; // (legacy) not used directly
-
-    // カラフルな色の配列
-    var colors = [
-        [255, 77, 77],    // 赤
-        [255, 153, 51],   // オレンジ
-        [255, 255, 51],   // 黄色
-        [102, 255, 102],  // 緑
-        [51, 153, 255],   // 青
-        [153, 102, 255],  // 紫
-        [255, 102, 178],  // ピンク
-        [255, 204, 51]    // 金色
-    ];
-
-    // プレビュー用レイヤー（遅延作成）
-    var previewLayer = null;
-
-    function ensurePreviewLayer() {
-        try {
-            if (!previewLayer) {
-                previewLayer = doc.layers.add();
-                previewLayer.name = "__ConfettiPreview__";
-            }
-        } catch (_) { }
+    /**
+     * 基準サイズ（pt）を取得する
+     * @returns {number} 基準サイズ（0.1pt 刻み）
+     */
+    function getBaseSizePt() {
+        var sizePt = DEFAULT_BASE_SIZE_PT + Number(baseSizeSlider.value);
+        if (isNaN(sizePt)) sizePt = DEFAULT_BASE_SIZE_PT;
+        if (sizePt < 0.1) sizePt = 0.1;
+        return Math.round(sizePt * 10) / 10;
     }
 
-    var previewItems = [];
+    /**
+     * 1個ぶんの紙吹雪サイズを求める（ランダム量を反映）
+     * @returns {number} サイズ（pt）
+     */
+    function getConfettiSize() {
+        var baseSize = getBaseSizePt();
+        if (!randomSizeCheckbox.value) return baseSize;
 
-    function clearPreview() {
-        try {
-            if (previewLayer) {
-                // 既存プレビューを完全に消す（グループ/マスク含む）
-                while (previewLayer.pageItems.length > 0) {
-                    try { previewLayer.pageItems[0].remove(); } catch (e1) { break; }
-                }
-            }
-        } catch (e2) { }
-
-        previewItems = [];
-
-        try { app.redraw(); } catch (_) { }
+        var strength = Math.min(Math.max(randomSizeStrength, 100), 300);
+        /* 100 でほぼ固定、300 で最大 ±150% の揺れ / 100 keeps the size fixed, 300 allows ±150% */
+        var maxRange = baseSize * 1.5 * ((strength - 100) / 200);
+        var size = baseSize + randomBetween(-maxRange, maxRange);
+        return (size < 0.1) ? 0.1 : size;
     }
 
-    function drawPreview() {
-        ensurePreviewLayer();
-        clearPreview();
-
-        var mg = null;
-        var container = null;
-        try {
-            mg = buildMaskGroup(previewLayer);
-            container = mg.container;
-
-            var __b = getEffectiveBounds();
-            if (!__b) return;
-
-            for (var i = 0; i < confettiCount; i++) {
-                var pt = pickPoint(__b);
-                var x = pt.x;
-                var y = pt.y;
-                var size = getConfettiSize();
-                var color = colors[Math.floor(Math.random() * colors.length)];
-                var item = createConfetti(container, x, y, size, color);
-                if (item) previewItems.push(item);
-            }
-            if (mg.group && !__useArtboard) {
-                applyMaskToGroup(mg.group, selectedObj);
-            }
-        } catch (eDrawPreview) {
-            __logError(eDrawPreview, "drawPreview");
-        }
-        try { app.redraw(); } catch (_) { }
-    }
-
-    // =========================================
-    // Debounced preview (間引き)
-    // - Dragging sliders can fire many times; rebuild preview only once after a short pause.
-    // =========================================
-    var __debounceTaskId = 0;
-    var __debounceDelayMs = 140; // 体感で軽くするための遅延（ms）
-
-    // Expose drawPreview to scheduleTask (scheduleTask はグローバルスコープで動く)
-    try {
-        $.global.__ConfettiMaker_drawPreview = drawPreview;
-        $.global.__ConfettiMaker_runDebouncedPreview = function () {
-            try {
-                if ($.global.__ConfettiMaker_drawPreview) $.global.__ConfettiMaker_drawPreview();
-            } catch (_) { }
-        };
-    } catch (_) { }
-
-    // Helper to clean up scheduled globals
-    function cleanupScheduledGlobals() {
-        try { delete $.global.__ConfettiMaker_drawPreview; } catch (_) { }
-        try { delete $.global.__ConfettiMaker_runDebouncedPreview; } catch (_) { }
-    }
-
-    function requestPreviewDebounced() {
-        // cancel previous scheduled task
-        try {
-            if (__debounceTaskId) {
-                app.cancelTask(__debounceTaskId);
-                __debounceTaskId = 0;
-            }
-        } catch (_) { }
-        try {
-            __debounceTaskId = app.scheduleTask("__ConfettiMaker_runDebouncedPreview()", __debounceDelayMs, false);
-        } catch (eScheduleTask) {
-            __logError(eScheduleTask, "requestPreviewDebounced.scheduleTask");
-            // fallback: run immediately
-            try { drawPreview(); } catch (eDrawFallback) { __logError(eDrawFallback, "requestPreviewDebounced.fallbackDrawPreview"); }
-        }
-    }
-
-    function requestPreviewImmediate() {
-        try {
-            if (__debounceTaskId) {
-                try { app.cancelTask(__debounceTaskId); } catch (_) { }
-                __debounceTaskId = 0;
-            }
-        } catch (_) { }
-        try { drawPreview(); } catch (_) { }
-    }
-
-    rbEven.onClick = function () {
-        gHollow.enabled = false;
-        drawPreview();
-    };
-    rbHollow.onClick = function () {
-        gHollow.enabled = true;
-        drawPreview();
-    };
-    rbGradY.onClick = function () {
-        gHollow.enabled = true;
-        drawPreview();
-    };
-    chkMask.onClick = function () { drawPreview(); };
-
-    chkOpacity.onClick = function () {
-        sldOpacity.enabled = chkOpacity.value;
-        drawPreview();
-    };
-
-    sldOpacity.onChanging = function () {
-        // reversed: slider 0..100 => opacityMin 100..0
-        opacityMin = 100 - Math.round(sldOpacity.value);
-        if (opacityMin < 0) opacityMin = 0;
-        if (opacityMin > 100) opacityMin = 100;
-        if (chkOpacity.value) requestPreviewDebounced();
-    };
-
-    chkSkew.onClick = function () {
-        sldSkew.enabled = chkSkew.value;
-        drawPreview();
-    };
-
-    sldSkew.onChanging = function () {
-        skewMaxDeg = Math.round(sldSkew.value);
-        if (skewMaxDeg < 0) skewMaxDeg = 0;
-        if (skewMaxDeg > 45) skewMaxDeg = 45;
-        if (chkSkew.value) requestPreviewDebounced();
-    };
-
-    chkRotate.onClick = function () {
-        sldRotate.enabled = chkRotate.value;
-
-        // OFF時は「完全に0固定」：スライダーも内部値も0にする
-        if (!chkRotate.value) {
-            try { __rotPrevMaxDeg = rotMaxDeg; } catch (_) { __rotPrevMaxDeg = 360; }
-            rotMaxDeg = 0;
-            try { sldRotate.value = 0; } catch (_) { }
-        } else {
-            // ONに戻したとき、0のままなら前回値（なければ360）へ復元
-            if (!(typeof rotMaxDeg === "number") || rotMaxDeg <= 0) {
-                rotMaxDeg = (typeof __rotPrevMaxDeg === "number" && __rotPrevMaxDeg > 0) ? __rotPrevMaxDeg : 360;
-            }
-            try { sldRotate.value = rotMaxDeg; } catch (_) { }
-        }
-
-        drawPreview();
-    };
-
-    sldRotate.onChanging = function () {
-        rotMaxDeg = Math.round(sldRotate.value);
-        if (rotMaxDeg < 0) rotMaxDeg = 0;
-        if (rotMaxDeg > 360) rotMaxDeg = 360;
-        if (chkRotate.value) requestPreviewDebounced();
-    };
-
-    chkRandSize.onClick = function () {
-        sldRandSize.enabled = chkRandSize.value;
-        drawPreview();
-    };
-
-    sldRandSize.onChanging = function () {
-        randSizeStrength = Math.round(sldRandSize.value);
-        if (chkRandSize.value) requestPreviewDebounced();
-    };
-
-    chkMargin.onClick = function () {
-        sldMargin.enabled = chkMargin.value;
-
-        // ONのときだけ値を少し右（+30）に調整
-        try {
-            if (chkMargin.value) {
-                var newVal = Number(sldMargin.value) + 30;
-                if (isNaN(newVal)) newVal = 20;
-                var __mx = 50;
-                try { __mx = Number(sldMargin.maxvalue); } catch (_) { __mx = 50; }
-                if (!__mx || isNaN(__mx)) __mx = 50;
-                if (newVal > __mx) newVal = __mx; // 上限
-                sldMargin.value = newVal;
-                try { maskMarginPt = Math.round(Number(sldMargin.value)); } catch (_) { }
-                requestPreviewDebounced();
-            }
-        } catch (_) { }
-
-        // マージンON時はマスク処理をOFF（両立させない）
-        try {
-            if (chkMargin.value && chkMask && chkMask.enabled) {
-                chkMask.value = false;
-            }
-        } catch (_) { }
-    };
-
-    sldMargin.onChanging = function () {
-        maskMarginPt = Math.round(sldMargin.value);
-        requestPreviewDebounced();
-    };
-
-    sldHollow.onChanging = function () {
-        hollowStrength = Math.round(sldHollow.value * 10) / 10; // 0.1刻み表示
-        if (rbHollow.value || rbGradY.value) requestPreviewDebounced();
-    };
-
-    dlg.onShow = function () {
-        shiftDialogPosition(dlg, offsetX, offsetY);
-        try { refreshSymbolDropdown(); } catch (_) { }
-        try { applyMarginMaxToUI(); } catch (_) { }
-        try { if (zoomCtrl && zoomCtrl.syncFromView) zoomCtrl.syncFromView(); } catch (_) { }
-        drawPreview();
-        try { app.redraw(); } catch (_) { }
-    };
-
-    // 位置サンプリング（分布）
-    function pickPoint(bounds) {
-        // bounds: [L, T, R, B]
-        var L = bounds[0], T = bounds[1], R = bounds[2], B = bounds[3];
-        var cx = (L + R) * 0.5;
-        var cy = (T + B) * 0.5;
-
-        var pt;
-
-        // 全体に均等
-        if (rbEven && rbEven.value) {
-            pt = {
-                x: random(L, R),
-                y: random(B, T)
-            };
-            return pt;
-        }
-
-        // グラデーション（上濃→下薄）
-        if (rbGradY && rbGradY.value) {
-            var h = (T - B);
-            var u = Math.random(); // 0..1
-            // top-bias: u を上側に寄せる
-            var gy = 1 + ((typeof hollowStrength === "number" ? hollowStrength : 2.0) - 1) * 0.6; // 1..4 程度にマップ
-            var t2 = 1 - Math.pow(1 - u, gy); // 0(bottom) .. 1(top)
-            pt = {
-                x: random(L, R),
-                y: B + h * t2
-            };
-            return pt;
-        }
-
-        // 中心を空ける（中心:薄い / 外側:濃い の滑らかなグラデーション）
-        // hollowStrength: 1..6（1=ほぼ均等 / 6=外側に強く寄せる）
-        var ang = random(0, Math.PI * 2);
-        var c = Math.cos(ang);
-        var s = Math.sin(ang);
-
-        // その角度で矩形内に収まる最大半径を計算
-        var maxRx = (c === 0) ? 1e12 : (c > 0 ? (R - cx) / c : (L - cx) / c);
-        var maxRy = (s === 0) ? 1e12 : (s > 0 ? (T - cy) / s : (B - cy) / s);
-        var maxR = Math.min(Math.abs(maxRx), Math.abs(maxRy));
-
-        var k = (typeof hollowStrength === "number" && hollowStrength > 0) ? hollowStrength : 2.0;
-        if (k < 1) k = 1;
-        if (k > 6) k = 6;
-
-        // 0..1 を外側寄りに変換（中心を完全に抜かず、中心ほど出にくい）
-        var uu = Math.random(); // 0..1
-        var r01 = 1 - Math.pow(1 - uu, k); // bias to 1 (outer)
-        var r = maxR * r01;
-
-        pt = {
-            x: cx + c * r,
-            y: cy + s * r
-        };
-
-        return pt;
-    }
-
-    // ランダム関数
-    function random(min, max) {
+    /**
+     * min 以上 max 未満の乱数を返す
+     * @param {number} min - 下限
+     * @param {number} max - 上限
+     * @returns {number} 乱数
+     */
+    function randomBetween(min, max) {
         return Math.random() * (max - min) + min;
     }
 
-    // 歪み（シアー）を適用（中心基準） / Apply shear (skew) about center
-    function applyShearToItem(item, deg) {
-        if (!item) return;
-        if (!deg || deg === 0) return;
-        var rad = deg * Math.PI / 180;
-        var m = new Matrix();
-        // X方向シアー: [1  tan; 0  1]
-        m.mValueA = 1;
-        m.mValueB = Math.tan(rad);
-        m.mValueC = 0;
-        m.mValueD = 1;
-        m.mValueTX = 0;
-        m.mValueTY = 0;
+    /**
+     * 分布設定に従って生成位置をサンプリングする
+     * @param {Array<number>} bounds - [左, 上, 右, 下]
+     * @returns {object} 生成位置 { x, y }
+     */
+    function pickConfettiPoint(bounds) {
+        var left = bounds[0], top = bounds[1], right = bounds[2], bottom = bounds[3];
+        var centerX = (left + right) * 0.5;
+        var centerY = (top + bottom) * 0.5;
 
-        // 位置・塗り・線幅などは維持しつつ、中心基準で変形
+        /* 全体に均等 / Uniform */
+        if (evenRadio.value) {
+            return { x: randomBetween(left, right), y: randomBetween(bottom, top) };
+        }
+
+        /* 垂直方向（上を濃く、下を薄く）/ Top-biased gradient */
+        if (verticalRadio.value) {
+            var height = top - bottom;
+            var gradientPower = 1 + (distributionStrength - 1) * 0.6; /* 1..4 程度へマップ / Map roughly to 1..4 */
+            var verticalRatio = 1 - Math.pow(1 - Math.random(), gradientPower);
+            return { x: randomBetween(left, right), y: bottom + height * verticalRatio };
+        }
+
+        /* 放射状（中心ほど出にくい）/ Radial outward */
+        var angle = randomBetween(0, Math.PI * 2);
+        var cos = Math.cos(angle);
+        var sin = Math.sin(angle);
+
+        /* その角度で矩形内に収まる最大半径 / Largest radius that stays inside the rectangle */
+        var maxRadiusX = (cos === 0) ? 1e12 : (cos > 0 ? (right - centerX) / cos : (left - centerX) / cos);
+        var maxRadiusY = (sin === 0) ? 1e12 : (sin > 0 ? (top - centerY) / sin : (bottom - centerY) / sin);
+        var maxRadius = Math.min(Math.abs(maxRadiusX), Math.abs(maxRadiusY));
+
+        var strength = Math.min(Math.max(distributionStrength, 1), 6);
+        var radius = maxRadius * (1 - Math.pow(1 - Math.random(), strength));
+
+        return { x: centerX + cos * radius, y: centerY + sin * radius };
+    }
+
+    // =========================================
+    // 形状の生成 / Shape creation
+    // =========================================
+
+    /**
+     * 長方形を生成する（横長寄りの比率）
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 基準サイズ
+     * @returns {PathItem} 生成したパス
+     */
+    function createRectangle(container, left, top, size) {
+        return container.pathItems.rectangle(top, left, size * 1.4, size * 1.4 * randomBetween(0.3, 0.6));
+    }
+
+    /**
+     * 正方形を生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 一辺の長さ
+     * @returns {PathItem} 生成したパス
+     */
+    function createSquare(container, left, top, size) {
+        return container.pathItems.rectangle(top, left, size, size);
+    }
+
+    /**
+     * 円を生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 直径
+     * @returns {PathItem} 生成したパス
+     */
+    function createCircle(container, left, top, size) {
+        return container.pathItems.ellipse(top, left, size, size);
+    }
+
+    /**
+     * 三角形を生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 底辺の長さ
+     * @returns {PathItem} 生成したパス
+     */
+    function createTriangle(container, left, top, size) {
+        var triangle = container.pathItems.add();
+        var height = size * 1.2;
+        triangle.setEntirePath([
+            [left, top],
+            [left + size, top],
+            [left + size * 0.5, top - height]
+        ]);
+        triangle.closed = true;
+        return triangle;
+    }
+
+    /**
+     * 星型のパスを生成する（外接正方形の左上基準）
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 外接正方形の一辺
+     * @param {number} pointCount - 頂点の数
+     * @param {number} innerRatio - 外側半径に対する内側半径の比
+     * @param {number} startDeg - 最初の頂点の角度
+     * @returns {PathItem} 生成したパス
+     */
+    function createStarPath(container, left, top, size, pointCount, innerRatio, startDeg) {
+        var outerRadius = size * 0.5;
+        var innerRadius = outerRadius * innerRatio;
+        var centerX = left + outerRadius;
+        var centerY = top - outerRadius;
+
+        var vertexCount = pointCount * 2;
+        var angleStep = 360 / vertexCount;
+        var points = [];
+        for (var i = 0; i < vertexCount; i++) {
+            var radius = (i % 2 === 0) ? outerRadius : innerRadius;
+            var angle = (startDeg + i * angleStep) * Math.PI / 180;
+            points.push([centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius]);
+        }
+
+        var star = container.pathItems.add();
+        star.setEntirePath(points);
+        star.closed = true;
+        return star;
+    }
+
+    /**
+     * 五芒星を生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 外接正方形の一辺
+     * @returns {PathItem} 生成したパス
+     */
+    function createStar(container, left, top, size) {
+        return createStarPath(container, left, top, size, 5, 0.5, 90);
+    }
+
+    /**
+     * キラキラA（尖った四芒星）を生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 外接正方形の一辺
+     * @returns {PathItem} 生成したパス
+     */
+    function createSparkleA(container, left, top, size) {
+        return createStarPath(container, left, top, size, 4, 0.25, -90);
+    }
+
+    /**
+     * キラキラB（ベジエで辺をへこませた四芒星）を生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 外接正方形の一辺
+     * @returns {PathItem} 生成したパス
+     */
+    function createSparkleB(container, left, top, size) {
+        var curveFactor = 0.8; /* 中心へハンドルを引き込む量 / How far handles are pulled toward the center */
+        var centerX = left + size / 2;
+        var centerY = top - size / 2;
+        var halfSize = size / 2;
+        var handleLength = halfSize * curveFactor;
+
+        /* 上・右・下・左の4頂点と、そのハンドル位置 / Four vertices and their handle positions */
+        var vertices = [
+            { anchor: [centerX, centerY + halfSize], handle: [centerX, centerY + halfSize - handleLength] },
+            { anchor: [centerX + halfSize, centerY], handle: [centerX + halfSize - handleLength, centerY] },
+            { anchor: [centerX, centerY - halfSize], handle: [centerX, centerY - halfSize + handleLength] },
+            { anchor: [centerX - halfSize, centerY], handle: [centerX - halfSize + handleLength, centerY] }
+        ];
+
+        var sparkle = container.pathItems.add();
+        for (var i = 0; i < vertices.length; i++) {
+            var pathPoint = sparkle.pathPoints.add();
+            pathPoint.anchor = vertices[i].anchor;
+            pathPoint.leftDirection = vertices[i].handle;
+            pathPoint.rightDirection = vertices[i].handle;
+            pathPoint.pointType = PointType.CORNER;
+        }
+        sparkle.closed = true;
+        return sparkle;
+    }
+
+    /**
+     * リボン（1/4円弧を2つつないだS字の帯）を生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 基準サイズ
+     * @returns {PathItem} 生成したパス
+     */
+    function createRibbon(container, left, top, size) {
+        var centerX = left + size * 0.5;
+        var centerY = top - size * 0.5;
+        var radius = Math.max(0.8, size * 0.72);   /* 円弧の半径 / arc radius */
+        var halfWidth = Math.max(0.25, size * 0.165); /* 帯の半幅 / half width of the band */
+        var segmentCount = 10;                     /* 円弧の分割数 / arc subdivisions */
+
+        /**
+         * 円周上の点を返す
+         * @param {number} circleCenterX - 円の中心X
+         * @param {number} circleCenterY - 円の中心Y
+         * @param {number} deg - 角度（度）
+         * @returns {Array<number>} [x, y]
+         */
+        function pointOnCircle(circleCenterX, circleCenterY, deg) {
+            var angle = deg * Math.PI / 180;
+            return [circleCenterX + Math.cos(angle) * radius, circleCenterY + Math.sin(angle) * radius];
+        }
+
+        /* 中心線: 1つ目は (0,0) を中心に 180°→90°、2つ目は (0,2r) を中心に -90°→0° / Center line built from two quarter arcs */
+        var centerPoints = [];
+        for (var i = 0; i <= segmentCount; i++) {
+            centerPoints.push(pointOnCircle(0, 0, 180 - 90 * (i / segmentCount)));
+        }
+        for (var j = 1; j <= segmentCount; j++) {
+            centerPoints.push(pointOnCircle(0, 2 * radius, -90 + 90 * (j / segmentCount)));
+        }
+
+        /* 中心線のYレンジは 0..2r なので、その中点を (centerX, centerY) に合わせる / Center the 0..2r span on the target point */
+        var offsetX = centerX;
+        var offsetY = centerY - radius;
+
+        var upperPoints = [];
+        var lowerPoints = [];
+        for (var k = 0; k < centerPoints.length; k++) {
+            var previousPoint = centerPoints[(k === 0) ? 0 : (k - 1)];
+            var currentPoint = centerPoints[k];
+            var nextPoint = centerPoints[(k === centerPoints.length - 1) ? k : (k + 1)];
+
+            /* 接線から左法線を作り、上下にオフセットして輪郭にする / Offset along the normal to build the outline */
+            var tangentX = nextPoint[0] - previousPoint[0];
+            var tangentY = nextPoint[1] - previousPoint[1];
+            var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+            var normalX = -(tangentY / tangentLength);
+            var normalY = tangentX / tangentLength;
+
+            var x = currentPoint[0] + offsetX;
+            var y = currentPoint[1] + offsetY;
+            upperPoints.push([x + normalX * halfWidth, y + normalY * halfWidth]);
+            lowerPoints.push([x - normalX * halfWidth, y - normalY * halfWidth]);
+        }
+
+        var points = [];
+        for (var u = 0; u < upperPoints.length; u++) points.push(upperPoints[u]);
+        for (var d = lowerPoints.length - 1; d >= 0; d--) points.push(lowerPoints[d]);
+
+        var ribbon = container.pathItems.add();
+        ribbon.closed = true;
+        ribbon.setEntirePath(points);
+
+        /* 角を立てず滑らかに見せる / Smooth every point so the band reads as a ribbon */
         try {
-            item.transform(m, true, true, true, true, 1, Transformation.CENTER);
+            for (var m = 0; m < ribbon.pathPoints.length; m++) {
+                ribbon.pathPoints[m].pointType = PointType.SMOOTH;
+            }
+        } catch (eSmoothRibbon) {
+            logError(eSmoothRibbon, "createRibbon.smooth");
+        }
+        ribbon.filled = true;
+        ribbon.stroked = false;
+        return ribbon;
+    }
+
+    /**
+     * ハートを生成する（幅120・高さ80の基準座標を size にスケーリング）
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 基準サイズ
+     * @returns {PathItem} 生成したパス
+     */
+    function createHeart(container, left, top, size) {
+        var scale = size / 120;
+        var centerX = left + size / 2;
+        var centerY = top - size / 2;
+
+        /**
+         * 基準座標をスケーリングして実座標へ変換する
+         * @param {number} x - 基準座標のX
+         * @param {number} y - 基準座標のY
+         * @returns {Array<number>} [x, y]
+         */
+        function scaled(x, y) {
+            return [centerX + x * scale, centerY + y * scale];
+        }
+
+        /* 上のくぼみ → 右のふくらみ → 下の尖り → 左のふくらみ / Cleft, right lobe, tip, left lobe */
+        var vertices = [
+            { anchor: scaled(0, 30),    left: scaled(-20, 60),  right: scaled(20, 60),   type: PointType.CORNER },
+            { anchor: scaled(60, 15),   left: scaled(60, 50),   right: scaled(60, -15),  type: PointType.SMOOTH },
+            { anchor: scaled(0, -55),   left: scaled(20, -20),  right: scaled(-20, -20), type: PointType.CORNER },
+            { anchor: scaled(-60, 15),  left: scaled(-60, -15), right: scaled(-60, 50),  type: PointType.SMOOTH }
+        ];
+
+        var heart = container.pathItems.add();
+        for (var i = 0; i < vertices.length; i++) {
+            var pathPoint = heart.pathPoints.add();
+            pathPoint.anchor = vertices[i].anchor;
+            pathPoint.leftDirection = vertices[i].left;
+            pathPoint.rightDirection = vertices[i].right;
+            pathPoint.pointType = vertices[i].type;
+        }
+        heart.closed = true;
+        return heart;
+    }
+
+    // =========================================
+    // シンボル / Symbols
+    // =========================================
+
+    var selectedSymbolName = "";
+    var selectedSymbolRef = null;
+
+    /**
+     * ドキュメント内のシンボルでドロップダウンを組み直す
+     * @returns {void}
+     */
+    function refreshSymbolDropdown() {
+        symbolDropdown.removeAll();
+        symbolDropdown.add("item", getLabel("dropdown", "symbolNone"));
+
+        var hasSymbols = (doc.symbols.length > 0);
+        for (var i = 0; i < doc.symbols.length; i++) {
+            var symbolDef = doc.symbols[i];
+            var symbolEntry = symbolDropdown.add("item", String(symbolDef.name || ("Symbol " + (i + 1))));
+            symbolEntry._symbolDef = symbolDef;
+        }
+        symbolDropdown.enabled = hasSymbols;
+        symbolDropdown.selection = 0;
+
+        /* シンボル未選択なので形状パネルの「シンボル」はディム / Dim the symbol shape until one is picked */
+        selectedSymbolName = "";
+        selectedSymbolRef = null;
+        symbolCheckbox.value = false;
+        symbolCheckbox.enabled = false;
+    }
+
+    /**
+     * シンボルが選択されているかを返す
+     * @returns {boolean} 選択されていれば true
+     */
+    function hasSelectedSymbol() {
+        return !!(selectedSymbolRef || selectedSymbolName);
+    }
+
+    /**
+     * 選択中のシンボル定義を取得する（名前からの再探索を含む）
+     * @returns {Symbol|null} シンボル定義（見つからない場合は null）
+     */
+    function resolveSelectedSymbol() {
+        if (selectedSymbolRef) return selectedSymbolRef;
+        if (!selectedSymbolName) return null;
+        for (var i = 0; i < doc.symbols.length; i++) {
+            if (String(doc.symbols[i].name) === String(selectedSymbolName)) return doc.symbols[i];
+        }
+        return null;
+    }
+
+    /**
+     * シンボルインスタンスを1個生成し、指定サイズへ収める
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} size - 最大辺の長さ
+     * @returns {PageItem|null} 生成したアイテム（失敗時は null）
+     */
+    function createSymbolConfetti(container, size) {
+        var symbolDef = resolveSelectedSymbol();
+        if (!symbolDef) return null;
+
+        var wrapGroup = null;
+        var symbolItem = null;
+        try {
+            wrapGroup = container.groupItems.add();
+            wrapGroup.name = SYMBOL_WRAP_NAME;
+            /* SymbolItem はレイヤー直下に作るのが確実 / Creating the instance on a layer is the reliable path */
+            symbolItem = doc.activeLayer.symbolItems.add(symbolDef);
+            symbolItem.move(wrapGroup, ElementPlacement.PLACEATEND);
+        } catch (eCreateSymbol) {
+            logError(eCreateSymbol, "createSymbolConfetti");
+            if (symbolItem && !wrapGroup) {
+                try { symbolItem.remove(); } catch (_) { }
+            }
+            if (wrapGroup) {
+                try { wrapGroup.remove(); } catch (_) { }
+            }
+            return null;
+        }
+
+        /* 最大辺が size になるよう等比スケール / Scale proportionally so the longest side matches size */
+        var longestSide = Math.max(Number(wrapGroup.width), Number(wrapGroup.height));
+        if (longestSide > 0) {
+            var scalePercent = Math.max(1, (size / longestSide) * 100);
+            wrapGroup.resize(scalePercent, scalePercent);
+        }
+        return wrapGroup;
+    }
+
+    // =========================================
+    // 変形・体裁 / Transform & appearance
+    // =========================================
+
+    /**
+     * 中心を基準にX方向のシアー（歪み）を適用する
+     * @param {PageItem} item - 対象アイテム
+     * @param {number} deg - シアー角度（度）
+     * @returns {void}
+     */
+    function applyShearToItem(item, deg) {
+        if (!item || !deg) return;
+        var shearMatrix = new Matrix();
+        /* X方向シアー: [1 tan; 0 1] / Shear along X */
+        shearMatrix.mValueA = 1;
+        shearMatrix.mValueB = Math.tan(deg * Math.PI / 180);
+        shearMatrix.mValueC = 0;
+        shearMatrix.mValueD = 1;
+        shearMatrix.mValueTX = 0;
+        shearMatrix.mValueTY = 0;
+
+        try {
+            item.transform(shearMatrix, true, true, true, true, 1, Transformation.CENTER);
         } catch (_) {
-            // フォールバック: shear API（環境によってはこちらが効く）
-            try { item.shear(deg); } catch (__) { }
+            /* フォールバック: shear API（環境によってはこちらが効く）/ Fall back to the shear API */
+            try { item.shear(deg); } catch (eShear) { logError(eShear, "applyShearToItem"); }
         }
     }
 
-    function getConfettiSize() {
-        var base = (typeof getBaseSizePt === "function") ? getBaseSizePt() : ((minSize + maxSize) * 0.5);
-
-        try {
-            if (!(chkRandSize && chkRandSize.value)) {
-                return base;
-            }
-        } catch (_) { }
-
-        var strength = (typeof randSizeStrength === "number") ? randSizeStrength : 0;
-        if (strength < 100) strength = 100;
-        if (strength > 300) strength = 300;
-
-        // 100 → ほぼ固定
-        // 300 → 最大約±150%揺れ
-        var ratio = (strength - 100) / 200; // 0..1
-
-        // 揺れ幅を base 基準で拡張
-        var maxRange = base * 1.5 * ratio; // 最大±150%
-        var v = base + random(-maxRange, maxRange);
-
-        if (v < 0.1) v = 0.1;
-        return v;
+    /**
+     * 設定に従ってランダムな回転を適用する
+     * @param {PageItem} item - 対象アイテム
+     * @returns {void}
+     */
+    function applyRandomRotate(item) {
+        if (!rotateCheckbox.value) return;
+        var maxDeg = Math.min(Math.max(rotateMaxDeg, 0), 360);
+        if (maxDeg > 0) item.rotate(randomBetween(-maxDeg, maxDeg));
     }
 
+    /**
+     * 設定に従ってランダムな歪みを適用する
+     * @param {PageItem} item - 対象アイテム
+     * @returns {void}
+     */
+    function applyRandomSkew(item) {
+        if (!skewCheckbox.value) return;
+        var maxDeg = Math.min(Math.max(skewMaxDeg, 0), SKEW_MAX_DEG);
+        if (maxDeg > 0) applyShearToItem(item, randomBetween(-maxDeg, maxDeg));
+    }
+
+    /**
+     * 設定に従ってランダムな不透明度を適用する
+     * @param {PageItem} item - 対象アイテム
+     * @returns {void}
+     */
+    function applyRandomOpacity(item) {
+        if (!opacityCheckbox.value) {
+            item.opacity = 100;
+            return;
+        }
+        item.opacity = randomBetween(Math.min(Math.max(opacityMin, 0), 100), 100);
+    }
+
+    /**
+     * アイテムの左上を指定座標へ合わせる
+     * @param {PageItem} item - 対象アイテム
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @returns {void}
+     */
+    function alignItemTopLeft(item, left, top) {
+        var bounds = item.geometricBounds; /* [左, 上, 右, 下] / [L, T, R, B] */
+        item.left = Number(item.left) + (Number(left) - Number(bounds[0]));
+        item.top = Number(item.top) + (Number(top) - Number(bounds[1]));
+    }
+
+    /**
+     * 紙吹雪に色を設定する（開いたパスは線、閉じたパスは塗り）
+     * @param {PathItem} item - 対象パス
+     * @param {Array<number>} color - [R, G, B]
+     * @returns {void}
+     */
+    function applyConfettiColor(item, color) {
+        var rgbColor = new RGBColor();
+        rgbColor.red = color[0];
+        rgbColor.green = color[1];
+        rgbColor.blue = color[2];
+
+        if (item.closed === false) {
+            item.filled = false;
+            item.stroked = true;
+            item.strokeColor = rgbColor;
+        } else {
+            item.filled = true;
+            item.stroked = false;
+            item.fillColor = rgbColor;
+        }
+    }
+
+    /**
+     * ONになっている形状からランダムに1つ選ぶ
+     * @returns {ShapeDef|null} 選ばれた形状（候補がない場合は null）
+     */
+    function pickEnabledShape() {
+        var candidates = [];
+        for (var i = 0; i < shapeToggles.length; i++) {
+            var shapeToggle = shapeToggles[i];
+            if (!shapeToggle.checkbox.value) continue;
+            if (shapeToggle.key === "symbol" && !hasSelectedSymbol()) continue;
+            candidates.push(shapeToggle);
+        }
+        if (candidates.length === 0) return null;
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    /**
+     * 紙吹雪を1個生成する
+     * @param {Layer|GroupItem} container - 追加先
+     * @param {number} left - 左端
+     * @param {number} top - 上端
+     * @param {number} size - 基準サイズ
+     * @param {Array<number>} color - [R, G, B]
+     * @returns {PageItem|null} 生成したアイテム（生成できなかった場合は null）
+     */
+    function createConfetti(container, left, top, size, color) {
+        var shapeToggle = pickEnabledShape();
+        if (!shapeToggle) return null;
+
+        if (shapeToggle.key === "symbol") {
+            var symbolConfetti = createSymbolConfetti(container, size);
+            if (!symbolConfetti) return null;
+            applyRandomRotate(symbolConfetti);
+            applyRandomSkew(symbolConfetti);
+            alignItemTopLeft(symbolConfetti, left, top);
+            applyRandomOpacity(symbolConfetti);
+            return symbolConfetti;
+        }
+
+        var confetti = shapeToggle.create(container, left, top, size * shapeToggle.sizeScale);
+        if (!confetti) return null;
+        applyConfettiColor(confetti, color);
+        applyRandomRotate(confetti);
+        applyRandomSkew(confetti);
+        applyRandomOpacity(confetti);
+        return confetti;
+    }
+
+    // =========================================
+    // マスク処理 / Masking
+    // =========================================
+
+    /**
+     * アイテムにクリッピング指定を立てる
+     * @param {PageItem} item - 対象アイテム
+     * @returns {boolean} 指定できたら true
+     */
     function setClippingFlag(item) {
         if (!item) return false;
         try {
@@ -1299,889 +1312,587 @@ var SCRIPT_UPDATED  = "2026-03-11";                   /* 更新日 / last update
                 item.clipping = true;
                 return true;
             }
-            if (item.typename === "CompoundPathItem") {
-                if (item.pathItems && item.pathItems.length > 0) {
+            if (item.typename === "CompoundPathItem" && item.pathItems.length > 0) {
+                item.pathItems[0].clipping = true;
+                return true;
+            }
+            if (item.typename === "GroupItem") {
+                /* Pathfinder の結果がグループになる場合があるため内側のパスを使う / Pathfinder can return a group */
+                if (item.compoundPathItems.length > 0 && item.compoundPathItems[0].pathItems.length > 0) {
+                    item.compoundPathItems[0].pathItems[0].clipping = true;
+                    return true;
+                }
+                if (item.pathItems.length > 0) {
                     item.pathItems[0].clipping = true;
                     return true;
                 }
             }
-            if (item.typename === "GroupItem") {
-                // Pathfinder結果がGroupになる場合があるため、内側の最初のPathをクリッピングに
-                try {
-                    if (item.compoundPathItems && item.compoundPathItems.length > 0) {
-                        var cp = item.compoundPathItems[0];
-                        if (cp.pathItems && cp.pathItems.length > 0) {
-                            cp.pathItems[0].clipping = true;
-                            return true;
-                        }
-                    }
-                } catch (_) { }
-                try {
-                    if (item.pathItems && item.pathItems.length > 0) {
-                        item.pathItems[0].clipping = true;
-                        return true;
-                    }
-                } catch (_) { }
-            }
-        } catch (e) { }
+        } catch (eSetClipping) {
+            logError(eSetClipping, "setClippingFlag");
+        }
         return false;
     }
 
-    function buildMaskGroup(layerOrGroup) {
-        // 戻り値: { container: (GroupItem or Layer), group: GroupItem|null }
-        if (!chkMask || !chkMask.value) {
-            return { container: layerOrGroup, group: null };
-        }
-        var g = layerOrGroup.groupItems.add();
-        g.name = "__ConfettiMasked__";
-        return { container: g, group: g };
+    /**
+     * マスク処理の設定に応じて、紙吹雪を入れる器を用意する
+     * @param {Layer} parentLayer - 追加先レイヤー
+     * @returns {object} { container: 紙吹雪の追加先, maskGroup: マスク対象グループ（不要なら null） }
+     */
+    function createConfettiContainer(parentLayer) {
+        if (!maskCheckbox.value) return { container: parentLayer, maskGroup: null };
+        var maskGroup = parentLayer.groupItems.add();
+        maskGroup.name = MASK_GROUP_NAME;
+        return { container: maskGroup, maskGroup: maskGroup };
     }
 
-    function createMaskShapeFromSelection(container, sourceItem) {
-        // 選択オブジェクトに合わせたマスク図形を作成
-        // - PathItem: 選択パスを複製してマスクに
-        // - クリップグループ: クリッピングパス（Path/Compound）を複製
-        // - それ以外: バウンディング矩形でフォールバック
-        if (!container || !sourceItem) return null;
-
-        // Path / CompoundPath はそのまま複製
-        try {
-            if (sourceItem.typename === "PathItem" || sourceItem.typename === "CompoundPathItem") {
-                return sourceItem.duplicate(container, ElementPlacement.PLACEATEND);
-            }
-        } catch (_) { }
-
-        // テキスト: 複製してマスクとして利用（アウトライン化しない）
-        try {
-            if (sourceItem.typename === "TextFrame") {
-                return sourceItem.duplicate(container, ElementPlacement.PLACEATEND);
-            }
-        } catch (_) { }
-
-        // クリップグループ: クリッピングパスを探して複製
-        try {
-            if (sourceItem.typename === "GroupItem") {
-                var gi = sourceItem;
-                var clipCandidate = null;
-
-                // GroupItem.clipped が true の場合はほぼクリップグループ
-                // クリッピング指定の付いた Path / Compound を優先して探す
-                try {
-                    // CompoundPath の方を先に探す（穴あき形状などを想定）
-                    if (gi.compoundPathItems && gi.compoundPathItems.length > 0) {
-                        for (var cpi = 0; cpi < gi.compoundPathItems.length; cpi++) {
-                            var c = gi.compoundPathItems[cpi];
-                            try {
-                                if (c.pathItems && c.pathItems.length > 0 && c.pathItems[0].clipping) {
-                                    clipCandidate = c;
-                                    break;
-                                }
-                            } catch (_) { }
-                        }
-                    }
-
-                    if (!clipCandidate && gi.pathItems && gi.pathItems.length > 0) {
-                        for (var pi = 0; pi < gi.pathItems.length; pi++) {
-                            var p = gi.pathItems[pi];
-                            try {
-                                if (p.clipping) {
-                                    clipCandidate = p;
-                                    break;
-                                }
-                            } catch (_) { }
-                        }
-                    }
-
-                    // クリッピング指定が見つからない場合: 最初のCompound/Pathを使う（最後の手段）
-                    if (!clipCandidate) {
-                        if (gi.compoundPathItems && gi.compoundPathItems.length > 0) clipCandidate = gi.compoundPathItems[0];
-                        else if (gi.pathItems && gi.pathItems.length > 0) clipCandidate = gi.pathItems[0];
-                    }
-
-                    if (clipCandidate) {
-                        return clipCandidate.duplicate(container, ElementPlacement.PLACEATEND);
-                    }
-
-                    // クリップ候補が取れない（通常グループなど）の場合：合体して単一パス化
-                    var united = null;
-                    try {
-                        united = uniteGroupToSinglePath(container, gi);
-                        if (united) {
-                            return united;
-                        }
-                    } catch (eMaskGroup) { __logError(eMaskGroup, "createMaskShapeFromSelection.groupFallback"); }
-                } catch (_) { }
-            }
-        } catch (_) { }
-
-        // フォールバック: バウンディング矩形
-        var b;
-        try {
-            b = sourceItem.geometricBounds; // [L, T, R, B]
-        } catch (e) {
-            return null;
-        }
-        var L = b[0], T = b[1], R = b[2], B = b[3];
-
-        var w = (R - L);
-        var h = (T - B);
-        if (!w || !h) return null;
-
-        var m = container.pathItems.rectangle(T, L, w, h);
-        // クリッピングパスは「存在」している必要があるため、塗りはON（None色）にして不可視化する
-        try { m.stroked = false; } catch (_) { }
-        try { m.filled = true; m.fillColor = new NoColor(); } catch (_) { }
-        return m;
-    }
-
+    /**
+     * グループを複製して合体し、単一のパスにする
+     * @param {GroupItem} container - 複製先
+     * @param {GroupItem} groupItem - 元グループ
+     * @returns {PageItem|null} 合体結果（失敗時は null）
+     */
     function uniteGroupToSinglePath(container, groupItem) {
-        if (!container || !groupItem) return null;
-        var dup = null;
-        var oldSel = null;
+        var previousSelection = doc.selection;
+        var duplicated = null;
         try {
-            oldSel = doc.selection;
-        } catch (_) { oldSel = null; }
-
-        try {
-            // 複製して container に入れる
-            dup = groupItem.duplicate(container, ElementPlacement.PLACEATEND);
-        } catch (eDupGroup) {
-            __logError(eDupGroup, "uniteGroupToSinglePath.duplicate");
+            duplicated = groupItem.duplicate(container, ElementPlacement.PLACEATEND);
+        } catch (eDuplicateGroup) {
+            logError(eDuplicateGroup, "uniteGroupToSinglePath.duplicate");
             return null;
         }
 
         try {
-            // 選択を複製グループに切り替え、合体→展開
+            /* 選択を複製グループに切り替えて合体→展開 / Select the copy, then unite and expand */
             doc.selection = null;
-            dup.selected = true;
+            duplicated.selected = true;
             app.executeMenuCommand('Live Pathfinder Add');
             app.executeMenuCommand('expandStyle');
-
-            // expandStyle後は selection が合体結果（Path/Compound/Group）になる想定
-            if (doc.selection && doc.selection.length > 0) {
-                return doc.selection[0];
-            }
+            if (doc.selection && doc.selection.length > 0) return doc.selection[0];
         } catch (eUniteGroup) {
-            __logError(eUniteGroup, "uniteGroupToSinglePath.pathfinder");
-            // 失敗したら複製を残さない
-            try { dup.remove(); } catch (_) { }
+            logError(eUniteGroup, "uniteGroupToSinglePath.pathfinder");
+            try { duplicated.remove(); } catch (_) { }
             return null;
         } finally {
-            // 選択復元
-            try {
-                doc.selection = null;
-                if (oldSel && oldSel.length) {
-                    for (var i = 0; i < oldSel.length; i++) {
-                        try { oldSel[i].selected = true; } catch (_) { }
-                    }
-                } else {
-                    // もともと単一選択前提
-                    try { selectedObj.selected = true; } catch (_) { }
-                }
-            } catch (_) { }
+            doc.selection = null;
+            var itemsToReselect = (previousSelection && previousSelection.length) ? previousSelection : [selectedItem];
+            for (var i = 0; i < itemsToReselect.length; i++) {
+                try { itemsToReselect[i].selected = true; } catch (_) { }
+            }
         }
-
         return null;
     }
 
+    /**
+     * クリップグループからクリッピングパスの候補を探す
+     * @param {GroupItem} groupItem - 対象グループ
+     * @returns {PageItem|null} 候補のパス（見つからない場合は null）
+     */
+    function findClippingCandidate(groupItem) {
+        /* 穴あき形状を想定して CompoundPath を先に探す / Look at compound paths first */
+        for (var i = 0; i < groupItem.compoundPathItems.length; i++) {
+            var compoundPath = groupItem.compoundPathItems[i];
+            if (compoundPath.pathItems.length > 0 && compoundPath.pathItems[0].clipping) return compoundPath;
+        }
+        for (var j = 0; j < groupItem.pathItems.length; j++) {
+            if (groupItem.pathItems[j].clipping) return groupItem.pathItems[j];
+        }
+        /* クリッピング指定が見つからない場合は最初のパスを使う（最後の手段）/ Fall back to the first path */
+        if (groupItem.compoundPathItems.length > 0) return groupItem.compoundPathItems[0];
+        if (groupItem.pathItems.length > 0) return groupItem.pathItems[0];
+        return null;
+    }
+
+    /**
+     * 選択オブジェクトに合わせたマスク図形を作る
+     * @param {GroupItem} container - 追加先
+     * @param {PageItem} sourceItem - 元になる選択オブジェクト
+     * @returns {PageItem|null} マスク図形（作れない場合は null）
+     */
+    function createMaskShapeFromSelection(container, sourceItem) {
+        if (!container || !sourceItem) return null;
+
+        try {
+            /* Path / CompoundPath / TextFrame はそのまま複製 / Duplicate these as-is */
+            var typeName = sourceItem.typename;
+            if (typeName === "PathItem" || typeName === "CompoundPathItem" || typeName === "TextFrame") {
+                return sourceItem.duplicate(container, ElementPlacement.PLACEATEND);
+            }
+            if (typeName === "GroupItem") {
+                var clipCandidate = findClippingCandidate(sourceItem);
+                if (clipCandidate) return clipCandidate.duplicate(container, ElementPlacement.PLACEATEND);
+                /* 通常グループなど候補が取れない場合は合体して単一パス化 / Unite a plain group into one path */
+                return uniteGroupToSinglePath(container, sourceItem);
+            }
+        } catch (eMaskShape) {
+            logError(eMaskShape, "createMaskShapeFromSelection");
+        }
+
+        /* フォールバック: バウンディング矩形 / Fall back to the bounding rectangle */
+        var bounds;
+        try {
+            bounds = sourceItem.geometricBounds; /* [左, 上, 右, 下] / [L, T, R, B] */
+        } catch (eMaskBounds) {
+            logError(eMaskBounds, "createMaskShapeFromSelection.bounds");
+            return null;
+        }
+        var width = bounds[2] - bounds[0];
+        var height = bounds[1] - bounds[3];
+        if (!width || !height) return null;
+
+        var maskRect = container.pathItems.rectangle(bounds[1], bounds[0], width, height);
+        /* クリッピングパスは存在が必要なので、塗りをNoColorにして不可視にする / Keep it present but invisible */
+        maskRect.stroked = false;
+        maskRect.filled = true;
+        maskRect.fillColor = new NoColor();
+        return maskRect;
+    }
+
+    /**
+     * グループへクリッピングマスクを適用する
+     * @param {GroupItem} group - 対象グループ
+     * @param {PageItem} sourceItem - マスクの元になる選択オブジェクト
+     * @returns {void}
+     */
     function applyMaskToGroup(group, sourceItem) {
         if (!group || !sourceItem) return;
 
-        // 選択オブジェクトに合わせたマスク図形を作成（複製しない）
         var maskItem = createMaskShapeFromSelection(group, sourceItem);
         if (!maskItem) return;
 
-        // クリッピングパスは最前面に
-        try { maskItem.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
+        /* クリッピングパスはグループの最前面に置く / A clipping path must sit at the front */
+        try {
+            maskItem.move(group, ElementPlacement.PLACEATEND);
+            maskItem.zOrder(ZOrderMethod.BRINGTOFRONT);
+        } catch (eMoveMask) {
+            logError(eMoveMask, "applyMaskToGroup.moveMask");
+        }
 
-        // グループの最前面へ（クリッピングパスは最前面が原則）
-        try { maskItem.move(group, ElementPlacement.PLACEATEND); } catch (_) { }
-        // move後にも最前面を保証
-        try { maskItem.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
-
-        // TextFrame は .clipping を立てられないため、makeMask を使う
-        if (maskItem && maskItem.typename === "TextFrame") {
+        /* TextFrame は clipping を立てられないため makeMask を使う / Text frames need the makeMask command */
+        if (maskItem.typename === "TextFrame") {
             try {
-                // グループ内の全アイテムを選択してクリッピングマスクを作成
                 doc.selection = null;
-                try { group.selected = true; } catch (_) { }
+                group.selected = true;
                 app.executeMenuCommand('makeMask');
-            } catch (eMakeMask) { __logError(eMakeMask, "applyMaskToGroup.makeMask"); }
+            } catch (eMakeMask) {
+                logError(eMakeMask, "applyMaskToGroup.makeMask");
+            }
             return;
         }
 
-        // クリッピングフラグ
         setClippingFlag(maskItem);
-
-        try { group.clipped = true; } catch (eSetClipped) { __logError(eSetClipped, "applyMaskToGroup.setGroupClipped"); }
-    }
-
-    // 五芒星を生成
-    function createStar(layer, left, top, size) {
-        // left, top は他形状同様、バウンディングの左上基準
-        // size は外接正方形の一辺
-        var outerR = size * 0.5;
-        var innerR = outerR * 0.5; // 五芒星の内側半径（見た目優先）
-        var cx = left + outerR;
-        var cy = top - outerR;
-
-        var pts = [];
-        // 上向きスタート（AI座標系: Y上が正なので+90で真上）
-        var startDeg = 90;
-        for (var i = 0; i < 10; i++) {
-            var r = (i % 2 === 0) ? outerR : innerR;
-            var ang = (startDeg + i * 36) * Math.PI / 180; // 360/10=36
-            var px = cx + Math.cos(ang) * r;
-            var py = cy + Math.sin(ang) * r;
-            pts.push([px, py]);
-        }
-
-        var p = layer.pathItems.add();
-        p.setEntirePath(pts);
-        p.closed = true;
-        return p;
-    }
-
-    // スター（4点）を生成
-    function createStar4(layer, left, top, size) {
-        // left, top は他形状同様、バウンディングの左上基準
-        // size は外接正方形の一辺
-        var outerR = size * 0.5;
-        var innerR = outerR * 0.25; // 4点スターの内側半径（尖り強め）
-        var cx = left + outerR;
-        var cy = top - outerR;
-
-        var pts = [];
-        // 上向きスタート（外側→内側→…）
-        var startDeg = -90;
-        for (var i = 0; i < 8; i++) {
-            var r = (i % 2 === 0) ? outerR : innerR;
-            var ang = (startDeg + i * 45) * Math.PI / 180; // 360/8=45
-            var px = cx + Math.cos(ang) * r;
-            var py = cy + Math.sin(ang) * r;
-            pts.push([px, py]);
-        }
-
-        var p = layer.pathItems.add();
-        p.setEntirePath(pts);
-        p.closed = true;
-        return p;
-    }
-
-    function createSparkleB(layer, left, top, size) {
-        // 添付スクリプト（DrawSparkle_Sharp.jsx）準拠：Bezierで鋭い四芒星を作る
-        // left, top は他形状同様、バウンディングの左上基準
-        // size は外接正方形の一辺
-        var w = size;
-        var h = size;
-
-        // 参照スクリプトの既定値（必要なら後で調整）
-        var curveFactor = 0.8;
-
-        var cx = left + w / 2;
-        var cy = top - h / 2;
-
-        // 各頂点
-        var topPt = [cx, cy + h / 2];
-        var rightPt = [cx + w / 2, cy];
-        var bottomPt = [cx, cy - h / 2];
-        var leftPt = [cx - w / 2, cy];
-
-        // ハンドル長（中心へ引っ張る量）
-        var hV = (h / 2) * curveFactor;
-        var hH = (w / 2) * curveFactor;
-
-        var pathItem = layer.pathItems.add();
-
-        // Point 1: 上 (Top)
-        var p1 = pathItem.pathPoints.add();
-        p1.anchor = topPt;
-        p1.leftDirection = [cx, topPt[1] - hV];
-        p1.rightDirection = [cx, topPt[1] - hV];
-        p1.pointType = PointType.CORNER;
-
-        // Point 2: 右 (Right)
-        var p2 = pathItem.pathPoints.add();
-        p2.anchor = rightPt;
-        p2.leftDirection = [rightPt[0] - hH, cy];
-        p2.rightDirection = [rightPt[0] - hH, cy];
-        p2.pointType = PointType.CORNER;
-
-        // Point 3: 下 (Bottom)
-        var p3 = pathItem.pathPoints.add();
-        p3.anchor = bottomPt;
-        p3.leftDirection = [cx, bottomPt[1] + hV];
-        p3.rightDirection = [cx, bottomPt[1] + hV];
-        p3.pointType = PointType.CORNER;
-
-        // Point 4: 左 (Left)
-        var p4 = pathItem.pathPoints.add();
-        p4.anchor = leftPt;
-        p4.leftDirection = [leftPt[0] + hH, cy];
-        p4.rightDirection = [leftPt[0] + hH, cy];
-        p4.pointType = PointType.CORNER;
-
-        pathItem.closed = true;
-        return pathItem;
-    }
-
-    // リボン（1/4円弧×2 を反転してつなげたS字帯）を生成 / Quarter-arc mirrored S ribbon band
-    function createRibbon(layer, left, top, size) {
-        var cx = left + size * 0.5;
-        var cy = top - size * 0.5;
-
-        // 2つの1/4円弧でS字を作る（中心線）
-        var r = Math.max(0.8, size * 0.72);              // 半径（基本を約150%）
-        var halfW = Math.max(0.25, size * 0.165);         // 帯の半幅（基本を約150%）
-        var seg = 10;                                    // 円弧の分割（滑らかさ）
-
-        // ローカル座標（原点付近）で作ってから中心に寄せる
-        // 1つ目: center (0,0), angle 180→90 で (-r,0)→(0,r)
-        // 2つ目: center (0,2r), angle -90→0 で (0,r)→(r,2r)
-        var centerPts = [];
-
-        function ptCircle(cpx, cpy, deg) {
-            var a = deg * Math.PI / 180;
-            return [cpx + Math.cos(a) * r, cpy + Math.sin(a) * r];
-        }
-
-        for (var i = 0; i <= seg; i++) {
-            var t = i / seg;
-            var deg = 180 - 90 * t;
-            centerPts.push(ptCircle(0, 0, deg));
-        }
-        for (var j = 1; j <= seg; j++) {
-            var t2 = j / seg;
-            var deg2 = -90 + 90 * t2;
-            centerPts.push(ptCircle(0, 2 * r, deg2));
-        }
-
-        // 全体の重心を (cx,cy) に合わせる（中心線の中点で合わせる）
-        // centerPts のYレンジは 0..2r なので、その中心は r
-        var offX = cx - 0;
-        var offY = cy - r;
-
-        // タンジェントから法線を作って、上下にオフセットして帯の輪郭を作る
-        function norm2(vx, vy) {
-            var d = Math.sqrt(vx * vx + vy * vy);
-            if (d === 0) d = 1;
-            return [vx / d, vy / d];
-        }
-
-        var topPts = [];
-        var botPts = [];
-
-        for (var k = 0; k < centerPts.length; k++) {
-            var p0 = centerPts[(k === 0) ? 0 : (k - 1)];
-            var p1 = centerPts[k];
-            var p2 = centerPts[(k === centerPts.length - 1) ? (centerPts.length - 1) : (k + 1)];
-
-            var tx = p2[0] - p0[0];
-            var ty = p2[1] - p0[1];
-            var tn = norm2(tx, ty);
-
-            // 左法線
-            var nx = -tn[1];
-            var ny = tn[0];
-
-            var x = p1[0] + offX;
-            var y = p1[1] + offY;
-
-            topPts.push([x + nx * halfW, y + ny * halfW]);
-            botPts.push([x - nx * halfW, y - ny * halfW]);
-        }
-
-        var pts = [];
-        for (var a = 0; a < topPts.length; a++) pts.push(topPts[a]);
-        for (var b = botPts.length - 1; b >= 0; b--) pts.push(botPts[b]);
-
-        var path = layer.pathItems.add();
-        path.closed = true;
-        path.setEntirePath(pts);
-
-        // 角を立てず滑らかに（S字の帯として自然に見せる）
         try {
-            var ppts = path.pathPoints;
-            for (var m = 0; m < ppts.length; m++) {
-                try { ppts[m].pointType = PointType.SMOOTH; } catch (_) { }
-            }
-        } catch (_) { }
-
-        try { path.filled = true; } catch (_) { }
-        try { path.stroked = false; } catch (_) { }
-
-        return path;
+            group.clipped = true;
+        } catch (eSetClipped) {
+            logError(eSetClipped, "applyMaskToGroup.setGroupClipped");
+        }
     }
 
-    // ハートを生成（Bezier曲線・4点構成）
-    // 参照: 基準座標 幅120(-60〜+60) 高さ80(-50〜+30) を size にスケーリング
-    function createHeart(layer, left, top, size) {
-        var s = size / 120; // 基準幅120に対するスケール
-        var cx = left + size / 2;
-        var cy = top - size / 2;
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
 
-        var pathItem = layer.pathItems.add();
+    var previewLayer = null;
+    var debounceTaskId = 0;
 
-        // Point 1: 上のくぼみ (Top Cleft)
-        var p1 = pathItem.pathPoints.add();
-        p1.anchor = [cx + 0 * s, cy + 30 * s];
-        p1.leftDirection = [cx + (-20) * s, cy + 60 * s];
-        p1.rightDirection = [cx + 20 * s, cy + 60 * s];
-        p1.pointType = PointType.CORNER;
-
-        // Point 2: 右のふくらみ (Right Lobe)
-        var p2 = pathItem.pathPoints.add();
-        p2.anchor = [cx + 60 * s, cy + 15 * s];
-        p2.leftDirection = [cx + 60 * s, cy + 50 * s];
-        p2.rightDirection = [cx + 60 * s, cy + (-15) * s];
-        p2.pointType = PointType.SMOOTH;
-
-        // Point 3: 下の尖り (Bottom Tip)
-        var p3 = pathItem.pathPoints.add();
-        p3.anchor = [cx + 0 * s, cy + (-55) * s];
-        p3.leftDirection = [cx + 20 * s, cy + (-20) * s];
-        p3.rightDirection = [cx + (-20) * s, cy + (-20) * s];
-        p3.pointType = PointType.CORNER;
-
-        // Point 4: 左のふくらみ (Left Lobe)
-        var p4 = pathItem.pathPoints.add();
-        p4.anchor = [cx + (-60) * s, cy + 15 * s];
-        p4.leftDirection = [cx + (-60) * s, cy + (-15) * s];
-        p4.rightDirection = [cx + (-60) * s, cy + 50 * s];
-        p4.pointType = PointType.SMOOTH;
-
-        pathItem.closed = true;
-        return pathItem;
+    /**
+     * プレビュー専用レイヤーを用意する
+     * @returns {void}
+     */
+    function ensurePreviewLayer() {
+        if (previewLayer) return;
+        previewLayer = doc.layers.add();
+        previewLayer.name = PREVIEW_LAYER_NAME;
     }
 
-    // コンフェティの形状をランダムに作成
-    function createConfetti(layer, x, y, size, color) {
-        // シンボル（形状パネルの「シンボル」ON かつドロップダウンで選択されている場合のみ候補にする）
-        var __symbolEnabled = false;
-        try {
-            __symbolEnabled = !!(
-                chkSymbolShape &&
-                chkSymbolShape.value &&
-                (
-                    selectedSymbolRef ||
-                    (selectedSymbolName && selectedSymbolName !== "")
-                )
-            );
-        } catch (_) { __symbolEnabled = false; }
-
-        var enabledShapes = [];
-        if (chkRect.value) enabledShapes.push(0);
-        if (chkSquare.value) enabledShapes.push(7);
-        if (chkCircle.value) enabledShapes.push(1);
-        if (chkTriangle.value) enabledShapes.push(2);
-        if (chkStar.value) enabledShapes.push(3);
-        if (chkStar4.value) enabledShapes.push(4);
-        if (chkSparkleB.value) enabledShapes.push(8);
-        if (chkRibbon.value) enabledShapes.push(5);
-        if (chkHeart.value) enabledShapes.push(9);
-        if (__symbolEnabled) enabledShapes.push(6);
-
-        if (enabledShapes.length === 0) return null;
-
-        var shape = enabledShapes[Math.floor(Math.random() * enabledShapes.length)];
-        var confetti;
-
-        switch (shape) {
-            case 0: // 四角形
-                confetti = layer.pathItems.rectangle(y, x, size * 1.4, size * 1.4 * random(0.3, 0.6));
-                break;
-            case 7: // 正方形
-                confetti = layer.pathItems.rectangle(y, x, size, size);
-                break;
-            case 1: // 円
-                confetti = layer.pathItems.ellipse(y, x, size, size);
-                break;
-            case 2: // 三角形
-                confetti = layer.pathItems.add();
-                var h = size * 1.2;
-                confetti.setEntirePath([
-                    [x, y],
-                    [x + size, y],
-                    [x + size * 0.5, y - h]
-                ]);
-                confetti.closed = true;
-                break;
-            case 3: // スター（五芒星）
-                confetti = createStar(layer, x, y, size * 1.2);
-                break;
-            case 4: // スター（4点）
-                confetti = createStar4(layer, x, y, size * 1.4);
-                break;
-            case 8: // キラキラB（四芒星Bezier）
-                confetti = createSparkleB(layer, x, y, size * 1.6);
-                break;
-            case 5: // リボン
-                confetti = createRibbon(layer, x, y, size);
-                break;
-            case 9: // ハート
-                confetti = createHeart(layer, x, y, size * 1.3 * 0.9);
-                break;
-            case 6: // シンボル
-                confetti = null;
-                try {
-                    // シンボル生成（既存ロジックをそのまま実行）
-                    if (selectedSymbolRef || (selectedSymbolName && selectedSymbolName !== "")) {
-                        var sym = null;
-                        try {
-                            if (selectedSymbolRef) {
-                                sym = selectedSymbolRef;
-                            }
-                        } catch (_) { sym = null; }
-
-                        if (!sym) {
-                            try {
-                                if (doc && doc.symbols && doc.symbols.length > 0) {
-                                    for (var ss = 0; ss < doc.symbols.length; ss++) {
-                                        try {
-                                            if (String(doc.symbols[ss].name) === String(selectedSymbolName)) {
-                                                sym = doc.symbols[ss];
-                                                break;
-                                            }
-                                        } catch (_) { }
-                                    }
-                                }
-                            } catch (_) { sym = null; }
-                        }
-
-                        if (sym) {
-                            var si = null;
-                            var wrap = null;
-
-                            // wrap（グループ）を先に作る（Layer/Group のどちらでもOK）
-                            try {
-                                if (layer && layer.groupItems && layer.groupItems.add) {
-                                    wrap = layer.groupItems.add();
-                                    try { wrap.name = "__ConfettiSymbol__"; } catch (_) { }
-                                }
-                            } catch (_) { wrap = null; }
-
-                            // SymbolItem は Layer に作るのが確実
-                            try {
-                                if (doc && doc.activeLayer && doc.activeLayer.symbolItems && doc.activeLayer.symbolItems.add) {
-                                    si = doc.activeLayer.symbolItems.add(sym);
-                                }
-                            } catch (_) { si = null; }
-
-                            if (si) {
-                                // wrap が作れなかった場合はフォールバック（単体シンボル）
-                                if (!wrap) {
-                                    // size に合わせて等比スケール（最大辺= size）
-                                    try {
-                                        var w0a = Number(si.width);
-                                        var h0a = Number(si.height);
-                                        var m0a = Math.max(w0a, h0a);
-                                        if (m0a && m0a > 0) {
-                                            var pctA = (Number(size) / m0a) * 100;
-                                            if (pctA < 1) pctA = 1;
-                                            si.resize(pctA, pctA);
-                                        }
-                                    } catch (_) { }
-
-                                    // ランダムに回転
-                                    try {
-                                        if (chkRotate && chkRotate.value) {
-                                            var _rmaxSa = (typeof rotMaxDeg === "number") ? rotMaxDeg : 360;
-                                            if (_rmaxSa < 0) _rmaxSa = 0;
-                                            if (_rmaxSa > 360) _rmaxSa = 360;
-                                            if (_rmaxSa > 0) si.rotate(random(-_rmaxSa, _rmaxSa));
-                                        }
-                                    } catch (_) { }
-
-                                    // 歪み / Skew
-                                    try {
-                                        if (chkSkew && chkSkew.value) {
-                                            var _degSa = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
-                                            if (_degSa < 0) _degSa = 0;
-                                            if (_degSa > 45) _degSa = 45;
-                                            if (_degSa > 0) {
-                                                applyShearToItem(si, random(-_degSa, _degSa));
-                                            }
-                                        }
-                                    } catch (_) { }
-
-                                    // 位置補正（bounds で左上を合わせる）
-                                    try {
-                                        var gba = si.geometricBounds; // [L, T, R, B]
-                                        var dxa = Number(x) - Number(gba[0]);
-                                        var dya = Number(y) - Number(gba[1]);
-                                        if (!isNaN(dxa) && !isNaN(dya)) {
-                                            try { si.left = Number(si.left) + dxa; } catch (_) { }
-                                            try { si.top = Number(si.top) + dya; } catch (_) { }
-                                        }
-                                    } catch (_) {
-                                        try { si.left = x; } catch (__) { }
-                                        try { si.top = y; } catch (__) { }
-                                    }
-
-                                    // 不透明度 / Opacity
-                                    try {
-                                        if (chkOpacity && chkOpacity.value) {
-                                            var _minOpA = (typeof opacityMin === "number") ? opacityMin : 70;
-                                            if (_minOpA < 0) _minOpA = 0;
-                                            if (_minOpA > 100) _minOpA = 100;
-                                            si.opacity = random(_minOpA, 100);
-                                        } else {
-                                            si.opacity = 100;
-                                        }
-                                    } catch (_) { }
-
-                                    confetti = si;
-                                } else {
-                                    // wrap に移動
-                                    try { si.move(wrap, ElementPlacement.PLACEATEND); } catch (_) { }
-
-                                    // size に合わせて等比スケール（最大辺= size）: wrap 全体に適用
-                                    try {
-                                        var wW = Number(wrap.width);
-                                        var hW = Number(wrap.height);
-                                        var mW = Math.max(wW, hW);
-                                        if (mW && mW > 0) {
-                                            var pct = (Number(size) / mW) * 100;
-                                            if (pct < 1) pct = 1;
-                                            wrap.resize(pct, pct);
-                                        }
-                                    } catch (_) { }
-
-                                    // ランダムに回転
-                                    try {
-                                        if (chkRotate && chkRotate.value) {
-                                            var _rmaxS = (typeof rotMaxDeg === "number") ? rotMaxDeg : 360;
-                                            if (_rmaxS < 0) _rmaxS = 0;
-                                            if (_rmaxS > 360) _rmaxS = 360;
-                                            if (_rmaxS > 0) wrap.rotate(random(-_rmaxS, _rmaxS));
-                                        }
-                                    } catch (_) { }
-
-                                    // 歪み / Skew
-                                    try {
-                                        if (chkSkew && chkSkew.value) {
-                                            var _degS = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
-                                            if (_degS < 0) _degS = 0;
-                                            if (_degS > 45) _degS = 45;
-                                            if (_degS > 0) {
-                                                applyShearToItem(wrap, random(-_degS, _degS));
-                                            }
-                                        }
-                                    } catch (_) { }
-
-                                    // 位置（bounds で左上を合わせる）
-                                    try {
-                                        var gb = wrap.geometricBounds; // [L, T, R, B]
-                                        var dx = Number(x) - Number(gb[0]);
-                                        var dy = Number(y) - Number(gb[1]);
-                                        if (!isNaN(dx) && !isNaN(dy)) {
-                                            try { wrap.left = Number(wrap.left) + dx; } catch (_) { }
-                                            try { wrap.top = Number(wrap.top) + dy; } catch (_) { }
-                                        }
-                                    } catch (_) {
-                                        try { wrap.left = x; } catch (__) { }
-                                        try { wrap.top = y; } catch (__) { }
-                                    }
-
-                                    // 不透明度 / Opacity
-                                    try {
-                                        if (chkOpacity && chkOpacity.value) {
-                                            var _minOp = (typeof opacityMin === "number") ? opacityMin : 70;
-                                            if (_minOp < 0) _minOp = 0;
-                                            if (_minOp > 100) _minOp = 100;
-                                            wrap.opacity = random(_minOp, 100);
-                                        } else {
-                                            wrap.opacity = 100;
-                                        }
-                                    } catch (_) { }
-
-                                    confetti = wrap;
-                                }
-                            }
-                        }
-                    }
-                } catch (eCreateSymbol) {
-                    __logError(eCreateSymbol, "createConfetti.symbol");
-                    confetti = null;
-                }
-                break;
-        }
-
-        // 色を設定（リボンはストローク、他は塗り）
-        if (shape !== 6) {
-            var rgbColor = new RGBColor();
-            rgbColor.red = color[0];
-            rgbColor.green = color[1];
-            rgbColor.blue = color[2];
-
-            try {
-                // open-path はストローク、closed-path は塗り（リボンは閉じパスに変更）
-                var isOpen = false;
-                try { isOpen = (confetti && confetti.closed === false); } catch (_) { isOpen = false; }
-
-                if (isOpen) {
-                    try { confetti.filled = false; } catch (_) { }
-                    try { confetti.stroked = true; } catch (_) { }
-                    try { confetti.strokeColor = rgbColor; } catch (_) { }
-                } else {
-                    try { confetti.filled = true; } catch (_) { }
-                    try { confetti.stroked = false; } catch (_) { }
-                    try { confetti.fillColor = rgbColor; } catch (_) { }
-                }
-            } catch (_) { }
-
-            // ランダムに回転
-            try {
-                if (chkRotate && chkRotate.value) {
-                    var _rmax = (typeof rotMaxDeg === "number") ? rotMaxDeg : 360;
-                    if (_rmax < 0) _rmax = 0;
-                    if (_rmax > 360) _rmax = 360;
-                    if (_rmax > 0) confetti.rotate(random(-_rmax, _rmax));
-                }
-            } catch (_) { }
-
-            // 歪み / Skew
-            try {
-                if (chkSkew && chkSkew.value) {
-                    var _deg = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
-                    if (_deg < 0) _deg = 0;
-                    if (_deg > 45) _deg = 45;
-                    if (_deg > 0) {
-                        applyShearToItem(confetti, random(-_deg, _deg));
-                    }
-                }
-            } catch (_) { }
-
-            // 不透明度 / Opacity
-            try {
-                if (chkOpacity && chkOpacity.value) {
-                    var _minOp = (typeof opacityMin === "number") ? opacityMin : 70;
-                    if (_minOp < 0) _minOp = 0;
-                    if (_minOp > 100) _minOp = 100;
-                    // 不透明度をランダムに設定（_minOp..100）
-                    confetti.opacity = random(_minOp, 100);
-                } else {
-                    // OFF: 設定しない（=100%）
-                    confetti.opacity = 100;
-                }
-            } catch (_) { }
-        }
-
-        return confetti;
-    }
-
-    var result = dlg.show();
-
-    try {
-        if (__debounceTaskId) { app.cancelTask(__debounceTaskId); __debounceTaskId = 0; }
-    } catch (_) { }
-
-    if (result !== 1) {
-        clearPreview();
-        try { if (previewLayer) previewLayer.remove(); } catch (e) { }
-        try {
-            if (zoomCtrl && zoomCtrl.restoreInitial) zoomCtrl.restoreInitial();
-            else restoreViewState(doc, __viewState);
-        } catch (_) { }
-        cleanupScheduledGlobals();
-        return;
-    }
-
-    // OK: プレビューの見た目そのままで確定（再生成しない）
-    // まず、プレビューが空なら念のため一度描画
-    try {
-        if (previewLayer && previewLayer.pageItems && previewLayer.pageItems.length === 0) {
-            drawPreview();
-        }
-    } catch (_) { }
-
-    // 出力先レイヤー（既存があれば再利用）
-    var confettiLayer = null;
-    try {
-        for (var li = 0; li < doc.layers.length; li++) {
-            if (doc.layers[li].name === "Confetti") {
-                confettiLayer = doc.layers[li];
-                break;
-            }
-        }
-    } catch (_) { confettiLayer = null; }
-
-    if (!confettiLayer) {
-        confettiLayer = doc.layers.add();
-        confettiLayer.name = "Confetti";
-    }
-
-    // プレビュー内容を丸ごと移動（マスクグループ含む）
-    // マスクOFF時は、この実行で生成したものだけをグループ化
-    var __confettiNewGroup = null;
-    try {
-        var __doGroup = true;
-        try { __doGroup = !(chkMask && chkMask.value); } catch (_) { __doGroup = true; }
-        if (__doGroup) {
-            try {
-                __confettiNewGroup = confettiLayer.groupItems.add();
-                try { __confettiNewGroup.name = "__ConfettiGroup__"; } catch (_) { }
-            } catch (_) { __confettiNewGroup = null; }
-        }
-
-        var __movedItems = [];
+    /**
+     * プレビューの中身を消す（グループ・マスクを含む）
+     * @returns {void}
+     */
+    function clearPreview() {
         if (previewLayer) {
             while (previewLayer.pageItems.length > 0) {
-                var __it = null;
                 try {
-                    __it = previewLayer.pageItems[0];
-                    if (!__it) break;
-
-                    if (__confettiNewGroup) {
-                        __it.move(__confettiNewGroup, ElementPlacement.PLACEATEND);
-                    } else {
-                        __it.move(confettiLayer, ElementPlacement.PLACEATEND);
-                    }
-                    __movedItems.push(__it);
-                } catch (eMove1) {
-                    __logError(eMove1, "finalize.movePreviewItems.itemMove");
-                    try {
-                        if (__it && __it.remove) {
-                            __it.remove();
-                            continue;
-                        }
-                    } catch (eMoveRemove) {
-                        __logError(eMoveRemove, "finalize.movePreviewItems.itemRemoveAfterFailure");
-                    }
+                    previewLayer.pageItems[0].remove();
+                } catch (eRemovePreviewItem) {
+                    logError(eRemovePreviewItem, "clearPreview");
                     break;
                 }
             }
         }
+        app.redraw();
+    }
 
-        // 既存アイテム（例：長方形）より生成物が前面になるようにする
+    /**
+     * 現在の設定でプレビューを描き直す
+     * @returns {void}
+     */
+    function drawPreview() {
+        ensurePreviewLayer();
+        clearPreview();
+
         try {
-            if (__confettiNewGroup) {
-                __confettiNewGroup.zOrder(ZOrderMethod.BRINGTOFRONT);
-            } else {
-                for (var zi = 0; zi < __movedItems.length; zi++) {
-                    try { __movedItems[zi].zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
-                }
+            var confettiContainer = createConfettiContainer(previewLayer);
+            var bounds = getEffectiveBounds();
+            if (!bounds) return;
+
+            for (var i = 0; i < confettiCount; i++) {
+                var point = pickConfettiPoint(bounds);
+                var color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+                createConfetti(confettiContainer.container, point.x, point.y, getConfettiSize(), color);
             }
-        } catch (_) { }
-    } catch (eFinalizeMove) { __logError(eFinalizeMove, "finalize.movePreviewItems"); }
+            if (confettiContainer.maskGroup && !useArtboardBounds) {
+                applyMaskToGroup(confettiContainer.maskGroup, selectedItem);
+            }
+        } catch (eDrawPreview) {
+            logError(eDrawPreview, "drawPreview");
+        }
+        app.redraw();
+    }
 
-    // プレビューレイヤーを削除
-    try { if (previewLayer) previewLayer.remove(); } catch (e2) { }
+    /* scheduleTask はグローバルスコープで動くため、呼び出し口を公開する / scheduleTask runs in the global scope */
+    $.global.__ConfettiMaker_runDebouncedPreview = function () {
+        try {
+            drawPreview();
+        } catch (eDebouncedPreview) {
+            logError(eDebouncedPreview, "runDebouncedPreview");
+        }
+    };
 
-    // 実行後、生成したコンフェティ全体を選択状態にする
-    try {
-        doc.selection = null;
-        if (__confettiNewGroup) {
-            try { __confettiNewGroup.selected = true; } catch (_) { }
+    /**
+     * 公開したグローバル関数を片付ける
+     * @returns {void}
+     */
+    function cleanupScheduledGlobals() {
+        try { delete $.global.__ConfettiMaker_runDebouncedPreview; } catch (_) { }
+    }
+
+    /**
+     * 予約済みのプレビュー再描画を取り消す
+     * @returns {void}
+     */
+    function cancelScheduledPreview() {
+        if (!debounceTaskId) return;
+        try { app.cancelTask(debounceTaskId); } catch (_) { }
+        debounceTaskId = 0;
+    }
+
+    /**
+     * プレビューの再描画を間引いて予約する（スライダードラッグ対策）
+     * @returns {void}
+     */
+    function requestPreviewDebounced() {
+        cancelScheduledPreview();
+        try {
+            debounceTaskId = app.scheduleTask("__ConfettiMaker_runDebouncedPreview()", PREVIEW_DEBOUNCE_MS, false);
+        } catch (eScheduleTask) {
+            logError(eScheduleTask, "requestPreviewDebounced.scheduleTask");
+            drawPreview(); /* 予約できない環境では即時描画 / Draw immediately when scheduling is unavailable */
+        }
+    }
+
+    // =========================================
+    // イベント / Events
+    // =========================================
+
+    /**
+     * 修飾キーの状態を読む（ScriptUI のイベントではなく keyboardState を使う）
+     * @returns {object} { altKey, metaKey }
+     */
+    function getKeyboardState() {
+        try {
+            var keyboardState = ScriptUI.environment.keyboardState;
+            return { altKey: !!keyboardState.altKey, metaKey: !!keyboardState.metaKey };
+        } catch (_) {
+            return { altKey: false, metaKey: false };
+        }
+    }
+
+    /**
+     * 指定した形状だけをONにする
+     * @param {ShapeDef} activeShape - 単独で残す形状
+     * @returns {void}
+     */
+    function setOnlyShape(activeShape) {
+        for (var i = 0; i < shapeToggles.length; i++) {
+            shapeToggles[i].checkbox.value = (shapeToggles[i] === activeShape);
+        }
+    }
+
+    /**
+     * 指定した形状だけをOFFにする（それ以外をON）
+     * @param {ShapeDef} activeShape - OFFにする形状
+     * @returns {void}
+     */
+    function setOnlyOtherShapes(activeShape) {
+        for (var i = 0; i < shapeToggles.length; i++) {
+            shapeToggles[i].checkbox.value = (shapeToggles[i] !== activeShape);
+        }
+    }
+
+    /**
+     * 回転をOFFにして0固定にする
+     * @returns {void}
+     */
+    function disableRotate() {
+        if (rotateMaxDeg > 0) previousRotateMaxDeg = rotateMaxDeg;
+        rotateCheckbox.value = false;
+        rotateMaxDeg = 0;
+        rotateSlider.enabled = false;
+        rotateSlider.value = 0;
+    }
+
+    /**
+     * 歪みをOFFにして0固定にする
+     * @returns {void}
+     */
+    function disableSkew() {
+        skewCheckbox.value = false;
+        skewMaxDeg = 0;
+        skewSlider.enabled = false;
+        skewSlider.value = 0;
+    }
+
+    /**
+     * Option+クリックで単独選択したときのプリセットを適用する
+     * @param {string} presetName - "noRotate" または "noRotateNoSkew"（それ以外は何もしない）
+     * @returns {void}
+     */
+    function applySoloPreset(presetName) {
+        if (presetName !== "noRotate" && presetName !== "noRotateNoSkew") return;
+        disableRotate();
+        if (presetName !== "noRotateNoSkew") return;
+
+        disableSkew();
+        randomSizeCheckbox.value = true;
+        randomSizeSlider.enabled = true;
+        randomSizeSlider.value = SOLO_RANDOM_SIZE;
+        randomSizeStrength = SOLO_RANDOM_SIZE;
+    }
+
+    /* 形状チェックボックス（Option+クリックで単独選択、⌘+Option+クリックで反転）/ Shape toggles with solo and invert shortcuts */
+    for (var i = 0; i < shapeToggles.length; i++) {
+        (function (shapeToggle) {
+            shapeToggle.checkbox.onClick = function () {
+                var keyboardState = getKeyboardState();
+                if (keyboardState.metaKey && keyboardState.altKey) {
+                    setOnlyOtherShapes(shapeToggle);
+                } else if (keyboardState.altKey) {
+                    setOnlyShape(shapeToggle);
+                    applySoloPreset(shapeToggle.soloPreset);
+                }
+                drawPreview();
+            };
+        })(shapeToggles[i]);
+    }
+
+    symbolDropdown.onChange = function () {
+        if (!symbolDropdown.selection || symbolDropdown.selection.index === 0) {
+            /* （なし）を選んだらシンボル形状をディム / Dim the symbol shape when "(None)" is picked */
+            selectedSymbolName = "";
+            selectedSymbolRef = null;
+            symbolCheckbox.value = false;
+            symbolCheckbox.enabled = false;
         } else {
-            for (var si = 0; si < confettiLayer.pageItems.length; si++) {
-                try { confettiLayer.pageItems[si].selected = true; } catch (_) { }
+            selectedSymbolName = String(symbolDropdown.selection.text);
+            selectedSymbolRef = symbolDropdown.selection._symbolDef || null;
+            symbolCheckbox.enabled = true;
+            symbolCheckbox.value = true; /* 選んだ時点で自動でON / Turn it on as soon as a symbol is chosen */
+        }
+        drawPreview();
+    };
+
+    baseSizeSlider.onChanging = function () {
+        requestPreviewDebounced();
+    };
+
+    countSlider.onChanging = function () {
+        confettiCount = Math.round(countSlider.value);
+        requestPreviewDebounced();
+    };
+
+    maskCheckbox.onClick = function () {
+        drawPreview();
+    };
+
+    marginCheckbox.onClick = function () {
+        marginSlider.enabled = marginCheckbox.value;
+        if (marginCheckbox.value) {
+            /* ONにしたときは少し余白が付いた状態から始める / Start with a visible margin */
+            var newValue = Number(marginSlider.value) + MARGIN_STEP_ON_ENABLE;
+            if (isNaN(newValue)) newValue = MARGIN_STEP_ON_ENABLE;
+            marginSlider.value = Math.min(newValue, Number(marginSlider.maxvalue));
+            generationMarginPt = Math.round(Number(marginSlider.value));
+            /* マージンONとマスク処理は両立させない / Margin and masking are mutually exclusive */
+            if (maskCheckbox.enabled) maskCheckbox.value = false;
+        }
+        requestPreviewDebounced();
+    };
+
+    marginSlider.onChanging = function () {
+        generationMarginPt = Math.round(marginSlider.value);
+        requestPreviewDebounced();
+    };
+
+    evenRadio.onClick = function () {
+        strengthRow.enabled = false;
+        drawPreview();
+    };
+
+    verticalRadio.onClick = function () {
+        strengthRow.enabled = true;
+        drawPreview();
+    };
+
+    radialRadio.onClick = function () {
+        strengthRow.enabled = true;
+        drawPreview();
+    };
+
+    strengthSlider.onChanging = function () {
+        distributionStrength = Math.round(strengthSlider.value * 10) / 10; /* 0.1刻み / step of 0.1 */
+        requestPreviewDebounced();
+    };
+
+    randomSizeCheckbox.onClick = function () {
+        randomSizeSlider.enabled = randomSizeCheckbox.value;
+        drawPreview();
+    };
+
+    randomSizeSlider.onChanging = function () {
+        randomSizeStrength = Math.round(randomSizeSlider.value);
+        if (randomSizeCheckbox.value) requestPreviewDebounced();
+    };
+
+    opacityCheckbox.onClick = function () {
+        opacitySlider.enabled = opacityCheckbox.value;
+        drawPreview();
+    };
+
+    opacitySlider.onChanging = function () {
+        /* スライダーは反転指定 / The slider is reversed */
+        opacityMin = Math.min(Math.max(100 - Math.round(opacitySlider.value), 0), 100);
+        if (opacityCheckbox.value) requestPreviewDebounced();
+    };
+
+    skewCheckbox.onClick = function () {
+        skewSlider.enabled = skewCheckbox.value;
+        drawPreview();
+    };
+
+    skewSlider.onChanging = function () {
+        skewMaxDeg = Math.min(Math.max(Math.round(skewSlider.value), 0), SKEW_MAX_DEG);
+        if (skewCheckbox.value) requestPreviewDebounced();
+    };
+
+    rotateCheckbox.onClick = function () {
+        rotateSlider.enabled = rotateCheckbox.value;
+        if (!rotateCheckbox.value) {
+            disableRotate();
+        } else {
+            /* ONに戻したときは前回値（なければ既定値）へ復元 / Restore the previous amount */
+            if (rotateMaxDeg <= 0) rotateMaxDeg = (previousRotateMaxDeg > 0) ? previousRotateMaxDeg : DEFAULT_ROTATE_MAX;
+            rotateSlider.enabled = true;
+            rotateSlider.value = rotateMaxDeg;
+        }
+        drawPreview();
+    };
+
+    rotateSlider.onChanging = function () {
+        rotateMaxDeg = Math.min(Math.max(Math.round(rotateSlider.value), 0), 360);
+        if (rotateCheckbox.value) requestPreviewDebounced();
+    };
+
+    dialog.onShow = function () {
+        shiftDialogPosition(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+        refreshSymbolDropdown();
+        applyMarginMaxToUI();
+        zoomControls.syncFromView();
+        drawPreview();
+    };
+
+    // =========================================
+    // 実行 / Run
+    // =========================================
+
+    var dialogResult = dialog.show();
+    cancelScheduledPreview();
+
+    if (dialogResult !== 1) {
+        clearPreview();
+        try { if (previewLayer) previewLayer.remove(); } catch (eRemovePreviewLayer) { logError(eRemovePreviewLayer, "cancel.removePreviewLayer"); }
+        zoomControls.restoreInitial();
+        cleanupScheduledGlobals();
+        return;
+    }
+
+    /* プレビューの見た目そのままで確定する（再生成しない）/ Keep exactly what the preview shows */
+    if (previewLayer && previewLayer.pageItems.length === 0) drawPreview();
+
+    /**
+     * 出力先レイヤーを取得する（既存があれば再利用）
+     * @returns {Layer} 出力先レイヤー
+     */
+    function getOutputLayer() {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === OUTPUT_LAYER_NAME) return doc.layers[i];
+        }
+        var createdLayer = doc.layers.add();
+        createdLayer.name = OUTPUT_LAYER_NAME;
+        return createdLayer;
+    }
+
+    var confettiLayer = getOutputLayer();
+
+    /* マスクOFF時は、この実行で生成したものだけをグループ化する / Group this run's output when masking is off */
+    var confettiGroup = null;
+    if (!maskCheckbox.value) {
+        confettiGroup = confettiLayer.groupItems.add();
+        confettiGroup.name = OUTPUT_GROUP_NAME;
+    }
+
+    /* プレビューの中身を丸ごと移動（マスクグループ含む）/ Move the whole preview, clipping group included */
+    var movedItems = [];
+    try {
+        while (previewLayer && previewLayer.pageItems.length > 0) {
+            var previewItem = previewLayer.pageItems[0];
+            try {
+                previewItem.move(confettiGroup || confettiLayer, ElementPlacement.PLACEATEND);
+                movedItems.push(previewItem);
+            } catch (eMoveItem) {
+                logError(eMoveItem, "finalize.moveItem");
+                try { previewItem.remove(); } catch (_) { break; }
             }
         }
-    } catch (_) { }
 
-    // 画面ズームはプレビュー操作を尊重（復元しない）
+        /* 既存アイテムより生成物が前面になるようにする / Bring the confetti in front of the existing artwork */
+        if (confettiGroup) {
+            confettiGroup.zOrder(ZOrderMethod.BRINGTOFRONT);
+        } else {
+            for (var zi = 0; zi < movedItems.length; zi++) {
+                movedItems[zi].zOrder(ZOrderMethod.BRINGTOFRONT);
+            }
+        }
+    } catch (eFinalizeMove) {
+        logError(eFinalizeMove, "finalize.movePreviewItems");
+    }
 
-    try { cleanupScheduledGlobals(); } catch (_) { }
+    try { if (previewLayer) previewLayer.remove(); } catch (eRemoveLayer) { logError(eRemoveLayer, "finalize.removePreviewLayer"); }
+
+    /* 生成したコンフェティ全体を選択状態にする / Leave the generated confetti selected */
+    try {
+        doc.selection = null;
+        if (confettiGroup) {
+            confettiGroup.selected = true;
+        } else {
+            for (var si = 0; si < confettiLayer.pageItems.length; si++) {
+                confettiLayer.pageItems[si].selected = true;
+            }
+        }
+    } catch (eSelectResult) {
+        logError(eSelectResult, "finalize.selectResult");
+    }
+
+    /* 画面ズームはプレビュー中の操作を尊重して復元しない / Keep whatever zoom the user landed on */
+    cleanupScheduledGlobals();
 
 })();
