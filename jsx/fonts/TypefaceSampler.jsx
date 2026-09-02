@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustratorで利用できるフォントを一覧表示し、ウエイトやスタイル順にアートボード上へ整列描画します。
-フォント名、PostScript名、サンプルテキスト、カスタムテキストなど、出力内容を切り替えられます。
+Illustratorで利用できるフォントをウェイト・スタイル順に並べ、ファミリー単位でアートボードへ整列描画します。
+キーワード、ウェイト（5段階）、種類で対象を絞り込み、フォント名・PostScript名・サンプル・カスタムテキストから出力内容を選べます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Lists the fonts available in Illustrator and lays them out on the artboard, ordered by weight and style.
-The output can show the font name, the PostScript name, a sample string, or your own custom text.
+Lays out the fonts available in Illustrator on the artboard, grouped by family and ordered by weight and style.
+Narrow the list by keyword, weight (5 ranks) or style category, and output the font name, the PostScript name, a sample string, or your own custom text.
 
 See the README for details.
 
@@ -23,145 +23,151 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypefaceSampler";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypefaceSampler.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypefaceSampler.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n103ac6622657"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-(function () {
+(function() {
 
-    // -------------------------------
-    // 言語設定の取得
-    // Get current language setting
-    // -------------------------------
-    function getCurrentLang() {
-        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+    var DEFAULT_COLUMN_COUNT = 3;  /* 列数の初期値 / default column count */
+    var SAMPLE_FONT_SIZE     = 10; /* 描画するサンプルの文字サイズ（pt）/ sample font size in points */
+
+    /* ラジオの見出しと描画内容を兼ねるサンプル文字列 / Sample strings used both as radio captions and as drawn text */
+    var SAMPLE_ALPHABET_TEXT = "The quick brown fox jumps over the lazy dog.";
+    var SAMPLE_NUMBERS_TEXT  = "1234567890";
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var WINDOW_MARGINS      = 16;               /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING      = 12;               /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS       = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING       = 6;                /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING      = 12;               /* 2カラムの間隔 / gap between columns */
+    var BUTTON_BAR_MARGINS  = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
+    var BUTTON_BAR_SPACING  = 10;               /* ボタンバー内の要素間隔 / spacing inside the button bar */
+    var KEYWORD_FIELD_CHARS = 30;               /* キーワード欄の最小幅（文字数）/ minimum width of the keyword field */
+    var COLUMN_FIELD_CHARS  = 3;                /* 列数欄の最小幅（文字数）/ minimum width of the column field */
+
+
+    /**
+     * パネルに共通レイアウトを適用する
+     * @param {Panel} targetPanel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    // -------------------------------
-    // ラベル定義
-    // Define labels
-    // -------------------------------
-    var lang = getCurrentLang();
-    var LABELS = {
-        dialogTitle: {
-            ja: "フォントを一覧表示",
-            en: "Typeface Sampler"
-        },
-        keywordPrompt: {
-            ja: "フォント名に含まれるキーワード（空欄→全対象）：",
-            en: "Keyword in font name (leave blank for all):"
-        },
-        outputContent: {
-            ja: "出力内容",
-            en: "Output Content"
-        },
-        fontNameWeightStyle: {
-            ja: "フォント名＋ウェイト／スタイル",
-            en: "Font Name + Weight/Style"
-        },
-        postscriptName: {
-            ja: "PostScript名",
-            en: "PostScript Name"
-        },
-        sampleAlphabet: {
-            ja: "The quick brown fox jumps over the lazy dog.",
-            en: "The quick brown fox jumps over the lazy dog."
-        },
-        sampleNumbers: {
-            ja: "1234567890",
-            en: "1234567890"
-        },
-        custom: {
-            ja: "カスタム",
-            en: "Custom"
-        },
-        sampleText: {
-            ja: "愛のあるユニークで豊かな書体ABCabcGg349",
-            en: "Lorem ipsum dolor sit amet, consectetur adipiscing elit"
-        },
-        columns: {
-            ja: "列数",
-            en: "Columns"
-        },
-        categorizeByFamily: {
-            ja: "カテゴリー分け（font.family）",
-            en: "Categorize by font.family"
-        },
-        showWeightCount: {
-            ja: "ウェイト数",
-            en: "Weight Count"
-        },
-        showWeightToggle: {
-            ja: "ウェイト一覧",
-            en: "Weight List"
-        },
-        showScoreToggle: {
-            ja: "スコア（検証用）",
-            en: "Debug Score"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        confirmTitle: {
-            ja: "確認",
-            en: "Confirmation"
-        },
-        confirmMessage1: {
-            ja: "すべてのフォントを対象に実行しますか？",
-            en: "Do you want to process all fonts?"
-        },
-        confirmMessage2: {
-            ja: "非常に時間がかかることがあります。",
-            en: "This may take a long time."
-        },
-        stop: {
-            ja: "中止する",
-            en: "Cancel"
-        },
-        proceed: {
-            ja: "続行する",
-            en: "Proceed"
-        },
-        errorNoDocument: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document is open."
-        },
-        errorOccurred: {
-            ja: "エラーが発生しました：",
-            en: "An error occurred:"
-        },
-        labelGroupTitle: {
-            ja: "[カテゴリ]",
-            en: "[Category]"
-        }
-    };
-    // -------------------------------------------
-    // ラジオボタンで上下キー移動を有効化する関数（オリジナル版）
-    // -------------------------------------------
+    /**
+     * グループを横並びの行として設定する
+     * @param {Group} targetGroup - 対象グループ
+     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, horizontalAlign, spacing) {
+        targetGroup.orientation = "row";
+        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
+        targetGroup.alignment = [horizontalAlign || "left", "center"];
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Window|Group} parentContainer - 追加先
+     * @param {string} panelTitle - パネルの見出し
+     * @returns {Panel} 生成したパネル
+     */
+    function addPanel(parentContainer, panelTitle) {
+        var createdPanel = parentContainer.add("panel");
+        createdPanel.text = panelTitle;
+        setupPanel(createdPanel);
+        return createdPanel;
+    }
+
+    /**
+     * 左寄せの縦並びグループを生成する（ラジオ列など）
+     * @param {Window|Group|Panel} parentContainer - 追加先
+     * @returns {Group} 生成したグループ
+     */
+    function addLeftAlignedColumn(parentContainer) {
+        var createdGroup = parentContainer.add("group");
+        createdGroup.orientation = "column";
+        createdGroup.alignChildren = ["left", "center"];
+        return createdGroup;
+    }
+
+    /**
+     * 数値入力欄に上下キーでの増減を割り当てる
+     * @param {EditText} editText - 対象の入力欄
+     * @param {function} [onChanged] - 値が変わったときに呼ぶ関数
+     * @param {number} [minValue] - 下限値（指定時はこれ未満にしない）
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, onChanged, minValue) {
+        editText.addEventListener("keydown", function(event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var isUp = (event.keyName == "Up");
+            event.preventDefault();
+
+            if (keyboard.shiftKey) {
+                /* Shift：10 単位にスナップ / Shift snaps to multiples of 10 */
+                value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            } else if (keyboard.altKey) {
+                /* Option：0.1 刻み / Option steps by 0.1 */
+                value = Math.round((value + (isUp ? 0.1 : -0.1)) * 10) / 10;
+            } else {
+                value = Math.round(value + (isUp ? 1 : -1));
+            }
+
+            if (typeof minValue === "number" && value < minValue) value = minValue;
+
+            editText.text = value;
+            if (typeof onChanged === "function") onChanged();
+        });
+    }
+
+    /**
+     * ラジオボタン群に上下キーでの選択移動を割り当てる
+     * @param {Array} radioButtons - 対象のラジオボタン
+     * @returns {void}
+     */
     function enableArrowKeyNavigation(radioButtons) {
         if (!radioButtons || radioButtons.length === 0) return;
 
-        var parent = radioButtons[0].parent;
-        while (parent && typeof parent.addEventListener !== "function" && parent.parent) {
-            parent = parent.parent;
+        /* addEventListener を持つ祖先までさかのぼる / Walk up to an ancestor that accepts listeners */
+        var eventTarget = radioButtons[0].parent;
+        while (eventTarget && typeof eventTarget.addEventListener !== "function" && eventTarget.parent) {
+            eventTarget = eventTarget.parent;
         }
-        if (!parent || typeof parent.addEventListener !== "function") return;
+        if (!eventTarget || typeof eventTarget.addEventListener !== "function") return;
 
-        parent.addEventListener("keydown", function(event) {
+        eventTarget.addEventListener("keydown", function(event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
             var currentIndex = -1;
@@ -171,14 +177,14 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
                     break;
                 }
             }
-
             if (currentIndex === -1) return;
 
-            var nextIndex = currentIndex;
+            var lastIndex = radioButtons.length - 1;
+            var nextIndex;
             if (event.keyName === "Up") {
-                nextIndex = (currentIndex === 0) ? radioButtons.length - 1 : currentIndex - 1;
-            } else if (event.keyName === "Down") {
-                nextIndex = (currentIndex === radioButtons.length - 1) ? 0 : currentIndex + 1;
+                nextIndex = (currentIndex === 0) ? lastIndex : currentIndex - 1;
+            } else {
+                nextIndex = (currentIndex === lastIndex) ? 0 : currentIndex + 1;
             }
 
             radioButtons[nextIndex].value = true;
@@ -190,89 +196,207 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
         });
     }
 
-    // --------------------------------
-    // ダイアログを表示してユーザー入力を取得
-    // Show dialog to get user input
-    // --------------------------------
-    function showFontListDialog() {
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-        dialog.orientation = "column";
-        dialog.alignChildren = "left";
-        dialog.margins = 20;
+    // =========================================
+    // 描画寸法 / Drawing metrics
+    // =========================================
+    var ARTBOARD_PADDING      = 20;  /* アートボード端からの余白（pt）/ padding from the artboard edge */
+    var SAMPLE_COLUMN_SPACING = 220; /* カテゴリー列の間隔（pt）/ gap between category columns */
+    var SAMPLE_ROW_SPACING    = 300; /* カテゴリー行の間隔（pt）/ gap between category rows */
+    var CATEGORY_LINE_HEIGHT  = 16;  /* カテゴリー一覧の行送り（pt）/ line height of the category list */
 
-        dialog.add("statictext", undefined, LABELS.keywordPrompt[lang]);
-        var keywordField = dialog.add("edittext", undefined, "");
-        keywordField.characters = 30;
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在の表示言語を取得する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
+        /* "ja" で始まるロケール（ja, ja_JP など）は日本語扱い / Treat "ja*" locales as Japanese */
+        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title:        { ja: "フォントを一覧表示", en: "Typeface Sampler" },
+            confirmTitle: { ja: "確認", en: "Confirmation" }
+        },
+        panel: {
+            output: { ja: "出力内容", en: "Output Content" },
+            option: { ja: "表示オプション", en: "Display Options" },
+            weight: { ja: "ウェイト", en: "Weight" },
+            type:   { ja: "種類", en: "Style" }
+        },
+        radio: {
+            fontNameWeightStyle: { ja: "フォント名＋ウェイト／スタイル", en: "Font Name + Weight/Style" },
+            postscriptName:      { ja: "PostScript名", en: "PostScript Name" },
+            custom:              { ja: "カスタム", en: "Custom" }
+        },
+        checkbox: {
+            showWeightCount: { ja: "ウェイト数", en: "Weight Count" },
+            showWeightList:  { ja: "ウェイト一覧", en: "Weight List" },
+            showScore:       { ja: "スコア（検証用）", en: "Debug Score" },
+            weightVeryThin:  { ja: "超極細・極細", en: "Hairline / Thin" },
+            weightLight:     { ja: "細め", en: "Light" },
+            weightRegular:   { ja: "標準", en: "Regular" },
+            weightSemiBold:  { ja: "中太", en: "Medium / SemiBold" },
+            weightBold:      { ja: "太字・極太", en: "Bold / Black" },
+            typeBasic:       { ja: "基本", en: "Basic" },
+            typeNarrow:      { ja: "狭める系", en: "Condensed" },
+            typeWide:        { ja: "広げる系", en: "Expanded" },
+            typeDecor:       { ja: "装飾・特殊用途", en: "Display / Special" },
+            typeSizeProp:    { ja: "サイズ・プロポーション系", en: "Size / Proportion" }
+        },
+        fieldLabel: {
+            keyword: { ja: "フォント名に含まれるキーワード（空欄→全対象）", en: "Keyword in font name (leave blank for all)" },
+            columns: { ja: "列数", en: "Columns" }
+        },
+        button: {
+            cancel:  { ja: "キャンセル", en: "Cancel" },
+            ok:      { ja: "OK", en: "OK" },
+            stop:    { ja: "中止する", en: "Cancel" },
+            proceed: { ja: "続行する", en: "Proceed" }
+        },
+        alert: {
+            noDocument:    { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noMatchingFont: { ja: "条件に該当するフォントが見つかりませんでした。", en: "No font matched the given conditions." },
+            errorOccurred: { ja: "エラーが発生しました：", en: "An error occurred:" },
+            confirmAllFonts: {
+                ja: "すべてのフォントを対象に実行しますか？",
+                en: "Do you want to process all fonts?"
+            },
+            confirmAllFontsNote: {
+                ja: "非常に時間がかかることがあります。",
+                en: "This may take a long time."
+            }
+        },
+        sampleText: {
+            ja: "愛のあるユニークで豊かな書体ABCabcGg349",
+            en: "Lorem ipsum dolor sit amet, consectetur adipiscing elit"
+        }
+    };
+
+    /**
+     * 現在のUI言語に対応するラベル文字列を返す
+     * @param {object} labelSet - ja / en を持つラベル定義
+     * @returns {string} 表示用の文字列
+     */
+    function getLabel(labelSet) {
+        return labelSet[uiLang] || labelSet.en;
+    }
+
+    /**
+     * コロン付きラベルを返す（日本語は全角、英語は半角）
+     * @param {object} labelSet - ja / en を持つラベル定義
+     * @returns {string} コロンを付けた表示用の文字列
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // ダイアログ / Dialogs
+    // =========================================
+
+    /* ラジオボタンの並びに対応する出力モード / Output modes matching the radio button order */
+    var DISPLAY_MODES = ["family+style", "postscript", "alphabet", "numbers", "custom"];
+
+    /**
+     * ダイアログを表示してユーザー入力を取得する
+     * @returns {object} 入力内容。キャンセル時は null
+     */
+    function showFontListDialog() {
+        var dialogWindow = new Window("dialog", getLabel(LABELS.dialog.title));
+        dialogWindow.orientation = "column";
+        dialogWindow.alignChildren = ["fill", "top"];
+        dialogWindow.margins = WINDOW_MARGINS;
+        dialogWindow.spacing = WINDOW_SPACING;
+
+        dialogWindow.add("statictext", undefined, labelText(LABELS.fieldLabel.keyword));
+        var keywordField = dialogWindow.add("edittext", undefined, "");
+        keywordField.characters = KEYWORD_FIELD_CHARS;
         keywordField.active = true;
 
-        var displayPanel = dialog.add("panel", undefined, LABELS.outputContent[lang]);
-        displayPanel.orientation = "column";
-        displayPanel.alignChildren = "left";
-        displayPanel.margins = [15, 20, 15, 15];
+        /* 出力内容 / Output content */
+        var outputPanel = addPanel(dialogWindow, getLabel(LABELS.panel.output));
+        var displayModeColumn = addLeftAlignedColumn(outputPanel);
 
-        var radioGroup = displayPanel.add("group");
-        radioGroup.orientation = "column";
-        radioGroup.alignChildren = "left";
+        var displayModeRadios = [];
+        displayModeRadios[0] = displayModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.fontNameWeightStyle));
+        displayModeRadios[1] = displayModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.postscriptName));
+        displayModeRadios[2] = displayModeColumn.add("radiobutton", undefined, SAMPLE_ALPHABET_TEXT);
+        displayModeRadios[3] = displayModeColumn.add("radiobutton", undefined, SAMPLE_NUMBERS_TEXT);
+        displayModeRadios[4] = displayModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.custom));
+        displayModeRadios[0].value = true;
 
-        var displayOptions = [];
-        // Only 5 elements, starting with "fontNameWeightStyle"
-        displayOptions[0] = radioGroup.add("radiobutton", undefined, LABELS.fontNameWeightStyle[lang]);
-        displayOptions[1] = radioGroup.add("radiobutton", undefined, LABELS.postscriptName[lang]);
-        displayOptions[2] = radioGroup.add("radiobutton", undefined, LABELS.sampleAlphabet[lang]);
-        displayOptions[3] = radioGroup.add("radiobutton", undefined, LABELS.sampleNumbers[lang]);
-        displayOptions[4] = radioGroup.add("radiobutton", undefined, LABELS.custom[lang]);
-        displayOptions[0].value = true;
-
-        var customTextField = displayPanel.add("edittext", undefined, LABELS.sampleText[lang]);
-        customTextField.characters = 30;
+        var customTextField = outputPanel.add("edittext", undefined, getLabel(LABELS.sampleText));
+        customTextField.characters = KEYWORD_FIELD_CHARS;
         customTextField.enabled = false;
 
-        displayOptions[4].onClick = function() {
-            customTextField.enabled = true;
-            updateDisplayPanelState();
-        };
-        for (var i = 0; i < displayOptions.length - 1; i++) {
-            displayOptions[i].onClick = function() {
-                customTextField.enabled = false;
-                updateDisplayPanelState();
-            };
-        }
+        enableArrowKeyNavigation(displayModeRadios);
 
-        // --- Enable arrow key navigation for radio buttons ---
-        enableArrowKeyNavigation(displayOptions);
+        /* 表示オプション / Display options */
+        var optionPanel = addPanel(dialogWindow, getLabel(LABELS.panel.option));
 
-        // 新しいパネル「表示オプション」
-        var optionPanel = dialog.add("panel", undefined, LABELS.outputContent[lang]);
-        optionPanel.orientation = "column";
-        optionPanel.alignChildren = "left";
-        optionPanel.margins = [15, 20, 15, 15];
+        var weightOptionRow = optionPanel.add("group");
+        setupRow(weightOptionRow);
+        var showWeightCountCheckbox = weightOptionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.showWeightCount));
+        var showWeightListCheckbox = weightOptionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.showWeightList));
+        showWeightListCheckbox.value = true;
 
-        var weightRow = optionPanel.add("group");
-        weightRow.orientation = "row";
-        var showWeightCountCheckbox = weightRow.add("checkbox", undefined, LABELS.showWeightCount[lang]);
-        var showWeightCheckbox = weightRow.add("checkbox", undefined, LABELS.showWeightToggle[lang]);
-        showWeightCheckbox.value = true;
+        var columnAndScoreRow = optionPanel.add("group");
+        setupRow(columnAndScoreRow);
+        columnAndScoreRow.add("statictext", undefined, labelText(LABELS.fieldLabel.columns));
+        var columnField = columnAndScoreRow.add("edittext", undefined, DEFAULT_COLUMN_COUNT + "");
+        columnField.characters = COLUMN_FIELD_CHARS;
+        changeValueByArrowKey(columnField, null, 1);
+        var showScoreCheckbox = columnAndScoreRow.add("checkbox", undefined, getLabel(LABELS.checkbox.showScore));
 
-        var layoutRow = optionPanel.add("group");
-        layoutRow.orientation = "row";
-        layoutRow.add("statictext", undefined, LABELS.columns[lang]);
-        var columnField = layoutRow.add("edittext", undefined, "3");
-        columnField.characters = 3;
-        var showScoreCheckbox = layoutRow.add("checkbox", undefined, LABELS.showScoreToggle[lang]);
+        /* ウェイト・種類による絞り込み / Weight and style filters */
+        var filterRow = dialogWindow.add("group");
+        filterRow.orientation = "row";
+        /* 2つのパネルを同じ幅で並べ、上端をそろえる / Lay both panels out at equal width, aligned at the top */
+        filterRow.alignment = ["fill", "top"];
+        filterRow.alignChildren = ["fill", "top"];
+        filterRow.spacing = COLUMN_SPACING;
 
-        // --- Insert: updateDisplayPanelState function and event hookup ---
-        function updateDisplayPanelState() {
-            displayPanel.enabled = showWeightCheckbox.value;
-            columnField.enabled = showWeightCheckbox.value;
-            if (!showWeightCheckbox.value) {
-                for (var i = 0; i < displayOptions.length; i++) {
-                    displayOptions[i].value = false;
+        var weightPanel = addPanel(filterRow, getLabel(LABELS.panel.weight));
+        var weightVeryThinCheckbox = weightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.weightVeryThin));
+        var weightLightCheckbox    = weightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.weightLight));
+        var weightRegularCheckbox  = weightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.weightRegular));
+        var weightSemiBoldCheckbox = weightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.weightSemiBold));
+        var weightBoldCheckbox     = weightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.weightBold));
+
+        var typePanel = addPanel(filterRow, getLabel(LABELS.panel.type));
+        var typeBasicCheckbox    = typePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.typeBasic));
+        var typeNarrowCheckbox   = typePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.typeNarrow));
+        var typeWideCheckbox     = typePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.typeWide));
+        var typeDecorCheckbox    = typePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.typeDecor));
+        var typeSizePropCheckbox = typePanel.add("checkbox", undefined, getLabel(LABELS.checkbox.typeSizeProp));
+
+        /**
+         * 「ウェイト一覧」の状態に合わせて各コントロールの有効・無効を更新する
+         * @returns {void}
+         */
+        function updateDialogState() {
+            outputPanel.enabled = showWeightListCheckbox.value;
+            columnField.enabled = showWeightListCheckbox.value;
+
+            /* 一覧をやめたときは1列・フォント名表示に戻す / Fall back to a single column of font names */
+            if (!showWeightListCheckbox.value) {
+                for (var i = 0; i < displayModeRadios.length; i++) {
+                    displayModeRadios[i].value = false;
                 }
-                displayOptions[1].value = true; // fontNameWeightStyle
+                displayModeRadios[0].value = true;
                 columnField.text = "1";
             }
-            // --- Updated logic for showScoreCheckbox ---
-            if (!showWeightCheckbox.value || !displayOptions[0].value) {
+
+            /* スコアはフォント名＋ウェイト／スタイル表示のときだけ有効 / Score applies to the family+style mode only */
+            if (!showWeightListCheckbox.value || !displayModeRadios[0].value) {
                 showScoreCheckbox.value = false;
                 showScoreCheckbox.enabled = false;
             } else {
@@ -280,29 +404,43 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
             }
         }
 
-        showWeightCheckbox.onClick = updateDisplayPanelState;
-        updateDisplayPanelState();
+        displayModeRadios[4].onClick = function() {
+            customTextField.enabled = true;
+            updateDialogState();
+        };
+        for (var i = 0; i < displayModeRadios.length - 1; i++) {
+            displayModeRadios[i].onClick = function() {
+                customTextField.enabled = false;
+                updateDialogState();
+            };
+        }
+        showWeightListCheckbox.onClick = updateDialogState;
+        updateDialogState();
 
-        var buttonGroup = dialog.add("group");
-        buttonGroup.alignment = "right";
-        buttonGroup.margins = [0, 15, 0, 0];
-        buttonGroup.add("button", undefined, LABELS.cancel[lang], {
-            name: "cancel"
-        });
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], {
-            name: "ok"
-        });
+        /* メイングループ（横並び）/ Main group (horizontal layout) */
+        var btnRowGroup = dialogWindow.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.spacing = BUTTON_BAR_SPACING;
 
-        var result = dialog.show();
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        if (result !== 1) return null;
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        // Removed "debug" mode; now 5 elements, matching displayOptions
-        var displayModeMap = ["family+style", "postscript", "alphabet", "numbers", "custom"];
-        var displayMode = displayModeMap[0];
-        for (i = 0; i < displayOptions.length; i++) {
-            if (displayOptions[i].value) {
-                displayMode = displayModeMap[i];
+        if (dialogWindow.show() !== 1) return null;
+
+        var displayMode = DISPLAY_MODES[0];
+        for (i = 0; i < displayModeRadios.length; i++) {
+            if (displayModeRadios[i].value) {
+                displayMode = DISPLAY_MODES[i];
                 break;
             }
         }
@@ -311,364 +449,249 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
             keyword: keywordField.text.toLowerCase().replace(/^\s+|\s+$/g, ""),
             displayMode: displayMode,
             customText: customTextField.text,
-            columns: parseInt(columnField.text, 10) || 3,
+            columns: parseInt(columnField.text, 10) || DEFAULT_COLUMN_COUNT,
             useCategory: true,
-            showWeight: showWeightCheckbox.value,
+            showWeight: showWeightListCheckbox.value,
             showWeightCount: showWeightCountCheckbox.value,
             showScore: showScoreCheckbox.value,
+            weightFilters: {
+                veryThin: weightVeryThinCheckbox.value,
+                light: weightLightCheckbox.value,
+                regular: weightRegularCheckbox.value,
+                semiBold: weightSemiBoldCheckbox.value,
+                bold: weightBoldCheckbox.value
+            },
+            typeFilters: {
+                basic: typeBasicCheckbox.value,
+                narrow: typeNarrowCheckbox.value,
+                wide: typeWideCheckbox.value,
+                decor: typeDecorCheckbox.value,
+                sizeProp: typeSizePropCheckbox.value
+            }
         };
     }
 
+    /**
+     * 全フォントを対象にしてよいか確認する
+     * @returns {boolean} 続行する場合は true
+     */
     function confirmShowAllFonts() {
-        var confirmDialog = new Window("dialog", LABELS.confirmTitle[lang]);
+        var confirmDialog = new Window("dialog", getLabel(LABELS.dialog.confirmTitle));
         confirmDialog.orientation = "column";
-        confirmDialog.alignChildren = "left";
-        confirmDialog.margins = 20;
-        confirmDialog.add("statictext", undefined, LABELS.confirmMessage1[lang]);
-        confirmDialog.add("statictext", undefined, LABELS.confirmMessage2[lang]);
+        confirmDialog.alignChildren = ["left", "top"];
+        confirmDialog.margins = WINDOW_MARGINS;
+        confirmDialog.spacing = WINDOW_SPACING;
 
-        var buttonGroup = confirmDialog.add("group");
-        buttonGroup.alignment = "right";
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.stop[lang], {
-            name: "cancel"
-        });
-        var okBtn = buttonGroup.add("button", undefined, LABELS.proceed[lang], {
-            name: "ok"
-        });
+        confirmDialog.add("statictext", undefined, getLabel(LABELS.alert.confirmAllFonts));
+        confirmDialog.add("statictext", undefined, getLabel(LABELS.alert.confirmAllFontsNote));
 
-        var result = false;
-        okBtn.onClick = function() {
-            result = true;
-            confirmDialog.close();
-        };
-        cancelBtn.onClick = function() {
-            result = false;
-            confirmDialog.close();
-        };
+        /* メイングループ（横並び）/ Main group (horizontal layout) */
+        var btnRowGroup = confirmDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.spacing = BUTTON_BAR_SPACING;
 
-        confirmDialog.show();
-        return result;
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.stop), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.proceed), { name: "ok" });
+
+        return confirmDialog.show() === 1;
     }
 
-    function collectFonts(input) {
-        // Normalization function for quoted search
-        function normalize(str) {
-            return str.toLowerCase().replace(/[\s\-　]/g, "");
-        }
+    // =========================================
+    // ウェイト語句の定義 / Weight term definitions
+    // =========================================
 
-        var grouped = {};
+    /* ウェイト語句の並び（インデックスが大きいほど太い）/ Weight terms ordered from thin to bold */
+    var WEIGHT_GROUPS = [
+        ["hairline"], // +0
+        ["ultra thin", "ultrathin", "ut"], // +1
+        ["thin", "th"], // +2
+        ["default"], // +3
+        ["ultralight", "ultra light", "ultlt", "ul"], // +4
+        ["extralight", "extra light", "el", "xlight", "xl"], // +5
+        ["lightsemi"], // +6
+        ["light", "lt", "lite", "l"], // +7
+        ["lb"], // +8
+        ["book", "bk"], // +9
+        ["n", "normal"], // +10
+        ["middle"], // +11
+        ["regular", "roman", "normal", "レギュラー", "r"], // +12
+        ["rb"], // +13
+        ["medium", "md", "ミディアム", "m"], // +14
+        ["semibold", "semi bold", "sb"], // +15
+        ["demibold", "demi bold", "db", "デミボールド", "demi", "d", "demixtra"], // +16
+        ["bold", "bd", "ボールド", "b"], // +17
+        ["extrabold", "extra bold", "xbold", "エクストラボールド", "e", "eb", "xb"], // +18
+        ["heavy", "h"], // +19
+        ["black"], // +20
+        ["xblack", "extra black", "extrablack", "xb"], // +21
+        ["ultra", "u", "ub", "ultra black", "ultrablack"] // +22
+    ];
+
+    /* 単独で使われたら Regular 扱いする装飾語句 / Decoration-only styles treated as Regular */
+    var DECORATION_ONLY_STYLES = [
+        "display", "compressed", "comp", "compact", "expanded", "extended", "semiextended",
+        "ultracondensed", "extracondensed", "semicondensed", "cond", "condensed", "wide",
+        "headline", "text", "low", "micro", "extra compressed",
+        "semi expanded", "semiexpanded"
+    ];
+
+    /* WEIGHT_GROUPS における Regular のインデックス / Index of "regular" in WEIGHT_GROUPS */
+    var REGULAR_GROUP_INDEX = (function() {
+        for (var i = 0; i < WEIGHT_GROUPS.length; i++) {
+            for (var j = 0; j < WEIGHT_GROUPS[i].length; j++) {
+                if (WEIGHT_GROUPS[i][j] === "regular") return i;
+            }
+        }
+        return 12; /* fallback */
+    })();
+
+    /* 複合語一致用に、長い語から順に並べた照合テーブル / Match table sorted by term length */
+    var WEIGHT_TERM_PATTERNS = (function() {
+        var termPatterns = [];
+        for (var i = 0; i < WEIGHT_GROUPS.length; i++) {
+            for (var j = 0; j < WEIGHT_GROUPS[i].length; j++) {
+                var weightTerm = WEIGHT_GROUPS[i][j];
+                termPatterns.push({
+                    term: weightTerm,
+                    groupIndex: i,
+                    pattern: new RegExp("\\b" + weightTerm.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "\\b")
+                });
+            }
+        }
+        termPatterns.sort(function(a, b) {
+            return b.term.length - a.term.length;
+        });
+        return termPatterns;
+    })();
+
+    /**
+     * スタイル文字列に一致する WEIGHT_GROUPS のインデックスを返す
+     * 完全一致を優先し、なければ長い語から順に単語境界つきで照合する
+     * @param {string} normalizedStyle - 正規化済みのスタイル文字列
+     * @returns {number} 一致したインデックス。見つからない場合は -1
+     */
+    function getWeightGroupIndex(normalizedStyle) {
         var i, j;
 
-        var raw = input.keyword;
-        var andGroups = [];
-        var notKeywords = [];
-
-        if (raw) {
-            // -------------------------------
-            // 入力の正規化
-            // -------------------------------
-            raw = raw.replace(/　/g, " "); // 全角スペース→半角
-            raw = raw.replace(/\s*,\s*/g, ","); // カンマの前後スペース除去
-            raw = raw.replace(/\s+/g, " "); // 連続スペース→1つの半角スペース
-
-            // -------------------------------
-            // NOTキーワード（-付き）抽出
-            // -------------------------------
-            var rawParts = raw.split(" ");
-            var keywordParts = [];
-            for (i = 0; i < rawParts.length; i++) {
-                if (rawParts[i].charAt(0) === "-") {
-                    notKeywords.push(rawParts[i].substring(1).toLowerCase());
-                } else {
-                    keywordParts.push(rawParts[i]);
-                }
-            }
-
-            // -------------------------------
-            // AND（+区切り）と OR（スペース・カンマ）の構築
-            // -------------------------------
-            var andParts = keywordParts.join(" ").split("+");
-            for (i = 0; i < andParts.length; i++) {
-                var group = [];
-                var orParts = andParts[i].split(/[\s,]+/);
-
-                for (j = 0; j < orParts.length; j++) {
-                    var keyword = orParts[j].toLowerCase();
-                    if (keyword.length === 0) continue;
-
-                    var isPrefix = false;
-                    if (keyword.charAt(0) === "^") {
-                        isPrefix = true;
-                        keyword = keyword.substring(1);
-                    }
-
-                    // Detect quoted terms and mark them
-                    var isQuoted = false;
-                    if (keyword.charAt(0) === '"' && keyword.charAt(keyword.length - 1) === '"') {
-                        keyword = keyword.slice(1, -1);
-                        isQuoted = true;
-                    }
-                    group.push({
-                        keyword: keyword,
-                        isPrefix: isPrefix,
-                        isQuoted: isQuoted
-                    });
-                }
-                if (group.length > 0) andGroups.push(group);
+        for (i = 0; i < WEIGHT_GROUPS.length; i++) {
+            for (j = 0; j < WEIGHT_GROUPS[i].length; j++) {
+                if (normalizedStyle === WEIGHT_GROUPS[i][j]) return i;
             }
         }
 
-        // -------------------------------
-        // フォント走査
-        // -------------------------------
-        for (i = 0; i < textFonts.length; i++) {
-            var font = textFonts[i];
-            var name = font.name.toLowerCase();
-            var family = font.family.toLowerCase();
-            var style = (font.style || "").toLowerCase();
-
-            // ✅ NOT 条件：含まれていたら除外
-            var skip = false;
-            for (j = 0; j < notKeywords.length; j++) {
-                var nkey = notKeywords[j];
-                if (name.indexOf(nkey) !== -1 || family.indexOf(nkey) !== -1 || style.indexOf(nkey) !== -1) {
-                    skip = true;
-                    break;
-                }
-            }
-            if (skip) continue;
-
-            // ✅ AND × OR 条件チェック
-            if (andGroups.length > 0) {
-                var allMatched = true;
-
-                for (j = 0; j < andGroups.length; j++) {
-                    var groupMatched = false;
-                    var group = andGroups[j];
-
-                    for (var k = 0; k < group.length; k++) {
-                        var kw = group[k];
-                        var key = kw.keyword;
-                        var isPrefix = kw.isPrefix;
-
-                        if (isPrefix) {
-                            if (name.substr(0, key.length) === key ||
-                                family.substr(0, key.length) === key ||
-                                style.substr(0, key.length) === key) {
-                                groupMatched = true;
-                                break;
-                            }
-                        } else {
-                            if (kw.isQuoted) {
-                                var normalizedKey = normalize(key);
-                                if (
-                                    normalize(name).indexOf(normalizedKey) !== -1 ||
-                                    normalize(family).indexOf(normalizedKey) !== -1 ||
-                                    normalize(style).indexOf(normalizedKey) !== -1
-                                ) {
-                                    groupMatched = true;
-                                    break;
-                                }
-                            } else {
-                                if (name.indexOf(key) !== -1 ||
-                                    family.indexOf(key) !== -1 ||
-                                    style.indexOf(key) !== -1) {
-                                    groupMatched = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (!groupMatched) {
-                        allMatched = false;
-                        break;
-                    }
-                }
-
-                if (!allMatched) continue;
-            }
-
-            // ✅ グループに追加
-            var groupKey = input.useCategory ? font.family : "Uncategorized";
-            if (!grouped[groupKey]) grouped[groupKey] = [];
-
-            var exists = false;
-            for (j = 0; j < grouped[groupKey].length; j++) {
-                if (grouped[groupKey][j].name === font.name) {
-                    exists = true;
-                    break;
-                }
-            }
-
-            if (!exists) grouped[groupKey].push(font);
+        for (i = 0; i < WEIGHT_TERM_PATTERNS.length; i++) {
+            if (WEIGHT_TERM_PATTERNS[i].pattern.test(normalizedStyle)) return WEIGHT_TERM_PATTERNS[i].groupIndex;
         }
 
-        return grouped;
+        return -1;
     }
 
-    // --------------------------------
-    // 各グループをウエイト＋スタイル順にソート（ES3）
-    // --------------------------------
-    function sortFontGroups(groups) {
-        for (var label in groups) {
-            if (!groups.hasOwnProperty(label)) continue;
-            groups[label].sort(function(a, b) {
-                return getFullSortRank(a) - getFullSortRank(b);
-            });
-        }
+    /**
+     * スタイル文字列を照合用に正規化する
+     * @param {string} rawStyle - font.style の値
+     * @returns {string} 小文字化し、区切り記号を空白に置き換えた文字列
+     */
+    function normalizeStyle(rawStyle) {
+        return (rawStyle || "").toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
     }
-    // --------------------------------
-    // アートボード上にフォントサンプルを描画（ES3）
-    // --------------------------------
-    function drawFontSamples(doc, groupedFonts, input) {
-        var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-        var bounds = artboard.artboardRect;
-        var startX = bounds[0] + 20;
-        var startY = bounds[1] - 20;
-        var columnSpacing = 220;
-        var rowSpacing = 300;
-        var fontSize = 10;
 
-        app.executeMenuCommand("deselectall");
+    // =========================================
+    // ウェイト評価 / Weight scoring
+    // =========================================
 
-        // グループ名をソート取得（ES3）
-        var groupLabels = [];
-        for (var label in groupedFonts) {
-            if (!groupedFonts.hasOwnProperty(label)) continue;
-            if (groupedFonts[label].length > 0) {
-                groupLabels.push(label);
+    /**
+     * スタイル文字列に対する基本ウェイトスコアを取得する
+     * @param {string} rawStyle - font.style の値
+     * @param {string} postscriptName - 小文字化した PostScript 名
+     * @param {string} familyName - 小文字化したファミリー名
+     * @returns {number} ウェイトの評価値（小さいほど細い）
+     */
+    function getBaseWeightScore(rawStyle, postscriptName, familyName) {
+        var normalizedStyle = normalizeStyle(rawStyle);
+        var styleWords = normalizedStyle.split(/\s+/);
+        var i;
+
+        var applyFrutigerCorrection = (/frutiger/i.test(familyName) && /ultralight/.test(normalizedStyle));
+
+        /* W0〜W9 */
+        var singleDigitMatch = normalizedStyle.match(/^w(\d)$/);
+        if (singleDigitMatch !== null) return parseInt(singleDigitMatch[1], 10);
+
+        /* W000〜W999 */
+        var tripleDigitMatch = normalizedStyle.match(/^w(\d{3})$/);
+        if (tripleDigitMatch !== null) return parseInt(tripleDigitMatch[1], 10);
+
+        /* 先頭数値（例：25 Ultra Light）/ Leading number */
+        var leadingNumberMatch = normalizedStyle.match(/^(\d{1,3})(?=\D|$)/);
+        if (leadingNumberMatch) return parseInt(leadingNumberMatch[1], 10);
+
+        /* 特例：HelveticaNeue, Tazugane, UniversNextPro + Ultra Light → 999 */
+        if (
+            (
+                /helveticaneue/i.test(postscriptName) ||
+                /tazugane/i.test(postscriptName) ||
+                /universnextpro/i.test(postscriptName)
+            ) &&
+            /ultralight|ultra light|ultlt/i.test(normalizedStyle)
+        ) {
+            return 999;
+        }
+
+        /* 単独語が italic / oblique / wide → Regular 扱い */
+        if (styleWords.length === 1 && /^(italic|oblique|it|wide)$/.test(styleWords[0])) {
+            return 1000 + REGULAR_GROUP_INDEX;
+        }
+
+        /* 装飾語だけなら Regular 扱い */
+        if (styleWords.length === 1) {
+            for (i = 0; i < DECORATION_ONLY_STYLES.length; i++) {
+                if (styleWords[0] === DECORATION_ONLY_STYLES[i]) return 1000 + REGULAR_GROUP_INDEX;
             }
         }
 
-        // ソート（ES3対応）
-        groupLabels.sort();
-
-        var col = 0;
-        var row = 0;
-        for (var i = 0; i < groupLabels.length; i++) {
-            var label = groupLabels[i];
-            var fonts = groupedFonts[label];
-
-            var x = startX + col * columnSpacing;
-            var y = startY - row * rowSpacing;
-
-            if (++col >= input.columns) {
-                col = 0;
-                row++;
-            }
-
-            if (input.showWeight) {
-                if (input.useCategory) {
-                    var labelFrame = doc.textFrames.add();
-                    labelFrame.contents = "[" + label + "]" + (input.showWeightCount ? " (" + fonts.length + ")" : "");
-                    labelFrame.left = x;
-                    labelFrame.top = y;
-                    labelFrame.selected = true;
-                    labelFrame.textRange.characterAttributes.size = fontSize;
-                    y -= labelFrame.height + fontSize * 0.5;
-                }
-
-                for (var j = 0; j < fonts.length; j++) {
-                    var font = fonts[j];
-                    try {
-                        var tf = doc.textFrames.add();
-                        tf.contents = getDisplayText(font, input.displayMode, input.customText, input.showScore);
-                        tf.textRange.characterAttributes.size = fontSize;
-                        var safeFont = textFonts.getByName(font.name);
-                        tf.textRange.characterAttributes.textFont = safeFont;
-                        tf.left = x;
-                        tf.top = y;
-                        tf.selected = true;
-                        y -= tf.height;
-                    } catch (e) {
-                        $.writeln("描画失敗：" + font.name + " → " + e);
-                    }
-                }
-            } else {
-                x = startX;
-                y = startY - i * 16;
-                var labelFrame = doc.textFrames.add();
-                labelFrame.contents = label + (input.showWeightCount ? " (" + fonts.length + ")" : "");
-                labelFrame.left = x;
-                labelFrame.top = y;
-                labelFrame.selected = true;
-                labelFrame.textRange.characterAttributes.size = fontSize;
-
-                // 最もスコアが低いフォントを探す
-                var minFont = fonts[0];
-                var minScore = getFullSortRank(minFont);
-                for (var j = 1; j < fonts.length; j++) {
-                    var score = getFullSortRank(fonts[j]);
-                    if (score < minScore) {
-                        minFont = fonts[j];
-                        minScore = score;
-                    }
-                }
-
-                try {
-                    var safeFont = textFonts.getByName(minFont.name);
-                    labelFrame.textRange.characterAttributes.textFont = safeFont;
-                    labelFrame.textRange.characterAttributes.size = fontSize;
-                } catch (e) {
-                    $.writeln("カテゴリフォント適用失敗：" + minFont.name + " → " + e);
-                }
-            }
+        /* 完全一致・複合語一致（長い語優先）/ Exact match, then longest-term match */
+        var groupIndex = getWeightGroupIndex(normalizedStyle);
+        if (groupIndex !== -1) {
+            var weightScore = 1000 + groupIndex;
+            if (applyFrutigerCorrection && groupIndex === 4) weightScore -= 5;
+            return weightScore;
         }
+
+        /* fallbackScore：Regular 扱い */
+        var fallbackScore = 1000 + REGULAR_GROUP_INDEX;
+        if (applyFrutigerCorrection) fallbackScore -= 5;
+        return fallbackScore;
     }
 
-    function getSafeFont(name) {
-        try {
-            return textFonts.getByName(name);
-        } catch (e) {
-            return null;
-        }
-    }
-
-    // --------------------------------
-    // 表示するテキスト内容を決定（ES3）
-    // --------------------------------
-    function getDisplayText(font, mode, customText, showScore) {
-        var rank = getFullSortRank(font); // スコア取得
-        if (mode === "postscript") {
-            return font.name;
-        } else if (mode === "alphabet") {
-            return "The quick brown fox jumps over the lazy dog.";
-        } else if (mode === "numbers") {
-            return "1234567890";
-        } else if (mode === "family+style") {
-            var text = font.family + (font.style ? " " + font.style : "");
-            if (showScore) text += " (" + rank + ")";
-            return text;
-        } else if (mode === "custom") {
-            return customText || "";
-        } else {
-            var text = font.family + (font.style ? " " + font.style : "");
-            if (showScore) text += " (" + rank + ")";
-            return text;
-        }
-    }
-    // --------------------------------
-    // ウエイト・スタイル評価値を取得（加点ロジック付き）
-    // --------------------------------
-
-    function getFullSortRank(font) {
-        var style = (font.style || "").toLowerCase();
+    /**
+     * ウェイトと装飾語をあわせた並べ替え用の評価値を取得する
+     * @param {TextFont} font - 対象のフォント
+     * @returns {number} 並べ替えに使う評価値
+     */
+    function getFontSortScore(font) {
+        var styleName = (font.style || "").toLowerCase();
         var postscriptName = (font.name || "").toLowerCase();
-        var fontFamily = (font.family || "").toLowerCase();
+        var familyName = (font.family || "").toLowerCase();
 
-        // ✅ 特例：PostScript名が「FuturaPT-Heavy」の場合 → 1015 固定（加点処理なし）
-        if (postscriptName === "futurapt-heavy") {
-            return 1015;
-        }
+        /* 特例：PostScript名が「FuturaPT-Heavy」なら 1015 固定（加点処理なし）/ Fixed rank, no offsets */
+        if (postscriptName === "futurapt-heavy") return 1015;
 
-        var baseRank = getWeightOrderIndex(style, postscriptName, fontFamily);
-        var offset = 0;
+        var baseScore = getBaseWeightScore(styleName, postscriptName, familyName);
+        var decorationOffset = 0;
+        var styleWords = styleName.split(/\s+/);
 
-        var words = style.split(/\s+/);
-
-        // 装飾フラグ初期化
-        var flags = {
+        /* 装飾フラグ初期化 / Initialize decoration decorationFlags */
+        var decorationFlags = {
             hasText: false,
             hasHeadline: false,
             hasCondensed: false,
@@ -687,202 +710,569 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
             hasWide: false
         };
 
-        // 装飾キーワードに応じたフラグ設定
-        for (var i = 0; i < words.length; i++) {
-            var w = words[i];
-            if (w === "text") flags.hasText = true;
-            if (w === "headline") flags.hasHeadline = true;
-            if (w === "cond" || w === "condensed") flags.hasCondensed = true;
-            if (w === "cn") flags.hasCn = true;
-            if (w === "expanded") flags.hasExpanded = true;
-            if (w === "extended") flags.hasExtended = true;
-            if (w === "semiextended" || (w === "semi" && words[i + 1] === "extended")) flags.hasExtended = true;
-            // --- Begin: Add logic to detect "semiexpanded" and "semi expanded" ---
-            if (w === "semiexpanded" || (w === "semi" && words[i + 1] === "expanded")) flags.hasExpanded = true;
-            // --- End: Add logic for semiexpanded ---
-            if (w === "ultracondensed" || (w === "ultra" && words[i + 1] === "condensed")) flags.hasUltraCondensed = true;
-            if (w === "extracondensed" || (w === "extra" && words[i + 1] === "condensed")) flags.hasExtraCondensed = true;
-            if (w === "semicondensed" || (w === "semi" && words[i + 1] === "condensed")) flags.hasSemiCondensed = true;
-            if (w === "compressed" || w === "comp") flags.hasCompressed = true;
-            if (w === "extra" && words[i + 1] === "compressed") flags.hasExtraCompressed = true;
-            if (w === "compact") flags.hasCompact = true;
-            if (w === "display") flags.hasDisplay = true;
-            if (w === "micro") flags.hasMicro = true;
-            if (w === "low") flags.hasLow = true;
-            if (w === "wide") flags.hasWide = true;
+        /* 装飾キーワードに応じたフラグ設定 / Set a flag for each decoration keyword */
+        for (var i = 0; i < styleWords.length; i++) {
+            var styleWord = styleWords[i];
+            if (styleWord === "text") decorationFlags.hasText = true;
+            if (styleWord === "headline") decorationFlags.hasHeadline = true;
+            if (styleWord === "cond" || styleWord === "condensed") decorationFlags.hasCondensed = true;
+            if (styleWord === "cn") decorationFlags.hasCn = true;
+            if (styleWord === "expanded") decorationFlags.hasExpanded = true;
+            if (styleWord === "extended") decorationFlags.hasExtended = true;
+            if (styleWord === "semiextended" || (styleWord === "semi" && styleWords[i + 1] === "extended")) decorationFlags.hasExtended = true;
+            if (styleWord === "semiexpanded" || (styleWord === "semi" && styleWords[i + 1] === "expanded")) decorationFlags.hasExpanded = true;
+            if (styleWord === "ultracondensed" || (styleWord === "ultra" && styleWords[i + 1] === "condensed")) decorationFlags.hasUltraCondensed = true;
+            if (styleWord === "extracondensed" || (styleWord === "extra" && styleWords[i + 1] === "condensed")) decorationFlags.hasExtraCondensed = true;
+            if (styleWord === "semicondensed" || (styleWord === "semi" && styleWords[i + 1] === "condensed")) decorationFlags.hasSemiCondensed = true;
+            if (styleWord === "compressed" || styleWord === "comp") decorationFlags.hasCompressed = true;
+            if (styleWord === "extra" && styleWords[i + 1] === "compressed") decorationFlags.hasExtraCompressed = true;
+            if (styleWord === "compact") decorationFlags.hasCompact = true;
+            if (styleWord === "display") decorationFlags.hasDisplay = true;
+            if (styleWord === "micro") decorationFlags.hasMicro = true;
+            if (styleWord === "low") decorationFlags.hasLow = true;
+            if (styleWord === "wide") decorationFlags.hasWide = true;
         }
 
-        // Italic 判定（全体 style に対して）
-        var isItalic = /italic|oblique|slanted|inclined|kursiv|\bit\b/.test(style);
+        /* Italic 判定（全体 styleName に対して）/ Detect italic across the whole styleName */
+        var isItalic = /italic|oblique|slanted|inclined|kursiv|\bit\b/.test(styleName);
 
-        // 加点処理（100刻み + 特例あり）
-        if (flags.hasDisplay) offset += 100;
-        if (flags.hasCompressed) offset += 200;
-        if (flags.hasCompact) offset += 300;
-        if (flags.hasExpanded) offset += 400;
-        if (flags.hasExtended) offset += 500;
-        if (flags.hasUltraCondensed) offset += 600;
-        if (flags.hasExtraCondensed) offset += 700;
-        if (flags.hasSemiCondensed) offset += 850;
+        /* 加点処理（100刻み + 特例あり）/ Offsets in steps of 100, with exceptions */
+        if (decorationFlags.hasDisplay) decorationOffset += 100;
+        if (decorationFlags.hasCompressed) decorationOffset += 200;
+        if (decorationFlags.hasCompact) decorationOffset += 300;
+        if (decorationFlags.hasExpanded) decorationOffset += 400;
+        if (decorationFlags.hasExtended) decorationOffset += 500;
+        if (decorationFlags.hasUltraCondensed) decorationOffset += 600;
+        if (decorationFlags.hasExtraCondensed) decorationOffset += 700;
+        if (decorationFlags.hasSemiCondensed) decorationOffset += 850;
 
-        // Condensed系代表加点（複数条件一致でも一度のみ）
+        /* Condensed系代表加点（複数条件一致でも一度のみ）/ Applied once even on multiple matches */
         if (
-            flags.hasCondensed ||
-            flags.hasCn ||
-            flags.hasWide ||
-            flags.hasSemiCondensed ||
-            flags.hasExtraCompressed
+            decorationFlags.hasCondensed ||
+            decorationFlags.hasCn ||
+            decorationFlags.hasWide ||
+            decorationFlags.hasSemiCondensed ||
+            decorationFlags.hasExtraCompressed
         ) {
-            offset += 900;
+            decorationOffset += 900;
         }
 
-        if (flags.hasHeadline) offset += 1000;
-        if (flags.hasText) offset += 1100;
-        if (flags.hasLow) offset += 1200;
-        if (flags.hasMicro) offset += 1250;
-        if (flags.hasWide) offset += 1275;
-        if (flags.hasExtraCompressed) offset += 150; // 特別加点
-        if (isItalic) offset += 1300;
+        if (decorationFlags.hasHeadline) decorationOffset += 1000;
+        if (decorationFlags.hasText) decorationOffset += 1100;
+        if (decorationFlags.hasLow) decorationOffset += 1200;
+        if (decorationFlags.hasMicro) decorationOffset += 1250;
+        if (decorationFlags.hasWide) decorationOffset += 1275;
+        if (decorationFlags.hasExtraCompressed) decorationOffset += 150; /* 特別加点 / Extra decorationOffset */
+        if (isItalic) decorationOffset += 1300;
 
-        return baseRank + offset;
+        return baseScore + decorationOffset;
     }
 
-    // --------------------------------
-    // スタイル文字列に対する基本ウエイトスコア取得
-    // --------------------------------
+    /**
+     * 数値スタイルのウェイトを5段階カテゴリーに変換する
+     * @param {number} numericWeight - 数値ウェイト
+     * @param {number} digitCount - 桁数（3=CSS相当、2=Adobe系、1=和文のW0〜W9）
+     * @returns {string} 5段階カテゴリーのキー
+     */
+    function getWeightCategoryFromNumber(numericWeight, digitCount) {
+        /* 100〜900（CSS相当）/ CSS-style numeric weight */
+        if (digitCount >= 3) {
+            if (numericWeight < 200) return "veryThin";
+            if (numericWeight < 400) return "light";
+            if (numericWeight < 500) return "regular";
+            if (numericWeight < 700) return "semiBold";
+            return "bold";
+        }
 
-    function getWeightOrderIndex(rawStyle, postscriptName, fontFamily) {
-        rawStyle = rawStyle || "";
-        var style = rawStyle.toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
-        var words = style.split(/\s+/);
-        var i, j, k;
+        /* 25 Ultra Light 〜 95 Black（Adobe系）/ Adobe-style two-digit weight */
+        if (digitCount === 2) {
+            if (numericWeight < 40) return "veryThin";
+            if (numericWeight < 50) return "light";
+            if (numericWeight < 60) return "regular";
+            if (numericWeight < 70) return "semiBold";
+            return "bold";
+        }
 
-        var weightGroups = [
-            ["hairline"], // +0
-            ["ultra thin", "ultrathin", "ut"], // +1
-            ["thin", "th"], // +2
-            ["default"], // +3
-            ["ultralight", "ultra light", "ultlt", "ul"], // +4
-            ["extralight", "extra light", "el", "xlight", "xl"], // +5
-            ["lightsemi"], // +6
-            ["light", "lt", "lite", "l"], // +7
-            ["lb"], // +8
-            ["book", "bk"], // +9
-            ["n", "normal"], // +10
-            ["middle"], // +11
-            ["regular", "roman", "normal", "レギュラー", "r"], // +12
-            ["rb"], // +13
-            ["medium", "md", "ミディアム", "m"], // +14
-            ["semibold", "semi bold", "sb"], // +15
-            ["demibold", "demi bold", "db", "デミボールド", "demi", "d", "demixtra"], // +16
-            ["bold", "bd", "ボールド", "b"], // +17
-            ["extrabold", "extra bold", "xbold", "エクストラボールド", "e", "eb", "xb"], // +18
-            ["heavy", "h"], // +19
-            ["black"], // +20
-            ["xblack", "extra black", "extrablack", "xb"], // +21
-            ["ultra", "u", "ub", "ultra black", "ultrablack"] // +22
-        ];
+        /* W0〜W9（和文）/ Single-digit weight used by Japanese fonts */
+        if (numericWeight <= 1) return "veryThin";
+        if (numericWeight <= 3) return "light";
+        if (numericWeight === 4) return "regular";
+        if (numericWeight <= 6) return "semiBold";
+        return "bold";
+    }
 
-        // Regular 扱いする単独語句
-        var regularSingles = [
-            "display", "compressed", "comp", "compact", "expanded", "extended", "semiextended",
-            "ultracondensed", "extracondensed", "semicondensed", "cond", "condensed", "wide",
-            "headline", "text", "low", "micro", "extra compressed",
-            "semi expanded", "semiexpanded"
-        ];
+    /**
+     * WEIGHT_GROUPS のインデックスを5段階カテゴリーに変換する
+     * @param {number} groupIndex - WEIGHT_GROUPS のインデックス
+     * @returns {string} 5段階カテゴリーのキー
+     */
+    function getWeightCategoryFromGroupIndex(groupIndex) {
+        if (groupIndex <= 2) return "veryThin";  /* hairline 〜 thin */
+        if (groupIndex === 3) return "regular";  /* default（既定ウェイト）/ default weight */
+        if (groupIndex <= 8) return "light";     /* ultralight 〜 light */
+        if (groupIndex <= 13) return "regular";  /* book 〜 regular */
+        if (groupIndex <= 16) return "semiBold"; /* medium 〜 demibold */
+        return "bold";                           /* bold 以上 */
+    }
 
-        function getRegularIndex(groups) {
-            for (var i = 0; i < groups.length; i++) {
-                for (var j = 0; j < groups[i].length; j++) {
-                    if (groups[i][j] === "regular") return i;
+    /**
+     * フォントのウェイトを5段階カテゴリーに分類する
+     * @param {TextFont} font - 判定対象のフォント
+     * @returns {string} veryThin / light / regular / semiBold / bold のいずれか
+     */
+    function getWeightCategory(font) {
+        var normalizedStyle = normalizeStyle(font.style);
+
+        /* W3、W600、25 Ultra Light のような数値スタイル / Numeric styles */
+        var numericMatch = normalizedStyle.match(/^w?(\d{1,3})(?=\D|$)/);
+        if (numericMatch) {
+            return getWeightCategoryFromNumber(parseInt(numericMatch[1], 10), numericMatch[1].length);
+        }
+
+        var groupIndex = getWeightGroupIndex(normalizedStyle);
+        if (groupIndex === -1) return "regular";
+        return getWeightCategoryFromGroupIndex(groupIndex);
+    }
+
+    // =========================================
+    // フォント収集 / Font collection
+    // =========================================
+
+    /**
+     * 引用符つき検索用に文字列を正規化する（空白・ハイフンを除去）
+     * @param {string} sourceText - 対象の文字列
+     * @returns {string} 正規化した文字列
+     */
+    function normalizeForSearch(sourceText) {
+        return sourceText.toLowerCase().replace(/[\s\-　]/g, "");
+    }
+
+    /**
+     * キーワード入力を AND / OR / NOT の検索条件に分解する
+     * @param {string} rawKeyword - ダイアログで入力されたキーワード
+     * @returns {object} andGroups（ORの配列をANDで並べたもの）と notKeywords を持つ検索条件
+     */
+    function parseKeywordQuery(rawKeyword) {
+        var keywordQuery = { andGroups: [], notKeywords: [] };
+        if (!rawKeyword) return keywordQuery;
+
+        /* 入力の正規化 / Normalize the input */
+        var normalizedKeyword = rawKeyword
+            .replace(/　/g, " ")        /* 全角スペース→半角 / Full-width space to half-width */
+            .replace(/\s*,\s*/g, ",")   /* カンマの前後スペース除去 / Trim around commas */
+            .replace(/\s+/g, " ");      /* 連続スペース→1つ / Collapse spaces */
+
+        /* NOTキーワード（-付き）を抜き出す / Extract NOT keywords */
+        var spaceSeparatedParts = normalizedKeyword.split(" ");
+        var includeParts = [];
+        var i, j;
+        for (i = 0; i < spaceSeparatedParts.length; i++) {
+            if (spaceSeparatedParts[i].charAt(0) === "-") {
+                keywordQuery.notKeywords.push(spaceSeparatedParts[i].substring(1).toLowerCase());
+            } else {
+                includeParts.push(spaceSeparatedParts[i]);
+            }
+        }
+
+        /* AND（+区切り）と OR（スペース・カンマ）を組み立てる / Build AND groups of OR terms */
+        var andSegments = includeParts.join(" ").split("+");
+        for (i = 0; i < andSegments.length; i++) {
+            var orGroup = [];
+            var orTerms = andSegments[i].split(/[\s,]+/);
+
+            for (j = 0; j < orTerms.length; j++) {
+                var termText = orTerms[j].toLowerCase();
+                if (termText.length === 0) continue;
+
+                var isPrefix = false;
+                if (termText.charAt(0) === "^") {
+                    isPrefix = true;
+                    termText = termText.substring(1);
+                }
+
+                var isQuoted = false;
+                if (termText.charAt(0) === '"' && termText.charAt(termText.length - 1) === '"') {
+                    termText = termText.slice(1, -1);
+                    isQuoted = true;
+                }
+
+                orGroup.push({ keyword: termText, isPrefix: isPrefix, isQuoted: isQuoted });
+            }
+
+            if (orGroup.length > 0) keywordQuery.andGroups.push(orGroup);
+        }
+
+        return keywordQuery;
+    }
+
+    /**
+     * 検索語1つがフォント名・ファミリー名・スタイル名のいずれかに合致するか判定する
+     * @param {object} searchTerm - parseKeywordQuery() が組み立てた検索語
+     * @param {string} postscriptName - 小文字化した PostScript 名
+     * @param {string} familyName - 小文字化したファミリー名
+     * @param {string} styleName - 小文字化したスタイル名
+     * @returns {boolean} 合致すれば true
+     */
+    function matchesKeywordTerm(searchTerm, postscriptName, familyName, styleName) {
+        var termText = searchTerm.keyword;
+
+        if (searchTerm.isPrefix) {
+            return postscriptName.substr(0, termText.length) === termText ||
+                familyName.substr(0, termText.length) === termText ||
+                styleName.substr(0, termText.length) === termText;
+        }
+
+        if (searchTerm.isQuoted) {
+            var normalizedTerm = normalizeForSearch(termText);
+            return normalizeForSearch(postscriptName).indexOf(normalizedTerm) !== -1 ||
+                normalizeForSearch(familyName).indexOf(normalizedTerm) !== -1 ||
+                normalizeForSearch(styleName).indexOf(normalizedTerm) !== -1;
+        }
+
+        return postscriptName.indexOf(termText) !== -1 ||
+            familyName.indexOf(termText) !== -1 ||
+            styleName.indexOf(termText) !== -1;
+    }
+
+    /**
+     * フォントが検索条件に合致するか判定する
+     * @param {object} keywordQuery - parseKeywordQuery() が返した検索条件
+     * @param {string} postscriptName - 小文字化した PostScript 名
+     * @param {string} familyName - 小文字化したファミリー名
+     * @param {string} styleName - 小文字化したスタイル名
+     * @returns {boolean} 合致すれば true
+     */
+    function matchesKeywordQuery(keywordQuery, postscriptName, familyName, styleName) {
+        var i, j;
+
+        /* NOT条件：含まれていたら除外 / Exclude when a NOT keyword matches */
+        for (i = 0; i < keywordQuery.notKeywords.length; i++) {
+            var excludeTerm = keywordQuery.notKeywords[i];
+            if (postscriptName.indexOf(excludeTerm) !== -1 || familyName.indexOf(excludeTerm) !== -1 || styleName.indexOf(excludeTerm) !== -1) {
+                return false;
+            }
+        }
+
+        /* AND × OR 条件 / AND groups of OR terms */
+        for (i = 0; i < keywordQuery.andGroups.length; i++) {
+            var orGroup = keywordQuery.andGroups[i];
+            var orGroupMatched = false;
+
+            for (j = 0; j < orGroup.length; j++) {
+                if (matchesKeywordTerm(orGroup[j], postscriptName, familyName, styleName)) {
+                    orGroupMatched = true;
+                    break;
                 }
             }
-            return 12; // fallback
+
+            if (!orGroupMatched) return false;
         }
-        var regularIndex = getRegularIndex(weightGroups);
-        var applyFrutigerCorrection = (/frutiger/i.test(fontFamily) && /ultralight/.test(style));
 
-        // ✅ W0〜W9
-        var wMatch = style.match(/^w(\d)$/);
-        if (wMatch !== null) return parseInt(wMatch[1], 10);
-
-        // ✅ W000〜W999
-        var w3Match = style.match(/^w(\d{3})$/);
-        if (w3Match !== null) return parseInt(w3Match[1], 10);
-
-        // ✅ 先頭数値（例：25 Ultra Light）
-        var match = style.match(/^(\d{1,3})(?=\D|$)/);
-        if (match) return parseInt(match[1], 10);
-
-        // ✅ 特例：HelveticaNeue, Tazugane + Ultra Light → 999
-    if (
-      (
-        /helveticaneue/i.test(postscriptName) ||
-        /tazugane/i.test(postscriptName) ||
-        /universnextpro/i.test(postscriptName)
-      ) &&
-      /ultralight|ultra light|ultlt/i.test(style)
-    ) {
-      return 999;
+        return true;
     }
 
-        // ✅ 単独語が italic / oblique / wide → Regular 扱い
-        if (words.length === 1 && /^(italic|oblique|it|wide)$/.test(words[0])) {
-            return 1000 + regularIndex;
+    /**
+     * フィルターのいずれかが選択されているか判定する
+     * @param {object} filters - チェックボックスの選択状態
+     * @returns {boolean} 1つでも選択されていれば true
+     */
+    function hasAnyFilterSelected(filters) {
+        if (!filters) return false;
+        for (var filterKey in filters) {
+            if (filters.hasOwnProperty(filterKey) && filters[filterKey]) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 種類フィルターに合致するか判定する（複数カテゴリーへの該当を許容）
+     * @param {string} styleName - 小文字化したスタイル文字列
+     * @param {object} typeFilters - 種類フィルターの選択状態
+     * @returns {boolean} 選択されたカテゴリーのいずれかに該当すれば true
+     */
+    function matchesTypeFilters(styleName, typeFilters) {
+        /* 基本 / Basic */
+        if (typeFilters.basic &&
+            (styleName.indexOf("text") !== -1 || styleName.indexOf("headline") !== -1)) return true;
+
+        /* 狭める系 / Condensed */
+        if (typeFilters.narrow &&
+            (styleName.indexOf("cond") !== -1 || styleName.indexOf("cn") !== -1 ||
+                styleName.indexOf("compressed") !== -1 || styleName.indexOf("comp") !== -1)) return true;
+
+        /* 広げる系 / Expanded */
+        if (typeFilters.wide &&
+            (styleName.indexOf("expanded") !== -1 || styleName.indexOf("extended") !== -1)) return true;
+
+        /* 装飾・特殊用途 / Display */
+        if (typeFilters.decor &&
+            (styleName.indexOf("compact") !== -1 || styleName.indexOf("display") !== -1)) return true;
+
+        /* サイズ・プロポーション系 / Size and proportion */
+        if (typeFilters.sizeProp &&
+            (styleName.indexOf("micro") !== -1 || styleName.indexOf("low") !== -1 ||
+                styleName.indexOf("wide") !== -1)) return true;
+
+        return false;
+    }
+
+    /**
+     * 重複を避けてグループにフォントを追加する
+     * @param {object} groupedFonts - カテゴリー名をキーにしたフォントの入れ物
+     * @param {string} groupKey - 追加先のカテゴリー名
+     * @param {TextFont} font - 追加するフォント
+     * @returns {void}
+     */
+    function addFontToGroup(groupedFonts, groupKey, font) {
+        if (!groupedFonts[groupKey]) groupedFonts[groupKey] = [];
+
+        var groupFonts = groupedFonts[groupKey];
+        for (var i = 0; i < groupFonts.length; i++) {
+            if (groupFonts[i].name === font.name) return;
+        }
+        groupFonts.push(font);
+    }
+
+    /**
+     * 条件に合致するフォントを収集し、カテゴリー単位にまとめる
+     * @param {object} userInput - ダイアログで取得したユーザー入力
+     * @returns {object} カテゴリー名をキーにしたフォントの配列
+     */
+    function collectFonts(userInput) {
+        var groupedFonts = {};
+        var keywordQuery = parseKeywordQuery(userInput.keyword);
+        var weightFilters = userInput.weightFilters;
+        var typeFilters = userInput.typeFilters;
+        var useWeightFilter = hasAnyFilterSelected(weightFilters);
+        var useTypeFilter = hasAnyFilterSelected(typeFilters);
+
+        for (var i = 0; i < textFonts.length; i++) {
+            var font = textFonts[i];
+            var postscriptName = font.name.toLowerCase();
+            var familyName = font.family.toLowerCase();
+            var styleName = (font.style || "").toLowerCase();
+
+            if (!matchesKeywordQuery(keywordQuery, postscriptName, familyName, styleName)) continue;
+
+            /* ウェイト・種類フィルター：選択のある項目だけ絞り込む / Apply only the filters in use */
+            if (useWeightFilter && !weightFilters[getWeightCategory(font)]) continue;
+            if (useTypeFilter && !matchesTypeFilters(styleName, typeFilters)) continue;
+
+            addFontToGroup(groupedFonts, userInput.useCategory ? font.family : "Uncategorized", font);
         }
 
-        // ✅ 装飾語だけなら Regular 扱い
-        if (words.length === 1) {
-            for (i = 0; i < regularSingles.length; i++) {
-                if (words[0] === regularSingles[i]) return 1000 + regularIndex;
+        return groupedFonts;
+    }
+
+    /**
+     * 各グループをウェイト＋スタイル順に並べ替える
+     * @param {object} groupedFonts - カテゴリー名をキーにしたフォントの配列
+     * @returns {void}
+     */
+    function sortFontGroups(groupedFonts) {
+        for (var groupLabel in groupedFonts) {
+            if (!groupedFonts.hasOwnProperty(groupLabel)) continue;
+
+            /* 評価値を先に1回だけ求めてから並べ替える / Score each font once, then sort */
+            var groupFonts = groupedFonts[groupLabel];
+            var scoredFonts = [];
+            var i;
+            for (i = 0; i < groupFonts.length; i++) {
+                scoredFonts.push({ font: groupFonts[i], rank: getFontSortScore(groupFonts[i]) });
+            }
+            scoredFonts.sort(function(a, b) {
+                return a.rank - b.rank;
+            });
+            for (i = 0; i < scoredFonts.length; i++) {
+                groupFonts[i] = scoredFonts[i].font;
             }
         }
+    }
 
-        // ✅ 完全一致
-        for (i = 0; i < weightGroups.length; i++) {
-            for (j = 0; j < weightGroups[i].length; j++) {
-                if (style === weightGroups[i][j]) {
-                    var base = 1000 + i;
-                    if (applyFrutigerCorrection && i === 4) base -= 5;
-                    return base;
+    /**
+     * グループの合計フォント数を数える
+     * @param {object} groupedFonts - カテゴリー名をキーにしたフォントの配列
+     * @returns {number} フォントの総数
+     */
+    function countFonts(groupedFonts) {
+        var totalCount = 0;
+        for (var groupLabel in groupedFonts) {
+            if (!groupedFonts.hasOwnProperty(groupLabel)) continue;
+            totalCount += groupedFonts[groupLabel].length;
+        }
+        return totalCount;
+    }
+
+    // =========================================
+    // 描画 / Drawing
+    // =========================================
+
+    /**
+     * 表示するテキスト内容を決定する
+     * @param {TextFont} font - 対象のフォント
+     * @param {string} displayMode - 出力モード（DISPLAY_MODES のいずれか）
+     * @param {string} customText - カスタムテキスト
+     * @param {boolean} showScore - スコアを併記するか
+     * @returns {string} 描画する文字列
+     */
+    function getDisplayText(font, displayMode, customText, showScore) {
+        if (displayMode === "postscript") return font.name;
+        if (displayMode === "alphabet") return SAMPLE_ALPHABET_TEXT;
+        if (displayMode === "numbers") return SAMPLE_NUMBERS_TEXT;
+        if (displayMode === "custom") return customText || "";
+
+        /* family+style（既定）/ family+style (default) */
+        var displayText = font.family + (font.style ? " " + font.style : "");
+        if (showScore) displayText += " (" + getFontSortScore(font) + ")";
+        return displayText;
+    }
+
+    /**
+     * サンプル用のテキストフレームを作成して配置する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} contents - 流し込む文字列
+     * @param {number} left - 左端の座標
+     * @param {number} top - 上端の座標
+     * @param {TextFont} [font] - 適用するフォント（省略時は既定フォント）
+     * @returns {TextFrame} 作成したテキストフレーム
+     */
+    function addSampleFrame(doc, contents, left, top, font) {
+        var textFrame = doc.textFrames.add();
+        textFrame.contents = contents;
+        textFrame.textRange.characterAttributes.size = SAMPLE_FONT_SIZE;
+        if (font) textFrame.textRange.characterAttributes.textFont = font;
+        textFrame.left = left;
+        textFrame.top = top;
+        textFrame.selected = true;
+        return textFrame;
+    }
+
+    /**
+     * カテゴリー名を並べ替えて取得する（空のカテゴリーは除く）
+     * @param {object} groupedFonts - カテゴリー名をキーにしたフォントの配列
+     * @returns {Array<string>} 並べ替え済みのカテゴリー名
+     */
+    function getSortedGroupLabels(groupedFonts) {
+        var groupLabels = [];
+        for (var groupLabel in groupedFonts) {
+            if (!groupedFonts.hasOwnProperty(groupLabel)) continue;
+            if (groupedFonts[groupLabel].length > 0) groupLabels.push(groupLabel);
+        }
+        groupLabels.sort();
+        return groupLabels;
+    }
+
+    /**
+     * カテゴリーごとにウェイトを一覧描画する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} groupedFonts - カテゴリー名をキーにしたフォントの配列
+     * @param {Array<string>} groupLabels - 並べ替え済みのカテゴリー名
+     * @param {object} userInput - ダイアログで取得したユーザー入力
+     * @param {number} startX - 描画開始位置の左端
+     * @param {number} startY - 描画開始位置の上端
+     * @returns {void}
+     */
+    function drawWeightSamples(doc, groupedFonts, groupLabels, userInput, startX, startY) {
+        var columnIndex = 0;
+        var rowIndex = 0;
+
+        for (var i = 0; i < groupLabels.length; i++) {
+            var groupLabel = groupLabels[i];
+            var groupFonts = groupedFonts[groupLabel];
+
+            var left = startX + columnIndex * SAMPLE_COLUMN_SPACING;
+            var top = startY - rowIndex * SAMPLE_ROW_SPACING;
+
+            if (++columnIndex >= userInput.columns) {
+                columnIndex = 0;
+                rowIndex++;
+            }
+
+            if (userInput.useCategory) {
+                var headingText = "[" + groupLabel + "]" + (userInput.showWeightCount ? " (" + groupFonts.length + ")" : "");
+                var headingFrame = addSampleFrame(doc, headingText, left, top);
+                top -= headingFrame.height + SAMPLE_FONT_SIZE * 0.5;
+            }
+
+            for (var j = 0; j < groupFonts.length; j++) {
+                var font = groupFonts[j];
+                var sampleText = getDisplayText(font, userInput.displayMode, userInput.customText, userInput.showScore);
+                try {
+                    var sampleFrame = addSampleFrame(doc, sampleText, left, top, font);
+                    top -= sampleFrame.height;
+                } catch (e) {
+                    /* 適用できないフォントは飛ばして続行 / Skip groupFonts that cannot be applied */
+                    $.writeln("描画失敗：" + font.name + " → " + e);
                 }
             }
         }
-
-        // ✅ 複合語一致（長い語優先）＋単語完全一致
-        var allTerms = [];
-        for (i = 0; i < weightGroups.length; i++) {
-            for (j = 0; j < weightGroups[i].length; j++) {
-                allTerms.push({
-                    term: weightGroups[i][j],
-                    index: i
-                });
-            }
-        }
-        // 複合語一致：style 全体に対して長い語から順に indexOf で検出（単語境界を含めて）
-        allTerms.sort(function(a, b) {
-            return b.term.length - a.term.length;
-        });
-        for (i = 0; i < allTerms.length; i++) {
-            var term = allTerms[i].term;
-            var pattern = new RegExp("\\b" + term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + "\\b");
-            if (pattern.test(style)) {
-                var base = 1000 + allTerms[i].index;
-                if (applyFrutigerCorrection && allTerms[i].index === 4) base -= 5;
-                return base;
-            }
-        }
-
-        // ✅ fallback：Regular 扱い
-        var fallback = 1000 + regularIndex;
-        if (applyFrutigerCorrection) fallback -= 5;
-        return fallback;
     }
 
+    /**
+     * カテゴリーごとに代表フォント1つだけを1行で描画する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} groupedFonts - カテゴリー名をキーにしたフォントの配列
+     * @param {Array<string>} groupLabels - 並べ替え済みのカテゴリー名
+     * @param {object} userInput - ダイアログで取得したユーザー入力
+     * @param {number} startX - 描画開始位置の左端
+     * @param {number} startY - 描画開始位置の上端
+     * @returns {void}
+     */
+    function drawCategorySamples(doc, groupedFonts, groupLabels, userInput, startX, startY) {
+        for (var i = 0; i < groupLabels.length; i++) {
+            var groupLabel = groupLabels[i];
+            var groupFonts = groupedFonts[groupLabel];
+
+            var headingText = groupLabel + (userInput.showWeightCount ? " (" + groupFonts.length + ")" : "");
+            var top = startY - i * CATEGORY_LINE_HEIGHT;
+
+            /* 見出しは最も細いウェイトで組む（並べ替え済みなので先頭が最小）/ Heading uses the lightest weight; groups are pre-sorted */
+            try {
+                addSampleFrame(doc, headingText, startX, top, groupFonts[0]);
+            } catch (e) {
+                /* フォントを適用できなくても見出しは残す / Keep the heading even if the font cannot be applied */
+                $.writeln("カテゴリフォント適用失敗：" + groupFonts[0].name + " → " + e);
+                addSampleFrame(doc, headingText, startX, top);
+            }
+        }
+    }
+
+    /**
+     * アートボード上にフォントサンプルを描画する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} groupedFonts - カテゴリー名をキーにしたフォントの配列
+     * @param {object} userInput - ダイアログで取得したユーザー入力
+     * @returns {void}
+     */
+    function drawFontSamples(doc, groupedFonts, userInput) {
+        var activeArtboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+        var artboardRect = activeArtboard.artboardRect;
+        var startX = artboardRect[0] + ARTBOARD_PADDING;
+        var startY = artboardRect[1] - ARTBOARD_PADDING;
+
+        app.executeMenuCommand("deselectall");
+
+        var groupLabels = getSortedGroupLabels(groupedFonts);
+
+        if (userInput.showWeight) {
+            drawWeightSamples(doc, groupedFonts, groupLabels, userInput, startX, startY);
+        } else {
+            drawCategorySamples(doc, groupedFonts, groupLabels, userInput, startX, startY);
+        }
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * スクリプトの入口。ダイアログを表示し、フォントを収集して描画する
+     * @returns {void}
+     */
     function main() {
         try {
             if (app.documents.length === 0) {
-                alert(LABELS.errorNoDocument[lang]);
+                alert(getLabel(LABELS.alert.noDocument));
                 return;
             }
 
@@ -890,28 +1280,23 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
             var userInput = showFontListDialog();
             if (!userInput) return;
 
+            /* キーワード未入力なら全フォントが対象になるため確認する / Confirm when no keyword narrows the list */
             if (!userInput.keyword && !confirmShowAllFonts()) return;
 
-            var fontGroups = collectFonts(userInput);
-            sortFontGroups(fontGroups);
-            // --- Inserted logic: show alert if no matching fonts found ---
-            var totalFonts = 0;
-            for (var key in fontGroups) {
-                if (fontGroups.hasOwnProperty(key)) {
-                    totalFonts += fontGroups[key].length;
-                }
-            }
-            if (totalFonts === 0) {
-                alert("条件に該当するフォントが見つかりませんでした。");
+            var groupedFonts = collectFonts(userInput);
+            sortFontGroups(groupedFonts);
+
+            if (countFonts(groupedFonts) === 0) {
+                alert(getLabel(LABELS.alert.noMatchingFont));
                 return;
             }
-            // -----------------------------------------------------------
-            drawFontSamples(doc, fontGroups, userInput);
+
+            drawFontSamples(doc, groupedFonts, userInput);
         } catch (e) {
-            alert(LABELS.errorOccurred[lang] + e.message);
+            alert(getLabel(LABELS.alert.errorOccurred) + e.message);
         }
     }
 
-    main(); // スクリプト実行開始
+    main(); /* スクリプト実行開始 / Start */
 
 })();

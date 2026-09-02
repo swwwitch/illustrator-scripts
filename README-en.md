@@ -45,7 +45,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [An Illustrator script that converts selected text into…](readme-en/ConvertFontInfo.md)
 - [A docked palette that lists the text-composition combi…](readme-en/DocumentFontListSelector.md)
 - [Renders the text you type in every installed font](readme-en/FontSampler.md)
-- [A script for Illustrator to list available fonts and d…](readme-en/TypefaceSampler-text.md)
 
 
 ## Text

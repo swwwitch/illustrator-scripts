@@ -192,7 +192,7 @@ var SCRIPT_UPDATED  = "2025-04-24";                   /* 更新日 / last update
                 var infoLines = [];
                 if (dialogOptions.includeFontName)     infoLines.push("・フォント名	" + fontFamily);
                 if (dialogOptions.includePostScript)   infoLines.push("・PSフォント名	" + postScriptName);
-                if (dialogOptions.includeFontStyle)    infoLines.push("・スタイル（ウエイト）	" + fontStyle);
+                if (dialogOptions.includeFontStyle)    infoLines.push("・スタイル（ウェイト）	" + fontStyle);
                 if (dialogOptions.includeFontSize)     infoLines.push("・フォントサイズ	" + fontSize);
                 if (dialogOptions.includeLeading)      infoLines.push("・行送り	" + leadingText);
                 if (dialogOptions.includeLeadingPercent) infoLines.push("・行送り（%）\t" + leadingPercent);
@@ -313,7 +313,7 @@ var SCRIPT_UPDATED  = "2025-04-24";                   /* 更新日 / last update
 
         var chkFontName     = column1.add("checkbox", undefined, "フォント名");
         var chkPostScript   = column1.add("checkbox", undefined, "PSフォント名");
-        var chkFontStyle    = column1.add("checkbox", undefined, "スタイル（ウエイト）");
+        var chkFontStyle    = column1.add("checkbox", undefined, "スタイル（ウェイト）");
         var chkFontSize     = column1.add("checkbox", undefined, "フォントサイズ");
         var chkLeading      = column1.add("checkbox", undefined, "行送り");
         var chkKerning      = column2.add("checkbox", undefined, "カーニング");

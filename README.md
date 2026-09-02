@@ -38,14 +38,13 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 - [選択したテキストのフォント名、フォントサイズなどをテキストとして生成する](readme-ja/AddTextInfoLabel.md)
 - [ドキュメントフォントを適用](readme-ja/ApplyDocumentFonts.md)
-- [カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成する](readme-ja/TypefaceSampler.md)
+- [カテゴリ別ウェイト順にフォントを一覧表示し、フォント見本を一瞬で作成する](readme-ja/TypefaceSampler.md)
 - [ドキュメントで使用されているフォント情報を書き出す](readme-ja/ExportFontInfoFromXMP.md)
 - [行のテキストをフォント名とみなして行単位でフォントを適用](readme-ja/ApplyFontByLine.md)
-- [フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて変更するスクリプト](readme-ja/AiFontConverter.md)
+- [フォントの種別（文字セット・P・UD・N・NT・ウェイト）をまとめて変更するスクリプト](readme-ja/AiFontConverter.md)
 - [選択したテキストをフォント情報に変換するIllustrator用スクリプトです](readme-ja/ConvertFontInfo.md)
 - [ドキュメント内で使用しているテキストの組み合わせ（フォント・サイズ・行送り・](readme-ja/DocumentFontListSelector.md)
 - [入力したテキストを、インストールされているフォントで表示](readme-ja/FontSampler.md)
-- [Illustrator で利用可能なフォントを一覧表示し、ウエイトやスタイル順にアートボード上へ整列描画する…](readme-ja/TypefaceSampler-text.md)
 
 
 ## テキスト関連

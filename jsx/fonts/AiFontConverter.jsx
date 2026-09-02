@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて変更します。
+フォントの種別（文字セット・P・UD・N・NT・ウェイト）をまとめて変更します。
 対象は選択オブジェクト／ドキュメント全体／アクティブアートボードから選べます。
 
 詳細は README を参照してください。
@@ -78,7 +78,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
     var CHARSET_RANK_NO_N = ["Pr6", "Pr5", "Pro", "Std", "Min2", "Min"];
     var CHARSET_RANK_WITH_N = ["Pr6N", "Pr6", "Pr5N", "Pr5", "ProN", "Pro", "StdN", "Std", "Min2", "Min"];
 
-    /* 近いウエイトを探す並び順（軽い → 重い）/ Weight order for nearest-weight search (light to heavy) */
+    /* 近いウェイトを探す並び順（軽い → 重い）/ Weight order for nearest-weight search (light to heavy) */
     var WEIGHT_ORDER = [
         "Light", "Regular", "Medium",
         "DemiBold", "Demi", "DeBold",
@@ -87,7 +87,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
     ];
 
     /* 変換対象のフォントファミリー定義（フォントデータベースから生成）/ Target font families (generated from the font database)
-       regex の最後のグループをウエイト、それ以外を値（P / UD / Pro|Pr5|Pr6 / N）で自動判別する */
+       regex の最後のグループをウェイト、それ以外を値（P / UD / Pro|Pr5|Pr6 / N）で自動判別する */
     var FONT_FAMILIES = [
         { label: "見出ミンMA31", baseName: "MidashiMinMA31", regex: /^(P)?MidashiMinMA31(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
         { label: "見出ゴMB31", baseName: "MidashiGoMB31", regex: /^(P)?MidashiGoMB31(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
@@ -161,7 +161,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
        - N と Std⇄Pro だけ切り替える（AXIS に無い Pr5 / Pr6 を選んでも現状維持）
        - P / UD / NT は AXIS に無いので無視する
        - Max / MaxN プリセット時は設定に関わらず ProN（収録最多）へ寄せる
-       グループ: 1=幅(Basic|Cond|Comp) / 2=文字セット(Std|Pro|Joyo) / 3=N / 4=ウエイト */
+       グループ: 1=幅(Basic|Cond|Comp) / 2=文字セット(Std|Pro|Joyo) / 3=N / 4=ウェイト */
     var AXIS_FAMILY = {
         label: "AXIS",
         baseName: "Axis",
@@ -235,7 +235,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
                 en: "The following fonts will be changed."
             },
             nearWeight: {
-                ja: "同じウエイトのフォントが見つかりません。近いウエイトに置換します。",
+                ja: "同じウェイトのフォントが見つかりません。近いウェイトに置換します。",
                 en: "Exact weight not found. The nearest weight will be substituted."
             },
             notInstalled: {
@@ -816,7 +816,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             classifyByDesired(oldName, buildConvertedNameHead(parsed), parsed.weight);
         }
 
-        /* 変換後の先頭（ウエイト除く）＋ウエイトから direct / weightSub / missing へ分類 / Classify by desired name head + weight */
+        /* 変換後の先頭（ウェイト除く）＋ウェイトから direct / weightSub / missing へ分類 / Classify by desired name head + weight */
         function classifyByDesired(oldName, nameHead, weight) {
             if (nameHead === null) return; // 変換対象外（CID 非変換など）/ not convertible
 
@@ -898,7 +898,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             };
         }
 
-        /* AXIS の変換後フォント名の先頭（ウエイト除く）を組み立て / Build the converted AXIS name head (without weight)
+        /* AXIS の変換後フォント名の先頭（ウェイト除く）を組み立て / Build the converted AXIS name head (without weight)
            幅と Joyo は保持し、N と Std⇄Pro のみ反映。AXIS に無い Pr5/Pr6 は現状維持。 */
         function buildAxisNameHead(axis) {
             // Max/MaxN プリセット時は、設定に関わらず ProN（AXIS の収録最多）へ寄せる。AXIS は Std と ProN しか無いため。
@@ -959,7 +959,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
                     weight: ""
                 };
 
-                // 最後のグループをウエイト、それ以外は値で判別 / Last group is the weight; others by value
+                // 最後のグループをウェイト、それ以外は値で判別 / Last group is the weight; others by value
                 var lastIndex = matched.length - 1;
                 parsed.weight = matched[lastIndex];
 
@@ -977,7 +977,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return null;
         }
 
-        /* 設定に基づき変換後フォント名の先頭（ウエイト除く）を組み立て / Build the converted name head (without weight) */
+        /* 設定に基づき変換後フォント名の先頭（ウェイト除く）を組み立て / Build the converted name head (without weight) */
         function buildConvertedNameHead(parsed) {
             var family = parsed.family;
             var supportsProportional = family.regex.source.indexOf("(P)") !== -1;
@@ -1038,7 +1038,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             return prefix + baseName + charsetCore + "-";
         }
 
-        /* 同名ウエイトが無い場合に近いウエイトを探す / Find the nearest available weight */
+        /* 同名ウェイトが無い場合に近いウェイトを探す / Find the nearest available weight */
         function findNearestWeight(nameHead, weight) {
             var weightIndex = indexOfArray(WEIGHT_ORDER, weight);
             if (weightIndex < 0) return null;

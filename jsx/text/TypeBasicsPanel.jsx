@@ -6,13 +6,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの基本的な文字組み設定（フォントサイズと行送り・自動カーニング・文字ツメ・トラッキング・文字揃え）だけをまとめて行う常駐パレットです。
+選択したテキストの基本的な文字組み設定（フォントサイズと行送り・自動カーニング・プロポーショナルメトリクス・文字ツメ・トラッキング）だけをまとめて行う常駐パレットです。
 
 詳細は README を参照してください。
 
 ### Overview
 
-A persistent palette covering just the basics of typography for the selected text: font size and leading, auto-kerning, tsume, tracking and character alignment.
+A persistent palette covering just the basics of typography for the selected text: font size and leading, auto-kerning, proportional metrics, tsume and tracking.
 
 See the README for details.
 
@@ -22,15 +22,17 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypeBasicsPanel";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-07-07";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeBasicsPanel.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeBasicsPanel.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n29e7115b5e70"; /* 紹介記事 / article URL */
+var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位版 / advanced version */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -234,28 +236,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return "";
     }
 
-    /* 文字揃え ID を StyleRunAlignmentType へ変換 / Resolve an alignment id to StyleRunAlignmentType */
-    function resolveAlignment(alignId) {
-        if (alignId === "top") return StyleRunAlignmentType.top;
-        if (alignId === "center") return StyleRunAlignmentType.center;
-        if (alignId === "bottom") return StyleRunAlignmentType.bottom;
-        if (alignId === "icftop") return StyleRunAlignmentType.icfTop;
-        if (alignId === "icfbottom") return StyleRunAlignmentType.icfBottom;
-        return StyleRunAlignmentType.ROMANBASELINE;
-    }
-
-    /* StyleRunAlignmentType を ID 文字列へ / Convert a StyleRunAlignmentType value to an id string */
-    function alignmentToId(value) {
-        var valueText = String(value);
-        if (valueText === String(StyleRunAlignmentType.top)) return "top";
-        if (valueText === String(StyleRunAlignmentType.center)) return "center";
-        if (valueText === String(StyleRunAlignmentType.bottom)) return "bottom";
-        if (valueText === String(StyleRunAlignmentType.icfTop)) return "icftop";
-        if (valueText === String(StyleRunAlignmentType.icfBottom)) return "icfbottom";
-        if (valueText === String(StyleRunAlignmentType.ROMANBASELINE)) return "roman";
-        return "";
-    }
-
     /* テキスト範囲っぽい型か / Is this a text-range-like type */
     function isTextRangeLikeType(typeName) {
         return typeName === "TextRange" || typeName === "InsertionPoint" || typeName === "Character" ||
@@ -281,36 +261,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         try { contents = String(frame.contents); } catch (eContents) { }
         var contentKey = contents.length + ":" + contents.substring(0, 16);
         return frame.typename + ":" + frame.position[0] + ":" + frame.position[1] + ":" + bounds.join(":") + ":" + contentKey;
-    }
-
-    /* TextFrame / TextRange から characterAttributes を取得（それ以外は null）/ Get characterAttributes from a TextFrame / TextRange */
-    function getAlignmentCharAttrs(item) {
-        if (item.typename === "TextFrame") return item.textRange.characterAttributes;
-        if (item.typename === "TextRange") return item.characterAttributes;
-        return null;
-    }
-
-    /* テキストへ再帰的に文字揃えを設定（グループは中を走査）/ Recursively set alignment on text (descends into groups) */
-    function applyStyleRunAlignment(item, alignmentValue) {
-        if (item.typename === "GroupItem") {
-            var applied = 0;
-            for (var j = 0; j < item.pageItems.length; j++) applied += applyStyleRunAlignment(item.pageItems[j], alignmentValue);
-            return applied;
-        }
-        var attrs = getAlignmentCharAttrs(item);
-        if (attrs === null) return 0;
-        attrs.alignment = alignmentValue;
-        return 1;
-    }
-
-    /* 選択へ文字揃え（縦方向の揃え）を適用 / Apply character alignment to the selection */
-    function applyAlignmentToSelection(selection, alignValue) {
-        if (getTypeName(selection) === "TextRange") { selection.characterAttributes.alignment = alignValue; return 1; }
-        var count = 0;
-        if (selection && selection.length) {
-            for (var i = 0; i < selection.length; i++) count += applyStyleRunAlignment(selection[i], alignValue);
-        }
-        return count;
     }
 
     /* 処理可能なテキストフレームか判定し、該当すれば返す / Return the item if it is a processable TextFrame */
@@ -351,18 +301,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         frames.push(textFrame);
     }
 
-    /* 行送りの基準 ID を AutoLeadingType へ変換 / Resolve a leading-basis id to AutoLeadingType */
-    function resolveLeadingType(typeId) {
-        if (typeId === "baseline") return AutoLeadingType.BOTTOMTOBOTTOM;
-        return AutoLeadingType.TOPTOTOP;
-    }
-
-    /* AutoLeadingType を行送りの基準 ID へ / Convert an AutoLeadingType to a leading-basis id */
-    function leadingTypeToId(typeValue) {
-        if (typeValue === AutoLeadingType.BOTTOMTOBOTTOM) return "baseline";
-        return "top";
-    }
-
     /* 段落に自動行送りを設定：自動行送り量（%）を段落属性に、各文字を autoLeading=true に
        これにより Illustrator 上は常に「自動」表示となり、行送りはフォントサイズに追従する */
     function applyAutoLeadingToParagraphs(paragraphRanges, percent) {
@@ -376,19 +314,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     }
 
-    /* 行送りの基準（leadingType）だけを設定し、行送り値は変更しない / Set only the leading basis (leadingType) */
-    function applyLeadingBasisToFrames(frames, leadingType) {
-        for (var i = 0; i < frames.length; i++) {
-            try { frames[i].textRange.leadingType = leadingType; } catch (e) { }
-        }
-    }
-
     /* 選択の現在値を読み取り、初期表示用にエンコード / Read the selection's current state for reflection
-       戻り値: count|fontSizePt|autoAmount|alignmentId|kernId|tsume|tracking|leadingTypeId|propMetrics|leadingPt
-       注意: 値系は「最初のフレームの先頭文字／先頭段落」を代表値として読む簡略化 */
-    function readState(frames) {
+       戻り値: count|fontSizePt|autoAmount|kernId|tsume|tracking|propMetrics|leadingPt
+       注意: 文字属性は「最初のフレームの先頭文字」を代表値として読む簡略化。
+       行送り%（autoAmount）は適用先と揃えるため、選択が触れている先頭段落から読む */
+    function readState(frames, paragraphRanges) {
         var count = frames.length;
-        var fontSizePt = NaN, autoAmount = NaN, alignmentId = "", kernId = "", tsume = NaN, tracking = NaN, leadingTypeId = "", propMetrics = 0, leadingPt = NaN;
+        var fontSizePt = NaN, autoAmount = NaN, kernId = "", tsume = NaN, tracking = NaN, propMetrics = 0, leadingPt = NaN;
         for (var i = 0; i < frames.length; i++) {
             try {
                 var lines = frames[i].lines;
@@ -396,21 +328,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
                     var charAttributes = lines[0].characters[0].characterAttributes;
                     fontSizePt = charAttributes.size;
                     leadingPt = charAttributes.leading;
-                    alignmentId = alignmentToId(charAttributes.alignment);
                     kernId = kernMethodToId(charAttributes.kerningMethod);
                     tsume = charAttributes.Tsume;
                     tracking = charAttributes.tracking;
                     propMetrics = charAttributes.proportionalMetrics ? 1 : 0;
-                    var paragraphs = frames[i].paragraphs;
-                    if (paragraphs && paragraphs.length > 0) {
-                        autoAmount = paragraphs[0].paragraphAttributes.autoLeadingAmount;
-                    }
-                    leadingTypeId = leadingTypeToId(frames[i].textRange.leadingType);
                     break;
                 }
             } catch (e) { }
         }
-        return [count, fontSizePt, autoAmount, alignmentId, kernId, tsume, tracking, leadingTypeId, propMetrics, leadingPt].join("|");
+        if (paragraphRanges && paragraphRanges.length > 0) {
+            try { autoAmount = paragraphRanges[0].paragraphAttributes.autoLeadingAmount; } catch (eAuto) { }
+        }
+        return [count, fontSizePt, autoAmount, kernId, tsume, tracking, propMetrics, leadingPt].join("|");
     }
 
     /* 選択の実際の行送り（絶対値 pt）とフォントサイズを読む / Read the actual leading (absolute pt) and font size
@@ -448,11 +377,9 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     var WORKER_FUNCS = [
         getTypeName, errMessage, runRangeAction, collectTextRangesFromItem, getSelectedTextRanges, getSelectedParagraphRanges,
         resolveAutoKernType, applyKerningToRanges, applyPropMetricsToRanges, applyTsumeToRanges, applyTrackingToRanges, kernMethodToId,
-        resolveAlignment, alignmentToId, getAlignmentCharAttrs, applyStyleRunAlignment, applyAlignmentToSelection,
         isTextRangeLikeType, findParentTextFrame, getTextFrameKey,
         getProcessableTextFrame, collectLeadingFrames, collectLeadingFramesFromItem, addLeadingFrame,
-        resolveLeadingType, leadingTypeToId, applyAutoLeadingToParagraphs, applyLeadingBasisToFrames,
-        readState, readLeadingAbs
+        applyAutoLeadingToParagraphs, readState, readLeadingAbs
     ];
 
     /* 関数配列を toString() で連結してソース文字列にする / Join the function array into a source string */
@@ -478,7 +405,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             return "OK:" + ranges.length;
         }
         if (action === "getState") {
-            return "OK:" + readState(collectLeadingFrames(app.activeDocument.selection));
+            return "OK:" + readState(collectLeadingFrames(app.activeDocument.selection), getSelectedParagraphRanges());
         }
         if (action === "getLeadingAbs") {
             return "OK:" + readLeadingAbs(collectLeadingFrames(app.activeDocument.selection));
@@ -492,50 +419,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         if (action === "applyFontSize") return runRangeAction(ranges, function () {
             for (var rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) ranges[rangeIndex].characterAttributes.size = params.sizePt;
         });
-        if (action === "applyAlign") {
-            var alignSel = app.activeDocument.selection;
-            var alignValue = resolveAlignment(params.align);
-            var alignCount = 0;
-            try {
-                alignCount = applyAlignmentToSelection(alignSel, alignValue);
-            } catch (errAlign) {
-                return "ERR:" + errMessage(errAlign);
-            }
-            app.redraw();
-            return "OK:" + alignCount;
-        }
         if (action === "applyLeading") {
             var leadingFrames = collectLeadingFrames(app.activeDocument.selection);
             if (leadingFrames.length === 0) return "OK:0";
             try {
                 // 自動行送り量（%）を段落ごとに設定し、常に自動行送りに / Set the auto-leading amount (%) per paragraph; always auto-leading
+                // 行送りの基準（leadingType）はUIで扱わないため触らない / The leading basis is not exposed in the UI, so leave it alone
                 applyAutoLeadingToParagraphs(getSelectedParagraphRanges(), params.percent);
-                // 行送りの基準（leadingType）はフレーム単位で設定 / The leading basis is set per frame
-                if (params.leadingType !== undefined) applyLeadingBasisToFrames(leadingFrames, resolveLeadingType(params.leadingType));
             } catch (errLeading) {
                 return "ERR:" + errMessage(errLeading);
             }
             app.redraw();
             return "OK:" + leadingFrames.length;
-        }
-        if (action === "applyProfile") {
-            var profSel = app.activeDocument.selection;
-            var profParas = getSelectedParagraphRanges(); // 自動カーニング・文字ツメは段落単位 / Kerning & Tsume per paragraph
-            try {
-                if (params.kern !== undefined) applyKerningToRanges(profParas, resolveAutoKernType(params.kern));
-                if (params.tsume !== undefined) applyTsumeToRanges(profParas, params.tsume);
-                if (params.tracking !== undefined) applyTrackingToRanges(ranges, params.tracking);
-                if (params.sizePt !== undefined) { for (var sizeRangeIndex = 0; sizeRangeIndex < ranges.length; sizeRangeIndex++) ranges[sizeRangeIndex].characterAttributes.size = params.sizePt; }
-                if (params.align !== undefined) applyAlignmentToSelection(profSel, resolveAlignment(params.align));
-                if (params.leadingPercent !== undefined) {
-                    applyAutoLeadingToParagraphs(getSelectedParagraphRanges(), params.leadingPercent);
-                    if (params.leadingType !== undefined) applyLeadingBasisToFrames(collectLeadingFrames(profSel), resolveLeadingType(params.leadingType));
-                }
-            } catch (errProfile) {
-                return "ERR:" + errMessage(errProfile);
-            }
-            app.redraw();
-            return "OK:" + ranges.length;
         }
         return "OK:0";
     }
@@ -550,12 +445,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         if (params.propMetrics !== undefined) parts.push("propMetrics:" + (params.propMetrics ? 1 : 0));
         if (params.tracking !== undefined) parts.push("tracking:" + parseInt(params.tracking, 10));
         if (params.sizePt !== undefined) parts.push("sizePt:" + params.sizePt);
-        if (params.align !== undefined) parts.push('align:decodeURIComponent("' + encodeURIComponent(params.align) + '")');
-        if (params.kern !== undefined) parts.push('kern:decodeURIComponent("' + encodeURIComponent(params.kern) + '")');
-        if (params.tsume !== undefined) parts.push("tsume:" + parseInt(params.tsume, 10));
         if (params.percent !== undefined) parts.push("percent:" + params.percent);
-        if (params.leadingPercent !== undefined) parts.push("leadingPercent:" + params.leadingPercent);
-        if (params.leadingType !== undefined) parts.push('leadingType:"' + params.leadingType + '"');
         return "{" + parts.join(",") + "}";
     }
 
@@ -663,6 +553,44 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             }
             if (typeof onUpdate === "function") onUpdate();
         });
+    }
+
+    /* スライダー値を丸める（Shift 併用で 10 刻み）/ Snap a slider value (Shift snaps to steps of 10) */
+    function snapSliderValue(value) {
+        var isShiftPressed = false;
+        try { isShiftPressed = ScriptUI.environment.keyboardState.shiftKey; } catch (e) { }
+        return isShiftPressed ? Math.round(value / 10) * 10 : Math.round(value);
+    }
+
+    /* スライダーを入力欄と連動させ、確定時に onCommit を呼ぶ / Wire a slider to its input field and commit on change */
+    function bindSliderToInput(slider, input, onCommit) {
+        function syncFromSlider() {
+            var snappedValue = snapSliderValue(slider.value);
+            slider.value = snappedValue;
+            input.text = String(snappedValue);
+            return snappedValue;
+        }
+        slider.onChanging = syncFromSlider;
+        slider.onChange = function () { onCommit(syncFromSlider()); };
+    }
+
+    /* 入力欄を範囲内に丸めてスライダーへ反映し、onCommit を呼ぶハンドラ / Handler that clamps the input, syncs the slider and commits */
+    function makeClampedInputHandler(input, slider, minValue, maxValue, onCommit) {
+        return function () {
+            var clampedValue = Math.round(parseFloat(input.text));
+            if (isNaN(clampedValue)) return;
+            if (clampedValue < minValue) clampedValue = minValue;
+            else if (clampedValue > maxValue) clampedValue = maxValue;
+            input.text = String(clampedValue);
+            slider.value = clampedValue;
+            onCommit(clampedValue);
+        };
+    }
+
+    /* スライダーと入力欄へ値を反映 / Reflect a value into a slider and its input field */
+    function reflectSliderValue(slider, input, value) {
+        slider.value = value;
+        input.text = String(value);
     }
 
     /* 自動カーニングの選択肢を生成 / Build the auto-kerning option list */
@@ -841,7 +769,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         for (var i = 0; i < radios.length; i++) radios[i].value = (i === index);
     }
 
-    /* "count|fontSizePt|autoAmount|alignmentId|kernId|tsume|tracking|leadingTypeId|propMetrics" を分解 / Parse the encoded state string */
+    /* "count|fontSizePt|autoAmount|kernId|tsume|tracking|propMetrics|leadingPt" を分解 / Parse the encoded state string */
     function parseState(rest) {
         var fields = String(rest || "").split("|");
         function toNumber(text) { var parsed = parseFloat(text); return isNaN(parsed) ? NaN : parsed; }
@@ -849,13 +777,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             count: parseInt(fields[0], 10) || 0,
             fontSizePt: toNumber(fields[1]),
             autoAmount: toNumber(fields[2]),
-            alignmentId: fields[3] || "",
-            kernId: fields[4] || "",
-            tsume: toNumber(fields[5]),
-            tracking: toNumber(fields[6]),
-            leadingTypeId: fields[7] || "",
-            propMetrics: parseInt(fields[8], 10) === 1,
-            leadingPt: toNumber(fields[9])
+            kernId: fields[3] || "",
+            tsume: toNumber(fields[4]),
+            tracking: toNumber(fields[5]),
+            propMetrics: parseInt(fields[6], 10) === 1,
+            leadingPt: toNumber(fields[7])
         };
     }
 
@@ -863,8 +789,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // イベント接続 / Wire palette events
     // =========================================
     function bindPaletteEvents(ui, autoKernOptions) {
-        // BridgeTalk は非同期なので、連打による委譲の重複を抑止 / Guard against overlapping async delegations
+        // BridgeTalk は非同期なので、委譲の重複を抑止 / Guard against overlapping async delegations
         var workerBusy = false;
+        // 実行中に来た要求は最新の1件だけ保持し、完了後に投げ直す / While busy, keep only the newest request and send it afterwards
+        var pendingApply = null;
         var textUnit = ui.textUnit;
 
         /* 重要処理の失敗をダイアログで通知 / Surface an important-op failure via an alert */
@@ -873,14 +801,22 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             try { alert("⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail); } catch (e) { }
         }
 
-        // 委譲する共通処理（連打抑止）/ Delegate an apply action (guarded against overlap)
+        // 委譲する共通処理（実行中なら最新要求として保留）/ Delegate an apply action (queued while another is in flight)
         function runApply(actionId, params, onDone) {
-            if (workerBusy) return;
+            if (workerBusy) { pendingApply = { actionId: actionId, params: params, onDone: onDone }; return; }
+            sendApply(actionId, params, onDone);
+        }
+
+        /* 実際に委譲し、完了後に保留中の要求があれば続けて投げる / Delegate now, then flush the pending request if any */
+        function sendApply(actionId, params, onDone) {
             workerBusy = true;
             runWorker(actionId, params, function (status, payload) {
                 workerBusy = false;
                 if (status === "error") showWorkerError(actionId, payload);
                 if (onDone) onDone(status, payload);
+                var nextApply = pendingApply;
+                pendingApply = null;
+                if (nextApply) sendApply(nextApply.actionId, nextApply.params, nextApply.onDone);
             });
         }
 
@@ -910,70 +846,22 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         };
 
         // ---- 文字ツメ / Tsume ----
-        function reflectTsume(value) {
-            ui.tsumeSlider.value = value;
-            ui.tsumeInput.text = String(value);
+        // スライダーと入力欄（0〜100%、Shift 併用で 10% 刻み）/ Slider and input (0-100%, Shift snaps to 10% steps)
+        function applyTsumeValue(value) {
+            runApply("applyTsume", { value: value });
         }
-        // 文字ツメスライダー（Shift 併用で 10% 刻み）/ Tsume slider (Shift snaps to 10% steps)
-        function tsumeSnap(value) {
-            var isShiftPressed = false;
-            try { isShiftPressed = ScriptUI.environment.keyboardState.shiftKey; } catch (e) { }
-            return isShiftPressed ? Math.round(value / 10) * 10 : Math.round(value);
-        }
-        ui.tsumeSlider.onChanging = function () {
-            var snappedValue = tsumeSnap(this.value);
-            this.value = snappedValue;
-            ui.tsumeInput.text = String(snappedValue);
-        };
-        ui.tsumeSlider.onChange = function () {
-            var snappedValue = tsumeSnap(this.value);
-            this.value = snappedValue;
-            ui.tsumeInput.text = String(snappedValue);
-            runApply("applyTsume", { value: snappedValue });
-        };
-        // 文字ツメ入力欄：0〜100 にクランプしてスライダーへ反映 / Tsume input: clamp 0-100 and sync the slider
-        function applyTsumeFromInput() {
-            var clampedValue = Math.round(parseFloat(ui.tsumeInput.text));
-            if (isNaN(clampedValue)) return;
-            if (clampedValue < 0) clampedValue = 0; else if (clampedValue > 100) clampedValue = 100;
-            ui.tsumeInput.text = String(clampedValue);
-            ui.tsumeSlider.value = clampedValue;
-            runApply("applyTsume", { value: clampedValue });
-        }
+        bindSliderToInput(ui.tsumeSlider, ui.tsumeInput, applyTsumeValue);
+        var applyTsumeFromInput = makeClampedInputHandler(ui.tsumeInput, ui.tsumeSlider, 0, 100, applyTsumeValue);
         ui.tsumeInput.onChange = applyTsumeFromInput;
         changeValueByArrowKey(ui.tsumeInput, false, applyTsumeFromInput, 0);
 
         // ---- トラッキング / Tracking ----
-        function reflectTracking(value) {
-            ui.trackingSlider.value = value;
-            ui.trackingInput.text = String(value);
+        // スライダーと入力欄（-100〜500、Shift 併用で 10 刻み）/ Slider and input (-100..500, Shift snaps to 10 steps)
+        function applyTrackingValue(value) {
+            runApply("applyTracking", { tracking: value });
         }
-        // トラッキングスライダー（-100〜500、Shift 併用で 10 単位）/ Tracking slider (Shift snaps to 10 steps)
-        function trackingSnap(value) {
-            var isShiftPressed = false;
-            try { isShiftPressed = ScriptUI.environment.keyboardState.shiftKey; } catch (e) { }
-            return isShiftPressed ? Math.round(value / 10) * 10 : Math.round(value);
-        }
-        ui.trackingSlider.onChanging = function () {
-            var snappedValue = trackingSnap(this.value);
-            this.value = snappedValue;
-            ui.trackingInput.text = String(snappedValue);
-        };
-        ui.trackingSlider.onChange = function () {
-            var snappedValue = trackingSnap(this.value);
-            this.value = snappedValue;
-            ui.trackingInput.text = String(snappedValue);
-            runApply("applyTracking", { tracking: snappedValue });
-        };
-        // トラッキング入力欄：-100〜500 にクランプしてスライダーへ反映 / Tracking input: clamp -100..500 and sync the slider
-        function applyTrackingFromInput() {
-            var clampedValue = Math.round(parseFloat(ui.trackingInput.text));
-            if (isNaN(clampedValue)) return;
-            if (clampedValue < -100) clampedValue = -100; else if (clampedValue > 500) clampedValue = 500;
-            ui.trackingInput.text = String(clampedValue);
-            ui.trackingSlider.value = clampedValue;
-            runApply("applyTracking", { tracking: clampedValue });
-        }
+        bindSliderToInput(ui.trackingSlider, ui.trackingInput, applyTrackingValue);
+        var applyTrackingFromInput = makeClampedInputHandler(ui.trackingInput, ui.trackingSlider, -100, 500, applyTrackingValue);
         ui.trackingInput.onChange = applyTrackingFromInput;
         changeValueByArrowKey(ui.trackingInput, true, applyTrackingFromInput, 0);
 
@@ -994,11 +882,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             ui.leadingPercentInput.text = isNaN(percent) ? "" : String(Math.round(percent * 10) / 10);
             updateLeadingEffective();
         }
-        /* 行送りを適用（自動行送り量%＋基準は仮想ボディの上で固定）/ Apply leading (auto-leading % with basis fixed to top) */
+        /* 行送りを適用（自動行送り量%。行送りの基準は変更しない）/ Apply leading (auto-leading amount %; the basis is left as is) */
         function applyLeading() {
             var percent = currentLeadingPercent();
             if (isNaN(percent)) return;
-            runApply("applyLeading", { percent: percent, leadingType: "top" });
+            runApply("applyLeading", { percent: percent });
         }
 
         // フォントサイズ入力：適用し、実質行送りの表示も更新 / Font size input: apply and refresh the effective leading
@@ -1066,9 +954,9 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
                 // 自動カーニング / Auto kerning
                 if (state.kernId) selectKernById(state.kernId);
                 // 文字ツメ / Tsume
-                if (!isNaN(state.tsume)) reflectTsume(Math.round(state.tsume));
+                if (!isNaN(state.tsume)) reflectSliderValue(ui.tsumeSlider, ui.tsumeInput, Math.round(state.tsume));
                 // トラッキング / Tracking
-                if (!isNaN(state.tracking)) reflectTracking(Math.round(state.tracking));
+                if (!isNaN(state.tracking)) reflectSliderValue(ui.trackingSlider, ui.trackingInput, Math.round(state.tracking));
                 // プロポーショナルメトリクス / Proportional metrics
                 reflectPropMetrics(state.propMetrics);
             });
