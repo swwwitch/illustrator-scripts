@@ -74,7 +74,7 @@ function moveCurrentParagraphDown(selectedTextRange) {
 
     swapWithNextParagraph(paragraphs, paragraphIndex);
 
-    restoreCursorPosition(story, paragraphs[paragraphIndex + 1].start, cursorOffsetInParagraph);
+    restoreCursorPosition(paragraphs[paragraphIndex + 1], cursorOffsetInParagraph);
 }
 
 
@@ -129,26 +129,27 @@ function swapWithNextParagraph(paragraphs, paragraphIndex) {
  * 目的位置の1文字をカット＆ペーストして選択を作り直す。
  * 改行文字を足場にすると段落が結合してペーストに失敗するので、
  * 段落先頭に向かって最初の通常文字まで戻る。
- * @param {Story} story - 対象のストーリー
- * @param {number} paragraphStart - 復帰先の段落の開始オフセット
+ * @param {Paragraph} paragraph - 復帰先の段落
  * @param {number} offsetInParagraph - 段落先頭からのカーソルの相対位置
  * @returns {void}
  */
-function restoreCursorPosition(story, paragraphStart, offsetInParagraph) {
-    var contents = story.contents;
+function restoreCursorPosition(paragraph, offsetInParagraph) {
+    /* Story に contents は無いので、段落（TextRange）から文字列を取る */
+    /* Story has no contents property; read the text from the paragraph range */
+    var contents = paragraph.contents;
     if (!contents.length) return;
 
-    var characterOffset = Math.min(paragraphStart + offsetInParagraph, contents.length - 1);
+    var characterOffset = Math.min(offsetInParagraph, contents.length - 1);
 
     /* 改行を踏まない位置まで段落内で手前へ戻す / Step back to a non-break character */
-    while (characterOffset >= paragraphStart && isParagraphBreak(contents.charAt(characterOffset))) {
+    while (characterOffset >= 0 && isParagraphBreak(contents.charAt(characterOffset))) {
         characterOffset--;
     }
 
     /* 空段落は足場になる文字が無い / An empty paragraph has nothing to anchor to */
-    if (characterOffset < paragraphStart) return;
+    if (characterOffset < 0) return;
 
-    story.textRanges[characterOffset].select();
+    paragraph.characters[characterOffset].select();
     app.redraw();
     app.cut();
     app.paste();
