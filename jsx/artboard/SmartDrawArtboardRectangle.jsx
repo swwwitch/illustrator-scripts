@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 アクティブまたはすべてのアートボードと同じサイズの長方形を、オフセットを考慮して描画します。
-カラーと重ね順を指定でき、描画後に「ガイド化」「ライブシェイプに変換」を適用できます。
+カラー・配置位置・対象をライブプレビューで確かめながら指定でき、描画後に「ガイドに変換」「ライブシェイプ化」を適用できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Draws a rectangle the size of the active artboard, or of every artboard, taking an offset into account.
-The color and the stacking order are configurable, and the result can be turned into a guide or a live shape.
+Color, placement and target scope are set with a live preview, and the result can be converted to guides or to a live shape.
 
 See the README for details.
 
