@@ -144,7 +144,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Updated: 2026-01-19](readme-en/SmartAlignAndTile-yoko.md)
 - [Lays the selected objects out vertically or horizontal…](readme-en/SmartAlignDistribute.md)
 - [An Illustrator script to automatically group selected…](readme-en/SmartAutoGroup.md)
-- [Controls Align to Glyph Bounds for point type and area…](readme-en/SmartVerticalAlign.md)
+- [Aligns objects vertically — top, center or bottom — wh…](readme-en/SmartVerticalAlign.md)
 - [An Illustrator script that extracts numbers from text…](readme-en/SortByNumbers.md)
 - [An Illustrator script that sorts tab-delimited text in…](readme-en/SortTextByColumn.md)
 - [An Illustrator script that swaps the position of a sel…](readme-en/SwapNearestItem.md)

@@ -1,4 +1,4 @@
-# SmartVerticalAlign
+# Align vertically while toggling glyph bounds
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartVerticalAlign.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartVerticalAlign.jsx)
 
@@ -10,24 +10,73 @@
 
 ### Overview
 
-- Controls Align to Glyph Bounds for point type and area type
-- The alignment position (top, center, bottom) is confirmed instantly in the preview
+Aligns objects vertically — top, center or bottom — while toggling Align to Glyph Bounds for point text and area text. Every checkbox and radio button refreshes the preview, so you can compare the result with and without glyph bounds before committing.
 
 ### Main Features
 
-- Works with both point type and area type
-- A Preview Bounds toggle switches the reference between geometric and preview bounds
-- Keyboard shortcuts (T / M / B) drive the alignment
-- Dialog position and opacity can be adjusted
+- Toggle Align to Glyph Bounds for point type and area type independently
+- Choose the alignment position (top, center, bottom)
+- A Preview Bounds toggle decides whether strokes and effects count toward the bounds
+- Every checkbox and radio button refreshes the preview immediately
+- Hotkeys (T / M / B) switch the alignment position
+- Japanese / English UI
 
-### Process Flow
+### Usage
 
-1. Find the text frames in the selection
-2. Turn glyph-bounds alignment on or off with the checkbox
-3. Choose the alignment direction with radio buttons or keyboard shortcuts
-4. Apply geometric or preview bounds depending on the Preview Bounds toggle
-5. Reflect the result immediately in the preview
+1. Select the objects you want to align.
+2. Run the script.
+3. Set Align to Glyph Bounds and the alignment position, check the preview, and click OK.
+
+### Options
+
+**Align to Glyph Bounds**
+
+| Item | Description |
+| --- | --- |
+| Point Text | Align to Glyph Bounds for point type (preference `EnableActualPointTextSpaceAlign`) |
+| Area Text | Align to Glyph Bounds for area type (preference `EnableActualAreaTextSpaceAlign`) |
+
+Area Text is dimmed when the selection is point type, and Point Text is dimmed when it is area type.
+
+**Alignment**
+
+| Item | Description |
+| --- | --- |
+| Top | Align to the top |
+| Center | Align to the center |
+| Bottom | Align to the bottom |
+
+**Preview Bounds**
+
+| Item | Description |
+| --- | --- |
+| Preview Bounds | When ON, strokes and effects count toward the bounds (preference `includeStrokeInBounds`). Default OFF |
+
+**Hotkeys**
+
+| Key | Description |
+| --- | --- |
+| T / M / B | Top / Center / Bottom |
+
+### Notes
+
+- Text frames, paths, groups and compound paths are treated as alignable objects.
+- The defaults depend on the selection: Bottom for text only, Center when text and shapes are mixed or when only shapes are selected.
+- The checkboxes write Illustrator's preferences directly. Cancel does not restore their previous state.
+- Alignment runs through Illustrator's menu commands, so every action — keyboard shortcuts included — is recorded in the undo history.
+
+### Article
+
+https://note.com/dtp_tranist/n/n9ee716675032
+
+### Update History
+
+- v1.1.1 (2026-09-03) Fixed the preview not updating when Align to Glyph Bounds is turned back OFF; moved alignment positions, shortcuts and preference keys into tables; cleaned up naming and structure
+- v1.1 (2025-08-04) Adjusted the logic used when the dialog opens
+- Initial release (2025-08-04)
 
 ### Script info
 
-- Version: v1.1
+- Version: v1.1.1
+- First release: 2025-08-04
+- Last updated: 2026-09-03

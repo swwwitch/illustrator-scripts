@@ -150,7 +150,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [更新日：2026-01-19](readme-ja/SmartAlignAndTile-yoko.md)
 - [選択オブジェクトを「縦/横」に並べて、指定した間隔で分布します。方向は自動判定も可能で、揃え（左右/上下）、…](readme-ja/SmartAlignDistribute.md)
 - [選択オブジェクトを自動的に「重なり」「垂直方向」「水平方向」「近接度」などの条件に応じてグループ化するIll…](readme-ja/SmartAutoGroup.md)
-- [ポイント文字およびエリア内文字に対して［字形の境界に整列］を制御するスクリプト](readme-ja/SmartVerticalAlign.md)
+- [ポイント文字およびエリア内文字の［字形の境界に整列］を切り替えながら、垂直方向（上・中央・下）に整列します。…](readme-ja/SmartVerticalAlign.md)
 - [グループ内のテキストから数値を抽出し、数値に基づいてグループを並び替え縦方向に整列するIllustrator…](readme-ja/SortByNumbers.md)
 - [テキストフレーム内のタブ区切りテキストを指定列の値で並び替えるIllustrator用スクリプトです](readme-ja/SortTextByColumn.md)
 - [選択したオブジェクトを基準に、指定方向（右／左／上／下）にある最も近いオブジェクトと自然な見た目で位置を入れ…](readme-ja/SwapNearestItem.md)
