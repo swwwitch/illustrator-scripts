@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md
@@ -39,22 +39,76 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
 
 (function () {
 
+    // =========================================
     // ユーザー設定 / User settings
     // =========================================
 
-    /* ダイアログの初期位置・不透明度（調整可）/ Dialog position & opacity (tunable) */
-    var DIALOG_OFFSET_X = 300; // 右(+)／左(-) / shift right (+) / left (-)
-    var DIALOG_OFFSET_Y = 0; //   下(+)／上(-) / shift down (+) / up (-)
-    var DIALOG_OPACITY = 0.98; // 0.0 - 1.0
-
     /* 入力中のプレビュー遅延（タイプしやすさ優先）/ Preview delay while typing */
-    var PREVIEW_DELAY_TYPING_MS = 110; // recommend 100–120ms
+    var PREVIEW_DELAY_TYPING_MS = 110; /* 推奨 100–120ms / recommend 100–120ms */
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
+    /* K100モードの不透明度（%）/ Opacity (%) used by the K100 color mode */
+    var K100_OPACITY = 15;
 
-    /* カラーモード定数 / Color mode constants */
+    /* 「bgレイヤー」配置で使うレイヤー名 / Layer name used by the "bg layer" placement */
+    var BG_LAYER_NAME = 'bg';
+
+    /* 描画先が見つからないときに作るレイヤー名 / Layer created when no writable layer is found */
+    var FALLBACK_LAYER_NAME = '_auto_draw';
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* ダイアログの初期位置・不透明度 / Dialog position & opacity */
+    var DIALOG_OFFSET_X = 300;  /* 右(+)／左(-) / shift right (+) / left (-) */
+    var DIALOG_OFFSET_Y = 0;    /* 下(+)／上(-) / shift down (+) / up (-) */
+    var DIALOG_OPACITY = 0.98;  /* 0.0 - 1.0 */
+
+    /* 余白と間隔 / Margins and spacing */
+    var PANEL_MARGINS = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] */
+    var PANEL_SPACING = 8;                /* パネル内の要素間隔 */
+    var COLUMN_SPACING = 12;              /* 2カラムの間隔 */
+    var STACK_SPACING = 10;               /* カラム内のパネル間隔・広めの行間 */
+    var TIGHT_SPACING = 6;                /* 詰めた行間 */
+
+    /* CMYK入力欄の固定幅（ラベルと桁を揃える）/ Fixed width that aligns CMYK labels and fields */
+    var CMYK_FIELD_WIDTH = 40;
+
+    /**
+     * パネルの共通設定
+     * @param {Panel} panel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループの共通設定（row/column で整列を切り替え）
+     * @param {Group} group - 対象グループ
+     * @param {string} [orientation] - "row" または "column"（省略時は "column"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupGroup(group, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        group.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        group.alignment = "fill";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    // =========================================
+    // カラーモード / Color modes
+    // =========================================
+
+    /* 塗りの決め方を表す定数 / How the fill color is decided */
     var ColorMode = {
         NONE: 'none',
         K100: 'k100',
@@ -66,11 +120,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // ローカライズ / Localization
     // =========================================
 
-    /* 現在のUI言語を判定 / Detect current UI language */
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ラベル定義（カテゴリ別）/ Label definitions (by category) */
     var LABELS = {
@@ -81,104 +138,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             }
         },
         panel: {
-            offset: {
-                ja: "オフセット",
-                en: "Offset"
-            },
-            color: {
-                ja: "カラー",
-                en: "Color"
-            },
-            zorder: {
-                ja: "配置位置",
-                en: "Placement"
-            },
-            target: {
-                ja: "対象",
-                en: "Target"
-            },
-            options: {
-                ja: "オプション",
-                en: "Options"
-            }
+            offset: { ja: "オフセット", en: "Offset" },
+            color: { ja: "カラー", en: "Color" },
+            zorder: { ja: "配置位置", en: "Placement" },
+            target: { ja: "対象", en: "Target" },
+            options: { ja: "オプション", en: "Options" }
         },
         checkbox: {
-            bleed: {
-                ja: "裁ち落とし",
-                en: "Bleed"
-            },
-            makeGuide: {
-                ja: "ガイドに変換",
-                en: "Convert to Guides"
-            },
-            convertToLiveShape: {
-                ja: "ライブシェイプ化",
-                en: "Convert to Live Shape"
-            }
+            bleed: { ja: "裁ち落とし", en: "Bleed" },
+            makeGuide: { ja: "ガイドに変換", en: "Convert to Guides" },
+            convertToLiveShape: { ja: "ライブシェイプ化", en: "Convert to Live Shape" }
         },
         color: {
-            none: {
-                ja: "なし",
-                en: "None"
-            },
-            k100: {
-                ja: "K100、不透明度15%",
-                en: "K100, Opacity 15%"
-            },
-            hex: {
-                ja: "HEX",
-                en: "HEX"
-            },
-            cmyk: {
-                ja: "CMYK",
-                en: "CMYK"
-            },
-            hint: {
-                ja: "例: #FF0000",
-                en: "e.g., #FF0000"
-            }
+            none: { ja: "なし", en: "None" },
+            k100: { ja: "K100、不透明度15%", en: "K100, Opacity 15%" },
+            hex: { ja: "HEX", en: "HEX" },
+            cmyk: { ja: "CMYK", en: "CMYK" },
+            hint: { ja: "例: #FF0000", en: "e.g., #FF0000" }
         },
         zorder: {
-            front: {
-                ja: "最前面",
-                en: "Front"
-            },
-            back: {
-                ja: "最背面",
-                en: "Back"
-            },
-            bg: {
-                ja: "bgレイヤー",
-                en: "bg Layer"
-            }
+            front: { ja: "最前面", en: "Front" },
+            back: { ja: "最背面", en: "Back" },
+            bg: { ja: "bgレイヤー", en: "bg Layer" }
         },
         target: {
-            current: {
-                ja: "現在のアートボード",
-                en: "Current Artboard"
-            },
-            all: {
-                ja: "すべてのアートボード",
-                en: "All Artboards"
-            }
+            current: { ja: "現在のアートボード", en: "Current Artboard" },
+            all: { ja: "すべてのアートボード", en: "All Artboards" }
         },
         button: {
-            ok: {
-                ja: "OK",
-                en: "OK"
-            },
-            cancel: {
-                ja: "キャンセル",
-                en: "Cancel"
-            },
-            previewOutline: {
-                ja: "アウトライン表示",
-                en: "Outline"
-            },
-            previewPreview: {
-                ja: "プレビュー表示",
-                en: "Preview"
-            }
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            previewOutline: { ja: "アウトライン表示", en: "Outline" },
+            previewPreview: { ja: "プレビュー表示", en: "Preview" }
         },
         helpTip: {
             offsetInput: {
@@ -214,19 +205,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
                 en: "Converts the drawn rectangles to guides."
             }
         },
+        warning: {
+            hexInvalid: {
+                ja: "正しい #RRGGBB を入力してください",
+                en: "Enter a valid #RRGGBB value"
+            },
+            hexEmpty: {
+                ja: "HEX未入力（# のみ）",
+                en: "HEX not entered (# only)"
+            },
+            cmykRange: {
+                ja: "0–100 の範囲にしてください（未入力は 0 として扱います）",
+                en: "Enter a value from 0 to 100 (empty fields are treated as 0)"
+            },
+            singleArtboard: {
+                ja: "アートボードが1つのため選択できません",
+                en: "Disabled: only one artboard exists"
+            }
+        },
         name: {
-            previewLayer: {
-                ja: "_preview",
-                en: "_preview"
-            },
-            rect: {
-                ja: "<長方形>",
-                en: "<Rectangle>"
-            },
-            guide: {
-                ja: "<ガイド>",
-                en: "<Guide>"
-            },
+            previewLayer: { ja: "_preview", en: "_preview" },
+            rect: { ja: "<長方形>", en: "<Rectangle>" },
+            guide: { ja: "<ガイド>", en: "<Guide>" },
             previewRect: {
                 ja: "__プレビュー_アートボードサイズの長方形",
                 en: "__Preview_ArtboardSizeRectangle"
@@ -234,17 +234,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
     };
 
-    /* ラベル取得（ドット区切りキー、{slash}→「/」に展開）/ Resolve label by dotted key; {slash}→"/" */
-    function getLocalizedText(key) {
-        var node = LABELS;
-        var parts = String(key).split('.');
-        for (var i = 0; i < parts.length; i++) {
-            if (node == null) break;
-            node = node[parts[i]];
+    /**
+     * ラベルを取得する（ドット区切りキー、{slash}→「/」に展開）
+     * @param {string} key - "panel.offset" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(key) {
+        var labelNode = LABELS;
+        var keyParts = String(key).split('.');
+        for (var i = 0; i < keyParts.length; i++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[keyParts[i]];
         }
-        var text = (node && node[currentLanguage] != null) ? node[currentLanguage] : key;
+        var text = (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : key;
         return String(text).replace(/\{slash\}/g, '/');
     }
+
+    // =========================================
+    // ダイアログ共通ユーティリティ / Dialog utilities
+    // =========================================
 
     /* =========================================
      * DialogPersist util (extractable)
@@ -256,436 +264,408 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     (function (g) {
         if (!g.DialogPersist) {
             g.DialogPersist = {
-                setOpacity: function (dialog, v) {
-                    try { dialog.opacity = v; } catch (e) { }
+                setOpacity: function (dialog, opacity) {
+                    try { dialog.opacity = opacity; } catch (e) { }
                 },
                 applyInitialOffset: function (dialog, offsetX, offsetY) {
                     try {
-                        var l = dialog.location;
-                        dialog.location = [l[0] + (offsetX | 0), l[1] + (offsetY | 0)];
+                        var location = dialog.location;
+                        dialog.location = [location[0] + (offsetX | 0), location[1] + (offsetY | 0)];
                     } catch (e) { }
                 }
             };
         }
     })($.global);
 
-    /* 入力欄の強調表示ヘルパー / Helper to highlight EditText fields */
-    function setEditHighlight(et, on) {
+    /* 入力中のホットキー抑止用に、フォーカス中のコントロールを保持 / Control that currently owns focus */
+    var focusedField = null;
+
+    /**
+     * 入力欄のフォーカスを追跡し、入力中はダイアログのホットキーを無効にする
+     * 単一 boolean だと「新フィールドの focus → 旧フィールドの blur」の順で false に落ちるため、
+     * コントロール自体を保持して自分の blur のときだけクリアする（順序非依存）。
+     * @param {EditText} fieldControl - 追跡対象の入力欄
+     * @returns {void}
+     */
+    function trackFocusForHotkeys(fieldControl) {
+        fieldControl.addEventListener('focus', function () {
+            focusedField = fieldControl;
+        });
+        fieldControl.addEventListener('blur', function () {
+            if (focusedField === fieldControl) focusedField = null;
+        });
+    }
+
+    /**
+     * 入力欄を淡黄色でハイライト表示する（選択中のカラーモードを示す）
+     * @param {EditText} fieldControl - 対象の入力欄
+     * @param {boolean} highlighted - true でハイライト、false で通常表示
+     * @returns {void}
+     */
+    function setFieldHighlight(fieldControl, highlighted) {
         try {
-            var g = et.graphics;
-            if (on) {
-                // Light yellow highlight
-                g.backgroundColor = g.newBrush(g.BrushType.SOLID_COLOR, [1, 1, 0.85]);
-                g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, [0.2, 0.2, 0], 1);
+            var graphics = fieldControl.graphics;
+            var backgroundRgb = highlighted ? [1, 1, 0.85] : [1, 1, 1];
+            var foregroundRgb = highlighted ? [0.2, 0.2, 0] : [0, 0, 0];
+            graphics.backgroundColor = graphics.newBrush(graphics.BrushType.SOLID_COLOR, backgroundRgb);
+            graphics.foregroundColor = graphics.newPen(graphics.PenType.SOLID_COLOR, foregroundRgb, 1);
+            fieldControl.notify('onDraw');
+        } catch (e) { }
+    }
+
+    /**
+     * 入力欄の文字色を警告(赤)／通常(黒)に切り替える
+     * @param {EditText} fieldControl - 対象の入力欄
+     * @param {boolean} isWarning - true で赤、false で黒
+     * @returns {void}
+     */
+    function setFieldWarnColor(fieldControl, isWarning) {
+        try {
+            var graphics = fieldControl.graphics;
+            graphics.foregroundColor = graphics.newPen(graphics.PenType.SOLID_COLOR, isWarning ? [1, 0, 0] : [0, 0, 0], 1);
+        } catch (e) { }
+    }
+
+    /**
+     * 上下キーで入力値を増減する（Shift=10刻み、Option=0.1刻み）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {function} onValueChange - 値が変わったあとに呼ぶコールバック
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, onValueChange) {
+        editText.addEventListener("keydown", function (event) {
+            /* 上下キー以外（通常の文字入力など）には一切干渉しない
+               Only react to Up/Down; never touch the field on normal character input */
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+
+            var value = Number(editText.text);
+            if (isNaN(value)) value = 0; /* 空欄などは0起点 / treat empty or invalid as 0 */
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var isUp = (event.keyName == "Up");
+            event.preventDefault();
+
+            if (keyboard.shiftKey) {
+                /* Shift押下時は10の倍数へスナップ / Snap to multiples of 10 */
+                value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            } else if (keyboard.altKey) {
+                /* Option押下時は0.1単位、小数第1位に丸め / 0.1 steps, rounded to one decimal */
+                value = Math.round((value + (isUp ? 0.1 : -0.1)) * 10) / 10;
             } else {
-                // Reset to default-looking white
-                g.backgroundColor = g.newBrush(g.BrushType.SOLID_COLOR, [1, 1, 1]);
-                g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, [0, 0, 0], 1);
-            }
-            et.notify('onDraw'); // redraw
-        } catch (e) { }
-    }
-
-    /* 入力欄の文字色を警告(赤)/通常(黒)に / Set field text color to warning (red) or normal (black) */
-    function setFieldWarnColor(et, warn) {
-        try {
-            var g = et.graphics;
-            g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, warn ? [1, 0, 0] : [0, 0, 0], 1);
-        } catch (e) { }
-    }
-
-    /* ドキュメントのカラースペースに合わせた黒を生成 / Build black matching the document color space */
-    function createBlackColor(doc) {
-        if (doc.documentColorSpace == DocumentColorSpace.RGB) {
-            var blackColor = new RGBColor();
-            blackColor.red = 0;
-            blackColor.green = 0;
-            blackColor.blue = 0;
-            return blackColor;
-        } else {
-            var blackColor = new CMYKColor();
-            blackColor.black = 100;
-            blackColor.cyan = 0;
-            blackColor.magenta = 0;
-            blackColor.yellow = 0;
-            return blackColor;
-        }
-    }
-
-    // --- Helpers: color constructors & parsers ---
-    function clampValue(v, min, max) {
-        return v < min ? min : (v > max ? max : v);
-    }
-
-    /* RGBColor を生成（0–255にクランプ）/ Build an RGBColor (clamped to 0–255) */
-    function makeRGB(r, g, b) {
-        var c = new RGBColor();
-        c.red = clampValue(Math.round(r), 0, 255);
-        c.green = clampValue(Math.round(g), 0, 255);
-        c.blue = clampValue(Math.round(b), 0, 255);
-        return c;
-    }
-
-    /* CMYKColor を生成（0–100にクランプ）/ Build a CMYKColor (clamped to 0–100) */
-    function makeCMYK(cy, mg, yl, k) {
-        var c = new CMYKColor();
-        c.cyan = clampValue(cy, 0, 100);
-        c.magenta = clampValue(mg, 0, 100);
-        c.yellow = clampValue(yl, 0, 100);
-        c.black = clampValue(k, 0, 100);
-        return c;
-    }
-
-    // --- RGB/CMYK conversion helpers ---
-    function rgbToCmyk(r, g, b) {
-        // r,g,b: 0-255 → return [C,M,Y,K] 0-100
-        r = clampValue(r, 0, 255) / 255;
-        g = clampValue(g, 0, 255) / 255;
-        b = clampValue(b, 0, 255) / 255;
-        var k = 1 - Math.max(r, g, b);
-        if (k >= 0.9999) return [0, 0, 0, 100];
-        var c = (1 - r - k) / (1 - k);
-        var m = (1 - g - k) / (1 - k);
-        var y = (1 - b - k) / (1 - k);
-        return [Math.round(c * 100), Math.round(m * 100), Math.round(y * 100), Math.round(k * 100)];
-    }
-
-    function cmykToRgb(c, m, y, k) {
-        // c,m,y,k: 0-100 → return [R,G,B] 0-255
-        c = clampValue(c, 0, 100) / 100;
-        m = clampValue(m, 0, 100) / 100;
-        y = clampValue(y, 0, 100) / 100;
-        k = clampValue(k, 0, 100) / 100;
-        var r = 255 * (1 - c) * (1 - k);
-        var g = 255 * (1 - m) * (1 - k);
-        var b = 255 * (1 - y) * (1 - k);
-        return [Math.round(r), Math.round(g), Math.round(b)];
-    }
-
-    // --- Common fill applier for both preview and final draw ---
-    /*
-     * applyFillByMode(doc, targetRect, mode, payload, opts)
-     * - mode: 'none' | 'k100' | 'hex' | 'cmyk'
-     * - payload: { customValue: String, customCMYK: {c,m,y,k} }
-     * - opts: { k100Opacity: Number }
-     */
-    function applyFillByMode(doc, targetRect, mode, payload, opts) {
-        try {
-            var k100Opacity = (opts && typeof opts.k100Opacity === 'number') ? opts.k100Opacity : 15;
-            if (mode === 'none') {
-                targetRect.filled = false;
-                targetRect.stroked = false;
-                return;
-            }
-            if (mode === 'k100') {
-                targetRect.filled = true;
-                targetRect.fillColor = createBlackColor(doc);
-                targetRect.stroked = false;
-                targetRect.opacity = k100Opacity;
-                return;
-            }
-            if (mode === 'hex') {
-                var col = parseCustomColor(doc, payload && payload.customValue);
-                if (col) {
-                    targetRect.filled = true;
-                    targetRect.fillColor = col;
-                    targetRect.stroked = false;
-                    targetRect.opacity = 100;
-                } else {
-                    targetRect.filled = false;
-                    targetRect.stroked = false;
-                }
-                return;
-            }
-            if (mode === 'cmyk') {
-                var c = payload && payload.customCMYK && payload.customCMYK.c,
-                    m = payload && payload.customCMYK && payload.customCMYK.m,
-                    y = payload && payload.customCMYK && payload.customCMYK.y,
-                    k = payload && payload.customCMYK && payload.customCMYK.k;
-                var ok = (typeof c === 'number' && !isNaN(c)) &&
-                    (typeof m === 'number' && !isNaN(m)) &&
-                    (typeof y === 'number' && !isNaN(y)) &&
-                    (typeof k === 'number' && !isNaN(k));
-                if (!ok) {
-                    targetRect.filled = false;
-                    targetRect.stroked = false;
-                    return;
-                }
-                var color;
-                if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
-                    var rgb = cmykToRgb(c, m, y, k);
-                    color = makeRGB(rgb[0], rgb[1], rgb[2]);
-                } else {
-                    color = makeCMYK(c, m, y, k);
-                }
-                targetRect.filled = true;
-                targetRect.fillColor = color;
-                targetRect.stroked = false;
-                targetRect.opacity = 100;
-                return;
-            }
-            // Fallback
-            targetRect.filled = false;
-            targetRect.stroked = false;
-        } catch (e) { }
-    }
-
-    /*
-     * customValue の解釈と RGBColor/CMYKColor へのマッピング
-     * Accepts:
-     *  - "#RRGGBB"
-     *  - "R,G,B"  (0-255)
-     *  - 名前色: black, white, red, green, blue, cyan, magenta, yellow, orange, grayXX (0-100)
-     */
-    function parseCustomColor(doc, customValue) {
-        try {
-            if (!customValue) return null;
-            var s = String(customValue).replace(/^\s+|\s+$/g, '').toLowerCase();
-            if (!s) return null;
-
-            // Normalize separators: convert full-width spaces and JP commas to ASCII
-            s = s.replace(/\u3000/g, ' '); // full-width space → space
-            s = s.replace(/[，、]/g, ','); // Japanese comma/ton-ten → comma
-            // Normalize full-width digits and punctuation to ASCII
-            s = s.replace(/[０-９]/g, function (ch) {
-                return String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30);
-            });
-            s = s.replace(/．/g, '.'); // full-width period
-            s = s.replace(/／/g, '/'); // full-width slash
-
-            // Expand shorthand HEX notations
-            // #RGB → #RRGGBB, #RR → #RRRRRR, #R → #RRRRRR
-            if (s.charAt(0) === '#') {
-                if (s.length === 4) { // #RGB
-                    var r1 = s.charAt(1), g1 = s.charAt(2), b1 = s.charAt(3);
-                    s = '#' + r1 + r1 + g1 + g1 + b1 + b1;
-                } else if (s.length === 3) { // #RR
-                    var r2 = s.charAt(1), r3 = s.charAt(2);
-                    s = '#' + r2 + r3 + r2 + r3 + r2 + r3;
-                } else if (s.length === 2) { // #R
-                    var r4 = s.charAt(1);
-                    s = '#' + r4 + r4 + r4 + r4 + r4 + r4; // #3 → #333333
-                }
+                value = Math.round(value + (isUp ? 1 : -1));
             }
 
-            // #RRGGBB
-            if (s.charAt(0) === '#' && s.length === 7) {
-                var r = parseInt(s.substr(1, 2), 16);
-                var g = parseInt(s.substr(3, 2), 16);
-                var b = parseInt(s.substr(5, 2), 16);
-                if (!isNaN(r) && !isNaN(g) && !isNaN(b)) return makeRGB(r, g, b);
-            }
-
-            // Named colors (basic)
-            var named = {
-                black: {
-                    rgb: [0, 0, 0],
-                    cmyk: [0, 0, 0, 100]
-                },
-                white: {
-                    rgb: [255, 255, 255],
-                    cmyk: [0, 0, 0, 0]
-                },
-                red: {
-                    rgb: [255, 0, 0],
-                    cmyk: [0, 100, 100, 0]
-                },
-                green: {
-                    rgb: [0, 128, 0],
-                    cmyk: [100, 0, 100, 50]
-                },
-                blue: {
-                    rgb: [0, 0, 255],
-                    cmyk: [100, 100, 0, 0]
-                },
-                cyan: {
-                    rgb: [0, 255, 255],
-                    cmyk: [100, 0, 0, 0]
-                },
-                magenta: {
-                    rgb: [255, 0, 255],
-                    cmyk: [0, 100, 0, 0]
-                },
-                yellow: {
-                    rgb: [255, 255, 0],
-                    cmyk: [0, 0, 100, 0]
-                },
-                orange: {
-                    rgb: [255, 165, 0],
-                    cmyk: [0, 35, 100, 0]
-                }
-            };
-            if (named[s]) {
-                // Prefer document color space, else RGB
-                if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK)
-                    return makeCMYK(named[s].cmyk[0], named[s].cmyk[1], named[s].cmyk[2], named[s].cmyk[3]);
-                return makeRGB(named[s].rgb[0], named[s].rgb[1], named[s].rgb[2]);
-            }
-            // grayNN (0-100)
-            var m = s.match(/^gray\s*(\d{1,3})$/);
-            if (m) {
-                var gk = clampValue(parseInt(m[1], 10), 0, 100);
-                if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) return makeCMYK(0, 0, 0, gk);
-                var v = Math.round(255 * (100 - gk) / 100);
-                return makeRGB(v, v, v);
-            }
-        } catch (e) { }
-        return null;
+            editText.text = value;
+            if (typeof onValueChange === 'function') onValueChange();
+        });
     }
 
-    // 単位コード→ラベルとpt係数のテーブル（rulerType基準）
-    // Map rulerType codes to label & points-per-unit factor
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コード→ラベルとpt係数のテーブル（rulerType基準）
+       Map rulerType codes to label & points-per-unit factor */
     var UNIT_TABLE = {
-        0: { label: "in", factor: 72.0 },                 // inch
-        1: { label: "mm", factor: 72.0 / 25.4 },          // mm
-        2: { label: "pt", factor: 1.0 },                  // pt
-        3: { label: "pica", factor: 12.0 },                 // pica
-        4: { label: "cm", factor: 72.0 / 2.54 },          // cm
-        5: { label: "Q/H", factor: 72.0 / 25.4 * 0.25 },   // Q or H
-        6: { label: "px", factor: 1.0 },                  // px (Illustrator: 1px=1pt)
-        7: { label: "ft/in", factor: 72.0 * 12.0 },          // ft/in
-        8: { label: "m", factor: 72.0 / 25.4 * 1000.0 }, // m
-        9: { label: "yd", factor: 72.0 * 36.0 },          // yd
-        10: { label: "ft", factor: 72.0 * 12.0 }           // ft
+        0: { label: "in", factor: 72.0 },                 /* inch */
+        1: { label: "mm", factor: 72.0 / 25.4 },          /* mm */
+        2: { label: "pt", factor: 1.0 },                  /* pt */
+        3: { label: "pica", factor: 12.0 },               /* pica */
+        4: { label: "cm", factor: 72.0 / 2.54 },          /* cm */
+        5: { label: "Q/H", factor: 72.0 / 25.4 * 0.25 },  /* Q or H */
+        6: { label: "px", factor: 1.0 },                  /* px（Illustratorでは 1px=1pt）*/
+        7: { label: "ft/in", factor: 72.0 * 12.0 },       /* ft/in */
+        8: { label: "m", factor: 72.0 / 25.4 * 1000.0 },  /* m */
+        9: { label: "yd", factor: 72.0 * 36.0 },          /* yd */
+        10: { label: "ft", factor: 72.0 * 12.0 }          /* ft */
     };
 
-    // 現在の単位コードを取得 / Get current rulerType code
+    /**
+     * 現在の単位コード（rulerType）を取得する
+     * @returns {number} 単位コード（取得できない場合は 2 = pt）
+     */
     function getCurrentUnitCode() {
         try {
             return app.preferences.getIntegerPreference("rulerType");
         } catch (e) {
-            return 2; // fallback to pt
+            return 2;
         }
     }
 
-    // 現在の単位ラベルを取得 / Get current unit label from prefs
+    /**
+     * 現在の単位ラベルを取得する
+     * @returns {string} "mm" などの単位ラベル
+     */
     function getCurrentUnitLabel() {
-        var entry = UNIT_TABLE[getCurrentUnitCode()];
-        return entry ? entry.label : "pt";
+        var unitEntry = UNIT_TABLE[getCurrentUnitCode()];
+        return unitEntry ? unitEntry.label : "pt";
     }
 
-    // 単位コード→pt係数 / Convert unit code to points factor
-    function getPtFactorFromUnitCode(code) {
-        var entry = UNIT_TABLE[code];
-        return entry ? entry.factor : 1.0;
+    /**
+     * 単位コードからpt換算係数を取得する
+     * @param {number} unitCode - rulerType の単位コード
+     * @returns {number} 1単位あたりのpt数
+     */
+    function getPtFactorFromUnitCode(unitCode) {
+        var unitEntry = UNIT_TABLE[unitCode];
+        return unitEntry ? unitEntry.factor : 1.0;
     }
 
-    /*
-     * Resolve offset display text & internal pt value in one place
-     * 単位変換と裁ち落としプリセットを一元化
-     * - offsetText: current edit field text (string)
-     * - unitCode: app.preferences.getIntegerPreference("rulerType")
-     * - bleedEnabled: true when Bleed is ON
-     * Return: { pt: Number, displayText: String, disabled: Boolean }
+    /**
+     * 入力欄の表示値と内部pt値を一元的に解決する（裁ち落としプリセットを含む）
+     * @param {string} offsetText - 入力欄の現在のテキスト
+     * @param {number} unitCode - rulerType の単位コード
+     * @param {boolean} bleedEnabled - 裁ち落としがONかどうか
+     * @returns {object} { pt: number, displayText: string, disabled: boolean }
      */
     function resolveOffsetToPt(offsetText, unitCode, bleedEnabled) {
         var displayText = String(offsetText == null ? '' : offsetText);
-        var pt = 0;
 
         if (bleedEnabled) {
-            // Decide preset by unit and compute pt via canonical factors
-            if (unitCode === 1) { // mm
-                displayText = '3'; // 3mm
-                pt = 3 * getPtFactorFromUnitCode(1);
-            } else if (unitCode === 5) { // Q/H
-                displayText = '12'; // 12H
-                pt = 12 * getPtFactorFromUnitCode(5);
-            } else if (unitCode === 2) { // pt
-                // 0.125in = 9pt。単位ラベル(pt)と一致させ、欄には pt 値を表示
-                // 0.125in = 9pt. Show the value in pt so it matches the unit label
-                displayText = '9';
-                pt = 0.125 * 72.0;
+            /* 単位ごとの裁ち落とし相当値。表示値と pt 値を必ず同じ量にする
+               Bleed preset per unit; the shown value and the pt value always describe the same amount */
+            var bleedAmount = 3;      /* 既定は 3mm 相当 / defaults to 3mm */
+            var bleedUnitCode = 1;
+            if (unitCode === 5) {          /* Q/H */
+                bleedAmount = 12;
+                bleedUnitCode = 5;
+            } else if (unitCode === 2) {   /* pt（0.125in = 9pt）*/
+                bleedAmount = 9;
+                bleedUnitCode = 2;
+            } else if (unitCode === 1) {   /* mm */
+                bleedAmount = 3;
+                bleedUnitCode = 1;
             } else {
-                // Fallback: treat as 3mm equivalent for any other unit
-                displayText = displayText || '3';
-                pt = 3 * getPtFactorFromUnitCode(1);
+                /* mm・Q/H・pt 以外は 3mm 相当を現在の単位へ換算して表示
+                   For other units, convert the 3mm equivalent into the current unit */
+                bleedAmount = 3 * getPtFactorFromUnitCode(1) / getPtFactorFromUnitCode(unitCode);
+                bleedAmount = Math.round(bleedAmount * 1000) / 1000;
+                bleedUnitCode = unitCode;
             }
             return {
-                pt: pt,
-                displayText: displayText,
+                pt: bleedAmount * getPtFactorFromUnitCode(bleedUnitCode),
+                displayText: String(bleedAmount),
                 disabled: true
             };
         }
 
-        // Normal (non-bleed) case: multiply by current unit factor
-        var n = parseFloat(displayText);
-        if (isNaN(n)) n = 0;
-        pt = n * getPtFactorFromUnitCode(unitCode);
+        /* 通常時は現在の単位の係数を掛ける / Normal case: multiply by the current unit factor */
+        var offsetValue = parseFloat(displayText);
+        if (isNaN(offsetValue)) offsetValue = 0;
         return {
-            pt: pt,
+            pt: offsetValue * getPtFactorFromUnitCode(unitCode),
             displayText: displayText,
             disabled: false
         };
     }
 
-    /* 上下キーで入力値を増減（Shift=10, Option=0.1）/ Increment value with arrow keys (Shift=10, Option=0.1) */
-    function changeValueByArrowKey(editText, onValueChange) {
-        editText.addEventListener("keydown", function (event) {
-            // 上下キー以外（通常の文字入力など）には一切干渉しない
-            // Only react to Up/Down; never touch the field on normal character input
-            if (event.keyName != "Up" && event.keyName != "Down") return;
+    // =========================================
+    // カラー / Color
+    // =========================================
 
-            var value = Number(editText.text);
-            if (isNaN(value)) value = 0; // 空欄などは0起点 / treat empty/invalid as 0
+    /* 色名テーブル（RGB/CMYK 両方を持つ）/ Named colors, with both an RGB and a CMYK value */
+    var NAMED_COLOR_TABLE = {
+        black: { rgb: [0, 0, 0], cmyk: [0, 0, 0, 100] },
+        white: { rgb: [255, 255, 255], cmyk: [0, 0, 0, 0] },
+        red: { rgb: [255, 0, 0], cmyk: [0, 100, 100, 0] },
+        green: { rgb: [0, 128, 0], cmyk: [100, 0, 100, 50] },
+        blue: { rgb: [0, 0, 255], cmyk: [100, 100, 0, 0] },
+        cyan: { rgb: [0, 255, 255], cmyk: [100, 0, 0, 0] },
+        magenta: { rgb: [255, 0, 255], cmyk: [0, 100, 0, 0] },
+        yellow: { rgb: [255, 255, 0], cmyk: [0, 0, 100, 0] },
+        orange: { rgb: [255, 165, 0], cmyk: [0, 35, 100, 0] }
+    };
 
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
-            if (keyboard.shiftKey) {
-                delta = 10;
-                // Shiftキー押下時は10の倍数にスナップ
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                // Optionキー押下時は0.1単位で増減
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                delta = 1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            }
-
-            if (keyboard.altKey) {
-                // 小数第1位までに丸め
-                value = Math.round(value * 10) / 10;
-            } else {
-                // 整数に丸め
-                value = Math.round(value);
-            }
-
-            editText.text = value;
-            try {
-                if (typeof onValueChange === 'function') onValueChange();
-            } catch (e) { }
-        });
+    /**
+     * 数値を指定範囲に収める
+     * @param {number} value - 対象の値
+     * @param {number} minValue - 下限
+     * @param {number} maxValue - 上限
+     * @returns {number} 範囲内に収めた値
+     */
+    function clampValue(value, minValue, maxValue) {
+        return value < minValue ? minValue : (value > maxValue ? maxValue : value);
     }
 
-    // ===== Preview helpers =====
+    /**
+     * RGBColor を生成する（0–255にクランプ）
+     * @param {number} red - 赤（0–255）
+     * @param {number} green - 緑（0–255）
+     * @param {number} blue - 青（0–255）
+     * @returns {RGBColor} 生成した色
+     */
+    function makeRgbColor(red, green, blue) {
+        var rgbColor = new RGBColor();
+        rgbColor.red = clampValue(Math.round(red), 0, 255);
+        rgbColor.green = clampValue(Math.round(green), 0, 255);
+        rgbColor.blue = clampValue(Math.round(blue), 0, 255);
+        return rgbColor;
+    }
+
+    /**
+     * CMYKColor を生成する（0–100にクランプ）
+     * @param {number} cyan - シアン（0–100）
+     * @param {number} magenta - マゼンタ（0–100）
+     * @param {number} yellow - イエロー（0–100）
+     * @param {number} black - ブラック（0–100）
+     * @returns {CMYKColor} 生成した色
+     */
+    function makeCmykColor(cyan, magenta, yellow, black) {
+        var cmykColor = new CMYKColor();
+        cmykColor.cyan = clampValue(cyan, 0, 100);
+        cmykColor.magenta = clampValue(magenta, 0, 100);
+        cmykColor.yellow = clampValue(yellow, 0, 100);
+        cmykColor.black = clampValue(black, 0, 100);
+        return cmykColor;
+    }
+
+    /**
+     * CMYK値をRGB値へ変換する
+     * @param {number} cyan - シアン（0–100）
+     * @param {number} magenta - マゼンタ（0–100）
+     * @param {number} yellow - イエロー（0–100）
+     * @param {number} black - ブラック（0–100）
+     * @returns {number[]} [R, G, B]（0–255）
+     */
+    function cmykToRgb(cyan, magenta, yellow, black) {
+        var c = clampValue(cyan, 0, 100) / 100;
+        var m = clampValue(magenta, 0, 100) / 100;
+        var y = clampValue(yellow, 0, 100) / 100;
+        var k = clampValue(black, 0, 100) / 100;
+        return [
+            Math.round(255 * (1 - c) * (1 - k)),
+            Math.round(255 * (1 - m) * (1 - k)),
+            Math.round(255 * (1 - y) * (1 - k))
+        ];
+    }
+
+    /**
+     * ドキュメントのカラースペースに合わせた黒を生成する
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {RGBColor|CMYKColor} 黒
+     */
+    function createBlackColor(doc) {
+        if (doc.documentColorSpace == DocumentColorSpace.RGB) return makeRgbColor(0, 0, 0);
+        return makeCmykColor(0, 0, 0, 100);
+    }
+
+    /**
+     * カラー入力欄の文字列を色として解釈する
+     * #RRGGBB／#RGB・#RG・#R の短縮形／色名（red など）／grayNN（0–100）を受け付ける
+     * @param {Document} doc - 対象ドキュメント（カラースペース判定に使う）
+     * @param {string} colorText - 入力文字列
+     * @returns {RGBColor|CMYKColor|null} 解釈できた色。できなければ null
+     */
+    function parseColorText(doc, colorText) {
+        if (!colorText) return null;
+        var text = String(colorText).replace(/^\s+|\s+$/g, '').toLowerCase();
+        if (!text) return null;
+
+        /* 全角の空白・読点・数字・記号をASCIIへ正規化 / Normalize full-width characters to ASCII */
+        text = text.replace(/　/g, ' ').replace(/[，、]/g, ',');
+        text = text.replace(/[０-９]/g, function (ch) {
+            return String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30);
+        });
+        text = text.replace(/．/g, '.').replace(/／/g, '/');
+
+        /* 短縮HEXを #RRGGBB へ展開 / Expand shorthand hex notations */
+        if (text.charAt(0) === '#') {
+            var digits = text.substr(1);
+            if (digits.length === 1) {          /* #R → #RRRRRR */
+                text = '#' + digits + digits + digits + digits + digits + digits;
+            } else if (digits.length === 2) {   /* #RG → #RGRGRG */
+                text = '#' + digits + digits + digits;
+            } else if (digits.length === 3) {   /* #RGB → #RRGGBB */
+                text = '#' + digits.charAt(0) + digits.charAt(0) +
+                    digits.charAt(1) + digits.charAt(1) +
+                    digits.charAt(2) + digits.charAt(2);
+            }
+        }
+
+        /* #RRGGBB */
+        if (/^#[0-9a-f]{6}$/.test(text)) {
+            return makeRgbColor(parseInt(text.substr(1, 2), 16), parseInt(text.substr(3, 2), 16), parseInt(text.substr(5, 2), 16));
+        }
+
+        /* 色名 / Named colors — ドキュメントのカラースペースを優先 */
+        var namedColor = NAMED_COLOR_TABLE[text];
+        if (namedColor) {
+            if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) {
+                return makeCmykColor(namedColor.cmyk[0], namedColor.cmyk[1], namedColor.cmyk[2], namedColor.cmyk[3]);
+            }
+            return makeRgbColor(namedColor.rgb[0], namedColor.rgb[1], namedColor.rgb[2]);
+        }
+
+        /* grayNN（0–100）/ grayNN (0-100) */
+        var grayMatch = text.match(/^gray\s*(\d{1,3})$/);
+        if (grayMatch) {
+            var grayLevel = clampValue(parseInt(grayMatch[1], 10), 0, 100);
+            if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) return makeCmykColor(0, 0, 0, grayLevel);
+            var grayByte = Math.round(255 * (100 - grayLevel) / 100);
+            return makeRgbColor(grayByte, grayByte, grayByte);
+        }
+
+        return null;
+    }
+
+    /**
+     * CMYK入力値からドキュメントのカラースペースに合う色を作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} cmykValues - { c, m, y, k }（0–100）
+     * @returns {RGBColor|CMYKColor|null} 4値が揃っていなければ null
+     */
+    function buildCmykFillColor(doc, cmykValues) {
+        if (!cmykValues) return null;
+        var channels = [cmykValues.c, cmykValues.m, cmykValues.y, cmykValues.k];
+        for (var i = 0; i < channels.length; i++) {
+            if (typeof channels[i] !== 'number' || isNaN(channels[i])) return null;
+        }
+        if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
+            var rgb = cmykToRgb(channels[0], channels[1], channels[2], channels[3]);
+            return makeRgbColor(rgb[0], rgb[1], rgb[2]);
+        }
+        return makeCmykColor(channels[0], channels[1], channels[2], channels[3]);
+    }
+
+    /**
+     * カラーモードに応じた塗りを適用する（プレビューと本描画で共通）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} targetRectangle - 塗りを適用する長方形
+     * @param {object} drawSettings - ダイアログの設定値
+     * @returns {void}
+     */
+    function applyFillByMode(doc, targetRectangle, drawSettings) {
+        var fillColor = null;
+        var fillOpacity = 100;
+
+        if (drawSettings.colorMode === ColorMode.K100) {
+            fillColor = createBlackColor(doc);
+            fillOpacity = K100_OPACITY;
+        } else if (drawSettings.colorMode === ColorMode.HEX) {
+            fillColor = parseColorText(doc, drawSettings.customValue);
+        } else if (drawSettings.colorMode === ColorMode.CMYK) {
+            fillColor = buildCmykFillColor(doc, drawSettings.customCMYK);
+        }
+
+        /* 解釈できない値・「なし」は塗りなし。線は呼び出し側（プレビュー）で付け直す
+           Unparsable values and "None" mean no fill; the caller re-applies any stroke */
+        targetRectangle.stroked = false;
+        targetRectangle.filled = !!fillColor;
+        if (fillColor) targetRectangle.fillColor = fillColor;
+        targetRectangle.opacity = fillOpacity;
+    }
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
 
     /* =========================================
      * PreviewHistory util (extractable)
      * ヒストリーを残さないプレビューのための小さなユーティリティ。
      * 使い方:
-     *   PreviewHistory.start();     // ダイアログ表示時などにカウンタ初期化
-     *   PreviewHistory.bump();      // プレビュー描画ごとにカウント(+1)
-     *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo
+     *   PreviewHistory.start();      // ダイアログ表示時などにカウンタ初期化
+     *   PreviewHistory.bump();       // プレビュー描画ごとにカウント(+1)
+     *   PreviewHistory.undo();       // 閉じる/キャンセル時に一括Undo
      *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
      * ========================================= */
     (function (g) {
@@ -698,9 +678,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
                     g.__previewUndoCount = (g.__previewUndoCount | 0) + 1;
                 },
                 undo: function () {
-                    var n = g.__previewUndoCount | 0;
+                    var undoCount = g.__previewUndoCount | 0;
                     try {
-                        for (var i = 0; i < n; i++) app.executeMenuCommand('undo');
+                        for (var i = 0; i < undoCount; i++) app.executeMenuCommand('undo');
                     } catch (e) { }
                     g.__previewUndoCount = 0;
                 },
@@ -711,1021 +691,906 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         }
     })($.global);
 
-    var __previewDebounceTask = null;
+    /* デバウンス中のプレビュータスクID / Task id of the pending debounced preview */
+    var previewDebounceTaskId = null;
 
-    /* プレビュー描画を遅延スケジュール（デバウンス）/ Schedule a debounced preview render */
-    function schedulePreview(choice, delayMs) {
-        if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
-        $.global.__lastPreviewChoice = choice;
-        // scheduleTask の文字列はグローバルスコープで評価されるため、IIFE内の renderPreview を $.global 経由で参照
-        // scheduleTask runs its string in global scope, so expose renderPreview via $.global (survives the IIFE wrapper)
-        $.global.__renderPreviewRef = renderPreview;
-        var code = 'try{$.global.__renderPreviewRef(app.activeDocument, $.global.__lastPreviewChoice);}catch(e){}';
-        try {
-            __previewDebounceTask = app.scheduleTask(code, Math.max(0, delayMs | 0), false);
-        } catch (e) {
-            try {
-                renderPreview(app.activeDocument, choice);
-            } catch (_) { }
-        }
-    }
-
-    /*
-     * プレビュー要求（即時/遅延）/ Request preview (immediate or debounced)
+    /**
+     * プレビュー描画を遅延スケジュールする（デバウンス）
+     * @param {object} drawSettings - ダイアログの設定値
+     * @param {number} delayMs - 遅延ミリ秒
+     * @returns {void}
      */
-    function requestPreview(choice, immediate) {
-        if (immediate) {
-            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
-            try {
-                renderPreview(app.activeDocument, choice);
-            } catch (_) { }
-        } else {
-            schedulePreview(choice, PREVIEW_DELAY_TYPING_MS);
+    function schedulePreview(drawSettings, delayMs) {
+        PreviewHistory.cancelTask(previewDebounceTaskId);
+        /* scheduleTask の文字列はグローバルスコープで評価されるため、IIFE内の関数を $.global 経由で渡す
+           scheduleTask runs its string in global scope, so expose the renderer via $.global */
+        $.global.__previewSettings = drawSettings;
+        $.global.__previewRenderer = renderPreview;
+        var scheduledCode = 'try{$.global.__previewRenderer(app.activeDocument, $.global.__previewSettings);}catch(e){}';
+        try {
+            previewDebounceTaskId = app.scheduleTask(scheduledCode, Math.max(0, delayMs | 0), false);
+        } catch (e) {
+            try { renderPreview(app.activeDocument, drawSettings); } catch (err) { }
         }
     }
 
-    /* プレビュー用レイヤー名か判定（現行名＋レガシー名）/ Is this name the dedicated preview layer (current + legacy names)? */
+    /**
+     * プレビュー専用レイヤーの名前かどうかを判定する
+     * @param {string} layerName - レイヤー名
+     * @returns {boolean} プレビュー専用レイヤーなら true
+     */
     function isPreviewLayerName(layerName) {
-        var names = [getLocalizedText('name.previewLayer'), "プレビュー", "Preview", "_preview"]; // legacy names
-        for (var i = 0; i < names.length; i++) {
-            if (layerName === names[i]) return true;
-        }
-        return false;
+        return layerName === getLabel('name.previewLayer') || layerName === '_preview';
     }
 
+    /**
+     * プレビューを片付ける
+     * @param {boolean} removeLayer - true でレイヤーごと削除、false ではプレビュー長方形を隠すだけ
+     * @returns {void}
+     */
     function clearPreview(removeLayer) {
         try {
             var doc = app.activeDocument;
+            var previewItemPrefix = getLabel('name.previewRect') + "#";
             for (var i = doc.layers.length - 1; i >= 0; i--) {
                 var layer = doc.layers[i];
                 if (!isPreviewLayerName(layer.name)) continue;
                 if (removeLayer) {
-                    try {
-                        layer.remove();
-                    } catch (e) { }
-                } else {
-                    // live update: hide only preview items created by this script
-                    var previewNameBase = getLocalizedText('name.previewRect') + "#";
-                    try {
-                        for (var k = layer.pathItems.length - 1; k >= 0; k--) {
-                            try {
-                                var itemName = String(layer.pathItems[k].name || "");
-                                if (itemName.indexOf(previewNameBase) === 0) {
-                                    layer.pathItems[k].hidden = true;
-                                }
-                            } catch (e) { }
-                        }
-                    } catch (e) { }
+                    layer.remove();
+                    continue;
                 }
-            }
-        } catch (e) { }
-    }
-
-    /* プレビュー専用レイヤーを取得（なければ作成し最前面へ）/ Get or create the dedicated preview layer (front-most) */
-    function getOrCreatePreviewLayer(doc) {
-        var name = getLocalizedText('name.previewLayer');
-        var layer = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === name) {
-                layer = doc.layers[i];
-                break;
-            }
-        }
-        if (!layer) {
-            layer = doc.layers.add();
-            layer.name = name;
-        }
-        layer.visible = true;
-        layer.locked = false;
-        try {
-            layer.move(doc, ElementPlacement.PLACEATBEGINNING);
-        } catch (e) { }
-        return layer;
-    }
-
-    // Helper to fetch or create a preview rectangle for a specific artboard index
-    function getOrCreatePreviewRect(previewLayer, artboardIndex, top, left, width, height) {
-        // Try to reuse existing item named with index suffix
-        var nameBase = getLocalizedText('name.previewRect') + "#" + artboardIndex;
-        var item = null;
-        try {
-            for (var i = 0; i < previewLayer.pathItems.length; i++) {
-                var it = previewLayer.pathItems[i];
-                if (it.name === nameBase) {
-                    item = it;
-                    break;
-                }
-            }
-        } catch (e) { }
-        if (!item) {
-            // create once
-            item = previewLayer.pathItems.rectangle(top, left, width, height);
-            item.name = nameBase;
-        } else {
-            // update geometry in-place
-            try {
-                item.top = top;
-                item.left = left;
-                item.width = width;
-                item.height = height;
-            } catch (e) { }
-            try {
-                item.hidden = false;
-            } catch (e) { }
-        }
-        return item;
-    }
-
-    // --- Helper: returns 50% gray/black stroke color matching document color space
-    function getPreviewStrokeColor(doc) {
-        if (doc.documentColorSpace == DocumentColorSpace.RGB) {
-            var c = new RGBColor();
-            c.red = 128;
-            c.green = 128;
-            c.blue = 128; // ~50% gray
-            return c;
-        } else {
-            var c = new CMYKColor();
-            c.cyan = 0;
-            c.magenta = 0;
-            c.yellow = 0;
-            c.black = 50; // K=50%
-            return c;
-        }
-    }
-
-    /*
-     * プレビュー描画（Previewレイヤーへ一時オブジェクトを生成）
-     * Render live preview into the dedicated Preview layer.
-     */
-    function renderPreview(doc, choice) {
-        // Hide existing preview items instead of deleting the whole layer
-        clearPreview(false);
-        if (!doc || !choice) return;
-
-        var prevCS = null;
-        try {
-            prevCS = app.coordinateSystem;
-        } catch (e) { }
-        try {
-            app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
-        } catch (e) { }
-
-        var prevIndex = doc.artboards.getActiveArtboardIndex();
-        var previewLayer = getOrCreatePreviewLayer(doc);
-
-        function renderPreviewForArtboard(artboardIndex) {
-            try {
-                // Avoid switching active artboard for preview / プレビューではアクティブAB切替を行わない
-            } catch (e) { }
-            var artboard = doc.artboards[artboardIndex];
-            var artboardRect = artboard.artboardRect;
-            var artboardWidth = artboardRect[2] - artboardRect[0];
-            var artboardHeight = artboardRect[1] - artboardRect[3];
-            var o = choice.offset || 0;
-            var artboardRectangle = getOrCreatePreviewRect(
-                previewLayer,
-                artboardIndex,
-                artboardRect[1] + o,
-                artboardRect[0] - o,
-                artboardWidth + o * 2,
-                artboardHeight + o * 2
-            );
-
-            // Unified fill application (preview)
-            applyFillByMode(doc, artboardRectangle, choice.colorMode, {
-                customValue: choice.customValue,
-                customCMYK: choice.customCMYK
-            }, {
-                k100Opacity: 15
-            });
-
-            // Common preview stroke (visibility)
-            artboardRectangle.stroked = true;
-            artboardRectangle.strokeWidth = 1;
-            try {
-                artboardRectangle.strokeDashes = [6, 4];
-            } catch (e) { }
-            artboardRectangle.strokeColor = getPreviewStrokeColor(doc);
-
-            artboardRectangle.selected = false;
-            if (choice.zOrder === 'front') artboardRectangle.zOrder(ZOrderMethod.BRINGTOFRONT);
-            else if (choice.zOrder === 'back') artboardRectangle.zOrder(ZOrderMethod.SENDTOBACK);
-        }
-
-        // --- Draw previews for target scope ---
-        if (choice.target === 'all') {
-            for (var i = 0; i < doc.artboards.length; i++) renderPreviewForArtboard(i);
-            try {
-                doc.artboards.setActiveArtboardIndex(prevIndex);
-            } catch (e) { }
-        } else {
-            renderPreviewForArtboard(doc.artboards.getActiveArtboardIndex());
-        }
-
-        try {
-            // Hide non-target preview items to avoid deletions during typing
-            for (var i = 0; i < previewLayer.pathItems.length; i++) {
-                var it = previewLayer.pathItems[i];
-                // items are named like "__Preview_...#<artboardIndex>"
-                var m = /#(\d+)$/.exec(it.name || "");
-                if (m) {
-                    var idn = parseInt(m[1], 10);
-                    if (choice.target === 'all') {
-                        if (idn < 0 || idn > doc.artboards.length - 1) {
-                            try {
-                                it.hidden = true;
-                            } catch (_) { }
-                        }
-                    } else {
-                        var active = doc.artboards.getActiveArtboardIndex();
-                        if (idn !== active) {
-                            try {
-                                it.hidden = true;
-                            } catch (_) { }
-                        }
+                /* 入力中は削除せず、このスクリプトが作った長方形だけ隠す
+                   While typing, hide only the items this script created instead of deleting them */
+                for (var k = layer.pathItems.length - 1; k >= 0; k--) {
+                    if (String(layer.pathItems[k].name || "").indexOf(previewItemPrefix) === 0) {
+                        layer.pathItems[k].hidden = true;
                     }
                 }
             }
         } catch (e) { }
+    }
+
+    /**
+     * プレビュー専用レイヤーを取得する（なければ作成し最前面へ）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer} プレビュー専用レイヤー
+     */
+    function getOrCreatePreviewLayer(doc) {
+        var previewLayerName = getLabel('name.previewLayer');
+        var previewLayer = null;
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === previewLayerName) {
+                previewLayer = doc.layers[i];
+                break;
+            }
+        }
+        if (!previewLayer) {
+            previewLayer = doc.layers.add();
+            previewLayer.name = previewLayerName;
+        }
+        previewLayer.visible = true;
+        previewLayer.locked = false;
+        try {
+            previewLayer.move(doc, ElementPlacement.PLACEATBEGINNING);
+        } catch (e) { }
+        return previewLayer;
+    }
+
+    /**
+     * アートボード番号に対応するプレビュー長方形を取得する（なければ作成、あれば再利用）
+     * @param {Layer} previewLayer - プレビュー専用レイヤー
+     * @param {number} artboardIndex - アートボード番号
+     * @param {number} top - 上端座標
+     * @param {number} left - 左端座標
+     * @param {number} width - 幅
+     * @param {number} height - 高さ
+     * @returns {PathItem} プレビュー長方形
+     */
+    function getOrCreatePreviewRectangle(previewLayer, artboardIndex, top, left, width, height) {
+        var previewItemName = getLabel('name.previewRect') + "#" + artboardIndex;
+        for (var i = 0; i < previewLayer.pathItems.length; i++) {
+            var existingRectangle = previewLayer.pathItems[i];
+            if (existingRectangle.name !== previewItemName) continue;
+            /* 既存を使い回して再作成のヒストリーを増やさない / Reuse in place to avoid extra history entries */
+            existingRectangle.top = top;
+            existingRectangle.left = left;
+            existingRectangle.width = width;
+            existingRectangle.height = height;
+            existingRectangle.hidden = false;
+            return existingRectangle;
+        }
+        var previewRectangle = previewLayer.pathItems.rectangle(top, left, width, height);
+        previewRectangle.name = previewItemName;
+        return previewRectangle;
+    }
+
+    /**
+     * プレビュー用の50%グレー（ドキュメントのカラースペースに合わせる）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {RGBColor|CMYKColor} 線色
+     */
+    function getPreviewStrokeColor(doc) {
+        if (doc.documentColorSpace == DocumentColorSpace.RGB) return makeRgbColor(128, 128, 128);
+        return makeCmykColor(0, 0, 0, 50);
+    }
+
+    /**
+     * 1つのアートボードぶんのプレビュー長方形を描く
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} previewLayer - プレビュー専用レイヤー
+     * @param {number} artboardIndex - アートボード番号
+     * @param {object} drawSettings - ダイアログの設定値
+     * @returns {void}
+     */
+    function drawPreviewRectangle(doc, previewLayer, artboardIndex, drawSettings) {
+        var artboardRect = doc.artboards[artboardIndex].artboardRect; /* [left, top, right, bottom] */
+        var artboardWidth = artboardRect[2] - artboardRect[0];
+        var artboardHeight = artboardRect[1] - artboardRect[3];
+        var offsetPt = drawSettings.offset || 0;
+
+        var previewRectangle = getOrCreatePreviewRectangle(
+            previewLayer,
+            artboardIndex,
+            artboardRect[1] + offsetPt,
+            artboardRect[0] - offsetPt,
+            artboardWidth + offsetPt * 2,
+            artboardHeight + offsetPt * 2
+        );
+
+        applyFillByMode(doc, previewRectangle, drawSettings);
+
+        /* 塗りなしでも位置が分かるよう、プレビューは常に破線で縁取る
+           Always outline the preview so it stays visible even with no fill */
+        previewRectangle.stroked = true;
+        previewRectangle.strokeWidth = 1;
+        previewRectangle.strokeDashes = [6, 4];
+        previewRectangle.strokeColor = getPreviewStrokeColor(doc);
+        previewRectangle.selected = false;
+
+        if (drawSettings.zOrder === 'front') previewRectangle.zOrder(ZOrderMethod.BRINGTOFRONT);
+        else if (drawSettings.zOrder === 'back') previewRectangle.zOrder(ZOrderMethod.SENDTOBACK);
+    }
+
+    /**
+     * 対象外のアートボードに対応するプレビュー長方形を隠す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} previewLayer - プレビュー専用レイヤー
+     * @param {object} drawSettings - ダイアログの設定値
+     * @returns {void}
+     */
+    function hidePreviewItemsOutOfScope(doc, previewLayer, drawSettings) {
+        /* すべてのアートボードが対象のときは -1（範囲外の番号だけ隠す）/ -1 means "every artboard is in scope" */
+        var visibleArtboardIndex = (drawSettings.target === 'all') ? -1 : doc.artboards.getActiveArtboardIndex();
+        for (var i = 0; i < previewLayer.pathItems.length; i++) {
+            var previewItem = previewLayer.pathItems[i];
+            /* アイテム名は "__Preview_...#<アートボード番号>" 形式 */
+            var indexMatch = /#(\d+)$/.exec(previewItem.name || "");
+            if (!indexMatch) continue;
+            var itemArtboardIndex = parseInt(indexMatch[1], 10);
+            var keepVisible = (visibleArtboardIndex < 0) ?
+                (itemArtboardIndex < doc.artboards.length) :
+                (itemArtboardIndex === visibleArtboardIndex);
+            if (!keepVisible) previewItem.hidden = true;
+        }
+    }
+
+    /**
+     * プレビューを描画する（専用レイヤーへ一時オブジェクトを生成）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {object} drawSettings - ダイアログの設定値
+     * @returns {void}
+     */
+    function renderPreview(doc, drawSettings) {
+        /* レイヤーごと消さずに既存プレビューを隠す / Hide existing preview items instead of deleting the layer */
+        clearPreview(false);
+        if (!doc || !drawSettings) return;
+
+        var previousCoordinateSystem = null;
+        try {
+            previousCoordinateSystem = app.coordinateSystem;
+            app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
+        } catch (e) { }
+
+        var previewLayer = getOrCreatePreviewLayer(doc);
+        if (drawSettings.target === 'all') {
+            for (var i = 0; i < doc.artboards.length; i++) drawPreviewRectangle(doc, previewLayer, i, drawSettings);
+        } else {
+            drawPreviewRectangle(doc, previewLayer, doc.artboards.getActiveArtboardIndex(), drawSettings);
+        }
+        hidePreviewItemsOutOfScope(doc, previewLayer, drawSettings);
 
         try {
-            if (prevCS !== null) app.coordinateSystem = prevCS;
+            if (previousCoordinateSystem !== null) app.coordinateSystem = previousCoordinateSystem;
         } catch (e) { }
         PreviewHistory.bump();
         app.redraw();
     }
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
+    // =========================================
+    // 入力欄の検証 / Field validation
+    // =========================================
 
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function setupGroup(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* オプションパネルを構築（ガイド化／ライブシェイプ変換）
-     * Build the options panel (make guides / convert to live shape).
-     * 各オプションは独立。必要なものだけ描画後に適用（applyDrawOptions）
-     * Options are independent; only enabled options are applied after drawing (see applyDrawOptions)
+    /**
+     * HEX入力欄の警告表示を切り替える
+     * @param {EditText} hexField - HEX入力欄
+     * @param {boolean} isWarning - true で警告表示
+     * @param {string} [warningKey] - 警告時のヘルプチップのラベルキー
+     * @returns {void}
      */
-    function buildPostProcessOptionsPanel(parent) {
-        var panel = parent.add('panel', undefined, getLocalizedText('panel.options'));
-        setupPanel(panel);
-
-        var makeGuide = panel.add('checkbox', undefined, getLocalizedText('checkbox.makeGuide'));
-        makeGuide.value = false; // デフォルトOFF / default OFF
-
-        var convertToLiveShape = panel.add('checkbox', undefined, getLocalizedText('checkbox.convertToLiveShape'));
-        convertToLiveShape.value = true; // デフォルトON / default ON
-
-        // 各オプションは独立。必要なものだけ描画後に適用（applyDrawOptions）
-        // Options are independent; only enabled options are applied after drawing (see applyDrawOptions)
-
-        return { makeGuide: makeGuide, convertToLiveShape: convertToLiveShape };
+    function setHexWarning(hexField, isWarning, warningKey) {
+        setFieldWarnColor(hexField, isWarning);
+        hexField.helpTip = isWarning ? getLabel(warningKey || 'warning.hexInvalid') : getLabel('helpTip.hexInput');
+        try { hexField.notify('onDraw'); } catch (e) { }
     }
 
-    /* 設定ダイアログを構築して結果を返す / Build the settings dialog and return the user's choice */
-    function showDialog() {
-        var dialog = new Window('dialog', getLocalizedText('dialog.title') + ' ' + SCRIPT_VERSION);
-        DialogPersist.setOpacity(dialog, DIALOG_OPACITY);
-        dialog.alignChildren = 'left';
+    /**
+     * CMYK入力欄の警告表示を切り替える
+     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
+     * @param {boolean} isWarning - true で警告表示
+     * @returns {void}
+     */
+    function setCmykWarning(channelInput, isWarning) {
+        setFieldWarnColor(channelInput, isWarning);
+        channelInput.helpTip = isWarning ? getLabel('warning.cmykRange') : getLabel('helpTip.cmykInput');
+    }
 
-        // --- Add two-column group container ---
-        var mainColumnsGroup = dialog.add('group');
-        setupGroup(mainColumnsGroup, 'row', 12);
-        mainColumnsGroup.alignChildren = ['fill', 'top']; // 2カラムを上揃え・横いっぱいに / fill columns, top-aligned
+    /**
+     * CMYK入力欄の値が0–100の範囲かを判定して警告表示に反映する（入力途中は警告しない）
+     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
+     * @returns {void}
+     */
+    function validateCmykField(channelInput) {
+        var fieldText = String(channelInput.text || '');
+        if (fieldText === '') {
+            setCmykWarning(channelInput, false);
+            return;
+        }
+        var channelValue = parseFloat(fieldText);
+        setCmykWarning(channelInput, isNaN(channelValue) || channelValue < 0 || channelValue > 100);
+    }
 
-        var leftColumnGroup = mainColumnsGroup.add('group');
-        setupGroup(leftColumnGroup, 'column', 10);
-        leftColumnGroup.alignChildren = 'fill'; // パネルを列幅いっぱいに / panels fill column width
+    /**
+     * CMYK入力欄の値を0–100へ丸める（未入力は空のまま。計算時に0として扱う）
+     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
+     * @returns {void}
+     */
+    function clampCmykField(channelInput) {
+        var fieldText = String(channelInput.text || '').replace(/^\s+|\s+$/g, '');
+        if (fieldText !== '') {
+            var channelValue = parseFloat(fieldText);
+            if (isNaN(channelValue)) channelValue = 0;
+            channelInput.text = String(clampValue(channelValue, 0, 100));
+        }
+        setCmykWarning(channelInput, false);
+    }
 
-        var rightColumnGroup = mainColumnsGroup.add('group');
-        setupGroup(rightColumnGroup, 'column', 10);
-        rightColumnGroup.alignChildren = 'fill'; // パネルを列幅いっぱいに / panels fill column width
+    /**
+     * CMYK入力欄へ共通のハンドラをまとめて登録する
+     * @param {EditText} channelInput - CMYK各チャンネルの入力欄
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred, trackFocus }
+     * @returns {void}
+     */
+    function bindCmykField(channelInput, previewHooks) {
+        channelInput.addEventListener('focus', function () {
+            /* ちょうど "0" のときは入力しやすいようクリア / Clear a lone "0" so typing replaces it */
+            if (String(channelInput.text) === '0') channelInput.text = '';
+        });
 
-        // Limit column widths to keep layout balanced
+        channelInput.addEventListener('keydown', function (event) {
+            /* 先頭ゼロ（"03"）を作らせない。小数 "0.5" は触らない
+               Prevent leading-zero integers; leave decimals like "0.5" alone */
+            var typedKey = String(event.keyName || '');
+            if (!/^[0-9]$/.test(typedKey)) return;
+            var fieldText = String(channelInput.text || '');
+            if (/\./.test(fieldText)) return;
+            if (/^0+$/.test(fieldText)) channelInput.text = '';
+            else if (/^0\d+$/.test(fieldText)) channelInput.text = fieldText.replace(/^0+/, '');
+        });
 
-        // Offset panel (with margins and row)
-        var offsetSettingsPanel = leftColumnGroup.add('panel', undefined, getLocalizedText('panel.offset'));
-        setupPanel(offsetSettingsPanel);
+        channelInput.onChanging = function () {
+            var fieldText = String(channelInput.text || '');
+            if (/^0\d+$/.test(fieldText)) channelInput.text = fieldText.replace(/^0+/, '');
+            validateCmykField(channelInput);
+            previewHooks.deferred();
+        };
 
-        var offsetRow = offsetSettingsPanel.add('group');
-        offsetRow.orientation = 'row';
+        channelInput.onChange = function () {
+            clampCmykField(channelInput);
+            previewHooks.immediate();
+        };
+
+        changeValueByArrowKey(channelInput, function () {
+            clampCmykField(channelInput);
+            previewHooks.deferred();
+        });
+
+        previewHooks.trackFocus(channelInput);
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * オフセットパネルを構築する
+     * @param {Group} parentGroup - 追加先のカラムグループ
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred, trackFocus }
+     * @returns {object} { offsetInput, bleedCheckbox, initFieldState }
+     */
+    function buildOffsetPanel(parentGroup, previewHooks) {
+        var offsetPanel = parentGroup.add('panel', undefined, getLabel('panel.offset'));
+        setupPanel(offsetPanel);
+
+        var offsetRow = offsetPanel.add('group');
+        setupGroup(offsetRow, 'row');
         offsetRow.alignChildren = 'center';
         offsetRow.alignment = 'center';
 
         var offsetInput = offsetRow.add('edittext', undefined, '0');
         offsetInput.characters = 4;
-        offsetInput.helpTip = getLocalizedText('helpTip.offsetInput');
-        changeValueByArrowKey(offsetInput, function () {
-            requestDelayedPreviewUpdate();
-        });
+        offsetInput.helpTip = getLabel('helpTip.offsetInput');
+        offsetRow.add('statictext', undefined, getCurrentUnitLabel());
 
-        // Enterキーでも明示的に更新
-        offsetInput.addEventListener('keydown', function (e) {
-            if (e.keyName == 'Enter') {
-                try {
-                    requestPreview(buildDialogSettings(), true);
-                } catch (_) { }
-            }
-        });
-
-        var unitLabel = getCurrentUnitLabel();
-        offsetRow.add('statictext', undefined, unitLabel);
-
-        // Bleed checkbox row
-        var bleedRow = offsetSettingsPanel.add('group');
-        bleedRow.orientation = 'row';
+        var bleedRow = offsetPanel.add('group');
+        setupGroup(bleedRow, 'row');
         bleedRow.alignChildren = 'center';
         bleedRow.alignment = 'center';
-        var bleedCheckbox = bleedRow.add('checkbox', undefined, getLocalizedText('checkbox.bleed'));
+
+        var bleedCheckbox = bleedRow.add('checkbox', undefined, getLabel('checkbox.bleed'));
         bleedCheckbox.alignment = 'center';
-        bleedCheckbox.value = false; // default OFF
-        bleedCheckbox.helpTip = getLocalizedText('helpTip.bleed');
+        bleedCheckbox.value = false; /* デフォルトOFF / default OFF */
+        bleedCheckbox.helpTip = getLabel('helpTip.bleed');
 
-        // Preserve user's manual offset when toggling Bleed
-        var lastUserOffsetText = '0';
+        /* 裁ち落としON/OFFの往復で手入力値を失わないよう控えておく
+           Remember the manual offset so toggling Bleed does not lose it */
+        var manualOffsetText = '0';
 
-        function applyBleedPreset(toPreview) {
-            var unitCode = getCurrentUnitCode();
-            var res = resolveOffsetToPt(offsetInput.text, unitCode, true);
-            try {
-                offsetInput.text = res.displayText;
-            } catch (e) { }
-            offsetInput.enabled = !res.disabled; // disabled when bleed ON
-            if (toPreview === true) {
-                requestDelayedPreviewUpdate();
-            }
-        }
-
-        function removeBleedPreset(toPreview) {
-            try {
-                offsetInput.text = lastUserOffsetText;
-            } catch (e) { }
-            offsetInput.enabled = true;
-            if (toPreview === true) {
-                requestDelayedPreviewUpdate();
-            }
-        }
-
-        dialog.onShow = function () {
-            DialogPersist.applyInitialOffset(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
-            try {
-                offsetInput.active = true;
-            } catch (e) { }
-            // Remember initial value and set field state
-            lastUserOffsetText = String(offsetInput.text);
+        /* 裁ち落としの状態を入力欄へ反映 / Reflect the current Bleed state in the field */
+        function applyBleedState(refreshPreview) {
             if (bleedCheckbox.value) {
-                applyBleedPreset(false);
+                var resolvedOffset = resolveOffsetToPt(offsetInput.text, getCurrentUnitCode(), true);
+                offsetInput.text = resolvedOffset.displayText;
+                offsetInput.enabled = !resolvedOffset.disabled;
             } else {
+                offsetInput.text = manualOffsetText;
                 offsetInput.enabled = true;
             }
-            PreviewHistory.start(); // reset preview history counter
-            // Render initial preview
-            updatePreviewImmediately();
+            if (refreshPreview) previewHooks.deferred();
+        }
+
+        bleedCheckbox.onClick = function () {
+            if (bleedCheckbox.value) manualOffsetText = String(offsetInput.text);
+            applyBleedState(true);
         };
 
-        // Add new panel for color
-        var colorSettingsPanel = rightColumnGroup.add('panel', undefined, getLocalizedText('panel.color'));
-        setupPanel(colorSettingsPanel, 10); // やや広めの行間 / a bit more vertical gap between rows
+        offsetInput.onChanging = previewHooks.deferred;
+        offsetInput.onChange = previewHooks.immediate;
+        offsetInput.addEventListener('keydown', function (event) {
+            /* Enterでも即座に反映 / Enter refreshes the preview immediately */
+            if (event.keyName == 'Enter') previewHooks.immediate();
+        });
+        changeValueByArrowKey(offsetInput, previewHooks.deferred);
+        previewHooks.trackFocus(offsetInput);
 
-        var noneRadio = colorSettingsPanel.add('radiobutton', undefined, getLocalizedText('color.none'));
-        var k100Radio = colorSettingsPanel.add('radiobutton', undefined, getLocalizedText('color.k100'));
-
-        // HEX radio + input on the same row
-        var hexRow = colorSettingsPanel.add('group');
-        setupGroup(hexRow, 'row', 6);
-        var hexRadio = hexRow.add('radiobutton', undefined, getLocalizedText('color.hex'));
-        var hexInput = hexRow.add('edittext', undefined, '#');
-        hexInput.characters = 14; // narrower to avoid column growth
-        hexInput.helpTip = getLocalizedText('helpTip.hexInput');
-
-        // --- HEX validation & feedback ---
-        function setHexWarn(et, warn, msg) {
-            setFieldWarnColor(et, warn);
-            if (warn) {
-                et.helpTip = (currentLanguage === 'ja') ? (msg || '正しい #RRGGBB を入力してください') : (msg || 'Enter a valid #RRGGBB value');
-            } else {
-                et.helpTip = getLocalizedText('helpTip.hexInput');
+        return {
+            offsetInput: offsetInput,
+            bleedCheckbox: bleedCheckbox,
+            initFieldState: function () {
+                manualOffsetText = String(offsetInput.text);
+                applyBleedState(false);
             }
-            try { et.notify('onDraw'); } catch (e) { }
+        };
+    }
+
+    /**
+     * カラーパネルを構築する
+     * @param {Group} parentGroup - 追加先のカラムグループ
+     * @param {object} previewHooks - プレビュー更新コールバック { immediate, deferred, trackFocus }
+     * @returns {object} 各ラジオ・入力欄をまとめたオブジェクト
+     */
+    function buildColorPanel(parentGroup, previewHooks) {
+        var colorPanel = parentGroup.add('panel', undefined, getLabel('panel.color'));
+        setupPanel(colorPanel, STACK_SPACING); /* やや広めの行間 / a bit more vertical gap */
+
+        var noneRadio = colorPanel.add('radiobutton', undefined, getLabel('color.none'));
+        var k100Radio = colorPanel.add('radiobutton', undefined, getLabel('color.k100'));
+
+        /* HEXはラジオと入力欄を同じ行に / HEX radio and its field share one row */
+        var hexRow = colorPanel.add('group');
+        setupGroup(hexRow, 'row', TIGHT_SPACING);
+        var hexRadio = hexRow.add('radiobutton', undefined, getLabel('color.hex'));
+        var hexInput = hexRow.add('edittext', undefined, '#');
+        hexInput.characters = 14; /* カラム幅が伸びないよう控えめに / narrow enough to keep the column width */
+        hexInput.helpTip = getLabel('helpTip.hexInput');
+
+        var cmykRadio = colorPanel.add('radiobutton', undefined, getLabel('color.cmyk'));
+
+        /* ラベル行とフィールド行の2段グリッド / Two-row grid: labels on top, fields below */
+        var cmykGrid = colorPanel.add('group');
+        setupGroup(cmykGrid, 'column', 4);
+        var cmykLabelRow = cmykGrid.add('group');
+        setupGroup(cmykLabelRow, 'row', STACK_SPACING);
+        var cmykFieldRow = cmykGrid.add('group');
+        setupGroup(cmykFieldRow, 'row', STACK_SPACING);
+
+        var cmykChannelTexts = ['  C', '  M', '  Y', '  K'];
+        var cmykLabels = [];
+        var cmykInputs = [];
+        for (var i = 0; i < cmykChannelTexts.length; i++) {
+            var channelLabel = cmykLabelRow.add('statictext', undefined, cmykChannelTexts[i]);
+            channelLabel.preferredSize.width = CMYK_FIELD_WIDTH;
+            var channelInput = cmykFieldRow.add('edittext', undefined, '');
+            channelInput.characters = 3;
+            channelInput.preferredSize.width = CMYK_FIELD_WIDTH;
+            channelInput.helpTip = getLabel('helpTip.cmykInput');
+            cmykLabels.push(channelLabel);
+            cmykInputs.push(channelInput);
+            bindCmykField(channelInput, previewHooks);
         }
 
         hexInput.onChanging = function () {
-            try {
-                var t = String(hexInput.text || '').replace(/\s+/g, '');
-                if (t === '') {
-                    setHexWarn(hexInput, false);
-                    updatePreviewWhileTyping();
-                    return;
-                }
-                if (t === '#') {
-                    setHexWarn(hexInput, true, (currentLanguage === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
-                    updatePreviewWhileTyping();
-                    return;
-                }
-                // parseCustomColor が解釈できる入力（#RRGGBB／#RGB 短縮／色名／grayNN）はすべて有効
-                // Anything parseCustomColor can resolve is valid (#RRGGBB, #RGB shorthand, color names, grayNN)
-                var valid = !!parseCustomColor(app.activeDocument, t);
-                setHexWarn(hexInput, !valid);
-                updatePreviewWhileTyping();
-            } catch (e) { }
+            var hexText = String(hexInput.text || '').replace(/\s+/g, '');
+            if (hexText === '') setHexWarning(hexInput, false);
+            else if (hexText === '#') setHexWarning(hexInput, true, 'warning.hexEmpty');
+            /* parseColorText が解釈できる入力（#RRGGBB／短縮HEX／色名／grayNN）はすべて有効
+               Anything parseColorText can resolve is valid */
+            else setHexWarning(hexInput, !parseColorText(app.activeDocument, hexText));
+            previewHooks.deferred();
         };
 
         hexInput.onChange = function () {
-            try {
-                var t = String(hexInput.text || '').replace(/\s+/g, '');
-                if (/^[0-9a-fA-F]{6}$/.test(t)) {
-                    // 先頭 # 無しの 6 桁 HEX は # を補って大文字化 / bare 6-digit hex: add # and uppercase
-                    hexInput.text = '#' + t.toUpperCase();
-                    setHexWarn(hexInput, false);
-                } else if (/^#([0-9a-fA-F]{6})$/.test(t)) {
-                    hexInput.text = ('#' + RegExp.$1.toUpperCase());
-                    setHexWarn(hexInput, false);
-                } else if (t === '#') {
-                    setHexWarn(hexInput, true, (currentLanguage === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
-                } else {
-                    // 色名・短縮 HEX・grayNN は整形せずそのまま受理（解釈可能なら警告しない）
-                    // Names / shorthand hex / grayNN: accept as-is, warn only if unresolvable
-                    setHexWarn(hexInput, !parseCustomColor(app.activeDocument, t));
-                }
-                updatePreviewImmediately();
-            } catch (e) { }
+            var hexText = String(hexInput.text || '').replace(/\s+/g, '');
+            if (/^#?[0-9a-fA-F]{6}$/.test(hexText)) {
+                /* 6桁HEXは # 付き・大文字へ正規化 / Normalize 6-digit hex to "#" + uppercase */
+                hexInput.text = '#' + hexText.replace(/^#/, '').toUpperCase();
+                setHexWarning(hexInput, false);
+            } else if (hexText === '#') {
+                setHexWarning(hexInput, true, 'warning.hexEmpty');
+            } else {
+                /* 色名・短縮HEX・grayNN は整形せずそのまま受理 / Names, shorthand hex and grayNN pass through */
+                setHexWarning(hexInput, !parseColorText(app.activeDocument, hexText));
+            }
+            previewHooks.immediate();
         };
 
-        // CMYK mode radio
-        var cmykRadio = colorSettingsPanel.add('radiobutton', undefined, getLocalizedText('color.cmyk'));
+        previewHooks.trackFocus(hexInput);
 
-        // Custom CMYK input fields (two-row grid: labels on top, fields below)
-        var cmykRow = colorSettingsPanel.add('group');
-        setupGroup(cmykRow, 'column', 4);
-
-        var cmykLabelRow = cmykRow.add('group');
-        setupGroup(cmykLabelRow, 'row', 10);
-
-        var cmykFieldRow = cmykRow.add('group');
-        setupGroup(cmykFieldRow, 'row', 10);
-
-        var cmykColWidth = 40; // fixed width to align columns
-
-        // ラベル行とフィールド行へ1チャンネル分を追加 / Add one channel column (label row + field row)
-        function addCmykColumn(labelText) {
-            var lbl = cmykLabelRow.add('statictext', undefined, labelText);
-            lbl.preferredSize.width = cmykColWidth;
-            var inp = cmykFieldRow.add('edittext', undefined, '');
-            inp.characters = 3;
-            inp.preferredSize.width = cmykColWidth;
-            inp.helpTip = getLocalizedText('helpTip.cmykInput');
-            return { label: lbl, input: inp };
-        }
-
-        var cmykLabelTexts = ['  C', '  M', '  Y', '  K'];
-        var cmykInputs = [];
-        var cmykLabels = [];
-        for (var ci = 0; ci < cmykLabelTexts.length; ci++) {
-            var col = addCmykColumn(cmykLabelTexts[ci]);
-            cmykLabels.push(col.label);
-            cmykInputs.push(col.input);
-        }
-        // 下流コードからの参照用に名前付きエイリアスも残す / Keep named aliases for downstream references
-        var cyanInput = cmykInputs[0], magentaInput = cmykInputs[1], yellowInput = cmykInputs[2], blackInput = cmykInputs[3];
-
-        // --- CMYK validation helpers (empty→0, clamp 0–100, red text warning) ---
-        function setCmykFieldWarn(et, warn) {
-            setFieldWarnColor(et, warn);
-            et.helpTip = warn ? '0–100 の範囲にしてください（未入力は 0 として扱います）' : getLocalizedText('helpTip.cmykInput');
-        }
-
-        function validateCmykField(et) {
-            try {
-                var t = String(et.text || '');
-                if (t === '') {
-                    setCmykFieldWarn(et, false);
-                    return;
-                } // typing phase, don't warn
-                var n = parseFloat(t);
-                var warn = (isNaN(n) || n < 0 || n > 100);
-                setCmykFieldWarn(et, warn);
-            } catch (e) { }
-        }
-
-        function clampCmykField(et) {
-            try {
-                var t = String(et.text || '');
-                // 未入力は空のまま（計算時に0扱い）。不要な「0」を表示しない
-                // Keep empty fields empty (treated as 0 at compute time); don't insert a spurious "0"
-                if (t.replace(/^\s+|\s+$/g, '') === '') {
-                    setCmykFieldWarn(et, false);
-                    return;
-                }
-                var n = parseFloat(t);
-                if (isNaN(n)) n = 0; // invalid -> 0
-                n = clampValue(n, 0, 100);
-                et.text = String(n);
-                setCmykFieldWarn(et, false);
-            } catch (e) { }
-        }
-        // If the field currently holds exactly "0", clear it on focus for easier typing
-        function clearZeroOnFocus(et) {
-            et.addEventListener('focus', function () {
-                if (String(et.text) === '0') et.text = ''; // caret stays at the end
-            });
-        }
-
-        // Prevent any leading-zero integer like "03" from being typed (but allow decimals like "0.5")
-        function replaceZeroOnFirstDigit(et) {
-            et.addEventListener('keydown', function (ev) {
-                var k = String(ev.keyName || '');
-                // Only care about single digit keys 0-9
-                if (!/^[0-9]$/.test(k)) return;
-                var t = String(et.text || '');
-                // If user is composing a decimal number, do nothing here
-                if (/\./.test(t)) return;
-                // "0"（または0の連続）は新しい数字が入る前にクリア → "03" にならない
-                // Clear a pure-zero field before the new digit so typing "3" yields "3", never "03"
-                if (/^0+$/.test(t)) {
-                    et.text = ''; // let default insertion append the digit
-                } else if (/^0\d+$/.test(t)) {
-                    // 先頭ゼロ＋他桁（"007"）は即正規化。default 挿入はそのまま許可
-                    et.text = t.replace(/^0+/, '');
-                }
-            });
-        }
-
-        // Bind common handlers to a CMYK EditText
-        function bindCmykField(et) {
-            et.onChanging = function () {
-                // 整数の先頭ゼロのみ正規化（"03"→"3"）。小数 "0.5" は触らない
-                // Normalize leading zeros for integers only; leave decimals like "0.5" alone
-                var t = String(et.text || '');
-                if (/^0\d+$/.test(t)) et.text = t.replace(/^0+/, '');
-                validateCmykField(et);
-                updatePreviewWhileTyping();
-            };
-            et.onChange = function () {
-                clampCmykField(et);
-                updatePreviewImmediately();
-            };
-            changeValueByArrowKey(et, function () {
-                clampCmykField(et);
-                updatePreviewWhileTyping();
-            });
-        }
-
-        // --- Hotkey guard: disable hotkeys while typing in fields ---
-        // 単一 boolean だと「新フィールドの focus → 旧フィールドの blur」の順で false に落ちる。
-        // フォーカス中のコントロール自体を保持し、自分の blur のときだけクリアする（順序非依存）。
-        // A single boolean breaks when blur(old) fires after focus(new). Track the focused control
-        // and clear only on its own blur, so it's robust to focus/blur ordering.
-        var hotkeyState = {
-            focused: null
-        };
-
-        function _attachBlockOnFocusBlur(ctrl) {
-            ctrl.addEventListener('focus', function () {
-                hotkeyState.focused = ctrl;
-            });
-            ctrl.addEventListener('blur', function () {
-                if (hotkeyState.focused === ctrl) hotkeyState.focused = null;
-            });
-        }
-        // ホットキー抑止は全入力欄に / Block hotkeys on all edit fields
-        _attachBlockOnFocusBlur(offsetInput);
-        _attachBlockOnFocusBlur(hexInput);
-
-        // CMYK 各欄へ共通ハンドラをまとめて登録 / Bind common handlers to every CMYK field
-        for (var bi = 0; bi < cmykInputs.length; bi++) {
-            _attachBlockOnFocusBlur(cmykInputs[bi]);
-            clearZeroOnFocus(cmykInputs[bi]);
-            replaceZeroOnFirstDigit(cmykInputs[bi]);
-            bindCmykField(cmykInputs[bi]);
-        }
-
-        // Default selection
-        k100Radio.value = true;
-
-        // Enable custom field only when "Custom" is selected
-
-        /* HEX 有効/無効を切替 / Enable-Disable HEX input */
-        function setHexEnabled(on) {
-            hexInput.enabled = !!on;
-        }
-
-        /* CMYK 有効/無効を切替 / Enable-Disable CMYK inputs */
-        function setCmykEnabled(on) {
-            var v = !!on;
+        /* ラジオ選択に応じて入力欄の有効・無効を反映 / Sync field enable state with the radios */
+        function updateColorFieldStates() {
+            hexInput.enabled = !!hexRadio.value;
+            var cmykEnabled = !!cmykRadio.value;
             for (var i = 0; i < cmykInputs.length; i++) {
-                cmykInputs[i].enabled = v;
-                cmykLabels[i].enabled = v;
-                if (!v) setCmykFieldWarn(cmykInputs[i], false);
+                cmykInputs[i].enabled = cmykEnabled;
+                cmykLabels[i].enabled = cmykEnabled;
+                if (!cmykEnabled) setCmykWarning(cmykInputs[i], false);
             }
         }
 
-        /* ラジオ選択に応じて一括反映 / Apply enable states from radio values */
-        function updateColorEnableFromRadios() {
-            setHexEnabled(!!hexRadio.value);
-            setCmykEnabled(!!cmykRadio.value);
+        /* カラーモードを排他選択し、ハイライト・フォーカス・プレビューを更新
+           Select a color mode exclusively, then sync highlight, focus and preview */
+        function selectColorMode(colorMode) {
+            noneRadio.value = (colorMode === ColorMode.NONE);
+            k100Radio.value = (colorMode === ColorMode.K100);
+            hexRadio.value = (colorMode === ColorMode.HEX);
+            cmykRadio.value = (colorMode === ColorMode.CMYK);
+            updateColorFieldStates();
+            setFieldHighlight(hexInput, colorMode === ColorMode.HEX);
+            setFieldHighlight(cmykInputs[0], colorMode === ColorMode.CMYK);
+            try {
+                if (colorMode === ColorMode.HEX) hexInput.active = true;
+                else if (colorMode === ColorMode.CMYK) cmykInputs[0].active = true;
+            } catch (e) { }
+            previewHooks.immediate();
         }
 
-        updateColorEnableFromRadios();
+        var colorRadioModes = [
+            [noneRadio, ColorMode.NONE],
+            [k100Radio, ColorMode.K100],
+            [hexRadio, ColorMode.HEX],
+            [cmykRadio, ColorMode.CMYK]
+        ];
+        for (var j = 0; j < colorRadioModes.length; j++) {
+            (function (radio, colorMode) {
+                radio.onClick = radio.onChanging = function () { selectColorMode(colorMode); };
+            })(colorRadioModes[j][0], colorRadioModes[j][1]);
+        }
 
-        // Add new panel for zOrder
-        var placementPanel = leftColumnGroup.add('panel', undefined, getLocalizedText('panel.zorder'));
-        setupPanel(placementPanel, 6);
+        k100Radio.value = true; /* デフォルトはK100 / default to K100 */
+        updateColorFieldStates();
 
-        var frontRadio = placementPanel.add('radiobutton', undefined, getLocalizedText('zorder.front'));
-        var backRadio = placementPanel.add('radiobutton', undefined, getLocalizedText('zorder.back'));
-        var bgLayerRadio = placementPanel.add('radiobutton', undefined, getLocalizedText('zorder.bg'));
-        bgLayerRadio.helpTip = getLocalizedText('helpTip.bgLayer');
+        return {
+            noneRadio: noneRadio,
+            k100Radio: k100Radio,
+            hexRadio: hexRadio,
+            cmykRadio: cmykRadio,
+            hexInput: hexInput,
+            cmykInputs: cmykInputs
+        };
+    }
 
-        frontRadio.value = true; // デフォルトは最前面 / default to Bring to Front
+    /**
+     * 配置位置（重ね順）パネルを構築する
+     * @param {Group} parentGroup - 追加先のカラムグループ
+     * @param {object} previewHooks - プレビュー更新コールバック
+     * @returns {object} { frontRadio, backRadio, bgLayerRadio }
+     */
+    function buildPlacementPanel(parentGroup, previewHooks) {
+        var placementPanel = parentGroup.add('panel', undefined, getLabel('panel.zorder'));
+        setupPanel(placementPanel, TIGHT_SPACING);
 
-        // オプションパネル（ガイド化／ライブシェイプ変換）/ Options panel (make guides / convert to live shape)
-        var optionControls = buildPostProcessOptionsPanel(leftColumnGroup);
-        var makeGuideCheckbox = optionControls.makeGuide;
-        var convertToLiveShapeCheckbox = optionControls.convertToLiveShape;
-        makeGuideCheckbox.helpTip = getLocalizedText('helpTip.makeGuide');
-        convertToLiveShapeCheckbox.helpTip = getLocalizedText('helpTip.convertToLiveShape');
+        var frontRadio = placementPanel.add('radiobutton', undefined, getLabel('zorder.front'));
+        var backRadio = placementPanel.add('radiobutton', undefined, getLabel('zorder.back'));
+        var bgLayerRadio = placementPanel.add('radiobutton', undefined, getLabel('zorder.bg'));
+        bgLayerRadio.helpTip = getLabel('helpTip.bgLayer');
 
-        // Add new panel for target (moved to right column)
-        var targetScopePanel = rightColumnGroup.add('panel', undefined, getLocalizedText('panel.target'));
-        setupPanel(targetScopePanel);
+        frontRadio.value = true; /* デフォルトは最前面 / default to Bring to Front */
 
-        var currentArtboardRadio = targetScopePanel.add('radiobutton', undefined, getLocalizedText('target.current'));
-        var allArtboardsRadio = targetScopePanel.add('radiobutton', undefined, getLocalizedText('target.all'));
+        var placementRadios = [frontRadio, backRadio, bgLayerRadio];
+        for (var i = 0; i < placementRadios.length; i++) {
+            placementRadios[i].onClick = previewHooks.immediate;
+        }
 
-        // 常に「作業中のアートボードのみ」をデフォルト選択
-        var artboardCount = (app.documents.length ? app.activeDocument.artboards.length : 0);
+        return { frontRadio: frontRadio, backRadio: backRadio, bgLayerRadio: bgLayerRadio };
+    }
+
+    /**
+     * 対象アートボードのパネルを構築する
+     * @param {Group} parentGroup - 追加先のカラムグループ
+     * @param {object} previewHooks - プレビュー更新コールバック
+     * @returns {object} { currentArtboardRadio, allArtboardsRadio }
+     */
+    function buildTargetPanel(parentGroup, previewHooks) {
+        var targetPanel = parentGroup.add('panel', undefined, getLabel('panel.target'));
+        setupPanel(targetPanel);
+
+        var currentArtboardRadio = targetPanel.add('radiobutton', undefined, getLabel('target.current'));
+        var allArtboardsRadio = targetPanel.add('radiobutton', undefined, getLabel('target.all'));
+
+        /* 常に「現在のアートボード」をデフォルト選択 / Always default to the current artboard */
         currentArtboardRadio.value = true;
         allArtboardsRadio.value = false;
 
-        // 1枚しかない場合は「すべてのアートボード」をディム（無効化）
+        /* 1枚しかない場合は「すべてのアートボード」をディム / Dim "All Artboards" when there is only one */
+        var artboardCount = app.documents.length ? app.activeDocument.artboards.length : 0;
         if (artboardCount <= 1) {
-            try {
-                allArtboardsRadio.enabled = false;
-                allArtboardsRadio.helpTip = (currentLanguage === 'ja') ? 'アートボードが1つのため選択できません' : 'Disabled: only one artboard exists';
-            } catch (e) { }
+            allArtboardsRadio.enabled = false;
+            allArtboardsRadio.helpTip = getLabel('warning.singleArtboard');
         }
 
-        function buildDialogSettings() {
-            var colorMode = (function () {
-                if (noneRadio.value) return ColorMode.NONE;
-                if (k100Radio.value) return ColorMode.K100;
-                if (hexRadio.value) return ColorMode.HEX;
-                if (cmykRadio.value) return ColorMode.CMYK;
-                return ColorMode.NONE;
-            })();
+        /* クリックだけでなくキーボード操作（onChanging）でも更新 / Refresh on click and on keyboard change */
+        currentArtboardRadio.onClick = currentArtboardRadio.onChanging = previewHooks.immediate;
+        allArtboardsRadio.onClick = allArtboardsRadio.onChanging = previewHooks.immediate;
 
-            var zOrder = frontRadio.value ? 'front' : (backRadio.value ? 'back' : (bgLayerRadio.value ? 'bg' : 'back'));
-            var target = currentArtboardRadio.value ? 'current' : (allArtboardsRadio.value ? 'all' : 'current');
+        return { currentArtboardRadio: currentArtboardRadio, allArtboardsRadio: allArtboardsRadio };
+    }
 
-            // offset計算を一元化
-            var unitCode = getCurrentUnitCode();
-            var resolved = resolveOffsetToPt(offsetInput.text, unitCode, !!bleedCheckbox.value);
-            var offsetPt = resolved.pt;
+    /**
+     * オプションパネル（ガイド化／ライブシェイプ変換）を構築する
+     * 各オプションは独立。必要なものだけ描画後に適用（applyDrawOptions）
+     * @param {Group} parentGroup - 追加先のカラムグループ
+     * @returns {object} { makeGuideCheckbox, convertToLiveShapeCheckbox }
+     */
+    function buildOptionsPanel(parentGroup) {
+        var optionsPanel = parentGroup.add('panel', undefined, getLabel('panel.options'));
+        setupPanel(optionsPanel);
 
-            var customValue = String(hexInput.text || '').replace(/^\s+|\s+$/g, '');
+        var makeGuideCheckbox = optionsPanel.add('checkbox', undefined, getLabel('checkbox.makeGuide'));
+        makeGuideCheckbox.value = false; /* デフォルトOFF / default OFF */
+        makeGuideCheckbox.helpTip = getLabel('helpTip.makeGuide');
 
-            // 各欄を 0–100 にクランプ（空欄・不正は0）/ Clamp each field to 0–100 (empty/invalid → 0)
-            var cmykKeys = ['c', 'm', 'y', 'k'];
-            var cmykObj = { c: 0, m: 0, y: 0, k: 0 };
-            for (var ck = 0; ck < cmykInputs.length; ck++) {
-                var n = parseFloat(cmykInputs[ck].text);
-                if (isNaN(n)) n = 0;
-                cmykObj[cmykKeys[ck]] = clampValue(n, 0, 100);
+        var convertToLiveShapeCheckbox = optionsPanel.add('checkbox', undefined, getLabel('checkbox.convertToLiveShape'));
+        convertToLiveShapeCheckbox.value = true; /* デフォルトON / default ON */
+        convertToLiveShapeCheckbox.helpTip = getLabel('helpTip.convertToLiveShape');
+
+        return { makeGuideCheckbox: makeGuideCheckbox, convertToLiveShapeCheckbox: convertToLiveShapeCheckbox };
+    }
+
+    /**
+     * ダイアログのホットキーを登録する（F/B/L=重ね順、C/A=対象、G=ガイド化）
+     * @param {Window} dialog - 対象ダイアログ
+     * @param {object} dialogControls - 各パネルのコントロール
+     * @param {function} refreshPreview - プレビューを即時更新するコールバック
+     * @returns {void}
+     */
+    function addDialogHotkeys(dialog, dialogControls, refreshPreview) {
+        dialog.addEventListener('keydown', function (event) {
+            if (focusedField) return; /* 入力中は無効 / ignore while typing in a field */
+            var pressedKey = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
+
+            if (pressedKey === 'G') {
+                /* ガイド化は描画後の処理なのでプレビューには反映しない
+                   Make-guides is a post-draw option and is not previewed */
+                var makeGuideCheckbox = dialogControls.options.makeGuideCheckbox;
+                makeGuideCheckbox.value = !makeGuideCheckbox.value;
+                event.preventDefault();
+                return;
             }
 
-            return {
-                colorMode: colorMode,
-                customValue: customValue, // HEX文字列
-                customCMYK: cmykObj, // CMYK値
-                offset: offsetPt,
-                zOrder: zOrder,
-                target: target,
-                bleed: !!bleedCheckbox.value,
-                makeGuide: !!makeGuideCheckbox.value,
-                convertToLiveShape: !!convertToLiveShapeCheckbox.value
-            };
+            var selectedRadio = null;
+            if (pressedKey === 'F') selectedRadio = dialogControls.placement.frontRadio;
+            else if (pressedKey === 'B') selectedRadio = dialogControls.placement.backRadio;
+            else if (pressedKey === 'L') selectedRadio = dialogControls.placement.bgLayerRadio;
+            else if (pressedKey === 'C') selectedRadio = dialogControls.target.currentArtboardRadio;
+            else if (pressedKey === 'A') selectedRadio = dialogControls.target.allArtboardsRadio;
+            else return;
+
+            if (selectedRadio.enabled) {
+                selectedRadio.value = true;
+                refreshPreview();
+            }
+            event.preventDefault();
+        });
+    }
+
+    /**
+     * ダイアログの入力内容から描画設定を組み立てる（プレビューと確定値で共通）
+     * @param {object} dialogControls - 各パネルのコントロール
+     * @returns {object} 描画設定
+     */
+    function collectDrawSettings(dialogControls) {
+        var colorControls = dialogControls.color;
+        var placementControls = dialogControls.placement;
+        var offsetControls = dialogControls.offset;
+
+        var colorMode = ColorMode.NONE;
+        if (colorControls.k100Radio.value) colorMode = ColorMode.K100;
+        else if (colorControls.hexRadio.value) colorMode = ColorMode.HEX;
+        else if (colorControls.cmykRadio.value) colorMode = ColorMode.CMYK;
+
+        var zOrder = placementControls.frontRadio.value ? 'front' :
+            (placementControls.bgLayerRadio.value ? 'bg' : 'back');
+
+        /* オフセット計算は resolveOffsetToPt に一元化 / All offset math lives in resolveOffsetToPt */
+        var resolvedOffset = resolveOffsetToPt(offsetControls.offsetInput.text, getCurrentUnitCode(), !!offsetControls.bleedCheckbox.value);
+
+        /* 各欄を0–100にクランプ（空欄・不正は0）/ Clamp each field to 0-100 (empty or invalid becomes 0) */
+        var cmykChannelKeys = ['c', 'm', 'y', 'k'];
+        var cmykValues = { c: 0, m: 0, y: 0, k: 0 };
+        for (var i = 0; i < colorControls.cmykInputs.length; i++) {
+            var channelValue = parseFloat(colorControls.cmykInputs[i].text);
+            if (isNaN(channelValue)) channelValue = 0;
+            cmykValues[cmykChannelKeys[i]] = clampValue(channelValue, 0, 100);
         }
 
-        function updatePreviewWhileTyping() {
-            try {
-                schedulePreview(buildDialogSettings(), PREVIEW_DELAY_TYPING_MS);
-            } catch (e) { }
-        }
+        return {
+            colorMode: colorMode,
+            customValue: String(colorControls.hexInput.text || '').replace(/^\s+|\s+$/g, ''), /* HEX文字列 */
+            customCMYK: cmykValues,
+            offset: resolvedOffset.pt,
+            zOrder: zOrder,
+            target: dialogControls.target.allArtboardsRadio.value ? 'all' : 'current',
+            bleed: !!offsetControls.bleedCheckbox.value,
+            makeGuide: !!dialogControls.options.makeGuideCheckbox.value,
+            convertToLiveShape: !!dialogControls.options.convertToLiveShapeCheckbox.value
+        };
+    }
+
+    /**
+     * 設定ダイアログを構築して結果を返す
+     * @returns {object|null} 描画設定。キャンセル時は null
+     */
+    function showDialog() {
+        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        DialogPersist.setOpacity(dialog, DIALOG_OPACITY);
+        dialog.alignChildren = 'left';
+
+        /* 各パネルより先に定義してコールバックとして配る（実行はパネル構築後）
+           Declared before the panels so they can be handed out as callbacks */
+        var dialogControls = null;
 
         function updatePreviewImmediately() {
-            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
+            PreviewHistory.cancelTask(previewDebounceTaskId);
             try {
-                renderPreview(app.activeDocument, buildDialogSettings());
-            } catch (_) { }
-        }
-
-        function requestDelayedPreviewUpdate() {
-            try {
-                requestPreview(buildDialogSettings(), false);
+                renderPreview(app.activeDocument, collectDrawSettings(dialogControls));
             } catch (e) { }
         }
 
-        offsetInput.onChanging = updatePreviewWhileTyping;
-        offsetInput.onChange = updatePreviewImmediately;
-
-        /* カラーモードのラジオを排他選択し、ハイライト・フォーカス・プレビューを更新
-         * Select a color-mode radio exclusively, then sync highlight/focus/preview
-         */
-        function selectColorMode(mode) {
-            noneRadio.value = (mode === ColorMode.NONE);
-            k100Radio.value = (mode === ColorMode.K100);
-            hexRadio.value = (mode === ColorMode.HEX);
-            cmykRadio.value = (mode === ColorMode.CMYK);
-            updateColorEnableFromRadios();
-            setEditHighlight(hexInput, mode === ColorMode.HEX);
-            setEditHighlight(cyanInput, mode === ColorMode.CMYK);
-            if (mode === ColorMode.HEX) {
-                try { hexInput.active = true; } catch (e) { }
-            } else if (mode === ColorMode.CMYK) {
-                try { cyanInput.active = true; } catch (e) { }
-            }
-            updatePreviewImmediately();
+        function updatePreviewDeferred() {
+            try {
+                schedulePreview(collectDrawSettings(dialogControls), PREVIEW_DELAY_TYPING_MS);
+            } catch (e) { }
         }
 
-        noneRadio.onClick = noneRadio.onChanging = function () { selectColorMode(ColorMode.NONE); };
-        k100Radio.onClick = k100Radio.onChanging = function () { selectColorMode(ColorMode.K100); };
-        hexRadio.onClick = hexRadio.onChanging = function () { selectColorMode(ColorMode.HEX); };
-        cmykRadio.onClick = cmykRadio.onChanging = function () { selectColorMode(ColorMode.CMYK); };
-
-        // --- Hotkeys: N/K/H/C to switch color mode radios ---
-        // --- Hotkeys: Z-order (F/B/L), Make Guides (G), Target scope (C/A) ---
-        /* 重ね順・ガイド化・対象範囲をホットキーで切替 / Toggle z-order, make-guides & target scope via hotkeys */
-        function addDialogHotkeys(dialog) {
-            dialog.addEventListener('keydown', function (event) {
-                if (hotkeyState.focused) return; // ignore when typing in fields
-                var key = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
-
-                // Z-order: F = Front, B = Back, L = bg Layer
-                if (key === 'F') {
-                    frontRadio.value = true;
-                    updatePreviewImmediately();
-                    event.preventDefault();
-                    return;
-                }
-                if (key === 'B') {
-                    backRadio.value = true;
-                    updatePreviewImmediately();
-                    event.preventDefault();
-                    return;
-                }
-                if (key === 'L') {
-                    bgLayerRadio.value = true;
-                    updatePreviewImmediately();
-                    event.preventDefault();
-                    return;
-                }
-
-                // Make guides: G toggles the checkbox (post-draw option; not previewed)
-                if (key === 'G') {
-                    makeGuideCheckbox.value = !makeGuideCheckbox.value;
-                    event.preventDefault();
-                    return;
-                }
-
-                // Target scope: C = current artboard, A = all artboards
-                if (key === 'C') {
-                    currentArtboardRadio.value = true;
-                    updatePreviewImmediately();
-                    event.preventDefault();
-                    return;
-                }
-                if (key === 'A') {
-                    if (allArtboardsRadio.enabled) {
-                        allArtboardsRadio.value = true;
-                        updatePreviewImmediately();
-                    }
-                    event.preventDefault();
-                    return;
-                }
-            });
-        }
-        addDialogHotkeys(dialog);
-
-        // 重ね順・対象のラジオは選択でプレビュー更新 / Z-order & target radios refresh the preview on change
-        var previewRefreshRadios = [frontRadio, backRadio, bgLayerRadio, currentArtboardRadio, allArtboardsRadio];
-        for (var ri = 0; ri < previewRefreshRadios.length; ri++) {
-            previewRefreshRadios[ri].onClick = updatePreviewImmediately;
-        }
-        // 対象ラジオはキーボード等での変更（onChanging）でも更新 / Target radios also refresh on keyboard change
-        currentArtboardRadio.onChanging = updatePreviewImmediately;
-        allArtboardsRadio.onChanging = updatePreviewImmediately;
-
-        bleedCheckbox.onClick = function () {
-            if (bleedCheckbox.value) {
-                lastUserOffsetText = String(offsetInput.text);
-                applyBleedPreset(true);
-            } else {
-                removeBleedPreset(true);
-            }
+        var previewHooks = {
+            immediate: updatePreviewImmediately,
+            deferred: updatePreviewDeferred,
+            trackFocus: trackFocusForHotkeys
         };
 
-        var buttonRowGroup = dialog.add('group');
-        buttonRowGroup.orientation = 'row';
-        buttonRowGroup.alignChildren = ['fill', 'center'];
-        buttonRowGroup.alignment = 'fill';
+        /* 2カラム構成 / Two-column layout */
+        var mainColumnsGroup = dialog.add('group');
+        setupGroup(mainColumnsGroup, 'row', COLUMN_SPACING);
+        mainColumnsGroup.alignChildren = ['fill', 'top']; /* 2カラムを上揃え・横いっぱいに */
 
-        var leftButtonGroup = buttonRowGroup.add('group');
-        setupGroup(leftButtonGroup, 'row');
+        var leftColumnGroup = mainColumnsGroup.add('group');
+        setupGroup(leftColumnGroup, 'column', STACK_SPACING);
+        leftColumnGroup.alignChildren = 'fill'; /* パネルを列幅いっぱいに / panels fill the column */
 
-        var isPreviewDisplay = true;
-        var previewButton = leftButtonGroup.add('button', undefined, getLocalizedText('button.previewOutline'));
-        previewButton.helpTip = getLocalizedText('helpTip.previewToggle');
+        var rightColumnGroup = mainColumnsGroup.add('group');
+        setupGroup(rightColumnGroup, 'column', STACK_SPACING);
+        rightColumnGroup.alignChildren = 'fill';
 
-        var spacer = buttonRowGroup.add('group');
+        dialogControls = {
+            offset: buildOffsetPanel(leftColumnGroup, previewHooks),
+            placement: buildPlacementPanel(leftColumnGroup, previewHooks),
+            options: buildOptionsPanel(leftColumnGroup),
+            color: buildColorPanel(rightColumnGroup, previewHooks),
+            target: buildTargetPanel(rightColumnGroup, previewHooks)
+        };
+
+        addDialogHotkeys(dialog, dialogControls, updatePreviewImmediately);
+
+        /* ボタン行 / Button row */
+        var btnRowGroup = dialog.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.alignChildren = ['fill', 'center'];
+        btnRowGroup.alignment = 'fill';
+
+        var btnLeftGroup = btnRowGroup.add('group');
+        setupGroup(btnLeftGroup, 'row');
+
+        var isPreviewDisplayMode = true;
+        var btnDisplayToggle = btnLeftGroup.add('button', undefined, getLabel('button.previewOutline'));
+        btnDisplayToggle.helpTip = getLabel('helpTip.previewToggle');
+
+        var spacer = btnRowGroup.add('group');
         spacer.alignment = ['fill', 'fill'];
+        spacer.minimumSize.width = 0;
 
-        var rightButtonGroup = buttonRowGroup.add('group');
-        rightButtonGroup.orientation = 'row';
-        rightButtonGroup.alignment = ['right', 'center']; // 右カラムは右揃え / right-align the right column
+        var btnRightGroup = btnRowGroup.add('group');
+        btnRightGroup.orientation = 'row';
+        btnRightGroup.alignment = ['right', 'center']; /* 右カラムは右揃え / right-align the right column */
 
-        var cancelButton = rightButtonGroup.add('button', undefined, getLocalizedText('button.cancel'));
-        var okButton = rightButtonGroup.add('button', undefined, getLocalizedText('button.ok'));
+        var btnCancel = btnRightGroup.add('button', undefined, getLabel('button.cancel'));
+        var btnOK = btnRightGroup.add('button', undefined, getLabel('button.ok'));
 
-        previewButton.onClick = function () {
+        btnDisplayToggle.onClick = function () {
             try {
                 app.executeMenuCommand('preview');
-                isPreviewDisplay = !isPreviewDisplay;
-                previewButton.text = isPreviewDisplay ? getLocalizedText('button.previewOutline') : getLocalizedText('button.previewPreview');
+                isPreviewDisplayMode = !isPreviewDisplayMode;
+                btnDisplayToggle.text = isPreviewDisplayMode ? getLabel('button.previewOutline') : getLabel('button.previewPreview');
             } catch (e) { }
         };
 
-        okButton.onClick = function () {
-            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
+        /* プレビューを片付けてから閉じる / Clean the preview up, then close */
+        function closeWithCleanup(resultCode) {
+            PreviewHistory.cancelTask(previewDebounceTaskId);
             PreviewHistory.undo();
-            clearPreview(true); // undo 回数に依存せず _preview レイヤーを確実に削除 / remove the preview layer regardless of undo count
-            dialog.close(1);
-        };
-        cancelButton.onClick = function () {
-            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
-            PreviewHistory.undo();
-            clearPreview(true); // 同上 / same
-            dialog.close(0);
-        };
-
-        var result = dialog.show();
-        if (result != 1) {
-            return null;
+            clearPreview(true); /* undo回数に依存せず _preview レイヤーを確実に削除 */
+            dialog.close(resultCode);
         }
 
-        // 確定値は buildDialogSettings() に一元化（プレビューと同じ計算）
-        // Final values come from buildDialogSettings() (same computation as the preview)
-        return buildDialogSettings();
+        btnOK.onClick = function () { closeWithCleanup(1); };
+        btnCancel.onClick = function () { closeWithCleanup(0); };
+
+        dialog.onShow = function () {
+            DialogPersist.applyInitialOffset(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+            dialogControls.offset.initFieldState();
+            try { dialogControls.offset.offsetInput.active = true; } catch (e) { }
+            PreviewHistory.start(); /* プレビューのUndoカウンタを初期化 */
+            updatePreviewImmediately();
+        };
+
+        if (dialog.show() != 1) return null;
+
+        /* 確定値もプレビューと同じ計算経路から取る / Final values come from the same computation as the preview */
+        return collectDrawSettings(dialogControls);
     }
 
-    /*
-     * 編集可能なレイヤーを取得（なければ作成）/ Get an editable layer or create one
+    // =========================================
+    // 描画 / Drawing
+    // =========================================
+
+    /**
+     * 編集可能なレイヤーを取得する（なければ作成）
+     * テンプレートレイヤーは locked が false でも編集できない（Error 8705）ので除外し、
+     * プレビュー用レイヤーは本番の描画先にしない（残存時の誤描画防止）。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer} 描画先レイヤー
      */
     function getWritableLayer(doc) {
+        function isWritableLayer(layer) {
+            return !!layer && !layer.locked && layer.visible && !layer.template && !isPreviewLayerName(layer.name);
+        }
         try {
-            var lyr = doc.activeLayer;
-            // テンプレートレイヤーは locked が false でも編集できない（Error 8705）ので除外
-            // プレビュー用レイヤーは本番描画先に使わない（残存時の誤描画防止）
-            // Template layers can't be modified even when locked is false (Error 8705); also never draw onto the preview layer
-            if (lyr && !lyr.locked && lyr.visible && !lyr.template && !isPreviewLayerName(lyr.name)) return lyr;
-        } catch (e) { }
-        // try find first unlocked, visible, non-template & non-preview layer
-        try {
+            if (isWritableLayer(doc.activeLayer)) return doc.activeLayer;
             for (var i = 0; i < doc.layers.length; i++) {
-                var l = doc.layers[i];
-                if (!l.locked && l.visible && !l.template && !isPreviewLayerName(l.name)) return l;
+                if (isWritableLayer(doc.layers[i])) return doc.layers[i];
             }
+            var newLayer = doc.layers.add();
+            newLayer.name = FALLBACK_LAYER_NAME;
+            return newLayer;
         } catch (e) { }
-        // last resort: create a new layer at top
-        try {
-            var nl = doc.layers.add();
-            nl.name = "_auto_draw";
-            nl.visible = true;
-            nl.locked = false;
-            return nl;
-        } catch (e) { }
-        return doc.activeLayer; // fallback
+        return doc.activeLayer;
     }
 
-    /*
-     * 「bg」レイヤーの取得/作成 / Get or create the "bg" layer
+    /**
+     * 「bg」レイヤーを取得する（なければ作成し、最背面へ移動）
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Layer} bgレイヤー
      */
     function getOrCreateBgLayer(doc) {
-        var name = 'bg';
-        var layer = null;
-        // 検索
+        var bgLayer = null;
         for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === name) {
-                layer = doc.layers[i];
+            if (doc.layers[i].name === BG_LAYER_NAME) {
+                bgLayer = doc.layers[i];
                 break;
             }
         }
-        // 作成
-        if (!layer) {
-            layer = doc.layers.add();
-            layer.name = name;
+        if (!bgLayer) {
+            bgLayer = doc.layers.add();
+            bgLayer.name = BG_LAYER_NAME;
         }
-        // 見える＆編集可能に / Ensure editable
-        layer.visible = true;
-        layer.locked = false;
+        /* 見える＆編集可能にしてから最背面へ / Make it visible and editable, then send it to the back */
+        bgLayer.visible = true;
+        bgLayer.locked = false;
         try {
-            layer.printable = true;
+            bgLayer.printable = true;
+            bgLayer.move(doc, ElementPlacement.PLACEATEND);
         } catch (e) { }
-        // 最背面へ / Send to back of layer stack
-        try {
-            layer.move(doc, ElementPlacement.PLACEATEND);
-        } catch (e) { }
-        return layer;
+        return bgLayer;
     }
 
-    /* アートボードと同サイズ（オフセット込み）の長方形を1枚描画して返す
-     * Draw one rectangle matching the artboard (incl. offset) and return it
+    /**
+     * アートボードと同サイズ（オフセット込み）の長方形を1枚描画する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Artboard} artboard - 対象アートボード
+     * @param {object} drawSettings - 描画設定
+     * @returns {PathItem} 描画した長方形
      */
-    function drawRectangleForArtboard(doc, artboard, choice) {
-        var artboardRect = artboard.artboardRect; // [left, top, right, bottom]
-
+    function drawRectangleForArtboard(doc, artboard, drawSettings) {
+        var artboardRect = artboard.artboardRect; /* [left, top, right, bottom] */
         var artboardWidth = artboardRect[2] - artboardRect[0];
         var artboardHeight = artboardRect[1] - artboardRect[3];
+        var offsetPt = drawSettings.offset;
 
-        var o = choice.offset;
-        var targetLayer = (choice.zOrder === 'bg') ? getOrCreateBgLayer(doc) : getWritableLayer(doc);
-        // アクティブレイヤーがロックされたままだと、別の編集可能レイヤーへ作成しても
-        // Illustrator が Error 8705（対象レイヤーは編集できません）を投げる。
-        // 作成前に対象レイヤーを編集可能かつアクティブにしておく。
-        // Make the target layer editable AND active before creating; otherwise a locked
-        // active (e.g. top-most) layer triggers Error 8705 "Target layer cannot be modified".
+        var targetLayer = (drawSettings.zOrder === 'bg') ? getOrCreateBgLayer(doc) : getWritableLayer(doc);
+        /* アクティブレイヤーがロックされたままだと、別の編集可能レイヤーへ作成しても
+           Illustrator が Error 8705（対象レイヤーは編集できません）を投げる。
+           Make the target layer editable AND active before creating, or a locked active layer
+           triggers Error 8705 "Target layer cannot be modified". */
         try {
             targetLayer.locked = false;
             targetLayer.visible = true;
             doc.activeLayer = targetLayer;
         } catch (e) { }
-        // Create on the chosen layer to avoid "Target layer cannot be modified"
+
         var artboardRectangle = targetLayer.pathItems.rectangle(
-            artboardRect[1] + o,
-            artboardRect[0] - o,
-            artboardWidth + o * 2,
-            artboardHeight + o * 2
+            artboardRect[1] + offsetPt,
+            artboardRect[0] - offsetPt,
+            artboardWidth + offsetPt * 2,
+            artboardHeight + offsetPt * 2
         );
 
-        // Unified fill application (final draw)
-        applyFillByMode(doc, artboardRectangle, choice.colorMode, {
-            customValue: choice.customValue,
-            customCMYK: choice.customCMYK
-        }, {
-            k100Opacity: 15
-        });
-
-        artboardRectangle.name = getLocalizedText('name.rect');
+        applyFillByMode(doc, artboardRectangle, drawSettings);
+        artboardRectangle.name = getLabel('name.rect');
         artboardRectangle.selected = true;
-        try {
-            artboardRectangle.hidden = false;
-        } catch (e) { }
-        try {
-            targetLayer.visible = true;
-            targetLayer.locked = false;
-        } catch (e) { }
 
-        if (choice.zOrder === 'front') {
-            artboardRectangle.zOrder(ZOrderMethod.BRINGTOFRONT);
-        } else if (choice.zOrder === 'back') {
-            artboardRectangle.zOrder(ZOrderMethod.SENDTOBACK);
-        }
+        if (drawSettings.zOrder === 'front') artboardRectangle.zOrder(ZOrderMethod.BRINGTOFRONT);
+        else if (drawSettings.zOrder === 'back') artboardRectangle.zOrder(ZOrderMethod.SENDTOBACK);
 
         return artboardRectangle;
     }
 
-    /* 中心の○（属性パネル「中心点を表示」）を選択オブジェクトへ適用 / Show the center widget on selected items
+    /**
+     * 中心の○（属性パネル「中心点を表示」）を選択オブジェクトへ適用する
      * API・メニューコマンドからは設定できないため、記録済みアクション(.aia)を一時ファイルへ書き出して
-     * loadAction→doScript で再生する（メモリ: reference_illustrator_temp_action）。
-     * セット名 "object" / アクション名 "ヘソ表示"（日本語名は .aia 本文をそのまま使う）。
-     * 呼び出し側で「対象だけを選択した状態」にしてから実行すること。
+     * loadAction→doScript で再生する。呼び出し側で「対象だけを選択した状態」にしてから実行すること。
+     * @returns {void}
      */
     function showShapeCenterWidget() {
-        var ACTION_SET_NAME = 'object';
-        var ACTION_NAME = 'ヘソ表示';
+        var ACTION_SET_NAME = 'SmartDrawArtboardRectangle';
+        var ACTION_NAME = 'CenterPoint';
         var ACTION_BODY = [
             '/version 3',
-            '/name [ 6',
-            '\t6f626a656374',
+            '/name [ 26',
+            '\t536d61727444726177417274626f61726452656374616e676c65',
             ']',
             '/isOpen 1',
             '/actionCount 1',
             '/action-1 {',
-            '\t/name [ 12',
-            '\t\te38398e382bde8a1a8e7a4ba',
+            '\t/name [ 11',
+            '\t\t43656e746572506f696e74',
             '\t]',
             '\t/keyIndex 0',
             '\t/colorIndex 0',
@@ -1752,103 +1617,103 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             ''
         ].join('\n');
 
-        var tmpFile = null;
+        var actionFile = null;
         try {
-            // 一時ファイルへ書き出し / write the recorded action to a temp file
-            tmpFile = new File(Folder.temp + '/SmartDrawArtboardRectangle_center.aia');
-            tmpFile.encoding = 'UTF-8';
-            tmpFile.open('w');
-            tmpFile.write(ACTION_BODY);
-            tmpFile.close();
+            /* 一時ファイルへ書き出し / Write the recorded action to a temp file */
+            actionFile = new File(Folder.temp + '/SmartDrawArtboardRectangle_center.aia');
+            actionFile.encoding = 'UTF-8';
+            actionFile.open('w');
+            actionFile.write(ACTION_BODY);
+            actionFile.close();
 
-            // 同名セットを解放してからロード→再生 / unload any same-named set, then load & play
+            /* 同名セットを解放してからロード→再生 / Unload any same-named set, then load and play */
             try { app.unloadAction(ACTION_SET_NAME, ''); } catch (e) { }
-            app.loadAction(tmpFile);
+            app.loadAction(actionFile);
             app.doScript(ACTION_NAME, ACTION_SET_NAME, false);
         } catch (e) {
         } finally {
             try { app.unloadAction(ACTION_SET_NAME, ''); } catch (e) { }
-            try { if (tmpFile && tmpFile.exists) tmpFile.remove(); } catch (e) { }
+            try { if (actionFile && actionFile.exists) actionFile.remove(); } catch (e) { }
         }
     }
 
-    /* 描画後のオプション（ガイド化／ライブシェイプ変換／中心の○表示）を選択中の長方形へ適用
-     * Apply post-draw options (make guides / convert to live shape / show center) to the drawn rectangles
+    /**
+     * 指定アイテムだけを選択状態にする
+     * @param {PathItem[]} items - 選択したいアイテム
+     * @returns {void}
      */
-    function applyDrawOptions(createdRectangles, choice) {
+    function selectOnly(items) {
+        try { app.executeMenuCommand('deselectall'); } catch (e) { }
+        try {
+            for (var i = 0; i < items.length; i++) items[i].selected = true;
+        } catch (e) { }
+    }
+
+    /**
+     * 描画後のオプション（ライブシェイプ化／中心の○表示／ガイド化）を適用する
+     * @param {PathItem[]} createdRectangles - 描画した長方形
+     * @param {object} drawSettings - 描画設定
+     * @returns {void}
+     */
+    function applyDrawOptions(createdRectangles, drawSettings) {
         if (!createdRectangles || !createdRectangles.length) return;
 
-        // ライブシェイプに変換：ONのときだけ選択ベースのメニューコマンドを実行
-        // Convert to Live Shape: run the selection-based menu command only when ON
-        if (choice.convertToLiveShape) {
-            try { app.executeMenuCommand('deselectall'); } catch (e) { }
-            for (var j = 0; j < createdRectangles.length; j++) {
-                try { createdRectangles[j].selected = true; } catch (e) { }
-            }
+        if (drawSettings.convertToLiveShape) {
+            /* 選択ベースのメニューコマンドなので、対象だけを選択してから実行 */
+            selectOnly(createdRectangles);
             try { app.executeMenuCommand('Convert to Shape'); } catch (e) { }
-        }
-
-        // 中心の○はライブシェイプにのみ表示される。ライブシェイプ化したときだけアクション再生
-        // The center widget only renders on live shapes; replay the action only when we converted to one
-        if (choice.convertToLiveShape) {
-            try { app.executeMenuCommand('deselectall'); } catch (e) { }
-            for (var c = 0; c < createdRectangles.length; c++) {
-                try { createdRectangles[c].selected = true; } catch (e) { }
-            }
+            /* 中心の○はライブシェイプにのみ表示される。変換後に選択し直してから適用
+               The center widget only renders on live shapes, so re-select after converting */
+            selectOnly(createdRectangles);
             showShapeCenterWidget();
         }
 
-        // ガイド化：PathItem.guides を直接立てる（選択・メニュー状態に依存せず確実）
-        // 併せてオブジェクト名を <ガイド> に変更し、最後に選択を解除する
-        // Make guides: set PathItem.guides directly — robust, independent of selection/menu state.
-        // Also rename the item to <Guide> and clear the selection at the end.
-        if (choice.makeGuide) {
-            for (var g = 0; g < createdRectangles.length; g++) {
-                try { createdRectangles[g].name = getLocalizedText('name.guide'); } catch (e) { }
-                try { createdRectangles[g].guides = true; } catch (e) { }
+        if (drawSettings.makeGuide) {
+            /* PathItem.guides を直接立てる（選択・メニュー状態に依存せず確実）
+               Set PathItem.guides directly - robust, independent of selection and menu state */
+            for (var i = 0; i < createdRectangles.length; i++) {
+                createdRectangles[i].name = getLabel('name.guide');
+                createdRectangles[i].guides = true;
             }
             try { app.executeMenuCommand('deselectall'); } catch (e) { }
         }
     }
 
-    /* エントリポイント：ダイアログ→描画→オプション適用 / Entry point: dialog → draw → options */
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * エントリポイント：ダイアログ→描画→オプション適用
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) return;
 
-        var choice = showDialog();
-        if (choice === null) return;
+        var drawSettings = showDialog();
+        if (drawSettings === null) return;
 
         var doc = app.activeDocument;
 
         var previousCoordinateSystem = null;
         try {
             previousCoordinateSystem = app.coordinateSystem;
-        } catch (e) { }
-        try {
             app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
         } catch (e) { }
 
-        app.executeMenuCommand('deselectall'); // 既存選択を解除
+        app.executeMenuCommand('deselectall'); /* 既存選択を解除 / clear any existing selection */
 
         var createdRectangles = [];
-        if (choice.target === 'current') {
-            var currentArtboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            createdRectangles.push(drawRectangleForArtboard(doc, currentArtboard, choice));
-        } else if (choice.target === 'all') {
-            var prevIndex = doc.artboards.getActiveArtboardIndex();
+        if (drawSettings.target === 'all') {
             for (var i = 0; i < doc.artboards.length; i++) {
-                try {
-                    doc.artboards.setActiveArtboardIndex(i);
-                } catch (e) { }
-                var targetArtboard = doc.artboards[i];
-                createdRectangles.push(drawRectangleForArtboard(doc, targetArtboard, choice));
+                createdRectangles.push(drawRectangleForArtboard(doc, doc.artboards[i], drawSettings));
             }
-            try {
-                doc.artboards.setActiveArtboardIndex(prevIndex);
-            } catch (e) { }
+        } else {
+            var currentArtboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+            createdRectangles.push(drawRectangleForArtboard(doc, currentArtboard, drawSettings));
         }
 
-        applyDrawOptions(createdRectangles, choice);
+        applyDrawOptions(createdRectangles, drawSettings);
 
         try {
             if (previousCoordinateSystem !== null) app.coordinateSystem = previousCoordinateSystem;
