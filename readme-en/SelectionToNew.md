@@ -128,4 +128,5 @@ The artboard layout logic is ported from [AddArtboardPlus.jsx](https://github.co
 
 ## Update history
 
+- v1.0.1 (2026-09-05): Fixed the dialog settings never being remembered between runs (they are now kept on `$.global` in the persistent engine)
 - v1.0.0 (2026-07-29): Initial version

@@ -6,12 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 重なって配置されたオブジェクトを、横方向へ指定した間隔で並べ直します。
+Illustratorで設定したキーオブジェクトを判定し、その位置を動かさずに並べられます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Redistributes stacked objects along the horizontal axis at the spacing you specify.
+Detects the key object set in Illustrator and keeps it in place while the rest are rearranged.
 
 See the README for details.
 
@@ -21,119 +23,433 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignAndTile-yoko";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-01-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-05";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-yoko.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-yoko.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
-    /* ダイアログ位置と外観変数 / Dialog position and appearance variables */
-    var offsetX = 300;
-    var offsetY = 0;
-    var dialogOpacity = 0.97;
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    /* ダイアログの初期値 / Initial dialog values */
+    var DEFAULT_ROW_COUNT          = "1";   /* 行数 / row count */
+    var DEFAULT_MARGIN             = "0";   /* 横・縦の間隔 / horizontal & vertical spacing */
+    var DEFAULT_LINK_MARGINS       = true;  /* 横・縦の間隔を連動 / link both spacings */
+    var DEFAULT_USE_PREVIEW_BOUNDS = true;  /* プレビュー境界を使用 / use preview bounds */
+    var DEFAULT_USE_GRID           = false; /* グリッド配置 / grid layout */
+    var DEFAULT_RANDOMIZE          = false; /* ランダム配置 / random order */
+
+    /* 整列後の位置差をどこまで「動いていない」とみなすか（pt）/ Move tolerance when probing the key object (pt) */
+    var KEY_DETECT_TOLERANCE_PT = 0.001;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var WINDOW_MARGINS     = 16;               /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING     = 12;               /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS      = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING      = 6;                /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING     = 12;               /* 2カラムの間隔 / gap between columns */
+    var FIELD_LABEL_WIDTH  = 40;               /* 項目名の幅 / width of a field label */
+    var FIELD_CHAR_WIDTH   = 3;                /* 数値欄の文字数 / character width of a numeric field */
+    var BUTTON_BAR_MARGINS = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
+    var DIALOG_OFFSET_X    = 300;              /* ダイアログの横位置オフセット / dialog offset X */
+    var DIALOG_OFFSET_Y    = 0;                /* ダイアログの縦位置オフセット / dialog offset Y */
+    var DIALOG_OPACITY     = 0.97;             /* ダイアログの不透明度 / dialog opacity */
+
+    /**
+     * ウィンドウに共通レイアウトを適用する
+     * @param {Window} targetWindow - 対象ウィンドウ
+     * @returns {void}
+     */
+    function setupWindow(targetWindow) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = ["fill", "top"];
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = WINDOW_SPACING;
     }
-    var lang = getCurrentLang();
 
-    /* LABELS 定義（ダイアログUIの順序に合わせて並べ替え）/ Label definitions (ordered to match dialog UI) */
+    /**
+     * パネルに共通レイアウトを適用する
+     * @param {Panel} targetPanel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループを横並びの行として設定する
+     * @param {Group} targetGroup - 対象グループ
+     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, horizontalAlign, spacing) {
+        targetGroup.orientation = "row";
+        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
+        targetGroup.alignment = [horizontalAlign || "left", "center"];
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Window|Group} parentContainer - 追加先
+     * @param {string} panelTitle - パネルの見出し
+     * @returns {Panel} 生成したパネル
+     */
+    function addPanel(parentContainer, panelTitle) {
+        var createdPanel = parentContainer.add("panel");
+        createdPanel.text = panelTitle;
+        setupPanel(createdPanel);
+        return createdPanel;
+    }
+
+    /**
+     * 右揃えの項目名を追加する
+     * @param {Group|Panel} parentContainer - 追加先
+     * @param {string} fieldLabelText - 表示する項目名（コロン付き）
+     * @returns {StaticText} 生成した項目名
+     */
+    function addFieldLabel(parentContainer, fieldLabelText) {
+        var labelStatic = parentContainer.add("statictext", undefined, fieldLabelText);
+        labelStatic.preferredSize.width = FIELD_LABEL_WIDTH;
+        labelStatic.justify = "right";
+        return labelStatic;
+    }
+
+    /**
+     * オプションのチェックボックスを追加する
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} checkboxLabel - 表示するラベル
+     * @param {boolean} initialValue - 初期値
+     * @returns {Checkbox} 生成したチェックボックス
+     */
+    function addOptionCheckbox(parentContainer, checkboxLabel, initialValue) {
+        var createdCheckbox = parentContainer.add("checkbox", undefined, checkboxLabel);
+        createdCheckbox.alignment = "left"; /* パネル幅いっぱいに広げない / Do not stretch to the panel width */
+        createdCheckbox.value = initialValue;
+        return createdCheckbox;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在の表示言語を取得する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        var localeText = ($.locale || "") + ""; /* 文字列化して扱う / Ensure a string */
+        return (localeText.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "整列と分布（グリッド対応）" + SCRIPT_VERSION,
-            en: "Align & Distribute (Horizontal) " + SCRIPT_VERSION
+        dialog: {
+            title: { ja: "整列と分布（グリッド対応）", en: "Align & Distribute (Horizontal)" }
         },
-        rows: {
-            ja: "行数:",
-            en: "Rows:"
+        panel: {
+            spacing:   { ja: "間隔", en: "Spacing" },
+            alignment: { ja: "揃え", en: "Align" },
+            options:   { ja: "オプション", en: "Options" }
         },
-        hMargin: {
-            ja: "横:",
-            en: "H:"
+        fieldLabel: {
+            rowCount: { ja: "行数", en: "Rows" },
+            hMargin:  { ja: "横", en: "H" },
+            vMargin:  { ja: "縦", en: "V" }
         },
-        vMargin: {
-            ja: "縦:",
-            en: "V:"
+        checkbox: {
+            linkMargins:      { ja: "連動", en: "Link" },
+            useKeyObject:     { ja: "キーオブジェクトを基準", en: "Anchor to key object" },
+            usePreviewBounds: { ja: "プレビュー境界を使用", en: "Use preview bounds" },
+            useGrid:          { ja: "グリッド", en: "Grid" },
+            randomize:        { ja: "ランダム", en: "Random" }
         },
-        useBounds: {
-            ja: "プレビュー境界を使用",
-            en: "Use preview bounds"
+        radio: {
+            alignTop:    { ja: "上", en: "Top" },
+            alignMiddle: { ja: "中央", en: "Middle" },
+            alignBottom: { ja: "下", en: "Bottom" },
+            alignLeft:   { ja: "左", en: "Left" },
+            alignCenter: { ja: "中央", en: "Center" },
+            alignRight:  { ja: "右", en: "Right" }
         },
-        grid: {
-            ja: "グリッド",
-            en: "Grid"
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         },
-        random: {
-            ja: "ランダム",
-            en: "Random"
-        },
-        alignPanel: {
-            ja: "揃え",
-            en: "Align"
-        },
-        vAlignTop: {
-            ja: "上",
-            en: "Top"
-        },
-        vAlignMiddle: {
-            ja: "中央",
-            en: "Middle"
-        },
-        vAlignBottom: {
-            ja: "下",
-            en: "Bottom"
-        },
-        hAlignLeft: {
-            ja: "左",
-            en: "Left"
-        },
-        hAlignCenter: {
-            ja: "中央",
-            en: "Center"
-        },
-        hAlignRight: {
-            ja: "右",
-            en: "Right"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
+        alert: {
+            noDocument:      { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSelection:     { ja: "オブジェクトを選択してください。", en: "Please select objects." },
+            previewError:    { ja: "プレビューでエラーが発生しました", en: "Preview error" },
+            unexpectedError: { ja: "エラーが発生しました", en: "An error has occurred" }
         }
     };
 
-    /* 汎用 Undo/Preview 管理クラス / Generic Undo-safe preview manager */
+    /**
+     * LABELS からカテゴリを辿って現在の言語のラベルを取得する（例: getLabel('panel','spacing')）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} 該当するラベル（見つからない場合は空文字）
+     */
+    function getLabel() {
+        var labelNode = LABELS;
+        for (var i = 0; i < arguments.length; i++) {
+            if (labelNode == null) break;
+            labelNode = labelNode[arguments[i]];
+        }
+        return (labelNode && labelNode[uiLang] != null) ? labelNode[uiLang] : "";
+    }
+
+    /**
+     * コロン付きのラベルを返す（日本語は全角、英語は半角）
+     * @param {...string} keys - LABELS を辿るキー列
+     * @returns {string} コロン付きのラベル
+     */
+    function labelText() {
+        return getLabel.apply(null, arguments) + ((uiLang === "ja") ? "：" : ":");
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    factor: 72.0 },                 /* 0 */
+        { label: "mm",    factor: 72.0 / 25.4 },          /* 1 */
+        { label: "pt",    factor: 1.0 },                  /* 2 */
+        { label: "pica",  factor: 12.0 },                 /* 3 */
+        { label: "cm",    factor: 72.0 / 2.54 },          /* 4 */
+        { label: "Q/H",   factor: 72.0 / 25.4 * 0.25 },   /* 5 */
+        { label: "px",    factor: 1.0 },                  /* 6 */
+        { label: "ft/in", factor: 72.0 * 12.0 },          /* 7 */
+        { label: "m",     factor: 72.0 / 25.4 * 1000.0 }, /* 8 */
+        { label: "yd",    factor: 72.0 * 36.0 },          /* 9 */
+        { label: "ft",    factor: 72.0 * 12.0 }           /* 10 */
+    ];
+
+    /* pt の添字（単位が特定できないときのフォールバック）/ Index of pt, used as the fallback unit */
+    var POINT_UNIT_INDEX = 2;
+
+    /**
+     * 定規の単位設定から現在の単位を取得する
+     * @returns {object} { label: string, factor: number }
+     */
+    function getCurrentUnit() {
+        var unitCode = app.preferences.getIntegerPreference("rulerType");
+        return UNITS[unitCode] || UNITS[POINT_UNIT_INDEX];
+    }
+
+    // =========================================
+    // 位置とサイズ / Positions and sizes
+    // =========================================
+
+    /**
+     * アイテムの境界を取得する（プレビュー境界ONならvisible、OFFならgeometric）
+     * @param {PageItem} item - 対象オブジェクト
+     * @param {boolean} usePreviewBounds - プレビュー境界を使うかどうか
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function getItemBounds(item, usePreviewBounds) {
+        return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
+    }
+
+    /**
+     * 控えておいた位置へ戻す
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {Array} positions - [[left, top], ...] の配列
+     * @returns {void}
+     */
+    function resetPositions(items, positions) {
+        for (var i = 0; i < items.length; i++) {
+            items[i].left = positions[i][0];
+            items[i].top = positions[i][1];
+        }
+    }
+
+    /**
+     * 指定量だけまとめて移動する
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {number} dx - 横方向の移動量（pt）
+     * @param {number} dy - 縦方向の移動量（pt）
+     * @returns {void}
+     */
+    function shiftItems(items, dx, dy) {
+        if (!dx && !dy) {
+            return;
+        }
+        for (var i = 0; i < items.length; i++) {
+            if (!items[i]) continue;
+            items[i].left += dx;
+            items[i].top += dy;
+        }
+    }
+
+    /**
+     * 左端の座標順に並べ替えた複製を返す
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @returns {PageItem[]} 並べ替えた配列
+     */
+    function sortedCopyByLeft(items) {
+        var copiedItems = items.slice();
+        copiedItems.sort(function(a, b) {
+            return a.left - b.left;
+        });
+        return copiedItems;
+    }
+
+    /**
+     * ランダムに並べ替えた複製を返す
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @returns {PageItem[]} 並べ替えた配列
+     */
+    function shuffledCopy(items) {
+        var copiedItems = items.slice();
+        for (var i = copiedItems.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var swapped = copiedItems[i];
+            copiedItems[i] = copiedItems[j];
+            copiedItems[j] = swapped;
+        }
+        return copiedItems;
+    }
+
+    /**
+     * 選択範囲全体の左上を取得する
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @returns {number[]} [左端, 上端]
+     */
+    function getBlockOrigin(items) {
+        var blockLeft = null;
+        var blockTop = null;
+        for (var i = 0; i < items.length; i++) {
+            if (!items[i]) continue;
+            if (blockLeft === null || items[i].left < blockLeft) blockLeft = items[i].left;
+            if (blockTop === null || items[i].top > blockTop) blockTop = items[i].top;
+        }
+        return [blockLeft, blockTop];
+    }
+
+    /**
+     * もっとも大きいアイテムの幅と高さを取得する（グリッドのセルサイズ）
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {boolean} usePreviewBounds - プレビュー境界を使うかどうか
+     * @returns {object} { width: number, height: number }
+     */
+    function getMaxItemSize(items, usePreviewBounds) {
+        var maxWidth = 0;
+        var maxHeight = 0;
+        for (var i = 0; i < items.length; i++) {
+            var itemBounds = getItemBounds(items[i], usePreviewBounds);
+            var itemWidth = itemBounds[2] - itemBounds[0];
+            var itemHeight = itemBounds[1] - itemBounds[3];
+            if (itemWidth > maxWidth) maxWidth = itemWidth;
+            if (itemHeight > maxHeight) maxHeight = itemHeight;
+        }
+        return { width: maxWidth, height: maxHeight };
+    }
+
+    // =========================================
+    // キーオブジェクトの検出 / Key object detection
+    // =========================================
+    // Illustrator の DOM にキーオブジェクトを示すプロパティは無いため、整列コマンドで実測して特定する。
+    // キーオブジェクトが設定されていると、どの向きに整列してもそのオブジェクトだけは動かない。
+    // 候補が0個または2個以上のときは判定不能として null を返し、UI側でこの基準をディムする。
+
+    /**
+     * 選択オブジェクトからキーオブジェクトを検出する
+     * @param {PageItem[]} items - 判定対象のオブジェクト
+     * @returns {object} キーオブジェクト。判定できないときは null
+     */
+    function detectKeyObject(items) {
+        if (!items || items.length < 2) {
+            return null;
+        }
+        var alignCommands = ["Horizontal Align Left", "Horizontal Align Right", "Vertical Align Top", "Vertical Align Bottom"];
+        var stayedPut = [];
+        var i;
+        for (i = 0; i < items.length; i++) {
+            stayedPut.push(true);
+        }
+
+        for (var c = 0; c < alignCommands.length; c++) {
+            var savedPositions = [];
+            for (i = 0; i < items.length; i++) {
+                savedPositions.push([items[i].left, items[i].top]);
+            }
+            app.redraw(); /* 直前のDOM変更が反映されていないと executeMenuCommand は空振りする / executeMenuCommand misfires without a redraw */
+            app.executeMenuCommand(alignCommands[c]);
+            for (i = 0; i < items.length; i++) {
+                if (Math.abs(items[i].left - savedPositions[i][0]) > KEY_DETECT_TOLERANCE_PT ||
+                    Math.abs(items[i].top - savedPositions[i][1]) > KEY_DETECT_TOLERANCE_PT) {
+                    stayedPut[i] = false;
+                }
+            }
+            /* 整列は検出のための試行なので、その場で元の位置へ戻す / Undo the probe right away */
+            resetPositions(items, savedPositions);
+        }
+        app.redraw();
+
+        var foundItem = null;
+        for (i = 0; i < items.length; i++) {
+            if (!stayedPut[i]) continue;
+            if (foundItem !== null) return null; /* 複数残った＝判定不能 / Ambiguous */
+            foundItem = items[i];
+        }
+        return foundItem;
+    }
+
+    // =========================================
+    // プレビュー管理 / Preview management
+    // =========================================
+
+    /**
+     * プレビューの適用・巻き戻し・確定をまとめて管理する
+     * @constructor
+     */
     function PreviewManager() {
-        this.undoDepth = 0; // プレビュー中に実行されたアクションの回数 / Number of preview actions executed
+        /* プレビュー中に実行したアクションの回数 / Number of preview actions executed */
+        this.undoDepth = 0;
 
         /**
-         * 変更操作を実行し、履歴としてカウントする / Execute a change and count it as a preview step
-         * @param {Function} func - 実行したい処理（無名関数で渡す） / The action to execute
+         * 変更操作を実行し、履歴としてカウントする
+         * @param {Function} previewAction - 実行したい処理
+         * @returns {void}
          */
-        this.addStep = function(func) {
+        this.addStep = function(previewAction) {
             try {
-                func();
+                previewAction();
                 this.undoDepth++;
                 app.redraw();
             } catch (e) {
-                alert("Preview Error: " + e);
+                alert(labelText('alert', 'previewError') + " " + e);
             }
         };
 
         /**
-         * プレビューのために行った変更を全て取り消す（キャンセル時など） / Roll back all preview changes
+         * プレビューのために行った変更をすべて取り消す
+         * @returns {void}
          */
         this.rollback = function() {
             while (this.undoDepth > 0) {
@@ -144,172 +460,316 @@ var SCRIPT_UPDATED  = "2026-01-19";                   /* 更新日 / last update
         };
 
         /**
-         * 現在の状態を確定する（OK時） / Confirm current state
-         * @param {Function} [finalAction] - (任意) 全てUndoした後に実行する「本番」の処理 / Optional final action
+         * 現在の状態を確定する（プレビューを巻き戻してから1回だけ本番処理を実行）
+         * @param {Function} [finalAction] - 巻き戻したあとに実行する処理
+         * @returns {void}
          */
         this.confirm = function(finalAction) {
             if (finalAction) {
                 this.rollback();
                 finalAction();
-                this.undoDepth = 0;
-            } else {
-                this.undoDepth = 0;
             }
+            this.undoDepth = 0;
         };
     }
 
-    /* 単位コードとラベルのマップ / Map of unit codes to labels */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 配置処理 / Arranging
+    // =========================================
 
-    /* 現在の単位ラベルを取得 / Get current unit label */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
-    }
+    /**
+     * 1行ずつセルに割り当てて配置する
+     * @param {PageItem[]} orderedItems - 配置順に並べたオブジェクト
+     * @param {object} arrangeSettings - 配置設定
+     * @returns {void}
+     */
+    function placeItems(orderedItems, arrangeSettings) {
+        var usePreviewBounds = arrangeSettings.usePreviewBounds;
+        var cellSize = getMaxItemSize(orderedItems, usePreviewBounds);
 
-    /* 単位コードからポイント換算係数を取得 / Get point factor from unit code */
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0:
-                return 72.0; // in
-            case 1:
-                return 72.0 / 25.4; // mm
-            case 2:
-                return 1.0; // pt
-            case 3:
-                return 12.0; // pica
-            case 4:
-                return 72.0 / 2.54; // cm
-            case 5:
-                return 72.0 / 25.4 * 0.25; // Q or H
-            case 6:
-                return 1.0; // px
-            case 7:
-                return 72.0 * 12.0; // ft/in
-            case 8:
-                return 72.0 / 25.4 * 1000.0; // m
-            case 9:
-                return 72.0 * 36.0; // yd
-            case 10:
-                return 72.0 * 12.0; // ft
-            default:
-                return 1.0;
+        /* 先頭オブジェクトの位置を配置の起点にする / The first item defines the origin of the layout */
+        var startBounds = getItemBounds(orderedItems[0], usePreviewBounds);
+        var startLeft = startBounds[0];
+        var startTop = startBounds[1];
+        var startBottom = startBounds[3];
+
+        var itemsPerRow = Math.ceil(orderedItems.length / arrangeSettings.rowCount);
+        var index = 0;
+        for (var r = 0; r < arrangeSettings.rowCount; r++) {
+            var currentX = startLeft;
+            for (var c = 0; c < itemsPerRow && index < orderedItems.length; c++, index++) {
+                var item = orderedItems[index];
+                if (!item) continue;
+
+                var itemBounds = getItemBounds(item, usePreviewBounds);
+                var cellWidth = arrangeSettings.useGrid ? cellSize.width : (itemBounds[2] - itemBounds[0]);
+
+                /* 横方向：セルの左・中央・右のいずれかに合わせる / Horizontal: snap to the cell's left, center or right */
+                var cellLeft = currentX;
+                var cellRight = currentX + cellWidth;
+                var dx;
+                if (arrangeSettings.hAlign === "center") {
+                    dx = (cellLeft + cellRight) / 2 - (itemBounds[0] + itemBounds[2]) / 2;
+                } else if (arrangeSettings.hAlign === "right") {
+                    dx = cellRight - itemBounds[2];
+                } else {
+                    dx = cellLeft - itemBounds[0];
+                }
+                item.left += dx;
+
+                /* 縦方向：行ごとに1段ずつ下げたセルへ合わせる / Vertical: snap to the cell of the current row */
+                var rowOffset = r * (cellSize.height + arrangeSettings.vMarginPt);
+                var cellTop = startTop - rowOffset;
+                var cellBottom = startBottom - rowOffset;
+                var dy;
+                if (arrangeSettings.vAlign === "middle") {
+                    dy = (cellTop + cellBottom) / 2 - (itemBounds[1] + itemBounds[3]) / 2;
+                } else if (arrangeSettings.vAlign === "bottom") {
+                    dy = cellBottom - itemBounds[3];
+                } else {
+                    dy = cellTop - itemBounds[1];
+                }
+                item.top += dy;
+
+                /* 次の列へ / Advance to the next column */
+                if (c < itemsPerRow - 1) {
+                    currentX += cellWidth + arrangeSettings.hMarginPt;
+                }
+            }
         }
     }
 
-    /* ダイアログ位置をオフセットするヘルパー / Helper to shift dialog position by offsetX/offsetY */
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function() {
-            var currentX = dlg.location[0];
-            var currentY = dlg.location[1];
-            dlg.location = [currentX + offsetX, currentY + offsetY];
-        };
+    /**
+     * 設定に従ってオブジェクトを並べ直す（プレビュー・確定の共通処理）
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {object} arrangeSettings - 配置設定
+     * @returns {void}
+     */
+    function arrangeItems(targetItems, arrangeSettings) {
+        if (!targetItems || targetItems.length === 0) {
+            return;
+        }
+        var orderedItems = arrangeSettings.randomize ? shuffledCopy(targetItems) : sortedCopyByLeft(targetItems);
+        /* 並べ替える前の左上（ランダム時に位置を戻す基準）/ Top-left before the layout, used to keep a random block in place */
+        var blockOrigin = getBlockOrigin(targetItems);
+
+        placeItems(orderedItems, arrangeSettings);
+
+        /* 基準の補正：キーオブジェクトを優先し、なければランダム時のみ左上を合わせる / Anchor correction: key object first, random block otherwise */
+        if (arrangeSettings.useKeyObject && arrangeSettings.keyObject && arrangeSettings.keyOrigin) {
+            shiftItems(orderedItems,
+                arrangeSettings.keyOrigin[0] - arrangeSettings.keyObject.left,
+                arrangeSettings.keyOrigin[1] - arrangeSettings.keyObject.top);
+        } else if (arrangeSettings.randomize) {
+            shiftItems(orderedItems,
+                blockOrigin[0] - orderedItems[0].left,
+                blockOrigin[1] - orderedItems[0].top);
+        }
     }
 
-    /* ダイアログの不透明度を設定するヘルパー / Helper to set dialog opacity */
-    function setDialogOpacity(dlg, opacityValue) {
-        dlg.opacity = opacityValue;
-    }
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
-    /* アイテムの境界を取得（プレビュー境界ONならvisible、OFFならgeometric） / Get item bounds (visible when preview ON, geometric when OFF) */
-    function getItemBounds(item, usePreviewBounds) {
-        return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
-    }
+    /**
+     * 編集テキストで上下キーによる数値変更を有効にする
+     * @param {EditText} editText - 対象の入力欄
+     * @param {boolean} allowNegative - 負数を許可するかどうか
+     * @param {Function} onUpdate - 値を変更したあとに呼ぶ処理
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, allowNegative, onUpdate) {
+        editText.addEventListener("keydown", function(event) {
+            if (editText.text.length === 0) return;
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+            if (event.keyName != "Up" && event.keyName != "Down") return;
 
-    /* ダイアログ表示関数 / Show dialog with language support */
-    function showArrangeDialog() {
-        var lang = getCurrentLang();
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
-        dlg.orientation = "column";
-        dlg.alignChildren = "fill";
-
-        /* ダイアログの不透明度と位置を設定 / Set dialog opacity and position */
-        setDialogOpacity(dlg, dialogOpacity);
-        shiftDialogPosition(dlg, offsetX, offsetY);
-
-        // Undo-safe preview manager
-        var previewMgr = new PreviewManager();
-
-        // Preserve current preference so cancel can restore it
-        var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
-
-        /* 行数入力UI: ラベルとテキストフィールドを横並びで配置 / Rows input UI: label and field side by side */
-        var rowsGroup = dlg.add("group");
-        rowsGroup.orientation = "row";
-        rowsGroup.alignChildren = ["center", "center"];
-        rowsGroup.alignment = ["fill", "center"];
-
-        var rowsLabel = rowsGroup.add("statictext", undefined, LABELS.rows[lang]);
-        var rowsInput = rowsGroup.add("edittext", undefined, "1");
-        rowsInput.characters = 3;
-        changeValueByArrowKey(rowsInput, true, updatePreview);
-
-        /* 間隔パネル / Spacing panel */
-        var unit = getCurrentUnitLabel();
-        var spacingPanel = dlg.add("panel", undefined, "間隔 (" + unit + ")");
-        spacingPanel.orientation = "row";
-        spacingPanel.alignChildren = ["fill", "top"];
-        spacingPanel.margins = [15, 20, 15, 10];
-
-        // 左カラム (入力グループ) / Left column (input groups)
-        var spacingLeftGroup = spacingPanel.add("group");
-        spacingLeftGroup.orientation = "column";
-        spacingLeftGroup.alignChildren = ["left", "center"];
-
-        // 横方向マージン入力
-        var hMarginGroup = spacingLeftGroup.add("group");
-        hMarginGroup.orientation = "row";
-        hMarginGroup.alignChildren = ["left", "center"];
-        var hMarginLabel = hMarginGroup.add("statictext", undefined, LABELS.hMargin[lang]);
-        var hMarginInput = hMarginGroup.add("edittext", undefined, "0");
-        hMarginInput.characters = 3;
-        changeValueByArrowKey(hMarginInput, true, function() {
-            if (linkCheckbox.value) {
-                vMarginInput.text = hMarginInput.text;
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+            if (keyboard.shiftKey) {
+                /* 10の倍数にスナップ / Snap to multiples of 10 */
+                value = Math.floor(value / 10) * 10;
+                delta = 10;
             }
-            updatePreview();
+            value += (event.keyName == "Up") ? delta : -delta;
+            if (!allowNegative && value < 0) value = 0;
+
+            event.preventDefault();
+            editText.text = value;
+            if (typeof onUpdate === "function") {
+                onUpdate();
+            }
         });
-        // 単位ラベルは削除
+    }
 
-        // 縦方向マージン入力
-        var vMarginGroup = spacingLeftGroup.add("group");
-        vMarginGroup.orientation = "row";
-        vMarginGroup.alignChildren = ["left", "center"];
-        var vMarginLabel = vMarginGroup.add("statictext", undefined, LABELS.vMargin[lang]);
-        var vMarginInput = vMarginGroup.add("edittext", undefined, "0");
-        vMarginInput.characters = 3;
+    /**
+     * 配置ダイアログを表示し、プレビューしながら設定を決める
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {object} keyObject - キーオブジェクト（未検出のときは null）
+     * @returns {object} 確定した配置設定。キャンセル時は null
+     */
+    function showArrangeDialog(targetItems, keyObject) {
+        var dialogWindow = new Window("dialog", getLabel('dialog', 'title') + " " + SCRIPT_VERSION);
+        setupWindow(dialogWindow);
+        dialogWindow.opacity = DIALOG_OPACITY;
+        dialogWindow.onShow = function() {
+            dialogWindow.location = [dialogWindow.location[0] + DIALOG_OFFSET_X, dialogWindow.location[1] + DIALOG_OFFSET_Y];
+        };
+
+        var previewManager = new PreviewManager();
+        /* キャンセル時に戻せるよう、境界計算の環境設定を控える / Remember the bounds preference so Cancel can restore it */
+        var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
+        /* キーオブジェクトのプレビュー前の位置 / Key object position before any preview */
+        var keyOrigin = keyObject ? [keyObject.left, keyObject.top] : null;
+
+        /* 行数（ダイアログの左右中央に置く）/ Row count, centered in the dialog */
+        var rowCountRow = dialogWindow.add("group");
+        setupRow(rowCountRow, "center");
+        addFieldLabel(rowCountRow, labelText('fieldLabel', 'rowCount'));
+        var rowCountInput = rowCountRow.add("edittext", undefined, DEFAULT_ROW_COUNT);
+        rowCountInput.characters = FIELD_CHAR_WIDTH;
+        changeValueByArrowKey(rowCountInput, true, updatePreview);
+
+        /* 間隔パネル（左＝横・縦の入力、右＝連動）/ Spacing panel: fields on the left, link on the right */
+        var spacingPanel = addPanel(dialogWindow, getLabel('panel', 'spacing') + " (" + getCurrentUnit().label + ")");
+        var spacingRow = spacingPanel.add("group");
+        setupRow(spacingRow, "fill", COLUMN_SPACING);
+
+        var marginColumn = spacingRow.add("group");
+        marginColumn.orientation = "column";
+        marginColumn.alignChildren = ["left", "center"];
+        marginColumn.spacing = PANEL_SPACING;
+
+        var hMarginRow = marginColumn.add("group");
+        setupRow(hMarginRow);
+        addFieldLabel(hMarginRow, labelText('fieldLabel', 'hMargin'));
+        var hMarginInput = hMarginRow.add("edittext", undefined, DEFAULT_MARGIN);
+        hMarginInput.characters = FIELD_CHAR_WIDTH;
+        changeValueByArrowKey(hMarginInput, true, syncMarginsAndPreview);
+
+        var vMarginRow = marginColumn.add("group");
+        setupRow(vMarginRow);
+        addFieldLabel(vMarginRow, labelText('fieldLabel', 'vMargin'));
+        var vMarginInput = vMarginRow.add("edittext", undefined, DEFAULT_MARGIN);
+        vMarginInput.characters = FIELD_CHAR_WIDTH;
         changeValueByArrowKey(vMarginInput, true, updatePreview);
-        // 単位ラベルは削除
 
-        // 右カラム (チェックボックス) / Right column (checkbox)
-        var spacingRightWrapper = spacingPanel.add("group");
-        spacingRightWrapper.alignment = ["fill", "fill"];
-        spacingRightWrapper.alignChildren = ["left", "center"];
+        var linkGroup = spacingRow.add("group");
+        setupRow(linkGroup, "right");
+        var linkCheckbox = linkGroup.add("checkbox", undefined, getLabel('checkbox', 'linkMargins'));
+        linkCheckbox.value = DEFAULT_LINK_MARGINS;
+        /* 連動中は縦をディムして横の値に合わせる / While linked, dim V and mirror H */
+        vMarginInput.enabled = !linkCheckbox.value;
+        if (linkCheckbox.value) {
+            vMarginInput.text = hMarginInput.text;
+        }
 
-        var spacingRightGroup = spacingRightWrapper.add("group");
-        spacingRightGroup.orientation = "column";
-        spacingRightGroup.alignChildren = ["left", "center"];
+        /* 揃えパネル（上段＝上下、下段＝左右）/ Align panel: vertical row on top, horizontal row below */
+        var alignmentPanel = addPanel(dialogWindow, getLabel('panel', 'alignment'));
 
-        var linkCheckbox = spacingRightGroup.add("checkbox", undefined, "連動");
-        linkCheckbox.value = true; // ダイアログを開いたときにON
+        var vAlignRow = alignmentPanel.add("group");
+        setupRow(vAlignRow);
+        var vAlignTopRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignTop'));
+        var vAlignMiddleRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignMiddle'));
+        var vAlignBottomRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignBottom'));
+        vAlignTopRadio.value = true;
 
-        // 初期状態で縦入力をディムし、横の値を同期
-        vMarginInput.enabled = false;
-        vMarginInput.text = hMarginInput.text;
+        var hAlignRow = alignmentPanel.add("group");
+        setupRow(hAlignRow);
+        var hAlignLeftRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignLeft'));
+        var hAlignCenterRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignCenter'));
+        var hAlignRightRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignRight'));
+        hAlignLeftRadio.value = true;
 
-        // 横・縦間隔の連動とプレビュー更新
+        /* オプションパネル / Options panel */
+        var optionsPanel = addPanel(dialogWindow, getLabel('panel', 'options'));
+
+        /* キーオブジェクトが未検出のときはディム / Dimmed when no key object is detected */
+        var keyObjectCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'useKeyObject'), !!keyObject);
+        keyObjectCheckbox.enabled = !!keyObject;
+        var previewBoundsCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'usePreviewBounds'), DEFAULT_USE_PREVIEW_BOUNDS);
+        var gridCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'useGrid'), DEFAULT_USE_GRID);
+        var randomizeCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'randomize'), DEFAULT_RANDOMIZE);
+
+        /* ボタンエリア / Button bar */
+        var btnRowGroup = dialogWindow.add("group");
+        setupRow(btnRowGroup, "fill");
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+        var btnRightGroup = btnRowGroup.add("group");
+        setupRow(btnRightGroup, "right");
+        btnRightGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
+
+        /**
+         * 左右の揃えを操作できるかどうかを切り替える（グリッド時のみ有効）
+         * @param {boolean} enabled - 有効にするかどうか
+         * @returns {void}
+         */
+        function setHAlignEnabled(enabled) {
+            hAlignLeftRadio.enabled = enabled;
+            hAlignCenterRadio.enabled = enabled;
+            hAlignRightRadio.enabled = enabled;
+        }
+        setHAlignEnabled(gridCheckbox.value);
+
+        /**
+         * ダイアログの入力内容を配置設定として読み取る
+         * @returns {object} 配置設定
+         */
+        function readArrangeSettings() {
+            var unitFactor = getCurrentUnit().factor;
+
+            var hMarginValue = parseFloat(hMarginInput.text);
+            if (isNaN(hMarginValue)) hMarginValue = 0;
+            var vMarginValue = parseFloat(vMarginInput.text);
+            if (isNaN(vMarginValue)) vMarginValue = 0;
+            var rowCount = parseInt(rowCountInput.text, 10);
+            if (isNaN(rowCount) || rowCount < 1) rowCount = 1;
+
+            var vAlign = "top";
+            if (vAlignMiddleRadio.value) vAlign = "middle";
+            else if (vAlignBottomRadio.value) vAlign = "bottom";
+
+            var hAlign = "left";
+            if (hAlignCenterRadio.value) hAlign = "center";
+            else if (hAlignRightRadio.value) hAlign = "right";
+
+            return {
+                rowCount: rowCount,
+                hMarginPt: hMarginValue * unitFactor,
+                vMarginPt: vMarginValue * unitFactor,
+                vAlign: vAlign,
+                hAlign: hAlign,
+                usePreviewBounds: previewBoundsCheckbox.value,
+                useGrid: gridCheckbox.value,
+                randomize: randomizeCheckbox.value,
+                useKeyObject: keyObjectCheckbox.value,
+                keyObject: keyObject,
+                keyOrigin: keyOrigin
+            };
+        }
+
+        /**
+         * Undo履歴を汚さずにプレビューを更新する
+         * @returns {void}
+         */
+        function updatePreview() {
+            previewManager.rollback();
+            /* 境界計算に使う環境設定を反映（Undoできないのでキャンセル時だけ戻す）/ Apply the bounds preference; not undoable, restored on Cancel */
+            app.preferences.setBooleanPreference("includeStrokeInBounds", previewBoundsCheckbox.value);
+            previewManager.addStep(function() {
+                arrangeItems(targetItems, readArrangeSettings());
+            });
+        }
+
+        /**
+         * 連動がONなら横の値を縦へ反映してからプレビューを更新する
+         * @returns {void}
+         */
         function syncMarginsAndPreview() {
             if (linkCheckbox.value) {
                 vMarginInput.text = hMarginInput.text;
@@ -317,409 +777,89 @@ var SCRIPT_UPDATED  = "2026-01-19";                   /* 更新日 / last update
             updatePreview();
         }
 
-        // 「連動」チェックボックスの動作 / Link checkbox behavior
-        linkCheckbox.onClick = function() {
-            vMarginInput.enabled = !linkCheckbox.value;
-            if (linkCheckbox.value) {
-                vMarginInput.text = hMarginInput.text;
-            }
-            updatePreview();
-        };
-
-        // 横方向入力変更時に縦方向へ反映（連動がONのとき） / Sync V to H when linked
         hMarginInput.onChanging = syncMarginsAndPreview;
         hMarginInput.onChange = syncMarginsAndPreview;
-
-        /* 揃えパネル / Align panel */
-        var alignPanel = dlg.add("panel", undefined, LABELS.alignPanel[lang]);
-        alignPanel.orientation = "column";
-        alignPanel.alignChildren = ["left", "center"];
-        alignPanel.margins = [15, 20, 15, 10];
-
-        /* 上下方向揃えグループ / Vertical align group */
-        var vAlignGroup = alignPanel.add("group");
-        vAlignGroup.orientation = "row";
-        vAlignGroup.alignChildren = ["left", "center"];
-        var rbTop = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignTop[lang]);
-        var rbMiddle = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignMiddle[lang]);
-        var rbBottom = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignBottom[lang]);
-        rbTop.value = true; /* デフォルトを「上」に / Default to Top */
-
-        rbTop.onClick = function() {
-            updatePreview();
+        vMarginInput.onChanging = updatePreview;
+        linkCheckbox.onClick = function() {
+            vMarginInput.enabled = !linkCheckbox.value;
+            syncMarginsAndPreview();
         };
-        rbMiddle.onClick = function() {
-            updatePreview();
-        };
-        rbBottom.onClick = function() {
-            updatePreview();
-        };
-
-        /* 左右方向揃えグループ / Horizontal align group */
-        var hAlignGroup = alignPanel.add("group");
-        hAlignGroup.orientation = "row";
-        hAlignGroup.alignChildren = ["left", "center"];
-        var rbHLeft = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignLeft[lang]);
-        var rbHCenter = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignCenter[lang]);
-        var rbHRight = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignRight[lang]);
-        rbHLeft.value = true; /* デフォルトを「左」に / Default to Left */
-        rbHLeft.onClick = function() {
-            updatePreview();
-        };
-        rbHCenter.onClick = function() {
-            updatePreview();
-        };
-        rbHRight.onClick = function() {
-            updatePreview();
-        };
-
-        /* プレビュー境界チェックボックス / Preview bounds checkbox */
-        var boundsCheckbox = dlg.add("checkbox", undefined, LABELS.useBounds[lang]);
-        boundsCheckbox.value = true;
-        boundsCheckbox.onClick = function() {
-            updatePreview();
-        };
-
-        /* グリッドチェックボックス / Grid checkbox */
-        var gridCheckbox = dlg.add("checkbox", undefined, LABELS.grid[lang]);
-        gridCheckbox.value = false;
+        vAlignTopRadio.onClick = updatePreview;
+        vAlignMiddleRadio.onClick = updatePreview;
+        vAlignBottomRadio.onClick = updatePreview;
+        hAlignLeftRadio.onClick = updatePreview;
+        hAlignCenterRadio.onClick = updatePreview;
+        hAlignRightRadio.onClick = updatePreview;
+        keyObjectCheckbox.onClick = updatePreview;
+        previewBoundsCheckbox.onClick = updatePreview;
+        randomizeCheckbox.onClick = updatePreview;
         gridCheckbox.onClick = function() {
-            rbHLeft.enabled = rbHCenter.enabled = rbHRight.enabled = gridCheckbox.value;
+            setHAlignEnabled(gridCheckbox.value);
             if (gridCheckbox.value) {
-                rbMiddle.value = true; // 縦方向を中央に
-                rbHCenter.value = true; // 横方向を中央に
+                /* グリッドは天地・左右とも中央を既定にする / Grid defaults to centered on both axes */
+                vAlignMiddleRadio.value = true;
+                hAlignCenterRadio.value = true;
             }
             updatePreview();
         };
-        // 初期状態を同期
-        rbHLeft.enabled = rbHCenter.enabled = rbHRight.enabled = gridCheckbox.value;
-
-        /* ランダム配置チェックボックス / Random arrangement checkbox */
-        var randomCheckbox = dlg.add("checkbox", undefined, LABELS.random[lang]);
-        randomCheckbox.value = false;
-
-        /* ボタン配置グループ / Button group */
-        var buttonGroup2 = dlg.add("group");
-        buttonGroup2.alignment = "right";
-        buttonGroup2.alignChildren = ["right", "center"];
-        var cancelButton = buttonGroup2.add("button", undefined, LABELS.cancel[lang], {
-            name: "cancel"
-        });
-        var okButton = buttonGroup2.add("button", undefined, LABELS.ok[lang], {
-            name: "ok"
-        });
-
-        // Keep a snapshot of the selection reference array (used for preview/final)
-        var originalSelection = activeDocument.selection.slice();
-
-        /* 実際の配置処理（プレビュー／確定共通）/ Layout function used by both preview and final */
-        function applyLayoutToSelection() {
-            // Guard
-            if (!originalSelection || originalSelection.length === 0) return;
-
-            var hMarginValue = parseFloat(hMarginInput.text);
-            if (isNaN(hMarginValue)) hMarginValue = 0;
-            var vMarginValue = parseFloat(vMarginInput.text);
-            if (isNaN(vMarginValue)) vMarginValue = 0;
-
-            var unitCode = app.preferences.getIntegerPreference("rulerType");
-            var ptFactor = getPtFactorFromUnitCode(unitCode);
-            var hMarginPt = hMarginValue * ptFactor;
-            var vMarginPt = vMarginValue * ptFactor;
-
-            var rowsValue = parseInt(rowsInput.text, 10);
-            if (isNaN(rowsValue) || rowsValue < 1) rowsValue = 1;
-
-            var align = "top";
-            if (rbMiddle.value) align = "middle";
-            else if (rbBottom.value) align = "bottom";
-
-            var hAlign = "left";
-            if (rbHCenter.value) hAlign = "center";
-            else if (rbHRight.value) hAlign = "right";
-
-            // Sort items (or shuffle)
-            var sortedItems;
-            var baseLeft = null;
-            var baseTop = null;
-
-            if (randomCheckbox.value) {
-                sortedItems = originalSelection.slice();
-                for (var i = sortedItems.length - 1; i > 0; i--) {
-                    var j = Math.floor(Math.random() * (i + 1));
-                    var temp = sortedItems[i];
-                    sortedItems[i] = sortedItems[j];
-                    sortedItems[j] = temp;
-                }
-                // Preserve a stable base position (top-left) from the current (rolled-back) state
-                for (var k = 0; k < originalSelection.length; k++) {
-                    var it = originalSelection[k];
-                    if (!it) continue;
-                    if (baseLeft === null || it.left < baseLeft) baseLeft = it.left;
-                    if (baseTop === null || it.top > baseTop) baseTop = it.top;
-                }
-                if (baseLeft === null) baseLeft = sortedItems[0].left;
-                if (baseTop === null) baseTop = sortedItems[0].top;
-            } else {
-                sortedItems = sortByX(originalSelection);
-            }
-
-            var rows = rowsValue;
-            if (rows < 1) rows = 1;
-            var itemsPerRow = Math.ceil(sortedItems.length / rows);
-
-            // Use selected bounds type (visible/geometric)
-            var startBounds = getItemBounds(sortedItems[0], boundsCheckbox.value);
-            var startLeftBound = startBounds[0];
-            var startTopBound = startBounds[1];
-            var startRightBound = startBounds[2];
-            var startBottomBound = startBounds[3];
-            var startX = startLeftBound;
-            var startY = startTopBound;
-
-            var refHeight = 0;
-            var refWidth = 0;
-            for (var m = 0; m < sortedItems.length; m++) {
-                var vb0 = getItemBounds(sortedItems[m], boundsCheckbox.value);
-                var w0 = vb0[2] - vb0[0];
-                var h0 = vb0[1] - vb0[3];
-                if (h0 > refHeight) refHeight = h0;
-                if (w0 > refWidth) refWidth = w0;
-            }
-
-            var index = 0;
-            for (var r = 0; r < rows; r++) {
-                var currentX = startX;
-                for (var c = 0; c < itemsPerRow && index < sortedItems.length; c++, index++) {
-                    var item = sortedItems[index];
-                    if (!item) continue;
-
-                    var vb = getItemBounds(item, boundsCheckbox.value);
-                    var itemWidth = vb[2] - vb[0];
-                    var itemHeight = vb[1] - vb[3];
-
-                    // Cell X range
-                    var cellLeft = currentX;
-                    var cellRight = currentX + (gridCheckbox.value ? refWidth : itemWidth);
-                    var cellCenterX = (cellLeft + cellRight) / 2;
-
-                    // Current anchors
-                    var currentLeftX = vb[0];
-                    var currentRightX = vb[2];
-                    var currentCenterX = (vb[0] + vb[2]) / 2;
-
-                    // Horizontal delta
-                    var deltaX = 0;
-                    if (hAlign === "center") {
-                        deltaX = cellCenterX - currentCenterX;
-                    } else if (hAlign === "right") {
-                        deltaX = cellRight - currentRightX;
-                    } else {
-                        deltaX = cellLeft - currentLeftX;
-                    }
-                    item.left = item.left + deltaX;
-
-                    // Cell Y positions
-                    var cellTop = startTopBound - (r * (refHeight + vMarginPt));
-                    var cellBottom = startBottomBound - (r * (refHeight + vMarginPt));
-                    var cellCenter = (cellTop + cellBottom) / 2;
-
-                    // Current Y anchors
-                    var currentTop = vb[1];
-                    var currentBottom = vb[3];
-                    var currentCenter = (vb[1] + vb[3]) / 2;
-
-                    // Vertical delta
-                    var deltaY = 0;
-                    if (align === "middle") {
-                        deltaY = cellCenter - currentCenter;
-                    } else if (align === "bottom") {
-                        deltaY = cellBottom - currentBottom;
-                    } else {
-                        deltaY = cellTop - currentTop;
-                    }
-                    item.top = item.top + deltaY;
-
-                    // Advance X
-                    if (c < itemsPerRow - 1) {
-                        if (gridCheckbox.value) {
-                            currentX += refWidth + hMarginPt;
-                        } else {
-                            currentX += itemWidth + hMarginPt;
-                        }
-                    }
-                }
-            }
-
-            // Random base correction
-            if (randomCheckbox.value && sortedItems.length > 0) {
-                var offsetX = baseLeft - sortedItems[0].left;
-                var offsetY = baseTop - sortedItems[0].top;
-                for (var t = 0; t < sortedItems.length; t++) {
-                    if (!sortedItems[t]) continue;
-                    sortedItems[t].left += offsetX;
-                    sortedItems[t].top += offsetY;
-                }
-            }
-        }
-
-        /* プレビュー更新処理（Undoを汚さない） / Update preview without polluting Undo history */
-        function updatePreview() {
-            // Roll back previous preview step(s)
-            previewMgr.rollback();
-
-            // Apply current preference for bounds calculation (this is not undoable, so we restore only on Cancel)
-            app.preferences.setBooleanPreference("includeStrokeInBounds", boundsCheckbox.value);
-
-            // Apply as one preview step
-            previewMgr.addStep(function() {
-                applyLayoutToSelection();
-            });
-        }
 
         updatePreview();
+        rowCountInput.active = true;
 
-        // (hMarginInput.onChanging is handled above for syncing)
-        vMarginInput.onChanging = function() {
-            updatePreview();
-        };
-        randomCheckbox.onClick = function() {
-            updatePreview();
-        };
-
-        /* ダイアログを開く前に rowsInput をアクティブにする / Activate rows input before showing dialog */
-        rowsInput.active = true;
-        if (dlg.show() !== 1) {
-            // Cancel: roll back preview changes and restore preference
-            previewMgr.rollback();
+        if (dialogWindow.show() !== 1) {
+            /* キャンセル：プレビューを巻き戻し、環境設定も元に戻す / Cancel: roll back the preview and the preference */
+            previewManager.rollback();
             app.preferences.setBooleanPreference("includeStrokeInBounds", originalIncludeStrokeInBounds);
             app.redraw();
             return null;
         }
 
-        var hMarginValue = parseFloat(hMarginInput.text);
-        if (isNaN(hMarginValue)) hMarginValue = 0;
-        var vMarginValue = parseFloat(vMarginInput.text);
-        if (isNaN(vMarginValue)) vMarginValue = 0;
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        var ptFactor = getPtFactorFromUnitCode(unitCode);
-        var hMarginPt = hMarginValue * ptFactor;
-        var vMarginPt = vMarginValue * ptFactor;
-
-        var rowsValue = parseInt(rowsInput.text, 10);
-        if (isNaN(rowsValue) || rowsValue < 1) rowsValue = 1;
-
-        var align = "top";
-        if (rbMiddle.value) align = "middle";
-        else if (rbBottom.value) align = "bottom";
-
-        var hAlign = "left";
-        if (rbHCenter.value) hAlign = "center";
-        else if (rbHRight.value) hAlign = "right";
-
-        // Confirm as a single undoable action: rollback preview then run once
-        previewMgr.confirm(function() {
-            // keep the current preference value on OK (existing behavior effectively leaves it as-is)
-            app.preferences.setBooleanPreference("includeStrokeInBounds", boundsCheckbox.value);
-            applyLayoutToSelection();
+        var arrangeSettings = readArrangeSettings();
+        /* 1回のUndoで取り消せるように、巻き戻してから一度だけ実行する / Confirm as a single undoable action */
+        previewManager.confirm(function() {
+            app.preferences.setBooleanPreference("includeStrokeInBounds", arrangeSettings.usePreviewBounds);
+            arrangeItems(targetItems, arrangeSettings);
             app.redraw();
         });
-
-        // Return values are kept for compatibility (main() currently just exits)
-        return {
-            mode: "horizontal",
-            hMargin: hMarginPt,
-            vMargin: vMarginPt,
-            rows: rowsValue,
-            random: randomCheckbox.value,
-            align: align,
-            grid: gridCheckbox.value,
-            hAlign: hAlign
-        };
+        return arrangeSettings;
     }
 
-    /* 編集テキストで上下キーによる数値変更を有効化 / Enable up/down arrow key increment/decrement on edittext inputs */
-    function changeValueByArrowKey(editText, allowNegative, onUpdate) {
-        editText.addEventListener("keydown", function(event) {
-            if (editText.text.length === 0) return;
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-            var keyboard = ScriptUI.environment.keyboardState;
-
-            if (event.keyName == "Up" || event.keyName == "Down") {
-                var isUp = event.keyName == "Up";
-                var delta = 1;
-
-                if (keyboard.shiftKey) {
-                    /* 10の倍数にスナップ / Snap to multiples of 10 */
-                    value = Math.floor(value / 10) * 10;
-                    delta = 10;
-                }
-
-                value += isUp ? delta : -delta;
-
-                /* 負数許可されない場合は0未満を禁止 / Prevent negative if not allowed */
-                if (!allowNegative && value < 0) value = 0;
-
-                event.preventDefault();
-                editText.text = value;
-
-                if (typeof onUpdate === "function") {
-                    onUpdate();
-                }
-            }
-        });
-    }
-
-    /* 位置を元に戻す / Reset positions to original */
-    function resetPositions(items, positions) {
-        for (var i = 0; i < items.length; i++) {
-            items[i].left = positions[i][0];
-            items[i].top = positions[i][1];
-        }
-    }
-
-    /* メイン処理 / Main function */
+    /**
+     * 選択オブジェクトを取得し、キーオブジェクトを判定してダイアログを開く
+     * @returns {void}
+     */
     function main() {
-        try {
-            var lang = getCurrentLang();
-            var selectedItems = activeDocument.selection;
-            if (!selectedItems || selectedItems.length === 0) {
-                alert(
-                    (lang === "ja"
-                        ? "オブジェクトを選択してください。"
-                        : "Please select objects."
-                    )
-                );
-                return;
-            }
-
-            var arrangeOptions = showArrangeDialog();
-            if (!arrangeOptions) return;
-
-            /* プレビュー結果をそのまま使用 / Use preview result as final */
+        if (app.documents.length === 0) {
+            alert(getLabel('alert', 'noDocument'));
             return;
-        } catch (e) {
-            var lang = getCurrentLang();
-            alert(
-                (lang === "ja"
-                    ? "エラーが発生しました: " + e.message
-                    : "An error has occurred: " + e.message
-                )
-            );
         }
+        var doc = app.activeDocument;
+        var targetItems = doc.selection;
+        if (!targetItems || targetItems.length === 0) {
+            alert(getLabel('alert', 'noSelection'));
+            return;
+        }
+
+        /* キーオブジェクトを検出（整列コマンドで一時的に動かして元へ戻す）/ Detect the key object; it aligns temporarily, then restores */
+        var keyObject = null;
+        try {
+            keyObject = detectKeyObject(targetItems);
+        } catch (err) {
+            /* 検出に失敗しても配置は続行する（チェックボックスがディムされるだけ）/ Keep going; only the checkbox is dimmed */
+            $.writeln(SCRIPT_NAME + ": キーオブジェクトの検出に失敗 / key object detection failed — " + err);
+        }
+
+        showArrangeDialog(targetItems, keyObject);
     }
 
-    main();
-
-    /* X座標でソート / Sort items by X coordinate */
-    function sortByX(items) {
-        var copiedItems = items.slice();
-        copiedItems.sort(function(a, b) {
-            return a.left - b.left;
-        });
-        return copiedItems;
+    try {
+        main();
+    } catch (e) {
+        alert(labelText('alert', 'unexpectedError') + " " + e.message);
     }
 
 })();

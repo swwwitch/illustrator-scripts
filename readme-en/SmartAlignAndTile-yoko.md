@@ -18,10 +18,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 
 ### Overview
 
-- Updated: 2026-01-19
+- Updated: 2026-09-05
 - Arrange selected objects horizontally and re-distribute by specified spacing and number of rows.
 - Supports preview bounds option, random arrangement, auto unit detection, and keyboard adjustments.
 - Uses an undo-safe preview workflow and confirms the result so it can be undone with a single Undo step.
+- Detects the key object set in Illustrator and keeps it in place while the rest are rearranged.
 
 ### Main Features
 
@@ -32,6 +33,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 - Automatic unit detection
 - Keyboard adjustment for spacing and rows
 - Undo-safe preview and single-step Undo on confirm
+- Anchor to the key object (checkbox dimmed when no key object is detected)
 
 ### Workflow
 
@@ -40,8 +42,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 - Preview update
 - Confirm to apply
 
+### note
+
+- [【Illustrator】複数のオブジェクトを整列・タイル配置するスクリプト updated｜DTP Transit 別館](https://note.com/dtp_tranist/n/nf426908d8bcd)
+
 ### Update History
 
+- v1.7.1 (2026-09-05): Added key object detection (anchor the layout to the key object).
 - v1.7 (2026-01-19): Undo-safe preview management and single-step Undo on confirm.
 - v1.6 (2025-08-09): When "Use preview bounds" is OFF, use geometricBounds (OFF = geometric, ON = visible).
 - v1.0 (2025-07-16): Initial version
@@ -54,4 +61,4 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 
 ### Script info
 
-- Version: v1.7
+- Version: v1.7.1
