@@ -40,13 +40,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
 
 (function () {
 
-    /* 前回のダイアログ設定。#targetengine を指定しているので、この変数は
-       スクリプトの実行が終わってもIllustratorの起動中は残る。
+    /* 前回のダイアログ設定。#targetengine を指定しているのでエンジンはIllustratorの起動中は残るが、
+       関数スコープの var は巻き上げで必ず undefined から始まり、実行のたびに作り直されるため
+       前回の値を持ち越せない。$.global に載せてエンジン側に残す。
        名前はドキュメントごとに変わるので保持しない
-       The last dialog settings. The #targetengine directive keeps this variable alive
-       between runs while Illustrator is running. Names are per-document, so they are
+       The last dialog settings. The #targetengine directive keeps the engine alive between runs,
+       but a function-scoped var is hoisted as undefined and rebuilt every time, so it cannot
+       carry anything over; keep it on $.global instead. Names are per-document, so they are
        deliberately not kept */
-    var sessionCreateOptions = (typeof sessionCreateOptions !== "undefined") ? sessionCreateOptions : null;
+    var SESSION_OPTIONS_GLOBAL_KEY = "__SelectionToNewCreateOptions";
+
+    /**
+     * 前回の実行で残したダイアログ設定を取得します。
+     *
+     * @returns {object|null} 前回の設定。まだ無ければ null。
+     */
+    function getSessionCreateOptions() {
+        return $.global[SESSION_OPTIONS_GLOBAL_KEY] || null;
+    }
+
+    /**
+     * 今回のダイアログ設定を次回の実行のために残します。
+     *
+     * @param {object} createOptions - 残すダイアログ設定。
+     * @returns {void}
+     */
+    function setSessionCreateOptions(createOptions) {
+        $.global[SESSION_OPTIONS_GLOBAL_KEY] = createOptions;
+    }
 
     (function () {
 
@@ -614,7 +635,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             includeHiddenCheckbox.helpTip = L(LABELS.tip.includeObjects);
 
             /* 前回の設定があれば復元する / Restore the previous settings when there are any */
-            var savedOptions = sessionCreateOptions;
+            var savedOptions = getSessionCreateOptions();
             duplicateCheckbox.value = (savedOptions !== null) && savedOptions.useDuplicate;
             includeLockedCheckbox.value = (savedOptions !== null) && savedOptions.includeLocked;
             includeHiddenCheckbox.value = (savedOptions !== null) && savedOptions.includeHidden;
@@ -745,13 +766,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
 
             /* 間隔はドキュメントごとに変わるので保持しない
                The spacing is document-specific, so it is not remembered */
-            sessionCreateOptions = {
+            setSessionCreateOptions({
                 createTarget: createTarget,
                 directionAxis: directionAxis,
                 useDuplicate: duplicateCheckbox.value,
                 includeLocked: includeLockedCheckbox.value,
                 includeHidden: includeHiddenCheckbox.value
-            };
+            });
 
             /* ディム中の値は無視する / Ignore the values while the controls are dimmed */
             return {

@@ -24,15 +24,16 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "KPTSketchy";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-05";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KPTSketchy.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KPTSketchy.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -40,10 +41,24 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
 (function () {
 
     /*
-    常駐エンジンに保持するパレット参照（GC回避・多重起動防止）
-    Palette reference kept alive in the persistent engine (prevents GC and double launch)
+    常駐エンジンに保持するパレット参照（GC回避・多重起動防止）。
+    関数スコープの var は巻き上げで必ず undefined から始まり、再実行のたびに作り直されるため、
+    前回のパレットを覚えておけない。$.global に載せてエンジン側に残す
+    Palette reference kept alive in the persistent engine (prevents GC and double launch).
+    A function-scoped var is hoisted as undefined and rebuilt on every run, so it cannot
+    remember the previous palette; keep it on $.global instead
     */
-    var paletteWindow = (typeof paletteWindow !== "undefined") ? paletteWindow : null;
+    var PALETTE_GLOBAL_KEY = "__KPTSketchyPaletteWindow";
+
+    /* 常駐エンジンが保持しているパレットを取得 / Get the palette kept by the persistent engine */
+    function getKeptPalette() {
+        return $.global[PALETTE_GLOBAL_KEY] || null;
+    }
+
+    /* 常駐エンジンが保持するパレットを差し替え / Replace the palette kept by the persistent engine */
+    function keepPalette(targetWindow) {
+        $.global[PALETTE_GLOBAL_KEY] = targetWindow;
+    }
 
     // =========================================
     // DOM操作 worker / DOM workers (run in the main engine)
@@ -115,27 +130,14 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             ' "/></LiveEffect>';
     }
 
-    /* 表示される塗りを持つか / Whether the object has a visible fill */
-    function wkHasVisibleFill(pageItem) {
-        try {
-            return !!(pageItem.filled && pageItem.fillColor && pageItem.fillColor.typename !== "NoColor");
-        } catch (e) {
-            return false;
-        }
-    }
-
-    /* 表示される線を持つか / Whether the object has a visible stroke */
-    function wkHasVisibleStroke(pageItem) {
-        try {
-            return !!(pageItem.stroked && pageItem.strokeColor && pageItem.strokeColor.typename !== "NoColor");
-        } catch (e) {
-            return false;
-        }
-    }
-
-    /* 塗りと線の両方を持つか（分離可能か） / Whether the object can be split */
+    /* 表示される塗りと線の両方を持つか（分離可能か） / Whether the object has both a visible fill and stroke */
     function wkCanSplitFillStroke(pageItem) {
-        return wkHasVisibleFill(pageItem) && wkHasVisibleStroke(pageItem);
+        try {
+            return !!(pageItem.filled && pageItem.fillColor && pageItem.fillColor.typename !== "NoColor" &&
+                pageItem.stroked && pageItem.strokeColor && pageItem.strokeColor.typename !== "NoColor");
+        } catch (e) {
+            return false;
+        }
     }
 
     /* クリッピングパスか / Whether the item is a clipping path */
@@ -144,7 +146,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
     }
 
     /* グループを展開して処理対象を集める / Collect processable items, expanding groups */
-    function wkCollectTargetItems(pageItem, collected) {
+    function wkCollectTargetItems(pageItem, collectedItems) {
         if (!pageItem) {
             return;
         }
@@ -152,13 +154,13 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             for (var i = 0; i < pageItem.pageItems.length; i++) {
                 var childItem = pageItem.pageItems[i];
                 if (childItem.parent === pageItem) {
-                    wkCollectTargetItems(childItem, collected);
+                    wkCollectTargetItems(childItem, collectedItems);
                 }
             }
             return;
         }
         if (!wkIsClippingPathItem(pageItem)) {
-            collected.push(pageItem);
+            collectedItems.push(pageItem);
         }
     }
 
@@ -270,26 +272,44 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
     }
 
     /* 1オブジェクトに効果を重ねて適用 / Apply the whole effect stack to a single object */
-    function wkApplyEffectStack(targetItem, options) {
-        if (options.radiusPoint > 0) {
-            wkApplyEffectXml(targetItem, wkBuildRoundCornersEffectXml(options.radiusPoint));
+    function wkApplyEffectStack(targetItem, effectOptions) {
+        if (effectOptions.radiusPoint > 0) {
+            wkApplyEffectXml(targetItem, wkBuildRoundCornersEffectXml(effectOptions.radiusPoint));
         }
-        if (options.offsetPoint !== 0) {
-            wkApplyEffectXml(targetItem, wkBuildOffsetPathEffectXml(-options.offsetPoint, options.joinType, options.miterLimit));
-            wkApplyEffectXml(targetItem, wkBuildOffsetPathEffectXml(options.offsetPoint, options.joinType, options.miterLimit));
+        if (effectOptions.offsetPoint !== 0) {
+            wkApplyEffectXml(targetItem, wkBuildOffsetPathEffectXml(-effectOptions.offsetPoint, effectOptions.joinType, effectOptions.miterLimit));
+            wkApplyEffectXml(targetItem, wkBuildOffsetPathEffectXml(effectOptions.offsetPoint, effectOptions.joinType, effectOptions.miterLimit));
         }
-        if (options.usesTransform) {
+        if (effectOptions.usesTransform) {
             wkApplyEffectXml(targetItem, wkBuildTransformEffectXml(
-                wkRandomBetween(100 - options.scaleRange, 100 + options.scaleRange),
-                wkRandomBetween(-options.movePoint, options.movePoint),
-                wkRandomBetween(-options.movePoint, options.movePoint),
-                wkRandomBetween(-options.rotateRange, options.rotateRange)));
+                wkRandomBetween(100 - effectOptions.scaleRange, 100 + effectOptions.scaleRange),
+                wkRandomBetween(-effectOptions.movePoint, effectOptions.movePoint),
+                wkRandomBetween(-effectOptions.movePoint, effectOptions.movePoint),
+                wkRandomBetween(-effectOptions.rotateRange, effectOptions.rotateRange)));
         }
-        if (options.usesDistort) {
-            wkApplyEffectXml(targetItem, wkBuildRoughenEffectXml(options.distortSize, options.distortDetail, options.roundness));
+        if (effectOptions.usesDistort) {
+            wkApplyEffectXml(targetItem, wkBuildRoughenEffectXml(effectOptions.distortSize, effectOptions.distortDetail, effectOptions.roundness));
         }
-        if (options.usesJagged) {
-            wkApplyEffectXml(targetItem, wkBuildRoughenEffectXml(options.jaggedSize, options.jaggedDetail, options.roundness));
+        if (effectOptions.usesJagged) {
+            wkApplyEffectXml(targetItem, wkBuildRoughenEffectXml(effectOptions.jaggedSize, effectOptions.jaggedDetail, effectOptions.roundness));
+        }
+    }
+
+    /* 対象すべてに効果を適用（必要なら塗り／線を分離） / Apply the effects to every target, splitting fill and stroke when asked */
+    function wkApplyToTargetItems(targetItems, effectOptions) {
+        for (var i = 0; i < targetItems.length; i++) {
+            var targetItem = targetItems[i];
+            var strokeCopy = null;
+            if (effectOptions.splitsFillStroke && wkCanSplitFillStroke(targetItem)) {
+                strokeCopy = wkSplitIntoStrokeCopy(targetItem);
+            }
+            wkApplyEffectStack(targetItem, effectOptions);
+            if (strokeCopy) {
+                wkApplyEffectStack(strokeCopy, effectOptions);
+                if (effectOptions.groupsAtEnd && !wkIsInsideClippingGroup(targetItem)) {
+                    wkGroupFillAndStroke(targetItem, strokeCopy);
+                }
+            }
         }
     }
 
@@ -323,7 +343,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
     選択オブジェクトへランダム変形を適用。undoFirst が true なら前回のプレビューを取り消す
     Apply the randomized effects; when undoFirst is true the previous preview is undone first
     */
-    function wkApplyEffects(options, undoFirst) {
+    function wkApplyEffects(effectOptions, undoFirst) {
         try {
             /* ドキュメント確認は app.undo() より必ず先 / The document check must precede app.undo() */
             if (app.documents.length === 0) {
@@ -337,7 +357,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             if (targetDoc.selection.length === 0) {
                 return "NOSEL";
             }
-            var targetItems = wkGetTargetItems(targetDoc, options.expandsGroups);
+            var targetItems = wkGetTargetItems(targetDoc, effectOptions.expandsGroups);
             if (targetItems.length === 0) {
                 return "NOTARGET";
             }
@@ -347,7 +367,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             Splitting clears the original's stroke, so the state reported to the UI
             must be captured before the effects are applied
             */
-            var stateSuffix = wkSelectionStateSuffix(targetDoc, options.expandsGroups);
+            var stateSuffix = wkSelectionStateSuffix(targetDoc, effectOptions.expandsGroups);
             /*
             複製・移動・グループ化は選択を動かす。次回の再計算も同じ選択を対象にするため、
             処理前の選択を控えて最後に戻す
@@ -355,20 +375,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             next rebuild works on the same objects
             */
             var savedSelection = wkSnapshotSelection(targetDoc);
-            for (var i = 0; i < targetItems.length; i++) {
-                var targetItem = targetItems[i];
-                var strokeCopy = null;
-                if (options.splitsFillStroke && wkCanSplitFillStroke(targetItem)) {
-                    strokeCopy = wkSplitIntoStrokeCopy(targetItem);
-                }
-                wkApplyEffectStack(targetItem, options);
-                if (strokeCopy) {
-                    wkApplyEffectStack(strokeCopy, options);
-                    if (options.groupsAtEnd && !wkIsInsideClippingGroup(targetItem)) {
-                        wkGroupFillAndStroke(targetItem, strokeCopy);
-                    }
-                }
-            }
+            wkApplyToTargetItems(targetItems, effectOptions);
             wkRestoreSelection(targetDoc, savedSelection);
             app.redraw();
             return "OK" + stateSuffix;
@@ -381,15 +388,13 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
     送信する worker 関数の一覧（追加漏れ防止のためここに全登録）
     Every worker function to be sent; register new ones here so none is forgotten
     */
-    var WORKER_FUNCS = [
+    var WORKER_FUNCTIONS = [
         wkRandomBetween,
         wkApplyEffectXml,
         wkBuildRoughenEffectXml,
         wkBuildRoundCornersEffectXml,
         wkBuildOffsetPathEffectXml,
         wkBuildTransformEffectXml,
-        wkHasVisibleFill,
-        wkHasVisibleStroke,
         wkCanSplitFillStroke,
         wkIsClippingPathItem,
         wkCollectTargetItems,
@@ -402,6 +407,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         wkSplitIntoStrokeCopy,
         wkGroupFillAndStroke,
         wkApplyEffectStack,
+        wkApplyToTargetItems,
         wkSelectionStateSuffix,
         wkGetSelectionState,
         wkApplyEffects
@@ -414,7 +420,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         // =========================================
 
         /* 入力欄の初期値 / Default values for the input fields */
-        var DEFAULT_VALUES = {
+        var DEFAULT_FIELD_VALUES = {
             scale: "3", /* スケールの振れ幅（%）/ scale range (%) */
             move: "0", /* 移動の振れ幅（現在の単位）/ move range (current unit) */
             rotate: "1.5", /* 回転の振れ幅（度）/ rotation range (deg) */
@@ -427,7 +433,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         };
 
         /* チェックボックスの初期状態 / Default checkbox states */
-        var INITIAL_CHECKED = {
+        var INITIAL_CHECKBOX_STATES = {
             applyEach: true, /* グループ内を個別に処理 / process group items individually */
             scale: true, /* スケール / scale */
             move: false, /* 移動 / move */
@@ -443,7 +449,6 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         var ROUGHEN_ROUNDNESS = 1; /* ラフ効果の丸み 0:直線的 1:滑らか / roughen roundness 0:corner 1:smooth */
         var ROUGHEN_DETAIL_MIN = 1; /* ラフ効果の詳細の下限 / minimum roughen detail */
         var BRIDGE_TIMEOUT_SEC = 10; /* BridgeTalk の同期待ち時間（秒）/ synchronous BridgeTalk timeout (sec) */
-        var COMMITS_ON_DEACTIVATE = true; /* パレットから離れたら結果を確定する / finalize the result when the palette loses focus */
         var DEACTIVATE_GUARD_MS = 500; /* BridgeTalk 直後の deactivate を無視する時間（ミリ秒）/ ignore deactivate for this long after a BridgeTalk call (ms) */
 
         // =========================================
@@ -451,34 +456,40 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         // =========================================
 
         /* 表示言語を判定 / Detect the UI language */
-        function getCurrentLang() {
+        function getUiLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
-        var currentLanguage = getCurrentLang();
+        var uiLang = getUiLang();
 
         /* 日英ラベル定義 / Japanese-English label definitions */
         var LABELS = {
             dialog: {
-                title: { ja: "手書き・スケッチ風の調整", en: "Hand-drawn / Sketchy Look" }
+                title: { ja: "手書き・スケッチ風", en: "Hand-drawn / Sketchy Look" }
             },
             panel: {
-                target: { ja: "対象", en: "Target" },
-                transform: { ja: "変形", en: "Transform" },
+                target: { ja: "適用対象", en: "Apply to" },
+                transform: { ja: "ランダム変形", en: "Random transform" },
                 corner: { ja: "角丸・オフセット", en: "Corners & Offset" },
-                jagged: { ja: "ラフ効果：ギザギザ", en: "Roughen: Jagged" },
-                distort: { ja: "ラフ効果：歪曲", en: "Roughen: Distortion" }
+                /*
+                Illustratorの［ラフ］で「ギザギザ」はポイントの形状（丸く⇔ギザギザ）を指す。
+                本スクリプトは丸く固定で、2つのパネルの違いはサイズと詳細の大小なので、その差で呼び分ける
+                In Illustrator's Roughen, "Jagged" names the point option (Smooth vs Corner).
+                This script pins it to Smooth, so the two panels differ only in size and detail
+                */
+                jagged: { ja: "ラフ：細かい揺れ", en: "Roughen: Fine" },
+                distort: { ja: "ラフ：大きなうねり", en: "Roughen: Coarse" }
             },
             checkbox: {
                 applyEach: { ja: "グループ内を個別に処理", en: "Process group items individually" },
                 groupAtEnd: { ja: "分離後にグループ化", en: "Group after split" },
                 radius: { ja: "角丸", en: "Round corners" },
-                offset: { ja: "オフセット", en: "Offset path" },
-                jagged: { ja: "適用", en: "Apply" },
-                distort: { ja: "適用", en: "Apply" }
+                offset: { ja: "パスのオフセット", en: "Offset path" },
+                jagged: { ja: "有効", en: "Enable" },
+                distort: { ja: "有効", en: "Enable" }
             },
             radio: {
-                splitFillStroke: { ja: "塗り／線を分離", en: "Split fill / stroke" },
-                keepFillStroke: { ja: "分離しない", en: "Do not split" }
+                splitFillStroke: { ja: "塗りと線を分離", en: "Split fill and stroke" },
+                keepFillStroke: { ja: "分離しない", en: "Keep as is" }
             },
             fieldLabel: {
                 scale: { ja: "倍率", en: "Scale" },
@@ -488,22 +499,22 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
                 detail: { ja: "詳細", en: "Detail" }
             },
             button: {
-                toggleAll: { ja: "すべてON/OFF", en: "Toggle all" },
-                recalc: { ja: "再計算", en: "Recalculate" }
+                toggleAll: { ja: "まとめて切替", en: "Toggle all" },
+                recalc: { ja: "振り直す", en: "Reroll" }
             },
             unit: {
                 percent: { ja: "%", en: "%" },
                 degree: { ja: "°", en: "°" },
-                perInch: { ja: "/inch", en: "/inch" }
+                perInch: { ja: "/インチ", en: "/inch" }
             },
             helpTip: {
                 applyEach: {
-                    ja: "選択したグループを展開し、中の各オブジェクトに個別の乱数で適用します。\nOFF にするとグループ全体をひとつのオブジェクトとして扱います。",
-                    en: "Expands the selected groups and applies an individual random value to each child.\nWhen off, each group is treated as a single object."
+                    ja: "選択したグループを展開し、中の各オブジェクトに個別の乱数で適用します。\nOFF にするとグループ全体をひとつのオブジェクトとして扱います。\nグループまたは複数のオブジェクトを選択すると有効になります。",
+                    en: "Expands the selected groups and applies an individual random value to each child.\nWhen off, each group is treated as a single object.\nAvailable when a group or several objects are selected."
                 },
                 splitFillStroke: {
-                    ja: "塗りと線を別々のオブジェクトに分け、それぞれに違う乱数を適用します。\n手描きの「線がはみ出た」印象になります。",
-                    en: "Separates fill and stroke into two objects and randomizes them independently,\nwhich mimics a hand-drawn outline that overshoots the fill."
+                    ja: "塗りと線を別々のオブジェクトに分け、それぞれに違う乱数を適用します。\n手描きの「線がはみ出た」印象になります。\n塗りと線の両方を持つオブジェクトを選択すると有効になります。",
+                    en: "Separates fill and stroke into two objects and randomizes them independently,\nwhich mimics a hand-drawn outline that overshoots the fill.\nAvailable when the selection has an object with both a fill and a stroke."
                 },
                 keepFillStroke: { ja: "塗りと線を分けずに、そのまま適用します。", en: "Applies the effects without separating fill and stroke." },
                 groupAtEnd: { ja: "分離した塗りと線をグループにまとめます。", en: "Groups the separated fill and stroke objects." },
@@ -519,7 +530,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
                     ja: "±この値の範囲で回転します。\n↑↓キーで増減（Shift：10単位／Option：0.1単位）",
                     en: "Rotates randomly within plus/minus this value.\nUp/Down keys step the value (Shift: by 10, Option: by 0.1)."
                 },
-                toggleAll: { ja: "スケール・移動・回転をまとめて切り替えます。", en: "Turns Scale, Move and Rotate on or off together." },
+                toggleAll: { ja: "倍率・移動・回転をまとめて切り替えます。", en: "Turns Scale, Move and Rotate on or off together." },
                 radius: {
                     ja: "［角を丸くする］効果で角の尖りをやわらげます。\n↑↓キーで増減（Shift：10単位／Option：0.1単位）",
                     en: "Softens sharp corners with the Round Corners effect.\nUp/Down keys step the value (Shift: by 10, Option: by 0.1)."
@@ -544,7 +555,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
                 }
             },
             status: {
-                ready: { ja: "オブジェクトを選択してください。", en: "Select an object to start." },
+                ready: { ja: "オブジェクトを選択すると適用されます。", en: "Select an object and the effects are applied." },
                 applied: {
                     ja: "適用しました。値を変えると作り直します。",
                     en: "Applied. Changing a value rebuilds it."
@@ -555,6 +566,10 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
                 noTarget: { ja: "処理できるオブジェクトがありません。", en: "There is no object that can be processed." },
                 invalidNumber: { ja: "数値入力が不正です。", en: "One or more numeric values are invalid." },
                 timeout: { ja: "応答がありません。処理を中止しました。", en: "No response. The operation was cancelled." },
+                undoManually: {
+                    ja: "効果が適用済みの場合は手動で取り消してください。",
+                    en: "Undo manually if the effects were already applied."
+                },
                 error: { ja: "エラーが発生しました：", en: "An error occurred: " }
             }
         };
@@ -563,22 +578,22 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         ドットパスでラベルを取得（見つからなければ空文字）
         Get a label by dot path, returning an empty string when missing
         */
-        function L(labelPath) {
+        function getLabel(labelPath) {
             var pathParts = String(labelPath).split(".");
-            var node = LABELS;
+            var labelNode = LABELS;
 
             for (var i = 0; i < pathParts.length; i++) {
-                if (!node || !node[pathParts[i]]) {
+                if (!labelNode || !labelNode[pathParts[i]]) {
                     return "";
                 }
-                node = node[pathParts[i]];
+                labelNode = labelNode[pathParts[i]];
             }
-            return (node && node[currentLanguage]) ? node[currentLanguage] : "";
+            return (labelNode && labelNode[uiLang]) ? labelNode[uiLang] : "";
         }
 
-        /* ラベルに区切り記号を付けて取得 / Get a label followed by a separator */
-        function labelWithSeparator(labelPath) {
-            return L(labelPath) + (currentLanguage === "ja" ? "：" : ":");
+        /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+        function labelText(labelPath) {
+            return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
         }
 
         // =========================================
@@ -586,7 +601,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         // =========================================
 
         /* 単位コード → 表示名とポイント換算係数 / Unit code -> label and point factor */
-        var UNIT_TABLE = {
+        var RULER_UNIT_TABLE = {
             0: { label: "in", pointFactor: 72.0 },
             1: { label: "mm", pointFactor: 72.0 / 25.4 },
             2: { label: "pt", pointFactor: 1.0 },
@@ -600,6 +615,9 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             10: { label: "ft", pointFactor: 72.0 * 12.0 }
         };
 
+        /* 振れ幅であることを示す接頭辞 / Prefix marking a value as a plus-minus range */
+        var RANGE_PREFIX = "\u00b1";
+
         /* 定規の単位コードを取得 / Get the current ruler unit code */
         function getRulerUnitCode() {
             return app.preferences.getIntegerPreference("rulerType");
@@ -607,13 +625,13 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
 
         /* 定規の単位表示名を取得 / Get the current ruler unit label */
         function getRulerUnitLabel() {
-            var unitEntry = UNIT_TABLE[getRulerUnitCode()];
+            var unitEntry = RULER_UNIT_TABLE[getRulerUnitCode()];
             return unitEntry ? unitEntry.label : "pt";
         }
 
         /* 現在の単位の値をポイントに変換 / Convert a value in the current unit to points */
         function convertToPoint(value, unitCode) {
-            var unitEntry = UNIT_TABLE[unitCode];
+            var unitEntry = RULER_UNIT_TABLE[unitCode];
             return value * (unitEntry ? unitEntry.pointFactor : 1.0);
         }
 
@@ -645,8 +663,8 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         function buildWorkerSource() {
             var sourceParts = [];
 
-            for (var i = 0; i < WORKER_FUNCS.length; i++) {
-                sourceParts.push(WORKER_FUNCS[i].toString());
+            for (var i = 0; i < WORKER_FUNCTIONS.length; i++) {
+                sourceParts.push(WORKER_FUNCTIONS[i].toString());
             }
             return sourceParts.join("\n");
         }
@@ -655,16 +673,17 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         数値・真偽値だけのオプションをソース表現に変換
         Serialize a numbers-and-booleans option object into a source literal
         */
-        function serializeOptions(options) {
-            var parts = [];
+        function serializeEffectOptions(effectOptions) {
+            var optionParts = [];
 
-            for (var key in options) {
-                if (options.hasOwnProperty(key)) {
-                    var value = options[key];
-                    parts.push(key + ":" + ((typeof value === "boolean") ? (value ? "true" : "false") : String(value)));
+            for (var optionKey in effectOptions) {
+                if (effectOptions.hasOwnProperty(optionKey)) {
+                    var optionValue = effectOptions[optionKey];
+                    optionParts.push(optionKey + ":" +
+                        ((typeof optionValue === "boolean") ? (optionValue ? "true" : "false") : String(optionValue)));
                 }
             }
-            return "{" + parts.join(",") + "}";
+            return "{" + optionParts.join(",") + "}";
         }
 
         /*
@@ -673,34 +692,38 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         */
         function callMainEngine(callExpression) {
             var payload = buildWorkerSource() + "\n" + callExpression + ";";
-            var holder = { value: null, done: false };
-            var bridge = new BridgeTalk();
+            var bridgeResult = { value: null, done: false };
+            var bridgeMessage = new BridgeTalk();
 
-            bridge.target = "illustrator";
-            bridge.body = 'eval(decodeURIComponent("' + encodeURIComponent(payload) + '"));';
+            bridgeMessage.target = "illustrator";
+            bridgeMessage.body = 'eval(decodeURIComponent("' + encodeURIComponent(payload) + '"));';
 
-            bridge.onResult = function(resultMessage) {
-                holder.value = String(resultMessage.body);
-                holder.done = true;
+            bridgeMessage.onResult = function(resultMessage) {
+                bridgeResult.value = String(resultMessage.body);
+                bridgeResult.done = true;
             };
-            bridge.onError = function(errorMessage) {
-                holder.value = "ERR:" + String(errorMessage.body);
-                holder.done = true;
+            bridgeMessage.onError = function(errorMessage) {
+                bridgeResult.value = "ERR:" + String(errorMessage.body);
+                bridgeResult.done = true;
             };
-            bridge.onTimeout = function() {
-                holder.value = "TIMEOUT";
-                holder.done = true;
+            bridgeMessage.onTimeout = function() {
+                bridgeResult.value = "TIMEOUT";
+                bridgeResult.done = true;
             };
 
             try {
-                bridge.send(BRIDGE_TIMEOUT_SEC);
+                bridgeMessage.send(BRIDGE_TIMEOUT_SEC);
             } catch (e) {
+                /*
+                送信前に失敗している＝ドキュメントは無傷。ERR とは区別して返す
+                The call never left the palette, so the document is untouched; report it apart from ERR
+                */
                 engineCallEndTime = nowMilliseconds();
-                return "ERR:" + e;
+                return "NOTSENT:" + e;
             }
 
             engineCallEndTime = nowMilliseconds();
-            return holder.done ? holder.value : "TIMEOUT";
+            return bridgeResult.done ? bridgeResult.value : "TIMEOUT";
         }
 
         // =========================================
@@ -714,11 +737,9 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         var canUndoLastApply = false;
 
         var applyEachCheckbox, splitFillStrokeRadio, keepFillStrokeRadio, groupAtEndCheckbox;
-        var scaleCheckbox, moveCheckbox, rotateCheckbox;
-        var scaleInput, moveInput, rotateInput;
-        var radiusCheckbox, radiusInput, offsetCheckbox, offsetInput;
-        var jaggedCheckbox, jaggedSizeRow, jaggedDetailRow;
-        var distortCheckbox, distortSizeRow, distortDetailRow;
+        var scaleRow, moveRow, rotateRow;
+        var radiusRow, offsetRow;
+        var jaggedControls, distortControls;
         var toggleAllButton, recalcButton, statusText;
 
         // =========================================
@@ -730,102 +751,109 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         var WINDOW_SPACING = 12; /* ウィンドウ内の要素間隔 / window spacing */
         var PANEL_MARGINS = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
         var PANEL_SPACING = 8; /* パネル内の要素間隔 / panel spacing */
+        var PANEL_ROW_SPACING = 6; /* パネル内の行間隔 / spacing between rows inside a panel */
         var COLUMN_SPACING = 12; /* 2カラムの間隔 / gap between columns */
         var ROW_LABEL_WIDTH = 60; /* 行ラベルの幅 / row label width */
-        var ROW_CHECK_WIDTH = 90; /* 行チェックボックスの幅（既定）/ row checkbox width (default) */
+        var ROW_CHECKBOX_WIDTH = 90; /* 行チェックボックスの幅（既定）/ row checkbox width (default) */
         /*
         ラベルの長さに合わせた行チェックボックスの幅。
         英語ラベルは日本語より長いため、言語ごとに実測値を持つ
         Row checkbox widths tuned to the label length; the English labels are longer
         than the Japanese ones, so each language gets its own value
         */
-        var TRANSFORM_CHECK_WIDTH = (currentLanguage === "ja") ? 58 : 78; /* 倍率・移動・回転（2文字）/ Scale, Move, Rotate */
-        var CORNER_CHECK_WIDTH = (currentLanguage === "ja") ? 96 : 118; /* 角丸・オフセット / Round corners, Offset path */
+        var TRANSFORM_CHECKBOX_WIDTH = (uiLang === "ja") ? 58 : 78; /* 倍率・移動・回転（2文字）/ Scale, Move, Rotate */
+        var CORNER_CHECKBOX_WIDTH = (uiLang === "ja") ? 132 : 118; /* 角丸・パスのオフセット / Round corners, Offset path */
         var FIELD_WIDTH_CHARS = 4; /* 入力欄の文字数 / input field width in characters */
         var TOGGLE_ROW_TOP_MARGIN = 10; /* ［すべてON/OFF］の上の余白 / gap above the Toggle all button */
+        var TOGGLE_BUTTON_TRIM = 4; /* ［すべてON/OFF］の高さを詰める量（px）/ height trimmed off the Toggle all button (px) */
 
         /* ウィンドウの共通設定 / Apply shared window layout */
-        function setupWindow(win, spacing) {
-            win.orientation = "column";
-            win.alignChildren = "fill";
-            win.margins = WINDOW_MARGINS;
-            win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+        function applyWindowLayout(targetWindow) {
+            targetWindow.orientation = "column";
+            targetWindow.alignChildren = "fill";
+            targetWindow.margins = WINDOW_MARGINS;
+            targetWindow.spacing = WINDOW_SPACING;
         }
 
         /* パネルの共通設定 / Apply shared panel layout */
-        function setupPanel(panel, spacing) {
-            panel.orientation = "column";
-            panel.alignChildren = ["fill", "top"];
-            panel.alignment = "fill";
-            panel.margins = PANEL_MARGINS;
-            panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        function applyPanelLayout(targetPanel, spacing) {
+            targetPanel.orientation = "column";
+            targetPanel.alignChildren = ["fill", "top"];
+            targetPanel.alignment = "fill";
+            targetPanel.margins = PANEL_MARGINS;
+            targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
         }
 
         /* 行グループの共通設定（ボタン列など） / Apply a horizontal row group */
-        function setupRow(group, alignment, spacing) {
-            group.orientation = "row";
-            group.alignment = alignment || "left";
-            group.alignChildren = ["left", "center"];
-            group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        function applyRowLayout(rowGroup, alignment) {
+            rowGroup.orientation = "row";
+            rowGroup.alignment = alignment || "left";
+            rowGroup.alignChildren = ["left", "center"];
+            rowGroup.spacing = PANEL_SPACING;
+        }
+
+        /* 縦積みカラムを追加 / Add one vertically stacked column */
+        function addColumnGroup(parentGroup) {
+            var columnGroup = parentGroup.add("group");
+            columnGroup.orientation = "column";
+            columnGroup.alignChildren = ["fill", "top"];
+            columnGroup.spacing = WINDOW_SPACING;
+            return columnGroup;
         }
 
         /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-        function trimButtonHeight(button, px) {
+        function trimButtonHeight(targetButton, trimPixels) {
             try {
-                button.size = [button.size.width, button.size.height - px];
+                targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
             } catch (e) {}
         }
 
         /* ヘルプチップを設定 / Attach a help tip */
         function setHelpTip(control, helpTipPath) {
-            control.helpTip = L(helpTipPath);
+            control.helpTip = getLabel(helpTipPath);
             return control;
+        }
+
+        /* 行に入力欄と単位表示を足す / Append the input field and the unit label to a row */
+        function addFieldAndUnit(rowGroup, defaultText, unitText, helpTipPath) {
+            var inputField = rowGroup.add("edittext", undefined, defaultText);
+            inputField.characters = FIELD_WIDTH_CHARS;
+            rowGroup.add("statictext", undefined, unitText);
+            setHelpTip(inputField, helpTipPath);
+            return inputField;
         }
 
         /*
         「ラベル付きチェックボックス＋入力欄＋単位」の1行を作る
         Build one row: labeled checkbox + input field + unit
         */
-        function addCheckboxFieldRow(parentGroup, labelPath, helpTipPath, defaultText, unitText, isChecked, checkWidth) {
-            var rowGroup = parentGroup.add("group");
-            setupRow(rowGroup, "left");
+        function addCheckboxFieldRow(parentPanel, labelPath, helpTipPath, defaultText, unitText, isChecked, checkboxWidth) {
+            var rowGroup = parentPanel.add("group");
+            applyRowLayout(rowGroup);
 
-            var checkbox = rowGroup.add("checkbox", undefined, labelWithSeparator(labelPath));
-            checkbox.preferredSize.width = (typeof checkWidth === "number") ? checkWidth : ROW_CHECK_WIDTH;
+            var checkbox = setHelpTip(rowGroup.add("checkbox", undefined, labelText(labelPath)), helpTipPath);
+            checkbox.preferredSize.width = (typeof checkboxWidth === "number") ? checkboxWidth : ROW_CHECKBOX_WIDTH;
             checkbox.value = isChecked;
 
-            var input = rowGroup.add("edittext", undefined, defaultText);
-            input.characters = FIELD_WIDTH_CHARS;
-            input.enabled = isChecked;
+            var inputField = addFieldAndUnit(rowGroup, defaultText, unitText, helpTipPath);
+            inputField.enabled = isChecked;
 
-            rowGroup.add("statictext", undefined, unitText);
-
-            setHelpTip(checkbox, helpTipPath);
-            setHelpTip(input, helpTipPath);
-
-            return { group: rowGroup, checkbox: checkbox, input: input };
+            return { checkbox: checkbox, input: inputField };
         }
 
         /*
         「右寄せラベル＋入力欄＋単位」の1行を作る
         Build one row: right-aligned label + input field + unit
         */
-        function addLabelFieldRow(parentGroup, labelPath, helpTipPath, defaultText, unitText) {
-            var rowGroup = parentGroup.add("group");
-            setupRow(rowGroup, "left");
+        function addLabelFieldRow(parentPanel, labelPath, helpTipPath, defaultText, unitText) {
+            var rowGroup = parentPanel.add("group");
+            applyRowLayout(rowGroup);
 
-            var labelText = rowGroup.add("statictext", undefined, labelWithSeparator(labelPath), { justify: "right" });
-            labelText.preferredSize.width = ROW_LABEL_WIDTH;
+            var rowLabel = setHelpTip(
+                rowGroup.add("statictext", undefined, labelText(labelPath), { justify: "right" }), helpTipPath);
+            rowLabel.preferredSize.width = ROW_LABEL_WIDTH;
 
-            var input = rowGroup.add("edittext", undefined, defaultText);
-            input.characters = FIELD_WIDTH_CHARS;
-
-            rowGroup.add("statictext", undefined, unitText);
-
-            setHelpTip(labelText, helpTipPath);
-            setHelpTip(input, helpTipPath);
-
-            return { group: rowGroup, label: labelText, input: input };
+            return { label: rowLabel, input: addFieldAndUnit(rowGroup, defaultText, unitText, helpTipPath) };
         }
 
         // =========================================
@@ -833,64 +861,83 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         // =========================================
 
         /*
-        入力欄の数値を取得（OFF なら 0、負数は 0 にクランプ）
-        Read a numeric field; 0 when disabled, negatives clamped to 0
+        数値として厳密に解釈する。parseFloat と違い "3abc" のような部分一致は不正とする
+        Parse strictly; unlike parseFloat, a partial match such as "3abc" is rejected
         */
-        function readFieldNumber(input, isEnabled) {
+        function parseStrictNumber(text) {
+            var trimmedText = String(text).replace(/^\s+|\s+$/g, "");
+            if (!/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(trimmedText)) {
+                return Number.NaN;
+            }
+            return parseFloat(trimmedText);
+        }
+
+        /*
+        入力欄の数値を取得（OFF なら 0、負数は 0 にクランプ、不正値は NaN）
+        Read a numeric field; 0 when disabled, negatives clamped to 0, NaN when invalid
+        */
+        function readFieldNumber(inputField, isEnabled) {
             if (!isEnabled) {
                 return 0;
             }
 
-            var value = parseFloat(input.text);
+            var value = parseStrictNumber(inputField.text);
             if (isNaN(value)) {
                 return Number.NaN;
             }
             return (value < 0) ? 0 : value;
         }
 
+        /* すべての入力欄を読み取る（不正値は NaN のまま）/ Read every numeric field, leaving invalid ones as NaN */
+        function readNumericFields() {
+            return {
+                scaleRange: readFieldNumber(scaleRow.input, scaleRow.checkbox.value),
+                moveValue: readFieldNumber(moveRow.input, moveRow.checkbox.value),
+                rotateRange: readFieldNumber(rotateRow.input, rotateRow.checkbox.value),
+                radiusValue: readFieldNumber(radiusRow.input, radiusRow.checkbox.value),
+                offsetValue: readFieldNumber(offsetRow.input, offsetRow.checkbox.value),
+                jaggedSize: readFieldNumber(jaggedControls.sizeRow.input, jaggedControls.checkbox.value),
+                jaggedDetail: readFieldNumber(jaggedControls.detailRow.input, jaggedControls.checkbox.value),
+                distortSize: readFieldNumber(distortControls.sizeRow.input, distortControls.checkbox.value),
+                distortDetail: readFieldNumber(distortControls.detailRow.input, distortControls.checkbox.value)
+            };
+        }
+
+        /* 不正な数値が混じっていないか / Whether every value in the set is a valid number */
+        function hasOnlyValidNumbers(fieldValues) {
+            for (var fieldKey in fieldValues) {
+                if (fieldValues.hasOwnProperty(fieldKey) && isNaN(fieldValues[fieldKey])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         /*
         UIの入力値をまとめて読み取る。不正な数値があれば null を返す
         Read every UI value into one options object; returns null when a value is invalid
         */
-        function readOptions() {
-            var usesScale = scaleCheckbox.value;
-            var usesMove = moveCheckbox.value;
-            var usesRotate = rotateCheckbox.value;
-
-            var scaleRange = readFieldNumber(scaleInput, usesScale);
-            var moveValue = readFieldNumber(moveInput, usesMove);
-            var rotateRange = readFieldNumber(rotateInput, usesRotate);
-            var radiusValue = readFieldNumber(radiusInput, radiusCheckbox.value);
-            var offsetValue = readFieldNumber(offsetInput, offsetCheckbox.value);
-            var jaggedSize = readFieldNumber(jaggedSizeRow.input, jaggedCheckbox.value);
-            var jaggedDetail = readFieldNumber(jaggedDetailRow.input, jaggedCheckbox.value);
-            var distortSize = readFieldNumber(distortSizeRow.input, distortCheckbox.value);
-            var distortDetail = readFieldNumber(distortDetailRow.input, distortCheckbox.value);
-
-            var numericValues = [scaleRange, moveValue, rotateRange, radiusValue, offsetValue,
-                jaggedSize, jaggedDetail, distortSize, distortDetail
-            ];
-            for (var i = 0; i < numericValues.length; i++) {
-                if (isNaN(numericValues[i])) {
-                    return null;
-                }
+        function readEffectOptions() {
+            var fieldValues = readNumericFields();
+            if (!hasOnlyValidNumbers(fieldValues)) {
+                return null;
             }
 
             var unitCode = getRulerUnitCode();
 
             return {
-                usesTransform: (usesScale || usesMove || usesRotate),
-                scaleRange: scaleRange,
-                rotateRange: rotateRange,
-                movePoint: convertToPoint(moveValue, unitCode),
-                radiusPoint: convertToPoint(radiusValue, unitCode),
-                offsetPoint: convertToPoint(offsetValue, unitCode),
-                usesJagged: jaggedCheckbox.value,
-                jaggedSize: jaggedSize,
-                jaggedDetail: Math.max(ROUGHEN_DETAIL_MIN, Math.round(jaggedDetail)),
-                usesDistort: distortCheckbox.value,
-                distortSize: distortSize,
-                distortDetail: Math.max(ROUGHEN_DETAIL_MIN, Math.round(distortDetail)),
+                usesTransform: (scaleRow.checkbox.value || moveRow.checkbox.value || rotateRow.checkbox.value),
+                scaleRange: fieldValues.scaleRange,
+                rotateRange: fieldValues.rotateRange,
+                movePoint: convertToPoint(fieldValues.moveValue, unitCode),
+                radiusPoint: convertToPoint(fieldValues.radiusValue, unitCode),
+                offsetPoint: convertToPoint(fieldValues.offsetValue, unitCode),
+                usesJagged: jaggedControls.checkbox.value,
+                jaggedSize: fieldValues.jaggedSize,
+                jaggedDetail: normalizeDetailValue(fieldValues.jaggedDetail),
+                usesDistort: distortControls.checkbox.value,
+                distortSize: fieldValues.distortSize,
+                distortDetail: normalizeDetailValue(fieldValues.distortDetail),
                 expandsGroups: applyEachCheckbox.value,
                 splitsFillStroke: splitFillStrokeRadio.value,
                 groupsAtEnd: groupAtEndCheckbox.value,
@@ -909,7 +956,9 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             if (!statusText) {
                 return;
             }
-            statusText.text = L(statusPath) + (extraText ? String(extraText) : "");
+            statusText.text = getLabel(statusPath) + (extraText ? String(extraText) : "");
+            /* 1行に収まらない状況表示はツールチップで読めるようにする / Let a truncated status line be read as a tooltip */
+            statusText.helpTip = statusText.text;
         }
 
         /*
@@ -924,7 +973,10 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             } else if (resultMarker === "NOTARGET") {
                 setStatus("status.noTarget");
             } else if (resultMarker === "TIMEOUT") {
-                setStatus("status.timeout");
+                /* 日本語は「。」で切れるので区切りの空白を入れない / Japanese ends on a full stop and needs no separating space */
+                setStatus("status.timeout", (uiLang === "ja" ? "" : " ") + getLabel("status.undoManually"));
+            } else if (resultMarker.indexOf("NOTSENT:") === 0) {
+                setStatus("status.error", resultMarker.substring(8));
             } else if (resultMarker.indexOf("ERR:") === 0) {
                 setStatus("status.error", resultMarker.substring(4));
             } else {
@@ -941,9 +993,9 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             var canExpand = false;
 
             if (resultMarker && resultMarker.indexOf("OK|") === 0) {
-                var parts = resultMarker.split("|");
-                canSplit = (parts[1] === "1");
-                canExpand = (parts[2] === "1");
+                var stateParts = resultMarker.split("|");
+                canSplit = (stateParts[1] === "1");
+                canExpand = (stateParts[2] === "1");
             }
 
             if (!canSplit && splitFillStrokeRadio.value) {
@@ -962,9 +1014,9 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
 
         /* 変形パネルの入力欄と［再計算］の有効・無効を更新 / Update the Transform inputs and Recalculate button */
         function updateTransformPanelState() {
-            scaleInput.enabled = scaleCheckbox.value;
-            moveInput.enabled = moveCheckbox.value;
-            rotateInput.enabled = rotateCheckbox.value;
+            scaleRow.input.enabled = scaleRow.checkbox.value;
+            moveRow.input.enabled = moveRow.checkbox.value;
+            rotateRow.input.enabled = rotateRow.checkbox.value;
             updateRecalcButtonState();
         }
 
@@ -973,17 +1025,17 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             if (!recalcButton) {
                 return;
             }
-            recalcButton.enabled = !!(scaleCheckbox.value || moveCheckbox.value || rotateCheckbox.value ||
-                jaggedCheckbox.value || distortCheckbox.value);
+            recalcButton.enabled = !!(scaleRow.checkbox.value || moveRow.checkbox.value || rotateRow.checkbox.value ||
+                jaggedControls.checkbox.value || distortControls.checkbox.value);
         }
 
         /* ラフ効果パネルの入力欄の有効・無効を更新 / Update the Roughen panel inputs */
-        function updateRoughenPanelState(applyCheckbox, sizeRow, detailRow) {
-            var isEnabled = applyCheckbox.value;
-            sizeRow.label.enabled = isEnabled;
-            sizeRow.input.enabled = isEnabled;
-            detailRow.label.enabled = isEnabled;
-            detailRow.input.enabled = isEnabled;
+        function updateRoughenPanelState(roughenControls) {
+            var isEnabled = roughenControls.checkbox.value;
+            roughenControls.sizeRow.label.enabled = isEnabled;
+            roughenControls.sizeRow.input.enabled = isEnabled;
+            roughenControls.detailRow.label.enabled = isEnabled;
+            roughenControls.detailRow.input.enabled = isEnabled;
             updateRecalcButtonState();
         }
 
@@ -1001,19 +1053,29 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
                 return;
             }
 
-            var options = readOptions();
-            if (!options) {
+            var effectOptions = readEffectOptions();
+            if (!effectOptions) {
                 setStatus("status.invalidNumber");
                 return;
             }
 
             isBusy = true;
             try {
-                var callExpression = "wkApplyEffects(" + serializeOptions(options) + ", " +
+                var callExpression = "wkApplyEffects(" + serializeEffectOptions(effectOptions) + ", " +
                     (canUndoLastApply ? "true" : "false") + ")";
                 var resultMarker = callMainEngine(callExpression);
 
-                canUndoLastApply = (resultMarker.indexOf("OK") === 0);
+                /*
+                送信できていなければドキュメントは変わっていないので、取り消し状態は据え置く。
+                TIMEOUT / ERR は worker が適用を終えたかどうか判断できないため、
+                ユーザー自身の操作を誤って取り消さないよう自動取り消しを止める
+                A call that never went out left the document untouched, so keep the undo state.
+                After TIMEOUT / ERR it is unknown whether the worker finished, so stop the
+                automatic undo rather than risk reverting the user's own work
+                */
+                if (resultMarker.indexOf("NOTSENT:") !== 0) {
+                    canUndoLastApply = (resultMarker.indexOf("OK") === 0);
+                }
                 updateTargetPanelState(resultMarker);
                 showResultStatus(resultMarker);
             } finally {
@@ -1043,7 +1105,8 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
                     return;
                 }
 
-                var value = Number(editText.text);
+                /* 空欄は 0 から数え始める / An empty field steps from 0 */
+                var value = (/^\s*$/.test(editText.text)) ? 0 : parseStrictNumber(editText.text);
                 if (isNaN(value)) {
                     return;
                 }
@@ -1063,7 +1126,7 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
                     value = 0;
                 }
                 if (isIntegerOnly) {
-                    value = Math.round(value);
+                    value = normalizeDetailValue(value);
                 }
 
                 event.preventDefault();
@@ -1072,13 +1135,56 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             });
         }
 
-        /* 詳細欄を整数に丸める / Round a detail field to an integer */
-        function normalizeDetailInput(editText) {
-            var value = Number(editText.text);
+        /* 詳細の値を整数・下限に丸める / Round a detail value to an integer at or above the minimum */
+        function normalizeDetailValue(value) {
+            return Math.max(ROUGHEN_DETAIL_MIN, Math.round(value));
+        }
+
+        /*
+        入力欄の表示を実際に適用される値に合わせる。負値は 0、整数専用の欄は整数・下限に丸める。
+        数値として読めない文字列はそのまま残し、状況表示で知らせる
+        Make a field show what will actually be applied: negatives become 0 and integer-only
+        fields are rounded to the minimum. Unparseable text is left as typed so that the
+        status line can report it
+        */
+        function normalizeNumberInput(editText, isIntegerOnly) {
+            var value = parseStrictNumber(editText.text);
             if (isNaN(value)) {
                 return;
             }
-            editText.text = String(Math.max(ROUGHEN_DETAIL_MIN, Math.round(value)));
+            if (value < 0) {
+                value = 0;
+            }
+            if (isIntegerOnly) {
+                value = normalizeDetailValue(value);
+            }
+            editText.text = String(value);
+        }
+
+        /*
+        数値欄の onChange ハンドラを作る（表示を整えてからプレビューを作り直す）
+        Build an onChange handler that normalizes the field before rebuilding the preview
+        */
+        function makeNumberInputHandler(editText, isIntegerOnly) {
+            return function() {
+                normalizeNumberInput(editText, isIntegerOnly);
+                refreshPreview();
+            };
+        }
+
+        /*
+        チェックボックス行を結線する（入力欄の有効・無効とプレビュー更新）
+        Wire a checkbox row: toggle its input field, then rebuild the preview
+        */
+        function bindCheckboxRow(fieldRow, onToggle) {
+            fieldRow.checkbox.onClick = function() {
+                fieldRow.input.enabled = fieldRow.checkbox.value;
+                if (onToggle) {
+                    onToggle();
+                }
+                refreshPreview();
+            };
+            fieldRow.input.onChange = makeNumberInputHandler(fieldRow.input, false);
         }
 
         // =========================================
@@ -1087,111 +1193,86 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
 
         /* 対象パネル（分離とグループの扱い） / Target panel: split and group handling */
         function buildTargetPanel(parentGroup) {
-            var targetPanel = parentGroup.add("panel", undefined, L("panel.target"));
-            setupPanel(targetPanel, 6);
+            var targetPanel = parentGroup.add("panel", undefined, getLabel("panel.target"));
+            applyPanelLayout(targetPanel, PANEL_ROW_SPACING);
             targetPanel.alignChildren = ["left", "top"];
 
             applyEachCheckbox = setHelpTip(
-                targetPanel.add("checkbox", undefined, L("checkbox.applyEach")), "helpTip.applyEach");
-            applyEachCheckbox.value = INITIAL_CHECKED.applyEach;
+                targetPanel.add("checkbox", undefined, getLabel("checkbox.applyEach")), "helpTip.applyEach");
+            applyEachCheckbox.value = INITIAL_CHECKBOX_STATES.applyEach;
 
             splitFillStrokeRadio = setHelpTip(
-                targetPanel.add("radiobutton", undefined, L("radio.splitFillStroke")), "helpTip.splitFillStroke");
+                targetPanel.add("radiobutton", undefined, getLabel("radio.splitFillStroke")), "helpTip.splitFillStroke");
             keepFillStrokeRadio = setHelpTip(
-                targetPanel.add("radiobutton", undefined, L("radio.keepFillStroke")), "helpTip.keepFillStroke");
+                targetPanel.add("radiobutton", undefined, getLabel("radio.keepFillStroke")), "helpTip.keepFillStroke");
             splitFillStrokeRadio.value = false;
             keepFillStrokeRadio.value = true;
 
             groupAtEndCheckbox = setHelpTip(
-                targetPanel.add("checkbox", undefined, L("checkbox.groupAtEnd")), "helpTip.groupAtEnd");
+                targetPanel.add("checkbox", undefined, getLabel("checkbox.groupAtEnd")), "helpTip.groupAtEnd");
             groupAtEndCheckbox.value = false;
 
             applyEachCheckbox.onClick = refreshPreview;
             splitFillStrokeRadio.onClick = refreshPreview;
             keepFillStrokeRadio.onClick = refreshPreview;
             groupAtEndCheckbox.onClick = refreshPreview;
-
-            return targetPanel;
         }
 
         /* 変形パネル（スケール・移動・回転） / Transform panel: scale, move, rotate */
         function buildTransformPanel(parentGroup) {
-            var transformPanel = parentGroup.add("panel", undefined, L("panel.transform"));
-            setupPanel(transformPanel, 6);
+            var transformPanel = parentGroup.add("panel", undefined, getLabel("panel.transform"));
+            applyPanelLayout(transformPanel, PANEL_ROW_SPACING);
 
             var rulerUnitLabel = getRulerUnitLabel();
 
-            var scaleRow = addCheckboxFieldRow(transformPanel, "fieldLabel.scale", "helpTip.scale",
-                DEFAULT_VALUES.scale, L("unit.percent"), INITIAL_CHECKED.scale, TRANSFORM_CHECK_WIDTH);
-            var moveRow = addCheckboxFieldRow(transformPanel, "fieldLabel.move", "helpTip.move",
-                DEFAULT_VALUES.move, rulerUnitLabel, INITIAL_CHECKED.move, TRANSFORM_CHECK_WIDTH);
-            var rotateRow = addCheckboxFieldRow(transformPanel, "fieldLabel.rotate", "helpTip.rotate",
-                DEFAULT_VALUES.rotate, L("unit.degree"), INITIAL_CHECKED.rotate, TRANSFORM_CHECK_WIDTH);
+            /*
+            ここの3つは ±値 の振れ幅なので、単位表示に ± を添えて絶対値と区別する
+            These three are plus-minus ranges, so the unit label carries a ± to set them
+            apart from the absolute values elsewhere
+            */
+            scaleRow = addCheckboxFieldRow(transformPanel, "fieldLabel.scale", "helpTip.scale",
+                DEFAULT_FIELD_VALUES.scale, RANGE_PREFIX + getLabel("unit.percent"), INITIAL_CHECKBOX_STATES.scale, TRANSFORM_CHECKBOX_WIDTH);
+            moveRow = addCheckboxFieldRow(transformPanel, "fieldLabel.move", "helpTip.move",
+                DEFAULT_FIELD_VALUES.move, RANGE_PREFIX + rulerUnitLabel, INITIAL_CHECKBOX_STATES.move, TRANSFORM_CHECKBOX_WIDTH);
+            rotateRow = addCheckboxFieldRow(transformPanel, "fieldLabel.rotate", "helpTip.rotate",
+                DEFAULT_FIELD_VALUES.rotate, RANGE_PREFIX + getLabel("unit.degree"), INITIAL_CHECKBOX_STATES.rotate, TRANSFORM_CHECKBOX_WIDTH);
 
-            scaleCheckbox = scaleRow.checkbox;
-            scaleInput = scaleRow.input;
-            moveCheckbox = moveRow.checkbox;
-            moveInput = moveRow.input;
-            rotateCheckbox = rotateRow.checkbox;
-            rotateInput = rotateRow.input;
+            bindCheckboxRow(scaleRow, updateRecalcButtonState);
+            bindCheckboxRow(moveRow, updateRecalcButtonState);
+            bindCheckboxRow(rotateRow, updateRecalcButtonState);
 
             /* ボタンは幅いっぱいに広げず、上に余白を入れる / Keep the button narrow and add a gap above it */
             var toggleButtonRow = transformPanel.add("group");
-            setupRow(toggleButtonRow, "left");
+            applyRowLayout(toggleButtonRow);
             toggleButtonRow.margins = [0, TOGGLE_ROW_TOP_MARGIN, 0, 0];
             toggleAllButton = setHelpTip(
-                toggleButtonRow.add("button", undefined, L("button.toggleAll")), "helpTip.toggleAll");
+                toggleButtonRow.add("button", undefined, getLabel("button.toggleAll")), "helpTip.toggleAll");
             toggleAllButton.alignment = "left";
 
             toggleAllButton.onClick = function() {
-                var nextValue = !(scaleCheckbox.value && moveCheckbox.value && rotateCheckbox.value);
-                scaleCheckbox.value = nextValue;
-                moveCheckbox.value = nextValue;
-                rotateCheckbox.value = nextValue;
+                var nextValue = !(scaleRow.checkbox.value && moveRow.checkbox.value && rotateRow.checkbox.value);
+                scaleRow.checkbox.value = nextValue;
+                moveRow.checkbox.value = nextValue;
+                rotateRow.checkbox.value = nextValue;
                 updateTransformPanelState();
                 refreshPreview();
             };
-
-            scaleCheckbox.onClick = function() { updateTransformPanelState(); refreshPreview(); };
-            moveCheckbox.onClick = function() { updateTransformPanelState(); refreshPreview(); };
-            rotateCheckbox.onClick = function() { updateTransformPanelState(); refreshPreview(); };
-
-            scaleInput.onChange = refreshPreview;
-            moveInput.onChange = refreshPreview;
-            rotateInput.onChange = refreshPreview;
-
-            return transformPanel;
         }
 
         /* 角丸・オフセットパネル / Corners & Offset panel */
         function buildCornerPanel(parentGroup) {
-            var cornerPanel = parentGroup.add("panel", undefined, L("panel.corner"));
-            setupPanel(cornerPanel, 6);
+            var cornerPanel = parentGroup.add("panel", undefined, getLabel("panel.corner"));
+            applyPanelLayout(cornerPanel, PANEL_ROW_SPACING);
 
             var rulerUnitLabel = getRulerUnitLabel();
 
-            var radiusRow = addCheckboxFieldRow(cornerPanel, "checkbox.radius", "helpTip.radius",
-                DEFAULT_VALUES.radius, rulerUnitLabel, INITIAL_CHECKED.radius, CORNER_CHECK_WIDTH);
-            var offsetRow = addCheckboxFieldRow(cornerPanel, "checkbox.offset", "helpTip.offset",
-                DEFAULT_VALUES.offset, rulerUnitLabel, INITIAL_CHECKED.offset, CORNER_CHECK_WIDTH);
+            radiusRow = addCheckboxFieldRow(cornerPanel, "checkbox.radius", "helpTip.radius",
+                DEFAULT_FIELD_VALUES.radius, rulerUnitLabel, INITIAL_CHECKBOX_STATES.radius, CORNER_CHECKBOX_WIDTH);
+            offsetRow = addCheckboxFieldRow(cornerPanel, "checkbox.offset", "helpTip.offset",
+                DEFAULT_FIELD_VALUES.offset, rulerUnitLabel, INITIAL_CHECKBOX_STATES.offset, CORNER_CHECKBOX_WIDTH);
 
-            radiusCheckbox = radiusRow.checkbox;
-            radiusInput = radiusRow.input;
-            offsetCheckbox = offsetRow.checkbox;
-            offsetInput = offsetRow.input;
-
-            radiusCheckbox.onClick = function() {
-                radiusInput.enabled = radiusCheckbox.value;
-                refreshPreview();
-            };
-            offsetCheckbox.onClick = function() {
-                offsetInput.enabled = offsetCheckbox.value;
-                refreshPreview();
-            };
-            radiusInput.onChange = refreshPreview;
-            offsetInput.onChange = refreshPreview;
-
-            return cornerPanel;
+            bindCheckboxRow(radiusRow);
+            bindCheckboxRow(offsetRow);
         }
 
         /*
@@ -1200,38 +1281,36 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         */
         function buildRoughenPanel(parentGroup, panelTitlePath, applyLabelPath, applyHelpTipPath,
             isChecked, sizeDefaultText, detailDefaultText) {
-            var roughenPanel = parentGroup.add("panel", undefined, L(panelTitlePath));
-            setupPanel(roughenPanel, 6);
+            var roughenPanel = parentGroup.add("panel", undefined, getLabel(panelTitlePath));
+            applyPanelLayout(roughenPanel, PANEL_ROW_SPACING);
 
             var applyCheckbox = setHelpTip(
-                roughenPanel.add("checkbox", undefined, L(applyLabelPath)), applyHelpTipPath);
+                roughenPanel.add("checkbox", undefined, getLabel(applyLabelPath)), applyHelpTipPath);
             applyCheckbox.value = isChecked;
 
             var sizeRow = addLabelFieldRow(roughenPanel, "fieldLabel.size", "helpTip.size",
-                sizeDefaultText, L("unit.percent"));
+                sizeDefaultText, getLabel("unit.percent"));
             var detailRow = addLabelFieldRow(roughenPanel, "fieldLabel.detail", "helpTip.detail",
-                detailDefaultText, L("unit.perInch"));
+                detailDefaultText, getLabel("unit.perInch"));
+            var roughenControls = { checkbox: applyCheckbox, sizeRow: sizeRow, detailRow: detailRow };
 
             applyCheckbox.onClick = function() {
-                updateRoughenPanelState(applyCheckbox, sizeRow, detailRow);
+                updateRoughenPanelState(roughenControls);
                 refreshPreview();
             };
-            sizeRow.input.onChange = refreshPreview;
-            detailRow.input.onChange = function() {
-                normalizeDetailInput(detailRow.input);
-                refreshPreview();
-            };
+            sizeRow.input.onChange = makeNumberInputHandler(sizeRow.input, false);
+            detailRow.input.onChange = makeNumberInputHandler(detailRow.input, true);
 
-            return { panel: roughenPanel, checkbox: applyCheckbox, sizeRow: sizeRow, detailRow: detailRow };
+            return roughenControls;
         }
 
-        /* ボタンと状況表示 / Buttons and status line */
-        function buildFooter(parentWindow) {
-            var buttonArea = parentWindow.add("group");
-            setupRow(buttonArea, ["fill", "top"]);
+        /* ［再計算］ボタンと状況表示 / The Recalculate button and the status line */
+        function buildFooterControls(parentWindow) {
+            var recalcButtonRow = parentWindow.add("group");
+            applyRowLayout(recalcButtonRow, ["fill", "top"]);
 
             recalcButton = setHelpTip(
-                buttonArea.add("button", undefined, L("button.recalc")), "helpTip.recalc");
+                recalcButtonRow.add("button", undefined, getLabel("button.recalc")), "helpTip.recalc");
             recalcButton.alignment = "left";
             recalcButton.onClick = refreshPreview;
 
@@ -1242,70 +1321,51 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             */
             statusText = parentWindow.add("statictext", undefined, "", { truncate: "end" });
             statusText.alignment = ["fill", "bottom"];
-
-            return buttonArea;
         }
 
-        /*
-        パレットを組み立てる
-        Assemble the palette window
-        */
-        function createPalette() {
-            var win = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
-            setupWindow(win);
-
-            /* 上部エリア（左右2カラム） / Top area with two columns */
-            var columnsGroup = win.add("group");
+        /* 上部エリア（左右2カラム）を組み立てる / Build the two-column top area */
+        function buildPanelColumns(parentWindow) {
+            var columnsGroup = parentWindow.add("group");
             columnsGroup.orientation = "row";
             columnsGroup.alignChildren = ["fill", "top"];
             columnsGroup.spacing = COLUMN_SPACING;
 
-            var leftColumnGroup = columnsGroup.add("group");
-            leftColumnGroup.orientation = "column";
-            leftColumnGroup.alignChildren = ["fill", "top"];
-            leftColumnGroup.spacing = WINDOW_SPACING;
-
-            var rightColumnGroup = columnsGroup.add("group");
-            rightColumnGroup.orientation = "column";
-            rightColumnGroup.alignChildren = ["fill", "top"];
-            rightColumnGroup.spacing = WINDOW_SPACING;
+            var leftColumnGroup = addColumnGroup(columnsGroup);
+            var rightColumnGroup = addColumnGroup(columnsGroup);
 
             buildTargetPanel(leftColumnGroup);
             buildTransformPanel(leftColumnGroup);
 
             buildCornerPanel(rightColumnGroup);
-
-            var jaggedPanelUI = buildRoughenPanel(rightColumnGroup,
+            jaggedControls = buildRoughenPanel(rightColumnGroup,
                 "panel.jagged", "checkbox.jagged", "helpTip.jagged",
-                INITIAL_CHECKED.jagged, DEFAULT_VALUES.jaggedSize, DEFAULT_VALUES.jaggedDetail);
-            jaggedCheckbox = jaggedPanelUI.checkbox;
-            jaggedSizeRow = jaggedPanelUI.sizeRow;
-            jaggedDetailRow = jaggedPanelUI.detailRow;
-
-            var distortPanelUI = buildRoughenPanel(rightColumnGroup,
+                INITIAL_CHECKBOX_STATES.jagged, DEFAULT_FIELD_VALUES.jaggedSize, DEFAULT_FIELD_VALUES.jaggedDetail);
+            distortControls = buildRoughenPanel(rightColumnGroup,
                 "panel.distort", "checkbox.distort", "helpTip.distort",
-                INITIAL_CHECKED.distort, DEFAULT_VALUES.distortSize, DEFAULT_VALUES.distortDetail);
-            distortCheckbox = distortPanelUI.checkbox;
-            distortSizeRow = distortPanelUI.sizeRow;
-            distortDetailRow = distortPanelUI.detailRow;
+                INITIAL_CHECKBOX_STATES.distort, DEFAULT_FIELD_VALUES.distortSize, DEFAULT_FIELD_VALUES.distortDetail);
+        }
 
-            buildFooter(win);
+        /* 数値欄に↑↓キーでの増減を割り当てる / Enable arrow-key stepping on the numeric fields */
+        function enableArrowKeySteppers() {
+            var decimalInputs = [scaleRow.input, moveRow.input, rotateRow.input, radiusRow.input, offsetRow.input,
+                jaggedControls.sizeRow.input, distortControls.sizeRow.input
+            ];
+            var integerInputs = [jaggedControls.detailRow.input, distortControls.detailRow.input];
 
-            /* 矢印キーでの増減を有効化 / Enable arrow-key stepping */
-            changeValueByArrowKey(scaleInput, false);
-            changeValueByArrowKey(moveInput, false);
-            changeValueByArrowKey(rotateInput, false);
-            changeValueByArrowKey(radiusInput, false);
-            changeValueByArrowKey(offsetInput, false);
-            changeValueByArrowKey(jaggedSizeRow.input, false);
-            changeValueByArrowKey(jaggedDetailRow.input, true);
-            changeValueByArrowKey(distortSizeRow.input, false);
-            changeValueByArrowKey(distortDetailRow.input, true);
+            for (var i = 0; i < decimalInputs.length; i++) {
+                changeValueByArrowKey(decimalInputs[i], false);
+            }
+            for (var j = 0; j < integerInputs.length; j++) {
+                changeValueByArrowKey(integerInputs[j], true);
+            }
+        }
 
+        /* パレット自体のイベントを結線 / Wire the palette-level events */
+        function attachPaletteEvents(targetWindow) {
             /* Esc で閉じる / Close on Escape */
-            win.addEventListener("keydown", function(event) {
+            targetWindow.addEventListener("keydown", function(event) {
                 if (event.keyName === "Escape") {
-                    win.close();
+                    targetWindow.close();
                 }
             });
 
@@ -1316,34 +1376,46 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
             Finalize the current result when the palette loses focus; otherwise the
             next app.undo() would revert whatever the user did in the document.
             */
-            if (COMMITS_ON_DEACTIVATE) {
-                win.onDeactivate = function() {
-                    if (isBusy) {
-                        return;
-                    }
-                    /* BridgeTalk 往復に伴う一時的な離脱は無視 / Ignore the transient focus loss caused by BridgeTalk */
-                    if ((nowMilliseconds() - engineCallEndTime) < DEACTIVATE_GUARD_MS) {
-                        return;
-                    }
-                    commitLastApply();
-                };
-            }
+            targetWindow.onDeactivate = function() {
+                if (isBusy) {
+                    return;
+                }
+                /* BridgeTalk 往復に伴う一時的な離脱は無視 / Ignore the transient focus loss caused by BridgeTalk */
+                if ((nowMilliseconds() - engineCallEndTime) < DEACTIVATE_GUARD_MS) {
+                    return;
+                }
+                commitLastApply();
+            };
 
             /* 閉じても結果はそのまま残す / Closing keeps the current result */
-            win.onClose = function() {
+            targetWindow.onClose = function() {
                 commitLastApply();
-                paletteWindow = null;
+                keepPalette(null);
                 return true;
             };
+        }
+
+        /*
+        パレットを組み立てる
+        Assemble the palette window
+        */
+        function createPalette() {
+            var sketchPalette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+            applyWindowLayout(sketchPalette);
+
+            buildPanelColumns(sketchPalette);
+            buildFooterControls(sketchPalette);
+            enableArrowKeySteppers();
+            attachPaletteEvents(sketchPalette);
 
             /* 初期状態を反映 / Apply the initial state */
             updateTransformPanelState();
-            updateRoughenPanelState(jaggedCheckbox, jaggedSizeRow, jaggedDetailRow);
-            updateRoughenPanelState(distortCheckbox, distortSizeRow, distortDetailRow);
+            updateRoughenPanelState(jaggedControls);
+            updateRoughenPanelState(distortControls);
             updateTargetPanelState(null);
             setStatus("status.ready");
 
-            return win;
+            return sketchPalette;
         }
 
         /*
@@ -1351,18 +1423,19 @@ var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last update
         Show the palette, closing an existing one first
         */
         function showPalette() {
-            if (paletteWindow) {
+            var keptPalette = getKeptPalette();
+            if (keptPalette) {
                 try {
-                    paletteWindow.close();
+                    keptPalette.close();
                 } catch (e) {}
-                paletteWindow = null;
             }
 
-            paletteWindow = createPalette();
-            paletteWindow.show();
+            var sketchPalette = createPalette();
+            keepPalette(sketchPalette);
+            sketchPalette.show();
 
             /* レイアウト確定後にボタンの高さを詰める / Trim the button height once the layout is settled */
-            trimButtonHeight(toggleAllButton, 4);
+            trimButtonHeight(toggleAllButton, TOGGLE_BUTTON_TRIM);
 
             /* 選択状態を取得して対象パネルへ反映 / Fetch the selection state for the Target panel */
             var stateMarker = callMainEngine("wkGetSelectionState(" + (applyEachCheckbox.value ? "true" : "false") + ")");
