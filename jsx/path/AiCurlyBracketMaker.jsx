@@ -43,14 +43,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
     // ユーザー設定 / User settings
     // =========================================
 
-    var DEFAULT_TOTAL_LENGTH_MM = 100;         /* 全体の長さの初期値（mm）/ initial overall length (mm) */
-    var DEFAULT_RADIUS_RATIO    = 1 / 15;      /* 半径の初期値＝全体の長さ×この比率 / initial radius = overall length x this ratio */
-    var DEFAULT_EXTENSION_PT    = 0;           /* 両端の延長の初期値（pt）/ initial extension at both ends (pt) */
-    var DEFAULT_MARGIN_MM       = 0;           /* 選択オブジェクトとの余白の初期値（mm）/ initial gap from the selection (mm) */
-    var DEFAULT_STROKE_WIDTH_PT = 2;           /* 線の太さの初期値（pt）/ initial stroke width (pt) */
-    var DEFAULT_DIRECTION       = "right";     /* 初期の向き（DIRECTION_KEYS のいずれか）/ initial direction (one of DIRECTION_KEYS) */
-    var DEFAULT_STROKE_CAP      = "buttCap";   /* 初期の線端 / initial stroke cap */
-    var DEFAULT_CORNER_JOIN     = "miterJoin"; /* 初期の角の形状 / initial corner shape */
+    var DEFAULT_TOTAL_LENGTH_MM  = 100;         /* 全体の長さの初期値（mm）/ initial overall length (mm) */
+    var DEFAULT_RADIUS_RATIO     = 1 / 15;      /* 半径の初期値＝全体の長さ×この比率 / initial radius = overall length x this ratio */
+    var DEFAULT_LINK_RADIUS      = true;        /* 2つの半径を連動させて始めるか / whether the two radii start linked */
+    var DEFAULT_CHAMFER          = false;       /* 面取りを初期状態でONにするか / whether the chamfer starts on */
+
+    var DEFAULT_CENTER_OFFSET_MM = 0;           /* 中央の位置の初期値（mm、0で中央）/ initial center offset (mm, 0 = centered) */
+    var DEFAULT_EXTENSION_PT     = 0;           /* 両端の延長の初期値（pt）/ initial extension at both ends (pt) */
+    var DEFAULT_MARGIN_MM        = 2;           /* 選択オブジェクトとの余白の初期値（mm）/ initial gap from the selection (mm) */
+    var DEFAULT_STROKE_WIDTH_PT  = 2;           /* 線の太さの初期値（pt）/ initial stroke width (pt) */
+    var DEFAULT_DIRECTION        = "right";     /* 初期の向き（DIRECTION_KEYS のいずれか）/ initial direction (one of DIRECTION_KEYS) */
+    var DEFAULT_STROKE_CAP       = "buttCap";   /* 初期の線端 / initial stroke cap */
+    var DEFAULT_CORNER_JOIN      = "miterJoin"; /* 初期の角の形状 / initial corner shape */
+
+    /* 生成したブラケットに付ける目印。値には向きを入れ、選び直したときの復元に使う / Marker added to the bracket we create; its value holds the direction, used when it is selected again */
+    var BRACKET_TAG_NAME = "AiCurlyBracketMaker";
+
+    /* 面取りに使うジグザグ効果（大きさ0・折り返し0・roundness 0＝直線的に）/ Zig Zag effect for the chamfer: amount 0, ridges 0, roundness 0 (corner points) */
+    var CHAMFER_EFFECT_XML = '<LiveEffect name="Adobe Zigzag"><Dict data="R amount 0 R relAmount 0 R absoluteness 1 R ridges 0 R roundness 0 "/></LiveEffect>';
 
     // =========================================
     // レイアウト / Layout
@@ -61,7 +71,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
     var PANEL_MARGINS      = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING      = 8;                /* パネル内の要素間隔 / panel spacing */
     var FIELD_ROW_SPACING  = 6;                /* ラベル・入力欄・単位表記の間隔 / gap inside a labeled row */
-    var LABEL_WIDTH        = 100;              /* 行ラベルの共通幅 / shared width of row labels */
+    var LABEL_WIDTH        = 98;               /* 行ラベルの共通幅 / shared width of row labels */
     var FIELD_CHARACTERS   = 3;                /* 数値欄の文字数（＝最小幅）/ characters of a numeric field */
     var BUTTON_BAR_MARGINS = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
     var BUTTON_BAR_SPACING = 10;               /* ボタンバー内の要素間隔 / spacing inside the button bar */
@@ -90,18 +100,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             title: { ja: "カーリーブラケットの作成", en: "Create Curly Bracket" }
         },
         panel: {
-            parameters: { ja: "パラメータ設定", en: "Parameters" },
-            stroke:     { ja: "線", en: "Stroke" }
+            shapeAndSize: { ja: "形状と大きさ", en: "Shape & Size" },
+            stroke:       { ja: "線", en: "Stroke" }
         },
         fieldLabel: {
-            radius:      { ja: "半径", en: "Radius" },
-            totalLength: { ja: "直線の長さ", en: "Length" },
-            extension:   { ja: "延長", en: "Extension" },
-            margin:      { ja: "余白", en: "Margin" },
-            strokeWidth: { ja: "線の太さ", en: "Stroke Width" },
-            strokeCap:   { ja: "線端", en: "Cap" },
-            cornerJoin:  { ja: "角の形状", en: "Corner Shape" },
-            direction:   { ja: "向き", en: "Direction" }
+            centerRadius: { ja: "半径（中央）", en: "Center Radius" },
+            endRadius:    { ja: "半径（両端）", en: "End Radius" },
+            centerOffset: { ja: "中央の位置", en: "Center Offset" },
+            totalLength:  { ja: "直線の長さ", en: "Length" },
+            extension:    { ja: "延長", en: "Extension" },
+            margin:       { ja: "余白", en: "Margin" },
+            strokeWidth:  { ja: "線の太さ", en: "Stroke Width" },
+            strokeCap:    { ja: "線端", en: "Cap" },
+            cornerJoin:   { ja: "角の形状", en: "Corner Shape" },
+            direction:    { ja: "向き", en: "Direction" }
+        },
+        checkbox: {
+            linkRadius: { ja: "連動", en: "Link" },
+            chamfer:    { ja: "面取り", en: "Chamfer" }
         },
         radio: {
             buttCap:   { ja: "なし", en: "None" },
@@ -114,14 +130,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             right:     { ja: "右", en: "Right" }
         },
         tooltip: {
-            radius:      { ja: "先端と両端を作る1/4円の半径。↑↓で増減、Shift+↑↓で10単位スナップ", en: "Radius of the quarter circles at the tip and the ends. Up/Down to step, Shift+Up/Down snaps to 10" },
-            totalLength: { ja: "ブラケット全体の長さ。半径を変えても総長は変わらず、直線部分が自動で伸縮します", en: "Overall length of the bracket. Changing the radius keeps this length and resizes the straight sections instead" },
-            extension:   { ja: "両端から先端の反対側へ伸ばす直線の長さ（0で延長なし）", en: "Straight run added at both ends, away from the tip (0 adds none)" },
-            margin:      { ja: "選択オブジェクトとブラケットのあいだの間隔（選択して実行したときのみ有効）", en: "Gap between the selection and the bracket (only when run with a selection)" },
-            strokeWidth: { ja: "ブラケットの線幅（pt）", en: "Stroke width of the bracket (pt)" },
-            strokeCap:   { ja: "両端の線の先を丸めるかどうか", en: "Whether both ends of the stroke are rounded" },
-            cornerJoin:  { ja: "先端の角を尖らせるか丸めるか", en: "Whether the tip corner is pointed or rounded" },
-            direction:   { ja: "先端を向ける方向", en: "The direction the tip points to" }
+            centerRadius: { ja: "中央の突起を作る円弧の半径。↑↓で増減、Shift+↑↓で10単位スナップ", en: "Radius of the arcs that form the point in the middle. Up/Down to step, Shift+Up/Down snaps to 10" },
+            endRadius:    { ja: "両端で外へ折れ返る円弧の半径。0にすると円弧なしの直角になります", en: "Radius of the arcs that curl outward at both ends. 0 leaves a right angle with no arc" },
+            linkRadius:   { ja: "両端の半径を中央に合わせる（ONのあいだ両端は編集できません）", en: "Keep the end radius equal to the center radius (the end field is disabled while on)" },
+            chamfer:      { ja: "ジグザグ効果（大きさ0・折り返し0）を適用し、円弧を直線でつないだ面取りにします", en: "Applies a Zig Zag effect (size 0, ridges 0) so the arcs become straight chamfers" },
+            centerOffset: { ja: "中央の突起を長さ方向にずらす量。0で中央、左右の向きでは上へ、上下の向きでは右へ動きます（マイナスで逆）", en: "Moves the middle point along the length. 0 keeps it centered; up for a left/right bracket, right for an up/down one (negative reverses)" },
+            totalLength:  { ja: "ブラケット全体の長さ。半径を変えても総長は変わらず、直線部分が自動で伸縮します", en: "Overall length of the bracket. Changing the radius keeps this length and resizes the straight sections instead" },
+            extension:    { ja: "両端から外側へ伸ばす直線の長さ（0で延長なし）", en: "Straight run added at both ends, away from the middle (0 adds none)" },
+            margin:       { ja: "選択オブジェクトとブラケットのあいだの間隔（選択して実行したときのみ有効）", en: "Gap between the selection and the bracket (only when run with a selection)" },
+            strokeWidth:  { ja: "ブラケットの線幅（pt）", en: "Stroke width of the bracket (pt)" },
+            strokeCap:    { ja: "両端の線の先を丸めるかどうか", en: "Whether both ends of the stroke are rounded" },
+            cornerJoin:   { ja: "中央の角を尖らせるか丸めるか", en: "Whether the corner in the middle is pointed or rounded" },
+            direction:    { ja: "中央の突起を向ける方向。選択オブジェクトがあれば、その辺に沿って配置されます", en: "The direction the middle point faces. With a selection, the bracket hugs the matching edge" },
+            create:       { ja: "プレビューの状態で確定します（大きさの参照にしたパスは削除されます）", en: "Commits exactly what the preview shows (a path used as the size reference is removed)" }
         },
         button: {
             create: { ja: "作成", en: "Create" },
@@ -129,7 +150,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         },
         alert: {
             lockedLayer:  { ja: "アクティブレイヤーがロックまたは非表示です。", en: "The active layer is locked or hidden." },
-            invalidValue: { ja: "半径・長さ・線の太さには数値を入力してください（半径と線の太さは0より大きい値）。", en: "Enter numbers for the radius, length and stroke width (radius and stroke width must be greater than 0)." }
+            invalidValue: { ja: "数値が正しくありません。半径（中央）と線の太さは0より大きい値、ほかの項目は0以上を入力してください。", en: "Some values are not valid. The center radius and the stroke width must be greater than 0, and the other fields 0 or more." }
         }
     };
 
@@ -330,6 +351,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
     };
 
     /**
+     * 向きに対応する回転量を返す
+     * @param {string} direction - 向きのキー（DIRECTION_KEYS のいずれか）
+     * @returns {{cos: number, sin: number}} 回転量（未知のキーは既定の向き）
+     */
+    function getDirectionRotation(direction) {
+        return DIRECTION_ROTATIONS[direction] || DIRECTION_ROTATIONS[DEFAULT_DIRECTION];
+    }
+
+    /**
      * 座標を中心まわりに回転する
      * @param {number[]} basePoint - 回転前の座標 [x, y]
      * @param {{cos: number, sin: number}} rotation - 回転量（cos/sin）
@@ -362,111 +392,172 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
 
     /**
      * @typedef {object} BracketSettings
-     * @property {number} radiusPt - 1/4円の半径（pt）
+     * @property {number} centerRadiusPt - 中央の突起を作る円弧の半径（pt）
+     * @property {number} endRadiusPt - 両端で外へ折れ返る円弧の半径（pt）
      * @property {number} totalLengthPt - 全体の長さ（pt）
-     * @property {number} extensionPt - 両端から先端の反対側へ伸ばす長さ（pt）
+     * @property {number} centerOffsetPt - 中央の突起を長さ方向にずらす量（pt、0で中央）
+     * @property {number} extensionPt - 両端から外側へ伸ばす長さ（pt）
      * @property {number} marginPt - 選択オブジェクトとの余白（pt）
      * @property {number} strokeWidthPt - 線の太さ（pt）
      * @property {string} strokeCap - 線端（STROKE_CAPS のキー）
      * @property {string} cornerJoin - 角の形状（CORNER_JOINS のキー）
      * @property {string} direction - 向き（DIRECTION_KEYS のいずれか）
+     * @property {boolean} isChamfer - 面取り（ジグザグ効果）を適用するか
      */
 
     /**
-     * ブラケットのアンカーポイントと方向線を計算する（右向きで組み立ててから向きに応じて回転）
+     * 中央をずらす向きを返す（左右の向きでは上が＋、上下の向きでは右が＋）
+     * @param {string} direction - 向きのキー（DIRECTION_KEYS のいずれか）
+     * @returns {number} 右向き基準の座標系での符号（+1 または -1）
+     */
+    function getCenterOffsetSign(direction) {
+        return (direction === "left" || direction === "up") ? -1 : 1;
+    }
+
+    /**
+     * 座標を水平の中心線で反転する
+     * @param {number[]} basePoint - 反転前の座標 [x, y]
+     * @param {number} centerY - 中心線のY座標（pt）
+     * @returns {number[]} 反転後の座標 [x, y]
+     */
+    function mirrorAcrossCenterY(basePoint, centerY) {
+        return [basePoint[0], 2 * centerY - basePoint[1]];
+    }
+
+    /**
+     * 上半分のパスポイントを反転して下半分のパスポイントにする
+     * 進行方向が逆になるので、左右のハンドルも入れ替える
+     * @param {{anchor: number[], left: number[], right: number[]}} halfPoint - 上半分のパスポイント
+     * @param {number} centerY - 中心線のY座標（pt）
+     * @returns {{anchor: number[], left: number[], right: number[]}} 下半分のパスポイント
+     */
+    function mirrorPointAcrossCenterY(halfPoint, centerY) {
+        return {
+            anchor: mirrorAcrossCenterY(halfPoint.anchor, centerY),
+            left:   mirrorAcrossCenterY(halfPoint.right, centerY),
+            right:  mirrorAcrossCenterY(halfPoint.left, centerY)
+        };
+    }
+
+    /**
+     * 同じ位置に来た2つのパスポイントを1つにまとめる（入りのハンドルは前から、出のハンドルは後ろから）
+     * @param {{anchor: number[], left: number[], right: number[]}} firstPoint - 前のパスポイント
+     * @param {{anchor: number[], left: number[], right: number[]}} secondPoint - 後ろのパスポイント
+     * @returns {{anchor: number[], left: number[], right: number[]}} まとめたパスポイント
+     */
+    function mergePathPoints(firstPoint, secondPoint) {
+        return {
+            anchor: secondPoint.anchor,
+            left:   firstPoint.left,
+            right:  secondPoint.right
+        };
+    }
+
+    /**
+     * 片側のパスポイントを、腕の先から中央の突起の手前まで順に返す（右向き基準）
+     * 下半分はこの結果を中央で反転して使う
+     * @param {number} endRadius - 両端で外へ折れ返る円弧の半径（pt）
+     * @param {number} centerRadius - 中央の突起を作る円弧の半径（pt）
+     * @param {number} straightLength - この側の直線部分の長さ（pt）
+     * @param {number} extension - 腕の先に足す延長（pt）
+     * @param {number} centerX - 中心軸のX座標（pt）
+     * @param {number} centerY - 中央の突起のY座標（pt）
+     * @returns {Array<{anchor: number[], left: number[], right: number[]}>} 片側のパスポイント
+     */
+    function buildHalfPoints(endRadius, centerRadius, straightLength, extension, centerX, centerY) {
+        var endHandle = endRadius * KAPPA;
+        var centerHandle = centerRadius * KAPPA;
+        var straightTopY = centerY + centerRadius + straightLength; /* 直線の上端 / Top of the straight section */
+        var straightBottomY = centerY + centerRadius;               /* 直線の下端 / Bottom of the straight section */
+        var armEndY = straightTopY + endRadius;                  /* 腕の先のY座標 / Y of the arm end */
+        /* 腕の先（両端の円弧の外端）/ Arm end (outer end of the end arc) */
+        var armEndPoint = {
+            anchor: [centerX - endRadius, armEndY],
+            left:   [centerX - endRadius, armEndY],
+            right:  [centerX - (endRadius - endHandle), armEndY]
+        };
+        /* 直線の開始点（両端の円弧の内端）/ Start of the straight section */
+        var straightTopPoint = {
+            anchor: [centerX, straightTopY],
+            left:   [centerX, straightTopY + endHandle],
+            right:  [centerX, straightTopY]
+        };
+        /* 直線の終了点（中央の円弧の外端）/ End of the straight section */
+        var straightBottomPoint = {
+            anchor: [centerX, straightBottomY],
+            left:   [centerX, straightBottomY],
+            right:  [centerX, straightBottomY - centerHandle]
+        };
+
+        var halfPoints = [];
+
+        /* 延長線（中央とは反対の外側へ伸ばす）/ Extension, running outward, away from the middle */
+        if (extension > 0) {
+            halfPoints.push(createStraightPoint(centerX - endRadius - extension, armEndY));
+        }
+
+        /* 半径0のときは腕の先と直線の開始点が重なり、円弧のない直角になる / A zero radius merges the arm end into the straight start, leaving a right angle */
+        var armPoint = (endRadius > 0) ? armEndPoint : mergePathPoints(armEndPoint, straightTopPoint);
+        halfPoints.push(armPoint);
+
+        if (straightLength > 0) {
+            if (endRadius > 0) halfPoints.push(straightTopPoint);
+            halfPoints.push(straightBottomPoint);
+        } else if (endRadius > 0) {
+            /* 直線がないときは変曲点ひとつにまとめる / Without a straight section the two points merge into an inflection point */
+            halfPoints.push(mergePathPoints(straightTopPoint, straightBottomPoint));
+        } else {
+            /* 直線も円弧もないときは、腕の先まで含めてひとつにまとめる / With neither, the arm end merges in as well */
+            halfPoints[halfPoints.length - 1] = mergePathPoints(armPoint, straightBottomPoint);
+        }
+        return halfPoints;
+    }
+
+    /**
+     * ブラケットのアンカーポイントと方向線を計算する
+     * 上半分だけを組み立て、中央の突起をはさんで鏡像を並べ、最後に向きへ回転する
      * @param {BracketSettings} bracketSettings - ブラケットの設定値
      * @param {number} centerX - 配置位置の中心X（pt）
      * @param {number} centerY - 配置位置の中心Y（pt）
      * @returns {Array<{anchor: number[], left: number[], right: number[]}>} 向きを反映したパスポイント
      */
     function buildBracketPoints(bracketSettings, centerX, centerY) {
-        var radius = bracketSettings.radiusPt;
+        var endRadius = bracketSettings.endRadiusPt;
+        var centerRadius = bracketSettings.centerRadiusPt;
+        var centerHandle = centerRadius * KAPPA;
         var extension = bracketSettings.extensionPt;
-        /* 全体の長さから円弧ぶん（片側 2×半径）を差し引いた直線部分 / The straight run left after the arcs (2 x radius per side) */
-        var straightLength = Math.max(0, bracketSettings.totalLengthPt / 2 - 2 * radius);
-        var handleLength = radius * KAPPA;
-        var rotation = DIRECTION_ROTATIONS[bracketSettings.direction] || DIRECTION_ROTATIONS[DEFAULT_DIRECTION];
-        var bracketPoints = [];
 
-        /* 0. 上の延長線（先端の反対側へ伸ばす）/ Upper extension, running away from the tip */
-        if (extension > 0) {
-            bracketPoints.push(createStraightPoint(centerX - radius - extension, centerY + 2 * radius + straightLength));
-        }
+        /* 全体の長さから円弧ぶん（片側 両端＋中央）を差し引いた直線部分 / The straight run left after the arcs (end + center per side) */
+        var straightLength = Math.max(0, bracketSettings.totalLengthPt / 2 - endRadius - centerRadius);
 
-        /* 1. 上端点（左上円の上端）/ Top end (top of the upper-left arc) */
+        /* 中央のずらし量。全長を保つため、直線が尽きるところで止める / Offset of the middle point, capped where the straight run runs out so the overall length holds */
+        var centerOffset = getCenterOffsetSign(bracketSettings.direction) * bracketSettings.centerOffsetPt;
+        centerOffset = Math.max(-straightLength, Math.min(straightLength, centerOffset));
+
+        /* ずらしたぶん、上下で直線の長さが変わる / The offset makes the two halves differ */
+        var beakY = centerY + centerOffset;
+        var upperPoints = buildHalfPoints(endRadius, centerRadius, straightLength - centerOffset, extension, centerX, beakY);
+        var lowerPoints = buildHalfPoints(endRadius, centerRadius, straightLength + centerOffset, extension, centerX, beakY);
+
+
+        var bracketPoints = upperPoints.slice();
+        var i;
+
+        /* 中央の突起は上下の折り返し点なので反転しない / The middle point is where the halves meet, so it is not mirrored */
         bracketPoints.push({
-            anchor: [centerX - radius, centerY + 2 * radius + straightLength],
-            left:   [centerX - radius, centerY + 2 * radius + straightLength],
-            right:  [centerX - (radius - handleLength), centerY + 2 * radius + straightLength]
+            anchor: [centerX + centerRadius, beakY],
+            left:   [centerX + (centerRadius - centerHandle), beakY],
+            right:  [centerX + (centerRadius - centerHandle), beakY]
         });
 
-        if (straightLength > 0) {
-            /* 2. 左上円の右端（直線の上開始点）/ Start of the upper straight section */
-            bracketPoints.push({
-                anchor: [centerX, centerY + radius + straightLength],
-                left:   [centerX, centerY + radius + straightLength + handleLength],
-                right:  [centerX, centerY + radius + straightLength]
-            });
-
-            /* 3. 中央上円の左端（直線の終了点）/ End of the upper straight section */
-            bracketPoints.push({
-                anchor: [centerX, centerY + radius],
-                left:   [centerX, centerY + radius],
-                right:  [centerX, centerY + radius - handleLength]
-            });
-        } else {
-            /* 直線がない場合（変曲点）/ Inflection point when there is no straight section */
-            bracketPoints.push({
-                anchor: [centerX, centerY + radius],
-                left:   [centerX, centerY + radius + handleLength],
-                right:  [centerX, centerY + radius - handleLength]
-            });
-        }
-
-        /* 4. 先端（中央の鋭角部分）/ Tip (the pointed center) */
-        bracketPoints.push({
-            anchor: [centerX + radius, centerY],
-            left:   [centerX + (radius - handleLength), centerY],
-            right:  [centerX + (radius - handleLength), centerY]
-        });
-
-        if (straightLength > 0) {
-            /* 5. 中央下円の左端（直線の下開始点）/ Start of the lower straight section */
-            bracketPoints.push({
-                anchor: [centerX, centerY - radius],
-                left:   [centerX, centerY - radius + handleLength],
-                right:  [centerX, centerY - radius]
-            });
-
-            /* 6. 左下円の右端（直線の終了点）/ End of the lower straight section */
-            bracketPoints.push({
-                anchor: [centerX, centerY - radius - straightLength],
-                left:   [centerX, centerY - radius - straightLength],
-                right:  [centerX, centerY - radius - straightLength - handleLength]
-            });
-        } else {
-            /* 直線がない場合（変曲点）/ Inflection point when there is no straight section */
-            bracketPoints.push({
-                anchor: [centerX, centerY - radius],
-                left:   [centerX, centerY - radius + handleLength],
-                right:  [centerX, centerY - radius - handleLength]
-            });
-        }
-
-        /* 7. 下端点（左下円の下端）/ Bottom end (bottom of the lower-left arc) */
-        bracketPoints.push({
-            anchor: [centerX - radius, centerY - (2 * radius + straightLength)],
-            left:   [centerX - (radius - handleLength), centerY - (2 * radius + straightLength)],
-            right:  [centerX - radius, centerY - (2 * radius + straightLength)]
-        });
-
-        /* 8. 下の延長線（先端の反対側へ伸ばす）/ Lower extension, running away from the tip */
-        if (extension > 0) {
-            bracketPoints.push(createStraightPoint(centerX - radius - extension, centerY - (2 * radius + straightLength)));
+        /* 下半分は中央で折り返した鏡像を逆順に並べる / The lower half is mirrored across the middle point, in reverse order */
+        for (i = lowerPoints.length - 1; i >= 0; i--) {
+            bracketPoints.push(mirrorPointAcrossCenterY(lowerPoints[i], beakY));
         }
 
         /* 右向きで組み立てた座標を、選んだ向きへまとめて回転 / Rotate the right-facing points into the chosen direction */
-        for (var i = 0; i < bracketPoints.length; i++) {
+        var rotation = getDirectionRotation(bracketSettings.direction);
+        for (i = 0; i < bracketPoints.length; i++) {
             bracketPoints[i].anchor = rotateAroundCenter(bracketPoints[i].anchor, rotation, centerX, centerY);
             bracketPoints[i].left = rotateAroundCenter(bracketPoints[i].left, rotation, centerX, centerY);
             bracketPoints[i].right = rotateAroundCenter(bracketPoints[i].right, rotation, centerX, centerY);
@@ -477,12 +568,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
     /**
      * @typedef {object} SelectionReference
      * @property {number[]} bounds - 選択全体の外接矩形 [左, 上, 右, 下]
-     * @property {PageItem[]} items - 基準にしたオブジェクト
-     * @property {boolean} isSizeReference - 大きさの参照（開いたパス1本）なら true。確定時に削除する
+     * @property {PathItem|null} sizeReferenceItem - 大きさの参照にした開いたパス（囲む対象のときは null）
+     * @property {string|null} bracketDirection - このスクリプトで作ったブラケットなら、その向き
      */
 
     /**
+     * このスクリプトで作ったブラケットかどうかを目印のタグで判定する
+     * @param {PathItem|null} pathItem - 調べるパス
+     * @returns {string|null} 記録されていた向き（ブラケットでなければ null）
+     */
+    function readBracketDirection(pathItem) {
+        if (!pathItem) return null;
+        for (var i = 0; i < pathItem.tags.length; i++) {
+            if (pathItem.tags[i].name === BRACKET_TAG_NAME) {
+                return DIRECTION_ROTATIONS[pathItem.tags[i].value] ? pathItem.tags[i].value : null;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 選択オブジェクトを基準情報として読み取る
+     * 開いたパス1本だけなら「大きさの参照」、それ以外は「囲む対象」として扱う
      * @param {Document} doc - 対象ドキュメント
      * @returns {SelectionReference|null} 基準の情報（境界を持つ選択がなければ null）
      */
@@ -491,17 +598,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         if (!selectedItems || selectedItems.length === 0) return null;
 
         var selectionBounds = null;
-        var referenceItems = [];
+        var boundedItemCount = 0;
+        var firstBoundedItem = null;
+
         for (var i = 0; i < selectedItems.length; i++) {
             var itemBounds = null;
+            /* 文字選択（TextRange）には geometricBounds がないので、取れないものは飛ばす / A text range has no geometricBounds, so skip what cannot be read */
             try {
                 itemBounds = selectedItems[i].geometricBounds;
             } catch (eBounds) {
-                itemBounds = null; /* 文字選択など境界を持たないものは飛ばす / Skip selections without bounds, such as a text range */
+                itemBounds = null;
             }
             if (!itemBounds) continue;
 
-            referenceItems.push(selectedItems[i]);
+            boundedItemCount++;
+            if (!firstBoundedItem) firstBoundedItem = selectedItems[i];
+
             if (!selectionBounds) {
                 selectionBounds = [itemBounds[0], itemBounds[1], itemBounds[2], itemBounds[3]];
             } else {
@@ -512,23 +624,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             }
         }
         if (!selectionBounds) return null;
+
+        /* 閉じたパスや図形・テキストは囲む対象なので参照にしない / Closed paths, shapes and text are things to bracket, not references */
+        var isSizeReference = (boundedItemCount === 1 && firstBoundedItem.typename === "PathItem" && !firstBoundedItem.closed);
+        var sizeReferenceItem = isSizeReference ? firstBoundedItem : null;
         return {
             bounds: selectionBounds,
-            items: referenceItems,
-            isSizeReference: isSizeReference(referenceItems)
+            sizeReferenceItem: sizeReferenceItem,
+            bracketDirection: readBracketDirection(sizeReferenceItem)
         };
-    }
-
-    /**
-     * 大きさの参照として扱う選択かどうかを返す（開いたパス1本だけなら参照）
-     * @param {PageItem[]} referenceItems - 対象のオブジェクト
-     * @returns {boolean} 参照として扱うなら true
-     */
-    function isSizeReference(referenceItems) {
-        if (referenceItems.length !== 1) return false;
-        var referenceItem = referenceItems[0];
-        /* 閉じたパスや図形・テキストは「囲む対象」として残す / Closed paths, shapes and text stay, as things to be bracketed */
-        return (referenceItem.typename === "PathItem" && !referenceItem.closed);
     }
 
     /**
@@ -537,15 +641,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
      * @param {boolean} isHidden - 隠すなら true、戻すなら false
      * @returns {void}
      */
-    function setReferenceItemsHidden(selectionReference, isHidden) {
-        if (!selectionReference || !selectionReference.isSizeReference) return;
-        for (var i = 0; i < selectionReference.items.length; i++) {
-            try {
-                selectionReference.items[i].hidden = isHidden;
-            } catch (eHideReference) {
-                /* ロックなどで切り替えられないものはそのまま / Leave alone what cannot be toggled, such as a locked item */
-            }
-        }
+    function setSizeReferenceHidden(selectionReference, isHidden) {
+        if (!selectionReference || !selectionReference.sizeReferenceItem) return;
+        selectionReference.sizeReferenceItem.hidden = isHidden;
     }
 
     /**
@@ -553,44 +651,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
      * @param {SelectionReference|null} selectionReference - 基準の情報
      * @returns {void}
      */
-    function removeReferenceItems(selectionReference) {
-        if (!selectionReference || !selectionReference.isSizeReference) return;
-        for (var i = 0; i < selectionReference.items.length; i++) {
-            try {
-                selectionReference.items[i].remove();
-            } catch (eRemoveReference) {
-                /* ロックなどで消せないものは残す / Leave behind what cannot be removed, such as a locked item */
-            }
-        }
+    function removeSizeReference(selectionReference) {
+        if (!selectionReference || !selectionReference.sizeReferenceItem) return;
+        selectionReference.sizeReferenceItem.remove();
     }
 
     /**
-     * 基準矩形から初期値を求める
-     * 参照のパスは左（縦長）・上（横長）に、囲む対象は右（縦長）・下（横長）に置く
-     * @param {number[]|null} referenceBounds - 基準の外接矩形 [左, 上, 右, 下]
-     * @param {boolean} isSizeReferenceSelection - 大きさの参照なら true
-     * @returns {{totalLengthMm: number, radiusMm: number, direction: string}} 全体の長さ・半径（mm）と向き
+     * 向きに合わせて、基準の外接矩形から長さを取る
+     * 左右の向きなら高さ、上下の向きなら幅
+     * @param {SelectionReference} selectionReference - 基準の情報
+     * @param {string} direction - 向きのキー
+     * @returns {number} 全体の長さ（mm）
      */
-    function getInitialValues(referenceBounds, isSizeReferenceSelection) {
-        var totalLengthMm = DEFAULT_TOTAL_LENGTH_MM;
-        var direction = DEFAULT_DIRECTION;
+    function getReferenceLengthMm(selectionReference, direction) {
+        var referenceBounds = selectionReference.bounds;
+        var isVertical = (direction === "left" || direction === "right");
+        var referenceLengthPt = isVertical
+            ? (referenceBounds[1] - referenceBounds[3])
+            : (referenceBounds[2] - referenceBounds[0]);
+        return referenceLengthPt / MM_TO_PT;
+    }
 
-        if (referenceBounds) {
-            var referenceWidth = referenceBounds[2] - referenceBounds[0];
-            var referenceHeight = referenceBounds[1] - referenceBounds[3];
-            var isVertical = (referenceHeight >= referenceWidth);
-            totalLengthMm = (isVertical ? referenceHeight : referenceWidth) / MM_TO_PT;
-            if (isVertical) {
-                direction = isSizeReferenceSelection ? "left" : "right";
-            } else {
-                direction = isSizeReferenceSelection ? "up" : "down";
-            }
+    /**
+     * ダイアログの初期値（長さ・半径・向き）を決める
+     * 選択があれば選択から決め直し、選択がなければ前回ダイアログを閉じたときの値を復元する
+     * 参照のパスは左（縦長）・上（横長）に、囲む対象は右（縦長）・下（横長）に置く
+     * @param {SelectionReference|null} selectionReference - 基準の情報
+     * @param {object} savedSettings - 同一セッション内に記憶していた値
+     * @returns {{totalLengthMm: number, centerRadiusMm: number, endRadiusMm: number, direction: string}} 初期値
+     */
+    function getInitialValues(selectionReference, savedSettings) {
+        if (!selectionReference) {
+            /* 選択がないときは前回の値をそのまま復元する / With no selection, restore what was there last time */
+            var savedLengthMm = readSavedNumber(savedSettings.totalLength, DEFAULT_TOTAL_LENGTH_MM);
+            var savedRadiusMm = savedLengthMm * DEFAULT_RADIUS_RATIO;
+            return {
+                totalLengthMm: savedLengthMm,
+                centerRadiusMm: readSavedNumber(savedSettings.centerRadius, savedRadiusMm),
+                endRadiusMm: readSavedNumber(savedSettings.endRadius, savedRadiusMm),
+                direction: DIRECTION_ROTATIONS[savedSettings.direction] ? savedSettings.direction : DEFAULT_DIRECTION
+            };
         }
+
+        var referenceBounds = selectionReference.bounds;
+        var referenceWidth = referenceBounds[2] - referenceBounds[0];
+        var referenceHeight = referenceBounds[1] - referenceBounds[3];
+        var isSizeReference = (selectionReference.sizeReferenceItem !== null);
+        var direction;
+
+        if (selectionReference.bracketDirection) {
+            /* このスクリプトで作ったブラケットは、その向きのまま描き直す / A bracket we made keeps the direction it was drawn with */
+            direction = selectionReference.bracketDirection;
+        } else if (referenceHeight >= referenceWidth) {
+            direction = isSizeReference ? "left" : "right";
+        } else {
+            direction = isSizeReference ? "up" : "down";
+        }
+
+        var totalLengthMm = getReferenceLengthMm(selectionReference, direction);
+        /* 半径（中央・両端とも）は全体の長さに追従させる（以後は個別に変更できる）/ Both radii follow the overall length, and can be changed on their own afterwards */
+        var radiusMm = totalLengthMm * DEFAULT_RADIUS_RATIO;
 
         return {
             totalLengthMm: totalLengthMm,
-            /* 半径は全体の長さに追従させる（以後は個別に変更できる）/ The radius follows the overall length, and can be changed on its own afterwards */
-            radiusMm: totalLengthMm * DEFAULT_RADIUS_RATIO,
+            centerRadiusMm: radiusMm,
+            endRadiusMm: radiusMm,
             direction: direction
         };
     }
@@ -610,41 +735,52 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
     }
 
     /**
-     * ブラケットを置く中心座標を返す（基準矩形があれば、腕の先がその辺に触れる位置）
+     * ブラケットを置く中心座標を返す
+     * このスクリプトで作ったブラケットを選んでいれば、その中央に重ねる
+     * それ以外の選択では、腕の先が外接矩形の辺に触れる位置に置く
      * @param {Document} doc - 対象ドキュメント
      * @param {BracketSettings} bracketSettings - ブラケットの設定値
-     * @param {number[]|null} referenceBounds - 基準の外接矩形 [左, 上, 右, 下]
+     * @param {SelectionReference|null} selectionReference - 基準の情報
      * @returns {{x: number, y: number}} 中心座標（pt）
      */
-    function getPlacementCenter(doc, bracketSettings, referenceBounds) {
-        if (!referenceBounds) return getActiveArtboardCenter(doc);
+    function getPlacementCenter(doc, bracketSettings, selectionReference) {
+        if (!selectionReference) return getActiveArtboardCenter(doc);
 
-        /* 中心から腕の先までの距離（先端の反対側）に余白を足す / Distance from the center to the arm ends, plus the gap */
-        var armOffset = bracketSettings.radiusPt + bracketSettings.extensionPt + bracketSettings.marginPt;
+        var referenceBounds = selectionReference.bounds;
+        var rotation = getDirectionRotation(bracketSettings.direction);
         var referenceCenterX = (referenceBounds[0] + referenceBounds[2]) / 2;
         var referenceCenterY = (referenceBounds[1] + referenceBounds[3]) / 2;
 
-        if (bracketSettings.direction === "left") {
-            return { x: referenceBounds[0] - armOffset, y: referenceCenterY };
+        if (selectionReference.bracketDirection) {
+            /* 突起と腕で伸び方が違うぶんを戻し、見た目の中央を選択に重ねる / Undo the asymmetry between the point and the arms so the visual center lands on the selection */
+            var shapeOffset = (bracketSettings.centerRadiusPt - bracketSettings.endRadiusPt - bracketSettings.extensionPt) / 2;
+            return {
+                x: referenceCenterX - rotation.cos * shapeOffset,
+                y: referenceCenterY - rotation.sin * shapeOffset
+            };
         }
-        if (bracketSettings.direction === "right") {
-            return { x: referenceBounds[2] + armOffset, y: referenceCenterY };
-        }
-        if (bracketSettings.direction === "up") {
-            return { x: referenceCenterX, y: referenceBounds[1] + armOffset };
-        }
-        return { x: referenceCenterX, y: referenceBounds[3] - armOffset };
+
+        /* 中央の突起の向きへ、外接矩形の半分＋腕の長さ＋余白ぶん寄せると腕の先が辺に触れる / Shifting along the facing direction by half the bounds plus the arm and the gap puts the arm ends on the edge */
+        var halfWidth = (referenceBounds[2] - referenceBounds[0]) / 2;
+        var halfHeight = (referenceBounds[1] - referenceBounds[3]) / 2;
+        var halfSize = Math.abs(rotation.cos) * halfWidth + Math.abs(rotation.sin) * halfHeight;
+        var placementOffset = halfSize + bracketSettings.endRadiusPt + bracketSettings.extensionPt + bracketSettings.marginPt;
+
+        return {
+            x: referenceCenterX + rotation.cos * placementOffset,
+            y: referenceCenterY + rotation.sin * placementOffset
+        };
     }
 
     /**
      * ブラケットのパスを生成して配置する
      * @param {Document} doc - 対象ドキュメント
      * @param {BracketSettings} bracketSettings - ブラケットの設定値
-     * @param {number[]|null} referenceBounds - 基準の外接矩形（null ならアートボード中央）
+     * @param {SelectionReference|null} selectionReference - 基準の情報（null ならアートボード中央）
      * @returns {PathItem} 生成したパス
      */
-    function createBracketPath(doc, bracketSettings, referenceBounds) {
-        var placementCenter = getPlacementCenter(doc, bracketSettings, referenceBounds);
+    function createBracketPath(doc, bracketSettings, selectionReference) {
+        var placementCenter = getPlacementCenter(doc, bracketSettings, selectionReference);
         var bracketPoints = buildBracketPoints(bracketSettings, placementCenter.x, placementCenter.y);
 
         var bracketPath = doc.pathItems.add();
@@ -666,7 +802,81 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             pathPoint.rightDirection = bracketPoints[i].right;
             pathPoint.pointType = PointType.CORNER;
         }
+
+        /* 面取りは円弧を直線でつなぐジグザグ効果で表現する。形が決まってから適用する / The chamfer is a Zig Zag effect that straightens the arcs; apply it once the shape exists */
+        if (bracketSettings.isChamfer) {
+            bracketPath.applyEffect(CHAMFER_EFFECT_XML);
+        }
+
+        /* 次に選び直したとき同じ位置・向きで描き直せるよう目印を残す / Leave a marker so a later run can redraw it in place */
+        var bracketTag = bracketPath.tags.add();
+        bracketTag.name = BRACKET_TAG_NAME;
+        bracketTag.value = bracketSettings.direction;
+
         return bracketPath;
+    }
+
+    // =========================================
+    // セッション記憶 / Session memory
+    // =========================================
+
+    /* ダイアログの状態を覚えておく $.global 上のキー。Illustratorを終了すると消える / Key on $.global; it is gone once Illustrator quits */
+    var SESSION_SETTINGS_KEY = "aiCurlyBracketMakerSettings";
+
+    /**
+     * 前回ダイアログを閉じたときの状態を読み出す
+     * @returns {object} 記憶していた値（無ければ空オブジェクト）
+     */
+    function loadSessionSettings() {
+        var savedSettings = $.global[SESSION_SETTINGS_KEY];
+        if (!savedSettings) return {};
+
+        /* 常駐オブジェクトを直接書き換えないよう写しを返す / Return a copy so the stored object is not mutated */
+        var settings = {};
+        for (var key in savedSettings) {
+            if (savedSettings.hasOwnProperty(key)) settings[key] = savedSettings[key];
+        }
+        return settings;
+    }
+
+    /**
+     * ダイアログの状態を同一セッション内だけ覚える
+     * @param {object} settings - 記憶する値
+     * @returns {void}
+     */
+    function saveSessionSettings(settings) {
+        $.global[SESSION_SETTINGS_KEY] = settings;
+    }
+
+    /**
+     * 記憶していた値を数値として読む
+     * @param {*} savedValue - 記憶していた値
+     * @param {number} fallbackValue - 読めないときに使う値
+     * @returns {number} 数値
+     */
+    function readSavedNumber(savedValue, fallbackValue) {
+        var value = Number(savedValue);
+        return (savedValue === undefined || savedValue === "" || isNaN(value)) ? fallbackValue : value;
+    }
+
+    /**
+     * 記憶していた値を入力欄の文字列として読む
+     * @param {*} savedValue - 記憶していた値
+     * @param {string} fallbackText - 読めないときに使う文字列
+     * @returns {string} 入力欄に入れる文字列
+     */
+    function readSavedText(savedValue, fallbackText) {
+        return (savedValue === undefined || savedValue === "") ? fallbackText : String(savedValue);
+    }
+
+    /**
+     * 記憶していた値をチェックボックスの状態として読む
+     * @param {*} savedValue - 記憶していた値
+     * @param {boolean} fallbackFlag - 読めないときに使う状態
+     * @returns {boolean} チェック状態
+     */
+    function readSavedFlag(savedValue, fallbackFlag) {
+        return (savedValue === undefined) ? fallbackFlag : (savedValue === true);
     }
 
     // =========================================
@@ -686,55 +896,98 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
 
         /* 選択があれば、その大きさと向きを初期値にして辺に沿わせる / A selection seeds the size and direction, and the bracket hugs its edge */
         var selectionReference = readSelectionReference(doc);
-        var referenceBounds = selectionReference ? selectionReference.bounds : null;
-        var initialValues = getInitialValues(referenceBounds, selectionReference ? selectionReference.isSizeReference : false);
+        /* 同一セッション内に覚えていた前回の状態 / What the previous run left behind, within this session */
+        var savedSettings = loadSessionSettings();
+        var initialValues = getInitialValues(selectionReference, savedSettings);
         /* 参照にしたパスは開いた時点で隠す（確定で削除、キャンセルで元に戻す）/ Hide the reference path as the dialog opens: removed on Create, restored on Cancel */
-        setReferenceItemsHidden(selectionReference, true);
+        setSizeReferenceHidden(selectionReference, true);
 
         var bracketDialog = new Window("dialog", getLabel('dialog', 'title') + " " + SCRIPT_VERSION);
         setupWindow(bracketDialog);
 
-        var parameterPanel = addPanel(bracketDialog, getLabel('panel', 'parameters'));
+        var shapePanel = addPanel(bracketDialog, getLabel('panel', 'shapeAndSize'));
 
-        var radiusInput = addNumberFieldRow(
-            parameterPanel, labelText('fieldLabel', 'radius'),
-            formatFieldValue(initialValues.radiusMm), "mm", getLabel('tooltip', 'radius')
+        /* 半径は2行を1つの列にまとめ、連動をその右に天地中央で添える / Both radius rows share a column, with the link centered beside them */
+        var radiusRow = shapePanel.add("group");
+        setupRow(radiusRow, "left", FIELD_ROW_SPACING);
+
+        var radiusColumn = radiusRow.add("group");
+        radiusColumn.orientation = "column";
+        radiusColumn.alignChildren = ["left", "center"];
+        radiusColumn.spacing = PANEL_SPACING;
+
+        var centerRadiusInput = addNumberFieldRow(
+            radiusColumn, labelText('fieldLabel', 'centerRadius'),
+            formatFieldValue(initialValues.centerRadiusMm), "mm", getLabel('tooltip', 'centerRadius')
+        );
+        var endRadiusInput = addNumberFieldRow(
+            radiusColumn, labelText('fieldLabel', 'endRadius'),
+            formatFieldValue(initialValues.endRadiusMm), "mm", getLabel('tooltip', 'endRadius')
         );
 
-        /* 向き：ラベル幅を数値欄の行にそろえ、キー順（上・下・左・右）に1行で並べる / Direction: share the label width, one row in key order */
-        var directionRow = parameterPanel.add("group");
+        var linkRadiusCheckbox = radiusRow.add("checkbox", undefined, getLabel('checkbox', 'linkRadius'));
+        linkRadiusCheckbox.alignment = ["left", "center"];
+        linkRadiusCheckbox.value = readSavedFlag(savedSettings.linkRadius, DEFAULT_LINK_RADIUS);
+        linkRadiusCheckbox.helpTip = getLabel('tooltip', 'linkRadius');
+
+        /* 面取り：ラベルは空のまま、字下げして数値欄の列にそろえる / Chamfer: an empty label keeps it aligned with the fields */
+        var chamferRow = shapePanel.add("group");
+        setupRow(chamferRow, "left", FIELD_ROW_SPACING);
+        addRowLabel(chamferRow, "");
+        var chamferCheckbox = chamferRow.add("checkbox", undefined, getLabel('checkbox', 'chamfer'));
+        chamferCheckbox.value = readSavedFlag(savedSettings.chamfer, DEFAULT_CHAMFER);
+        chamferCheckbox.helpTip = getLabel('tooltip', 'chamfer');
+
+        /* 向き：ラベル幅を数値欄の行にそろえ、上下・左右の2行に分けて並べる / Direction: share the label width, split into up-down and left-right rows */
+        var directionRow = shapePanel.add("group");
         setupRow(directionRow, "left", FIELD_ROW_SPACING);
+        /* ラベルを1行目のラジオに合わせる / Align the label with the first row of radios */
+        directionRow.alignChildren = ["left", "top"];
         addRowLabel(directionRow, labelText('fieldLabel', 'direction'));
 
+        var directionColumn = directionRow.add("group");
+        directionColumn.orientation = "column";
+        directionColumn.alignChildren = ["left", "center"];
+        directionColumn.spacing = FIELD_ROW_SPACING;
+
+        /* キー順（上・下／左・右）に2つずつ並べる / Two per row, in key order */
         var directionRadios = {};
-        for (var i = 0; i < DIRECTION_KEYS.length; i++) {
-            var directionKey = DIRECTION_KEYS[i];
-            var directionRadio = directionRow.add("radiobutton", undefined, getLabel('radio', directionKey));
-            directionRadio.helpTip = getLabel('tooltip', 'direction');
-            directionRadio.value = (directionKey === initialValues.direction);
-            directionRadios[directionKey] = directionRadio;
+        for (var i = 0; i < DIRECTION_KEYS.length; i += 2) {
+            var directionGridRow = directionColumn.add("group");
+            setupRow(directionGridRow, "left", FIELD_ROW_SPACING);
+            for (var j = i; j < i + 2 && j < DIRECTION_KEYS.length; j++) {
+                var directionKey = DIRECTION_KEYS[j];
+                var directionRadio = directionGridRow.add("radiobutton", undefined, getLabel('radio', directionKey));
+                directionRadio.helpTip = getLabel('tooltip', 'direction');
+                directionRadios[directionKey] = directionRadio;
+            }
         }
 
+        var centerOffsetInput = addNumberFieldRow(
+            shapePanel, labelText('fieldLabel', 'centerOffset'),
+            readSavedText(savedSettings.centerOffset, String(DEFAULT_CENTER_OFFSET_MM)), "mm", getLabel('tooltip', 'centerOffset')
+        );
+
         var totalLengthInput = addNumberFieldRow(
-            parameterPanel, labelText('fieldLabel', 'totalLength'),
+            shapePanel, labelText('fieldLabel', 'totalLength'),
             formatFieldValue(initialValues.totalLengthMm), "mm", getLabel('tooltip', 'totalLength')
         );
         var extensionInput = addNumberFieldRow(
-            parameterPanel, labelText('fieldLabel', 'extension'),
-            String(DEFAULT_EXTENSION_PT), "pt", getLabel('tooltip', 'extension')
+            shapePanel, labelText('fieldLabel', 'extension'),
+            readSavedText(savedSettings.extension, String(DEFAULT_EXTENSION_PT)), "pt", getLabel('tooltip', 'extension')
         );
         var marginInput = addNumberFieldRow(
-            parameterPanel, labelText('fieldLabel', 'margin'),
-            String(DEFAULT_MARGIN_MM), "mm", getLabel('tooltip', 'margin')
+            shapePanel, labelText('fieldLabel', 'margin'),
+            readSavedText(savedSettings.margin, String(DEFAULT_MARGIN_MM)), "mm", getLabel('tooltip', 'margin')
         );
-        /* 対象オブジェクトがないときは余白が効かないので行ごとディム表示 / The gap does nothing without a selection, so dim the whole row */
-        marginInput.parent.enabled = (referenceBounds !== null);
+        /* 余白が効くのは「囲む対象」があるときだけなので、それ以外は行ごとディム表示 / The gap only applies to something being bracketed, so dim the row otherwise */
+        marginInput.parent.enabled = (selectionReference !== null && !selectionReference.bracketDirection);
 
         var strokePanel = addPanel(bracketDialog, getLabel('panel', 'stroke'));
 
         var strokeWidthInput = addNumberFieldRow(
             strokePanel, labelText('fieldLabel', 'strokeWidth'),
-            String(DEFAULT_STROKE_WIDTH_PT), "pt", getLabel('tooltip', 'strokeWidth')
+            readSavedText(savedSettings.strokeWidth, String(DEFAULT_STROKE_WIDTH_PT)), "pt", getLabel('tooltip', 'strokeWidth')
         );
 
         /* 線端：同じグループ内なのでScriptUIが排他にしてくれる / Stroke cap: one group, so ScriptUI keeps the radios exclusive */
@@ -743,7 +996,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         addRowLabel(strokeCapRow, labelText('fieldLabel', 'strokeCap'));
         var buttCapRadio = strokeCapRow.add("radiobutton", undefined, getLabel('radio', 'buttCap'));
         var roundCapRadio = strokeCapRow.add("radiobutton", undefined, getLabel('radio', 'roundCap'));
-        buttCapRadio.value = (DEFAULT_STROKE_CAP === "buttCap");
+        var initialStrokeCap = STROKE_CAPS[savedSettings.strokeCap] ? savedSettings.strokeCap : DEFAULT_STROKE_CAP;
+        buttCapRadio.value = (initialStrokeCap === "buttCap");
         roundCapRadio.value = !buttCapRadio.value;
         buttCapRadio.helpTip = getLabel('tooltip', 'strokeCap');
         roundCapRadio.helpTip = getLabel('tooltip', 'strokeCap');
@@ -761,7 +1015,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         cornerJoinColumn.spacing = FIELD_ROW_SPACING;
         var miterJoinRadio = cornerJoinColumn.add("radiobutton", undefined, getLabel('radio', 'miterJoin'));
         var roundJoinRadio = cornerJoinColumn.add("radiobutton", undefined, getLabel('radio', 'roundJoin'));
-        miterJoinRadio.value = (DEFAULT_CORNER_JOIN === "miterJoin");
+        var initialCornerJoin = CORNER_JOINS[savedSettings.cornerJoin] ? savedSettings.cornerJoin : DEFAULT_CORNER_JOIN;
+        miterJoinRadio.value = (initialCornerJoin === "miterJoin");
         roundJoinRadio.value = !miterJoinRadio.value;
         miterJoinRadio.helpTip = getLabel('tooltip', 'cornerJoin');
         roundJoinRadio.helpTip = getLabel('tooltip', 'cornerJoin');
@@ -782,27 +1037,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
          * @returns {BracketSettings|null} 設定値（数値として読めない欄があれば null）
          */
         function readBracketSettings() {
-            var radiusMm = Number(radiusInput.text);
+            var endRadiusMm = Number(endRadiusInput.text);
+            var centerRadiusMm = Number(centerRadiusInput.text);
             var totalLengthMm = Number(totalLengthInput.text);
             var extensionPt = Number(extensionInput.text);
+            var centerOffsetMm = Number(centerOffsetInput.text);
             var marginMm = Number(marginInput.text);
             var strokeWidthPt = Number(strokeWidthInput.text);
 
-            if (isNaN(radiusMm) || radiusMm <= 0) return null;
+            if (isNaN(endRadiusMm) || endRadiusMm < 0) return null;
+            if (isNaN(centerRadiusMm) || centerRadiusMm <= 0) return null;
             if (isNaN(totalLengthMm) || totalLengthMm < 0) return null;
             if (isNaN(extensionPt) || extensionPt < 0) return null;
+            if (isNaN(centerOffsetMm)) return null;
             if (isNaN(marginMm) || marginMm < 0) return null;
             if (isNaN(strokeWidthPt) || strokeWidthPt <= 0) return null;
 
             return {
-                radiusPt: radiusMm * MM_TO_PT,
+                endRadiusPt: endRadiusMm * MM_TO_PT,
+                centerRadiusPt: centerRadiusMm * MM_TO_PT,
                 totalLengthPt: totalLengthMm * MM_TO_PT,
+                centerOffsetPt: centerOffsetMm * MM_TO_PT,
                 extensionPt: extensionPt,
                 marginPt: marginMm * MM_TO_PT,
                 strokeWidthPt: strokeWidthPt,
                 strokeCap: roundCapRadio.value ? "roundCap" : "buttCap",
                 cornerJoin: roundJoinRadio.value ? "roundJoin" : "miterJoin",
-                direction: readSelectedDirection()
+                direction: readSelectedDirection(),
+                isChamfer: chamferCheckbox.value
             };
         }
 
@@ -812,11 +1074,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
          */
         function removePreview() {
             if (!previewPath) return;
-            try {
-                previewPath.remove();
-            } catch (eRemovePreview) {
-                /* すでに失われている場合は何もしない / Nothing to do when it is already gone */
-            }
+            previewPath.remove();
             previewPath = null;
         }
 
@@ -830,16 +1088,61 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             if (!bracketSettings) return;
 
             removePreview();
-            previewPath = createBracketPath(doc, bracketSettings, referenceBounds);
+            previewPath = createBracketPath(doc, bracketSettings, selectionReference);
             app.redraw();
         }
 
-        /* 数値欄はキー入力とキー増減の両方でプレビューを更新 / Numeric fields refresh the preview on typing and on arrow keys */
-        var previewNumberFields = [radiusInput, totalLengthInput, extensionInput, marginInput, strokeWidthInput];
-        for (var i = 0; i < previewNumberFields.length; i++) {
-            previewNumberFields[i].addEventListener("changing", drawPreview);
-            changeValueByArrowKey(previewNumberFields[i], drawPreview, 0);
+        /**
+         * 連動がONのとき、両端の半径を中央に合わせる
+         * @returns {void}
+         */
+        function syncLinkedRadius() {
+            if (!linkRadiusCheckbox.value) return;
+            if (endRadiusInput.text === centerRadiusInput.text) return;
+            endRadiusInput.text = centerRadiusInput.text;
         }
+
+        /**
+         * 連動の状態を両端の行に反映する（連動は行の外にあるので操作できるまま残る）
+         * @returns {void}
+         */
+        function updateEndRadiusEnabled() {
+            endRadiusInput.parent.enabled = !linkRadiusCheckbox.value;
+        }
+
+        /**
+         * 数値欄にプレビュー更新（キー入力・↑↓キー）を割り当てる
+         * @param {EditText} numberField - 対象の入力欄
+         * @param {function} onChanged - 値が変わったときの処理
+         * @param {number} [minValue] - ↑↓キーでの下限（省略時は制限なし）
+         * @returns {void}
+         */
+        function bindPreviewField(numberField, onChanged, minValue) {
+            numberField.addEventListener("changing", onChanged);
+            changeValueByArrowKey(numberField, onChanged, minValue);
+        }
+
+        /* 中央は連動の書き写しをはさむ。ほかの数値欄はそのままプレビュー更新 / The center radius syncs first; the other fields just refresh the preview */
+        bindPreviewField(centerRadiusInput, function () {
+            syncLinkedRadius();
+            drawPreview();
+        }, 0);
+        bindPreviewField(endRadiusInput, drawPreview, 0);
+
+        /* 中央の位置だけはマイナスを許す / Only the center offset may go negative */
+        bindPreviewField(centerOffsetInput, drawPreview);
+
+        var previewNumberFields = [totalLengthInput, extensionInput, marginInput, strokeWidthInput];
+        for (var i = 0; i < previewNumberFields.length; i++) {
+            bindPreviewField(previewNumberFields[i], drawPreview, 0);
+        }
+
+        /* 連動をONにした時点で、両端を中央の値にそろえてディム表示にする / Turning the link on snaps the end radius to the center radius and dims it */
+        linkRadiusCheckbox.onClick = function () {
+            updateEndRadiusEnabled();
+            syncLinkedRadius();
+            drawPreview();
+        };
         /**
          * 線端に角の形状をそろえるクリック処理を作る（丸型→ラウンド結合、なし→マイター結合）
          * @param {boolean} isRoundCap - 丸型を選んだときの処理なら true
@@ -854,27 +1157,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         }
         buttCapRadio.onClick = createStrokeCapClickHandler(false);
         roundCapRadio.onClick = createStrokeCapClickHandler(true);
+        chamferCheckbox.onClick = drawPreview;
         miterJoinRadio.onClick = drawPreview;
         roundJoinRadio.onClick = drawPreview;
-        for (var i = 0; i < DIRECTION_KEYS.length; i++) {
-            directionRadios[DIRECTION_KEYS[i]].onClick = drawPreview;
+        /**
+         * 指定した向きだけを選択状態にする（行をまたぐラジオはScriptUIでは排他にならない）
+         * @param {string} selectedKey - 選択する向きのキー
+         * @returns {void}
+         */
+        function selectDirection(selectedKey) {
+            for (var i = 0; i < DIRECTION_KEYS.length; i++) {
+                directionRadios[DIRECTION_KEYS[i]].value = (DIRECTION_KEYS[i] === selectedKey);
+            }
         }
 
-        /* ボタンエリア（右寄せ）/ Button row (right aligned) */
+        /**
+         * 向きラジオのクリック処理を作る（ループ変数を閉じ込める）
+         * @param {string} directionKey - 対象の向きのキー
+         * @returns {function} クリックハンドラ
+         */
+        function createDirectionClickHandler(directionKey) {
+            return function () {
+                selectDirection(directionKey);
+                /* 選択があるときは、新しい向きに合わせて長さを取り直す / With a selection, re-read the length across the new direction */
+                if (selectionReference) {
+                    totalLengthInput.text = formatFieldValue(getReferenceLengthMm(selectionReference, directionKey));
+                }
+                drawPreview();
+            };
+        }
+        for (var i = 0; i < DIRECTION_KEYS.length; i++) {
+            directionRadios[DIRECTION_KEYS[i]].onClick = createDirectionClickHandler(DIRECTION_KEYS[i]);
+        }
+
+        /* ボタンエリア：左側に置くものがないので行ごと右寄せ / Button row: nothing sits on the left, so the row itself is right aligned */
         var btnRowGroup = bracketDialog.add("group");
-        setupRow(btnRowGroup, "fill", BUTTON_BAR_SPACING);
+        setupRow(btnRowGroup, "right", BUTTON_BAR_SPACING);
         btnRowGroup.margins = BUTTON_BAR_MARGINS;
-
-        /* スペーサー（伸縮）/ Spacer (stretchable) */
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        var btnRightGroup = btnRowGroup.add("group");
-        setupRow(btnRightGroup, "right", BUTTON_BAR_SPACING);
         /* キャンセルは既定動作で閉じ、後片付けは bracketDialog.onClose が行う / Cancel closes by default; cleanup happens in bracketDialog.onClose */
-        btnRightGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
-        var btnCreate = btnRightGroup.add("button", undefined, getLabel('button', 'create'), { name: "ok" });
+        btnRowGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
+        var btnCreate = btnRowGroup.add("button", undefined, getLabel('button', 'create'), { name: "ok" });
+        btnCreate.helpTip = getLabel('tooltip', 'create');
 
         /* ［作成］：プレビューをそのまま成果物として残す / Create: keep the preview as the result */
         btnCreate.onClick = function () {
@@ -885,9 +1208,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             }
             /* 入力途中で止まったプレビューを最新の値にそろえる / Bring the preview up to date with the current values */
             removePreview();
-            previewPath = createBracketPath(doc, bracketSettings, referenceBounds);
+            previewPath = createBracketPath(doc, bracketSettings, selectionReference);
             /* 隠しておいた参照のパスは役目を終えたので削除 / The hidden reference path has done its job, so remove it */
-            removeReferenceItems(selectionReference);
+            removeSizeReference(selectionReference);
+
+            /* 実行後は作成したブラケットだけを選択状態にする / Leave only the new bracket selected */
+            doc.selection = null;
             previewPath.selected = true;
 
             bracketCommitted = true;
@@ -899,12 +1225,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         bracketDialog.onClose = function () {
             if (!bracketCommitted) {
                 removePreview();
-                setReferenceItemsHidden(selectionReference, false);
+                setSizeReferenceHidden(selectionReference, false);
                 app.redraw();
             }
+
+            /* 閉じたときの状態を、同一セッション内の次回実行のために覚えておく / Remember the closing state for the next run in this session */
+            saveSessionSettings({
+                centerRadius: centerRadiusInput.text,
+                endRadius: endRadiusInput.text,
+                linkRadius: linkRadiusCheckbox.value,
+                chamfer: chamferCheckbox.value,
+                direction: readSelectedDirection(),
+                centerOffset: centerOffsetInput.text,
+                totalLength: totalLengthInput.text,
+                extension: extensionInput.text,
+                margin: marginInput.text,
+                strokeWidth: strokeWidthInput.text,
+                strokeCap: roundCapRadio.value ? "roundCap" : "buttCap",
+                cornerJoin: roundJoinRadio.value ? "roundJoin" : "miterJoin"
+            });
         };
 
-        radiusInput.active = true;
+        selectDirection(initialValues.direction);
+        updateEndRadiusEnabled();
+        centerRadiusInput.active = true;
         drawPreview(); /* 初回プレビュー / First preview */
         return bracketDialog;
     }
