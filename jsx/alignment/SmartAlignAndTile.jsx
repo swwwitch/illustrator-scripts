@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-重なって配置されたオブジェクトを、横方向へ指定した間隔で並べ直します。
-行数を指定すればタイル状に、キーオブジェクトを設定すればその位置を基準に配置できます。
+重なって配置されたオブジェクトを、横方向または縦方向へ指定した間隔で並べ直します。
+行数・列数を指定すればタイル状に、キーオブジェクトを設定すればその位置を基準に配置できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Redistributes stacked objects along the horizontal axis at the spacing you specify.
-Set a row count to tile them, or set a key object to anchor the layout to it.
+Redistributes stacked objects along the horizontal or vertical axis at the spacing you specify.
+Set a row or column count to tile them, or set a key object to anchor the layout to it.
 
 See the README for details.
 
@@ -22,16 +22,16 @@ See the README for details.
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "SmartAlignAndTile-yoko";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_NAME     = "SmartAlignAndTile";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-05";                   /* 更新日 / last updated */
 
 // README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-yoko.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md
 // README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-yoko.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile.md
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
@@ -44,7 +44,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     // =========================================
 
     /* ダイアログの初期値 / Initial dialog values */
-    var DEFAULT_ROW_COUNT          = "1";   /* 行数 / row count */
+    var DEFAULT_DIRECTION          = "horizontal"; /* 並べる方向（"horizontal" / "vertical"）/ tiling direction */
+    var DEFAULT_LANE_COUNT         = "1";   /* 行数（横）・列数（縦）/ row count (horizontal) or column count (vertical) */
     var DEFAULT_MARGIN             = "0";   /* 横・縦の間隔 / horizontal & vertical spacing */
     var DEFAULT_LINK_MARGINS       = true;  /* 横・縦の間隔を連動 / link both spacings */
     var DEFAULT_USE_PREVIEW_BOUNDS = true;  /* プレビュー境界を使用 / use preview bounds */
@@ -176,9 +177,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             options:   { ja: "オプション", en: "Options" }
         },
         fieldLabel: {
-            rowCount: { ja: "行数", en: "Rows" },
-            hMargin:  { ja: "横", en: "H" },
-            vMargin:  { ja: "縦", en: "V" }
+            rowCount:    { ja: "行数", en: "Rows" },
+            columnCount: { ja: "列数", en: "Cols" },
+            hMargin:     { ja: "横", en: "H" },
+            vMargin:     { ja: "縦", en: "V" }
         },
         checkbox: {
             linkMargins:      { ja: "連動", en: "Link" },
@@ -188,6 +190,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             randomize:        { ja: "ランダム", en: "Random" }
         },
         radio: {
+            directionHorizontal: { ja: "横", en: "Horizontal" },
+            directionVertical:   { ja: "縦", en: "Vertical" },
             alignTop:    { ja: "上", en: "Top" },
             alignMiddle: { ja: "中央", en: "Middle" },
             alignBottom: { ja: "下", en: "Bottom" },
@@ -321,6 +325,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     }
 
     /**
+     * 上端の座標順（上から下、同じなら左から右）に並べ替えた複製を返す
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @returns {PageItem[]} 並べ替えた配列
+     */
+    function sortedCopyByTop(items) {
+        var copiedItems = items.slice();
+        copiedItems.sort(function(a, b) {
+            if (a.top !== b.top) return b.top - a.top;
+            return a.left - b.left;
+        });
+        return copiedItems;
+    }
+
+    /**
      * ランダムに並べ替えた複製を返す
      * @param {PageItem[]} items - 対象オブジェクト
      * @returns {PageItem[]} 並べ替えた配列
@@ -369,6 +387,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             if (itemHeight > maxHeight) maxHeight = itemHeight;
         }
         return { width: maxWidth, height: maxHeight };
+    }
+
+    /**
+     * セル内での揃え量を求める（X軸は左→右、Y軸は上→下を start→end とする）
+     * @param {string} alignMode - "start" / "center" / "end" / "none"
+     * @param {number} cellStart - セルの起点（左端または上端）
+     * @param {number} cellEnd - セルの終点（右端または下端）
+     * @param {number} itemStart - オブジェクトの起点
+     * @param {number} itemEnd - オブジェクトの終点
+     * @returns {number} 移動量（pt）
+     */
+    function getAlignDelta(alignMode, cellStart, cellEnd, itemStart, itemEnd) {
+        if (alignMode === "none") {
+            return 0;
+        }
+        if (alignMode === "center") {
+            return (cellStart + cellEnd) / 2 - (itemStart + itemEnd) / 2;
+        }
+        if (alignMode === "end") {
+            return cellEnd - itemEnd;
+        }
+        return cellStart - itemStart;
     }
 
     // =========================================
@@ -486,63 +526,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
      */
     function placeItems(orderedItems, arrangeSettings) {
         var usePreviewBounds = arrangeSettings.usePreviewBounds;
+        var isHorizontal = (arrangeSettings.direction === "horizontal");
         var cellSize = getMaxItemSize(orderedItems, usePreviewBounds);
 
         /* 先頭オブジェクトの位置を配置の起点にする / The first item defines the origin of the layout */
         var startBounds = getItemBounds(orderedItems[0], usePreviewBounds);
-        var startLeft = startBounds[0];
-        var startTop = startBounds[1];
-        var startBottom = startBounds[3];
+        /* 主軸＝並べる方向、副軸＝行・列が積み重なる方向 / Main axis follows the tiling direction; lanes stack along the cross axis */
+        var mainOrigin = isHorizontal ? startBounds[0] : startBounds[1];
+        var crossOrigin = isHorizontal ? startBounds[1] : startBounds[0];
+        var mainGap = isHorizontal ? arrangeSettings.hMarginPt : arrangeSettings.vMarginPt;
+        var crossGap = isHorizontal ? arrangeSettings.vMarginPt : arrangeSettings.hMarginPt;
+        var laneSize = isHorizontal ? cellSize.height : cellSize.width;
+        /* 上方向がプラスのY軸に合わせ、横並びは下へ、縦並びは右へレーンを送る / Lanes go down (horizontal) or right (vertical) */
+        var laneDirection = isHorizontal ? -1 : 1;
 
-        /* 左右の揃えはグリッド時のみ有効（セル幅＝オブジェクト幅のときは差が出ない）/ Horizontal align only matters in grid mode */
-        var hAlign = arrangeSettings.useGrid ? arrangeSettings.hAlign : "left";
+        /* 主軸の揃えはグリッド時のみ意味を持つ（セル＝オブジェクトの大きさでは差が出ない）/ Main-axis align only matters in grid mode */
+        var mainAlign = arrangeSettings.useGrid ? (isHorizontal ? arrangeSettings.hAlign : arrangeSettings.vAlign) : "start";
+        var crossAlign = isHorizontal ? arrangeSettings.vAlign : arrangeSettings.hAlign;
 
-        var itemsPerRow = Math.ceil(orderedItems.length / arrangeSettings.rowCount);
+        var perLane = Math.ceil(orderedItems.length / arrangeSettings.laneCount);
         var index = 0;
-        for (var r = 0; r < arrangeSettings.rowCount; r++) {
-            var currentX = startLeft;
-            for (var c = 0; c < itemsPerRow && index < orderedItems.length; c++, index++) {
+        for (var lane = 0; lane < arrangeSettings.laneCount; lane++) {
+            var laneOffset = lane * (laneSize + crossGap) * laneDirection;
+            var crossStart = crossOrigin + laneOffset;
+            var crossEnd = crossStart + laneSize * laneDirection;
+            var mainStart = mainOrigin;
+
+            for (var i = 0; i < perLane && index < orderedItems.length; i++, index++) {
                 var item = orderedItems[index];
                 if (!item) continue;
 
                 var itemBounds = getItemBounds(item, usePreviewBounds);
-                var cellWidth = arrangeSettings.useGrid ? cellSize.width : (itemBounds[2] - itemBounds[0]);
+                var itemMainSize = isHorizontal ? (itemBounds[2] - itemBounds[0]) : (itemBounds[1] - itemBounds[3]);
+                var cellMainSize = arrangeSettings.useGrid ? (isHorizontal ? cellSize.width : cellSize.height) : itemMainSize;
+                var mainEnd = mainStart + cellMainSize * (isHorizontal ? 1 : -1);
 
-                /* 横方向：セルの左・中央・右のいずれかに合わせる（なし＝元のX位置のまま）/ Horizontal: snap to the cell's left, center or right; "none" keeps the current X */
-                var cellLeft = currentX;
-                var cellRight = currentX + cellWidth;
-                var dx;
-                if (hAlign === "none") {
-                    dx = 0;
-                } else if (hAlign === "center") {
-                    dx = (cellLeft + cellRight) / 2 - (itemBounds[0] + itemBounds[2]) / 2;
-                } else if (hAlign === "right") {
-                    dx = cellRight - itemBounds[2];
-                } else {
-                    dx = cellLeft - itemBounds[0];
-                }
-                item.left += dx;
+                /* 主軸：セル内での揃え（なし＝その軸は動かさない）/ Main axis: align inside the cell ("none" leaves it alone) */
+                var mainDelta = isHorizontal
+                    ? getAlignDelta(mainAlign, mainStart, mainEnd, itemBounds[0], itemBounds[2])
+                    : getAlignDelta(mainAlign, mainStart, mainEnd, itemBounds[1], itemBounds[3]);
+                /* 副軸：レーンの帯へ揃える（なし＝レーンの送り分だけ平行移動）/ Cross axis: align to the lane band ("none" only applies the lane offset) */
+                var crossDelta = (crossAlign === "none")
+                    ? laneOffset
+                    : (isHorizontal
+                        ? getAlignDelta(crossAlign, crossStart, crossEnd, itemBounds[1], itemBounds[3])
+                        : getAlignDelta(crossAlign, crossStart, crossEnd, itemBounds[0], itemBounds[2]));
 
-                /* 縦方向：行ごとに1段ずつ下げたセルへ合わせる（なし＝行送りの分だけ下げる）/ Vertical: snap to the cell of the current row; "none" only applies the row offset */
-                var rowOffset = r * (cellSize.height + arrangeSettings.vMarginPt);
-                var cellTop = startTop - rowOffset;
-                var cellBottom = startBottom - rowOffset;
-                var dy;
-                if (arrangeSettings.vAlign === "none") {
-                    dy = -rowOffset;
-                } else if (arrangeSettings.vAlign === "middle") {
-                    dy = (cellTop + cellBottom) / 2 - (itemBounds[1] + itemBounds[3]) / 2;
-                } else if (arrangeSettings.vAlign === "bottom") {
-                    dy = cellBottom - itemBounds[3];
-                } else {
-                    dy = cellTop - itemBounds[1];
-                }
-                item.top += dy;
+                item.left += isHorizontal ? mainDelta : crossDelta;
+                item.top += isHorizontal ? crossDelta : mainDelta;
 
-                /* 次の列へ / Advance to the next column */
-                if (c < itemsPerRow - 1) {
-                    currentX += cellWidth + arrangeSettings.hMarginPt;
-                }
+                /* 次のセルへ / Advance to the next cell */
+                mainStart = mainEnd + mainGap * (isHorizontal ? 1 : -1);
             }
         }
     }
@@ -557,7 +591,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         if (!targetItems || targetItems.length === 0) {
             return;
         }
-        var orderedItems = arrangeSettings.randomize ? shuffledCopy(targetItems) : sortedCopyByLeft(targetItems);
+        var orderedItems;
+        if (arrangeSettings.randomize) {
+            orderedItems = shuffledCopy(targetItems);
+        } else {
+            orderedItems = (arrangeSettings.direction === "horizontal") ? sortedCopyByLeft(targetItems) : sortedCopyByTop(targetItems);
+        }
         /* 並べ替える前の左上（ランダム時に位置を戻す基準）/ Top-left before the layout, used to keep a random block in place */
         var blockOrigin = getBlockOrigin(targetItems);
 
@@ -631,13 +670,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         /* キーオブジェクトのプレビュー前の位置 / Key object position before any preview */
         var keyOrigin = keyObject ? [keyObject.left, keyObject.top] : null;
 
-        /* 行数（ダイアログの左右中央に置く）/ Row count, centered in the dialog */
-        var rowCountRow = dialogWindow.add("group");
-        setupRow(rowCountRow, "center");
-        addFieldLabel(rowCountRow, labelText('fieldLabel', 'rowCount'));
-        var rowCountInput = rowCountRow.add("edittext", undefined, DEFAULT_ROW_COUNT);
-        rowCountInput.characters = FIELD_CHAR_WIDTH;
-        changeValueByArrowKey(rowCountInput, true, updatePreview);
+        /* 並べる方向（ダイアログの左右中央に置く）/ Tiling direction, centered in the dialog */
+        var directionRow = dialogWindow.add("group");
+        setupRow(directionRow, "center");
+        var horizontalRadio = directionRow.add("radiobutton", undefined, getLabel('radio', 'directionHorizontal'));
+        var verticalRadio = directionRow.add("radiobutton", undefined, getLabel('radio', 'directionVertical'));
+        horizontalRadio.value = (DEFAULT_DIRECTION === "horizontal");
+        verticalRadio.value = !horizontalRadio.value;
+
+        /* 行数（横）／列数（縦）/ Row count (horizontal) or column count (vertical) */
+        var laneCountRow = dialogWindow.add("group");
+        setupRow(laneCountRow, "center");
+        var laneCountLabel = addFieldLabel(laneCountRow, "");
+        var laneCountInput = laneCountRow.add("edittext", undefined, DEFAULT_LANE_COUNT);
+        laneCountInput.characters = FIELD_CHAR_WIDTH;
+        changeValueByArrowKey(laneCountInput, true, updatePreview);
 
         /* 間隔パネル（左＝横・縦の入力、右＝連動）/ Spacing panel: fields on the left, link on the right */
         var spacingPanel = addPanel(dialogWindow, getLabel('panel', 'spacing') + " (" + getCurrentUnit().label + ")");
@@ -682,6 +729,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var vAlignMiddleRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignMiddle'));
         var vAlignBottomRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignBottom'));
         var vAlignNoneRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignNone'));
+        var vAlignRadios = [vAlignTopRadio, vAlignMiddleRadio, vAlignBottomRadio, vAlignNoneRadio];
         vAlignTopRadio.value = true;
 
         var hAlignRow = alignmentPanel.add("group");
@@ -690,6 +738,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var hAlignCenterRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignCenter'));
         var hAlignRightRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignRight'));
         var hAlignNoneRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignNone'));
+        var hAlignRadios = [hAlignLeftRadio, hAlignCenterRadio, hAlignRightRadio, hAlignNoneRadio];
         hAlignLeftRadio.value = true;
 
         /* オプションパネル / Options panel */
@@ -715,17 +764,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         btnRightGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
 
         /**
-         * 左右の揃えを操作できるかどうかを切り替える（グリッド時のみ有効）
+         * ラジオボタンの一覧をまとめて有効・無効にする
+         * @param {RadioButton[]} radioList - 対象のラジオボタン
          * @param {boolean} enabled - 有効にするかどうか
          * @returns {void}
          */
-        function setHAlignEnabled(enabled) {
-            hAlignLeftRadio.enabled = enabled;
-            hAlignCenterRadio.enabled = enabled;
-            hAlignRightRadio.enabled = enabled;
-            hAlignNoneRadio.enabled = enabled;
+        function setRadiosEnabled(radioList, enabled) {
+            for (var i = 0; i < radioList.length; i++) {
+                radioList[i].enabled = enabled;
+            }
         }
-        setHAlignEnabled(gridCheckbox.value);
+
+        /**
+         * 方向とグリッドの状態に合わせてUIを整える（項目名と揃えの操作可否）
+         * @returns {void}
+         */
+        function syncDirectionUI() {
+            var isHorizontal = horizontalRadio.value;
+            laneCountLabel.text = labelText('fieldLabel', isHorizontal ? 'rowCount' : 'columnCount');
+            /* 主軸（並べる方向）の揃えはグリッド時のみ有効 / Main-axis align is available in grid mode only */
+            setRadiosEnabled(hAlignRadios, isHorizontal ? gridCheckbox.value : true);
+            setRadiosEnabled(vAlignRadios, isHorizontal ? true : gridCheckbox.value);
+        }
+        syncDirectionUI();
 
         /**
          * ダイアログの入力内容を配置設定として読み取る
@@ -738,21 +799,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             if (isNaN(hMarginValue)) hMarginValue = 0;
             var vMarginValue = parseFloat(vMarginInput.text);
             if (isNaN(vMarginValue)) vMarginValue = 0;
-            var rowCount = parseInt(rowCountInput.text, 10);
-            if (isNaN(rowCount) || rowCount < 1) rowCount = 1;
+            var laneCount = parseInt(laneCountInput.text, 10);
+            if (isNaN(laneCount) || laneCount < 1) laneCount = 1;
 
-            var vAlign = "top";
-            if (vAlignMiddleRadio.value) vAlign = "middle";
-            else if (vAlignBottomRadio.value) vAlign = "bottom";
+            /* 揃えは軸に依らない形（start / center / end / none）で持つ / Align values are axis-neutral */
+            var vAlign = "start";
+            if (vAlignMiddleRadio.value) vAlign = "center";
+            else if (vAlignBottomRadio.value) vAlign = "end";
             else if (vAlignNoneRadio.value) vAlign = "none";
 
-            var hAlign = "left";
+            var hAlign = "start";
             if (hAlignCenterRadio.value) hAlign = "center";
-            else if (hAlignRightRadio.value) hAlign = "right";
+            else if (hAlignRightRadio.value) hAlign = "end";
             else if (hAlignNoneRadio.value) hAlign = "none";
 
             return {
-                rowCount: rowCount,
+                direction: horizontalRadio.value ? "horizontal" : "vertical",
+                laneCount: laneCount,
                 hMarginPt: hMarginValue * unitFactor,
                 vMarginPt: vMarginValue * unitFactor,
                 vAlign: vAlign,
@@ -780,6 +843,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         }
 
         /**
+         * 方向・グリッドに合わせてUIを整えてからプレビューを更新する
+         * @returns {void}
+         */
+        function syncDirectionAndPreview() {
+            syncDirectionUI();
+            updatePreview();
+        }
+
+        /**
          * 連動がONなら横の値を縦へ反映してからプレビューを更新する
          * @returns {void}
          */
@@ -797,6 +869,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             vMarginInput.enabled = !linkCheckbox.value;
             syncMarginsAndPreview();
         };
+        horizontalRadio.onClick = syncDirectionAndPreview;
+        verticalRadio.onClick = syncDirectionAndPreview;
         vAlignTopRadio.onClick = updatePreview;
         vAlignMiddleRadio.onClick = updatePreview;
         vAlignBottomRadio.onClick = updatePreview;
@@ -809,17 +883,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         previewBoundsCheckbox.onClick = updatePreview;
         randomizeCheckbox.onClick = updatePreview;
         gridCheckbox.onClick = function() {
-            setHAlignEnabled(gridCheckbox.value);
             if (gridCheckbox.value) {
                 /* グリッドは天地・左右とも中央を既定にする / Grid defaults to centered on both axes */
                 vAlignMiddleRadio.value = true;
                 hAlignCenterRadio.value = true;
             }
-            updatePreview();
+            syncDirectionAndPreview();
         };
 
         updatePreview();
-        rowCountInput.active = true;
+        laneCountInput.active = true;
 
         if (dialogWindow.show() !== 1) {
             /* キャンセル：プレビューを巻き戻し、環境設定も元に戻す / Cancel: roll back the preview and the preference */

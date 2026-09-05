@@ -142,6 +142,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Resets the transform applied to the selected objects a…](readme-en/ResetTransform.md)
 - [Updated: 2026-02-26](readme-en/SmartAlignAndTile-tate.md)
 - [Updated: 2026-01-19](readme-en/SmartAlignAndTile-yoko.md)
+- [Redistributes stacked objects along the horizontal or…](readme-en/SmartAlignAndTile.md)
 - [Lays the selected objects out vertically or horizontal…](readme-en/SmartAlignDistribute.md)
 - [An Illustrator script to automatically group selected…](readme-en/SmartAutoGroup.md)
 - [Aligns objects vertically — top, center or bottom — wh…](readme-en/SmartVerticalAlign.md)

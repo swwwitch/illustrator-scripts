@@ -1,8 +1,8 @@
-# Tile stacked objects along the horizontal axis
+# Tile stacked objects horizontally or vertically
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignAndTile--yoko.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile-yoko.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignAndTile.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-yoko.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -10,18 +10,20 @@
 
 ### Overview
 
-- Updated: 2026-09-05
-- Redistributes stacked objects along the horizontal axis at the spacing you specify. Set a row count to tile them across several rows.
+- Redistributes stacked objects along the horizontal or vertical axis at the spacing you specify. Set a row or column count to tile them.
 - Detects the key object set in Illustrator and keeps it in place while the rest are rearranged.
 - Every change in the dialog updates the preview, and the preview never pollutes the Undo history.
+- Updated: 2026-09-05
+- Merges `SmartAlignAndTile-yoko` (horizontal) and `SmartAlignAndTile-tate` (vertical) into one script.
 
 ### Main Features
 
-- Horizontal arrangement and redistribution, split into the number of rows you specify
+- Choose the tiling direction: horizontal or vertical
+- Split into rows (horizontal) or columns (vertical)
 - Separate horizontal and vertical spacing ("Link" applies the horizontal value to both)
 - Follows the ruler unit (mm, pt, px, Q/H, …)
 - Grid layout: cells sized to the largest object, so every cell shares the same width and height
-- Vertical alignment (top / middle / bottom / none), plus horizontal alignment (left / center / right / none) in grid mode
+- Vertical alignment (top / middle / bottom / none) and horizontal alignment (left / center / right / none)
 - Anchor to the key object (detected automatically; the checkbox is dimmed when none is found)
 - Random arrangement, keeping the top-left corner of the whole block in place
 - Up/Down keys step the numeric fields (Shift+Up/Down snaps to multiples of 10)
@@ -31,13 +33,14 @@
 
 1. Select the objects to rearrange. To pin one of them, click it again while the selection is active so Illustrator makes it the key object.
 2. Run the script.
-3. Set the row count, spacing, alignment and options. The preview updates as you go.
+3. Set the direction, row (column) count, spacing, alignment and options. The preview updates as you go.
 4. Click OK. A single Undo (⌘Z) reverts the whole result.
 
 ### Options
 
-- **Align (vertical)**: snaps to top, middle or bottom. "None" leaves the vertical position alone and only applies the row offset when you split the items into rows.
-- **Align (horizontal)**: grid mode only; snaps to the left, center or right of the cell. "None" leaves the horizontal position alone, which is handy when you only want the vertical alignment.
+- **Direction**: Horizontal lays objects out left to right and wraps by row count; Vertical lays them top to bottom and wraps by column count.
+- **Align (vertical)**: snaps to top, middle or bottom. "None" leaves the vertical position alone and only applies the row/column offset.
+- **Align (horizontal)**: snaps to left, center or right. "None" leaves the horizontal position alone.
 - **Anchor to key object**: keeps the detected key object where it is and lays the rest out around it. Dimmed when no key object can be detected.
 - **Use preview bounds**: ON uses visibleBounds (stroke and effects included), OFF uses geometricBounds.
 - **Grid**: places objects on a grid whose cell matches the largest object. Turning it on defaults both axes to centered.
@@ -46,9 +49,10 @@
 
 ### Notes
 
+- The alignment along the tiling direction (horizontal when tiling horizontally, vertical when tiling vertically) only matters once the cell is larger than the object, so it is dimmed unless Grid is on.
 - The key object is detected by running the four align commands and finding the object that never moves. Objects shift briefly during the probe, and the attempt is left in the Undo history.
 - No key object is reported when only one object is selected, or when several candidates remain.
-- When the item count is not divisible by the row count, the last row holds fewer objects.
+- When the item count is not divisible by the row/column count, the last lane holds fewer objects.
 
 ### Original Idea
 
@@ -65,18 +69,10 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Update History
 
-- v1.7.1 (2026-09-05): Added key object detection (anchor the layout to the key object), added "None" to both alignment rows, and grouped the options into a panel.
-- v1.7 (2026-01-19): Undo-safe preview management and single-step Undo on confirm.
-- v1.6 (2025-08-09): When "Use preview bounds" is OFF, use geometricBounds (OFF = geometric, ON = visible).
-- v1.5 (2025-08-02): Added horizontal/vertical linking feature, adjusted preview bounds logic.
-- v1.4 (2025-08-01): Adjusted localization.
-- v1.3 (2025-08-01): Added grid feature, separate gutter settings for horizontal and vertical spacing.
-- v1.2 (2025-07-18): Comment refinement, localization update, improved random positioning correction.
-- v1.1 (2025-07-17): Stability improvements, row logic fix.
-- v1.0 (2025-07-16): Initial version.
+- v2.0 (2026-09-05): Merged `SmartAlignAndTile-yoko` (v1.7.1) and `SmartAlignAndTile-tate` (v1.8) into one script with a direction switch. Added "None" to both alignment rows and unified the lane band on the largest item size.
 
 ---
 
 ### Script info
 
-- Version: v1.7.1
+- Version: v2.0
