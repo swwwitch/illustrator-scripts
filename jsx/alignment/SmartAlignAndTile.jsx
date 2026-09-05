@@ -26,7 +26,7 @@ var SCRIPT_NAME     = "SmartAlignAndTile";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md
