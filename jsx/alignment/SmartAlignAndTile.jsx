@@ -23,7 +23,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignAndTile";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-05";                   /* 更新日 / last updated */
@@ -355,6 +355,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     }
 
     /**
+     * 指定したオブジェクトを先頭へ移した複製を返す
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @param {object} targetItem - 先頭へ移すオブジェクト
+     * @returns {PageItem[]} 並べ替えた配列（対象が見つからないときはそのままの複製）
+     */
+    function movedToFront(items, targetItem) {
+        var reordered = items.slice();
+        for (var i = 0; i < reordered.length; i++) {
+            if (reordered[i] !== targetItem) continue;
+            reordered.splice(i, 1);
+            reordered.unshift(targetItem);
+            break;
+        }
+        return reordered;
+    }
+
+    /**
      * 選択範囲全体の左上を取得する
      * @param {PageItem[]} items - 対象オブジェクト
      * @returns {number[]} [左端, 上端]
@@ -597,13 +614,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         } else {
             orderedItems = (arrangeSettings.direction === "horizontal") ? sortedCopyByLeft(targetItems) : sortedCopyByTop(targetItems);
         }
+        /* キーオブジェクトは配置の起点にする（そこから右／下へ並べる）/ The key object becomes the origin, so the rest follow to its right or below */
+        var useKeyObject = arrangeSettings.useKeyObject && arrangeSettings.keyObject && arrangeSettings.keyOrigin;
+        if (useKeyObject) {
+            orderedItems = movedToFront(orderedItems, arrangeSettings.keyObject);
+        }
         /* 並べ替える前の左上（ランダム時に位置を戻す基準）/ Top-left before the layout, used to keep a random block in place */
         var blockOrigin = getBlockOrigin(targetItems);
 
         placeItems(orderedItems, arrangeSettings);
 
         /* 基準の補正：キーオブジェクトを優先し、なければランダム時のみ左上を合わせる / Anchor correction: key object first, random block otherwise */
-        if (arrangeSettings.useKeyObject && arrangeSettings.keyObject && arrangeSettings.keyOrigin) {
+        if (useKeyObject) {
             shiftItems(orderedItems,
                 arrangeSettings.keyOrigin[0] - arrangeSettings.keyObject.left,
                 arrangeSettings.keyOrigin[1] - arrangeSettings.keyObject.top);

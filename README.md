@@ -146,8 +146,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択中のオブジェクトがグループ内にある場合、親グループをたどって所属レイヤーの直下へ移動します](readme-ja/ReleaseFromGroup.md)
 - [テキストに対して、回転／シアー（せん断）／比率を安全にリセット](readme-ja/ResetText.md)
 - [配置画像・テキスト・長方形（パス）・クリップグループ・直線パスに対して、回転／シアー（せん断）／スケール／縦…](readme-ja/ResetTransform.md)
-- [更新日：2026-02-26](readme-ja/SmartAlignAndTile-tate.md)
-- [更新日：2026-01-19](readme-ja/SmartAlignAndTile-yoko.md)
 - [重なって配置されたオブジェクトを、横方向または縦方向へ指定した間隔で並べ直します。行数・列数を指定すれば…](readme-ja/SmartAlignAndTile.md)
 - [選択オブジェクトを「縦/横」に並べて、指定した間隔で分布します。方向は自動判定も可能で、揃え（左右/上下）、…](readme-ja/SmartAlignDistribute.md)
 - [選択オブジェクトを自動的に「重なり」「垂直方向」「水平方向」「近接度」などの条件に応じてグループ化するIll…](readme-ja/SmartAutoGroup.md)

@@ -10,7 +10,7 @@
 
 ### Overview
 
-Redistributes stacked objects evenly along the horizontal axis. A simplified version of SmartAlignAndTile-yoko.jsx.
+Redistributes stacked objects evenly along the horizontal axis. A simplified version of SmartAlignAndTile.jsx.
 
 ### Usage
 

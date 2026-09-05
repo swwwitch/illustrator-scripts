@@ -41,7 +41,7 @@
 - **Direction**: Horizontal lays objects out left to right and wraps by row count; Vertical lays them top to bottom and wraps by column count.
 - **Align (vertical)**: snaps to top, middle or bottom. "None" leaves the vertical position alone and only applies the row/column offset.
 - **Align (horizontal)**: snaps to left, center or right. "None" leaves the horizontal position alone.
-- **Anchor to key object**: keeps the detected key object where it is and lays the rest out around it. Dimmed when no key object can be detected.
+- **Anchor to key object**: makes the key object the origin of the layout. It stays where it is, and the other objects follow to its right (horizontal) or below it (vertical). Dimmed when no key object can be detected.
 - **Use preview bounds**: ON uses visibleBounds (stroke and effects included), OFF uses geometricBounds.
 - **Grid**: places objects on a grid whose cell matches the largest object. Turning it on defaults both axes to centered.
 - **Random**: shuffles the order. The top-left corner of the block stays put.
@@ -69,10 +69,10 @@ https://gorolib.blog.jp/archives/77282974.html
 
 ### Update History
 
-- v2.0 (2026-09-05): Merged `SmartAlignAndTile-yoko` (v1.7.1) and `SmartAlignAndTile-tate` (v1.8) into one script with a direction switch. Added "None" to both alignment rows and unified the lane band on the largest item size.
+- v2.0.0 (2026-09-05): Merged `SmartAlignAndTile-yoko` (v1.7.1) and `SmartAlignAndTile-tate` (v1.8) into one script with a direction switch. The key object now acts as the origin of the layout, "None" was added to both alignment rows, and the lane band is unified on the largest item size.
 
 ---
 
 ### Script info
 
-- Version: v2.0
+- Version: v2.0.0

@@ -140,8 +140,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Moves the selected objects out of their groups and ont…](readme-en/ReleaseFromGroup.md)
 - [Safely reset rotation/shear/ratio for Text](readme-en/ResetText.md)
 - [Resets the transform applied to the selected objects a…](readme-en/ResetTransform.md)
-- [Updated: 2026-02-26](readme-en/SmartAlignAndTile-tate.md)
-- [Updated: 2026-01-19](readme-en/SmartAlignAndTile-yoko.md)
 - [Redistributes stacked objects along the horizontal or…](readme-en/SmartAlignAndTile.md)
 - [Lays the selected objects out vertically or horizontal…](readme-en/SmartAlignDistribute.md)
 - [An Illustrator script to automatically group selected…](readme-en/SmartAutoGroup.md)
