@@ -169,9 +169,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "整列と分布（グリッド対応）", en: "Align & Distribute (Horizontal)" }
+            title: { ja: "整列と分布", en: "Align & Distribute" }
         },
         panel: {
+            direction: { ja: "方向", en: "Direction" },
             spacing:   { ja: "間隔", en: "Spacing" },
             alignment: { ja: "揃え", en: "Align" },
             options:   { ja: "オプション", en: "Options" }
@@ -397,6 +398,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var maxWidth = 0;
         var maxHeight = 0;
         for (var i = 0; i < items.length; i++) {
+            if (!items[i]) continue;
             var itemBounds = getItemBounds(items[i], usePreviewBounds);
             var itemWidth = itemBounds[2] - itemBounds[0];
             var itemHeight = itemBounds[1] - itemBounds[3];
@@ -561,9 +563,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var mainAlign = arrangeSettings.useGrid ? (isHorizontal ? arrangeSettings.hAlign : arrangeSettings.vAlign) : "start";
         var crossAlign = isHorizontal ? arrangeSettings.vAlign : arrangeSettings.hAlign;
 
-        var perLane = Math.ceil(orderedItems.length / arrangeSettings.laneCount);
+        var remainingItems = orderedItems.length;
         var index = 0;
         for (var lane = 0; lane < arrangeSettings.laneCount; lane++) {
+            /* 残りを残りのレーン数で割り、指定した行数・列数を使い切る / Split the remainder so every lane is used */
+            var perLane = Math.ceil(remainingItems / (arrangeSettings.laneCount - lane));
+            remainingItems -= perLane;
             var laneOffset = lane * (laneSize + crossGap) * laneDirection;
             var crossStart = crossOrigin + laneOffset;
             var crossEnd = crossStart + laneSize * laneDirection;
@@ -645,9 +650,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
      * @param {EditText} editText - 対象の入力欄
      * @param {boolean} allowNegative - 負数を許可するかどうか
      * @param {Function} onUpdate - 値を変更したあとに呼ぶ処理
+     * @param {number} [minimumValue] - 下限値（省略時は下限なし）
      * @returns {void}
      */
-    function changeValueByArrowKey(editText, allowNegative, onUpdate) {
+    function changeValueByArrowKey(editText, allowNegative, onUpdate, minimumValue) {
         editText.addEventListener("keydown", function(event) {
             if (editText.text.length === 0) return;
             var value = Number(editText.text);
@@ -655,14 +661,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             if (event.keyName != "Up" && event.keyName != "Down") return;
 
             var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
+            var isUp = (event.keyName == "Up");
             if (keyboard.shiftKey) {
-                /* 10の倍数にスナップ / Snap to multiples of 10 */
-                value = Math.floor(value / 10) * 10;
-                delta = 10;
+                /* 押した向きの10の倍数へスナップ / Snap to the next multiple of 10 in that direction */
+                value = isUp ? (Math.ceil((value + 1) / 10) * 10) : (Math.floor((value - 1) / 10) * 10);
+            } else {
+                value += isUp ? 1 : -1;
             }
-            value += (event.keyName == "Up") ? delta : -delta;
             if (!allowNegative && value < 0) value = 0;
+            if (typeof minimumValue === "number" && value < minimumValue) value = minimumValue;
 
             event.preventDefault();
             editText.text = value;
@@ -692,26 +699,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         /* キーオブジェクトのプレビュー前の位置 / Key object position before any preview */
         var keyOrigin = keyObject ? [keyObject.left, keyObject.top] : null;
 
-        /* 並べる方向（ダイアログの左右中央に置く）/ Tiling direction, centered in the dialog */
-        var directionRow = dialogWindow.add("group");
-        setupRow(directionRow, "center");
+        /* 方向パネル（並べる方向と行数／列数）/ Direction panel: tiling direction and lane count */
+        var directionPanel = addPanel(dialogWindow, getLabel('panel', 'direction'));
+
+        var directionRow = directionPanel.add("group");
+        setupRow(directionRow);
         var horizontalRadio = directionRow.add("radiobutton", undefined, getLabel('radio', 'directionHorizontal'));
         var verticalRadio = directionRow.add("radiobutton", undefined, getLabel('radio', 'directionVertical'));
         horizontalRadio.value = (DEFAULT_DIRECTION === "horizontal");
         verticalRadio.value = !horizontalRadio.value;
 
         /* 行数（横）／列数（縦）/ Row count (horizontal) or column count (vertical) */
-        var laneCountRow = dialogWindow.add("group");
-        setupRow(laneCountRow, "center");
+        var laneCountRow = directionPanel.add("group");
+        setupRow(laneCountRow);
         var laneCountLabel = addFieldLabel(laneCountRow, "");
         var laneCountInput = laneCountRow.add("edittext", undefined, DEFAULT_LANE_COUNT);
         laneCountInput.characters = FIELD_CHAR_WIDTH;
-        changeValueByArrowKey(laneCountInput, true, updatePreview);
+
+        /* 直近でプレビューへ反映した値（同じ値での二重更新を避ける）/ Value last pushed to the preview */
+        var appliedLaneCountText = laneCountInput.text;
+
+        /**
+         * 行数・列数が変わったときだけプレビューを更新する
+         * @returns {void}
+         */
+        function updatePreviewForLaneCount() {
+            if (laneCountInput.text === appliedLaneCountText) return;
+            appliedLaneCountText = laneCountInput.text;
+            updatePreview();
+        }
+
+        /* 入力中は数値として読めるときだけ反映する（打っている途中で書き換えない）/ While typing, refresh only when the text parses */
+        laneCountInput.onChanging = function() {
+            var typedLaneCount = parseInt(laneCountInput.text, 10);
+            if (isNaN(typedLaneCount) || typedLaneCount < 1) return;
+            updatePreviewForLaneCount();
+        };
+
+        /* 確定時に1以上の整数へ丸める（表示と実際に使う値を一致させる）/ Snap to an integer of 1 or more on commit */
+        laneCountInput.onChange = function() {
+            var laneCountValue = parseInt(laneCountInput.text, 10);
+            if (isNaN(laneCountValue) || laneCountValue < 1) laneCountValue = 1;
+            laneCountInput.text = laneCountValue;
+            updatePreviewForLaneCount();
+        };
+        changeValueByArrowKey(laneCountInput, false, updatePreviewForLaneCount, 1);
+
+        var gridCheckbox = addOptionCheckbox(directionPanel, getLabel('checkbox', 'useGrid'), DEFAULT_USE_GRID);
 
         /* 間隔パネル（左＝横・縦の入力、右＝連動）/ Spacing panel: fields on the left, link on the right */
         var spacingPanel = addPanel(dialogWindow, getLabel('panel', 'spacing') + " (" + getCurrentUnit().label + ")");
         var spacingRow = spacingPanel.add("group");
-        setupRow(spacingRow, "fill", COLUMN_SPACING);
+        setupRow(spacingRow, "left", COLUMN_SPACING);
 
         var marginColumn = spacingRow.add("group");
         marginColumn.orientation = "column";
@@ -732,9 +771,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         vMarginInput.characters = FIELD_CHAR_WIDTH;
         changeValueByArrowKey(vMarginInput, true, updatePreview);
 
-        var linkGroup = spacingRow.add("group");
-        setupRow(linkGroup, "right");
-        var linkCheckbox = linkGroup.add("checkbox", undefined, getLabel('checkbox', 'linkMargins'));
+        var linkCheckbox = spacingRow.add("checkbox", undefined, getLabel('checkbox', 'linkMargins'));
         linkCheckbox.value = DEFAULT_LINK_MARGINS;
         /* 連動中は縦をディムして横の値に合わせる / While linked, dim V and mirror H */
         vMarginInput.enabled = !linkCheckbox.value;
@@ -770,20 +807,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var keyObjectCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'useKeyObject'), !!keyObject);
         keyObjectCheckbox.enabled = !!keyObject;
         var previewBoundsCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'usePreviewBounds'), DEFAULT_USE_PREVIEW_BOUNDS);
-        var gridCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'useGrid'), DEFAULT_USE_GRID);
         var randomizeCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'randomize'), DEFAULT_RANDOMIZE);
 
-        /* ボタンエリア / Button bar */
+        /* ボタンエリア（左右中央）/ Button bar, centered */
         var btnRowGroup = dialogWindow.add("group");
-        setupRow(btnRowGroup, "fill");
+        setupRow(btnRowGroup, "center");
         btnRowGroup.margins = BUTTON_BAR_MARGINS;
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-        var btnRightGroup = btnRowGroup.add("group");
-        setupRow(btnRightGroup, "right");
-        btnRightGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
-        btnRightGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
+        btnRowGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
 
         /**
          * ラジオボタンの一覧をまとめて有効・無効にする
@@ -857,8 +888,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
          */
         function updatePreview() {
             previewManager.rollback();
-            /* 境界計算に使う環境設定を反映（Undoできないのでキャンセル時だけ戻す）/ Apply the bounds preference; not undoable, restored on Cancel */
-            app.preferences.setBooleanPreference("includeStrokeInBounds", previewBoundsCheckbox.value);
+            /* 境界計算に使う環境設定は変わったときだけ書き換える（切り替えた直後は再描画しないと古い境界のまま計算される）/ Write the bounds preference only when it changes; without a redraw the old bounds are used */
+            if (app.preferences.getBooleanPreference("includeStrokeInBounds") !== previewBoundsCheckbox.value) {
+                app.preferences.setBooleanPreference("includeStrokeInBounds", previewBoundsCheckbox.value);
+                app.redraw();
+            }
             previewManager.addStep(function() {
                 arrangeItems(targetItems, readArrangeSettings());
             });
@@ -927,8 +961,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var arrangeSettings = readArrangeSettings();
         /* 1回のUndoで取り消せるように、巻き戻してから一度だけ実行する / Confirm as a single undoable action */
         previewManager.confirm(function() {
-            app.preferences.setBooleanPreference("includeStrokeInBounds", arrangeSettings.usePreviewBounds);
             arrangeItems(targetItems, arrangeSettings);
+            /* 環境設定はスクリプトの外へ影響を残さないよう元に戻す / Restore the preference so the script leaves no global side effect */
+            app.preferences.setBooleanPreference("includeStrokeInBounds", originalIncludeStrokeInBounds);
             app.redraw();
         });
         return arrangeSettings;
