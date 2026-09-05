@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-カーリーブラケット（波括弧）のパスを、半径・直線の長さ・線の太さ・角の形状・向き（上下左右）を指定して作成します。
-オブジェクトを選択して実行するとその大きさと向きを初期値にして辺に沿わせ、値を変更するたびにプレビューが更新されます。
+カーリーブラケット（波括弧）のパスを、2つの半径・中央の移動・全体の長さ・線の設定から作成します。
+値を変えるたびにアートボード上のプレビューが更新され、オブジェクトを選択して実行すると、その大きさと向きに合わせて配置します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Creates a curly bracket path from a radius, overall length, stroke width, corner shape and direction (up, down, left or right), centered on the artboard.
-Running it with a selection seeds the size and direction from that selection and hugs its edge, and the preview updates as the values change.
+Creates a curly bracket path from two radii, the position of its middle point, the overall length and the stroke settings.
+The artboard preview updates as the values change, and running it with a selection fits the bracket to that selection's size and direction.
 
 See the README for details.
 
@@ -50,7 +50,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
 
     var DEFAULT_CENTER_OFFSET_MM = 0;           /* 中央の位置の初期値（mm、0で中央）/ initial center offset (mm, 0 = centered) */
     var DEFAULT_EXTENSION_PT     = 0;           /* 両端の延長の初期値（pt）/ initial extension at both ends (pt) */
-    var DEFAULT_MARGIN_MM        = 2;           /* 選択オブジェクトとの余白の初期値（mm）/ initial gap from the selection (mm) */
+    var DEFAULT_OBJECT_GAP_MM        = 2;           /* 選択オブジェクトとの余白の初期値（mm）/ initial gap from the selection (mm) */
     var DEFAULT_STROKE_WIDTH_PT  = 2;           /* 線の太さの初期値（pt）/ initial stroke width (pt) */
     var DEFAULT_DIRECTION        = "right";     /* 初期の向き（DIRECTION_KEYS のいずれか）/ initial direction (one of DIRECTION_KEYS) */
     var DEFAULT_STROKE_CAP       = "buttCap";   /* 初期の線端 / initial stroke cap */
@@ -101,15 +101,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         },
         panel: {
             shapeAndSize: { ja: "形状と大きさ", en: "Shape & Size" },
-            stroke:       { ja: "線", en: "Stroke" }
+            stroke:       { ja: "線（線幅と形状）", en: "Stroke (Width & Shape)" }
         },
         fieldLabel: {
             centerRadius: { ja: "半径（中央）", en: "Center Radius" },
             endRadius:    { ja: "半径（両端）", en: "End Radius" },
-            centerOffset: { ja: "中央の位置", en: "Center Offset" },
-            totalLength:  { ja: "直線の長さ", en: "Length" },
-            extension:    { ja: "延長", en: "Extension" },
-            margin:       { ja: "余白", en: "Margin" },
+            centerOffset: { ja: "中央の移動", en: "Center Shift" },
+            totalLength:  { ja: "全体の長さ", en: "Length" },
+            extension:    { ja: "両端の延長", en: "End Extension" },
+            objectGap:    { ja: "オフセット", en: "Offset" },
             strokeWidth:  { ja: "線の太さ", en: "Stroke Width" },
             strokeCap:    { ja: "線端", en: "Cap" },
             cornerJoin:   { ja: "角の形状", en: "Corner Shape" },
@@ -120,8 +120,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             chamfer:    { ja: "面取り", en: "Chamfer" }
         },
         radio: {
-            buttCap:   { ja: "なし", en: "None" },
-            roundCap:  { ja: "丸型", en: "Round" },
+            buttCap:   { ja: "線端なし", en: "Butt Cap" },
+            roundCap:  { ja: "丸型線端", en: "Round Cap" },
             miterJoin: { ja: "マイター結合", en: "Miter Join" },
             roundJoin: { ja: "ラウンド結合", en: "Round Join" },
             up:        { ja: "上", en: "Up" },
@@ -130,19 +130,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             right:     { ja: "右", en: "Right" }
         },
         tooltip: {
-            centerRadius: { ja: "中央の突起を作る円弧の半径。↑↓で増減、Shift+↑↓で10単位スナップ", en: "Radius of the arcs that form the point in the middle. Up/Down to step, Shift+Up/Down snaps to 10" },
+            arrowKeys:    { ja: "↑↓で増減（Shiftで10単位、Optionで0.1刻み）", en: "Up/Down to step (Shift for 10s, Option for 0.1)" },
+            centerRadius: { ja: "中央の突起を作る円弧の半径", en: "Radius of the arcs that form the point in the middle" },
             endRadius:    { ja: "両端で外へ折れ返る円弧の半径。0にすると円弧なしの直角になります", en: "Radius of the arcs that curl outward at both ends. 0 leaves a right angle with no arc" },
             linkRadius:   { ja: "両端の半径を中央に合わせる（ONのあいだ両端は編集できません）", en: "Keep the end radius equal to the center radius (the end field is disabled while on)" },
             chamfer:      { ja: "ジグザグ効果（大きさ0・折り返し0）を適用し、円弧を直線でつないだ面取りにします", en: "Applies a Zig Zag effect (size 0, ridges 0) so the arcs become straight chamfers" },
             centerOffset: { ja: "中央の突起を長さ方向にずらす量。0で中央、左右の向きでは上へ、上下の向きでは右へ動きます（マイナスで逆）", en: "Moves the middle point along the length. 0 keeps it centered; up for a left/right bracket, right for an up/down one (negative reverses)" },
             totalLength:  { ja: "ブラケット全体の長さ。半径を変えても総長は変わらず、直線部分が自動で伸縮します", en: "Overall length of the bracket. Changing the radius keeps this length and resizes the straight sections instead" },
             extension:    { ja: "両端から外側へ伸ばす直線の長さ（0で延長なし）", en: "Straight run added at both ends, away from the middle (0 adds none)" },
-            margin:       { ja: "選択オブジェクトとブラケットのあいだの間隔（選択して実行したときのみ有効）", en: "Gap between the selection and the bracket (only when run with a selection)" },
+            objectGap:    { ja: "選択オブジェクトとブラケットのあいだの間隔（選択して実行したときのみ有効）", en: "Gap between the selection and the bracket (only when run with a selection)" },
             strokeWidth:  { ja: "ブラケットの線幅（pt）", en: "Stroke width of the bracket (pt)" },
             strokeCap:    { ja: "両端の線の先を丸めるかどうか", en: "Whether both ends of the stroke are rounded" },
             cornerJoin:   { ja: "中央の角を尖らせるか丸めるか", en: "Whether the corner in the middle is pointed or rounded" },
             direction:    { ja: "中央の突起を向ける方向。選択オブジェクトがあれば、その辺に沿って配置されます", en: "The direction the middle point faces. With a selection, the bracket hugs the matching edge" },
-            create:       { ja: "プレビューの状態で確定します（大きさの参照にしたパスは削除されます）", en: "Commits exactly what the preview shows (a path used as the size reference is removed)" }
+            create:       { ja: "プレビューの状態で確定します（大きさの参照にしたパスは削除されます）", en: "Commits exactly what the preview shows (a path used as the size reference is removed)" },
+            cancel:       { ja: "作成せずに閉じます。プレビューは削除し、隠していた参照のパスは元に戻します", en: "Closes without creating: the preview is removed and a hidden reference path is restored" }
         },
         button: {
             create: { ja: "作成", en: "Create" },
@@ -263,7 +265,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
 
         var numberField = numberFieldRow.add("edittext", undefined, initialValue);
         numberField.characters = FIELD_CHARACTERS;
-        numberField.helpTip = helpTipText;
+        /* ↑↓キーの説明は全数値欄に共通で添える / Every numeric field carries the shared arrow-key hint */
+        numberField.helpTip = helpTipText + "\n" + getLabel('tooltip', 'arrowKeys');
 
         numberFieldRow.add("statictext", undefined, unitSuffix);
         return numberField;
@@ -397,7 +400,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
      * @property {number} totalLengthPt - 全体の長さ（pt）
      * @property {number} centerOffsetPt - 中央の突起を長さ方向にずらす量（pt、0で中央）
      * @property {number} extensionPt - 両端から外側へ伸ばす長さ（pt）
-     * @property {number} marginPt - 選択オブジェクトとの余白（pt）
+     * @property {number} objectGapPt - 選択オブジェクトとの余白（pt）
      * @property {number} strokeWidthPt - 線の太さ（pt）
      * @property {string} strokeCap - 線端（STROKE_CAPS のキー）
      * @property {string} cornerJoin - 角の形状（CORNER_JOINS のキー）
@@ -764,7 +767,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         var halfWidth = (referenceBounds[2] - referenceBounds[0]) / 2;
         var halfHeight = (referenceBounds[1] - referenceBounds[3]) / 2;
         var halfSize = Math.abs(rotation.cos) * halfWidth + Math.abs(rotation.sin) * halfHeight;
-        var placementOffset = halfSize + bracketSettings.endRadiusPt + bracketSettings.extensionPt + bracketSettings.marginPt;
+        var placementOffset = halfSize + bracketSettings.endRadiusPt + bracketSettings.extensionPt + bracketSettings.objectGapPt;
 
         return {
             x: referenceCenterX + rotation.cos * placementOffset,
@@ -976,12 +979,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             shapePanel, labelText('fieldLabel', 'extension'),
             readSavedText(savedSettings.extension, String(DEFAULT_EXTENSION_PT)), "pt", getLabel('tooltip', 'extension')
         );
-        var marginInput = addNumberFieldRow(
-            shapePanel, labelText('fieldLabel', 'margin'),
-            readSavedText(savedSettings.margin, String(DEFAULT_MARGIN_MM)), "mm", getLabel('tooltip', 'margin')
+        var objectGapInput = addNumberFieldRow(
+            shapePanel, labelText('fieldLabel', 'objectGap'),
+            readSavedText(savedSettings.objectGap, String(DEFAULT_OBJECT_GAP_MM)), "mm", getLabel('tooltip', 'objectGap')
         );
         /* 余白が効くのは「囲む対象」があるときだけなので、それ以外は行ごとディム表示 / The gap only applies to something being bracketed, so dim the row otherwise */
-        marginInput.parent.enabled = (selectionReference !== null && !selectionReference.bracketDirection);
+        objectGapInput.parent.enabled = (selectionReference !== null && !selectionReference.bracketDirection);
 
         var strokePanel = addPanel(bracketDialog, getLabel('panel', 'stroke'));
 
@@ -1042,7 +1045,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             var totalLengthMm = Number(totalLengthInput.text);
             var extensionPt = Number(extensionInput.text);
             var centerOffsetMm = Number(centerOffsetInput.text);
-            var marginMm = Number(marginInput.text);
+            var objectGapMm = Number(objectGapInput.text);
             var strokeWidthPt = Number(strokeWidthInput.text);
 
             if (isNaN(endRadiusMm) || endRadiusMm < 0) return null;
@@ -1050,7 +1053,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             if (isNaN(totalLengthMm) || totalLengthMm < 0) return null;
             if (isNaN(extensionPt) || extensionPt < 0) return null;
             if (isNaN(centerOffsetMm)) return null;
-            if (isNaN(marginMm) || marginMm < 0) return null;
+            if (isNaN(objectGapMm) || objectGapMm < 0) return null;
             if (isNaN(strokeWidthPt) || strokeWidthPt <= 0) return null;
 
             return {
@@ -1059,7 +1062,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
                 totalLengthPt: totalLengthMm * MM_TO_PT,
                 centerOffsetPt: centerOffsetMm * MM_TO_PT,
                 extensionPt: extensionPt,
-                marginPt: marginMm * MM_TO_PT,
+                objectGapPt: objectGapMm * MM_TO_PT,
                 strokeWidthPt: strokeWidthPt,
                 strokeCap: roundCapRadio.value ? "roundCap" : "buttCap",
                 cornerJoin: roundJoinRadio.value ? "roundJoin" : "miterJoin",
@@ -1132,7 +1135,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         /* 中央の位置だけはマイナスを許す / Only the center offset may go negative */
         bindPreviewField(centerOffsetInput, drawPreview);
 
-        var previewNumberFields = [totalLengthInput, extensionInput, marginInput, strokeWidthInput];
+        var previewNumberFields = [totalLengthInput, extensionInput, objectGapInput, strokeWidthInput];
         for (var i = 0; i < previewNumberFields.length; i++) {
             bindPreviewField(previewNumberFields[i], drawPreview, 0);
         }
@@ -1195,7 +1198,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         setupRow(btnRowGroup, "right", BUTTON_BAR_SPACING);
         btnRowGroup.margins = BUTTON_BAR_MARGINS;
         /* キャンセルは既定動作で閉じ、後片付けは bracketDialog.onClose が行う / Cancel closes by default; cleanup happens in bracketDialog.onClose */
-        btnRowGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
+        btnCancel.helpTip = getLabel('tooltip', 'cancel');
         var btnCreate = btnRowGroup.add("button", undefined, getLabel('button', 'create'), { name: "ok" });
         btnCreate.helpTip = getLabel('tooltip', 'create');
 
@@ -1239,7 +1243,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
                 centerOffset: centerOffsetInput.text,
                 totalLength: totalLengthInput.text,
                 extension: extensionInput.text,
-                margin: marginInput.text,
+                objectGap: objectGapInput.text,
                 strokeWidth: strokeWidthInput.text,
                 strokeCap: roundCapRadio.value ? "roundCap" : "buttCap",
                 cornerJoin: roundJoinRadio.value ? "roundJoin" : "miterJoin"
