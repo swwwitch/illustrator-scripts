@@ -26,7 +26,7 @@ See the README for details.
 var SCRIPT_NAME     = "AdjustPairGap";                /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026年6月8日";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md"; /* README（日本語） */
@@ -67,11 +67,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         spacing: {
             label: { ja: "間隔", en: "Gap" }
         },
-        // 位置オフセット（移動側をキーオブジェクトに対し直交方向へずらす）/ Position offset (perpendicular to the gap)
-        offset: {
-            horizontal: { ja: "左右", en: "Horizontal" },
-            vertical: { ja: "上下", en: "Vertical" }
-        },
         // 水平／垂直パネル内の行ラベル / Row labels inside the Horizontal/Vertical panels
         panel: {
             align: { ja: "整列", en: "Align" },
@@ -88,7 +83,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         },
         // 整列 / Alignment
         align: {
-            label: { ja: "整列（移動側）", en: "Alignment (moved side)" },
             h: { ja: "水平", en: "Horizontal" },
             v: { ja: "垂直", en: "Vertical" },
             none: { ja: "移動しない", en: "Don't move" },
@@ -264,6 +258,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
        not follow a disabled parent panel). Calls onChange on change. */
     function addAlignmentKeyHandler(dialog, hAlign, vAlign, isHorizontalActive, onChange) {
         dialog.addEventListener("keydown", function (event) {
+            // Cmd+C などの修飾キー付きの入力は横取りしない（コピー等を潰さないため）
+            // Do not swallow modified keystrokes such as Cmd+C
+            var keyboard = ScriptUI.environment.keyboardState;
+            if (keyboard.metaKey || keyboard.ctrlKey || keyboard.altKey || keyboard.shiftKey) return;
+
             var target = null;
             var key = event.keyName;
             if (isHorizontalActive()) {
@@ -606,22 +605,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         return null;
     }
 
-    /* テキストの段落行揃えを設定する。Justification.LEFT は代入が無視される Illustrator のバグが
-       あるので、一時 resize（200%→50%）で段落属性をリフレッシュしてから代入し、位置を保存して戻す。
-       RIGHT/CENTER はそのまま代入できる。
-       Set paragraph justification. Assigning Justification.LEFT is ignored by Illustrator, so a
-       temporary resize (200% then 50%) refreshes the paragraph attributes before assignment; the
-       position is saved and restored. RIGHT/CENTER assign directly. */
+    /* テキストの段落行揃えを設定する。ポイント文字は行揃えを変えるとアンカー基準で組み直されて
+       フレームが動く。見た目の位置は間隔・整列の計算で決めるので、どの値でも元の位置へ戻す
+       （戻さないと行揃えを往復するたびに字幅の半分ずつずれ、キャンセルしても戻らない）。
+       Justification.LEFT は代入が無視される Illustrator のバグがあるので、一時 resize（200%→50%）で
+       段落属性をリフレッシュしてから代入する。
+       Set paragraph justification. Changing it re-lays point text around its anchor and moves the
+       frame, so the position is saved and restored for every value (otherwise toggling justification
+       drifts the text by half its width each time and cancel cannot undo it). Assigning
+       Justification.LEFT is ignored by Illustrator, so a temporary resize (200% then 50%) refreshes
+       the paragraph attributes first. */
     function setParagraphJustification(textFrame, justification) {
+        var savedPosition = [textFrame.position[0], textFrame.position[1]];
         if (justification === Justification.LEFT) {
-            var savedPosition = [textFrame.position[0], textFrame.position[1]];
             textFrame.resize(200, 200);
             textFrame.textRange.paragraphAttributes.justification = Justification.LEFT;
             textFrame.resize(50, 50);
-            try { textFrame.position = savedPosition; } catch (ePos) {}
-            return;
+        } else {
+            textFrame.textRange.paragraphAttributes.justification = justification;
         }
-        textFrame.textRange.paragraphAttributes.justification = justification;
+        try { textFrame.position = savedPosition; } catch (ePos) {}
     }
 
     // =========================================
@@ -776,11 +779,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         return units;
     }
 
-    /* 選択オブジェクトの現在の間隔の平均（pt）を求める。測れない場合は null。axis で測る軸を指定。
-       モードに合わせて測る：自動ペア認識は各ペアの間隔、グループは各グループ内の隣接間隔。
-       常に geometricBounds（幾何境界）基準。Average current gap (pt) along the given axis,
-       matching the mode; null if nothing measurable. Always geometric bounds. */
-    function computeAverageGap(selectedItems, mode, axis) {
+    /* 選択オブジェクトの現在の間隔の平均（pt）を求める。測れない場合は null。
+       モードに合わせて測る：グループは各グループ内の隣接間隔、アートボードは固定側の端との距離
+       （マージン）、自動ペア認識は各ペアの間隔。測る軸と固定端は fixedSide から決める。
+       常に geometricBounds（幾何境界）基準。Average current gap (pt) for the given mode; the axis
+       and the anchor end follow fixedSide. Null if nothing measurable. Always geometric bounds. */
+    function computeAverageGap(selectedItems, mode, fixedSide) {
+        var axis = axisForSide(fixedSide);
         var gaps = [];
 
         if (mode === "group") {
@@ -794,6 +799,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                     // 次の先頭辺 - 前の後ろ辺 / next leading edge - previous trailing edge
                     gaps.push(axis.start(geometricBoundsOf(sorted[j])) - axis.end(geometricBoundsOf(sorted[j - 1])));
                 }
+            }
+        } else if (mode === "artboard") {
+            // アートボード：各オブジェクトと固定側のアートボード端との距離（マージン）を測る
+            // Artboard: distance (margin) from each object to the fixed artboard edge
+            var anchorEnd = isAnchorEnd(fixedSide);
+            for (var i = 0; i < selectedItems.length; i++) {
+                var itemBounds = geometricBoundsOf(selectedItems[i]);
+                var rect = artboardRectFor(selectedItems[i]);
+                gaps.push(anchorEnd ? axis.end(rect) - axis.end(itemBounds)
+                    : axis.start(itemBounds) - axis.start(rect));
             }
         } else {
             // 自動ペア認識：各ペアの間隔を測る / Gap of each nearest pair
@@ -816,16 +831,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     // =========================================
     // 設定の保存 / Persistence
     // =========================================
-    // ダイアログを閉じるときに設定を覚え、次回開いたときに復元する
-    // （モード・キー・プレビュー境界・整列・間隔・左右/上下オフセット。数値は pt で保存）。
+    // OK で設定を覚え、次回開いたときに復元する
+    // （モード・キー・プレビュー境界・整列・行揃え・間隔・左右/上下オフセット。数値は pt で保存）。
     // モードと間隔は選択内容に依存するため、同一セッション中だけ覚える（ファイルには残さない）。
     // 2段構えで記憶する：
     //   - #targetengine の常駐グローバル（$.global）… 同一セッション内は即座に前回状態を復元（ファイル I/O なし）
     //   - Folder.userData のファイル … Illustrator を再起動してもまたいで永続
-    // Remember only the fixed side, preview-bounds, and alignment on close; restore them next time.
-    // Mode and gap are re-derived from the selection each run, so they are not saved.
-    // Two layers: the #targetengine persistent global ($.global) restores instantly within a session,
-    // and a Folder.userData file persists across Illustrator restarts.
+    // Remember the settings on OK and restore them next time (mode, key side, preview-bounds,
+    // alignment, justification, gap, and the horizontal/vertical offsets; numbers stored in pt).
+    // Mode and gap depend on the selection, so they are kept for the session only (never written to
+    // the file). Two layers: the #targetengine persistent global ($.global) restores instantly within
+    // a session, and a Folder.userData file persists across Illustrator restarts.
     var SETTINGS_FILE = Folder.userData + "/AdjustPairGapSettings.txt";
     var SETTINGS_GLOBAL_KEY = "adjustPairGapSettings"; // $.global 上のキー / key on $.global
 
@@ -929,6 +945,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         // モード切り替え時に組み直すペアを保持する / Holds pairs rebuilt when the mode changes
         var objectPairs = [];
 
+        // 前回終了時の設定。初期間隔を「復元後のモード・キー側」で測るため、ダイアログ生成より先に読む。
+        // Last-used settings, loaded before building the dialog so the initial gap can be measured
+        // with the mode and key side that will actually be restored.
+        var savedSettings = loadSettings();
+
         // 選択がすべてグループなら既定でグループモードにする（それ以外は自動ペア認識）。
         // Default to group mode when every selected object is a group; otherwise auto pair.
         var selectionIsGroupsOnly = true;
@@ -937,11 +958,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         }
         var defaultMode = selectionIsGroupsOnly ? "group" : "auto";
 
+        // 実際に開くときのモードとキー側（保存値が有効ならそちらを優先）。
+        // 固定側はファイルに永続する一方で間隔は永続しないので、再起動直後は必ずここで測り直される。
+        // Mode and key side the dialog actually opens with (a valid saved value wins). The key side
+        // persists across restarts while the gap does not, so the gap is always re-measured here.
+        var initialMode = (savedSettings.mode === "group" || savedSettings.mode === "auto" ||
+            savedSettings.mode === "artboard") ? savedSettings.mode : defaultMode;
+        var initialFixedSide = (savedSettings.fixedSide === "top" || savedSettings.fixedSide === "left" ||
+            savedSettings.fixedSide === "right" || savedSettings.fixedSide === "bottom")
+            ? savedSettings.fixedSide : "right";
+
         // 間隔の初期値は選択オブジェクトの現在の平均間隔。測れなければ DEFAULT_GAP を使う。
-        // 負（重なり）の場合は 0 にクランプ。Initial gap = current average gap of the
-        // selection (clamped to >= 0); fall back to DEFAULT_GAP when nothing measurable.
-        // 既定の固定側は「右」＝水平軸。初期間隔は水平で測る / Default fixed side is right → horizontal axis
-        var measuredGap = computeAverageGap(selectedItems, defaultMode, makeAxis(false));
+        // 負（重なり）の場合は 0 にクランプ。Initial gap = current average gap of the selection
+        // (clamped to >= 0); falls back to DEFAULT_GAP when nothing measurable.
+        var measuredGap = computeAverageGap(selectedItems, initialMode, initialFixedSide);
         var initialGapPoints = (measuredGap !== null) ? Math.max(0, measuredGap) : DEFAULT_GAP;
 
         // =========================================
@@ -954,6 +984,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         // =========================================
         var appliedMoves = []; // 適用済みの移動 / Applied moves: { obj, dx, dy }
         var appliedJustifications = []; // 適用済みの行揃え変更 / Applied justification changes: { obj, original }
+        // 行揃えの変更で境界が変わったか。プレビューは毎回元位置へ巻き戻すので、境界が変わるのは
+        // 行揃えを当てた／戻したときだけ。真のときだけ測り直す（全オブジェクトの visibleBounds
+        // 再取得は重く、間隔欄の1打鍵ごとに走ると効いてくる）。
+        // Whether justification changed the bounds. The preview always reverts to the original
+        // positions, so only applying/reverting justification invalidates them; re-measure only then
+        // (re-reading visibleBounds for every object on each keystroke is expensive).
+        var boundsCacheStale = false;
 
         /* 記録した移動を逆向きに適用して元に戻す（位置のみ。行揃えは別管理）/ Reverse recorded moves (position only).
            行揃えはリフレッシュ毎に巻き戻すと resize が連発して重いので、ここでは触らない。
@@ -977,14 +1014,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             if (current === justification) return;
             appliedJustifications.push({ obj: obj, original: current });
             setParagraphJustification(obj, justification);
+            boundsCacheStale = true;
         }
 
         /* 記録した行揃え変更を元の値へ戻す / Restore recorded justification changes */
         function undoJustifications() {
+            if (appliedJustifications.length === 0) return;
             for (var j = appliedJustifications.length - 1; j >= 0; j--) {
                 setParagraphJustification(appliedJustifications[j].obj, appliedJustifications[j].original);
             }
             appliedJustifications = [];
+            boundsCacheStale = true;
         }
 
         /* 軸に沿って p だけ移動し、巻き戻し用に記録する。p は右（水平）/ 下（垂直）で増加。
@@ -999,6 +1039,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             appliedMoves.push({ obj: obj, dx: dx, dy: dy });
         }
 
+        /* グループのメンバー境界キャッシュを選ぶ（プレビュー境界 / 幾何境界）
+           Pick the cached member bounds (visible or geometric) */
+        function memberBounds(pair, useVisible) {
+            return useVisible ? pair.memberVis : pair.memberGeo;
+        }
+
+        /* 境界を進行方向（先頭辺の昇順）に並べたインデックス配列を返す
+           Indices into bounds, ordered by leading edge ascending */
+        function memberOrder(bounds, axis) {
+            var order = [];
+            for (var i = 0; i < bounds.length; i++) order.push(i);
+            order.sort(function (x, y) { return axis.start(bounds[x]) - axis.start(bounds[y]); });
+            return order;
+        }
+
         /* グループ内の全オブジェクトを進行方向順に並べ、隣り合う間隔を gap にそろえる。
            固定側のオブジェクトは動かさず、そこを起点にカスケードで再配置する。
            axis で水平/垂直を切り替える（左右→水平、上下→垂直）。
@@ -1006,14 +1061,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
            the fixed side (the fixed-side object stays; the rest cascade from it). */
         function distributeGroup(pair, fixedSide, gapInPoints, useVisible, axis) {
             var members = pair.members;
-            var cachedBounds = useVisible ? pair.memberVis : pair.memberGeo;
+            var cachedBounds = memberBounds(pair, useVisible);
             var count = members.length;
             var anchorEnd = isAnchorEnd(fixedSide);
-
-            // 先頭辺の昇順に並べたインデックス / Indices ordered by leading edge ascending
-            var order = [];
-            for (var i = 0; i < count; i++) order.push(i);
-            order.sort(function (x, y) { return axis.start(cachedBounds[x]) - axis.start(cachedBounds[y]); });
+            var order = memberOrder(cachedBounds, axis); // 先頭辺の昇順 / ordered by leading edge
 
             if (anchorEnd) {
                 // 後ろ側（右 or 下）を固定し、後ろから前へ配置 / Anchor the trailing end; walk backward
@@ -1062,12 +1113,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
            キャッシュ境界で判定して十分（ライブ境界を読まない）/ Index of the group's key member
            (at the fixed end). Order is stable, so cached bounds suffice (no live reads). */
         function groupAnchorIndex(pair, gapAxis, anchorEnd, useVisible) {
-            var cached = useVisible ? pair.memberVis : pair.memberGeo;
-            var count = pair.members.length;
-            var order = [];
-            for (var i = 0; i < count; i++) order.push(i);
-            order.sort(function (x, y) { return gapAxis.start(cached[x]) - gapAxis.start(cached[y]); });
-            return anchorEnd ? order[count - 1] : order[0];
+            var order = memberOrder(memberBounds(pair, useVisible), gapAxis);
+            return anchorEnd ? order[order.length - 1] : order[0];
         }
 
         /* グループの各メンバーを固定端のメンバー（アンカー）に整列軸方向でそろえる。
@@ -1076,16 +1123,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         function alignGroup(pair, gapAxis, anchorEnd, useVisible, alignAxis, alignMode) {
             if (alignMode === "none") return;
             var members = pair.members;
-            var count = members.length;
-            var bounds = useVisible ? pair.memberVis : pair.memberGeo;
-
-            var order = [];
-            for (var i = 0; i < count; i++) order.push(i);
-            order.sort(function (x, y) { return gapAxis.start(bounds[x]) - gapAxis.start(bounds[y]); });
-
-            var anchorIndex = anchorEnd ? order[count - 1] : order[0]; // 固定端のメンバー / member at the fixed end
+            var bounds = memberBounds(pair, useVisible);
+            var anchorIndex = groupAnchorIndex(pair, gapAxis, anchorEnd, useVisible); // 固定端のメンバー / member at the fixed end
             var anchorBounds = bounds[anchorIndex];
-            for (var i = 0; i < count; i++) {
+            for (var i = 0; i < members.length; i++) {
                 if (i === anchorIndex) continue;
                 alignToAnchor(alignAxis, members[i], bounds[i], anchorBounds, alignMode);
             }
@@ -1138,7 +1179,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                     applyJustification(justifyPair.b, resolveJustifyForObject(justifyPair.b));
                 }
             }
-            cachePairBounds(objectPairs); // 行揃え後の境界で取り直す / re-cache post-justification bounds
+            // 行揃えで境界が変わったときだけ取り直す / Re-cache only when justification changed the bounds
+            if (boundsCacheStale) {
+                cachePairBounds(objectPairs);
+                boundsCacheStale = false;
+            }
 
             // 位置オフセット：ギャップ軸に直交する側だけ使う（上下キー→左右、左右キー→上下）。
             // キーオブジェクトでない側（移動側）だけを alignAxis 方向へずらす（右＝正／下＝正）。
@@ -1268,6 +1313,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                 pairs = createNearestPairs(selectedItems);
             }
             cachePairBounds(pairs);
+            boundsCacheStale = false;
             objectPairs = pairs;
         }
 
@@ -1291,10 +1337,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             modeGroupRadio.helpTip = getLocalizedText('tip.modeGroup');
             modeAutoPairRadio.helpTip = getLocalizedText('tip.modeAutoPair');
             modeArtboardRadio.helpTip = getLocalizedText('tip.modeArtboard');
-            // 既定モードは選択内容で決める：グループのみ→グループ、それ以外→自動ペア認識（アートボードは手動選択）。
-            // Default mode follows the selection: groups only → group, otherwise → auto pair (artboard is manual).
-            modeGroupRadio.value = selectionIsGroupsOnly;
-            modeAutoPairRadio.value = !selectionIsGroupsOnly;
+            // 初期選択は下の復元ブロックで initialMode に従って入れる / Initial selection is set from initialMode below
 
             // キーオブジェクト と 位置調整 を2カラムで左右に並べる / Key object + Position side by side (two columns)
             var keyPositionColumns = dialog.add("group");
@@ -1360,18 +1403,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             }
             /* 現在有効な整列パネルの値を "none"/"start"/"center"/"end" で返す / Active alignment value */
             function getAlignMode() {
-                var radios = isVerticalGap() ? hAlign.radios : vAlign.radios;
-                if (radios.start.value) return "start";
-                if (radios.center.value) return "center";
-                if (radios.end.value) return "end";
-                return "none";
+                return getAlignRowValue(isVerticalGap() ? hAlign : vAlign);
             }
 
-            // 前回終了時の設定をすべて復元（モード・キー・プレビュー境界・整列・間隔・左右/上下オフセット）。
+            // 前回終了時の設定をすべて復元（モード・キー・プレビュー境界・整列・行揃え・間隔・左右/上下オフセット）。
             // 数値は pt で保存しているので、現在のルーラー単位の表示へ戻す。
-            // Restore all last-used settings (mode, key, preview-bounds, alignment, gap, offsets).
-            // Numeric values are stored in pt, so convert back to the current ruler unit for display.
-            var savedSettings = loadSettings();
+            // Restore all last-used settings (mode, key, preview-bounds, alignment, justification,
+            // gap, offsets). Numeric values are stored in pt, so convert back to the current ruler unit.
             /* pt 文字列を現在の単位の表示文字列へ。無効なら null / pt string → display string in the current unit (null if invalid) */
             function savedPtToDisplay(ptString) {
                 if (ptString === undefined || ptString === null || ptString === "") return null;
@@ -1379,11 +1417,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                 if (isNaN(pt)) return null;
                 return String(Math.round((pt / pointsPerUnit) * 100) / 100);
             }
-            // モード（選択に依存せず保存値を優先）/ Mode (prefer the saved value)
-            if (savedSettings.mode === "group") modeGroupRadio.value = true;
-            else if (savedSettings.mode === "artboard") modeArtboardRadio.value = true;
-            else if (savedSettings.mode === "auto") modeAutoPairRadio.value = true;
-            if (savedSettings.fixedSide) setFixedSide(savedSettings.fixedSide);
+            // モードとキー側（初期間隔を測ったときと同じ値を使う）/ Mode and key side (same values the gap was measured with)
+            if (initialMode === "group") modeGroupRadio.value = true;
+            else if (initialMode === "artboard") modeArtboardRadio.value = true;
+            else modeAutoPairRadio.value = true;
+            setFixedSide(initialFixedSide);
             if (savedSettings.previewBounds === "true") previewBoundsCheckbox.value = true;
             applySavedAlign(hAlign, savedSettings.alignH);
             applySavedAlign(vAlign, savedSettings.alignV);
