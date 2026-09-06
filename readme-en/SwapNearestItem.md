@@ -27,6 +27,10 @@
 3. Swap positions considering sizes and gaps
 4. Handle multi-selection with center or edge-based swaps
 
+### note
+
+- [【Illustrator】ひとつ選ぶだけ！直近オブジェクトとサクサク配置を入れ替えるスクリプト（＋2つ選択しているときには入れ替え）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n21a03e135423)
+
 ### Update History
 
 - v1.0.0 (20250610): Initial release

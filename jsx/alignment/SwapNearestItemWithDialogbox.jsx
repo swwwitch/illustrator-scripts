@@ -24,7 +24,7 @@ var SCRIPT_NAME     = "SwapNearestItemWithDialogbox"; /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItemWithDialogbox.md
@@ -36,6 +36,10 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
 
 (function () {
 
+    // =========================================
+    // 基本設定 / Basic settings
+    // =========================================
+
     var directionMap = {
       1: "right",
       2: "left",
@@ -43,121 +47,190 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
       4: "down"
     };
 
+    /* 起動直後の方向。ダイアログの矢印キーで切り替わる / Initial direction; the arrow keys change it */
     var direction = directionMap[4];
 
-    var LABELS = {
-      ja: {
-        title: "オブジェクトを入れ替え",
-        message: "矢印キーで入れ替え",
-        close: "終了"
-      },
-      en: {
-        title: "Swap Position",
-        message: "Press arrow key to swap",
-        close: "Close"
-      }
-    };
+    // =========================================
+    // ラベル定義 / Label definitions
+    // =========================================
 
     /**
      * 現在のロケールに基づき言語コードを返す
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-      return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+      return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var L = LABELS[getCurrentLang()];
+    var uiLang = getCurrentLang();
 
-    (function(){
-      if(app.activeDocument.selection.length != "1"){
-        alert("1つのオブジェクトを選択してください。");
-        return;
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+      dialog: {
+        title:    { ja: "オブジェクトを入れ替え", en: "Swap Position" },
+        message:  { ja: "矢印キーで入れ替え", en: "Press arrow key to swap" },
+        notFound: { ja: "見つかりません", en: "Nothing found" }
+      },
+      button: {
+        close: { ja: "終了", en: "Close" }
+      },
+      alert: {
+        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+        selectOne:  { ja: "1つのオブジェクトを選択してください。", en: "Select one object." },
+        noPosition: { ja: "位置情報を持つオブジェクトを選択してください。", en: "Select an object that has a position." }
       }
+    };
 
     /**
-     * 指定したタイプ名が処理対象か判定する
-     * @param {string} name - オブジェクトの typename
-     * @returns {boolean} 処理対象ならtrue
+     * ラベル定義からUI言語に応じた文字列を取得する
+     * @param {string} labelPath - "alert.noDocument" のようなドット区切りのパス
+     * @returns {string} 対応する文字列。見つからない場合はパスをそのまま返す
      */
-    function isValidType(name) {
-      // 対象外の型（ガイドや注釈など）
-      if (name === "LegacyTextItem" || name === "NonNativeItem" ||
-          name === "Guide" || name === "Annotation" || name === "PathPoint") {
-        return false;
+    function getLabel(labelPath) {
+      var pathKeys = labelPath.split(".");
+      var labelNode = LABELS;
+      for (var keyIndex = 0; keyIndex < pathKeys.length; keyIndex++) {
+        labelNode = labelNode[pathKeys[keyIndex]];
+        if (!labelNode) return labelPath;
       }
+      return labelNode[uiLang] || labelNode.en || labelPath;
+    }
+
+    // =========================================
+    // 判定・計測 / Checks and measurement
+    // =========================================
+
+    /**
+     * 入れ替えの対象にできるオブジェクトか判定する
+     * @param {PageItem} item - 判定するオブジェクト
+     * @returns {boolean} 対象にできる場合はtrue
+     */
+    function isValidType(item) {
+      /* ガイドは typename が "PathItem" のため guides で判定する / Guides are PathItems, so test .guides */
+      if (item.typename === "PathItem" && item.guides === true) return false;
+
       var types = [
         "PathItem", "CompoundPathItem", "GroupItem", "TextFrame",
         "PlacedItem", "RasterItem", "SymbolItem", "MeshItem",
         "PluginItem", "GraphItem"
       ];
+
       for (var i = 0; i < types.length; i++) {
-        if (types[i] === name) return true;
+        if (types[i] === item.typename) return true;
+      }
+
+      return false;
+    }
+
+    /**
+     * ロック・非表示のレイヤーに属していないか判定する
+     * @param {Layer} layer - 判定するレイヤー
+     * @returns {boolean} 触れる場合はtrue
+     */
+    function isUsableLayer(layer) {
+      /* サブレイヤーは自身がロックされていなくても親レイヤー側でロックされることがある
+         A sublayer can be locked or hidden by an ancestor layer even when its own flags are clear */
+      for (var node = layer; node && node.typename === "Layer"; node = node.parent) {
+        if (node.locked || node.visible === false) return false;
+      }
+      return true;
+    }
+
+    /**
+     * 配列に指定したオブジェクトが含まれるか判定する
+     * @param {PageItem[]} items - 探す対象の配列
+     * @param {PageItem} item - 探すオブジェクト
+     * @returns {boolean} 含まれる場合はtrue
+     */
+    function containsItem(items, item) {
+      if (!items) return false;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i] === item) return true;
       }
       return false;
     }
 
     /**
+     * オブジェクトの境界を返す
+     * @param {PageItem} item - 対象オブジェクト
+     * @returns {number[]} [left, top, right, bottom]
+     */
+    function getBounds(item) {
+      return item.visibleBounds;
+    }
+
+    /**
+     * オブジェクトの中心座標を返す
+     * @param {PageItem} item - 対象オブジェクト
+     * @returns {number[]} [x, y]
+     */
+    function getCenter(item) {
+      var b = getBounds(item);
+      return [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+    }
+
+    // =========================================
+    // 探索と入れ替え / Search and swap
+    // =========================================
+
+    /**
      * 指定方向にある最も近いオブジェクトを検索する
      * @param {PageItem} referenceItem - 基準オブジェクト
-     * @param {string} direction - 検索方向 ("right", "left", "up", "down")
-     * @returns {PageItem|null} - 見つかった最も近いオブジェクト、なければnull
+     * @param {string} direction - 検索方向（"right" / "left" / "up" / "down"）
+     * @param {PageItem[]} excludeItems - 候補から除外するオブジェクト（省略可）
+     * @returns {PageItem|null} 見つかったオブジェクト。なければnull
      */
-    function findNearestObjectInDirection(referenceItem, direction) {
+    function findNearestObjectInDirection(referenceItem, direction, excludeItems) {
       var doc = app.activeDocument;
+      var items = doc.pageItems;
+      var itemCount = items.length;
+
+      var refBounds = getBounds(referenceItem);
+      var refCenter = getCenter(referenceItem);
+
       var nearest = null;
+      var minGap = Number.MAX_VALUE;
       var minDist = Number.MAX_VALUE;
 
-      for (var i = 0; i < doc.pageItems.length; i++) {
-        var item = doc.pageItems[i];
+      for (var i = 0; i < itemCount; i++) {
+        var item = items[i];
         if (item === referenceItem) continue;
+        if (containsItem(excludeItems, item)) continue;
         if (item.locked || item.hidden) continue;
-        if (item.layer.locked || item.layer.visible === false) continue;
-        if (!isValidType(item.typename)) continue;
-        if (item.parent && (item.parent.typename === "GroupItem" || item.parent.typename === "CompoundPathItem")) {
-          if (item !== item.parent) {
-            continue; // グループや複合パス内の子オブジェクトは除外（親のみ処理対象）
-          }
+        if (!isUsableLayer(item.layer)) continue;
+        if (!isValidType(item)) continue;
+        /* グループや複合パス内の子オブジェクトは除外（親のみ処理対象）/ Skip children of groups and compound paths */
+        if (item.parent && (item.parent.typename === "GroupItem" || item.parent.typename === "CompoundPathItem")) continue;
+
+        var bounds = getBounds(item);
+        var center = getCenter(item);
+        var dx = center[0] - refCenter[0];
+        var dy = center[1] - refCenter[1];
+
+        /* 探索軸と直交する方向で範囲が重なっているか / Overlap on the axis perpendicular to the search */
+        var verticalOverlap = !(refBounds[3] > bounds[1] || refBounds[1] < bounds[3]);
+        var horizontalOverlap = !(refBounds[0] > bounds[2] || refBounds[2] < bounds[0]);
+
+        /* 近さは探索方向の隙間で測る（中心間の直線距離では斜めのオブジェクトが勝つ）/ Score by the gap along the search axis */
+        var gap;
+        if (direction === "right" && dx > 0 && verticalOverlap) {
+          gap = bounds[0] - refBounds[2];
+        } else if (direction === "left" && dx < 0 && verticalOverlap) {
+          gap = refBounds[0] - bounds[2];
+        } else if (direction === "up" && dy > 0 && horizontalOverlap) {
+          gap = bounds[3] - refBounds[1];
+        } else if (direction === "down" && dy < 0 && horizontalOverlap) {
+          gap = refBounds[3] - bounds[1];
+        } else {
+          continue;
         }
 
-        var cxRef = referenceItem.left + referenceItem.width / 2;
-        var cyRef = referenceItem.top - referenceItem.height / 2;
-        var cxItem = item.left + item.width / 2;
-        var cyItem = item.top - item.height / 2;
-
-        var dx = cxItem - cxRef;
-        var dy = cyItem - cyRef;
+        if (gap < 0) gap = 0; /* 重なっている場合は隙間0として扱う / Treat overlapping items as a zero gap */
 
         var distance = Math.sqrt(dx * dx + dy * dy);
-
-        // 縦方向の重なり判定（左右方向の場合）
-        var aBounds = referenceItem.visibleBounds;
-        var bBounds = item.visibleBounds;
-
-        var ay1 = aBounds[1]; // top
-        var ay2 = aBounds[3]; // bottom
-        var by1 = bBounds[1];
-        var by2 = bBounds[3];
-        var verticalOverlap = !(ay2 > by1 || ay1 < by2);
-
-        if (direction === "right" && dx > 0 && verticalOverlap) {
-          if (distance < minDist) {
-            minDist = distance;
-            nearest = item;
-          }
-        } else if (direction === "left" && dx < 0 && verticalOverlap) {
-          if (distance < minDist) {
-            minDist = distance;
-            nearest = item;
-          }
-        } else if (direction === "down" && dy < 0 && Math.abs(dx) < referenceItem.width / 2) {
-          if (distance < minDist) {
-            minDist = distance;
-            nearest = item;
-          }
-        } else if (direction === "up" && dy > 0 && Math.abs(dx) < referenceItem.width / 2) {
-          if (distance < minDist) {
-            minDist = distance;
-            nearest = item;
-          }
+        if (gap < minGap || (gap === minGap && distance < minDist)) {
+          minGap = gap;
+          minDist = distance;
+          nearest = item;
         }
       }
 
@@ -165,119 +238,169 @@ var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last update
     }
 
     /**
-     * 選択中オブジェクトと指定方向の最も近いオブジェクトの位置を入れ替える
+     * 2つのオブジェクトを左右に入れ替える（全体の占有範囲と隙間を保つ）
+     * @param {PageItem} itemA - 入れ替える一方
+     * @param {PageItem} itemB - 入れ替えるもう一方
+     * @returns {void}
      */
-    function swapNearestObject() {
-      if (app.documents.length === 0) {
-        alert("ドキュメントが開かれていません。");
-        return;
+    function swapHorizontally(itemA, itemB) {
+      var boundsA = getBounds(itemA);
+      var boundsB = getBounds(itemB);
+
+      /* itemAが左、itemBが右になるように並び替え / Order so that itemA is the left one */
+      if (boundsA[0] > boundsB[0]) {
+        var tmpItem = itemA;
+        itemA = itemB;
+        itemB = tmpItem;
+
+        var tmpBounds = boundsA;
+        boundsA = boundsB;
+        boundsB = tmpBounds;
       }
 
-      var doc = app.activeDocument;
-      var sel = doc.selection;
+      var widthB = boundsB[2] - boundsB[0];
+      var gap = boundsB[0] - boundsA[2];
 
-      if (!sel || sel.length !== 1) {
-        alert("1つのオブジェクトを選択してください。");
-        return;
-      }
-
-      var target = sel[0];
-
-      if (!target.hasOwnProperty("left") || !target.hasOwnProperty("top")) {
-        alert("位置情報を持つオブジェクトを選択してください。");
-        return;
-      }
-
-      var nearest = findNearestObjectInDirection(target, direction);
-
-      if (!nearest || nearest === target) {
-        return;
-      }
-
-      var boundsA = target.visibleBounds;
-      var boundsB = nearest.visibleBounds;
-
-      if (direction === "up" || direction === "down") {
-        var yA = boundsA[1];
-        var hA = boundsA[1] - boundsA[3];
-        var yB = boundsB[1];
-        var hB = boundsB[1] - boundsB[3];
-
-        if (direction === "up") {
-          target.top = yB;
-
-          var gap = Math.abs(yA - boundsB[3]);
-          var totalHeight = hA + hB + gap;
-          nearest.top = yB - totalHeight + hB;
-        } else {
-          nearest.top = yA;
-
-          var gap = Math.abs(yB - boundsA[3]);
-          var totalHeight = hA + hB + gap;
-          target.top = yA - totalHeight + hA;
-        }
-      } else {
-        var xA = boundsA[0];
-        var wA = boundsA[2] - boundsA[0];
-        var xB = boundsB[0];
-        var wB = boundsB[2] - boundsB[0];
-
-        if (direction === "left") {
-          var gap = Math.abs(boundsA[0] - boundsB[2]);
-          target.left = xB;
-          nearest.left = xB + wA + gap;
-        } else {
-          var gap = Math.abs(xB - boundsA[2]);
-
-          nearest.left = xA;
-          var totalWidth = wA + wB + gap;
-          target.left = xA + totalWidth - wA;
-        }
-      }
+      itemB.left = boundsA[0];
+      itemA.left = boundsA[0] + widthB + gap;
     }
 
-    var winObj = new Window("dialog", L.title);
-    winObj.txt = winObj.add("statictext", undefined, L.message);
-    winObj.txt.alignment = "center";
+    /**
+     * 2つのオブジェクトを上下に入れ替える（全体の占有範囲と隙間を保つ）
+     * @param {PageItem} itemA - 入れ替える一方
+     * @param {PageItem} itemB - 入れ替えるもう一方
+     * @returns {void}
+     */
+    function swapVertically(itemA, itemB) {
+      var boundsA = getBounds(itemA);
+      var boundsB = getBounds(itemB);
 
-    var bt = winObj.add("button", undefined, L.close);
-    bt.onClick = function(){
-      winObj.close();
-    };
+      /* itemAが上、itemBが下になるように並び替え / Order so that itemA is the upper one */
+      if (boundsA[1] < boundsB[1]) {
+        var tmpItem = itemA;
+        itemA = itemB;
+        itemB = tmpItem;
 
-    var isProcessing = false;
-
-    winObj.addEventListener("keydown", function (e) {
-      if (isProcessing) return;
-      isProcessing = true;
-
-      var k = e.keyName;
-      switch (k) {
-        case "Up": direction = directionMap[3]; break;
-        case "Down": direction = directionMap[4]; break;
-        case "Left": direction = directionMap[2]; break;
-        case "Right": direction = directionMap[1]; break;
-        case "Escape":
-        case "Enter":
-        case "Return":
-          bt.notify();
-          return;
-        default:
-          isProcessing = false;
-          return;
+        var tmpBounds = boundsA;
+        boundsA = boundsB;
+        boundsB = tmpBounds;
       }
 
-      swapNearestObject();
-      redraw();
-    }, false);
+      var heightB = boundsB[1] - boundsB[3];
+      var gap = boundsA[3] - boundsB[1];
 
-    winObj.addEventListener("keyup", function (e) {
-      isProcessing = false;
-    }, false);
+      itemB.top = boundsA[1];
+      itemA.top = boundsA[1] - heightB - gap;
+    }
 
-    bt.active = true;
+    /**
+     * 選択中のオブジェクトと、指定方向で最も近いオブジェクトの位置を入れ替える
+     * @returns {boolean} 入れ替えた場合はtrue
+     */
+    function swapNearestObject() {
+      var sel = app.activeDocument.selection;
+      /* 実行中に選択が変わることがあるため、毎回確認する（案内はmain側で済ませている）/ The selection can change while the dialog is open */
+      if (!sel || sel.typename === "TextRange" || sel.length !== 1) return false;
 
-    winObj.show();
-    })();
+      var target = sel[0];
+      if (!isValidType(target)) return false;
+
+      var nearest = findNearestObjectInDirection(target, direction, sel);
+      if (!nearest) return false;
+
+      if (direction === "up" || direction === "down") {
+        swapVertically(target, nearest);
+      } else {
+        swapHorizontally(target, nearest);
+      }
+
+      return true;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 矢印キーで入れ替えを実行するダイアログを表示する
+     * @returns {void}
+     */
+    function showDialog() {
+      var dlg = new Window("dialog", getLabel("dialog.title"));
+
+      var msgText = dlg.add("statictext", undefined, getLabel("dialog.message"));
+      msgText.alignment = "center";
+
+      var btnClose = dlg.add("button", undefined, getLabel("button.close"));
+      btnClose.onClick = function () {
+        dlg.close();
+      };
+
+      var isProcessing = false;
+
+      dlg.addEventListener("keydown", function (e) {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        switch (e.keyName) {
+          case "Up": direction = directionMap[3]; break;
+          case "Down": direction = directionMap[4]; break;
+          case "Left": direction = directionMap[2]; break;
+          case "Right": direction = directionMap[1]; break;
+          case "Escape":
+          case "Enter":
+          case "Return":
+            btnClose.notify();
+            return;
+          default:
+            isProcessing = false;
+            return;
+        }
+
+        /* 見つからないときはメッセージを差し替えて知らせる。連打を邪魔しないようアラートは出さない
+           Report a miss by swapping the message; an alert would interrupt repeated key presses */
+        msgText.text = swapNearestObject() ? getLabel("dialog.message") : getLabel("dialog.notFound");
+        app.redraw();
+      }, false);
+
+      dlg.addEventListener("keyup", function () {
+        isProcessing = false;
+      }, false);
+
+      btnClose.active = true;
+      dlg.show();
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択内容を確認してダイアログを表示する
+     * @returns {void}
+     */
+    function main() {
+      if (app.documents.length === 0) {
+        alert(getLabel("alert.noDocument"));
+        return;
+      }
+
+      var sel = app.activeDocument.selection;
+
+      /* 文字カーソルが立っているとselはTextRangeで、lengthは文字数になる / A text caret gives a TextRange whose length counts characters */
+      if (!sel || sel.typename === "TextRange" || sel.length !== 1) {
+        alert(getLabel("alert.selectOne"));
+        return;
+      }
+
+      if (!isValidType(sel[0])) {
+        alert(getLabel("alert.noPosition"));
+        return;
+      }
+
+      showDialog();
+    }
+
+    main();
 
 })();
