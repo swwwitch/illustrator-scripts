@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiCurlyBracketMaker";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCurlyBracketMaker.md
@@ -131,7 +131,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         },
         tooltip: {
             arrowKeys:    { ja: "↑↓で増減（Shiftで10単位、Optionで0.1刻み）", en: "Up/Down to step (Shift for 10s, Option for 0.1)" },
-            centerRadius: { ja: "中央の突起を作る円弧の半径", en: "Radius of the arcs that form the point in the middle" },
+            centerRadius: { ja: "中央の突起を作る円弧の半径。0にすると突起がなくなり直線になります", en: "Radius of the arcs that form the point in the middle. 0 drops the point and leaves a straight line" },
             endRadius:    { ja: "両端で外へ折れ返る円弧の半径。0にすると円弧なしの直角になります", en: "Radius of the arcs that curl outward at both ends. 0 leaves a right angle with no arc" },
             linkRadius:   { ja: "両端の半径を中央に合わせる（ONのあいだ両端は編集できません）", en: "Keep the end radius equal to the center radius (the end field is disabled while on)" },
             chamfer:      { ja: "ジグザグ効果（大きさ0・折り返し0）を適用し、円弧を直線でつないだ面取りにします", en: "Applies a Zig Zag effect (size 0, ridges 0) so the arcs become straight chamfers" },
@@ -152,7 +152,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         },
         alert: {
             lockedLayer:  { ja: "アクティブレイヤーがロックまたは非表示です。", en: "The active layer is locked or hidden." },
-            invalidValue: { ja: "数値が正しくありません。半径（中央）と線の太さは0より大きい値、ほかの項目は0以上を入力してください。", en: "Some values are not valid. The center radius and the stroke width must be greater than 0, and the other fields 0 or more." }
+            invalidValue: { ja: "数値が正しくありません。線の太さは0より大きい値、ほかの項目は0以上を入力してください。", en: "Some values are not valid. The stroke width must be greater than 0, and the other fields 0 or more." }
         }
     };
 
@@ -539,22 +539,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
 
         /* ずらしたぶん、上下で直線の長さが変わる / The offset makes the two halves differ */
         var beakY = centerY + centerOffset;
-        var upperPoints = buildHalfPoints(endRadius, centerRadius, straightLength - centerOffset, extension, centerX, beakY);
-        var lowerPoints = buildHalfPoints(endRadius, centerRadius, straightLength + centerOffset, extension, centerX, beakY);
+        var upperStraightLength = straightLength - centerOffset;
+        var lowerStraightLength = straightLength + centerOffset;
+        var upperPoints = buildHalfPoints(endRadius, centerRadius, upperStraightLength, extension, centerX, beakY);
+        var lowerPoints = buildHalfPoints(endRadius, centerRadius, lowerStraightLength, extension, centerX, beakY);
 
 
         var bracketPoints = upperPoints.slice();
+        var lowerCount = lowerPoints.length;
         var i;
 
-        /* 中央の突起は上下の折り返し点なので反転しない / The middle point is where the halves meet, so it is not mirrored */
-        bracketPoints.push({
-            anchor: [centerX + centerRadius, beakY],
-            left:   [centerX + (centerRadius - centerHandle), beakY],
-            right:  [centerX + (centerRadius - centerHandle), beakY]
-        });
+        if (centerRadius > 0) {
+            /* 中央の突起は上下の折り返し点なので反転しない / The middle point is where the halves meet, so it is not mirrored */
+            bracketPoints.push({
+                anchor: [centerX + centerRadius, beakY],
+                left:   [centerX + (centerRadius - centerHandle), beakY],
+                right:  [centerX + (centerRadius - centerHandle), beakY]
+            });
+        } else {
+            /* 半径0のときは突起がなくなり、上下の内端が中央で重なる / A zero radius drops the point, leaving the two inner ends stacked in the middle */
+            lowerCount--;
+            var innerPoint = mergePathPoints(bracketPoints.pop(), mirrorPointAcrossCenterY(lowerPoints[lowerCount], beakY));
+            /* 上下とも直線が残っていれば、まとめた点は直線の途中なので省く / With a straight run on both sides the merged point falls mid-line, so it is left out */
+            if (upperStraightLength <= 0 || lowerStraightLength <= 0) bracketPoints.push(innerPoint);
+        }
 
         /* 下半分は中央で折り返した鏡像を逆順に並べる / The lower half is mirrored across the middle point, in reverse order */
-        for (i = lowerPoints.length - 1; i >= 0; i--) {
+        for (i = lowerCount - 1; i >= 0; i--) {
             bracketPoints.push(mirrorPointAcrossCenterY(lowerPoints[i], beakY));
         }
 
@@ -1049,7 +1060,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             var strokeWidthPt = Number(strokeWidthInput.text);
 
             if (isNaN(endRadiusMm) || endRadiusMm < 0) return null;
-            if (isNaN(centerRadiusMm) || centerRadiusMm <= 0) return null;
+            if (isNaN(centerRadiusMm) || centerRadiusMm < 0) return null;
             if (isNaN(totalLengthMm) || totalLengthMm < 0) return null;
             if (isNaN(extensionPt) || extensionPt < 0) return null;
             if (isNaN(centerOffsetMm)) return null;

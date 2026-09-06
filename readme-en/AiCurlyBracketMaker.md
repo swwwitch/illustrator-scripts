@@ -63,7 +63,7 @@ The bracket is placed so that its arm ends touch the edge of the selection. Offs
 
 | Item | Description |
 | --- | --- |
-| Center Radius | Radius of the arcs that form the point in the middle (mm) |
+| Center Radius | Radius of the arcs that form the point in the middle (mm). **0 drops the point and leaves a straight line** |
 | End Radius | Radius of the arcs that curl outward at both ends (mm). **0 leaves a right angle** with no arc. While Link is on it follows the center radius and cannot be edited |
 | Chamfer | Applies a Zig Zag effect (size 0, ridges 0) so the arcs become straight chamfers |
 | Direction | Where the middle point faces (up / down / left / right) |
@@ -96,3 +96,4 @@ https://note.com/dtp_tranist/n/nd6b3e36ff79d
 ### Update History
 
 - v1.0.0 (20260905) : Initial release
+- v1.0.1 (20260906) : The center radius now accepts 0
