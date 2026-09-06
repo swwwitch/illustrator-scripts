@@ -28,10 +28,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

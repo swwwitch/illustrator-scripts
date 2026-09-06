@@ -27,10 +27,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-02";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStats.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStats.md
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStats.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStats.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

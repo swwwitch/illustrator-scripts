@@ -29,10 +29,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

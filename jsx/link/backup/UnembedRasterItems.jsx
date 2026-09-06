@@ -79,10 +79,8 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
  * @discussion https://community.adobe.com/t5/illustrator-discussions/is-it-possible-to-convert-rasteritem-to-placeditem/m-p/13081172
  */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnembedRasterItems.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedRasterItems.md
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnembedRasterItems.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedRasterItems.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

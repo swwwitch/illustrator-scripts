@@ -27,10 +27,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-07";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeBasicsPanel.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeBasicsPanel.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeBasicsPanel.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeBasicsPanel.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n29e7115b5e70"; /* 紹介記事 / article URL */
 var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位版 / advanced version */
 

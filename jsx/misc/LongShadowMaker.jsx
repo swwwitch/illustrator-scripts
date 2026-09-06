@@ -28,10 +28,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-02-25";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

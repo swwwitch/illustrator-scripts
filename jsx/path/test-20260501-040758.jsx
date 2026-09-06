@@ -28,10 +28,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-05-01";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/test-20260501-040758.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/test-20260501-040758.md
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/test-20260501-040758.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/test-20260501-040758.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

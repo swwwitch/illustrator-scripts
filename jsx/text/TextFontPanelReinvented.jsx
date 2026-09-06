@@ -27,10 +27,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextFontPanelReinvented.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextFontPanelReinvented.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextFontPanelReinvented.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextFontPanelReinvented.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
