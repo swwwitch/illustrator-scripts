@@ -6,15 +6,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-オブジェクトの間隔（および位置）を、指定した値にそろえます。
-［固定］で選んだ側を基準に残りを動かし、ライブプレビューで結果を確認できます。
+選択したオブジェクトの間隔と位置を、指定した値にそろえます。
+グループ内の等間隔配置・最も近いもの同士のペア・アートボード端からのマージンの3モードがあり、
+［固定］で選んだ側は動かさず、残りをライブプレビューで確認しながら動かします。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Sets the gap — and the position — between objects to a value you specify.
-The side marked as fixed stays put while the rest move, with a live preview of the result.
+Sets the gap and the position of the selected objects to a value you specify.
+Three modes — even spacing inside a group, nearest-neighbour pairs, and margins from an
+artboard edge — hold the side picked as the key object and move the rest, with a live preview.
 
 See the README for details.
 
@@ -24,10 +26,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustPairGap";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026年6月8日";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-06-08";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md"; /* README (English) */
@@ -67,7 +69,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         spacing: {
             label: { ja: "間隔", en: "Gap" }
         },
-        // 水平／垂直パネル内の行ラベル / Row labels inside the Horizontal/Vertical panels
+        // 位置調整パネル内の行ラベル / Row labels inside the Position panel
         panel: {
             align: { ja: "整列", en: "Align" },
             position: { ja: "位置", en: "Position" }
@@ -81,16 +83,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             right: { ja: "右", en: "Right" },
             full: { ja: "均等配置", en: "Justify" }
         },
-        // 整列 / Alignment
+        // 位置調整（整列・オフセット）/ Position (alignment and offset)
         align: {
-            h: { ja: "水平", en: "Horizontal" },
-            v: { ja: "垂直", en: "Vertical" },
-            none: { ja: "移動しない", en: "Don't move" },
+            label: { ja: "位置調整", en: "Position" },
+            none: { ja: "なし", en: "None" },
             center: { ja: "中央", en: "Center" }
         },
-        // 位置調整 / Position
+        // オフセット（間隔・プレビュー境界）/ Offset (gap and preview bounds)
         options: {
-            label: { ja: "位置調整", en: "Position" },
+            label: { ja: "オフセット", en: "Offset" },
             previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" }
         },
         // ボタン / Buttons（OK はローカライズしない / "OK" is not localized）
@@ -191,6 +192,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         return getLocalizedText(key) + (currentLanguage === 'ja' ? '：' : ':');
     }
 
+    /* 単位を括弧で添えたタイトル（日本語は全角括弧、英語は半角）。各行に単位を並べる代わりに
+       パネル名へまとめる / Title with the unit in parentheses (full-width in JA), so the rows
+       themselves don't need to repeat it */
+    function labelWithUnit(key, unit) {
+        return getLocalizedText(key) + (currentLanguage === 'ja' ? '（' + unit + '）' : ' (' + unit + ')');
+    }
+
     // =========================================
     // 単位 / Units
     // =========================================
@@ -250,13 +258,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         });
     }
 
-    /* 整列のキーボードショートカットをダイアログに付ける。今アクティブな向きのキーだけ反応する。
-       水平がアクティブ（上下キー時）：L=左 / C=中央 / R=右、垂直がアクティブ（左右キー時）：T=上 / M=中央 / B=下。
-       isHorizontalActive() で現在の有効な向きを判定する（パネルの enabled では子の enabled が追従しないため）。
-       Attach alignment keyboard shortcuts; only the currently active orientation responds.
-       isHorizontalActive() decides which orientation is active (don't rely on child .enabled, which does
-       not follow a disabled parent panel). Calls onChange on change. */
-    function addAlignmentKeyHandler(dialog, hAlign, vAlign, isHorizontalActive, onChange) {
+    /* 整列のキーボードショートカットをダイアログに付ける。整列パネルは1枚なので、同じラジオを
+       今の向きで読み替える。水平（上下キー時）：L=左 / C=中央 / R=右、垂直（左右キー時）：T=上 / M=中央 / B=下。
+       Attach the alignment keyboard shortcuts. There is a single alignment panel, so the same radios
+       are read according to the current orientation, which isHorizontalActive() reports.
+       Calls onChange on change. */
+    function addAlignmentKeyHandler(dialog, radios, isHorizontalActive, onChange) {
         dialog.addEventListener("keydown", function (event) {
             // Cmd+C などの修飾キー付きの入力は横取りしない（コピー等を潰さないため）
             // Do not swallow modified keystrokes such as Cmd+C
@@ -266,13 +273,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             var target = null;
             var key = event.keyName;
             if (isHorizontalActive()) {
-                if (key === "L") target = hAlign.radios.start;
-                else if (key === "C") target = hAlign.radios.center;
-                else if (key === "R") target = hAlign.radios.end;
+                if (key === "L") target = radios.start;
+                else if (key === "C") target = radios.center;
+                else if (key === "R") target = radios.end;
             } else {
-                if (key === "T") target = vAlign.radios.start;
-                else if (key === "M") target = vAlign.radios.center;
-                else if (key === "B") target = vAlign.radios.end;
+                if (key === "T") target = radios.start;
+                else if (key === "M") target = radios.center;
+                else if (key === "B") target = radios.end;
             }
             if (!target) return;
             event.preventDefault();
@@ -397,19 +404,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         };
     }
 
-    /* 位置調整パネル（間隔の入力・プレビュー境界）を生成する。
-       左右/上下オフセットは「水平」「垂直」パネルへ移動したので、ここは間隔だけを扱う。
-       間隔は現在のルーラー単位で表示し、getSpacingInPoints() が pt に換算して返す。
+    /* オフセットパネル（間隔の入力・プレビュー境界）を生成する。整列後のずらし量は［位置調整］パネルが
+       持つので、ここは間隔だけを扱う。間隔は現在のルーラー単位で表示し（単位はパネル名に出す）、
+       getSpacingInPoints() が pt に換算して返す。
        initialGapPoints は間隔の初期値・空欄時のフォールバック（pt）。イベント結線は呼び出し側で行う。
-       Build the Position panel (gap input, preview-bounds). Offsets moved to the Horizontal/
-       Vertical panels, so this panel handles only the gap. Event wiring is left to the caller.
+       Build the Offset panel (gap input, preview-bounds). The post-alignment nudge lives in the
+       Position panel, so this one handles only the gap; its unit is shown in the panel title.
+       Event wiring is left to the caller.
        返り値 / Returns: { panel, spacingInput, previewBoundsCheckbox,
                            getSpacingInPoints, getBoundsType } */
     function buildGapPanel(parentGroup, initialGapPoints) {
-        var panel = parentGroup.add("panel", undefined, getLocalizedText('options.label'));
+        var panel = parentGroup.add("panel", undefined, labelWithUnit('options.label', rulerUnitLabel));
         setupPanel(panel, 6);
 
-        // 間隔行（ラベル＋入力＋単位）/ Gap row (label + input + unit)
+        // 間隔行（ラベル＋入力）。単位はパネル名に出しているので行には並べない
+        // Gap row (label + input); the unit lives in the panel title instead
         var spacingRow = panel.add("group");
         setupGroup(spacingRow, "row");
         spacingRow.alignment = "left"; // 広げず左寄せ / Keep at natural width, packed left
@@ -418,7 +427,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var spacingInput = spacingRow.add("edittext", undefined, String(defaultSpacingDisplay));
         spacingInput.characters = 4;
         spacingInput.helpTip = getLocalizedText('tip.spacing');
-        spacingRow.add("statictext", undefined, rulerUnitLabel);
 
         // チェックボックス：プレビュー境界（左添え）/ Preview-bounds checkbox (left)
         var previewBoundsGroup = panel.add("group");
@@ -450,25 +458,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         };
     }
 
-    /* 「水平」または「垂直」パネルを生成する。整列（移動しない/開始/中央/終端）と位置（オフセット）の
-       2行を1枚にまとめる。which="h" は水平（整列＝左/中央/右・位置＝左右）、"v" は垂直（上/中央/下・上下）。
-       有効/無効・中央時のオフセット無効化・getAlignMode などは呼び出し側で行う。
-       Build the "Horizontal" or "Vertical" panel: an alignment row (none/start/center/end) and a
-       position (offset) row. which="h" → horizontal (left/center/right, left-right offset);
-       "v" → vertical (top/center/bottom, up-down offset). Enable/disable and event wiring are the caller's.
-       返り値 / Returns: { panel, align:{row,label,radios}, offsetRow, offsetLabel, offsetInput, getOffsetInPoints } */
-    function buildOrientationPanel(parentGroup, which) {
-        var isH = (which === "h");
-        var titleKey = isH ? 'align.h' : 'align.v';                  // 水平 / 垂直
-        var startKey = isH ? 'fixedSide.left' : 'fixedSide.top';     // 左 / 上
-        var endKey = isH ? 'fixedSide.right' : 'fixedSide.bottom';   // 右 / 下
-        var tipAlignKey = isH ? 'tip.alignH' : 'tip.alignV';
-        var tipOffsetKey = isH ? 'tip.offsetHorizontal' : 'tip.offsetVertical';
+    /* 位置調整パネルを生成する。整列（なし/開始/中央/終端）と位置の2行を1枚にまとめ、［固定］で選んだ側に
+       応じて setOrientation() で水平／垂直に切り替える（開始/終端のラベルとツールチップが入れ替わる）。
+       どちらの向きかは 左・右／上・下 のラベルで示すので、パネル名は「位置調整」で固定
+       （オフセットパネルと同じく、単位はパネル名に出す）。
+       向きごとの値の保持と中央時のオフセット無効化は呼び出し側で行う。
+       開始/終端のラベルはレイアウト確定後に差し替えるので、文字数の多いほうで組み立てて幅を確保しておく。
+       Build the Position panel: an alignment row (none/start/center/end) and a position row.
+       setOrientation() switches it between horizontal and vertical (start/end labels and tooltips);
+       the left/right vs top/bottom labels show which orientation is live, so the panel title stays put.
+       Keeping the per-orientation values and disabling the offset on center are the caller's job.
+       The start/end radios are built with the longer of the two candidate labels, so swapping the text
+       after layout never clips it.
+       返り値 / Returns: { alignRadios, offsetRow, offsetInput, setOrientation } */
+    function buildAlignmentPanel(parentGroup) {
+        /* 文字数の多いほうを返す（ラベル領域の確保用）/ The longer of the two (to reserve label width) */
+        function widerText(a, b) {
+            return (a.length >= b.length) ? a : b;
+        }
 
-        var panel = parentGroup.add("panel", undefined, getLocalizedText(titleKey));
+        var panel = parentGroup.add("panel", undefined, labelWithUnit('align.label', rulerUnitLabel));
         setupPanel(panel, 6);
 
-        // 整列行（ラベル＋移動しない/開始/中央/終端）/ Alignment row (label + none/start/center/end)
+        // 整列行（ラベル＋なし/開始/中央/終端）/ Alignment row (label + none/start/center/end)
         var alignRow = panel.add("group");
         setupGroup(alignRow, "row");
         alignRow.alignment = "left";
@@ -476,15 +488,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var alignLabel = alignRow.add("statictext", undefined, labelText('panel.align'));
         var radios = {
             none: alignRow.add("radiobutton", undefined, getLocalizedText('align.none')),
-            start: alignRow.add("radiobutton", undefined, getLocalizedText(startKey)),
+            start: alignRow.add("radiobutton", undefined,
+                widerText(getLocalizedText('fixedSide.left'), getLocalizedText('fixedSide.top'))),
             center: alignRow.add("radiobutton", undefined, getLocalizedText('align.center')),
-            end: alignRow.add("radiobutton", undefined, getLocalizedText(endKey))
+            end: alignRow.add("radiobutton", undefined,
+                widerText(getLocalizedText('fixedSide.right'), getLocalizedText('fixedSide.bottom')))
         };
         radios.none.value = true; // 既定：整列なし / Default: no alignment
-        var alignTip = getLocalizedText(tipAlignKey);
-        for (var key in radios) { radios[key].helpTip = alignTip; }
 
-        // 位置行（ラベル＋入力＋単位）/ Position row (label + input + unit)
+        // 位置行（ラベル＋入力）。単位はパネル名に出しているので行には並べない
+        // Position row (label + input); the unit lives in the panel title instead
         var offsetRow = panel.add("group");
         setupGroup(offsetRow, "row");
         offsetRow.alignment = "left";
@@ -492,69 +505,208 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var offsetLabel = offsetRow.add("statictext", undefined, labelText('panel.position'));
         var offsetInput = offsetRow.add("edittext", undefined, "0");
         offsetInput.characters = 4;
-        offsetInput.helpTip = getLocalizedText(tipOffsetKey);
-        offsetRow.add("statictext", undefined, rulerUnitLabel);
 
         // ラベル幅をそろえて整列ラジオと入力の開始位置を合わせる / Match label widths
         var labelWidth = Math.max(alignLabel.preferredSize.width, offsetLabel.preferredSize.width);
         alignLabel.preferredSize.width = labelWidth;
         offsetLabel.preferredSize.width = labelWidth;
 
-        /* オフセット入力を pt に換算（空・不正は 0）/ Offset input in pt (empty/invalid → 0) */
-        function getOffsetInPoints() {
-            var value = parseFloat(offsetInput.text);
-            if (isNaN(value)) value = 0;
-            return value * pointsPerUnit;
+        /* 水平／垂直を切り替える（開始/終端のラベルとツールチップ）。ラベルの差し替えで
+           レイアウトは組み直さないので、レイアウト確定後（onShow 以降）に呼ぶこと。
+           Switch the orientation (start/end labels and tooltips). Changing the text does not
+           re-run layout, so call this once the layout is settled (from onShow onward). */
+        function setOrientation(isHorizontal) {
+            radios.start.text = getLocalizedText(isHorizontal ? 'fixedSide.left' : 'fixedSide.top');
+            radios.end.text = getLocalizedText(isHorizontal ? 'fixedSide.right' : 'fixedSide.bottom');
+            var alignTip = getLocalizedText(isHorizontal ? 'tip.alignH' : 'tip.alignV');
+            for (var key in radios) { radios[key].helpTip = alignTip; }
+            offsetInput.helpTip = getLocalizedText(isHorizontal ? 'tip.offsetHorizontal' : 'tip.offsetVertical');
         }
 
         return {
-            panel: panel,
-            align: { row: alignRow, label: alignLabel, radios: radios },
+            alignRadios: radios,
             offsetRow: offsetRow,
-            offsetLabel: offsetLabel,
             offsetInput: offsetInput,
-            getOffsetInPoints: getOffsetInPoints
+            setOrientation: setOrientation
         };
     }
 
-    /* テキストの行揃えパネルを生成する。ラジオ横並び：自動 / 左 / 中央 / 右 / 均等配置（最終行左）。
+    /* 表示文字列（現在のルーラー単位）を pt に換算する。空・不正は 0
+       Convert a display string in the current ruler unit to pt (empty/invalid → 0) */
+    function offsetToPoints(text) {
+        var value = parseFloat(text);
+        if (isNaN(value)) value = 0;
+        return value * pointsPerUnit;
+    }
+
+    // =========================================
+    // 行揃えボタン / Justification buttons
+    // ScriptUI の button では選択状態を表示できないので、背景とアイコンを onDraw で自前描画する。
+    // 描画方式は UnifiedTypePanel.jsx にそろえる。
+    // ScriptUI buttons cannot show a selected state, so the background and icon are drawn in onDraw;
+    // the drawing follows UnifiedTypePanel.jsx.
+    // =========================================
+    var JUSTIFY_BUTTON_SIZE = [26, 26]; /* ボタンの幅・高さ(px) / button width and height (px) */
+
+    /* 環境設定のUI明るさが明るい側か / Whether the UI brightness preference is on the light side
+       uiBrightness は 0（最暗）〜1（最明）。0.5（やや暗め）は暗い側に含めるため 0.5 超で判定 */
+    function isLightUI() {
+        try {
+            return app.preferences.getRealPreference("uiBrightness") > 0.5;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /* テーマ＋アクティブ状態に応じたボタン配色 / Button colors per theme and active state */
+    function getJustifyColors(isLight, isActive) {
+        if (isLight) {
+            return {
+                bg: isActive ? [0.40, 0.40, 0.40, 1] : [1, 1, 1, 1],
+                border: isActive ? [0.30, 0.30, 0.30, 1] : [0.62, 0.62, 0.62, 1],
+                line: isActive ? [1, 1, 1, 1] : [0.25, 0.25, 0.25, 1]
+            };
+        }
+        return {
+            bg: isActive ? [0.92, 0.92, 0.92, 1] : [0.30, 0.30, 0.30, 1],
+            border: null,
+            line: isActive ? [0.16, 0.16, 0.16, 1] : [0.82, 0.82, 0.82, 1]
+        };
+    }
+
+    /* 行ごとの線幅。均等配置だけ最終行以外を長くする / Per-line widths (justify keeps all but the last line long) */
+    function getJustifyLineWidths(iconType, longWidth, shortWidth) {
+        if (iconType === "full") return [longWidth, longWidth, longWidth, shortWidth];
+        return [longWidth, shortWidth, longWidth, shortWidth];
+    }
+
+    /* 行の開始 X（左／中央／右）/ Line start X (left/center/right) */
+    function getJustifyLineX(iconType, buttonWidth, lineWidth) {
+        var margin = 5;
+        if (iconType === "right") return buttonWidth - margin - lineWidth;
+        if (iconType === "center") return Math.round((buttonWidth - lineWidth) / 2);
+        return margin;
+    }
+
+    /* アイコンの罫線を描く / Draw the icon's lines */
+    function drawJustifyIconLines(graphics, iconType, buttonWidth, lineColor) {
+        var pen = graphics.newPen(graphics.PenType.SOLID_COLOR, lineColor, 1.2);
+        var rowYs = [7, 11, 15, 19];
+        var lineWidths = getJustifyLineWidths(iconType, 15, 10);
+        for (var i = 0; i < rowYs.length; i++) {
+            var lineWidth = lineWidths[i];
+            var lineStartX = getJustifyLineX(iconType, buttonWidth, lineWidth);
+            graphics.newPath();
+            graphics.moveTo(lineStartX, rowYs[i]);
+            graphics.lineTo(lineStartX + lineWidth, rowYs[i]);
+            graphics.strokePath(pen);
+        }
+    }
+
+    /* 「自動」のアイコンを描く。他の行揃えと同じ高さに収まる「A」を線で描く
+       （drawString はフォントの解決に環境差があり空欄になることがあるため使わない）。
+       Draw the "auto" icon: an "A" built from strokes, spanning the same rows as the other icons
+       (drawString is avoided — resolving a font is environment-dependent and can render nothing). */
+    function drawAutoIcon(graphics, buttonWidth, lineColor) {
+        var pen = graphics.newPen(graphics.PenType.SOLID_COLOR, lineColor, 1.2);
+        var centerX = Math.round(buttonWidth / 2);
+        var topY = 7;
+        var bottomY = 19;
+        var halfWidth = 5;
+        var crossY = 15; // 横棒。斜線上の位置に合わせて幅を決める / crossbar, width taken from the diagonals
+        var crossHalf = Math.round(halfWidth * (crossY - topY) / (bottomY - topY));
+        graphics.newPath();
+        graphics.moveTo(centerX - halfWidth, bottomY);
+        graphics.lineTo(centerX, topY);
+        graphics.lineTo(centerX + halfWidth, bottomY);
+        graphics.strokePath(pen);
+        graphics.newPath();
+        graphics.moveTo(centerX - crossHalf, crossY);
+        graphics.lineTo(centerX + crossHalf, crossY);
+        graphics.strokePath(pen);
+    }
+
+    /* ボタン背景＋アイコン（または「自動」のラベル）を描く / Draw the button background + icon (or the "auto" label) */
+    function drawJustifyButton(button, isActive, isLight) {
+        var graphics = button.graphics;
+        var colors = getJustifyColors(isLight, isActive);
+        try {
+            graphics.rectPath(0, 0, button.size[0], button.size[1]);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, colors.bg));
+            if (colors.border) {
+                graphics.rectPath(0, 0, button.size[0], button.size[1]);
+                graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, colors.border, 1));
+            }
+            if (button.iconType === "auto") {
+                drawAutoIcon(graphics, button.size[0], colors.line);
+            } else {
+                drawJustifyIconLines(graphics, button.iconType, button.size[0], colors.line);
+            }
+        } catch (eDraw) {
+            // 描画できない環境ではOS標準のボタン（ラベル付き）に任せる / Fall back to the OS control
+            try { graphics.drawOSControl(); } catch (eOs) {}
+        }
+    }
+
+    /* テキストの行揃えパネルを生成する。自動 / 左 / 中央 / 右 / 均等配置（最終行左）をボタンで並べる。
        getJustifyMode() で選択を文字列（"auto"/"left"/"center"/"right"/"full"）で返す。
        「自動」は整列・キーに連動（エリア内文字は均等配置）。解決は applySpacing 側で行う。イベント結線は呼び出し側。
-       Build the "Text alignment" panel: horizontal radios (auto/left/center/right/justify).
+       Build the "Text alignment" panel as a row of buttons (auto/left/center/right/justify).
        getJustifyMode() returns the selection as a string; "auto" links to align/key (resolved in
        applySpacing). Event wiring is left to the caller.
-       返り値 / Returns: { panel, radios, getJustifyMode } */
+       返り値 / Returns: { panel, buttons, getJustifyMode, setJustifyMode } */
     function buildJustifyPanel(parentGroup) {
         var panel = parentGroup.add("panel", undefined, getLocalizedText('justify.label'));
-        setupPanel(panel, 6);
-        panel.orientation = "row"; // ラジオ横並び / radios in a row
-        panel.alignChildren = ["left", "center"];
+        setupPanel(panel, 4);
+        panel.orientation = "row"; // ボタン横並び / buttons in a row
+        panel.alignChildren = ["center", "center"]; // ボタン列をパネルの左右中央に / Center the button row in the panel
 
-        var radios = {
-            auto: panel.add("radiobutton", undefined, getLocalizedText('justify.auto')),
-            left: panel.add("radiobutton", undefined, getLocalizedText('justify.left')),
-            center: panel.add("radiobutton", undefined, getLocalizedText('justify.center')),
-            right: panel.add("radiobutton", undefined, getLocalizedText('justify.right')),
-            full: panel.add("radiobutton", undefined, getLocalizedText('justify.full'))
-        };
-        radios.auto.value = true; // 既定：自動（整列・キーに連動）/ Default: auto (linked to align/key)
-        // 各ラジオにツールチップ / Tooltip per radio
-        radios.auto.helpTip = getLocalizedText('tip.justifyAuto');
-        radios.left.helpTip = getLocalizedText('tip.justifyLeft');
-        radios.center.helpTip = getLocalizedText('tip.justifyCenter');
-        radios.right.helpTip = getLocalizedText('tip.justifyRight');
-        radios.full.helpTip = getLocalizedText('tip.justifyFull');
+        // アクティブな行揃えと UI 明暗を共有する（onDraw のクロージャから参照）
+        // Shared active id + theme, read by the onDraw closures
+        var state = { activeId: "auto", isLight: isLightUI() }; // 既定：自動（整列・キーに連動）/ Default: auto
+        var options = [
+            { id: "auto", tip: 'tip.justifyAuto' },
+            { id: "left", tip: 'tip.justifyLeft' },
+            { id: "center", tip: 'tip.justifyCenter' },
+            { id: "right", tip: 'tip.justifyRight' },
+            { id: "full", tip: 'tip.justifyFull' }
+        ];
+        var buttons = [];
+        for (var i = 0; i < options.length; i++) {
+            // ラベルは描画に失敗したときのフォールバック（drawOSControl）でも使う / text is also the fallback label
+            var button = panel.add("button", undefined, getLocalizedText('justify.' + options[i].id));
+            button.helpTip = getLocalizedText(options[i].tip);
+            button.preferredSize = JUSTIFY_BUTTON_SIZE;
+            button.minimumSize = JUSTIFY_BUTTON_SIZE;
+            button.maximumSize = JUSTIFY_BUTTON_SIZE; // 伸ばさない / keep the fixed size
+            button.justifyId = options[i].id;
+            button.iconType = options[i].id;
+            button.onDraw = function () { drawJustifyButton(this, this.justifyId === state.activeId, state.isLight); };
+            buttons.push(button);
+        }
 
         /* 選択中の行揃えモードを文字列で返す / Selected justify mode as a string */
         function getJustifyMode() {
-            if (radios.left.value) return "left";
-            if (radios.center.value) return "center";
-            if (radios.right.value) return "right";
-            if (radios.full.value) return "full";
-            return "auto";
+            return state.activeId;
         }
 
-        return { panel: panel, radios: radios, getJustifyMode: getJustifyMode };
+        /* 行揃えモードを設定してボタンを描き直す。未知の値は無視 / Set the mode and redraw (unknown values ignored) */
+        function setJustifyMode(mode) {
+            var found = false;
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].justifyId === mode) { found = true; break; }
+            }
+            if (!found) return;
+            state.activeId = mode;
+            for (var j = 0; j < buttons.length; j++) {
+                try { buttons[j].notify("onDraw"); } catch (eDraw) {}
+            }
+            // notify だけでは画面に反映されないことがあるので、ウィンドウの再描画も要求する
+            // notify alone may not reach the screen, so ask the window to repaint as well
+            try { panel.window.update(); } catch (eUpdate) {}
+        }
+
+        return { panel: panel, buttons: buttons, getJustifyMode: getJustifyMode, setJustifyMode: setJustifyMode };
     }
 
     // =========================================
@@ -899,19 +1051,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         file.close();
     }
 
-    /* 整列行で選択中の値（none/start/center/end）を返す / Selected value of an alignment row */
-    function getAlignRowValue(alignRow) {
-        var radios = alignRow.radios;
+    /* 整列ラジオで選択中の値（none/start/center/end）を返す / Selected value of the alignment radios */
+    function getAlignValue(radios) {
         if (radios.start.value) return "start";
         if (radios.center.value) return "center";
         if (radios.end.value) return "end";
         return "none";
     }
 
-    /* 保存済みの整列値を行のラジオへ反映する。未知の値は無視 / Apply a saved alignment value (ignore unknown) */
-    function applySavedAlign(alignRow, value) {
-        if (!alignRow || !value) return;
-        var radio = alignRow.radios[value];
+    /* 保存済みの整列値をラジオへ反映する。未知の値は無視 / Apply a saved alignment value (ignore unknown) */
+    function applySavedAlign(radios, value) {
+        if (!radios || !value) return;
+        var radio = radios[value];
         if (radio) radio.value = true;
     }
 
@@ -1136,7 +1287,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
            固定側から軸（水平/垂直）と固定端（先頭/後ろ）を決める / Axis and anchor end follow the fixed side.
            alignMode は整列（ギャップ軸に直交する方向、固定オブジェクト基準）/ alignMode aligns on the
            axis perpendicular to the gap, anchored at the fixed object. */
-        function applySpacing(fixedSide, gapInPoints, boundsType, alignMode, offsetHorizontalPt, offsetVerticalPt, justifyMode) {
+        function applySpacing(fixedSide, gapInPoints, boundsType, alignMode, offsetAlong, justifyMode) {
             var useVisible = (boundsType === "visibleBounds");
             var axis = axisForSide(fixedSide);
             var anchorEnd = isAnchorEnd(fixedSide);
@@ -1185,10 +1336,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                 boundsCacheStale = false;
             }
 
-            // 位置オフセット：ギャップ軸に直交する側だけ使う（上下キー→左右、左右キー→上下）。
-            // キーオブジェクトでない側（移動側）だけを alignAxis 方向へずらす（右＝正／下＝正）。
-            // Position offset along the perpendicular (align) axis only, applied to the non-key (moved) object(s).
-            var offsetAlong = (!alignAxis.vertical) ? offsetHorizontalPt : offsetVerticalPt;
+            // 位置オフセット（offsetAlong）はギャップ軸に直交する alignAxis 方向。
+            // キーオブジェクトでない側（移動側）だけをずらす（右＝正／下＝正）。
+            // The offset runs along alignAxis (perpendicular to the gap) and moves only the non-key object(s).
 
             for (var i = 0; i < objectPairs.length; i++) {
                 var pair = objectPairs[i];
@@ -1265,9 +1415,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         /* 直前のプレビューを巻き戻してから再適用する / Re-run preview from scratch.
            行揃え・整列ともプレビュー時点で最終結果と一致するので、OK では別処理は不要。
            Preview already matches the final result (justification + alignment), so OK needs no extra pass. */
-        function runPreview(fixedSide, gapInPoints, boundsType, alignMode, offsetHorizontalPt, offsetVerticalPt, justifyMode) {
+        function runPreview(fixedSide, gapInPoints, boundsType, alignMode, offsetAlong, justifyMode) {
             undoPreview();
-            applySpacing(fixedSide, gapInPoints, boundsType, alignMode, offsetHorizontalPt, offsetVerticalPt, justifyMode);
+            applySpacing(fixedSide, gapInPoints, boundsType, alignMode, offsetAlong, justifyMode);
             app.redraw();
         }
 
@@ -1329,8 +1479,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             // モード / Mode（1カラム・ラジオ横並び）/ Mode (single column, radios in a row)
             var modePanel = dialog.add("panel", undefined, getLocalizedText('mode.label'));
             setupPanel(modePanel, 6);
-            modePanel.orientation = "row";
-            modePanel.alignChildren = ["left", "center"];
+            modePanel.orientation = "column"; // ラジオ縦並び / radios stacked
+            modePanel.alignChildren = ["left", "top"];
             var modeGroupRadio = modePanel.add("radiobutton", undefined, getLocalizedText('mode.group'));        // グループ
             var modeAutoPairRadio = modePanel.add("radiobutton", undefined, getLocalizedText('mode.auto'));      // 自動ペア認識
             var modeArtboardRadio = modePanel.add("radiobutton", undefined, getLocalizedText('mode.artboard'));  // アートボード
@@ -1339,7 +1489,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             modeArtboardRadio.helpTip = getLocalizedText('tip.modeArtboard');
             // 初期選択は下の復元ブロックで initialMode に従って入れる / Initial selection is set from initialMode below
 
-            // キーオブジェクト と 位置調整 を2カラムで左右に並べる / Key object + Position side by side (two columns)
+            // キーオブジェクト と オフセット を2カラムで左右に並べる / Key object + Offset side by side (two columns)
             var keyPositionColumns = dialog.add("group");
             keyPositionColumns.orientation = "row";
             keyPositionColumns.alignChildren = ["fill", "fill"]; // 2パネルの高さをそろえる / Match panel heights
@@ -1353,7 +1503,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             var getFixedSide = fixedSideRefs.getFixedSide;
             var setFixedSide = fixedSideRefs.setFixedSide;
 
-            // 位置調整 / Position（間隔・プレビュー境界）
+            // オフセット / Offset（間隔・プレビュー境界）
             var gapPanelRefs = buildGapPanel(keyPositionColumns, initialGapPoints);
             var spacingInput = gapPanelRefs.spacingInput;
             var previewBoundsCheckbox = gapPanelRefs.previewBoundsCheckbox;
@@ -1364,46 +1514,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             fixedSidePanel.alignment = ["fill", "fill"];
             gapPanelRefs.panel.alignment = ["fill", "fill"];
 
-            // 水平 / 垂直パネル（整列＋位置オフセット）/ Horizontal & Vertical panels (alignment + offset)
-            var horizontalRefs = buildOrientationPanel(dialog, "h");
-            var verticalRefs = buildOrientationPanel(dialog, "v");
-            var hAlign = horizontalRefs.align;
-            var vAlign = verticalRefs.align;
-            var offsetHorizontalInput = horizontalRefs.offsetInput;
-            var offsetVerticalInput = verticalRefs.offsetInput;
-            var offsetHorizontalRow = horizontalRefs.offsetRow;
-            var offsetVerticalRow = verticalRefs.offsetRow;
-            var getOffsetHorizontalPoints = horizontalRefs.getOffsetInPoints;
-            var getOffsetVerticalPoints = verticalRefs.getOffsetInPoints;
+            // 位置調整パネル（整列＋位置）。1枚で、［固定］に応じて水平／垂直に切り替わる
+            // One Position panel (alignment + offset); it switches with the Key Object side
+            var alignmentRefs = buildAlignmentPanel(dialog);
+            var alignRadios = alignmentRefs.alignRadios;
+            var offsetRow = alignmentRefs.offsetRow;
+            var offsetInput = alignmentRefs.offsetInput;
+
+            // 水平／垂直それぞれの入力内容。パネルを切り替えるときに退避・復元する
+            // Per-orientation values, stashed and restored as the panel switches
+            var orientationValues = {
+                h: { align: "none", offset: "0" },
+                v: { align: "none", offset: "0" }
+            };
+            var shownOrientation = null; // 今パネルに出ている向き / the orientation currently shown
 
             // テキストの行揃え / Text alignment（自動 / 左 / 中央 / 右 / 均等配置）
             var justifyRefs = buildJustifyPanel(dialog);
-            var justifyRadios = justifyRefs.radios;
+            var justifyButtons = justifyRefs.buttons;
             var getJustifyMode = justifyRefs.getJustifyMode;
+            var setJustifyMode = justifyRefs.setJustifyMode;
 
             /* キーオブジェクトの側からギャップが垂直か（上下キー）を判定 / Gap is vertical when key is top/bottom */
             function isVerticalGap() {
                 var side = getFixedSide();
                 return side === "top" || side === "bottom";
             }
-            /* キー側に応じて有効なパネル（水平/垂直）を切り替え、整列「中央」なら対応オフセットを 0＋無効にする。
-               Switch the active panel (horizontal/vertical) by the key side; zero & disable the offset
-               when that panel's alignment is center. */
-            function updateActivePanels() {
-                var vertical = isVerticalGap();
-                // 上下キー（縦並び）→ 水平パネル有効、左右キー（横並び）→ 垂直パネル有効
-                horizontalRefs.panel.enabled = vertical;
-                verticalRefs.panel.enabled = !vertical;
-                var hCenter = hAlign.radios.center.value;
-                var vCenter = vAlign.radios.center.value;
-                offsetHorizontalRow.enabled = vertical && !hCenter;
-                if (vertical && hCenter) offsetHorizontalInput.text = "0";
-                offsetVerticalRow.enabled = !vertical && !vCenter;
-                if (!vertical && vCenter) offsetVerticalInput.text = "0";
+            /* パネルに出ている内容を、その向きの控えへ退避する / Stash the shown values into their orientation */
+            function stashOrientationValues() {
+                if (!shownOrientation) return;
+                orientationValues[shownOrientation].align = getAlignValue(alignRadios);
+                orientationValues[shownOrientation].offset = offsetInput.text;
             }
-            /* 現在有効な整列パネルの値を "none"/"start"/"center"/"end" で返す / Active alignment value */
+            /* キー側に合わせて整列パネルの向きと中身を入れ替え、整列「中央」ならオフセットを 0＋無効にする。
+               上下キー（縦並び）→ 水平の整列、左右キー（横並び）→ 垂直の整列。
+               Switch the alignment panel to match the key side, and zero & disable the offset on center.
+               Key top/bottom (vertical stack) → horizontal alignment; key left/right → vertical. */
+            function updateActivePanels() {
+                var orientation = isVerticalGap() ? "h" : "v";
+                if (orientation !== shownOrientation) {
+                    stashOrientationValues();
+                    shownOrientation = orientation;
+                    alignmentRefs.setOrientation(orientation === "h");
+                    applySavedAlign(alignRadios, orientationValues[orientation].align);
+                    offsetInput.text = orientationValues[orientation].offset;
+                }
+                var isCenter = alignRadios.center.value;
+                offsetRow.enabled = !isCenter;
+                if (isCenter) offsetInput.text = "0";
+            }
+            /* 整列パネルの値を "none"/"start"/"center"/"end" で返す / Alignment value of the panel */
             function getAlignMode() {
-                return getAlignRowValue(isVerticalGap() ? hAlign : vAlign);
+                return getAlignValue(alignRadios);
             }
 
             // 前回終了時の設定をすべて復元（モード・キー・プレビュー境界・整列・行揃え・間隔・左右/上下オフセット）。
@@ -1423,19 +1585,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             else modeAutoPairRadio.value = true;
             setFixedSide(initialFixedSide);
             if (savedSettings.previewBounds === "true") previewBoundsCheckbox.value = true;
-            applySavedAlign(hAlign, savedSettings.alignH);
-            applySavedAlign(vAlign, savedSettings.alignV);
+            // 整列は向きごとの控えに入れておき、パネルを切り替えたときに反映する（キーは none/start/center/end）
+            // Alignment goes into the per-orientation stash and lands when the panel switches
+            if (alignRadios[savedSettings.alignH]) orientationValues.h.align = savedSettings.alignH;
+            if (alignRadios[savedSettings.alignV]) orientationValues.v.align = savedSettings.alignV;
             // テキストの行揃え / Text alignment
-            if (savedSettings.justify && justifyRadios[savedSettings.justify]) {
-                justifyRadios[savedSettings.justify].value = true;
-            }
+            if (savedSettings.justify) setJustifyMode(savedSettings.justify);
             // 数値（間隔・左右・上下）/ Numeric values (gap, horizontal/vertical offsets)
             var savedGapDisplay = savedPtToDisplay(savedSettings.gap);
             if (savedGapDisplay !== null) spacingInput.text = savedGapDisplay;
             var savedOffsetHDisplay = savedPtToDisplay(savedSettings.offsetH);
-            if (savedOffsetHDisplay !== null) offsetHorizontalInput.text = savedOffsetHDisplay;
+            if (savedOffsetHDisplay !== null) orientationValues.h.offset = savedOffsetHDisplay;
             var savedOffsetVDisplay = savedPtToDisplay(savedSettings.offsetV);
-            if (savedOffsetVDisplay !== null) offsetVerticalInput.text = savedOffsetVDisplay;
+            if (savedOffsetVDisplay !== null) orientationValues.v.offset = savedOffsetVDisplay;
 
             /* 現在のモードを取得する / Get the current mode ("group" | "artboard" | "auto") */
             function getMode() {
@@ -1455,7 +1617,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             /* 現在の設定でプレビューを更新する（行揃え・整列とも最終結果と一致）/ Refresh preview (matches final result) */
             function refreshPreview() {
                 runPreview(getFixedSide(), getSpacingInPoints(), getBoundsType(), getAlignMode(),
-                    getOffsetHorizontalPoints(), getOffsetVerticalPoints(), getJustifyMode());
+                    offsetToPoints(offsetInput.text), getJustifyMode());
             }
 
             /* 行揃えの対象・向きが変わりうる操作（モード／キー／整列の切替）用：先に行揃えを元へ戻してから
@@ -1487,28 +1649,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             }
             changeValueByArrowKey(spacingInput, refreshPreview); // ↑↓キーで増減＋プレビュー更新 / Arrow keys + preview
             spacingInput.onChanging = refreshPreview;
-            // 左右/上下オフセット：↑↓キーで増減＋入力でプレビュー更新 / Offsets: arrow-key step + refresh on change
-            changeValueByArrowKey(offsetHorizontalInput, refreshPreview);
-            changeValueByArrowKey(offsetVerticalInput, refreshPreview);
-            offsetHorizontalInput.onChanging = refreshPreview;
-            offsetVerticalInput.onChanging = refreshPreview;
+            // 位置オフセット：↑↓キーで増減＋入力でプレビュー更新 / Offset: arrow-key step + refresh on change
+            changeValueByArrowKey(offsetInput, refreshPreview);
+            offsetInput.onChanging = refreshPreview;
             previewBoundsCheckbox.onClick = refreshPreview;
-            // 整列ラジオ（左右/上下の各行）：オフセットの有効/無効を更新し、行揃えを戻してから更新 / Alignment radios
-            var alignRows = [hAlign, vAlign];
-            for (var i = 0; i < alignRows.length; i++) {
-                var alignRadios = alignRows[i].radios;
-                for (var key in alignRadios) { alignRadios[key].onClick = onAlignChange; }
+            // 整列ラジオ：オフセットの有効/無効を更新し、行揃えを戻してから更新 / Alignment radios
+            for (var key in alignRadios) { alignRadios[key].onClick = onAlignChange; }
+            // 整列のキーボードショートカット（水平 L/C/R・垂直 T/M/B）。今の向きで読み替える / Alignment keyboard shortcuts
+            addAlignmentKeyHandler(dialog, alignRadios, isVerticalGap, onAlignChange);
+            // テキストの行揃えボタン：押した値をアクティブにし、行揃えを戻してから再適用
+            // Justification buttons: activate the clicked value, revert justification, then refresh
+            for (var i = 0; i < justifyButtons.length; i++) {
+                justifyButtons[i].onClick = function () {
+                    setJustifyMode(this.justifyId);
+                    refreshPreviewResetJustify();
+                };
             }
-            // 整列のキーボードショートカット（水平 L/C/R・垂直 T/M/B）。有効な向きだけ反応 / Alignment keyboard shortcuts (active orientation only)
-            addAlignmentKeyHandler(dialog, hAlign, vAlign, isVerticalGap, onAlignChange);
-            // テキストの行揃えラジオ：行揃えを戻してから再適用 / Justification radios: revert justify, then refresh
-            for (var key in justifyRadios) { justifyRadios[key].onClick = refreshPreviewResetJustify; }
 
             // ボタン（Mac 規約：Cancel → OK）/ Buttons (Mac order: Cancel → OK)
-            var buttonRow = dialog.add("group");
-            buttonRow.alignment = "right";
-            buttonRow.add("button", undefined, getLocalizedText('button.cancel'), { name: "cancel" });
-            buttonRow.add("button", undefined, "OK", { name: "ok" });
+            var btnRowGroup = dialog.add("group");
+            btnRowGroup.orientation = "row";
+            btnRowGroup.alignment = ["center", "bottom"]; // ボタンをダイアログの左右中央に / Center the buttons in the dialog
+            btnRowGroup.alignChildren = ["center", "center"];
+            var btnCancel = btnRowGroup.add("button", undefined, getLocalizedText('button.cancel'), { name: "cancel" });
+            var btnOK = btnRowGroup.add("button", undefined, "OK", { name: "ok" });
+            // 行揃えのボタンが増えたので Enter / ESC の行き先を明示する
+            // Spell out where Enter / ESC go, now that the justification buttons are pushbuttons too
+            dialog.defaultElement = btnOK;
+            dialog.cancelElement = btnCancel;
 
             // ダイアログ表示時に既定モードでペアを組んで初回プレビュー（同期側 undo を避けて onShow から起動）
             // Build pairs for the default mode, then run the first preview (from onShow to avoid sync undo)
@@ -1523,16 +1691,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
                 // プレビュー状態がそのまま最終結果（行揃え・整列とも反映済み）なので、確定処理は保存のみ。
                 // The preview already is the final result (justification + alignment), so OK just saves.
                 // OK時に現在の設定をすべて保存（数値は pt で保存）/ Save all settings on OK (numeric values in pt)
+                stashOrientationValues(); // 出ている向きの値を控えへ入れてから保存 / stash the shown values first
                 saveSettings({
                     mode: getMode(),
                     fixedSide: getFixedSide(),
                     previewBounds: previewBoundsCheckbox.value ? "true" : "false",
-                    alignH: getAlignRowValue(hAlign),
-                    alignV: getAlignRowValue(vAlign),
+                    alignH: orientationValues.h.align,
+                    alignV: orientationValues.v.align,
                     justify: getJustifyMode(),
                     gap: String(getSpacingInPoints()),
-                    offsetH: String(getOffsetHorizontalPoints()),
-                    offsetV: String(getOffsetVerticalPoints())
+                    offsetH: String(offsetToPoints(orientationValues.h.offset)),
+                    offsetV: String(offsetToPoints(orientationValues.v.offset))
                 });
             }
             return accepted;
