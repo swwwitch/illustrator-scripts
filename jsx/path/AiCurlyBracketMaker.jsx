@@ -55,6 +55,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
     var DEFAULT_DIRECTION        = "right";     /* 初期の向き（DIRECTION_KEYS のいずれか）/ initial direction (one of DIRECTION_KEYS) */
     var DEFAULT_STROKE_CAP       = "buttCap";   /* 初期の線端 / initial stroke cap */
     var DEFAULT_CORNER_JOIN      = "miterJoin"; /* 初期の角の形状 / initial corner shape */
+    var DEFAULT_BRUSH            = "standard";  /* 初期のブラシ（BRUSH_KEYS のいずれか）/ initial brush (one of BRUSH_KEYS) */
+
+    /* 選択できるブラシ（ラジオの並び順）/ Selectable brushes, in the order the radios appear */
+    var BRUSH_KEYS = ["standard", "flat"];
+
+    /* ラジオごとに探すブラシ名。書類の［ブラシ］パネルにある名前を先頭から探し、最初に見つかったものを適用する
+       Brush names looked up per radio; the first one the document's Brushes panel actually has is the one applied */
+    var BRUSH_NAMES = {
+        standard: ["基本", "Basic"],
+        flat:     ["5 pt. 平筆", "5 pt. Flat"]
+    };
 
     /* 生成したブラケットに付ける目印。値には向きを入れ、選び直したときの復元に使う / Marker added to the bracket we create; its value holds the direction, used when it is selected again */
     var BRACKET_TAG_NAME = "AiCurlyBracketMaker";
@@ -113,6 +124,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             strokeWidth:  { ja: "線の太さ", en: "Stroke Width" },
             strokeCap:    { ja: "線端", en: "Cap" },
             cornerJoin:   { ja: "角の形状", en: "Corner Shape" },
+            brush:        { ja: "ブラシ", en: "Brush" },
             direction:    { ja: "向き", en: "Direction" }
         },
         checkbox: {
@@ -124,6 +136,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             roundCap:  { ja: "丸型線端", en: "Round Cap" },
             miterJoin: { ja: "マイター結合", en: "Miter Join" },
             roundJoin: { ja: "ラウンド結合", en: "Round Join" },
+            standard:  { ja: "標準", en: "Standard" },
+            flat:      { ja: "平筆", en: "Flat Brush" },
             up:        { ja: "上", en: "Up" },
             down:      { ja: "下", en: "Down" },
             left:      { ja: "左", en: "Left" },
@@ -142,6 +156,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
             strokeWidth:  { ja: "ブラケットの線幅（pt）", en: "Stroke width of the bracket (pt)" },
             strokeCap:    { ja: "両端の線の先を丸めるかどうか", en: "Whether both ends of the stroke are rounded" },
             cornerJoin:   { ja: "中央の角を尖らせるか丸めるか", en: "Whether the corner in the middle is pointed or rounded" },
+            brush:        { ja: "［ブラシ］パネルのブラシを適用します（書類にないブラシは選べません）", en: "Applies a brush from the Brushes panel (an option the document has no brush for is disabled)" },
             direction:    { ja: "中央の突起を向ける方向。選択オブジェクトがあれば、その辺に沿って配置されます", en: "The direction the middle point faces. With a selection, the bracket hugs the matching edge" },
             create:       { ja: "プレビューの状態で確定します（大きさの参照にしたパスは削除されます）", en: "Commits exactly what the preview shows (a path used as the size reference is removed)" },
             cancel:       { ja: "作成せずに閉じます。プレビューは削除し、隠していた参照のパスは元に戻します", en: "Closes without creating: the preview is removed and a hidden reference path is restored" }
@@ -321,6 +336,176 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
     }
 
     // =========================================
+    // ダイナミックアクション / Dynamic action
+    // =========================================
+
+    /* ブラシの適用に使う一時アクション。名前は .aia に16進で埋め込むのでASCIIにする / Temporary action that applies the brush; the names go into the .aia as hex, so they stay ASCII */
+    var BRUSH_ACTION_SET_NAME = "AiCurlyBracketMaker";
+    var BRUSH_ACTION_NAME     = "Brush";
+
+    /* .aia の localizedName（表示用なので日本語のまま）/ localizedName in the .aia, kept in Japanese as it is only shown in the Actions panel */
+    var BRUSH_PANEL_NAME = "ブラシ";
+
+    /**
+     * 文字列をUTF-8バイト列の16進表現にする
+     * @param {string} sourceText - 変換する文字列
+     * @returns {string} 16進表現
+     */
+    function stringToUtf8Hex(sourceText) {
+        var hexText = "";
+        for (var i = 0; i < sourceText.length; i++) {
+            var code = sourceText.charCodeAt(i);
+            var bytes;
+            if (code < 0x80) {
+                bytes = [code];
+            } else if (code < 0x800) {
+                bytes = [0xC0 | (code >> 6), 0x80 | (code & 0x3F)];
+            } else {
+                bytes = [0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F)];
+            }
+            for (var j = 0; j < bytes.length; j++) {
+                var byteHex = bytes[j].toString(16);
+                if (byteHex.length < 2) byteHex = "0" + byteHex;
+                hexText += byteHex;
+            }
+        }
+        return hexText;
+    }
+
+    /**
+     * .aia の文字列（「キー [ バイト数」「16進」「]」の3行）を組み立てる
+     * @param {string} indent - 行頭のインデント
+     * @param {string} key - キー（"/name" など）
+     * @param {string} text - 値にする文字列
+     * @returns {string[]} 3行ぶんの配列
+     */
+    function buildActionTextLines(indent, key, text) {
+        var hexText = stringToUtf8Hex(text);
+        return [
+            indent + key + " [ " + (hexText.length / 2),
+            indent + "\t" + hexText,
+            indent + "]"
+        ];
+    }
+
+    /**
+     * ブラシを適用するアクション定義（.aia 形式）を組み立てる
+     * @param {string} brushName - 適用するブラシの名前
+     * @returns {string} .aia 形式のアクション定義
+     */
+    function buildBrushActionCode(brushName) {
+        return ["/version 3"]
+            .concat(buildActionTextLines("", "/name", BRUSH_ACTION_SET_NAME))
+            .concat([
+                "/isOpen 1",
+                "/actionCount 1",
+                "/action-1 {"
+            ])
+            .concat(buildActionTextLines("\t", "/name", BRUSH_ACTION_NAME))
+            .concat([
+                "\t/keyIndex 0",
+                "\t/colorIndex 0",
+                "\t/isOpen 1",
+                "\t/eventCount 1",
+                "\t/event-1 {",
+                "\t\t/useRulersIn1stQuadrant 0",
+                "\t\t/internalName (ai_plugin_brush)"
+            ])
+            .concat(buildActionTextLines("\t\t", "/localizedName", BRUSH_PANEL_NAME))
+            .concat([
+                "\t\t/isOpen 1",
+                "\t\t/isOn 1",
+                "\t\t/hasDialog 0",
+                "\t\t/parameterCount 2",
+                /* parameter-1：適用するブラシの名前（key 'brsh'）/ parameter-1: name of the brush to apply (key 'brsh') */
+                "\t\t/parameter-1 {",
+                "\t\t\t/key 1651667816",
+                "\t\t\t/showInPalette 4294967295",
+                "\t\t\t/type (ustring)"
+            ])
+            .concat(buildActionTextLines("\t\t\t", "/value", brushName))
+            .concat([
+                "\t\t}",
+                /* parameter-2：記録したままのオプション（key 'optn'）/ parameter-2: option, left exactly as recorded (key 'optn') */
+                "\t\t/parameter-2 {",
+                "\t\t\t/key 1869640814",
+                "\t\t\t/showInPalette 4294967295",
+                "\t\t\t/type (boolean)",
+                "\t\t\t/value 0",
+                "\t\t}",
+                "\t}",
+                "}"
+            ])
+            .join("\n");
+    }
+
+    /**
+     * アクション定義を一時ファイル経由で読み込んで実行し、読み込んだアクションを破棄する
+     * @param {string} actionCode - .aia 形式のアクション定義
+     * @returns {void}
+     */
+    function runDynamicAction(actionCode) {
+        var actionFile = new File(Folder.temp.fsName + "/" + BRUSH_ACTION_SET_NAME + ".aia");
+        actionFile.open("w");
+        actionFile.write(actionCode);
+        actionFile.close();
+
+        /* 読み込んだ時点で解析済みなので、ファイルはここで消してよい / The definition is parsed on load, so the file can go now */
+        app.loadAction(actionFile);
+        actionFile.remove();
+
+        try {
+            app.doScript(BRUSH_ACTION_NAME, BRUSH_ACTION_SET_NAME, false);
+        } finally {
+            app.unloadAction(BRUSH_ACTION_SET_NAME, "");
+        }
+    }
+
+    /**
+     * ラジオに対応するブラシを書類から探す
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} brushKey - BRUSH_KEYS のいずれか
+     * @returns {string|null} 書類にあったブラシ名（無ければ null）
+     */
+    function findBrushName(doc, brushKey) {
+        var candidateNames = BRUSH_NAMES[brushKey] || [];
+        for (var i = 0; i < candidateNames.length; i++) {
+            for (var j = 0; j < doc.brushes.length; j++) {
+                if (doc.brushes[j].name === candidateNames[i]) return candidateNames[i];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * ブラシをアクション経由でパスに適用する（アクションは選択に対して働く）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} targetPath - 適用先のパス
+     * @param {string} brushName - 適用するブラシの名前
+     * @returns {void}
+     */
+    function applyBrush(doc, targetPath, brushName) {
+        var previousSelection = doc.selection;
+
+        doc.selection = null;
+        targetPath.selected = true;
+        app.redraw(); /* 選択が画面に反映されていないとアクションが空振りする / The action misses unless the new selection is drawn first */
+
+        try {
+            runDynamicAction(buildBrushActionCode(brushName));
+        } catch (eAction) {
+            /* ブラシを適用できなくても、描いたパスはそのまま残す / Keep the path as drawn even when the brush cannot be applied */
+        }
+
+        /* 元の選択に戻す。隠れたり消えたりして選べないものがあれば選択なしにする / Restore the previous selection, or clear it when something in it can no longer be selected */
+        try {
+            doc.selection = previousSelection;
+        } catch (eRestore) {
+            doc.selection = null;
+        }
+    }
+
+    // =========================================
     // ブラケットの形状 / Bracket geometry
     // =========================================
 
@@ -404,6 +589,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
      * @property {number} strokeWidthPt - 線の太さ（pt）
      * @property {string} strokeCap - 線端（STROKE_CAPS のキー）
      * @property {string} cornerJoin - 角の形状（CORNER_JOINS のキー）
+     * @property {string|null} brushName - 適用するブラシ名（適用しないなら null）
      * @property {string} direction - 向き（DIRECTION_KEYS のいずれか）
      * @property {boolean} isChamfer - 面取り（ジグザグ効果）を適用するか
      */
@@ -820,6 +1006,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* 紹�
         /* 面取りは円弧を直線でつなぐジグザグ効果で表現する。形が決まってから適用する / The chamfer is a Zig Zag effect that straightens the arcs; apply it once the shape exists */
         if (bracketSettings.isChamfer) {
             bracketPath.applyEffect(CHAMFER_EFFECT_XML);
+        }
+
+        /* ブラシはDOMから設定できないので、アクションで適用する / A brush cannot be set through the DOM, so an action applies it */
+        if (bracketSettings.brushName) {
+            applyBrush(doc, bracketPath, bracketSettings.brushName);
         }
 
         /* 次に選び直したとき同じ位置・向きで描き直せるよう目印を残す / Leave a marker so a later run can redraw it in place */
