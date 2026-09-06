@@ -283,6 +283,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [ドキュメント内のすべてのガイドを削除します](readme-ja/DeleteAllGuides.md)
 - [ドキュメント内のガイド（ルーラーガイド含む）の交点を基準に長方形を自動生成します](readme-ja/MakeRectangleFromGuides.md)
 - [unlockGuideLayerAndClearGuides](readme-ja/unlockGuideLayerAndClearGuides.md)
+- [ガイドを線付きのパスに変換してコピー](readme-ja/CopyGuidesAsPaths.md)
 
 
 ## ドキュメント

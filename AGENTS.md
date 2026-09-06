@@ -36,7 +36,13 @@ Keep layout metrics out of User Settings: pixel values are not what a user edits
 ## Basic info block
 
 `=` aligns at column 20 (16 characters after `var `), comments at column 54.
-`SCRIPT_ARTICLE_URL` is exempt from the alignment and sits right after the README comments.
+The README links and `SCRIPT_ARTICLE_URL` are exempt from that alignment: put them in a separate
+group after a blank line and align `=` across those lines only (one space when `SCRIPT_ARTICLE_URL`
+is absent).
+
+Hold the README links in string variables, not in line comments. Two consecutive
+`// https://…` lines make ExtendScript read `https:` as a duplicate label and the script dies with
+Error 11 ("label not found"). Include the links only when the README files actually exist.
 
 ```js
 // =========================================
@@ -48,10 +54,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-26";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/<ScriptName>.md
-// README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/<ScriptName>.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/<ScriptName>.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/<ScriptName>.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
