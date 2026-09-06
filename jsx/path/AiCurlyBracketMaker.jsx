@@ -5,14 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-カーリーブラケット（波括弧）のパスを、2つの半径・中央の移動・全体の長さ・線の設定から作成します。
+カーリーブラケット（波括弧）のパスを、2つの半径・中央の移動・全体の長さ・線の設定（ブラシを含む）から作成します。
 値を変えるたびにアートボード上のプレビューが更新され、オブジェクトを選択して実行すると、その大きさと向きに合わせて配置します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Creates a curly bracket path from two radii, the position of its middle point, the overall length and the stroke settings.
+Creates a curly bracket path from two radii, the position of its middle point, the overall length and the stroke settings, brush included.
 The artboard preview updates as the values change, and running it with a selection fits the bracket to that selection's size and direction.
 
 See the README for details.

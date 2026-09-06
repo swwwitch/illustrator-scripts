@@ -23,6 +23,7 @@ Creates a curly bracket path. The on-artboard preview updates as the two radii, 
 - Chamfer replaces the arcs with straight runs, by applying a Zig Zag effect
 - Extension that runs outward from both ends
 - Stroke width, cap (none / round) and corner shape (miter / round join); switching the cap switches the corner to match
+- A dropdown applies any brush held in the bundled `brushlibrary.ai` ("None" leaves a plain stroke)
 - Automatic placement against the selection, with an adjustable offset
 - Brackets are marked, so selecting one and running again redraws it in place, facing the same way
 - Arrow keys step the numeric fields (Shift for 10s, Option for 0.1), noted in every field's tooltip
@@ -79,6 +80,7 @@ The bracket is placed so that its arm ends touch the edge of the selection. Offs
 | Stroke Width | Stroke width of the bracket (pt) |
 | Cap | Butt Cap / Round Cap |
 | Corner Shape | Miter join / Round join |
+| Brush | Applies a brush from `brushlibrary.ai` ("None" leaves a plain stroke) |
 
 ### Notes
 
@@ -87,6 +89,8 @@ The bracket is placed so that its arm ends touch the edge of the selection. Offs
 - Closing the dialog any other way (Cancel, ESC) removes the preview and restores the hidden reference path.
 - The dialog state is stored whenever the dialog closes, Cancel included, and is gone once Illustrator quits. Running with a selection re-derives the length, direction and radii from that selection, so the selection wins over the stored state.
 - Chamfer is applied as an effect, so the path itself keeps its curves until the appearance is expanded. It is not carried over when a bracket is selected and redrawn (the dialog's stored state restores it within the same session).
+- The Brush row appears only when `brushlibrary.ai` sits in the same folder as the script. Without the library the dialog is exactly what it was, stroke settings only.
+- Picking a brush brings that brush into the document's Brushes panel, and it stays there even when the dialog is cancelled. "Touch Calligraphic Brush", the default every document already carries, is left out of the list.
 - The script does not run when the active layer is locked or hidden.
 
 ### Article
@@ -97,3 +101,4 @@ https://note.com/dtp_tranist/n/nd6b3e36ff79d
 
 - v1.0.0 (20260905) : Initial release
 - v1.0.1 (20260906) : The center radius now accepts 0
+- v1.0.2 (20260906) : Brushes can be picked from the bundled `brushlibrary.ai`
