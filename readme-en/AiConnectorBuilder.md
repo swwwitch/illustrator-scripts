@@ -98,7 +98,7 @@ Save the current settings under a name. Presets are stored in your user settings
 ### Notes
 
 - At least two objects must be selected.
-- The key object is detected by trying the align commands and looking for the object that does not move. Objects shift for a moment during the test, but their positions are restored.
+- The key object is detected by trying the align commands and looking for the object that does not move. The screen is not redrawn during the test, so the shifts are never shown and no undo steps are left behind; the positions are restored.
 - Smart Guides are switched off while the script runs and restored on exit.
 - Arrowheads cannot be reached from the DOM, so a temporary action is generated and played. The circle is the dot arrowhead with a white circle drawn on top; the white circle follows the scale and is grouped with its line.
 - Connectors are created on the "Connector" layer (「コネクター」 in the Japanese UI). An existing layer of that name is unlocked and shown while the script runs, and restored on cancel.
@@ -119,3 +119,4 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0.2 (20260906): Straight is now the default shape; added the start-object dialog for a missing key object, the trunk-plus-branches structure, arrowhead icons, stroke caps, the end gap and "Share one start point"
 - v1.0.3 (20260906): Bends are nudged clear of the selected objects; the white circle now follows the arrowhead scale and is grouped with its line; "Share one start point" gained a 3x3 position picker
 - v1.0.4 (20260908): Added the Curve shape
+- v1.0.5 (20260909): Key object detection no longer adds undo steps

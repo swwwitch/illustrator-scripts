@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiConnectorBuilder";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-09";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnectorBuilder.md"; /* README (English) */
@@ -455,6 +455,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 選択オブジェクトからキーオブジェクトを検出する
      * DOMにキーオブジェクトを示すプロパティは無いため、整列コマンドを実行して
      * 「どの向きに整列しても動かないもの」を実測で特定する。
+     * 判定中は app.redraw() を呼ばない。描画するとスクリプトの操作がそこで確定し、
+     * 整列がそのつど取り消し履歴に積まれてしまう（描画しなければ位置は同期的に読める）。
      * @param {Array<object>} items - 判定対象のオブジェクト配列
      * @returns {number} キーオブジェクトのインデックス。判定できないときは -1
      */
@@ -470,22 +472,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         try {
             for (var c = 0; c < alignCommands.length; c++) {
-                app.redraw(); // 直前のDOM変更が反映されていないと executeMenuCommand は空振りする
+                // 2回目以降だけ元の位置へ戻す（1回目はまだ動かしていない）
+                if (c > 0) restorePositions(items, originPositions);
                 app.executeMenuCommand(alignCommands[c]);
                 for (i = 0; i < items.length; i++) {
+                    if (!stayedPut[i]) continue;
                     if (Math.abs(items[i].left - originPositions[i][0]) > KEY_DETECT_TOLERANCE_PT ||
                         Math.abs(items[i].top - originPositions[i][1]) > KEY_DETECT_TOLERANCE_PT) {
                         stayedPut[i] = false;
                     }
                 }
-                // 検出のための試行なので、毎回その場で元の位置へ戻す
-                restorePositions(items, originPositions);
             }
         } finally {
-            // 例外で抜けるときも整列結果を残さない
+            // 判定で動かしたぶんを最後に一度だけ戻す（例外で抜けるときも整列結果を残さない）
             restorePositions(items, originPositions);
         }
-        app.redraw();
 
         var foundIndex = -1;
         for (i = 0; i < items.length; i++) {
