@@ -14,7 +14,7 @@ Draws a connector from the key object to each of the other selected objects. You
 
 ### Main Features
 
-- Four routes: straight, warp, elbow and branch
+- Five routes: straight, warp, elbow, branch and curve
 - Three start points: edge centers, divided and center
 - "Share one start point" runs every connector out of one point, picked with a 3x3 widget
 - Branch routes are built as one trunk plus branches, so no two branches overlap
@@ -42,9 +42,9 @@ If no key object is set, the Start object dialog opens first. Click any cell of 
 
 | Item | What it does |
 | --- | --- |
-| Shape | Straight / Warp / Elbow / Branch |
+| Shape | Straight / Warp / Elbow / Branch / Curve |
 | Style | Warp style (Bulge / Squeeze) |
-| Bend | Warp amount (-100 to 100%); a negative value bends the other way |
+| Bend | How much Warp bends and how far Curve bows out (-100 to 100%); a negative value flips the direction |
 | Axis | Warp axis. Auto picks one axis for all the connectors together |
 | Round corners | Corner radius for Elbow and Branch routes (pt); 0 = square corners |
 | Start point | Edge centers / Divided / Center |
@@ -106,6 +106,11 @@ Save the current settings under a name. Presets are stored in your user settings
 - In Branch routes, the farthest branch on each side of the trunk doubles as the spine, and the nearer branches are plain horizontal (or vertical) lines.
 - Setting the warp axis to Auto picks the same axis for every connector, because a per-line axis would mix their appearances.
 - The bend of Elbow and Branch routes is moved to the nearest position clear of the selected objects. If that would push it outside the gap, the original position is kept.
+- Curve bows the midpoint out at a right angle to the line. The bow is proportional to the line length, so longer connectors curve more; the side it bows to follows the direction of travel, which keeps connectors radiating from the key object turning the same way.
+
+### Original / Acknowledgements
+
+Egor Chistyakov https://x.com/tchegr
 
 ### Update History
 
@@ -113,3 +118,4 @@ Save the current settings under a name. Presets are stored in your user settings
 - v1.0.1 (20260906): Added the Center start point
 - v1.0.2 (20260906): Straight is now the default shape; added the start-object dialog for a missing key object, the trunk-plus-branches structure, arrowhead icons, stroke caps, the end gap and "Share one start point"
 - v1.0.3 (20260906): Bends are nudged clear of the selected objects; the white circle now follows the arrowhead scale and is grouped with its line; "Share one start point" gained a 3x3 position picker
+- v1.0.4 (20260908): Added the Curve shape

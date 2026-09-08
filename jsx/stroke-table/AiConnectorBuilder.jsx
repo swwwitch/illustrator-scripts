@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 キーオブジェクトを起点に、選択した各図形へコネクターを引きます。
-直線・ワープ・カギ・分岐の4種類の経路に、線・線端・矢印をプレビューしながら設定できます。
+直線・ワープ・カギ・分岐・カーブの5種類の経路に、線・線端・矢印をプレビューしながら設定できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Draws a connector from the key object to each of the selected objects.
-Choose a straight, warped, elbow, or branch route and set the stroke, caps, and arrowheads with a live preview.
+Choose a straight, warped, elbow, branch, or curved route and set the stroke, caps, and arrowheads with a live preview.
 
 See the README for details.
 
@@ -23,16 +23,23 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiConnectorBuilder";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-08";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnectorBuilder.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion 参考、謝辞 / Reference and acknowledgements
+ * カーブの作図（中点から振った1点を2次ベジェの制御点として扱う考え方）
+ * Egor Chistyakov (@tchegr)
+ * https://x.com/tchegr
+ */
 
 (function () {
     // =========================================
@@ -50,11 +57,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DEFAULT_DASH_GAP      = 3;    /* 破線の間隔（pt） */
 
     /* コネクターの初期値 / Connector defaults */
-    var DEFAULT_LINE_SHAPE    = 0;    /* 0=直線 1=ワープ 2=カギ 3=分岐 */
+    var DEFAULT_LINE_SHAPE    = 0;    /* 0=直線 1=ワープ 2=カギ 3=分岐 4=カーブ */
     var DEFAULT_START_POINT   = 0;    /* 0=各辺の中心 1=等分 2=中心 */
     var DEFAULT_UNIFY_ANCHOR  = 4;    /* 開始点をまとめるときの位置（0〜8。4=中央＝自動） */
     var DEFAULT_WARP_TYPE     = 0;    /* WARP_TYPE_CHOICES のインデックス（0=でこぼこ） */
-    var DEFAULT_WARP_AMOUNT   = -80;  /* カーブ（%） */
+    var DEFAULT_WARP_AMOUNT   = -80;  /* カーブ（%）：ワープの曲がり具合とカーブのふくらみに共用 */
     var WARP_AMOUNT_MIN       = -100; /* カーブの下限（%） */
     var WARP_AMOUNT_MAX       = 100;  /* カーブの上限（%） */
     var DEFAULT_WARP_AXIS     = 0;    /* 0=自動 1=水平 2=垂直 */
@@ -252,6 +259,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             shapeWarp:      { ja: "ワープ", en: "Warp" },
             shapeElbow:     { ja: "カギ", en: "Elbow" },
             shapeBranch:    { ja: "分岐", en: "Branch" },
+            shapeCurve:     { ja: "カーブ", en: "Curve" },
             axisAuto:       { ja: "自動", en: "Auto" },
             axisHorizontal: { ja: "水平", en: "Horizontal" },
             axisVertical:   { ja: "垂直", en: "Vertical" },
@@ -299,8 +307,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             unifyStart:     { ja: "すべてのコネクターをキーオブジェクトの同じ位置から出します。位置は右の9分割で選びます。", en: "Runs every connector out of the same point on the key object; pick the point with the 3x3 grid on the right." },
             unifyAnchor:    { ja: "開始点をまとめるときの位置です。中央は本数のいちばん多い辺を自動で選びます。上下の中央は上辺・下辺、左右の中央は左辺・右辺、四隅はその高さの左辺・右辺から出します。", en: "Where the shared start point sits. Center picks the edge used by the most connectors; the top and bottom cells use those edges, the left and right cells use theirs, and the corners leave from the left or right edge at that height." },
             startPoint:     { ja: "等分は、同じ辺から出るコネクターの本数＋1でその辺を等分し、起点をずらします。中心は、キーオブジェクトの中心から相手へ向かう向きで、起点を辺の上に置きます。", en: "Divided spreads the start points along the key object's edge, splitting it into (connectors + 1) parts; Center aims each connector from the key object's center and starts it where that line meets the edge." },
-            lineShape:      { ja: "直線はまっすぐ結び、ワープは直線にワープ効果、カギは直角に折れる線、分岐は折れ位置をそろえて幹を共有します。", en: "Straight connects directly, Warp adds a warp effect to the straight line, Elbow is a right-angled route, Branch shares a trunk with aligned bends." },
-            warpAmount:     { ja: "マイナス値で曲がる向きが逆になります。", en: "A negative value bends the other way." },
+            lineShape:      { ja: "直線はまっすぐ結び、ワープは直線にワープ効果、カギは直角に折れる線、分岐は折れ位置をそろえて幹を共有し、カーブは弧を描いて結びます。", en: "Straight connects directly, Warp adds a warp effect to the straight line, Elbow is a right-angled route, Branch shares a trunk with aligned bends, and Curve bows the line into an arc." },
+            warpAmount:     { ja: "ワープの曲がり具合と、カーブのふくらみ（線の長さに対する割合）です。マイナス値で向きが逆になります。", en: "How much Warp bends, and how far Curve bows out relative to the line length. A negative value flips the direction." },
             warpAxis:       { ja: "自動は全コネクターをまとめて水平／垂直を選びます（線ごとに変えるとアピアランスが混在するため）。線に沿った向きのワープは曲がりません。", en: "Auto picks one axis for all the connectors together (a per-line axis would mix their appearances); warping along the line has no visible effect." },
             cornerRadius:   { ja: "カギ・分岐の角を丸めます（0で角丸なし）。", en: "Round the corners of Elbow and Branch routes (0 = square corners)." },
             preset:         { ja: "現在の設定に名前を付けて保存できます。保存先はユーザーの設定フォルダーです。", en: "Save the current settings under a name; presets are stored in your user settings folder." },
@@ -942,6 +950,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
+     * 2点のパスを弧にする（中点を線と垂直な向きへふくらませる）
+     * 中点から振った1点を2次ベジェの制御点とみなし、両端のハンドルへ置き換える
+     * @param {PathItem} pathItem - 対象のパス（アンカーが2点のもの）
+     * @param {number} amountPercent - カーブ（%）。マイナスで反対側へふくらむ
+     * @returns {void}
+     */
+    function bendIntoCurve(pathItem, amountPercent) {
+        if (!amountPercent || pathItem.pathPoints.length !== 2) return;
+
+        var startPoint = pathItem.pathPoints[0];
+        var endPoint = pathItem.pathPoints[1];
+        var from = startPoint.anchor;
+        var to = endPoint.anchor;
+        var dx = to[0] - from[0];
+        var dy = to[1] - from[1];
+        var length = Math.sqrt(dx * dx + dy * dy);
+        if (length <= 0) return;
+
+        // ふくらみは線の長さに比例させ、進行方向の左向き（法線）へ振る
+        var sag = length / 2 * (amountPercent / 100);
+        var control = [
+            (from[0] + to[0]) / 2 - dy / length * sag,
+            (from[1] + to[1]) / 2 + dx / length * sag
+        ];
+        // 2次ベジェの制御点を3次ベジェのハンドルに置き換える比率
+        var handleRatio = 2 / 3;
+        startPoint.rightDirection = [
+            from[0] + (control[0] - from[0]) * handleRatio,
+            from[1] + (control[1] - from[1]) * handleRatio
+        ];
+        endPoint.leftDirection = [
+            to[0] + (control[0] - to[0]) * handleRatio,
+            to[1] + (control[1] - to[1]) * handleRatio
+        ];
+    }
+
+    /**
      * 角丸効果を適用する
      * @param {PathItem} item - 適用対象のパス
      * @param {number} radius - 半径（pt）
@@ -1041,6 +1086,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         connector.stroked = true;
         connector.strokeWidth = settings.strokeWidth;
         connector.strokeColor = createGrayColor(100);
+        // 破線はパスの長さに合わせるので、曲げてから線の設定を入れる
+        if (settings.lineShape === 4) {
+            bendIntoCurve(connector, settings.warpAmount);
+        }
         applyStrokeStyle(connector, settings);
 
         if (settings.lineShape === 1) {
@@ -2287,7 +2336,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* コネクター / Connector */
     var connectorPanel = addPanel(dialog, getLabel(LABELS.panel.connector));
 
-    var lineShapeField = addRadioRow(connectorPanel, LABELS.fieldLabel.lineShape, [LABELS.radio.shapeStraight, LABELS.radio.shapeWarp, LABELS.radio.shapeElbow, LABELS.radio.shapeBranch], DEFAULT_LINE_SHAPE, LABELS.tooltip.lineShape);
+    var lineShapeField = addRadioRow(connectorPanel, LABELS.fieldLabel.lineShape, [LABELS.radio.shapeStraight, LABELS.radio.shapeWarp, LABELS.radio.shapeElbow, LABELS.radio.shapeBranch, LABELS.radio.shapeCurve], DEFAULT_LINE_SHAPE, LABELS.tooltip.lineShape);
 
     var warpTypeRow = addFieldRow(connectorPanel, LABELS.fieldLabel.warpType);
     var warpTypeList = warpTypeRow.add("dropdownlist", undefined, getWarpTypeLabels());
@@ -2418,7 +2467,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         var settings = getSettings();
         warpTypeRow.enabled = (settings.lineShape === 1);
-        warpAmountField.row.enabled = (settings.lineShape === 1);
+        // カーブのふくらみもこの欄で決める / Curve reuses this field for its bow
+        warpAmountField.row.enabled = (settings.lineShape === 1 || settings.lineShape === 4);
         warpAxisField.row.enabled = (settings.lineShape === 1);
         cornerField.row.enabled = (settings.lineShape === 2 || settings.lineShape === 3);
         if (unifyAnchorWidget.enabled !== settings.unifyStart) {
