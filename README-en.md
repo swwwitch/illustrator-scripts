@@ -205,9 +205,9 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 - [Apply swatches continuously](readme-en/ApplySwatchesToSelection.md)
 - [Apply colors randomly](readme-en/ShuffleObjectColors.md)
+- [Distribute colors across objects and text](readme-en/AiApplySwatchesToSelection.md)
 - [Generate swatches and gradients from the colors of selected objects](readme-en/CreateGradientFromSelection.md)
 - [Swap, convert, or clear fill and stroke](readme-en/FillStrokeSwitcher.md)
-- [A modal dialog that applies swatches or predefined col…](readme-en/AiApplySwatchesToSelection-dialog.md)
 - [Loads and runs a temporary action that applies Flatten…](readme-en/FlattenTransparency.md)
 - [An Illustrator script to register fill and stroke colo…](readme-en/RegisterAndApplySwatches.md)
 - [Adds a specified number of intermediate color stops to…](readme-en/convert2separategradient.md)

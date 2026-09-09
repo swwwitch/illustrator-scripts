@@ -217,7 +217,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [カラーを配色](readme-ja/AiApplySwatchesToSelection.md)
 - [選択オブジェクトの色からスウォッチとグラデーションを自動生成](readme-ja/CreateGradientFromSelection.md)
 - [塗りと線の入れ替え・変換・消去](readme-ja/FillStrokeSwitcher.md)
-- [選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用するモーダルダイアログです](readme-ja/AiApplySwatchesToSelection-dialog.md)
 - [一時的なアクションを読み込んで実行し、選択オブジェクトの「透明部分を分割・統合」を適用します](readme-ja/FlattenTransparency.md)
 - [選択オブジェクト（閉じたパス、テキスト）の塗りおよび線のカラーをスウォッチ（スポットカラー）として登録し、そ…](readme-ja/RegisterAndApplySwatches.md)
 - [convert2separategradient](readme-ja/convert2separategradient.md)

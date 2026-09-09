@@ -1,20 +1,19 @@
 #target illustrator
-#targetengine "AiApplySwatchesToSelection"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用する常駐パレットです。
-適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）を選べ、変更のたびにライブプレビューします。
+選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用するモーダルダイアログです。
+配色は選択中のスウォッチかスウォッチグループから取り込め、適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）を変えるたびにライブプレビューします。
 
 詳細は README を参照してください。
 
 ### Overview
 
-A persistent palette that applies swatches, or predefined colors, to the selected objects and text.
-The application unit (object, character, word, line or paragraph) and order (as-is, reversed, random or fully random) are selectable, with a live preview on every change.
+A modal dialog that applies swatches, or predefined colors, to the selected objects and text.
+Colors are captured from the selected swatches or from a swatch group, and every change to the application unit (object, character, word, line or paragraph) or order (as-is, reversed, random or fully random) is previewed live.
 
 See the README for details.
 
@@ -24,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiApplySwatchesToSelection";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2024-11-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-09";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiApplySwatchesToSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiApplySwatchesToSelection.md"; /* README (English) */
@@ -44,7 +43,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
     var COLOR_CHIPS_PER_ROW = 12;             /* 1行あたりのチップ数 / chips per row */
     var CHIP_SIZE = 18;                       /* チップの一辺(px) / chip size */
     var CHIP_GAP = 4;                         /* チップ間の間隔(px) / gap between chips */
-    var PREVIEW_CHAR_CAP = 500;               /* 1文字単位プレビューで着色する最大文字数（超過分は閉じる時に着色）/ max chars colored in per-character preview */
+    var PREVIEW_CHAR_CAP = 500;               /* 1文字単位プレビューで着色する最大文字数（超過分は確定時に着色）/ max chars colored in per-character preview */
 
     // =========================================
     // ローカライズ / Localization
@@ -79,14 +78,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             fullrandom: { ja: "完全ランダム", en: "Fully random" }
         },
         button: {
-            fromSwatches: { ja: "スウォッチを読込", en: "Load Swatches" },
-            fromObjects:  { ja: "塗り色を読込", en: "Load Fills" },
-            openSwatches: { ja: "「スウォッチ」パネルを開く", en: "Open Swatches Panel" }
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        source: {
+            selected: { ja: "選択しているスウォッチ", en: "Selected swatches" },
+            group:    { ja: "スウォッチグループ：", en: "Swatch group:" },
+            noGroup:  { ja: "（グループなし）", en: "(no groups)" }
         },
         tooltip: {
-            fromSwatches:  { ja: "現在選択しているスウォッチを読み込み直します。パレットを閉じるには Esc キーを押します。", en: "Reload the currently selected swatches. Press Esc to close the palette." },
-            fromObjects:   { ja: "現在選択しているオブジェクトの塗り色を読み込み直します。パレットを閉じるには Esc キーを押します。", en: "Reload the fill colors of the currently selected objects. Press Esc to close the palette." },
-            colors:        { ja: "適用に使う配色。下のボタンで取り込み直せます。", en: "Colors used for applying; re-capture with the buttons below." },
+            colors:        { ja: "開いた時点で選択していたスウォッチを適用に使います。", en: "The swatches selected when the dialog opened are used for applying." },
             unitObject:    { ja: "選択オブジェクト単位でカラーを順番に適用します。", en: "Applies colors in order, one per selected object." },
             unitCharacter: { ja: "テキストを1文字ずつ分けてカラーを適用します。", en: "Applies a color to each character of the text." },
             unitWord:      { ja: "英文テキストを単語ごとに分けてカラーを適用します。英文以外では単語が正しく分割されないことがあります。", en: "Applies a color to each word of English text. Words may not split correctly for non-English text." },
@@ -95,19 +96,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             orderAsis:     { ja: "取り込んだカラーの並び順で適用します（適用先は位置順・文字順）。", en: "Applies colors in the captured order (targets follow position / reading order)." },
             orderReverse:  { ja: "取り込んだカラーの並びを逆にして適用します。", en: "Applies the captured colors in reverse order." },
             orderRandom:     { ja: "取り込んだカラーの並びをランダムにして適用します（並びは繰り返します）。", en: "Applies the captured colors in a random order (the sequence repeats)." },
-            orderFullRandom: { ja: "適用先ごとにカラーを毎回ランダムに選びます（並びは繰り返しません）。", en: "Picks a color at random for each target (no repeating sequence)." },
-            openSwatches:    { ja: "Illustrator の「スウォッチ」パネルを表示します。", en: "Shows Illustrator's Swatches panel." }
+            orderFullRandom: { ja: "適用先ごとにカラーを毎回ランダムに選びます（並びは繰り返しません）。", en: "Picks a color at random for each target (no repeating sequence)." }
         },
-        progress: {
-            title:    { ja: "読み込み中", en: "Loading" },
-            reading:  { ja: "選択情報を読み込み中…", en: "Reading selection…" },
-            applying: { ja: "プレビューを適用中…", en: "Applying preview…" }
+        alert: {
+            noDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSel: { ja: "オブジェクトを選択してください。", en: "Please select objects." }
         },
         note: {
             autoColor: {
                 ja: "カラー未選択：自動カラーを使用します",
                 en: "No colors selected: using auto colors"
             }
+        },
+        progress: {
+            title:    { ja: "準備しています…", en: "Preparing…" },
+            analyze:  { ja: "対象を解析しています…", en: "Analyzing selection…" },
+            snapshot: { ja: "元の状態を保存しています…", en: "Saving original state…" },
+            apply:    { ja: "カラーを適用しています…", en: "Applying colors…" }
         }
     };
 
@@ -156,44 +161,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
     }
 
     // =========================================
-    // 常駐エンジンの永続状態 / Persistent engine state
+    // プログレスバー / Progress bar
     // =========================================
-    /* 再実行でも消えないよう $.global に保持（GC回避・多重起動防止）。プレビューの復元情報（ベースライン）は
-       メインエンジン側の $.global.__aiApplyBaseline に持つ（app.undo は使わない）
-       Kept on $.global so re-runs don't reset it. Preview-restore data (baseline) lives on the main engine */
-    if (typeof $.global.__aiApplySwatchesState === "undefined") {
-        $.global.__aiApplySwatchesState = { win: null, busy: false };
+    /* 進捗表示用のパレットウィンドウを生成して表示（非モーダルなので処理中に更新できる）。
+       戻り値の set(fraction 0..1, message) で進捗を更新、close() で閉じる
+       Create and show a modeless palette progress window (updatable while work runs).
+       Returned set(fraction 0..1, message) advances it; close() closes it */
+    function createProgressW(title) {
+        var win = new Window("palette", title);
+        win.orientation = "column";
+        win.alignChildren = ["fill", "top"];
+        win.margins = 16;
+        win.spacing = 8;
+        var bar = win.add("progressbar", undefined, 0, 100);
+        bar.preferredSize = [320, 8];
+        var label = win.add("statictext", undefined, "");
+        label.preferredSize.width = 320;
+        win.show();
+        win.update();
+        return {
+            set: function (fraction, message) {
+                var value = Math.round(fraction * 100);
+                bar.value = (value < 0) ? 0 : (value > 100 ? 100 : value);
+                if (message != null) { label.text = message; }
+                win.update(); /* 同期ループ中でも再描画させる / force a repaint even inside a synchronous loop */
+            },
+            close: function () { win.close(); }
+        };
     }
-    var STATE = $.global.__aiApplySwatchesState;
 
     // =========================================
-    // パレット / Palette (UI engine)
+    // ダイアログ / Dialog
     // =========================================
-    /* 常駐パレットを表示（既存があれば閉じてから）/ Show the palette (closing any existing one first) */
-    function showPalette() {
-        if (STATE.win) {
-            try { STATE.win.close(); } catch (e) { }
-            STATE.win = null;
-        }
-        stopDimPolling();
+    /* モーダルダイアログを表示。メインエンジンで動くので DOM 操作は直接呼ぶ（BridgeTalk 委譲なし）。
+       ライブプレビューは workerApply がスナップショットで前回分を戻しつつ再適用する。
+       OK でプレビューを確定、キャンセル／Esc／閉じるで元へ戻す
+       Show the modal dialog. Running in the main engine, DOM work is called directly (no BridgeTalk).
+       Live preview: workerApply reverts the previous preview via snapshot and reapplies.
+       OK commits; Cancel / Esc / close reverts */
+    function showDialog() {
+        if (app.documents.length === 0) { alert(L("alert.noDoc")); return; }
 
-        /* 読み込み中プログレス（読み込み・初回適用が重い場合の表示）/ Loading progress (for slow read/first apply) */
-        var progress = openProgressWindow();
-
-        /* 選択情報を先に取得（初期単位・チップ・単語ディム判定）/ Read selection info first */
+        /* 選択情報を取得（初期単位・チップ・スウォッチ名）/ Read selection info (default unit, chips, swatch names) */
         var info = readSelectionInfo();
-        setProgress(progress, 45, L("progress.reading"));
+        if (!info.ok || (!info.isText && info.itemCount === 0)) { alert(L("alert.noSel")); return; }
 
-        var win = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+        var win = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(win);
-        STATE.win = win;
 
-        /* 取り込んだ配色（適用に使用。ラジオ操作で選択が外れても影響しない）。名前 or 値のどちらか一方
-           Captured colors for applying (unaffected by losing the selection): either swatch names OR serialized values */
+        /* ドキュメントのスウォッチグループ（未分類は除外）/ Document swatch groups (uncategorized excluded) */
+        var swatchGroups = readSwatchGroupsInfo();
+
+        /* 適用に使うスウォッチ名（スウォッチ名で参照）。カラーソースに応じて差し替える
+           Swatch names used for applying (referenced by name); swapped by the chosen color source */
         var loadedSwatchNames = info.swatchNames;
-        var loadedColorValues = [];
 
-        /* 適用するカラー（配色チップ）＋取り込みボタン / Color chips + capture buttons */
+        /* 適用するカラー（配色チップ＋カラーソース選択）/ Color chips + color source */
         var colorPanel = win.add("panel", undefined, L("panel.colors"));
         setupPanel(colorPanel);
         colorPanel.helpTip = L("tooltip.colors");
@@ -201,13 +224,64 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         chipHost.orientation = "column";
         chipHost.alignChildren = ["left", "top"];
         buildColorChips(chipHost, info.chips);
-        var buttonRow = colorPanel.add("group");
-        setupRow(buttonRow, "left");
-        buttonRow.margins = [0, 5, 0, 0]; /* ボタン上に余白 / margin above the buttons */
-        var fromSwatchesButton = buttonRow.add("button", undefined, L("button.fromSwatches"));
-        fromSwatchesButton.helpTip = L("tooltip.fromSwatches");
-        var fromObjectsButton = buttonRow.add("button", undefined, L("button.fromObjects"));
-        fromObjectsButton.helpTip = L("tooltip.fromObjects");
+
+        /* カラーソース：選択スウォッチ or スウォッチグループ（ラジオは手動で排他制御）。
+           ラジオを group にまとめ、上マージンでチップとの間隔をとる
+           Color source radios wrapped in a group; top margin adds space above them */
+        var sourceGroup = colorPanel.add("group");
+        sourceGroup.orientation = "column";
+        sourceGroup.alignChildren = ["left", "top"];
+        sourceGroup.margins = [0, 10, 0, 0];
+        var selectedRadio = sourceGroup.add("radiobutton", undefined, L("source.selected"));
+        selectedRadio.value = true;
+        var groupRadio = sourceGroup.add("radiobutton", undefined, L("source.group"));
+        var groupNames = [];
+        for (var gi = 0; gi < swatchGroups.length; gi++) { groupNames.push(swatchGroups[gi].name); }
+        /* ポップアップは次の行に置き、グループラジオの下へ少しインデントする
+           Put the dropdown on the next line, slightly indented under the group radio */
+        var groupDropdownRow = sourceGroup.add("group");
+        setupRow(groupDropdownRow, "left");
+        groupDropdownRow.margins = [16, 0, 0, 0];
+        var groupDropdown = groupDropdownRow.add("dropdownlist", undefined, groupNames.length > 0 ? groupNames : [L("source.noGroup")]);
+        groupDropdown.selection = 0;
+        if (swatchGroups.length === 0) {
+            /* グループが無ければグループ選択は無効 / disable the group option when there are none */
+            groupRadio.enabled = false;
+            groupDropdown.enabled = false;
+        }
+
+        /* カラーソースを適用してチップとプレビューを更新 / Apply the color source, refresh chips and preview */
+        function applyColorSource() {
+            if (groupRadio.value && swatchGroups.length > 0) {
+                var group = swatchGroups[groupDropdown.selection.index];
+                loadedSwatchNames = group.swatchNames;
+                refreshChips(group.chips);
+            } else {
+                loadedSwatchNames = info.swatchNames;
+                refreshChips(info.chips);
+            }
+            runPreview();
+        }
+
+        /* チップを描き直してレイアウトを取り直す / Rebuild chips and relayout */
+        function refreshChips(chips) {
+            clearChildren(chipHost);
+            buildColorChips(chipHost, chips);
+            win.layout.layout(true);
+        }
+
+        selectedRadio.onClick = function () {
+            selectedRadio.value = true; groupRadio.value = false;
+            applyColorSource();
+        };
+        groupRadio.onClick = function () {
+            groupRadio.value = true; selectedRadio.value = false;
+            applyColorSource();
+        };
+        groupDropdown.onChange = function () {
+            if (!groupRadio.value) { groupRadio.value = true; selectedRadio.value = false; }
+            applyColorSource();
+        };
 
         /* 配色単位・配色順を2カラムで配置 / Coloring unit and order in two columns */
         var unitsRow = win.add("group");
@@ -224,9 +298,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             paragraph: L("tooltip.unitParagraph")
         });
         updateUnitAvailability(unitRadioButtons, info);
-        /* ポーリングから参照するために保持＋現在の署名を記録 / Expose radios and record current signature for polling */
-        STATE.unitRadioButtons = unitRadioButtons;
-        STATE.lastStatsSig = selectionStatsSignature(info);
 
         /* 配色順（カラム内は縦並び）/ Coloring order (vertical within its column) */
         var orderRadioButtons = addRadioPanel(unitsRow, L("panel.option"), buildOptionList("order", ["asis", "reverse", "random", "fullrandom"]), "asis", onOptionChange);
@@ -237,15 +308,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             fullrandom: L("tooltip.orderFullRandom")
         });
 
-        /* パレット下部：スウォッチパネルを開く / Footer: open the Swatches panel */
-        var footerRow = win.add("group");
-        setupRow(footerRow, "left");
-        footerRow.margins = [0, 5, 0, 0]; /* ボタン上に余白 / margin above the button */
-        var openSwatchesButton = footerRow.add("button", undefined, L("button.openSwatches"));
-        openSwatchesButton.helpTip = L("tooltip.openSwatches");
-        openSwatchesButton.onClick = function () {
-            runWorker("workerOpenSwatchesPanel()");
-        };
+        /* OK / キャンセル / OK and Cancel */
+        var buttonRow = win.add("group");
+        buttonRow.orientation = "row";
+        buttonRow.alignment = "right";
+        buttonRow.spacing = PANEL_SPACING;
+        var cancelButton = buttonRow.add("button", undefined, L("button.cancel"), { name: "cancel" });
+        var okButton = buttonRow.add("button", undefined, L("button.ok"), { name: "ok" });
 
         /* 現在の設定を取得 / Read current settings */
         function currentOptions() {
@@ -255,151 +324,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             };
         }
 
-        /* プレビュー適用をメインエンジンへ委譲（取り込み済みの配色＝名前 or 値を渡す）。
-           前回プレビューの取り消しは worker がスナップショット復元で行うのでフラグ管理は不要
-           Delegate a preview apply to the main engine; the worker reverts the previous preview via snapshot */
+        /* プレビュー適用（メインエンジンで直接実行）/ Apply the preview directly in the main engine */
         function runPreview() {
-            var call = "workerApply(" + optionsToLiteral(currentOptions()) +
-                ", " + stringsToLiteral(loadedSwatchNames) + ", " + stringsToLiteral(loadedColorValues) + ")";
-            runWorker(call);
+            workerApply(currentOptions(), loadedSwatchNames);
         }
 
-        /* 単位・オプション変更時にプレビュー更新 / Refresh preview on any change */
+        /* 単位・配色順の変更でプレビュー更新 / Refresh the preview on any change */
         function onOptionChange() {
             runPreview();
         }
 
-        /* チップと配色単位ディムを更新して再レイアウト（適用はしない）/ Update chips and unit dims, relayout (no apply) */
-        function refreshColorUI(freshInfo) {
-            clearChildren(chipHost);
-            buildColorChips(chipHost, freshInfo.chips);
-            updateUnitAvailability(unitRadioButtons, freshInfo);
-            win.layout.layout(true);
-        }
+        okButton.onClick = function () { win.close(1); };
+        cancelButton.onClick = function () { win.close(2); };
 
-        /* 選択スウォッチから配色を取り込んで適用（外部カラーなのでプレビュー表示）
-           Capture from swatches and apply (external colors → show preview) */
-        function onFromSwatches() {
-            var fresh = readSelectionInfo();
-            loadedSwatchNames = fresh.swatchNames;
-            loadedColorValues = [];
-            refreshColorUI(fresh);
-            runPreview();
-        }
-        fromSwatchesButton.onClick = onFromSwatches;
+        /* 初回プレビューはダイアログ表示前に済ませる。元状態の保存（全文字読み取り）が重いので、
+           重い選択のときはプログレスバーを出して進捗を見せ、終わってから塗り済みのダイアログを開く
+           Do the first preview before showing the dialog. Saving originals (reading every character) is
+           heavy, so show a progress bar for heavy selections, then open the already-painted dialog */
+        workerCommitPreview(); /* 旧ベースラインを破棄（現在の状態を基準にする）/ discard any stale baseline */
+        runFirstPreviewW(currentOptions(), loadedSwatchNames);
 
-        /* 選択オブジェクトの塗り色を取り込む。この時点では適用しない（＝オブジェクトの色を変えない）。
-           配色は配色単位を選んだときに適用される
-           Capture fills from objects; do NOT apply here (keep objects unchanged); applied when a unit is chosen */
-        function onFromObjects() {
-            var fresh = readObjectColorsInfo();
-            loadedColorValues = fresh.colorValues;
-            loadedSwatchNames = [];
-            refreshColorUI(fresh);
-        }
-        fromObjectsButton.onClick = onFromObjects;
-
-        /* Esc で閉じる / Close on Esc */
-        win.addEventListener("keydown", function (k) {
-            if (k.keyName === "Escape") win.close();
-        });
-
-        /* 選択を変えてパレットが前面に戻ったら、配色単位のディムを現在の選択で更新（配色は変えない）
-           When focus returns to the palette after changing the selection, refresh the unit dims (colors unchanged) */
-        win.onActivate = function () {
-            if (STATE.busy) return;
-            var freshStats = readSelectionStats();
-            if (freshStats.ok) {
-                updateUnitAvailability(unitRadioButtons, freshStats);
-                STATE.lastStatsSig = selectionStatsSignature(freshStats);
+        /* モーダル実行。OK 以外（キャンセル・Esc・クローズボックス）は元へ戻す
+           Run modally; anything other than OK (Cancel, Esc, close box) reverts the preview */
+        var result = win.show();
+        if (result === 1) {
+            /* 間引きプレビューだったときだけ、保存した配色で全文字をフル着色（プレビューと同じ結果になる）。
+               間引きでなければプレビューが最終結果なので再適用しない（再適用するとランダムが引き直されて変わる）
+               Only when the preview was decimated, apply fully using the saved colors (matches the preview);
+               otherwise the preview is already final, so skip re-apply (it would re-randomize) */
+            if ($.global.__aiApplyWasDecimated) {
+                workerApply(currentOptions(), loadedSwatchNames, true);
             }
-        };
-
-        /* 適用ボタンなし：閉じたら現在の結果を確定。1文字間引きプレビューだった場合は全文字をフル着色してから確定する
-           （プレビューと同じ配色を保存値から再利用）。スナップショットは破棄＝以後 restore しない（戻すのは Cmd+Z）
-           No Apply button: closing commits. If the preview was decimated (per character), color everything
-           first (reusing the saved colors so it matches the preview), then discard the snapshot (undo via Cmd+Z) */
-        win.onClose = function () {
-            stopDimPolling();
-            var call = "workerFinalize(" + optionsToLiteral(currentOptions()) +
-                ", " + stringsToLiteral(loadedSwatchNames) + ", " + stringsToLiteral(loadedColorValues) + ")";
-            runWorker(call);
-            STATE.win = null;
-            STATE.unitRadioButtons = null;
-            return true;
-        };
-
-        setProgress(progress, 75, L("progress.applying"));
-        win.show();
-        /* レイアウト確定後に取り込みボタンの天地を詰める / Trim the capture buttons' height after layout */
-        trimButtonHeight(fromSwatchesButton, 2);
-        trimButtonHeight(fromObjectsButton, 2);
-        trimButtonHeight(openSwatchesButton, 2);
-        /* 初回プレビュー前に前セッションのスナップショットを破棄（現在の状態を基準にする）
-           Discard any previous-session snapshot before the first preview (current doc becomes the baseline) */
-        runWorker("workerCommitPreview()");
-        /* 表示後に初回プレビュー（パレットは非モーダルなので show 後でよい）/ First preview after show */
-        runPreview();
-        setProgress(progress, 100, L("progress.applying"));
-        closeProgressWindow(progress);
-        /* 選択変更に追従してディムを更新するポーリングを開始 / Start polling to follow selection changes */
-        startDimPolling();
-    }
-
-    /* 読み込み中プログレスウィンドウを表示（表示は任意：レイアウト失敗時は null で続行）
-       Show a loading-progress window (optional: return null and continue if layout fails) */
-    function openProgressWindow() {
-        var progressWindow = null;
-        try {
-            progressWindow = new Window("palette", L("progress.title"), undefined, { closeButton: false });
-            progressWindow.orientation = "column";
-            progressWindow.alignChildren = "fill";
-            progressWindow.margins = 16;
-            progressWindow.spacing = 8;
-            var message = progressWindow.add("statictext", undefined, L("progress.reading"));
-            message.preferredSize.width = 240;
-            var bar = progressWindow.add("progressbar", undefined, 0, 100);
-            bar.preferredSize = [240, 8];
-            progressWindow.progressMessage = message;
-            progressWindow.progressBar = bar;
-            /* show 前に明示レイアウトして "Window layout failed: size" を回避／捕捉
-               Lay out explicitly before show to avoid/catch "Window layout failed: size" */
-            progressWindow.layout.layout(true);
-            progressWindow.show();
-            forceWindowUpdate(progressWindow);
-        } catch (e) {
-            /* プログレスは装飾。表示に失敗しても本体パレットは開く / Progress is cosmetic; keep the main palette opening */
-            if (progressWindow) { try { progressWindow.close(); } catch (e2) { } }
-            progressWindow = null;
+            workerCommitPreview();
+        } else {
+            restoreBaselineW();
+            app.redraw();
         }
-        return progressWindow;
-    }
-
-    /* プログレスの値・メッセージを更新 / Update progress value and message */
-    function setProgress(progressWindow, value, message) {
-        if (!progressWindow) return;
-        progressWindow.progressBar.value = value;
-        if (message) progressWindow.progressMessage.text = message;
-        forceWindowUpdate(progressWindow);
-    }
-
-    /* プログレスウィンドウを閉じる / Close the progress window */
-    function closeProgressWindow(progressWindow) {
-        if (progressWindow) {
-            try { progressWindow.close(); } catch (e) { }
-        }
-    }
-
-    /* ウィンドウを即時再描画（同期処理中でも表示を更新）/ Force an immediate repaint during sync work */
-    function forceWindowUpdate(win) {
-        try { win.update(); } catch (e) { }
-    }
-
-    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) { }
     }
 
     /* ラジオボタンのパネルを追加して配列を返す / Add a radio-button panel and return the buttons */
@@ -476,50 +436,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         }
     }
 
-    /* 選択の統計から署名を作る（変化検出用）/ Build a signature from selection stats (to detect changes) */
-    function selectionStatsSignature(info) {
-        return info.itemCount + "," + (info.isText ? "1" : "0") + "," + info.paragraphCount + "," + info.textObjectCount;
-    }
-
-    /* 定期ポーリング：選択が変わっていたら配色単位のディムだけ更新（読み取り専用・色は変えない）
-       Periodic poll: refresh only the unit dims when the selection changed (read-only, colors unchanged) */
-    function pollDimsUpdate() {
-        if (!STATE.win || STATE.busy || !STATE.unitRadioButtons) return;
-        var info = readSelectionStats();
-        if (!info.ok) return;
-        var sig = selectionStatsSignature(info);
-        if (sig === STATE.lastStatsSig) return;
-        STATE.lastStatsSig = sig;
-        updateUnitAvailability(STATE.unitRadioButtons, info);
-    }
-
-    /* ディム追従ポーリングの間隔（ms）。短くすると Illustrator 本体への割り込みが増えて重くなる
-       Dim-polling interval (ms); shorter values interrupt Illustrator more often and slow it down */
-    var DIM_POLL_INTERVAL = 1200;
-
-    /* ポーリングの有効／無効。true にすると選択変更に常時追従するが、1.2秒ごとに同期 BridgeTalk で
-       メインエンジンへ割り込むため作業中の操作が重くなる。false ではパレットが前面に戻ったとき
-       （win.onActivate）と各ボタン操作でディムを更新する
-       Enable dim polling. When true it follows selection changes continuously but interrupts the main
-       engine via a synchronous BridgeTalk every 1.2s, which slows editing. When false, dims refresh on
-       win.onActivate (palette returns to front) and on button actions instead */
-    var ENABLE_DIM_POLLING = false;
-
-    /* ディム追従ポーリングを開始（無効・scheduleTask 非対応環境では何もしない）/ Start dim polling (no-op when disabled or unavailable) */
-    function startDimPolling() {
-        if (!ENABLE_DIM_POLLING) return;
-        if (typeof app.scheduleTask !== "function") return;
-        STATE.pollTaskId = app.scheduleTask("if(typeof pollDimsUpdate==='function')pollDimsUpdate();", DIM_POLL_INTERVAL, true);
-    }
-
-    /* ディム追従ポーリングを停止 / Stop dim polling */
-    function stopDimPolling() {
-        if (STATE.pollTaskId && typeof app.cancelTask === "function") {
-            try { app.cancelTask(STATE.pollTaskId); } catch (e) { }
-        }
-        STATE.pollTaskId = null;
-    }
-
     /* 適用単位の選択肢 / Apply-unit options */
     function buildUnitOptions() {
         return buildOptionList("unit", ["object", "character", "word", "line", "paragraph"]);
@@ -578,109 +494,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
     }
 
     // =========================================
-    // メインエンジンへの委譲 / Delegation to the main engine
+    // 選択情報の取得 / Reading the selection
     // =========================================
-    /* worker 関数（メインエンジンで eval される DOM 処理）。追加時は必ずここへ登録
-       Worker functions (DOM code eval'd in the main engine). Register every new one here. */
-    var WORKER_FUNCS = [
-        workerApply, workerFinalize, workerCommitPreview, workerOpenSwatchesPanel,
-        restoreBaselineW, paintBaselineW, restoreOneSnapshotW, ensureBaselineW, snapshotTargetW, snapshotCharactersW, colorKeyW, selectionKeyW,
-        collectTargetsCachedW, prepareApplyW, applyColorsToTargetsW, resetTextStrokeOpacityW, applyNoStrokeFullOpacityW, applyColorFullToCharW,
-        workerReadSelection, workerReadObjectColors, workerReadStats, selectionTextStatsW, countParagraphsW,
-        flattenSelectionW, collectColorableItemsW, getSingleSelectedTextRangeW,
-        collectColorTargetsByUnitW, pushTextRangeTargetsW, pushStaggeredWordTargetsW, pushParagraphTargetsW, getTextUnitRangesW, spanRangeW, applyColorToTargetW,
-        sortByPositionW, comparePositionKeysW, shuffleArrayW, randIntW,
-        resolveAppliedColorsW, findSwatchColorByNameW, collectFillColorsW, isApplicableFillColorW, serializeColorW, deserializeColorW,
-        orderColorsW, fullRandomColorIndexW, pickSwatchColorW,
-        buildCMYKColorW, buildRGBColorW, buildGrayColorW, getDefaultRGBColorsW,
-        pickTwoChannelCMYW, generateRandomCMYPaletteUniqueW, isFarEnoughCMYW, cmyDistanceW,
-        isWhiteColorW, allWhiteSwatchesW, colorToRGB255W
-    ];
-
-    /* worker 関数定義部の encode 済みソース（toString/encode は一度だけ）
-       Encoded worker-definitions source, computed once */
-    var gEncodedWorkerDefs = null;
-    function getEncodedWorkerDefs() {
-        if (gEncodedWorkerDefs === null) {
-            var source = "var TMK_CMYK_FALLBACK_MAX_TOTAL=" + TMK_CMYK_FALLBACK_MAX_TOTAL + ";var TMK_CMYK_FALLBACK_MIN_DISTANCE=" + TMK_CMYK_FALLBACK_MIN_DISTANCE + ";var PREVIEW_CHAR_CAP=" + PREVIEW_CHAR_CAP + ";";
-            for (var i = 0; i < WORKER_FUNCS.length; i++) {
-                source += WORKER_FUNCS[i].toString() + ";";
-            }
-            gEncodedWorkerDefs = encodeURIComponent(source);
-        }
-        return gEncodedWorkerDefs;
-    }
-
-    /* ボディをメインエンジンで同期実行して結果を返す（低レベル）/ Run a raw body synchronously in the main engine */
-    function sendWorkerBody(body) {
-        var holder = { result: "ERR:no-result" };
-        try {
-            var bridge = new BridgeTalk();
-            bridge.target = "illustrator";
-            bridge.body = body;
-            bridge.onResult = function (message) { holder.result = String(message.body); };
-            bridge.onError = function (message) { holder.result = "ERR:" + message.body; };
-            bridge.send(10);
-        } catch (e) {
-            holder.result = "ERR:" + e.message;
-        }
-        return holder.result;
-    }
-
-    /* メインエンジンが定義を永続保持できるか一度だけ判定 / Detect once whether defs persist across messages */
-    var gWorkerPersists = null;
-    function detectWorkerPersistence() {
-        if (gWorkerPersists !== null) return;
-        sendWorkerBody("eval(decodeURIComponent(\"" + encodeURIComponent("function __aiwProbe(){return 7;}") + "\"));'OK';");
-        gWorkerPersists = (sendWorkerBody("(typeof __aiwProbe==='function')?String(__aiwProbe()):'NO';") === "7");
-    }
-
-    /* persist モード時に関数定義をメインエンジンへロード（コード更新時も上書き）/ Load defs into the main engine */
-    var gWorkerLoaded = false;
-    function loadWorkerDefs() {
-        sendWorkerBody("eval(decodeURIComponent(\"" + getEncodedWorkerDefs() + "\"));'OK';");
-        gWorkerLoaded = true;
-    }
-
-    /* メインエンジンに worker 関数が定義済みか（リトライ要否の判定）/ Whether worker funcs are defined (to decide retry) */
-    function workerFuncsPresent() {
-        return sendWorkerBody("(typeof workerApply==='function')?'Y':'N';") === "Y";
-    }
-
-    /* 呼び出し式をメインエンジンで同期実行して結果マーカーを返す
-       persist モード：関数は一度ロードし、以後は呼び出し式だけ送る（軽い）
-       非対応環境：従来どおり毎回フル送信にフォールバック
-       Run the call in the main engine; in persist mode load funcs once and send only tiny calls afterward */
-    function runWorker(callExpression) {
-        if (STATE.busy) return "ERR:busy";
-        STATE.busy = true;
-        var result;
-        try {
-            detectWorkerPersistence();
-            if (gWorkerPersists) {
-                if (!gWorkerLoaded) loadWorkerDefs();
-                result = sendWorkerBody(callExpression + ";");
-                /* エラー時は「関数が実際に未定義のときだけ」再ロード＋リトライ。
-                   実行途中で失敗したものをリトライすると二重適用＋スナップショット基準が汚れるため避ける
-                   （未定義エラーは workerApply が実行前に落ちているので二重適用にならない）
-                   On error retry only if the funcs are genuinely undefined; retrying a mid-execution failure would double-apply and corrupt the snapshot baseline */
-                if (result.indexOf("ERR:") === 0 && !workerFuncsPresent()) {
-                    loadWorkerDefs();
-                    result = sendWorkerBody(callExpression + ";");
-                }
-            } else {
-                result = sendWorkerBody("eval(decodeURIComponent(\"" + getEncodedWorkerDefs() + encodeURIComponent(callExpression + ";") + "\"));");
-            }
-        } finally {
-            STATE.busy = false;
-        }
-        return result;
-    }
-
-    /* 選択情報を委譲取得してパースする / Delegate and parse selection info */
+    /* 選択情報を取得してパースする（メインエンジンで直接実行）/ Read and parse selection info (called directly) */
     function readSelectionInfo() {
         var info = { ok: false, defaultUnit: "object", chips: [], swatchNames: [], itemCount: 0, isText: false, paragraphCount: 0, textObjectCount: 0 };
-        var raw = runWorker("workerReadSelection()");
+        var raw = workerReadSelection();
         if (!raw || raw.indexOf("OK|") !== 0) return info;
         info.ok = true;
 
@@ -696,19 +515,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         return info;
     }
 
-    /* 配色単位のディム判定に必要な統計だけを委譲取得（ポーリング用の軽量版）
-       Delegate reading only the stats needed for the unit dims (lightweight poll path) */
-    function readSelectionStats() {
-        var info = { ok: false, itemCount: 0, isText: false, paragraphCount: 0, textObjectCount: 0 };
-        var raw = runWorker("workerReadStats()");
-        if (!raw || raw.indexOf("OK|") !== 0) return info;
-        info.ok = true;
-        var parts = raw.split("|");
-        info.itemCount = parts[1] ? parseInt(parts[1], 10) : 0;
-        info.isText = (parts[2] === "1");
-        info.paragraphCount = parts[3] ? parseInt(parts[3], 10) : 0;
-        info.textObjectCount = parts[4] ? parseInt(parts[4], 10) : 0;
-        return info;
+    /* ドキュメントのスウォッチグループを取得（未分類＝名前なしは除外、NoColor スウォッチも除外）。
+       各グループは { name, swatchNames(encode済み), chips([[r,g,b]]) }。メインエンジンで直接実行
+       Read the document's swatch groups (excluding the unnamed uncategorized group and NoColor swatches).
+       Each group is { name, swatchNames (encoded), chips ([[r,g,b]]) }; called directly in the main engine */
+    function readSwatchGroupsInfo() {
+        var groups = [];
+        if (app.documents.length === 0) return groups;
+        var doc = app.activeDocument;
+        for (var i = 0; i < doc.swatchGroups.length; i++) {
+            var sg = doc.swatchGroups[i];
+            var name, swatches;
+            /* 未分類グループの name は ""、getAllSwatches はまれに投げる。1つの try でまとめてスキップ判定
+               The uncategorized group's name is ""; getAllSwatches occasionally throws — one try covers both */
+            try {
+                name = sg.name;
+                if (name === "") { continue; } /* 未分類グループは除外 / skip the uncategorized group */
+                swatches = sg.getAllSwatches();
+            } catch (e) { continue; }
+            var names = [];
+            var chips = [];
+            for (var j = 0; j < swatches.length; j++) {
+                var color = swatches[j].color;
+                if (color.typename === "NoColor") { continue; } /* [なし] は除外 / skip the None swatch */
+                names.push(encodeURIComponent(swatches[j].name));
+                chips.push(parseRGBTripletW(colorToRGB255W(color)));
+            }
+            if (names.length === 0) { continue; }
+            groups.push({ name: name, swatchNames: names, chips: chips });
+        }
+        return groups;
     }
 
     /* 返却の選択統計（item数・テキスト有無・段落数）を info に取り込む / Parse selection stats into info */
@@ -725,121 +561,117 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         if (!chipsField) return chips;
         var chipStrings = chipsField.split(";");
         for (var i = 0; i < chipStrings.length; i++) {
-            var rgb = chipStrings[i].split(",");
-            chips.push([parseInt(rgb[0], 10), parseInt(rgb[1], 10), parseInt(rgb[2], 10)]);
+            chips.push(parseRGBTripletW(chipStrings[i]));
         }
         return chips;
     }
 
-    /* 選択オブジェクトの塗り色を委譲取得（チップRGB＋シリアライズ済みカラー値）
-       Delegate reading the fill colors of selected objects (chip RGB + serialized color values) */
-    function readObjectColorsInfo() {
-        var info = { chips: [], colorValues: [], itemCount: 0, isText: false, paragraphCount: 0 };
-        var raw = runWorker("workerReadObjectColors()");
-        if (!raw || raw.indexOf("OK|") !== 0) return info;
-
-        var parts = raw.split("|");
-        info.chips = parseChips(parts[2]);
-        /* カラー値は ";" 区切り（各値は "C,c,m,y,k" 等で "," を含むため）/ Values are ";"-separated (each contains ",") */
-        if (parts[3]) {
-            info.colorValues = parts[3].split(";");
-        }
-        parseSelectionStats(info, parts);
-        return info;
-    }
-
-    /* 文字列配列を worker 呼び出し用の配列リテラルに（encode済み名/シリアライズ値のどちらも安全）
-       Serialize a string array as an array literal (safe for encoded names or serialized values) */
-    function stringsToLiteral(items) {
-        if (!items || items.length === 0) return "[]";
-        var quoted = [];
-        for (var i = 0; i < items.length; i++) {
-            quoted.push("\"" + items[i] + "\"");
-        }
-        return "[" + quoted.join(",") + "]";
-    }
-
-    /* オプションを worker へ渡すオブジェクトリテラル文字列に / Serialize options as an object literal for the worker */
-    function optionsToLiteral(options) {
-        return "{unit:\"" + options.unit + "\",order:\"" + options.order + "\"}";
+    /* "r,g,b" を [r,g,b] にパース / Parse an "r,g,b" string into [r,g,b] */
+    function parseRGBTripletW(csv) {
+        var p = csv.split(",");
+        return [parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10)];
     }
 
     // =========================================
-    // worker 関数（メインエンジン・DOM）/ Worker functions (main engine, DOM)
-    // -----------------------------------------
-    // ※ toString() は改行を消すため、// 行コメント禁止・/* */ のみ・各文はセミコロンで終える
-    // -----------------------------------------
+    // DOM 処理 / DOM operations
+    // =========================================
 
-    /* カラーを適用（swatchNames=スウォッチ名 / colorValues=シリアライズ済みカラー値、どちらか一方 / finalApply=確定時）。
-       元の塗り/線/不透明度は開いた最初の1回だけ全選択ぶんスナップショット（ベースライン）し、以降のプレビューは上書きのみ。
-       どの配色単位でも可視グリフ・全オブジェクトを必ず塗り直すので見た目は常に正しい。取り消しは Cmd+Z（app.undo は使わない）
-       Apply colors. Snapshot the whole selection once (baseline); later previews only overwrite. */
-    function workerApply(options, swatchNames, colorValues, finalApply) {
+    /* 初回プレビューを実行。重い選択（長文・多数オブジェクト）のときだけプログレスバーを出す。
+       軽い選択では一瞬で終わるためバーは出さない（点滅を避ける）
+       Run the first preview; show a progress bar only for a heavy selection (long text / many objects).
+       Light selections finish instantly, so no bar is shown (avoids a flash) */
+    function runFirstPreviewW(options, swatchNames) {
+        var selection = (app.documents.length > 0) ? app.activeDocument.selection : null;
+        var items = selection ? flattenSelectionW(selection) : [];
+        var textRange = selection ? getSingleSelectedTextRangeW(selection) : null;
+        var heavy = (baselineCharTotalW(items, textRange) > 1000) || (items.length > 300);
+        if (!heavy) { workerApply(options, swatchNames); return; }
+        var progress = createProgressW(L("progress.title"));
+        try {
+            workerApply(options, swatchNames, false, progress);
+        } finally {
+            progress.close();
+        }
+    }
+
+    /* カラーを適用（swatchNames=適用するスウォッチ名の配列）。
+       元の塗り/線/不透明度は開いた最初の1回だけ全選択ぶんスナップショット（ベースライン）し、
+       以降のプレビューは上書きのみ＝復元も再スナップショットもしない。
+       どの配色単位でも可視グリフ・全オブジェクトを必ず塗り直すので見た目は常に正しく、
+       キャンセル時はベースラインから完全復元する（app.undo はグローバル履歴を巻き戻すため使わない）。
+       これで単位切替のたびに文字を読み直していた重さを解消する
+       Apply colors. Snapshot the whole selection's originals once (baseline); later previews only
+       overwrite — no restore, no re-snapshot. Every unit repaints all visible glyphs / all objects,
+       so the result is always correct; Cancel restores from the baseline (never app.undo) */
+    function workerApply(options, swatchNames, finalApply, progress) {
         if (app.documents.length === 0) return "NODOC";
         var doc = app.activeDocument;
         var selection = doc.selection;
         var items = flattenSelectionW(selection);
         var textRange = getSingleSelectedTextRangeW(selection);
-        /* オブジェクト選択は適用後にフォーカスを戻すため控える（テキスト編集中は戻さない）*/
+        /* オブジェクト選択は適用後に選択フォーカスを戻すため控える（テキスト編集中は戻さない）
+           Save the object selection to restore focus after applying (skip while editing text) */
         var savedSelection = textRange ? null : selection;
-        /* パレットは非モーダルで選択が変わりうる。選択が変わったら前のプレビューを元へ戻し、全キャッシュを破棄して作り直す
-           The palette is non-modal: on a selection change, revert the previous preview and drop all caches */
-        var selKey = selectionKeyW(items, textRange);
-        if ($.global.__aiApplySelKey !== selKey) {
-            paintBaselineW();
-            $.global.__aiApplyBaseline = null;
-            $.global.__aiApplyTargets = null;
-            $.global.__aiApplyTargetsUnit = null;
-            $.global.__aiApplyColors = null;
-            $.global.__aiApplyGroupIndex = null;
-            $.global.__aiApplyWasDecimated = null;
-            $.global.__aiApplySelKey = selKey;
-        }
-        /* 同一単位のプレビューでは対象集合をキャッシュ再利用（順序変更だけなら作り直さない）*/
+        if (progress) { progress.set(0.1, L("progress.analyze")); }
+        /* 同一単位のプレビューでは対象集合をキャッシュ再利用（順序変更だけなら作り直さない）
+           Reuse the cached target set across previews of the same unit (order-only changes skip the rebuild) */
         var targets = collectTargetsCachedW(items, textRange, options.unit);
         if (targets.length === 0) { restoreBaselineW(); app.redraw(); return "NOSEL"; }
-        /* 元状態は初回だけ取得（重い文字読み取りは1回きり）*/
-        ensureBaselineW(items, textRange);
-        /* 着色前の準備（間引きの要否と着色件数）*/
+        /* 元状態は初回だけ取得（重い文字読み取りは1回きり）。進捗はここが主コスト
+           Snapshot originals only once (the heavy per-char read happens once); this is the main progress cost */
+        if (progress) { progress.set(0.2, L("progress.snapshot")); }
+        ensureBaselineW(items, textRange, progress ? function (frac) { progress.set(0.2 + frac * 0.6, L("progress.snapshot")); } : null);
+
+        /* 着色前の準備（間引きの要否と着色件数を決める）/ Prepare before coloring (decide decimation and count) */
         var prep = prepareApplyW(items, textRange, options.unit, targets.length, finalApply);
         if (!finalApply) { $.global.__aiApplyWasDecimated = prep.decimated; }
-        /* ランダム系（並びシャッフル・完全ランダム抽選・自動CMYK生成）はプレビューと確定で変わらないよう、
-           プレビュー時に生成した配色と抽選結果を保存し、確定（finalApply）時はそれを再利用する */
+
+        if (progress) { progress.set(0.85, L("progress.apply")); }
+        /* ランダム系（並びシャッフル・完全ランダム抽選・自動CMYK生成）はプレビューと確定で結果が変わらないよう、
+           プレビュー時に生成した配色と抽選結果を保存し、確定（finalApply）時はそれを再利用する
+           Keep random results stable between preview and commit: generate & store the colors and the
+           fully-random draws on preview, then reuse them on commit */
         var colors, groupIndexCache;
         if (finalApply && $.global.__aiApplyColors) {
             colors = $.global.__aiApplyColors;
             groupIndexCache = $.global.__aiApplyGroupIndex || {};
         } else {
-            colors = orderColorsW(resolveAppliedColorsW(doc, targets.length, swatchNames, colorValues), options.order);
+            colors = orderColorsW(resolveAppliedColorsW(doc, targets.length, swatchNames), options.order);
             groupIndexCache = {};
             $.global.__aiApplyColors = colors;
             $.global.__aiApplyGroupIndex = groupIndexCache;
         }
         applyColorsToTargetsW(targets, prep.limit, colors, options.order === "fullrandom", prep.decimated, groupIndexCache);
-        /* 適用で変わった選択（フォーカス）を元に戻す */
+        if (progress) { progress.set(1, L("progress.apply")); }
+
+        /* 適用で変わった選択（フォーカス）を元に戻す / Restore the selection changed by applying */
         if (savedSelection) { try { app.selection = savedSelection; } catch (e) {} }
         app.redraw();
         return "OK";
     }
 
-    /* 閉じる時の確定処理。間引きプレビューだったときだけ保存配色で全文字をフル着色し、その後ベースラインを破棄する
-       Finalize on close: if the preview was decimated, apply fully using the saved colors, then discard the baseline */
-    function workerFinalize(options, swatchNames, colorValues) {
-        if ($.global.__aiApplyWasDecimated) { workerApply(options, swatchNames, colorValues, true); }
-        return workerCommitPreview();
-    }
-
-    /* 着色前の準備。1文字単位で対象が多いプレビューは間引き（先頭 PREVIEW_CHAR_CAP だけ着色し残りは元色）、
-       それ以外は線なし・不透明度100 を範囲へ一括設定。戻り値 { decimated, limit } */
+    /* 着色前の準備。1文字単位で対象が多いプレビューは間引き（先頭 PREVIEW_CHAR_CAP だけ着色し残りは元色）にし、
+       それ以外は線なし・不透明度100 を範囲へ一括設定。戻り値 { decimated, limit } で着色ループを制御する
+       Prepare before coloring. Long per-character previews are decimated (color the first PREVIEW_CHAR_CAP,
+       leave the rest original); otherwise stroke/opacity is reset in bulk. Returns { decimated, limit } */
     function prepareApplyW(items, textRange, unitMode, targetCount, finalApply) {
         var decimated = (!finalApply && unitMode === "character" && targetCount > PREVIEW_CHAR_CAP);
-        if (decimated) { paintBaselineW(); return { decimated: true, limit: PREVIEW_CHAR_CAP }; }
+        if (decimated) {
+            /* 前回プレビューの着色を元へ戻してから先頭だけ塗る（残りが元の色で見える）
+               Repaint originals first, then color just the head (so the tail shows the original color) */
+            paintBaselineW();
+            return { decimated: true, limit: PREVIEW_CHAR_CAP };
+        }
+        /* 線なし・不透明度100 は全テキスト対象で共通。文字ごとに書かず範囲へ1回だけ書く
+           No stroke / 100% opacity is common to all text targets; write it once per range, not per character */
         resetTextStrokeOpacityW(items, textRange);
         return { decimated: false, limit: targetCount };
     }
 
     /* 対象 targets の先頭 limit 件へ色を適用。完全ランダムはグループごとに1回抽選（groupIndexCache に保持）、
-       間引き時は文字ごとに線・不透明度も設定 */
+       間引き時は文字ごとに線・不透明度も設定
+       Color the first `limit` targets. Fully random draws once per group (cached in groupIndexCache);
+       when decimated, set stroke/opacity per char too */
     function applyColorsToTargetsW(targets, limit, colors, isFullRandom, decimated, groupIndexCache) {
         for (var i = 0; i < limit; i++) {
             var colorIndex;
@@ -855,70 +687,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         }
     }
 
-    /* 対象集合を単位ごとにキャッシュ。単位が同じなら作り直さない（順序変更だけのプレビューを速くする）*/
+    /* 対象集合を単位ごとにキャッシュ。単位が同じなら作り直さない（順序変更だけのプレビューを速くする）。
+       モーダル中は選択が変わらないので live 参照（Character/TextRange 等）も次回まで有効
+       Cache the target set per unit; rebuild only when the unit changes (order-only previews stay fast).
+       The selection is stable during the modal, so the live references remain valid until the next rebuild */
     function collectTargetsCachedW(items, textRange, unitMode) {
-        if ($.global.__aiApplyTargetsUnit === unitMode && $.global.__aiApplyTargets) { return $.global.__aiApplyTargets; }
+        if ($.global.__aiApplyTargetsUnit === unitMode && $.global.__aiApplyTargets) {
+            return $.global.__aiApplyTargets;
+        }
         var targets = (items.length > 0 || textRange) ? collectColorTargetsByUnitW(items, textRange, unitMode) : [];
         $.global.__aiApplyTargets = targets;
         $.global.__aiApplyTargetsUnit = unitMode;
         return targets;
     }
 
-    /* 元状態のベースラインを初回だけ取得（全選択ぶん・テキストは文字単位で忠実に保存）*/
-    function ensureBaselineW(items, textRange) {
+    /* 元状態のベースラインを初回だけ取得（全選択ぶん・テキストは文字単位で忠実に保存）。
+       単位に依存せず選択全体を控えるので、以後どの単位に切り替えても復元・再取得が不要
+       Take the baseline of originals once (whole selection; text per character). Since it covers the
+       entire selection regardless of unit, no later restore or re-snapshot is needed */
+    function ensureBaselineW(items, textRange, onProgress) {
         if ($.global.__aiApplyBaseline) { return; }
         var baseline = [];
-        if (textRange) { snapshotTargetW({ kind: "textrange", node: textRange }, baseline); }
+        /* 進捗コンテキスト：処理済み文字数を総数で割って onProgress へ通知（テキストが無ければ null）
+           Progress context: report processed chars / total to onProgress (null when there is no text) */
+        var ctx = onProgress ? { done: 0, total: baselineCharTotalW(items, textRange), report: onProgress } : null;
+        if (textRange) { snapshotTargetW({ kind: "textrange", node: textRange }, baseline, ctx); }
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
-            if (it.typename === "TextFrame") { snapshotTargetW({ kind: "textframe", node: it }, baseline); }
-            else if (it.typename === "PathItem") { snapshotTargetW({ kind: "path", node: it }, baseline); }
-            else if (it.typename === "CompoundPathItem") { snapshotTargetW({ kind: "compound", node: it }, baseline); }
+            if (it.typename === "TextFrame") { snapshotTargetW({ kind: "textframe", node: it }, baseline, ctx); }
+            else if (it.typename === "PathItem") { snapshotTargetW({ kind: "path", node: it }, baseline, ctx); }
+            else if (it.typename === "CompoundPathItem") { snapshotTargetW({ kind: "compound", node: it }, baseline, ctx); }
         }
         $.global.__aiApplyBaseline = baseline;
     }
 
-    /* 選択の同一性キー（選択の形だけ。塗り替えで変化しない値で作る）。前回と変われば選択が変わった＝作り直す
-       Identity key for the selection shape (values coloring never changes); a change means re-capture */
-    function selectionKeyW(items, textRange) {
-        var parts = [items.length];
-        parts.push(textRange ? ("tr:" + textRange.start + ":" + textRange.end) : "tr:-");
+    /* ベースライン取得で読む総文字数を見積もる（進捗の分母）/ Estimate total characters read for the baseline (progress denominator) */
+    function baselineCharTotalW(items, textRange) {
+        var total = 0;
+        if (textRange) { total += textRange.characters.length; }
         for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var key = item.typename;
-            try {
-                var b = item.geometricBounds;
-                key += ":" + Math.round(b[0] * 100) + ":" + Math.round(b[1] * 100) + ":" + Math.round(b[2] * 100) + ":" + Math.round(b[3] * 100);
-            } catch (e) { key += ":?"; }
-            if (item.typename === "TextFrame") {
-                try { key += ":" + item.textRange.end; } catch (e2) { key += ":?"; }
-            }
-            parts.push(key);
+            if (items[i].typename === "TextFrame") { total += items[i].textRange.characters.length; }
         }
-        return parts.join("|");
+        return total > 0 ? total : 1;
     }
 
-    /* 現在のプレビューを確定（各キャッシュを破棄＝以後 restore しない）。閉じる時・初回開始前に呼ぶ */
+    /* 現在のプレビューを確定（ベースラインを破棄＝以後 restore しない）。閉じる時・初回開始前に呼ぶ
+       Commit the current preview: discard the baseline so it is never restored (called on close / before first preview) */
     function workerCommitPreview() {
         $.global.__aiApplyBaseline = null;
+        $.global.__aiApplySwatchMap = null;
         $.global.__aiApplyTargets = null;
         $.global.__aiApplyTargetsUnit = null;
         $.global.__aiApplyColors = null;
         $.global.__aiApplyGroupIndex = null;
         $.global.__aiApplyWasDecimated = null;
-        $.global.__aiApplySelKey = null;
         return "OK";
     }
 
-    /* 「スウォッチ」パネルを表示（メニューコマンドはメインエンジンでのみ実行可）
-       Show the Swatches panel (menu commands only run in the main engine) */
-    function workerOpenSwatchesPanel() {
-        app.executeMenuCommand('Adobe Swatches Menu Item');
-        return "OK";
-    }
-
-    /* ベースライン（元の塗り/線/不透明度）を画面へ書き戻すが破棄はしない。間引きプレビューで着色しなかった残りを元色に戻す用
-       Repaint the baseline (originals) without discarding it; used by the decimated preview to reset the tail */
+    /* ベースライン（元の塗り/線/不透明度）を画面へ書き戻すが、破棄はしない。
+       間引きプレビューで着色しなかった残りを元の色に戻すのに使う
+       Repaint the baseline (originals) without discarding it; used by the decimated preview to
+       reset the characters it did not color back to their originals */
     function paintBaselineW() {
         var baseline = $.global.__aiApplyBaseline;
         if (!baseline) { return; }
@@ -927,18 +756,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         }
     }
 
-    /* ベースラインを書き戻して破棄（対象なし時など。以後 restore しない）
-       Repaint the baseline and discard it (e.g. when there are no targets; never restored afterward) */
+    /* ベースラインを書き戻して破棄（キャンセル・Esc・閉じる時。以後 restore しない）
+       Repaint the baseline and discard it (Cancel / Esc / close; never restored afterward) */
     function restoreBaselineW() {
         paintBaselineW();
         $.global.__aiApplyBaseline = null;
     }
 
-    /* スナップショット1件を復元。テキストは同色ランを範囲1回で書き戻す（1文字ずつより桁違いに速い）
-       Restore one snapshot entry; text runs are written back in a single span write */
+    /* スナップショット1件を復元 / Restore one snapshot entry */
     function restoreOneSnapshotW(entry) {
         var node = entry.node;
         if (entry.kind === "textrun") {
+            /* 同色ランを範囲1回で書き戻す（1文字ずつより桁違いに速い）/ Restore a run in one span write (far faster than per character) */
             var range = entry.story.textRange;
             range.start = entry.start; range.end = entry.end;
             range.fillColor = entry.fill; range.strokeColor = entry.stroke; range.opacity = entry.opacity;
@@ -954,11 +783,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
 
     /* 着色前の対象の元の状態を snapshot 配列へ保存（テキストは文字単位で忠実に保存）
        Snapshot a target's originals into the array (text is snapshotted per character for fidelity) */
-    function snapshotTargetW(target, out) {
+    function snapshotTargetW(target, out, ctx) {
         var node = target.node;
-        if (target.kind === "span") { snapshotCharactersW(spanRangeW(target), out); }
-        else if (target.kind === "textrange") { snapshotCharactersW(node, out); }
-        else if (target.kind === "textframe") { snapshotCharactersW(node.textRange, out); }
+        if (target.kind === "span") { snapshotCharactersW(spanRangeW(target), out, ctx); }
+        else if (target.kind === "textrange") { snapshotCharactersW(node, out, ctx); }
+        else if (target.kind === "textframe") { snapshotCharactersW(node.textRange, out, ctx); }
         else if (target.kind === "path") { out.push({ kind: "path", node: node, fill: node.fillColor, stroked: node.stroked, opacity: node.opacity }); }
         else if (target.kind === "compound") {
             var subs = node.pathItems;
@@ -968,13 +797,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         }
     }
 
-    /* テキスト範囲を「同色ラン」単位でスナップショット（元が混色でも忠実に戻せる／文字ごと保存より桁違いに軽い）。
-       連続範囲なので i 文字目の story オフセットは range.start + i（ch.start の DOM 読み取りを省く）
-       Snapshot a text range as same-color runs (faithful for mixed originals, far lighter than per-character) */
-    function snapshotCharactersW(range, out) {
+    /* テキスト範囲を文字単位でスナップショット（元が混色でも忠実に戻せる）
+       Snapshot a text range per character (so mixed original colors restore faithfully) */
+    function snapshotCharactersW(range, out, ctx) {
         var story = range.story;
         var chars = range.characters;
         var count = chars.length;
+        /* 連続範囲なので i 文字目の story オフセットは range.start + i（ch.start の DOM 読み取りを省く）
+           The range is contiguous, so character i's story offset is range.start + i (avoids reading ch.start) */
         var rangeStart = range.start;
         var started = false;
         var runFill = null, runStroke = null, runOpacity = 0, runKey = null, runStart = 0, runEnd = 0;
@@ -984,8 +814,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             var stroke = ch.strokeColor;
             var opacity = ch.opacity;
             var chStart = rangeStart + i;
+            /* 一定文字ごとに進捗を通知（毎回だと更新自体が重い）/ Report progress every N chars (updating each time is itself costly) */
+            if (ctx) { ctx.done++; if ((ctx.done % 200) === 0) { ctx.report(ctx.done / ctx.total); } }
             var key = colorKeyW(fill) + "|" + colorKeyW(stroke) + "|" + opacity;
             if (started && key === runKey) {
+                /* 見た目が同じ連続文字は run を伸ばす / extend the run for contiguous identical characters */
                 runEnd = chStart + 1;
             } else {
                 if (started) { out.push({ kind: "textrun", story: story, start: runStart, end: runEnd, fill: runFill, stroke: runStroke, opacity: runOpacity }); }
@@ -997,14 +830,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         if (started) { out.push({ kind: "textrun", story: story, start: runStart, end: runEnd, fill: runFill, stroke: runStroke, opacity: runOpacity }); }
     }
 
-    /* 色の同一性キー（NoColor 対応・SpotColor は tint も含める）。run 判定に使う
-       Identity key for a color (NoColor-aware; SpotColor includes tint) used for run detection */
+    /* 色の同一性キー（NoColor 対応。塗り・線の run 判定に使う）/ Identity key for a color (NoColor-aware; used for run detection) */
     function colorKeyW(color) {
         if (color.typename === "NoColor") { return "N"; }
-        if (color.typename === "SpotColor") {
-            var tint = (typeof color.tint === "number") ? color.tint : 100;
-            return "S," + tint + "," + serializeColorW(color);
-        }
         return serializeColorW(color);
     }
 
@@ -1048,35 +876,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
            which would make a single paragraph look like two and wrongly enable the paragraph unit */
         var paragraphCount = (textObjectCount === 1) ? countParagraphsW(singleTextRange) : 0;
         return { isText: isText, paragraphCount: paragraphCount, textObjectCount: textObjectCount };
-    }
-
-    /* 配色単位のディム判定に必要な統計だけを返す（ポーリング用の軽量版：スウォッチ取得・チップ生成をしない）
-       "OK|<itemCount>|<isText>|<paragraphCount>|<textObjectCount>"
-       Return only the stats needed for unit dims (lightweight poll path: no swatch read, no chips) */
-    function workerReadStats() {
-        if (app.documents.length === 0) return "NODOC";
-        var items = flattenSelectionW(app.selection);
-        var stats = selectionTextStatsW(items, getSingleSelectedTextRangeW(app.selection));
-        return "OK|" + items.length + "|" + (stats.isText ? "1" : "0") + "|" + stats.paragraphCount + "|" + stats.textObjectCount;
-    }
-
-    /* 選択オブジェクトの塗り色を返す "OK|<defaultUnit>|<r,g,b;...>|<serialized;...>|<itemCount>|<isText>|<paragraphCount>|<textObjectCount>" / Return fill colors of selected objects */
-    function workerReadObjectColors() {
-        if (app.documents.length === 0) return "NODOC";
-        var items = flattenSelectionW(app.selection);
-        var textRange = getSingleSelectedTextRangeW(app.selection);
-        var defaultUnit = "object";
-        if (textRange) { defaultUnit = "character"; }
-        else if (items.length === 1 && items[0].typename === "TextFrame") { defaultUnit = "character"; }
-        var fillColors = collectFillColorsW(items, textRange);
-        var chipParts = [];
-        var valueParts = [];
-        for (var i = 0; i < fillColors.length; i++) {
-            chipParts.push(colorToRGB255W(fillColors[i]));
-            valueParts.push(serializeColorW(fillColors[i]));
-        }
-        var stats = selectionTextStatsW(items, textRange);
-        return "OK|" + defaultUnit + "|" + chipParts.join(";") + "|" + valueParts.join(";") + "|" + items.length + "|" + (stats.isText ? "1" : "0") + "|" + stats.paragraphCount + "|" + stats.textObjectCount;
     }
 
     /* 選択をフラット化して色付け対象のみ収集 / Flatten selection to colorable items */
@@ -1211,8 +1010,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         return range;
     }
 
-    /* テキストの線・不透明度をまとめて初期化（線なし・不透明度100）。全テキスト対象で同じ値なので範囲へ1回だけ書く
-       Reset stroke/opacity for text in bulk; the value is the same for every text target, so write it once per range */
+    /* テキストの線・不透明度をまとめて初期化（線なし・不透明度100）。
+       全テキスト対象で同じ値なので、対象範囲へ1回だけ書き込む（1文字ずつ書くと重い）
+       Reset stroke/opacity for text in bulk (no stroke, 100% opacity); the value is the same for every
+       text target, so write it once per range instead of per character */
     function resetTextStrokeOpacityW(items, textRange) {
         if (textRange) { applyNoStrokeFullOpacityW(textRange); }
         for (var i = 0; i < items.length; i++) {
@@ -1226,12 +1027,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         range.opacity = 100;
     }
 
-    /* 間引きプレビュー用：1文字に塗り・線なし・不透明度100 をまとめて設定（着色しない残りは元色のまま）
-       For decimated preview: set fill + no-stroke + 100% opacity on a single character (the rest stays original) */
+    /* 間引きプレビュー用：1文字に塗り・線なし・不透明度100 をまとめて設定（着色しない残りは元色のまま）。
+       全体の resetTextStrokeOpacityW を使わず文字単位で設定するのは、着色範囲外の元の線・不透明度を保つため
+       For decimated preview: set fill + no-stroke + 100% opacity on a single character. Done per character
+       (not via the range-wide resetTextStrokeOpacityW) so the uncolored tail keeps its original stroke/opacity */
     function applyColorFullToCharW(target, color) {
         var node = target.node;
         node.fillColor = color;
-        applyNoStrokeFullOpacityW(node);
+        applyNoStrokeFullOpacityW(node); /* Character も strokeColor/opacity を持つので流用 / a Character also has strokeColor/opacity */
     }
 
     /* ターゲットに塗りを設定（テキストの線・不透明度は resetTextStrokeOpacityW でまとめて処理済み）
@@ -1285,18 +1088,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    /* 使用するカラーを決定（取り込んだスウォッチ名 or カラー値を最優先、無ければ自動カラー）
-       Resolve colors (captured swatch names or serialized values take priority; otherwise auto colors) */
-    function resolveAppliedColorsW(doc, targetCount, swatchNames, colorValues) {
+    /* 使用するカラーを決定（取り込んだスウォッチ名を最優先、無ければ自動カラー）
+       Resolve colors (captured swatch names take priority; otherwise auto colors) */
+    function resolveAppliedColorsW(doc, targetCount, swatchNames) {
         var colors = [];
         if (swatchNames && swatchNames.length > 0) {
+            /* 名前→色マップはダイアログ中1回だけ構築してキャッシュ（モーダル中スウォッチは変わらない）。
+               プレビューは頻繁に走るので毎回の全スウォッチ走査を避ける
+               Build the name->color map once per dialog and cache it (swatches never change during the
+               modal); the preview fires often, so avoid rescanning all swatches every time */
+            var swatchColorsByName = $.global.__aiApplySwatchMap || ($.global.__aiApplySwatchMap = buildSwatchColorMapW(doc));
             for (var i = 0; i < swatchNames.length; i++) {
-                var swatchColor = findSwatchColorByNameW(doc, decodeURIComponent(swatchNames[i]));
+                var swatchColor = swatchColorsByName["$" + decodeURIComponent(swatchNames[i])];
                 if (swatchColor) { colors.push(swatchColor); }
-            }
-        } else if (colorValues && colorValues.length > 0) {
-            for (var j = 0; j < colorValues.length; j++) {
-                colors.push(deserializeColorW(colorValues[j]));
             }
         }
         if (colors.length >= 1) { return colors; }
@@ -1304,70 +1108,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         return getDefaultRGBColorsW();
     }
 
-    /* スウォッチ名から色を取得（選択状態に依存しない）/ Find a swatch color by name (independent of selection state) */
-    function findSwatchColorByNameW(doc, name) {
+    /* スウォッチ名→色のマップを生成（選択状態に依存しない）。キーは "$"+名前でプロトタイプ汚染を回避
+       Build a name->color map (independent of selection state); keys are "$"+name to dodge prototype collisions */
+    function buildSwatchColorMapW(doc) {
+        var map = {};
         var swatches = doc.swatches;
         for (var i = 0; i < swatches.length; i++) {
-            if (swatches[i].name === name) { return swatches[i].color; }
+            var key = "$" + swatches[i].name;
+            if (map[key] === undefined) { map[key] = swatches[i].color; }
         }
-        return null;
+        return map;
     }
 
-    /* 選択オブジェクトの塗り色を重複なく収集 / Collect distinct fill colors from selected objects */
-    function collectFillColorsW(items, textRange) {
-        var candidates = [];
-        if (textRange) { candidates.push(textRange.characterAttributes.fillColor); }
-        for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            if (it.typename === "PathItem") { candidates.push(it.fillColor); }
-            else if (it.typename === "CompoundPathItem" && it.pathItems.length > 0) { candidates.push(it.pathItems[0].fillColor); }
-            else if (it.typename === "TextFrame") { candidates.push(it.textRange.characterAttributes.fillColor); }
-        }
-        var colors = [];
-        var seen = {};
-        for (var j = 0; j < candidates.length; j++) {
-            var c = candidates[j];
-            if (!isApplicableFillColorW(c)) { continue; }
-            var key = serializeColorW(c);
-            if (seen[key]) { continue; }
-            seen[key] = true;
-            colors.push(c);
-        }
-        return colors;
-    }
-
-    /* 単色として取り込める塗り色か（NoColor・グラデ・パターンは除外）
-       Whether a fill is a solid color usable as a swatch (skip NoColor / gradient / pattern) */
-    function isApplicableFillColorW(color) {
-        if (!color) { return false; }
-        var t = color.typename;
-        return (t === "CMYKColor" || t === "RGBColor" || t === "GrayColor" || t === "SpotColor");
-    }
-
-    /* カラーを文字列にシリアライズ / Serialize a color to a string */
+    /* カラーを同一性キー文字列にシリアライズ（colorKeyW の run 判定に使用）。
+       SpotColor は tint も含める（tint 違いを別色として区別するため）
+       Serialize a color to an identity key (used by colorKeyW for run detection);
+       SpotColor includes tint so different tints are treated as distinct colors */
     function serializeColorW(color) {
         var t = color.typename;
         if (t === "CMYKColor") { return "C," + color.cyan + "," + color.magenta + "," + color.yellow + "," + color.black; }
         if (t === "RGBColor") { return "R," + color.red + "," + color.green + "," + color.blue; }
         if (t === "GrayColor") { return "G," + color.gray; }
-        if (t === "SpotColor") { return serializeColorW(color.spot.color); }
+        if (t === "SpotColor") {
+            var tint = (typeof color.tint === "number") ? color.tint : 100;
+            return "S," + tint + "," + serializeColorW(color.spot.color);
+        }
         return "R,128,128,128";
-    }
-
-    /* 文字列からカラーを復元 / Reconstruct a color from a string */
-    function deserializeColorW(str) {
-        var p = str.split(",");
-        if (p[0] === "C") { return buildCMYKColorW(Number(p[1]), Number(p[2]), Number(p[3]), Number(p[4])); }
-        if (p[0] === "R") { return buildRGBColorW(Number(p[1]), Number(p[2]), Number(p[3])); }
-        if (p[0] === "G") { return buildGrayColorW(Number(p[1])); }
-        return buildRGBColorW(128, 128, 128);
-    }
-
-    /* Gray カラーを生成 / Build a GrayColor */
-    function buildGrayColorW(gray) {
-        var color = new GrayColor();
-        color.gray = gray;
-        return color;
     }
 
     /* 適用順に並べ替え（完全ランダムは適用側でインデックスを抽選するので並びは変えない）
@@ -1501,6 +1267,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         return "128,128,128";
     }
 
-    showPalette();
+    showDialog();
 
 })();

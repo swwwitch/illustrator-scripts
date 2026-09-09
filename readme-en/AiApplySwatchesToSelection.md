@@ -1,4 +1,4 @@
-# AiApplySwatchesToSelection
+# Distribute colors across objects and text
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiApplySwatchesToSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/AiApplySwatchesToSelection.jsx)
 
@@ -10,7 +10,7 @@
 
 ### Overview
 
-A persistent palette that applies swatches, or predefined colors, to the selected objects and text.
+A modal dialog that applies swatches, or predefined colors, to the selected objects and text.
 
 ### Features
 
@@ -18,20 +18,28 @@ A persistent palette that applies swatches, or predefined colors, to the selecte
 - Application order selectable as as-is, reversed, random or fully random
 - "Random" shuffles the color order and repeats it; "fully random" draws for each target, so nothing repeats
 - Live preview on every radio change
-- The swatches selected when the palette opens are captured and used by name from then on
+- Colors come either from the swatches selected when the dialog opens, or from a swatch group picked in the dropdown
+- Units that do not fit the selection are dimmed automatically
+- "Per word" staggers colors so each line starts on a different color
 
 ### Usage
 
 1. Select the objects or text.
-2. Run the script to open the palette.
-3. Choose the unit and the order; the result updates live.
+2. Select the swatches to use in the Swatches panel.
+3. Run the script, then choose the unit and the order; the result updates live.
+4. [OK] commits the result; [Cancel] or Esc reverts it.
 
 ### Notes
 
-- There is no Apply button: the state when the palette closes is what sticks. Use Cmd+Z to undo.
 - Even a single selected swatch takes priority over the predefined colors.
-- AiApplySwatchesToSelection-dialog.jsx is the modal-dialog version.
+- When no swatches are selected, auto colors are used (CMYK: two-channel CM/CY/MY mixes; RGB: six predefined colors).
+- The swatch group dropdown skips the unnamed (uncategorized) group and any group with no colors; it is dimmed when the document has no groups.
+- The preview is reverted from a snapshot of the original fill, stroke and opacity rather than with `app.undo()`, which would roll back the whole document history.
+- Per-character previewing colors the first 500 characters only; the rest is colored when you press [OK].
 
 ### Update History
 
-- v1.8.0
+- v1.8.1 (2026-09-09): Merged the persistent-palette and modal-dialog versions into the dialog version
+- v1.8.0 (2026-07-19): Preview is now reverted from a snapshot baseline; per-character coloring of long text is decimated while previewing
+- v1.7.3 (2026-07-17): Lighter behavior while the UI is open
+- v1.7.2 (2026-07-17): Added "fully random" to the application order
