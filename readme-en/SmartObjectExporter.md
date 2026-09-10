@@ -19,10 +19,12 @@ The background, margin, border, export size and filename are set in a dialog, an
 ### Main Features
 
 - Copies the selection onto a working layer, so nothing else appears in the exported image
-- Background: transparent, black, white, transparency grid or a color code. The grid tile size is given as a percentage, where 100% is 10 ruler units
+- Text is measured from an outlined copy, so the export area follows the actual glyphs (the original text is left untouched)
+- Background: transparent, black, white, transparency grid or a color code. The grid tile size is given as a percentage, where 100% is an 8pt square
 - Color codes accept three formats: `#RRGGBB`, `R255G255B255` and `C0M100Y100K0`
-- Margin: none, horizontal, vertical or all sides, in the current ruler unit
-- Border: width plus color (black, white or a color code), drawn inside the export area with a minimum of 1px
+- Margin: top, bottom, left and right set individually, in the current ruler unit. Same Value applies the top value to all four sides
+- Size fine-tuning picks how the export area is rounded: Optimize to pixel grid, Round values in current unit, or Do nothing
+- Border: enabled by the Width checkbox, with a width plus color (black, white or a color code), drawn inside the export area with a minimum of 1px
 - Export size: 1x to 4x, a custom scale (%) or a target width (px). The 1x–4x labels show the resulting pixel size including the margin, and follow the margin as it changes
 - Filename built from the document name (used or ignored), a delimiter (none, `-`, `_`) and a suffix, with a live preview
 - The chosen scale or target width is reused as the suffix automatically
@@ -45,20 +47,21 @@ The background, margin, border, export size and filename are set in a dialog, an
 | --- | --- |
 | Preset | Recalls a built-in setting. Save Preset writes the current settings to the desktop as text |
 | Background | Transparent / Black / White / Transparency grid (%) / Color code |
-| Margin | None / Horizontal / Vertical / All sides, in the current ruler unit |
-| Border | None / Add (width plus black, white or a color code) |
+| Margin | Top / Bottom / Left / Right, in the current ruler unit; Same Value keeps all four equal; Size fine-tuning picks the rounding |
+| Border | Width checkbox plus a width in the current ruler unit, and black, white or a color code |
 | Export Size (px) | 1x–4x / custom scale (%) / target width (px) |
-| Export Filename | Whether to use the document name, the delimiter and the suffix |
+| Export Filename | Whether to use the document name, the delimiter, and the Suffix checkbox with its value |
 | Export Location | Desktop / same folder as the file, and whether to show the folder afterwards |
 
 ### Notes
 
-- The export area is rounded to whole units so the result is pixel perfect. At 100% one pt equals one px.
+- The export area is grown outward according to Size fine-tuning, so the artwork is never clipped. The default, Optimize to pixel grid, rounds to whole points, and at 100% one pt equals one px.
 - The border is drawn inside the export area, so add a margin as well when you need clearance around the artwork.
 - For an unsaved document, "Same as File" falls back to the desktop.
 - "Show Folder After Export" is macOS only.
 - The export scale is capped at 776.19%. When a target width asks for more, the image is exported at the cap and the applied scale is reported.
 - A very small transparency grid percentage would produce a huge number of tiles, so the tile size is enlarged automatically past a certain point.
+- Text is outlined on a temporary copy only for measuring, and the copy is removed afterwards, so the original text is never modified.
 - Layers are hidden temporarily while the script runs, so the canvas changes during the process and is restored afterwards.
 
 ### Article
@@ -67,5 +70,6 @@ The background, margin, border, export size and filename are set in a dialog, an
 
 ### Update History
 
+- v1.0.1 (2026-09-11): Margins are now set per side with a Same Value option, Size fine-tuning picks how the export area is rounded, the border and the suffix are toggled with checkboxes, text is measured from an outlined copy, the transparency grid tile no longer depends on the ruler unit (an 8pt square at 100%), and the export size labels are no longer clipped
 - v1.0.0 (2026-09-11): Reorganized internals (shared settings reader, preview and export). Fixed the scale calculation for a target width, the error when a preset was selected, the RGB/CMYK color code formats, the custom scale radio that could not be selected, the margin in the scale labels, and the appearance on a dark UI
 - v0.5.0 (2025-06-19): Initial version

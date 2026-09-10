@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したオブジェクトを一時アートボードに収め、背景・余白・罫線・書き出しサイズ・ファイル名を指定してPNG書き出しします。
+選択したオブジェクトを一時アートボードに収め、背景・マージン・罫線・書き出しサイズ・ファイル名を指定してPNG書き出しします。
 設定した内容はアートボード上でそのままプレビューでき、よく使う組み合わせはプリセットとして呼び出せます。
 
 詳細は README を参照してください。
@@ -23,7 +23,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectExporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-19";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-11";                   /* 更新日 / last updated */
@@ -46,12 +46,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     var PREVIEW_BACKGROUND_NAME = "preview_background";
     var PREVIEW_BORDER_NAME     = "preview_border";
 
-    /* 単位ごとの初期値（余白・罫線幅）/ Initial margin and border width per ruler unit */
-    var DEFAULT_MARGIN_BY_UNIT = { mm: 3, _fallback: 10 };
+    /* 単位ごとの罫線幅の初期値 / Initial border width per ruler unit */
     var DEFAULT_BORDER_BY_UNIT = { mm: 0.1, _fallback: 1 };
 
-    /* 透明グリッド1マスの基準サイズ（現在の単位、100%のとき）/ Checker tile size at 100%, in ruler units */
-    var CHECKER_TILE_UNITS = 10;
+    /* 透明グリッド1マスの基準サイズ（pt、100%のとき）/ Checker tile size at 100%, in points */
+    var CHECKER_TILE_PT = 8;
 
     /* 透明グリッドの最大マス数（細かすぎる指定で描画が終わらなくなるのを防ぐ）
        / Cap on checker tiles, so a tiny percentage cannot stall the redraw */
@@ -82,9 +81,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     var BUTTON_BAR_MARGINS = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
 
     var NUMBER_FIELD_CHARS = 4;                /* 数値入力欄の文字数 / width of a numeric field */
+    var MARGIN_FIELD_CHARS = 3;                /* マージン入力欄の文字数 / width of a margin field */
     var COLOR_FIELD_CHARS  = 12;               /* カラーコード入力欄の文字数（C0M100Y100K0 が収まる幅）/ width of a color code field */
     var SUFFIX_FIELD_CHARS = 14;               /* 接尾辞入力欄の文字数 / width of the suffix field */
     var SIZE_RADIO_WIDTH   = 60;               /* 倍率・横幅ラジオのラベル幅 / label width of the scale rows */
+    var MARGIN_CELL_WIDTH  = { ja: 66, en: 82 }; /* マージン3×3グリッドの1マス幅 / cell width of the 3x3 margin grid */
     var FILENAME_ROW_HEIGHT = 22;              /* ファイル名プレビューの行高（ディセンダー切れ防止）/ row height of the filename preview */
 
     var DIALOG_OFFSET_X = 300;                 /* 画面中央からの横オフセット / horizontal offset from the screen center */
@@ -135,7 +136,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         },
         panel: {
             background: { ja: "背景色", en: "Background" },
-            margin: { ja: "余白", en: "Margin" },
+            margin: { ja: "マージン", en: "Margin" },
             border: { ja: "罫線", en: "Border" },
             size: { ja: "書き出しサイズ（px）", en: "Export Size (px)" },
             fileName: { ja: "書き出しファイル名", en: "Export Filename" },
@@ -147,12 +148,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             white: { ja: "白", en: "White" },
             checker: { ja: "透明グリッド", en: "Transparency Grid" },
             colorCode: { ja: "カラー指定", en: "Color Code" },
-            marginNone: { ja: "つけない", en: "None" },
-            marginHorizontal: { ja: "左右", en: "Horizontal" },
-            marginVertical: { ja: "上下", en: "Vertical" },
-            marginAll: { ja: "四辺", en: "All Sides" },
-            borderNone: { ja: "つけない", en: "None" },
-            borderOn: { ja: "つける", en: "Add" },
             useDocName: { ja: "参照する", en: "Use" },
             ignoreDocName: { ja: "参照しない", en: "Ignore" },
             none: { ja: "なし", en: "None" },
@@ -161,15 +156,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         },
         fieldLabel: {
             preset: { ja: "プリセット", en: "Preset" },
+            borderWidth: { ja: "線幅", en: "Width" },
             borderColor: { ja: "罫線カラー", en: "Border Color" },
             customScale: { ja: "倍率", en: "Scale" },
             targetWidth: { ja: "横幅", en: "Width" },
             documentName: { ja: "ファイル名", en: "Filename" },
+            marginTop: { ja: "上", en: "Top" },
+            marginBottom: { ja: "下", en: "Bottom" },
+            marginLeft: { ja: "左", en: "Left" },
+            marginRight: { ja: "右", en: "Right" },
+            roundMode: { ja: "サイズの微調整", en: "Size fine-tuning" },
             delimiter: { ja: "区切り文字", en: "delimiter" },
             suffix: { ja: "接尾辞", en: "Suffix" }
         },
         checkbox: {
+            linkMargin: { ja: "連動", en: "Same Value" },
             showFolder: { ja: "書き出し後、フォルダーを表示", en: "Show Folder After Export" }
+        },
+        roundMode: {
+            pixelGrid: { ja: "ピクセルグリッドに最適化", en: "Optimize to pixel grid" },
+            currentUnit: { ja: "現在の単位で値を整数値に", en: "Round values in current unit" },
+            none: { ja: "何もしない", en: "Do nothing" }
+        },
+        tooltip: {
+            linkMargin: { ja: "上の値を下・左・右にも適用します。", en: "Apply the top value to bottom, left, and right." },
+            roundPixel: {
+                ja: "書き出し範囲を整数ピクセルまで広げます（倍率100%で1pt＝1px）。",
+                en: "Grow the export area to whole pixels (at 100%, one pt equals one px)."
+            },
+            roundUnit: {
+                ja: "書き出し範囲を現在の定規単位で整数になるまで広げます。",
+                en: "Grow the export area to whole units in the current ruler unit."
+            },
+            roundNone: {
+                ja: "丸めずに、計測した範囲のまま書き出します。",
+                en: "Export the measured area as is, without rounding."
+            }
         },
         dropdown: {
             custom: { ja: "カスタム", en: "Custom" }
@@ -180,7 +202,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             ok: { ja: "OK", en: "OK" }
         },
         preset: {
-            transparent200: { ja: "透過・余白なし・倍率200%", en: "Transparent / No Margin / 200%" },
+            transparent200: { ja: "透過・マージンなし・倍率200%", en: "Transparent / No Margin / 200%" },
             whiteHorizontal300: { ja: "白背景・左右3mm・倍率300%", en: "White BG / Horizontal 3mm / 300%" },
             whiteVerticalWidth1000: { ja: "白背景・上下5mm・幅指定1000px", en: "White BG / Vertical 5mm / Width 1000px" },
             blackAll200: { ja: "黒背景・四辺10mm・倍率200%", en: "Black BG / All 10mm / 200%" }
@@ -205,13 +227,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         }
     };
 
-    /* 初期プリセット（値の書式は background / margin / border / location / delimiter / suffix / size）
+    /* 初期プリセット（値の書式は background / margin / round / border / location / delimiter / suffix / size）
        / Built-in presets, encoded the same way as a saved preset file */
     var PRESETS = [
         {
             label: LABELS.preset.transparent200,
             background: "transparent",
-            margin: "none",
+            margin: "0,0,0,0",
+            round: "pixelGrid",
             border: "none",
             location: "desktop",
             delimiter: "",
@@ -221,7 +244,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         {
             label: LABELS.preset.whiteHorizontal300,
             background: "white",
-            margin: "horizontal:3",
+            margin: "0,0,3,3",
+            round: "pixelGrid",
             border: "none",
             location: "desktop",
             delimiter: "_",
@@ -231,7 +255,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         {
             label: LABELS.preset.whiteVerticalWidth1000,
             background: "white",
-            margin: "vertical:5",
+            margin: "5,5,0,0",
+            round: "pixelGrid",
             border: "1,black",
             location: "desktop",
             delimiter: "_",
@@ -241,7 +266,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         {
             label: LABELS.preset.blackAll200,
             background: "black",
-            margin: "all:10",
+            margin: "10,10,10,10",
+            round: "pixelGrid",
             border: "none",
             location: "desktop",
             delimiter: "-",
@@ -299,10 +325,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
      * ラベル付きパネルを生成する（共通レイアウト適用）
      * @param {Window|Group} parentContainer - 追加先
      * @param {Object} titleLabelSet - パネル見出しのラベル定義
+     * @param {string} [unitLabel] - 見出しに添える単位（省略時は付けない）
      * @returns {Panel} 生成したパネル
      */
-    function addPanel(parentContainer, titleLabelSet) {
-        var createdPanel = parentContainer.add("panel", undefined, getLabel(titleLabelSet));
+    function addPanel(parentContainer, titleLabelSet, unitLabel) {
+        var panelTitle = getLabel(titleLabelSet);
+        if (unitLabel) panelTitle += (uiLang === "ja") ? "（" + unitLabel + "）" : " (" + unitLabel + ")";
+        var createdPanel = parentContainer.add("panel", undefined, panelTitle);
         setupPanel(createdPanel);
         return createdPanel;
     }
@@ -613,17 +642,113 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
     /**
      * 選択オブジェクトの外接範囲を求める
+     * テキストは字面の枠ではなく実際の字形で測るため、複製をアウトライン化してから計測する
      * @param {PageItem[]} selectedItems - 選択オブジェクト
      * @returns {number[]} [左, 上, 右, 下]
      */
     function getSelectionBounds(selectedItems) {
+        var temporaryItems = [];
+        try {
+            var measureTargets = [];
+            for (var i = 0; i < selectedItems.length; i++) {
+                measureTargets.push(prepareMeasureTarget(selectedItems[i], temporaryItems));
+            }
+            return unionVisibleBounds(measureTargets);
+        } finally {
+            /* 途中で失敗しても計測用の一時オブジェクトは必ず片付ける / The temporary artwork goes away whatever fails */
+            for (var j = temporaryItems.length - 1; j >= 0; j--) {
+                try {
+                    temporaryItems[j].remove();
+                } catch (e) { /* アウトライン化で無効になった参照は無視 / A reference invalidated by createOutline is fine to skip */ }
+            }
+        }
+    }
+
+    /**
+     * 計測に使うオブジェクトを用意する
+     * テキストを含むものだけ複製し、複製側のテキストをアウトライン化する（元のオブジェクトは触らない）
+     * @param {PageItem} item - 計測したいオブジェクト
+     * @param {PageItem[]} temporaryItems - 計測用に作った一時オブジェクトの記録先
+     * @returns {PageItem} 計測に使うオブジェクト
+     */
+    function prepareMeasureTarget(item, temporaryItems) {
+        if (!containsText(item)) return item;
+
+        /* 複製を先に控えてからアウトライン化する（失敗しても複製を消せるように）
+           / Track the copy before outlining, so it can be removed even on failure */
+        var itemCopy = item.duplicate();
+        temporaryItems.push(itemCopy);
+
+        if (itemCopy.typename !== "TextFrame") {
+            outlineTextsInPlace(itemCopy);
+            return itemCopy;
+        }
+
+        /* createOutline() は元のテキストを差し替えるので、戻り値のグループを計測対象にする
+           / createOutline() replaces the text frame, so the returned group is what gets measured */
+        try {
+            var outlinedGroup = itemCopy.createOutline();
+            temporaryItems.push(outlinedGroup);
+            return outlinedGroup;
+        } catch (e) {
+            /* 空のテキストなどアウトライン化できないものは複製のまま測る / Text that cannot be outlined is measured as is */
+            return itemCopy;
+        }
+    }
+
+    /**
+     * オブジェクトがテキストを含むかを判定する（グループの中も見る）
+     * @param {PageItem} item - 判定するオブジェクト
+     * @returns {boolean} テキストを含むなら true
+     */
+    function containsText(item) {
+        if (item.typename === "TextFrame") return true;
+        if (item.typename !== "GroupItem") return false;
+        for (var i = 0; i < item.pageItems.length; i++) {
+            if (containsText(item.pageItems[i])) return true;
+        }
+        return false;
+    }
+
+    /**
+     * グループの中のテキストをその場でアウトライン化する（複製に対してのみ使う）
+     * @param {PageItem} item - 走査するオブジェクト
+     * @returns {void}
+     */
+    function outlineTextsInPlace(item) {
+        if (item.typename !== "GroupItem") return;
+        /* createOutline() が要素を差し替えるので末尾から走査する / createOutline() swaps the item, so walk backwards */
+        for (var i = item.pageItems.length - 1; i >= 0; i--) {
+            var childItem = item.pageItems[i];
+            if (childItem.typename === "TextFrame") {
+                try {
+                    childItem.createOutline();
+                } catch (e) { /* アウトライン化できないテキストはそのまま測る / Leave text that cannot be outlined as is */ }
+            } else {
+                outlineTextsInPlace(childItem);
+            }
+        }
+    }
+
+    /**
+     * 複数オブジェクトの外接範囲を合成する
+     * @param {PageItem[]} items - 対象オブジェクト
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function unionVisibleBounds(items) {
         var left = Number.POSITIVE_INFINITY;
         var top = Number.NEGATIVE_INFINITY;
         var right = Number.NEGATIVE_INFINITY;
         var bottom = Number.POSITIVE_INFINITY;
 
-        for (var i = 0; i < selectedItems.length; i++) {
-            var itemBounds = selectedItems[i].visibleBounds;
+        for (var i = 0; i < items.length; i++) {
+            var itemBounds;
+            try {
+                itemBounds = items[i].visibleBounds;
+            } catch (e) {
+                /* アウトライン化で中身が無くなったものなどは飛ばす / Skip anything left without geometry */
+                continue;
+            }
             if (itemBounds[0] < left) left = itemBounds[0];
             if (itemBounds[1] > top) top = itemBounds[1];
             if (itemBounds[2] > right) right = itemBounds[2];
@@ -634,39 +759,55 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     }
 
     /**
-     * 余白指定（"none" / "horizontal:3" など）をpt値に展開する
-     * @param {string} marginSpec - 余白指定
+     * マージン指定（"上,下,左,右" 形式の "3,3,0,0" など）をpt値に展開する
+     * @param {string} marginSpec - マージン指定
      * @param {number} unitFactor - 1単位あたりのpt数
-     * @returns {{horizontal: number, vertical: number}} 左右・上下の余白（pt）
+     * @returns {{top: number, bottom: number, left: number, right: number}} 各辺のマージン（pt）
      */
     function resolveMarginOffsets(marginSpec, unitFactor) {
-        var offsets = { horizontal: 0, vertical: 0 };
-        var separatorIndex = String(marginSpec).indexOf(":");
-        if (separatorIndex < 0) return offsets;
-
-        var marginMode = marginSpec.substring(0, separatorIndex);
-        var marginPt = toNumber(marginSpec.substring(separatorIndex + 1)) * unitFactor;
-
-        if (marginMode === "horizontal") offsets.horizontal = marginPt;
-        else if (marginMode === "vertical") offsets.vertical = marginPt;
-        else if (marginMode === "all") {
-            offsets.horizontal = marginPt;
-            offsets.vertical = marginPt;
-        }
-        return offsets;
+        var marginValues = String(marginSpec).split(",");
+        return {
+            top: toNumber(marginValues[0]) * unitFactor,
+            bottom: toNumber(marginValues[1]) * unitFactor,
+            left: toNumber(marginValues[2]) * unitFactor,
+            right: toNumber(marginValues[3]) * unitFactor
+        };
     }
 
     /**
-     * 書き出し範囲を求める（ピクセルパーフェクトになるよう整数化）
+     * 丸めモードから、書き出し範囲を合わせるグリッドの間隔を求める
+     * @param {string} roundMode - 丸めモード（pixelGrid / currentUnit / none）
+     * @param {number} unitFactor - 1単位あたりのpt数
+     * @returns {number} グリッド間隔（pt）。丸めないときは 0
+     */
+    function resolveSnapStep(roundMode, unitFactor) {
+        if (roundMode === "currentUnit") return unitFactor;
+        if (roundMode === "none") return 0;
+        /* 既定はピクセルグリッド。倍率100%で 1pt＝1px / Pixel grid by default; at 100% one pt equals one px */
+        return 1;
+    }
+
+    /**
+     * 書き出し範囲を求める（丸めモードに従い、オブジェクトが欠けないよう外側へ広げる）
      * @param {number[]} selectionBounds - 選択オブジェクトの外接範囲 [左, 上, 右, 下]
-     * @param {{horizontal: number, vertical: number}} marginOffsets - 余白（pt）
+     * @param {{top: number, bottom: number, left: number, right: number}} marginOffsets - 各辺のマージン（pt）
+     * @param {string} roundMode - 丸めモード（pixelGrid / currentUnit / none）
+     * @param {number} unitFactor - 1単位あたりのpt数
      * @returns {{left: number, top: number, right: number, bottom: number, width: number, height: number}} 書き出し範囲
      */
-    function buildExportRect(selectionBounds, marginOffsets) {
-        var left = Math.floor(selectionBounds[0] - marginOffsets.horizontal);
-        var top = Math.ceil(selectionBounds[1] + marginOffsets.vertical);
-        var right = Math.ceil(selectionBounds[2] + marginOffsets.horizontal);
-        var bottom = Math.floor(selectionBounds[3] - marginOffsets.vertical);
+    function buildExportRect(selectionBounds, marginOffsets, roundMode, unitFactor) {
+        var left = selectionBounds[0] - marginOffsets.left;
+        var top = selectionBounds[1] + marginOffsets.top;
+        var right = selectionBounds[2] + marginOffsets.right;
+        var bottom = selectionBounds[3] - marginOffsets.bottom;
+
+        var snapStep = resolveSnapStep(roundMode, unitFactor);
+        if (snapStep > 0) {
+            left = Math.floor(left / snapStep) * snapStep;
+            top = Math.ceil(top / snapStep) * snapStep;
+            right = Math.ceil(right / snapStep) * snapStep;
+            bottom = Math.floor(bottom / snapStep) * snapStep;
+        }
         return {
             left: left,
             top: top,
@@ -712,7 +853,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         var doc = app.activeDocument;
 
         if (backgroundChoice === "transparentGrid") {
-            var tileSize = CHECKER_TILE_UNITS * getRulerUnitInfo().factor * (checkerPercent / 100);
+            var tileSize = CHECKER_TILE_PT * (checkerPercent / 100);
             var checkerGroup = doc.groupItems.add();
             checkerGroup.name = PREVIEW_BACKGROUND_NAME;
             drawCheckerPattern(checkerGroup, exportRect, tileSize);
@@ -894,16 +1035,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     }
 
     /**
-     * 余白の選択状態を取得する
+     * マージンの入力値を取得する
      * @param {Object} controls - ダイアログのコントロール一式
-     * @returns {string} 余白指定（none / horizontal:3 など）
+     * @returns {string} マージン指定（上,下,左,右 / 例 "3,3,0,0"）
      */
     function getMarginSpec(controls) {
         var margin = controls.margin;
-        if (margin.horizontal.value) return "horizontal:" + margin.input.text;
-        if (margin.vertical.value) return "vertical:" + margin.input.text;
-        if (margin.all.value) return "all:" + margin.input.text;
-        return "none";
+        return [
+            toNumber(margin.topInput.text),
+            toNumber(margin.bottomInput.text),
+            toNumber(margin.leftInput.text),
+            toNumber(margin.rightInput.text)
+        ].join(",");
+    }
+
+    /**
+     * 丸めモードの選択状態を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {string} 丸めモード（pixelGrid / currentUnit / none）
+     */
+    function getRoundMode(controls) {
+        var margin = controls.margin;
+        if (margin.roundUnit.value) return "currentUnit";
+        if (margin.roundNone.value) return "none";
+        return "pixelGrid";
     }
 
     /**
@@ -912,7 +1067,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
      * @returns {string} 罫線指定（none / 0.1,black など）
      */
     function getBorderSpec(controls) {
-        return controls.border.on.value ? readBorderSpec(controls.border) : "none";
+        return controls.border.enabled.value ? readBorderSpec(controls.border) : "none";
     }
 
     /**
@@ -959,7 +1114,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
      * @returns {string} 接尾辞
      */
     function getSuffix(controls) {
-        return controls.fileName.suffixCustom.value ? controls.fileName.suffixInput.text : "";
+        return controls.fileName.suffixEnabled.value ? controls.fileName.suffixInput.text : "";
     }
 
     /**
@@ -989,6 +1144,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             backgroundChoice: getBackgroundChoice(controls),
             checkerPercent: getCheckerPercent(controls),
             marginSpec: getMarginSpec(controls),
+            roundMode: getRoundMode(controls),
             borderSpec: getBorderSpec(controls),
             sizeSpec: getSizeSpec(controls),
             fileName: controls.fileName.previewText.text,
@@ -1021,6 +1177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             '    label: { ja: "' + presetName + '", en: "' + presetName + '" },',
             '    background: "' + getBackgroundChoice(controls) + '",',
             '    margin: "' + getMarginSpec(controls) + '",',
+            '    round: "' + getRoundMode(controls) + '",',
             '    border: "' + getBorderSpec(controls) + '",',
             '    location: "' + (controls.location.desktop.value ? "desktop" : "documentFolder") + '",',
             '    delimiter: "' + getDelimiter(controls) + '",',
@@ -1055,7 +1212,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     function renderPreview(controls, selectionBounds, unitFactor) {
         removePreviewArtwork();
 
-        var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), unitFactor));
+        var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), unitFactor),
+            getRoundMode(controls), unitFactor);
         createExportBackground(getBackgroundChoice(controls), exportRect, getCheckerPercent(controls));
 
         var borderSpec = getBorderSpec(controls);
@@ -1081,9 +1239,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         var selectionHeight = selectionBounds[1] - selectionBounds[3];
         var controls = {};
 
-        /* 現在の余白設定を含めた書き出し範囲 / Export rect including the current margin */
+        /* 現在のマージン設定を含めた書き出し範囲 / Export rect including the current margin */
         function getExportRectFromUI() {
-            return buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), rulerUnit.factor));
+            return buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), rulerUnit.factor),
+                getRoundMode(controls), rulerUnit.factor);
         }
 
         /* 設定が変わるたびにプレビューと倍率ラベルを描き直す / Redraw the preview and the scale labels on every change */
@@ -1210,58 +1369,150 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         }
 
         /**
-         * 余白パネルを作る
+         * マージンパネルを作る（上下左右を3×3に配置し、中央を連動チェックボックスにする）
          * @param {Group} parentColumn - 追加先のカラム
-         * @returns {Object} 余白のコントロール一式
+         * @returns {Object} マージンのコントロール一式
          */
         function buildMarginPanel(parentColumn) {
-            var marginPanel = addPanel(parentColumn, LABELS.panel.margin);
+            var marginPanel = addPanel(parentColumn, LABELS.panel.margin, rulerUnit.label);
+            var margin = {};
 
-            var noneRow = addRow(marginPanel);
-            var margin = { none: noneRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginNone)) };
+            /* 1行目：［空］［上］［空］/ Row 1: [empty][top][empty] */
+            var topRow = addMarginGridRow(marginPanel);
+            addMarginGridCell(topRow);
+            var topCell = addMarginField(topRow, LABELS.fieldLabel.marginTop, onTopMarginChanged);
+            addMarginGridCell(topRow);
 
-            var modeRow = addRow(marginPanel);
-            margin.horizontal = modeRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginHorizontal));
-            margin.vertical = modeRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginVertical));
-            margin.all = modeRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginAll));
+            /* 2行目：［左］［連動］［右］/ Row 2: [left][link][right] */
+            var middleRow = addMarginGridRow(marginPanel);
+            var leftCell = addMarginField(middleRow, LABELS.fieldLabel.marginLeft, refreshPreview);
+            var linkCell = addMarginGridCell(middleRow);
+            margin.link = linkCell.add("checkbox", undefined, getLabel(LABELS.checkbox.linkMargin));
+            margin.link.helpTip = getLabel(LABELS.tooltip.linkMargin);
+            var rightCell = addMarginField(middleRow, LABELS.fieldLabel.marginRight, refreshPreview);
 
-            var valueRow = addRow(marginPanel);
-            var defaultMargin = getDefaultForUnit(DEFAULT_MARGIN_BY_UNIT, rulerUnit.label);
-            margin.input = addNumberField(valueRow, String(defaultMargin), NUMBER_FIELD_CHARS, refreshPreview);
-            valueRow.add("statictext", undefined, rulerUnit.label);
+            /* 3行目：［空］［下］［空］/ Row 3: [empty][bottom][empty] */
+            var bottomRow = addMarginGridRow(marginPanel);
+            addMarginGridCell(bottomRow);
+            var bottomCell = addMarginField(bottomRow, LABELS.fieldLabel.marginBottom, refreshPreview);
+            addMarginGridCell(bottomRow);
 
-            /* 余白指定（none / horizontal:3 など）をUIへ反映する / Apply a margin spec to the UI */
-            margin.select = function(marginSpec) {
-                var marginMode = String(marginSpec).split(":")[0];
-                margin.none.value = (marginMode === "none");
-                margin.horizontal.value = (marginMode === "horizontal");
-                margin.vertical.value = (marginMode === "vertical");
-                margin.all.value = (marginMode === "all");
-                if (marginMode !== "none") margin.input.text = String(marginSpec).split(":")[1];
-                margin.input.enabled = (marginMode !== "none");
+            /* サイズの微調整（書き出し範囲の丸め方）/ Size fine-tuning: how the export area is rounded */
+            addRowLabel(addRow(marginPanel), LABELS.fieldLabel.roundMode);
+
+            var roundColumn = marginPanel.add("group");
+            roundColumn.orientation = "column";
+            roundColumn.alignment = ["fill", "top"];
+            roundColumn.alignChildren = ["left", "center"];
+            roundColumn.spacing = PANEL_SPACING;
+            margin.roundPixel = roundColumn.add("radiobutton", undefined, getLabel(LABELS.roundMode.pixelGrid));
+            margin.roundUnit = roundColumn.add("radiobutton", undefined, getLabel(LABELS.roundMode.currentUnit));
+            margin.roundNone = roundColumn.add("radiobutton", undefined, getLabel(LABELS.roundMode.none));
+            margin.roundPixel.helpTip = getLabel(LABELS.tooltip.roundPixel);
+            margin.roundUnit.helpTip = getLabel(LABELS.tooltip.roundUnit);
+            margin.roundNone.helpTip = getLabel(LABELS.tooltip.roundNone);
+
+            /* 丸めモードをUIへ反映する / Apply a round mode to the UI */
+            margin.selectRoundMode = function(roundMode) {
+                margin.roundUnit.value = (roundMode === "currentUnit");
+                margin.roundNone.value = (roundMode === "none");
+                /* 未指定・不明な値はピクセルグリッドに寄せる / An unknown or missing value falls back to the pixel grid */
+                margin.roundPixel.value = !(margin.roundUnit.value || margin.roundNone.value);
             };
 
-            var marginModes = ["none", "horizontal", "vertical", "all"];
-            var marginRadios = [margin.none, margin.horizontal, margin.vertical, margin.all];
-            for (var i = 0; i < marginRadios.length; i++) {
-                marginRadios[i].onClick = createMarginClickHandler(margin, marginModes[i]);
+            var roundRadios = [margin.roundPixel, margin.roundUnit, margin.roundNone];
+            for (var i = 0; i < roundRadios.length; i++) {
+                roundRadios[i].onClick = refreshPreview;
+            }
+            margin.selectRoundMode("pixelGrid");
+
+            margin.topInput = topCell.input;
+            margin.bottomInput = bottomCell.input;
+            margin.leftInput = leftCell.input;
+            margin.rightInput = rightCell.input;
+
+            /* 連動中は上の値を残る3辺へ写し、入力できないようにする / While linked, copy the top value and lock the other three */
+            function syncLinkedMargins() {
+                var isLinked = margin.link.value;
+                if (isLinked) {
+                    margin.bottomInput.text = margin.topInput.text;
+                    margin.leftInput.text = margin.topInput.text;
+                    margin.rightInput.text = margin.topInput.text;
+                }
+                bottomCell.group.enabled = !isLinked;
+                leftCell.group.enabled = !isLinked;
+                rightCell.group.enabled = !isLinked;
             }
 
-            margin.select("none");
+            function onTopMarginChanged() {
+                syncLinkedMargins();
+                refreshPreview();
+            }
+
+            margin.link.onClick = function() {
+                syncLinkedMargins();
+                refreshPreview();
+            };
+
+            /* マージン指定（"3,3,0,0"）をUIへ反映する / Apply a margin spec to the UI */
+            margin.select = function(marginSpec) {
+                var marginValues = String(marginSpec).split(",");
+                margin.topInput.text = String(toNumber(marginValues[0]));
+                margin.bottomInput.text = String(toNumber(marginValues[1]));
+                margin.leftInput.text = String(toNumber(marginValues[2]));
+                margin.rightInput.text = String(toNumber(marginValues[3]));
+                /* 四辺が同じ値のときだけ連動状態に戻す / Re-link only when all four sides match */
+                margin.link.value = (margin.topInput.text === margin.bottomInput.text &&
+                    margin.topInput.text === margin.leftInput.text &&
+                    margin.topInput.text === margin.rightInput.text);
+                syncLinkedMargins();
+            };
+
+            margin.select("0,0,0,0");
             return margin;
         }
 
         /**
-         * 余白ラジオボタンのクリックハンドラーを作る
-         * @param {Object} margin - 余白のコントロール一式
-         * @param {string} marginMode - 選択される余白モード
-         * @returns {function} クリックハンドラー
+         * マージングリッドの1行を作る
+         * @param {Panel} parentPanel - 追加先のパネル
+         * @returns {Group} 生成した行グループ
          */
-        function createMarginClickHandler(margin, marginMode) {
-            return function() {
-                margin.select(marginMode === "none" ? "none" : marginMode + ":" + margin.input.text);
-                refreshPreview();
-            };
+        function addMarginGridRow(parentPanel) {
+            var rowGroup = parentPanel.add("group");
+            rowGroup.orientation = "row";
+            /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
+            rowGroup.alignment = ["center", "top"];
+            rowGroup.alignChildren = ["center", "center"];
+            rowGroup.spacing = 0;
+            return rowGroup;
+        }
+
+        /**
+         * マージングリッドの1マス（固定幅の空グループ）を作る
+         * @param {Group} parentRow - 追加先の行グループ
+         * @returns {Group} 生成したグループ
+         */
+        function addMarginGridCell(parentRow) {
+            var cellGroup = parentRow.add("group");
+            cellGroup.orientation = "row";
+            cellGroup.alignment = ["center", "center"];
+            cellGroup.alignChildren = ["center", "center"];
+            cellGroup.spacing = PANEL_SPACING;
+            cellGroup.minimumSize.width = MARGIN_CELL_WIDTH[uiLang];
+            return cellGroup;
+        }
+
+        /**
+         * マージングリッドに項目名＋数値欄のマスを作る
+         * @param {Group} parentRow - 追加先の行グループ
+         * @param {Object} labelSet - 項目名のラベル定義
+         * @param {function} onValueChanged - 値が変わったときに呼ぶコールバック
+         * @returns {{group: Group, input: EditText}} マスのグループと入力欄
+         */
+        function addMarginField(parentRow, labelSet, onValueChanged) {
+            var cellGroup = addMarginGridCell(parentRow);
+            cellGroup.add("statictext", undefined, labelText(labelSet));
+            return { group: cellGroup, input: addNumberField(cellGroup, "0", MARGIN_FIELD_CHARS, onValueChanged) };
         }
 
         /**
@@ -1272,11 +1523,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         function buildBorderPanel(parentColumn) {
             var borderPanel = addPanel(parentColumn, LABELS.panel.border);
 
-            var noneRow = addRow(borderPanel);
-            var border = { none: noneRow.add("radiobutton", undefined, getLabel(LABELS.radio.borderNone)) };
-
             var widthRow = addRow(borderPanel);
-            border.on = widthRow.add("radiobutton", undefined, getLabel(LABELS.radio.borderOn));
+            var border = { enabled: widthRow.add("checkbox", undefined, labelText(LABELS.fieldLabel.borderWidth)) };
             var defaultBorderWidth = getDefaultForUnit(DEFAULT_BORDER_BY_UNIT, rulerUnit.label);
             border.widthInput = addNumberField(widthRow, String(defaultBorderWidth), NUMBER_FIELD_CHARS, refreshPreview);
             widthRow.add("statictext", undefined, rulerUnit.label);
@@ -1297,8 +1545,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             /* 罫線指定（none / 0.1,black など）をUIへ反映する / Apply a border spec to the UI */
             border.select = function(borderSpec) {
                 var hasBorder = (borderSpec !== "none");
-                border.none.value = !hasBorder;
-                border.on.value = hasBorder;
+                border.enabled.value = hasBorder;
 
                 if (hasBorder) {
                     var specParts = String(borderSpec).split(",");
@@ -1320,12 +1567,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
                 border.colorCodeInput.enabled = hasBorder && border.colorCode.value;
             };
 
-            border.none.onClick = function() {
-                border.select("none");
-                refreshPreview();
-            };
-            border.on.onClick = function() {
-                border.select(readBorderSpec(border));
+            border.enabled.onClick = function() {
+                border.select(border.enabled.value ? readBorderSpec(border) : "none");
                 refreshPreview();
             };
             border.black.onClick = createBorderColorHandler(border, "black");
@@ -1360,8 +1603,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
             var scaleColumn = sizePanel.add("group");
             scaleColumn.orientation = "column";
-            scaleColumn.alignment = ["left", "top"];
-            scaleColumn.alignChildren = ["left", "center"];
+            /* ラベルが伸びても切れないよう、ラジオはパネル幅いっぱいに広げる
+               / Stretch the radios to the panel width so a longer label is never clipped */
+            scaleColumn.alignment = ["fill", "top"];
+            scaleColumn.alignChildren = ["fill", "center"];
             scaleColumn.spacing = PANEL_SPACING;
 
             var exportRect = getExportRectFromUI();
@@ -1432,7 +1677,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         /**
          * 倍率ラジオボタンのラベルを組み立てる（書き出しピクセル数を併記）
          * @param {number} scalePercent - 倍率（%）
-         * @param {Object} exportRect - 現在の余白を含めた書き出し範囲
+         * @param {Object} exportRect - 現在のマージンを含めた書き出し範囲
          * @returns {string} ラベル文字列
          */
         function buildScaleLabel(scalePercent, exportRect) {
@@ -1442,7 +1687,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         }
 
         /**
-         * 倍率ラジオボタンのラベルを現在の余白に合わせて描き直す
+         * 倍率ラジオボタンのラベルを現在のマージンに合わせて描き直す
          * @returns {void}
          */
         function updateScaleLabels() {
@@ -1454,6 +1699,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
                 var scaleLabel = buildScaleLabel(SCALE_CHOICES[i], exportRect);
                 if (scaleRadio.text !== scaleLabel) {
                     scaleRadio.text = scaleLabel;
+                    /* 幅は自動計算に戻す（前のラベル幅のままだと桁が増えたときに切れる）
+                       / Reset to auto width, or the control keeps the previous label's width */
+                    scaleRadio.preferredSize.width = -1;
                     labelChanged = true;
                 }
                 setScaleRadioColor(scaleRadio, scaleRadio.value);
@@ -1512,9 +1760,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             fileName.delimiterUnderscore = delimiterRow.add("radiobutton", undefined, "_");
 
             var suffixRow = addRow(fileNamePanel);
-            addRowLabel(suffixRow, LABELS.fieldLabel.suffix);
-            fileName.suffixNone = suffixRow.add("radiobutton", undefined, getLabel(LABELS.radio.none));
-            fileName.suffixCustom = suffixRow.add("radiobutton", undefined, "");
+            fileName.suffixEnabled = suffixRow.add("checkbox", undefined, labelText(LABELS.fieldLabel.suffix));
             fileName.suffixInput = suffixRow.add("edittext", undefined, "");
             fileName.suffixInput.characters = SUFFIX_FIELD_CHARS;
             fileName.suffixInput.enabled = false;
@@ -1528,8 +1774,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
             /* 接尾辞を指定してファイル名プレビューを更新する / Set the suffix and refresh the preview */
             fileName.setSuffix = function(suffixValue) {
-                fileName.suffixNone.value = false;
-                fileName.suffixCustom.value = true;
+                fileName.suffixEnabled.value = true;
                 fileName.suffixInput.enabled = true;
                 fileName.suffixInput.text = suffixValue;
                 updateFileNamePreview();
@@ -1537,8 +1782,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
             /* 接尾辞をなしに戻す / Clear the suffix */
             fileName.clearSuffix = function() {
-                fileName.suffixNone.value = true;
-                fileName.suffixCustom.value = false;
+                fileName.suffixEnabled.value = false;
                 fileName.suffixInput.enabled = false;
                 updateFileNamePreview();
             };
@@ -1561,9 +1805,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             fileName.delimiterNone.onClick = updateFileNamePreview;
             fileName.delimiterDash.onClick = updateFileNamePreview;
             fileName.delimiterUnderscore.onClick = updateFileNamePreview;
-            fileName.suffixNone.onClick = fileName.clearSuffix;
-            fileName.suffixCustom.onClick = function() {
-                fileName.suffixInput.enabled = true;
+            fileName.suffixEnabled.onClick = function() {
+                fileName.suffixInput.enabled = fileName.suffixEnabled.value;
                 updateFileNamePreview();
             };
             fileName.suffixInput.onChange = updateFileNamePreview;
@@ -1608,6 +1851,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         function applyPreset(preset) {
             controls.background.select(preset.background);
             controls.margin.select(preset.margin);
+            controls.margin.selectRoundMode(preset.round);
             controls.border.select(preset.border);
             controls.location.select(preset.location);
             controls.size.select(preset.size, true);
@@ -1780,7 +2024,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             settings = showExportOptionsDialog(selectionBounds, rulerUnit, documentBaseName);
 
             if (settings) {
-                var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(settings.marginSpec, rulerUnit.factor));
+                var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(settings.marginSpec, rulerUnit.factor),
+                    settings.roundMode, rulerUnit.factor);
                 if (exportRect.width > 0 && exportRect.height > 0) {
                     exportAsPng(doc, settings, exportRect, rulerUnit);
                 } else {
