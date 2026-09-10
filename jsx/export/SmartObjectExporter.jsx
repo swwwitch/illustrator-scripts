@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトを一時アートボードへ複製し、背景・余白・罫線・倍率・ファイル名を指定してPNGとして書き出します。
-設定はリアルタイムプレビューで確認でき、プリセットとして保存できます。
+選択したオブジェクトを一時アートボードに収め、背景・余白・罫線・書き出しサイズ・ファイル名を指定してPNG書き出しします。
+設定した内容はアートボード上でそのままプレビューでき、よく使う組み合わせはプリセットとして呼び出せます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Duplicates the selection onto a temporary artboard and exports it as PNG with a chosen background, margin, border, scale and filename.
-The settings are shown in a real-time preview and can be stored as presets.
+Places the selection on a temporary artboard and exports it as PNG with a chosen background, margin, border, size and filename.
+Every setting is previewed on the artboard itself, and frequently used combinations can be recalled as presets.
 
 See the README for details.
 
@@ -23,1924 +23,1785 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectExporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.5.14";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2024-05-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2024-05-27";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-06-19";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-11";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectExporter.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectExporter.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectExporter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectExporter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
-    // -------------------------------
-    // Helper: Restore layer visibility
-    // -------------------------------
-    function restoreLayerVisibility(layersArray) {
-        for (var i = 0; i < layersArray.length; i++) {
-            try {
-                layersArray[i].visible = true;
-            } catch (e) {
-                alert("Error restoring layer visibility: " + e.message);
-            }
-        }
-    }
-    // -------------------------------
-    // Helper: Hide all layers except one
-    // -------------------------------
-    function hideOtherLayers(doc, exceptLayer) {
-        var hidden = [];
-        for (var i = 0; i < doc.layers.length; i++) {
-            var lyr = doc.layers[i];
-            if (lyr !== exceptLayer && lyr.visible) {
-                try {
-                    lyr.visible = false;
-                    hidden.push(lyr);
-                } catch (e) {
-                    alert("Error hiding layer: " + e.message);
-                }
-            }
-        }
-        return hidden;
-    }
-    // -------------------------------
-    // Helper: Duplicate selection to a target layer (重ね順維持: PLACEATEND)
-    // -------------------------------
-    function duplicateSelectionToLayer(selection, targetLayer) {
-        var duplicatedItems = [];
-        for (var i = 0; i < selection.length; i++) {
-            try {
-                var duplicated = selection[i].duplicate(targetLayer, ElementPlacement.PLACEATEND);
-                duplicatedItems.push(duplicated);
-            } catch (e) {
-                alert("Error duplicating selection to preview layer: " + e.message);
-            }
-        }
-        return duplicatedItems;
-    }
-    // -------------------------------
-    // Helper: Set suffix from value and update filename preview
-    // (Always assign value to suffixInput.text even if value === "")
-    // -------------------------------
-    function setSuffixFrom(value) {
-        if (typeof rbNoSuffix !== "undefined" && rbNoSuffix !== null) {
-            rbNoSuffix.value = false;
-        }
-        if (typeof rbCustomSuffix !== "undefined" && rbCustomSuffix !== null) {
-            rbCustomSuffix.value = true;
-        }
-        if (typeof suffixInput !== "undefined" && suffixInput !== null) {
-            suffixInput.enabled = true;
-            suffixInput.text = value;
-        }
-        updateFilenamePreview();
-    }
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    var PREVIEW_LAYER_NAME = "__preview";
+    /* 作業用に一時生成するレイヤー・オブジェクトの名前 / Names of the temporary layer and artwork */
+    var PREVIEW_LAYER_NAME      = "__preview";
+    var PREVIEW_BACKGROUND_NAME = "preview_background";
+    var PREVIEW_BORDER_NAME     = "preview_border";
 
-    var docName = "";
+    /* 単位ごとの初期値（余白・罫線幅）/ Initial margin and border width per ruler unit */
+    var DEFAULT_MARGIN_BY_UNIT = { mm: 3, _fallback: 10 };
+    var DEFAULT_BORDER_BY_UNIT = { mm: 0.1, _fallback: 1 };
 
-    // -------------------------------
-    // 言語判定関数 Language detection
-    // -------------------------------
+    /* 透明グリッド1マスの基準サイズ（現在の単位、100%のとき）/ Checker tile size at 100%, in ruler units */
+    var CHECKER_TILE_UNITS = 10;
+
+    /* 透明グリッドの最大マス数（細かすぎる指定で描画が終わらなくなるのを防ぐ）
+       / Cap on checker tiles, so a tiny percentage cannot stall the redraw */
+    var MAX_CHECKER_TILES = 4000;
+
+    /* PNG書き出しで指定できる最大倍率 / Maximum scale the PNG export accepts */
+    var MAX_EXPORT_SCALE = 776.19;
+
+    /* 倍率ラジオボタンに並べる値と初期選択 / Scale choices and the initial selection */
+    var SCALE_CHOICES = [100, 200, 300, 400];
+    var DEFAULT_SCALE = 400;
+
+    /* プリセット保存ファイルの接頭辞（デスクトップに書き出す）/ Prefix of the preset file saved to the desktop */
+    var PRESET_FILE_PREFIX = "export-setting-";
+
+    /* 書き出しファイル名で接尾辞を省いたときの既定語 / Fallback word used when no suffix is given */
+    var DEFAULT_SUFFIX_WORD = "selection";
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var WINDOW_MARGINS     = 16;               /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING     = 12;               /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS      = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING      = 6;                /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING     = 12;               /* 2カラムの間隔 / gap between columns */
+    var BUTTON_BAR_MARGINS = [0, 10, 0, 0];    /* ボタンバーの余白 / margins of the bottom button bar */
+
+    var NUMBER_FIELD_CHARS = 4;                /* 数値入力欄の文字数 / width of a numeric field */
+    var COLOR_FIELD_CHARS  = 12;               /* カラーコード入力欄の文字数（C0M100Y100K0 が収まる幅）/ width of a color code field */
+    var SUFFIX_FIELD_CHARS = 14;               /* 接尾辞入力欄の文字数 / width of the suffix field */
+    var SIZE_RADIO_WIDTH   = 60;               /* 倍率・横幅ラジオのラベル幅 / label width of the scale rows */
+    var FILENAME_ROW_HEIGHT = 22;              /* ファイル名プレビューの行高（ディセンダー切れ防止）/ row height of the filename preview */
+
+    var DIALOG_OFFSET_X = 300;                 /* 画面中央からの横オフセット / horizontal offset from the screen center */
+
+    /* 倍率ラジオの選択中／非選択の文字色。暗いUIでは黒が沈むので明暗で切り替える
+       / Foreground colors of the scale radios; black disappears on a dark UI, so switch by brightness */
+    function isLightUserInterface() {
+        return app.preferences.getRealPreference("uiBrightness") > 0.5;
+    }
+    var SCALE_ACTIVE_COLOR   = isLightUserInterface() ? [0, 0, 0] : [0.9, 0.9, 0.9];
+    var SCALE_INACTIVE_COLOR = [0.5, 0.5, 0.5];
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 実行環境の表示言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+        return (($.locale || "") + "").indexOf("ja") === 0 ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /**
+     * ラベル定義から現在の言語の文字列を取得する
+     * @param {Object} labelSet - { ja: string, en: string } 形式のラベル定義
+     * @returns {string} 表示文字列
+     */
+    function getLabel(labelSet) {
+        if (!labelSet) return "";
+        return (labelSet[uiLang] != null) ? labelSet[uiLang] : (labelSet.en || "");
     }
 
-    // -------------------------------
-    // 日英ラベル定義 Define UI labels
-    // -------------------------------
-    var lang = getCurrentLang();
+    /**
+     * 項目名にコロンを付けて返す（日本語は全角、英語は半角）
+     * @param {Object} labelSet - { ja: string, en: string } 形式のラベル定義
+     * @returns {string} コロン付きの表示文字列
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ": ");
+    }
+
     var LABELS = {
-        background: {
-            ja: "背景色",
-            en: "Background"
+        dialog: {
+            title: { ja: "選択オブジェクトを書き出し", en: "Export Selected Objects" }
         },
-        black: {
-            ja: "黒",
-            en: "Black"
+        panel: {
+            background: { ja: "背景色", en: "Background" },
+            margin: { ja: "余白", en: "Margin" },
+            border: { ja: "罫線", en: "Border" },
+            size: { ja: "書き出しサイズ（px）", en: "Export Size (px)" },
+            fileName: { ja: "書き出しファイル名", en: "Export Filename" },
+            location: { ja: "書き出し先", en: "Export Location" }
         },
-        blackLine: {
-            ja: "黒",
-            en: "Black"
+        radio: {
+            transparent: { ja: "透過", en: "Transparent" },
+            black: { ja: "黒", en: "Black" },
+            white: { ja: "白", en: "White" },
+            checker: { ja: "透明グリッド", en: "Transparency Grid" },
+            colorCode: { ja: "カラー指定", en: "Color Code" },
+            marginNone: { ja: "つけない", en: "None" },
+            marginHorizontal: { ja: "左右", en: "Horizontal" },
+            marginVertical: { ja: "上下", en: "Vertical" },
+            marginAll: { ja: "四辺", en: "All Sides" },
+            borderNone: { ja: "つけない", en: "None" },
+            borderOn: { ja: "つける", en: "Add" },
+            useDocName: { ja: "参照する", en: "Use" },
+            ignoreDocName: { ja: "参照しない", en: "Ignore" },
+            none: { ja: "なし", en: "None" },
+            desktop: { ja: "デスクトップ", en: "Desktop" },
+            documentFolder: { ja: "ファイルと同じ場所", en: "Same as File" }
         },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
+        fieldLabel: {
+            preset: { ja: "プリセット", en: "Preset" },
+            borderColor: { ja: "罫線カラー", en: "Border Color" },
+            customScale: { ja: "倍率", en: "Scale" },
+            targetWidth: { ja: "横幅", en: "Width" },
+            documentName: { ja: "ファイル名", en: "Filename" },
+            delimiter: { ja: "区切り文字", en: "delimiter" },
+            suffix: { ja: "接尾辞", en: "Suffix" }
         },
-        custom: {
-            ja: "カスタム",
-            en: "Custom"
+        checkbox: {
+            showFolder: { ja: "書き出し後、フォルダーを表示", en: "Show Folder After Export" }
         },
-        customScaleLabel: {
-            ja: "倍率：",
-            en: "Scale: "
+        dropdown: {
+            custom: { ja: "カスタム", en: "Custom" }
         },
-        desktop: {
-            ja: "デスクトップ",
-            en: "Desktop"
+        button: {
+            savePreset: { ja: "プリセットを保存", en: "Save Preset" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
-        dialogTitle: {
-            ja: "選択オブジェクトを書き出し",
-            en: "Export Selected Objects"
+        preset: {
+            transparent200: { ja: "透過・余白なし・倍率200%", en: "Transparent / No Margin / 200%" },
+            whiteHorizontal300: { ja: "白背景・左右3mm・倍率300%", en: "White BG / Horizontal 3mm / 300%" },
+            whiteVerticalWidth1000: { ja: "白背景・上下5mm・幅指定1000px", en: "White BG / Vertical 5mm / Width 1000px" },
+            blackAll200: { ja: "黒背景・四辺10mm・倍率200%", en: "Black BG / All 10mm / 200%" }
         },
-        exportFailed: {
-            ja: "書き出しに失敗しました：",
-            en: "Export failed: "
+        prompt: {
+            presetName: { ja: "プリセット名を入力してください", en: "Enter preset name" },
+            defaultPresetName: { ja: "マイプリセット", en: "MyPreset" }
         },
-        exportPreset: {
-            ja: "プリセットを保存",
-            en: "Save Preset"
-        },
-        fileName: {
-            ja: "書き出しファイル名",
-            en: "Export Filename"
-        },
-        fileNameReference: {
-            ja: "ファイル名",
-            en: "Filename"
-        },
-        hexColor: {
-            ja: "カラー指定",
-            en: "Color Code"
-        },
-        invalidSize: {
-            ja: "選択範囲のサイズが無効です。",
-            en: "Invalid selection size."
-        },
-        location: {
-            ja: "書き出し先",
-            en: "Export Location"
-        },
-        margin: {
-            ja: "余白",
-            en: "Margin"
-        },
-        marginHorizontal: {
-            ja: "左右",
-            en: "Horizontal"
-        },
-        marginVertical: {
-            ja: "上下",
-            en: "Vertical"
-        },
-        marginAll: {
-            ja: "四辺",
-            en: "All Sides"
-        },
-        noMargin: {
-            ja: "つけない",
-            en: "None"
-        },
-        none: {
-            ja: "なし",
-            en: "None"
-        },
-        noRule: {
-            ja: "つけない",
-            en: "None"
-        },
-        noSelection: {
-            ja: "ドキュメントが開かれていないか、オブジェクトが選択されていません。",
-            en: "No document open or no object selected."
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        presetLabel: {
-            ja: "プリセット：",
-            en: "Preset: "
-        },
-        presetPrompt: {
-            ja: "プリセット名を入力してください",
-            en: "Enter preset name"
-        },
-        presetSavedMessage: {
-            ja: "プリセットを保存しました：",
-            en: "Preset saved: "
-        },
-        rule: {
-            ja: "罫線",
-            en: "Border"
-        },
-        ruleColor: {
-            ja: "罫線カラー",
-            en: "Border Color"
-        },
-        sameFolder: {
-            ja: "ファイルと同じ場所",
-            en: "Same as File"
-        },
-        showFolder: {
-            ja: "書き出し後、フォルダーを表示",
-            en: "Show Folder After Export"
-        },
-        size: {
-            ja: "書き出しサイズ（px）",
-            en: "Export Size (px)"
-        },
-        suffix: {
-            ja: "接尾辞：",
-            en: "Suffix: "
-        },
-        suffixTextLabel: {
-            ja: "接尾辞",
-            en: "Suffix"
-        },
-        symbol: {
-            ja: "区切り文字",
-            en: "delimiter"
-        },
-        transparent: {
-            ja: "透過",
-            en: "Transparent"
-        },
-        transparentGrid: {
-            ja: "透明グリッド",
-            en: "Transparency Grid"
-        },
-        white: {
-            ja: "白",
-            en: "White"
-        },
-        whiteLine: {
-            ja: "白",
-            en: "White"
-        },
-        widthInput: {
-            ja: "横幅：",
-            en: "Width: "
-        },
-        withRule: {
-            ja: "つける",
-            en: "Add"
-        },
-        // デフォルトプリセット名（ハードコードから移動）
-        defaultPresetName: {
-            ja: "マイプリセット",
-            en: "MyPreset"
+        alert: {
+            noSelection: {
+                ja: "ドキュメントが開かれていないか、オブジェクトが選択されていません。",
+                en: "No document open or no object selected."
+            },
+            invalidSize: { ja: "選択範囲のサイズが無効です。", en: "Invalid selection size." },
+            exportFailed: { ja: "書き出しに失敗しました：", en: "Export failed: " },
+            scaleLimited: {
+                ja: "書き出し倍率が上限を超えたため、次の倍率で書き出しました：",
+                en: "The requested scale exceeds the maximum, so the image was exported at: "
+            },
+            presetSaved: { ja: "プリセットを保存しました：", en: "Preset saved: " },
+            presetSaveFailed: { ja: "プリセットの保存に失敗しました：", en: "Failed to save the preset: " }
         }
     };
-    // -------------------------------
-    // Helper: Restore temporary hidden items
-    // -------------------------------
-    function restoreTemporaryHiddenItems(hiddenItems) {
-        for (var i = 0; i < hiddenItems.length; i++) {
-            try {
-                if (hiddenItems[i] && hiddenItems[i].isValid) {
-                    hiddenItems[i].hidden = false;
-                }
-            } catch (e) {
-                alert("Error restoring temporary hidden item: " + e.message);
-            }
-        }
-    }
 
-    // 構造化されたプリセット定義（仕様準拠: background, margin, stroke, location, symbol, suffix, size）
-    var presets = [
+    /* 初期プリセット（値の書式は background / margin / border / location / delimiter / suffix / size）
+       / Built-in presets, encoded the same way as a saved preset file */
+    var PRESETS = [
         {
-            label: (lang === 'ja') ? "透過・余白なし・倍率200%" : "Transparent / No Margin / 200%",
+            label: LABELS.preset.transparent200,
             background: "transparent",
             margin: "none",
-            stroke: "none",
+            border: "none",
             location: "desktop",
-            symbol: "",
+            delimiter: "",
             suffix: "200",
             size: "scale:200"
         },
         {
-            label: (lang === 'ja') ? "白背景・左右3mm・倍率300%" : "White BG / Horizontal 3mm / 300%",
+            label: LABELS.preset.whiteHorizontal300,
             background: "white",
             margin: "horizontal:3",
-            stroke: "none",
+            border: "none",
             location: "desktop",
-            symbol: "_",
+            delimiter: "_",
             suffix: "300",
             size: "scale:300"
         },
         {
-            label: (lang === 'ja') ? "白背景・上下5mm・幅指定1000px" : "White BG / Vertical 5mm / Width 1000px",
+            label: LABELS.preset.whiteVerticalWidth1000,
             background: "white",
             margin: "vertical:5",
-            stroke: "1,black",
+            border: "1,black",
             location: "desktop",
-            symbol: "_",
+            delimiter: "_",
             suffix: "1000",
             size: "width:1000"
         },
         {
-            label: (lang === 'ja') ? "黒背景・四辺10mm・倍率200%" : "Black BG / All 10mm / 200%",
+            label: LABELS.preset.blackAll200,
             background: "black",
             margin: "all:10",
-            stroke: "none",
+            border: "none",
             location: "desktop",
-            symbol: "-",
+            delimiter: "-",
             suffix: "200",
             size: "scale:200"
         }
     ];
 
-    // ES3安全: プリセットラベル配列を手動で作成
-    var presetLabels = [];
-    for (var i = 0; i < presets.length; i++) {
-        presetLabels.push(presets[i].label);
+    // =========================================
+    // UIレイアウト補助 / UI layout helpers
+    // =========================================
+
+    /**
+     * ダイアログウィンドウに共通レイアウトを適用する
+     * @param {Window} targetWindow - 対象ウィンドウ
+     * @returns {void}
+     */
+    function setupWindow(targetWindow) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = ["fill", "top"];
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = WINDOW_SPACING;
     }
 
-    function showExportOptionsDialog(selectionBounds, temporaryHiddenItems) {
-        var previewHiddenItems = [];
-        // --- Helper: Get current background value ---
-        function getCurrentBackgroundValue() {
-            if (rbTransparentGrid.value) return "transparentGrid";
-            if (rbWhite.value) return "white";
-            if (rbBlack.value) return "black";
-            if (rbHex.value) {
-                var hex = hexInput.text;
-                return (hex.charAt(0) === "#" ? hex : "#" + hex);
-            }
-            return "transparent";
-        }
+    /**
+     * パネルに共通レイアウトを適用する
+     * @param {Panel} targetPanel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
-        // --- Helper: Get current margin value ---
-        function getCurrentMarginValue() {
-            if (rbNoMargin.value) return "none";
-            if (rbMarginH.value) return "horizontal:" + marginInput.text;
-            if (rbMarginV.value) return "vertical:" + marginInput.text;
-            if (rbMarginAll.value) return "all:" + marginInput.text;
-            return "none";
-        }
+    /**
+     * グループを横並びの行として設定する
+     * @param {Group} targetGroup - 対象グループ
+     * @param {string} [horizontalAlign] - 横方向の揃え（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, horizontalAlign, spacing) {
+        targetGroup.orientation = "row";
+        /* 揃えは横と天地を対で指定し、親の fill 継承を打ち消す / Pair both axes to cancel the parent's fill */
+        targetGroup.alignment = [horizontalAlign || "left", "center"];
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
-        // --- Helper: Get current stroke value ---
-        function getCurrentStrokeValue() {
-            return rbNoRule.value ? "none" : ruleInput.text + "," + (rbBlackLine.value ? "black" : "white");
-        }
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Window|Group} parentContainer - 追加先
+     * @param {Object} titleLabelSet - パネル見出しのラベル定義
+     * @returns {Panel} 生成したパネル
+     */
+    function addPanel(parentContainer, titleLabelSet) {
+        var createdPanel = parentContainer.add("panel", undefined, getLabel(titleLabelSet));
+        setupPanel(createdPanel);
+        return createdPanel;
+    }
 
-        // --- Helper: Get current size value ---
-        function getCurrentSizeValue() {
-            if (rbScale100.value) return "scale:100";
-            if (rbScale200.value) return "scale:200";
-            if (rbScale300.value) return "scale:300";
-            if (rbScale400.value) return "scale:400";
+    /**
+     * 横並びの行グループを生成する
+     * @param {Window|Group|Panel} parentContainer - 追加先
+     * @param {string} [horizontalAlign] - 横方向の揃え
+     * @returns {Group} 生成したグループ
+     */
+    function addRow(parentContainer, horizontalAlign) {
+        var createdGroup = parentContainer.add("group");
+        setupRow(createdGroup, horizontalAlign);
+        return createdGroup;
+    }
 
-            if (rbCustomScale.value) return "scale:" + customScaleInput.text;
-            if (rbWidthInput.value) return "width:" + widthInput.text;
-            return "scale:100";
-        }
-        // --- Helper: Clear all scale radio selections ---
-        function clearAllScaleRadioSelections() {
-            var radios = [rbScale100, rbScale200, rbScale300, rbScale400, rbCustomScale, rbWidthInput];
-            for (var i = 0; i < radios.length; i++) {
-                if (typeof radios[i] !== "undefined" && radios[i] !== null) {
-                    radios[i].value = false;
-                }
-            }
-        }
+    /**
+     * 行の項目名（コロン付き）を追加する
+     * @param {Group} parentGroup - 追加先の行グループ
+     * @param {Object} labelSet - ラベル定義
+     * @returns {StaticText} 追加した項目名
+     */
+    function addRowLabel(parentGroup, labelSet) {
+        return parentGroup.add("statictext", undefined, labelText(labelSet));
+    }
 
-        // --- Preview apply function ---
-        function applyPreviewFromUI() {
-            if (typeof previewApply === "function") {
-                previewApply();
-            }
-        }
-
-        function toPx(val) {
-            return Math.ceil(val);
-        }
-
-        var unitInfo = getRulerUnitInfo();
-        var unitLabel = unitInfo.label;
-        var unitFactor = unitInfo.factor;
-        var defaultMargin = (unitLabel === "mm") ? 3 : 10;
-
-        var width = (selectionBounds[2] - selectionBounds[0]);
-        var height = (selectionBounds[1] - selectionBounds[3]);
-
-        // Labels for scale radio buttons: initially exclude pixel info
-        var label100 = "1x";
-        var label200 = "2x";
-        var label300 = "3x";
-        var label400 = "4x";
-
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-
-        // (Dialog location logic removed)
-        dialog.alignChildren = "left";
-
-        // 上部にプリセット選択を追加
-        var presetGroup = dialog.add("group");
-        presetGroup.margins = [16, 10, 10, 15];
-        presetGroup.orientation = "row";
-        presetGroup.alignment = "left";
-        presetGroup.add("statictext", undefined, LABELS.presetLabel[lang]);
-
-        var presetDropdown = presetGroup.add("dropdownlist", undefined, [
-            LABELS.custom[lang]
-        ].concat(presetLabels));
-        presetDropdown.selection = 0;
-
-        // --- プリセット書き出しボタンを追加 ---
-        var btnExportPreset = presetGroup.add("button", undefined, LABELS.exportPreset[lang]);
-
-        // (btnExportPreset.onClick handler will be inserted later)
-        // --- Inserted btnExportPreset.onClick handler after UI variable definitions ---
-        btnExportPreset.onClick = function() {
-            try {
-                var presetName = prompt(LABELS.presetPrompt[lang], LABELS.defaultPresetName[lang]);
-                if (!presetName) return;
-
-                var now = new Date();
-                var yyyyMMdd = now.getFullYear().toString() +
-                    ("0" + (now.getMonth() + 1)).slice(-2) +
-                    ("0" + now.getDate()).slice(-2);
-                var baseName = "export-setting-" + yyyyMMdd;
-                var counter = 1;
-                var exportFile = new File(Folder.desktop + "/" + baseName + ".txt");
-                while (exportFile.exists) {
-                    counter++;
-                    exportFile = new File(Folder.desktop + "/" + baseName + "_" + counter + ".txt");
-                }
-
-                var presetText = "";
-                presetText += ",\n";
-                presetText += "{label: (lang === 'ja') ? \"" + presetName + "\" : \"\",\n";
-                // --- Use helper functions for background, margin, stroke ---
-                presetText += "background=\"" + getCurrentBackgroundValue() + "\",\n";
-                presetText += "margin=\"" + getCurrentMarginValue() + "\",\n";
-                presetText += "stroke=\"" + getCurrentStrokeValue() + "\",\n";
-                presetText += "location=\"" + (rbDesktop.value ? "desktop" : "sameFolder") + "\",\n";
-
-                var symbol = "";
-                if (rbDash.value) {
-                    symbol = "-";
-                } else if (rbUnderscore.value) {
-                    symbol = "_";
-                }
-                presetText += "symbol=\"" + symbol + "\",\n";
-                presetText += "suffix=\"" + suffixInput.text + "\"\n";
-                // --- Use helper for size ---
-                presetText += "size=\"" + getCurrentSizeValue() + "\"\n";
-                presetText += "}";
-
-                exportFile.encoding = "UTF-8";
-                exportFile.open("w");
-                exportFile.write(presetText);
-                exportFile.close();
-                alert(LABELS.presetSavedMessage[lang] + exportFile.name);
-            } catch (e) {
-                alert("プリセット保存時にエラーが発生しました: " + e.message);
-            }
-        };
-
-        // 2カラムのメイングループ
-        var mainGroup = dialog.add("group");
-        mainGroup.orientation = "row";
-
-        var colLeft = mainGroup.add("group");
-        colLeft.orientation = "column";
-        colLeft.spacing = 16;
-        colLeft.alignChildren = "left";
-        colLeft.alignment = "top";
-
-        var colRight = mainGroup.add("group");
-        colRight.orientation = "column";
-        colRight.alignChildren = "left";
-        colRight.alignment = "top";
-
-        // 左カラム: 背景色（ラジオボタン: 透過・白・黒を横並び, カラー指定は下）
-        var bgPanel = colLeft.add("panel", undefined, LABELS.background[lang]);
-        bgPanel.margins = [16, 20, 10, 10];
-        bgPanel.orientation = "column";
-        bgPanel.alignChildren = "left";
-
-        // 背景色ラジオボタンを横並びにする（順序: 透過, 黒, 白）
-        var bgGroup = bgPanel.add("group");
-        bgGroup.orientation = "row";
-        var rbTransparent = bgGroup.add("radiobutton", undefined, LABELS.transparent[lang]);
-        var rbBlack = bgGroup.add("radiobutton", undefined, LABELS.black[lang]);
-        var rbWhite = bgGroup.add("radiobutton", undefined, LABELS.white[lang]);
-        // 透明グリッド（縦に追加）＋サイズ入力欄
-        var transparentGridGroup = bgPanel.add("group");
-        transparentGridGroup.orientation = "row";
-        var rbTransparentGrid = transparentGridGroup.add("radiobutton", undefined, LABELS.transparentGrid[lang]);
-        var transparentGridInput = transparentGridGroup.add("edittext", undefined, "100");
-        transparentGridInput.characters = 4;
-        transparentGridInput.enabled = false;
-        var transparentGridLabel = transparentGridGroup.add("statictext", undefined, "%");
-        rbTransparent.value = true;
-        // --- 透明グリッドのパーセンテージ値変更時に即プレビュー反映（プレビューを即時更新） ---
-        transparentGridInput.onChange = function() {
-            applyPreviewFromUI();
-        };
-
-        // 背景色: Hex カラー指定（ラジオ＋テキスト）
-        var hexGroup = bgPanel.add("group");
-        hexGroup.orientation = "row";
-        hexGroup.alignChildren = "left";
-        var rbHex = hexGroup.add("radiobutton", undefined, LABELS.hexColor[lang]);
-        var hexInput = hexGroup.add("edittext", undefined, "#ffcc00");
-        hexInput.characters = 12;
-        hexInput.enabled = false;
-
-        // --- Insert exclusive background selection logic here ---
-        // 背景色選択ラジオ排他制御（選択以外をオフにして入力欄有効化も制御）
-        function clearBackgroundSelection(except) {
-            rbTransparent.value = (except === rbTransparent);
-            rbWhite.value = (except === rbWhite);
-            rbBlack.value = (except === rbBlack);
-            rbHex.value = (except === rbHex);
-            rbTransparentGrid.value = (except === rbTransparentGrid);
-
-            hexInput.enabled = (except === rbHex);
-            transparentGridInput.enabled = (except === rbTransparentGrid);
-
-            applyPreviewFromUI();
-        }
-
-        // Refactored: Use a loop to assign onClick handlers for background radio buttons
-        var bgRadios = [rbTransparent, rbWhite, rbBlack, rbHex, rbTransparentGrid];
-        for (var i = 0; i < bgRadios.length; i++) {
-            (function(btn) {
-                btn.onClick = function() {
-                    clearBackgroundSelection(btn);
-                };
-            })(bgRadios[i]);
-        }
-        hexInput.onChange = applyPreviewFromUI;
-
-        // 左カラム: 余白
-        var marginPanel = colLeft.add("panel", undefined, LABELS.margin[lang]);
-        marginPanel.margins = [16, 20, 10, 10];
-        marginPanel.orientation = "column";
-        marginPanel.alignChildren = "left";
-
-        var rbNoMargin = marginPanel.add("radiobutton", undefined, LABELS.noMargin[lang]);
-        // 横並びで余白ラジオボタン3つ
-        var marginRadioGroup = marginPanel.add("group");
-        marginRadioGroup.orientation = "row";
-        var rbMarginH = marginRadioGroup.add("radiobutton", undefined, LABELS.marginHorizontal[lang]);
-        var rbMarginV = marginRadioGroup.add("radiobutton", undefined, LABELS.marginVertical[lang]);
-        var rbMarginAll = marginRadioGroup.add("radiobutton", undefined, LABELS.marginAll[lang]);
-        rbNoMargin.value = true;
-
-        var marginGroup = marginPanel.add("group");
-        marginGroup.orientation = "row";
-        var marginInput = marginGroup.add("edittext", undefined, String(defaultMargin));
-        marginInput.characters = 4;
-        var marginLabel = marginGroup.add("statictext", undefined, unitLabel);
-        marginInput.enabled = false;
-
-        rbNoMargin.onClick = function () {
-            // 排他処理
-            rbMarginH.value = false;
-            rbMarginV.value = false;
-            rbMarginAll.value = false;
-            rbNoMargin.value = true;
-            marginInput.enabled = false;
-            applyPreviewFromUI();
-        };
-        rbMarginH.onClick = function () {
-            rbNoMargin.value = false;
-            rbMarginV.value = false;
-            rbMarginAll.value = false;
-            rbMarginH.value = true;
-            marginInput.enabled = true;
-            applyPreviewFromUI();
-        };
-        rbMarginV.onClick = function () {
-            rbNoMargin.value = false;
-            rbMarginH.value = false;
-            rbMarginAll.value = false;
-            rbMarginV.value = true;
-            marginInput.enabled = true;
-            applyPreviewFromUI();
-        };
-        rbMarginAll.onClick = function () {
-            rbNoMargin.value = false;
-            rbMarginH.value = false;
-            rbMarginV.value = false;
-            rbMarginAll.value = true;
-            marginInput.enabled = true;
-            applyPreviewFromUI();
-        };
-        marginInput.onChange = applyPreviewFromUI;
-
-        // 左カラム: 罫線
-        var rulePanel = colLeft.add("panel", undefined, LABELS.rule[lang]);
-        rulePanel.margins = [16, 20, 10, 10];
-        rulePanel.orientation = "column";
-        rulePanel.alignChildren = "left";
-
-        var rbNoRule = rulePanel.add("radiobutton", undefined, LABELS.noRule[lang]);
-        var ruleGroup = rulePanel.add("group");
-        ruleGroup.orientation = "row";
-        var rbWithRule = ruleGroup.add("radiobutton", undefined, LABELS.withRule[lang]);
-        // --- Add exclusive event handler for rbWithRule ---
-        rbWithRule.onClick = function() {
-            rbNoRule.value = false;
-            ruleInput.enabled = true;
-            ruleColorLabelGroup.enabled = true;
-            ruleColorRadioGroup.enabled = true;
-            ruleHexGroup.enabled = true;
-        };
-        var ruleDefault = (unitLabel === "mm") ? "0.1" : "1";
-        var ruleInput = ruleGroup.add("edittext", undefined, ruleDefault);
-        ruleInput.characters = 4;
-        ruleInput.enabled = false;
-        var ruleLabel = ruleGroup.add("statictext", undefined, unitLabel);
-
-        rbNoRule.value = true;
-
-        // 罫線カラーグループを罫線パネル内の最後に追加（ラベル・ラジオ・Hex入力を分割）
-        var ruleColorLabelGroup = rulePanel.add("group");
-        ruleColorLabelGroup.orientation = "row";
-        ruleColorLabelGroup.enabled = false;
-        ruleColorLabelGroup.add("statictext", undefined, LABELS.ruleColor[lang]);
-
-        var ruleColorRadioGroup = rulePanel.add("group");
-        ruleColorRadioGroup.orientation = "row";
-        ruleColorRadioGroup.enabled = false;
-        var rbBlackLine = ruleColorRadioGroup.add("radiobutton", undefined, LABELS.blackLine[lang]);
-        var rbWhiteLine = ruleColorRadioGroup.add("radiobutton", undefined, LABELS.whiteLine[lang]);
-
-        var ruleHexGroup = rulePanel.add("group");
-        ruleHexGroup.orientation = "row";
-        ruleHexGroup.enabled = false;
-        var rbRuleHex = ruleHexGroup.add("radiobutton", undefined, LABELS.hexColor[lang]);
-        var ruleHexInput = ruleHexGroup.add("edittext", undefined, "#333333");
-        ruleHexInput.characters = 12;
-        ruleHexInput.enabled = false;
-
-        rbBlackLine.value = true;
-
-        rbNoRule.onClick = function() {
-            rbWithRule.value = false;
-            ruleInput.enabled = false;
-            ruleColorLabelGroup.enabled = false;
-            ruleColorRadioGroup.enabled = false;
-            ruleHexGroup.enabled = false;
-            applyPreviewFromUI();
-        };
-        rbWithRule.onClick = function() {
-            rbNoRule.value = false;
-            ruleInput.enabled = true;
-            ruleColorLabelGroup.enabled = true;
-            ruleColorRadioGroup.enabled = true;
-            ruleHexGroup.enabled = true;
-            applyPreviewFromUI();
-        };
-        ruleInput.onChange = applyPreviewFromUI;
-
-        rbBlackLine.onClick = rbWhiteLine.onClick = function() {
-            rbRuleHex.value = false;
-            applyPreviewFromUI();
-        };
-        rbRuleHex.onClick = function() {
-            ruleHexInput.enabled = true;
-            rbBlackLine.value = false;
-            rbWhiteLine.value = false;
-            applyPreviewFromUI();
-        };
-        ruleHexInput.onChange = applyPreviewFromUI;
-
-        // 右カラム: 書き出しサイズ
-        var scalePanel = colRight.add("panel", undefined, LABELS.size[lang]);
-        scalePanel.margins = [16, 20, 10, 10];
-        scalePanel.orientation = "column";
-        scalePanel.alignChildren = "left";
-
-        // Set alignChildren to left for scalePanel
-        scalePanel.alignChildren = "left";
-
-        // 左カラム：倍率ラジオボタン（2カラム構造を廃止し、scalePanelに直接追加）
-        var rbScale100 = scalePanel.add("radiobutton", undefined, label100);
-        var rbScale200 = scalePanel.add("radiobutton", undefined, label200);
-        var rbScale300 = scalePanel.add("radiobutton", undefined, label300);
-        var rbScale400 = scalePanel.add("radiobutton", undefined, label400);
-        rbScale400.value = true;
-
-        // Store original detailed labels for scale radio buttons with pixel info
-        var label100Orig = "1x：" + toPx(width) + " × " + toPx(height);
-        var label200Orig = "2x：" + toPx(width * 2) + " × " + toPx(height * 2);
-        var label300Orig = "3x：" + toPx(width * 3) + " × " + toPx(height * 3);
-        var label400Orig = "4x：" + toPx(width * 4) + " × " + toPx(height * 4);
-
-        // --- Helper functions for scale radio buttons ---
-        function disableOtherScaleInputs() {
-            if (typeof widthInput !== "undefined" && widthInput !== null) {
-                if (typeof widthInput !== "undefined" && widthInput !== null) {
-                    widthInput.enabled = false;
-                }
-            }
-            if (typeof rbWidthInput !== "undefined" && rbWidthInput !== null) {
-                rbWidthInput.value = false;
-            }
-            if (typeof rbCustomScale !== "undefined" && rbCustomScale !== null) {
-                rbCustomScale.value = false;
-            }
-            if (typeof customScaleInput !== "undefined" && customScaleInput !== null) {
-                customScaleInput.enabled = false;
-            }
-        }
-
-        function setCustomSuffix(value) {
-            if (typeof rbNoSuffix !== "undefined" && rbNoSuffix !== null) {
-                rbNoSuffix.value = false;
-            }
-            if (typeof rbCustomSuffix !== "undefined" && rbCustomSuffix !== null) {
-                rbCustomSuffix.value = true;
-            }
-            if (typeof suffixInput !== "undefined" && suffixInput !== null) {
-                suffixInput.enabled = true;
-                suffixInput.text = value;
-            }
-            updateFilenamePreview();
-        }
-
-        function updateScaleButtonColors(active) {
-            var gray = [0.5, 0.5, 0.5],
-                black = [0, 0, 0];
-            rbScale100.graphics.foregroundColor = rbScale100.graphics.newPen(rbScale100.graphics.PenType.SOLID_COLOR, active === "100" ? black : gray, 1);
-            rbScale200.graphics.foregroundColor = rbScale200.graphics.newPen(rbScale200.graphics.PenType.SOLID_COLOR, active === "200" ? black : gray, 1);
-            rbScale300.graphics.foregroundColor = rbScale300.graphics.newPen(rbScale300.graphics.PenType.SOLID_COLOR, active === "300" ? black : gray, 1);
-            rbScale400.graphics.foregroundColor = rbScale400.graphics.newPen(rbScale400.graphics.PenType.SOLID_COLOR, active === "400" ? black : gray, 1);
-        }
-
-        // Refactored scale radio button handlers using a loop and handler function
-        var scaleRadios = {
-            "100": {
-                button: rbScale100,
-                label: label100Orig,
-                multiplier: 1
-            },
-            "200": {
-                button: rbScale200,
-                label: label200Orig,
-                multiplier: 2
-            },
-            "300": {
-                button: rbScale300,
-                label: label300Orig,
-                multiplier: 3
-            },
-            "400": {
-                button: rbScale400,
-                label: label400Orig,
-                multiplier: 4
-            }
-        };
-
-        function createScaleClickHandler(scaleKey) {
-            return function() {
-                clearAllScaleRadioSelections();
-                var config = scaleRadios[scaleKey];
-                config.button.value = true;
-
-                rbScale100.text = "1x：" + toPx(width * 1) + " × " + toPx(height * 1);
-                rbScale200.text = "2x：" + toPx(width * 2) + " × " + toPx(height * 2);
-                rbScale300.text = "3x：" + toPx(width * 3) + " × " + toPx(height * 3);
-                rbScale400.text = "4x：" + toPx(width * 4) + " × " + toPx(height * 4);
-
-                config.button.text = config.label;
-
-                disableOtherScaleInputs();
-                updateScaleButtonColors(scaleKey);
-                setCustomSuffix(scaleKey);
-                if (typeof customScaleInput !== "undefined" && customScaleInput !== null) {
-                    customScaleInput.text = scaleKey;
-                }
-                if (typeof widthInput !== "undefined" && widthInput !== null) {
-                    widthInput.text = String(toPx(width * config.multiplier));
-                }
-                updateFilenamePreview();
+    /**
+     * 数値入力欄を追加する（↑↓キーでの増減付き）
+     * @param {Group} parentGroup - 追加先の行グループ
+     * @param {string} initialText - 初期値
+     * @param {number} charWidth - 入力欄の文字数
+     * @param {function} [onValueChanged] - 値が変わったときに呼ぶコールバック
+     * @returns {EditText} 追加した入力欄
+     */
+    function addNumberField(parentGroup, initialText, charWidth, onValueChanged) {
+        var inputField = parentGroup.add("edittext", undefined, initialText);
+        inputField.characters = charWidth;
+        changeValueByArrowKey(inputField, onValueChanged);
+        if (typeof onValueChanged === "function") {
+            inputField.onChange = function() {
+                onValueChanged(inputField.text);
             };
         }
+        return inputField;
+    }
 
-        // Assign the handlers
-        rbScale100.onClick = createScaleClickHandler("100");
-        rbScale200.onClick = createScaleClickHandler("200");
-        rbScale300.onClick = createScaleClickHandler("300");
-        rbScale400.onClick = createScaleClickHandler("400");
-        // Optionally, initialize the text and color of rbScale200 to show its detailed label and selection state since it's selected by default
-        rbScale100.text = label100Orig;
-        rbScale200.text = label200Orig;
-        rbScale300.text = label300Orig;
-        rbScale400.text = label400Orig;
-        // Set initial button colors for default selection (4x)
-        rbScale100.graphics.foregroundColor = rbScale100.graphics.newPen(rbScale100.graphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5], 1);
-        rbScale200.graphics.foregroundColor = rbScale200.graphics.newPen(rbScale200.graphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5], 1);
-        rbScale300.graphics.foregroundColor = rbScale300.graphics.newPen(rbScale300.graphics.PenType.SOLID_COLOR, [0.5, 0.5, 0.5], 1);
-        // Initialize color state and suffix for default (4x)
-        if (typeof rbScale400.onClick === "function") rbScale400.onClick();
+    /**
+     * 入力欄に↑↓キーでの値増減を追加する（Shift併用で10単位スナップ、option併用で0.1単位）
+     * @param {EditText} inputField - 対象の入力欄
+     * @param {function} [onValueChanged] - 値を更新したあとに呼ぶコールバック
+     * @returns {void}
+     */
+    function changeValueByArrowKey(inputField, onValueChanged) {
+        inputField.addEventListener("keydown", function(event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+            var currentValue = Number(inputField.text);
+            if (isNaN(currentValue)) return;
 
-        // カスタム倍率ラジオボタンと入力欄の追加（倍率）
-        var customScaleGroup = scalePanel.add("group");
-        customScaleGroup.orientation = "row";
-        var rbCustomScale = customScaleGroup.add("radiobutton", undefined, LABELS.customScaleLabel[lang]);
-        rbCustomScale.preferredSize.width = (lang === "ja") ? 60 : 70;
-        var customScaleInput = customScaleGroup.add("edittext", undefined, "500");
-        customScaleInput.characters = 5;
-        customScaleInput.enabled = false;
-        var scaleLabel = customScaleGroup.add("statictext", undefined, "%");
+            /* 修飾キーは keyboardState から読む / Read the modifiers from keyboardState */
+            var keyboardState = ScriptUI.environment.keyboardState;
+            var stepDirection = (event.keyName == "Up") ? 1 : -1;
 
-        // --- 幅指定ラジオボタンと入力欄の追加（幅指定）
-        var widthGroup = scalePanel.add("group");
-        widthGroup.orientation = "row";
-        var rbWidthInput = widthGroup.add("radiobutton", undefined, LABELS.widthInput[lang]);
-        rbWidthInput.preferredSize.width = (lang === "ja") ? 60 : 70;
-        var widthInput = widthGroup.add("edittext", undefined, "");
-        widthInput.characters = 7;
-        var widthLabel = widthGroup.add("statictext", undefined, "px");
-        widthInput.enabled = false;
-
-        // --- Set default widthInput based on default scale value (500) ---
-        var defaultScale = 500;
-        var scaledWidth = Math.round(width * defaultScale / 100);
-        widthInput.text = scaledWidth.toString();
-
-        // ラジオボタン選択時の入力有効化と排他制御
-        rbWidthInput.onClick = function() {
-            clearAllScaleRadioSelections();
-            rbWidthInput.value = true;
-            widthInput.enabled = true;
-            customScaleInput.enabled = false;
-        };
-        rbCustomScale.onClick = function() {
-            clearAllScaleRadioSelections();
-            rbCustomScale.value = true;
-            customScaleInput.enabled = true;
-            widthInput.enabled = false;
-        };
-
-        // 右カラム: 書き出しファイル名パネル追加
-        var namePanel = colRight.add("panel", undefined, LABELS.fileName[lang]);
-        namePanel.margins = [16, 20, 10, 10];
-        namePanel.orientation = "column";
-        namePanel.alignChildren = "left";
-        namePanel.preferredSize.width = 300;
-
-        // ファイル名参照のオプション（UIのみ）
-        var refNameGroup = namePanel.add("group");
-        refNameGroup.orientation = "row";
-        refNameGroup.add("statictext", undefined, LABELS.fileNameReference[lang]);
-        var rbUseName = refNameGroup.add("radiobutton", undefined, "参照する");
-        var rbNoUseName = refNameGroup.add("radiobutton", undefined, "参照しない");
-        rbUseName.value = true;
-        rbUseName.onClick = function() {
-            updateFilenamePreview();
-        };
-        rbNoUseName.onClick = function() {
-            rbCustomSuffix.value = true;
-            suffixInput.enabled = true;
-            suffixInput.active = true;
-            rbNone.value = true;
-            rbDash.value = false;
-            rbUnderscore.value = false;
-            updateFilenamePreview();
-        };
-        // --- 記号・接尾辞パネルの新レイアウト ---
-        // 記号グループ（ラベル＋○なし ○- ○_）
-        var symbolGroup = namePanel.add("group");
-        symbolGroup.orientation = "row";
-        symbolGroup.add("statictext", undefined, LABELS.symbol[lang]);
-        var rbNone = symbolGroup.add("radiobutton", undefined, LABELS.none[lang]);
-        var rbDash = symbolGroup.add("radiobutton", undefined, "-");
-        var rbUnderscore = symbolGroup.add("radiobutton", undefined, "_");
-        rbDash.value = true;
-
-        // 接尾辞グループ（横並び）
-        var suffixGroup = namePanel.add("group");
-        suffixGroup.orientation = "row";
-        suffixGroup.alignChildren = "left, center";
-        suffixGroup.add("statictext", undefined, LABELS.suffixTextLabel[lang]);
-        var rbNoSuffix = suffixGroup.add("radiobutton", undefined, LABELS.none[lang]);
-        var rbCustomSuffix = suffixGroup.add("radiobutton", undefined, "");
-        var suffixInput = suffixGroup.add("edittext", undefined, "");
-        suffixInput.characters = 14;
-        suffixInput.enabled = false;
-
-        rbNoSuffix.value = true;
-        rbCustomSuffix.value = false;
-
-        var filenamePreviewGroup = namePanel.add("panel", undefined, "");
-        filenamePreviewGroup.size = [300, 46];
-        filenamePreviewGroup.orientation = "row";
-        filenamePreviewGroup.alignChildren = "left";
-
-        var filenamePreview = filenamePreviewGroup.add("statictext", undefined, "");
-        filenamePreview.preferredSize = [260, 22]; // 高さを明示的に設定しディセンダーが見切れないように
-        filenamePreview.justify = "left";
-
-        rbNoSuffix.onClick = function() {
-            suffixInput.enabled = false;
-            updateFilenamePreview();
-        };
-        rbCustomSuffix.onClick = function() {
-            suffixInput.enabled = true;
-            updateFilenamePreview();
-        };
-
-        // --- 接尾辞をスケールや幅指定に連動して自動設定するロジックを追加 ---
-        rbWidthInput.onClick = function() {
-            clearAllScaleRadioSelections();
-            rbWidthInput.value = true;
-            widthInput.enabled = true;
-            customScaleInput.enabled = false;
-            setSuffixFrom(widthInput.text);
-        };
-        widthInput.onChange = function() {
-            setSuffixFrom(widthInput.text);
-        };
-        rbCustomScale.onClick = function() {
-            clearAllScaleRadioSelections();
-            rbCustomScale.value = true;
-            customScaleInput.enabled = true;
-            widthInput.enabled = false;
-            setSuffixFrom(customScaleInput.text);
-        };
-        customScaleInput.onChange = function() {
-            setSuffixFrom(customScaleInput.text);
-        };
-
-        // 右カラム: 書き出し先（ラジオボタン横並び、ラベル調整）
-        var locPanel = colRight.add("panel", undefined, LABELS.location[lang]);
-        locPanel.margins = [16, 20, 10, 10];
-        locPanel.orientation = "column";
-        locPanel.alignChildren = "left";
-        locPanel.preferredSize.width = 300;
-
-        var locGroup = locPanel.add("group");
-        locGroup.orientation = "row";
-        locGroup.alignChildren = "left";
-        var rbDesktop = locGroup.add("radiobutton", undefined, LABELS.desktop[lang]);
-        var rbSameFolder = locGroup.add("radiobutton", undefined, LABELS.sameFolder[lang]);
-        rbDesktop.value = true;
-
-        // プリセット選択で値を自動入力
-        presetDropdown.onChange = function() {
-            var idx = presetDropdown.selection.index;
-            if (idx === 0) return; // カスタム
-
-            var p = presets[idx - 1];
-
-            // 背景ラジオボタンと入力欄の状態をすべてリセット
-            rbTransparent.value = false;
-            rbWhite.value = false;
-            rbBlack.value = false;
-            rbHex.value = false;
-            rbTransparentGrid.value = false;
-            hexInput.enabled = false;
-            transparentGridInput.enabled = false;
-
-            // 背景値に応じて正しく反映
-            if (p.background === "transparent") {
-                rbTransparent.value = true;
-            } else if (p.background === "white") {
-                rbWhite.value = true;
-            } else if (p.background === "black") {
-                rbBlack.value = true;
-            } else if (p.background === "transparentGrid") {
-                rbTransparentGrid.value = true;
-                transparentGridInput.enabled = true;
-            } else if (typeof p.background === "string" && p.background.charAt(0) === "#") {
-                rbHex.value = true;
-                hexInput.enabled = true;
-                hexInput.text = p.background;
-            }
-
-            if (p.margin === "none") {
-                rbNoMargin.value = true;
-                marginInput.enabled = false;
-            } else if (p.margin.indexOf("horizontal:") === 0) {
-                rbMarginH.value = true;
-                marginInput.text = p.margin.split(":")[1];
-                marginInput.enabled = true;
-            } else if (p.margin.indexOf("vertical:") === 0) {
-                rbMarginV.value = true;
-                marginInput.text = p.margin.split(":")[1];
-                marginInput.enabled = true;
-            } else if (p.margin.indexOf("all:") === 0) {
-                rbMarginAll.value = true;
-                marginInput.text = p.margin.split(":")[1];
-                marginInput.enabled = true;
+            if (keyboardState.shiftKey) {
+                /* Shift併用は「10の倍数」にスナップ / Snap to multiples of 10 with Shift */
+                currentValue = Math.round(currentValue / 10) * 10 + stepDirection * 10;
+                if (currentValue < 0) currentValue = 0;
+            } else if (keyboardState.altKey) {
+                /* option併用は0.1単位（小数第1位に丸め）/ Step by 0.1 with option */
+                currentValue = Math.round((currentValue + stepDirection * 0.1) * 10) / 10;
             } else {
-                rbMarginAll.value = true;
-                marginInput.text = p.margin;
-                marginInput.enabled = true;
+                currentValue += stepDirection;
+                if (currentValue < 0) currentValue = 0;
             }
 
-            if (p.rule === "none") {
-                rbNoRule.value = true;
-                rbWithRule.value = false;
-                ruleInput.enabled = false;
-                ruleColorLabelGroup.enabled = false;
-                ruleColorRadioGroup.enabled = false;
-                ruleHexGroup.enabled = false;
-            } else {
-                rbWithRule.value = true;
-                rbNoRule.value = false;
-                var parts = p.rule.split(",");
-                ruleInput.text = parts[0];
-                ruleInput.enabled = true;
-                ruleColorLabelGroup.enabled = true;
-                ruleColorRadioGroup.enabled = true;
-                ruleHexGroup.enabled = true;
-                rbBlackLine.value = (parts[1] === "black");
-                rbWhiteLine.value = (parts[1] === "white");
+            event.preventDefault();
+            inputField.text = currentValue;
+            if (typeof onValueChanged === "function") {
+                onValueChanged(inputField.text);
             }
-
-            rbDesktop.value = (p.location === "desktop");
-            rbSameFolder.value = (p.location !== "desktop");
-
-            // 記号選択の復元
-            rbNone.value = (p.symbol === "");
-            rbDash.value = (p.symbol === "-");
-            rbUnderscore.value = (p.symbol === "_");
-
-            // 接尾辞選択の復元
-            if (p.suffix === "") {
-                rbNoSuffix.value = true;
-                rbCustomSuffix.value = false;
-                suffixInput.enabled = false;
-            } else {
-                rbNoSuffix.value = false;
-                rbCustomSuffix.value = true;
-                suffixInput.enabled = true;
-                suffixInput.text = p.suffix;
-            }
-
-            // --- 書き出しサイズ（scale or width）を正しく反映 ---
-            rbScale100.value = false;
-            rbScale200.value = false;
-            rbScale300.value = false;
-            rbWidthInput.value = false;
-            rbCustomScale.value = false;
-            customScaleInput.enabled = false;
-            widthInput.enabled = false;
-
-            if (p.size.indexOf("scale:") === 0) {
-                var scaleValue = p.size.split(":")[1];
-                if (scaleValue === "100") {
-                    rbScale100.value = true;
-                    if (typeof rbScale100.onClick === "function") rbScale100.onClick();
-                } else if (scaleValue === "200") {
-                    rbScale200.value = true;
-                    if (typeof rbScale200.onClick === "function") rbScale200.onClick();
-                } else if (scaleValue === "300") {
-                    rbScale300.value = true;
-                    if (typeof rbScale300.onClick === "function") rbScale300.onClick();
-                } else if (scaleValue === "400") {
-                    rbScale400.value = true;
-                    if (typeof rbScale400.onClick === "function") rbScale400.onClick();
-                } else {
-                    rbCustomScale.value = true;
-                    customScaleInput.enabled = true;
-                    customScaleInput.text = scaleValue;
-                    if (typeof rbCustomScale.onClick === "function") rbCustomScale.onClick();
-                }
-            } else if (p.size.indexOf("width:") === 0) {
-                var widthValue = p.size.split(":")[1];
-                rbWidthInput.value = true;
-                widthInput.enabled = true;
-                widthInput.text = widthValue;
-                if (typeof rbWidthInput.onClick === "function") rbWidthInput.onClick();
-            }
-        };
-
-        // --- Add checkbox for showing folder after export ---
-        var showFolderGroup = locPanel.add("group");
-        showFolderGroup.orientation = "row";
-        var showFolderCheckbox = showFolderGroup.add("checkbox", undefined, LABELS.showFolder[lang]);
-        showFolderCheckbox.value = true;
-        if (Folder.fs !== "Macintosh") {
-            showFolderGroup.visible = false;
-        }
-
-        // --- Filename preview update function (refactored) ---
-        function updateFilenamePreview() {
-            if (typeof filenamePreview === "undefined") return;
-
-            var sym = "";
-            if (rbDash && rbDash.value) sym = "-";
-            else if (rbUnderscore && rbUnderscore.value) sym = "_";
-            else sym = "";
-
-            var suffix = rbNoSuffix && rbNoSuffix.value ? "" : suffixInput.text;
-            var useDocName = rbNoUseName && rbNoUseName.value ? false : true;
-            var docNameUsed = (typeof docName !== "undefined") ? docName : "Untitled";
-
-            filenamePreview.text = generateExportFilename(docNameUsed, sym, suffix, useDocName);
-        }
-
-        // --- Symbol radio button event handlers for filename preview ---
-        rbDash.onClick = function() {
-            updateFilenamePreview();
-        };
-        rbUnderscore.onClick = function() {
-            updateFilenamePreview();
-        };
-        rbNone.onClick = function() {
-            updateFilenamePreview();
-        };
-        suffixInput.onChange = function() {
-            updateFilenamePreview();
-        };
-
-        // (Do not call updateFilenamePreview here; call only in dialog "show" event)
-
-        // OK/キャンセルボタン: 左端にキャンセル、右端にOK
-        var btnGroup = dialog.add("group");
-        btnGroup.alignment = "fill";
-        btnGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnGroup.add("button", undefined, LABELS.cancel[lang], {
-            name: "cancel"
         });
-        var btnOK = btnGroup.add("button", undefined, LABELS.ok[lang], {
-            name: "ok"
-        });
-        // EnterキーでOKボタンを実行可能に
-        dialog.defaultElement = btnOK;
+    }
 
-        // --- プレビュー描画ロジックを関数として定義 ---
-        function previewApply() {
-            var allItems = app.activeDocument.pageItems;
-            var selectedItems = app.activeDocument.selection;
-            previewHiddenItems.length = 0; // clear existing before reuse
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-            function isInSelection(item, selectionArray) {
-                while (item != null) {
-                    for (var i = 0; i < selectionArray.length; i++) {
-                        if (item === selectionArray[i]) return true;
-                    }
-                    item = item.parent;
-                }
-                return false;
-            }
+    /**
+     * 定規の単位ラベルとpt換算係数を取得する
+     * @returns {{label: string, factor: number}} 単位ラベルと1単位あたりのpt数
+     */
+    function getRulerUnitInfo() {
+        var rulerType = app.preferences.getIntegerPreference("rulerType");
+        var unitTable = {
+            0: { label: "inch", factor: 72.0 },
+            1: { label: "mm", factor: 72.0 / 25.4 },
+            3: { label: "pica", factor: 12.0 },
+            4: { label: "cm", factor: 72.0 / 2.54 },
+            5: { label: "Q", factor: 72.0 / 25.4 * 0.25 },
+            6: { label: "px", factor: 1.0 }
+        };
+        /* 未対応の rulerType（2 を含む）は pt 扱い / Unknown ruler types, 2 included, fall back to pt */
+        return unitTable[rulerType] || { label: "pt", factor: 1.0 };
+    }
 
-            // 選択外オブジェクトを一時的に非表示
-            for (var i = 0; i < allItems.length; i++) {
-                var item = allItems[i];
-                if (item.locked || item.layer.locked) continue;
-                if (!isInSelection(item, selectedItems)) {
-                    // Robust check for hiding items
-                    if (
-                        item &&
-                        !item.hidden &&
-                        item.editable !== false &&
-                        !item.locked &&
-                        item.layer &&
-                        !item.layer.locked &&
-                        (!item.parent || !item.parent.locked)
-                    ) {
-                        try {
-                            item.hidden = true;
-                            previewHiddenItems.push(item);
-                        } catch (e) {
-                            alert("Error hiding item during previewApply: " + e.message);
-                        }
-                    }
-                }
-            }
+    /**
+     * 単位ごとの既定値を取り出す
+     * @param {Object} defaultsByUnit - 単位ラベルをキーにした既定値の表
+     * @param {string} unitLabel - 単位ラベル
+     * @returns {number} 既定値
+     */
+    function getDefaultForUnit(defaultsByUnit, unitLabel) {
+        return (defaultsByUnit[unitLabel] != null) ? defaultsByUnit[unitLabel] : defaultsByUnit._fallback;
+    }
 
-            // プレビュー用図形を削除
-            removePreviewItems();
+    /**
+     * 入力文字列を数値として読み取る（不正値は0）
+     * @param {string} inputText - 入力文字列
+     * @returns {number} 読み取った数値
+     */
+    function toNumber(inputText) {
+        var parsedValue = parseFloat(inputText);
+        return isNaN(parsedValue) ? 0 : parsedValue;
+    }
 
-            var bg = "white";
-            // 背景色選択状態を取得
-            if (rbTransparent.value) {
-                bg = "transparent";
-            } else if (rbBlack.value) {
-                bg = "black";
-            } else if (rbHex.value) {
-                bg = hexInput.text;
-                if (bg.charAt(0) !== "#") bg = "#" + bg;
-            } else if (rbTransparentGrid.value) {
-                bg = "transparentGrid";
-            }
+    /**
+     * pt値をピクセル数（整数）に切り上げる
+     * @param {number} valuePt - pt値
+     * @returns {number} 切り上げたピクセル数
+     */
+    function ceilToPixel(valuePt) {
+        return Math.ceil(valuePt);
+    }
 
-            // --- Margin calculation (horizontal/vertical/all) ---
-            var marginH = 0;
-            var marginV = 0;
-            var raw = parseFloat(marginInput.text);
-            var factor = getRulerUnitInfo().factor;
-            if (rbMarginH.value) {
-                marginH = isNaN(raw) ? 0 : raw * factor;
-            } else if (rbMarginV.value) {
-                marginV = isNaN(raw) ? 0 : raw * factor;
-            } else if (rbMarginAll.value) {
-                var val = isNaN(raw) ? 0 : raw * factor;
-                marginH = val;
-                marginV = val;
-            }
+    // =========================================
+    // カラー / Colors
+    // =========================================
 
-            var bounds = selectionBounds;
-            var left = bounds[0] - marginH;
-            var top = bounds[1] + marginV;
-            var right = bounds[2] + marginH;
-            var bottom = bounds[3] - marginV;
+    /* 受け付けるカラーコードの書式 / Accepted color code formats */
+    var COLOR_CODE_PATTERN = /^(#[0-9A-F]{6}|R\d{1,3}G\d{1,3}B\d{1,3}|C\d{1,3}M\d{1,3}Y\d{1,3}K\d{1,3})$/;
 
-            left = Math.floor(left);
-            top = Math.ceil(top);
-            right = Math.ceil(right);
-            bottom = Math.floor(bottom);
+    /* 「カラー指定」を選んだことだけを表す内部キーワード（入力欄の値は書き換えない）
+       / Internal keyword meaning "the color code radio is selected", leaving the field untouched */
+    var COLOR_CODE_KEYWORD = "colorCode";
 
-            var width = right - left;
-            var height = top - bottom;
+    /**
+     * ドキュメントのカラースペースに合わせた白を生成する
+     * @returns {RGBColor|CMYKColor} 白
+     */
+    function createWhiteColor() {
+        if (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB) {
+            var whiteRgb = new RGBColor();
+            whiteRgb.red = 255;
+            whiteRgb.green = 255;
+            whiteRgb.blue = 255;
+            return whiteRgb;
+        }
+        var whiteCmyk = new CMYKColor();
+        whiteCmyk.cyan = 0;
+        whiteCmyk.magenta = 0;
+        whiteCmyk.yellow = 0;
+        whiteCmyk.black = 0;
+        return whiteCmyk;
+    }
 
-            // --- 背景描画処理を共通関数で ---
-            var tilePercent = parseFloat(transparentGridInput.text);
-            if (isNaN(tilePercent) || tilePercent <= 0) tilePercent = 100;
-            createExportBackground(bg, left, top, width, height, tilePercent);
+    /**
+     * ドキュメントのカラースペースに合わせた黒を生成する
+     * @returns {RGBColor|CMYKColor} 黒
+     */
+    function createBlackColor() {
+        if (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB) {
+            var blackRgb = new RGBColor();
+            blackRgb.red = 0;
+            blackRgb.green = 0;
+            blackRgb.blue = 0;
+            return blackRgb;
+        }
+        var blackCmyk = new CMYKColor();
+        blackCmyk.cyan = 0;
+        blackCmyk.magenta = 0;
+        blackCmyk.yellow = 0;
+        blackCmyk.black = 100;
+        return blackCmyk;
+    }
 
-            // --- 罫線描画（最小1px保証、整数化） ---
-            var ruleWidthRaw = rbWithRule.value ? parseFloat(ruleInput.text) : 0;
-            var unitFactor = getRulerUnitInfo().factor;
-            var ruleWidth = isNaN(ruleWidthRaw) ? 0 : ruleWidthRaw * unitFactor;
+    /**
+     * カラーコード文字列からカラーを生成する（#RRGGBB / R255G255B255 / C0M100Y100K0）
+     * @param {string} colorCode - カラーコード文字列
+     * @returns {RGBColor|CMYKColor|null} 生成したカラー。解釈できないときは null
+     */
+    function createColorFromCode(colorCode) {
+        var normalizedCode = normalizeColorCode(colorCode);
 
-            if (ruleWidth > 0) {
-                ruleWidth = Math.ceil(ruleWidth); // pxに変換後、切り上げで整数化
-                var adjustedStrokeWidth = Math.max(1, ruleWidth); // 最低1pxを保証、奇数でもそのまま
-                var halfStroke = adjustedStrokeWidth / 2;
-                var innerLeft = left + halfStroke;
-                var innerTop = top - halfStroke;
-                var innerWidth = width - adjustedStrokeWidth;
-                var innerHeight = height - adjustedStrokeWidth;
-
-                var ruleRect = app.activeDocument.pathItems.rectangle(innerTop, innerLeft, innerWidth, innerHeight);
-                ruleRect.name = "preview_border";
-                ruleRect.stroked = true;
-                if (rbBlackLine.value) {
-                    ruleRect.strokeColor = createBlackColor();
-                } else if (rbWhiteLine.value) {
-                    ruleRect.strokeColor = createWhiteColor();
-                } else if (rbRuleHex.value) {
-                    var ruleColorChoice = ruleHexInput.text;
-                    if (ruleColorChoice.charAt(0) !== "#") ruleColorChoice = "#" + ruleColorChoice;
-                    ruleRect.strokeColor = createColorFromCode(ruleColorChoice);
-                }
-                ruleRect.strokeWidth = adjustedStrokeWidth;
-                ruleRect.filled = false;
-            }
-
-            app.redraw();
+        if (/^#[0-9A-F]{6}$/.test(normalizedCode)) {
+            var hexColor = new RGBColor();
+            hexColor.red = parseInt(normalizedCode.substring(1, 3), 16);
+            hexColor.green = parseInt(normalizedCode.substring(3, 5), 16);
+            hexColor.blue = parseInt(normalizedCode.substring(5, 7), 16);
+            return hexColor;
         }
 
-        // --- Store deep copy of current hidden states before dialog shows ---
-        var doc = app.activeDocument;
-        var originalHiddenStates = [];
-        for (var i = 0; i < doc.pageItems.length; i++) {
-            var item = doc.pageItems[i];
-            originalHiddenStates.push({
-                item: item,
-                hidden: item.hidden
-            });
+        var rgbMatch = normalizedCode.match(/^R(\d{1,3})G(\d{1,3})B(\d{1,3})$/);
+        if (rgbMatch) {
+            var rgbColor = new RGBColor();
+            rgbColor.red = Math.min(255, parseInt(rgbMatch[1], 10));
+            rgbColor.green = Math.min(255, parseInt(rgbMatch[2], 10));
+            rgbColor.blue = Math.min(255, parseInt(rgbMatch[3], 10));
+            return rgbColor;
         }
 
-        applyPreviewFromUI();
-
-        // --- ここから追加: ダイアログ表示時のイベントでファイル名プレビュー更新とセンタリング＆位置調整 ---
-        dialog.addEventListener("show", function() {
-            updateFilenamePreview();
-            dialog.center();
-            dialog.location = [dialog.location[0] + 300, dialog.location[1]];
-        });
-
-        var dialogResult = dialog.show();
-
-        // プレビュー用の仮図形削除
-        removePreviewItems();
-
-        // 一時的に非表示にしたオブジェクトと元のhidden状態を一括復元
-        restoreAllHiddenStates(temporaryHiddenItems, originalHiddenStates);
-
-        if (dialogResult === 1) {
-            var bg = "white";
-            if (rbTransparent.value) {
-                bg = "transparent";
-            } else if (rbBlack.value) {
-                bg = "black";
-            } else if (rbHex.value) {
-                bg = hexInput.text;
-                if (bg.charAt(0) !== "#") bg = "#" + bg;
-            } else if (rbTransparentGrid.value) {
-                bg = "transparentGrid";
-            }
-
-            var location = rbDesktop.value ? "desktop" : "same";
-            var scaleValue = getScaleValueFromUI();
-            var widthOverride = null;
-
-            if (rbWidthInput.value) {
-                var val = parseFloat(widthInput.text);
-                if (!isNaN(val) && val > 0) {
-                    widthOverride = val;
-                    scaleValue = null;
-                }
-            } else if (rbCustomScale.value) {
-                var val = parseFloat(customScaleInput.text);
-                if (!isNaN(val) && val > 0) {
-                    scaleValue = val;
-                }
-            }
-
-            // --- marginValue: use string encoding as per new spec ---
-            var marginValue = "none";
-            if (rbMarginH.value) {
-                marginValue = "horizontal:" + marginInput.text;
-            } else if (rbMarginV.value) {
-                marginValue = "vertical:" + marginInput.text;
-            } else if (rbMarginAll.value) {
-                marginValue = "all:" + marginInput.text;
-            }
-
-            var ruleWidthRaw = rbWithRule.value ? parseFloat(ruleInput.text) : 0;
-            var ruleWidth = isNaN(ruleWidthRaw) ? 0 : ruleWidthRaw * unitFactor;
-            var ruleColorChoice;
-            if (rbBlackLine.value) {
-                ruleColorChoice = "black";
-            } else if (rbWhiteLine.value) {
-                ruleColorChoice = "white";
-            } else if (rbRuleHex.value) {
-                ruleColorChoice = ruleHexInput.text;
-                if (ruleColorChoice.charAt(0) !== "#") ruleColorChoice = "#" + ruleColorChoice;
-            }
-            var symbol = rbDash.value ? "-" : rbUnderscore.value ? "_" : "";
-            var suffix = (rbNoSuffix.value) ? "" : suffixInput.text;
-
-            // For transparentGrid, pass tile percent as a property for main()
-            var transparentGridPercent = null;
-            if (bg === "transparentGrid") {
-                transparentGridPercent = parseFloat(transparentGridInput.text);
-                if (isNaN(transparentGridPercent) || transparentGridPercent <= 0) transparentGridPercent = 100;
-            }
-
-            // Add previewHiddenItems to return value
-            return {
-                bgChoice: bg,
-                outputLocation: location,
-                scaleValue: scaleValue,
-                widthOverride: widthOverride,
-                marginValue: marginValue,
-                ruleWidth: ruleWidth,
-                ruleColor: ruleColorChoice,
-                suffix: suffix,
-                symbol: symbol,
-                showFolder: showFolderCheckbox.value,
-                transparentGridPercent: transparentGridPercent,
-                exportFileName: filenamePreview.text,
-                hiddenItems: previewHiddenItems // newly returned list
-            };
-        } else {
-            // キャンセル時も temporaryHiddenItems を再表示
-            // (already done above)
-            return null;
+        var cmykMatch = normalizedCode.match(/^C(\d{1,3})M(\d{1,3})Y(\d{1,3})K(\d{1,3})$/);
+        if (cmykMatch) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = Math.min(100, parseInt(cmykMatch[1], 10));
+            cmykColor.magenta = Math.min(100, parseInt(cmykMatch[2], 10));
+            cmykColor.yellow = Math.min(100, parseInt(cmykMatch[3], 10));
+            cmykColor.black = Math.min(100, parseInt(cmykMatch[4], 10));
+            return cmykColor;
         }
-        // -------------------------------
-        // Helper: Get scale value from UI
-        // -------------------------------
-        function getScaleValueFromUI() {
-            if (rbScale100 && rbScale100.value) return 100;
-            if (rbScale200 && rbScale200.value) return 200;
-            if (rbScale300 && rbScale300.value) return 300;
-            if (rbScale400 && rbScale400.value) return 400;
-            return null;
+
+        return null;
+    }
+
+    /**
+     * カラーコードを正規化する（空白を除き、# の無い6桁16進数には # を補う）
+     * @param {string} colorCode - 入力されたカラーコード
+     * @returns {string} 正規化したカラーコード
+     */
+    function normalizeColorCode(colorCode) {
+        var normalizedCode = String(colorCode).replace(/\s+/g, "").toUpperCase();
+        return /^[0-9A-F]{6}$/.test(normalizedCode) ? "#" + normalizedCode : normalizedCode;
+    }
+
+    /**
+     * カラーコードとして解釈できる文字列かどうかを判定する
+     * @param {string} value - 判定する文字列
+     * @returns {boolean} 対応書式なら true
+     */
+    function isColorCode(value) {
+        return (typeof value === "string") && COLOR_CODE_PATTERN.test(normalizeColorCode(value));
+    }
+
+    // =========================================
+    // 表示状態の保存と復元 / Saving and restoring visibility
+    // =========================================
+
+    /**
+     * 指定レイヤー以外をすべて非表示にする
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} exceptLayer - 表示したままにするレイヤー
+     * @returns {Layer[]} 非表示にしたレイヤー
+     */
+    function hideOtherLayers(doc, exceptLayer) {
+        var hiddenLayers = [];
+        for (var i = 0; i < doc.layers.length; i++) {
+            var targetLayer = doc.layers[i];
+            if (targetLayer === exceptLayer || !targetLayer.visible) continue;
+            targetLayer.visible = false;
+            hiddenLayers.push(targetLayer);
+        }
+        return hiddenLayers;
+    }
+
+    /**
+     * 非表示にしたレイヤーを再表示する
+     * @param {Layer[]} hiddenLayers - 非表示にしたレイヤー
+     * @returns {void}
+     */
+    function restoreLayerVisibility(hiddenLayers) {
+        for (var i = 0; i < hiddenLayers.length; i++) {
+            hiddenLayers[i].visible = true;
         }
     }
 
-    main();
-
-    function main() {
-        var rulerUnitInfo = getRulerUnitInfo();
-
-        if (app.documents.length === 0 || app.selection.length === 0) {
-            alert(LABELS.noSelection[lang]);
-            return;
+    /**
+     * 選択オブジェクトを指定レイヤーへ複製する（重ね順を維持）
+     * @param {PageItem[]} selectedItems - 複製元の選択オブジェクト
+     * @param {Layer} targetLayer - 複製先レイヤー
+     * @returns {PageItem[]} 複製したオブジェクト
+     */
+    function duplicateSelectionToLayer(selectedItems, targetLayer) {
+        var duplicatedItems = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            duplicatedItems.push(selectedItems[i].duplicate(targetLayer, ElementPlacement.PLACEATEND));
         }
-
-        var doc = app.activeDocument;
-        docName = doc.name.replace(/\.ai$/i, "");
-        var previewLayer = doc.layers.add();
-        previewLayer.name = PREVIEW_LAYER_NAME;
-
-        var originalSelection = doc.selection;
-        var selectionCopy = duplicateSelectionToLayer(originalSelection, previewLayer);
-
-        var hiddenLayers = hideOtherLayers(doc, previewLayer);
-
-        var selectedItems = doc.selection;
-        var bounds = getSelectionBounds(selectedItems);
-
-        // すべての pageItems の hidden 状態を保存
-        var originalHiddenStates = [];
-        for (var i = 0; i < doc.pageItems.length; i++) {
-            originalHiddenStates.push({
-                item: doc.pageItems[i],
-                hidden: doc.pageItems[i].hidden
-            });
-        }
-        // アートボードのアクティブ状態も保存
-        var originalABIndex = doc.artboards.getActiveArtboardIndex();
-
-        // showExportOptionsDialog will now return an object with hiddenItems, extract accordingly
-        var dialogResult = showExportOptionsDialog(bounds);
-        var userChoice = dialogResult;
-        var temporaryHiddenItems = (dialogResult && dialogResult.hiddenItems) ? dialogResult.hiddenItems : [];
-        // キャンセル時にも hidden 状態とアートボード状態を復元
-        if (!userChoice) {
-            restoreAllHiddenStates(temporaryHiddenItems, originalHiddenStates);
-            // 非表示レイヤーの復元
-            restoreLayerVisibility(hiddenLayers);
-            // preview_background 削除（キャンセル時にも明示的に削除）
-            removePreviewItems();
-            doc.artboards.setActiveArtboardIndex(originalABIndex);
-            // プレビュー用レイヤーを削除
-            removePreviewLayerByName(doc, PREVIEW_LAYER_NAME);
-            return;
-        }
-        var bgChoice = userChoice.bgChoice;
-        var scaleValue = userChoice.scaleValue;
-        var widthOverride = userChoice.widthOverride;
-        // --- marginValue 分解: marginH, marginV ---
-        var marginH = 0;
-        var marginV = 0;
-        if (typeof userChoice.marginValue === "string") {
-            if (userChoice.marginValue.indexOf("horizontal:") === 0) {
-                var raw = parseFloat(userChoice.marginValue.split(":")[1]);
-                marginH = isNaN(raw) ? 0 : raw * getRulerUnitInfo().factor;
-            } else if (userChoice.marginValue.indexOf("vertical:") === 0) {
-                var raw = parseFloat(userChoice.marginValue.split(":")[1]);
-                marginV = isNaN(raw) ? 0 : raw * getRulerUnitInfo().factor;
-            } else if (userChoice.marginValue.indexOf("all:") === 0) {
-                var raw = parseFloat(userChoice.marginValue.split(":")[1]);
-                var val = isNaN(raw) ? 0 : raw * getRulerUnitInfo().factor;
-                marginH = val;
-                marginV = val;
-            }
-        } else if (typeof userChoice.marginValue === "number") {
-            marginH = marginV = userChoice.marginValue;
-        }
-        var ruleWidth = userChoice.ruleWidth;
-        var ruleColor = userChoice.ruleColor;
-        var suffix = userChoice.suffix;
-        var symbol = userChoice.symbol;
-
-        // --- ruleWidth整数化とadjustedStrokeWidth計算 ---
-        ruleWidth = Math.ceil(ruleWidth); // pxに変換後、切り上げで整数化
-        var adjustedStrokeWidth = Math.max(1, ruleWidth); // 最低1pxを保証、奇数でもそのまま
-
-        // 書き出し範囲（選択オブジェクトのvisibleBounds, marginH/marginVを使用）
-        var left = bounds[0] - marginH;
-        var top = bounds[1] + marginV;
-        var right = bounds[2] + marginH;
-        var bottom = bounds[3] - marginV;
-        // ピクセルパーフェクトな整数に丸める
-        left = Math.floor(left);
-        top = Math.ceil(top);
-        right = Math.ceil(right);
-        bottom = Math.floor(bottom);
-
-        var width = right - left;
-        var height = top - bottom;
-        if (width <= 0 || height <= 0) {
-            alert(LABELS.invalidSize[lang]);
-            // hidden 状態を復元
-            for (var i = 0; i < originalHiddenStates.length; i++) {
-                try {
-                    var obj = originalHiddenStates[i].item;
-                    if (obj && obj.isValid) {
-                        obj.hidden = originalHiddenStates[i].hidden;
-                    }
-                } catch (e) {
-                    // ログ: 無効サイズ時hidden復元エラー
-                    alert("Error restoring hidden state after invalid size in main: " + e.message);
-                }
-            }
-            return;
-        }
-
-        // 一時アートボードの作成
-        var originalABCount = doc.artboards.length;
-        var newAB = doc.artboards.add([left, top, right, bottom]);
-        var newABIndex = doc.artboards.length - 1;
-        doc.artboards.setActiveArtboardIndex(newABIndex);
-
-        // Exportオプションを先に定義
-        var exportOptions = new ExportOptionsPNG24();
-        exportOptions.transparency = (bgChoice === "transparent");
-        exportOptions.artBoardClipping = true;
-
-        // 背景描画処理を共通関数で
-        var tilePercent = (typeof userChoice.transparentGridPercent === "number") ? userChoice.transparentGridPercent : 100;
-        var whiteRect = createExportBackground(bgChoice, left, top, width, height, tilePercent);
-        exportOptions.transparency = (bgChoice === "transparent") ? true : false;
-
-        // 罫線描画（白背景の上）
-        if (ruleWidth > 0) {
-            var halfStroke = adjustedStrokeWidth / 2;
-            var innerLeft = left + halfStroke;
-            var innerTop = top - halfStroke;
-            var innerWidth = width - adjustedStrokeWidth;
-            var innerHeight = height - adjustedStrokeWidth;
-
-            var ruleRect = doc.pathItems.rectangle(innerTop, innerLeft, innerWidth, innerHeight);
-            ruleRect.stroked = true;
-            if (ruleColor === "black") {
-                ruleRect.strokeColor = createBlackColor();
-            } else if (ruleColor === "white") {
-                ruleRect.strokeColor = createWhiteColor();
-            } else if (typeof ruleColor === "string" && ruleColor.charAt(0) === "#" && ruleColor.length === 7) {
-                ruleRect.strokeColor = createColorFromCode(ruleColor);
-            }
-            ruleRect.strokeWidth = adjustedStrokeWidth;
-            ruleRect.filled = false;
-            ruleRect.zOrder(ZOrderMethod.BRINGTOFRONT);
-        }
-
-        // 書き出しパス設定
-        var docFolder = (userChoice.outputLocation === "desktop") ?
-            Folder.desktop :
-            doc.fullName.parent;
-        // Always use the filename preview shown to the user
-        var fileName = userChoice.exportFileName;
-        var exportFile = new File(docFolder + "/" + fileName);
-
-        // スケール倍率をエクスポート直前に設定
-        var scaleRatio;
-        if (widthOverride !== null) {
-            var actualPxWidth = width / rulerUnitInfo.factor;
-            scaleRatio = (widthOverride / actualPxWidth) * 100;
-        } else {
-            scaleRatio = parseFloat(scaleValue);
-        }
-
-        if (isNaN(scaleRatio) || scaleRatio <= 0) {
-            scaleRatio = 100; // fallback
-        }
-        exportOptions.horizontalScale = scaleRatio;
-        exportOptions.verticalScale = scaleRatio;
-
-        try {
-            doc.exportFile(exportFile, ExportType.PNG24, exportOptions);
-        } catch (e) {
-            alert(LABELS.exportFailed[lang] + String.fromCharCode(13) + e.message);
-            alert("Error during exportFile: " + e.message);
-        }
-
-        // 背景オブジェクトの削除を共通関数で一元化
-        removeExportBackground(bgChoice);
-        // 罫線矩形の削除（背景とは別管理）
-        if (typeof ruleRect !== "undefined") {
-            try {
-                ruleRect.remove();
-            } catch (e) {
-                // ログ: 罫線矩形削除時エラー
-                alert("Error removing ruleRect after export: " + e.message);
-            }
-        }
-
-        // OK押下後にも一時的に非表示にしたものとhidden状態を正確に復元
-        restoreAllHiddenStates(temporaryHiddenItems, originalHiddenStates);
-
-        // redraw and cleanup
-        app.redraw();
-        removePreviewItems();
-
-        // 一時アートボードの削除と復元
-        try {
-            doc.artboards.remove(newABIndex);
-        } catch (e) {
-            // ログ: 一時アートボード削除時エラー
-            alert("Error removing temporary artboard: " + e.message);
-        }
-        doc.artboards.setActiveArtboardIndex(originalABIndex);
-
-        // プレビュー用レイヤーを削除
-        removePreviewLayerByName(doc, PREVIEW_LAYER_NAME);
-
-        // 元のレイヤーの再表示（hiddenLayers に記録されたレイヤーを復元）
-        restoreLayerVisibility(hiddenLayers);
-
-        if (Folder.fs === "Macintosh" && userChoice.showFolder) {
-            docFolder.execute();
-        }
-
-        // 念のためプレビュー用レイヤーを再削除（終了時の最終クリーンアップ）
-        removePreviewLayerByName(app.activeDocument, PREVIEW_LAYER_NAME);
+        return duplicatedItems;
     }
 
-    // 選択オブジェクトのバウンディングボックスを取得
-    function getSelectionBounds(selection) {
+    /**
+     * プレビュー用レイヤーを中身ごと削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} layerName - 削除するレイヤー名
+     * @returns {void}
+     */
+    function removePreviewLayerByName(doc, layerName) {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name !== layerName) continue;
+            var targetLayer = doc.layers[i];
+            targetLayer.locked = false;
+            targetLayer.visible = true;
+            targetLayer.remove();
+            return;
+        }
+    }
+
+    // =========================================
+    // 背景・罫線の描画 / Drawing the background and border
+    // =========================================
+
+    /**
+     * 選択オブジェクトの外接範囲を求める
+     * @param {PageItem[]} selectedItems - 選択オブジェクト
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function getSelectionBounds(selectedItems) {
         var left = Number.POSITIVE_INFINITY;
         var top = Number.NEGATIVE_INFINITY;
         var right = Number.NEGATIVE_INFINITY;
         var bottom = Number.POSITIVE_INFINITY;
 
-        for (var i = 0; i < selection.length; i++) {
-            var bounds = selection[i].visibleBounds;
-            if (bounds[0] < left) left = bounds[0];
-            if (bounds[1] > top) top = bounds[1];
-            if (bounds[2] > right) right = bounds[2];
-            if (bounds[3] < bottom) bottom = bounds[3];
+        for (var i = 0; i < selectedItems.length; i++) {
+            var itemBounds = selectedItems[i].visibleBounds;
+            if (itemBounds[0] < left) left = itemBounds[0];
+            if (itemBounds[1] > top) top = itemBounds[1];
+            if (itemBounds[2] > right) right = itemBounds[2];
+            if (itemBounds[3] < bottom) bottom = itemBounds[3];
         }
 
         return [left, top, right, bottom];
     }
 
-    // 白色カラーを生成
-    function createWhiteColor() {
-        if (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB) {
-            var white = new RGBColor();
-            white.red = 255;
-            white.green = 255;
-            white.blue = 255;
-            return white;
-        } else {
-            var white = new CMYKColor();
-            white.cyan = 0;
-            white.magenta = 0;
-            white.yellow = 0;
-            white.black = 0;
-            return white;
+    /**
+     * 余白指定（"none" / "horizontal:3" など）をpt値に展開する
+     * @param {string} marginSpec - 余白指定
+     * @param {number} unitFactor - 1単位あたりのpt数
+     * @returns {{horizontal: number, vertical: number}} 左右・上下の余白（pt）
+     */
+    function resolveMarginOffsets(marginSpec, unitFactor) {
+        var offsets = { horizontal: 0, vertical: 0 };
+        var separatorIndex = String(marginSpec).indexOf(":");
+        if (separatorIndex < 0) return offsets;
+
+        var marginMode = marginSpec.substring(0, separatorIndex);
+        var marginPt = toNumber(marginSpec.substring(separatorIndex + 1)) * unitFactor;
+
+        if (marginMode === "horizontal") offsets.horizontal = marginPt;
+        else if (marginMode === "vertical") offsets.vertical = marginPt;
+        else if (marginMode === "all") {
+            offsets.horizontal = marginPt;
+            offsets.vertical = marginPt;
         }
+        return offsets;
     }
 
-    function createBlackColor() {
-        if (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB) {
-            var black = new RGBColor();
-            black.red = 0;
-            black.green = 0;
-            black.blue = 0;
-            return black;
-        } else {
-            var black = new CMYKColor();
-            black.cyan = 0;
-            black.magenta = 0;
-            black.yellow = 0;
-            black.black = 100;
-            return black;
-        }
+    /**
+     * 書き出し範囲を求める（ピクセルパーフェクトになるよう整数化）
+     * @param {number[]} selectionBounds - 選択オブジェクトの外接範囲 [左, 上, 右, 下]
+     * @param {{horizontal: number, vertical: number}} marginOffsets - 余白（pt）
+     * @returns {{left: number, top: number, right: number, bottom: number, width: number, height: number}} 書き出し範囲
+     */
+    function buildExportRect(selectionBounds, marginOffsets) {
+        var left = Math.floor(selectionBounds[0] - marginOffsets.horizontal);
+        var top = Math.ceil(selectionBounds[1] + marginOffsets.vertical);
+        var right = Math.ceil(selectionBounds[2] + marginOffsets.horizontal);
+        var bottom = Math.floor(selectionBounds[3] - marginOffsets.vertical);
+        return {
+            left: left,
+            top: top,
+            right: right,
+            bottom: bottom,
+            width: right - left,
+            height: top - bottom
+        };
     }
 
-    function getRulerUnitInfo() {
-        var t = app.preferences.getIntegerPreference("rulerType");
-        var units = {
-            label: "pt",
-            factor: 1.0
-        };
-        if (t === 0) units = {
-            label: "inch",
-            factor: 72.0
-        };
-        else if (t === 1) units = {
-            label: "mm",
-            factor: 72.0 / 25.4
-        };
-        else if (t === 3) units = {
-            label: "pica",
-            factor: 12.0
-        };
-        else if (t === 4) units = {
-            label: "cm",
-            factor: 72.0 / 2.54
-        };
-        else if (t === 5) units = {
-            label: "Q",
-            factor: 72.0 / 25.4 * 0.25
-        };
-        else if (t === 6) units = {
-            label: "px",
-            factor: 1.0
-        };
-        return units;
+    /**
+     * 罫線指定（"none" / "0.1,black" など）から線幅（pt、最小1px）を求める
+     * @param {string} borderSpec - 罫線指定
+     * @param {number} unitFactor - 1単位あたりのpt数
+     * @returns {number} 線幅（pt）。罫線なしなら 0
+     */
+    function resolveBorderWidth(borderSpec, unitFactor) {
+        if (!borderSpec || borderSpec === "none") return 0;
+        var borderWidth = Math.ceil(toNumber(borderSpec.split(",")[0]) * unitFactor);
+        return (borderWidth > 0) ? Math.max(1, borderWidth) : 0;
     }
 
-    function createColorFromCode(value) {
-        value = value.replace(/^\s+|\s+$/g, "").toUpperCase().replace(/\s+/g, "");
-
-        // Hex (#RRGGBB)
-        if (/^#[0-9A-F]{6}$/.test(value)) {
-            var rgb = new RGBColor();
-            rgb.red = parseInt(value.substring(1, 3), 16);
-            rgb.green = parseInt(value.substring(3, 5), 16);
-            rgb.blue = parseInt(value.substring(5, 7), 16);
-            return rgb;
-        }
-
-        // RGB (R255G255B255)
-        var rgbMatch = value.match(/^R(\d{1,3})G(\d{1,3})B(\d{1,3})$/i);
-        if (rgbMatch) {
-            var rgb = new RGBColor();
-            rgb.red = Math.min(255, parseInt(rgbMatch[1], 10));
-            rgb.green = Math.min(255, parseInt(rgbMatch[2], 10));
-            rgb.blue = Math.min(255, parseInt(rgbMatch[3], 10));
-            return rgb;
-        }
-
-        // CMYK (C0M100Y100K0)
-        var cmykMatch = value.match(/^C(\d{1,3})M(\d{1,3})Y(\d{1,3})K(\d{1,3})$/i);
-        if (cmykMatch) {
-            var cmyk = new CMYKColor();
-            cmyk.cyan = Math.min(100, parseInt(cmykMatch[1], 10));
-            cmyk.magenta = Math.min(100, parseInt(cmykMatch[2], 10));
-            cmyk.yellow = Math.min(100, parseInt(cmykMatch[3], 10));
-            cmyk.black = Math.min(100, parseInt(cmykMatch[4], 10));
-            return cmyk;
-        }
-
-        return null;
+    /**
+     * 罫線指定からカラーを生成する
+     * @param {string} borderSpec - 罫線指定
+     * @returns {RGBColor|CMYKColor|null} 罫線カラー
+     */
+    function resolveBorderColor(borderSpec) {
+        var colorName = String(borderSpec).split(",")[1];
+        if (colorName === "black") return createBlackColor();
+        if (colorName === "white") return createWhiteColor();
+        return isColorCode(colorName) ? createColorFromCode(colorName) : null;
     }
-    // プレビュー用のアイテムを削除するユーティリティ
-    function removePreviewItems() {
+
+    /**
+     * 背景オブジェクトを生成する（書き出し・プレビュー共用）
+     * @param {string} backgroundChoice - 背景指定（transparent / white / black / transparentGrid / #RRGGBB）
+     * @param {Object} exportRect - 書き出し範囲
+     * @param {number} checkerPercent - 透明グリッドの倍率（%）
+     * @returns {PageItem|null} 生成した背景。透過のときは null
+     */
+    function createExportBackground(backgroundChoice, exportRect, checkerPercent) {
         var doc = app.activeDocument;
-        var itemsToRemove = [];
 
-        // 検索対象を全 pageItems に拡張
-        for (var i = 0; i < doc.pageItems.length; i++) {
-            var item = doc.pageItems[i];
-            if (item.name === "preview_background" || item.name === "preview_border") {
-                itemsToRemove.push(item);
-            }
+        if (backgroundChoice === "transparentGrid") {
+            var tileSize = CHECKER_TILE_UNITS * getRulerUnitInfo().factor * (checkerPercent / 100);
+            var checkerGroup = doc.groupItems.add();
+            checkerGroup.name = PREVIEW_BACKGROUND_NAME;
+            drawCheckerPattern(checkerGroup, exportRect, tileSize);
+            return checkerGroup;
         }
 
-        // 削除処理（try-catch）
-        for (var j = 0; j < itemsToRemove.length; j++) {
-            try {
-                if (itemsToRemove[j] && itemsToRemove[j].isValid) {
-                    itemsToRemove[j].remove();
-                }
-            } catch (e) {
-                alert("Error removing preview item: " + e.message);
-            }
-        }
+        var backgroundColor = null;
+        if (backgroundChoice === "white") backgroundColor = createWhiteColor();
+        else if (backgroundChoice === "black") backgroundColor = createBlackColor();
+        else if (isColorCode(backgroundChoice)) backgroundColor = createColorFromCode(backgroundChoice);
+
+        /* 解釈できないカラーコードは描かずに透過のまま見せる / An unreadable color code stays transparent */
+        if (!backgroundColor) return null;
+
+        var backgroundRect = doc.pathItems.rectangle(exportRect.top, exportRect.left, exportRect.width, exportRect.height);
+        backgroundRect.name = PREVIEW_BACKGROUND_NAME;
+        backgroundRect.filled = true;
+        backgroundRect.stroked = false;
+        backgroundRect.fillColor = backgroundColor;
+        backgroundRect.zOrder(ZOrderMethod.SENDTOBACK);
+        return backgroundRect;
     }
 
-    // チェッカーグリッド背景描画（透明グリッド用）
-    // parentGroup: 追加先グループ、left/top: 左上座標、width/height: サイズ、tileSize: タイル1マスの大きさ
-    function drawCheckerPattern(parentGroup, left, top, width, height, tileSize) {
-        var doc = app.activeDocument;
-        var isRGB = (doc.documentColorSpace === DocumentColorSpace.RGB);
+    /**
+     * 透明グリッド（市松模様）を描画する
+     * @param {GroupItem} parentGroup - 追加先グループ
+     * @param {Object} exportRect - 書き出し範囲
+     * @param {number} tileSize - 1マスの大きさ（pt）
+     * @returns {void}
+     */
+    function drawCheckerPattern(parentGroup, exportRect, tileSize) {
+        var isRgbDocument = (app.activeDocument.documentColorSpace === DocumentColorSpace.RGB);
+        var grayColor = isRgbDocument ? new RGBColor() : new CMYKColor();
+        var whiteColor = createWhiteColor();
 
-        var grayColor = isRGB ? new RGBColor() : new CMYKColor();
-        var whiteColor = isRGB ? new RGBColor() : new CMYKColor();
-
-        if (isRGB) {
+        if (isRgbDocument) {
             grayColor.red = 204;
             grayColor.green = 204;
             grayColor.blue = 204;
-            whiteColor.red = 255;
-            whiteColor.green = 255;
-            whiteColor.blue = 255;
         } else {
             grayColor.cyan = 0;
             grayColor.magenta = 0;
             grayColor.yellow = 0;
             grayColor.black = 30;
-            whiteColor.cyan = 0;
-            whiteColor.magenta = 0;
-            whiteColor.yellow = 0;
-            whiteColor.black = 0;
         }
 
-        var cols = Math.ceil(width / tileSize);
-        var rows = Math.ceil(height / tileSize);
+        var columnCount = Math.ceil(exportRect.width / tileSize);
+        var rowCount = Math.ceil(exportRect.height / tileSize);
 
-        // チェックパターンを2色交互に敷き詰め
-        for (var row = 0; row < rows; row++) {
-            for (var col = 0; col < cols; col++) {
-                var color = ((row + col) % 2 === 0) ? grayColor : whiteColor;
-                var x = left + (col * tileSize);
-                var y = top - (row * tileSize);
+        /* マスが細かすぎるときはマスを大きくして描画量を抑える / Enlarge the tiles when there would be too many */
+        if (columnCount * rowCount > MAX_CHECKER_TILES) {
+            tileSize = tileSize * Math.sqrt(columnCount * rowCount / MAX_CHECKER_TILES);
+            columnCount = Math.ceil(exportRect.width / tileSize);
+            rowCount = Math.ceil(exportRect.height / tileSize);
+        }
 
-                var rect = parentGroup.pathItems.rectangle(y, x, tileSize, tileSize);
-                rect.filled = true;
-                rect.stroked = false;
-                rect.fillColor = color;
+        for (var i = 0; i < rowCount; i++) {
+            for (var j = 0; j < columnCount; j++) {
+                var tileRect = parentGroup.pathItems.rectangle(
+                    exportRect.top - (i * tileSize),
+                    exportRect.left + (j * tileSize),
+                    tileSize,
+                    tileSize
+                );
+                tileRect.filled = true;
+                tileRect.stroked = false;
+                tileRect.fillColor = ((i + j) % 2 === 0) ? grayColor : whiteColor;
             }
         }
-        // 背面へ
         parentGroup.zOrder(ZOrderMethod.SENDTOBACK);
     }
-    // -------------------------------
-    // 背景描画共通関数：書き出し・プレビューの両方で使用
-    // -------------------------------
-    function createExportBackground(bgType, left, top, width, height, tilePercent) {
+
+    /**
+     * 書き出し範囲の内側に罫線を描画する
+     * @param {Object} exportRect - 書き出し範囲
+     * @param {number} borderWidth - 線幅（pt）
+     * @param {RGBColor|CMYKColor|null} borderColor - 罫線カラー
+     * @returns {PathItem|null} 生成した罫線。描画しないときは null
+     */
+    function drawBorderRectangle(exportRect, borderWidth, borderColor) {
+        if (borderWidth <= 0) return null;
+        /* 線幅が書き出し範囲より太いと矩形を作れない / A stroke wider than the area leaves no rectangle to draw */
+        if (exportRect.width <= borderWidth || exportRect.height <= borderWidth) return null;
+
+        /* 線の中心が範囲の内側に収まるよう半分だけ内側に寄せる / Inset by half the stroke so it stays inside */
+        var halfStroke = borderWidth / 2;
+        var borderRect = app.activeDocument.pathItems.rectangle(
+            exportRect.top - halfStroke,
+            exportRect.left + halfStroke,
+            exportRect.width - borderWidth,
+            exportRect.height - borderWidth
+        );
+        borderRect.name = PREVIEW_BORDER_NAME;
+        borderRect.filled = false;
+        borderRect.stroked = true;
+        borderRect.strokeWidth = borderWidth;
+        if (borderColor) borderRect.strokeColor = borderColor;
+        return borderRect;
+    }
+
+    /**
+     * プレビュー・書き出し用に生成した背景と罫線を削除する
+     * @returns {void}
+     */
+    function removePreviewArtwork() {
         var doc = app.activeDocument;
-        if (bgType === "transparentGrid") {
-            var baseTile = 10 * getRulerUnitInfo().factor;
-            var tileSize = baseTile * (tilePercent / 100);
-            var patternGroup = doc.groupItems.add();
-            patternGroup.name = "preview_background";
-            drawCheckerPattern(patternGroup, left, top, width, height, tileSize);
-            return patternGroup;
-        } else if (bgType === "white" || bgType === "black" || (bgType.charAt(0) === "#" && bgType.length === 7)) {
-            var rect = doc.pathItems.rectangle(top, left, width, height);
-            rect.name = "preview_background";
-            rect.filled = true;
-            rect.stroked = false;
-
-            if (bgType === "white") rect.fillColor = createWhiteColor();
-            else if (bgType === "black") rect.fillColor = createBlackColor();
-            else rect.fillColor = createColorFromCode(bgType);
-
-            rect.zOrder(ZOrderMethod.SENDTOBACK);
-            return rect;
+        var itemsToRemove = [];
+        for (var i = 0; i < doc.pageItems.length; i++) {
+            var targetItem = doc.pageItems[i];
+            if (targetItem.name === PREVIEW_BACKGROUND_NAME || targetItem.name === PREVIEW_BORDER_NAME) {
+                itemsToRemove.push(targetItem);
+            }
         }
-        return null;
+        for (var j = 0; j < itemsToRemove.length; j++) {
+            /* 親ごと削除済みのことがあるため、失敗しても続行 / A parent may already be gone, so keep going */
+            try {
+                itemsToRemove[j].remove();
+            } catch (e) {}
+        }
     }
 
-    // 背景オブジェクト（whiteRect または transparentGrid のグループ）を削除する関数
-    // 背景削除共通関数：白／黒／カラー／透明グリッドすべてに対応
-    function removeExportBackground(bgChoice) {
+    // =========================================
+    // ファイル名 / Filename
+    // =========================================
+
+    /**
+     * ファイル名の禁則文字・空白類を区切り文字に置き換える
+     * @param {string} fileName - 置換前のファイル名
+     * @param {string} delimiter - 区切り文字（"-" または "_"）
+     * @returns {string} 置換後のファイル名
+     */
+    function sanitizeFileName(fileName, delimiter) {
+        var replacement = (delimiter === "-") ? "-" : "_";
+        return fileName.replace(/[¥\/:*?"<>|\r\n\t　 ]/g, replacement);
+    }
+
+    /**
+     * 書き出しファイル名を組み立てる（プレビューと書き出しで共用）
+     * @param {string} documentBaseName - 拡張子を除いたドキュメント名
+     * @param {string} delimiter - 区切り文字
+     * @param {string} suffix - 接尾辞
+     * @param {boolean} useDocumentName - ドキュメント名を使うかどうか
+     * @returns {string} 書き出しファイル名
+     */
+    function buildExportFileName(documentBaseName, delimiter, suffix, useDocumentName) {
+        var baseName = useDocumentName ? documentBaseName : "";
+        var fileName = suffix ?
+            baseName + delimiter + suffix + ".png" :
+            baseName + "_" + DEFAULT_SUFFIX_WORD + ".png";
+        return sanitizeFileName(fileName, delimiter);
+    }
+
+    // =========================================
+    // ダイアログの設定値 / Reading the dialog settings
+    // =========================================
+
+    /**
+     * 背景の選択状態を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {string} 背景指定（transparent / white / black / transparentGrid / #RRGGBB）
+     */
+    function getBackgroundChoice(controls) {
+        var background = controls.background;
+        if (background.checker.value) return "transparentGrid";
+        if (background.white.value) return "white";
+        if (background.black.value) return "black";
+        if (background.colorCode.value) return normalizeColorCode(background.colorCodeInput.text);
+        return "transparent";
+    }
+
+    /**
+     * 透明グリッドの倍率を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {number} 倍率（%）
+     */
+    function getCheckerPercent(controls) {
+        var checkerPercent = toNumber(controls.background.checkerScaleInput.text);
+        return (checkerPercent > 0) ? checkerPercent : 100;
+    }
+
+    /**
+     * 余白の選択状態を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {string} 余白指定（none / horizontal:3 など）
+     */
+    function getMarginSpec(controls) {
+        var margin = controls.margin;
+        if (margin.horizontal.value) return "horizontal:" + margin.input.text;
+        if (margin.vertical.value) return "vertical:" + margin.input.text;
+        if (margin.all.value) return "all:" + margin.input.text;
+        return "none";
+    }
+
+    /**
+     * 罫線の選択状態を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {string} 罫線指定（none / 0.1,black など）
+     */
+    function getBorderSpec(controls) {
+        return controls.border.on.value ? readBorderSpec(controls.border) : "none";
+    }
+
+    /**
+     * 罫線パネルの入力値から罫線指定を組み立てる
+     * @param {Object} border - 罫線のコントロール一式
+     * @returns {string} 罫線指定（線幅,カラー）
+     */
+    function readBorderSpec(border) {
+        var borderColorName = "black";
+        if (border.white.value) borderColorName = "white";
+        else if (border.colorCode.value) borderColorName = normalizeColorCode(border.colorCodeInput.text);
+        return border.widthInput.text + "," + borderColorName;
+    }
+
+    /**
+     * 書き出しサイズの選択状態を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {string} サイズ指定（scale:200 / width:1000 など）
+     */
+    function getSizeSpec(controls) {
+        var size = controls.size;
+        for (var i = 0; i < size.scaleRadios.length; i++) {
+            if (size.scaleRadios[i].value) return "scale:" + SCALE_CHOICES[i];
+        }
+        if (size.customScale.value) return "scale:" + size.customScaleInput.text;
+        if (size.targetWidth.value) return "width:" + size.targetWidthInput.text;
+        return "scale:100";
+    }
+
+    /**
+     * 区切り文字の選択状態を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {string} 区切り文字（"-" / "_" / ""）
+     */
+    function getDelimiter(controls) {
+        if (controls.fileName.delimiterDash.value) return "-";
+        if (controls.fileName.delimiterUnderscore.value) return "_";
+        return "";
+    }
+
+    /**
+     * 接尾辞の入力値を取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {string} 接尾辞
+     */
+    function getSuffix(controls) {
+        return controls.fileName.suffixCustom.value ? controls.fileName.suffixInput.text : "";
+    }
+
+    /**
+     * 書き出し先フォルダーを取得する
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Folder} 書き出し先フォルダー
+     */
+    function getDestinationFolder(controls, doc) {
+        if (controls.location.desktop.value) return Folder.desktop;
+        /* 未保存の書類には保存先が無いのでデスクトップへ逃がす / An unsaved document has no folder, so fall back to the desktop */
+        try {
+            return doc.fullName.parent;
+        } catch (e) {
+            return Folder.desktop;
+        }
+    }
+
+    /**
+     * ダイアログの入力内容を書き出し設定にまとめる
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Object} 書き出し設定
+     */
+    function collectExportSettings(controls, doc) {
+        return {
+            backgroundChoice: getBackgroundChoice(controls),
+            checkerPercent: getCheckerPercent(controls),
+            marginSpec: getMarginSpec(controls),
+            borderSpec: getBorderSpec(controls),
+            sizeSpec: getSizeSpec(controls),
+            fileName: controls.fileName.previewText.text,
+            destinationFolder: getDestinationFolder(controls, doc),
+            showFolder: controls.location.showFolder.value
+        };
+    }
+
+    /**
+     * 現在の設定をプリセット定義としてデスクトップに書き出す
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @returns {void}
+     */
+    function savePresetToFile(controls) {
+        var presetName = prompt(getLabel(LABELS.prompt.presetName), getLabel(LABELS.prompt.defaultPresetName));
+        if (!presetName) return;
+
+        var today = new Date();
+        var dateStamp = today.getFullYear() +
+            ("0" + (today.getMonth() + 1)).slice(-2) +
+            ("0" + today.getDate()).slice(-2);
+        var presetFile = new File(Folder.desktop + "/" + PRESET_FILE_PREFIX + dateStamp + ".txt");
+        for (var serialNumber = 2; presetFile.exists; serialNumber++) {
+            presetFile = new File(Folder.desktop + "/" + PRESET_FILE_PREFIX + dateStamp + "_" + serialNumber + ".txt");
+        }
+
+        /* PRESETS にそのまま貼り込める形で書き出す / Written so it can be pasted straight into PRESETS */
+        var presetLines = [
+            "{",
+            '    label: { ja: "' + presetName + '", en: "' + presetName + '" },',
+            '    background: "' + getBackgroundChoice(controls) + '",',
+            '    margin: "' + getMarginSpec(controls) + '",',
+            '    border: "' + getBorderSpec(controls) + '",',
+            '    location: "' + (controls.location.desktop.value ? "desktop" : "documentFolder") + '",',
+            '    delimiter: "' + getDelimiter(controls) + '",',
+            '    suffix: "' + getSuffix(controls) + '",',
+            '    size: "' + getSizeSpec(controls) + '"',
+            "}"
+        ];
+
+        try {
+            presetFile.encoding = "UTF-8";
+            presetFile.open("w");
+            presetFile.write(presetLines.join("\n"));
+            presetFile.close();
+        } catch (e) {
+            alert(getLabel(LABELS.alert.presetSaveFailed) + e.message);
+            return;
+        }
+        alert(getLabel(LABELS.alert.presetSaved) + presetFile.name);
+    }
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /**
+     * 現在の設定でプレビュー用の背景・罫線を描き直す
+     * @param {Object} controls - ダイアログのコントロール一式
+     * @param {number[]} selectionBounds - 選択オブジェクトの外接範囲
+     * @param {number} unitFactor - 1単位あたりのpt数
+     * @returns {void}
+     */
+    function renderPreview(controls, selectionBounds, unitFactor) {
+        removePreviewArtwork();
+
+        var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), unitFactor));
+        createExportBackground(getBackgroundChoice(controls), exportRect, getCheckerPercent(controls));
+
+        var borderSpec = getBorderSpec(controls);
+        drawBorderRectangle(exportRect, resolveBorderWidth(borderSpec, unitFactor), resolveBorderColor(borderSpec));
+
+        app.redraw();
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 書き出しオプションのダイアログを表示する
+     * @param {number[]} selectionBounds - 選択オブジェクトの外接範囲 [左, 上, 右, 下]
+     * @param {{label: string, factor: number}} rulerUnit - 定規の単位情報
+     * @param {string} documentBaseName - 拡張子を除いたドキュメント名
+     * @returns {Object|null} 書き出し設定。キャンセル時は null
+     */
+    function showExportOptionsDialog(selectionBounds, rulerUnit, documentBaseName) {
         var doc = app.activeDocument;
-        try {
-            if (bgChoice === "white" || bgChoice === "black" || (bgChoice.charAt(0) === "#" && bgChoice.length === 7)) {
-                var whiteItem = doc.pageItems.getByName("preview_background");
-                if (whiteItem && whiteItem.isValid) {
-                    whiteItem.remove();
-                }
-            } else if (bgChoice === "transparentGrid") {
-                var patternGroup = doc.groupItems.getByName("preview_background");
-                if (patternGroup && patternGroup.isValid) {
-                    patternGroup.remove();
-                }
-            }
-        } catch (e) {
-            alert("Error removing export background: " + e.message);
+        var selectionWidth = selectionBounds[2] - selectionBounds[0];
+        var selectionHeight = selectionBounds[1] - selectionBounds[3];
+        var controls = {};
+
+        /* 現在の余白設定を含めた書き出し範囲 / Export rect including the current margin */
+        function getExportRectFromUI() {
+            return buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), rulerUnit.factor));
         }
-    }
 
-    // -------------------------------
-    // ファイル名の禁則文字・空白類を置換（記号に応じて "-" or "_"）
-    // -------------------------------
-    function sanitizeFilename(name, symbol) {
-        var rep = (symbol === "-") ? "-" : (symbol === "_") ? "_" : "_";
-        // alert("sanitizeFilename input name: " + name + ", symbol: " + symbol);
-        return name.replace(/[¥\/:*?"<>|\r\n\t　 ]/g, rep);
-    }
+        /* 設定が変わるたびにプレビューと倍率ラベルを描き直す / Redraw the preview and the scale labels on every change */
+        function refreshPreview() {
+            if (controls.size) updateScaleLabels();
+            renderPreview(controls, selectionBounds, rulerUnit.factor);
+        }
 
-    // 強制的にプレビュー用レイヤーを削除する関数
-    // Remove preview layer by name, but do not alert if not found
-    function removePreviewLayerByName(doc, layerName) {
-        try {
-            var found = false;
-            for (var i = 0; i < doc.layers.length; i++) {
-                if (doc.layers[i].name === layerName) {
-                    found = true;
-                    var targetLayer = doc.layers[i];
-                    if (targetLayer.locked) targetLayer.locked = false;
-                    if (!targetLayer.visible) targetLayer.visible = true;
+        /* ファイル名プレビューを更新する / Refresh the filename preview */
+        function updateFileNamePreview() {
+            controls.fileName.previewText.text = buildExportFileName(
+                documentBaseName,
+                getDelimiter(controls),
+                getSuffix(controls),
+                !controls.fileName.ignoreDocName.value
+            );
+        }
 
-                    for (var j = targetLayer.pageItems.length - 1; j >= 0; j--) {
-                        try {
-                            targetLayer.pageItems[j].remove();
-                        } catch (e) {}
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(dialog);
+
+        // -----------------------------------------
+        // プリセット行 / Preset row
+        // -----------------------------------------
+        var presetRow = addRow(dialog);
+        addRowLabel(presetRow, LABELS.fieldLabel.preset);
+        var presetNames = [getLabel(LABELS.dropdown.custom)];
+        for (var i = 0; i < PRESETS.length; i++) {
+            presetNames.push(getLabel(PRESETS[i].label));
+        }
+        var presetDropdown = presetRow.add("dropdownlist", undefined, presetNames);
+        presetDropdown.selection = 0;
+        var btnSavePreset = presetRow.add("button", undefined, getLabel(LABELS.button.savePreset));
+
+        // -----------------------------------------
+        // 2カラム / Two columns
+        // -----------------------------------------
+        var columnsGroup = dialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = ["fill", "top"];
+        leftColumn.spacing = COLUMN_SPACING;
+
+        var rightColumn = columnsGroup.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = ["fill", "top"];
+        rightColumn.spacing = COLUMN_SPACING;
+
+        controls.background = buildBackgroundPanel(leftColumn);
+        controls.margin = buildMarginPanel(leftColumn);
+        controls.border = buildBorderPanel(leftColumn);
+        controls.size = buildSizePanel(rightColumn);
+        controls.fileName = buildFileNamePanel(rightColumn);
+        controls.location = buildLocationPanel(rightColumn);
+
+        /**
+         * 背景色パネルを作る
+         * @param {Group} parentColumn - 追加先のカラム
+         * @returns {Object} 背景色のコントロール一式
+         */
+        function buildBackgroundPanel(parentColumn) {
+            var backgroundPanel = addPanel(parentColumn, LABELS.panel.background);
+
+            var basicRow = addRow(backgroundPanel);
+            var background = {
+                transparent: basicRow.add("radiobutton", undefined, getLabel(LABELS.radio.transparent)),
+                black: basicRow.add("radiobutton", undefined, getLabel(LABELS.radio.black)),
+                white: basicRow.add("radiobutton", undefined, getLabel(LABELS.radio.white))
+            };
+
+            var checkerRow = addRow(backgroundPanel);
+            background.checker = checkerRow.add("radiobutton", undefined, getLabel(LABELS.radio.checker));
+            background.checkerScaleInput = addNumberField(checkerRow, "100", NUMBER_FIELD_CHARS, refreshPreview);
+            checkerRow.add("statictext", undefined, "%");
+
+            var colorCodeRow = addRow(backgroundPanel);
+            background.colorCode = colorCodeRow.add("radiobutton", undefined, getLabel(LABELS.radio.colorCode));
+            background.colorCodeInput = colorCodeRow.add("edittext", undefined, "#ffcc00");
+            background.colorCodeInput.characters = COLOR_FIELD_CHARS;
+            background.colorCodeInput.onChange = refreshPreview;
+
+            /* 背景の排他選択と入力欄の有効・無効をまとめて切り替える / Switch the background choice and its fields together */
+            background.select = function(backgroundChoice) {
+                background.transparent.value = (backgroundChoice === "transparent");
+                background.black.value = (backgroundChoice === "black");
+                background.white.value = (backgroundChoice === "white");
+                background.checker.value = (backgroundChoice === "transparentGrid");
+                /* 決め打ちの4種以外はカラー指定として扱う（読めない値でも選択は外さない）
+                   / Anything but the four keywords means the color code, even when it cannot be parsed */
+                background.colorCode.value = !(background.transparent.value || background.black.value ||
+                    background.white.value || background.checker.value);
+                if (background.colorCode.value && backgroundChoice !== COLOR_CODE_KEYWORD) {
+                    background.colorCodeInput.text = backgroundChoice;
+                }
+                background.colorCodeInput.enabled = background.colorCode.value;
+                background.checkerScaleInput.enabled = background.checker.value;
+            };
+
+            var backgroundChoices = ["transparent", "black", "white", "transparentGrid", COLOR_CODE_KEYWORD];
+            var backgroundRadios = [background.transparent, background.black, background.white, background.checker, background.colorCode];
+            for (var i = 0; i < backgroundRadios.length; i++) {
+                backgroundRadios[i].onClick = createBackgroundClickHandler(background, backgroundChoices[i]);
+            }
+
+            background.select("transparent");
+            return background;
+        }
+
+        /**
+         * 背景ラジオボタンのクリックハンドラーを作る
+         * @param {Object} background - 背景色のコントロール一式
+         * @param {string} backgroundChoice - 選択される背景指定
+         * @returns {function} クリックハンドラー
+         */
+        function createBackgroundClickHandler(background, backgroundChoice) {
+            return function() {
+                background.select(backgroundChoice);
+                refreshPreview();
+            };
+        }
+
+        /**
+         * 余白パネルを作る
+         * @param {Group} parentColumn - 追加先のカラム
+         * @returns {Object} 余白のコントロール一式
+         */
+        function buildMarginPanel(parentColumn) {
+            var marginPanel = addPanel(parentColumn, LABELS.panel.margin);
+
+            var noneRow = addRow(marginPanel);
+            var margin = { none: noneRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginNone)) };
+
+            var modeRow = addRow(marginPanel);
+            margin.horizontal = modeRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginHorizontal));
+            margin.vertical = modeRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginVertical));
+            margin.all = modeRow.add("radiobutton", undefined, getLabel(LABELS.radio.marginAll));
+
+            var valueRow = addRow(marginPanel);
+            var defaultMargin = getDefaultForUnit(DEFAULT_MARGIN_BY_UNIT, rulerUnit.label);
+            margin.input = addNumberField(valueRow, String(defaultMargin), NUMBER_FIELD_CHARS, refreshPreview);
+            valueRow.add("statictext", undefined, rulerUnit.label);
+
+            /* 余白指定（none / horizontal:3 など）をUIへ反映する / Apply a margin spec to the UI */
+            margin.select = function(marginSpec) {
+                var marginMode = String(marginSpec).split(":")[0];
+                margin.none.value = (marginMode === "none");
+                margin.horizontal.value = (marginMode === "horizontal");
+                margin.vertical.value = (marginMode === "vertical");
+                margin.all.value = (marginMode === "all");
+                if (marginMode !== "none") margin.input.text = String(marginSpec).split(":")[1];
+                margin.input.enabled = (marginMode !== "none");
+            };
+
+            var marginModes = ["none", "horizontal", "vertical", "all"];
+            var marginRadios = [margin.none, margin.horizontal, margin.vertical, margin.all];
+            for (var i = 0; i < marginRadios.length; i++) {
+                marginRadios[i].onClick = createMarginClickHandler(margin, marginModes[i]);
+            }
+
+            margin.select("none");
+            return margin;
+        }
+
+        /**
+         * 余白ラジオボタンのクリックハンドラーを作る
+         * @param {Object} margin - 余白のコントロール一式
+         * @param {string} marginMode - 選択される余白モード
+         * @returns {function} クリックハンドラー
+         */
+        function createMarginClickHandler(margin, marginMode) {
+            return function() {
+                margin.select(marginMode === "none" ? "none" : marginMode + ":" + margin.input.text);
+                refreshPreview();
+            };
+        }
+
+        /**
+         * 罫線パネルを作る
+         * @param {Group} parentColumn - 追加先のカラム
+         * @returns {Object} 罫線のコントロール一式
+         */
+        function buildBorderPanel(parentColumn) {
+            var borderPanel = addPanel(parentColumn, LABELS.panel.border);
+
+            var noneRow = addRow(borderPanel);
+            var border = { none: noneRow.add("radiobutton", undefined, getLabel(LABELS.radio.borderNone)) };
+
+            var widthRow = addRow(borderPanel);
+            border.on = widthRow.add("radiobutton", undefined, getLabel(LABELS.radio.borderOn));
+            var defaultBorderWidth = getDefaultForUnit(DEFAULT_BORDER_BY_UNIT, rulerUnit.label);
+            border.widthInput = addNumberField(widthRow, String(defaultBorderWidth), NUMBER_FIELD_CHARS, refreshPreview);
+            widthRow.add("statictext", undefined, rulerUnit.label);
+
+            border.colorLabelRow = addRow(borderPanel);
+            addRowLabel(border.colorLabelRow, LABELS.fieldLabel.borderColor);
+
+            border.colorRadioRow = addRow(borderPanel);
+            border.black = border.colorRadioRow.add("radiobutton", undefined, getLabel(LABELS.radio.black));
+            border.white = border.colorRadioRow.add("radiobutton", undefined, getLabel(LABELS.radio.white));
+
+            border.colorCodeRow = addRow(borderPanel);
+            border.colorCode = border.colorCodeRow.add("radiobutton", undefined, getLabel(LABELS.radio.colorCode));
+            border.colorCodeInput = border.colorCodeRow.add("edittext", undefined, "#333333");
+            border.colorCodeInput.characters = COLOR_FIELD_CHARS;
+            border.colorCodeInput.onChange = refreshPreview;
+
+            /* 罫線指定（none / 0.1,black など）をUIへ反映する / Apply a border spec to the UI */
+            border.select = function(borderSpec) {
+                var hasBorder = (borderSpec !== "none");
+                border.none.value = !hasBorder;
+                border.on.value = hasBorder;
+
+                if (hasBorder) {
+                    var specParts = String(borderSpec).split(",");
+                    var borderColorName = specParts[1];
+                    border.widthInput.text = specParts[0];
+                    border.black.value = (borderColorName === "black");
+                    border.white.value = (borderColorName === "white");
+                    /* 黒・白以外はカラー指定として扱う / Anything but black or white means the color code */
+                    border.colorCode.value = !(border.black.value || border.white.value);
+                    if (border.colorCode.value && borderColorName !== COLOR_CODE_KEYWORD) {
+                        border.colorCodeInput.text = borderColorName;
                     }
+                }
 
-                    targetLayer.remove();
-                    break;
+                border.widthInput.enabled = hasBorder;
+                border.colorLabelRow.enabled = hasBorder;
+                border.colorRadioRow.enabled = hasBorder;
+                border.colorCodeRow.enabled = hasBorder;
+                border.colorCodeInput.enabled = hasBorder && border.colorCode.value;
+            };
+
+            border.none.onClick = function() {
+                border.select("none");
+                refreshPreview();
+            };
+            border.on.onClick = function() {
+                border.select(readBorderSpec(border));
+                refreshPreview();
+            };
+            border.black.onClick = createBorderColorHandler(border, "black");
+            border.white.onClick = createBorderColorHandler(border, "white");
+            border.colorCode.onClick = createBorderColorHandler(border, COLOR_CODE_KEYWORD);
+
+            border.select("none");
+            return border;
+        }
+
+        /**
+         * 罫線カラーのラジオボタンのクリックハンドラーを作る
+         * @param {Object} border - 罫線のコントロール一式
+         * @param {string} borderColorName - 選択されるカラー名（black / white / COLOR_CODE_KEYWORD）
+         * @returns {function} クリックハンドラー
+         */
+        function createBorderColorHandler(border, borderColorName) {
+            return function() {
+                border.select(border.widthInput.text + "," + borderColorName);
+                refreshPreview();
+            };
+        }
+
+        /**
+         * 書き出しサイズパネルを作る
+         * @param {Group} parentColumn - 追加先のカラム
+         * @returns {Object} 書き出しサイズのコントロール一式
+         */
+        function buildSizePanel(parentColumn) {
+            var sizePanel = addPanel(parentColumn, LABELS.panel.size);
+            var size = { scaleRadios: [] };
+
+            var scaleColumn = sizePanel.add("group");
+            scaleColumn.orientation = "column";
+            scaleColumn.alignment = ["left", "top"];
+            scaleColumn.alignChildren = ["left", "center"];
+            scaleColumn.spacing = PANEL_SPACING;
+
+            var exportRect = getExportRectFromUI();
+            for (var i = 0; i < SCALE_CHOICES.length; i++) {
+                size.scaleRadios.push(scaleColumn.add("radiobutton", undefined, buildScaleLabel(SCALE_CHOICES[i], exportRect)));
+            }
+
+            var customScaleRow = addRow(sizePanel);
+            size.customScale = customScaleRow.add("radiobutton", undefined, labelText(LABELS.fieldLabel.customScale));
+            size.customScale.preferredSize.width = SIZE_RADIO_WIDTH;
+            size.customScaleInput = addNumberField(customScaleRow, String(DEFAULT_SCALE), NUMBER_FIELD_CHARS + 1, function(value) {
+                size.select("scale:" + value, false, true);
+            });
+            customScaleRow.add("statictext", undefined, "%");
+
+            var targetWidthRow = addRow(sizePanel);
+            size.targetWidth = targetWidthRow.add("radiobutton", undefined, labelText(LABELS.fieldLabel.targetWidth));
+            size.targetWidth.preferredSize.width = SIZE_RADIO_WIDTH;
+            size.targetWidthInput = addNumberField(targetWidthRow, "", NUMBER_FIELD_CHARS + 3, function(value) {
+                size.select("width:" + value);
+            });
+            targetWidthRow.add("statictext", undefined, "px");
+
+            /* サイズ指定（scale:200 / width:1000）をUIへ反映する / Apply a size spec to the UI */
+            size.select = function(sizeSpec, keepSuffix, forceCustomScale) {
+                var isWidthMode = (String(sizeSpec).indexOf("width:") === 0);
+                var specValue = String(sizeSpec).split(":")[1];
+                var matchedScale = false;
+
+                for (var i = 0; i < size.scaleRadios.length; i++) {
+                    /* 倍率指定を選んだときは、値が 1x〜4x と同じでも固定倍率に吸われないようにする
+                       / When the custom scale is picked, a matching value must not jump to a fixed radio */
+                    var isSelected = !isWidthMode && !forceCustomScale && (specValue === String(SCALE_CHOICES[i]));
+                    size.scaleRadios[i].value = isSelected;
+                    setScaleRadioColor(size.scaleRadios[i], isSelected);
+                    if (isSelected) matchedScale = true;
+                }
+
+                size.customScale.value = (!isWidthMode && !matchedScale);
+                size.targetWidth.value = isWidthMode;
+                size.customScaleInput.enabled = size.customScale.value;
+                size.targetWidthInput.enabled = isWidthMode;
+
+                if (isWidthMode) {
+                    size.targetWidthInput.text = specValue;
+                } else {
+                    size.customScaleInput.text = specValue;
+                    size.targetWidthInput.text = String(ceilToPixel(getExportRectFromUI().width * toNumber(specValue) / 100));
+                }
+
+                /* 倍率・横幅の値をそのまま接尾辞に流用する / Reuse the scale or width value as the suffix */
+                if (!keepSuffix) controls.fileName.setSuffix(specValue);
+            };
+
+            for (var j = 0; j < size.scaleRadios.length; j++) {
+                size.scaleRadios[j].onClick = createScaleClickHandler(size, SCALE_CHOICES[j]);
+            }
+            size.customScale.onClick = function() {
+                size.select("scale:" + size.customScaleInput.text, false, true);
+            };
+            size.targetWidth.onClick = function() {
+                size.select("width:" + size.targetWidthInput.text);
+            };
+
+            return size;
+        }
+
+        /**
+         * 倍率ラジオボタンのラベルを組み立てる（書き出しピクセル数を併記）
+         * @param {number} scalePercent - 倍率（%）
+         * @param {Object} exportRect - 現在の余白を含めた書き出し範囲
+         * @returns {string} ラベル文字列
+         */
+        function buildScaleLabel(scalePercent, exportRect) {
+            var scaleRatio = scalePercent / 100;
+            return (scaleRatio + "x") + (uiLang === "ja" ? "：" : ": ") +
+                ceilToPixel(exportRect.width * scaleRatio) + " × " + ceilToPixel(exportRect.height * scaleRatio);
+        }
+
+        /**
+         * 倍率ラジオボタンのラベルを現在の余白に合わせて描き直す
+         * @returns {void}
+         */
+        function updateScaleLabels() {
+            var exportRect = getExportRectFromUI();
+            var labelChanged = false;
+
+            for (var i = 0; i < controls.size.scaleRadios.length; i++) {
+                var scaleRadio = controls.size.scaleRadios[i];
+                var scaleLabel = buildScaleLabel(SCALE_CHOICES[i], exportRect);
+                if (scaleRadio.text !== scaleLabel) {
+                    scaleRadio.text = scaleLabel;
+                    labelChanged = true;
+                }
+                setScaleRadioColor(scaleRadio, scaleRadio.value);
+            }
+
+            /* 桁が増えてもラベルが切れないよう、変わったときだけ組み直す / Re-layout only when a label changed, so longer text is not clipped */
+            if (labelChanged) dialog.layout.layout(true);
+        }
+
+        /**
+         * 倍率ラジオボタンのクリックハンドラーを作る
+         * @param {Object} size - 書き出しサイズのコントロール一式
+         * @param {number} scalePercent - 選択される倍率（%）
+         * @returns {function} クリックハンドラー
+         */
+        function createScaleClickHandler(size, scalePercent) {
+            return function() {
+                size.select("scale:" + scalePercent);
+            };
+        }
+
+        /**
+         * 倍率ラジオボタンの文字色を選択状態に合わせる
+         * @param {RadioButton} scaleRadio - 対象のラジオボタン
+         * @param {boolean} isSelected - 選択中かどうか
+         * @returns {void}
+         */
+        function setScaleRadioColor(scaleRadio, isSelected) {
+            var radioGraphics = scaleRadio.graphics;
+            radioGraphics.foregroundColor = radioGraphics.newPen(
+                radioGraphics.PenType.SOLID_COLOR,
+                isSelected ? SCALE_ACTIVE_COLOR : SCALE_INACTIVE_COLOR,
+                1
+            );
+        }
+
+        /**
+         * 書き出しファイル名パネルを作る
+         * @param {Group} parentColumn - 追加先のカラム
+         * @returns {Object} ファイル名のコントロール一式
+         */
+        function buildFileNamePanel(parentColumn) {
+            var fileNamePanel = addPanel(parentColumn, LABELS.panel.fileName);
+            var fileName = {};
+
+            var documentNameRow = addRow(fileNamePanel);
+            addRowLabel(documentNameRow, LABELS.fieldLabel.documentName);
+            fileName.useDocName = documentNameRow.add("radiobutton", undefined, getLabel(LABELS.radio.useDocName));
+            fileName.ignoreDocName = documentNameRow.add("radiobutton", undefined, getLabel(LABELS.radio.ignoreDocName));
+            fileName.useDocName.value = true;
+
+            var delimiterRow = addRow(fileNamePanel);
+            addRowLabel(delimiterRow, LABELS.fieldLabel.delimiter);
+            fileName.delimiterNone = delimiterRow.add("radiobutton", undefined, getLabel(LABELS.radio.none));
+            fileName.delimiterDash = delimiterRow.add("radiobutton", undefined, "-");
+            fileName.delimiterUnderscore = delimiterRow.add("radiobutton", undefined, "_");
+
+            var suffixRow = addRow(fileNamePanel);
+            addRowLabel(suffixRow, LABELS.fieldLabel.suffix);
+            fileName.suffixNone = suffixRow.add("radiobutton", undefined, getLabel(LABELS.radio.none));
+            fileName.suffixCustom = suffixRow.add("radiobutton", undefined, "");
+            fileName.suffixInput = suffixRow.add("edittext", undefined, "");
+            fileName.suffixInput.characters = SUFFIX_FIELD_CHARS;
+            fileName.suffixInput.enabled = false;
+
+            var previewPanel = fileNamePanel.add("panel");
+            previewPanel.alignment = ["fill", "top"];
+            previewPanel.margins = [10, 10, 10, 10];
+            fileName.previewText = previewPanel.add("statictext", undefined, "");
+            fileName.previewText.alignment = ["fill", "center"];
+            fileName.previewText.preferredSize.height = FILENAME_ROW_HEIGHT;
+
+            /* 接尾辞を指定してファイル名プレビューを更新する / Set the suffix and refresh the preview */
+            fileName.setSuffix = function(suffixValue) {
+                fileName.suffixNone.value = false;
+                fileName.suffixCustom.value = true;
+                fileName.suffixInput.enabled = true;
+                fileName.suffixInput.text = suffixValue;
+                updateFileNamePreview();
+            };
+
+            /* 接尾辞をなしに戻す / Clear the suffix */
+            fileName.clearSuffix = function() {
+                fileName.suffixNone.value = true;
+                fileName.suffixCustom.value = false;
+                fileName.suffixInput.enabled = false;
+                updateFileNamePreview();
+            };
+
+            /* 区切り文字を選択する / Select the delimiter */
+            fileName.setDelimiter = function(delimiter) {
+                fileName.delimiterNone.value = (delimiter === "");
+                fileName.delimiterDash.value = (delimiter === "-");
+                fileName.delimiterUnderscore.value = (delimiter === "_");
+                updateFileNamePreview();
+            };
+
+            fileName.useDocName.onClick = updateFileNamePreview;
+            fileName.ignoreDocName.onClick = function() {
+                /* ドキュメント名を使わないときは接尾辞だけが頼りになる / Without the document name, only the suffix identifies the file */
+                fileName.setDelimiter("");
+                fileName.setSuffix(fileName.suffixInput.text);
+                fileName.suffixInput.active = true;
+            };
+            fileName.delimiterNone.onClick = updateFileNamePreview;
+            fileName.delimiterDash.onClick = updateFileNamePreview;
+            fileName.delimiterUnderscore.onClick = updateFileNamePreview;
+            fileName.suffixNone.onClick = fileName.clearSuffix;
+            fileName.suffixCustom.onClick = function() {
+                fileName.suffixInput.enabled = true;
+                updateFileNamePreview();
+            };
+            fileName.suffixInput.onChange = updateFileNamePreview;
+
+            return fileName;
+        }
+
+        /**
+         * 書き出し先パネルを作る
+         * @param {Group} parentColumn - 追加先のカラム
+         * @returns {Object} 書き出し先のコントロール一式
+         */
+        function buildLocationPanel(parentColumn) {
+            var locationPanel = addPanel(parentColumn, LABELS.panel.location);
+            var location = {};
+
+            var folderRow = addRow(locationPanel);
+            location.desktop = folderRow.add("radiobutton", undefined, getLabel(LABELS.radio.desktop));
+            location.documentFolder = folderRow.add("radiobutton", undefined, getLabel(LABELS.radio.documentFolder));
+            location.desktop.value = true;
+
+            var showFolderRow = addRow(locationPanel);
+            location.showFolder = showFolderRow.add("checkbox", undefined, getLabel(LABELS.checkbox.showFolder));
+            location.showFolder.value = true;
+            /* フォルダーを開く処理は macOS のみ / Opening the folder is macOS only */
+            showFolderRow.visible = (Folder.fs === "Macintosh");
+
+            /* 書き出し先を選択する / Select the destination */
+            location.select = function(locationName) {
+                location.desktop.value = (locationName === "desktop");
+                location.documentFolder.value = (locationName !== "desktop");
+            };
+
+            return location;
+        }
+
+        /**
+         * プリセットの内容をダイアログへ反映する
+         * @param {Object} preset - プリセット定義
+         * @returns {void}
+         */
+        function applyPreset(preset) {
+            controls.background.select(preset.background);
+            controls.margin.select(preset.margin);
+            controls.border.select(preset.border);
+            controls.location.select(preset.location);
+            controls.size.select(preset.size, true);
+            controls.fileName.setDelimiter(preset.delimiter);
+            if (preset.suffix) controls.fileName.setSuffix(preset.suffix);
+            else controls.fileName.clearSuffix();
+            refreshPreview();
+        }
+
+        presetDropdown.onChange = function() {
+            var selectedIndex = presetDropdown.selection.index;
+            /* 先頭は「カスタム」なので何も反映しない / The first entry is "Custom" and applies nothing */
+            if (selectedIndex > 0) applyPreset(PRESETS[selectedIndex - 1]);
+        };
+        btnSavePreset.onClick = function() {
+            savePresetToFile(controls);
+        };
+
+        // -----------------------------------------
+        // ボタンエリア / Button row
+        // -----------------------------------------
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_BAR_MARGINS;
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        dialog.defaultElement = btnOK;
+        dialog.cancelElement = btnCancel;
+
+        // -----------------------------------------
+        // 初期状態とプレビュー / Initial state and preview
+        // -----------------------------------------
+        controls.fileName.setDelimiter("-");
+        controls.size.select("scale:" + DEFAULT_SCALE);
+
+        refreshPreview();
+
+        dialog.addEventListener("show", function() {
+            updateFileNamePreview();
+            dialog.center();
+            dialog.location = [dialog.location[0] + DIALOG_OFFSET_X, dialog.location[1]];
+        });
+
+        var dialogResult = dialog.show();
+
+        /* プレビュー用の描画は、OK・キャンセルどちらでも必ず消す / Always remove the preview artwork, whichever button was used */
+        removePreviewArtwork();
+
+        return (dialogResult === 1) ? collectExportSettings(controls, doc) : null;
+    }
+
+    // =========================================
+    // 書き出し / Export
+    // =========================================
+
+    /**
+     * サイズ指定から書き出し倍率を求める
+     * @param {string} sizeSpec - サイズ指定（scale:200 / width:1000）
+     * @param {number} exportWidthPt - 書き出し範囲の幅（pt）
+     * @returns {number} 書き出し倍率（%）
+     */
+    function resolveExportScale(sizeSpec, exportWidthPt) {
+        var specValue = toNumber(String(sizeSpec).split(":")[1]);
+        var scalePercent = specValue;
+
+        /* 倍率100%で1pt＝1pxになるため、横幅指定はpt値との比で倍率を求める / At 100% one pt equals one px, so a target width is a ratio against the pt size */
+        if (String(sizeSpec).indexOf("width:") === 0) {
+            scalePercent = (exportWidthPt > 0) ? (specValue / exportWidthPt * 100) : 100;
+        }
+        return (scalePercent > 0) ? scalePercent : 100;
+    }
+
+    /**
+     * 書き出し倍率を指定できる範囲に収める
+     * @param {number} scalePercent - 求めた倍率（%）
+     * @returns {number} 範囲内に収めた倍率（%）
+     */
+    function limitExportScale(scalePercent) {
+        return Math.min(scalePercent, MAX_EXPORT_SCALE);
+    }
+
+    /**
+     * 一時アートボードを作ってPNG書き出しする
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} settings - 書き出し設定
+     * @param {Object} exportRect - 書き出し範囲
+     * @param {{label: string, factor: number}} rulerUnit - 定規の単位情報
+     * @returns {void}
+     */
+    function exportAsPng(doc, settings, exportRect, rulerUnit) {
+        var temporaryArtboardIndex = doc.artboards.length;
+        doc.artboards.add([exportRect.left, exportRect.top, exportRect.right, exportRect.bottom]);
+        doc.artboards.setActiveArtboardIndex(temporaryArtboardIndex);
+
+        var requestedScale = resolveExportScale(settings.sizeSpec, exportRect.width);
+        var exportScale = limitExportScale(requestedScale);
+
+        /* 背景・罫線・一時アートボードは、書き出しが失敗しても必ず片付ける
+           / The background, border and temporary artboard go away even when the export fails */
+        try {
+            createExportBackground(settings.backgroundChoice, exportRect, settings.checkerPercent);
+            var borderRect = drawBorderRectangle(
+                exportRect,
+                resolveBorderWidth(settings.borderSpec, rulerUnit.factor),
+                resolveBorderColor(settings.borderSpec)
+            );
+            if (borderRect) borderRect.zOrder(ZOrderMethod.BRINGTOFRONT);
+
+            var exportOptions = new ExportOptionsPNG24();
+            exportOptions.artBoardClipping = true;
+            exportOptions.transparency = (settings.backgroundChoice === "transparent");
+            exportOptions.horizontalScale = exportScale;
+            exportOptions.verticalScale = exportScale;
+
+            var exportFile = new File(settings.destinationFolder + "/" + settings.fileName);
+            try {
+                doc.exportFile(exportFile, ExportType.PNG24, exportOptions);
+            } catch (e) {
+                alert(getLabel(LABELS.alert.exportFailed) + "\n" + e.message);
+            }
+        } finally {
+            removePreviewArtwork();
+            doc.artboards.remove(temporaryArtboardIndex);
+        }
+
+        if (exportScale < requestedScale) {
+            alert(getLabel(LABELS.alert.scaleLimited) + Math.floor(exportScale) + "%");
+        }
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * スクリプトのエントリーポイント
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0 || app.selection.length === 0) {
+            alert(getLabel(LABELS.alert.noSelection));
+            return;
+        }
+
+        var doc = app.activeDocument;
+        var rulerUnit = getRulerUnitInfo();
+        var documentBaseName = doc.name.replace(/\.ai$/i, "");
+        var originalArtboardIndex = doc.artboards.getActiveArtboardIndex();
+
+        /* 選択オブジェクトだけを写した作業用レイヤーで、他のオブジェクトを写り込ませずにプレビューする
+           / Work on a copy of the selection so nothing else shows up in the preview */
+        var previewLayer = doc.layers.add();
+        previewLayer.name = PREVIEW_LAYER_NAME;
+        var previewItems = duplicateSelectionToLayer(doc.selection, previewLayer);
+        var hiddenLayers = hideOtherLayers(doc, previewLayer);
+        var selectionBounds = getSelectionBounds(previewItems);
+
+        var settings = null;
+        /* 途中で失敗しても、レイヤーを隠したままドキュメントを放置しない
+           / Never leave the document with its layers hidden, whatever fails on the way */
+        try {
+            settings = showExportOptionsDialog(selectionBounds, rulerUnit, documentBaseName);
+
+            if (settings) {
+                var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(settings.marginSpec, rulerUnit.factor));
+                if (exportRect.width > 0 && exportRect.height > 0) {
+                    exportAsPng(doc, settings, exportRect, rulerUnit);
+                } else {
+                    alert(getLabel(LABELS.alert.invalidSize));
+                    settings = null;
                 }
             }
-            // silently skip if not found
-        } catch (e) {
-            alert("Error removing preview layer: " + e.message);
+        } finally {
+            /* 作業用レイヤー・レイヤー表示・アクティブアートボードを元に戻す / Undo the temporary layer, visibility and active artboard */
+            removePreviewArtwork();
+            removePreviewLayerByName(doc, PREVIEW_LAYER_NAME);
+            restoreLayerVisibility(hiddenLayers);
+            doc.artboards.setActiveArtboardIndex(originalArtboardIndex);
+            app.redraw();
+        }
+
+        if (settings && settings.showFolder && Folder.fs === "Macintosh") {
+            settings.destinationFolder.execute();
         }
     }
 
-    // -------------------------------
-    // ファイル名生成関数（プレビューと書き出し共通化用）
-    // -------------------------------
-    function generateExportFilename(docName, symbol, suffix, useDocName) {
-        var fileName = "";
-
-        if (!suffix) {
-            fileName = useDocName ? docName + "_selection.png" : "_selection.png";
-        } else {
-            fileName = (useDocName ? docName : "") + (symbol !== "" ? symbol : "") + suffix + ".png";
-        }
-
-        return sanitizeFilename(fileName, symbol);
-    }
-    // --- 元のhidden状態と一時的hidden項目をまとめて復元するヘルパー ---
-    function restoreAllHiddenStates(temporaryHiddenItems, originalHiddenStates) {
-        // 一時的に非表示にしたものを再表示
-        if (temporaryHiddenItems && temporaryHiddenItems.length) {
-            restoreTemporaryHiddenItems(temporaryHiddenItems);
-        }
-        // 元のhidden状態を復元
-        if (originalHiddenStates && originalHiddenStates.length) {
-            for (var i = 0; i < originalHiddenStates.length; i++) {
-                try {
-                    var obj = originalHiddenStates[i].item;
-                    if (obj && obj.isValid) {
-                        obj.hidden = originalHiddenStates[i].hidden;
-                    }
-                } catch (e) {
-                    alert("Error restoring hidden state: " + e.message);
-                }
-            }
-        }
-    }
+    main();
 
 })();
