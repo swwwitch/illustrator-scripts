@@ -7,13 +7,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-アートボードのサイズを「操作」×「対象」の2軸で選んで自動調整します。
+アートボードのサイズを「操作」×「対象」×「サイズ」の組み合わせで自動調整します。
+選択オブジェクトに合わせるほか、各アートボード内のオブジェクトに合わせて全アートボードを個別に調整できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Fits the artboard size automatically, choosing along two axes: the operation and the target.
+Adjusts artboard size by operation, target and size (width & height).
+Fits to the selection, or fits every artboard individually to the objects it contains.
 
 See the README for details.
 
@@ -23,10 +25,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FitArtboardWithMargin";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-10";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitArtboardWithMargin.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboardWithMargin.md"; /* README (English) */
@@ -92,11 +94,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         },
         groupLabel: {
             operation: { ja: "操作", en: "Operation" },
-            scope: { ja: "対象", en: "Target" }
+            scope: { ja: "対象", en: "Target" },
+            axis: { ja: "サイズ", en: "Size" }
         },
         field: {
             vertical: { ja: "上下", en: "Vertical" },
-            horizontal: { ja: "左右", en: "Horizontal" }
+            horizontal: { ja: "左右", en: "Horizontal" },
+            width: { ja: "幅", en: "Width" },
+            height: { ja: "高さ", en: "Height" }
         },
         checkbox: {
             linked: { ja: "連動", en: "Linked" },
@@ -122,8 +127,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         },
         tooltip: {
             opFit: {
-                ja: "選択オブジェクトの外接＋マージンのサイズにアートボードを合わせます（選択が必要）",
-                en: "Resize artboards to the selected objects' bounds plus margins (requires a selection)"
+                ja: "オブジェクトの外接＋マージンのサイズにアートボードを合わせます（選択が無いときは各アートボード内のオブジェクトが対象）",
+                en: "Resize artboards to the objects' bounds plus margins (with no selection, each artboard uses the objects it contains)"
             },
             opExpand: {
                 ja: "アートボード自身のサイズにマージンを加減します（マイナス値で縮小）",
@@ -134,16 +139,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
                 en: "Apply to the current artboard only"
             },
             scopeAll: {
-                ja: "すべてのアートボードを対象にします",
-                en: "Apply to all artboards"
+                ja: "すべてのアートボードを対象にします（「合わせる」では各アートボード内のオブジェクトに合わせます）",
+                en: "Apply to all artboards (Fit uses the objects each artboard contains)"
             },
             marginInput: {
                 ja: "↑↓で±1、Shift+↑↓で10の倍数にスナップ、Option+↑↓で±0.1",
                 en: "Arrow: ±1, Shift: snap to 10, Option: ±0.1"
             },
             axisEnable: {
-                ja: "OFFにするとその方向は実行時のサイズのまま（連動は自動でOFF）。Option+クリックでこの軸だけON",
-                en: "Off keeps this axis at its original size (auto-unlinks). Option-click to solo this axis"
+                ja: "OFFにすると実行時のサイズのまま固定します（連動は自動でOFF）。Option+クリックでこちらだけON",
+                en: "Off keeps this dimension at its original size (auto-unlinks). Option-click to solo it"
             },
             link: {
                 ja: "上下の値を左右にも自動で適用します",
@@ -209,6 +214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     var PANEL_MARGINS = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING = 8;                  /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var BUTTON_ROW_TOP_MARGIN = 5;           /* ボタンエリアの上余白 / top margin of the button row */
 
     /* ウィンドウの共通設定 / Apply shared window layout */
     function setupWindow(win, spacing) {
@@ -388,14 +394,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         if (saved && (saved.operation === "fit" || saved.operation === "expand")) {
             operation = saved.operation;
         }
-        if (operation === "fit" && !hasSelection) operation = "expand"; // fit は選択必須 / fit needs a selection
 
         // 対象：選択なし・複数アートボードなら all、それ以外は current を既定に / scope default
         var scope = (!hasSelection && artboardCount > 1) ? "all" : "current";
         if (saved && (saved.scope === "current" || saved.scope === "all")) {
             scope = saved.scope;
         }
-        if (operation === "fit") scope = "current"; // 合わせるは現在のアートボード専用 / fit is current-only
+        // 「合わせる」で選択が無いときは、各アートボード内のオブジェクトが対象になるため「すべて」固定
+        // Fit without a selection works per artboard, so the scope is locked to all.
+        if (operation === "fit" && !hasSelection) scope = "all";
 
         var link = (saved && typeof saved.link === "boolean") ? saved.link : CONFIG.linkDefault;
         // 連動ONのときは上下・左右とも有効に揃える / when linked, both axes are enabled
@@ -589,6 +596,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         }
     }
 
+    /* 計測に使えるアイテムか（ロック・非表示・ガイド、およびそのレイヤーを除外） / Usable for measuring? */
+    function isUsableItem(item) {
+        try {
+            if (!item || item.locked || item.hidden || item.guides) return false;
+            var parent = item.parent;
+            while (parent && parent.typename === "Layer") {
+                if (!parent.visible || parent.locked) return false;
+                parent = parent.parent;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /* アートボードに重なるページアイテムを収集 / Collect page items overlapping an artboard
+       レイヤー直下のアイテムだけを見る（グループの中身はグループごと1件として扱う）。 */
+    function getItemsInArtboard(artboardRect, usePreviewBounds) {
+        var doc = app.activeDocument;
+        var out = [];
+        for (var i = 0; i < doc.pageItems.length; i++) {
+            var item = doc.pageItems[i];
+            try {
+                if (item.parent.typename !== "Layer") continue; // 入れ子はグループと一緒に扱う / nested items travel with their group
+                if (!isUsableItem(item)) continue;
+                var b = getBounds(item, usePreviewBounds);
+                // 一辺でも外れていれば非交差 / no overlap when any edge clears the artboard
+                if (b[2] <= artboardRect[0] || b[0] >= artboardRect[2] || b[3] >= artboardRect[1] || b[1] <= artboardRect[3]) continue;
+                out.push(item);
+            } catch (e) { /* ignore */ }
+        }
+        return out;
+    }
+
+    /* アートボード内オブジェクトの外接境界を取得（対象が無ければ null） / Bounds of the objects inside an artboard */
+    function measureArtboardContentBounds(artboardRect, usePreviewBounds) {
+        var items = getItemsInArtboard(artboardRect, usePreviewBounds);
+        if (items.length === 0) return null;
+        return measureSelectionBounds(items, usePreviewBounds);
+    }
+
     /* マージン適用の共通パイプライン：拡張 → 丸め → 無効軸を元座標に固定 / Shared pipeline: expand → round → lock
        プレビューと確定で同一の矩形を得るために両者から使う。 */
     function computeMarginRect(baseRect, verticalMarginPt, horizontalMarginPt, roundMode, unit, artboardOriginalRect, verticalEnabled, horizontalEnabled) {
@@ -642,6 +690,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     // --- 合わせる（選択の外接＋マージンにアートボードを合わせる） / Fit: resize artboard(s) to selection bounds ---
     // boundsRect は確定時と同一ロジック（measureSelectionBounds）で得た計測済み矩形。
     // 無効軸は各アートボードの実行時座標（originalRect）に固定する。
+
+    /* すべてのアートボードを、それぞれの内側のオブジェクトに合わせるプレビュー / Preview: fit every artboard to its own contents
+       boundsList[i] は計測済みの外接矩形。null のアートボードは対象が無いので据え置く。 */
+    function previewFitAll(originalRects, boundsList, verticalMarginPt, horizontalMarginPt, roundMode, unit, verticalEnabled, horizontalEnabled) {
+        var artboards = app.activeDocument.artboards;
+        for (var i = 0; i < artboards.length; i++) {
+            if (!boundsList[i]) continue;
+            var rect = computeMarginRect(boundsList[i], verticalMarginPt, horizontalMarginPt, roundMode, unit, originalRects[i], verticalEnabled, horizontalEnabled);
+            if (!isValidRect(rect)) continue;
+            if (rectsEqual(artboards[i].artboardRect, rect)) continue;
+            artboards[i].artboardRect = rect;
+        }
+        app.redraw();
+    }
 
     /* 現在のアートボードを選択に合わせるプレビュー / Preview: fit the active artboard to selection */
     function previewFitCurrent(index, boundsRect, verticalMarginPt, horizontalMarginPt, roundMode, unit, verticalEnabled, horizontalEnabled, artboardOriginalRect) {
@@ -717,7 +779,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
             return selectionBoundsCache[key];
         }
 
-        /* 調整基準パネル（操作＋対象の2グループ） / Basis panel: operation + scope */
+        /* 調整基準パネル（操作＋対象＋サイズの3グループ） / Basis panel: operation + scope + axis */
         var targetPanel = dialog.add("panel", undefined, getLocalizedText(LABELS.panel.target));
         setupPanel(targetPanel);
 
@@ -733,7 +795,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         operationGroup.orientation = "column";
         operationGroup.alignChildren = "left";
         var fitRadio = operationGroup.add("radiobutton", undefined, getLocalizedText(LABELS.radio.fit));
-        fitRadio.enabled = hasSelection; // 合わせるは選択必須 / fit needs a selection
         fitRadio.helpTip = getLocalizedText(LABELS.tooltip.opFit);
         var expandRadio = operationGroup.add("radiobutton", undefined, getLocalizedText(LABELS.radio.expand));
         expandRadio.helpTip = getLocalizedText(LABELS.tooltip.opExpand);
@@ -752,20 +813,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         var allRadio = scopeGroup.add("radiobutton", undefined, getLocalizedText(LABELS.radio.all));
         allRadio.helpTip = getLocalizedText(LABELS.tooltip.scopeAll);
 
+        /* サイズ：幅／高さ（OFFにした方は実行時のサイズのまま固定） / Axis targets: width & height (off keeps the original size) */
+        var axisRow = targetPanel.add("group");
+        axisRow.orientation = "row";
+        axisRow.alignChildren = ["left", "center"];
+        var axisLabel = axisRow.add("statictext", undefined, getLocalizedText(LABELS.groupLabel.axis) + UI_COLON);
+        axisLabel.preferredSize.width = basisLabelWidth;
+        var axisGroup = axisRow.add("group");
+        axisGroup.orientation = "row";
+        axisGroup.alignChildren = ["left", "center"];
+        axisGroup.spacing = COLUMN_SPACING;
+        var widthEnabledCheckbox = axisGroup.add("checkbox", undefined, getLocalizedText(LABELS.field.width));
+        widthEnabledCheckbox.value = initial.horizontalEnabled;
+        widthEnabledCheckbox.helpTip = getLocalizedText(LABELS.tooltip.axisEnable);
+        var heightEnabledCheckbox = axisGroup.add("checkbox", undefined, getLocalizedText(LABELS.field.height));
+        heightEnabledCheckbox.value = initial.verticalEnabled;
+        heightEnabledCheckbox.helpTip = getLocalizedText(LABELS.tooltip.axisEnable);
+
         /* 現在の操作・対象を取得 / current operation & scope */
         function getOperation() { return fitRadio.value ? "fit" : "expand"; }
         function getScope() { return allRadio.value ? "all" : "current"; }
 
-        /* 「合わせる」は現在のアートボード専用。fit のときは対象を現在に固定してディム。 / fit is current-only: lock & dim scope */
+        /* 「合わせる」で選択が無いときは対象を「すべて」に固定してディム / fit without a selection is all-artboards only */
         function refreshScopeState() {
-            var isFit = (getOperation() === "fit");
-            if (isFit) {
-                currentRadio.value = true;
-                allRadio.value = false;
+            var forceAll = (getOperation() === "fit" && !hasSelection);
+            if (forceAll) {
+                allRadio.value = true;
+                currentRadio.value = false;
             }
-            scopeLabel.enabled = !isFit;
-            currentRadio.enabled = !isFit;
-            allRadio.enabled = !isFit;
+            currentRadio.enabled = !forceAll;
         }
 
         /* 初期値を適用 / apply initial selection */
@@ -791,30 +867,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         linkColumn.alignChildren = ["left", "center"];
         linkColumn.alignment = ["left", "center"];
 
-        /* 上下マージン入力欄（チェックボックスで有効/無効） / Vertical margin (checkbox toggles the axis) */
+        /* 上下マージン入力欄（「高さ」OFFで無効） / Vertical margin input (disabled when Height is off) */
         var verticalMarginRow = marginFieldsColumn.add("group");
         verticalMarginRow.orientation = "row";
-        var verticalEnabledCheckbox = verticalMarginRow.add("checkbox", undefined, getLocalizedText(LABELS.field.vertical));
-        verticalEnabledCheckbox.value = initial.verticalEnabled;
-        verticalEnabledCheckbox.helpTip = getLocalizedText(LABELS.tooltip.axisEnable);
+        verticalMarginRow.alignChildren = ["left", "center"];
+        var verticalMarginLabel = verticalMarginRow.add("statictext", undefined, getLocalizedText(LABELS.field.vertical));
+        verticalMarginLabel.justify = "right";
         var verticalMarginInput = verticalMarginRow.add("edittext", undefined, initial.marginV);
         verticalMarginInput.characters = 4;
         verticalMarginInput.helpTip = getLocalizedText(LABELS.tooltip.marginInput);
 
-        /* 左右マージン入力欄（チェックボックスで有効/無効） / Horizontal margin (checkbox toggles the axis) */
+        /* 左右マージン入力欄（「幅」OFFで無効） / Horizontal margin input (disabled when Width is off) */
         var horizontalMarginRow = marginFieldsColumn.add("group");
         horizontalMarginRow.orientation = "row";
-        var horizontalEnabledCheckbox = horizontalMarginRow.add("checkbox", undefined, getLocalizedText(LABELS.field.horizontal));
-        horizontalEnabledCheckbox.value = initial.horizontalEnabled;
-        horizontalEnabledCheckbox.helpTip = getLocalizedText(LABELS.tooltip.axisEnable);
+        horizontalMarginRow.alignChildren = ["left", "center"];
+        var horizontalMarginLabel = horizontalMarginRow.add("statictext", undefined, getLocalizedText(LABELS.field.horizontal));
+        horizontalMarginLabel.justify = "right";
         var horizontalMarginInput = horizontalMarginRow.add("edittext", undefined, initial.link ? initial.marginV : initial.marginH);
         horizontalMarginInput.characters = 4;
         horizontalMarginInput.helpTip = getLocalizedText(LABELS.tooltip.marginInput);
 
-        /* 上下・左右チェックボックスの幅を揃えて入力欄位置を統一 / Align checkbox widths so inputs line up */
-        var fieldLabelWidth = (currentLanguage === "ja") ? 62 : 96;
-        verticalEnabledCheckbox.preferredSize.width = fieldLabelWidth;
-        horizontalEnabledCheckbox.preferredSize.width = fieldLabelWidth;
+        /* 行ラベルの幅を揃えて入力欄位置を統一 / Align label widths so inputs line up */
+        var fieldLabelWidth = (currentLanguage === "ja") ? 32 : 62;
+        verticalMarginLabel.preferredSize.width = fieldLabelWidth;
+        horizontalMarginLabel.preferredSize.width = fieldLabelWidth;
 
         /* 連動チェックボックス / Linked checkbox */
         var linkCheckbox = linkColumn.add("checkbox", undefined, getLocalizedText(LABELS.checkbox.linked));
@@ -822,12 +898,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         linkCheckbox.helpTip = getLocalizedText(LABELS.tooltip.link);
 
         /* 入力欄と連動チェックの有効/無効を現在の状態から更新 / Refresh input & link enabled states
-           上下=自軸チェック、左右=自軸チェック かつ 非連動、連動=上下・左右が両方ONのときだけ有効。 */
+           上下=「高さ」ON、左右=「幅」ON かつ 非連動、連動=幅・高さが両方ONのときだけ有効。 */
         function refreshMarginInputStates() {
-            verticalMarginInput.enabled = verticalEnabledCheckbox.value;
-            horizontalMarginInput.enabled = horizontalEnabledCheckbox.value && !linkCheckbox.value;
-            // どちらかの軸がOFFなら連動は使えない（自動OFFのうえディム） / disable link when either axis is off
-            linkCheckbox.enabled = verticalEnabledCheckbox.value && horizontalEnabledCheckbox.value;
+            verticalMarginLabel.enabled = heightEnabledCheckbox.value;
+            verticalMarginInput.enabled = heightEnabledCheckbox.value;
+            horizontalMarginLabel.enabled = widthEnabledCheckbox.value;
+            horizontalMarginInput.enabled = widthEnabledCheckbox.value && !linkCheckbox.value;
+            // 幅・高さのどちらかがOFFなら連動は使えない（自動OFFのうえディム） / disable link when either axis is off
+            linkCheckbox.enabled = heightEnabledCheckbox.value && widthEnabledCheckbox.value;
         }
         refreshMarginInputStates();
 
@@ -855,10 +933,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
             }
         });
 
+        /* アートボード内オブジェクトの計測キャッシュ（元の矩形で判定するのでダイアログ表示中は不変） / cache per artboard & bounds flag */
+        var artboardBoundsCache = {};
+        function getArtboardContentBounds(index, usePreviewBounds) {
+            var key = index + (usePreviewBounds ? ":v" : ":g");
+            if (!artboardBoundsCache.hasOwnProperty(key)) {
+                artboardBoundsCache[key] = measureArtboardContentBounds(originalArtboardRects[index], usePreviewBounds);
+            }
+            return artboardBoundsCache[key];
+        }
+
         /* 有効チェックを反映した実効マージン（pt）を取得。無効な軸は 0 とみなす / Effective margins in pt; disabled axis = 0 */
         function getEffectiveMargins() {
-            var vEnabled = verticalEnabledCheckbox.value;
-            var hEnabled = horizontalEnabledCheckbox.value;
+            var vEnabled = heightEnabledCheckbox.value;
+            var hEnabled = widthEnabledCheckbox.value;
             var vPt = vEnabled ? toPt(parseFloat(verticalMarginInput.text), rulerUnit) : 0;
             var hPt = hEnabled ? toPt(parseFloat(horizontalMarginInput.text), rulerUnit) : 0;
             // 有効な軸だけ数値妥当性を要求 / only enabled axes must be valid numbers
@@ -879,8 +967,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
             var operation = getOperation();
             var scope = getScope();
 
-            var verticalEnabled = verticalEnabledCheckbox.value;
-            var horizontalEnabled = horizontalEnabledCheckbox.value;
+            var verticalEnabled = heightEnabledCheckbox.value;
+            var horizontalEnabled = widthEnabledCheckbox.value;
             // 確定時と同じ丸めモードをプレビューにも反映 / apply the same rounding as confirm
             var roundMode = roundPixelRadio.value ? "pixelGrid" : (roundUnitRadio.value ? "currentUnit" : "none");
 
@@ -890,7 +978,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
                     else { previewExpandCurrent(originalArtboardRects, activeArtboardIndex, verticalMarginPt, horizontalMarginPt, roundMode, rulerUnit, verticalEnabled, horizontalEnabled); }
                     return;
                 }
-                // 合わせる：常に現在のアートボードを選択の外接に合わせる（無効軸は実行時座標に固定） / fit is current-only
+                // 合わせる×すべて：各アートボードを、その内側のオブジェクトに合わせる / fit each artboard to its own contents
+                if (scope === "all") {
+                    var boundsList = [];
+                    for (var i = 0; i < originalArtboardRects.length; i++) {
+                        boundsList.push(getArtboardContentBounds(i, previewBoundsCheckbox.value));
+                    }
+                    previewFitAll(originalArtboardRects, boundsList, verticalMarginPt, horizontalMarginPt, roundMode, rulerUnit, verticalEnabled, horizontalEnabled);
+                    return;
+                }
+                // 合わせる×現在：選択の外接に合わせる（無効軸は実行時座標に固定） / fit the active artboard to the selection
                 var boundsRect = getSelectionBounds(previewBoundsCheckbox.value);
                 previewFitCurrent(activeArtboardIndex, boundsRect, verticalMarginPt, horizontalMarginPt, roundMode, rulerUnit, verticalEnabled, horizontalEnabled, originalArtboardRects[activeArtboardIndex]);
             });
@@ -922,35 +1019,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         };
 
         /* Option(Alt)クリック検出：mousedown で event.altKey を捕捉（onClick では修飾キーを取得できない） / capture Alt on mousedown */
-        var axisSoloRequested = { vertical: false, horizontal: false };
-        verticalEnabledCheckbox.addEventListener("mousedown", function (event) { axisSoloRequested.vertical = (event.altKey === true); });
-        horizontalEnabledCheckbox.addEventListener("mousedown", function (event) { axisSoloRequested.horizontal = (event.altKey === true); });
+        var axisSoloRequested = { width: false, height: false };
+        widthEnabledCheckbox.addEventListener("mousedown", function (event) { axisSoloRequested.width = (event.altKey === true); });
+        heightEnabledCheckbox.addEventListener("mousedown", function (event) { axisSoloRequested.height = (event.altKey === true); });
 
-        /* 軸チェックの変更処理 / axis toggle handler
-           Option+クリック＝ソロ（クリックした軸のみON、もう片方OFF）。どちらかOFFなら連動を自動OFF。 */
+        /* 幅・高さチェックの変更処理 / axis toggle handler
+           Option+クリック＝ソロ（クリックした方のみON、もう片方OFF）。どちらかOFFなら連動を自動OFF。 */
         function handleAxisToggle(solo, clickedCheckbox, otherCheckbox) {
             if (solo) {
                 clickedCheckbox.value = true;   // クリックした軸をON / keep the clicked axis on
                 otherCheckbox.value = false;    // もう片方をOFF / turn the other off
             }
-            if (!verticalEnabledCheckbox.value || !horizontalEnabledCheckbox.value) linkCheckbox.value = false;
+            if (!heightEnabledCheckbox.value || !widthEnabledCheckbox.value) linkCheckbox.value = false;
             refreshMarginInputStates();
             updatePreview();
         }
-        verticalEnabledCheckbox.onClick = function () {
-            var solo = axisSoloRequested.vertical; axisSoloRequested.vertical = false;
-            handleAxisToggle(solo, verticalEnabledCheckbox, horizontalEnabledCheckbox);
+        widthEnabledCheckbox.onClick = function () {
+            var solo = axisSoloRequested.width; axisSoloRequested.width = false;
+            handleAxisToggle(solo, widthEnabledCheckbox, heightEnabledCheckbox);
         };
-        horizontalEnabledCheckbox.onClick = function () {
-            var solo = axisSoloRequested.horizontal; axisSoloRequested.horizontal = false;
-            handleAxisToggle(solo, horizontalEnabledCheckbox, verticalEnabledCheckbox);
+        heightEnabledCheckbox.onClick = function () {
+            var solo = axisSoloRequested.height; axisSoloRequested.height = false;
+            handleAxisToggle(solo, heightEnabledCheckbox, widthEnabledCheckbox);
         };
 
         linkCheckbox.onClick = function () {
             if (linkCheckbox.value) {
-                // 連動ON：上下・左右を有効に揃え、値を上下に統一 / linking re-enables both axes and mirrors V→H
-                verticalEnabledCheckbox.value = true;
-                horizontalEnabledCheckbox.value = true;
+                // 連動ON：幅・高さを有効に揃え、値を上下に統一 / linking re-enables both axes and mirrors V→H
+                heightEnabledCheckbox.value = true;
+                widthEnabledCheckbox.value = true;
                 horizontalMarginInput.text = verticalMarginInput.text;
             }
             refreshMarginInputStates();
@@ -983,9 +1080,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         roundUnitRadio.onClick = updatePreview;
         roundNoneRadio.onClick = updatePreview;
 
-        /* ボタングループ（右寄せ：左は空き、Cancel → OK の順で OK を一番右に） / Button group: right-aligned, OK rightmost */
+        /* ボタングループ（左右中央：Cancel → OK の順） / Button group: centered, Cancel then OK */
         var buttonGroup = dialog.add("group");
-        setupRow(buttonGroup, "right");
+        setupRow(buttonGroup, "center");
+        buttonGroup.alignChildren = ["center", "center"];
+        buttonGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
         var cancelButton = buttonGroup.add("button", undefined, getLocalizedText(LABELS.button.cancel), { name: "cancel" });
         var okButton = buttonGroup.add("button", undefined, getLocalizedText(LABELS.button.ok), { name: "ok" });
 
@@ -995,8 +1094,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
                 dialogResult = {
                     marginV: verticalMarginInput.text,
                     marginH: horizontalMarginInput.text,
-                    verticalEnabled: verticalEnabledCheckbox.value,
-                    horizontalEnabled: horizontalEnabledCheckbox.value,
+                    verticalEnabled: heightEnabledCheckbox.value,
+                    horizontalEnabled: widthEnabledCheckbox.value,
                     operation: getOperation(),
                     scope: getScope(),
                     previewBounds: previewBoundsCheckbox.value,
@@ -1093,8 +1192,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
                 } else {
                     if (!applyMarginToArtboard(artboards[artboards.getActiveArtboardIndex()], verticalMarginPt, horizontalMarginPt, roundMode, rulerUnit, verticalEnabled, horizontalEnabled)) skippedCount++;
                 }
+            } else if (userInput.operation === "fit" && userInput.scope === "all") {
+                // 合わせる×すべて：各アートボードを、その内側のオブジェクトに合わせる / fit each artboard to its own contents
+                for (var j = 0; j < artboards.length; j++) {
+                    var contentBaseRect = artboards[j].artboardRect.slice();
+                    var contentBounds = measureArtboardContentBounds(contentBaseRect, userInput.previewBounds);
+                    if (!contentBounds) continue; // 対象が無いアートボードは据え置き / leave empty artboards untouched
+                    var contentRect = computeMarginRect(contentBounds, verticalMarginPt, horizontalMarginPt, roundMode, rulerUnit, contentBaseRect, verticalEnabled, horizontalEnabled);
+                    if (!isValidRect(contentRect)) skippedCount++;
+                    else artboards[j].artboardRect = contentRect;
+                }
             } else if (userInput.operation === "fit" && selectionItems.length > 0) {
-                // 合わせる：現在のアートボードを選択の外接＋マージンに合わせる（プレビューと同一パイプライン） / fit current artboard to selection
+                // 合わせる×現在：現在のアートボードを選択の外接＋マージンに合わせる（プレビューと同一パイプライン） / fit the active artboard to the selection
                 var activeArtboard = artboards[artboards.getActiveArtboardIndex()];
                 var artboardOriginalRect = activeArtboard.artboardRect.slice(); // 実行時座標（無効軸の固定用） / for locking disabled axes
                 var fitBounds = measureSelectionBounds(selectionItems, userInput.previewBounds);
