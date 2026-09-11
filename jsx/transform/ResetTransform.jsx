@@ -1,4 +1,3 @@
-
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
@@ -8,14 +7,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 配置画像・テキスト・長方形・クリップグループ・直線パスに対して、回転／シアー／スケール／縦横比を安全にリセットします。
-バウンディングボックスのリセットと左上基準の再配置により、見た目の位置を保ちます。
+バウンディングボックスをリセットしたあと元の中心位置へ戻すため、見た目の位置は保たれます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Safely resets rotation, shear, scale and aspect ratio on placed images, text, rectangles, clipping groups and straight paths.
-The bounding box is reset and the item is repositioned from its top-left corner so that its apparent position is preserved.
+The bounding box is reset and the item is moved back to its original center, so its apparent position is preserved.
 
 See the README for details.
 
@@ -25,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResetTransform";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-11";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetTransform.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetTransform.md"; /* README (English) */
@@ -42,73 +41,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
     // =========================================
     // ユーザー設定 / User settings
     // =========================================
-    /* 角度スナップ許容範囲（度）と行列計算の微小値 / Angle snap tolerance (deg) and matrix epsilon */
-    var CONFIG = {
-        rectSnapMin: 0.5, // degrees
-        rectSnapMax: 44, // degrees
-        eps: 1e-8 // numerical epsilon for matrix ops
-    };
+
+    /* 軸スナップの許容範囲（度）/ Angle range that counts as "near an axis" */
+    var AXIS_SNAP_MIN_DEG = 0.5;    /* これ未満はすでに正立とみなす / below this the path is treated as upright */
+    var AXIS_SNAP_MAX_DEG = 44;     /* これを超えると意図的な傾きとみなす / above this the tilt is treated as intentional */
 
     /* スケール入力の下限（%）/ Minimum scale percent allowed in the input */
-    var SCALE_MIN = 20;
+    var SCALE_MIN_PERCENT = 20;
 
-    // --- Dialog position memory helpers (shared across scripts via targetengine) ---
-    function _getSavedLoc(key) {
-        return $.global[key] && $.global[key].length === 2 ? $.global[key] : null;
-    }
+    /* 判定用の微小値 / Numerical tolerances */
+    var MATRIX_EPSILON = 1e-8;         /* 行列演算のゼロ判定 / zero threshold for matrix math */
+    var SCALE_EPSILON = 1e-6;          /* スケール・シアーの残差判定 / residual threshold for scale and shear */
+    var ROTATION_EPSILON_DEG = 0.0001; /* 回転の残差判定（度）/ residual threshold for rotation (deg) */
 
-    function _setSavedLoc(key, loc) {
-        $.global[key] = [loc[0], loc[1]];
-    }
+    // =========================================
+    // レイアウト設定 / Layout settings
+    // =========================================
 
-    function _clampToScreen(loc) {
-        try {
-            var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0, 0, 1920, 1080];
-            var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
-            var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
-            return [x, y];
-        } catch (e) {
-            return loc;
-        }
-    }
-    // A unique storage key for this script's main dialog
-    var DLG_STORE_KEY = "__ResetTransform_OptionsDialog";
+    var WINDOW_MARGINS = 16;                /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var PANEL_SPACING_COMPACT = 6;          /* チェックボックスを並べるときの間隔 / spacing for checkbox stacks */
+    var COLUMN_SPACING = 12;                /* 2カラムの間隔 / gap between columns */
+
+    var DIALOG_OFFSET_X = 300;              /* 初回表示時の横シフト（px）/ first-run horizontal shift (px) */
+    var DIALOG_OFFSET_Y = 0;                /* 初回表示時の縦シフト（px）/ first-run vertical shift (px) */
+    var DIALOG_OPACITY = 0.98;              /* ダイアログの不透明度 / dialog opacity (0.0-1.0) */
+
+    /* ダイアログ位置の記憶キー（targetengine 内で共有）/ Storage key for the dialog location */
+    var DIALOG_LOCATION_KEY = "__ResetTransform_OptionsDialog";
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+    /* ルーラー単位の換算は使用しません（スケールは % 指定）/ No ruler-unit conversion (scale is percent-based) */
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* 言語判定：日本語環境なら "ja"、それ以外は "en" / Detect UI language */
-    function getCurrentLang() {
+    /**
+     * UI言語を判定する。
+     * @returns {string} 日本語環境なら "ja"、それ以外は "en"
+     */
+    function getCurrentLanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var currentLanguage = getCurrentLanguage();
 
-    /* ラベル取得（{slash} を "/" に展開）/ Resolve a localized label (expands {slash} to "/") */
-    function L(entry) {
-        var text = (entry && entry[currentLanguage] != null) ? entry[currentLanguage] : (entry ? entry.en : "");
-        return String(text).replace(/\{slash\}/g, "/");
+    /**
+     * ラベル定義から現在の言語の文字列を取り出す。
+     * @param {object} labelEntry - { ja: string, en: string } 形式のラベル定義
+     * @returns {string} 現在の言語のラベル文字列
+     */
+    function L(labelEntry) {
+        if (!labelEntry) return "";
+        return String((labelEntry[currentLanguage] != null) ? labelEntry[currentLanguage] : labelEntry.en);
     }
 
-    /* UIラベル（カテゴリ別） / UI labels grouped by category */
+    /* UIラベル（カテゴリ別）/ UI labels grouped by category */
     var LABELS = {
         dialog: {
             title: { ja: "リセット（回転・比率）", en: "Reset (Rotate / Scale)" }
         },
         panel: {
-            placed: { ja: "配置画像", en: "Placed Images" },
-            clip: { ja: "クリップグループ", en: "Clip Group" },
-            text: { ja: "テキスト", en: "Text" },
-            rect: { ja: "長方形（パス）", en: "Rectangle (Path)" },
-            line: { ja: "パス（直線）", en: "Path (Line)" }
+            placedImage: { ja: "配置画像", en: "Placed Images" },
+            clippedGroup: { ja: "クリップグループ", en: "Clip Group" },
+            textFrame: { ja: "テキスト", en: "Text" },
+            rectanglePath: { ja: "長方形（パス）", en: "Rectangle (Path)" },
+            straightLine: { ja: "パス（直線）", en: "Path (Line)" }
         },
         checkbox: {
             rotate: { ja: "回転", en: "Rotate" },
             shear: { ja: "シアー", en: "Shear" },
-            ratio: { ja: "縦横比", en: "Aspect Ratio" },
+            aspectRatio: { ja: "縦横比", en: "Aspect Ratio" },
             flip: { ja: "反転", en: "Flip" },
             scale: { ja: "スケール", en: "Scale" },
-            textRatio: { ja: "垂直比率／水平比率", en: "Horizontal & Vertical Scale" }
+            textScaleRatio: { ja: "垂直比率／水平比率", en: "Horizontal & Vertical Scale" }
         },
         button: {
             reset: { ja: "リセット", en: "Reset" },
@@ -122,1183 +132,1331 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
     };
 
     // =========================================
-    // 単位 / Units
+    // ダイアログ位置の記憶 / Dialog location memory
     // =========================================
-    /* このスクリプトはルーラー単位換算を使用しません（スケールは % 指定）/ No ruler-unit conversion (scale is percent-based) */
 
-    /* ダイアログ位置・透明度のヘルパー / Dialog position & opacity helpers */
-    var DIALOG_OFFSET_X = 300; // shift in pixels (right = positive)
-    var DIALOG_OFFSET_Y = 0; // shift in pixels (down = positive)
-    var DIALOG_OPACITY = 0.98; // 0.0 – 1.0
-
-    function setDialogOpacity(mainDialog, opacityValue) {
-        try {
-            mainDialog.opacity = opacityValue;
-        } catch (e) { }
+    /**
+     * 記憶しておいたダイアログ位置を取り出す。
+     * @returns {array} [x, y] の座標配列。未保存なら null
+     */
+    function getSavedDialogLocation() {
+        var savedLocation = $.global[DIALOG_LOCATION_KEY];
+        return (savedLocation && savedLocation.length === 2) ? savedLocation : null;
     }
 
-    /* Analyze selection → capabilities / 選択状態から対応可否を判定 */
-    function getSelectionCapabilities(sel) {
-        var selectionCaps = {
-            placedOrRaster: false,
-            clipGroup: false,
-            text: false,
-            rect: false,
-            line: false
+    /**
+     * ダイアログ位置を記憶する（targetengine が生きている間だけ保持）。
+     * @param {object} dialogWindow - 対象のダイアログ
+     * @returns {void}
+     */
+    function saveDialogLocation(dialogWindow) {
+        $.global[DIALOG_LOCATION_KEY] = [dialogWindow.location[0], dialogWindow.location[1]];
+    }
+
+    /**
+     * ダイアログ位置を画面内に収める。
+     * @param {array} location - [x, y] の座標配列
+     * @returns {array} 画面内に収めた [x, y]
+     */
+    function clampLocationToScreen(location) {
+        var visibleBounds = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0, 0, 1920, 1080];
+        return [
+            Math.max(visibleBounds[0] + 10, Math.min(location[0], visibleBounds[2] - 10)),
+            Math.max(visibleBounds[1] + 10, Math.min(location[1], visibleBounds[3] - 10))
+        ];
+    }
+
+    /**
+     * 前回位置の復元と、移動時の位置記憶をダイアログに組み込む。
+     * @param {object} dialogWindow - 対象のダイアログ
+     * @returns {void}
+     */
+    function bindDialogLocationMemory(dialogWindow) {
+        var savedLocation = getSavedDialogLocation();
+        dialogWindow.onShow = function () {
+            dialogWindow.location = savedLocation ?
+                clampLocationToScreen(savedLocation) :
+                [dialogWindow.location[0] + DIALOG_OFFSET_X, dialogWindow.location[1] + DIALOG_OFFSET_Y];
         };
-        if (!sel || !sel.length) return selectionCaps;
-        for (var i = 0; i < sel.length; i++) {
-            var it = sel[i];
-            if (!it || !it.typename) continue;
-            var t = it.typename;
-            if (t === 'PlacedItem' || t === 'RasterItem') selectionCaps.placedOrRaster = true;
-            else if (t === 'GroupItem' && it.clipped === true) selectionCaps.clipGroup = true;
-            else if (t === 'TextFrame') selectionCaps.text = true;
-            else if (t === 'PathItem') {
-                if (it.closed && it.pathPoints && it.pathPoints.length === 4) selectionCaps.rect = true;
-                if (!it.closed && it.pathPoints && it.pathPoints.length === 2) selectionCaps.line = true;
-            }
-        }
-        return selectionCaps;
+        dialogWindow.onMove = function () {
+            saveDialogLocation(dialogWindow);
+        };
     }
 
-    function changeValueByArrowKey(editText, minValue) {
+    // =========================================
+    // UIヘルパー / UI helpers
+    // =========================================
+
+    /**
+     * ウィンドウに共通のレイアウトを適用する。
+     * @param {object} dialogWindow - 対象のウィンドウ
+     * @returns {void}
+     */
+    function applyWindowLayout(dialogWindow) {
+        dialogWindow.orientation = "column";
+        dialogWindow.alignChildren = "fill";
+        dialogWindow.margins = WINDOW_MARGINS;
+        dialogWindow.spacing = WINDOW_SPACING;
+    }
+
+    /**
+     * パネルに共通のレイアウトを適用する。
+     * @param {object} targetPanel - 対象のパネル
+     * @param {number} spacing - 要素間隔。省略時は PANEL_SPACING
+     * @returns {void}
+     */
+    function applyPanelLayout(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * カラム用のグループを作成する。
+     * @param {object} parentGroup - 親グループ
+     * @returns {object} 作成した縦並びグループ
+     */
+    function addColumnGroup(parentGroup) {
+        var columnGroup = parentGroup.add('group');
+        columnGroup.orientation = 'column';
+        columnGroup.alignChildren = 'left';
+        columnGroup.alignment = 'fill';
+        return columnGroup;
+    }
+
+    /**
+     * パネルにチェックボックスを追加する。
+     * @param {object} targetPanel - 追加先のパネル
+     * @param {object} labelEntry - ラベル定義
+     * @param {boolean} initialValue - 初期のオン／オフ
+     * @returns {object} 追加したチェックボックス
+     */
+    function addCheckbox(targetPanel, labelEntry, initialValue) {
+        var checkbox = targetPanel.add('checkbox', undefined, L(labelEntry));
+        checkbox.value = initialValue;
+        return checkbox;
+    }
+
+    /**
+     * 入力欄にフォーカスして内容を全選択する。
+     * @param {object} editText - 対象の入力欄
+     * @returns {void}
+     */
+    function focusAndSelectAll(editText) {
+        editText.active = true;
+        editText.textselection = editText.text;
+    }
+
+    /**
+     * 入力欄の値を↑↓キーで増減できるようにする。Shift併用で10の倍数へスナップする。
+     * @param {object} editText - 対象の入力欄
+     * @param {number} minimumValue - 下限値
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, minimumValue) {
         editText.addEventListener("keydown", function (event) {
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+            var inputValue = Number(editText.text);
+            if (isNaN(inputValue)) return;
 
-            // 修飾キーは event を優先（macOS では keyboardState が誤報する）/ Read modifiers from event first
-            var keyboard = ScriptUI.environment.keyboardState;
-            var shiftDown = (typeof event.shiftKey === 'boolean') ? event.shiftKey : keyboard.shiftKey;
-            var delta = shiftDown ? 10 : 1;
-            var floorValue = (typeof minValue === 'number') ? minValue : 0;
+            var keyboardState = ScriptUI.environment.keyboardState;
+            var stepAmount = keyboardState.shiftKey ? 10 : 1;
 
-            if (shiftDown) {
-                // Shiftキー押下時は10の倍数にスナップ / snap to multiples of 10
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
+            if (keyboardState.shiftKey) {
+                /* Shiftキー押下時は10の倍数にスナップ / snap to multiples of 10 when Shift is held */
+                if (event.keyName === "Up") {
+                    inputValue = Math.ceil((inputValue + 1) / stepAmount) * stepAmount;
                     event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.round((value - 1) / delta) * delta;
+                } else if (event.keyName === "Down") {
+                    inputValue = Math.floor((inputValue - 1) / stepAmount) * stepAmount;
                     event.preventDefault();
                 }
             } else {
-                if (event.keyName == "Up") {
-                    value += delta;
+                if (event.keyName === "Up") {
+                    inputValue += stepAmount;
                     event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
+                } else if (event.keyName === "Down") {
+                    inputValue -= stepAmount;
                     event.preventDefault();
                 }
             }
 
-            // 整数に丸めて下限でクランプ / round to integer and clamp to the minimum
-            value = Math.round(value);
-            if (value < floorValue) value = floorValue;
-            editText.text = value;
+            /* 整数に丸めて下限でクランプ / round to an integer and clamp to the minimum */
+            inputValue = Math.round(inputValue);
+            if (inputValue < minimumValue) inputValue = minimumValue;
+            editText.text = inputValue;
         });
     }
 
-    /* Hotkey → toggle checkbox / ホットキーでチェックボックスON/OFF */
-    function addHotkeyToggle(dialog, keyChar, checkbox, onToggle) {
-        dialog.addEventListener('keydown', function (event) {
-            var k = (event.keyName || '').toUpperCase();
-            if (k === String(keyChar).toUpperCase()) {
-                if (!checkbox.enabled) {
-                    event.preventDefault();
-                    return;
-                }
-                checkbox.value = !checkbox.value;
-                if (typeof onToggle === 'function') onToggle(checkbox.value);
-                event.preventDefault();
-            }
+    /**
+     * 1文字のホットキーでチェックボックスを切り替えられるようにする。
+     * @param {object} dialogWindow - 対象のダイアログ
+     * @param {string} hotkeyChar - 割り当てる文字
+     * @param {object} targetCheckbox - 切り替えるチェックボックス
+     * @param {function} onToggle - 切り替え後に呼ぶ処理（省略可）
+     * @returns {void}
+     */
+    function addHotkeyToggle(dialogWindow, hotkeyChar, targetCheckbox, onToggle) {
+        dialogWindow.addEventListener('keydown', function (event) {
+            var pressedKey = (event.keyName || '').toUpperCase();
+            if (pressedKey !== String(hotkeyChar).toUpperCase()) return;
+            event.preventDefault();
+            if (!targetCheckbox.enabled) return;
+
+            targetCheckbox.value = !targetCheckbox.value;
+            if (typeof onToggle === 'function') onToggle(targetCheckbox.value);
         });
     }
 
-    /* 入力欄にフォーカスして全選択（ScriptUI差異を吸収）/ Focus an edittext and select all (across ScriptUI builds) */
-    function focusAndSelectAll(editText) {
-        try {
-            editText.active = true;
-            if (typeof editText.select === 'function') {
-                editText.select();
-            } else if (typeof editText.textselection !== 'undefined') {
-                editText.textselection = editText.text;
+    // =========================================
+    // 選択状態の判定 / Selection analysis
+    // =========================================
+
+    /**
+     * 4点の閉じたパス（長方形とみなす）かどうかを判定する。
+     * @param {object} pathItem - 判定するパス
+     * @returns {boolean} 長方形とみなせるなら true
+     */
+    function isRectanglePath(pathItem) {
+        return !!(pathItem.closed && pathItem.pathPoints && pathItem.pathPoints.length === 4);
+    }
+
+    /**
+     * 2点の開いたパス（直線）かどうかを判定する。
+     * @param {object} pathItem - 判定するパス
+     * @returns {boolean} 直線とみなせるなら true
+     */
+    function isStraightLinePath(pathItem) {
+        return !!(!pathItem.closed && pathItem.pathPoints && pathItem.pathPoints.length === 2);
+    }
+
+    /**
+     * 選択内容から、どの種別のリセットが使えるかを調べる。
+     * @param {array} selectedItems - 選択中のページアイテム
+     * @returns {object} 種別ごとの可否フラグ
+     */
+    function getSelectionCapabilities(selectedItems) {
+        var capabilities = {
+            hasPlacedOrRaster: false,
+            hasClippedGroup: false,
+            hasTextFrame: false,
+            hasRectanglePath: false,
+            hasStraightLine: false
+        };
+        if (!selectedItems || !selectedItems.length) return capabilities;
+
+        for (var i = 0; i < selectedItems.length; i++) {
+            var selectedItem = selectedItems[i];
+            if (!selectedItem || !selectedItem.typename) continue;
+            var typeName = selectedItem.typename;
+
+            if (typeName === 'PlacedItem' || typeName === 'RasterItem') {
+                capabilities.hasPlacedOrRaster = true;
+            } else if (typeName === 'GroupItem' && selectedItem.clipped === true) {
+                capabilities.hasClippedGroup = true;
+            } else if (typeName === 'TextFrame') {
+                capabilities.hasTextFrame = true;
+            } else if (typeName === 'PathItem') {
+                if (isRectanglePath(selectedItem)) capabilities.hasRectanglePath = true;
+                if (isStraightLinePath(selectedItem)) capabilities.hasStraightLine = true;
             }
-        } catch (e) { }
+        }
+        return capabilities;
     }
 
-    // ==============================
-    // UIレイアウトの共通設定 / Shared UI layout
-    // ==============================
+    // =========================================
+    // ダイアログの各パネル / Dialog panels
+    // =========================================
 
-    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
-    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-    var PANEL_SPACING = 8;                  /* パネル内の要素間隔 / panel spacing */
-    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    /**
+     * 配置画像パネルを作成する。
+     * @param {object} parentGroup - 追加先のカラムグループ
+     * @param {boolean} isEnabled - 選択内容に配置画像が含まれるか
+     * @returns {object} パネル内のコントロール一式
+     */
+    function buildPlacedImagePanel(parentGroup, isEnabled) {
+        var pnlPlacedImage = parentGroup.add('panel', undefined, L(LABELS.panel.placedImage));
+        applyPanelLayout(pnlPlacedImage, PANEL_SPACING_COMPACT);
 
-    /* ウィンドウの共通設定 / Apply shared window layout */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-    }
+        var cbRotate = addCheckbox(pnlPlacedImage, LABELS.checkbox.rotate, true);
+        var cbShear = addCheckbox(pnlPlacedImage, LABELS.checkbox.shear, true);
+        var cbAspectRatio = addCheckbox(pnlPlacedImage, LABELS.checkbox.aspectRatio, true);
+        var cbFlip = addCheckbox(pnlPlacedImage, LABELS.checkbox.flip, true);
+        var cbScale = addCheckbox(pnlPlacedImage, LABELS.checkbox.scale, false);
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
+        var scaleInputGroup = pnlPlacedImage.add('group');
+        scaleInputGroup.orientation = 'row';
+        scaleInputGroup.alignChildren = 'center';
+        scaleInputGroup.alignment = 'left'; /* 入力欄はパネル幅いっぱいに広げない / keep the scale input compact */
 
-    /* 行グループの共通設定（ボタン列など） / Apply a horizontal row group */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
+        var etScalePercent = scaleInputGroup.add('edittext', undefined, '100');
+        etScalePercent.characters = 5;
+        var stPercentUnit = scaleInputGroup.add('statictext', undefined, '%');
+        changeValueByArrowKey(etScalePercent, SCALE_MIN_PERCENT);
 
-    function showOptionsDialog() {
-        var defaultChecks = {
-            rotate: true,
-            skew: true,
-            scale: false
+        /**
+         * スケール入力欄の有効・無効をチェックボックスに連動させる。
+         * @param {boolean} isScaleOn - スケールがオンかどうか
+         * @returns {void}
+         */
+        function syncScaleInput(isScaleOn) {
+            etScalePercent.enabled = isScaleOn;
+            stPercentUnit.enabled = isScaleOn;
+            if (isScaleOn) focusAndSelectAll(etScalePercent);
+        }
+
+        etScalePercent.enabled = cbScale.value;
+        stPercentUnit.enabled = cbScale.value;
+        cbScale.onClick = function () {
+            syncScaleInput(cbScale.value);
         };
 
-        var currentSelection = app.activeDocument.selection;
-        var selectionCaps = getSelectionCapabilities(currentSelection);
+        /* パネルを無効化すれば子コントロールもまとめて無効になる / disabling the panel disables its children */
+        pnlPlacedImage.enabled = isEnabled;
+
+        return {
+            rotate: cbRotate,
+            shear: cbShear,
+            aspectRatio: cbAspectRatio,
+            flip: cbFlip,
+            scale: cbScale,
+            scalePercent: etScalePercent,
+            syncScaleInput: syncScaleInput
+        };
+    }
+
+    /**
+     * クリップグループパネルを作成する。
+     * @param {object} parentGroup - 追加先のカラムグループ
+     * @param {boolean} isEnabled - 選択内容にクリップグループが含まれるか
+     * @returns {object} パネル内のコントロール一式
+     */
+    function buildClippedGroupPanel(parentGroup, isEnabled) {
+        var pnlClippedGroup = parentGroup.add('panel', undefined, L(LABELS.panel.clippedGroup));
+        applyPanelLayout(pnlClippedGroup, PANEL_SPACING_COMPACT);
+
+        var controls = {
+            rotate: addCheckbox(pnlClippedGroup, LABELS.checkbox.rotate, true),
+            aspectRatio: addCheckbox(pnlClippedGroup, LABELS.checkbox.aspectRatio, true),
+            flip: addCheckbox(pnlClippedGroup, LABELS.checkbox.flip, true)
+        };
+        pnlClippedGroup.enabled = isEnabled;
+        return controls;
+    }
+
+    /**
+     * テキストパネルを作成する。
+     * @param {object} parentGroup - 追加先のカラムグループ
+     * @param {boolean} isEnabled - 選択内容にテキストが含まれるか
+     * @returns {object} パネル内のコントロール一式
+     */
+    function buildTextFramePanel(parentGroup, isEnabled) {
+        var pnlTextFrame = parentGroup.add('panel', undefined, L(LABELS.panel.textFrame));
+        applyPanelLayout(pnlTextFrame, PANEL_SPACING_COMPACT);
+
+        var controls = {
+            rotate: addCheckbox(pnlTextFrame, LABELS.checkbox.rotate, true),
+            shear: addCheckbox(pnlTextFrame, LABELS.checkbox.shear, true),
+            scaleRatio: addCheckbox(pnlTextFrame, LABELS.checkbox.textScaleRatio, true)
+        };
+        pnlTextFrame.enabled = isEnabled;
+        return controls;
+    }
+
+    /**
+     * 回転チェックボックスだけを持つパネルを作成する（長方形・直線用）。
+     * @param {object} parentGroup - 追加先のカラムグループ
+     * @param {object} titleEntry - パネル見出しのラベル定義
+     * @param {boolean} isEnabled - 選択内容に対象が含まれるか
+     * @returns {object} 追加した回転チェックボックス
+     */
+    function buildRotateOnlyPanel(parentGroup, titleEntry, isEnabled) {
+        var rotateOnlyPanel = parentGroup.add('panel', undefined, L(titleEntry));
+        applyPanelLayout(rotateOnlyPanel, PANEL_SPACING_COMPACT);
+
+        var cbRotate = addCheckbox(rotateOnlyPanel, LABELS.checkbox.rotate, true);
+        rotateOnlyPanel.enabled = isEnabled;
+        return cbRotate;
+    }
+
+    /**
+     * ボタンエリア（左右分割）を作成する。
+     * @param {object} dialogWindow - 対象のダイアログ
+     * @returns {void}
+     */
+    function buildButtonRow(dialogWindow) {
+        var btnRowGroup = dialogWindow.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.alignChildren = ['fill', 'center'];
+        btnRowGroup.alignment = ['fill', 'top'];
+
+        var spacer = btnRowGroup.add('group');
+        spacer.alignment = ['fill', 'fill'];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add('group');
+        btnRightGroup.orientation = 'row';
+        btnRightGroup.alignChildren = ['right', 'center'];
+        btnRightGroup.spacing = PANEL_SPACING;
+
+        var btnCancel = btnRightGroup.add('button', undefined, L(LABELS.button.cancel), { name: 'cancel' });
+        var btnReset = btnRightGroup.add('button', undefined, L(LABELS.button.reset), { name: 'ok' });
+
+        /* 閉じる直前の位置を記憶 / remember the location just before closing */
+        btnReset.onClick = function () {
+            saveDialogLocation(dialogWindow);
+            dialogWindow.close(1);
+        };
+        btnCancel.onClick = function () {
+            saveDialogLocation(dialogWindow);
+            dialogWindow.close(0);
+        };
+    }
+
+    /**
+     * 入力された倍率を整数％に整えて下限でクランプする。
+     * @param {string} scaleText - 入力欄の文字列
+     * @returns {number} 適用する倍率（%）
+     */
+    function parseScalePercent(scaleText) {
+        var scalePercent = parseFloat(scaleText);
+        if (isNaN(scalePercent)) scalePercent = 100;
+        scalePercent = Math.round(scalePercent); /* 整数％に統一（例：16.3 → 16）/ keep it an integer percent */
+        return (scalePercent < SCALE_MIN_PERCENT) ? SCALE_MIN_PERCENT : scalePercent;
+    }
+
+    /**
+     * リセットオプションのダイアログを表示する。
+     * @param {array} selectedItems - 選択中のページアイテム
+     * @returns {object} 選択されたオプション。キャンセル時は null
+     */
+    function showResetOptionsDialog(selectedItems) {
+        var capabilities = getSelectionCapabilities(selectedItems);
 
         var mainDialog = new Window('dialog', L(LABELS.dialog.title) + ' ' + SCRIPT_VERSION);
-        setupWindow(mainDialog);
-        setDialogOpacity(mainDialog, DIALOG_OPACITY);
+        applyWindowLayout(mainDialog);
+        mainDialog.opacity = DIALOG_OPACITY;
+        bindDialogLocationMemory(mainDialog);
 
-        // Override onShow to restore last position (or apply first-run offset)
-        (function () {
-            var saved = _getSavedLoc(DLG_STORE_KEY);
-            mainDialog.onShow = function () {
-                try {
-                    if (saved) {
-                        mainDialog.location = _clampToScreen(saved);
-                    } else {
-                        mainDialog.location = [mainDialog.location[0] + DIALOG_OFFSET_X, mainDialog.location[1] + DIALOG_OFFSET_Y];
-                    }
-                } catch (e) { }
-            };
-            // Save whenever the dialog is moved
-            mainDialog.onMove = function () {
-                try {
-                    _setSavedLoc(DLG_STORE_KEY, [mainDialog.location[0], mainDialog.location[1]]);
-                } catch (e) { }
-            };
-        })();
-
-        /* Main group: two-column layout / 2カラムレイアウト */
+        /* 2カラムレイアウト / two-column layout */
         var columnsGroup = mainDialog.add('group');
-        setupRow(columnsGroup, 'fill', COLUMN_SPACING);
+        columnsGroup.orientation = 'row';
+        columnsGroup.alignment = 'fill';
         columnsGroup.alignChildren = 'top';
+        columnsGroup.spacing = COLUMN_SPACING;
 
-        /* Left column / 左カラム */
-        var leftColumn = columnsGroup.add('group');
-        leftColumn.orientation = 'column';
-        leftColumn.alignChildren = 'left';
-        leftColumn.alignment = 'fill';
+        var leftColumnGroup = addColumnGroup(columnsGroup);
+        var rightColumnGroup = addColumnGroup(columnsGroup);
 
-        /* Right column / 右カラム */
-        var rightColumn = columnsGroup.add('group');
-        rightColumn.orientation = 'column';
-        rightColumn.alignChildren = 'left';
-        rightColumn.alignment = 'fill';
+        var placedImageControls = buildPlacedImagePanel(leftColumnGroup, capabilities.hasPlacedOrRaster);
+        var clippedGroupControls = buildClippedGroupPanel(leftColumnGroup, capabilities.hasClippedGroup);
+        var textFrameControls = buildTextFramePanel(rightColumnGroup, capabilities.hasTextFrame);
+        var cbRectangleRotate = buildRotateOnlyPanel(rightColumnGroup, LABELS.panel.rectanglePath, capabilities.hasRectanglePath);
+        var cbStraightLineRotate = buildRotateOnlyPanel(rightColumnGroup, LABELS.panel.straightLine, capabilities.hasStraightLine);
 
-        /* Panel: Placed Images / 配置画像 */
-        var placedImagePanel = leftColumn.add('panel', undefined, L(LABELS.panel.placed));
-        setupPanel(placedImagePanel, 6);
-        var placedRotateCheck = placedImagePanel.add('checkbox', undefined, L(LABELS.checkbox.rotate));
-        var placedShearCheck = placedImagePanel.add('checkbox', undefined, L(LABELS.checkbox.shear));
-        var placedRatioCheck = placedImagePanel.add('checkbox', undefined, L(LABELS.checkbox.ratio));
-        var placedFlipCheck = placedImagePanel.add('checkbox', undefined, L(LABELS.checkbox.flip));
-        var placedScaleCheck = placedImagePanel.add('checkbox', undefined, L(LABELS.checkbox.scale));
-        placedRotateCheck.value = (defaultChecks.rotate !== false);
-        placedShearCheck.value = (defaultChecks.skew !== false);
-        placedRatioCheck.value = true;
-        placedFlipCheck.value = true;
-        placedScaleCheck.value = (defaultChecks.scale !== false);
-        // Add scale percent field + % label after placedScaleCheck
-        var scaleInputRow = placedImagePanel.add('group');
-        scaleInputRow.orientation = 'row';
-        scaleInputRow.alignChildren = 'center';
-        scaleInputRow.alignment = 'left'; /* 入力欄はパネル幅いっぱいに広げない / keep scale input compact */
+        /* Sキーでスケール、Fキーで反転を切り替え / 'S' toggles Scale, 'F' toggles Flip */
+        addHotkeyToggle(mainDialog, 'S', placedImageControls.scale, placedImageControls.syncScaleInput);
+        addHotkeyToggle(mainDialog, 'F', placedImageControls.flip);
 
-        var scalePercentInput = scaleInputRow.add('edittext', undefined, '100');
-        scalePercentInput.characters = 5; // default width
+        buildButtonRow(mainDialog);
 
-        var percentLabel = scaleInputRow.add('statictext', undefined, '%');
+        if (mainDialog.show() !== 1) return null; /* キャンセル / cancelled */
 
-        // Enable/disable with the checkbox
-        scalePercentInput.enabled = placedScaleCheck.value;
-        percentLabel.enabled = placedScaleCheck.value;
-        placedScaleCheck.onClick = function () {
-            var on = placedScaleCheck.value;
-            scalePercentInput.enabled = on;
-            percentLabel.enabled = on;
-            if (on) focusAndSelectAll(scalePercentInput);
+        return {
+            placedRotate: placedImageControls.rotate.value,
+            placedShear: placedImageControls.shear.value,
+            placedAspectRatio: placedImageControls.aspectRatio.value,
+            placedFlip: placedImageControls.flip.value,
+            placedScale: placedImageControls.scale.value,
+            placedScalePercent: parseScalePercent(placedImageControls.scalePercent.text),
+            clipRotate: clippedGroupControls.rotate.value,
+            clipAspectRatio: clippedGroupControls.aspectRatio.value,
+            clipFlip: clippedGroupControls.flip.value,
+            textRotate: textFrameControls.rotate.value,
+            textShear: textFrameControls.shear.value,
+            textScaleRatio: textFrameControls.scaleRatio.value,
+            rectangleRotate: cbRectangleRotate.value,
+            straightLineRotate: cbStraightLineRotate.value
         };
-        // Arrow-key increment/decrement support
-        changeValueByArrowKey(scalePercentInput, SCALE_MIN);
-
-        // Enable state based on selection capabilities
-        placedImagePanel.enabled = selectionCaps.placedOrRaster;
-        placedRotateCheck.enabled = selectionCaps.placedOrRaster;
-        placedShearCheck.enabled = selectionCaps.placedOrRaster;
-        placedRatioCheck.enabled = selectionCaps.placedOrRaster;
-        placedFlipCheck.enabled = selectionCaps.placedOrRaster;
-        placedScaleCheck.enabled = selectionCaps.placedOrRaster;
-        scalePercentInput.enabled = selectionCaps.placedOrRaster && placedScaleCheck.value;
-        percentLabel.enabled = selectionCaps.placedOrRaster && placedScaleCheck.value;
-
-        // Hotkey: 'S' toggles Scale / SキーでスケールON/OFF
-        addHotkeyToggle(mainDialog, 'S', placedScaleCheck, function (enabled) {
-            scalePercentInput.enabled = enabled;
-            percentLabel.enabled = enabled;
-            if (enabled) focusAndSelectAll(scalePercentInput);
-        });
-        // Hotkey: 'F' toggles Flip / Fキーで反転ON/OFF
-        addHotkeyToggle(mainDialog, 'F', placedFlipCheck);
-
-        /* Panel: Clip Group / クリップグループ */
-        var clipGroupPanel = leftColumn.add('panel', undefined, L(LABELS.panel.clip));
-        setupPanel(clipGroupPanel, 6);
-        var clipRotateCheck = clipGroupPanel.add('checkbox', undefined, L(LABELS.checkbox.rotate));
-        var clipRatioCheck = clipGroupPanel.add('checkbox', undefined, L(LABELS.checkbox.ratio));
-        var clipFlipCheck = clipGroupPanel.add('checkbox', undefined, L(LABELS.checkbox.flip));
-        clipRotateCheck.value = true; // default ON
-        clipRatioCheck.value = true; // default ON
-        clipFlipCheck.value = true; // default ON
-
-        clipGroupPanel.enabled = selectionCaps.clipGroup;
-        clipRotateCheck.enabled = selectionCaps.clipGroup;
-        clipRatioCheck.enabled = selectionCaps.clipGroup;
-        clipFlipCheck.enabled = selectionCaps.clipGroup;
-
-        /* Panel: Text / テキスト */
-        var textPanel = rightColumn.add('panel', undefined, L(LABELS.panel.text));
-        setupPanel(textPanel, 6);
-        var textRotateCheck = textPanel.add('checkbox', undefined, L(LABELS.checkbox.rotate));
-        var textShearCheck = textPanel.add('checkbox', undefined, L(LABELS.checkbox.shear));
-        var textScaleRatioCheck = textPanel.add('checkbox', undefined, L(LABELS.checkbox.textRatio));
-        // defaults: ON unless explicitly set to false
-        textRotateCheck.value = true;
-        textShearCheck.value = true;
-        textScaleRatioCheck.value = true;
-        textPanel.enabled = selectionCaps.text;
-        textRotateCheck.enabled = selectionCaps.text;
-        textShearCheck.enabled = selectionCaps.text;
-        textScaleRatioCheck.enabled = selectionCaps.text;
-
-        /* Panel: Rectangle (Path) / 長方形（パス） */
-        var rectanglePanel = rightColumn.add('panel', undefined, L(LABELS.panel.rect));
-        setupPanel(rectanglePanel, 6);
-        var rectRotateCheck = rectanglePanel.add('checkbox', undefined, L(LABELS.checkbox.rotate));
-        // default ON
-        rectRotateCheck.value = true;
-        rectanglePanel.enabled = selectionCaps.rect;
-        rectRotateCheck.enabled = selectionCaps.rect;
-
-        /* Panel: Path (Line) / パス（直線） */
-        var linePanel = rightColumn.add('panel', undefined, L(LABELS.panel.line));
-        setupPanel(linePanel, 6);
-        var lineRotateCheck = linePanel.add('checkbox', undefined, L(LABELS.checkbox.rotate));
-        lineRotateCheck.value = true; // default ON
-        linePanel.enabled = selectionCaps.line;
-        lineRotateCheck.enabled = selectionCaps.line;
-
-        /* Dialog buttons / ダイアログボタン */
-        var buttonRow = mainDialog.add('group');
-        setupRow(buttonRow, 'center');
-        buttonRow.add('button', undefined, L(LABELS.button.cancel), {
-            name: 'cancel'
-        });
-        buttonRow.add('button', undefined, L(LABELS.button.reset), {
-            name: 'ok'
-        });
-
-        // Persist position on button clicks (OK / Cancel)
-        try {
-            var cancelButton = buttonRow.children[0];
-            var resetButton = buttonRow.children[1];
-            resetButton.onClick = function () {
-                try {
-                    _setSavedLoc(DLG_STORE_KEY, [mainDialog.location[0], mainDialog.location[1]]);
-                } catch (e) { }
-                mainDialog.close(1);
-            };
-            cancelButton.onClick = function () {
-                try {
-                    _setSavedLoc(DLG_STORE_KEY, [mainDialog.location[0], mainDialog.location[1]]);
-                } catch (e) { }
-                mainDialog.close(0);
-            };
-        } catch (e) { }
-
-        if (mainDialog.show() !== 1) return null; // cancelled
-
-        var result = {
-            rotate: placedRotateCheck.value,
-            skew: placedShearCheck.value,
-            ratio: placedRatioCheck.value,
-            flip: placedFlipCheck.value,
-            scale: placedScaleCheck.value,
-            textRotate: textRotateCheck.value,
-            textSkew: textShearCheck.value,
-            textScaleRatio: textScaleRatioCheck.value,
-            rectRotate: rectRotateCheck.value,
-            lineRotate: lineRotateCheck.value,
-            clipGroupRotate: clipRotateCheck.value,
-            clipGroupRatio: clipRatioCheck.value,
-            clipGroupFlip: clipFlipCheck.value,
-            scalePercent: (function () {
-                var n = parseFloat(scalePercentInput.text);
-                if (isNaN(n)) n = 100;
-                n = Math.round(n); // 整数％に統一（例：16.3 → 16）
-                if (n < SCALE_MIN) n = SCALE_MIN; // 下限 20%（それ未満は 20% にクランプ）
-                return n;
-            })()
-        };
-        return result;
     }
 
-    /* Dispatch table / ディスパッチテーブル：typename → handler */
-    function makeHandlers(opts) {
-        function makeCounts(p, s, pl, ra) {
-            return {
-                processed: p | 0,
-                skipped: s | 0,
-                countPlaced: pl | 0,
-                countRaster: ra | 0
-            };
+    // =========================================
+    // 行列ユーティリティ / Matrix utilities
+    // =========================================
+
+    /**
+     * 行列を持つオブジェクトかどうかを判定する。
+     * PathItem や GroupItem は matrix を持たないため、ここで弾く。
+     * @param {object} pageItem - 判定するページアイテム
+     * @returns {boolean} matrix を参照できるなら true
+     */
+    function hasMatrix(pageItem) {
+        try {
+            return !!(pageItem && pageItem.matrix && typeof pageItem.matrix.mValueA !== 'undefined');
+        } catch (e) {
+            return false;
         }
+    }
 
-        function handleText(item) {
-            var did = false;
-            var needBBox = !!(opts.textRotate || opts.textSkew);
-            if (needBBox) {
-                resetTextOps(item, !!opts.textRotate, !!opts.textSkew, !!opts.textScaleRatio);
-                did = true;
-            } else if (opts.textScaleRatio) {
-                // 比率のみならBBox不要で軽量処理
-                resetTextScaleRatio(item);
-                did = true;
-            }
-            return did ? makeCounts(1, 0, 0, 0) : makeCounts(0, 1, 0, 0);
+    /**
+     * 2×2行列を掛け合わせる。
+     * @param {object} leftComponents - 左側の成分 { a, b, c, d }
+     * @param {object} rightComponents - 右側の成分 { a, b, c, d }
+     * @returns {object} 積の成分 { a, b, c, d }
+     */
+    function multiply2x2(leftComponents, rightComponents) {
+        return {
+            a: leftComponents.a * rightComponents.a + leftComponents.c * rightComponents.b,
+            b: leftComponents.b * rightComponents.a + leftComponents.d * rightComponents.b,
+            c: leftComponents.a * rightComponents.c + leftComponents.c * rightComponents.d,
+            d: leftComponents.b * rightComponents.c + leftComponents.d * rightComponents.d
+        };
+    }
+
+    /**
+     * 2×2行列の逆行列を求める（行列式が0に近い場合は微小値で代用）。
+     * @param {object} components - 成分 { a, b, c, d }
+     * @returns {object} 逆行列の成分 { a, b, c, d }
+     */
+    function invert2x2(components) {
+        var determinant = components.a * components.d - components.b * components.c;
+        if (Math.abs(determinant) < MATRIX_EPSILON) {
+            determinant = (determinant < 0 ? -1 : 1) * MATRIX_EPSILON;
         }
+        var inverseDeterminant = 1.0 / determinant;
+        return {
+            a: components.d * inverseDeterminant,
+            b: -components.b * inverseDeterminant,
+            c: -components.c * inverseDeterminant,
+            d: components.a * inverseDeterminant
+        };
+    }
 
-        function handleRect(item) {
-            // PathItem（4点の長方形）：近傍角度（0.5〜44°）だけ回転補正。すでに正立なら無変更（＝正常）でも対象として処理済み扱い。
-            if (opts.rectRotate && item.closed && item.pathPoints.length === 4) {
-                applyRotationCorrection(item);
-                return makeCounts(1, 0, 0, 0);
-            }
-            return makeCounts(0, 1, 0, 0);
-        }
+    /**
+     * 成分から平行移動なしの Matrix を作る。
+     * @param {object} components - 成分 { a, b, c, d }
+     * @returns {object} Illustrator の Matrix
+     */
+    function buildMatrixFromComponents(components) {
+        var matrix = new Matrix();
+        matrix.mValueA = components.a;
+        matrix.mValueB = components.b;
+        matrix.mValueC = components.c;
+        matrix.mValueD = components.d;
+        matrix.mValueTX = 0;
+        matrix.mValueTY = 0;
+        return matrix;
+    }
 
-        function handleLine(item) {
-            // 直線（2点）：近傍軸だけ回転補正。無変更でも対象として処理済み扱い。
-            if (opts.lineRotate && !item.closed && item.pathPoints.length === 2) {
-                applyRotationCorrectionLine(item);
-                return makeCounts(1, 0, 0, 0);
-            }
-            return makeCounts(0, 1, 0, 0);
-        }
+    /**
+     * 行列をQR分解し、向き・スケール・シアーに分ける。
+     * @param {object} itemMatrix - 対象の Matrix
+     * @returns {object} { scaleX, scaleY, shear, axis1X, axis1Y, axis2X, axis2Y }
+     */
+    function decomposeMatrix(itemMatrix) {
+        var matrixA = itemMatrix.mValueA;
+        var matrixB = itemMatrix.mValueB;
+        var matrixC = itemMatrix.mValueC;
+        var matrixD = itemMatrix.mValueD;
 
-        function handleClipGroup(item) {
-            if (item.clipped !== true) return makeCounts(0, 1, 0, 0);
+        var scaleX = Math.sqrt(matrixA * matrixA + matrixB * matrixB);
+        if (scaleX === 0) scaleX = MATRIX_EPSILON;
 
-            // 1) 回転を正す / Fix rotation first
-            if (opts.clipGroupRotate) processClippedGroupChildren(item, opts);
-            // 1.5) 反転検出の前に BBox リセット / Reset BBox before flip detection
-            if (opts.clipGroupRotate && opts.clipGroupFlip) resetBBoxOnly(item);
-            // 2) 反転を調整 / Then handle flip
-            if (opts.clipGroupFlip) processClippedGroupFlip(item);
-            // 3) 縦横比の等比化 / Aspect ratio
-            if (opts.clipGroupRatio) processClippedGroupAspect(item);
+        var axis1X = matrixA / scaleX;
+        var axis1Y = matrixB / scaleX;
 
-            // 対象オプションが1つでもONなら、無変更でも処理済み扱い（誤アラート防止）
-            var handled = (opts.clipGroupRotate || opts.clipGroupFlip || opts.clipGroupRatio);
-            return handled ? makeCounts(1, 0, 0, 0) : makeCounts(0, 1, 0, 0);
-        }
+        var projection = axis1X * matrixC + axis1Y * matrixD;
+        var residualX = matrixC - projection * axis1X;
+        var residualY = matrixD - projection * axis1Y;
 
-        function handleImage(item, typename) {
-            resetPlacedOrRasterTransforms(item, typename, opts);
-            // Placed/Raster は常に処理成功としてカウント（従来仕様）
-            if (typename === 'PlacedItem') return makeCounts(1, 0, 1, 0);
-            if (typename === 'RasterItem') return makeCounts(1, 0, 0, 1);
-            return makeCounts(1, 0, 0, 0);
+        var scaleY = Math.sqrt(residualX * residualX + residualY * residualY);
+        if (scaleY === 0) {
+            scaleY = MATRIX_EPSILON;
+            residualX = -axis1Y;
+            residualY = axis1X;
         }
 
         return {
-            TextFrame: handleText,
-            PathItem: function (item) {
-                if (!item.closed && item.pathPoints && item.pathPoints.length === 2) {
-                    return handleLine(item); // 直線（2点）なら直線用ハンドラ
+            scaleX: scaleX,
+            scaleY: scaleY,
+            shear: projection / scaleX,
+            axis1X: axis1X,
+            axis1Y: axis1Y,
+            axis2X: residualX / scaleY,
+            axis2Y: residualY / scaleY
+        };
+    }
+
+    /**
+     * 分解結果の一部を差し替えて、目標となる2×2成分を組み立てる。
+     * @param {object} decomposed - decomposeMatrix の戻り値
+     * @param {number} scaleX - 目標の水平スケール
+     * @param {number} scaleY - 目標の垂直スケール
+     * @param {number} shear - 目標のシアー量
+     * @returns {object} 成分 { a, b, c, d }
+     */
+    function buildTargetComponents(decomposed, scaleX, scaleY, shear) {
+        var shearTerm = shear * scaleX;
+        return {
+            a: decomposed.axis1X * scaleX,
+            b: decomposed.axis1Y * scaleX,
+            c: decomposed.axis1X * shearTerm + decomposed.axis2X * scaleY,
+            d: decomposed.axis1Y * shearTerm + decomposed.axis2Y * scaleY
+        };
+    }
+
+    /**
+     * 現在の行列を目標成分にするための差分行列を作る。
+     * @param {object} itemMatrix - 現在の Matrix
+     * @param {object} targetComponents - 目標の成分 { a, b, c, d }
+     * @returns {object} 差分の Matrix
+     */
+    function buildDeltaMatrix(itemMatrix, targetComponents) {
+        var currentComponents = {
+            a: itemMatrix.mValueA,
+            b: itemMatrix.mValueB,
+            c: itemMatrix.mValueC,
+            d: itemMatrix.mValueD
+        };
+        return buildMatrixFromComponents(multiply2x2(invert2x2(currentComponents), targetComponents));
+    }
+
+    /**
+     * 行列を分解し、目標成分との差分だけを適用する。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {function} buildTargetFn - 分解結果を受け取り目標成分を返す関数
+     * @returns {void}
+     */
+    function applyDecomposedTransform(pageItem, buildTargetFn) {
+        if (!hasMatrix(pageItem)) return;
+        var itemMatrix = pageItem.matrix;
+        pageItem.transform(buildDeltaMatrix(itemMatrix, buildTargetFn(decomposeMatrix(itemMatrix))));
+    }
+
+    /**
+     * 縦横のスケールを大きいほうに揃えた目標成分を求める（整数％にスナップ）。
+     * @param {object} decomposed - decomposeMatrix の戻り値
+     * @returns {object} 成分 { a, b, c, d }
+     */
+    function getUniformScaleTarget(decomposed) {
+        var uniformScale = Math.max(decomposed.scaleX, decomposed.scaleY);
+        /* 整数％にスナップ（例：16.321% → 16%）/ snap to an integer percent */
+        var uniformPercent = Math.round(uniformScale * 100);
+        /* 0% に丸めるとオブジェクトが潰れるため最小1%を保証 / never collapse the item to 0% */
+        if (uniformPercent < 1) uniformPercent = 1;
+        uniformScale = uniformPercent / 100;
+        return buildTargetComponents(decomposed, uniformScale, uniformScale, decomposed.shear);
+    }
+
+    // =========================================
+    // 変形ヘルパー / Transform helpers
+    // =========================================
+
+    /**
+     * バウンディングボックスをリセットする（位置は変えない）。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {void}
+     */
+    function resetBoundingBox(pageItem) {
+        try {
+            app.selection = null;
+            app.selection = [pageItem];
+            app.executeMenuCommand("AI Reset Bounding Box");
+        } catch (e) { }
+    }
+
+    /**
+     * 変形前の中心位置に戻す。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {array} originalPosition - 変形前の position（左上座標）
+     * @param {number} widthBefore - 変形前の幅
+     * @param {number} heightBefore - 変形前の高さ
+     * @returns {void}
+     */
+    function recenterToOriginalCenter(pageItem, originalPosition, widthBefore, heightBefore) {
+        pageItem.position = [
+            originalPosition[0] + widthBefore / 2 - pageItem.width / 2,
+            originalPosition[1] - heightBefore / 2 + pageItem.height / 2
+        ];
+    }
+
+    /**
+     * 変形 → バウンディングボックスのリセット → 元の中心へ再配置、をまとめて行う。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {function} transformFn - 実際の変形処理
+     * @returns {void}
+     */
+    function withBoundsResetAndRecenter(pageItem, transformFn) {
+        var originalPosition = pageItem.position;
+        var widthBefore = pageItem.width;
+        var heightBefore = pageItem.height;
+
+        transformFn();
+        resetBoundingBox(pageItem);
+        recenterToOriginalCenter(pageItem, originalPosition, widthBefore, heightBefore);
+    }
+
+    /**
+     * ロック・非表示を一時解除して処理を実行し、元の状態に戻す。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {function} actionFn - 実行する処理
+     * @returns {void}
+     */
+    function withUnlockedVisible(pageItem, actionFn) {
+        var wasLocked = pageItem.locked;
+        var wasHidden = pageItem.hidden;
+        pageItem.locked = false;
+        pageItem.hidden = false;
+        try {
+            actionFn();
+        } finally {
+            pageItem.locked = wasLocked;
+            pageItem.hidden = wasHidden;
+        }
+    }
+
+    /**
+     * ロック・非表示を解除したうえで、中心基準・全オプション有効で変形を適用する。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {object} transformMatrix - 適用する Matrix
+     * @returns {void}
+     */
+    function transformItemUnlocked(pageItem, transformMatrix) {
+        withUnlockedVisible(pageItem, function () {
+            pageItem.transform(transformMatrix, true, true, true, true, true, Transformation.CENTER);
+        });
+    }
+
+    /**
+     * 行列の成分から回転角を求める。
+     * @param {number} matrixA - 行列の a 成分
+     * @param {number} matrixB - 行列の b 成分
+     * @param {number} angleSign - 符号（RasterItem は -1、それ以外は 1）
+     * @returns {number} 回転角（度）
+     */
+    function getRotationAngleDeg(matrixA, matrixB, angleSign) {
+        var angleDeg = Math.atan2(matrixB, matrixA) * 180 / Math.PI;
+        return (angleSign < 0) ? -angleDeg : angleDeg;
+    }
+
+    /**
+     * アイテムを指定角度だけ回転する。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {number} degrees - 回転角（度）
+     * @returns {void}
+     */
+    function rotateItemBy(pageItem, degrees) {
+        pageItem.transform(app.getRotationMatrix(degrees));
+    }
+
+    /**
+     * テキストフレームを中心基準で回転する。
+     * @param {object} textFrame - 対象のテキストフレーム
+     * @param {number} degrees - 回転角（度）
+     * @returns {void}
+     */
+    function rotateTextFrameBy(textFrame, degrees) {
+        textFrame.rotate(degrees, true, true, true, true, Transformation.CENTER);
+    }
+
+    /**
+     * 行列の符号規則に合わせて回転を打ち消す（配置画像・ラスター用）。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {number} angleSign - 符号（RasterItem は -1、それ以外は 1）
+     * @returns {void}
+     */
+    function cancelRotationBySign(pageItem, angleSign) {
+        if (!hasMatrix(pageItem)) return;
+        var itemMatrix = pageItem.matrix;
+        rotateItemBy(pageItem, getRotationAngleDeg(itemMatrix.mValueA, itemMatrix.mValueB, angleSign));
+    }
+
+    /**
+     * 現在の角度の逆回転を掛けて 0° に戻す（テキスト用）。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {void}
+     */
+    function cancelRotationToZero(pageItem) {
+        if (!hasMatrix(pageItem)) return;
+        var itemMatrix = pageItem.matrix;
+        var angleDeg = Math.atan2(itemMatrix.mValueB, itemMatrix.mValueA) * 180 / Math.PI;
+        if (pageItem.typename === 'TextFrame') {
+            rotateTextFrameBy(pageItem, -angleDeg);
+        } else {
+            rotateItemBy(pageItem, -angleDeg);
+        }
+    }
+
+    /**
+     * シアーだけを取り除く。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {void}
+     */
+    function removeShear(pageItem) {
+        applyDecomposedTransform(pageItem, function (decomposed) {
+            return buildTargetComponents(decomposed, decomposed.scaleX, decomposed.scaleY, 0);
+        });
+    }
+
+    /**
+     * シアーを取り除き、丸め誤差で残った微小シアーをもう一度取り除く。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {void}
+     */
+    function removeShearWithRetry(pageItem) {
+        removeShear(pageItem);
+        if (!hasMatrix(pageItem)) return;
+        if (Math.abs(decomposeMatrix(pageItem.matrix).shear) > SCALE_EPSILON) removeShear(pageItem);
+    }
+
+    /**
+     * スケールを100%に正規化する（向きとシアーは保つ）。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {void}
+     */
+    function normalizeScaleTo100(pageItem) {
+        applyDecomposedTransform(pageItem, function (decomposed) {
+            return buildTargetComponents(decomposed, 1, 1, decomposed.shear);
+        });
+    }
+
+    /**
+     * 縦横のスケールを大きいほうに揃える。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {void}
+     */
+    function equalizeScaleToLarger(pageItem) {
+        applyDecomposedTransform(pageItem, getUniformScaleTarget);
+    }
+
+    /**
+     * 指定した倍率で等比拡大・縮小する。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {number} scalePercent - 倍率（100 = 100%）
+     * @returns {void}
+     */
+    function applyUniformScalePercent(pageItem, scalePercent) {
+        if (!(scalePercent > 0)) return;
+        pageItem.resize(scalePercent, scalePercent, true, true, true, true, true, Transformation.CENTER);
+    }
+
+    // =========================================
+    // 反転の解除 / Flip handling
+    // =========================================
+
+    /**
+     * 左右反転しているかを判定する（回転・シアーなしが前提）。
+     * @param {object} itemMatrix - 対象の Matrix
+     * @returns {boolean} 左右反転していれば true
+     */
+    function isFlippedHorizontal(itemMatrix) {
+        return itemMatrix.mValueA < 0;
+    }
+
+    /**
+     * 上下反転しているかを判定する（回転・シアーなしが前提）。
+     * 配置画像・ラスターは既定で mValueD が負のため、正のときを反転とみなす。
+     * @param {object} itemMatrix - 対象の Matrix
+     * @returns {boolean} 上下反転していれば true
+     */
+    function isFlippedVertical(itemMatrix) {
+        return itemMatrix.mValueD > 0;
+    }
+
+    /**
+     * 反転フラグに応じて反転を打ち消す。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {boolean} hasHorizontalFlip - 左右反転しているか
+     * @param {boolean} hasVerticalFlip - 上下反転しているか
+     * @returns {void}
+     */
+    function undoFlipByFlags(pageItem, hasHorizontalFlip, hasVerticalFlip) {
+        if (!pageItem || (!hasHorizontalFlip && !hasVerticalFlip)) return;
+        pageItem.transform(
+            app.getScaleMatrix(hasHorizontalFlip ? -100 : 100, hasVerticalFlip ? -100 : 100),
+            true, /* changePositions */
+            true, /* changeFillPatterns */
+            true, /* changeFillGradients */
+            true, /* changeStrokePattern */
+            true, /* changeLineWidths */
+            Transformation.CENTER
+        );
+    }
+
+    /**
+     * 自身の行列から反転を判定して打ち消す。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {void}
+     */
+    function undoItemFlip(pageItem) {
+        if (!hasMatrix(pageItem)) return;
+        var itemMatrix = pageItem.matrix;
+        undoFlipByFlags(pageItem, isFlippedHorizontal(itemMatrix), isFlippedVertical(itemMatrix));
+    }
+
+    // =========================================
+    // 軸へのスナップ / Axis snapping
+    // =========================================
+
+    /**
+     * 角度を -180〜180 の範囲に正規化する。
+     * @param {number} angleDeg - 角度（度）
+     * @returns {number} 正規化した角度（度）
+     */
+    function normalizeTo180(angleDeg) {
+        while (angleDeg > 180) angleDeg -= 360;
+        while (angleDeg < -180) angleDeg += 360;
+        return angleDeg;
+    }
+
+    /**
+     * 角度を -90〜90 の範囲に畳み込む。
+     * @param {number} angleDeg - 角度（度）
+     * @returns {number} 畳み込んだ角度（度）
+     */
+    function clampTo90(angleDeg) {
+        angleDeg = normalizeTo180(angleDeg);
+        if (angleDeg > 90) angleDeg -= 180;
+        if (angleDeg < -90) angleDeg += 180;
+        return angleDeg;
+    }
+
+    /**
+     * 最も近い軸（0°／90°）へ向かう最小の回転量を求める。
+     * @param {number} angleDeg - 現在の角度（度）
+     * @returns {number} 最小の回転量（度）
+     */
+    function getRotationToNearestAxis(angleDeg) {
+        var toHorizontal = clampTo90(-angleDeg);
+        var toVertical = clampTo90(90 - angleDeg);
+        return (Math.abs(toHorizontal) <= Math.abs(toVertical)) ? toHorizontal : toVertical;
+    }
+
+    /**
+     * パスの最初の2アンカーが作る辺の角度を求める。
+     * @param {object} pathItem - 対象のパス
+     * @returns {number} 水平からの角度（度）。2点が同一なら null
+     */
+    function getFirstEdgeAngleDeg(pathItem) {
+        var anchorA = pathItem.pathPoints[0].anchor;
+        var anchorB = pathItem.pathPoints[1].anchor;
+        var dx = anchorB[0] - anchorA[0];
+        var dy = anchorB[1] - anchorA[1];
+        if (dx === 0 && dy === 0) return null;
+        return Math.atan2(dy, dx) * 180 / Math.PI;
+    }
+
+    /**
+     * わずかに傾いたパスを最も近い軸へスナップする（長方形・直線で共用）。
+     * 許容範囲を外れた傾きは意図的とみなして何もしない。
+     * @param {object} pathItem - 対象のパス
+     * @returns {boolean} スナップしたら true
+     */
+    function snapPathToNearestAxis(pathItem) {
+        var edgeAngleDeg = getFirstEdgeAngleDeg(pathItem);
+        if (edgeAngleDeg === null) return false;
+
+        var rotationDeg = getRotationToNearestAxis(edgeAngleDeg);
+        var distanceToAxis = Math.abs(rotationDeg);
+        if (distanceToAxis < AXIS_SNAP_MIN_DEG || distanceToAxis > AXIS_SNAP_MAX_DEG) return false;
+
+        withBoundsResetAndRecenter(pathItem, function () {
+            rotateItemBy(pathItem, rotationDeg);
+        });
+        return true;
+    }
+
+    // =========================================
+    // 配置画像・ラスター / Placed & raster items
+    // =========================================
+
+    /**
+     * 配置画像・ラスターの変形をリセットする（回転→反転→縦横比→スケール→シアーの順）。
+     * @param {object} pageItem - 対象のページアイテム
+     * @param {string} itemTypeName - typename（"PlacedItem" または "RasterItem"）
+     * @param {object} resetOptions - ダイアログで選択したオプション
+     * @returns {void}
+     */
+    function resetPlacedOrRasterTransforms(pageItem, itemTypeName, resetOptions) {
+        var rotationSign = (itemTypeName === "RasterItem") ? -1 : 1;
+
+        withBoundsResetAndRecenter(pageItem, function () {
+            /* 1) 回転（向きを安定させるため最初に）/ rotation first */
+            if (resetOptions.placedRotate) cancelRotationBySign(pageItem, rotationSign);
+
+            /* 2) 反転（回転補正後に判定）/ flip, after the rotation is cancelled */
+            if (resetOptions.placedFlip) undoItemFlip(pageItem);
+
+            /* 3) 縦横比の等比化（絶対スケールの前に）/ equalize the aspect ratio before absolute scaling */
+            if (resetOptions.placedAspectRatio) equalizeScaleToLarger(pageItem);
+
+            /* 4) 絶対スケール（100%へ正規化してから指定%）/ normalize to 100%, then apply the requested percent */
+            if (resetOptions.placedScale) {
+                normalizeScaleTo100(pageItem);
+                applyUniformScalePercent(pageItem, resetOptions.placedScalePercent);
+            }
+
+            /* 5) シアー除去は最後（上記で混入した微小シアーも取り除く）/ shear removal last */
+            if (resetOptions.placedShear) removeShearWithRetry(pageItem);
+        });
+    }
+
+    // =========================================
+    // テキスト / Text frames
+    // =========================================
+
+    /**
+     * テキストの水平比率・垂直比率を100%に戻す。
+     * @param {object} textFrame - 対象のテキストフレーム
+     * @returns {void}
+     */
+    function resetTextFrameScaleRatio(textFrame) {
+        if (!textFrame.textRange) return;
+        var textRange = textFrame.textRange;
+        textRange.scaling = [1, 1];
+
+        /* 丸め誤差が残った場合だけもう一度適用 / re-apply only when a rounding residual remains */
+        var currentScaling = textRange.scaling;
+        if (Math.abs(currentScaling[0] - 1) > SCALE_EPSILON || Math.abs(currentScaling[1] - 1) > SCALE_EPSILON) {
+            textRange.scaling = [1, 1];
+        }
+    }
+
+    /**
+     * テキストの回転・シアー・比率をまとめてリセットする。
+     * @param {object} textFrame - 対象のテキストフレーム
+     * @param {boolean} doRotate - 回転をリセットするか
+     * @param {boolean} doShear - シアーを除去するか
+     * @param {boolean} doScaleRatio - 水平比率・垂直比率を戻すか
+     * @returns {void}
+     */
+    function resetTextFrameTransforms(textFrame, doRotate, doShear, doScaleRatio) {
+        withBoundsResetAndRecenter(textFrame, function () {
+            /* 1) まず回転を0°へ（ポイント文字・エリア内文字の双方に有効）/ rotation first */
+            if (doRotate) cancelRotationToZero(textFrame);
+            /* 2) シアー除去 / shear removal */
+            if (doShear) removeShearWithRetry(textFrame);
+            /* 3) 比率は最後 / ratio last */
+            if (doScaleRatio) resetTextFrameScaleRatio(textFrame);
+        });
+    }
+
+    // =========================================
+    // クリップグループ / Clipped groups
+    // =========================================
+
+    /**
+     * バウンディングボックスから面積を求める。
+     * @param {object} pageItem - 対象のページアイテム
+     * @returns {number} 面積
+     */
+    function getBoundsArea(pageItem) {
+        return Math.abs(pageItem.width * pageItem.height);
+    }
+
+    /**
+     * 複合パスがマスクとして使われているかを判定する。
+     * @param {object} compoundPath - 対象の CompoundPathItem
+     * @returns {boolean} 子パスのいずれかがマスクなら true
+     */
+    function isClippingCompoundPath(compoundPath) {
+        var childPaths = compoundPath.pathItems || [];
+        for (var i = 0; i < childPaths.length; i++) {
+            if (childPaths[i] && childPaths[i].clipping) return true;
+        }
+        return false;
+    }
+
+    /**
+     * クリップグループから、代表となる配置画像とマスクパスを再帰的に探す。
+     * どちらも面積が最大のものを採用する。
+     * @param {object} container - 探索するグループ
+     * @returns {object} { image, clipPath }（見つからなければ null）
+     */
+    function findLargestImageAndClipPath(container) {
+        var largestImage = null;
+        var largestImageArea = -1;
+        var largestClipPath = null;
+        var largestClipPathArea = -1;
+
+        /**
+         * 候補のほうが面積が大きければ採用する。
+         * @param {object} candidate - 候補のページアイテム
+         * @param {boolean} isClipPath - マスクパスとして扱うか
+         * @returns {void}
+         */
+        function keepIfLarger(candidate, isClipPath) {
+            if (!candidate) return;
+            var candidateArea = getBoundsArea(candidate);
+            if (isClipPath) {
+                if (candidateArea > largestClipPathArea) {
+                    largestClipPath = candidate;
+                    largestClipPathArea = candidateArea;
                 }
-                return handleRect(item); // それ以外は長方形（4点）など既存処理
+            } else if (candidateArea > largestImageArea) {
+                largestImage = candidate;
+                largestImageArea = candidateArea;
+            }
+        }
+
+        var childItems = container.pageItems || [];
+        for (var i = 0; i < childItems.length; i++) {
+            var childItem = childItems[i];
+            if (!childItem) continue;
+            var typeName = childItem.typename;
+
+            if (typeName === 'PlacedItem' || typeName === 'RasterItem') {
+                keepIfLarger(childItem, false);
+            } else if (typeName === 'PathItem' && childItem.clipping) {
+                keepIfLarger(childItem, true);
+            } else if (typeName === 'CompoundPathItem' && isClippingCompoundPath(childItem)) {
+                /* 複合パス自身の面積を代用値として使う / use the compound's own area as a proxy */
+                keepIfLarger(childItem, true);
+            } else if (typeName === 'GroupItem') {
+                var nestedResult = findLargestImageAndClipPath(childItem);
+                keepIfLarger(nestedResult.image, false);
+                keepIfLarger(nestedResult.clipPath, true);
+            }
+        }
+
+        return { image: largestImage, clipPath: largestClipPath };
+    }
+
+    /**
+     * マスクパスのうち、実際に変形を掛ける対象を決める。
+     * 複合パスなら、マスク指定されている子パスを優先する。
+     * @param {object} clipPathCandidate - 見つかったマスクパス
+     * @returns {object} 変形対象。マスクパスがなければ null
+     */
+    function resolveClippingTransformTarget(clipPathCandidate) {
+        if (!clipPathCandidate) return null;
+        if (clipPathCandidate.typename !== 'CompoundPathItem') return clipPathCandidate;
+
+        var childPaths = clipPathCandidate.pathItems || [];
+        for (var i = 0; i < childPaths.length; i++) {
+            if (childPaths[i] && childPaths[i].clipping) return childPaths[i];
+        }
+        /* マスク指定の子が見つからなければ複合パス自体を変形 / fall back to the compound itself */
+        return clipPathCandidate;
+    }
+
+    /**
+     * クリップグループの構成要素を一度だけ集める。
+     * @param {object} groupItem - 対象のクリップグループ
+     * @returns {object} { image, clipPath, clipTarget }
+     */
+    function collectClippedGroupParts(groupItem) {
+        var clipParts = findLargestImageAndClipPath(groupItem);
+        clipParts.clipTarget = resolveClippingTransformTarget(clipParts.clipPath);
+        return clipParts;
+    }
+
+    /**
+     * クリップグループの回転をリセットする。
+     * 子同士の位置関係を保つため、グループごと回転する。
+     * @param {object} groupItem - 対象のクリップグループ
+     * @param {object} clipParts - collectClippedGroupParts の戻り値
+     * @returns {boolean} 回転したら true
+     */
+    function resetClippedGroupRotation(groupItem, clipParts) {
+        var representativeImage = clipParts.image;
+        if (!representativeImage || !hasMatrix(representativeImage)) return false;
+
+        var imageMatrix = representativeImage.matrix;
+        var rotationSign = (representativeImage.typename === 'RasterItem') ? -1 : 1;
+        var rotationDeg = getRotationAngleDeg(imageMatrix.mValueA, imageMatrix.mValueB, rotationSign);
+        if (Math.abs(rotationDeg) <= ROTATION_EPSILON_DEG) return false;
+
+        withBoundsResetAndRecenter(groupItem, function () {
+            rotateItemBy(groupItem, rotationDeg);
+        });
+        return true;
+    }
+
+    /**
+     * クリップグループの反転を、配置画像とマスクパスに同じだけ適用して打ち消す。
+     * @param {object} clipParts - collectClippedGroupParts の戻り値
+     * @returns {boolean} 反転を打ち消したら true
+     */
+    function undoClippedGroupFlip(clipParts) {
+        var representativeImage = clipParts.image;
+        if (!representativeImage || !hasMatrix(representativeImage)) return false;
+
+        var imageMatrix = representativeImage.matrix;
+        var hasHorizontalFlip = isFlippedHorizontal(imageMatrix);
+        var hasVerticalFlip = isFlippedVertical(imageMatrix);
+        if (!hasHorizontalFlip && !hasVerticalFlip) return false;
+
+        withUnlockedVisible(representativeImage, function () {
+            undoFlipByFlags(representativeImage, hasHorizontalFlip, hasVerticalFlip);
+        });
+        if (clipParts.clipTarget) {
+            withUnlockedVisible(clipParts.clipTarget, function () {
+                undoFlipByFlags(clipParts.clipTarget, hasHorizontalFlip, hasVerticalFlip);
+            });
+        }
+        return true;
+    }
+
+    /**
+     * クリップグループの縦横比を等比に戻す。
+     * 配置画像から求めた差分を、マスクパスにも同じだけ適用する。
+     * @param {object} clipParts - collectClippedGroupParts の戻り値
+     * @returns {boolean} 等比化したら true
+     */
+    function resetClippedGroupAspectRatio(clipParts) {
+        var representativeImage = clipParts.image;
+        if (!representativeImage || !hasMatrix(representativeImage)) return false;
+
+        var imageMatrix = representativeImage.matrix;
+        var deltaMatrix = buildDeltaMatrix(imageMatrix, getUniformScaleTarget(decomposeMatrix(imageMatrix)));
+
+        transformItemUnlocked(representativeImage, deltaMatrix);
+        if (clipParts.clipTarget) transformItemUnlocked(clipParts.clipTarget, deltaMatrix);
+
+        /* 丸め誤差で等比になりきらなかった場合の再調整 / re-equalize if a rounding residual remains */
+        var decomposedAfter = decomposeMatrix(representativeImage.matrix);
+        if (Math.abs(decomposedAfter.scaleX - decomposedAfter.scaleY) > SCALE_EPSILON) {
+            withUnlockedVisible(representativeImage, function () {
+                equalizeScaleToLarger(representativeImage);
+            });
+        }
+        return true;
+    }
+
+    // =========================================
+    // 種別ごとの振り分け / Dispatch by typename
+    // =========================================
+
+    /**
+     * typename をキーにしたハンドラー一覧を作る。
+     * 各ハンドラーは「リセット対象として処理したか」を返す。
+     * @param {object} resetOptions - ダイアログで選択したオプション
+     * @returns {object} typename → ハンドラー関数の対応表
+     */
+    function makeItemHandlers(resetOptions) {
+
+        /**
+         * テキストを処理する。
+         * @param {object} textFrame - 対象のテキストフレーム
+         * @returns {boolean} 処理したら true
+         */
+        function handleTextFrame(textFrame) {
+            if (!resetOptions.textRotate && !resetOptions.textShear && !resetOptions.textScaleRatio) return false;
+            resetTextFrameTransforms(textFrame, resetOptions.textRotate, resetOptions.textShear, resetOptions.textScaleRatio);
+            return true;
+        }
+
+        /**
+         * パス（長方形・直線）を処理する。
+         * すでに正立している場合も「対象として処理済み」として扱う。
+         * @param {object} pathItem - 対象のパス
+         * @returns {boolean} 処理したら true
+         */
+        function handlePathItem(pathItem) {
+            if (resetOptions.straightLineRotate && isStraightLinePath(pathItem)) {
+                snapPathToNearestAxis(pathItem);
+                return true;
+            }
+            if (resetOptions.rectangleRotate && isRectanglePath(pathItem)) {
+                snapPathToNearestAxis(pathItem);
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * クリップグループを処理する。
+         * @param {object} groupItem - 対象のグループ
+         * @returns {boolean} 処理したら true
+         */
+        function handleClippedGroup(groupItem) {
+            if (groupItem.clipped !== true) return false;
+
+            /* 行列を読む前にバウンディングボックスを更新 / refresh the bounds before reading matrices */
+            resetBoundingBox(groupItem);
+            var clipParts = collectClippedGroupParts(groupItem);
+
+            var didRotate = resetOptions.clipRotate && resetClippedGroupRotation(groupItem, clipParts);
+            /* 反転判定の前に、回転後の状態を反映させる / let flip detection see the rotated state */
+            if (didRotate && resetOptions.clipFlip) resetBoundingBox(groupItem);
+
+            var didFlip = resetOptions.clipFlip && undoClippedGroupFlip(clipParts);
+            var didAspectRatio = resetOptions.clipAspectRatio && resetClippedGroupAspectRatio(clipParts);
+
+            /* 配置画像があれば無変更でも対象とみなす（誤アラート防止）/ an image means it was a valid target */
+            return !!(didRotate || didFlip || didAspectRatio || clipParts.image);
+        }
+
+        /**
+         * 配置画像・ラスターを処理する。
+         * @param {object} pageItem - 対象のページアイテム
+         * @param {string} itemTypeName - typename
+         * @returns {boolean} 処理したら true
+         */
+        function handlePlacedOrRaster(pageItem, itemTypeName) {
+            if (!resetOptions.placedRotate && !resetOptions.placedShear && !resetOptions.placedScale &&
+                !resetOptions.placedAspectRatio && !resetOptions.placedFlip) return false;
+            resetPlacedOrRasterTransforms(pageItem, itemTypeName, resetOptions);
+            return true;
+        }
+
+        return {
+            TextFrame: handleTextFrame,
+            PathItem: handlePathItem,
+            GroupItem: handleClippedGroup,
+            PlacedItem: function (pageItem) {
+                return handlePlacedOrRaster(pageItem, 'PlacedItem');
             },
-            GroupItem: handleClipGroup,
-            PlacedItem: function (item) {
-                return handleImage(item, 'PlacedItem');
-            },
-            RasterItem: function (item) {
-                return handleImage(item, 'RasterItem');
+            RasterItem: function (pageItem) {
+                return handlePlacedOrRaster(pageItem, 'RasterItem');
             }
         };
     }
 
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * エントリーポイント。
+     * @returns {void}
+     */
     function main() {
-        // ドキュメント未オープンなら中断 / Abort if no document is open
         if (!app.documents.length) {
             alert(L(LABELS.alert.noDocument));
             return;
         }
 
         var currentDocument = app.activeDocument;
-        var liveSelection = currentDocument.selection;
-        if (!liveSelection || liveSelection.length === 0) {
+        var currentSelection = currentDocument.selection;
+        if (!currentSelection || currentSelection.length === 0) {
             alert(L(LABELS.alert.selectFirst));
             return;
         }
 
-        // 開始時の選択を控える（処理中に app.selection を張り替えるため）/ Snapshot the selection to restore later
+        /* 処理中に app.selection を張り替えるため、開始時の選択を控える / snapshot the selection */
         var originalSelection = [];
-        for (var s = 0; s < liveSelection.length; s++) originalSelection.push(liveSelection[s]);
+        for (var i = 0; i < currentSelection.length; i++) originalSelection.push(currentSelection[i]);
 
-        var opts = showOptionsDialog();
-        if (!opts) return;
+        var resetOptions = showResetOptionsDialog(originalSelection);
+        if (!resetOptions) return;
 
-        var processed = 0;
-        var handlers = makeHandlers(opts);
+        var itemHandlers = makeItemHandlers(resetOptions);
+        var processedCount = 0;
 
-        for (var i = 0; i < originalSelection.length; i++) {
-            var item = originalSelection[i];
-            if (!item || !item.typename) continue;
-            var handler = handlers[item.typename];
-            if (handler) processed += handler(item).processed || 0;
+        for (var j = 0; j < originalSelection.length; j++) {
+            var selectedItem = originalSelection[j];
+            if (!selectedItem || !selectedItem.typename) continue;
+            var itemHandler = itemHandlers[selectedItem.typename];
+            if (itemHandler && itemHandler(selectedItem)) processedCount++;
         }
 
-        // 元の選択に戻す / Restore the original selection
-        try {
-            currentDocument.selection = originalSelection;
-        } catch (e) {}
+        /* 元の選択に戻す / restore the original selection */
+        currentDocument.selection = originalSelection;
 
-        if (processed === 0) {
-            alert(L(LABELS.alert.noTarget));
-        }
-    }
-
-    /* Helpers / ヘルパー群 */
-
-    function withBBoxResetAndRecenter(item, opFn) {
-        /* Run transform → reset BBox → recenter to keep top-left / 変形→BBoxリセット→左上基準で再配置 */
-        var tl = item.position;
-        var w1 = item.width,
-            h1 = item.height;
-        if (typeof opFn === 'function') opFn();
-        try {
-            app.selection = null;
-            app.selection = [item];
-            app.executeMenuCommand("AI Reset Bounding Box");
-        } catch (e) { }
-        recenterToTopLeft(item, tl, w1, h1);
-    }
-
-    /* Helper: calculate "safe" area (width * height), or -1 if not available */
-    function getAreaSafe(it) {
-        try {
-            var w = it.width;
-            var h = it.height;
-            if (typeof w !== 'number' || typeof h !== 'number') return -1;
-            return Math.abs(w * h);
-        } catch (e) {
-            return -1;
-        }
-    }
-
-    /* Clip group: child-wise reset (rotate only) / クリップグループ：子要素単位の回転リセット */
-    function processClippedGroupChildren(groupItem, opts) {
-        // Ensure BBox is up-to-date before reading matrices
-        resetBBoxOnly(groupItem);
-
-        // Recursively find representative placed/raster and clipping path
-        var found = findPlacedAndClipRecursive(groupItem);
-        var placedOrRaster = found.placed;
-        var clipPath = found.clip;
-        var clipTarget = resolveClipTransformTarget(clipPath);
-
-        // Compute a shared rotation delta from the representative child
-        var rotDelta = 0;
-        var haveDelta = false;
-        if (placedOrRaster && hasMatrix(placedOrRaster)) {
-            var pm = placedOrRaster.matrix;
-            var psign = (placedOrRaster.typename === 'RasterItem') ? -1 : 1;
-            rotDelta = getRotationAngleDeg(pm.mValueA, pm.mValueB, psign);
-            haveDelta = Math.abs(rotDelta) > 0.0001;
-        } else if (clipTarget && hasMatrix(clipTarget)) {
-            var cm = clipTarget.matrix;
-            rotDelta = getRotationAngleDeg(cm.mValueA, cm.mValueB, +1);
-            haveDelta = Math.abs(rotDelta) > 0.0001;
-        }
-
-        var did = false;
-        if (opts.clipGroupRotate && haveDelta) {
-            // Rotate the GROUP once so children keep their relative alignment
-            withBBoxResetAndRecenter(groupItem, function () {
-                rotateBy(groupItem, rotDelta);
-            });
-            did = true;
-        }
-        return did;
-    }
-
-    // Recursively find the largest placed/raster and the clipping path (PathItem or CompoundPathItem) within a clipped group
-    function findPlacedAndClipRecursive(container) {
-        var bestPlaced = null,
-            bestPlacedArea = -1;
-        var bestClip = null,
-            bestClipArea = -1;
-        var items = (container.pageItems || []);
-        for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            if (!it) continue;
-            var t = it.typename;
-            if (t === 'PlacedItem' || t === 'RasterItem') {
-                var ap = getAreaSafe(it);
-                if (ap > bestPlacedArea) {
-                    bestPlaced = it;
-                    bestPlacedArea = ap;
-                }
-            } else if (t === 'PathItem') {
-                if (it.clipping) {
-                    var ac1 = getAreaSafe(it);
-                    if (ac1 > bestClipArea) {
-                        bestClip = it;
-                        bestClipArea = ac1;
-                    }
-                }
-            } else if (t === 'CompoundPathItem') {
-                // CompoundPathItem itself may not expose `.clipping`; check its children
-                var subPaths = it.pathItems || [];
-                for (var k = 0; k < subPaths.length; k++) {
-                    var sp = subPaths[k];
-                    try {
-                        if (sp && sp.clipping) {
-                            var ac2 = getAreaSafe(it); // use compound's area as proxy
-                            if (ac2 > bestClipArea) {
-                                bestClip = it;
-                                bestClipArea = ac2;
-                            }
-                            break;
-                        }
-                    } catch (e) { }
-                }
-            } else if (t === 'GroupItem') {
-                var found = findPlacedAndClipRecursive(it);
-                if (found.placed && getAreaSafe(found.placed) > bestPlacedArea) {
-                    bestPlaced = found.placed;
-                    bestPlacedArea = getAreaSafe(found.placed);
-                }
-                if (found.clip && getAreaSafe(found.clip) > bestClipArea) {
-                    bestClip = found.clip;
-                    bestClipArea = getAreaSafe(found.clip);
-                }
-            }
-        }
-        return {
-            placed: bestPlaced,
-            clip: bestClip
-        };
-    }
-
-    // Apply transform with full flags and center origin; fallback safely if enum not available
-    function transformAll(item, mat) {
-        try {
-            item.transform(mat, true, true, true, true, true, Transformation.CENTER);
-        } catch (e) {
-            try {
-                item.transform(mat, true, true, true, true, true);
-            } catch (e2) {
-                item.transform(mat);
-            }
-        }
-    }
-    // Temporarily unlock/unhide while applying a function, then restore
-    function withUnlockedVisible(item, fn) {
-        var wasLocked = false,
-            wasHidden = false;
-        try {
-            wasLocked = !!item.locked;
-        } catch (e) { }
-        try {
-            wasHidden = !!item.hidden;
-        } catch (e) { }
-        try {
-            try {
-                item.locked = false;
-            } catch (e) { }
-            try {
-                item.hidden = false;
-            } catch (e) { }
-            fn();
-        } finally {
-            try {
-                if (wasLocked) item.locked = true;
-            } catch (e) { }
-            try {
-                if (wasHidden) item.hidden = true;
-            } catch (e) { }
-        }
-    }
-
-    // Reset only the bounding box for a given item (no recenter) / バウンディングボックスのみをリセット（位置は維持）
-    function resetBBoxOnly(item) {
-        try {
-            app.selection = null;
-            app.selection = [item];
-            app.executeMenuCommand("AI Reset Bounding Box");
-        } catch (e) { }
-    }
-
-    // Resolve actual transform target for a clipping path: if CompoundPathItem, use its clipping PathItem
-    function resolveClipTransformTarget(clipCandidate) {
-        if (!clipCandidate) return null;
-        try {
-            if (clipCandidate.typename === 'CompoundPathItem') {
-                var subs = clipCandidate.pathItems || [];
-                for (var i = 0; i < subs.length; i++) {
-                    var sp = subs[i];
-                    try {
-                        if (sp && sp.clipping) return sp; // prefer the actual clipping child
-                    } catch (e) { }
-                }
-                // fallback: transform the compound itself if no child flagged
-                return clipCandidate;
-            }
-            return clipCandidate; // PathItem or others
-        } catch (e) {
-            return clipCandidate;
-        }
-    }
-
-    // Clip group: aspect ratio equalization for placed/raster & clipping path
-    // クリップグループ：配置画像＋マスクパス（PathItem/CompoundPathItem）に再帰的に同じ等比化を適用
-    function processClippedGroupAspect(groupItem) {
-        // Find placed/raster and (PathItem or CompoundPathItem) clipping path recursively
-        var found = findPlacedAndClipRecursive(groupItem);
-        var placedOrRaster = found.placed;
-        var clipPath = found.clip;
-        var clipTarget = resolveClipTransformTarget(clipPath);
-        // Proceed if we have at least the placed/raster; clipPath is optional
-        if (!placedOrRaster) return false;
-        if (!hasMatrix(placedOrRaster)) return false; // needed to compute delta from placed image
-        var haveClip = !!clipTarget; // we can still transform a clip even if it lacks `.matrix`
-        var clipHasMatrix = !!(haveClip && hasMatrix(clipTarget));
-
-        // Build target uniform scale from placed image: lift smaller axis to larger, snap to integer percent
-        var pm = placedOrRaster.matrix;
-        var dec = decomposeQR(pm.mValueA, pm.mValueB, pm.mValueC, pm.mValueD);
-        var u = Math.max(dec.sx, dec.sy);
-        var uPercent = Math.round(u * 100); // round to integer percent
-        u = uPercent / 100;
-
-        // Delta matrix from current to (u,u) with same orientation/shear
-        var target = buildFromQR(dec.q1x, dec.q1y, dec.q2x, dec.q2y, u, u, dec.shear);
-        var cur = {
-            a: pm.mValueA,
-            b: pm.mValueB,
-            c: pm.mValueC,
-            d: pm.mValueD
-        };
-        var inv = invert2x2(cur.a, cur.b, cur.c, cur.d);
-        var delta = multiply2x2(inv.a, inv.b, inv.c, inv.d, target.a, target.b, target.c, target.d);
-        var deltaMat = toMatrix(delta);
-
-        // Always apply to placed/raster; also apply to clipTarget if present (even without `.matrix`)
-        withUnlockedVisible(placedOrRaster, function () {
-            transformAll(placedOrRaster, deltaMat);
-        });
-        if (haveClip) {
-            withUnlockedVisible(clipTarget, function () {
-                transformAll(clipTarget, deltaMat);
-            });
-        }
-
-        // Verify and fallback per-item to guarantee uniform scale
-        try {
-            var mPl = placedOrRaster.matrix,
-                dPl = decomposeQR(mPl.mValueA, mPl.mValueB, mPl.mValueC, mPl.mValueD);
-            if (Math.abs(dPl.sx - dPl.sy) > 1e-6) {
-                withUnlockedVisible(placedOrRaster, function () {
-                    equalizeScaleToMax(placedOrRaster);
-                });
-            }
-            if (clipHasMatrix) {
-                var mCp = clipTarget.matrix,
-                    dCp = decomposeQR(mCp.mValueA, mCp.mValueB, mCp.mValueC, mCp.mValueD);
-                if (Math.abs(dCp.sx - dCp.sy) > 1e-6) {
-                    withUnlockedVisible(clipTarget, function () {
-                        equalizeScaleToMax(clipTarget);
-                    });
-                }
-            }
-        } catch (e) { }
-        return true;
-    }
-
-    function getRotationAngleDeg(a, b, sign) {
-        var ang = Math.atan2(b, a) * 180 / Math.PI;
-        return (sign < 0) ? -ang : ang;
-    }
-
-    /* Rotation matrix helper (uses Illustrator API if available) / 回転行列ヘルパー（可能ならIllustrator標準APIを使用） */
-    function getRotationMatrixSafe(deg) {
-        // Prefer Illustrator's API for clarity
-        try {
-            if (app && typeof app.getRotationMatrix === 'function') {
-                return app.getRotationMatrix(deg);
-            }
-        } catch (e) { }
-        // Fallback: build a Matrix manually
-        var rad = deg * Math.PI / 180.0;
-        var cosv = Math.cos(rad),
-            sinv = Math.sin(rad);
-        var M = new Matrix();
-        M.mValueA = cosv; // a
-        M.mValueB = sinv; // b
-        M.mValueC = -sinv; // c
-        M.mValueD = cosv; // d
-        M.mValueTX = 0;
-        M.mValueTY = 0;
-        return M;
-    }
-
-    /* Rotate item by degrees using Illustrator matrix API / Illustratorの回転行列APIを用いて回転 */
-    function rotateBy(item, deg) {
-        var mat = getRotationMatrixSafe(deg);
-        item.transform(mat);
-    }
-
-    // Rotate TextFrame by deg, prefer Illustrator's native rotate with full flags and center origin
-    function rotateTextBy(item, deg) {
-        try {
-            // Use Illustrator's native rotate for TextFrame with full flags and center origin
-            item.rotate(deg, true, true, true, true, Transformation.CENTER);
-        } catch (e) {
-            // Fallback to matrix-based rotation
-            rotateBy(item, deg);
-        }
-    }
-
-    function multiply2x2(a1, b1, c1, d1, a2, b2, c2, d2) {
-        return {
-            a: a1 * a2 + c1 * b2,
-            b: b1 * a2 + d1 * b2,
-            c: a1 * c2 + c1 * d2,
-            d: b1 * c2 + d1 * d2
-        };
-    }
-
-    function invert2x2(a, b, c, d) {
-        var det = a * d - b * c;
-        if (Math.abs(det) < CONFIG.eps) det = (det < 0 ? -1 : 1) * CONFIG.eps;
-        var invDet = 1.0 / det;
-        return {
-            a: d * invDet,
-            b: -b * invDet,
-            c: -c * invDet,
-            d: a * invDet
-        };
-    }
-
-    function toMatrix(obj) {
-        var M = new Matrix();
-        M.mValueA = obj.a;
-        M.mValueB = obj.b;
-        M.mValueC = obj.c;
-        M.mValueD = obj.d;
-        M.mValueTX = 0;
-        M.mValueTY = 0;
-        return M;
-    }
-
-    function decomposeQR(a, b, c, d) {
-        var sx = Math.sqrt(a * a + b * b);
-        if (sx === 0) sx = CONFIG.eps;
-        var q1x = a / sx,
-            q1y = b / sx;
-        var r12 = q1x * c + q1y * d;
-        var u2x = c - r12 * q1x;
-        var u2y = d - r12 * q1y;
-        var sy = Math.sqrt(u2x * u2x + u2y * u2y);
-        if (sy === 0) {
-            sy = CONFIG.eps;
-            u2x = -q1y;
-            u2y = q1x;
-        }
-        var q2x = u2x / sy,
-            q2y = u2y / sy;
-        var shear = r12 / sx;
-        return {
-            sx: sx,
-            sy: sy,
-            shear: shear,
-            q1x: q1x,
-            q1y: q1y,
-            q2x: q2x,
-            q2y: q2y
-        };
-    }
-
-    function buildFromQR(q1x, q1y, q2x, q2y, sx, sy, shear) {
-        var r11 = sx,
-            r12 = shear * sx,
-            r21 = 0,
-            r22 = sy;
-        return {
-            a: q1x * r11 + q2x * r21,
-            b: q1y * r11 + q2y * r21,
-            c: q1x * r12 + q2x * r22,
-            d: q1y * r12 + q2y * r22
-        };
-    }
-
-    function applyDeltaToMatch(item, target2x2) {
-        var m = item.matrix;
-        var cur = {
-            a: m.mValueA,
-            b: m.mValueB,
-            c: m.mValueC,
-            d: m.mValueD
-        };
-        var inv = invert2x2(cur.a, cur.b, cur.c, cur.d);
-        var delta = multiply2x2(inv.a, inv.b, inv.c, inv.d, target2x2.a, target2x2.b, target2x2.c, target2x2.d);
-        item.transform(toMatrix(delta));
-    }
-
-    function removeSkewOnly(item) {
-        if (!item || !hasMatrix(item)) return;
-        var m = item.matrix;
-        var dec = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
-        var target = buildFromQR(dec.q1x, dec.q1y, dec.q2x, dec.q2y, dec.sx, dec.sy, 0);
-        applyDeltaToMatch(item, target);
-    }
-
-    /* シアー除去＋数値誤差で残った微小シアーをもう一度除去 / Remove shear, then clear any tiny residual from numeric noise */
-    function removeSkewWithSafety(item) {
-        removeSkewOnly(item);
-        try {
-            if (hasMatrix(item)) {
-                var m = item.matrix;
-                var d = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
-                if (Math.abs(d.shear) > 1e-6) removeSkewOnly(item);
-            }
-        } catch (e) { }
-    }
-
-    function normalizeScaleOnly(item) {
-        if (!item || !hasMatrix(item)) return;
-        var m = item.matrix;
-        var dec = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
-        var target = buildFromQR(dec.q1x, dec.q1y, dec.q2x, dec.q2y, 1, 1, dec.shear);
-        applyDeltaToMatch(item, target);
-    }
-
-    // Make horizontal/vertical scales equal by lifting the smaller to the larger (preserving orientation/shear)
-    function equalizeScaleToMax(item) {
-        if (!item || !hasMatrix(item)) return;
-        var m = item.matrix;
-        var dec = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
-        var u = Math.max(dec.sx, dec.sy); // choose the larger of current scales
-
-        // ▼追加：整数％にスナップ（例：16.321%→16%、16.3%→16%）
-        var uPercent = Math.round(u * 100); // 四捨五入（例：16.321%→16%、16.5%→17%）
-        u = uPercent / 100;
-
-        var target = buildFromQR(dec.q1x, dec.q1y, dec.q2x, dec.q2y, u, u, dec.shear);
-        applyDeltaToMatch(item, target);
-    }
-
-    // Apply uniform scaling by percent (100 = 100%)
-    function applyUniformScalePercent(item, percent) {
-        var p = Number(percent);
-        if (!(p > 0)) return;
-        try {
-            // Illustrator's resize: percent values (100 = 100%)
-            item.resize(p, p, true, true, true, true, true);
-        } catch (e) { }
-    }
-
-    function hasMatrix(obj) {
-        try {
-            return !!(obj && obj.matrix && typeof obj.matrix.mValueA !== 'undefined');
-        } catch (e) {
-            return false;
-        }
-    }
-
-    // --- Flip detection helpers (no rotation/shear assumed) / 反転検出ヘルパー（回転・シアーなし前提） ---
-    function isFlippedHorizontal(mat) {
-        // 左右反転: mValueA が負
-        return mat && mat.mValueA < 0;
-    }
-    // NOTE: Placed/Raster はデフォルトで mValueD が負になり得るため、上下反転は mValueD > 0 を基準に判定
-    function isFlippedVertical(mat) {
-        // 上下反転: mValueD が正（Placed/Raster の基準に合わせる）
-        return mat && mat.mValueD > 0;
-    }
-
-    /* 反転解除：sx/sy に -100 を与えた軸だけ反転を打ち消す / Undo flip on the axis whose scale is -100 */
-    function unflip(item, sx, sy) {
-        if (!item) return;
-        item.transform(
-            app.getScaleMatrix(sx, sy),
-            true, // changePositions
-            true, // changeFillPatterns
-            true, // changeFillGradients
-            true, // changeStrokePattern
-            true, // changeLineWidths
-            Transformation.CENTER
-        );
-    }
-
-    /* 反転フラグ（左右／上下）に応じて反転を打ち消す / Undo flip according to horizontal/vertical flags */
-    function unflipByFlags(item, isHorizontalFlip, isVerticalFlip) {
-        if (!item || (!isHorizontalFlip && !isVerticalFlip)) return;
-        unflip(item, isHorizontalFlip ? -100 : 100, isVerticalFlip ? -100 : 100);
-    }
-
-    function cancelRotation(item, sign) {
-        if (!hasMatrix(item)) return 0; // safety: some items may not expose matrix
-        var a = item.matrix.mValueA;
-        var b = item.matrix.mValueB;
-        var rot = getRotationAngleDeg(a, b, sign);
-        rotateBy(item, rot);
-        return rot;
-    }
-
-    // Sign-agnostic cancel: always rotate by the negative of the current angle to zero out rotation
-    function cancelRotationToZero(item) {
-        if (!hasMatrix(item)) return 0;
-        var a = item.matrix.mValueA;
-        var b = item.matrix.mValueB;
-        var ang = Math.atan2(b, a) * 180 / Math.PI;
-        if (item.typename === 'TextFrame') {
-            rotateTextBy(item, -ang);
-        } else {
-            rotateBy(item, -ang);
-        }
-        return ang;
-    }
-
-    function recenterToTopLeft(item, tl, w1, h1) {
-        var w2 = item.width,
-            h2 = item.height;
-        item.position = [tl[0] + w1 / 2 - w2 / 2, tl[1] - h1 / 2 + h2 / 2];
-    }
-
-    function resetTextScaleRatio(item) {
-        if (!item || !item.textRange) return; // safe guard
-        try {
-            // Pass 1: primary API
-            item.textRange.scaling = [1, 1];
-            // Also set legacy attributes for robustness across builds
-            var ca = item.textRange.characterAttributes;
-            if (ca) {
-                try {
-                    ca.horizontalScale = 100;
-                } catch (e1) { }
-                try {
-                    ca.verticalScale = 100;
-                } catch (e2) { }
-            }
-            // Pass 2: re-apply to kill residual rounding noise
-            item.textRange.scaling = [1, 1];
-        } catch (e) { }
-    }
-
-    function resetTextOps(item, doRot, doShear, doRatio) {
-        // One-shot BBox + recenter for text ops / テキスト処理を1回のBBoxでまとめて実行
-        withBBoxResetAndRecenter(item, function () {
-            // 1) Rotate first (stabilize orientation for text) / まず回転を0°へ
-            if (doRot) cancelRotationToZero(item); // Robust for PointText and AreaText
-
-            // 2) Shear removal (before ratio) / シアー除去を先に
-            if (doShear) {
-                removeSkewWithSafety(item);
-            }
-
-            // 3) Ratio equalization LAST / 比率（水平・垂直）を最後に
-            if (doRatio) {
-                resetTextScaleRatio(item); // pass 1
-                // Best-effort verification and second pass
-                try {
-                    var sc = item.textRange && item.textRange.scaling;
-                    if (!sc || Math.abs(sc[0] - 1) > 1e-6 || Math.abs(sc[1] - 1) > 1e-6) {
-                        resetTextScaleRatio(item); // pass 2
-                    }
-                } catch (e) {
-                    // Fallback: second pass anyway
-                    resetTextScaleRatio(item);
-                }
-            }
-        });
-    }
-
-    function applyRotationCorrection(rect) {
-        if (!rect || !rect.closed || rect.pathPoints.length !== 4) return false;
-
-        /* Rotation from first two anchors / 最初の2点から角度を算出 */
-        var ptA = rect.pathPoints[0].anchor;
-        var ptB = rect.pathPoints[1].anchor;
-
-        var dx = ptB[0] - ptA[0];
-        var dy = ptB[1] - ptA[1];
-        var angleRad = Math.atan2(dy, dx);
-        var angleDeg = angleRad * 180 / Math.PI;
-        if (angleDeg < 0) angleDeg += 360;
-
-        var rotationAmount = angleDeg; // 水平からのズレ / offset from horizontal
-        var normalized = rotationAmount % 90;
-        if (normalized > 45) normalized = 90 - normalized; // 最近傍の 0/90 に正規化 / distance to nearest axis
-
-        // 0.5〜44° の範囲でのみ補正 / only snap if near axis to avoid false positives
-        if (normalized >= CONFIG.rectSnapMin && normalized <= CONFIG.rectSnapMax) {
-            withBBoxResetAndRecenter(rect, function() {
-                rotateBy(rect, -rotationAmount);
-            });
-            return true;
-        }
-        return false;
-    }
-
-    function applyRotationCorrectionLine(line) {
-        if (!line || line.closed || line.pathPoints.length !== 2) return false;
-
-        var ptA = line.pathPoints[0].anchor;
-        var ptB = line.pathPoints[1].anchor;
-
-        var dx = ptB[0] - ptA[0];
-        var dy = ptB[1] - ptA[1];
-        if (dx === 0 && dy === 0) return false;
-
-        // Current angle from horizontal in degrees (-180..180)
-        var angleRad = Math.atan2(dy, dx);
-        var a = angleRad * 180 / Math.PI;
-
-        // Compute minimal deltas to 0° (horizontal) and 90° (vertical)
-        function norm180(x) {
-            while (x > 180) x -= 360;
-            while (x < -180) x += 360;
-            return x;
-        }
-
-        function clamp90(x) {
-            x = norm180(x);
-            if (x > 90) x -= 180;
-            if (x < -90) x += 180;
-            return x;
-        }
-
-        var d0 = clamp90(-a); // rotate by this to reach 0°
-        var d90 = clamp90(90 - a); // rotate by this to reach 90°
-
-        var abs0 = Math.abs(d0);
-        var abs90 = Math.abs(d90);
-        var dist = Math.min(abs0, abs90);
-
-        // Optional: only snap when reasonably close to axis, mirroring rectangle rule
-        if (dist < CONFIG.rectSnapMin || dist > CONFIG.rectSnapMax) return false;
-
-        var rot = (abs0 <= abs90) ? d0 : d90;
-        withBBoxResetAndRecenter(line, function () {
-            rotateBy(line, rot);
-        });
-        return true;
-    }
-
-    /* 反転の解除（回転・シアーなし前提で判定）/ Undo flips (assumes rotation/shear already cleared) */
-    function resetFlip(item) {
-        if (!hasMatrix(item)) return;
-        try {
-            var m = item.matrix;
-            unflipByFlags(item, isFlippedHorizontal(m), isFlippedVertical(m));
-        } catch (e) { }
-    }
-
-    /* 配置画像／ラスタの変形リセット（回転→反転→縦横比→スケール→シアーの順）/ Reset a placed/raster item's transforms */
-    function resetPlacedOrRasterTransforms(item, objectType, opts) {
-        var sign = (objectType === "RasterItem") ? -1 : 1;
-        if (!opts) opts = {};
-        /* 何も指定されていなければ即終了 / Fast path: nothing to do */
-        if (!opts.rotate && !opts.skew && !opts.scale && !opts.ratio && !opts.flip) return;
-
-        withBBoxResetAndRecenter(item, function () {
-            /* 1) 回転（向きを安定させるため最初に）/ Rotation first */
-            if (opts.rotate && hasMatrix(item)) cancelRotation(item, sign);
-
-            /* 1.5) 反転（回転補正後に判定）/ Flip reset, after rotation cancel */
-            if (opts.flip) resetFlip(item);
-
-            /* 2) 縦横比の等比化（スケール正規化の前に）/ Equalize aspect ratio before absolute scaling */
-            if (opts.ratio) equalizeScaleToMax(item);
-
-            /* 3) 絶対スケール（100%へ正規化→指定%）/ Absolute scale: normalize to 100% then apply % */
-            if (opts.scale) {
-                normalizeScaleOnly(item);
-                applyUniformScalePercent(item, opts.scalePercent);
-            }
-
-            /* 4) シアー除去は最後（上記で混入した微小シアーも除去）/ Shear removal last */
-            if (opts.skew) removeSkewWithSafety(item);
-        });
-        /* 回転ONなら0°で終了、OFFなら元の回転を保持 / Exit at 0° when rotate is ON, else keep original */
-    }
-
-    // Clip group: flip reset for placed/raster & clipping path
-    // クリップグループ：配置画像＋マスクパスの反転を同時に解除
-    function processClippedGroupFlip(groupItem) {
-        // Ensure matrices reflect post-rotation state / 回転補正後の行列で正しく判定するためにBBoxを更新
-        resetBBoxOnly(groupItem);
-        var found = findPlacedAndClipRecursive(groupItem);
-        var placedOrRaster = found.placed;
-        var clipPath = found.clip;
-        var clipTarget = resolveClipTransformTarget(clipPath);
-        var haveAny = !!(placedOrRaster || clipTarget);
-        if (!haveAny) return false;
-
-        // Prefer detection from placed/raster when available; otherwise fall back to clip
-        var mat = null;
-        if (placedOrRaster && hasMatrix(placedOrRaster)) {
-            mat = placedOrRaster.matrix;
-        } else if (clipTarget && hasMatrix(clipTarget)) {
-            mat = clipTarget.matrix;
-        }
-        if (!mat) return false;
-
-        var fh = isFlippedHorizontal(mat);
-        var fv = isFlippedVertical(mat);
-        if (!fh && !fv) return false;
-
-        // Apply identical unflip to both placed and clip (if present)
-        function applyUnflip(it) {
-            if (!it) return;
-            withUnlockedVisible(it, function () {
-                unflipByFlags(it, fh, fv);
-            });
-        }
-        applyUnflip(placedOrRaster);
-        applyUnflip(clipTarget);
-        return true;
+        if (processedCount === 0) alert(L(LABELS.alert.noTarget));
     }
 
     main();
