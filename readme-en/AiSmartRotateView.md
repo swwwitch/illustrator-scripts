@@ -35,7 +35,7 @@ You can also read the angle of a selected object and rotate the view to it, or r
   - [Rotate selection to match view] (dimmed while the view rotation is 0°)
   - [Reset selection rotation] (undoes the accumulated rotation stored in the `BBAccumRotation` tag)
 - **Reset**
-  - [Reset text tilt] (runs `transform/ResetText.jsx`)
+  - [Reset text tilt] (runs `transform/ResetTransform.jsx`)
   - [Reset image tilt] (runs `transform/ResetRotation.jsx`)
 - A [Refresh] button, plus an automatic refresh whenever the palette becomes active
 - Japanese / English UI

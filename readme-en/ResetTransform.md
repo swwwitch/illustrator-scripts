@@ -16,15 +16,16 @@
 ### Main Features
 
 - **Placed images / raster**: reset rotation, shear, aspect ratio (matching the smaller axis to the larger one, as a rounded integer percentage), flip (vertical / horizontal) and scale (a given percentage, with a 20% floor), individually or together.
-- **Text**: reset rotation, shear and the horizontal / vertical scale (to 100%).
+- **Text**: reset rotation, shear, the horizontal / vertical scale (to 100%) and tracking (to 0).
 - **Rectangles (four-point paths)**: when the path sits 0.5–44° off an axis, snap it to the nearest axis by the smallest possible rotation.
 - **Straight lines (two-point paths)**: the same rule, snapping to the nearest axis (0° or 90°).
 - **Clip groups**: reset rotation and flip on both the placed image and the mask path, and apply the uniform-scale delta derived from the placed image to both of them at once.
+- **Selection handling**: groups and compound paths are traversed recursively to collect targets. When an object inside a clip group is selected, the topmost clip group is processed once instead.
 - **UI**: two columns, one panel per target type, hotkeys (S = scale, F = flip), a numeric scale field (arrow keys ±1, Shift+arrows snapping to multiples of 10), and remembered dialog position and opacity.
 
 ### Process Flow
 
-1. Check the document and the selection, analyse what is selected, and dim the panels that do not apply
+1. Check the document and the selection, collecting targets from inside groups and compound paths, and dim the panels that do not apply
 2. Choose the operations in the panels and click Reset
 3. Each handler applies its transform, resets the bounding box, and moves the item back to its original center
 4. Restore the selection that was active when the script started
@@ -34,7 +35,8 @@
 - Rectangles and straight lines are corrected only when they sit **0.5–44°** off an axis. A deliberate angle such as 45° is left alone.
 - A rectangle is returned to the nearest axis by the **smallest** rotation, so its width and height are never swapped.
 - Clip groups are judged from their placed image. **A clip group with no placed image (vector artwork only) is not a target**, and if nothing else qualifies you get "No resettable objects are selected."
-- Resetting the text ratio applies to the whole text frame.
+- Resetting the text ratio and tracking applies to the whole text frame.
+- Compound paths are corrected per subpath, so a compound path made of several subpaths can end up distorted.
 - The scale value is rounded to an integer percentage and raised to 20% when it falls below that.
 
 ### Acknowledgements
@@ -55,4 +57,4 @@ https://note.com/dtp_tranist/n/n52f6b645bc70
 ### Script info
 
 - Version: v1.6.1
-- Last updated: 2026-09-11
+- Last updated: 2026-09-12

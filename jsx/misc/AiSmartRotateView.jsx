@@ -25,7 +25,7 @@ var SCRIPT_NAME     = "AiSmartRotateView";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-11";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-12";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartRotateView.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartRotateView.md"; /* README (English) */
@@ -555,7 +555,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var resetPanel = palette.add("panel", undefined, L("panel.reset"));
         setupPanel(resetPanel, 6);
 
-        /* テキストの傾き（ResetText.jsx）/ Text tilt (ResetText.jsx) */
+        /* テキストの傾き（ResetTransform.jsx）/ Text tilt (ResetTransform.jsx) */
         var resetTextButton = resetPanel.add("button", undefined, L("button.resetTextTilt"));
         resetTextButton.alignment = "left";
 
@@ -756,9 +756,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             });
         }
 
-        /* テキストの傾きをリセット（ResetText.jsx）/ Reset text tilt (ResetText.jsx) */
+        /* テキストの傾きをリセット（ResetTransform.jsx）/ Reset text tilt (ResetTransform.jsx) */
         resetTextButton.onClick = function () {
-            runExternalScript("ResetText.jsx");
+            runExternalScript("ResetTransform.jsx");
         };
 
         /* 画像の傾きをリセット（ResetRotation.jsx）/ Reset image tilt (ResetRotation.jsx) */

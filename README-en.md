@@ -138,7 +138,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Randomly moves, scales, rotates and changes the opacit…](readme-en/RandomizeObjects.md)
 - [Assumes the selected objects are roughly arranged in a…](readme-en/RegridObjects.md)
 - [Moves the selected objects out of their groups and ont…](readme-en/ReleaseFromGroup.md)
-- [Safely reset rotation/shear/ratio for Text](readme-en/ResetText.md)
 - [Resets the transform applied to the selected objects a…](readme-en/ResetTransform.md)
 - [Redistributes stacked objects along the horizontal or…](readme-en/SmartAlignAndTile.md)
 - [Lays the selected objects out vertically or horizontal…](readme-en/SmartAlignDistribute.md)

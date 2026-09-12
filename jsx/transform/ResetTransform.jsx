@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "ResetTransform";               /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-11";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-12";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetTransform.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetTransform.md"; /* README (English) */
@@ -118,7 +118,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
             aspectRatio: { ja: "縦横比", en: "Aspect Ratio" },
             flip: { ja: "反転", en: "Flip" },
             scale: { ja: "スケール", en: "Scale" },
-            textScaleRatio: { ja: "垂直比率／水平比率", en: "Horizontal & Vertical Scale" }
+            textScaleRatio: { ja: "垂直比率／水平比率", en: "Horizontal & Vertical Scale" },
+            tracking: { ja: "トラッキング", en: "Tracking" }
         },
         button: {
             reset: { ja: "リセット", en: "Reset" },
@@ -331,6 +332,92 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         return !!(!pathItem.closed && pathItem.pathPoints && pathItem.pathPoints.length === 2);
     }
 
+    // =========================================
+    // 対象の収集 / Target collection
+    // =========================================
+
+    /**
+     * 同じページアイテムを指しているかを判定する。
+     * uuid が読めない環境では参照の一致で判定する。
+     * @param {object} itemA - 比較するページアイテム
+     * @param {object} itemB - 比較するページアイテム
+     * @returns {boolean} 同じアイテムなら true
+     */
+    function isSameItem(itemA, itemB) {
+        if (itemA === itemB) return true;
+        try {
+            if (itemA.uuid && itemB.uuid) return itemA.uuid === itemB.uuid;
+        } catch (e) {}
+        return false;
+    }
+
+    /**
+     * まだ収集していなければ配列に追加する。
+     * @param {array} collectedItems - 収集先の配列
+     * @param {object} pageItem - 追加するページアイテム
+     * @returns {void}
+     */
+    function pushUniqueItem(collectedItems, pageItem) {
+        for (var i = 0; i < collectedItems.length; i++) {
+            if (isSameItem(collectedItems[i], pageItem)) return;
+        }
+        collectedItems.push(pageItem);
+    }
+
+    /**
+     * 親をたどって最上位のクリップグループを探す。
+     * @param {object} pageItem - 起点のページアイテム
+     * @returns {object} 最上位のクリップグループ。見つからなければ null
+     */
+    function findTopmostClippedAncestor(pageItem) {
+        var topmostClippedGroup = null;
+        var parentItem = pageItem.parent;
+        /* 親がグループでなくなった時点（レイヤーに到達）で打ち切り / stop once the parent is no longer a group */
+        while (parentItem && parentItem.typename === 'GroupItem') {
+            if (parentItem.clipped === true) topmostClippedGroup = parentItem;
+            parentItem = parentItem.parent;
+        }
+        return topmostClippedGroup;
+    }
+
+    /**
+     * 選択からリセット対象を再帰的に集める。
+     * グループ・複合パスは中身をたどり、クリップグループ内のオブジェクトは最上位のクリップグループにまとめる。
+     * @param {array} items - たどるページアイテムの配列
+     * @param {array} collectedItems - 収集先の配列
+     * @returns {array} 収集した対象の配列
+     */
+    function collectResetTargets(items, collectedItems) {
+        for (var i = 0; i < items.length; i++) {
+            var pageItem = items[i];
+            if (!pageItem || !pageItem.typename) continue;
+
+            /* クリップグループの中身は、最上位のクリップグループとして一度だけ処理 / inside a clip group, target the topmost clip group once */
+            var clippedAncestor = findTopmostClippedAncestor(pageItem);
+            if (clippedAncestor) {
+                pushUniqueItem(collectedItems, clippedAncestor);
+                continue;
+            }
+
+            if (pageItem.typename === 'GroupItem') {
+                if (pageItem.clipped === true) {
+                    pushUniqueItem(collectedItems, pageItem);
+                } else {
+                    collectResetTargets(pageItem.pageItems, collectedItems);
+                }
+                continue;
+            }
+
+            if (pageItem.typename === 'CompoundPathItem') {
+                collectResetTargets(pageItem.pathItems, collectedItems);
+                continue;
+            }
+
+            pushUniqueItem(collectedItems, pageItem);
+        }
+        return collectedItems;
+    }
+
     /**
      * 選択内容から、どの種別のリセットが使えるかを調べる。
      * @param {array} selectedItems - 選択中のページアイテム
@@ -458,7 +545,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         var controls = {
             rotate: addCheckbox(pnlTextFrame, LABELS.checkbox.rotate, true),
             shear: addCheckbox(pnlTextFrame, LABELS.checkbox.shear, true),
-            scaleRatio: addCheckbox(pnlTextFrame, LABELS.checkbox.textScaleRatio, true)
+            scaleRatio: addCheckbox(pnlTextFrame, LABELS.checkbox.textScaleRatio, true),
+            tracking: addCheckbox(pnlTextFrame, LABELS.checkbox.tracking, true)
         };
         pnlTextFrame.enabled = isEnabled;
         return controls;
@@ -576,6 +664,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
             textRotate: textFrameControls.rotate.value,
             textShear: textFrameControls.shear.value,
             textScaleRatio: textFrameControls.scaleRatio.value,
+            textTracking: textFrameControls.tracking.value,
             rectangleRotate: cbRectangleRotate.value,
             straightLineRotate: cbStraightLineRotate.value
         };
@@ -1124,21 +1213,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
     }
 
     /**
-     * テキストの回転・シアー・比率をまとめてリセットする。
+     * テキストのトラッキングを0に戻す。
      * @param {object} textFrame - 対象のテキストフレーム
-     * @param {boolean} doRotate - 回転をリセットするか
-     * @param {boolean} doShear - シアーを除去するか
-     * @param {boolean} doScaleRatio - 水平比率・垂直比率を戻すか
      * @returns {void}
      */
-    function resetTextFrameTransforms(textFrame, doRotate, doShear, doScaleRatio) {
+    function resetTextFrameTracking(textFrame) {
+        if (!textFrame.textRange) return;
+        textFrame.textRange.characterAttributes.tracking = 0;
+    }
+
+    /**
+     * テキストの回転・シアー・比率・トラッキングをまとめてリセットする。
+     * @param {object} textFrame - 対象のテキストフレーム
+     * @param {object} resetOptions - ダイアログで選択したオプション
+     * @returns {void}
+     */
+    function resetTextFrameTransforms(textFrame, resetOptions) {
         withBoundsResetAndRecenter(textFrame, function () {
             /* 1) まず回転を0°へ（ポイント文字・エリア内文字の双方に有効）/ rotation first */
-            if (doRotate) cancelRotationToZero(textFrame);
+            if (resetOptions.textRotate) cancelRotationToZero(textFrame);
             /* 2) シアー除去 / shear removal */
-            if (doShear) removeShearWithRetry(textFrame);
-            /* 3) 比率は最後 / ratio last */
-            if (doScaleRatio) resetTextFrameScaleRatio(textFrame);
+            if (resetOptions.textShear) removeShearWithRetry(textFrame);
+            /* 3) 比率 / ratio */
+            if (resetOptions.textScaleRatio) resetTextFrameScaleRatio(textFrame);
+            /* 4) トラッキングは幅が変わるため最後 / tracking last, it changes the width */
+            if (resetOptions.textTracking) resetTextFrameTracking(textFrame);
         });
     }
 
@@ -1343,8 +1442,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
          * @returns {boolean} 処理したら true
          */
         function handleTextFrame(textFrame) {
-            if (!resetOptions.textRotate && !resetOptions.textShear && !resetOptions.textScaleRatio) return false;
-            resetTextFrameTransforms(textFrame, resetOptions.textRotate, resetOptions.textShear, resetOptions.textScaleRatio);
+            if (!resetOptions.textRotate && !resetOptions.textShear &&
+                !resetOptions.textScaleRatio && !resetOptions.textTracking) return false;
+            resetTextFrameTransforms(textFrame, resetOptions);
             return true;
         }
 
@@ -1440,17 +1540,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         var originalSelection = [];
         for (var i = 0; i < currentSelection.length; i++) originalSelection.push(currentSelection[i]);
 
-        var resetOptions = showResetOptionsDialog(originalSelection);
+        /* グループ・複合パスの中身までたどって対象を集める / dig into groups and compound paths */
+        var resetTargets = collectResetTargets(originalSelection, []);
+
+        var resetOptions = showResetOptionsDialog(resetTargets);
         if (!resetOptions) return;
 
         var itemHandlers = makeItemHandlers(resetOptions);
         var processedCount = 0;
 
-        for (var j = 0; j < originalSelection.length; j++) {
-            var selectedItem = originalSelection[j];
-            if (!selectedItem || !selectedItem.typename) continue;
-            var itemHandler = itemHandlers[selectedItem.typename];
-            if (itemHandler && itemHandler(selectedItem)) processedCount++;
+        for (var j = 0; j < resetTargets.length; j++) {
+            var targetItem = resetTargets[j];
+            var itemHandler = itemHandlers[targetItem.typename];
+            if (itemHandler && itemHandler(targetItem)) processedCount++;
         }
 
         /* 元の選択に戻す / restore the original selection */
