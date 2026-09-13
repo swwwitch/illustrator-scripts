@@ -11,7 +11,7 @@
 ### Overview
 
 - A script for Illustrator that divides an artboard, or the bounding box of the selection, into the specified rows and columns and generates grid guides.
-- It can also draw the artboard edges, draw the cells as rectangles (with round corners and center points), and import/export presets.
+- It can also draw the artboard edges, draw the cells as rectangles (with round corners and center points), and export the current settings as a preset.
 
 <img alt="" src="https://www.dtp-transit.jp/images/ss-738-1182-72-20250713-082813.png" width="80%" />
 
@@ -25,7 +25,7 @@
 - Add a vertical guide at the horizontal center of every cell ("Split Each Cell Horizontally")
 - Draw the cells as rectangles (own layer, opacity, round corners, center points)
 - Clear existing guides (applied as soon as the box is checked)
-- Load presets and export the current settings as a preset
+- Apply a built-in preset and export the current settings as a preset
 - Live preview that follows every change
 - Toggle between Outline and Preview view
 - Automatic Japanese / English UI switching
@@ -80,3 +80,4 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 - v1.0.1 (20250427): Added guides, bleed guides, and preset export feature
 - v1.7.1 (20260827): Added "Artboard Edges"; clearing existing guides now applies as soon as it is checked and is scoped to the target; fixed duplicate guides, empty-field errors, and modal preview alerts; fixed preset unit conversion; reorganized the UI layout and naming
 - v1.7.2 (20260827): Artboard edges are no longer drawn on a zero-margin side; a blank row/column count is treated as 1; existing guides are kept when nothing can be drawn; "Clear Existing Guides" is disabled while "Draw Guides" is off; fixed the enabled state of the fields after loading a preset; widened the numeric fields so converted units fit; fixed the notification and rollback when a preview step fails
+- v1.7.3 (20260913): Guides are now created directly on their destination layer, so a locked active layer no longer breaks them; fixed a surplus undo rolling back the user's own work when the preview drew nothing; artboard edges are now drawn even when the grid cannot be; fixed the right alignment of the row/column labels; a dimmed "Extension" no longer applies while "Draw Guides" is off; fixed the cleanup of the "Show Center" action; made the cell fill color and the single-artboard path cheaper

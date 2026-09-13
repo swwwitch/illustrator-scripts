@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 アートボードまたは選択オブジェクトの外接矩形を、指定した行数・列数に分割してグリッド用のガイドを生成します。
-アートボードのエッジ、セルの長方形化（角丸・中心点の表示）、プリセットの読み込み／書き出しにも対応します。
+アートボードのエッジ、セルの長方形化（角丸・中心点の表示）、現在の設定のプリセット書き出しにも対応します。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Divides the artboard, or the bounding box of the selection, into the specified rows and columns and generates grid guides.
-It can also draw the artboard edges, draw the cells as rectangles (with round corners and center points), and import/export presets.
+It can also draw the artboard edges, draw the cells as rectangles (with round corners and center points), and export the current settings as a preset.
 
 See the README for details.
 
@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-13";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenerateGuidesGrid.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGuidesGrid.md"; /* README (English) */
@@ -476,25 +476,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
     }
 
     // プレビュー手順を1つ実行してカウント / Run an action as a preview step and count it
-    // func が false を返した手順はドキュメントを変更していないので数えない（余分な undo でユーザーの作業を巻き戻さない）
-    // A step returning false changed nothing, so it is not counted (a surplus undo would roll back the user's own work)
+    // step は何も変更しなければ false を返し、変更するなら最初の変更の直前に markChanged() を呼ぶ。
+    // 例外で抜けた手順は markChanged() 済みのときだけ数える（未変更の手順を数えると、余分な undo でユーザー自身の作業が巻き戻る）
+    // A step returns false when it changes nothing, or calls markChanged() just before its first change.
+    // A step that threw is counted only if it had marked: counting an unchanged step would roll back the user's own work
     PreviewManager.prototype.addStep = function (step) {
+        var changed = false;
+        function markChanged() {
+            changed = true;
+        }
         try {
-            if (step() !== false) {
-                this.undoDepth++;
-            }
+            changed = (step(markChanged) !== false);
         } catch (e) {
-            // 途中で失敗した手順もドキュメントを変更している可能性があるため数える
-            // （数えないと rollback もキャンセルも巻き戻せない）
-            // A step that threw may already have changed the document, so count it:
-            // otherwise rollback and Cancel cannot undo it
-            this.undoDepth++;
+            // changed には markChanged() が呼ばれたかどうかが残る / changed still holds whether markChanged() was called
             $.writeln("[GenerateGuidesGrid] preview step error: " + e);
             if (!this.errorReported) {
                 this.errorReported = true;
                 alert("プレビューの処理に失敗しました。\nPreview step failed.\n" + e);
             }
         }
+        if (changed) this.undoDepth++;
         app.redraw();
     };
 
@@ -607,34 +608,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
      * 指定名のレイヤーを取得する。なければ作成する
      * @param {Document} doc - 対象ドキュメント
      * @param {string} layerName - レイヤー名
+     * @param {object} [outInfo] - 新規作成したときに created = true が入るオブジェクト
      * @returns {Layer} 取得または作成したレイヤー
      */
-    function getOrCreateLayer(doc, layerName) {
+    function getOrCreateLayer(doc, layerName, outInfo) {
         var layer;
         try {
             layer = doc.layers.getByName(layerName);
         } catch (e) {
             layer = doc.layers.add();
             layer.name = layerName;
+            if (outInfo) outInfo.created = true;
         }
         return layer;
     }
 
     /**
      * ガイド線を1本追加する（塗り・線なしのパスをガイド化してレイヤー先頭へ）
-     * @param {Document} doc - 対象ドキュメント
+     * アクティブレイヤーがロック・非表示・テンプレートでも失敗しないよう、追加先レイヤーに直接作る
      * @param {Layer} layer - 追加先レイヤー
      * @param {Array} startPoint - 始点 [x, y]
      * @param {Array} endPoint - 終点 [x, y]
      * @returns {PathItem} 追加したガイド
      */
-    function addGuideLine(doc, layer, startPoint, endPoint) {
-        var guideLine = doc.pathItems.add();
+    function addGuideLine(layer, startPoint, endPoint) {
+        var guideLine = layer.pathItems.add();
         guideLine.setEntirePath([startPoint, endPoint]);
         guideLine.stroked = false;
         guideLine.filled = false;
         guideLine.guides = true;
-        guideLine.move(layer, ElementPlacement.PLACEATBEGINNING);
         return guideLine;
     }
 
@@ -678,13 +680,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         return !(isNaN(drawContext.columnCount) || drawContext.columnCount <= 0 || isNaN(drawContext.rowCount) || drawContext.rowCount <= 0);
     }
 
-    // グリッド（ガイド＋セル長方形）を描画し、作成したセル長方形の配列を返す / Draw the grid; return created cell rects
+    // グリッド（ガイド＋セル長方形）を描画し、{ cells: 作成したセル長方形, changed: ドキュメントを変更したか } を返す
+    // Draw the grid; return { cells: created cell rects, changed: whether the document was changed }
     function drawGrid(drawContext) {
         var doc = drawContext.doc;
         var isPreview = drawContext.isPreview;
         var columnCount = drawContext.columnCount;
         var rowCount = drawContext.rowCount;
-        if (!canDrawGrid(drawContext)) return [];
+        if (!canDrawGrid(drawContext)) return { cells: [], changed: false };
 
         var guideExtension = drawContext.guideExtension;
         var marginTop = drawContext.marginTop, marginBottom = drawContext.marginBottom, marginLeft = drawContext.marginLeft, marginRight = drawContext.marginRight;
@@ -700,24 +703,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         // Preview draws everything on one layer; on commit, create the guide layer only when guides are drawn
         var gridLayerName = isPreview ? PREVIEW_LAYER_NAME : GUIDE_LAYER_NAME;
         var needGridLayer = isPreview ? (drawGridGuides || splitCells || drawCells || drawArtboardEdge) : (drawGridGuides || splitCells || drawArtboardEdge);
-        var gridLayer = needGridLayer ? getOrCreateLayer(doc, gridLayerName) : null;
+        // ドキュメントを変更する直前に呼び出し元へ知らせる（プレビューの undo 回数を正しく数えるため）
+        // Tell the caller just before the document is changed, so the preview counts undo steps correctly
+        var reportChange = drawContext.onChange || function () {};
+
+        var layerInfo = {};
+        var gridLayer = needGridLayer ? getOrCreateLayer(doc, gridLayerName, layerInfo) : null;
         safeUnlockLayer(gridLayer);
 
         var cellLayer = gridLayer; // プレビューはセルも gridLayer に描く / preview: cells live on gridLayer
         if (!isPreview && drawCells) {
-            cellLayer = getOrCreateLayer(doc, CELL_LAYER_NAME);
+            cellLayer = getOrCreateLayer(doc, CELL_LAYER_NAME, layerInfo);
             safeUnlockLayer(cellLayer);
+        }
+        if (layerInfo.created) reportChange();
+
+        var guideCount = 0;
+        // ガイドを1本引いて本数を数える / Draw one guide and count it
+        function drawGuide(startPoint, endPoint) {
+            reportChange();
+            addGuideLine(gridLayer, startPoint, endPoint);
+            guideCount++;
         }
 
         var targetRects = [];
         if (drawContext.selBounds) {
             targetRects.push(drawContext.selBounds);
-        } else {
+        } else if (drawContext.allBoards) {
             for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
-                if (!drawContext.allBoards && artboardIndex !== doc.artboards.getActiveArtboardIndex()) continue;
                 targetRects.push(doc.artboards[artboardIndex].artboardRect);
             }
+        } else {
+            targetRects.push(doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect);
         }
+
+        // セルの塗り色はセルごとに作り直さず1回だけ用意 / Build the cell fill color once, not per cell
+        var cellFillColor = drawCells ? createBlackColor(doc) : null;
 
         for (var targetIndex = 0; targetIndex < targetRects.length; targetIndex++) {
             var targetRect = targetRects[targetIndex];
@@ -735,67 +756,64 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             var extendedTop = targetTop + guideExtension;
             var extendedBottom = targetBottom - guideExtension;
 
-            // アートボードの上下左右4辺（マージンに関係なく引く）/ The artboard's four edges (independent of the margins)
-            if (drawArtboardEdge && gridLayer) {
-                // マージン0の辺はグリッド側の外周ガイドと同じ位置になるので引かない
-                // A zero-margin edge coincides with the grid's outer guide, so skip it
-                if (!drawGridGuides || marginTop > 0) {
-                    addGuideLine(doc, gridLayer, [extendedLeft, targetTop], [extendedRight, targetTop]);
-                }
-                if (!drawGridGuides || marginBottom > 0) {
-                    addGuideLine(doc, gridLayer, [extendedLeft, targetBottom], [extendedRight, targetBottom]);
-                }
-                if (!drawGridGuides || marginLeft > 0) {
-                    addGuideLine(doc, gridLayer, [targetLeft, extendedTop], [targetLeft, extendedBottom]);
-                }
-                if (!drawGridGuides || marginRight > 0) {
-                    addGuideLine(doc, gridLayer, [targetRight, extendedTop], [targetRight, extendedBottom]);
-                }
-            }
-
             var usableWidth = contentRight - contentLeft;
             var usableHeight = contentTop - contentBottom;
             var totalColumnGutter = (columnCount - 1) * columnGutter;
             var totalRowGutter = (rowCount - 1) * rowGutter;
-            // マージン・ガターが過大でセル幅/高さが0以下になる場合はこの対象をスキップ
-            // Skip this target if margins/gutters are too large (cell width/height would be <= 0)
-            if (usableWidth - totalColumnGutter <= 0 || usableHeight - totalRowGutter <= 0) continue;
+            // マージン・ガターが過大だとセル幅/高さが0以下になるので、この対象にはグリッドを描かない
+            // Margins/gutters too large would make cell width/height <= 0, so this target gets no grid
+            var canFitCells = (usableWidth - totalColumnGutter > 0 && usableHeight - totalRowGutter > 0);
+
+            // アートボードの上下左右4辺（マージンに関係なく引く）/ The artboard's four edges (independent of the margins)
+            if (drawArtboardEdge && gridLayer) {
+                // マージン0の辺はグリッド側の外周ガイドと同じ位置になるので引かない。
+                // ただしグリッドを描かない対象では重ならないので引く
+                // A zero-margin edge coincides with the grid's outer guide, so skip it —
+                // but nothing coincides when the grid is skipped, so draw it then
+                var gridCoversEdges = drawGridGuides && canFitCells;
+                if (!gridCoversEdges || marginTop > 0) {
+                    drawGuide([extendedLeft, targetTop], [extendedRight, targetTop]);
+                }
+                if (!gridCoversEdges || marginBottom > 0) {
+                    drawGuide([extendedLeft, targetBottom], [extendedRight, targetBottom]);
+                }
+                if (!gridCoversEdges || marginLeft > 0) {
+                    drawGuide([targetLeft, extendedTop], [targetLeft, extendedBottom]);
+                }
+                if (!gridCoversEdges || marginRight > 0) {
+                    drawGuide([targetRight, extendedTop], [targetRight, extendedBottom]);
+                }
+            }
+
+            if (!canFitCells) continue;
             var cellWidth = (usableWidth - totalColumnGutter) / columnCount;
             var cellHeight = (usableHeight - totalRowGutter) / rowCount;
 
             if (drawGridGuides) {
-                if (columnCount === 1 && rowCount === 1) {
-                    // 四辺（マージン適用後の有効領域）をガイド化 / Four edges of the usable area
-                    addGuideLine(doc, gridLayer, [extendedLeft, contentTop], [extendedRight, contentTop]);
-                    addGuideLine(doc, gridLayer, [extendedLeft, contentBottom], [extendedRight, contentBottom]);
-                    addGuideLine(doc, gridLayer, [contentLeft, extendedTop], [contentLeft, extendedBottom]);
-                    addGuideLine(doc, gridLayer, [contentRight, extendedTop], [contentRight, extendedBottom]);
-                } else {
-                    // 通常ガイド描画（行・列）/ Normal grid guides (rows and columns)
-                    // 最終行は contentBottom にちょうど着地するので、末尾に足すと重なる
-                    // The last row lands exactly on contentBottom, so a trailing guide would overlap
-                    var lineY = contentTop;
-                    addGuideLine(doc, gridLayer, [extendedLeft, lineY], [extendedRight, lineY]);
-                    for (var j = 0; j < rowCount; j++) {
-                        lineY -= cellHeight;
-                        addGuideLine(doc, gridLayer, [extendedLeft, lineY], [extendedRight, lineY]);
-                        // ガター0のときは同じ位置に重なるので引かない / Gutter 0 would draw on the same line
-                        if (j < rowCount - 1 && rowGutter > 0) {
-                            lineY -= rowGutter;
-                            addGuideLine(doc, gridLayer, [extendedLeft, lineY], [extendedRight, lineY]);
-                        }
+                // ガイド描画（行・列）/ Grid guides (rows and columns)
+                // 最終行は contentBottom にちょうど着地するので、末尾に足すと重なる
+                // The last row lands exactly on contentBottom, so a trailing guide would overlap
+                var lineY = contentTop;
+                drawGuide([extendedLeft, lineY], [extendedRight, lineY]);
+                for (var j = 0; j < rowCount; j++) {
+                    lineY -= cellHeight;
+                    drawGuide([extendedLeft, lineY], [extendedRight, lineY]);
+                    // ガター0のときは同じ位置に重なるので引かない / Gutter 0 would draw on the same line
+                    if (j < rowCount - 1 && rowGutter > 0) {
+                        lineY -= rowGutter;
+                        drawGuide([extendedLeft, lineY], [extendedRight, lineY]);
                     }
+                }
 
-                    var lineX = contentLeft;
-                    addGuideLine(doc, gridLayer, [lineX, extendedTop], [lineX, extendedBottom]);
-                    for (var k = 0; k < columnCount; k++) {
-                        lineX += cellWidth;
-                        addGuideLine(doc, gridLayer, [lineX, extendedTop], [lineX, extendedBottom]);
-                        // ガター0のときは同じ位置に重なるので足さない / Gutter 0 would draw on the same line
-                        if (k < columnCount - 1 && columnGutter > 0) {
-                            lineX += columnGutter;
-                            addGuideLine(doc, gridLayer, [lineX, extendedTop], [lineX, extendedBottom]);
-                        }
+                var lineX = contentLeft;
+                drawGuide([lineX, extendedTop], [lineX, extendedBottom]);
+                for (var k = 0; k < columnCount; k++) {
+                    lineX += cellWidth;
+                    drawGuide([lineX, extendedTop], [lineX, extendedBottom]);
+                    // ガター0のときは同じ位置に重なるので足さない / Gutter 0 would draw on the same line
+                    if (k < columnCount - 1 && columnGutter > 0) {
+                        lineX += columnGutter;
+                        drawGuide([lineX, extendedTop], [lineX, extendedBottom]);
                     }
                 }
             }
@@ -807,10 +825,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
                     var cellY = cellOriginY - (cellHeight + rowGutter) * row;
                     for (var column = 0; column < columnCount; column++) {
                         var cellX = cellOriginX + (cellWidth + columnGutter) * column;
+                        reportChange();
                         var cellRect = cellLayer.pathItems.rectangle(cellY, cellX, cellWidth, cellHeight);
                         cellRect.stroked = false;
                         cellRect.filled = true;
-                        cellRect.fillColor = createBlackColor(doc);
+                        cellRect.fillColor = cellFillColor;
                         cellRect.opacity = cellOpacity;
                         if (cornerRadius > 0) cellRect.applyEffect(roundCornersEffectXML(cornerRadius));
                         createdCells.push(cellRect);
@@ -827,7 +846,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
                     var splitCellBottom = splitCellTop - cellHeight;
                     for (var splitColumn = 0; splitColumn < columnCount; splitColumn++) {
                         var splitCenterX = splitOriginX + (cellWidth + columnGutter) * splitColumn + cellWidth / 2;
-                        addGuideLine(doc, gridLayer, [splitCenterX, splitCellTop], [splitCenterX, splitCellBottom]);
+                        drawGuide([splitCenterX, splitCellTop], [splitCenterX, splitCellBottom]);
                     }
                 }
             }
@@ -839,7 +858,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         if (isPreview) {
             app.redraw();
         }
-        return createdCells;
+        return {
+            cells: createdCells,
+            changed: !!(layerInfo.created || guideCount > 0 || createdCells.length > 0)
+        };
     }
 
     // =========================================
@@ -1045,18 +1067,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var rowCountGroup = rowSettingPanel.add("group");
         setupGroup(rowCountGroup, "row");
         var rowCountLabel = rowCountGroup.add("statictext", undefined, labelText("field.rowCount"));
-        rowCountLabel.justification = "right";
-        rowCountLabel.minimumSize.width = gridLabelWidth;
-        rowCountLabel.maximumSize.width = gridLabelWidth;
+        rowCountLabel.preferredSize.width = gridLabelWidth;
+        rowCountLabel.justify = "right";
         var rowCountInput = rowCountGroup.add("edittext", undefined, "2");
         rowCountInput.characters = 3;
 
         var rowGutterGroup = rowSettingPanel.add("group");
         setupGroup(rowGutterGroup, "row");
         var rowGutterLabel = rowGutterGroup.add("statictext", undefined, labelText("field.rowGutter"));
-        rowGutterLabel.justification = "right";
-        rowGutterLabel.minimumSize.width = gridLabelWidth;
-        rowGutterLabel.maximumSize.width = gridLabelWidth;
+        rowGutterLabel.preferredSize.width = gridLabelWidth;
+        rowGutterLabel.justify = "right";
         var rowGutterInput = rowGutterGroup.add("edittext", undefined, "0");
         /* 単位換算後は小数2桁になるため桁数を確保 / Room for the 2 decimals unit conversion produces */
         rowGutterInput.characters = 5;
@@ -1069,18 +1089,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         var columnCountGroup = columnSettingPanel.add("group");
         setupGroup(columnCountGroup, "row");
         var columnCountLabel = columnCountGroup.add("statictext", undefined, labelText("field.columnCount"));
-        columnCountLabel.justification = "right";
-        columnCountLabel.minimumSize.width = gridLabelWidth;
-        columnCountLabel.maximumSize.width = gridLabelWidth;
+        columnCountLabel.preferredSize.width = gridLabelWidth;
+        columnCountLabel.justify = "right";
         var columnCountInput = columnCountGroup.add("edittext", undefined, "2");
         columnCountInput.characters = 3;
 
         var columnGutterGroup = columnSettingPanel.add("group");
         setupGroup(columnGutterGroup, "row");
         var columnGutterLabel = columnGutterGroup.add("statictext", undefined, labelText("field.columnGutter"));
-        columnGutterLabel.justification = "right";
-        columnGutterLabel.minimumSize.width = gridLabelWidth;
-        columnGutterLabel.maximumSize.width = gridLabelWidth;
+        columnGutterLabel.preferredSize.width = gridLabelWidth;
+        columnGutterLabel.justify = "right";
         var columnGutterInput = columnGutterGroup.add("edittext", undefined, "0");
         columnGutterInput.characters = 5;
         columnGutterGroup.add("statictext", undefined, unitLabel);
@@ -1090,19 +1108,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         linkGutterCheckbox.helpTip = getLabel("tooltip.linkGutter");
         linkGutterCheckbox.value = true;
 
-        // 連動ON時は列間を行間と同じ値にする / When linked, sync col gutter to row gutter
-        function syncGutterLink() {
-            if (linkGutterCheckbox.value) {
-                columnGutterInput.text = rowGutterInput.text;
-                columnGutterGroup.enabled = false;
-            } else {
-                var columnCount = parseInt(columnCountInput.text, 10);
-                columnGutterGroup.enabled = (columnCount > 1);
-            }
-        }
-
+        // 連動の切り替えはガター全体の有効/無効と同じ判定なので updateGutterEnabled に任せる
+        // Toggling the link runs the same rules as the gutter enable state, so reuse updateGutterEnabled
         linkGutterCheckbox.onClick = function () {
-            syncGutterLink();
+            updateGutterEnabled();
             safeUpdatePreview();
         };
 
@@ -1310,24 +1319,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             // 「既存ガイドを削除」ONなら、この時点で削除して見た目に反映する
             // キャンセル時は rollback の app.undo() で元に戻る / Cancel restores them via rollback
             if (shouldClearGuides()) {
-                previewManager.addStep(function () {
-                    return clearExistingGuides(); // 何も消さなければ false / false when nothing was removed
+                previewManager.addStep(function (markChanged) {
+                    return clearExistingGuides(markChanged); // 何も消さなければ false / false when nothing was removed
                 });
             }
 
             // Draw preview as one undoable step
-            previewManager.addStep(function () {
+            previewManager.addStep(function (markChanged) {
                 var drawContext = buildDrawContext(true);
                 if (!canDrawGrid(drawContext)) return false; // 何も描かない＝undo対象なし / nothing drawn, nothing to undo
-                drawGrid(drawContext); // プレビュー描画 / draw as preview
-                return true;
+                drawContext.onChange = markChanged; // 描き始めたことを伝える / report the moment drawing starts
+                return drawGrid(drawContext).changed; // 何も作られなければ false / false when nothing was created
             });
 
             // 選択オブジェクトの表示/非表示をプレビュー / Preview hide/show of selected objects
             if (isSelectionMode() && cachedSelectionItems.length > 0) {
                 var shouldHide = (removeOriginalRadio && removeOriginalRadio.value);
                 if (shouldHide) {
-                    previewManager.addStep(function () {
+                    previewManager.addStep(function (markChanged) {
+                        markChanged();
                         for (var i = 0; i < cachedSelectionItems.length; i++) {
                             cachedSelectionItems[i].hidden = true;
                         }
@@ -1358,8 +1368,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         changeValueByArrowKey(columnGutterInput);
 
         // 入力中の変更もリアルタイム反映 / Attach onChanging for live preview
-        attachLivePreview(columnCountInput);
-        attachLivePreview(rowCountInput);
+        // 行数・列数はガターの有効/無効も更新するため、別途 onChanging を割り当てる / Row/column counts also refresh the gutter enable state, so they get their own onChanging
         attachLivePreview(extensionInput);
         // 上マージン変更時に連動ONなら左右下も同期 / Sync margins when top changes (if linked)
         marginTopInput.onChanging = function () {
@@ -1436,29 +1445,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
         presetDropdown.selection = 0;
 
         // プリセットの値を入力欄に反映する共通関数 / Common function to apply preset values
-        // 旧キー（x/y/top/bottom/left/right）も後方互換で受け付ける / Accept legacy keys for backward compatibility
         function applyPreset(preset) {
-            /* 値を取得（新キー→旧キー→既定値の順）/ Pick a value: new key → legacy key → default */
-            function pickPresetValue(preferred, legacy, fallbackValue) {
-                if (preferred !== undefined) return preferred;
-                if (legacy !== undefined) return legacy;
-                return fallbackValue;
+            /* 値を取得（未指定なら既定値）/ Pick a value: the preset's, or the default */
+            function pickPresetValue(value, fallbackValue) {
+                return (value !== undefined) ? value : fallbackValue;
             }
             // 行数・列数（換算なし）/ Counts (no unit conversion)
-            columnCountInput.text = pickPresetValue(preset.columns, preset.x, 1);
-            rowCountInput.text = pickPresetValue(preset.rows, preset.y, 1);
+            columnCountInput.text = pickPresetValue(preset.columns, 1);
+            rowCountInput.text = pickPresetValue(preset.rows, 1);
             // 長さ系は pt 基準なので現在単位へ換算 / Length values are stored in pt — convert to the current unit
-            extensionInput.text = ptToUnit(pickPresetValue(preset.guideExtension, undefined, 0));
-            var presetMarginTop = pickPresetValue(preset.marginTop, preset.top, 0);
-            var presetMarginBottom = pickPresetValue(preset.marginBottom, preset.bottom, 0);
-            var presetMarginLeft = pickPresetValue(preset.marginLeft, preset.left, 0);
-            var presetMarginRight = pickPresetValue(preset.marginRight, preset.right, 0);
+            extensionInput.text = ptToUnit(pickPresetValue(preset.guideExtension, 0));
+            var presetMarginTop = pickPresetValue(preset.marginTop, 0);
+            var presetMarginBottom = pickPresetValue(preset.marginBottom, 0);
+            var presetMarginLeft = pickPresetValue(preset.marginLeft, 0);
+            var presetMarginRight = pickPresetValue(preset.marginRight, 0);
             marginTopInput.text = ptToUnit(presetMarginTop);
             marginBottomInput.text = ptToUnit(presetMarginBottom);
             marginLeftInput.text = ptToUnit(presetMarginLeft);
             marginRightInput.text = ptToUnit(presetMarginRight);
-            rowGutterInput.text = ptToUnit(pickPresetValue(preset.rowGutter, undefined, 0));
-            columnGutterInput.text = ptToUnit(pickPresetValue(preset.columnGutter, preset.colGutter, 0));
+            rowGutterInput.text = ptToUnit(pickPresetValue(preset.rowGutter, 0));
+            columnGutterInput.text = ptToUnit(pickPresetValue(preset.columnGutter, 0));
             // 上下左右が異なるプリセットは連動をOFF（連動が値を上書きして壊すのを防ぐ）
             // If margins differ, turn the link off so it won't overwrite the distinct values
             linkMarginCheckbox.value = (presetMarginTop === presetMarginBottom && presetMarginTop === presetMarginLeft && presetMarginTop === presetMarginRight);
@@ -1576,7 +1582,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
                    Treat blank/invalid as 1 like the exporter (0 would clear without drawing) */
                 columnCount: toInteger(columnCountInput.text, 1),
                 rowCount: toInteger(rowCountInput.text, 1),
-                guideExtension: (extensionCheckbox.value ? toNumber(extensionInput.text, 0) : 0) * unitFactor,
+                /* ディム中（「ガイドを引く」OFF）の伸張は効かせない / A dimmed extension (draw-guides off) must not affect the output */
+                guideExtension: ((extensionGroup.enabled && extensionCheckbox.value) ? toNumber(extensionInput.text, 0) : 0) * unitFactor,
                 rowGutter: toNumber(rowGutterInput.text, 0) * unitFactor,
                 columnGutter: toNumber(columnGutterInput.text, 0) * unitFactor,
                 drawGridGuides: drawGuidesCheckbox.value,
@@ -1631,13 +1638,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
             actionFile.write(actionSource);
             actionFile.close();
 
-            app.loadAction(actionFile);
-            actionFile.remove();
-            // doScript が落ちても必ず unload する / Always unload, even if doScript throws
+            // 同名セットが残っていると二重登録になるので先に破棄 / A leftover set of the same name would be registered twice, so discard it first
+            safeExecute(function () { app.unloadAction("Attribute", ""); }); // set name
+            // 途中で落ちてもセットと一時ファイルを残さない / Never leave the set or the temp file behind
             try {
+                app.loadAction(actionFile);
                 app.doScript("ShowCenter", "Attribute", false); // action name, set name
             } finally {
-                app.unloadAction("Attribute", ""); // set name
+                safeExecute(function () { app.unloadAction("Attribute", ""); }); // set name
+                safeExecute(function () { actionFile.remove(); });
             }
         }
 
@@ -1645,9 +1654,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
          * grid_guidesレイヤーのガイドを削除する。
          * 対象が「すべてのアートボード」なら全部、それ以外はアクティブなアートボード上のガイドのみ。
          * Remove guides from the grid_guides layer: all of them for "all artboards", otherwise only those on the active artboard.
+         * @param {function} [markChanged] - 最初にドキュメントを変更する直前に呼ぶコールバック
          * @returns {boolean} 1つ以上削除したら true
          */
-        function clearExistingGuides() {
+        function clearExistingGuides(markChanged) {
             var guidesLayer = null;
             for (var i = 0; i < doc.layers.length; i++) {
                 if (doc.layers[i].name === GUIDE_LAYER_NAME) {
@@ -1662,12 +1672,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
                 ? null
                 : doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
 
-            safeUnlockLayer(guidesLayer);
             var removedCount = 0;
             for (var j = guidesLayer.pageItems.length - 1; j >= 0; j--) {
                 var item = guidesLayer.pageItems[j];
                 if (!item.guides) continue;
                 if (limitRect && !isCenterInsideRect(item, limitRect)) continue;
+                // 削除対象が見つかってからロックを解除する（何も消さないのに解除したままにしない）
+                // Unlock only once there is something to remove (never leave it unlocked for nothing)
+                if (removedCount === 0) {
+                    if (markChanged) markChanged();
+                    safeUnlockLayer(guidesLayer);
+                }
                 item.remove();
                 removedCount++;
             }
@@ -1705,7 +1720,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7adc7290b607"; /* 紹�
                 if (shouldClearGuides() && canDrawGrid(finalContext)) {
                     clearExistingGuides();
                 }
-                drawnCellItems = drawGrid(finalContext);
+                drawnCellItems = drawGrid(finalContext).cells;
                 // 選択オブジェクトの処理 / Handle original selected objects
                 if (cachedSelectionItems.length > 0 && isSelectionMode()) {
                     if (removeOriginalRadio && removeOriginalRadio.value) {
