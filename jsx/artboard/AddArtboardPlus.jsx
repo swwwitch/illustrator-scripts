@@ -23,11 +23,11 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddArtboardPlus";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Takeshi Umeda (noellabo)";     /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-04-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-14";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddArtboardPlus.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddArtboardPlus.md"; /* README (English) */
@@ -153,10 +153,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
             : Math.abs(rect[3] - rect[1]);  // 高さ / height
     }
 
+    // 座標が同じとみなす許容値（pt）。吸着させた辺でも 1e-12 程度ずれるため生比較しない
+    // Tolerance (pt) for treating coordinates as equal; snapped edges still differ by ~1e-12
+    var COORD_TOLERANCE = 0.001;
+    function isSameCoord(a, b) {
+        return Math.abs(a - b) <= COORD_TOLERANCE;
+    }
+
     // 隣り合う2枚から主軸を判定（左端が同じ＝縦並び→1 / 違う＝横並び→0）
     // Determine the primary axis from two neighbors (same left edge ⇒ vertical → 1, otherwise horizontal → 0)
     function getPrimaryAxisIndex(rectA, rectB) {
-        return +(rectA[0] == rectB[0]);
+        return isSameCoord(rectA[0], rectB[0]) ? 1 : 0;
     }
 
     // 既存アートボードの並びから現在の間隔（pt）を推定
@@ -214,6 +221,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     /* Arrow keys adjust the value (Shift = ±10 snapped to multiples of 10, Option = ±0.1, otherwise ±1); clamps at 0 */
     function changeValueByArrowKey(editText) {
         editText.addEventListener('keydown', function (event) {
+            // ↑↓以外のキーは素通し（入力中の値を丸め直さない）/ Ignore keys other than Up/Down so typing isn't rounded
+            if (event.keyName != 'Up' && event.keyName != 'Down') return;
             var value = Number(editText.text);
             if (isNaN(value)) return;
 
@@ -367,15 +376,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         var isDuplicateMode = duplicateArtboardRadio.value;
         var insertAfterCurrent = insertAfterCurrentRadio.value;
 
-        // 入力値を pt に戻す。空欄・不正値は初期表示値にフォールバック
-        // Convert the input back to pt; fall back to the initial value for blank/invalid input
+        // 手動で初期値から変更されたかどうか（空欄・不正値は未変更扱い）。変更時のみ入力値を pt に戻して使い、
+        // 未変更なら丸めた表示値を経由せず推定値（pt）をそのまま使う。負値は 0 にする
+        // Whether the value was manually changed (blank/invalid counts as unchanged). Only a changed value
+        // is converted back to pt; otherwise use the estimated pt value, not the rounded display. Negatives become 0
         var spacingInputValue = parseFloat(spacingInputField.text);
-        if (isNaN(spacingInputValue)) spacingInputValue = initialSpacingInUnit;
-        var spacing = spacingInputValue * rulerUnit.factor;
-
-        // 手動で初期値から変更されたかどうか。変更時のみ入力値を優先
-        // Whether the value was manually changed from the initial; the input wins only when changed
-        var useManualSpacing = (spacingInputField.text !== initialSpacingText);
+        var useManualSpacing = !isNaN(spacingInputValue) && (spacingInputField.text !== initialSpacingText);
+        var spacing = useManualSpacing ? Math.max(0, spacingInputValue * rulerUnit.factor) : autoSpacingPt;
 
         // 追加数（1以上の整数）。複製モードでは常に1枚 / Number to add (integer ≥ 1); duplicate mode always adds 1
         var addCount = parseInt(addCountInput.text, 10);
@@ -490,7 +497,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
 
                 for (var i = 2; i < artboardCount; i++) {
                     var scannedArtboardRect = artboards[i].artboardRect;
-                    if (baseArtboardRect[layoutSecondaryAxisIndex] != scannedArtboardRect[layoutSecondaryAxisIndex]) {
+                    if (!isSameCoord(baseArtboardRect[layoutSecondaryAxisIndex], scannedArtboardRect[layoutSecondaryAxisIndex])) {
                         gridStep[layoutSecondaryAxisIndex] = scannedArtboardRect[layoutSecondaryAxisIndex] - baseArtboardRect[layoutSecondaryAxisIndex];
                         columns = i;
                         break;
@@ -536,15 +543,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
 
         // 間隔の適用範囲ごとの移動量 / Movement amounts depending on the spacing scope
         //  - すべて：手動間隔のとき先頭も含めて新グリッドへ再配置 / all: re-flow everything (head too)
-        //  - 追加分のみ：既存はそのまま、新規だけを (指定間隔 − 既存の隙間) ぶん主軸方向へずらす
-        //    added-only: keep existing as-is, nudge only the new artboards by (spacing − existing gap)
+        //  - 追加分のみ：既存の間隔はそのまま、新規を (指定間隔 − 既存の隙間) ぶん主軸方向へずらす。
+        //    後続は新規の前後どちらの隙間も指定間隔になるよう (追加数 + 1) 回分ずらす
+        //    added-only: keep existing gaps, nudge the new artboards by (spacing − existing gap);
+        //    the tail moves (addCount + 1) times that so the gaps on both sides of the new ones match
         var primaryDirectionSign = (gridStep[layoutPrimaryAxisIndex] < 0) ? -1 : 1;
         var primaryArtboardSize = getAxisSize(baseArtboardRect, layoutPrimaryAxisIndex);
         var existingPrimaryGap = Math.abs(gridStep[layoutPrimaryAxisIndex]) - primaryArtboardSize;
         if (existingPrimaryGap < 0) existingPrimaryGap = 0;
         var addedOnlySpacingDelta = (useManualSpacing && !applySpacingToAll) ? (spacing - existingPrimaryGap) : 0;
         var reflowFromHead = (useManualSpacing && applySpacingToAll && canInheritLayout);
-        var tailPrimaryOffset = primaryDirectionSign * addCount * addedOnlySpacingDelta;
+        var tailPrimaryOffset = primaryDirectionSign * (addCount + 1) * addedOnlySpacingDelta;
 
         // グリッド上のインデックスの位置を計算 / Calculate the position of a grid index
         function getArtboardGridPosition(gridIndex) {
@@ -710,8 +719,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
                 try {
                     var copiedItem = sourceItem.duplicate();
                     copiedItem.translate(offsetX, offsetY);
-                    copiedItem.locked = wasLocked;
+                    // ロックした後だと表示状態を変えられないことがあるので hidden を先に
+                    // Set hidden first; a locked item may reject visibility changes
                     copiedItem.hidden = wasHidden;
+                    copiedItem.locked = wasLocked;
                 } finally {
                     restoreLockedState(lockRestoreList);
                 }

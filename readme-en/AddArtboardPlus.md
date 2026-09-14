@@ -1,4 +1,4 @@
-# AddArtboardPlus
+# Add artboards that follow the existing layout
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AddArtboardPlus.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddArtboardPlus.jsx)
 
@@ -31,3 +31,4 @@ Analyzes how the existing artboards are arranged in rows and columns and inserts
 ### Update History
 
 - v1.1.1
+- v1.1.2 (20260914) : Fixed the layout direction or column count being misdetected from tiny coordinate differences, artboards being placed using the rounded display value when the spacing was left unchanged, and the gap after inserted artboards keeping the old spacing in "Added artboards only" mode, and values being rounded on keys other than Up/Down. Negative spacing is now treated as 0
