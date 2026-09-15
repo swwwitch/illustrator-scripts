@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択中のシンボルインスタンスと同じシンボルのインスタンスを、ドキュメント全体から探してまとめて選択し直します。
-グループ内にネストされたインスタンスも対象にし、複数のシンボルが混在した選択にも対応します。
+グループ内のインスタンスや複数シンボルの混在にも対応し、シンボルを含まない選択では同じアピアランスのオブジェクトを選択します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Finds every instance of the same symbols as the currently selected symbol instances and reselects them all.
-Instances nested inside groups are included, and selections that mix several symbols are handled too.
+Finds every instance of the same symbols as the selected symbol instances across the document and reselects them all.
+Instances inside groups and mixed symbols are handled; when no symbol instance is selected, objects with the same appearance are selected instead.
 
 See the README for details.
 
@@ -23,148 +23,148 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FindAllSymbolInstances";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-09";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-15";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FindAllSymbolInstances.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FindAllSymbolInstances.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FindAllSymbolInstances.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FindAllSymbolInstances.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n140952ad5011"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 現在の UI 言語 / Current UI language */
+    var uiLang = ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        alert: {
+            selectFailed: { ja: '同じシンボルのインスタンスを選択できませんでした。', en: 'Could not select instances of the same symbol.' }
+        }
+    };
+
+    /**
+     * ラベル（ja/en）を現在の UI 言語の文字列にする
+     * @param {object} labelSet - ja/en を持つラベル
+     * @returns {string} 現在の言語の文字列
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || '';
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
     if (app.documents.length === 0) return;
 
-    var doc = app.activeDocument;
-    if (doc.selection.length === 0) return;
+    var activeDoc = app.activeDocument;
+    if (activeDoc.selection.length === 0) return;
 
     /* 選択から SymbolItem を再帰抽出 / Collect SymbolItems from selection (recursive) */
-    var selectedSymbolItems = collectSymbolItemsFromSelection(doc.selection);
+    var selectedSymbolItems = collectSymbolItems(activeDoc.selection, []);
 
     /* シンボルが含まれない場合は Find Appearance を実行 / Fall back to Find Appearance when no SymbolItem is selected */
     if (selectedSymbolItems.length === 0) {
-        runFindAppearance();
+        app.executeMenuCommand('Find Appearance menu item');
         return;
     }
 
     /* シンボル定義ごとの代表インスタンスを抽出 / Pick one representative per symbol definition */
-    var representativeInstances = pickRepresentativePerSymbol(selectedSymbolItems);
+    var representativeInstances = pickOneInstancePerSymbol(selectedSymbolItems);
 
     /* 代表ごとに Find Symbol Instance を実行して結果を集約 / Run Find Symbol Instance per representative and collect results */
-    var allMatchedInstances = collectAllSiblingInstances(doc, representativeInstances);
+    var allMatchedInstances = collectInstancesOfSameSymbols(representativeInstances);
 
     /* 集約した全インスタンスをまとめて選択 / Re-select all collected instances */
-    applySelection(doc, allMatchedInstances);
+    reselectItems(allMatchedInstances);
 
     if (allMatchedInstances.length === 0) {
-        alert("同じインスタンスの選択に失敗しました（コマンドが無効/選択対象が不正など）。");
+        alert(getLabel(LABELS.alert.selectFailed));
     }
 
     // =========================================
-    // ヘルパー: 選択 → SymbolItem 抽出 / Helpers: Selection -> SymbolItem
+    // ヘルパー: シンボルインスタンスの収集 / Helpers: Collect symbol instances
     // =========================================
 
-    /* 選択配列から SymbolItem を全て集める / Collect every SymbolItem inside the selection array */
-    function collectSymbolItemsFromSelection(selection) {
-        var result = [];
-        for (var i = 0; i < selection.length; i++) {
-            collectSymbolItemsDeep(selection[i], result);
-        }
-        return result;
-    }
-
-    /* 単一アイテムを再帰的に走査して SymbolItem を resultList に追加 / Walk a page item recursively and push SymbolItems into resultList */
-    function collectSymbolItemsDeep(pageItem, resultList) {
-        if (!pageItem) return;
-        if (pageItem.typename === "SymbolItem") {
-            resultList.push(pageItem);
-            return;
-        }
-        if (pageItem.typename === "GroupItem") {
-            for (var i = 0; i < pageItem.pageItems.length; i++) {
-                collectSymbolItemsDeep(pageItem.pageItems[i], resultList);
+    /**
+     * アイテムの配列を再帰的に走査し、グループ内も含めて SymbolItem を集める
+     * @param {PageItem[]} pageItems - 走査するアイテム（選択範囲やグループの pageItems）
+     * @param {SymbolItem[]} foundSymbolItems - 見つかった SymbolItem の追加先
+     * @returns {SymbolItem[]} foundSymbolItems と同じ配列
+     */
+    function collectSymbolItems(pageItems, foundSymbolItems) {
+        for (var i = 0; i < pageItems.length; i++) {
+            var pageItem = pageItems[i];
+            if (!pageItem) continue;
+            if (pageItem.typename === "SymbolItem") {
+                foundSymbolItems.push(pageItem);
+            } else if (pageItem.typename === "GroupItem") {
+                collectSymbolItems(pageItem.pageItems, foundSymbolItems);
             }
         }
+        return foundSymbolItems;
     }
 
-    // =========================================
-    // ヘルパー: シンボル代表の抽出 / Helpers: Pick representative
-    // =========================================
-
-    /* シンボル定義ごとに最初に出現したインスタンスを1つだけ代表として返す / Return one representative instance per unique symbol definition */
-    function pickRepresentativePerSymbol(symbolItems) {
-        var seenSymbols = [];
-        var representatives = [];
+    /**
+     * シンボル定義ごとに、最初に出現したインスタンスを1つだけ代表として返す
+     * @param {SymbolItem[]} symbolItems - 選択から集めた SymbolItem
+     * @returns {SymbolItem[]} シンボル定義が重複しない代表インスタンス
+     */
+    function pickOneInstancePerSymbol(symbolItems) {
+        var seenSymbolNames = {};
+        var pickedInstances = [];
         for (var i = 0; i < symbolItems.length; i++) {
-            var symbolDef = symbolItems[i].symbol;
-            if (!symbolDef || arrayContains(seenSymbols, symbolDef)) continue;
-            seenSymbols.push(symbolDef);
-            representatives.push(symbolItems[i]);
+            /* シンボル名はドキュメント内で一意 / Symbol names are unique within a document */
+            var symbolNameKey = "#" + symbolItems[i].symbol.name;
+            if (seenSymbolNames[symbolNameKey]) continue;
+            seenSymbolNames[symbolNameKey] = true;
+            pickedInstances.push(symbolItems[i]);
         }
-        return representatives;
+        return pickedInstances;
     }
 
-    // =========================================
-    // ヘルパー: 同一シンボルの全インスタンス収集 / Helpers: Collect sibling instances
-    // =========================================
+    /**
+     * 代表ごとに Find Symbol Instance を実行し、選択されたインスタンスを集約する
+     * （代表のシンボル定義はすべて異なるため、結果は重複しない）
+     * @param {SymbolItem[]} pickedInstances - シンボル定義ごとの代表インスタンス
+     * @returns {SymbolItem[]} 同じシンボルのインスタンスすべて
+     */
+    function collectInstancesOfSameSymbols(pickedInstances) {
+        var matchedInstances = [];
+        for (var i = 0; i < pickedInstances.length; i++) {
+            activeDoc.selection = null;
+            pickedInstances[i].selected = true;
+            app.executeMenuCommand('Find Symbol Instance menu item');
 
-    /* 代表ごとに Find Symbol Instance を実行し、選択結果を重複なく集約 / For each representative run Find Symbol Instance and merge selections without duplicates */
-    function collectAllSiblingInstances(doc, representatives) {
-        var collected = [];
-        for (var i = 0; i < representatives.length; i++) {
-            deselectAll(doc);
-            representatives[i].selected = true;
-            try {
-                app.executeMenuCommand('Find Symbol Instance menu item');
-            } catch (findErr) {
-                continue;
-            }
-            var currentSelection = doc.selection;
-            for (var j = 0; j < currentSelection.length; j++) {
-                var item = currentSelection[j];
-                if (item && !arrayContains(collected, item)) {
-                    collected.push(item);
-                }
+            var foundInstances = activeDoc.selection;
+            for (var j = 0; j < foundInstances.length; j++) {
+                matchedInstances.push(foundInstances[j]);
             }
         }
-        return collected;
+        return matchedInstances;
     }
 
     // =========================================
-    // ヘルパー: 選択操作・メニュー実行 / Helpers: Selection ops & menu commands
+    // ヘルパー: 選択操作 / Helpers: Selection
     // =========================================
 
-    /* 渡された配列をまとめて選択（ロック等は黙ってスキップ） / Select all items in the array (skip silently when locked or unselectable) */
-    function applySelection(doc, items) {
-        deselectAll(doc);
-        for (var i = 0; i < items.length; i++) {
-            try { items[i].selected = true; } catch (selectErr) {}
+    /**
+     * 選択を解除してから、渡されたアイテムをまとめて選択する（選択できないものは黙ってスキップ）
+     * @param {PageItem[]} itemsToSelect - 選択するアイテム
+     * @returns {void}
+     */
+    function reselectItems(itemsToSelect) {
+        activeDoc.selection = null;
+        for (var i = 0; i < itemsToSelect.length; i++) {
+            try { itemsToSelect[i].selected = true; } catch (err) {}
         }
-    }
-
-    /* シンボル不在時の代替コマンド: Find Appearance を実行 / Fallback command when no SymbolItem is selected: run Find Appearance */
-    function runFindAppearance() {
-        try {
-            app.executeMenuCommand('Find Appearance menu item');
-        } catch (findApprErr) {}
-    }
-
-    /* 全選択を解除 / Clear the current selection */
-    function deselectAll(targetDoc) {
-        try { targetDoc.selection = null; } catch (deselectErr) {}
-    }
-
-    // =========================================
-    // ヘルパー: 汎用ユーティリティ / Helpers: Generic utilities
-    // =========================================
-
-    /* 配列内に同一参照が存在するか判定 / Check whether a list already contains the target reference */
-    function arrayContains(list, target) {
-        for (var i = 0; i < list.length; i++) {
-            if (list[i] === target) return true;
-        }
-        return false;
     }
 })();
