@@ -1,4 +1,4 @@
-# SymbolizeEach
+# 選択したオブジェクトをシンボルとして登録
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SymbolizeEach.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/symbol/SymbolizeEach.jsx)
 
@@ -31,6 +31,11 @@
 - ［まとめて1つのシンボルにする］を選ぶと、登録方法は標準ダイアログでの確認に固定されます。
 - 書類内の一致するアイテムまで置き換えたい場合は SymbolizeAndReplace.jsx を使用してください。
 
+### 紹介記事
+
+https://note.com/dtp_tranist/n/nce9ec30232a0
+
 ### 更新履歴
 
+- v1.0.2 (2026-09-15) ［基準点］を9軸ウィジェットに変更。内部の命名と関数分割を整理
 - v1.0.1

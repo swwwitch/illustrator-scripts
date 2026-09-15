@@ -1,4 +1,4 @@
-# SymbolizeEach
+# Register selected objects as symbols
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SymbolizeEach.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/symbol/SymbolizeEach.jsx)
 
@@ -31,6 +31,11 @@ Registers the selected objects as symbols — individually or as one — and opt
 - Choosing "one symbol for the whole selection" fixes the registration method to confirmation via the standard dialog.
 - Use SymbolizeAndReplace.jsx when matching items elsewhere in the document should be replaced too.
 
+### Article
+
+https://note.com/dtp_tranist/n/nce9ec30232a0
+
 ### Update History
 
+- v1.0.2 (2026-09-15) Replaced the registration-point radio buttons with a 3×3 anchor widget; reorganized internal naming and functions
 - v1.0.1

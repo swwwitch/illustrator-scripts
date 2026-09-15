@@ -204,6 +204,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [現在選択中のリンク画像（PlacedItem）と同じリンクファイルを参照する](readme-ja/SelectSameLinks.md)
 - [Illustrator ドキュメントに登録されたシンボルを一覧表示する専用アートボード「シンボル一覧」を自動…](readme-ja/SymbolListBuilder.md)
 - [SymbolizeAndReplace](readme-ja/SymbolizeAndReplace.md)
+- [選択したオブジェクトをシンボルとして登録](readme-ja/SymbolizeEach.md)
 - [アクティブドキュメントの全アートボードを、名前ごとのルールで PNG 書き出しします](readme-ja/export-Event.md)
 - [アクティブなアートボードを PNG24 形式で書き出します](readme-ja/export200.md)
 
