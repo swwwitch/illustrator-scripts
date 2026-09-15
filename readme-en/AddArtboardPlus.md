@@ -32,3 +32,4 @@ Analyzes how the existing artboards are arranged in rows and columns and inserts
 
 - v1.1.1
 - v1.1.2 (20260914) : Fixed the layout direction or column count being misdetected from tiny coordinate differences, artboards being placed using the rounded display value when the spacing was left unchanged, and the gap after inserted artboards keeping the old spacing in "Added artboards only" mode, and values being rounded on keys other than Up/Down. Negative spacing is now treated as 0
+- v1.1.3 (20260914) : Revised the UI wording (spacing scope is now "Apply to Added Only / Apply to All", and the alerts are more specific), added tooltips that explain each option and its shortcut key, and split the internal functions by role
