@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクトなど）をまとめて削除します。
+ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクト、属性パネルのメモなど）をまとめて削除します。
 処理対象は、最前面のドキュメント／開いているすべてのドキュメント／指定フォルダー内の .ai ファイルから選べます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Removes the clutter from a document — unused panel entries, stray points and empty text, empty groups and layers, guides, objects outside the artboards, and more.
+Removes the clutter from a document — unused panel entries, stray points and empty text, empty groups and layers, guides, objects outside the artboards, Attributes panel notes, and more.
 The scope can be the frontmost document, every open document, or the .ai files in a folder you choose.
 
 See the README for details.
@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-15";                  /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocumentCleaner.md"; /* README (English) */
@@ -51,6 +51,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
     var UNCHECKED_BY_DEFAULT = {
         hiddenObjects: true,
         brokenLink: true,
+        notes: true,
         outsideAllArtboards: true,
         outsideActiveArtboard: true
     };
@@ -334,6 +335,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
             hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
             brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
+            notes: { ja: "メモ", en: "Notes" },
             outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
             outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
             emptyGroup: { ja: "空のグループ", en: "Empty groups" },
@@ -378,6 +380,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
             hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
             brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
+            notes: { ja: "メモ", en: "Notes" },
             outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
             outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
             emptyGroup: { ja: "空のグループ", en: "Empty groups" },
@@ -500,6 +503,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                 ja: "リンク先ファイルが見つからない配置画像（リンク切れ）を削除します。埋め込み画像や正常なリンクは対象外です。",
                 en: "Removes placed images whose linked file is missing (broken links). Embedded images and valid links are kept."
             },
+            notes: {
+                ja: "属性パネルの「メモ」を削除します（グループ内の項目も対象。オブジェクト自体は残ります）。スクリプトがメモに保存した情報（アウトライン化したテキストの復元用など）も失われます。",
+                en: "Deletes the Attributes panel note on each object, including items inside groups; the objects themselves stay. Any data a script keeps in a note, such as what's needed to restore outlined text, is lost too."
+            },
             outsideAllArtboards: {
                 ja: "どのアートボードにも載っていないオブジェクトを削除します。",
                 en: "Removes objects that sit on none of the artboards."
@@ -614,6 +621,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             brokenLink: function(doc) {
                 return deleteBrokenLinkImages(doc);
             },
+            notes: function(doc) {
+                return clearNotes(doc);
+            },
             outsideAllArtboards: function(doc) {
                 return deleteObjectsOutsideAllArtboards(doc);
             },
@@ -672,7 +682,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                     {
                         column: [{
                                 titleKey: "panel.object",
-                                keys: ["strayPoints", "emptyText", "noPaintPath", "zeroOpacity", "hiddenObjects", "brokenLink"]
+                                keys: ["strayPoints", "emptyText", "noPaintPath", "zeroOpacity", "hiddenObjects", "brokenLink", "notes"]
                             },
                             {
                                 titleKey: "panel.guide",
@@ -768,18 +778,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             return keySet;
         })(DIALOG_LAYOUT);
 
-        /* 空グループ・空レイヤーの掃除は最後に回す（他の削除で空になった親も同じ実行で消せるように）/ Run container cleanup last so parents emptied by other deletions are removed in the same pass */
+        /* 空グループ・空レイヤーの掃除は他の削除の後に回す（他の削除で空になった親も同じ実行で消せるように）/ Run container cleanup after the other deletions so parents emptied by them are removed in the same pass */
         var CONTAINER_CLEANUP_KEYS = {
             emptyGroup: true,
             emptyLayer: true
         };
+        /* メモの削除はオブジェクトを残すので、さらに最後に回す（あとで削除されるオブジェクトを件数に含めないように）
+           Note removal keeps the objects, so it runs at the very end; objects deleted afterwards would otherwise inflate its count */
+        var FINAL_KEYS = {
+            notes: true
+        };
         var EXECUTION_KEYS = (function(layoutOrderedKeys) {
             var earlierKeys = [];
             var containerCleanupKeys = [];
+            var finalKeys = [];
             for (var i = 0; i < layoutOrderedKeys.length; i++) {
-                (CONTAINER_CLEANUP_KEYS[layoutOrderedKeys[i]] ? containerCleanupKeys : earlierKeys).push(layoutOrderedKeys[i]);
+                var key = layoutOrderedKeys[i];
+                if (FINAL_KEYS[key]) {
+                    finalKeys.push(key);
+                } else if (CONTAINER_CLEANUP_KEYS[key]) {
+                    containerCleanupKeys.push(key);
+                } else {
+                    earlierKeys.push(key);
+                }
             }
-            return earlierKeys.concat(containerCleanupKeys);
+            return earlierKeys.concat(containerCleanupKeys, finalKeys);
         })(ALL_KEYS);
 
         /* 削除対象を選ぶダイアログを表示 / Show the dialog for choosing what to delete */
@@ -2002,6 +2025,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                 }
             }
             return removedCount;
+        }
+
+        /* 属性パネルの「メモ」を空にし、件数を返す（グループ内も対象。オブジェクト自体は残す）
+           Empty the Attributes panel note on every object that has one and return the count (items inside groups included; the objects stay) */
+        function clearNotes(doc) {
+            var clearedCount = 0;
+            var items = doc.pageItems;
+            for (var i = 0; i < items.length; i++) {
+                try {
+                    if (items[i].note) {
+                        items[i].note = "";
+                        clearedCount++;
+                    }
+                } catch (e) {
+                    /* ロック等で変更不可 / Can't be changed (locked, etc.) */
+                }
+            }
+            return clearedCount;
         }
 
         /* どのアートボードにも載っていないオブジェクトを削除し、件数を返す / Remove objects that sit on none of the artboards, return the count */

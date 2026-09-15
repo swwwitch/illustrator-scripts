@@ -1,4 +1,4 @@
-# AiDocumentCleaner.jsx
+# Remove unneeded elements from documents in one pass
 
 [![Direct Link](https://img.shields.io/badge/Direct%20Link-AiDocumentCleaner.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AiDocumentCleaner.jsx)
 
@@ -8,15 +8,15 @@
 
 ---
 
-## Overview
+### Overview
 
 A cleanup tool that removes unneeded elements from a document in one pass. Choose the targets in the dialog and tidy the whole document at once.
 
-Swatches, symbols, brushes, and graphic styles are pruned by building and playing each panel's "Select All Unused -> Delete" action, so only items Illustrator itself judges unused are removed. Paths / objects, groups / layers, guides, and artboards can be cleaned in the same run.
+Swatches, symbols, brushes, and graphic styles are pruned by building and playing each panel's "Select All Unused -> Delete" action, so only items Illustrator itself judges unused are removed. Paths / objects, groups / layers, guides, and artboards can be cleaned in the same run, and Attributes panel notes can be deleted too.
 
 The run can target the frontmost document, every open document, or all .ai files in a chosen folder.
 
-## Main features
+### Features
 
 - **Scope** (pick one)
   - Frontmost document (default)
@@ -25,7 +25,7 @@ The run can target the frontmost document, every open document, or all .ai files
 - **Panel items**: swatches, symbols, brushes, graphic styles, paragraph styles, character styles
   - Swatches / symbols / brushes / graphic styles are pruned via an action (unused only)
   - Paragraph / character styles have no usage info, so all but the default (first) are removed only when "Delete panel items even if in use" is on
-- **Paths / Objects**: stray points, empty text frames, unpainted (invisible) paths, 0% opacity, hidden objects, broken-link placed images
+- **Paths / Objects**: stray points, empty text frames, unpainted (invisible) paths, 0% opacity, hidden objects, broken-link placed images, Attributes panel notes
 - **Groups / Layers**: recursively removes empty groups, empty layers, and sublayers
 - **Guides** (pick one): Clear Guides (locked ones remain) / All guides (unlocks everything) / Outside the active artboard
 - **Artboards**: objects outside all / the active artboard, and empty artboards
@@ -35,7 +35,7 @@ The run can target the frontmost document, every open document, or all .ai files
 - Remembers the previous settings and the dialog position for the session only (discarded when Illustrator quits; nothing is written to preferences)
 - Japanese and English UI
 
-## Usage
+### Usage
 
 1. Open the document you want to clean up (not needed for the folder target).
 2. Run `AiDocumentCleaner.jsx`.
@@ -45,7 +45,7 @@ The run can target the frontmost document, every open document, or all .ai files
 6. Pick one guide option with the radio buttons (default is "Don't delete").
 7. Click Run to start; the per-type deleted counts are shown.
 
-## Choosing the scope
+### Choosing the scope
 
 | Target | Behavior | Saved |
 | --- | --- | --- |
@@ -57,23 +57,23 @@ Once a folder is chosen, the radio label shows how many .ai files the run will c
 
 The chosen folder's path is shown on the line below the Choose... button. A folder under Dropbox drops the mount-path prefix; anything else is shortened with `~` for the home folder (hover to see the absolute path).
 
-## Targets
+### Targets
 
 | Category | Targets |
 | --- | --- |
 | Panel items | Swatches / symbols / brushes / graphic styles / paragraph styles / character styles |
-| Paths / Objects | Stray points / empty text frames / unpainted paths / 0% opacity / hidden objects / broken-link placed images |
+| Paths / Objects | Stray points / empty text frames / unpainted paths / 0% opacity / hidden objects / broken-link placed images / notes |
 | Groups / Layers | Empty groups / empty layers and sublayers |
 | Guides | Clear Guides (locked ones remain) / All guides (unlocks everything) / Outside the active artboard |
 | Artboards | Objects outside all / the active artboard / empty artboards |
 
-## Presets and bulk toggling
+### Presets and bulk toggling
 
 The Preset popup at the left of the button area switches every deletion target at once.
 
 | Item | Behavior |
 | --- | --- |
-| Default | Restores the initial state (the four deletion-prone options off, guides on "Don't delete") |
+| Default | Restores the initial state (the five deletion-prone options off, guides on "Don't delete") |
 | All off | Clears every checkbox and sets guides to "Don't delete" |
 | All on | Checks everything and sets guides to "All guides (unlocks everything)" |
 | Panel items only | Checks the panel items and nothing else (guides go back to "Don't delete") |
@@ -83,13 +83,14 @@ The force option is never touched by a preset — being destructive, it stays ma
 
 Option/alt-clicking a checkbox sets every checkbox in that panel to the clicked one's state.
 
-## Notes
+### Notes
 
 - **The folder target saves over your original .ai files and cannot be undone.** A confirmation dialog showing the file count and folder path appears before the run. Back up your files first.
 - The folder target only covers files directly inside the folder; subfolders are not included.
 - During a folder run, alerts (missing fonts and the like) are suppressed so the batch doesn't stall, and the setting is restored afterwards. A file that fails is closed without saving and its name is listed in the summary.
 - "All open documents" never saves. Review the results and save yourself.
-- Deletion-prone options (hidden objects, broken-link placed images, objects outside all / the active artboard) start unchecked.
+- Deletion-prone options (hidden objects, broken-link placed images, notes, objects outside all / the active artboard) start unchecked.
+- "Notes" deletes only the Attributes panel note; the objects themselves stay. Any data a script keeps in a note, such as what's needed to restore outlined text, is lost too. It runs after every other deletion, so objects removed in the same run aren't counted.
 - Guides default to "Don't delete".
 - "All guides (unlocks everything)" temporarily unlocks locked layers, sublayers, and the guides themselves, then restores every lock afterwards.
 - Paragraph and character styles have no usage info, so they are removed only when "Delete panel items even if in use" is on.
@@ -102,12 +103,13 @@ Option/alt-clicking a checkbox sets every checkbox in that panel to the clicked 
 - The previous settings, target folder, and dialog position are kept until Illustrator quits, then reset (via a persistent engine declared with `#targetengine`). A remembered folder that no longer exists is not restored.
 - Back up your file before running.
 
-## Article
+### Article
 
 [Remove unneeded document elements in one pass with an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/n0d70178f0f65)
 
-## Changelog
+### Update History
 
+- v1.1.1 (2026-09-15): Added a "Notes" option to Paths / Objects that deletes Attributes panel notes (unchecked by default; runs after every other deletion)
 - v1.1.0 (2026-08-02): Added a Scope panel for choosing what to process (frontmost document / all open documents / a folder). The folder target cleans every .ai file directly inside the folder and saves over the originals, with a confirmation dialog before the run. The chosen folder's path is displayed (Dropbox mount prefix dropped, otherwise shortened with `~`). "All guides (unlocks everything)" now also reaches guides on locked sublayers and guides that are locked themselves. Items whose action could not be played are now reported as a failure instead of a zero count. Added a Preset popup (Default / All off / All on / Panel items only / Custom) and option/alt-click to toggle a whole panel, plus session-only memory of the previous settings, target folder, and dialog position. Fixed the force option removing non-empty artboards: it now applies to panel items only, and is relabelled "Delete panel items even if in use". Fixed empty-layer removal leaving a layer unlocked when the removal failed. Reworked the UI wording (title "Clean Up Documents", "Delete items even if in use" to "Delete panel items even if in use", the guide options, the Choose... and Run buttons) and added tooltips to the Choose... and Run buttons, the "Don't delete" guide option, and the Scope panel
 - v1.0.3 (2026-07-24): Run empty group/layer cleanup after the other deletions, fix missed items in hidden-object removal, exclude guides from the artboard emptiness check, and move the temp file to the OS temp folder. Also exclude guides from outside-artboard deletion and recurse empty-group cleanup into sublayers. Clarified labels ("Guides on unlocked layers", "Outside the active artboard", "Paths with no fill or stroke") and added a divider above the force option
 - v1.0.2 (2026-06-27): Initial release
