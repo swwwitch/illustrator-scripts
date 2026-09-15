@@ -33,6 +33,7 @@ Parameters are adjusted in a dialog with a live preview; OK commits the result (
 ### Update History
 
 - v1.0.0 (2026-05-09): Initial release
+- v1.2.3 (2026-09-16): Code cleanup (shared helpers, split functions, fewer try blocks, clearer names). A corrupted saved setting now falls back to its default individually. The caption position default is unified to Bottom.
 
 ### Article
 
@@ -40,4 +41,4 @@ https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### Script info
 
-- Version: v1.2.2
+- Version: v1.2.3

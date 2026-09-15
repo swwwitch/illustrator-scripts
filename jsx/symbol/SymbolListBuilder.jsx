@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SymbolListBuilder";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-16";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolListBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolListBuilder.md"; /* README (English) */
@@ -38,347 +38,189 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
 (function () {
 
     // =========================================
-    // ローカライズ
+    // ユーザー設定 / User settings
     // =========================================
 
-    /* ロケール判定 / Locale detection */
-    function getCurrentLang() {
-        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var currentLanguage = getCurrentLang();
+    /**
+     * @typedef {object} ListSettings
+     * @property {string} position - 作成方向（"right" / "below"）
+     * @property {string} baseMode - 基準（"last" = 最終アートボード / "specified" = 番号指定）
+     * @property {number} baseArtboardNumber - 基準にするアートボード番号（1 始まり）
+     * @property {number} artboardGap - 基準アートボードとの間隔（pt）
+     * @property {number} margin - アートボード内側の余白（pt）
+     * @property {boolean} update - 既存のシンボル一覧を削除して作り直すか
+     * @property {boolean} showCaption - シンボル名を表示するか
+     * @property {string} filter - 収集対象（"all" / "used"）
+     * @property {number} symbolGap - シンボル同士の間隔（pt）
+     * @property {number} maxRowWidth - 1 行の最大幅（pt）
+     * @property {string} bgColor - 背景（BACKGROUND_CHOICES のいずれか）
+     * @property {string} captionPosition - キャプションの位置（"above" / "below"）
+     * @property {number} fontSize - キャプションのフォントサイズ（pt）
+     * @property {?number} [widthOverridePt] - 固定する幅（pt、null なら自動）
+     * @property {?number} [heightOverridePt] - 固定する高さ（pt、null なら自動）
+     */
 
-    /* ラベル定義 / Label definitions */
-    var LABELS = {
-        /* ダイアログ / Dialog */
-        dialog: {
-            title: { ja: "シンボル一覧を作成", en: "Create Symbol List" }
-        },
-        /* パネル見出し / Panel titles */
-        panel: {
-            place: { ja: "作成位置", en: "Location" },
-            artboard: { ja: "作成するアートボード", en: "New artboard" },
-            size: { ja: "サイズと余白", en: "Size & padding" },
-            bgColor: { ja: "背景", en: "Background" },
-            symbolGroup: { ja: "収集するシンボル", en: "Symbols" },
-            placement: { ja: "並べ方", en: "Layout" },
-            caption: { ja: "キャプション", en: "Caption" },
-            target: { ja: "収集対象", en: "Collect" }
-        },
-        /* ラジオボタン / Radio buttons */
-        radio: {
-            baseLast: { ja: "最終アートボード", en: "Last artboard" },
-            baseSpecified: { ja: "指定", en: "Specified" },
-            directionRight: { ja: "右側", en: "Right" },
-            directionBelow: { ja: "下側", en: "Below" },
-            bgNone: { ja: "なし", en: "None" },
-            bgBlack: { ja: "黒", en: "Black" },
-            bgWhite: { ja: "白", en: "White" },
-            bgGray: { ja: "グレー", en: "Gray" },
-            captionAbove: { ja: "上", en: "Top" },
-            captionBelow: { ja: "下", en: "Bottom" },
-            filterAll: { ja: "すべて", en: "All" },
-            filterUsed: { ja: "使用中のみ", en: "Used only" }
-        },
-        /* チェックボックス / Checkboxes */
-        checkbox: {
-            update: { ja: "更新", en: "Update" },
-            showCaption: { ja: "シンボル名を表示", en: "Show symbol name" }
-        },
-        /* ボタン / Buttons */
-        button: {
-            cancel: { ja: "キャンセル", en: "Cancel" },
-            fitCreated: { ja: "シンボル一覧", en: "Symbol list" },
-            fitAll: { ja: "全体表示", en: "Fit all" }
-        },
-        /* 行ラベル（statictext）/ Inline labels (statictext) */
-        label: {
-            direction: { ja: "方向", en: "Direction" },
-            captionPosition: { ja: "位置", en: "Position" }
-        },
-        /* 数値入力欄ラベル / Numeric input labels */
-        field: {
-            gap: { ja: "間隔", en: "Gap" },
-            margin: { ja: "余白", en: "Padding" },
-            width: { ja: "幅", en: "Width" },
-            height: { ja: "高さ", en: "Height" },
-            fontSize: { ja: "フォントサイズ", en: "Font size" },
-            maxRowWidth: { ja: "最大幅", en: "Max row width" }
-        },
-        /* ツールチップ / Tooltips */
-        tip: {
-            baseLast: { ja: "アートボード一覧の末尾を基準にする。更新 ON の場合は既存のシンボル一覧を除外", en: "Use the last artboard in the list as the base; with Update on, the existing symbol list is excluded" },
-            baseSpecified: { ja: "指定した番号のアートボードを基準にする（1 始まり）", en: "Use the artboard with the given number as the base (1-based)" },
-            baseArtboardNumber: { ja: "基準にするアートボード番号（1 始まり）", en: "Base artboard number (1-based)" },
-            directionRight: { ja: "基準アートボードの右に新規アートボードを作成", en: "Place the new artboard to the right of the base" },
-            directionBelow: { ja: "基準アートボードの下に新規アートボードを作成", en: "Place the new artboard below the base" },
-            artboardGap: { ja: "基準アートボードと新規アートボードの間隔", en: "Distance between the base and new artboards" },
-            margin: { ja: "新規アートボードの内側に設ける余白", en: "Padding inside the new artboard around the symbols" },
-            symbolGap: { ja: "シンボル同士の間隔", en: "Spacing between adjacent symbols" },
-            maxRowWidth: { ja: "1行に並べる最大幅。超えると次の行に折り返し", en: "Max width per row; symbols wrap to the next row when exceeded" },
-            width: { ja: "アートボードの幅。空欄または 0 で自動計算、入力すると指定値で固定", en: "Artboard width. Empty/0 = auto; a number forces that exact size" },
-            height: { ja: "アートボードの高さ。空欄または 0 で自動計算、入力すると指定値で固定", en: "Artboard height. Empty/0 = auto; a number forces that exact size" },
-            update: { ja: "既存の「シンボル一覧」アートボードと対象オブジェクトを削除して作り直す", en: "Delete the existing Symbol List artboard and its objects, then rebuild" },
-            showCaption: { ja: "各シンボルの近くにシンボル名をキャプションとして表示", en: "Show the symbol name as a caption near each symbol" },
-            captionAbove: { ja: "シンボルの上にシンボル名を表示", en: "Place the name above the symbol" },
-            captionBelow: { ja: "シンボルの下にシンボル名を表示", en: "Place the name below the symbol" },
-            fontSize: { ja: "キャプションのフォントサイズ。単位は Illustrator の文字設定に従う", en: "Caption font size; unit follows Illustrator's type preferences" },
-            filterAll: { ja: "ドキュメントに登録されているすべてのシンボルを並べる", en: "List every symbol registered in the document" },
-            filterUsed: { ja: "ドキュメント内に配置されているシンボルだけを並べる", en: "List only symbols placed in the document" },
-            bgNone: { ja: "背景の塗りを作成しない", en: "Do not create a background fill" },
-            bgBlack: { ja: "アートボード背面に黒（K100）の塗りを敷く", en: "Place a solid black (K100) fill behind the artboard" },
-            bgWhite: { ja: "アートボード背面に白の塗りを敷く", en: "Place a solid white fill behind the artboard" },
-            bgGray: { ja: "アートボード背面にグレー（K50）の塗りを敷く", en: "Place a 50% gray (K50) fill behind the artboard" },
-            fitCreated: { ja: "作成したアートボードのみをウィンドウに合わせて表示", en: "Fit the created artboard to the window" },
-            fitAll: { ja: "すべてのアートボードをウィンドウに合わせて表示", en: "Fit all artboards to the window" }
-        },
-        /* メッセージ / Messages */
-        message: {
-            noDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            noSymbols: { ja: "登録されているシンボルがありません。", en: "No symbols are registered." },
-            noUsedSymbols: { ja: "ドキュメント内で使用中のシンボルがありません。", en: "No symbols are currently used in the document." }
-        }
+    /* 設定の既定値（寸法は pt）。［更新］と［収集対象］は保存値を使わず、起動時は常に ON／すべて
+     * Default settings (sizes in pt). Update and Collect ignore saved values and always start as on / all */
+    var DEFAULT_SETTINGS = {
+        position: "below",
+        baseMode: "last",
+        baseArtboardNumber: 1,
+        artboardGap: 100,
+        margin: 50,
+        update: true,
+        showCaption: false,
+        filter: "all",
+        symbolGap: 20,
+        maxRowWidth: 800,
+        bgColor: "none",
+        captionPosition: "below",
+        fontSize: 9
     };
-    /* 現在の言語の文字列を取得（不足時は英語→日本語→空文字にフォールバック） / Get localized text with fallback */
-    function L(labelObj) {
-        if (!labelObj) return "";
-        return labelObj[currentLanguage] || labelObj.en || labelObj.ja || "";
-    }
 
-    /* コロン付きラベル（日本語は全角、英語は半角） / Label with colon (full-width JA, half-width EN) */
-    function labelText(labelObj) {
-        return L(labelObj) + (currentLanguage === "ja" ? "：" : ":");
-    }
-
-    // =========================================
-    // 設定値
-    // =========================================
-
-    /* レイアウト初期値（ポイント単位） / Layout defaults (points) */
-    var DEFAULT_MAX_ROW_WIDTH_PT = 800;
-    var DEFAULT_SYMBOL_GAP_PT = 20;
-    var DEFAULT_ARTBOARD_GAP_PT = 100;
-    var DEFAULT_ARTBOARD_MARGIN_PT = 50;
-    var DEFAULT_CAPTION_FONT_SIZE_PT = 9;
-    /* ロケール別の既定フォント。UI からは指定しないが createCaption 内で適用する
-     * Locale-based default caption font (no UI; applied silently in createCaption) */
-    var DEFAULT_CAPTION_FONT_NAME = (currentLanguage === "ja") ? "HiraginoSans-W3" : "MyriadPro-Regular";
+    /* シンボルとキャプションの間隔（pt）/ Gap between a symbol and its caption (pt) */
     var CAPTION_GAP_PT = 6;
 
-    /* レイヤー／アートボード名（ロケール別）。生成にはこの名前を使う。
-     * Locale-based layer/artboard name; used when creating items. */
-    var SYMBOL_LIST_LABEL = { ja: "シンボル一覧", en: "Symbol List" };
-    var LAYER_NAME = L(SYMBOL_LIST_LABEL);
-    var ARTBOARD_NAME = L(SYMBOL_LIST_LABEL);
-    /* 既存判定用の全ロケール名称セット。別言語で作成済みでも更新できるよう全変種を対象にする。
-     * All locale variants for matching existing items, so a list built in another language is still updatable. */
-    var SYMBOL_LIST_NAMES = [SYMBOL_LIST_LABEL.ja, SYMBOL_LIST_LABEL.en];
-    function isSymbolListName(name) {
-        for (var i = 0; i < SYMBOL_LIST_NAMES.length; i++) {
-            if (name === SYMBOL_LIST_NAMES[i]) return true;
-        }
-        return false;
-    }
+    /* キャプションのフォント（UI 言語別。見つからなければ既定のまま）/ Caption font per UI language (left as is if missing) */
+    var CAPTION_FONT_NAMES = { ja: "HiraginoSans-W3", en: "MyriadPro-Regular" };
 
-    /* 設定保存用キー / Preference key for saved settings */
-    var PREF_KEY = "swwwitch.listupallsymbol.settings";
+    /* 起動直後のプレビューのズーム倍率 / Zoom factor for the initial preview */
+    var INITIAL_PREVIEW_ZOOM = 0.6;
+
+    /* ウィンドウに合わせた後に掛けるズーム倍率 / Zoom ratio applied after fitting to the window */
+    var FIT_ZOOM_RATIO = 0.9;
 
     // =========================================
-    // 単位
+    // レイアウト / Layout
     // =========================================
 
-    /* 単位コード（0=inch / 1=mm / 3=pica / 4=cm / 5=Q / 6=px / その他=pt）から表示単位とポイント変換係数を取得
-     * Map a unit code to its display label and point conversion factor */
-    function getUnitInfoByCode(code) {
-        switch (code) {
-            case 0: return { label: "inch", factor: 72.0 };
-            case 1: return { label: "mm", factor: 72.0 / 25.4 };
-            case 3: return { label: "pica", factor: 12.0 };
-            case 4: return { label: "cm", factor: 72.0 / 2.54 };
-            case 5: return { label: "Q", factor: 72.0 / 25.4 * 0.25 };
-            case 6: return { label: "px", factor: 1.0 };
-            default: return { label: "pt", factor: 1.0 };
-        }
+    var WINDOW_MARGINS          = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING          = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS           = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING           = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING          = 12;                 /* 2カラムの間隔 / column spacing */
+    var ROW_SPACING             = 6;                  /* 行内の要素間隔 / spacing within a row */
+    var RADIO_SPACING           = 10;                 /* 横並びラジオの間隔 / spacing between radios */
+    var BUTTON_SPACING          = 8;                  /* ボタンの間隔 / spacing between buttons */
+    var FIELD_LABEL_WIDTH       = 70;                 /* 項目名の幅 / field label width */
+    var NUMBER_INPUT_CHARACTERS = 4;                  /* 数値入力欄の文字数 / numeric field width */
+    var BACKGROUND_RADIO_WIDTH  = 60;                 /* 背景ラジオの幅（2×2 の列揃え）/ background radio width */
+
+    /**
+     * ウィンドウの共通レイアウトを設定する
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @returns {void}
+     */
+    function setupWindow(targetWindow) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = WINDOW_SPACING;
     }
 
-    /* 整数プリファレンス（rulerType / text/units）から単位情報を取得（取得失敗時は pt 相当）
-     * Resolve unit info from an integer preference key (defaults to pt on failure) */
-    function getUnitInfoFromPreference(prefKey) {
-        var code;
-        try { code = app.preferences.getIntegerPreference(prefKey); }
-        catch (e) { code = -1; }
-        return getUnitInfoByCode(code);
+    /**
+     * タイトル付きのパネルを追加し、共通レイアウトを設定する
+     * @param {object} parent - 追加先のパネルまたはグループ
+     * @param {object} titleSet - パネル名のラベル（ja/en）
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parent, titleSet) {
+        var newPanel = parent.add("panel", undefined, getLabel(titleSet));
+        newPanel.orientation = "column";
+        newPanel.alignChildren = ["fill", "top"];
+        newPanel.alignment = "fill";
+        newPanel.margins = PANEL_MARGINS;
+        newPanel.spacing = PANEL_SPACING;
+        return newPanel;
     }
 
-    /* ルーラー単位（寸法・マージン・間隔）/ Ruler unit for sizes, margins, gaps */
-    var UNIT = getUnitInfoFromPreference("rulerType");
-    function ptToUnit(pt) { return pt / UNIT.factor; }
-    function unitToPt(value) { return value * UNIT.factor; }
-
-    /* テキスト単位（フォントサイズ）/ Type unit for font size */
-    var TYPE_UNIT = getUnitInfoFromPreference("text/units");
-
-    function ptToTypeUnit(pt) { return pt / TYPE_UNIT.factor; }
-    function typeUnitToPt(value) { return value * TYPE_UNIT.factor; }
-
-    // =========================================
-    // 設定の保存・復元
-    // =========================================
-
-    /* 設定オブジェクトを JSON 風文字列へ（手動 JSON, ES3 互換）。
-     * キー一覧を 1 か所にまとめ、文字列値は引用、数値・真偽はそのまま出力する。
-     * Serialize settings to a JSON-like string: single key list; quote strings, emit numbers/booleans raw. */
-    var SETTINGS_KEYS = [
-        "position", "baseMode", "baseArtboardNumber", "artboardGap", "margin",
-        "update", "showCaption", "filter", "symbolGap", "maxRowWidth",
-        "bgColor", "captionPosition", "fontSize"
-    ];
-    function serializeSettings(settings) {
-        var parts = [];
-        for (var i = 0; i < SETTINGS_KEYS.length; i++) {
-            var key = SETTINGS_KEYS[i];
-            var value = settings[key];
-            var encoded = (typeof value === "string") ? ('"' + value + '"') : String(value);
-            parts.push('"' + key + '":' + encoded);
-        }
-        return "{" + parts.join(",") + "}";
+    /**
+     * 2カラムの列にする縦並びのグループを追加する
+     * @param {Group} parent - 追加先のグループ
+     * @returns {Group} 追加した列グループ
+     */
+    function addColumnGroup(parent) {
+        var columnGroup = parent.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = "fill";
+        return columnGroup;
     }
 
-    /* 文字列から設定オブジェクトに復元（eval 不使用） / Parse settings string without eval */
-    function parseSettings(str) {
-        if (!str) return null;
-
-        function readString(key) {
-            var match = str.match(new RegExp('"' + key + '"\\s*:\\s*"([^"\\\\]*)"'));
-            return match ? match[1] : null;
-        }
-
-        function readNumber(key) {
-            var match = str.match(new RegExp('"' + key + '"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)'));
-            return match ? Number(match[1]) : null;
-        }
-
-        function readBoolean(key) {
-            var match = str.match(new RegExp('"' + key + '"\\s*:\\s*(true|false)'));
-            return match ? (match[1] === "true") : null;
-        }
-
-        var position = readString("position");
-        var baseMode = readString("baseMode");
-        var baseArtboardNumber = readNumber("baseArtboardNumber");
-        var filter = readString("filter");
-        var bgColor = readString("bgColor");
-        var captionPosition = readString("captionPosition");
-        var artboardGap = readNumber("artboardGap");
-        var margin = readNumber("margin");
-        var symbolGap = readNumber("symbolGap");
-        var maxRowWidth = readNumber("maxRowWidth");
-        var fontSize = readNumber("fontSize");
-        var update = readBoolean("update");
-        var showCaption = readBoolean("showCaption");
-
-        if ((position !== "right" && position !== "below") ||
-            (filter !== "all" && filter !== "used") ||
-            artboardGap === null || margin === null ||
-            symbolGap === null || maxRowWidth === null ||
-            update === null || showCaption === null) {
-            return null;
-        }
-
-        if (bgColor !== "none" && bgColor !== "black" && bgColor !== "white" && bgColor !== "gray") {
-            bgColor = "none";
-        }
-
-        if (captionPosition !== "above" && captionPosition !== "below") {
-            captionPosition = "above";
-        }
-
-        if (fontSize === null || fontSize <= 0) {
-            fontSize = DEFAULT_CAPTION_FONT_SIZE_PT;
-        }
-
-        /* 基準モード（保存値が無ければ最終アートボード基準）/ Base mode (default: last artboard) */
-        if (baseMode !== "last" && baseMode !== "specified") {
-            baseMode = "last";
-        }
-        if (baseArtboardNumber === null || baseArtboardNumber < 1) {
-            baseArtboardNumber = 1;
-        }
-
-        return {
-            position: position,
-            baseMode: baseMode,
-            baseArtboardNumber: baseArtboardNumber,
-            artboardGap: artboardGap,
-            margin: margin,
-            update: update,
-            showCaption: showCaption,
-            filter: filter,
-            symbolGap: symbolGap,
-            maxRowWidth: maxRowWidth,
-            bgColor: bgColor,
-            captionPosition: captionPosition,
-            fontSize: fontSize
-        };
+    /**
+     * 横並びの行グループを追加する（子は左詰め・天地中央）
+     * @param {object} parent - 追加先のパネルまたはグループ
+     * @param {number} [spacing] - 要素間隔（省略時は ROW_SPACING）
+     * @returns {Group} 追加した行グループ
+     */
+    function addRowGroup(parent, spacing) {
+        var rowGroup = parent.add("group");
+        rowGroup.orientation = "row";
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : ROW_SPACING;
+        return rowGroup;
     }
 
-    /* 設定を文字列化して app.preferences に保存 / Serialize settings and store in app.preferences */
-    function saveSettings(settings) {
-        try { app.preferences.setStringPreference(PREF_KEY, serializeSettings(settings)); } catch (e) { }
+    /**
+     * 行の先頭に右揃えの項目名を追加する
+     * @param {Group} rowGroup - 追加先の行グループ
+     * @param {object} labelSet - 項目名のラベル（ja/en）
+     * @returns {StaticText} 追加した項目名
+     */
+    function addFieldLabel(rowGroup, labelSet) {
+        var fieldLabel = rowGroup.add("statictext", undefined, labelText(labelSet));
+        fieldLabel.preferredSize.width = FIELD_LABEL_WIDTH;
+        fieldLabel.justify = "right";
+        return fieldLabel;
     }
 
-    /* app.preferences から設定文字列を読み出して復元（無ければ null）/ Load and parse saved settings (null if none) */
-    function loadSettings() {
-        try { return parseSettings(app.preferences.getStringPreference(PREF_KEY)); } catch (e) { return null; }
+    /**
+     * ラベルとツールチップ付きのラジオボタン・チェックボックス・ボタンを追加する
+     * @param {object} parent - 追加先のパネルまたはグループ
+     * @param {string} controlType - "radiobutton" / "checkbox" / "button"
+     * @param {object} labelSet - 表示するラベル（ja/en）
+     * @param {object} tooltipSet - ツールチップ（ja/en）
+     * @returns {object} 追加したコントロール
+     */
+    function addLabeledControl(parent, controlType, labelSet, tooltipSet) {
+        var control = parent.add(controlType, undefined, getLabel(labelSet));
+        control.helpTip = getLabel(tooltipSet);
+        return control;
     }
 
-    /* 設定値の取得（保存値 → 既定値の順） / Resolve setting (saved → default) */
-    function getSavedSetting(savedSettings, key, defaultValue) {
-        if (!savedSettings) return defaultValue;
-        var savedValue = savedSettings[key];
-        return (typeof savedValue === "undefined" || savedValue === null) ? defaultValue : savedValue;
+    /**
+     * ツールチップ付きの数値入力欄を追加する
+     * @param {Group} parent - 追加先の行グループ
+     * @param {string} initialText - 初期表示する値
+     * @param {object} tooltipSet - ツールチップ（ja/en）
+     * @returns {EditText} 追加した入力欄
+     */
+    function addNumberInput(parent, initialText, tooltipSet) {
+        var numberInput = parent.add("edittext", undefined, initialText);
+        numberInput.characters = NUMBER_INPUT_CHARACTERS;
+        numberInput.helpTip = getLabel(tooltipSet);
+        return numberInput;
     }
 
-    // =========================================
-    // UI ヘルパー
-    // =========================================
-
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
-    var PANEL_SPACING = 8;
-    var VALUE_ROW_LABEL_WIDTH = 70;
-
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* 固定幅の右寄せラベル列を追加 / Add a fixed-width right-aligned label column */
-    function addFixedLabelColumn(parent, label) {
-        var labelColumn = parent.add("group");
-        labelColumn.orientation = "row";
-        labelColumn.alignChildren = ["right", "center"];
-        labelColumn.margins = 0;
-        labelColumn.spacing = 0;
-        labelColumn.preferredSize.width = VALUE_ROW_LABEL_WIDTH;
-        return labelColumn.add("statictext", undefined, label);
-    }
-
-    /* 同一グループ外のラジオボタンを手動で排他化 / Enforce exclusivity for radios in different parent groups */
+    /**
+     * 親の異なるラジオボタンを手動で排他選択にする
+     * @param {RadioButton[]} radios - 排他にするラジオボタン
+     * @param {RadioButton} selectedRadio - 選択するラジオボタン
+     * @returns {void}
+     */
     function selectExclusiveRadio(radios, selectedRadio) {
         for (var i = 0; i < radios.length; i++) {
             radios[i].value = (radios[i] === selectedRadio);
         }
     }
 
-    /* ↑↓キーで値を増減
-     * - ↑↓: ±1
-     * - Shift+↑↓: ±10（10の倍数にスナップ）
-     * minValue を指定すると、それ未満には下がらない（指定省略時は allowNegative=false で 0 が下限）
-     * Pass minValue to clamp the lower bound (otherwise 0 when allowNegative is false) */
+    /**
+     * ↑↓キーで数値入力欄の値を増減する（↑↓: ±1、Shift+↑↓: ±10 で 10 の倍数にスナップ）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {boolean} allowNegative - 負の値を許すか（false なら 0 が下限）
+     * @param {function(): void} [onChange] - 値を変えた後に呼ぶ処理
+     * @param {number} [minValue] - 下限値
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText, allowNegative, onChange, minValue) {
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
@@ -403,184 +245,525 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
     }
 
     // =========================================
-    // レイアウト処理
+    // 定数 / Constants
     // =========================================
 
-    /* ドキュメント内で使用中のシンボル名セットを返す（管理レイヤーは除外）
-     * Return a set of symbol names currently placed in the document (excluding our layer) */
+    /* 設定保存用キー / Preference key for saved settings */
+    var PREF_KEY = "swwwitch.listupallsymbol.settings";
+
+    /* 保存する設定のキー（保存文字列の並び順）/ Keys of saved settings (serialized order) */
+    var SETTINGS_KEYS = [
+        "position", "baseMode", "baseArtboardNumber", "artboardGap", "margin",
+        "update", "showCaption", "filter", "symbolGap", "maxRowWidth",
+        "bgColor", "captionPosition", "fontSize"
+    ];
+
+    /* 背景の選択肢（ラジオの並び順）と、塗りに使う墨の濃度（%）/ Background choices (radio order) and black ink percentage */
+    var BACKGROUND_CHOICES = ["none", "black", "white", "gray"];
+    var BACKGROUND_BLACK_PERCENT = { black: 100, white: 0, gray: 50 };
+
+    /* 選択肢で持つ設定と、取りうる値 / Settings stored as one of fixed choices */
+    var SETTING_CHOICES = {
+        position: ["right", "below"],
+        baseMode: ["last", "specified"],
+        filter: ["all", "used"],
+        bgColor: BACKGROUND_CHOICES,
+        captionPosition: ["above", "below"]
+    };
+
+    /* 旧アートボード上のアイテムを拾う許容幅（pt）/ Tolerance for picking items on an old artboard (pt) */
+    var ARTBOARD_HIT_TOLERANCE_PT = 1.0;
+
+    /* プレビュー用アートボードの矩形を照合する許容誤差（pt）/ Tolerance for matching the preview artboard rect (pt) */
+    var RECT_MATCH_TOLERANCE_PT = 0.01;
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 現在の UI 言語 / Current UI language */
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "シンボル一覧を作成", en: "Create Symbol List" }
+        },
+        panel: {
+            artboard: { ja: "作成するアートボード", en: "New artboard" },
+            location: { ja: "作成位置", en: "Location" },
+            sizeAndPadding: { ja: "サイズと余白", en: "Size & padding" },
+            background: { ja: "背景", en: "Background" },
+            symbols: { ja: "収集するシンボル", en: "Symbols" },
+            collectTarget: { ja: "収集対象", en: "Collect" },
+            arrangement: { ja: "並べ方", en: "Layout" },
+            caption: { ja: "キャプション", en: "Caption" }
+        },
+        radio: {
+            baseLast: { ja: "最終アートボード", en: "Last artboard" },
+            baseSpecified: { ja: "指定", en: "Specified" },
+            directionRight: { ja: "右側", en: "Right" },
+            directionBelow: { ja: "下側", en: "Below" },
+            background: {
+                none: { ja: "なし", en: "None" },
+                black: { ja: "黒", en: "Black" },
+                white: { ja: "白", en: "White" },
+                gray: { ja: "グレー", en: "Gray" }
+            },
+            captionAbove: { ja: "上", en: "Top" },
+            captionBelow: { ja: "下", en: "Bottom" },
+            filterAll: { ja: "すべて", en: "All" },
+            filterUsed: { ja: "使用中のみ", en: "Used only" }
+        },
+        checkbox: {
+            update: { ja: "更新", en: "Update" },
+            showCaption: { ja: "シンボル名を表示", en: "Show symbol name" }
+        },
+        fieldLabel: {
+            direction: { ja: "方向", en: "Direction" },
+            gap: { ja: "間隔", en: "Gap" },
+            width: { ja: "幅", en: "Width" },
+            height: { ja: "高さ", en: "Height" },
+            margin: { ja: "余白", en: "Padding" },
+            maxRowWidth: { ja: "最大幅", en: "Max row width" },
+            captionPosition: { ja: "位置", en: "Position" },
+            fontSize: { ja: "フォントサイズ", en: "Font size" }
+        },
+        tooltip: {
+            baseLast: {
+                ja: "アートボード一覧の末尾を基準にする。更新 ON の場合は既存のシンボル一覧を除外",
+                en: "Use the last artboard in the list as the base; with Update on, the existing symbol list is excluded"
+            },
+            baseSpecified: { ja: "指定した番号のアートボードを基準にする（1 始まり）", en: "Use the artboard with the given number as the base (1-based)" },
+            baseArtboardNumber: { ja: "基準にするアートボード番号（1 始まり）", en: "Base artboard number (1-based)" },
+            directionRight: { ja: "基準アートボードの右に新規アートボードを作成", en: "Place the new artboard to the right of the base" },
+            directionBelow: { ja: "基準アートボードの下に新規アートボードを作成", en: "Place the new artboard below the base" },
+            artboardGap: { ja: "基準アートボードと新規アートボードの間隔", en: "Distance between the base and new artboards" },
+            margin: { ja: "新規アートボードの内側に設ける余白", en: "Padding inside the new artboard around the symbols" },
+            symbolGap: { ja: "シンボル同士の間隔", en: "Spacing between adjacent symbols" },
+            maxRowWidth: { ja: "1行に並べる最大幅。超えると次の行に折り返し", en: "Max width per row; symbols wrap to the next row when exceeded" },
+            width: {
+                ja: "アートボードの幅。空欄または 0 で自動計算、入力すると指定値で固定",
+                en: "Artboard width. Empty/0 = auto; a number forces that exact size"
+            },
+            height: {
+                ja: "アートボードの高さ。空欄または 0 で自動計算、入力すると指定値で固定",
+                en: "Artboard height. Empty/0 = auto; a number forces that exact size"
+            },
+            update: {
+                ja: "既存の「シンボル一覧」アートボードと対象オブジェクトを削除して作り直す",
+                en: "Delete the existing Symbol List artboard and its objects, then rebuild"
+            },
+            showCaption: { ja: "各シンボルの近くにシンボル名をキャプションとして表示", en: "Show the symbol name as a caption near each symbol" },
+            captionAbove: { ja: "シンボルの上にシンボル名を表示", en: "Place the name above the symbol" },
+            captionBelow: { ja: "シンボルの下にシンボル名を表示", en: "Place the name below the symbol" },
+            fontSize: {
+                ja: "キャプションのフォントサイズ。単位は Illustrator の文字設定に従う",
+                en: "Caption font size; unit follows Illustrator's type preferences"
+            },
+            filterAll: { ja: "ドキュメントに登録されているすべてのシンボルを並べる", en: "List every symbol registered in the document" },
+            filterUsed: { ja: "ドキュメント内に配置されているシンボルだけを並べる", en: "List only symbols placed in the document" },
+            background: {
+                none: { ja: "背景の塗りを作成しない", en: "Do not create a background fill" },
+                black: { ja: "アートボード背面に黒（K100）の塗りを敷く", en: "Place a solid black (K100) fill behind the artboard" },
+                white: { ja: "アートボード背面に白の塗りを敷く", en: "Place a solid white fill behind the artboard" },
+                gray: { ja: "アートボード背面にグレー（K50）の塗りを敷く", en: "Place a 50% gray (K50) fill behind the artboard" }
+            },
+            fitSymbolList: { ja: "作成したアートボードのみをウィンドウに合わせて表示", en: "Fit the created artboard to the window" },
+            fitAll: { ja: "すべてのアートボードをウィンドウに合わせて表示", en: "Fit all artboards to the window" }
+        },
+        button: {
+            fitSymbolList: { ja: "シンボル一覧", en: "Symbol list" },
+            fitAll: { ja: "全体表示", en: "Fit all" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noSymbols: { ja: "登録されているシンボルがありません。", en: "No symbols are registered." },
+            noUsedSymbols: { ja: "ドキュメント内で使用中のシンボルがありません。", en: "No symbols are currently used in the document." }
+        },
+        itemName: {
+            symbolList: { ja: "シンボル一覧", en: "Symbol List" }
+        }
+    };
+
+    /**
+     * ラベル（ja/en）を現在の UI 言語の文字列にする
+     * @param {object} labelSet - ja/en を持つラベル
+     * @returns {string} 現在の言語の文字列
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
+    }
+
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * @param {object} labelSet - ja/en を持つラベル
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /* 作成するレイヤーとアートボードの名前 / Name of the created layer and artboard */
+    var SYMBOL_LIST_NAME = getLabel(LABELS.itemName.symbolList);
+
+    /**
+     * シンボル一覧のレイヤー名・アートボード名か（別の言語で作成したものも含む）
+     * @param {string} name - 調べる名前
+     * @returns {boolean} シンボル一覧の名前なら true
+     */
+    function isSymbolListName(name) {
+        return name === LABELS.itemName.symbolList.ja || name === LABELS.itemName.symbolList.en;
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /**
+     * @typedef {object} UnitInfo
+     * @property {string} label - 表示する単位名
+     * @property {number} factor - 1 単位あたりの pt
+     */
+
+    /**
+     * 単位のプリファレンスから表示単位と pt への換算係数を取得する
+     * （0=inch / 1=mm / 3=pica / 4=cm / 5=Q / 6=px / その他=pt）
+     * @param {string} preferenceKey - 整数プリファレンスのキー（"rulerType" / "text/units"）
+     * @returns {UnitInfo} 単位情報
+     */
+    function getUnitInfo(preferenceKey) {
+        switch (app.preferences.getIntegerPreference(preferenceKey)) {
+            case 0: return { label: "inch", factor: 72.0 };
+            case 1: return { label: "mm", factor: 72.0 / 25.4 };
+            case 3: return { label: "pica", factor: 12.0 };
+            case 4: return { label: "cm", factor: 72.0 / 2.54 };
+            case 5: return { label: "Q", factor: 72.0 / 25.4 * 0.25 };
+            case 6: return { label: "px", factor: 1.0 };
+            default: return { label: "pt", factor: 1.0 };
+        }
+    }
+
+    /* ルーラー単位（寸法・余白・間隔）/ Ruler unit for sizes, padding and gaps */
+    var RULER_UNIT = getUnitInfo("rulerType");
+
+    /* 文字の単位（フォントサイズ）/ Type unit for font size */
+    var TYPE_UNIT = getUnitInfo("text/units");
+
+    /**
+     * pt の値を表示単位の整数の文字列にする
+     * @param {number} valuePt - 値（pt）
+     * @param {UnitInfo} unitInfo - 表示単位
+     * @returns {string} 表示用の文字列
+     */
+    function formatUnitValue(valuePt, unitInfo) {
+        return String(Math.round(valuePt / unitInfo.factor));
+    }
+
+    /**
+     * ルーラー単位の入力欄を pt で読む
+     * @param {EditText} valueInput - 入力欄
+     * @param {number} defaultPt - 数値でないときの値（pt）
+     * @returns {number} 値（pt）
+     */
+    function readUnitValuePt(valueInput, defaultPt) {
+        var parsedValue = parseFloat(valueInput.text);
+        return isNaN(parsedValue) ? defaultPt : parsedValue * RULER_UNIT.factor;
+    }
+
+    /**
+     * 文字の単位のフォントサイズ欄を pt で読む（0 以下や数値以外は既定値）
+     * @param {EditText} fontSizeInput - フォントサイズの入力欄
+     * @returns {number} フォントサイズ（pt）
+     */
+    function readFontSizePt(fontSizeInput) {
+        var fontSize = parseFloat(fontSizeInput.text);
+        return (isNaN(fontSize) || fontSize <= 0) ? DEFAULT_SETTINGS.fontSize : fontSize * TYPE_UNIT.factor;
+    }
+
+    /**
+     * アートボード番号の文字列を 1 以上の整数にする
+     * @param {string} text - 入力された文字列
+     * @returns {number} アートボード番号（1 始まり）
+     */
+    function parseArtboardNumber(text) {
+        var artboardNumber = parseInt(text, 10);
+        return (isNaN(artboardNumber) || artboardNumber < 1) ? 1 : artboardNumber;
+    }
+
+    // =========================================
+    // 設定の保存・復元 / Save & restore settings
+    // =========================================
+
+    /**
+     * 設定を JSON 形式の文字列にする（ES3 互換の手書き。文字列は引用し、数値・真偽値はそのまま）
+     * @param {ListSettings} settings - 保存する設定
+     * @returns {string} 保存用の文字列
+     */
+    function serializeSettings(settings) {
+        var jsonParts = [];
+        for (var i = 0; i < SETTINGS_KEYS.length; i++) {
+            var key = SETTINGS_KEYS[i];
+            var value = settings[key];
+            jsonParts.push('"' + key + '":' + ((typeof value === "string") ? '"' + value + '"' : String(value)));
+        }
+        return "{" + jsonParts.join(",") + "}";
+    }
+
+    /**
+     * 保存文字列からキーと値の組を読み出す（eval は使わない）
+     * @param {string} settingsText - 保存文字列
+     * @returns {object} キーごとの値（文字列・数値・真偽値）
+     */
+    function readSavedValues(settingsText) {
+        var savedValues = {};
+        var pairPattern = /"(\w+)"\s*:\s*("[^"\\]*"|-?\d+(?:\.\d+)?|true|false)/g;
+        var pairMatch;
+        while ((pairMatch = pairPattern.exec(settingsText)) !== null) {
+            var rawValue = pairMatch[2];
+            if (rawValue.charAt(0) === '"') {
+                savedValues[pairMatch[1]] = rawValue.slice(1, -1);
+            } else if (rawValue === "true" || rawValue === "false") {
+                savedValues[pairMatch[1]] = (rawValue === "true");
+            } else {
+                savedValues[pairMatch[1]] = Number(rawValue);
+            }
+        }
+        return savedValues;
+    }
+
+    /**
+     * 保存値として使えるか（型が既定値と同じで、選択肢や下限を満たす）
+     * @param {string} key - 設定のキー
+     * @param {*} value - 保存値
+     * @returns {boolean} 使えるなら true
+     */
+    function isValidSettingValue(key, value) {
+        if (typeof value !== typeof DEFAULT_SETTINGS[key]) return false;
+        if (SETTING_CHOICES.hasOwnProperty(key)) {
+            for (var i = 0; i < SETTING_CHOICES[key].length; i++) {
+                if (value === SETTING_CHOICES[key][i]) return true;
+            }
+            return false;
+        }
+        if (key === "fontSize") return value > 0;
+        if (key === "baseArtboardNumber") return value >= 1;
+        return true;
+    }
+
+    /**
+     * 保存文字列から設定を復元する（使えない値は既定値に戻す）
+     * @param {string} settingsText - 保存文字列（空なら全項目が既定値）
+     * @returns {ListSettings} 復元した設定
+     */
+    function parseSettings(settingsText) {
+        var savedValues = readSavedValues(settingsText || "");
+        var settings = {};
+        for (var i = 0; i < SETTINGS_KEYS.length; i++) {
+            var key = SETTINGS_KEYS[i];
+            settings[key] = isValidSettingValue(key, savedValues[key]) ? savedValues[key] : DEFAULT_SETTINGS[key];
+        }
+        return settings;
+    }
+
+    /**
+     * 設定を app.preferences に保存する
+     * @param {ListSettings} settings - 保存する設定
+     * @returns {void}
+     */
+    function saveSettings(settings) {
+        try { app.preferences.setStringPreference(PREF_KEY, serializeSettings(settings)); } catch (e) { }
+    }
+
+    /**
+     * app.preferences から設定を読み出す（保存値が無ければ既定値）
+     * @returns {ListSettings} 設定
+     */
+    function loadSettings() {
+        var settingsText = "";
+        try { settingsText = app.preferences.getStringPreference(PREF_KEY); } catch (e) { }
+        return parseSettings(settingsText);
+    }
+
+    // =========================================
+    // シンボルの収集 / Collect symbols
+    // =========================================
+
+    /**
+     * 配置されているシンボル名の集合を返す（シンボル一覧レイヤー上のインスタンスは数えない）
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {object} シンボル名をキー、true を値にしたオブジェクト
+     */
     function getUsedSymbolNames(doc) {
-        var nameSet = {};
-        var items = doc.symbolItems;
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            try {
-                if (item.layer && isSymbolListName(item.layer.name)) continue;
-            } catch (e) { }
-            if (item.symbol && item.symbol.name) nameSet[item.symbol.name] = true;
+        var usedNames = {};
+        var symbolItems = doc.symbolItems;
+        for (var i = 0; i < symbolItems.length; i++) {
+            if (isSymbolListName(symbolItems[i].layer.name)) continue;
+            usedNames[symbolItems[i].symbol.name] = true;
         }
-        return nameSet;
+        return usedNames;
     }
 
-    /* フィルタ条件で対象シンボル配列を返す / Resolve target symbols by filter */
-    function getTargetSymbols(doc, settings) {
-        var symbols = doc.symbols;
-        if (settings.filter !== "used") {
-            var all = [];
-            for (var i = 0; i < symbols.length; i++) all.push(symbols[i]);
-            return all;
+    /**
+     * 収集対象に応じて並べるシンボルを返す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {string} filter - 収集対象（"all" / "used"）
+     * @returns {Symbol[]} 並べるシンボル
+     */
+    function getTargetSymbols(doc, filter) {
+        var usedNames = (filter === "used") ? getUsedSymbolNames(doc) : null;
+        var targetSymbols = [];
+        for (var i = 0; i < doc.symbols.length; i++) {
+            if (!usedNames || usedNames[doc.symbols[i].name]) targetSymbols.push(doc.symbols[i]);
         }
-        var usedNames = getUsedSymbolNames(doc);
-        var filtered = [];
-        for (var j = 0; j < symbols.length; j++) {
-            if (usedNames[symbols[j].name]) filtered.push(symbols[j]);
-        }
-        return filtered;
+        return targetSymbols;
     }
 
-    /* オブジェクトの中心が指定アートボード矩形の内側にあるか / Is the item's center inside the artboard rect
-     * Illustrator 座標系：x は左<右、y は上>下（上方向が正）/ x grows right, y grows up */
-    function isItemCenterOnArtboard(itemBounds, artboardRect, tolerance) {
-        var centerX = (itemBounds[0] + itemBounds[2]) / 2;
-        var centerY = (itemBounds[1] + itemBounds[3]) / 2;
-        return centerX >= artboardRect[0] - tolerance &&
-            centerX <= artboardRect[2] + tolerance &&
-            centerY <= artboardRect[1] + tolerance &&
-            centerY >= artboardRect[3] - tolerance;
-    }
+    // =========================================
+    // シンボル一覧の作成 / Build the symbol list
+    // =========================================
 
-    /* 指定アートボード上に乗っているオブジェクトをすべて削除（過去版が別レイヤーへ移されていても掴めるよう全レイヤー対象）
-     * keepLayer を指定すると、そのレイヤー上のアイテムは保護（同位置・同寸の新アートボードに作った
-     * 新しいシンボル・キャプション・背景塗りを巻き添えで消さないため）。
-     * Remove every page item whose center sits on the artboard rect; preserves any item on keepLayer
-     * so freshly-created symbols/captions/background are not collateral-deleted when old/new artboards
-     * happen to share bounds. */
-    function removeItemsOnArtboard(doc, artboardRect, keepLayer) {
-        var tolerance = 1.0;
-        var allItems = doc.pageItems;
-        var toRemove = [];
-        for (var i = 0; i < allItems.length; i++) {
-            var item = allItems[i];
-            try {
-                if (keepLayer && item.layer === keepLayer) continue;
-                if (isItemCenterOnArtboard(item.geometricBounds, artboardRect, tolerance)) {
-                    toRemove.push(item);
-                }
-            } catch (boundsError) { }
-        }
-        /* 親グループが先に消えると子の remove が投げるが、try/catch で握りつぶす
-         * If a parent group is removed first, removing its child throws; swallow via try/catch */
-        for (var j = 0; j < toRemove.length; j++) {
-            try { toRemove[j].remove(); } catch (removeError) { }
-        }
-    }
+    /**
+     * @typedef {object} SymbolEntry
+     * @property {SymbolItem} symbolItem - 配置したシンボルインスタンス
+     * @property {number} symbolWidth - シンボルの幅（pt）
+     * @property {number} symbolHeight - シンボルの高さ（pt）
+     * @property {TextFrame} [caption] - シンボル名のキャプション
+     * @property {number} [captionWidth] - キャプションの幅（pt）
+     * @property {number} [captionHeight] - キャプションの高さ（pt）
+     * @property {number} width - シンボルとキャプションを合わせた枠の幅（pt）
+     * @property {number} height - シンボルとキャプションを合わせた枠の高さ（pt）
+     * @property {number} x - 枠の左上の相対位置（pt、パッキングで決まる）
+     * @property {number} y - 枠の左上の相対位置（pt、下方向が負）
+     */
 
-    /* 確定後に他の「シンボル一覧」アートボード／レイヤーを削除（state は保持）
-     * Remove other symbol-list artboards/layers, keeping the one we just built */
-    function removeOtherSymbolLists(doc, state) {
-        if (!state || !state.artboardInfo) return;
+    /**
+     * @typedef {object} ArtboardInfo
+     * @property {number} index - 作成時のアートボードの index
+     * @property {number[]} rect - 作成時の矩形 [left, top, right, bottom]
+     */
 
-        var keepIndex = findArtboardIndexByState(doc, state);
-        if (keepIndex < 0) keepIndex = state.artboardInfo.index;
+    /**
+     * @typedef {object} SymbolListLayout
+     * @property {Layer} layer - シンボル一覧のレイヤー
+     * @property {ArtboardInfo} artboardInfo - シンボル一覧のアートボード
+     */
 
-        for (var i = doc.artboards.length - 1; i >= 0; i--) {
-            if (i === keepIndex) continue;
-            if (isSymbolListName(doc.artboards[i].name) && doc.artboards.length > 1) {
-                /* 旧アートボード上のオブジェクトをすべて先に掃除。新レイヤー上のものは保護
-                 * Sweep every item on the old artboard first; never touch the just-created (kept) layer */
-                removeItemsOnArtboard(doc, doc.artboards[i].artboardRect, state.layer);
-                try {
-                    doc.artboards.remove(i);
-                    if (i < keepIndex) keepIndex--;
-                } catch (artboardRemoveError) { }
-            }
-        }
-        state.artboardInfo.index = keepIndex;
-
-        for (var j = doc.layers.length - 1; j >= 0; j--) {
-            var layer = doc.layers[j];
-            if (layer === state.layer) continue;
-            if (isSymbolListName(layer.name) && doc.layers.length > 1) {
-                try { layer.remove(); } catch (layerRemoveError) { }
-            }
-        }
-    }
-
-    /* シンボル配置用のレイヤーを作成（失敗時は中断用に null を返す）
-     * Create the layer for the symbol list; return null on failure */
-    function createSymbolLayer(doc) {
+    /**
+     * シンボル一覧用のレイヤーを作成する
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {?Layer} 作成したレイヤー（作成できなければ null）
+     */
+    function createSymbolListLayer(doc) {
         try {
-            var layer = doc.layers.add();
-            layer.name = LAYER_NAME;
-            return layer;
-        } catch (layerCreateError) {
+            var listLayer = doc.layers.add();
+            listLayer.name = SYMBOL_LIST_NAME;
+            return listLayer;
+        } catch (e) {
             return null;
         }
     }
 
-    /* 1 シンボル分のキャプション TextFrame を生成 / Create a caption text frame */
-    function createCaption(layer, symbolName, fontSizePt, fillColor) {
-        var caption = layer.textFrames.add();
-        caption.contents = symbolName;
-        try {
-            caption.textRange.characterAttributes.size = fontSizePt;
-        } catch (sizeError) { }
-        try {
-            caption.textRange.characterAttributes.textFont = app.textFonts.getByName(DEFAULT_CAPTION_FONT_NAME);
-        } catch (fontError) { }
-        try {
-            caption.textRange.paragraphAttributes.justification = Justification.CENTER;
-        } catch (justifyError) { }
-        if (fillColor) {
-            try {
-                caption.textRange.characterAttributes.fillColor = fillColor;
-            } catch (colorError) { }
+    /**
+     * ページアイテムの表示上の幅と高さを返す
+     * @param {PageItem} pageItem - 対象のアイテム
+     * @returns {{width: number, height: number}} 幅と高さ（pt）
+     */
+    function getVisibleSize(pageItem) {
+        var bounds = pageItem.visibleBounds; // [left, top, right, bottom]
+        return { width: bounds[2] - bounds[0], height: bounds[1] - bounds[3] };
+    }
+
+    /**
+     * 墨の濃度から、ドキュメントのカラーモードに合ったグレーの色を作る
+     * @param {Document} doc - 対象のドキュメント
+     * @param {number} blackPercent - 墨の濃度（0〜100）
+     * @returns {Color} CMYKColor または RGBColor
+     */
+    function createGrayColor(doc, blackPercent) {
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = 0; cmykColor.magenta = 0; cmykColor.yellow = 0; cmykColor.black = blackPercent;
+            return cmykColor;
         }
+        var channelValue = Math.round(255 * (1 - blackPercent / 100));
+        var rgbColor = new RGBColor();
+        rgbColor.red = channelValue; rgbColor.green = channelValue; rgbColor.blue = channelValue;
+        return rgbColor;
+    }
+
+    /**
+     * シンボル名のキャプションを作成する
+     * @param {Layer} listLayer - 作成先のレイヤー
+     * @param {string} symbolName - シンボル名
+     * @param {number} fontSizePt - フォントサイズ（pt）
+     * @param {?Color} fillColor - 文字の色（null なら既定のまま）
+     * @returns {TextFrame} 作成したキャプション
+     */
+    function createCaption(listLayer, symbolName, fontSizePt, fillColor) {
+        var caption = listLayer.textFrames.add();
+        caption.contents = symbolName;
+        var textRange = caption.textRange;
+        textRange.paragraphAttributes.justification = Justification.CENTER;
+        if (fillColor) textRange.characterAttributes.fillColor = fillColor;
+        /* 範囲外のサイズは既定のまま / Keep the default size when out of range */
+        try { textRange.characterAttributes.size = fontSizePt; } catch (e) { }
+        /* フォントが無ければ既定のまま / Keep the default font when not installed */
+        try { textRange.characterAttributes.textFont = app.textFonts.getByName(CAPTION_FONT_NAMES[uiLang]); } catch (e) { }
         return caption;
     }
 
-    /* シンボルをインスタンス化し、必要ならキャプションも作成、エントリ配列を返す
-     * Instantiate symbols (and optional captions), measure, return entries */
-    function instantiateSymbols(doc, layer, settings, targetSymbols) {
-        /* 背景が黒のときだけキャプションを白に。それ以外は既定（黒）/ White caption only when bg is black */
-        var captionFillColor = (settings.bgColor === "black") ? createBgFillColor(doc, "white") : null;
+    /**
+     * シンボルを配置し（必要ならキャプションも作成して）、大きさを測ったエントリを返す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Layer} listLayer - 配置先のレイヤー
+     * @param {ListSettings} settings - 設定
+     * @param {Symbol[]} targetSymbols - 並べるシンボル
+     * @returns {SymbolEntry[]} エントリ
+     */
+    function createSymbolEntries(doc, listLayer, settings, targetSymbols) {
+        /* 背景が黒のときだけキャプションを白に / White captions only on a black background */
+        var captionFillColor = (settings.bgColor === "black") ? createGrayColor(doc, 0) : null;
         var entries = [];
         for (var i = 0; i < targetSymbols.length; i++) {
-            var symbol = targetSymbols[i];
-            var symbolItem = doc.symbolItems.add(symbol);
-            symbolItem.moveToBeginning(layer);
-            var bounds = symbolItem.visibleBounds; // [left, top, right, bottom]
-            var symbolWidth = bounds[2] - bounds[0];
-            var symbolHeight = bounds[1] - bounds[3];
-
+            var symbolItem = doc.symbolItems.add(targetSymbols[i]);
+            symbolItem.moveToBeginning(listLayer);
+            var symbolSize = getVisibleSize(symbolItem);
             var entry = {
-                item: symbolItem,
-                symbolWidth: symbolWidth,
-                symbolHeight: symbolHeight
+                symbolItem: symbolItem,
+                symbolWidth: symbolSize.width,
+                symbolHeight: symbolSize.height,
+                width: symbolSize.width,
+                height: symbolSize.height
             };
 
             if (settings.showCaption) {
-                var caption = createCaption(layer, symbol.name, settings.fontSize, captionFillColor);
-                var capBounds = caption.visibleBounds;
-                entry.caption = caption;
-                entry.captionWidth = capBounds[2] - capBounds[0];
-                entry.captionHeight = capBounds[1] - capBounds[3];
-                entry.width = Math.max(symbolWidth, entry.captionWidth);
-                entry.height = symbolHeight + CAPTION_GAP_PT + entry.captionHeight;
-            } else {
-                entry.width = symbolWidth;
-                entry.height = symbolHeight;
+                entry.caption = createCaption(listLayer, targetSymbols[i].name, settings.fontSize, captionFillColor);
+                var captionSize = getVisibleSize(entry.caption);
+                entry.captionWidth = captionSize.width;
+                entry.captionHeight = captionSize.height;
+                entry.width = Math.max(symbolSize.width, captionSize.width);
+                entry.height = symbolSize.height + CAPTION_GAP_PT + captionSize.height;
             }
             entries.push(entry);
         }
         return entries;
     }
 
-    /* シェルフパッキングで各エントリに x,y を割り付け、合計サイズを返す / Shelf packing */
-    function packShelf(entries, maxWidth, gap) {
+    /**
+     * エントリを左から詰め、最大幅を超えたら次の行に折り返して位置を決める（シェルフパッキング）
+     * @param {SymbolEntry[]} entries - エントリ（x, y を書き込む）
+     * @param {number} maxRowWidth - 1 行の最大幅（pt）
+     * @param {number} gap - エントリ同士の間隔（pt）
+     * @returns {{width: number, height: number}} 並べた全体の幅と高さ（pt）
+     */
+    function packEntriesIntoRows(entries, maxRowWidth, gap) {
         var rowX = 0, rowY = 0, rowHeight = 0, totalWidth = 0;
         for (var i = 0; i < entries.length; i++) {
             var entry = entries[i];
-            if (rowX > 0 && rowX + entry.width > maxWidth) {
+            if (rowX > 0 && rowX + entry.width > maxRowWidth) {
                 rowY -= rowHeight + gap;
                 rowX = 0;
                 rowHeight = 0;
@@ -594,18 +777,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
         return { width: totalWidth, height: -rowY + rowHeight };
     }
 
-    /* キャンバス上で最も右下に位置するアートボードの番号（1 始まり）を返す。
-     * 右端（rect[2] 最大）と下端（rect[3] 最小）を同時に満たす隅を、score = right − bottom で評価。
-     * 「シンボル一覧」アートボードは基準候補から除外する。
-     * Return the 1-based number of the bottom-right-most artboard on the canvas
-     * (max right edge + lowest bottom edge), excluding シンボル一覧 artboards. */
+    /**
+     * キャンバス上で最も右下にあるアートボードの番号を返す（シンボル一覧は除く）
+     * 右端が大きく下端が小さいほど右下とみなし、right − bottom で比べる
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {number} アートボード番号（1 始まり）
+     */
     function findBottomRightArtboardNumber(doc) {
         var bestNumber = 1;
         var bestScore = null;
         for (var i = 0; i < doc.artboards.length; i++) {
             if (isSymbolListName(doc.artboards[i].name)) continue;
-            var rect = doc.artboards[i].artboardRect; // [left, top, right, bottom]
-            var score = rect[2] - rect[3]; // 右に大きく・下に大きいほど大 / larger toward bottom-right
+            var artboardRect = doc.artboards[i].artboardRect; // [left, top, right, bottom]
+            var score = artboardRect[2] - artboardRect[3];
             if (bestScore === null || score > bestScore) {
                 bestScore = score;
                 bestNumber = i + 1;
@@ -614,31 +798,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
         return bestNumber;
     }
 
-    /* 基準アートボードの矩形を取得（基準モード別）。
-     * - specified: 指定番号（1 始まり、範囲外はクランプ）のアートボード
-     * - last + 更新 ON: 既存「シンボル一覧」は OK 時に消えるので除外し、最後の通常アートボード
-     * - last + 更新 OFF: ドキュメント末尾のアートボード
-     * Resolve the base artboard rect by base mode (specified number / last, update-aware). */
+    /**
+     * 基準アートボードの矩形を返す
+     * - 指定：その番号のアートボード（範囲外は最後のアートボード）
+     * - 最終・更新 ON：OK 時に消える既存のシンボル一覧を除いた、最後のアートボード
+     * - 最終・更新 OFF：最後のアートボード
+     * @param {Document} doc - 対象のドキュメント
+     * @param {ListSettings} settings - 設定
+     * @returns {number[]} 矩形 [left, top, right, bottom]
+     */
     function resolveBaseArtboardRect(doc, settings) {
+        var artboards = doc.artboards;
+        var lastIndex = artboards.length - 1;
         if (settings.baseMode === "specified") {
-            var idx = settings.baseArtboardNumber - 1;
-            if (idx < 0) idx = 0;
-            if (idx > doc.artboards.length - 1) idx = doc.artboards.length - 1;
-            return doc.artboards[idx].artboardRect;
+            return artboards[Math.min(settings.baseArtboardNumber - 1, lastIndex)].artboardRect;
         }
-        if (!settings.update) {
-            return doc.artboards[doc.artboards.length - 1].artboardRect;
-        }
-        for (var i = doc.artboards.length - 1; i >= 0; i--) {
-            if (!isSymbolListName(doc.artboards[i].name)) {
-                return doc.artboards[i].artboardRect;
+        if (settings.update) {
+            for (var i = lastIndex; i >= 0; i--) {
+                if (!isSymbolListName(artboards[i].name)) return artboards[i].artboardRect;
             }
         }
-        return doc.artboards[doc.artboards.length - 1].artboardRect;
+        return artboards[lastIndex].artboardRect;
     }
 
-    /* 基準アートボードの右／下に新アートボードを置く左上座標を決定
-     * Compute the new artboard origin (top-left) to the right/below the base artboard */
+    /**
+     * 基準アートボードの右または下に、新しいアートボードを置く左上の座標を返す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {ListSettings} settings - 設定
+     * @returns {{left: number, top: number}} 左上の座標
+     */
     function computeArtboardOrigin(doc, settings) {
         var baseRect = resolveBaseArtboardRect(doc, settings);
         if (settings.position === "right") {
@@ -647,873 +835,793 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncac687d0a3a0"; /* 紹�
         return { left: baseRect[0], top: baseRect[3] - settings.artboardGap };
     }
 
-    /* アートボードを追加し、識別用情報を返す / Add artboard and return identifying info */
-    function addArtboard(doc, left, top, width, height, name) {
-        var index = doc.artboards.length;
-        var rect = [left, top, left + width, top - height];
-        var artboard = doc.artboards.add(rect);
-        artboard.name = name;
-        return { index: index, name: name, rect: rect };
+    /**
+     * シンボル一覧のアートボードを追加する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {{left: number, top: number}} origin - 左上の座標
+     * @param {number} width - 幅（pt）
+     * @param {number} height - 高さ（pt）
+     * @returns {ArtboardInfo} 追加したアートボードの情報
+     */
+    function addSymbolListArtboard(doc, origin, width, height) {
+        var artboardIndex = doc.artboards.length;
+        var rect = [origin.left, origin.top, origin.left + width, origin.top - height];
+        doc.artboards.add(rect).name = SYMBOL_LIST_NAME;
+        return { index: artboardIndex, rect: rect };
     }
 
-    /* 指定アートボードをアクティブにし、その中心に指定倍率でズーム
-     * Activate the artboard and center the view on it at the given zoom factor */
-    function zoomToArtboard(doc, index, zoomFactor) {
-        if (index === null || index < 0 || index >= doc.artboards.length) return;
-        try { doc.artboards.setActiveArtboardIndex(index); } catch (e) { }
-        try {
-            var rect = doc.artboards[index].artboardRect; // [left, top, right, bottom]
-            var center = [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2];
-            var view = doc.views[0];
-            view.zoom = zoomFactor;
-            view.centerPoint = center;
-        } catch (e) { }
-    }
-
-    /* パッキング結果に従って各エントリ（シンボル＋任意のキャプション）を配置
-     * Place entries (symbol + optional caption) based on packing result */
-    function placeEntries(entries, originLeft, originTop, margin, captionPosition) {
-        var captionAbove = (captionPosition === "above");
+    /**
+     * パッキングの結果に従ってシンボルとキャプションを配置する
+     * @param {SymbolEntry[]} entries - エントリ
+     * @param {{left: number, top: number}} origin - アートボードの左上
+     * @param {number} margin - アートボード内側の余白（pt）
+     * @param {string} captionPosition - キャプションの位置（"above" / "below"）
+     * @returns {void}
+     */
+    function placeEntries(entries, origin, margin, captionPosition) {
+        var isCaptionAbove = (captionPosition === "above");
         for (var i = 0; i < entries.length; i++) {
             var entry = entries[i];
-            var slotLeft = originLeft + margin + entry.x;
-            var slotTop = originTop - margin + entry.y;
+            var slotLeft = origin.left + margin + entry.x;
+            var slotTop = origin.top - margin + entry.y;
 
-            /* スロット内でシンボルを水平中央寄せ / Center symbol within slot */
-            var symbolLeft = slotLeft + (entry.width - entry.symbolWidth) / 2;
-            var symbolTop = (entry.caption && captionAbove)
-                ? slotTop - entry.captionHeight - CAPTION_GAP_PT
-                : slotTop;
-            entry.item.position = [symbolLeft, symbolTop];
+            /* 枠の中で水平中央に揃える / Center horizontally within the slot */
+            var symbolTop = (entry.caption && isCaptionAbove) ? slotTop - entry.captionHeight - CAPTION_GAP_PT : slotTop;
+            entry.symbolItem.position = [slotLeft + (entry.width - entry.symbolWidth) / 2, symbolTop];
 
             if (entry.caption) {
-                var captionLeft = slotLeft + (entry.width - entry.captionWidth) / 2;
-                var captionTop = captionAbove
-                    ? slotTop
-                    : slotTop - entry.symbolHeight - CAPTION_GAP_PT;
-                entry.caption.position = [captionLeft, captionTop];
+                var captionTop = isCaptionAbove ? slotTop : slotTop - entry.symbolHeight - CAPTION_GAP_PT;
+                entry.caption.position = [slotLeft + (entry.width - entry.captionWidth) / 2, captionTop];
             }
         }
     }
 
-    /* 背景色選択からドキュメントカラースペースに合った塗り色を生成
-     * Resolve fill color matching the document color space */
-    function createBgFillColor(doc, choice) {
-        if (!choice || choice === "none") return null;
-        var isCMYK = (doc.documentColorSpace === DocumentColorSpace.CMYK);
-        var k;
-        if (choice === "black") k = 100;
-        else if (choice === "white") k = 0;
-        else if (choice === "gray") k = 50;
-        else return null;
-
-        if (isCMYK) {
-            var cmyk = new CMYKColor();
-            cmyk.cyan = 0; cmyk.magenta = 0; cmyk.yellow = 0; cmyk.black = k;
-            return cmyk;
-        }
-        var v = Math.round(255 * (1 - k / 100));
-        var rgb = new RGBColor();
-        rgb.red = v; rgb.green = v; rgb.blue = v;
-        return rgb;
+    /**
+     * アートボードいっぱいの背景の塗りを作り、レイヤーの最背面に送る
+     * @param {Layer} listLayer - 作成先のレイヤー
+     * @param {number[]} rect - アートボードの矩形 [left, top, right, bottom]
+     * @param {Color} fillColor - 塗りの色
+     * @returns {void}
+     */
+    function createBackgroundFill(listLayer, rect, fillColor) {
+        var backgroundRect = listLayer.pathItems.rectangle(rect[1], rect[0], rect[2] - rect[0], rect[1] - rect[3]);
+        backgroundRect.filled = true;
+        backgroundRect.stroked = false;
+        backgroundRect.fillColor = fillColor;
+        backgroundRect.zOrder(ZOrderMethod.SENDTOBACK);
     }
 
-    /* アートボード矩形いっぱいに背景塗りを敷く（最背面に送る）
-     * Place a background fill across the artboard rect and send it to back */
-    function createBackgroundFill(layer, rect, color) {
-        if (!color) return null;
-        var left = rect[0];
-        var top = rect[1];
-        var width = rect[2] - rect[0];
-        var height = rect[1] - rect[3];
-        var bg = layer.pathItems.rectangle(top, left, width, height);
-        bg.filled = true;
-        bg.stroked = false;
-        bg.fillColor = color;
-        try { bg.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
-        return bg;
-    }
-
-    /* ひとまとまりのレイアウトを構築（既存はプレビュー中常に保持、削除は OK 時のみ）
-     * Build layout (existing symbol-list artboards are kept during preview; removal only at OK) */
+    /**
+     * シンボル一覧（レイヤー・シンボル・キャプション・アートボード・背景）を作成する
+     * 既存のシンボル一覧はここでは消さない（削除は OK 時の removeOtherSymbolLists）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {ListSettings} settings - 設定
+     * @returns {?SymbolListLayout} 作成した一覧（並べるシンボルが無ければ null）
+     */
     function buildLayout(doc, settings) {
-        var targetSymbols = getTargetSymbols(doc, settings);
+        var targetSymbols = getTargetSymbols(doc, settings.filter);
         if (targetSymbols.length === 0) return null;
-        var layer = createSymbolLayer(doc);
-        if (!layer) return null;
-        var entries = instantiateSymbols(doc, layer, settings, targetSymbols);
-        var size = packShelf(entries, settings.maxRowWidth, settings.symbolGap);
+        var listLayer = createSymbolListLayer(doc);
+        if (!listLayer) return null;
 
+        var entries = createSymbolEntries(doc, listLayer, settings, targetSymbols);
+        var contentSize = packEntriesIntoRows(entries, settings.maxRowWidth, settings.symbolGap);
         var origin = computeArtboardOrigin(doc, settings);
-        var artboardWidth = (settings.widthOverridePt && settings.widthOverridePt > 0)
-            ? settings.widthOverridePt
-            : size.width + settings.margin * 2;
-        var artboardHeight = (settings.heightOverridePt && settings.heightOverridePt > 0)
-            ? settings.heightOverridePt
-            : size.height + settings.margin * 2;
-        var artboardInfo = addArtboard(
-            doc, origin.left, origin.top,
-            artboardWidth, artboardHeight,
-            ARTBOARD_NAME
-        );
-        placeEntries(entries, origin.left, origin.top, settings.margin, settings.captionPosition);
+        var artboardWidth = (settings.widthOverridePt > 0) ? settings.widthOverridePt : contentSize.width + settings.margin * 2;
+        var artboardHeight = (settings.heightOverridePt > 0) ? settings.heightOverridePt : contentSize.height + settings.margin * 2;
+        var artboardInfo = addSymbolListArtboard(doc, origin, artboardWidth, artboardHeight);
+        placeEntries(entries, origin, settings.margin, settings.captionPosition);
 
-        createBackgroundFill(layer, artboardInfo.rect, createBgFillColor(doc, settings.bgColor));
-
-        return { layer: layer, artboardInfo: artboardInfo, count: entries.length };
+        if (settings.bgColor !== "none") {
+            createBackgroundFill(listLayer, artboardInfo.rect, createGrayColor(doc, BACKGROUND_BLACK_PERCENT[settings.bgColor]));
+        }
+        return { layer: listLayer, artboardInfo: artboardInfo };
     }
 
-    /* 数値を許容誤差つきで比較 / Compare numbers with tolerance */
-    function nearlyEqual(a, b) {
-        return Math.abs(a - b) < 0.01;
-    }
+    // =========================================
+    // シンボル一覧の削除 / Remove symbol lists
+    // =========================================
 
-    /* アートボード矩形を比較 / Compare artboard rectangles */
-    function isSameArtboardRect(a, b) {
-        if (!a || !b || a.length !== 4 || b.length !== 4) return false;
+    /**
+     * 2 つの矩形が許容誤差の範囲で一致するか
+     * @param {number[]} rectA - 矩形 [left, top, right, bottom]
+     * @param {number[]} rectB - 矩形 [left, top, right, bottom]
+     * @returns {boolean} 一致すれば true
+     */
+    function isSameRect(rectA, rectB) {
         for (var i = 0; i < 4; i++) {
-            if (!nearlyEqual(a[i], b[i])) return false;
+            if (Math.abs(rectA[i] - rectB[i]) >= RECT_MATCH_TOLERANCE_PT) return false;
         }
         return true;
     }
 
-    /* state から削除対象アートボードの現在 index を探す / Find current artboard index from state */
-    function findArtboardIndexByState(doc, state) {
-        if (!state || !state.artboardInfo) return -1;
-        var fallbackIndex = state.artboardInfo.index;
-        if (fallbackIndex >= 0 && fallbackIndex < doc.artboards.length) {
-            try {
-                var fallbackArtboard = doc.artboards[fallbackIndex];
-                if (fallbackArtboard.name === state.artboardInfo.name &&
-                    isSameArtboardRect(fallbackArtboard.artboardRect, state.artboardInfo.rect)) {
-                    return fallbackIndex;
-                }
-            } catch (fallbackError) { }
-        }
-
+    /**
+     * 作成したシンボル一覧のアートボードの現在の index を探す（後ろから探す）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {ArtboardInfo} artboardInfo - 作成時のアートボード情報
+     * @returns {number} index（見つからなければ -1）
+     */
+    function findArtboardIndex(doc, artboardInfo) {
         for (var i = doc.artboards.length - 1; i >= 0; i--) {
-            try {
-                var artboard = doc.artboards[i];
-                if (artboard.name === state.artboardInfo.name &&
-                    isSameArtboardRect(artboard.artboardRect, state.artboardInfo.rect)) {
-                    return i;
-                }
-            } catch (searchError) { }
+            var artboard = doc.artboards[i];
+            if (artboard.name === SYMBOL_LIST_NAME && isSameRect(artboard.artboardRect, artboardInfo.rect)) return i;
         }
         return -1;
     }
 
-    /* レイアウト結果を取り消す（プレビュー用、API 経由削除） / Remove layout via API */
-    function clearLayout(doc, state) {
-        if (!state) return;
-        var artboardIndex = findArtboardIndexByState(doc, state);
-        if (artboardIndex >= 0 && doc.artboards.length > 1) {
-            try { doc.artboards.remove(artboardIndex); } catch (artboardRemoveError) { }
+    /**
+     * プレビューで作成したシンボル一覧（アートボードとレイヤー）を削除する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {SymbolListLayout} layout - 削除する一覧
+     * @returns {void}
+     */
+    function removeLayout(doc, layout) {
+        var artboardIndex = findArtboardIndex(doc, layout.artboardInfo);
+        if (artboardIndex >= 0 && doc.artboards.length > 1) doc.artboards.remove(artboardIndex);
+        layout.layer.remove();
+    }
+
+    /**
+     * 中心が矩形の内側にあるか（許容幅つき。y は上が正）
+     * @param {number[]} itemBounds - アイテムの境界 [left, top, right, bottom]
+     * @param {number[]} rect - 矩形 [left, top, right, bottom]
+     * @param {number} tolerance - 許容幅（pt）
+     * @returns {boolean} 内側なら true
+     */
+    function isCenterInRect(itemBounds, rect, tolerance) {
+        var centerX = (itemBounds[0] + itemBounds[2]) / 2;
+        var centerY = (itemBounds[1] + itemBounds[3]) / 2;
+        return centerX >= rect[0] - tolerance &&
+            centerX <= rect[2] + tolerance &&
+            centerY <= rect[1] + tolerance &&
+            centerY >= rect[3] - tolerance;
+    }
+
+    /**
+     * 旧アートボードの矩形に中心が入るページアイテムを全レイヤーから削除する
+     * 保護レイヤー上のアイテムは残す（同じ位置に作った新しい一覧を巻き込まないため）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {number[]} rect - 旧アートボードの矩形
+     * @param {Layer} protectedLayer - 削除しないレイヤー
+     * @returns {void}
+     */
+    function removeItemsInRect(doc, rect, protectedLayer) {
+        var pageItems = doc.pageItems;
+        var itemsToRemove = [];
+        for (var i = 0; i < pageItems.length; i++) {
+            if (pageItems[i].layer === protectedLayer) continue;
+            if (isCenterInRect(pageItems[i].geometricBounds, rect, ARTBOARD_HIT_TOLERANCE_PT)) itemsToRemove.push(pageItems[i]);
         }
-        try { state.layer.remove(); } catch (layerRemoveError) { }
+        for (var j = 0; j < itemsToRemove.length; j++) {
+            /* 親グループごと消えた子やロックされたアイテムは例外になるので飛ばす / Skip children of removed groups and locked items */
+            try { itemsToRemove[j].remove(); } catch (e) { }
+        }
+    }
+
+    /**
+     * 確定した一覧を残して、ほかのシンボル一覧（アートボード・その上のアイテム・レイヤー）を削除する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {SymbolListLayout} keptLayout - 残す一覧
+     * @returns {void}
+     */
+    function removeOtherSymbolLists(doc, keptLayout) {
+        var keptIndex = findArtboardIndex(doc, keptLayout.artboardInfo);
+        if (keptIndex < 0) keptIndex = keptLayout.artboardInfo.index;
+
+        /* 後ろから消すので、keptIndex より前を消しても比較はずれない / Removing backwards keeps keptIndex valid for comparison */
+        for (var i = doc.artboards.length - 1; i >= 0; i--) {
+            if (i === keptIndex || doc.artboards.length <= 1 || !isSymbolListName(doc.artboards[i].name)) continue;
+            removeItemsInRect(doc, doc.artboards[i].artboardRect, keptLayout.layer);
+            doc.artboards.remove(i);
+        }
+
+        for (var j = doc.layers.length - 1; j >= 0; j--) {
+            var existingLayer = doc.layers[j];
+            if (existingLayer === keptLayout.layer || doc.layers.length <= 1 || !isSymbolListName(existingLayer.name)) continue;
+            /* ロックされたレイヤーは削除できないので残す / Locked layers cannot be removed */
+            try { existingLayer.remove(); } catch (e) { }
+        }
     }
 
     // =========================================
-    // ビュー状態の退避・復元 / View state capture & restore
+    // 表示 / View
     // =========================================
 
-    /* 現在のビュー状態（view/zoom/centerPoint）を退避 / Capture current view state (view/zoom/center) */
+    /**
+     * @typedef {object} ViewState
+     * @property {View} view - 対象のビュー
+     * @property {number} zoom - ズーム倍率
+     * @property {number[]} centerPoint - 表示の中心
+     */
+
+    /**
+     * 現在のズームと表示の中心を控える
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {ViewState} 控えた表示状態
+     */
     function captureViewState(doc) {
-        var st = { view: null, zoom: null, center: null };
-        try {
-            st.view = doc.activeView;
-            st.zoom = st.view.zoom;
-            st.center = st.view.centerPoint;
-        } catch (_) { }
-        return st;
+        var activeView = doc.activeView;
+        return { view: activeView, zoom: activeView.zoom, centerPoint: activeView.centerPoint };
     }
 
-    /* 退避したビュー状態（zoom/centerPoint）を復元 / Restore a previously captured view state */
-    function restoreViewState(doc, state) {
-        if (!state) return;
-        try {
-            var v = state.view || doc.activeView;
-            if (v && state.zoom != null) v.zoom = state.zoom;
-            if (v && state.center != null) v.centerPoint = state.center;
-        } catch (_) { }
+    /**
+     * 控えたズームと表示の中心に戻す
+     * @param {ViewState} viewState - 控えた表示状態
+     * @returns {void}
+     */
+    function restoreViewState(viewState) {
+        viewState.view.zoom = viewState.zoom;
+        viewState.view.centerPoint = viewState.centerPoint;
+    }
+
+    /**
+     * アートボードをアクティブにし、その中心を指定倍率で表示する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {number} artboardIndex - アートボードの index
+     * @param {number} zoomFactor - ズーム倍率
+     * @returns {void}
+     */
+    function zoomToArtboard(doc, artboardIndex, zoomFactor) {
+        doc.artboards.setActiveArtboardIndex(artboardIndex);
+        var rect = doc.artboards[artboardIndex].artboardRect; // [left, top, right, bottom]
+        var activeView = doc.activeView;
+        activeView.zoom = zoomFactor;
+        activeView.centerPoint = [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2];
+    }
+
+    /**
+     * メニューコマンドでウィンドウに合わせた後、少し縮小して表示する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {string} menuCommand - "fitin"（アクティブなアートボード）/ "fitall"（すべて）
+     * @returns {void}
+     */
+    function fitWindowThenZoomOut(doc, menuCommand) {
+        app.executeMenuCommand(menuCommand);
+        /* 最小倍率を下回ると例外になるので、そのときはフィットのまま / Stay fitted if below the minimum zoom */
+        try { doc.activeView.zoom = doc.activeView.zoom * FIT_ZOOM_RATIO; } catch (e) { }
+        app.redraw();
     }
 
     // =========================================
-    // ダイアログ
+    // ダイアログ / Dialog
     // =========================================
 
-    /* ラベル付き数値入力行を作成 / Build a labeled numeric input row */
-    function addValueRow(parent, label, defaultPt, tooltip) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = "center";
-        row.spacing = 6;
-
-        var labelControl = addFixedLabelColumn(row, label);
-
-        var input = row.add("edittext", undefined, String(Math.round(ptToUnit(defaultPt))));
-        input.characters = 4;
-        row.add("statictext", undefined, UNIT.label);
-        if (tooltip) {
-            labelControl.helpTip = tooltip;
-            input.helpTip = tooltip;
-        }
-        return input;
+    /**
+     * 項目名・数値入力欄・単位の行を追加する
+     * @param {Panel} parent - 追加先のパネル
+     * @param {object} labelSet - 項目名のラベル（ja/en）
+     * @param {number} valuePt - 初期値（pt）
+     * @param {UnitInfo} unitInfo - 表示単位
+     * @param {object} tooltipSet - 項目名と入力欄のツールチップ（ja/en）
+     * @returns {EditText} 追加した入力欄（行グループは parent で参照できる）
+     */
+    function addUnitValueRow(parent, labelSet, valuePt, unitInfo, tooltipSet) {
+        var valueRow = addRowGroup(parent);
+        addFieldLabel(valueRow, labelSet).helpTip = getLabel(tooltipSet);
+        var valueInput = addNumberInput(valueRow, formatUnitValue(valuePt, unitInfo), tooltipSet);
+        valueRow.add("statictext", undefined, unitInfo.label);
+        return valueInput;
     }
 
-    /* 「作成位置」パネル。基準（最終アートボード／指定番号）と方向（右側／下側）の
-     * 2 つの独立ラジオグループ＋間隔入力で構成。指定番号の既定値はキャンバス最右下のアートボード番号。
-     * Build the "Location" panel: base (last / specified number) and direction (right / below)
-     * as two independent radio groups, plus the gap input. The specified-number default is the
-     * bottom-right-most artboard number on the canvas. */
-    function buildPlacementPanel(parent, savedSettings, doc) {
-        var panel = parent.add("panel", undefined, L(LABELS.panel.place));
-        setupPanel(panel);
+    /**
+     * 「作成位置」パネル（基準・間隔・方向）を構築する
+     * @param {Panel} parent - 追加先のパネル
+     * @param {object} controls - コントロールの参照を書き込むオブジェクト
+     * @param {ListSettings} initialSettings - 初期値
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {void}
+     */
+    function buildLocationPanel(parent, controls, initialSettings, doc) {
+        var locationPanel = addPanel(parent, LABELS.panel.location);
 
-        var savedPosition = getSavedSetting(savedSettings, "position", "below");
-        var savedBaseMode = getSavedSetting(savedSettings, "baseMode", "last");
+        /* 基準：最終アートボード／指定［番号］（親が異なるので排他はイベント側で処理）
+         * Base: last artboard or specified [number] (different parents; exclusivity is handled in events) */
+        var baseModeGroup = locationPanel.add("group");
+        baseModeGroup.orientation = "column";
+        baseModeGroup.alignChildren = "left";
+        baseModeGroup.spacing = ROW_SPACING;
+        controls.baseLastRadio = addLabeledControl(baseModeGroup, "radiobutton", LABELS.radio.baseLast, LABELS.tooltip.baseLast);
+        var specifiedBaseRow = addRowGroup(baseModeGroup);
+        controls.baseSpecifiedRadio = addLabeledControl(specifiedBaseRow, "radiobutton", LABELS.radio.baseSpecified, LABELS.tooltip.baseSpecified);
+        /* 番号の初期値はキャンバスの最も右下にあるアートボード / Default number: bottom-right-most artboard */
+        controls.baseArtboardNumberInput = addNumberInput(specifiedBaseRow, String(findBottomRightArtboardNumber(doc)), LABELS.tooltip.baseArtboardNumber);
+        controls.baseLastRadio.value = (initialSettings.baseMode === "last");
+        controls.baseSpecifiedRadio.value = (initialSettings.baseMode === "specified");
 
-        /* 基準：最終アートボード／指定［番号］/ Base: last artboard or specified [number] */
-        var baseGroup = panel.add("group");
-        baseGroup.orientation = "column";
-        baseGroup.alignChildren = "left";
-        baseGroup.spacing = 6;
-
-        var baseLastRadio = baseGroup.add("radiobutton", undefined, L(LABELS.radio.baseLast));
-        baseLastRadio.helpTip = L(LABELS.tip.baseLast);
-
-        var baseSpecRow = baseGroup.add("group");
-        baseSpecRow.orientation = "row";
-        baseSpecRow.alignChildren = ["left", "center"];
-        baseSpecRow.spacing = 6;
-        var baseSpecifiedRadio = baseSpecRow.add("radiobutton", undefined, L(LABELS.radio.baseSpecified));
-        baseSpecifiedRadio.helpTip = L(LABELS.tip.baseSpecified);
-        /* 既定値はキャンバス上で最も右下のアートボード番号を自動採用 / Default to bottom-right-most artboard */
-        var baseNumberInput = baseSpecRow.add("edittext", undefined, String(findBottomRightArtboardNumber(doc)));
-        baseNumberInput.characters = 4;
-        baseNumberInput.helpTip = L(LABELS.tip.baseArtboardNumber);
-
-        baseLastRadio.value = (savedBaseMode !== "specified");
-        baseSpecifiedRadio.value = (savedBaseMode === "specified");
-
-        var artboardGapInput = addValueRow(panel, labelText(LABELS.field.gap),
-            getSavedSetting(savedSettings, "artboardGap", DEFAULT_ARTBOARD_GAP_PT), L(LABELS.tip.artboardGap));
+        controls.artboardGapInput = addUnitValueRow(locationPanel, LABELS.fieldLabel.gap, initialSettings.artboardGap, RULER_UNIT, LABELS.tooltip.artboardGap);
 
         /* 方向：右側／下側 / Direction: right or below */
-        var directionGroup = panel.add("group");
-        directionGroup.orientation = "row";
-        directionGroup.alignChildren = ["left", "center"];
-        directionGroup.spacing = 6;
-
-        /* 間隔行と同じ右寄せ固定幅列にして桁を揃える / Align with other value-row labels */
-        addFixedLabelColumn(directionGroup, labelText(LABELS.label.direction));
-
-        var directionRadios = directionGroup.add("group");
-        directionRadios.orientation = "row";
-        directionRadios.alignChildren = ["left", "center"];
-        directionRadios.spacing = 10;
-        var rightRadio = directionRadios.add("radiobutton", undefined, L(LABELS.radio.directionRight));
-        rightRadio.helpTip = L(LABELS.tip.directionRight);
-        var belowRadio = directionRadios.add("radiobutton", undefined, L(LABELS.radio.directionBelow));
-        belowRadio.helpTip = L(LABELS.tip.directionBelow);
-        rightRadio.value = (savedPosition === "right");
-        belowRadio.value = (savedPosition !== "right");
-
-        return {
-            baseLastRadio: baseLastRadio,
-            baseSpecifiedRadio: baseSpecifiedRadio,
-            baseNumberInput: baseNumberInput,
-            rightRadio: rightRadio,
-            belowRadio: belowRadio,
-            artboardGapInput: artboardGapInput
-        };
+        var directionRow = addRowGroup(locationPanel);
+        addFieldLabel(directionRow, LABELS.fieldLabel.direction);
+        var directionRadioGroup = addRowGroup(directionRow, RADIO_SPACING);
+        controls.directionRightRadio = addLabeledControl(directionRadioGroup, "radiobutton", LABELS.radio.directionRight, LABELS.tooltip.directionRight);
+        controls.directionBelowRadio = addLabeledControl(directionRadioGroup, "radiobutton", LABELS.radio.directionBelow, LABELS.tooltip.directionBelow);
+        controls.directionRightRadio.value = (initialSettings.position === "right");
+        controls.directionBelowRadio.value = (initialSettings.position === "below");
     }
 
-    /* 「サイズと余白」パネル（幅・高さ・内側余白）を構築 / Build the "Size & padding" panel (width/height/inner padding) */
-    function buildMarginPanel(parent, savedSettings) {
-        var panel = parent.add("panel", undefined, L(LABELS.panel.size));
-        setupPanel(panel);
-        var widthInput = addValueRow(panel, labelText(LABELS.field.width), 0, L(LABELS.tip.width));
-        var heightInput = addValueRow(panel, labelText(LABELS.field.height), 0, L(LABELS.tip.height));
-        var marginInput = addValueRow(panel, labelText(LABELS.field.margin),
-            getSavedSetting(savedSettings, "margin", DEFAULT_ARTBOARD_MARGIN_PT), L(LABELS.tip.margin));
-        return {
-            widthInput: widthInput,
-            heightInput: heightInput,
-            marginInput: marginInput
-        };
+    /**
+     * 「サイズと余白」パネル（幅・高さ・余白）を構築する
+     * @param {Panel} parent - 追加先のパネル
+     * @param {object} controls - コントロールの参照を書き込むオブジェクト
+     * @param {ListSettings} initialSettings - 初期値
+     * @returns {void}
+     */
+    function buildSizePanel(parent, controls, initialSettings) {
+        var sizePanel = addPanel(parent, LABELS.panel.sizeAndPadding);
+        controls.widthInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.width, 0, RULER_UNIT, LABELS.tooltip.width);
+        controls.heightInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.height, 0, RULER_UNIT, LABELS.tooltip.height);
+        controls.marginInput = addUnitValueRow(sizePanel, LABELS.fieldLabel.margin, initialSettings.margin, RULER_UNIT, LABELS.tooltip.margin);
     }
 
-    /* 「背景」パネル（なし／黒／白／グレーの 2×2 ラジオ）を構築 / Build the "Background" panel (none/black/white/gray 2x2 radios) */
-    function buildBgColorPanel(parent, savedSettings) {
-        var panel = parent.add("panel", undefined, L(LABELS.panel.bgColor));
-        setupPanel(panel);
-
-        /* 2 行 2 列。各ラジオの幅を揃えて列をきれいに整える / 2x2 grid; equal widths align columns */
-        var BG_RADIO_WIDTH = 60;
-
-        var row1 = panel.add("group");
-        row1.orientation = "row";
-        row1.spacing = 10;
-        var bgNoneRadio = row1.add("radiobutton", undefined, L(LABELS.radio.bgNone));
-        bgNoneRadio.helpTip = L(LABELS.tip.bgNone);
-        bgNoneRadio.preferredSize.width = BG_RADIO_WIDTH;
-        var bgBlackRadio = row1.add("radiobutton", undefined, L(LABELS.radio.bgBlack));
-        bgBlackRadio.helpTip = L(LABELS.tip.bgBlack);
-        bgBlackRadio.preferredSize.width = BG_RADIO_WIDTH;
-
-        var row2 = panel.add("group");
-        row2.orientation = "row";
-        row2.spacing = 10;
-        var bgWhiteRadio = row2.add("radiobutton", undefined, L(LABELS.radio.bgWhite));
-        bgWhiteRadio.helpTip = L(LABELS.tip.bgWhite);
-        bgWhiteRadio.preferredSize.width = BG_RADIO_WIDTH;
-        var bgGrayRadio = row2.add("radiobutton", undefined, L(LABELS.radio.bgGray));
-        bgGrayRadio.helpTip = L(LABELS.tip.bgGray);
-        bgGrayRadio.preferredSize.width = BG_RADIO_WIDTH;
-
-        var savedBgColor = getSavedSetting(savedSettings, "bgColor", "none");
-        bgNoneRadio.value = (savedBgColor === "none");
-        bgBlackRadio.value = (savedBgColor === "black");
-        bgWhiteRadio.value = (savedBgColor === "white");
-        bgGrayRadio.value = (savedBgColor === "gray");
-        return {
-            bgNoneRadio: bgNoneRadio,
-            bgBlackRadio: bgBlackRadio,
-            bgWhiteRadio: bgWhiteRadio,
-            bgGrayRadio: bgGrayRadio
-        };
+    /**
+     * 「背景」パネル（なし／黒／白／グレーを 2 行 2 列）を構築する
+     * @param {Panel} parent - 追加先のパネル
+     * @param {object} controls - コントロールの参照を書き込むオブジェクト
+     * @param {ListSettings} initialSettings - 初期値
+     * @returns {void}
+     */
+    function buildBackgroundPanel(parent, controls, initialSettings) {
+        var backgroundPanel = addPanel(parent, LABELS.panel.background);
+        var radioRow;
+        controls.backgroundRadios = [];
+        for (var i = 0; i < BACKGROUND_CHOICES.length; i++) {
+            if (i % 2 === 0) radioRow = addRowGroup(backgroundPanel, RADIO_SPACING);
+            var choice = BACKGROUND_CHOICES[i];
+            var backgroundRadio = addLabeledControl(radioRow, "radiobutton", LABELS.radio.background[choice], LABELS.tooltip.background[choice]);
+            backgroundRadio.preferredSize.width = BACKGROUND_RADIO_WIDTH;
+            backgroundRadio.value = (choice === initialSettings.bgColor);
+            controls.backgroundRadios.push(backgroundRadio);
+        }
     }
 
-    /* 「キャプション」パネル（表示 ON/OFF・上下位置・フォントサイズ）を構築 / Build the "Caption" panel (toggle/position/font size) */
-    function buildCaptionPanel(parent, savedSettings) {
-        var panel = parent.add("panel", undefined, L(LABELS.panel.caption));
-        setupPanel(panel);
-
-        var savedShowCaption = getSavedSetting(savedSettings, "showCaption", false);
-        var savedCaptionPosition = getSavedSetting(savedSettings, "captionPosition", "below");
-
-        /* シンボル名表示の ON/OFF / Toggle caption visibility */
-        var showCaptionCheckbox = panel.add("checkbox", undefined, L(LABELS.checkbox.showCaption));
-        showCaptionCheckbox.helpTip = L(LABELS.tip.showCaption);
-        showCaptionCheckbox.value = (savedShowCaption !== false);
-
-        /* 表示位置（横並び 2 ラジオ）/ Caption position as 2-way horizontal radio */
-        var posRow = panel.add("group");
-        posRow.orientation = "row";
-        posRow.alignChildren = ["left", "center"];
-        posRow.spacing = 6;
-        posRow.add("statictext", undefined, labelText(LABELS.label.captionPosition));
-        var posRadios = posRow.add("group");
-        posRadios.orientation = "row";
-        posRadios.alignChildren = "left";
-        posRadios.spacing = 10;
-        var captionAboveRadio = posRadios.add("radiobutton", undefined, L(LABELS.radio.captionAbove));
-        captionAboveRadio.helpTip = L(LABELS.tip.captionAbove);
-        var captionBelowRadio = posRadios.add("radiobutton", undefined, L(LABELS.radio.captionBelow));
-        captionBelowRadio.helpTip = L(LABELS.tip.captionBelow);
-        captionAboveRadio.value = (savedCaptionPosition === "above");
-        captionBelowRadio.value = (savedCaptionPosition !== "above");
-
-        /* フォントサイズ（単位は環境設定 text/units に従う）/ Font size in the user's text-unit pref */
-        var fontSizeRow = panel.add("group");
-        fontSizeRow.orientation = "row";
-        fontSizeRow.alignChildren = "center";
-        fontSizeRow.spacing = 6;
-        var fsLabel = addFixedLabelColumn(fontSizeRow, labelText(LABELS.field.fontSize));
-        fsLabel.helpTip = L(LABELS.tip.fontSize);
-        var savedFontSize = getSavedSetting(savedSettings, "fontSize", DEFAULT_CAPTION_FONT_SIZE_PT);
-        var fontSizeInput = fontSizeRow.add("edittext", undefined, String(Math.round(ptToTypeUnit(savedFontSize))));
-        fontSizeInput.characters = 4;
-        fontSizeInput.helpTip = L(LABELS.tip.fontSize);
-        fontSizeRow.add("statictext", undefined, TYPE_UNIT.label);
-
-        return {
-            showCaptionCheckbox: showCaptionCheckbox,
-            posRow: posRow,
-            captionAboveRadio: captionAboveRadio,
-            captionBelowRadio: captionBelowRadio,
-            fontSizeRow: fontSizeRow,
-            fontSizeInput: fontSizeInput
-        };
+    /**
+     * 「収集対象」パネル（すべて／使用中のみ）を構築する
+     * @param {Panel} parent - 追加先のパネル
+     * @param {object} controls - コントロールの参照を書き込むオブジェクト
+     * @returns {void}
+     */
+    function buildCollectTargetPanel(parent, controls) {
+        var collectTargetPanel = addPanel(parent, LABELS.panel.collectTarget);
+        var filterRow = addRowGroup(collectTargetPanel, RADIO_SPACING);
+        controls.filterAllRadio = addLabeledControl(filterRow, "radiobutton", LABELS.radio.filterAll, LABELS.tooltip.filterAll);
+        controls.filterUsedRadio = addLabeledControl(filterRow, "radiobutton", LABELS.radio.filterUsed, LABELS.tooltip.filterUsed);
+        /* 保存値は使わず、起動時は常に「すべて」/ Always start with "all" regardless of saved settings */
+        controls.filterAllRadio.value = true;
     }
 
-    /* 「収集対象」パネル（すべて／使用中のみ）を構築。起動時は常に「すべて」 / Build the "Collect" panel (all / used only; always "all" at launch) */
-    function buildTargetPanel(parent) {
-        var panel = parent.add("panel", undefined, L(LABELS.panel.target));
-        setupPanel(panel);
-        /* ラジオを横並びに / Lay out radios in a row */
-        var row = panel.add("group");
-        row.orientation = "row";
-        row.alignChildren = ["left", "center"];
-        row.spacing = 12;
-        var filterAllRadio = row.add("radiobutton", undefined, L(LABELS.radio.filterAll));
-        filterAllRadio.helpTip = L(LABELS.tip.filterAll);
-        var filterUsedRadio = row.add("radiobutton", undefined, L(LABELS.radio.filterUsed));
-        filterUsedRadio.helpTip = L(LABELS.tip.filterUsed);
-        /* 起動時は常に「すべて」を選択（保存値は無視）/ Always start with "all" on launch */
-        filterAllRadio.value = true;
-        filterUsedRadio.value = false;
-        return {
-            filterAllRadio: filterAllRadio,
-            filterUsedRadio: filterUsedRadio
-        };
+    /**
+     * 「並べ方」パネル（間隔・最大幅）を構築する
+     * @param {Panel} parent - 追加先のパネル
+     * @param {object} controls - コントロールの参照を書き込むオブジェクト
+     * @param {ListSettings} initialSettings - 初期値
+     * @returns {void}
+     */
+    function buildArrangementPanel(parent, controls, initialSettings) {
+        var arrangementPanel = addPanel(parent, LABELS.panel.arrangement);
+        controls.symbolGapInput = addUnitValueRow(arrangementPanel, LABELS.fieldLabel.gap, initialSettings.symbolGap, RULER_UNIT, LABELS.tooltip.symbolGap);
+        controls.maxRowWidthInput = addUnitValueRow(arrangementPanel, LABELS.fieldLabel.maxRowWidth, initialSettings.maxRowWidth, RULER_UNIT, LABELS.tooltip.maxRowWidth);
     }
 
-    /* 「並べ方」パネル（シンボル間隔・最大幅）を構築 / Build the "Layout" panel (symbol gap / max row width) */
-    function buildSymbolPanel(parent, savedSettings) {
-        var panel = parent.add("panel", undefined, L(LABELS.panel.placement));
-        setupPanel(panel);
+    /**
+     * 「キャプション」パネル（表示・位置・フォントサイズ）を構築する
+     * @param {Panel} parent - 追加先のパネル
+     * @param {object} controls - コントロールの参照を書き込むオブジェクト
+     * @param {ListSettings} initialSettings - 初期値
+     * @returns {void}
+     */
+    function buildCaptionPanel(parent, controls, initialSettings) {
+        var captionPanel = addPanel(parent, LABELS.panel.caption);
+        controls.showCaptionCheckbox = addLabeledControl(captionPanel, "checkbox", LABELS.checkbox.showCaption, LABELS.tooltip.showCaption);
+        controls.showCaptionCheckbox.value = initialSettings.showCaption;
 
-        var symbolGapInput = addValueRow(panel, labelText(LABELS.field.gap),
-            getSavedSetting(savedSettings, "symbolGap", DEFAULT_SYMBOL_GAP_PT), L(LABELS.tip.symbolGap));
-        var maxRowWidthInput = addValueRow(panel, labelText(LABELS.field.maxRowWidth),
-            getSavedSetting(savedSettings, "maxRowWidth", DEFAULT_MAX_ROW_WIDTH_PT), L(LABELS.tip.maxRowWidth));
+        /* 位置：上／下 / Position: above or below */
+        controls.captionPositionRow = addRowGroup(captionPanel);
+        controls.captionPositionRow.add("statictext", undefined, labelText(LABELS.fieldLabel.captionPosition));
+        var captionPositionRadioGroup = addRowGroup(controls.captionPositionRow, RADIO_SPACING);
+        controls.captionAboveRadio = addLabeledControl(captionPositionRadioGroup, "radiobutton", LABELS.radio.captionAbove, LABELS.tooltip.captionAbove);
+        controls.captionBelowRadio = addLabeledControl(captionPositionRadioGroup, "radiobutton", LABELS.radio.captionBelow, LABELS.tooltip.captionBelow);
+        controls.captionAboveRadio.value = (initialSettings.captionPosition === "above");
+        controls.captionBelowRadio.value = (initialSettings.captionPosition === "below");
 
-        return {
-            symbolGapInput: symbolGapInput,
-            maxRowWidthInput: maxRowWidthInput
-        };
+        /* フォントサイズ：項目名が項目名の幅に収まらないので、入力欄の上に左揃えで置く（単位は環境設定の文字の単位）
+         * Font size: the label does not fit the label width, so it sits above the field, left-aligned (type unit preference) */
+        controls.fontSizeGroup = captionPanel.add("group");
+        controls.fontSizeGroup.orientation = "column";
+        controls.fontSizeGroup.alignChildren = "left";
+        controls.fontSizeGroup.spacing = ROW_SPACING;
+        controls.fontSizeGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.fontSize)).helpTip = getLabel(LABELS.tooltip.fontSize);
+        var fontSizeInputRow = addRowGroup(controls.fontSizeGroup);
+        controls.fontSizeInput = addNumberInput(fontSizeInputRow, formatUnitValue(initialSettings.fontSize, TYPE_UNIT), LABELS.tooltip.fontSize);
+        fontSizeInputRow.add("statictext", undefined, TYPE_UNIT.label);
     }
 
-    /* 「作成するアートボード」パネル末尾の更新チェックボックスを構築 / Build the update checkbox at the bottom of the artboard panel */
-    function buildUpdateCheckbox(parent) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = ["left", "center"];
-        row.margins = 0;
-        var updateCheckbox = row.add("checkbox", undefined, L(LABELS.checkbox.update));
-        updateCheckbox.value = true;
-        updateCheckbox.helpTip = L(LABELS.tip.update);
-        return { updateCheckbox: updateCheckbox };
+    /**
+     * 最下段のボタン行（左：表示合わせ／右：キャンセル・OK）を構築する
+     * @param {Window} dialog - 追加先のダイアログ
+     * @param {object} controls - コントロールの参照を書き込むオブジェクト
+     * @returns {void}
+     */
+    function buildButtonRow(dialog, controls) {
+        // メイングループ（横並び） / Main group (horizontal layout)
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.spacing = BUTTON_SPACING;
+
+        // 左側グループ / Left-side button group
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_SPACING;
+        controls.btnFitSymbolList = addLabeledControl(btnLeftGroup, "button", LABELS.button.fitSymbolList, LABELS.tooltip.fitSymbolList);
+        controls.btnFitAll = addLabeledControl(btnLeftGroup, "button", LABELS.button.fitAll, LABELS.tooltip.fitAll);
+
+        // スペーサー（伸縮）/ Spacer (stretchable)
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        // 右側グループ / Right-side button group
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_SPACING;
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
     }
 
-    /* 最下段のボタン行（左：表示ボタン／右：キャンセル・OK）を構築 / Build the bottom button row (left: view-fit buttons / right: Cancel, OK) */
-    function buildButtonRow(parent) {
-        var row = parent.add("group");
-        row.alignment = "fill";
-        row.orientation = "row";
-        row.spacing = 8;
-
-        /* 左：表示ボタン（作成したアートボードのみ／全体）/ Left: view-fit buttons */
-        var leftCol = row.add("group");
-        leftCol.alignment = ["left", "center"];
-        leftCol.spacing = 8;
-        var fitCreatedButton = leftCol.add("button", undefined, L(LABELS.button.fitCreated));
-        fitCreatedButton.helpTip = L(LABELS.tip.fitCreated);
-        var fitAllButton = leftCol.add("button", undefined, L(LABELS.button.fitAll));
-        fitAllButton.helpTip = L(LABELS.tip.fitAll);
-
-        /* 中央：スペーサー / Center: spacer */
-        var spacer = row.add("group");
-        spacer.alignment = ["fill", "center"];
-
-        /* 右：キャンセル / OK / Right: Cancel / OK */
-        var rightCol = row.add("group");
-        rightCol.alignment = ["right", "center"];
-        rightCol.spacing = 8;
-        var cancelButton = rightCol.add("button", undefined, L(LABELS.button.cancel), { name: "cancel" });
-        var okButton = rightCol.add("button", undefined, "OK", { name: "OK" });
-
-        return {
-            fitCreatedButton: fitCreatedButton,
-            fitAllButton: fitAllButton,
-            okButton: okButton,
-            cancelButton: cancelButton
-        };
-    }
-
-    /* ダイアログを構築し、コントロール参照を返す / Build dialog and return refs */
-    function buildDialog(savedSettings, doc) {
-        var dialog = new Window("dialog", L(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.margins = 16;
-        dialog.spacing = 12;
+    /**
+     * ダイアログを構築し、コントロールの参照を返す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {ListSettings} initialSettings - 初期値
+     * @returns {object} dialog と各コントロールの参照
+     */
+    function buildDialog(doc, initialSettings) {
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(dialog);
+        var controls = { dialog: dialog };
 
         /* 2 カラム構成 / Two-column layout */
-        var columns = dialog.add("group");
-        columns.orientation = "row";
-        columns.alignChildren = ["fill", "top"];
-        columns.spacing = 12;
+        var columnsGroup = dialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
 
-        var leftColumn = columns.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = "fill";
-        leftColumn.spacing = 12;
+        /* 左列：作成するアートボード / Left column: new artboard */
+        var artboardPanel = addPanel(addColumnGroup(columnsGroup), LABELS.panel.artboard);
+        buildLocationPanel(artboardPanel, controls, initialSettings, doc);
+        buildSizePanel(artboardPanel, controls, initialSettings);
+        buildBackgroundPanel(artboardPanel, controls, initialSettings);
+        /* 保存値は使わず、起動時は常に ON / Always start checked regardless of saved settings */
+        controls.updateCheckbox = addLabeledControl(artboardPanel, "checkbox", LABELS.checkbox.update, LABELS.tooltip.update);
+        controls.updateCheckbox.value = true;
 
-        var rightColumn = columns.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = "fill";
-        rightColumn.spacing = 12;
+        /* 右列：収集するシンボル / Right column: symbols */
+        var symbolsPanel = addPanel(addColumnGroup(columnsGroup), LABELS.panel.symbols);
+        buildCollectTargetPanel(symbolsPanel, controls);
+        buildArrangementPanel(symbolsPanel, controls, initialSettings);
+        buildCaptionPanel(symbolsPanel, controls, initialSettings);
 
-        /* アートボード関連パネルを内包するラッパー / Wrapper for artboard-related panels */
-        var artboardGroupPanel = leftColumn.add("panel", undefined, L(LABELS.panel.artboard));
-        setupPanel(artboardGroupPanel);
-
-        var placementRefs = buildPlacementPanel(artboardGroupPanel, savedSettings, doc);
-        var marginRefs = buildMarginPanel(artboardGroupPanel, savedSettings);
-        var bgColorRefs = buildBgColorPanel(artboardGroupPanel, savedSettings);
-        /* 「作成するアートボード」パネル末尾の更新チェック / Update checkbox at the bottom of the artboard panel */
-        var updateRefs = buildUpdateCheckbox(artboardGroupPanel);
-
-        /* シンボル関連パネルを内包するラッパー / Wrapper for symbol-related panels */
-        var symbolGroupPanel = rightColumn.add("panel", undefined, L(LABELS.panel.symbolGroup));
-        setupPanel(symbolGroupPanel);
-        var targetRefs = buildTargetPanel(symbolGroupPanel);
-        var symbolRefs = buildSymbolPanel(symbolGroupPanel, savedSettings);
-        var captionRefs = buildCaptionPanel(symbolGroupPanel, savedSettings);
-
-        var buttonRefs = buildButtonRow(dialog);
-
-        return {
-            dialog: dialog,
-            baseLastRadio: placementRefs.baseLastRadio,
-            baseSpecifiedRadio: placementRefs.baseSpecifiedRadio,
-            baseNumberInput: placementRefs.baseNumberInput,
-            rightRadio: placementRefs.rightRadio,
-            belowRadio: placementRefs.belowRadio,
-            artboardGapInput: placementRefs.artboardGapInput,
-            widthInput: marginRefs.widthInput,
-            heightInput: marginRefs.heightInput,
-            marginInput: marginRefs.marginInput,
-            bgNoneRadio: bgColorRefs.bgNoneRadio,
-            bgBlackRadio: bgColorRefs.bgBlackRadio,
-            bgWhiteRadio: bgColorRefs.bgWhiteRadio,
-            bgGrayRadio: bgColorRefs.bgGrayRadio,
-            updateCheckbox: updateRefs.updateCheckbox,
-            fontSizeInput: captionRefs.fontSizeInput,
-            filterAllRadio: targetRefs.filterAllRadio,
-            filterUsedRadio: targetRefs.filterUsedRadio,
-            showCaptionCheckbox: captionRefs.showCaptionCheckbox,
-            captionPosRow: captionRefs.posRow,
-            captionAboveRadio: captionRefs.captionAboveRadio,
-            captionBelowRadio: captionRefs.captionBelowRadio,
-            fontSizeRow: captionRefs.fontSizeRow,
-            symbolGapInput: symbolRefs.symbolGapInput,
-            maxRowWidthInput: symbolRefs.maxRowWidthInput,
-            fitCreatedButton: buttonRefs.fitCreatedButton,
-            fitAllButton: buttonRefs.fitAllButton,
-            okButton: buttonRefs.okButton,
-            cancelButton: buttonRefs.cancelButton
-        };
+        buildButtonRow(dialog, controls);
+        return controls;
     }
 
-    /* 入力テキストを pt に変換 / Read input text as points */
-    function readInputPt(inputText, defaultPt) {
-        var parsedValue = parseFloat(inputText);
-        return isNaN(parsedValue) ? defaultPt : unitToPt(parsedValue);
-    }
-
-    /* 背景色ラジオの選択を文字列で返す / Read the selected background color as a string */
-    function readBgColorChoice(controls) {
-        if (controls.bgBlackRadio.value) return "black";
-        if (controls.bgWhiteRadio.value) return "white";
-        if (controls.bgGrayRadio.value) return "gray";
+    /**
+     * 選択中の背景ラジオの値を返す
+     * @param {RadioButton[]} backgroundRadios - 背景ラジオ（BACKGROUND_CHOICES と同じ並び）
+     * @returns {string} 背景の選択肢
+     */
+    function readBackgroundChoice(backgroundRadios) {
+        for (var i = 0; i < backgroundRadios.length; i++) {
+            if (backgroundRadios[i].value) return BACKGROUND_CHOICES[i];
+        }
         return "none";
     }
 
-    /* フォントサイズ入力。表示は TYPE_UNIT、内部は常に pt
-     * Font size input is shown in the user's text-unit preference; stored in pt internally */
-    function readFontSizePt(controls) {
-        var v = parseFloat(controls.fontSizeInput.text);
-        if (isNaN(v) || v <= 0) return DEFAULT_CAPTION_FONT_SIZE_PT;
-        return typeUnitToPt(v);
-    }
-
-    /* 指定基準のアートボード番号を読む（1 始まり、不正値は 1）/ Read specified base artboard number (1-based) */
-    function readBaseArtboardNumber(controls) {
-        var n = parseInt(controls.baseNumberInput.text, 10);
-        if (isNaN(n) || n < 1) n = 1;
-        return n;
-    }
-
+    /**
+     * ダイアログの入力から設定を読む（幅・高さの固定は含まない）
+     * @param {object} controls - コントロールの参照
+     * @returns {ListSettings} 設定
+     */
     function readDialogSettings(controls) {
         return {
-            position: controls.rightRadio.value ? "right" : "below",
+            position: controls.directionRightRadio.value ? "right" : "below",
             baseMode: controls.baseSpecifiedRadio.value ? "specified" : "last",
-            baseArtboardNumber: readBaseArtboardNumber(controls),
-            artboardGap: readInputPt(controls.artboardGapInput.text, DEFAULT_ARTBOARD_GAP_PT),
-            margin: readInputPt(controls.marginInput.text, DEFAULT_ARTBOARD_MARGIN_PT),
+            baseArtboardNumber: parseArtboardNumber(controls.baseArtboardNumberInput.text),
+            artboardGap: readUnitValuePt(controls.artboardGapInput, DEFAULT_SETTINGS.artboardGap),
+            margin: readUnitValuePt(controls.marginInput, DEFAULT_SETTINGS.margin),
             update: controls.updateCheckbox.value,
             showCaption: controls.showCaptionCheckbox.value,
             filter: controls.filterUsedRadio.value ? "used" : "all",
-            symbolGap: readInputPt(controls.symbolGapInput.text, DEFAULT_SYMBOL_GAP_PT),
-            maxRowWidth: readInputPt(controls.maxRowWidthInput.text, DEFAULT_MAX_ROW_WIDTH_PT),
-            bgColor: readBgColorChoice(controls),
+            symbolGap: readUnitValuePt(controls.symbolGapInput, DEFAULT_SETTINGS.symbolGap),
+            maxRowWidth: readUnitValuePt(controls.maxRowWidthInput, DEFAULT_SETTINGS.maxRowWidth),
+            bgColor: readBackgroundChoice(controls.backgroundRadios),
             captionPosition: controls.captionBelowRadio.value ? "below" : "above",
-            fontSize: readFontSizePt(controls)
+            fontSize: readFontSizePt(controls.fontSizeInput)
         };
     }
 
-    /* プレビュー再構築用クロージャ（常時 ON）。前回プレビューを削除してから再構築。
-     * - widthOverridePt / heightOverridePt が非 null の場合、その固定サイズでアートボード生成
-     * - ビルド後、有効サイズを width/height 入力欄に書き戻す（プログラム的設定なので onChange は発火しない）
-     * Build a refresher (always-on preview); supports user-typed width/height overrides */
-    function makePreviewRefresher(doc, controls) {
-        var state = {
-            current: null,
-            widthOverridePt: null,
-            heightOverridePt: null
-        };
-        function clearOverrides() {
-            state.widthOverridePt = null;
-            state.heightOverridePt = null;
-        }
-        function refresh() {
-            if (state.current) {
-                clearLayout(doc, state.current);
-                state.current = null;
-            }
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /**
+     * @typedef {object} PreviewSession
+     * @property {?SymbolListLayout} currentLayout - 表示中のプレビュー
+     * @property {?number} widthOverridePt - 入力で固定した幅（pt、null なら自動）
+     * @property {?number} heightOverridePt - 入力で固定した高さ（pt、null なら自動）
+     * @property {function(): ListSettings} readSettings - 入力と固定サイズから設定を読む
+     * @property {function(): void} clear - プレビューを削除する
+     * @property {function(): void} refresh - プレビューを作り直す
+     * @property {function(): void} refreshWithAutoSize - 幅・高さの固定を解除して作り直す
+     */
+
+    /**
+     * 自動サイズのとき、作成したアートボードの幅・高さを入力欄に書き戻す（onChange は発火しない）
+     * @param {object} controls - コントロールの参照
+     * @param {PreviewSession} previewSession - プレビューの状態
+     * @returns {void}
+     */
+    function writeBackAutoSize(controls, previewSession) {
+        var rect = previewSession.currentLayout.artboardInfo.rect;
+        if (previewSession.widthOverridePt === null) controls.widthInput.text = formatUnitValue(rect[2] - rect[0], RULER_UNIT);
+        if (previewSession.heightOverridePt === null) controls.heightInput.text = formatUnitValue(rect[1] - rect[3], RULER_UNIT);
+    }
+
+    /**
+     * ダイアログの入力に追従するプレビューを作る（前回のプレビューを消してから作り直す）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {object} controls - コントロールの参照
+     * @returns {PreviewSession} プレビューの状態と操作
+     */
+    function createPreviewSession(doc, controls) {
+        var previewSession = { currentLayout: null, widthOverridePt: null, heightOverridePt: null };
+
+        previewSession.readSettings = function () {
             var settings = readDialogSettings(controls);
-            settings.widthOverridePt = state.widthOverridePt;
-            settings.heightOverridePt = state.heightOverridePt;
-
-            if (settings.filter === "used" && getTargetSymbols(doc, settings).length === 0) {
-                app.redraw();
-                return;
-            }
-            state.current = buildLayout(doc, settings);
-            if (state.current) {
-                var rect = state.current.artboardInfo.rect;
-                var widthPt = rect[2] - rect[0];
-                var heightPt = rect[1] - rect[3];
-                if (state.widthOverridePt === null) {
-                    controls.widthInput.text = String(Math.round(ptToUnit(widthPt)));
-                }
-                if (state.heightOverridePt === null) {
-                    controls.heightInput.text = String(Math.round(ptToUnit(heightPt)));
-                }
-            }
+            settings.widthOverridePt = previewSession.widthOverridePt;
+            settings.heightOverridePt = previewSession.heightOverridePt;
+            return settings;
+        };
+        previewSession.clear = function () {
+            if (!previewSession.currentLayout) return;
+            removeLayout(doc, previewSession.currentLayout);
+            previewSession.currentLayout = null;
+        };
+        previewSession.refresh = function () {
+            previewSession.clear();
+            previewSession.currentLayout = buildLayout(doc, previewSession.readSettings());
+            if (previewSession.currentLayout) writeBackAutoSize(controls, previewSession);
             app.redraw();
-        }
-        return { refresh: refresh, state: state, clearOverrides: clearOverrides, doc: doc };
+        };
+        previewSession.refreshWithAutoSize = function () {
+            previewSession.widthOverridePt = null;
+            previewSession.heightOverridePt = null;
+            previewSession.refresh();
+        };
+        return previewSession;
     }
 
-    /* 入力イベントを refresh に結線 / Wire input events to refresh */
-    function wireDialogEvents(controls, refresher) {
-        function refresh() { refresher.refresh(); }
-        function clearAndRefresh() {
-            refresher.clearOverrides();
-            refresher.refresh();
+    // =========================================
+    // イベント / Events
+    // =========================================
+
+    /**
+     * 複数のコントロールに同じ onClick を設定する
+     * @param {object[]} controlList - 対象のコントロール
+     * @param {function(): void} handler - クリック時の処理
+     * @returns {void}
+     */
+    function setClickHandler(controlList, handler) {
+        for (var i = 0; i < controlList.length; i++) controlList[i].onClick = handler;
+    }
+
+    /**
+     * 親の異なるラジオボタンを排他にし、選択後の処理を設定する
+     * @param {RadioButton[]} radios - 排他にするラジオボタン
+     * @param {function(): void} onSelect - 選択後の処理
+     * @returns {void}
+     */
+    function bindExclusiveRadios(radios, onSelect) {
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].onClick = function () {
+                selectExclusiveRadio(radios, this);
+                onSelect();
+            };
+        }
+    }
+
+    /**
+     * 数値入力欄の確定と↑↓キーに同じ処理を設定する
+     * @param {EditText} numberInput - 対象の入力欄
+     * @param {function(): void} onValueChange - 値が変わったときの処理
+     * @param {number} [minValue] - ↑↓キーでの下限値
+     * @returns {void}
+     */
+    function bindNumberInput(numberInput, onValueChange, minValue) {
+        numberInput.onChange = onValueChange;
+        changeValueByArrowKey(numberInput, false, onValueChange, minValue);
+    }
+
+    /**
+     * 「作成位置」パネルのイベントを設定する
+     * @param {object} controls - コントロールの参照
+     * @param {PreviewSession} previewSession - プレビュー
+     * @returns {void}
+     */
+    function bindLocationEvents(controls, previewSession) {
+        var baseNumberInput = controls.baseArtboardNumberInput;
+
+        /* 基準が「指定」のときだけ番号を入力できる / Enable the number only when the base is "specified" */
+        function updateBaseNumberEnabled() {
+            baseNumberInput.enabled = controls.baseSpecifiedRadio.value;
         }
 
-        /* 背景色は親グループが分かれているため ScriptUI 標準の排他選択が効かない。手動で他を解除。
-         * Background radios live in separate parent groups, so we enforce exclusivity manually. */
-        var bgRadios = [
-            controls.bgNoneRadio, controls.bgBlackRadio, controls.bgWhiteRadio, controls.bgGrayRadio
-        ];
-        function applyBgExclusive(target) {
-            selectExclusiveRadio(bgRadios, target);
-        }
-        for (var k = 0; k < bgRadios.length; k++) {
-            (function (radio) {
-                radio.onClick = function () {
-                    applyBgExclusive(radio);
-                    clearAndRefresh();
-                };
-            })(bgRadios[k]);
-        }
+        bindExclusiveRadios([controls.baseLastRadio, controls.baseSpecifiedRadio], function () {
+            updateBaseNumberEnabled();
+            previewSession.refreshWithAutoSize();
+        });
+        setClickHandler([controls.directionRightRadio, controls.directionBelowRadio], previewSession.refreshWithAutoSize);
 
-        /* 「シンボル名を表示」OFF のとき表示位置とフォントサイズ行をディム
-         * Dim position row and font-size row when caption is off */
-        function updateCaptionEnabled() {
-            var on = controls.showCaptionCheckbox.value;
-            controls.captionPosRow.enabled = on;
-            controls.fontSizeRow.enabled = on;
+        /* 番号は 1 未満を 1 に補正してから作り直す / Clamp the number to 1 or more, then rebuild */
+        bindNumberInput(baseNumberInput, function () {
+            baseNumberInput.text = String(parseArtboardNumber(baseNumberInput.text));
+            previewSession.refreshWithAutoSize();
+        }, 1);
+        updateBaseNumberEnabled();
+    }
+
+    /**
+     * 幅・高さの入力を設定する（正の値で固定、0 や空欄で自動）
+     * 幅を固定したときは［最大幅］も「幅 − 余白 × 2」に合わせる
+     * @param {object} controls - コントロールの参照
+     * @param {PreviewSession} previewSession - プレビュー
+     * @returns {void}
+     */
+    function bindSizeEvents(controls, previewSession) {
+        bindNumberInput(controls.widthInput, function () {
+            var widthPt = readUnitValuePt(controls.widthInput, 0);
+            previewSession.widthOverridePt = (widthPt > 0) ? widthPt : null;
+            var maxRowWidthPt = widthPt - 2 * readUnitValuePt(controls.marginInput, DEFAULT_SETTINGS.margin);
+            if (widthPt > 0 && maxRowWidthPt > 0) controls.maxRowWidthInput.text = formatUnitValue(maxRowWidthPt, RULER_UNIT);
+            previewSession.refresh();
+        });
+        bindNumberInput(controls.heightInput, function () {
+            var heightPt = readUnitValuePt(controls.heightInput, 0);
+            previewSession.heightOverridePt = (heightPt > 0) ? heightPt : null;
+            previewSession.refresh();
+        });
+    }
+
+    /**
+     * 「キャプション」パネルのイベントを設定する
+     * @param {object} controls - コントロールの参照
+     * @param {PreviewSession} previewSession - プレビュー
+     * @returns {void}
+     */
+    function bindCaptionEvents(controls, previewSession) {
+        /* 「シンボル名を表示」OFF のときは位置とフォントサイズをディム / Dim position and font size when captions are off */
+        function updateCaptionRowsEnabled() {
+            var isCaptionShown = controls.showCaptionCheckbox.value;
+            controls.captionPositionRow.enabled = isCaptionShown;
+            controls.fontSizeGroup.enabled = isCaptionShown;
         }
-
-        /* 基準が「指定」のときだけ番号入力欄を有効化 / Enable the number field only when base is "specified" */
-        function updateBaseEnabled() {
-            controls.baseNumberInput.enabled = controls.baseSpecifiedRadio.value;
-        }
-
-        /* 作成位置（基準・方向・基準番号）の変更時は再構築後に明示的に再描画
-         * On any position change (base/direction/number), rebuild then force a redraw */
-        function refreshPlacement() {
-            clearAndRefresh();
-            app.redraw();
-        }
-
-        /* 基準ラジオ（最終アートボード／指定）は親グループが異なり ScriptUI の排他選択が効かないため手動で排他化。
-         * The two base radios live in separate parent groups, so enforce exclusivity manually. */
-        var baseRadios = [controls.baseLastRadio, controls.baseSpecifiedRadio];
-        controls.baseLastRadio.onClick = function () {
-            selectExclusiveRadio(baseRadios, controls.baseLastRadio);
-            updateBaseEnabled();
-            refreshPlacement();
-        };
-        controls.baseSpecifiedRadio.onClick = function () {
-            selectExclusiveRadio(baseRadios, controls.baseSpecifiedRadio);
-            updateBaseEnabled();
-            refreshPlacement();
-        };
-
-        /* 作成方向（右側／下側）も位置変更なので再描画付き / Direction radios are placement changes too */
-        controls.rightRadio.onClick = refreshPlacement;
-        controls.belowRadio.onClick = refreshPlacement;
-
-        /* 寸法以外の操作は幅・高さオーバーライドを解除して再描画
-         * Non-size triggers clear the width/height override before refreshing */
-        var triggers = [
-            controls.updateCheckbox,
-            controls.filterAllRadio, controls.filterUsedRadio
-        ];
-        for (var i = 0; i < triggers.length; i++) triggers[i].onClick = clearAndRefresh;
-        /* 基準番号は 1 未満を 1 に補正してから再描画（位置変更なので redraw 付き）/ Clamp base number to >= 1, then refresh+redraw */
-        function clampBaseNumberAndRefresh() {
-            var n = parseInt(controls.baseNumberInput.text, 10);
-            if (isNaN(n) || n < 1) n = 1;
-            controls.baseNumberInput.text = String(n);
-            refreshPlacement();
-        }
-        controls.baseNumberInput.onChange = clampBaseNumberAndRefresh;
-        changeValueByArrowKey(controls.baseNumberInput, false, clampBaseNumberAndRefresh, 1);
-        updateBaseEnabled();
 
         controls.showCaptionCheckbox.onClick = function () {
-            updateCaptionEnabled();
-            clearAndRefresh();
+            updateCaptionRowsEnabled();
+            previewSession.refreshWithAutoSize();
         };
+        setClickHandler([controls.captionAboveRadio, controls.captionBelowRadio], previewSession.refreshWithAutoSize);
+        updateCaptionRowsEnabled();
+    }
 
-        var captionRadios = [controls.captionAboveRadio, controls.captionBelowRadio];
-        for (var c = 0; c < captionRadios.length; c++) {
-            captionRadios[c].onClick = clearAndRefresh;
-        }
-        updateCaptionEnabled();
+    /**
+     * 表示合わせボタンのイベントを設定する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {object} controls - コントロールの参照
+     * @param {PreviewSession} previewSession - プレビュー
+     * @returns {void}
+     */
+    function bindViewButtons(doc, controls, previewSession) {
+        controls.btnFitSymbolList.onClick = function () {
+            if (!previewSession.currentLayout) return;
+            doc.artboards.setActiveArtboardIndex(previewSession.currentLayout.artboardInfo.index);
+            fitWindowThenZoomOut(doc, "fitin");
+        };
+        controls.btnFitAll.onClick = function () {
+            fitWindowThenZoomOut(doc, "fitall");
+        };
+    }
 
-        var inputs = [
+    /**
+     * ダイアログのすべてのイベントを設定する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {object} controls - コントロールの参照
+     * @param {PreviewSession} previewSession - プレビュー
+     * @returns {void}
+     */
+    function bindDialogEvents(doc, controls, previewSession) {
+        bindLocationEvents(controls, previewSession);
+        bindSizeEvents(controls, previewSession);
+        bindCaptionEvents(controls, previewSession);
+        bindViewButtons(doc, controls, previewSession);
+
+        /* 寸法と関係のない操作は幅・高さの固定を解除して作り直す / Other changes release the fixed size and rebuild */
+        bindExclusiveRadios(controls.backgroundRadios, previewSession.refreshWithAutoSize);
+        setClickHandler([controls.updateCheckbox, controls.filterAllRadio, controls.filterUsedRadio], previewSession.refreshWithAutoSize);
+        var numberInputs = [
             controls.artboardGapInput,
             controls.marginInput,
             controls.symbolGapInput,
             controls.maxRowWidthInput,
             controls.fontSizeInput
         ];
-        for (var j = 0; j < inputs.length; j++) {
-            inputs[j].onChange = clearAndRefresh;
-            changeValueByArrowKey(inputs[j], false, clearAndRefresh);
+        for (var i = 0; i < numberInputs.length; i++) {
+            bindNumberInput(numberInputs[i], previewSession.refreshWithAutoSize);
         }
-
-        /* 幅・高さ：入力されたら override として固定。0/空欄は自動 / Width-height override
-         * 幅を変えたときは「最大幅」も内側の余白を引いた値に追従させる
-         * Adjusting width also retunes maxRowWidth (= width − margin × 2) so packing fits naturally. */
-        function applyWidthFromInput() {
-            var pt = readInputPt(controls.widthInput.text, 0);
-            refresher.state.widthOverridePt = (pt > 0) ? pt : null;
-            if (pt > 0) {
-                var marginPt = readInputPt(controls.marginInput.text, DEFAULT_ARTBOARD_MARGIN_PT);
-                var newMaxPt = pt - 2 * marginPt;
-                if (newMaxPt > 0) {
-                    controls.maxRowWidthInput.text = String(Math.round(ptToUnit(newMaxPt)));
-                }
-            }
-            refresh();
-        }
-        function applyHeightFromInput() {
-            var pt = readInputPt(controls.heightInput.text, 0);
-            refresher.state.heightOverridePt = (pt > 0) ? pt : null;
-            refresh();
-        }
-        controls.widthInput.onChange = applyWidthFromInput;
-        controls.heightInput.onChange = applyHeightFromInput;
-        changeValueByArrowKey(controls.widthInput, false, applyWidthFromInput);
-        changeValueByArrowKey(controls.heightInput, false, applyHeightFromInput);
-
-        /* 「表示」パネル：作成したアートボードのみ／全体をウィンドウに合わせる
-         * "View" panel: fit the created artboard / all artboards to the window */
-        controls.fitCreatedButton.onClick = function () {
-            var st = refresher.state.current;
-            if (!st || !st.artboardInfo) return;
-            try { refresher.doc.artboards.setActiveArtboardIndex(st.artboardInfo.index); } catch (e) { }
-            app.executeMenuCommand("fitin"); /* Fit Artboard in Window（アクティブアートボード）*/
-            /* フィット後に少し引いて 90% に / Back off slightly to 90% after fitting */
-            try {
-                var v = refresher.doc.activeView;
-                if (v) v.zoom = v.zoom * 0.9;
-            } catch (e2) { }
-            app.redraw();
-        };
-        controls.fitAllButton.onClick = function () {
-            app.executeMenuCommand("fitall");
-            /* フィット後に少し引いて 90% に / Back off slightly to 90% after fitting */
-            try {
-                var v = refresher.doc.activeView;
-                if (v) v.zoom = v.zoom * 0.9;
-            } catch (e3) { }
-            app.redraw();
-        };
     }
 
-    /* OK/キャンセルを結線して show / Wire buttons and show */
-    function runDialog(controls) {
-        var result = "cancel";
-        controls.okButton.onClick = function () { result = "ok"; controls.dialog.close(1); };
-        controls.cancelButton.onClick = function () { result = "cancel"; controls.dialog.close(2); };
-        controls.dialog.show();
-        return result;
-    }
+    // =========================================
+    // メイン / Main
+    // =========================================
 
-    /* ダイアログ全体のオーケストレーション / Orchestrate the dialog session */
-    function showDialog(doc) {
-        var savedSettings = loadSettings();
-        var zoomState = captureViewState(doc);
-        var controls = buildDialog(savedSettings, doc);
-        var refresher = makePreviewRefresher(doc, controls);
-        wireDialogEvents(controls, refresher);
-
-        /* 起動直後に初回プレビューを表示し、新アートボードの中心に 60% ズーム
-         * Initial preview, then center on the new artboard at 60% zoom */
-        refresher.refresh();
-        if (refresher.state.current) {
-            zoomToArtboard(doc, refresher.state.current.artboardInfo.index, 0.6);
-            app.redraw();
-        }
-
-        var result = runDialog(controls);
-
-        if (result === "ok") {
-            var finalSettings = readDialogSettings(controls);
-            finalSettings.widthOverridePt = refresher.state.widthOverridePt;
-            finalSettings.heightOverridePt = refresher.state.heightOverridePt;
-            if (refresher.state.current) {
-                clearLayout(doc, refresher.state.current);
-                refresher.state.current = null;
-            }
-            var finalState = buildLayout(doc, finalSettings);
-            if (!finalState) {
-                alert(L(LABELS.message.noUsedSymbols));
-                app.redraw();
-                return null;
-            }
-            if (finalSettings.update) {
-                removeOtherSymbolLists(doc, finalState);
-            }
+    /**
+     * OK 時にプレビューを消して一覧を作り直し、更新 ON なら既存の一覧を削除して設定を保存する
+     * @param {Document} doc - 対象のドキュメント
+     * @param {PreviewSession} previewSession - プレビュー
+     * @returns {void}
+     */
+    function commitLayout(doc, previewSession) {
+        var finalSettings = previewSession.readSettings();
+        previewSession.clear();
+        var finalLayout = buildLayout(doc, finalSettings);
+        if (!finalLayout) {
+            alert(getLabel(LABELS.alert.noUsedSymbols));
+        } else {
+            if (finalSettings.update) removeOtherSymbolLists(doc, finalLayout);
             saveSettings(finalSettings);
-            app.redraw();
-            return finalState;
         }
-
-        if (refresher.state.current) {
-            clearLayout(doc, refresher.state.current);
-        }
-        restoreViewState(doc, zoomState);
         app.redraw();
-        return null;
     }
 
-    // =========================================
-    // メイン
-    // =========================================
+    /**
+     * ダイアログを表示し、OK なら確定、キャンセルならプレビューを消して表示を戻す
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {void}
+     */
+    function showDialog(doc) {
+        var viewState = captureViewState(doc);
+        var controls = buildDialog(doc, loadSettings());
+        var previewSession = createPreviewSession(doc, controls);
+        bindDialogEvents(doc, controls, previewSession);
 
-    /* エントリポイント：ドキュメント／シンボルの有無を確認してダイアログを起動 / Entry point: validate doc/symbols, then open the dialog */
+        /* 起動直後にプレビューを作り、新しいアートボードの中心を表示 / Initial preview centered on the new artboard */
+        previewSession.refresh();
+        if (previewSession.currentLayout) {
+            zoomToArtboard(doc, previewSession.currentLayout.artboardInfo.index, INITIAL_PREVIEW_ZOOM);
+            app.redraw();
+        }
+
+        if (controls.dialog.show() === 1) {
+            commitLayout(doc, previewSession);
+            return;
+        }
+        previewSession.clear();
+        restoreViewState(viewState);
+        app.redraw();
+    }
+
+    /**
+     * ドキュメントとシンボルの有無を確認してダイアログを開く
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
-            alert(L(LABELS.message.noDoc));
+            alert(getLabel(LABELS.alert.noDocument));
             return;
         }
         var doc = app.activeDocument;
         if (doc.symbols.length === 0) {
-            alert(L(LABELS.message.noSymbols));
+            alert(getLabel(LABELS.alert.noSymbols));
             return;
         }
         showDialog(doc);
