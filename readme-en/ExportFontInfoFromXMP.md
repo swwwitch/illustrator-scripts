@@ -16,7 +16,9 @@ Extracts all font usage information from the XMP metadata embedded in the active
 
 Composite fonts are reported together with their member fonts.
 
-The script also runs on an unsaved document, or one edited since the last save. In that case fonts absent from the XMP are topped up by scanning the text in the document.
+The script also runs on an unsaved document, or one edited since the last save. In that case fonts absent from the XMP are topped up by scanning the text in the document. A saved document that carries no font information in its XMP is topped up the same way.
+
+The export can also be narrowed to the fonts this machine does not have, catching both the placeholder Illustrator substitutes and a face shown only as an embedded preview.
 
 ## Main Features
 
@@ -24,7 +26,7 @@ The script also runs on an unsaved document, or one edited since the last save. 
 - Destination can be the desktop or the document's own folder
 - Opens the destination folder after exporting (on by default)
 - Runs on unsaved or edited documents, topping up the list from the text
-- Can narrow the export down to missing fonts only
+- Can narrow the export down to missing fonts only, catching both substitution placeholders and preview-only embedded faces
 - Lists the member fonts of composite fonts
 - CSV is written in UTF-16 with BOM
 - Markdown escapes underscore (`_`) only
@@ -39,7 +41,7 @@ The script also runs on an unsaved document, or one edited since the last save. 
 3. Choose the export format, destination, and options in the dialog.
 4. Click OK.
 
-The output filename is the document name plus `_fontInfo`, with the extension of the chosen format (e.g. `sample_fontInfo.csv`).
+The output filename is the document name plus `_fontInfo`, with the extension of the chosen format (e.g. `sample_fontInfo.csv`). With "Missing fonts only" it also gets `_missing` (e.g. `sample_fontInfo_missing.csv`).
 
 ## Export Format Panel
 
@@ -62,7 +64,7 @@ The output filename is the document name plus `_fontInfo`, with the extension of
 
 | Item | Description |
 | --- | --- |
-| Missing fonts only | Exports only the fonts that are not installed. When there are none, an alert is shown and nothing is written. Off by default. |
+| Missing fonts only | Exports only the fonts that are not installed. When there are none, an alert is shown and nothing is written. So it cannot be mistaken for a full font list, the filename gets `_missing` and the heading becomes "Missing Font List". To decide, the text is scanned even on a saved document (see Notes). Off by default. |
 
 ## Output Example
 
@@ -106,18 +108,24 @@ The defaults can be changed in the "User Settings" block at the top of the scrip
 | Variable | Default | Description |
 | --- | --- | --- |
 | `FILENAME_SUFFIX` | `"_fontInfo"` | Suffix appended to the output filename |
+| `MISSING_FILENAME_SUFFIX` | `"_missing"` | Extra suffix appended for a "Missing fonts only" export |
 | `SECTION_DIVIDER` | `"-----------------------------"` | Section divider used in the text file |
 | `OPEN_FOLDER_DEFAULT` | `true` | Default for "Open the folder after exporting" |
 | `MISSING_ONLY_DEFAULT` | `false` | Default for "Missing fonts only" |
 
 ## Notes
 
-- Font info comes from the saved XMP. On an unsaved or edited document the XMP still holds the last-saved state, so the missing part is topped up from the text in the document.
+- Font info comes from the saved XMP. On an unsaved or edited document the XMP still holds the last-saved state, so the missing part is topped up from the text in the document. A saved document that carries no font block at all (saved by an older Illustrator, or stripped of its metadata) is topped up the same way.
 - Entries topped up from the text have an empty `version` and `fileName`, and are not treated as composite fonts, so no member list is written for them. **Save the document first if you need that information.**
-- The text scan runs character by character, so a large unsaved or edited document takes a while. A saved document is not scanned at all.
+- The text scan runs character by character, so a large document takes a while. A saved document whose XMP yielded font info is not scanned — except under "Missing fonts only", where it is always scanned, because a preview-only face is marked in the document text and nowhere in the XMP.
+- The text scan walks `doc.textFrames`. Text inside symbol definitions, graphs, and plugin objects is not enumerated, so a font used only there is not topped up.
 - If no document is open, or no font information is found, the script shows an alert and exits.
 - No `version` is written for composite fonts.
-- "Missing fonts only" decides by matching names against the installed fonts. A composite font is judged by its member fonts; when those cannot be read it cannot be judged and is left out.
+- "Missing fonts only" decides by matching names against the installed fonts (`app.textFonts`), against either the PostScript name or "family face". The bare family name is never matched, since a different weight of the same family being installed would otherwise pass the font off as present.
+- Name matching alone is not enough, because a font the machine does not have is still listed in `app.textFonts`. Two further cases count as missing:
+    - **Placeholder entry**: an empty face name with a family identical to the PostScript name. This is the stand-in Illustrator creates for a font it will substitute ("will be replaced with the default font").
+    - **Embedded subset**: a family that starts with six capital letters and a `+`, such as `YAYCIH+`. The face is being shown from glyphs embedded in the document ("preview only: the text cannot be edited"). This mark appears only in the document text, so the XMP alone cannot reveal it.
+- A composite font is listed in `app.textFonts` as `ATC-<hex of its name>`, with an empty face name and the composite's name as its family. Both the composite itself and its members are checked, and either one being absent makes it missing. Members are recorded as file names such as `RyoGothicStd-Bold.otf`, so the extension (`.otf` `.ttf` `.ttc` `.otc` `.dfont` `.pfb` `.pfm` `.suit`) is stripped before the lookup. When the members cannot be read the font cannot be judged and is left out.
 
 ## Article
 
@@ -125,7 +133,7 @@ The defaults can be changed in the "User Settings" block at the top of the scrip
 
 ## Update History
 
-- v1.0.3 (2026-09-17): Added support for unsaved and edited documents (topping the list up from the text). Added "Missing fonts only". Centered the button row
+- v1.0.3 (2026-09-17): Added support for unsaved and edited documents (topping the list up from the text). Added "Missing fonts only". Centered the button row. Fixed missing fonts being judged installed because they are still listed in `app.textFonts`, composite fonts always being reported missing, and an absent face being passed off as installed by another weight of the same family. Gave the filtered export its own filename and heading
 - v1.0.2 (2026-08-06): Added "Open the folder after exporting". Fixed a dropped composite member font, arrow-key selection, XML entity decoding, and CSV escaping
 - v1.0.1 (2026-06-17): Added destination choice (desktop / same folder), panel layout, and unsaved-document check
 - v1.0.0 (2025-05-10): Initial version

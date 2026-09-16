@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 ドキュメントに埋め込まれたXMPメタデータから使用フォント情報を抽出し、TXT / CSV / Markdownで書き出します。
-未保存・編集中のドキュメントでは、XMPに無いフォントをドキュメント内のテキストから補います。
+XMPで足りない分はドキュメント内のテキストから補い、環境にないフォントだけに絞り込んで書き出すこともできます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Extracts font usage information from the XMP metadata embedded in the document and exports it as TXT / CSV / Markdown.
-On an unsaved or edited document, fonts missing from the XMP are topped up by scanning the text in the document.
+What the XMP lacks is topped up from the text in the document, and the export can be narrowed to the fonts this machine does not have.
 
 See the README for details.
 
@@ -44,15 +44,53 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     var FILENAME_SUFFIX = "_fontInfo";
     var SECTION_DIVIDER = "-----------------------------";
 
+    /* ［見つからないフォントのみ］で書き出したときに足すサフィックス / Extra suffix for a "missing fonts only" export */
+    var MISSING_FILENAME_SUFFIX = "_missing";
+
     /* ［書き出し後にフォルダーを開く］の初期値 / Default for "Open the folder after exporting" */
     var OPEN_FOLDER_DEFAULT = true;
 
     /* ［見つからないフォントのみ］の初期値 / Default for "Missing fonts only" */
     var MISSING_ONLY_DEFAULT = false;
 
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
     /* パネルの余白と間隔 / Panel margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12];
     var PANEL_SPACING = 8;
+
+    /**
+     * パネルに共通のレイアウトを適用します。
+     *
+     * @param {Panel} panel - 対象のパネル。
+     * @param {number} [spacing] - 子要素の間隔。省略時は PANEL_SPACING。
+     * @returns {void}
+     */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * グループに共通のレイアウトを適用します。
+     *
+     * @param {Group} group - 対象のグループ。
+     * @param {string} [orientation] - "row" または "column"。省略時は "column"。
+     * @param {number} [spacing] - 子要素の間隔。省略時は PANEL_SPACING。
+     * @returns {void}
+     */
+    function setupGroup(group, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        group.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        group.alignment = "fill";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
 
     // =========================================
     // ローカライズ / Localization
@@ -95,7 +133,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
             sameFolder: { ja: "ファイルと同じ階層", en: "Same folder as the file" },
             openFolder: { ja: "書き出し後にフォルダーを開く", en: "Open the folder after exporting" }
         },
-        options: {
+        exportOptions: {
             title: { ja: "オプション", en: "Options" },
             missingOnly: { ja: "見つからないフォントのみ", en: "Missing fonts only" }
         },
@@ -108,12 +146,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
             noMissingFonts: { ja: "見つからないフォントはありませんでした。", en: "No missing fonts found." },
             done: { ja: "書き出しました。", en: "Exported." },
             writeFailed: { ja: "ファイルを書き込めませんでした：\n", en: "Could not write the file:\n" },
+            alreadyWritten: { ja: "書き出し済みのファイル：\n", en: "Already exported:\n" },
             error: { ja: "エラーが発生しました：\n", en: "An error occurred:\n" }
         },
         output: {
             bullet: { ja: "・", en: "- " },
             fontListHeading: { ja: "使用フォント一覧", en: "Font List" },
             fontCount: { ja: "使用フォント数", en: "Font Count" },
+            missingFontListHeading: { ja: "見つからないフォント一覧", en: "Missing Font List" },
+            missingFontCount: { ja: "見つからないフォント数", en: "Missing Font Count" },
             fontDetailHeading: { ja: "各フォントの情報", en: "Font Details" },
             compositeFonts: { ja: "構成フォント", en: "Composite Fonts" },
             compositeType: { ja: "合成フォント", en: "Composite Font" }
@@ -168,7 +209,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      * @property {string} encoding - ファイルのエンコーディング。
      * @property {string} bom - 先頭に書き込むBOM。不要な形式では空文字。
      * @property {string} newline - 行の区切り文字。
-     * @property {function} build - 行を生成する関数。(FontEntry[], string) => string[]
+     * @property {function} build - 行を生成する関数。(FontEntry[], string, boolean) => string[]
      */
 
     /**
@@ -216,38 +257,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     // =========================================
     // UI ヘルパー / UI Helpers
     // =========================================
-    /**
-     * パネルに共通のレイアウトを適用します。
-     *
-     * @param {Panel} panel - 対象のパネル。
-     * @param {number} [spacing] - 子要素の間隔。省略時は PANEL_SPACING。
-     * @returns {void}
-     */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /**
-     * グループに共通のレイアウトを適用します。
-     *
-     * @param {Group} group - 対象のグループ。
-     * @param {string} [orientation] - "row" または "column"。省略時は "column"。
-     * @param {number} [spacing] - 子要素の間隔。省略時は PANEL_SPACING。
-     * @returns {void}
-     */
-    function setupGroup(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
     /**
      * 指定インデックスのラジオボタンだけを選択し、フォーカスも移します。
      *
@@ -359,10 +368,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         openFolderCheckbox.value = OPEN_FOLDER_DEFAULT;
 
         /* オプションパネル / Options panel */
-        var optionsPanel = dialog.add("panel", undefined, getLabel("options.title"));
-        setupPanel(optionsPanel, 6);
+        var exportOptionsPanel = dialog.add("panel", undefined, getLabel("exportOptions.title"));
+        setupPanel(exportOptionsPanel, 6);
 
-        var missingOnlyCheckbox = optionsPanel.add("checkbox", undefined, getLabel("options.missingOnly"));
+        var missingOnlyCheckbox = exportOptionsPanel.add("checkbox", undefined, getLabel("exportOptions.missingOnly"));
         missingOnlyCheckbox.value = MISSING_ONLY_DEFAULT;
 
         var buttonGroup = dialog.add("group");
@@ -396,19 +405,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     /**
      * フォント情報を集め、指定された各形式でファイルを書き出します。
      *
-     * @param {ExportOptions} options - ダイアログで選択された書き出し条件。
+     * @param {ExportOptions} exportOptions - ダイアログで選択された書き出し条件。
      * @returns {void}
      */
-    function exportFontInfo(options) {
+    function exportFontInfo(exportOptions) {
+        /* 途中で失敗しても書けた分を知らせるため、catch から見える位置で宣言する
+           / Declared where the catch can see it, so a failure can still report what was written */
+        var writtenNames = [];
+
         try {
             var doc = app.activeDocument;
-            var entries = collectFontEntries(doc);
+            var entries = collectFontEntries(doc, exportOptions.missingOnly);
             if (entries.length === 0) {
                 alert(getLabel("alert.noFonts"));
                 return;
             }
 
-            if (options.missingOnly) {
+            if (exportOptions.missingOnly) {
                 entries = filterMissingFonts(entries);
                 if (entries.length === 0) {
                     alert(getLabel("alert.noMissingFonts"));
@@ -418,10 +431,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
 
             /* デスクトップ、またはドキュメントと同じフォルダー / Desktop, or the document's own folder */
             var docFolder = getDocumentFolder(doc);
-            var outputFolder = (options.destination === "sameFolder" && docFolder) ? docFolder : Folder.desktop;
-            var writtenNames = writeFontInfoFiles(entries, options.formats, outputFolder, doc.name);
+            var outputFolder = (exportOptions.destination === "sameFolder" && docFolder) ? docFolder : Folder.desktop;
+            writeFontInfoFiles(entries, exportOptions, outputFolder, doc.name, writtenNames);
 
-            if (options.openFolder) {
+            if (exportOptions.openFolder) {
                 outputFolder.execute();
             } else {
                 /* フォルダーを開かない場合だけ、書き出し結果をアラートで知らせる / Report the result only when the folder is not opened */
@@ -429,31 +442,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
             }
 
         } catch (e) {
-            alert(getLabel("alert.error") + (e.message ? e.message : e) + (e.line ? "\n(line " + e.line + ")" : ""));
+            alert(exportErrorMessage(e, writtenNames));
         }
+    }
+
+    /**
+     * 書き出し中の例外から、アラートに表示する文面を組み立てます。
+     *
+     * @param {Error} e - 捕捉した例外。
+     * @param {string[]} writtenNames - そこまでに書き出せたファイル名の配列。
+     * @returns {string} アラートに表示する文面。
+     */
+    function exportErrorMessage(e, writtenNames) {
+        var message = e.message ? e.message : String(e);
+
+        /* 書き込み失敗は自前の見出しを持つので、汎用のエラー見出しを重ねない
+           / A write failure carries its own heading, so don't stack the generic one on top of it */
+        if (!e.isWriteFailure) {
+            message = getLabel("alert.error") + message + (e.line ? "\n(line " + e.line + ")" : "");
+        }
+
+        /* 3種類書き出しでは一部だけ書けていることがあるので、その分も知らせる
+           / A multi-format export may have written part of its files, so report those too */
+        if (writtenNames.length > 0) {
+            message += "\n\n" + getLabel("alert.alreadyWritten") + writtenNames.join("\n");
+        }
+
+        return message;
     }
 
     /**
      * 指定された各形式でファイルを書き出します。
      *
      * @param {FontEntry[]} entries - 抽出済みのフォント情報。
-     * @param {string[]} formats - 書き出す形式（"txt" / "csv" / "md"）の配列。
+     * @param {ExportOptions} exportOptions - ダイアログで選択された書き出し条件。
      * @param {Folder} outputFolder - 書き出し先フォルダー。
      * @param {string} docName - 拡張子を含むドキュメント名。
-     * @returns {string[]} 書き出したファイル名の配列。
+     * @param {string[]} writtenNames - 書き出せたファイル名を追記する配列。
+     * @returns {void}
      */
-    function writeFontInfoFiles(entries, formats, outputFolder, docName) {
-        var baseName = docName.replace(/\.[^\.]+$/, "") + FILENAME_SUFFIX;
-        var writtenNames = [];
+    function writeFontInfoFiles(entries, exportOptions, outputFolder, docName, writtenNames) {
+        var formats = exportOptions.formats;
+        /* 絞り込んだ結果を全件の一覧と取り違えないよう、ファイル名を分ける
+           / Give the filtered export its own name so it can't be mistaken for a full font list */
+        var baseName = docName.replace(/\.[^\.]+$/, "") + FILENAME_SUFFIX +
+            (exportOptions.missingOnly ? MISSING_FILENAME_SUFFIX : "");
 
         for (var i = 0; i < formats.length; i++) {
             var spec = FORMAT_SPECS[formats[i]];
             var file = uniqueOutputFile(outputFolder, baseName, "." + formats[i]);
-            writeLines(file, spec, spec.build(entries, docName));
+            writeLines(file, spec, spec.build(entries, docName, exportOptions.missingOnly));
             writtenNames.push(decodeURI(file.name));
         }
-
-        return writtenNames;
     }
 
     /**
@@ -486,7 +526,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         file.encoding = spec.encoding;
         /* 権限が無い場合などは無音で失敗するため、必ず戻り値を確認 / open() fails silently (e.g. no write permission), so always check it */
         if (!file.open("w")) {
-            throw new Error(getLabel("alert.writeFailed") + decodeURI(file.fsName));
+            var writeError = new Error(getLabel("alert.writeFailed") + decodeURI(file.fsName));
+            /* 見出し付きのメッセージであることの目印 / Marks the message as already carrying its own heading */
+            writeError.isWriteFailure = true;
+            throw writeError;
         }
         file.write(spec.bom + lines.join(spec.newline));
         file.close();
@@ -507,16 +550,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      * ドキュメントからフォント情報を集めます。
      *
      * @param {Document} doc - 対象のドキュメント。
+     * @param {boolean} missingOnly - 見つからないフォントだけを書き出す場合は true。
      * @returns {FontEntry[]} フォント情報の配列。1件も無ければ空配列。
      */
-    function collectFontEntries(doc) {
+    function collectFontEntries(doc, missingOnly) {
         var xmpEntries = extractFontEntriesFromXMP(readXMPString(doc));
 
         /* 保存済みならXMPが現状と一致する。未保存・編集中のXMPは前回保存時のままなので、
            テキストから拾った分を足して補う（テキスト走査は重いのでここでしか走らせない）
            / A saved document's XMP matches what's on screen; an unsaved or edited one still holds the
-             last-saved XMP, so top it up from the text (the costly scan runs only in that case) */
-        if (doc.saved) return xmpEntries;
+             last-saved XMP, so top it up from the text (the costly scan runs only in that case).
+           保存済みでもXMPにフォント情報が無いことがある（旧バージョンでの保存、メタデータの除去）ので、
+           そのときもテキストから拾う
+           / A saved document can still carry no font block at all (saved by an older Illustrator,
+             or stripped by a preflight tool), so fall back to the text scan there as well.
+           見つからないフォントを探すときは、保存済みでも必ず走査する。プレビュー表示だけの
+           埋め込みフォントは、XMPではなくDOMのファミリー名にしか印が残らないため
+           / When hunting for missing fonts, scan even a saved document: a face shown only as an
+             embedded preview is marked in the DOM's family name and nowhere in the XMP */
+        if (doc.saved && xmpEntries.length > 0 && !missingOnly) return xmpEntries;
 
         return mergeFontEntries(xmpEntries, extractFontEntriesFromText(doc));
     }
@@ -541,7 +593,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         }
 
         for (i = 0; i < textEntries.length; i++) {
-            if (isFontEntrySeen(seen, textEntries[i])) continue;
+            var existing = seenFontEntry(seen, textEntries[i]);
+            if (existing) {
+                /* 埋め込みの印はDOMにしか出ないので、残すXMP側のエントリへ引き継ぐ
+                   / The embedded marker shows up only in the DOM, so carry it over to the XMP entry we keep */
+                if (textEntries[i].fields.isEmbedded) existing.fields.isEmbedded = true;
+                continue;
+            }
             markFontEntrySeen(seen, textEntries[i]);
             merged.push(textEntries[i]);
         }
@@ -559,29 +617,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     function markFontEntrySeen(seen, entry) {
         var keys = fontEntryKeys(entry);
         for (var i = 0; i < keys.length; i++) {
-            seen[keys[i]] = true;
+            seen[keys[i]] = entry;
         }
     }
 
     /**
-     * フォント1件が既出かを判定します。
+     * 同じフォントとして既出のエントリを返します。
+     *
+     * PostScript名はフォントを一意に決めるので、あるときはそれだけで判定します。
+     * 「ファミリー フェイス」は別フォントどうしでも一致しうるため、PostScript名が無いときの代用にとどめます。
      *
      * @param {object} seen - 既出フォントの索引。
      * @param {FontEntry} entry - 判定するフォント。
-     * @returns {boolean} 既出なら true。
+     * @returns {FontEntry|null} 既出ならそのエントリ。無ければ null。
      */
-    function isFontEntrySeen(seen, entry) {
-        var keys = fontEntryKeys(entry);
-        for (var i = 0; i < keys.length; i++) {
-            if (seen[keys[i]]) return true;
-        }
-        return false;
+    function seenFontEntry(seen, entry) {
+        if (entry.fields.name) return seen["postScript:" + entry.fields.name] || null;
+
+        var displayName = fontDisplayName(entry.fields);
+        return displayName ? (seen["display:" + displayName] || null) : null;
     }
 
     /**
      * 重複判定に使うキーを返します。
      *
-     * XMPとDOMで綴りが揃わないことがあるため、PostScript名と表示名の両方で照合します。
+     * XMPとDOMで綴りが揃わないことがあるため、PostScript名と表示名の両方を登録します。
      *
      * @param {FontEntry} entry - 対象のフォント。
      * @returns {string[]} 照合に使うキーの配列。
@@ -653,9 +713,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         var frameCount = frames.length;
 
         for (var i = 0; i < frameCount; i++) {
-            /* フォントは文字単位で変わるため、1文字ずつ見るしかない（範囲単位では混在時に先頭の書式しか返らない）
-               / Fonts change per character, and a mixed range reports only its first character's font */
-            var chars = frames[i].textRange.characters;
+            var chars;
+            /* 壊れたストーリーやプラグイン所有のテキストでは参照自体が失敗するので、そのフレームだけ飛ばす
+               / A broken story or plugin-owned text throws on access, so skip just that frame */
+            try {
+                /* フォントは文字単位で変わるため、1文字ずつ見るしかない（範囲単位では混在時に先頭の書式しか返らない）
+                   / Fonts change per character, and a mixed range reports only its first character's font */
+                chars = frames[i].textRange.characters;
+            } catch (eFrame) {
+                continue;
+            }
+
             /* 長さはDOM参照なので、ループ条件で毎回読み直さない / chars.length hits the DOM, so read it once */
             var charCount = chars.length;
 
@@ -668,12 +736,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
                 }
                 if (!font) continue;
 
-                /* Object のプロパティ名と衝突させないため接頭辞を付ける / Prefix the key so font names can't collide with Object members */
-                var key = "font:" + font.name;
-                if (seen[key]) continue;
-                seen[key] = true;
+                /* キーの体系は mergeFontEntries と揃える（DOM由来は必ずPostScript名を持つ）
+                   / Same key scheme as mergeFontEntries; a DOM font always carries a PostScript name */
+                if (seen["postScript:" + font.name]) continue;
 
-                entries.push({
+                var entry = {
                     fields: {
                         name: font.name,
                         family: font.family,
@@ -681,10 +748,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
                         type: "",
                         version: "",
                         fileName: "",
-                        isComposite: false
+                        isComposite: false,
+                        isEmbedded: isEmbeddedSubsetFamily(font.family)
                     },
                     members: []
-                });
+                };
+                markFontEntrySeen(seen, entry);
+                entries.push(entry);
             }
         }
 
@@ -731,14 +801,59 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
 
         installedFontIndex = {};
         var fonts = app.textFonts;
-        for (var i = 0; i < fonts.length; i++) {
-            /* XMPの値がPostScript名・ファミリー名・表示名のどれで入っていても引けるようにする
-               / Index all three spellings, since XMP may carry the PostScript, family, or display name */
-            installedFontIndex["font:" + fonts[i].name] = true;
-            installedFontIndex["font:" + fonts[i].family] = true;
-            installedFontIndex["font:" + (fonts[i].family + " " + fonts[i].style)] = true;
+        /* 長さはDOM参照なので、ループ条件で毎回読み直さない / fonts.length hits the DOM, so read it once */
+        var fontCount = fonts.length;
+
+        for (var i = 0; i < fontCount; i++) {
+            var font = fonts[i];
+            /* 環境にないフォントの仮エントリは導入済みとして数えない / A placeholder is not an installed font */
+            if (isPlaceholderFont(font)) continue;
+
+            /* XMPの値がPostScript名・表示名のどちらで入っていても引けるようにする。
+               ファミリー名だけのキーは作らない（未導入のフェイスまで導入済みと判定してしまう）
+               / Index the PostScript and display spellings, since XMP may carry either.
+                 Never index the bare family: it would pass off an absent face as installed */
+            installedFontIndex["font:" + font.name] = true;
+            installedFontIndex["font:" + trimSpaces(font.family + " " + font.style)] = true;
         }
         return installedFontIndex;
+    }
+
+    /**
+     * 環境にないフォントの代わりにIllustratorが置く仮エントリかを判定します。
+     *
+     * 環境にないフォントも app.textFonts に並ぶため、名前の照合だけでは導入済みと区別できません。
+     * 仮エントリはフェイス情報を持たないため style が空になり、ファミリー名にPostScript名がそのまま入ります。
+     * 合成フォントも style は空ですが、ファミリー名は合成フォント名なので当たりません。
+     *
+     * @param {TextFont} font - app.textFonts の1件。
+     * @returns {boolean} 仮エントリなら true。
+     */
+    function isPlaceholderFont(font) {
+        var name, family, style;
+        try {
+            name = font.name;
+            family = font.family;
+            style = font.style;
+        } catch (e) {
+            /* 読めないものは判定できないので、導入済みのまま扱う / Unreadable entries stay indexed */
+            return false;
+        }
+        return style === "" && family === name;
+    }
+
+    /**
+     * ドキュメントに埋め込まれたフォントのファミリー名かを判定します。
+     *
+     * 環境にないフォントをプレビューだけ表示している場合、ファミリー名に
+     * "YAYCIH+" のようなサブセット接頭辞（英大文字6文字＋"+"）が付きます。
+     * 同名のフォントが app.textFonts にあっても、実際に使われているのは埋め込みの方です。
+     *
+     * @param {string} family - ファミリー名。
+     * @returns {boolean} 埋め込み由来なら true。
+     */
+    function isEmbeddedSubsetFamily(family) {
+        return !!family && /^[A-Z]{6}\+/.test(family);
     }
 
     /**
@@ -754,6 +869,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     }
 
     /**
+     * フォントファイル名から拡張子を取り除きます。
+     *
+     * 合成フォントの構成フォントは "RyoGothicStd-Bold.otf" のようにファイル名で記録されるため、
+     * 拡張子を落とすとPostScript名や「ファミリー フェイス」と照合できます。
+     *
+     * @param {string} memberName - 構成フォント名。
+     * @returns {string} 拡張子を除いた名前。既知の拡張子でなければそのまま返す。
+     */
+    function stripFontFileExtension(memberName) {
+        if (!memberName) return "";
+        /* フォント名自体にドットが入ることがあるので、既知のフォント拡張子だけを落とす
+           / A font name can contain dots, so strip only the known font extensions */
+        return memberName.replace(/\.(otf|ttf|ttc|otc|dfont|pfb|pfm|suit)$/i, "");
+    }
+
+    /**
      * フォント1件が見つからないフォントかを判定します。
      *
      * @param {FontEntry} entry - 判定対象のフォント。
@@ -762,13 +893,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     function isFontMissing(entry) {
         var f = entry.fields;
 
-        /* 合成フォント自体は app.textFonts に無いので、名前で引くと必ず外れる。
+        /* 埋め込みのサブセットで表示しているものは、この環境には入っていない
+           / A face shown from an embedded subset is not installed on this machine */
+        if (f.isEmbedded) return true;
+
+        /* 合成フォントは app.textFonts に "ATC-<合成フォント名のhex>" として並ぶ（style は空、ファミリー名は合成フォント名）。
+           本体が無ければその時点で欠落、あれば構成フォントの側で判定する。
            構成フォントが取れないときは判定できないため、欠落とは見なさない
-           / A composite font is never listed in app.textFonts, so looking up its own name always misses.
+           / A composite is listed as "ATC-<hex of its name>" with an empty style and the composite's name as its family.
+             Missing composite: report it outright; otherwise judge by the members.
              With no members to judge by, treat it as undetermined rather than missing */
         if (f.isComposite) {
+            if (!isFontInstalled(f.name)) return true;
+
             for (var i = 0; i < entry.members.length; i++) {
-                if (!isFontInstalled(entry.members[i])) return true;
+                /* 構成フォントはファイル名で記録されるので、拡張子を落としてから照合する
+                   / Members are recorded as file names, so drop the extension before the lookup */
+                if (!isFontInstalled(stripFontFileExtension(entry.members[i]))) return true;
             }
             return false;
         }
@@ -794,18 +935,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     // 行の生成 / Line Builders
     // =========================================
     /**
+     * 一覧見出しに使うラベルキーを返します。
+     *
+     * @param {boolean} missingOnly - 見つからないフォントだけの一覧なら true。
+     * @returns {string} ラベルキー。
+     */
+    function fontListHeadingKey(missingOnly) {
+        return missingOnly ? "output.missingFontListHeading" : "output.fontListHeading";
+    }
+
+    /**
+     * フォント数に使うラベルキーを返します。
+     *
+     * @param {boolean} missingOnly - 見つからないフォントだけの一覧なら true。
+     * @returns {string} ラベルキー。
+     */
+    function fontCountKey(missingOnly) {
+        return missingOnly ? "output.missingFontCount" : "output.fontCount";
+    }
+
+    /**
      * テキスト形式（タブ区切り）の行を生成します。
      *
      * @param {FontEntry[]} entries - 抽出済みのフォント情報。
      * @param {string} fileName - 見出しに使うドキュメント名。
+     * @param {boolean} missingOnly - 見つからないフォントだけの一覧なら true。
      * @returns {string[]} 書き込む行の配列。
      */
-    function buildTxtLines(entries, fileName) {
+    function buildTxtLines(entries, fileName, missingOnly) {
         var bullet = getLabel("output.bullet");
         var lines = [];
 
-        lines.push(labelText("output.fontListHeading") + " " + fileName + "\n");
-        lines.push(labelWithCount("output.fontCount", entries.length) + "\n");
+        lines.push(labelText(fontListHeadingKey(missingOnly)) + " " + fileName + "\n");
+        lines.push(labelWithCount(fontCountKey(missingOnly), entries.length) + "\n");
 
         for (var i = 0; i < entries.length; i++) {
             lines.push(bullet + fontDisplayName(entries[i].fields));
@@ -852,16 +1014,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      *
      * @param {FontEntry[]} entries - 抽出済みのフォント情報。
      * @param {string} fileName - 見出しに使うドキュメント名。
+     * @param {boolean} missingOnly - 見つからないフォントだけの一覧なら true。
      * @returns {string[]} 書き込む行の配列。
      */
-    function buildMarkdownLines(entries, fileName) {
+    function buildMarkdownLines(entries, fileName, missingOnly) {
+        var headingKey = fontListHeadingKey(missingOnly);
         var lines = [];
 
-        lines.push("# " + getLabel("output.fontListHeading") + " " + escapeMarkdown(fileName) + "\n");
+        lines.push("# " + getLabel(headingKey) + " " + escapeMarkdown(fileName) + "\n");
         // lines.push("[TOC]");
         lines.push("");
-        lines.push("## " + getLabel("output.fontListHeading") + "\n");
-        lines.push(labelWithCount("output.fontCount", entries.length) + "\n");
+        lines.push("## " + getLabel(headingKey) + "\n");
+        lines.push(labelWithCount(fontCountKey(missingOnly), entries.length) + "\n");
 
         for (var i = 0; i < entries.length; i++) {
             lines.push("- " + escapeMarkdown(fontDisplayName(entries[i].fields)));
@@ -977,6 +1141,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      * @property {string} version - バージョン文字列。合成フォントの場合は空文字。
      * @property {string} fileName - フォントファイル名。
      * @property {boolean} isComposite - 合成フォントなら true。
+     * @property {boolean} isEmbedded - ドキュメント埋め込みのサブセットで表示されているなら true。
      */
 
     /**
@@ -987,14 +1152,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      */
     function fontFields(entryXml) {
         var isComposite = getFontProp(entryXml, "composite") === "True";
+        var family = getFontProp(entryXml, "fontFamily");
         return {
             name: getFontProp(entryXml, "fontName"),
-            family: getFontProp(entryXml, "fontFamily"),
+            family: family,
             face: getFontProp(entryXml, "fontFace"),
             type: isComposite ? getLabel("output.compositeType") : getFontProp(entryXml, "fontType"),
             version: isComposite ? "" : getFontProp(entryXml, "versionString"),
             fileName: getFontProp(entryXml, "fontFileName"),
-            isComposite: isComposite
+            isComposite: isComposite,
+            isEmbedded: isEmbeddedSubsetFamily(family)
         };
     }
 
@@ -1005,7 +1172,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      * @returns {string} ファミリー名とフェイス名を連結した名前。前後の空白は除去。
      */
     function fontDisplayName(f) {
-        return (f.family + " " + f.face).replace(/^\s+|\s+$/g, "");
+        return trimSpaces(f.family + " " + f.face);
+    }
+
+    /**
+     * 前後の空白を取り除きます。
+     *
+     * @param {string} value - 対象の文字列。
+     * @returns {string} 前後の空白を除いた文字列。
+     */
+    function trimSpaces(value) {
+        return value ? value.toString().replace(/^\s+|\s+$/g, "") : "";
     }
 
     /**
