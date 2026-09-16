@@ -73,6 +73,10 @@ The top of each panel reports how many guides matched (left) and how many rectan
 - "Merge Into a Single Path" unites everything that is selected, so rectangles that are not touching also end up in one path.
 - Fill color, opacity, and the default layer name can be changed in the "User settings" block at the top of the script.
 
+### Article
+
+https://note.com/dtp_tranist/n/n4907511336ad
+
 ### Update History
 
 - v1.1.0 (20260817): Added Layers, Current Artboard Only, the Specific Layer destination, and Convert to Shape. The dialog now reports the guide and rectangle counts. Overlapping guides no longer produce zero-size rectangles

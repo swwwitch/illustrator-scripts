@@ -35,6 +35,10 @@
 
 None
 
+### Article
+
+https://note.com/dtp_tranist/n/n4907511336ad
+
 ### Update History
 
 - v1.0 (20250711) : Initial version
