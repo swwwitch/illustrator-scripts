@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 ドキュメントに埋め込まれたXMPメタデータから使用フォント情報を抽出し、TXT / CSV / Markdownで書き出します。
-フォント情報は保存済みのXMPから取得するため、未保存のドキュメントでは実行できません。
+未保存・編集中のドキュメントでは、XMPに無いフォントをドキュメント内のテキストから補います。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Extracts font usage information from the XMP metadata embedded in the document and exports it as TXT / CSV / Markdown.
-The data comes from the saved XMP, so the script cannot run on an unsaved document.
+On an unsaved or edited document, fonts missing from the XMP are topped up by scanning the text in the document.
 
 See the README for details.
 
@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExportFontInfoFromXMP";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-17";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExportFontInfoFromXMP.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExportFontInfoFromXMP.md"; /* README (English) */
@@ -46,6 +46,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
 
     /* ［書き出し後にフォルダーを開く］の初期値 / Default for "Open the folder after exporting" */
     var OPEN_FOLDER_DEFAULT = true;
+
+    /* ［見つからないフォントのみ］の初期値 / Default for "Missing fonts only" */
+    var MISSING_ONLY_DEFAULT = false;
 
     /* パネルの余白と間隔 / Panel margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12];
@@ -92,16 +95,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
             sameFolder: { ja: "ファイルと同じ階層", en: "Same folder as the file" },
             openFolder: { ja: "書き出し後にフォルダーを開く", en: "Open the folder after exporting" }
         },
+        options: {
+            title: { ja: "オプション", en: "Options" },
+            missingOnly: { ja: "見つからないフォントのみ", en: "Missing fonts only" }
+        },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            notSaved: {
-                ja: "ドキュメントが保存されていません。\n保存してから実行してください。",
-                en: "The document has not been saved.\nPlease save it before running."
-            },
             noFonts: { ja: "フォント情報が見つかりませんでした。", en: "No font information found." },
+            noMissingFonts: { ja: "見つからないフォントはありませんでした。", en: "No missing fonts found." },
             done: { ja: "書き出しました。", en: "Exported." },
             writeFailed: { ja: "ファイルを書き込めませんでした：\n", en: "Could not write the file:\n" },
             error: { ja: "エラーが発生しました：\n", en: "An error occurred:\n" }
@@ -164,7 +168,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      * @property {string} encoding - ファイルのエンコーディング。
      * @property {string} bom - 先頭に書き込むBOM。不要な形式では空文字。
      * @property {string} newline - 行の区切り文字。
-     * @property {function} build - 行を生成する関数。(FontData, string) => string[]
+     * @property {function} build - 行を生成する関数。(FontEntry[], string) => string[]
      */
 
     /**
@@ -187,26 +191,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         return;
     }
 
-    /* 未保存のドキュメントは XMP にフォント情報が無いため、ダイアログ前に中止 / An unsaved document has no font info in XMP, so stop before the dialog */
-    if (!isDocumentSaved(app.activeDocument)) {
-        alert(getLabel("alert.notSaved"));
-        return;
-    }
-
     var dialogResult = showFormatDialog();
     if (!dialogResult) return;
 
-    exportFontInfo(dialogResult.formats, dialogResult.destination, dialogResult.openFolder);
+    exportFontInfo(dialogResult);
 
     /**
-     * ドキュメントが保存済みか（未編集で、保存先のファイルが実在するか）を判定します。
+     * ドキュメントの保存先フォルダーを返します。
      *
-     * @param {Document} doc - 判定対象のドキュメント。
-     * @returns {boolean} 保存済みなら true。
+     * @param {Document} doc - 対象のドキュメント。
+     * @returns {Folder|null} 保存先フォルダー。未保存なら null。
      */
-    function isDocumentSaved(doc) {
-        /* saved が false の時点で未保存なので、fullName は保存済みのときしか参照しない / fullName is only touched once the document has been saved */
-        return doc.saved && doc.fullName.exists;
+    function getDocumentFolder(doc) {
+        /* path は未保存でも実在するフォルダーを返しうるので、ファイル自体の有無で判定する
+           / path can point at an existing folder even when unsaved, so test the file itself */
+        try {
+            var file = doc.fullName;
+            return (file && file.exists) ? file.parent : null;
+        } catch (e) {
+            return null;
+        }
     }
 
     // =========================================
@@ -260,6 +264,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     }
 
     /**
+     * 指定方向で次に選べるラジオボタンのインデックスを返します。
+     *
+     * @param {Array<RadioButton>} radios - 同じグループのラジオボタン。
+     * @param {number} index - 現在のインデックス。
+     * @param {number} step - -1 で前、1 で次。
+     * @returns {number} 次に選べるインデックス。無ければ index。
+     */
+    function nextEnabledRadioIndex(radios, index, step) {
+        var candidate = index;
+        for (var i = 0; i < radios.length; i++) {
+            candidate = (candidate + step + radios.length) % radios.length;
+            if (radios[candidate].enabled) return candidate;
+        }
+        return index;
+    }
+
+    /**
      * 上下キーでラジオボタンを循環移動できるようにします。
      *
      * @param {Array<RadioButton>} radios - 同じグループのラジオボタン。
@@ -270,10 +291,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
             (function (index) {
                 radios[index].addEventListener("keydown", function (event) {
                     var key = event.keyName;
+                    /* 無効なラジオは飛ばす（未保存時の［ファイルと同じ階層］など） / Skip disabled radios, e.g. "Same folder" while unsaved */
                     if (key === "Up" || key === "ArrowUp") {
-                        selectRadio(radios, (index + radios.length - 1) % radios.length);
+                        selectRadio(radios, nextEnabledRadioIndex(radios, index, -1));
                     } else if (key === "Down" || key === "ArrowDown") {
-                        selectRadio(radios, (index + 1) % radios.length);
+                        selectRadio(radios, nextEnabledRadioIndex(radios, index, 1));
                     }
                 });
             })(i);
@@ -290,6 +312,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
      * @property {string[]} formats - 書き出す形式（"txt" / "csv" / "md"）の配列。
      * @property {string} destination - "desktop" または "sameFolder"。
      * @property {boolean} openFolder - 書き出し後にフォルダーを開く場合は true。
+     * @property {boolean} missingOnly - 見つからないフォントだけを書き出す場合は true。
      */
 
     /**
@@ -323,6 +346,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         var radioDesktop = destinationPanel.add("radiobutton", undefined, getLabel("destination.desktop"));
         var radioSameFolder = destinationPanel.add("radiobutton", undefined, getLabel("destination.sameFolder"));
         radioDesktop.value = true;
+        /* 未保存のドキュメントには同じ階層が無いのでデスクトップだけにする / A never-saved document has no folder of its own, so leave only Desktop */
+        radioSameFolder.enabled = !!getDocumentFolder(app.activeDocument);
         enableArrowKeyNavigation([radioDesktop, radioSameFolder]);
 
         /* ラジオボタンと同じ間隔だと選択肢に見えるため、少し離す / Nudge it down so it doesn't read as a third radio option */
@@ -333,9 +358,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         var openFolderCheckbox = openFolderGroup.add("checkbox", undefined, getLabel("destination.openFolder"));
         openFolderCheckbox.value = OPEN_FOLDER_DEFAULT;
 
+        /* オプションパネル / Options panel */
+        var optionsPanel = dialog.add("panel", undefined, getLabel("options.title"));
+        setupPanel(optionsPanel, 6);
+
+        var missingOnlyCheckbox = optionsPanel.add("checkbox", undefined, getLabel("options.missingOnly"));
+        missingOnlyCheckbox.value = MISSING_ONLY_DEFAULT;
+
         var buttonGroup = dialog.add("group");
         setupGroup(buttonGroup, "row");
-        buttonGroup.alignment = "center";
+        /* alignment と alignChildren を対で指定しないとボタンが伸びて天地がずれる / Set alignment and alignChildren together, or the buttons stretch and drift vertically */
+        buttonGroup.alignment = ["center", "top"];
+        buttonGroup.alignChildren = ["center", "center"];
         buttonGroup.margins = [0, 5, 0, 0]; // ボタンエリア上に余白 +5 / Extra top margin above buttons
         buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonGroup.add("button", undefined, "OK", { name: "ok" });
@@ -351,7 +385,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         return {
             formats: formats,
             destination: radioSameFolder.value ? "sameFolder" : "desktop",
-            openFolder: openFolderCheckbox.value
+            openFolder: openFolderCheckbox.value,
+            missingOnly: missingOnlyCheckbox.value
         };
     }
 
@@ -359,30 +394,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     // 書き出し / Export
     // =========================================
     /**
-     * XMPからフォント情報を抽出し、指定された各形式でファイルを書き出します。
+     * フォント情報を集め、指定された各形式でファイルを書き出します。
      *
-     * @param {string[]} formats - 書き出す形式（"txt" / "csv" / "md"）の配列。
-     * @param {string} destination - "desktop" または "sameFolder"。
-     * @param {boolean} openFolder - 書き出し後にフォルダーを開く場合は true。
+     * @param {ExportOptions} options - ダイアログで選択された書き出し条件。
      * @returns {void}
      */
-    function exportFontInfo(formats, destination, openFolder) {
+    function exportFontInfo(options) {
         try {
-            if (ExternalObject.AdobeXMPScript === undefined)
-                ExternalObject.AdobeXMPScript = new ExternalObject("lib:AdobeXMPScript");
-
             var doc = app.activeDocument;
-            var fontData = extractFontData(doc.XMPString);
-            if (!fontData) {
+            var entries = collectFontEntries(doc);
+            if (entries.length === 0) {
                 alert(getLabel("alert.noFonts"));
                 return;
             }
 
-            /* デスクトップ、またはドキュメントと同じフォルダー / Desktop, or the document's own folder */
-            var outputFolder = (destination === "sameFolder") ? doc.path : Folder.desktop;
-            var writtenNames = writeFontInfoFiles(fontData, formats, outputFolder, doc.name);
+            if (options.missingOnly) {
+                entries = filterMissingFonts(entries);
+                if (entries.length === 0) {
+                    alert(getLabel("alert.noMissingFonts"));
+                    return;
+                }
+            }
 
-            if (openFolder) {
+            /* デスクトップ、またはドキュメントと同じフォルダー / Desktop, or the document's own folder */
+            var docFolder = getDocumentFolder(doc);
+            var outputFolder = (options.destination === "sameFolder" && docFolder) ? docFolder : Folder.desktop;
+            var writtenNames = writeFontInfoFiles(entries, options.formats, outputFolder, doc.name);
+
+            if (options.openFolder) {
                 outputFolder.execute();
             } else {
                 /* フォルダーを開かない場合だけ、書き出し結果をアラートで知らせる / Report the result only when the folder is not opened */
@@ -397,20 +436,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     /**
      * 指定された各形式でファイルを書き出します。
      *
-     * @param {FontData} fontData - 抽出済みのフォント情報。
+     * @param {FontEntry[]} entries - 抽出済みのフォント情報。
      * @param {string[]} formats - 書き出す形式（"txt" / "csv" / "md"）の配列。
      * @param {Folder} outputFolder - 書き出し先フォルダー。
      * @param {string} docName - 拡張子を含むドキュメント名。
      * @returns {string[]} 書き出したファイル名の配列。
      */
-    function writeFontInfoFiles(fontData, formats, outputFolder, docName) {
+    function writeFontInfoFiles(entries, formats, outputFolder, docName) {
         var baseName = docName.replace(/\.[^\.]+$/, "") + FILENAME_SUFFIX;
         var writtenNames = [];
 
         for (var i = 0; i < formats.length; i++) {
             var spec = FORMAT_SPECS[formats[i]];
             var file = uniqueOutputFile(outputFolder, baseName, "." + formats[i]);
-            writeLines(file, spec, spec.build(fontData, docName));
+            writeLines(file, spec, spec.build(entries, docName));
             writtenNames.push(decodeURI(file.name));
         }
 
@@ -457,40 +496,199 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     // フォント情報の抽出 / Font Data Extraction
     // =========================================
     /**
-     * XMPから取り出したフォント情報。
+     * フォント1件分の情報。
      *
-     * @typedef {object} FontData
-     * @property {string[]} primaryEntries - 主フォント1件分のXML断片の配列。
-     * @property {Array<string[]>} compositeMembers - primaryEntries と同じ並びの、構成フォント名の配列。
+     * @typedef {object} FontEntry
+     * @property {FontFields} fields - フォント属性。
+     * @property {string[]} members - 構成フォント名の配列。合成フォントでなければ空配列。
      */
+
+    /**
+     * ドキュメントからフォント情報を集めます。
+     *
+     * @param {Document} doc - 対象のドキュメント。
+     * @returns {FontEntry[]} フォント情報の配列。1件も無ければ空配列。
+     */
+    function collectFontEntries(doc) {
+        var xmpEntries = extractFontEntriesFromXMP(readXMPString(doc));
+
+        /* 保存済みならXMPが現状と一致する。未保存・編集中のXMPは前回保存時のままなので、
+           テキストから拾った分を足して補う（テキスト走査は重いのでここでしか走らせない）
+           / A saved document's XMP matches what's on screen; an unsaved or edited one still holds the
+             last-saved XMP, so top it up from the text (the costly scan runs only in that case) */
+        if (doc.saved) return xmpEntries;
+
+        return mergeFontEntries(xmpEntries, extractFontEntriesFromText(doc));
+    }
+
+    /**
+     * XMP由来のフォント情報に、そこに無いテキスト由来の分だけを足します。
+     *
+     * @param {FontEntry[]} xmpEntries - XMPから抽出したフォント情報。
+     * @param {FontEntry[]} textEntries - テキストから集めたフォント情報。
+     * @returns {FontEntry[]} マージ後の配列。XMP由来を先に並べる。
+     */
+    function mergeFontEntries(xmpEntries, textEntries) {
+        var seen = {};
+        var merged = [];
+        var i;
+
+        /* XMP由来は version やフォントファイル名まで揃っているので、重複時はこちらを残す
+           / XMP entries carry version and file name, so they win on a duplicate */
+        for (i = 0; i < xmpEntries.length; i++) {
+            markFontEntrySeen(seen, xmpEntries[i]);
+            merged.push(xmpEntries[i]);
+        }
+
+        for (i = 0; i < textEntries.length; i++) {
+            if (isFontEntrySeen(seen, textEntries[i])) continue;
+            markFontEntrySeen(seen, textEntries[i]);
+            merged.push(textEntries[i]);
+        }
+
+        return merged;
+    }
+
+    /**
+     * フォント1件を「既出」として記録します。
+     *
+     * @param {object} seen - 既出フォントの索引。
+     * @param {FontEntry} entry - 記録するフォント。
+     * @returns {void}
+     */
+    function markFontEntrySeen(seen, entry) {
+        var keys = fontEntryKeys(entry);
+        for (var i = 0; i < keys.length; i++) {
+            seen[keys[i]] = true;
+        }
+    }
+
+    /**
+     * フォント1件が既出かを判定します。
+     *
+     * @param {object} seen - 既出フォントの索引。
+     * @param {FontEntry} entry - 判定するフォント。
+     * @returns {boolean} 既出なら true。
+     */
+    function isFontEntrySeen(seen, entry) {
+        var keys = fontEntryKeys(entry);
+        for (var i = 0; i < keys.length; i++) {
+            if (seen[keys[i]]) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 重複判定に使うキーを返します。
+     *
+     * XMPとDOMで綴りが揃わないことがあるため、PostScript名と表示名の両方で照合します。
+     *
+     * @param {FontEntry} entry - 対象のフォント。
+     * @returns {string[]} 照合に使うキーの配列。
+     */
+    function fontEntryKeys(entry) {
+        var keys = [];
+        var displayName = fontDisplayName(entry.fields);
+        /* Object のプロパティ名と衝突させないため接頭辞を付ける / Prefix the keys so font names can't collide with Object members */
+        if (entry.fields.name) keys.push("postScript:" + entry.fields.name);
+        if (displayName) keys.push("display:" + displayName);
+        return keys;
+    }
+
+    /**
+     * ドキュメントのXMP文字列を取得します。
+     *
+     * @param {Document} doc - 対象のドキュメント。
+     * @returns {string} XMP文字列。取得できない場合は空文字。
+     */
+    function readXMPString(doc) {
+        /* 文字列として読むだけなので AdobeXMPScript の読み込みは要らない
+           / Read as a plain string, so there's no need to load AdobeXMPScript */
+        try {
+            return doc.XMPString || "";
+        } catch (e) {
+            return "";
+        }
+    }
 
     /**
      * XMP文字列から主フォントと構成フォントを抽出します。
      *
      * @param {string} xmpString - ドキュメントのXMP文字列。
-     * @returns {FontData|null} 抽出結果。フォント情報が無い場合は null。
+     * @returns {FontEntry[]} 抽出結果。フォント情報が無い場合は空配列。
      */
-    function extractFontData(xmpString) {
+    function extractFontEntriesFromXMP(xmpString) {
         var fontsMatch = xmpString.match(/<xmpTPg:Fonts>[\s\S]*?<\/xmpTPg:Fonts>/);
-        if (!fontsMatch) return null;
+        if (!fontsMatch) return [];
 
         /* 構成フォントは主フォントの rdf:li に入れ子で並ぶため、主フォントの開始タグで分割する
            / Composite members are nested inside the primary rdf:li, so split on the primary's start tag */
         var chunks = fontsMatch[0].split(/<rdf:li[^>]*rdf:parseType="Resource"[^>]*>/);
 
-        var primaryEntries = [];
-        var compositeMembers = [];
+        var entries = [];
 
         /* chunks[0] は最初の主フォントより前の部分なので読み飛ばす / chunks[0] precedes the first primary font */
         for (var i = 1; i < chunks.length; i++) {
-            primaryEntries.push(chunks[i]);
-            compositeMembers.push(extractCompositeMembers(chunks[i]));
+            entries.push({
+                fields: fontFields(chunks[i]),
+                members: extractCompositeMembers(chunks[i])
+            });
         }
 
-        /* 主フォントが1件も無ければ空ファイルを作らない / Don't write an empty file when there is no primary font */
-        if (primaryEntries.length === 0) return null;
+        return entries;
+    }
 
-        return { primaryEntries: primaryEntries, compositeMembers: compositeMembers };
+    /**
+     * ドキュメント内のテキストから使用フォントを集めます（XMPを補うための走査）。
+     *
+     * バージョンやフォントファイル名はDOMから取得できないため空になります。
+     *
+     * @param {Document} doc - 対象のドキュメント。
+     * @returns {FontEntry[]} フォント情報の配列。テキストが無ければ空配列。
+     */
+    function extractFontEntriesFromText(doc) {
+        var seen = {};
+        var entries = [];
+        var frames = doc.textFrames;
+        var frameCount = frames.length;
+
+        for (var i = 0; i < frameCount; i++) {
+            /* フォントは文字単位で変わるため、1文字ずつ見るしかない（範囲単位では混在時に先頭の書式しか返らない）
+               / Fonts change per character, and a mixed range reports only its first character's font */
+            var chars = frames[i].textRange.characters;
+            /* 長さはDOM参照なので、ループ条件で毎回読み直さない / chars.length hits the DOM, so read it once */
+            var charCount = chars.length;
+
+            for (var j = 0; j < charCount; j++) {
+                var font;
+                try {
+                    font = chars[j].characterAttributes.textFont;
+                } catch (e) {
+                    continue;
+                }
+                if (!font) continue;
+
+                /* Object のプロパティ名と衝突させないため接頭辞を付ける / Prefix the key so font names can't collide with Object members */
+                var key = "font:" + font.name;
+                if (seen[key]) continue;
+                seen[key] = true;
+
+                entries.push({
+                    fields: {
+                        name: font.name,
+                        family: font.family,
+                        face: font.style,
+                        type: "",
+                        version: "",
+                        fileName: "",
+                        isComposite: false
+                    },
+                    members: []
+                });
+            }
+        }
+
+        return entries;
     }
 
     /**
@@ -512,17 +710,97 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     }
 
     // =========================================
+    // 見つからないフォントの判定 / Missing Font Detection
+    // =========================================
+    /**
+     * インストール済みフォント名の索引。初回参照時に作る。
+     *
+     * 代入付きの宣言は巻き上げでメイン処理より後に走り、初期化子が死ぬので付けない。
+     *
+     * @type {object|undefined}
+     */
+    var installedFontIndex;
+
+    /**
+     * インストール済みフォントの名前を引ける索引を返します。
+     *
+     * @returns {object} 名前をキーにした索引。
+     */
+    function getInstalledFontIndex() {
+        if (installedFontIndex) return installedFontIndex;
+
+        installedFontIndex = {};
+        var fonts = app.textFonts;
+        for (var i = 0; i < fonts.length; i++) {
+            /* XMPの値がPostScript名・ファミリー名・表示名のどれで入っていても引けるようにする
+               / Index all three spellings, since XMP may carry the PostScript, family, or display name */
+            installedFontIndex["font:" + fonts[i].name] = true;
+            installedFontIndex["font:" + fonts[i].family] = true;
+            installedFontIndex["font:" + (fonts[i].family + " " + fonts[i].style)] = true;
+        }
+        return installedFontIndex;
+    }
+
+    /**
+     * 指定名のフォントがインストールされているかを判定します。
+     *
+     * @param {string} fontName - フォント名。
+     * @returns {boolean} インストール済み、または名前が空なら true。
+     */
+    function isFontInstalled(fontName) {
+        /* 名前が無いものは判定できないので、見つからない扱いにはしない / An empty name can't be judged, so don't call it missing */
+        if (!fontName) return true;
+        return getInstalledFontIndex()["font:" + fontName] === true;
+    }
+
+    /**
+     * フォント1件が見つからないフォントかを判定します。
+     *
+     * @param {FontEntry} entry - 判定対象のフォント。
+     * @returns {boolean} 見つからないフォントなら true。
+     */
+    function isFontMissing(entry) {
+        var f = entry.fields;
+
+        /* 合成フォント自体は app.textFonts に無いので、名前で引くと必ず外れる。
+           構成フォントが取れないときは判定できないため、欠落とは見なさない
+           / A composite font is never listed in app.textFonts, so looking up its own name always misses.
+             With no members to judge by, treat it as undetermined rather than missing */
+        if (f.isComposite) {
+            for (var i = 0; i < entry.members.length; i++) {
+                if (!isFontInstalled(entry.members[i])) return true;
+            }
+            return false;
+        }
+
+        return !isFontInstalled(f.name);
+    }
+
+    /**
+     * 見つからないフォントだけを抜き出します。
+     *
+     * @param {FontEntry[]} entries - フォント情報の配列。
+     * @returns {FontEntry[]} 見つからないフォントだけの配列。
+     */
+    function filterMissingFonts(entries) {
+        var missing = [];
+        for (var i = 0; i < entries.length; i++) {
+            if (isFontMissing(entries[i])) missing.push(entries[i]);
+        }
+        return missing;
+    }
+
+    // =========================================
     // 行の生成 / Line Builders
     // =========================================
     /**
      * テキスト形式（タブ区切り）の行を生成します。
      *
-     * @param {FontData} fontData - 抽出済みのフォント情報。
+     * @param {FontEntry[]} entries - 抽出済みのフォント情報。
      * @param {string} fileName - 見出しに使うドキュメント名。
      * @returns {string[]} 書き込む行の配列。
      */
-    function buildTxtLines(fontData, fileName) {
-        var entries = fontData.primaryEntries;
+    function buildTxtLines(entries, fileName) {
         var bullet = getLabel("output.bullet");
         var lines = [];
 
@@ -530,13 +808,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         lines.push(labelWithCount("output.fontCount", entries.length) + "\n");
 
         for (var i = 0; i < entries.length; i++) {
-            lines.push(bullet + fontDisplayName(entries[i]));
+            lines.push(bullet + fontDisplayName(entries[i].fields));
         }
 
         lines.push("\n" + SECTION_DIVIDER);
 
         for (i = 0; i < entries.length; i++) {
-            lines = lines.concat(txtFontBlock(entries[i], fontData.compositeMembers[i]));
+            lines = lines.concat(txtFontBlock(entries[i]));
         }
 
         return lines;
@@ -545,12 +823,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     /**
      * テキスト形式の、フォント1件分の行を生成します。
      *
-     * @param {string} entryXml - 主フォント1件分のXML断片。
-     * @param {string[]} members - 構成フォント名の配列。
+     * @param {FontEntry} entry - 出力するフォント。
      * @returns {string[]} フォント1件分の行。
      */
-    function txtFontBlock(entryXml, members) {
-        var f = fontFields(entryXml);
+    function txtFontBlock(entry) {
+        var f = entry.fields;
         var pairs = fontDetailPairs(f, true);
         var lines = [];
 
@@ -558,11 +835,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
             lines.push(pairs[i][0] + ":\t" + pairs[i][1]);
         }
 
-        if (hasCompositeMembers(f, members)) {
+        if (hasCompositeMembers(f, entry.members)) {
             var bullet = getLabel("output.bullet");
             lines.push(labelText("output.compositeFonts"));
-            for (var j = 0; j < members.length; j++) {
-                lines.push(bullet + members[j]);
+            for (var j = 0; j < entry.members.length; j++) {
+                lines.push(bullet + entry.members[j]);
             }
         }
 
@@ -573,12 +850,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     /**
      * Markdown形式の行を生成します。
      *
-     * @param {FontData} fontData - 抽出済みのフォント情報。
+     * @param {FontEntry[]} entries - 抽出済みのフォント情報。
      * @param {string} fileName - 見出しに使うドキュメント名。
      * @returns {string[]} 書き込む行の配列。
      */
-    function buildMarkdownLines(fontData, fileName) {
-        var entries = fontData.primaryEntries;
+    function buildMarkdownLines(entries, fileName) {
         var lines = [];
 
         lines.push("# " + getLabel("output.fontListHeading") + " " + escapeMarkdown(fileName) + "\n");
@@ -588,13 +864,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         lines.push(labelWithCount("output.fontCount", entries.length) + "\n");
 
         for (var i = 0; i < entries.length; i++) {
-            lines.push("- " + escapeMarkdown(fontDisplayName(entries[i])));
+            lines.push("- " + escapeMarkdown(fontDisplayName(entries[i].fields)));
         }
 
         lines.push("\n## " + getLabel("output.fontDetailHeading") + "\n");
 
         for (i = 0; i < entries.length; i++) {
-            lines = lines.concat(markdownFontBlock(entries[i], fontData.compositeMembers[i]));
+            lines = lines.concat(markdownFontBlock(entries[i]));
         }
 
         return lines;
@@ -603,30 +879,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     /**
      * Markdown形式の、フォント1件分の行を生成します。
      *
-     * @param {string} entryXml - 主フォント1件分のXML断片。
-     * @param {string[]} members - 構成フォント名の配列。
+     * @param {FontEntry} entry - 出力するフォント。
      * @returns {string[]} フォント1件分の行。
      */
-    function markdownFontBlock(entryXml, members) {
-        var f = fontFields(entryXml);
+    function markdownFontBlock(entry) {
+        var f = entry.fields;
         /* ファミリー名は見出しに出るので詳細では省く / The family is already in the heading, so skip it in the details */
         var pairs = fontDetailPairs(f, false);
         var lines = [];
 
         /* 同じファミリーで複数フェイスがあると見出しが重複するため、フェイスまで含める / Include the face; family alone duplicates headings across faces */
-        lines.push("### " + escapeMarkdown(fontDisplayName(entryXml)));
+        lines.push("### " + escapeMarkdown(fontDisplayName(f)));
         lines.push("");
 
         for (var i = 0; i < pairs.length; i++) {
             lines.push("- " + pairs[i][0] + ": " + escapeMarkdown(pairs[i][1]));
         }
 
-        if (hasCompositeMembers(f, members)) {
+        if (hasCompositeMembers(f, entry.members)) {
             lines.push("");
             lines.push("#### " + getLabel("output.compositeFonts"));
             lines.push("");
-            for (var j = 0; j < members.length; j++) {
-                lines.push("- " + escapeMarkdown(members[j]));
+            for (var j = 0; j < entry.members.length; j++) {
+                lines.push("- " + escapeMarkdown(entry.members[j]));
             }
             lines.push("");
         }
@@ -638,15 +913,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     /**
      * CSV形式の行を生成します。
      *
-     * @param {FontData} fontData - 抽出済みのフォント情報。
+     * @param {FontEntry[]} entries - 抽出済みのフォント情報。
      * @returns {string[]} ヘッダー行を含む、書き込む行の配列。
      */
-    function buildCsvLines(fontData) {
-        var entries = fontData.primaryEntries;
+    function buildCsvLines(entries) {
         var lines = ["fontName,fontFamily,fontFace,fontType,version,fileName"];
 
         for (var i = 0; i < entries.length; i++) {
-            var f = fontFields(entries[i]);
+            var f = entries[i].fields;
             lines.push([
                 escapeCsv(f.name),
                 escapeCsv(f.family),
@@ -727,12 +1001,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
     /**
      * 一覧表示用の「ファミリー フェイス」名を返します。
      *
-     * @param {string} entryXml - 主フォント1件分のXML断片。
+     * @param {FontFields} f - フォント属性。
      * @returns {string} ファミリー名とフェイス名を連結した名前。前後の空白は除去。
      */
-    function fontDisplayName(entryXml) {
-        var displayName = getFontProp(entryXml, "fontFamily") + " " + getFontProp(entryXml, "fontFace");
-        return displayName.replace(/^\s+|\s+$/g, "");
+    function fontDisplayName(f) {
+        return (f.family + " " + f.face).replace(/^\s+|\s+$/g, "");
     }
 
     /**
