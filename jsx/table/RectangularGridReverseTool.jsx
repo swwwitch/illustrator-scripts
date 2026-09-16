@@ -55,6 +55,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "均等に（強制）",
             en: "Evenly (force)"
         },
+        panelPreprocessing: {
+            ja: "前処理",
+            en: "Pre-processing"
+        },
+        optionSplitFrameToFourSides: {
+            ja: "外枠を四辺に分割",
+            en: "Split outer frame into four sides"
+        },
         panelDistribution: {
             ja: "配置モード",
             en: "Distribution Mode"
@@ -88,8 +96,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Lock first row"
         },
         panelLine: {
-            ja: "線",
-            en: "Line"
+            ja: "線（後処理）",
+            en: "Line (post-process)"
         },
         panelStrokeWidth: {
             ja: "線幅",
@@ -126,6 +134,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         optionFrameToRect: {
             ja: "外枠を長方形に変換",
             en: "Convert outer frame to rectangle"
+        },
+        optionCenterPointTextVertically: {
+            ja: "ポイント文字をセル内で上下中央",
+            en: "Center point text vertically in cells"
         },
         optionGroup: {
             ja: "グループ化",
@@ -276,10 +288,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return;
     }
 
+    // 前処理：外枠を四辺に分割しない場合は分解を取り消して終了 / If split is disabled, undo expansion and exit
+    if (!dialogOptions.splitOuterFrame && hasExpandedRectangles) {
+        restoreRectangleExpansions(rectangleExpansions);
+        return;
+    }
+
     restoreLineStates(originalLineStates);
     applyRepresentativeStrokeWidth(classified.horizontalLines, classified.verticalLines, dialogOptions);
     if (dialogOptions.convertDashedToSolid) convertDashedLinesToSolid(classified.horizontalLines, classified.verticalLines);
     alignLinesToGridBounds(classified.horizontalLines, classified.verticalLines, gridBounds, dialogOptions);
+
+    // ポイント文字をセル内で上下中央に配置 / Center point text vertically within cells
+    if (dialogOptions.centerPointTextVertically) {
+        centerPointTextVerticallyInCells(classified.horizontalLines, gridBounds);
+    }
 
     // 外枠を長方形に変換 → 残存パス＋長方形をグループ化 / Convert outer frame to rectangle, then group remaining paths and rectangle
     var groupTargets = [];
@@ -503,17 +526,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { horizontalLines: horizontalLines, verticalLines: verticalLines };
     }
 
-    // 格子の外周座標（左端・右端・上端・下端）を計算 / Calculate grid outer coordinates (left, right, top, bottom)
+    // 格子の外周座標（左端・右端・上端・下端）を計算
+    // 上下左右に貫通する罫線（最長線の90%以上の長さ）が複数あればそれを基準とし、
+    // それより外側にはみ出した線は計算対象から除外する
+    // / Calculate grid outer bounds. If there are spanning lines (>=90% of the longest in that orientation),
+    // use those as the basis and ignore lines that protrude beyond them.
     function getGridBounds(horizontalLines, verticalLines) {
-        var gridMinX = verticalLines[0].x, gridMaxX = verticalLines[0].x;
-        for (var verticalIndex = 1; verticalIndex < verticalLines.length; verticalIndex++) {
-            if (verticalLines[verticalIndex].x < gridMinX) gridMinX = verticalLines[verticalIndex].x;
-            if (verticalLines[verticalIndex].x > gridMaxX) gridMaxX = verticalLines[verticalIndex].x;
+        var SPAN_RATIO_THRESHOLD = 0.9;
+
+        var maxHorizontalSpan = 0;
+        for (var hSpanIndex = 0; hSpanIndex < horizontalLines.length; hSpanIndex++) {
+            var hSpanLength = horizontalLines[hSpanIndex].maxX - horizontalLines[hSpanIndex].minX;
+            if (hSpanLength > maxHorizontalSpan) maxHorizontalSpan = hSpanLength;
         }
-        var gridMinY = horizontalLines[0].y, gridMaxY = horizontalLines[0].y;
-        for (var horizontalIndex = 1; horizontalIndex < horizontalLines.length; horizontalIndex++) {
-            if (horizontalLines[horizontalIndex].y < gridMinY) gridMinY = horizontalLines[horizontalIndex].y;
-            if (horizontalLines[horizontalIndex].y > gridMaxY) gridMaxY = horizontalLines[horizontalIndex].y;
+        var maxVerticalSpan = 0;
+        for (var vSpanIndex = 0; vSpanIndex < verticalLines.length; vSpanIndex++) {
+            var vSpanLength = verticalLines[vSpanIndex].maxY - verticalLines[vSpanIndex].minY;
+            if (vSpanLength > maxVerticalSpan) maxVerticalSpan = vSpanLength;
+        }
+
+        var spanningHorizontals = [];
+        var horizontalThreshold = maxHorizontalSpan * SPAN_RATIO_THRESHOLD;
+        for (var hPickIndex = 0; hPickIndex < horizontalLines.length; hPickIndex++) {
+            if ((horizontalLines[hPickIndex].maxX - horizontalLines[hPickIndex].minX) >= horizontalThreshold) {
+                spanningHorizontals.push(horizontalLines[hPickIndex]);
+            }
+        }
+        var spanningVerticals = [];
+        var verticalThreshold = maxVerticalSpan * SPAN_RATIO_THRESHOLD;
+        for (var vPickIndex = 0; vPickIndex < verticalLines.length; vPickIndex++) {
+            if ((verticalLines[vPickIndex].maxY - verticalLines[vPickIndex].minY) >= verticalThreshold) {
+                spanningVerticals.push(verticalLines[vPickIndex]);
+            }
+        }
+
+        // 貫通線が2本以上あれば外枠候補として採用、なければ全線をフォールバック
+        // / Use spanning lines as outer-frame candidates when at least 2 exist; otherwise fall back to all lines
+        var verticalSource = spanningVerticals.length >= 2 ? spanningVerticals : verticalLines;
+        var horizontalSource = spanningHorizontals.length >= 2 ? spanningHorizontals : horizontalLines;
+
+        var gridMinX = verticalSource[0].x, gridMaxX = verticalSource[0].x;
+        for (var verticalIndex = 1; verticalIndex < verticalSource.length; verticalIndex++) {
+            if (verticalSource[verticalIndex].x < gridMinX) gridMinX = verticalSource[verticalIndex].x;
+            if (verticalSource[verticalIndex].x > gridMaxX) gridMaxX = verticalSource[verticalIndex].x;
+        }
+        var gridMinY = horizontalSource[0].y, gridMaxY = horizontalSource[0].y;
+        for (var horizontalIndex = 1; horizontalIndex < horizontalSource.length; horizontalIndex++) {
+            if (horizontalSource[horizontalIndex].y < gridMinY) gridMinY = horizontalSource[horizontalIndex].y;
+            if (horizontalSource[horizontalIndex].y > gridMaxY) gridMaxY = horizontalSource[horizontalIndex].y;
         }
         return { minX: gridMinX, maxX: gridMaxX, minY: gridMinY, maxY: gridMaxY };
     }
@@ -583,6 +643,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             app.redraw();
             return;
         }
+        // 外枠を四辺に分割が OFF の場合、本処理（罫線整列）を行わず元の状態のまま表示 / If split is OFF, skip the main alignment and show original state
+        if (!dialogUi.splitOuterFrameCheckbox.value) {
+            app.redraw();
+            return;
+        }
         var previewOptions = readOptionDialogState(dialogUi);
         // プレビュー時は frameToRect, group を適用しない
         previewOptions.frameToRect = false;
@@ -618,7 +683,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             lockFirstColumn: dialogUi.lockFirstColumnCheckbox.value,
             lockFirstRow: dialogUi.lockFirstRowCheckbox.value,
             frameToRect: dialogUi.frameToRectangleCheckbox.value,
-            group: dialogUi.groupingCheckbox.value
+            centerPointTextVertically: dialogUi.centerPointTextVerticallyCheckbox.value,
+            group: dialogUi.groupingCheckbox.value,
+            splitOuterFrame: dialogUi.splitOuterFrameCheckbox.value
         };
     }
 
@@ -999,6 +1066,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return frameRectangle;
     }
 
+    // ポイント文字をセル内で上下中央に移動 / Move point text frames to the vertical center of their cell row
+    function centerPointTextVerticallyInCells(horizontalLines, gridBounds) {
+        var rowYs = [];
+        for (var lineIndex = 0; lineIndex < horizontalLines.length; lineIndex++) {
+            rowYs.push(horizontalLines[lineIndex].y);
+        }
+        rowYs.sort(function (firstY, secondY) { return firstY - secondY; });
+        if (rowYs.length < 2) return;
+
+        var documentTextFrames = app.activeDocument.textFrames;
+        for (var textIndex = 0; textIndex < documentTextFrames.length; textIndex++) {
+            var textFrame = documentTextFrames[textIndex];
+            if (textFrame.kind !== TextType.POINTTEXT) continue;
+            var textBounds = textFrame.geometricBounds; // [left, top, right, bottom]（Y上方向が正）
+            var textCenterX = (textBounds[0] + textBounds[2]) / 2;
+            var textCenterY = (textBounds[1] + textBounds[3]) / 2;
+            // グリッド外のテキストは対象外 / Skip text outside the grid bounds
+            if (textCenterX < gridBounds.minX || textCenterX > gridBounds.maxX) continue;
+            if (textCenterY < gridBounds.minY || textCenterY > gridBounds.maxY) continue;
+            // テキストの中心が含まれる行を探す / Find the row whose Y range contains the text center
+            var rowBottomY = null, rowTopY = null;
+            for (var rowIndex = 0; rowIndex < rowYs.length - 1; rowIndex++) {
+                if (textCenterY >= rowYs[rowIndex] && textCenterY <= rowYs[rowIndex + 1]) {
+                    rowBottomY = rowYs[rowIndex];
+                    rowTopY = rowYs[rowIndex + 1];
+                    break;
+                }
+            }
+            if (rowBottomY === null) continue;
+            var rowCenterY = (rowBottomY + rowTopY) / 2;
+            var deltaY = rowCenterY - textCenterY;
+            if (Math.abs(deltaY) > 0.001) textFrame.translate(0, deltaY);
+        }
+    }
+
     // 渡されたアイテムを1つのグループにまとめる / Group the given items into one group
     function groupProcessedItems(processedItems) {
         var parent = processedItems[0].parent;
@@ -1026,6 +1128,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ダイアログを表示してオプションを受け取る / Show the dialog and return selected options
     function showOptionDialog(classified, gridBounds, originalLineStates, strokeUnitInfo, hasExpandedRectangles) {
+        function refreshPreview() {
+            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+        }
         var optionDialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         optionDialog.alignChildren = "left";
         optionDialog.margins = 16;
@@ -1042,6 +1147,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rightColumnGroup = mainOptionsGroup.add("group");
         rightColumnGroup.orientation = "column";
         rightColumnGroup.alignChildren = "fill";
+
+        // 前処理パネル / Pre-processing panel
+        var preprocessingPanel = leftColumnGroup.add("panel", undefined, getLabel("panelPreprocessing"));
+        preprocessingPanel.orientation = "column";
+        preprocessingPanel.alignChildren = "left";
+        preprocessingPanel.margins = [10, 20, 10, 10];
+
+        var splitOuterFrameCheckbox = preprocessingPanel.add("checkbox", undefined, getLabel("optionSplitFrameToFourSides"));
+        splitOuterFrameCheckbox.value = !!hasExpandedRectangles;
 
         // 配置ラジオボタン / Distribution options
         var distributionPanel = leftColumnGroup.add("panel", undefined, getLabel("panelDistribution"));
@@ -1121,6 +1235,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var frameToRectangleCheckbox = postProcessingPanel.add("checkbox", undefined, getLabel("optionFrameToRect"));
         frameToRectangleCheckbox.value = !!hasExpandedRectangles;
 
+        var centerPointTextVerticallyCheckbox = postProcessingPanel.add("checkbox", undefined, getLabel("optionCenterPointTextVertically"));
+        centerPointTextVerticallyCheckbox.value = false;
+
         var groupingCheckbox = postProcessingPanel.add("checkbox", undefined, getLabel("optionGroup"));
         groupingCheckbox.value = false;
 
@@ -1157,7 +1274,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             strokeWidthInput: strokeWidthInput,
             strokeUnitInfo: strokeUnitInfo,
             frameToRectangleCheckbox: frameToRectangleCheckbox,
+            centerPointTextVerticallyCheckbox: centerPointTextVerticallyCheckbox,
             groupingCheckbox: groupingCheckbox,
+            splitOuterFrameCheckbox: splitOuterFrameCheckbox,
             equalizeVerticalCheckbox: equalizeVerticalCheckbox,
             equalizeHorizontalCheckbox: equalizeHorizontalCheckbox,
             lockFirstColumnCheckbox: lockFirstColumnCheckbox,
@@ -1176,70 +1295,74 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         syncEqualizePanelEnabled();
 
         previewCheckbox.onClick = function () {
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         distributionNoneRadio.onClick = function () {
             syncEqualizePanelEnabled();
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         distributionEvenRadio.onClick = function () {
             syncEqualizePanelEnabled();
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         distributionEvenMergedCellRadio.onClick = function () {
             syncEqualizePanelEnabled();
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         equalizeVerticalCheckbox.onClick = function () {
             if (ScriptUI.environment.keyboardState.altKey) {
                 equalizeHorizontalCheckbox.value = equalizeVerticalCheckbox.value;
             }
             syncEqualizePanelEnabled();
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         equalizeHorizontalCheckbox.onClick = function () {
             if (ScriptUI.environment.keyboardState.altKey) {
                 equalizeVerticalCheckbox.value = equalizeHorizontalCheckbox.value;
             }
             syncEqualizePanelEnabled();
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         lockFirstColumnCheckbox.onClick = function () {
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         lockFirstRowCheckbox.onClick = function () {
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         projectingCapCheckbox.onClick = function () {
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         convertDashedToSolidCheckbox.onClick = function () {
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         strokeWidthMaxRadio.onClick = function () {
             syncSpecifiedStrokeWidthInput(dialogUi);
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         strokeWidthMinRadio.onClick = function () {
             syncSpecifiedStrokeWidthInput(dialogUi);
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         strokeWidthAverageRadio.onClick = function () {
             syncSpecifiedStrokeWidthInput(dialogUi);
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         strokeWidthSpecifiedRadio.onClick = function () {
             syncSpecifiedStrokeWidthInput(dialogUi);
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         strokeWidthInput.onChanging = function () {
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         };
         changeValueByArrowKey(strokeWidthInput, false, function () {
             if (!strokeWidthSpecifiedRadio.value) strokeWidthSpecifiedRadio.value = true;
             syncSpecifiedStrokeWidthInput(dialogUi);
-            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+            refreshPreview();
         });
+        // 外枠分割トグル：分割済みの線に対して整列処理（プレビュー）を再実行 / Toggle: re-run alignment preview on the already-split lines
+        splitOuterFrameCheckbox.onClick = function () {
+            refreshPreview();
+        };
 
         var dialogResult = optionDialog.show();
         restoreLineStates(originalLineStates);

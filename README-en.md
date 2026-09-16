@@ -77,7 +77,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Sets the auto-kerning method of the selected text to 0…](readme-en/AutoKerning-Zero.md)
 - [Sets the auto-kerning method of the selected text to O…](readme-en/AutoKerningWabunSimple.md)
 - [Back-calculates the leading percentage from the select…](readme-en/AutoLeadingCalc.md)
-- [Sets the auto-leading amount (%) so the selected text'…](readme-en/AutoLeadingPlus1.md)
 - [Increase leading by one whole step (via auto-leading)](readme-en/AutoLeadingStep+1.md)
 - [Increase leading by ten whole steps (via auto-leading)](readme-en/AutoLeadingStep+10.md)
 - [Decrease leading by one whole step (via auto-leading)](readme-en/AutoLeadingStep-1.md)
@@ -173,7 +172,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [RectangleToArc](readme-en/RectangleToArc.md)
 - [Creates regular shapes — circles, polygons, stars and…](readme-en/SmartShapeMaker-v2.md)
 - [A persistent palette that applies the "Convert to Shap…](readme-en/fx-all.md)
-- [Updated: 2026-05-01](readme-en/test-20260501-040758.md)
 - [長方形に変換](readme-en/長方形に変換.md)
 
 
@@ -228,7 +226,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Collects the text frames on every artboard and places…](readme-en/CollectArtboardTexts.md)
 - [Creates a rectangle exactly the size of the current ar…](readme-en/DrawArtboardRectangle.md)
 - [A script for Illustrator that automatically adds new a…](readme-en/Group2Artboards.md)
-- [Remove all non-active artboards](readme-en/RemoveOtherArtboards-v2.md)
+- [Remove all non-active artboards](readme-en/RemoveOtherArtboards.md)
 - [Resize artboards to the specified width/height with li…](readme-en/ResizeArtboardsAll.md)
 - [Draws rectangles that match the active or all artboard…](readme-en/SmartDrawArtboardRectangle.md)
 
@@ -263,7 +261,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Delete All Guides](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
 - [New Guide Maker](readme-en/NewGuideMaker.md)
 - [Create artboard-based guides and convert ruler guides](readme-en/AiCreateArtboardGuides.md)
-- [A tool that organizes and creates guides based on artb…](readme-en/AiCreateArtboardGuides-v2.md)
 - [Collects guides scattered across multiple layers and s…](readme-en/CollectGuides.md)
 - [Removes all guides from the document](readme-en/DeleteAllGuides.md)
 - [Automatically creates rectangles based on intersection…](readme-en/MakeRectangleFromGuides.md)
@@ -321,7 +318,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Evenly redistributes the internal vertical and horizon…](readme-en/TableRuleAverager.md)
 - [Visualize statistics of selected or all text objects i…](readme-en/TextCountStats.md)
 - [Zooms and centers the active view on the selection](readme-en/ZoomToSelection.md)
-- [Creates a new layer, a new artboard or a new document…](readme-en/new.md)
 - [Registers the appearance of the selected object as a g…](readme-en/register-temp-style.md)
 - [Renames artboards, layers, symbols and graphic styles…](readme-en/renamer.md)
 - [Sets the stroke cap of the selected path items to Roun…](readme-en/丸型先端にする.md)

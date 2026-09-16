@@ -27,8 +27,7 @@ A reusable color-picker library meant to be included from other scripts.
 ### Notes
 
 - Running it on its own opens nothing.
-- Example: `jsx/shape/SmartShapeMaker.jsx`
-- `jsx/text/ColorPicker.jsx` is an identical file.
+- Included by: `jsx/shape/SmartShapeMaker.jsx` / `jsx/stroke-table/LeaderLineBuilder.jsx` / `jsx/text/AddBulletsAndNumbers.jsx`
 
 ### Update History
 

@@ -27,8 +27,7 @@
 ### 注意点
 
 - 単体で実行してもダイアログは開きません。
-- 使用例: `jsx/shape/SmartShapeMaker.jsx`
-- `jsx/text/ColorPicker.jsx` は同一内容のファイルです。
+- 参照元: `jsx/shape/SmartShapeMaker.jsx` / `jsx/stroke-table/LeaderLineBuilder.jsx` / `jsx/text/AddBulletsAndNumbers.jsx`
 
 ### 更新履歴
 

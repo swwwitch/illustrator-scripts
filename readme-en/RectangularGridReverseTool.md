@@ -16,17 +16,18 @@ Uneven rules and layouts containing merged cells are tidied into a regular latti
 
 ### Features
 
+- Pre-processing: split the outer frame into four sides
 - Distribution: none / forced even / even with merged-cell support
 - Scope: control which of the vertical and horizontal rules are equalized
-- Stroke: projecting caps, dashed to solid, stroke weight (max / min / average / explicit)
-- Post-processing: convert the outer frame to a rectangle, group the result
+- Stroke (post-process): projecting caps, dashed to solid, stroke weight (max / min / average / explicit)
+- Post-processing: convert the outer frame to a rectangle, group the result, center point text vertically in cells
 - Preview: check the result without closing the dialog
 
 ### Usage
 
 1. Select the horizontal and vertical lines.
 2. Run the script.
-3. Set distribution, scope, stroke and post-processing, and confirm while watching the preview.
+3. Set pre-processing, distribution, scope, stroke and post-processing, and confirm while watching the preview.
 
 ### Update History
 

@@ -83,7 +83,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したテキストの自動カーニング方式を「0（カーニングなし）」に設定する](readme-ja/AutoKerning-Zero.md)
 - [選択したテキストの自動カーニング方式を「オプティカル」に設定します](readme-ja/AutoKerningWabunSimple.md)
 - [選択したテキストの「現在の行送り（絶対値）」とフォントサイズから行送り％を逆算し、](readme-ja/AutoLeadingCalc.md)
-- [選択したテキストの行送り（表示値）が整数で 1 ステップ大きくなるように、自動行送り量（％）を](readme-ja/AutoLeadingPlus1.md)
 - [行送りを整数 1 ステップ大きくする（自動行送り量で調整）](readme-ja/AutoLeadingStep+1.md)
 - [行送りを整数 10 ステップ大きくする（自動行送り量で調整）](readme-ja/AutoLeadingStep+10.md)
 - [行送りを整数 1 ステップ小さくする（自動行送り量で調整）](readme-ja/AutoLeadingStep-1.md)
@@ -181,7 +180,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [更新日：2026-05-19](readme-ja/RectangleToArc.md)
 - [SmartShapeMaker-v2](readme-ja/SmartShapeMaker-v2.md)
 - [選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレット。パレットで「長方形／楕円」と「値を…](readme-ja/fx-all.md)
-- [更新日：2026-05-01](readme-ja/test-20260501-040758.md)
 - [更新日：2026-05-20](readme-ja/長方形に変換.md)
 
 
@@ -239,7 +237,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [全アートボード上にあるテキストフレームを収集し、最後のアートボードの右側に縦に並べて配置する](readme-ja/CollectArtboardTexts.md)
 - [現在のアートボードとまったく同じ大きさの長方形を作成します](readme-ja/DrawArtboardRectangle.md)
 - [選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして自動追加するIllu…](readme-ja/Group2Artboards.md)
-- [アクティブなアートボード以外を削除](readme-ja/RemoveOtherArtboards-v2.md)
+- [アクティブなアートボード以外を削除](readme-ja/RemoveOtherArtboards.md)
 - [ダイアログで指定した「幅」「高さ」に、アートボードをライブプレビューしながら変形します](readme-ja/ResizeArtboardsAll.md)
 - [アクティブまたは全アートボードと同サイズの長方形を、オフセットを考慮して描画します](readme-ja/SmartDrawArtboardRectangle.md)
 
@@ -276,7 +274,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [すべてのガイドを削除](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
 - [Photoshopの「新規ガイド」をIllustratorでも可能にする](readme-ja/NewGuideMaker.md)
 - [アートボード基準のガイド作成とルーラーガイドの変換](readme-ja/AiCreateArtboardGuides.md)
-- [アートボードを基準にガイドを整理・作成するツール。次の3系統をダイアログでまとめて設定できる](readme-ja/AiCreateArtboardGuides-v2.md)
 - [複数のレイヤー／サブレイヤーに散在するガイドを、1 つのレイヤー（既定は `// guide`）へ集約します](readme-ja/CollectGuides.md)
 - [ドキュメント内のすべてのガイドを削除します](readme-ja/DeleteAllGuides.md)
 - [ドキュメント内のガイド（ルーラーガイド含む）の交点を基準に長方形を自動生成します](readme-ja/MakeRectangleFromGuides.md)
@@ -337,7 +334,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択した外枠の長方形を基準に、内部の縦罫／横罫を等間隔に再配置します](readme-ja/TableRuleAverager.md)
 - [Illustrator の選択テキストや全体の文字情報を統計的に可視化](readme-ja/TextCountStats.md)
 - [選択オブジェクトに合わせて、アクティブビューをズーム＆センタリングします](readme-ja/ZoomToSelection.md)
-- [選択したオブジェクトから、新規レイヤー・新規アートボード・新規ドキュメントを作成するスクリプトです](readme-ja/new.md)
 - [選択中のオブジェクトの見た目を「名称未設定」で登録する Illustrator 標準の挙動を回避し、固定名の…](readme-ja/register-temp-style.md)
 - [アートボード／レイヤー／シンボル／グラフィックスタイルの名前を、検索置換とナンバリングでまとめて変更します](readme-ja/renamer.md)
 - [選択したパスアイテムの線端を「丸型先端」に設定します](readme-ja/丸型先端にする.md)

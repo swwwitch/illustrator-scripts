@@ -1,6 +1,6 @@
 #target illustrator
 #targetengine "addBulletsAndNumbers"
-#include "ColorPicker.jsx"
+#include "../stroke-table/ColorPicker.jsx"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
