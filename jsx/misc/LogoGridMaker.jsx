@@ -438,21 +438,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
     }
 
     /**
-     * 指定名のレイヤーを取得します。なければ作成します。
+     * 補助線を作成するレイヤーを用意します。新しく作ったレイヤーは控えておきます。
      *
-     * @param {Document} targetDoc - 対象のドキュメント。
+     * @param {Object} context - buildContext() が返すコンテキスト。
      * @param {string} name - レイヤー名。
      * @returns {Layer} 取得または作成したレイヤー。
      */
-    function getOrCreateLayer(targetDoc, name) {
-        for (var i = 0; i < targetDoc.layers.length; i++) {
-            if (targetDoc.layers[i].name === name) {
-                return targetDoc.layers[i];
+    function ensureGuideLayer(context, name) {
+        for (var i = 0; i < context.doc.layers.length; i++) {
+            if (context.doc.layers[i].name === name) {
+                return context.doc.layers[i];
             }
         }
-        var layer = targetDoc.layers.add();
+        var layer = context.doc.layers.add();
         layer.name = name;
+        context.createdLayers.push(layer);
         return layer;
+    }
+
+    /**
+     * このスクリプトが作ったレイヤーのうち、空のまま残ったものを削除します。
+     *
+     * @param {Object} context - buildContext() が返すコンテキスト。
+     * @returns {void}
+     */
+    function removeEmptyCreatedLayers(context) {
+        for (var i = context.createdLayers.length - 1; i >= 0; i--) {
+            try {
+                if (context.createdLayers[i].pageItems.length === 0) {
+                    context.createdLayers[i].remove();
+                }
+            } catch (e) { }
+        }
+        context.createdLayers = [];
     }
 
     /**
@@ -671,7 +689,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             centerX: (selLeft + selRight) / 2,
             centerY: (selTop + selBottom) / 2,
             geometry: collectGeometry(items),
-            guideLayer: null
+            guideLayer: null,
+            createdLayers: []
         };
     }
 
@@ -1525,7 +1544,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         btnLeftGroup.orientation = "row";
         btnLeftGroup.alignChildren = ["left", "center"];
         var previewCheck = btnLeftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
-        previewCheck.value = false;
+        previewCheck.value = true;
         previewCheck.helpTip = getLabel(LABELS.tooltip.preview);
 
         var spacer = btnRowGroup.add("group");
@@ -2022,8 +2041,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {GroupItem|null} 残ったグループ。解除したときは null。
      */
     function finishGroup(group, context, params, isPreview) {
-        /* ガイド化はプレビューでは行わない / Guides are created only for the final run */
-        if (!isPreview && params.convertToGuides) {
+        /* プレビューは削除できるようグループのまま残す / Keep previews grouped so they can be removed */
+        if (isPreview) return group;
+
+        if (params.convertToGuides) {
             for (var i = 0; i < group.pathItems.length; i++) {
                 group.pathItems[i].guides = true;
             }
@@ -2100,7 +2121,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         removePreview();
         var params = getParams(ui);
         if (!params) return;
-        context.guideLayer = getOrCreateLayer(context.doc, params.layerName);
+        context.guideLayer = ensureGuideLayer(context, params.layerName);
         previewGroup = createLines(context, params, true);
         app.redraw();
     }
@@ -2271,7 +2292,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
                 alert(getLabel(LABELS.alert.invalidInput));
                 return;
             }
-            context.guideLayer = getOrCreateLayer(context.doc, params.layerName);
+            context.guideLayer = ensureGuideLayer(context, params.layerName);
             createLines(context, params, false);
             ui.dialog.close(1);
         };
@@ -2283,6 +2304,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
 
         ui.dialog.onClose = function () {
             removePreview();
+            removeEmptyCreatedLayers(context);
         };
     }
 

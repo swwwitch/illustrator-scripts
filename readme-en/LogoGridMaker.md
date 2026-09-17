@@ -40,5 +40,5 @@ https://note.com/dtp_tranist/n/n95a285784495 (Japanese)
 
 ### Update History
 
-- v1.4.2 (2026-09-17) Reorganized the internal naming and functions, and added tooltips. Fixed Highlight Bounds being missed because of rounding, the target layer being left behind on Cancel, and the conversion of stroke widths given in H/Q
+- v1.4.2 (2026-09-17) Preview is now on by default. Reorganized the internal naming and functions, and added tooltips. Fixed Highlight Bounds being missed because of rounding, the target layer being left behind on Cancel, and the conversion of stroke widths given in H/Q
 - v1.4.1 (2026-04-10)
