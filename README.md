@@ -38,6 +38,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 - [選択したテキストのフォント名、フォントサイズなどをテキストとして生成する](readme-ja/AddTextInfoLabel.md)
 - [ドキュメントフォントを適用](readme-ja/ApplyDocumentFonts.md)
+- [使用中のフォントをまとめて別のフォントに置換](readme-ja/ReplaceDocumentFonts.md)
 - [カテゴリ別ウェイト順にフォントを一覧表示し、フォント見本を一瞬で作成する](readme-ja/TypefaceSampler.md)
 - [ドキュメントで使用されているフォント情報を書き出す](readme-ja/ExportFontInfoFromXMP.md)
 - [行のテキストをフォント名（＋サイズ・行送り）とみなして行単位で適用](readme-ja/ApplyFontWithFontsize.md)

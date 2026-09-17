@@ -38,6 +38,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 - [Generate text showing font name, font size, etc. from selected text](readme-en/AddTextInfoLabel.md)
 - [Apply document fonts](readme-en/ApplyDocumentFonts.md)
+- [Replace the fonts in use with another font](readme-en/ReplaceDocumentFonts.md)
 - [List fonts in weight order by category and instantly create font samples](readme-en/TypefaceSampler.md)
 - [Export font information used in the document](readme-en/ExportFontInfoFromXMP.md)
 - [Apply fonts line by line, treating each line's text as a font name](readme-en/ApplyFontWithFontsize.md)

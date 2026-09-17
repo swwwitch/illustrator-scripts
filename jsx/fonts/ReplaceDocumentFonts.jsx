@@ -58,10 +58,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ncc9330ba1f7d"; /* 紹�
     var BUTTON_SPACING        = 10;   /* ボタンの間隔 / spacing between buttons */
     var BUTTON_ROW_TOP_MARGIN = 10;   /* ボタン行の上余白 / top margin of the button row */
     var LISTBOX_HEIGHT        = 300;  /* リストの高さ / list height */
-    var LISTBOX_WIDTH_MIN     = 150;  /* リスト幅の下限 / minimum list width */
+    var LISTBOX_WIDTH_MIN     = 200;  /* リスト幅の下限 / minimum list width */
     var LISTBOX_WIDTH_MAX     = 600;  /* リスト幅の上限 / maximum list width */
     var LISTBOX_CHAR_WIDTH    = 9;    /* 1文字あたりの概算幅 / approximate width per character */
-    var LISTBOX_WIDTH_PADDING = 20;   /* リスト幅の余裕 / extra width added to the list */
+    var LISTBOX_WIDTH_PADDING = 60;   /* リスト幅の余裕 / extra width added to the list */
 
     // =========================================
     // ローカライズ / Localization
