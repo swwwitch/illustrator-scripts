@@ -5,13 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-テキストフレームの大きさを、中身のテキストに合わせて自動調整します。
+選択したエリア内文字・パス上文字のあふれ（オーバーセット）を、文字サイズの縮小・拡大、
+またはエリア内文字の高さの調整で解消します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Resizes a text frame automatically to fit the text it contains.
+Resolves overset text in the selected area type and path type, either by shrinking or growing
+the font size, or by adjusting the height of the area type.
 
 See the README for details.
 
@@ -21,863 +23,934 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AutoFitTextFrame";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-17";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoFitTextFrame.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoFitTextFrame.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoFitTextFrame.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoFitTextFrame.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c2e2568a6b7"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
-(function () {
+(function() {
 
-  /* 言語設定 / Language setting */
-  function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-  }
-  var lang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-  /* 日英ラベル定義 / Japanese-English label definitions */
-  var LABELS = {
-    dialogTitle: {
-      ja: "文字サイズ自動調整",
-      en: "Auto Fit Text Frame"
-    },
-    panelLabel: {
-      ja: "処理",
-      en: "Processing"
-    },
-    panelAdjust: {
-      ja: "オプション",
-      en: "Options"
-    },
-    rbHeight: {
-      ja: "高さを調整",
-      en: "Adjust height"
-    },
-    rbAutoSizeArea: {
-      ja: "自動サイズ調整",
-      en: "Auto size"
-    },
-    tipAutoSizeArea: {
-      ja: "エリア内文字に自動サイズ調整を適用します（拡張のみ）。",
-      en: "Apply Auto Size to Area Text (expand only)."
-    },
-    alertHeightOnlyNoArea: {
-      ja: "高さ調整はエリア内テキストのみ対応です。\n選択中にエリア内テキストがありません。",
-      en: "Height adjustment is supported for AreaText only.\nNo AreaText found in selection."
-    },
-    cbOverflow: {
-      ja: "文字サイズ：あふれ処理",
-      en: "Shrink Text to Fit"
-    },
-    cbFit: {
-      ja: "文字サイズ：ぴったり",
-      en: "Maximize Text Size"
-    },
-    cbHeightMode: {
-      ja: "エリア内文字の高さ調整",
-      en: "Adjust Area Text Height"
-    },
-    btnCancel: {
-      ja: "閉じる",
-      en: "Close"
-    },
-    btnOk: {
-      ja: "OK",
-      en: "OK"
-    },
-    alertSelectObject: {
-      ja: "対象オブジェクトを選択してください。",
-      en: "Please select target objects."
-    },
-    alertNoValidText: {
-      ja: "選択中に処理可能なテキストがありません。\n（グループ内のテキストはグループごと選択でもOK）",
-      en: "No valid text frames found in the selection.\n(Text inside groups can be processed by selecting the group.)"
-    },
-    alertSelectMode: {
-      ja: "処理を選択してください。\n（文字サイズ：あふれ処理 / 文字サイズ：ぴったり）",
-      en: "Please select a processing mode.\n(Shrink Text to Fit / Maximize Text Size)"
-    },
-    alertHardReturn: {
-      ja: "改行コードが含まれているテキストには対応していません。\n対象テキスト: ",
-      en: "Text containing line breaks is not supported.\nTarget: "
-    },
-    alertHardReturnError: {
-      ja: "改行コード判定中にエラーが発生しました。\n",
-      en: "An error occurred while checking for line breaks.\n"
-    },
-    alertSelectHeightOption: {
-      ja: "オプションを選択してください。\n（高さを調整 / 自動サイズ調整）",
-      en: "Please select a height option.\n(Adjust Height / Auto Size)"
-    },
-    alertMaxIter: {
-      ja: "縮小処理が上限回数に達しました:\n",
-      en: "Shrink iteration limit reached:\n"
-    },
-    unnamedText: {
-      ja: "[無名のテキスト]",
-      en: "[Unnamed Text]"
+    /* 選択にエリア内文字があるとき、［エリア内文字の高さ調整］を初期状態でONにするか / Turn the height mode on by default when the selection contains area type */
+    var DEFAULT_HEIGHT_MODE = true;
+
+    /* 高さ調整のオプションの初期選択（"autoSize" = 自動サイズ調整／"adjustHeight" = 高さを調整）/ Default option of the height mode */
+    var DEFAULT_HEIGHT_OPTION = "autoSize";
+
+    /* ［文字サイズ：あふれ処理］の初期状態 / Default state of "Shrink Text to Fit" */
+    var DEFAULT_SHRINK_TO_FIT = true;
+
+    /* ［文字サイズ：ぴったり］の初期状態 / Default state of "Maximize Text Size" */
+    var DEFAULT_MAXIMIZE_SIZE = true;
+
+    /* 文字サイズを縮小する刻み（pt）/ Step used when shrinking the font size */
+    var FONT_SIZE_STEP = 0.1;
+
+    /* 縮小できる最小の文字サイズ（pt）/ Smallest font size the shrink loop may reach */
+    var MIN_FONT_SIZE = 0.1;
+
+    /* 縮小処理の上限回数（安全弁）/ Safety limit for the shrink loop */
+    var MAX_SHRINK_ITERATIONS = 2000;
+
+    /* 上限回数に達したときに警告を出すか / Alert when the shrink limit is reached */
+    var ALERT_ON_SHRINK_LIMIT = true;
+
+    /* ［ぴったり］で倍々に拡大する上限回数 / Limit of the doubling loop used by "Maximize" */
+    var MAX_GROW_ITERATIONS = 25;
+
+    /* ［ぴったり］で拡大できる上限の文字サイズ（pt）/ Largest font size the grow loop may reach */
+    var MAX_FONT_SIZE = 100000;
+
+    /* 元の文字サイズ・高さを控えるタグ名（データセットごとのリセットに使う）/ Tags holding the original values */
+    var FONT_SIZE_TAG_NAME = "overset_text_default_size";
+    var HEIGHT_TAG_NAME = "overset_text_default_height";
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var WINDOW_MARGINS        = 15;                /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING        = 10;                /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS         = [15, 20, 15, 10];  /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING         = 6;                 /* パネル内の要素間隔 / panel spacing */
+    var OPTION_INDENT_MARGINS = [18, 0, 0, 7];     /* 入れ子オプションの字下げ [左,上,右,下] / indent of nested options */
+    var OPTION_SPACING        = 4;                 /* 入れ子オプションの間隔 / spacing of nested options */
+    var BUTTON_SPACING        = 10;                /* ボタンの間隔 / spacing between buttons */
+    var BUTTON_ROW_TOP_MARGIN = 8;                 /* ボタン行の上余白 / top margin of the button row */
+
+    /**
+     * ウィンドウの共通レイアウトを設定する
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @returns {void}
+     */
+    function setupWindow(targetWindow) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = ["left", "top"];
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = WINDOW_SPACING;
     }
-  };
 
-  /* ローカライズ文字列取得 / Get localized string */
-  function L(key) {
-    var entry = LABELS[key];
-    if (!entry) return key;
-    return entry[lang] || entry["en"] || key;
-  }
+    /**
+     * パネルを追加し、共通レイアウトを設定する
+     * @param {object} parent - 追加先のウィンドウまたはグループ
+     * @param {object} titleSet - ja/en を持つパネル名
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parent, titleSet) {
+        var newPanel = parent.add("panel", undefined, getLabel(titleSet));
+        newPanel.orientation = "column";
+        newPanel.alignChildren = ["left", "top"];
+        newPanel.alignment = ["fill", "top"];
+        newPanel.margins = PANEL_MARGINS;
+        newPanel.spacing = PANEL_SPACING;
+        return newPanel;
+    }
 
-  var DealWithOversetText = (function () {
+    /**
+     * 字下げした縦並びグループを追加する（入れ子のオプション用）
+     * @param {object} parent - 追加先のパネルまたはグループ
+     * @returns {Group} 追加したグループ
+     */
+    function addIndentedColumn(parent) {
+        var indentedGroup = parent.add("group");
+        indentedGroup.orientation = "column";
+        indentedGroup.alignment = ["left", "top"];
+        indentedGroup.alignChildren = ["left", "top"];
+        indentedGroup.margins = OPTION_INDENT_MARGINS;
+        indentedGroup.spacing = OPTION_SPACING;
+        return indentedGroup;
+    }
 
-    // Defaults
-    var DEFAULTS = {
-      tagName: "overset_text_default_size",
-      heightTagName: "overset_text_default_height",
-      increment: 0.1,
-      heightIncrement: 0.5,   // pt (height adjustment step)
-      minFontSize: 0.1,       // pt
-      maxShrinkIter: 2000,    // safety limit
-      alertOnMaxIter: true
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "テキストの自動調整", en: "Auto Fit Text Frame" }
+        },
+        panel: {
+            processing: { ja: "調整方法", en: "Adjustment Method" }
+        },
+        checkbox: {
+            shrinkToFit: { ja: "文字サイズ：あふれを解消", en: "Shrink Text to Fit" },
+            maximizeSize: { ja: "文字サイズ：最大まで拡大", en: "Maximize Text Size" },
+            heightMode: { ja: "エリア内文字の高さ調整", en: "Adjust Area Text Height" }
+        },
+        radio: {
+            adjustHeight: { ja: "高さを広げて固定", en: "Expand and fix" },
+            autoSize: { ja: "自動サイズ調整", en: "Auto size" }
+        },
+        tooltip: {
+            shrinkToFit: {
+                ja: "あふれ（オーバーセット）がなくなるまで文字サイズを縮小します。",
+                en: "Shrink the font size until the text no longer oversets."
+            },
+            maximizeSize: {
+                ja: "いったん文字サイズを拡大してから、あふれない最大サイズまで詰めます。",
+                en: "Grow the font size first, then shrink it to the largest size that still fits."
+            },
+            heightMode: {
+                ja: "文字サイズではなく、エリア内文字の高さで調整します。選択にエリア内文字があるときだけ選べます。",
+                en: "Adjust the height of area type instead of the font size. Available only when the selection contains area type."
+            },
+            adjustHeight: {
+                ja: "自動サイズ調整を一時的にONにして、必要な分だけ高さを広げてから固定します（以後は自動で変わりません）。",
+                en: "Turn Auto Size on and off again, expanding the frame just enough and then fixing that height."
+            },
+            autoSize: {
+                ja: "エリア内文字に自動サイズ調整を適用します（拡張のみ）。",
+                en: "Apply Auto Size to Area Text (expand only)."
+            }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        alert: {
+            selectObject: {
+                ja: "エリア内文字またはパス上文字を選択してください。",
+                en: "Please select area type or path type."
+            },
+            noValidText: {
+                ja: "選択中に処理可能なテキストがありません。\n（グループ内のテキストはグループごと選択でもOK）",
+                en: "No valid text frames found in the selection.\n(Text inside groups can be processed by selecting the group.)"
+            },
+            noAreaText: {
+                ja: "エリア内文字が選択されていません。\n高さの調整はエリア内文字のみ対応です。",
+                en: "No area type found in the selection.\nHeight adjustment is supported for area type only."
+            },
+            selectMode: {
+                ja: "調整方法を選択してください。\n（文字サイズ：あふれを解消 / 文字サイズ：最大まで拡大）",
+                en: "Please select an adjustment method.\n(Shrink Text to Fit / Maximize Text Size)"
+            },
+            hardReturn: {
+                ja: "改行コードが含まれているテキストには対応していません。\n対象テキスト：",
+                en: "Text containing line breaks is not supported.\nTarget: "
+            },
+            shrinkLimit: {
+                ja: "文字サイズの縮小が上限回数に達しました：\n",
+                en: "Shrink iteration limit reached:\n"
+            }
+        },
+        fallbackName: {
+            unnamedText: { ja: "［名前なし］", en: "[Unnamed Text]" }
+        }
     };
 
-    function mergeOptions(userOpt) {
-      var opt = {};
-      var k;
-
-      for (k in DEFAULTS) {
-        if (DEFAULTS.hasOwnProperty(k)) opt[k] = DEFAULTS[k];
-      }
-      if (userOpt) {
-        for (k in userOpt) {
-          if (userOpt.hasOwnProperty(k)) opt[k] = userOpt[k];
-        }
-      }
-
-      opt.increment = (opt.increment * 1) || DEFAULTS.increment;
-      opt.minFontSize = (opt.minFontSize * 1) || DEFAULTS.minFontSize;
-      opt.maxShrinkIter = Math.floor((opt.maxShrinkIter * 1) || DEFAULTS.maxShrinkIter);
-      if (opt.maxShrinkIter < 1) opt.maxShrinkIter = DEFAULTS.maxShrinkIter;
-      if (opt.increment <= 0) opt.increment = DEFAULTS.increment;
-      if (opt.minFontSize <= 0) opt.minFontSize = DEFAULTS.minFontSize;
-
-      return opt;
+    /**
+     * 現在の言語のラベルを取得する
+     * @param {object} labelSet - ja/en を持つラベル
+     * @returns {string} 表示用の文字列
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
     }
 
-    function defaultFilter(tf) {
-      return ((tf.kind == TextType.PATHTEXT || tf.kind == TextType.AREATEXT) && tf.editable && !tf.locked && !tf.hidden);
+    // =========================================
+    // 定数 / Constants
+    // =========================================
+
+    /* 調整方法 / Adjustment modes */
+    var ADJUST_MODE = {
+        FONT_SIZE: "fontSize",   /* 文字サイズで調整 / adjust the font size */
+        HEIGHT: "height",        /* エリア内文字の高さで調整 / adjust the area type height */
+        AUTO_SIZE: "autoSize"    /* 自動サイズ調整を適用 / apply Auto Size */
+    };
+
+    /* 自動サイズ調整アクションの値 / Values of the Auto Size action */
+    var AUTO_SIZE_ON = 1;
+    var AUTO_SIZE_OFF = 2;
+
+    // =========================================
+    // テキストの収集 / Collecting text frames
+    // =========================================
+
+    /**
+     * 処理対象にできるテキストフレームか判定する
+     * @param {TextFrame} textFrame - 判定するテキストフレーム
+     * @returns {boolean} 対象にできるとき true
+     */
+    function isAdjustableTextFrame(textFrame) {
+        return ((textFrame.kind == TextType.PATHTEXT || textFrame.kind == TextType.AREATEXT) &&
+            textFrame.editable && !textFrame.locked && !textFrame.hidden);
     }
 
-    function collectTextFramesFromItem(item, out, filterFn) {
-      if (!item) return;
+    /**
+     * 選択項目を再帰的にたどってテキストフレームを集める
+     * @param {object} selectedItem - 選択項目（TextRange／TextFrame／GroupItem など）
+     * @param {Array<TextFrame>} collectedFrames - 集めたテキストフレームの配列（破壊的に追加）
+     * @returns {void}
+     */
+    function collectTextFramesFromItem(selectedItem, collectedFrames) {
+        if (!selectedItem) return;
 
-      // TextRange selection case
-      try {
-        if (item.typename === "TextRange") {
-          if (item.parent && item.parent.typename === "TextFrame") {
-            collectTextFramesFromItem(item.parent, out, filterFn);
-          }
-          return;
-        }
-      } catch (eTR) { }
-
-      // Direct TextFrame
-      try {
-        if (item.typename === "TextFrame") {
-          if (filterFn(item)) out.push(item);
-          return;
-        }
-      } catch (eTF) { }
-
-      // GroupItem: recurse into pageItems
-      try {
-        if (item.typename === "GroupItem" && item.pageItems && item.pageItems.length) {
-          for (var i = 0; i < item.pageItems.length; i++) {
-            collectTextFramesFromItem(item.pageItems[i], out, filterFn);
-          }
-          return;
-        }
-      } catch (eG) { }
-
-      // CompoundPathItem: recurse into pathItems (text shouldn't be inside, but safe)
-      try {
-        if (item.typename === "CompoundPathItem" && item.pathItems && item.pathItems.length) {
-          for (var j = 0; j < item.pathItems.length; j++) {
-            collectTextFramesFromItem(item.pathItems[j], out, filterFn);
-          }
-          return;
-        }
-      } catch (eC) { }
-
-      // Other containers (Layer, etc.) - try pageItems if present
-      try {
-        if (item.pageItems && item.pageItems.length) {
-          for (var k = 0; k < item.pageItems.length; k++) {
-            collectTextFramesFromItem(item.pageItems[k], out, filterFn);
-          }
-        }
-      } catch (eAny) { }
-    }
-
-    function getSelectedTextFrames(doc, filterFn) {
-      var res = [];
-      if (!doc || !doc.selection || doc.selection.length === 0) return res;
-
-      // collect (may include duplicates)
-      for (var s = 0; s < doc.selection.length; s++) {
-        collectTextFramesFromItem(doc.selection[s], res, filterFn);
-      }
-
-      // de-dup by real object reference (ExtendScript stringification is not unique)
-      var uniq = [];
-      for (var i = 0; i < res.length; i++) {
-        var tf = res[i];
-        var exists = false;
-        for (var j = 0; j < uniq.length; j++) {
-          if (uniq[j] === tf) {
-            exists = true;
-            break;
-          }
-        }
-        if (!exists) uniq.push(tf);
-      }
-
-      return uniq;
-    }
-
-    // kept for compatibility (not used: selection-only)
-    function getTargets(doc, filterFn) {
-      var res = [];
-      var i, tf;
-      for (i = 0; i < doc.textFrames.length; i++) {
-        tf = doc.textFrames[i];
         try {
-          if (filterFn(tf)) res.push(tf);
+            /* 文字カーソルでの選択はフレームに読み替える / A TextRange selection is read as its frame */
+            if (selectedItem.typename === "TextRange") {
+                if (selectedItem.parent && selectedItem.parent.typename === "TextFrame") {
+                    collectTextFramesFromItem(selectedItem.parent, collectedFrames);
+                }
+                return;
+            }
+
+            if (selectedItem.typename === "TextFrame") {
+                if (isAdjustableTextFrame(selectedItem)) collectedFrames.push(selectedItem);
+                return;
+            }
+
+            /* グループ・複合パス・レイヤーなどは中身をたどる / Containers are traversed */
+            if (selectedItem.typename === "CompoundPathItem" && selectedItem.pathItems) {
+                for (var i = 0; i < selectedItem.pathItems.length; i++) {
+                    collectTextFramesFromItem(selectedItem.pathItems[i], collectedFrames);
+                }
+                return;
+            }
+
+            if (selectedItem.pageItems) {
+                for (var j = 0; j < selectedItem.pageItems.length; j++) {
+                    collectTextFramesFromItem(selectedItem.pageItems[j], collectedFrames);
+                }
+            }
         } catch (e) { }
-      }
-      return res;
     }
 
-    function recordFontSizeInTag(tf, tagName) {
-      var tag;
-      var tags = tf.tags;
-      var size = tf.textRange.characterAttributes.size;
-      try {
-        tag = tags.getByName(tagName);
-        tag.value = size;
-      } catch (e) {
-        tag = tags.add();
-        tag.name = tagName;
-        tag.value = size;
-      }
-    }
+    /**
+     * 選択から処理対象のテキストフレームを重複なく集める
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {Array<TextFrame>} 処理対象のテキストフレーム
+     */
+    function getSelectedTextFrames(doc) {
+        var collectedFrames = [];
+        if (!doc || !doc.selection || doc.selection.length === 0) return collectedFrames;
 
-    function readFontSizeFromTag(tf, tagName) {
-      try {
-        return tf.tags.getByName(tagName).value * 1;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function resetSize(tf, tagName) {
-      if (tf.contents === "") return;
-      var size = readFontSizeFromTag(tf, tagName);
-      if (size != null) {
-        tf.textRange.characterAttributes.size = size;
-      }
-    }
-
-    function isOverset(tf, lineAmt) {
-      if (tf.lines.length > 0) {
-        var charactersOnVisibleLines = 0;
-
-        if (typeof (lineAmt) === "undefined" || lineAmt === null) {
-          lineAmt = 1;
-        } else {
-          lineAmt = Math.floor(lineAmt);
-          if (lineAmt < 1) lineAmt = 1;
-          if (lineAmt > tf.lines.length) lineAmt = tf.lines.length;
+        for (var i = 0; i < doc.selection.length; i++) {
+            collectTextFramesFromItem(doc.selection[i], collectedFrames);
         }
 
-        for (var i = 0; i < lineAmt; i++) {
-          charactersOnVisibleLines += tf.lines[i].characters.length;
+        /* 参照そのもので重複を除く（文字列化では区別できない）/ De-duplicate by object reference */
+        var uniqueFrames = [];
+        for (var j = 0; j < collectedFrames.length; j++) {
+            var isDuplicate = false;
+            for (var k = 0; k < uniqueFrames.length; k++) {
+                if (uniqueFrames[k] === collectedFrames[j]) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) uniqueFrames.push(collectedFrames[j]);
         }
-        return (charactersOnVisibleLines < tf.characters.length);
-      } else if (tf.characters.length > 0) {
-        return true;
-      }
-      return false;
+        return uniqueFrames;
     }
 
-    function safeOverflows(tf) {
-      try {
-        if (tf && typeof tf.overflows !== "undefined") return !!tf.overflows;
-      } catch (e) { }
-      return null;
+    /**
+     * テキストフレームの配列からエリア内文字だけを取り出す
+     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @returns {Array<TextFrame>} エリア内文字のみの配列
+     */
+    function filterAreaTextFrames(textFrames) {
+        var areaFrames = [];
+        for (var i = 0; i < textFrames.length; i++) {
+            if (textFrames[i].kind == TextType.AREATEXT) areaFrames.push(textFrames[i]);
+        }
+        return areaFrames;
     }
 
-    function isOversetFrame(tf) {
-      // AREATEXT: prefer built-in overflows when available
-      if (tf && tf.kind == TextType.AREATEXT) {
-        var ov = safeOverflows(tf);
-        if (ov !== null) return ov;
+    /**
+     * テキストフレームの表示名を返す
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {string} 名前（未設定のときは代替名）
+     */
+    function getTextFrameName(textFrame) {
+        return textFrame.name ? textFrame.name : getLabel(LABELS.fallbackName.unnamedText);
+    }
+
+    // =========================================
+    // あふれの判定 / Overset detection
+    // =========================================
+
+    /**
+     * 表示されている行に収まらない文字があるか判定する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} あふれているとき true
+     */
+    function hasHiddenCharacters(textFrame) {
+        var lineCount = textFrame.lines.length;
+        if (lineCount === 0) return (textFrame.characters.length > 0);
+
+        var visibleCharacters = 0;
+        for (var i = 0; i < lineCount; i++) {
+            visibleCharacters += textFrame.lines[i].characters.length;
+        }
+        return (visibleCharacters < textFrame.characters.length);
+    }
+
+    /**
+     * テキストフレームがあふれているか判定する
+     * エリア内文字は overflows を優先し、パス上文字は表示行の文字数で判定する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} あふれているとき true
+     */
+    function isOversetFrame(textFrame) {
         try {
-          return isOverset(tf, (tf.lines && tf.lines.length) ? tf.lines.length : 1);
-        } catch (eA) {
-          return false;
+            if (textFrame.kind == TextType.AREATEXT && typeof textFrame.overflows !== "undefined") {
+                return !!textFrame.overflows;
+            }
+            return hasHiddenCharacters(textFrame);
+        } catch (e) {
+            return false;
         }
-      }
-
-      // PATHTEXT (and others): use legacy visible-line character count.
-      // NOTE: overflows can exist but may not be reliable for PathText.
-      try {
-        return isOverset(tf, (tf.lines && tf.lines.length) ? tf.lines.length : 1);
-      } catch (eP) {
-        return false;
-      }
     }
 
-    // 手動行送り時のみ比率を返す（autoLeadingの場合はnull）
-    function getLeadingInfo(tf) {
-      try {
-        var attrs = tf.textRange.characterAttributes;
-        if (attrs.autoLeading) return null;
-        var size = attrs.size;
-        var leading = attrs.leading;
-        if (size > 0 && leading > 0) return { ratio: leading / size };
-      } catch (e) { }
-      return null;
-    }
-
-    function applyLeading(tf, newSize, leadingInfo) {
-      if (!leadingInfo) return;
-      try {
-        tf.textRange.characterAttributes.leading = newSize * leadingInfo.ratio;
-      } catch (e) { }
-    }
-
-    // --- Height adjustment functions (AreaText only) ---
-
-    function recordHeightInTag(tf, tagName) {
-      var tag;
-      var tags = tf.tags;
-      var h = tf.height;
-      try {
-        tag = tags.getByName(tagName);
-        tag.value = h;
-      } catch (e) {
-        tag = tags.add();
-        tag.name = tagName;
-        tag.value = h;
-      }
-    }
-
-    function readHeightFromTag(tf, tagName) {
-      try {
-        return tf.tags.getByName(tagName).value * 1;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function resetHeight(tf, tagName) {
-      if (tf.contents === "") return;
-      var h = readHeightFromTag(tf, tagName);
-      if (h != null) {
-        tf.height = h;
-      }
-    }
-
-    // Illustrator アクションで自動サイズ調整を ON/OFF にする
-    function act_setAutoSizeAdjust(valueInt) {
-      // valueInt: 1 = ON, 2 = OFF
-      if (valueInt !== 1 && valueInt !== 2) return;
-
-      var str = '/version 3'
-        + '/name [ 8 4172656154797065]'
-        + '/isOpen 1'
-        + '/actionCount 1'
-        + '/action-1 {'
-        + ' /name [ 8 4175746f53697a65 ]'
-        + ' /keyIndex 0'
-        + ' /colorIndex 0'
-        + ' /isOpen 1'
-        + ' /eventCount 1'
-        + ' /event-1 {'
-        + ' /useRulersIn1stQuadrant 0'
-        + ' /internalName (adobe_SLOAreaTextDialog)'
-        + ' /localizedName [ 33'
-        + ' e382a8e383aae382a2e58685e69687e5ad97e382aae38397e382b7e383a7e383b3'
-        + ' ]'
-        + ' /isOpen 1'
-        + ' /isOn 1'
-        + ' /hasDialog 0'
-        + ' /parameterCount 1'
-        + ' /parameter-1 {'
-        + ' /key 1952539754'
-        + ' /showInPalette 4294967295'
-        + ' /type (integer)'
-        + ' /value ' + valueInt
-        + ' }'
-        + ' }'
-        + '}';
-
-      var f = new File('~/ScriptAction.aia');
-      f.open('w');
-      f.write(str);
-      f.close();
-      app.loadAction(f);
-      f.remove();
-
-      app.doScript("AutoSize", "AreaType", false);
-      app.unloadAction("AreaType", "");
-    }
-
-    function expandFrameToFit(tf) {
-      app.activeDocument.selection = [tf];
-      act_setAutoSizeAdjust(1);
-    }
-
-    function collapseFrameAuto(tf) {
-      app.activeDocument.selection = [tf];
-      act_setAutoSizeAdjust(2);
-    }
-
-    function growHeight(tf, opt) {
-      if (tf.characters.length <= 0) return true;
-      if (!isOversetFrame(tf)) return true;
-      expandFrameToFit(tf);
-      collapseFrameAuto(tf);
-      return true;
-    }
-
-    function fitHeight(tf, opt) {
-      if (tf.characters.length <= 0) return true;
-      expandFrameToFit(tf);
-      collapseFrameAuto(tf);
-      return true;
-    }
-
-    // --- End height adjustment functions ---
-
-    function hasHardReturn(tf) {
-      try {
-        return /[\r\n]/.test(tf.contents);
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function stopIfHardReturn(tf) {
-      if (hasHardReturn(tf)) {
-        alert(L("alertHardReturn") + (tf.name ? tf.name : L("unnamedText")));
-        return true;
-      }
-      return false;
-    }
-
-    function shrinkFont(tf, opt) {
-      var inc = opt.increment;
-
-      try {
-        if (stopIfHardReturn(tf)) return false;
-      } catch (eCheckReturn) {
-        alert(L("alertHardReturnError") + eCheckReturn);
-        return false;
-      }
-
-      if (tf.characters.length <= 0) return true;
-      if (!isOversetFrame(tf)) return true;
-
-      var leadingInfo = getLeadingInfo(tf);
-      var iter = 0;
-      while (true) {
-        var oversetNow;
+    /**
+     * 改行コードを含むテキストなら警告を出す
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} 改行コードを含み、処理を中止すべきとき true
+     */
+    function stopIfHardReturn(textFrame) {
+        var hasHardReturn;
         try {
-          oversetNow = isOversetFrame(tf);
-        } catch (eCheck) {
-          break;
+            hasHardReturn = /[\r\n]/.test(textFrame.contents);
+        } catch (e) {
+            return false;
         }
-        if (!oversetNow) break;
-
-        var cur = tf.textRange.characterAttributes.size;
-        if (cur <= opt.minFontSize) break;
-
-        var newSize = Math.max(opt.minFontSize, cur - inc);
-        tf.textRange.characterAttributes.size = newSize;
-        applyLeading(tf, newSize, leadingInfo);
-
-        iter++;
-        if (iter >= opt.maxShrinkIter) {
-          if (opt.alertOnMaxIter) {
-            try {
-              alert(L("alertMaxIter") + (tf.name ? tf.name : L("unnamedText")));
-            } catch (eA) { }
-          }
-          break;
+        if (hasHardReturn) {
+            alert(getLabel(LABELS.alert.hardReturn) + getTextFrameName(textFrame));
+            return true;
         }
-      }
-
-      return true;
-    }
-
-    function fitFont(tf, opt) {
-      // ぴったり:
-      // 1) いったん文字サイズを倍程度にしてオーバーセットを発生させる
-      // 2) その後、あふれ処理（shrinkFont）で詰める
-
-      try {
-        if (stopIfHardReturn(tf)) return false;
-      } catch (eCheckReturn) {
-        alert(L("alertHardReturnError") + eCheckReturn);
         return false;
-      }
+    }
 
-      if (tf.characters.length <= 0) return true;
+    // =========================================
+    // 元の値の記録とリセット / Recording and resetting the original values
+    // =========================================
 
-      var leadingInfo = getLeadingInfo(tf);
-      var original = tf.textRange.characterAttributes.size;
-
-      // Step 1: grow until overset (x2)
-      if (!isOversetFrame(tf)) {
-        var high = original;
-        var guardUp = 0;
-        while (!isOversetFrame(tf) && guardUp < 25) {
-          guardUp++;
-          high = high * 2;
-          if (high > 100000) break;
-          try {
-            tf.textRange.characterAttributes.size = high;
-            applyLeading(tf, high, leadingInfo);
-          } catch (eSet) {
-            break;
-          }
-        }
-      }
-
-      // If still not overset, keep original
-      if (!isOversetFrame(tf)) {
+    /**
+     * タグを名前で探す（getByName は見つからないと例外になるためここで受ける）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} tagName - タグ名
+     * @returns {Tag|null} 見つかったタグ（ないときは null）
+     */
+    function findTag(textFrame, tagName) {
         try {
-          tf.textRange.characterAttributes.size = original;
-          applyLeading(tf, original, leadingInfo);
-        } catch (eBack) { }
-        return true;
-      }
-
-      // Step 2: shrink to fit using existing logic
-      return shrinkFont(tf, opt);
+            return textFrame.tags.getByName(tagName);
+        } catch (e) {
+            return null;
+        }
     }
 
-    function removeTag(tf, tagName) {
-      try { tf.tags.getByName(tagName).remove(); } catch (e) { }
+    /**
+     * 値をタグに書き込む（同名のタグがあれば上書き）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} tagName - タグ名
+     * @param {number} value - 控える値
+     * @returns {void}
+     */
+    function saveValueToTag(textFrame, tagName, value) {
+        var valueTag = findTag(textFrame, tagName);
+        if (!valueTag) {
+            valueTag = textFrame.tags.add();
+            valueTag.name = tagName;
+        }
+        valueTag.value = value;
     }
 
+    /**
+     * タグに控えた値を読み出す
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} tagName - タグ名
+     * @returns {number|null} 控えた値（ないときは null）
+     */
+    function readValueFromTag(textFrame, tagName) {
+        var valueTag = findTag(textFrame, tagName);
+        return valueTag ? (valueTag.value * 1) : null;
+    }
+
+    /**
+     * タグを削除する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} tagName - タグ名
+     * @returns {void}
+     */
+    function removeValueTag(textFrame, tagName) {
+        var valueTag = findTag(textFrame, tagName);
+        if (valueTag) valueTag.remove();
+    }
+
+    /**
+     * 処理中のデータセットが1件目か判定する
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {boolean} 1件目のとき true
+     */
     function isFirstDataSet(doc) {
-      return (doc.dataSets.length > 0 && doc.activeDataSet == doc.dataSets[0]);
+        return (doc.dataSets.length > 0 && doc.activeDataSet == doc.dataSets[0]);
     }
 
+    /**
+     * 処理中のデータセットが最後の1件か判定する
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {boolean} 最後の1件のとき true
+     */
     function isLastDataSet(doc) {
-      return (doc.dataSets.length > 0 && doc.activeDataSet == doc.dataSets[doc.dataSets.length - 1]);
+        return (doc.dataSets.length > 0 && doc.activeDataSet == doc.dataSets[doc.dataSets.length - 1]);
     }
 
-    function run(doc, options) {
-      if (!doc) return false;
-
-      var opt = mergeOptions(options);
-      var filterFn = opt.filter || defaultFilter;
-      var adjustMode = (options && options.adjustMode) || "fontSize";
-      var isHeightMode = (adjustMode === "height");
-
-      // selection-only (TextFrame / TextRange / GroupItem etc.)
-      if (!doc.selection || doc.selection.length === 0) {
-        alert(L("alertSelectObject"));
-        return false;
-      }
-
-      var targets = getSelectedTextFrames(doc, filterFn);
-
-      var autoSizeArea = !!(options && options.autoSizeArea);
-      if (autoSizeArea) {
-        // Auto size (AreaText): run ONLY expandFrameToFit for AreaText frames
-        var areaOnly = [];
-        for (var aa = 0; aa < targets.length; aa++) {
-          if (targets[aa].kind == TextType.AREATEXT) areaOnly.push(targets[aa]);
+    /**
+     * データセットの1件目なら元の値をタグに控え、控えた値があれば毎回そこへ戻す
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @param {string} tagName - タグ名
+     * @param {function} readCurrentValue - テキストフレームから現在値を読む処理
+     * @param {function} writeSavedValue - テキストフレームへ値を書き戻す処理
+     * @returns {void}
+     */
+    function resetToOriginalValue(doc, textFrames, tagName, readCurrentValue, writeSavedValue) {
+        var i;
+        if (isFirstDataSet(doc)) {
+            for (i = 0; i < textFrames.length; i++) {
+                saveValueToTag(textFrames[i], tagName, readCurrentValue(textFrames[i]));
+            }
         }
-
-        if (areaOnly.length === 0) {
-          alert(L("alertHeightOnlyNoArea"));
-          return false;
+        for (i = 0; i < textFrames.length; i++) {
+            if (textFrames[i].contents === "") continue;
+            var savedValue = readValueFromTag(textFrames[i], tagName);
+            if (savedValue !== null) writeSavedValue(textFrames[i], savedValue);
         }
+    }
 
-        for (var ab = 0; ab < areaOnly.length; ab++) {
-          try { expandFrameToFit(areaOnly[ab]); } catch (eAuto) { }
+    /**
+     * 最後のデータセットまで終わったらタグを片付ける
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @param {string} tagName - タグ名
+     * @returns {void}
+     */
+    function removeTagsAfterLastDataSet(doc, textFrames, tagName) {
+        if (!isLastDataSet(doc)) return;
+        for (var i = 0; i < textFrames.length; i++) {
+            removeValueTag(textFrames[i], tagName);
+        }
+    }
+
+    // =========================================
+    // 文字サイズの調整 / Adjusting the font size
+    // =========================================
+
+    /**
+     * 文字サイズを読む
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {number} 文字サイズ（pt）
+     */
+    function getFontSize(textFrame) {
+        return textFrame.textRange.characterAttributes.size;
+    }
+
+    /**
+     * 文字サイズを書き込む
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} fontSize - 文字サイズ（pt）
+     * @returns {void}
+     */
+    function setFontSize(textFrame, fontSize) {
+        textFrame.textRange.characterAttributes.size = fontSize;
+    }
+
+    /**
+     * 手動行送りのときだけ、行送りと文字サイズの比率を返す
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {number|null} 行送りの比率（自動行送りのときは null）
+     */
+    function getLeadingRatio(textFrame) {
+        try {
+            var textAttributes = textFrame.textRange.characterAttributes;
+            if (textAttributes.autoLeading) return null;
+            if (textAttributes.size > 0 && textAttributes.leading > 0) return textAttributes.leading / textAttributes.size;
+        } catch (e) { }
+        return null;
+    }
+
+    /**
+     * 文字サイズに合わせて行送りを追従させる
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number} fontSize - 変更後の文字サイズ（pt）
+     * @param {number|null} leadingRatio - 行送りの比率（null のときは何もしない）
+     * @returns {void}
+     */
+    function applyLeading(textFrame, fontSize, leadingRatio) {
+        if (leadingRatio === null) return;
+        try {
+            textFrame.textRange.characterAttributes.leading = fontSize * leadingRatio;
+        } catch (e) { }
+    }
+
+    /**
+     * あふれがなくなるまで文字サイズを縮小する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} 続行してよいとき true（改行コードを含むときは false）
+     */
+    function shrinkFontToFit(textFrame) {
+        if (stopIfHardReturn(textFrame)) return false;
+        if (textFrame.characters.length <= 0 || !isOversetFrame(textFrame)) return true;
+
+        var leadingRatio = getLeadingRatio(textFrame);
+        var iteration = 0;
+        while (isOversetFrame(textFrame)) {
+            var currentSize = getFontSize(textFrame);
+            if (currentSize <= MIN_FONT_SIZE) break;
+
+            var reducedSize = Math.max(MIN_FONT_SIZE, currentSize - FONT_SIZE_STEP);
+            setFontSize(textFrame, reducedSize);
+            applyLeading(textFrame, reducedSize, leadingRatio);
+
+            iteration++;
+            if (iteration >= MAX_SHRINK_ITERATIONS) {
+                if (ALERT_ON_SHRINK_LIMIT) alert(getLabel(LABELS.alert.shrinkLimit) + getTextFrameName(textFrame));
+                break;
+            }
         }
         return true;
-      }
+    }
 
-      // Height mode: filter to AreaText only
-      if (isHeightMode) {
-        var areaTargets = [];
-        for (var a = 0; a < targets.length; a++) {
-          if (targets[a].kind == TextType.AREATEXT) areaTargets.push(targets[a]);
+    /**
+     * いったんあふれるまで拡大してから、あふれない最大サイズまで詰める
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {boolean} 続行してよいとき true（改行コードを含むときは false）
+     */
+    function maximizeFontToFit(textFrame) {
+        if (stopIfHardReturn(textFrame)) return false;
+        if (textFrame.characters.length <= 0) return true;
+
+        var leadingRatio = getLeadingRatio(textFrame);
+        var originalSize = getFontSize(textFrame);
+
+        /* あふれるまで倍々に拡大する / Double the size until it oversets */
+        var grownSize = originalSize;
+        for (var i = 0; i < MAX_GROW_ITERATIONS && !isOversetFrame(textFrame); i++) {
+            grownSize = grownSize * 2;
+            if (grownSize > MAX_FONT_SIZE) break;
+            setFontSize(textFrame, grownSize);
+            applyLeading(textFrame, grownSize, leadingRatio);
         }
-        if (areaTargets.length === 0) {
-          alert(L("alertHeightOnlyNoArea"));
-          return false;
+
+        /* それでもあふれないときは元に戻す / Restore the original size when it never oversets */
+        if (!isOversetFrame(textFrame)) {
+            setFontSize(textFrame, originalSize);
+            applyLeading(textFrame, originalSize, leadingRatio);
+            return true;
         }
-        targets = areaTargets;
-      }
 
-      if (targets.length === 0) {
-        alert(L("alertNoValidText"));
-        return false;
-      }
+        return shrinkFontToFit(textFrame);
+    }
 
-      var tagKey = isHeightMode ? opt.heightTagName : opt.tagName;
+    // =========================================
+    // 高さの調整（エリア内文字）/ Adjusting the height (area type)
+    // =========================================
 
-      // dataset: first => record defaults
-      if (isFirstDataSet(doc)) {
-        for (var i = 0; i < targets.length; i++) {
-          if (isHeightMode) {
-            recordHeightInTag(targets[i], tagKey);
-          } else {
-            recordFontSizeInTag(targets[i], tagKey);
-          }
+    /**
+     * 自動サイズ調整をアクション経由で切り替える
+     * @param {number} autoSizeValue - AUTO_SIZE_ON（ON）または AUTO_SIZE_OFF（OFF）
+     * @returns {void}
+     */
+    function setAutoSizeByAction(autoSizeValue) {
+        /* アクション定義（セット名 AreaType／アクション名 AutoSize）/ Action definition */
+        var actionCode = [
+            '/version 3',
+            '/name [ 8 4172656154797065]',
+            '/isOpen 1',
+            '/actionCount 1',
+            '/action-1 {',
+            '  /name [ 8 4175746f53697a65 ]',
+            '  /keyIndex 0',
+            '  /colorIndex 0',
+            '  /isOpen 1',
+            '  /eventCount 1',
+            '  /event-1 {',
+            '    /useRulersIn1stQuadrant 0',
+            '    /internalName (adobe_SLOAreaTextDialog)',
+            '    /localizedName [ 33',
+            '      e382a8e383aae382a2e58685e69687e5ad97e382aae38397e382b7e383a7e383b3',
+            '    ]',
+            '    /isOpen 1',
+            '    /isOn 1',
+            '    /hasDialog 0',
+            '    /parameterCount 1',
+            '    /parameter-1 {',
+            '      /key 1952539754',
+            '      /showInPalette 4294967295',
+            '      /type (integer)',
+            '      /value ' + String(autoSizeValue),
+            '    }',
+            '  }',
+            '}'
+        ].join("\n");
+
+        var actionFile = new File('~/ScriptAction.aia');
+        actionFile.open('w');
+        actionFile.write(actionCode);
+        actionFile.close();
+        app.loadAction(actionFile);
+        actionFile.remove();
+
+        try {
+            app.doScript("AutoSize", "AreaType", false);
+        } finally {
+            app.unloadAction("AreaType", "");
         }
-      }
+    }
 
-      // reset
-      for (var j = 0; j < targets.length; j++) {
-        if (isHeightMode) {
-          resetHeight(targets[j], tagKey);
+    /**
+     * エリア内文字に自動サイズ調整を適用する（拡張のみ・OFFには戻さない）
+     * @param {TextFrame} textFrame - 対象のエリア内文字
+     * @returns {void}
+     */
+    function applyAutoSize(textFrame) {
+        app.activeDocument.selection = [textFrame];
+        setAutoSizeByAction(AUTO_SIZE_ON);
+    }
+
+    /**
+     * 自動サイズ調整をON→OFFして、必要な分だけ高さを広げて固定する
+     * @param {TextFrame} textFrame - 対象のエリア内文字
+     * @returns {void}
+     */
+    function adjustHeightToFit(textFrame) {
+        if (textFrame.characters.length <= 0) return;
+        applyAutoSize(textFrame);
+        setAutoSizeByAction(AUTO_SIZE_OFF);
+    }
+
+    // =========================================
+    // 実行 / Processing
+    // =========================================
+
+    /**
+     * エリア内文字だけを取り出す（1つもなければ警告する）
+     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
+     * @returns {Array<TextFrame>|null} エリア内文字の配列（1つもないときは null）
+     */
+    function getAreaTextTargets(textFrames) {
+        var areaFrames = filterAreaTextFrames(textFrames);
+        if (areaFrames.length === 0) {
+            alert(getLabel(LABELS.alert.noAreaText));
+            return null;
+        }
+        return areaFrames;
+    }
+
+    /**
+     * テキストフレームを順に処理する（中止が返ったらそこで止める）
+     * @param {Array<TextFrame>} textFrames - 対象のテキストフレーム
+     * @param {function} adjustFrame - 1つのテキストフレームを処理する関数
+     * @returns {boolean} 最後まで処理できたとき true
+     */
+    function adjustEachFrame(textFrames, adjustFrame) {
+        for (var i = 0; i < textFrames.length; i++) {
+            if (adjustFrame(textFrames[i]) === false) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 自動サイズ調整を適用する（エリア内文字のみ）
+     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
+     * @returns {void}
+     */
+    function runAutoSize(textFrames) {
+        var areaFrames = getAreaTextTargets(textFrames);
+        if (!areaFrames) return;
+        adjustEachFrame(areaFrames, applyAutoSize);
+    }
+
+    /**
+     * エリア内文字の高さを中身に合わせる
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
+     * @returns {void}
+     */
+    function runHeightAdjust(doc, textFrames) {
+        var areaFrames = getAreaTextTargets(textFrames);
+        if (!areaFrames) return;
+
+        resetToOriginalValue(doc, areaFrames, HEIGHT_TAG_NAME,
+            function(textFrame) { return textFrame.height; },
+            function(textFrame, height) { textFrame.height = height; });
+
+        adjustEachFrame(areaFrames, adjustHeightToFit);
+        removeTagsAfterLastDataSet(doc, areaFrames, HEIGHT_TAG_NAME);
+    }
+
+    /**
+     * 文字サイズであふれを調整する（両方ONなら「最大まで拡大」→「あふれを解消」の順）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {Array<TextFrame>} textFrames - 選択から集めたテキストフレーム
+     * @param {boolean} doMaximize - ［文字サイズ：最大まで拡大］を実行するか
+     * @param {boolean} doShrink - ［文字サイズ：あふれを解消］を実行するか
+     * @returns {void}
+     */
+    function runFontSizeAdjust(doc, textFrames, doMaximize, doShrink) {
+        if (textFrames.length === 0) {
+            alert(getLabel(LABELS.alert.noValidText));
+            return;
+        }
+
+        resetToOriginalValue(doc, textFrames, FONT_SIZE_TAG_NAME, getFontSize, setFontSize);
+
+        if (doMaximize && !adjustEachFrame(textFrames, maximizeFontToFit)) return;
+        if (doShrink && !adjustEachFrame(textFrames, shrinkFontToFit)) return;
+
+        removeTagsAfterLastDataSet(doc, textFrames, FONT_SIZE_TAG_NAME);
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * ［調整方法］パネルを組み立て、中のコントロールを返す
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @param {boolean} hasAreaText - 選択にエリア内文字があるか
+     * @returns {object} パネル内のコントロール
+     */
+    function addProcessingPanel(parentWindow, hasAreaText) {
+        var processingPanel = addPanel(parentWindow, LABELS.panel.processing);
+
+        var shrinkCheckbox = processingPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.shrinkToFit));
+        shrinkCheckbox.helpTip = getLabel(LABELS.tooltip.shrinkToFit);
+        shrinkCheckbox.value = DEFAULT_SHRINK_TO_FIT;
+
+        var maximizeCheckbox = processingPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.maximizeSize));
+        maximizeCheckbox.helpTip = getLabel(LABELS.tooltip.maximizeSize);
+        maximizeCheckbox.value = DEFAULT_MAXIMIZE_SIZE;
+
+        var heightModeCheckbox = processingPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.heightMode));
+        heightModeCheckbox.helpTip = getLabel(LABELS.tooltip.heightMode);
+        heightModeCheckbox.enabled = hasAreaText;
+        heightModeCheckbox.value = (hasAreaText && DEFAULT_HEIGHT_MODE);
+
+        var heightOptionGroup = addIndentedColumn(processingPanel);
+
+        var adjustHeightRadio = heightOptionGroup.add("radiobutton", undefined, getLabel(LABELS.radio.adjustHeight));
+        adjustHeightRadio.helpTip = getLabel(LABELS.tooltip.adjustHeight);
+
+        var autoSizeRadio = heightOptionGroup.add("radiobutton", undefined, getLabel(LABELS.radio.autoSize));
+        autoSizeRadio.helpTip = getLabel(LABELS.tooltip.autoSize);
+
+        /* 高さ調整をOFFに戻したとき用に、文字サイズの選択を控える / Remember the font-size choices */
+        var previousShrinkState = shrinkCheckbox.value;
+        var previousMaximizeState = maximizeCheckbox.value;
+
+        /**
+         * 高さ調整のON/OFFに合わせて、各項目の有効・無効と選択状態を切り替える
+         * @returns {void}
+         */
+        function updateHeightOptionState() {
+            var isHeightMode = (heightModeCheckbox.value && hasAreaText);
+            heightOptionGroup.enabled = isHeightMode;
+
+            if (isHeightMode) {
+                /* 高さ調整中は文字サイズの処理を止める / The font-size options are off while adjusting the height */
+                previousShrinkState = shrinkCheckbox.value;
+                previousMaximizeState = maximizeCheckbox.value;
+                shrinkCheckbox.value = false;
+                maximizeCheckbox.value = false;
+                shrinkCheckbox.enabled = false;
+                maximizeCheckbox.enabled = false;
+                autoSizeRadio.value = (DEFAULT_HEIGHT_OPTION === "autoSize");
+                adjustHeightRadio.value = !autoSizeRadio.value;
+            } else {
+                shrinkCheckbox.enabled = true;
+                maximizeCheckbox.enabled = true;
+                shrinkCheckbox.value = previousShrinkState;
+                maximizeCheckbox.value = previousMaximizeState;
+                adjustHeightRadio.value = false;
+                autoSizeRadio.value = false;
+            }
+        }
+
+        heightModeCheckbox.onClick = updateHeightOptionState;
+        updateHeightOptionState();
+
+        return {
+            shrinkCheckbox: shrinkCheckbox,
+            maximizeCheckbox: maximizeCheckbox,
+            heightModeCheckbox: heightModeCheckbox,
+            autoSizeRadio: autoSizeRadio
+        };
+    }
+
+    /**
+     * ボタンエリア（左右中央）を組み立て、ボタンを返す
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {object} キャンセルボタンとOKボタン
+     */
+    function addButtonRow(parentWindow) {
+        var btnRowGroup = parentWindow.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        btnRowGroup.spacing = BUTTON_SPACING;
+
+        return {
+            btnCancel: btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" }),
+            btnOK: btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" })
+        };
+    }
+
+    /**
+     * パネルの選択内容を設定にまとめる（選択が足りないときは警告する）
+     * @param {object} controls - ［調整方法］パネルのコントロール
+     * @returns {object|null} 実行する処理の設定（選択が足りないときは null）
+     */
+    function readAdjustSettings(controls) {
+        if (controls.heightModeCheckbox.value) {
+            return { mode: controls.autoSizeRadio.value ? ADJUST_MODE.AUTO_SIZE : ADJUST_MODE.HEIGHT };
+        }
+
+        if (!controls.shrinkCheckbox.value && !controls.maximizeCheckbox.value) {
+            alert(getLabel(LABELS.alert.selectMode));
+            return null;
+        }
+
+        return {
+            mode: ADJUST_MODE.FONT_SIZE,
+            doMaximize: controls.maximizeCheckbox.value,
+            doShrink: controls.shrinkCheckbox.value
+        };
+    }
+
+    /**
+     * ダイアログを表示し、選ばれた処理を返す
+     * @param {boolean} hasAreaText - 選択にエリア内文字があるか
+     * @returns {object|null} 実行する処理の設定（キャンセル時は null）
+     */
+    function showDialog(hasAreaText) {
+        var dialogWindow = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(dialogWindow);
+
+        var controls = addProcessingPanel(dialogWindow, hasAreaText);
+        var buttons = addButtonRow(dialogWindow);
+        var selectedSettings = null;
+
+        buttons.btnOK.onClick = function() {
+            selectedSettings = readAdjustSettings(controls);
+            if (selectedSettings) dialogWindow.close(1);
+        };
+
+        buttons.btnCancel.onClick = function() {
+            dialogWindow.close(0);
+        };
+
+        dialogWindow.show();
+        return selectedSettings;
+    }
+
+    // =========================================
+    // メイン / Main
+    // =========================================
+
+    /**
+     * 選択からテキストを集め、ダイアログで選ばれた処理を実行する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) return;
+
+        var doc = app.activeDocument;
+        if (!doc.selection || doc.selection.length === 0) {
+            alert(getLabel(LABELS.alert.selectObject));
+            return;
+        }
+
+        /* 処理中に選択が変わるため、ダイアログの前に対象を確定させる / Collect the targets before the selection changes */
+        var textFrames = getSelectedTextFrames(doc);
+        var hasAreaText = (filterAreaTextFrames(textFrames).length > 0);
+
+        var adjustSettings = showDialog(hasAreaText);
+        if (!adjustSettings) return;
+
+        if (adjustSettings.mode === ADJUST_MODE.AUTO_SIZE) {
+            runAutoSize(textFrames);
+        } else if (adjustSettings.mode === ADJUST_MODE.HEIGHT) {
+            runHeightAdjust(doc, textFrames);
         } else {
-          resetSize(targets[j], tagKey);
+            runFontSizeAdjust(doc, textFrames, adjustSettings.doMaximize, adjustSettings.doShrink);
         }
-      }
-
-      // Helper references for current mode
-      var fnShrink = isHeightMode ? growHeight : shrinkFont;
-      var fnFit = isHeightMode ? fitHeight : fitFont;
-
-      // process selection
-      // If `options.mode` is provided externally, keep legacy behavior.
-      if (options && options.mode) {
-        var mode = options.mode;
-        if (mode === "fit") {
-          for (var k0 = 0; k0 < targets.length; k0++) {
-            var okFit0 = fnFit(targets[k0], opt);
-            if (okFit0 === false) return false;
-          }
-        } else {
-          for (var k1 = 0; k1 < targets.length; k1++) {
-            var ok1 = fnShrink(targets[k1], opt);
-            if (ok1 === false) return false;
-          }
-        }
-      } else {
-        var doFit = !!(options && options.doFit);
-        var doOverflow = !!(options && options.doOverflow);
-
-        if (!doFit && !doOverflow) {
-          alert(L("alertSelectMode"));
-          return false;
-        }
-
-        // 両方ONなら → ぴったり → あふれ処理
-        if (doFit) {
-          for (var kF = 0; kF < targets.length; kF++) {
-            var okFit = fnFit(targets[kF], opt);
-            if (okFit === false) return false;
-          }
-        }
-        if (doOverflow) {
-          for (var kO = 0; kO < targets.length; kO++) {
-            var okO = fnShrink(targets[kO], opt);
-            if (okO === false) return false;
-          }
-        }
-      }
-
-      // dataset: last => cleanup
-      if (isLastDataSet(doc)) {
-        for (var m = 0; m < targets.length; m++) {
-          removeTag(targets[m], tagKey);
-        }
-      }
-
-      return true;
     }
 
-    return { run: run };
-  })();
+    main();
 
-  var _dialogLocation = null;
-
-  function hasAreaTextInSelection(doc) {
-    if (!doc || !doc.selection || doc.selection.length === 0) return false;
-    var sel = doc.selection;
-    for (var i = 0; i < sel.length; i++) {
-      try {
-        if (sel[i].typename === "TextFrame" && sel[i].kind == TextType.AREATEXT) return true;
-      } catch (e) { }
-      try {
-        if (sel[i].typename === "GroupItem" && sel[i].pageItems) {
-          for (var j = 0; j < sel[i].pageItems.length; j++) {
-            var pi = sel[i].pageItems[j];
-            if (pi.typename === "TextFrame" && pi.kind == TextType.AREATEXT) return true;
-          }
-        }
-      } catch (e2) { }
-    }
-    return false;
-  }
-
-  function showDialogAndRun() {
-    if (app.documents.length === 0) return;
-    // If nothing is selected, alert and do not open the dialog
-    try {
-      if (!app.activeDocument.selection || app.activeDocument.selection.length === 0) {
-        alert(L("alertSelectObject"));
-        return;
-      }
-    } catch (eSel) {
-      alert(L("alertSelectObject"));
-      return;
-    }
-
-    var hasArea = hasAreaTextInSelection(app.activeDocument);
-
-    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
-    dlg.orientation = "column";
-    dlg.alignChildren = ["fill", "top"];
-
-    if (_dialogLocation) {
-      try { dlg.location = _dialogLocation; } catch (e) { }
-    }
-
-    dlg.onClose = function () {
-      try { _dialogLocation = [dlg.location[0], dlg.location[1]]; } catch (e) { }
-    };
-
-    var p = dlg.add("panel", undefined, L("panelLabel"));
-    p.orientation = "column";
-    p.alignChildren = ["left", "top"];
-    p.margins = [15, 20, 15, 10];
-
-    var cbOverflow = p.add("checkbox", undefined, L("cbOverflow"));
-    var cbFit = p.add("checkbox", undefined, L("cbFit"));
-    var cbHeightMode = p.add("checkbox", undefined, L("cbHeightMode"));
-
-    cbOverflow.value = true;
-    cbFit.value = true;
-    cbHeightMode.value = false;
-    cbHeightMode.enabled = hasArea;
-
-    var gHeightOptionsWrap = p.add("group");
-    gHeightOptionsWrap.orientation = "column";
-    gHeightOptionsWrap.alignChildren = ["left", "top"];
-    gHeightOptionsWrap.margins = [18, 0, 0, 7];
-    gHeightOptionsWrap.spacing = 4;
-
-    var rbHeight = gHeightOptionsWrap.add("radiobutton", undefined, L("rbHeight"));
-    rbHeight.value = false;
-
-    var rbAutoSizeArea = gHeightOptionsWrap.add("radiobutton", undefined, L("rbAutoSizeArea"));
-    rbAutoSizeArea.value = false;
-    try { rbAutoSizeArea.helpTip = L("tipAutoSizeArea"); } catch (eTip) { }
-
-    // Remember previous font-size checkbox states
-    var _prevFontOverflow = cbOverflow.value;
-    var _prevFontFit = cbFit.value;
-
-    function updateOptionsEnabled() {
-      var enabled = !!cbHeightMode.value && !!hasArea;
-
-      // Options panel is available only in AreaText height mode
-      try { gHeightOptionsWrap.enabled = enabled; } catch (eP) { }
-      try { rbHeight.enabled = enabled; } catch (eH) { }
-      try { rbAutoSizeArea.enabled = enabled; } catch (eA) { }
-
-      // When height mode is ON, disable font-size processing checkboxes and ignore their values
-      if (enabled) {
-        _prevFontOverflow = cbOverflow.value;
-        _prevFontFit = cbFit.value;
-        cbOverflow.value = false;
-        cbFit.value = false;
-        try { cbOverflow.enabled = false; } catch (eO1) { }
-        try { cbFit.enabled = false; } catch (eF1) { }
-        // When height mode is enabled, select "高さを調整" by default
-        rbHeight.value = true;
-        rbAutoSizeArea.value = false;
-      } else {
-        try { cbOverflow.enabled = true; } catch (eO2) { }
-        try { cbFit.enabled = true; } catch (eF2) { }
-        cbOverflow.value = _prevFontOverflow;
-        cbFit.value = _prevFontFit;
-      }
-
-      if (!enabled) {
-        rbHeight.value = false;
-        rbAutoSizeArea.value = false;
-      }
-    }
-
-    cbHeightMode.onClick = updateOptionsEnabled;
-    updateOptionsEnabled();
-
-    var gBtn = dlg.add("group");
-    gBtn.alignment = ["center", "center"];
-    gBtn.alignChildren = ["right", "center"];
-    var btnCancel = gBtn.add("button", undefined, L("btnCancel"), { name: "cancel" });
-    var btnOk = gBtn.add("button", undefined, L("btnOk"), { name: "ok" });
-
-    btnOk.onClick = function () {
-      var autoSizeArea = !!rbAutoSizeArea.value;
-
-      // Font-size modes (checkboxes)
-      var doFit = !!cbFit.value;
-      var doOverflow = !!cbOverflow.value;
-
-      // AreaText height mode: map option radios to internal doFit/doOverflow
-      // - 「高さを調整」 => run fitHeight (mapped to doFit)
-      // - 「自動サイズ調整」 => handled by autoSizeArea early branch
-      if (!!cbHeightMode.value) {
-        doFit = !!rbHeight.value;
-        doOverflow = false;
-      }
-
-      if (!!cbHeightMode.value) {
-        if (!rbHeight.value && !autoSizeArea) {
-          alert(L("alertSelectHeightOption"));
-          return;
-        }
-      } else {
-        if (!autoSizeArea && !doFit && !doOverflow) {
-          alert(L("alertSelectMode"));
-          return;
-        }
-      }
-
-      var adjustMode = cbHeightMode.value ? "height" : "fontSize";
-      dlg.close(1);
-      DealWithOversetText.run(app.activeDocument, {
-        doFit: doFit,
-        doOverflow: doOverflow,
-        adjustMode: adjustMode,
-        autoSizeArea: autoSizeArea
-      });
-    };
-
-    btnCancel.onClick = function () {
-      dlg.close(0);
-    };
-
-    dlg.show();
-  }
-
-  showDialogAndRun();
 })();
