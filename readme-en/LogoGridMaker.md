@@ -21,7 +21,7 @@ Lines that coincide with the selection bounds are emphasized with a heavier stro
 - Horizontal lines: horizontal stretch, extra lines above and below, extension to the left. Line detection as none / automatic / horizontal segments / even division
 - Vertical lines: vertical stretch, extra lines left and right, vertical division, extension upward. Vertical and diagonal elements can be extracted
 - Shared settings and clear space: a unit is defined from the division count and used to build the clear space; layer name, stroke weight, guides and grouping are configurable
-- Presets: 1x1 / auto / element / left / up-3 / clear space
+- Presets: 1x1 / auto / element / element+ / left / up-3 / clear space
 
 ### Usage
 
@@ -34,6 +34,11 @@ Lines that coincide with the selection bounds are emphasized with a heavier stro
 - Turning on clear space disables the horizontal and vertical line panels entirely; stroke weight and guides are then disabled and grouping is forced on.
 - The current UI state can be exported as JSON in an array-paste form.
 
+### Article
+
+https://note.com/dtp_tranist/n/n95a285784495 (Japanese)
+
 ### Update History
 
+- v1.4.2 (2026-09-17) Reorganized the internal naming and functions, and added tooltips. Fixed Highlight Bounds being missed because of rounding, the target layer being left behind on Cancel, and the conversion of stroke widths given in H/Q
 - v1.4.1 (2026-04-10)
