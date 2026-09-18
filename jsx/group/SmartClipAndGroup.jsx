@@ -757,47 +757,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         }
     }
 
-    // 重なり率が0より大きいオブジェクト同士をグループ化（しきい値なし）
-    function groupOverlappingObjectsSimple() {
-        // 0.01の重なりしきい値でグループ化
-        var sel = getValidSelection();
-        if (!sel) return;
-        var groups = getGroupedOverlappingItems(sel, 0.01);
-        var doc = app.activeDocument;
-        var newGroups = [];
-        for (var i = 0; i < groups.length; i++) {
-            var groupItems = groups[i];
-            if (groupItems.length <= 1) continue;
-            // グループ内で最前面のオブジェクトを取得
-            var topItem = getTopmostPath(groupItems);
-            var newGroup = doc.groupItems.add();
-            // 一旦すべて移動
-            for (var j = 0; j < groupItems.length; j++) {
-                groupItems[j].move(newGroup, ElementPlacement.PLACEATEND);
-            }
-            // 重ね順でソートして再配置
-            moveItemsToGroupSorted(groupItems, newGroup);
-            // グループを最前面オブジェクトの直前に再配置
-            if (topItem) {
-                try {
-                    newGroup.move(topItem, ElementPlacement.PLACEBEFORE);
-                } catch (e) {}
-            }
-            newGroups.push(newGroup);
-        }
-        // 生成したグループを選択
-        app.activeDocument.selection = null;
-        for (var i = 0; i < newGroups.length; i++) {
-            newGroups[i].selected = true;
-        }
-        return newGroups;
-    }
-
-    // UIのしきい値をもとにグループ化を呼び出す
-    function groupOverlappingObjects() {
-        groupOverlappingObjectsByThreshold(overlapThreshold);
-    }
-
     // メイン処理の呼び出し
     main();
 

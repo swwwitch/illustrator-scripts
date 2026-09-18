@@ -77,7 +77,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var o = LABELS[key];
             if (!o) return key;
             return o[uiLang] || o.ja || o.en || key;
-        } catch (_) {
+        } catch (e) {
             return key;
         }
     }
@@ -122,7 +122,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function getPrefIntSafe(key, fallback) {
-        try { return app.preferences.getIntegerPreference(key); } catch (_) { return fallback; }
+        try { return app.preferences.getIntegerPreference(key); } catch (e) { return fallback; }
     }
 
     if (app.documents.length === 0) { alert(getLabel("alertNoDoc")); return; }
@@ -157,8 +157,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function _applyZoom(view, percentage, centerPoint, doRedraw) {
         var zoomFactor = _clampZoomFactor(percentage / 100.0);
-        try { view.zoom = zoomFactor; } catch (_) { }
-        try { if (centerPoint) view.centerPoint = centerPoint; } catch (_) { }
+        try { view.zoom = zoomFactor; } catch (e) { }
+        try { if (centerPoint) view.centerPoint = centerPoint; } catch (e) { }
         if (doRedraw !== false) {
             app.redraw();
         }
@@ -177,9 +177,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (__sel0 && __sel0.length > 0) {
                 __zoomTargetCenter = _getBoundsCenter(_getSelectionBounds(__sel0));
             }
-        } catch (_) { }
+        } catch (e) { }
         if (!__zoomTargetCenter) __zoomTargetCenter = __originalCenter;
-    } catch (_) { }
+    } catch (e) { }
 
     function restoreViewIfNeeded() {
         try {
@@ -187,7 +187,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (__originalZoom != null) __view.zoom = __originalZoom;
             if (__originalCenter) __view.centerPoint = __originalCenter;
             app.redraw();
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // --- manifesto style backgrounds (per-character rects via outline) ---
@@ -219,9 +219,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         var p = it.parent;
                         if (p && p.typename === 'TextFrame') pushUnique(p);
                         else if (p && p.parent && p.parent.typename === 'TextFrame') pushUnique(p.parent);
-                    } catch (_) { }
+                    } catch (e) { }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
         return frames;
     }
@@ -232,11 +232,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < doc.layers.length; i++) {
                 try {
                     if (doc.layers[i].name === BG_LAYER_NAME) { lyr = doc.layers[i]; break; }
-                } catch (_) { }
+                } catch (e) { }
             }
-        } catch (_) { }
+        } catch (e) { }
         if (!lyr) {
-            try { lyr = doc.layers.add(); lyr.name = BG_LAYER_NAME; } catch (_) { }
+            try { lyr = doc.layers.add(); lyr.name = BG_LAYER_NAME; } catch (e) { }
         }
         return lyr;
     }
@@ -247,7 +247,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = bgLayer.groupItems.length - 1; i >= 0; i--) {
                 if (bgLayer.groupItems[i].name === BG_GROUP_NAME) bgLayer.groupItems[i].remove();
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -259,14 +259,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function setRectStyle(rect) {
-        try { rect.stroked = false; rect.filled = true; rect.fillColor = makeRandomFill(); } catch (_) { }
+        try { rect.stroked = false; rect.filled = true; rect.fillColor = makeRandomFill(); } catch (e) { }
     }
 
     function jitterRectOutward(rect, maxPt) {
         if (!rect || rect.typename !== 'PathItem') return;
         if (!rect.pathPoints || rect.pathPoints.length < 4) return;
         var b;
-        try { b = rect.geometricBounds; } catch (_) { return; }
+        try { b = rect.geometricBounds; } catch (e) { return; }
         var cx = (b[0] + b[2]) / 2;
         var cy = (b[1] + b[3]) / 2;
         for (var i = 0; i < rect.pathPoints.length; i++) {
@@ -283,7 +283,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 pp.anchor = [ax + ox, ay + oy];
                 pp.leftDirection = [pp.leftDirection[0] + ox, pp.leftDirection[1] + oy];
                 pp.rightDirection = [pp.rightDirection[0] + ox, pp.rightDirection[1] + oy];
-            } catch (_) { }
+            } catch (e) { }
         }
     }
 
@@ -314,7 +314,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (it.typename === 'GroupItem') pushLeafUnits(it);
                     else if (it.typename === 'PathItem' || it.typename === 'CompoundPathItem') out.push(it);
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         try {
@@ -336,7 +336,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 return;
             }
             out.push(outlined);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function createBackgroundRectsByOutlining(frames) {
@@ -353,21 +353,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var outlined = null;
             try {
                 dup = tf.duplicate();
-                try { dup.move(tf, ElementPlacement.PLACEAFTER); } catch (_) { }
-            } catch (_) { continue; }
-            try { outlined = dup.createOutline(); } catch (_) { try { if (dup) dup.remove(); } catch (_) { } continue; }
-            try { if (dup) dup.remove(); } catch (_) { }
+                try { dup.move(tf, ElementPlacement.PLACEAFTER); } catch (e) { }
+            } catch (e) { continue; }
+            try { outlined = dup.createOutline(); } catch (e) { try { if (dup) dup.remove(); } catch (e) { } continue; }
+            try { if (dup) dup.remove(); } catch (e) { }
 
             var charGroups = [];
             collectCharGroupsFromOutlined(outlined, charGroups);
             for (var j = 0; j < charGroups.length; j++) {
-                try { addRectFromBounds(bgGroup, charGroups[j].geometricBounds); } catch (_) { }
+                try { addRectFromBounds(bgGroup, charGroups[j].geometricBounds); } catch (e) { }
             }
-            try { if (outlined) outlined.remove(); } catch (_) { }
+            try { if (outlined) outlined.remove(); } catch (e) { }
         }
 
-        try { bgGroup.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
-        try { bgLayer.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+        try { bgGroup.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
+        try { bgLayer.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
     }
 
     function clearBackgroundRectsIfAny() {
@@ -376,14 +376,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < doc.layers.length; i++) {
                 if (doc.layers[i] && doc.layers[i].name === BG_LAYER_NAME) { lyr = doc.layers[i]; break; }
             }
-        } catch (_) { }
+        } catch (e) { }
         if (!lyr) return;
         removeBgGroupIfExists(lyr);
     }
 
     // --- font cache (for Font panel) ---
     var __allFonts = null;
-    try { __allFonts = app.textFonts; } catch (_) { __allFonts = null; }
+    try { __allFonts = app.textFonts; } catch (e) { __allFonts = null; }
 
     // Japanese font detection (updated; based on reference script)
     function hasJapaneseCharacters(str) {
@@ -391,7 +391,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!str) return false;
             var japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/;
             return japanesePattern.test(String(str));
-        } catch (_) {
+        } catch (e) {
             return false;
         }
     }
@@ -402,10 +402,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var fontFamily = "";
         var fontFull = "";
         var fontPS = "";
-        try { fontName = font.name ? String(font.name) : ""; } catch (_) { fontName = ""; }
-        try { fontFamily = font.family ? String(font.family) : ""; } catch (_) { fontFamily = ""; }
-        try { fontFull = font.fullName ? String(font.fullName) : ""; } catch (_) { fontFull = ""; }
-        try { fontPS = font.postScriptName ? String(font.postScriptName) : ""; } catch (_) { fontPS = ""; }
+        try { fontName = font.name ? String(font.name) : ""; } catch (e) { fontName = ""; }
+        try { fontFamily = font.family ? String(font.family) : ""; } catch (e) { fontFamily = ""; }
+        try { fontFull = font.fullName ? String(font.fullName) : ""; } catch (e) { fontFull = ""; }
+        try { fontPS = font.postScriptName ? String(font.postScriptName) : ""; } catch (e) { fontPS = ""; }
 
         // Explicit exclusions (Latin / unintended Gothic variants)
         var _deny = [
@@ -469,7 +469,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var f = __allFonts[i];
                 if (!f) continue;
                 if (isJapaneseFont(f)) list.push(f);
-            } catch (_) { }
+            } catch (e) { }
         }
         return list;
     }
@@ -507,7 +507,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         return true;
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
         return false;
     }
@@ -537,20 +537,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     PreviewManager.prototype.addStep = function (fn) {
         if (typeof fn !== 'function') return;
-        try { fn(); } catch (_) { }
+        try { fn(); } catch (e) { }
         this._hasPreview = true;
     };
 
     PreviewManager.prototype.cancel = function () {
         if (!this._hasPreview) return;
-        try { restoreOriginals(); } catch (_) { }
+        try { restoreOriginals(); } catch (e) { }
         this._hasPreview = false;
     };
 
     PreviewManager.prototype.confirm = function (fnFinal) {
         // No undo needed; simply apply final overwrite once.
         if (typeof fnFinal === 'function') {
-            try { fnFinal(); } catch (_) { }
+            try { fnFinal(); } catch (e) { }
         }
         this._hasPreview = false;
     };
@@ -638,7 +638,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 valPrev = valPrev * 0.6;
                 valCurr = valCurr * 1.05;
             }
-        } catch (_) { }
+        } catch (e) { }
 
         return { prev: valPrev, curr: valCurr };
     }
@@ -648,28 +648,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             // Some builds expose character.rotation
             if (typeof ch.rotation === "number") return ch.rotation;
-        } catch (_) { }
+        } catch (e) { }
         try {
             // Our script sets characterAttributes.rotation
             if (ch && ch.characterAttributes && typeof ch.characterAttributes.rotation === "number") {
                 return ch.characterAttributes.rotation;
             }
-        } catch (_) { }
+        } catch (e) { }
         try {
             // Legacy fallback
             if (typeof ch.characterRotation === "number") return ch.characterRotation;
-        } catch (_) { }
+        } catch (e) { }
         return rot;
     }
 
     function __applyTrackingCompForTextRange(tr) {
         if (!tr) return;
         var chars;
-        try { chars = tr.characters; } catch (_) { chars = null; }
+        try { chars = tr.characters; } catch (e) { chars = null; }
         if (!chars) return;
 
         var count = 0;
-        try { count = chars.length; } catch (_) { count = 0; }
+        try { count = chars.length; } catch (e) { count = 0; }
         if (count <= 1) return;
 
         var trackingMods = [];
@@ -683,7 +683,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var rot = __getCharRotationDegSafe(curChar);
             if (Math.abs(rot) > 1.0) {
                 var ct = "";
-                try { ct = curChar.contents; } catch (_) { ct = ""; }
+                try { ct = curChar.contents; } catch (e) { ct = ""; }
                 var vals = __calcTrackingCompSpacing(rot, ct);
 
                 trackingMods[i] += vals.curr;
@@ -697,13 +697,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 try {
                     // skip line breaks to avoid odd behavior
                     var _ct2 = "";
-                    try { _ct2 = chars[j].contents; } catch (_) { _ct2 = ""; }
+                    try { _ct2 = chars[j].contents; } catch (e) { _ct2 = ""; }
                     if (_ct2 === "\r" || _ct2 === "\n") continue;
 
                     // Set tracking directly (overrides existing tracking for a uniform look)
                     if (chars[j] && chars[j].characterAttributes) chars[j].characterAttributes.tracking = trackingMods[j];
                     else chars[j].tracking = trackingMods[j];
-                } catch (_) { }
+                } catch (e) { }
             }
         }
     }
@@ -711,7 +711,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function __applyTrackingCompForRanges(rangesList) {
         if (!rangesList || rangesList.length === 0) return;
         for (var r = 0; r < rangesList.length; r++) {
-            try { __applyTrackingCompForTextRange(rangesList[r]); } catch (_) { }
+            try { __applyTrackingCompForTextRange(rangesList[r]); } catch (e) { }
         }
     }
 
@@ -760,7 +760,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         var idx = Math.floor(rng() * _fontList.length);
                         ca.textFont = _fontList[idx];
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
 
             // baseline
@@ -825,7 +825,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (__rotationApplied && __compEnabled && !((_ransom && _ransomTrack) || _previewRansomTracking)) {
                 __applyTrackingCompForRanges(ranges);
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // Redraw can be expensive; allow callers (preview) to control it
         if (!(optFont && optFont.noRedraw === true)) {
@@ -843,7 +843,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var seed = (new Date()).getTime() & 0xffffffff;
 
     // Ensure any previous BG artifacts are cleared at start
-    try { clearBackgroundRectsIfAny(); } catch (_) { }
+    try { clearBackgroundRectsIfAny(); } catch (e) { }
 
     // --- UI ---
     var w = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
@@ -857,14 +857,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!isNaN(__savedX) && !isNaN(__savedY)) {
             w.location = [__savedX, __savedY];
         }
-    } catch (_) { }
+    } catch (e) { }
     /* ダイアログの位置と透明度 / Dialog position & opacity */
     var dialogOpacity = 0.98;
 
     function setDialogOpacity(dlg, opacityValue) {
         try {
             dlg.opacity = opacityValue;
-        } catch (_) {
+        } catch (e) {
             // some environments may not support opacity
         }
     }
@@ -900,7 +900,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 chkFontJPOnly.enabled = en;
                 if (!en) chkFontJPOnly.value = false; // OFF時は強制的にチェック解除
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // --- panel: 「犯行声明文」風 ---
@@ -937,7 +937,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (selectionContainsNonAlnum(ranges)) {
                 if (chkFontJPOnly && chkFontJPOnly.enabled) chkFontJPOnly.value = true;
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // Auto ON: if selection includes non-alnum (except CR/LF), enable JP-only
@@ -959,13 +959,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var fs = originals[0].ch.characterAttributes.size;
             defaultBasePt = Math.round(fs / 12);
         }
-    } catch (_) { }
+    } catch (e) { }
 
     var defaultBase = 0; // displayed unit value
     try {
         defaultBase = Math.round(defaultBasePt / __baseUnitFactorPt);
         if (isNaN(defaultBase)) defaultBase = 0;
-    } catch (_) { defaultBase = defaultBasePt; }
+    } catch (e) { defaultBase = defaultBasePt; }
 
     // slider range: max = current text size (pt), expressed in current unit
     var __baseMaxPt = 50;
@@ -974,12 +974,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var __fsPt = originals[0].ch.characterAttributes.size; // pt
             __baseMaxPt = Math.max(1, Math.round(__fsPt));
         }
-    } catch (_) { __baseMaxPt = 50; }
+    } catch (e) { __baseMaxPt = 50; }
 
     var __baseMax = 50;
     try {
         __baseMax = Math.max(1, Math.round(__baseMaxPt / __baseUnitFactorPt));
-    } catch (_) { __baseMax = 50; }
+    } catch (e) { __baseMax = 50; }
 
     var edtBase = gBase.add("edittext", undefined, String(defaultBase));
     edtBase.characters = 4;
@@ -1052,7 +1052,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var __smallBtn = [72, 22]; // [width, height]
         btnAllOn.preferredSize = __smallBtn;
         btnAllOff.preferredSize = __smallBtn;
-    } catch (_) { }
+    } catch (e) { }
 
     // --- label width align (left) ---
     try {
@@ -1062,16 +1062,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 var w0 = labels[i].preferredSize.width;
                 if (w0 > maxW) maxW = w0;
-            } catch (_) { }
+            } catch (e) { }
         }
         for (var j = 0; j < labels.length; j++) {
             try {
                 labels[j].preferredSize.width = maxW;
                 // left align
                 labels[j].justify = "left";
-            } catch (_) { }
+            } catch (e) { }
         }
-    } catch (_) { }
+    } catch (e) { }
 
     // --- unit width align (left) ---
     try {
@@ -1081,15 +1081,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 var uw = units[ui].preferredSize.width;
                 if (uw > maxU) maxU = uw;
-            } catch (_) { }
+            } catch (e) { }
         }
         for (var uj = 0; uj < units.length; uj++) {
             try {
                 units[uj].preferredSize.width = maxU;
                 units[uj].justify = "left";
-            } catch (_) { }
+            } catch (e) { }
         }
-    } catch (_) { }
+    } catch (e) { }
 
     // --- slider <-> edit sync ---
     function clamp(v, minV, maxV) {
@@ -1147,10 +1147,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 else if (editText === edtH) syncFromEdit(edtH, sldH);
                 else if (editText === edtRot) syncFromEdit(edtRot, sldRot);
                 else if (editText === edtKern) syncFromEdit(edtKern, sldKern);
-            } catch (_) { }
+            } catch (e) { }
 
             // preview update
-            try { updatePreview(); } catch (_) { }
+            try { updatePreview(); } catch (e) { }
         });
     }
 
@@ -1162,7 +1162,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var stZoom = gZoom.add("statictext", undefined, getLabel("labelZoom"));
     var __initZoomPct = 100;
-    try { if (__originalZoom != null) __initZoomPct = Math.round(__originalZoom * 100); } catch (_) { }
+    try { if (__originalZoom != null) __initZoomPct = Math.round(__originalZoom * 100); } catch (e) { }
     if (__initZoomPct < 10) __initZoomPct = 10;
     if (__initZoomPct > 1600) __initZoomPct = 1600;
     var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
@@ -1185,7 +1185,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (pct < 10) pct = 10;
             if (pct > 1600) pct = 1600;
             _applyZoom(__view, pct, __zoomTargetCenter, true);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     sldZoom.onChanging = function () {
@@ -1200,7 +1200,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             __zoomLastApply = now;
 
             __applyZoomFromSlider(this.value);
-        } catch (_) { }
+        } catch (e) { }
     };
 
     // Ensure the final value is applied when the drag ends.
@@ -1229,7 +1229,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function isTouchAllOff() {
         try {
             return (!chkBase.value && !chkScale.value && !chkRot.value && !chkKern.value);
-        } catch (_) {
+        } catch (e) {
             return false;
         }
     }
@@ -1240,7 +1240,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var touchOff = isTouchAllOff();
             var fontRandOff = !(chkFontRandom && chkFontRandom.value);
             btnRerun.enabled = !(touchOff && fontRandOff);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     var btnSpacer = btnRow.add("group");
@@ -1260,20 +1260,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // scheduleTask needs a global callable string
     $.global.__ATT_doPreview = function () {
-        try { __pvTaskId = null; } catch (_) { }
-        try { updatePreview(); } catch (_) { }
+        try { __pvTaskId = null; } catch (e) { }
+        try { updatePreview(); } catch (e) { }
     };
 
     function requestPreview() {
         try {
             if (__pvTaskId != null) {
-                try { app.cancelTask(__pvTaskId); } catch (_) { }
+                try { app.cancelTask(__pvTaskId); } catch (e) { }
                 __pvTaskId = null;
             }
             __pvTaskId = app.scheduleTask("$.global.__ATT_doPreview()", __pvDelayMs, false);
-        } catch (_) {
+        } catch (e) {
             // fallback
-            try { updatePreview(); } catch (_) { }
+            try { updatePreview(); } catch (e) { }
         }
     }
 
@@ -1283,7 +1283,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (chkBase.value) {
             var __b = parseNum(edtBase.text);
             if (__b === null) return;
-            try { base = __b * __baseUnitFactorPt; } catch (_) { base = __b; }
+            try { base = __b * __baseUnitFactorPt; } catch (e) { base = __b; }
         }
 
         var hPct = 0;
@@ -1308,7 +1308,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // Keep UI state as-is, but make it clear via dimming that preview ignores this option
-        try { if (chkRotTrackComp) chkRotTrackComp.enabled = true; } catch (_) { }
+        try { if (chkRotTrackComp) chkRotTrackComp.enabled = true; } catch (e) { }
 
         if (optFont.fontRandom && optFont.jpOnly) {
             optFont.jpFonts = getJPFontsCached();
@@ -1325,7 +1325,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var __pv = parseNum(edtRansomTrk.text);
                 optFont.ransomTrackValue = (typeof __pv === "number" && !isNaN(__pv)) ? __pv : 200;
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // Apply preview (no undo): overwrite attributes directly
         previewMgr.addStep(function () {
@@ -1339,7 +1339,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     edtH.onChanging = function () { syncFromEdit(edtH, sldH); requestPreview(); };
     edtRot.onChanging = function () { syncFromEdit(edtRot, sldRot); requestPreview(); };
     edtKern.onChanging = function () { syncFromEdit(edtKern, sldKern); requestPreview(); };
-    edtRansomTrk.onChanging = function () { try { requestPreview(); } catch (_) { } };
+    edtRansomTrk.onChanging = function () { try { requestPreview(); } catch (e) { } };
 
     // Patch arrow key logic to debounce preview
     function changeValueByArrowKey(editText) {
@@ -1382,10 +1382,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 else if (editText === edtH) syncFromEdit(edtH, sldH);
                 else if (editText === edtRot) syncFromEdit(edtRot, sldRot);
                 else if (editText === edtKern) syncFromEdit(edtKern, sldKern);
-            } catch (_) { }
+            } catch (e) { }
 
             // preview update
-            try { requestPreview(); } catch (_) { }
+            try { requestPreview(); } catch (e) { }
         });
     }
     changeValueByArrowKey(edtBase);
@@ -1404,7 +1404,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (chkBase.value) {
             var __bOK = parseNum(edtBase.text);
             if (__bOK === null) __bOK = 0;
-            try { base = __bOK * __baseUnitFactorPt; } catch (_) { base = __bOK; }
+            try { base = __bOK * __baseUnitFactorPt; } catch (e) { base = __bOK; }
         }
 
         var hPct = 0;
@@ -1426,7 +1426,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return;
                 }
             }
-        } catch (_) { __rtv = null; }
+        } catch (e) { __rtv = null; }
 
         if ((chkBase.value && base === null) ||
             (chkScale.value && hPct === null) ||
@@ -1468,7 +1468,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // First try: keep originals order (most stable / matches preview)
                 applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
                 __applied = true;
-            } catch (_) {
+            } catch (e) {
                 __applied = false;
             }
 
@@ -1478,10 +1478,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     ranges = collectTextRanges(doc.selection);
                     selTextFrames = getSelectionTextFrames(doc.selection);
                     snapshotOriginals();
-                } catch (_) { }
+                } catch (e) { }
                 try {
                     applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
-                } catch (_) { }
+                } catch (e) { }
             }
         }
 
@@ -1489,7 +1489,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             if (optFont.ransom) createBackgroundRectsByOutlining(selTextFrames);
             else clearBackgroundRectsIfAny();
-        } catch (_) { }
+        } catch (e) { }
 
         // prevent onClose cleanup (OK)
         __closedByOK = true;
@@ -1501,17 +1501,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     btnRerun.onClick = function () {
         __didReset = false;
         // rerun
-        try { seed = (new Date()).getTime() & 0xffffffff; } catch (_) { }
-        try { requestPreview(); } catch (_) { }
-        try { autoEnableJPOnlyIfNeeded(); } catch (_) { }
-        try { updateRerunEnabled(); } catch (_) { }
+        try { seed = (new Date()).getTime() & 0xffffffff; } catch (e) { }
+        try { requestPreview(); } catch (e) { }
+        try { autoEnableJPOnlyIfNeeded(); } catch (e) { }
+        try { updateRerunEnabled(); } catch (e) { }
     };
 
     btnReset.onClick = function () {
         // Reset selected text attributes only (do not touch any checkboxes)
-        try { previewMgr.cancel(); } catch (_) { }
-        try { previewMgr._hasPreview = false; } catch (_) { }
-        try { clearBackgroundRectsIfAny(); } catch (_) { }
+        try { previewMgr.cancel(); } catch (e) { }
+        try { previewMgr._hasPreview = false; } catch (e) { }
+        try { clearBackgroundRectsIfAny(); } catch (e) { }
 
         // Reset baseline / scale / rotation / kerning / tracking
         try {
@@ -1539,22 +1539,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         ca.kerningMethod = AutoKernType.NOAUTOKERN;
                         ch.kerning = 0;
                         originals[i].kerning = 0;
-                    } catch (_) { }
+                    } catch (e) { }
 
                     // tracking
                     try {
                         ca.tracking = 0;
                         originals[i].tracking = 0;
-                    } catch (_) { }
+                    } catch (e) { }
 
-                } catch (_) { }
+                } catch (e) { }
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // Set all characters' font to the first character's font
         try {
             var __f0 = null;
-            try { if (originals.length > 0) __f0 = originals[0].ch.characterAttributes.textFont; } catch (_) { __f0 = null; }
+            try { if (originals.length > 0) __f0 = originals[0].ch.characterAttributes.textFont; } catch (e) { __f0 = null; }
             if (__f0) {
                 for (var fi = 0; fi < originals.length; fi++) {
                     try {
@@ -1563,25 +1563,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         var _ca = originals[fi].ch.characterAttributes;
                         _ca.textFont = __f0;
                         originals[fi].textFont = __f0;
-                    } catch (_) { }
+                    } catch (e) { }
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
 
         app.redraw();
 
         // Keep JP-only auto rule consistent (checkbox state may remain as-is)
-        try { updateFontOptionEnabled(); } catch (_) { }
-        try { autoEnableJPOnlyIfNeeded(); } catch (_) { }
-        try { updateRerunEnabled(); } catch (_) { }
+        try { updateFontOptionEnabled(); } catch (e) { }
+        try { autoEnableJPOnlyIfNeeded(); } catch (e) { }
+        try { updateRerunEnabled(); } catch (e) { }
         __didReset = true;
     };
 
     btnCancel.onClick = function () {
         // Cancel: undo preview step (if any) and cleanup BG
-        try { previewMgr.cancel(); } catch (_) { }
-        try { clearBackgroundRectsIfAny(); } catch (_) { }
-        try { restoreViewIfNeeded(); } catch (_) { }
+        try { previewMgr.cancel(); } catch (e) { }
+        try { clearBackgroundRectsIfAny(); } catch (e) { }
+        try { restoreViewIfNeeded(); } catch (e) { }
         app.redraw();
         __closedByOK = false;
         w.close(0);
@@ -1607,9 +1607,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             chkRot.value = true;
             chkKern.value = true;
 
-        } catch (_) { }
-        try { updatePreview(); } catch (_) { }
-        try { updateRerunEnabled(); } catch (_) { }
+        } catch (e) { }
+        try { updatePreview(); } catch (e) { }
+        try { updateRerunEnabled(); } catch (e) { }
     };
 
     btnAllOff.onClick = function () {
@@ -1619,9 +1619,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             chkRot.value = false;
             chkKern.value = false;
 
-        } catch (_) { }
-        try { updatePreview(); } catch (_) { }
-        try { updateRerunEnabled(); } catch (_) { }
+        } catch (e) { }
+        try { updatePreview(); } catch (e) { }
+        try { updateRerunEnabled(); } catch (e) { }
     };
 
     chkFontRandom.onClick = function () {
@@ -1636,16 +1636,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var en = (chkFontRansom && chkFontRansom.value);
             chkRansomTrack.enabled = en;
             edtRansomTrk.enabled = (en && chkRansomTrack && chkRansomTrack.value);
-        } catch (_) { }
-        try { updateRerunEnabled(); } catch (_) { }
-        try { requestPreview(); } catch (_) { }
+        } catch (e) { }
+        try { updateRerunEnabled(); } catch (e) { }
+        try { requestPreview(); } catch (e) { }
     };
 
     chkRansomTrack.onClick = function () {
         try {
             edtRansomTrk.enabled = (chkFontRansom && chkFontRansom.value) && (chkRansomTrack && chkRansomTrack.value);
-        } catch (_) { }
-        try { requestPreview(); } catch (_) { }
+        } catch (e) { }
+        try { requestPreview(); } catch (e) { }
     };
 
     updatePreview();
@@ -1662,14 +1662,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 app.preferences.setIntegerPreference(__dlgPrefKeyX, Math.round(__loc[0]));
                 app.preferences.setIntegerPreference(__dlgPrefKeyY, Math.round(__loc[1]));
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // If closed via OK, do NOT undo/cleanup (would remove committed BG rects)
         if (__closedByOK) return true;
 
-        try { previewMgr.cancel(); } catch (_) { }
-        try { clearBackgroundRectsIfAny(); } catch (_) { }
-        try { restoreViewIfNeeded(); } catch (_) { }
+        try { previewMgr.cancel(); } catch (e) { }
+        try { clearBackgroundRectsIfAny(); } catch (e) { }
+        try { restoreViewIfNeeded(); } catch (e) { }
         return true;
     };
     w.show();

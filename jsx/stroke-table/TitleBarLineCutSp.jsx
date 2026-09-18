@@ -93,7 +93,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 最後に必ずBを再表示するための保険
         var __restoreB = objectB;
 
-        function safeDo(fn) { try { fn(); } catch (_) { } }
+        function safeDo(fn) { try { fn(); } catch (e) { } }
         function safeRemove(it) { safeDo(function () { if (it) it.remove(); }); }
         function safeSelect(it) {
             safeDo(function () { doc.selection = null; });
@@ -262,7 +262,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     } else if (tmpOutlined.length === 1) {
                         region = tmpOutlined[0].geometricBounds;
                     }
-                } catch (_) {
+                } catch (e) {
                     region = null;
                 } finally {
                     for (var k = 0; k < tmpOutlined.length; k++) safeRemove(tmpOutlined[k]);
@@ -396,7 +396,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                     safeDo(function () { dup.locked = true; });
                     safeDo(function () { doc.selection = null; });
-                } catch (_) {
+                } catch (e) {
                     safeRemove(dup);
                     safeDo(function () { doc.selection = null; });
                 }
@@ -441,7 +441,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (tmpOutlined.length > 1) {
                         var g = doc.groupItems.add();
                         for (var j = tmpOutlined.length - 1; j >= 0; j--) {
-                            try { tmpOutlined[j].move(g, ElementPlacement.PLACEATBEGINNING); } catch (_) { }
+                            try { tmpOutlined[j].move(g, ElementPlacement.PLACEATBEGINNING); } catch (e) { }
                         }
                         region = g.geometricBounds;
                         // グループを後で消せるように差し替え
@@ -551,7 +551,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         });
                         return;
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
 
             applyFillK30NoStroke(objectA);

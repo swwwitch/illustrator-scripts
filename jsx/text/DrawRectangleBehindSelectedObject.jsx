@@ -48,7 +48,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!DEBUG_MODE) return;
         try {
             $.writeln("[ERROR] " + context + ": " + e);
-        } catch (_) {}
+        } catch (e) {}
     }
     // --- Helper: Draw the finalized rectangle behind the selection ---
     /**
@@ -1040,7 +1040,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) {
             try {
                 renderPreview(app.activeDocument, choice);
-            } catch (_) {}
+            } catch (e) {}
         }
     }
 
@@ -1051,10 +1051,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (immediate) {
             try {
                 if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
-            } catch (_) {}
+            } catch (e) {}
             try {
                 renderPreview(app.activeDocument, choice);
-            } catch (_) {}
+            } catch (e) {}
         } else {
             schedulePreview(choice, PREVIEW_DELAY_TYPING_MS);
         }
@@ -1081,9 +1081,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                                 for (var k = layer.pathItems.length - 1; k >= 0; k--) {
                                     try {
                                         layer.pathItems[k].hidden = true;
-                                    } catch (_) {}
+                                    } catch (e) {}
                                 }
-                            } catch (_) {}
+                            } catch (e) {}
                         }
                         break;
                     }
@@ -1186,7 +1186,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (String(it.name || '') === nameBase) {
                     try {
                         it.remove();
-                    } catch (_) {}
+                    } catch (e) {}
                     break;
                 }
             }
@@ -1224,7 +1224,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var li = null;
                 try {
                     li = currentSelection[i].layer;
-                } catch (_) {
+                } catch (e) {
                     li = null;
                 }
                 if (li !== common) {
@@ -1327,16 +1327,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     for (var si = 0; si < currentSelection.length; si++) {
                         try {
                             currentSelection[si].move(g, ElementPlacement.PLACEATEND);
-                        } catch (_) {}
+                        } catch (e) {}
                     }
                     // move one of the rects into the group and send back
                     try {
                         rect.move(g, ElementPlacement.PLACEATBEGINNING);
-                    } catch (_) {}
+                    } catch (e) {}
                     try {
                         rect.zOrder(ZOrderMethod.SENDTOBACK);
-                    } catch (_) {}
-                } catch (_) {}
+                    } catch (e) {}
+                } catch (e) {}
             }
             return;
         }
@@ -2769,13 +2769,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function updatePreviewCommit() {
             try {
                 if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
-            } catch (_) {}
+            } catch (e) {}
             try {
                 updatePillRoundField();
             } catch (e) {}
             try {
                 renderPreview(app.activeDocument, buildChoiceFromUI());
-            } catch (_) {}
+            } catch (e) {}
         }
 
         function updatePreview() {
@@ -3025,14 +3025,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (key === 'I' || key === 'S') {
                     try {
                         currentRadio.notify('onClick');
-                    } catch (_) {}
+                    } catch (e) {}
                     event.preventDefault();
                     return;
                 }
                 if (key === 'G' || key === 'A') {
                     try {
                         allRadio.notify('onClick');
-                    } catch (_) {}
+                    } catch (e) {}
                     event.preventDefault();
                     return;
                 }
@@ -3507,7 +3507,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!targetLayer) {
             try {
                 targetLayer = doc.activeLayer;
-            } catch (_) {}
+            } catch (e) {}
         }
         ensureLayerEditable(doc, targetLayer);
 
@@ -3531,8 +3531,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 );
                 try {
                     rect.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
-                } catch (_) {}
-            } catch (_) {
+                } catch (e) {}
+            } catch (e) {
                 throw e; // rethrow original if fallback also fails
             }
         }

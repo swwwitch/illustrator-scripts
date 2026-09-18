@@ -145,7 +145,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function logProcessError(context, e) {
             try {
                 $.writeln("[PathCleanupTool] " + context + ": " + e);
-            } catch (_) {
+            } catch (e) {
                 // ignore logging failure
             }
         }
@@ -279,7 +279,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var p = $.global[DLG_LOC_KEY];
                 if (!p || p.length !== 2) return null;
                 return [Number(p[0]), Number(p[1])];
-            } catch (_) {
+            } catch (e) {
                 return null;
             }
         }
@@ -290,7 +290,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var p = dlg.location; // [x,y]
                 if (!p || p.length !== 2) return;
                 $.global[DLG_LOC_KEY] = [Number(p[0]), Number(p[1])];
-            } catch (_) {
+            } catch (e) {
                 // ignore
             }
         }
@@ -300,7 +300,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!p) return;
             try {
                 dlg.location = p;
-            } catch (_) {
+            } catch (e) {
                 // ignore
             }
         }
@@ -325,16 +325,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         try {
                             if (cur.layer.locked === true) return true;
                             if (cur.layer.visible === false) return true;
-                        } catch (_) { }
+                        } catch (e) { }
                     }
-                } catch (_) {
+                } catch (e) {
                     // ignore property access errors
                 }
 
                 // Walk up
                 try {
                     cur = cur.parent;
-                } catch (_) {
+                } catch (e) {
                     break;
                 }
 

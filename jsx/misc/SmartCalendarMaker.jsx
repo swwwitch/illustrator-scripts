@@ -219,7 +219,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             }
             if (!o) return key;
             return o[uiLang] || o.en || o.ja || key;
-        } catch (_) {
+        } catch (e) {
             return key;
         }
     }
@@ -268,7 +268,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         try {
             var code = app.preferences.getIntegerPreference(prefKey);
             return __SCM_getUnitLabel(code, prefKey) || fb;
-        } catch (_) {
+        } catch (e) {
             return fb;
         }
     }
@@ -306,7 +306,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             var code = app.preferences.getIntegerPreference("rulerType");
             var f = __SCM_getPtFactorFromUnitCode(code);
             return v * f;
-        } catch (_) { }
+        } catch (e) { }
         return v;
     }
 
@@ -324,7 +324,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             var f = __SCM_getPtFactorFromUnitCode(code);
             if (!f) f = 1.0;
             return pt / f;
-        } catch (_) { }
+        } catch (e) { }
         return pt;
     }
 
@@ -396,7 +396,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             __SCM_VIEW = doc.views[0];
             __SCM_ORG_ZOOM = __SCM_VIEW.zoom;
             __SCM_ORG_CENTER = __SCM_VIEW.centerPoint;
-        } catch (_) { }
+        } catch (e) { }
 
         /* アクティブアートボードの中心座標を返す / Return the center point of the active artboard */
         function __SCM_getActiveArtboardCenterPoint() {
@@ -404,8 +404,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 var idx = doc.artboards.getActiveArtboardIndex();
                 var r = doc.artboards[idx].artboardRect; // [L, T, R, B]
                 return [r[0] + (r[2] - r[0]) / 2, r[1] + (r[3] - r[1]) / 2];
-            } catch (_) { }
-            try { return (__SCM_VIEW && __SCM_VIEW.centerPoint) ? __SCM_VIEW.centerPoint : [0, 0]; } catch (_) { }
+            } catch (e) { }
+            try { return (__SCM_VIEW && __SCM_VIEW.centerPoint) ? __SCM_VIEW.centerPoint : [0, 0]; } catch (e) { }
             return [0, 0];
         }
 
@@ -429,7 +429,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 // Keep current pan offsets when zoom changes
                 __SCM_applyViewCenterWithPan();
                 app.redraw();
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /* ズームUI（スライダー/入力）を同期し必要なら適用 / Sync zoom UI and optionally apply */
@@ -440,10 +440,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 v = Math.round(v);
                 if (v < 10) v = 10;
                 if (v > 1600) v = 1600;
-                try { sldZoom.value = v; } catch (_) { }
-                try { inputZoomPct.text = String(v); } catch (_) { }
+                try { sldZoom.value = v; } catch (e) { }
+                try { inputZoomPct.text = String(v); } catch (e) { }
                 if (apply !== false) __SCM_applyZoomPct(v);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // ===== Pan (view center) helpers =====
@@ -467,7 +467,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (xMax > 50000) xMax = 50000;
                 if (yMax > 50000) yMax = 50000;
                 return { xMax: xMax, yMax: yMax };
-            } catch (_) { }
+            } catch (e) { }
             return { xMax: 2000, yMax: 2000 };
         }
 
@@ -481,7 +481,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 var y = c[1] - Number(__SCM_PAN_Y || 0);
                 __SCM_VIEW.centerPoint = [x, y];
                 app.redraw();
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /* 左右パンを範囲内に丸めて適用 / Clamp and apply horizontal pan */
@@ -495,7 +495,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (n > mx) n = mx;
                 __SCM_PAN_X = n;
                 __SCM_applyViewCenterWithPan();
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /* 上下パンを範囲内に丸めて適用 / Clamp and apply vertical pan */
@@ -509,7 +509,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (n > my) n = my;
                 __SCM_PAN_Y = n;
                 __SCM_applyViewCenterWithPan();
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /* ================================
@@ -659,14 +659,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     var currentX = dlg.location[0];
                     var currentY = dlg.location[1];
                     dlg.location = [currentX + offsetX, currentY + offsetY];
-                } catch (_) { }
-                try { refreshPreview(); } catch (_) { }
+                } catch (e) { }
+                try { refreshPreview(); } catch (e) { }
             };
         }
 
         /* ダイアログの不透明度を設定 / Set the dialog opacity */
         function setDialogOpacity(dlg, opacityValue) {
-            try { dlg.opacity = opacityValue; } catch (_) { }
+            try { dlg.opacity = opacityValue; } catch (e) { }
         }
 
         setDialogOpacity(dlg, dialogOpacity);
@@ -696,7 +696,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         setupTab(tabLabel);
 
         // 既定は「基本設定」タブ
-        try { tabs.selection = tabGeneral; } catch (_) { }
+        try { tabs.selection = tabGeneral; } catch (e) { }
 
         // ===== 2カラム =====
         var gCols = tabGeneral.add("group");
@@ -739,7 +739,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var ddPresetList = gPresetListRow.add("dropdownlist", undefined, ["-"]);
         ddPresetList.preferredSize = [220, 22];
         ddPresetList.alignment = "fill";
-        try { ddPresetList.selection = 0; } catch (_) { }
+        try { ddPresetList.selection = 0; } catch (e) { }
 
         // 読み込んだプリセットを保持（セッション中のみ）
         var __SCM_PRESET_STORE = ($.global.__SCM_CACHE = $.global.__SCM_CACHE || {});
@@ -754,7 +754,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                         __SCM_PRESET_STORE.presets[label] = obj;
                         __SCM_PRESET_STORE.presetOrder.push(label);
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
 
             registerBuiltin("1)EN Month Title", {
@@ -895,14 +895,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             // dropdown 初期化
             try {
                 ddPresetList.removeAll();
-            } catch (_) {
+            } catch (e) {
                 try { while (ddPresetList.items.length) ddPresetList.items[0].remove(); } catch (__e) { }
             }
             ddPresetList.add("item", "-");
             for (var i = 0; i < __SCM_PRESET_STORE.presetOrder.length; i++) {
                 ddPresetList.add("item", __SCM_PRESET_STORE.presetOrder[i]);
             }
-            try { ddPresetList.selection = 0; } catch (_) { }
+            try { ddPresetList.selection = 0; } catch (e) { }
         })();
 
         /* プリセットを保持しドロップダウンへ追加 / Store a preset and add it to the dropdown */
@@ -921,7 +921,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 // dd の items を作り直す（重くない件数想定）
                 try {
                     ddPresetList.removeAll();
-                } catch (_) {
+                } catch (e) {
                     // removeAll が無い環境向け
                     try { while (ddPresetList.items.length) ddPresetList.items[0].remove(); } catch (__e) { }
                 }
@@ -933,7 +933,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 for (var k = 0; k < ddPresetList.items.length; k++) {
                     if (ddPresetList.items[k].text === lb) { ddPresetList.selection = k; break; }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         ddPresetList.onChange = function () {
@@ -944,7 +944,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 var obj = __SCM_PRESET_STORE.presets[lb];
                 if (!obj) return;
                 __SCM_applyPreset(obj);
-            } catch (_) { }
+            } catch (e) { }
         };
 
         // ===== オプションタブ内コンテナ =====
@@ -983,23 +983,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         /* 月数プリセット(1/3/12)に合わせUIを一括設定 / Apply a month-count preset (1/3/12) across the UI */
         function applyMonthPreset(months, cols) {
-            try { inputMonths.text = String(months); } catch (_) { }
+            try { inputMonths.text = String(months); } catch (e) { }
             try {
                 if (typeof cols === "number" && cols > 0) inputCols.text = String(cols);
-            } catch (_) { }
+            } catch (e) { }
             // 「年」panel: 年表示は 12ヶ月 のときだけON
             try {
                 chkTopYear.value = (months === 12);
                 chkTopYear.enabled = (months === 12);
                 __SCM_syncYearPanelDimToFontSize();
-            } catch (_) { }
+            } catch (e) { }
 
-            try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
+            try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
 
             // 12ヶ月のときは月タイトルの「年を併記」をOFF
             try {
                 if (months === 12) chkMonthYear.value = false;
-            } catch (_) { }
+            } catch (e) { }
 
             // 12ヶ月 は「1月から」を自動選択
             try {
@@ -1007,22 +1007,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     rbStartJan.value = true;
                     rbStartCurrent.value = false;
                 }
-            } catch (_) { }
+            } catch (e) { }
             // レイアウトの月数/列数は 1ヶ月 のときディム
-            try { gCount.enabled = (months !== 1); } catch (_) { }
+            try { gCount.enabled = (months !== 1); } catch (e) { }
             try {
                 chkGhost.enabled = (months === 1);
                 if (months !== 1) chkGhost.value = false;
-            } catch (_) { }
-            try { schedulePreviewRefresh(true); } catch (_) { }
+            } catch (e) { }
+            try { schedulePreviewRefresh(true); } catch (e) { }
         }
 
         /* 「年」パネルの有効/無効を年表示チェックに同期 / Sync the Year panel enabled-state with the show-year checkbox */
         function __SCM_syncYearPanelDimToFontSize() {
             var en = false;
-            try { en = !!(chkTopYear && chkTopYear.enabled); } catch (_) { }
-            try { if (inputYearFontSize) inputYearFontSize.enabled = en; } catch (_) { }
-            try { if (stFSYear) stFSYear.enabled = en; } catch (_) { }
+            try { en = !!(chkTopYear && chkTopYear.enabled); } catch (e) { }
+            try { if (inputYearFontSize) inputYearFontSize.enabled = en; } catch (e) { }
+            try { if (stFSYear) stFSYear.enabled = en; } catch (e) { }
         }
 
         rbPreset1.onClick = function () { applyMonthPreset(1, 1); };
@@ -1214,7 +1214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         chkTopYear.value = false;      // 12ヶ月のときだけONにする
         chkTopYear.enabled = false;    // 12ヶ月以外は触れない
         chkTopYear.onClick = function () {
-            try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
+            try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
             schedulePreviewRefresh(true);
         };
 
@@ -1228,14 +1228,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gYearMargin.add("statictext", undefined, unitLabel);
         inputTopYearBottomMargin.onChanging = schedulePreviewRefresh;
 
-        try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
+        try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
         /* 選択中の曜日表記モードを返す / Return the selected weekday-label mode */
         function getWeekdayLabelMode() {
             // "jp" | "mtw" | "mon"
             try {
                 if (rbWdMon && rbWdMon.value) return "mon";
                 if (rbWdMTW && rbWdMTW.value) return "mtw";
-            } catch (_) { }
+            } catch (e) { }
             return "jp";
         }
 
@@ -1246,7 +1246,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (rbMonthEnS && rbMonthEnS.value) return "ens";
                 if (rbMonthEn && rbMonthEn.value) return "en";
                 if (rbMonthNum && rbMonthNum.value) return "num";
-            } catch (_) { }
+            } catch (e) { }
             return "pad"; // default
         }
 
@@ -1278,7 +1278,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCount.add("statictext", undefined, getLabel("layout.months"));
         var inputMonths = gCount.add("edittext", undefined, "1");
         inputMonths.characters = 3;
-        try { rbPreset1.value = true; } catch (_) { }
+        try { rbPreset1.value = true; } catch (e) { }
         gCount.add("statictext", undefined, getLabel("layout.cols"));
         var inputCols = gCount.add("edittext", undefined, "1");
         inputCols.characters = 3;
@@ -1324,9 +1324,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (!slider || !st || typeof applyFn !== "function") return;
 
                 var ks = null;
-                try { ks = ScriptUI.environment.keyboardState; } catch (_) { ks = null; }
+                try { ks = ScriptUI.environment.keyboardState; } catch (e) { ks = null; }
                 var alt = false;
-                try { alt = !!(ks && ks.altKey); } catch (_) { alt = false; }
+                try { alt = !!(ks && ks.altKey); } catch (e) { alt = false; }
 
                 var raw = Number(slider.value);
                 if (isNaN(raw)) raw = 0;
@@ -1342,14 +1342,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     var eff = Number(st.eff) + d * 0.1;
                     st.raw = raw;
                     st.eff = eff;
-                    try { slider.value = eff; } catch (_) { }
+                    try { slider.value = eff; } catch (e) { }
                     applyFn(eff);
                 } else {
                     st.raw = raw;
                     st.eff = raw;
                     applyFn(raw);
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // ===== 画面表示（ズーム） =====
@@ -1363,14 +1363,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gZoom.alignChildren = ["left", "center"];
 
         var stZoom = gZoom.add("statictext", undefined, getLabel("common.zoom"));
-        try { stZoom.preferredSize.width = 58; } catch (_) { }
+        try { stZoom.preferredSize.width = 58; } catch (e) { }
 
         var __initZoomPct = 100;
-        try { if (__SCM_ORG_ZOOM != null) __initZoomPct = Math.round(Number(__SCM_ORG_ZOOM) * 100); } catch (_) { }
+        try { if (__SCM_ORG_ZOOM != null) __initZoomPct = Math.round(Number(__SCM_ORG_ZOOM) * 100); } catch (e) { }
         if (!__initZoomPct || __initZoomPct < 10) __initZoomPct = 100;
 
         var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
-        try { sldZoom.preferredSize.width = 180; } catch (_) { }
+        try { sldZoom.preferredSize.width = 180; } catch (e) { }
 
         var __stZoom = { raw: null, eff: null };
         sldZoom.onChanging = function () {
@@ -1385,11 +1385,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gPanX.alignChildren = ["left", "center"];
 
         var stPanX = gPanX.add("statictext", undefined, getLabel("common.lr"));
-        try { stPanX.preferredSize.width = 58; } catch (_) { }
+        try { stPanX.preferredSize.width = 58; } catch (e) { }
 
         var __panRange = __SCM_getPanRangePt();
         var sldPanX = gPanX.add("slider", undefined, 0, -__panRange.xMax, __panRange.xMax);
-        try { sldPanX.preferredSize.width = 180; } catch (_) { }
+        try { sldPanX.preferredSize.width = 180; } catch (e) { }
 
         var __stPanX = { raw: null, eff: null };
         sldPanX.onChanging = function () {
@@ -1404,10 +1404,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gPanY.alignChildren = ["left", "center"];
 
         var stPanY = gPanY.add("statictext", undefined, getLabel("common.ud"));
-        try { stPanY.preferredSize.width = 58; } catch (_) { }
+        try { stPanY.preferredSize.width = 58; } catch (e) { }
 
         var sldPanY = gPanY.add("slider", undefined, 0, -__panRange.yMax, __panRange.yMax);
-        try { sldPanY.preferredSize.width = 180; } catch (_) { }
+        try { sldPanY.preferredSize.width = 180; } catch (e) { }
 
         var __stPanY = { raw: null, eff: null };
         sldPanY.onChanging = function () {
@@ -1444,7 +1444,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             if (typeof inputFontSize !== "undefined" && inputFontSize) {
                 __fs0 = Number(inputFontSize.text);
             }
-        } catch (_) { }
+        } catch (e) { }
         if (!__fs0 || __fs0 <= 0) __fs0 = 12;
         var __defaultCellW_pt = Math.round(__fs0 * 1.5);
         var __defaultCellW = Math.round(ptToUnitValue(__defaultCellW_pt));
@@ -1659,7 +1659,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         inputYearFontSize.onChanging = schedulePreviewRefresh;
         changeValueByArrowKey(inputYearFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
 
-        try { __SCM_syncYearPanelDimToFontSize(); } catch (_) { }
+        try { __SCM_syncYearPanelDimToFontSize(); } catch (e) { }
 
         // フォント（インストール済み）選択
         var gFontName = pnlFormat.add("group");
@@ -1687,7 +1687,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         ddFavFont.minimumSize = [80, 22];
         ddFavFont.preferredSize = [180, 22];
         ddFavFont.maximumSize = [180, 22];
-        try { ddFavFont.selection = 0; } catch (_) { }
+        try { ddFavFont.selection = 0; } catch (e) { }
 
         // フォント／お気に入りのラベル幅を一定に揃える（プルダウン左端を合わせる）/ Fix font & favorites label widths so the dropdowns align
         var __FONT_LABEL_W = 80;
@@ -1726,17 +1726,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                         var fam = f.family || "";
                         var sty = f.style || "";
                         disp = (fam + " " + sty).replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
-                    } catch (_) { }
+                    } catch (e) { }
 
                     if (disp && wantSet[disp]) {
-                        try { map[disp] = f.name; } catch (_) { }
+                        try { map[disp] = f.name; } catch (e) { }
                     }
                 }
 
                 cache.favFontMap = map;
                 cache.favFontMapBuilt = true;
                 return map;
-            } catch (_) { }
+            } catch (e) { }
             return {};
         }
 
@@ -1751,7 +1751,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
                 // フォールバック：一致が無い場合は label をそのまま name として扱う
                 return want;
-            } catch (_) { }
+            } catch (e) { }
             return null;
         }
 
@@ -1781,10 +1781,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                         if (rbWdMTW) rbWdMTW.value = true;
                         if (rbWdJP) rbWdJP.value = false;
                         if (rbWdMon) rbWdMon.value = false;
-                    } catch (_) { }
+                    } catch (e) { }
                     schedulePreviewRefresh(true);
                 }
-            } catch (_) { }
+            } catch (e) { }
         };
 
         // ===== フォント一覧（キャッシュ対応）=====
@@ -1805,7 +1805,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (!s) return null;
                 var arr = s.split("\n");
                 return (arr && arr.length) ? arr : null;
-            } catch (_) { }
+            } catch (e) { }
             return null;
         }
 
@@ -1816,7 +1816,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 // key 0 の string として保存
                 desc.putString(0, arr.join("\n"));
                 app.putCustomOptions(__FONT_CACHE_KEY, desc);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // engine キャッシュが無い場合は custom options も見る
@@ -1840,16 +1840,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
                 bar.preferredSize = [260, 14];
 
-                try { w.show(); } catch (_) { }
+                try { w.show(); } catch (e) { }
 
                 return {
                     win: w,
                     msg: msg,
                     bar: bar,
-                    setText: function (t) { try { msg.text = t; w.update(); } catch (_) { } },
-                    setValue: function (v) { try { bar.value = v; w.update(); } catch (_) { } },
-                    setMax: function (m) { try { bar.maxvalue = m; w.update(); } catch (_) { } },
-                    close: function () { try { w.close(); } catch (_) { } }
+                    setText: function (t) { try { msg.text = t; w.update(); } catch (e) { } },
+                    setValue: function (v) { try { bar.value = v; w.update(); } catch (e) { } },
+                    setMax: function (m) { try { bar.maxvalue = m; w.update(); } catch (e) { } },
+                    close: function () { try { w.close(); } catch (e) { } }
                 };
             }
 
@@ -1860,19 +1860,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             try {
                 var __len = app.textFonts.length;
                 for (var fi = 0; fi < __len; fi++) {
-                    try { fontNames.push(app.textFonts[fi].name); } catch (_) { }
+                    try { fontNames.push(app.textFonts[fi].name); } catch (e) { }
                     // 進捗更新（描画負荷を下げるため間引き）
                     if ((fi % 50) === 0) {
                         try {
                             __loading.setMax(__len);
                             __loading.setValue(fi);
                             __loading.setText(getLabel("loading.fontsRead") + " (" + fi + "/" + __len + ")");
-                        } catch (_) { }
+                        } catch (e) { }
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
-            try { fontNames.sort(); } catch (_) { }
+            try { fontNames.sort(); } catch (e) { }
 
             // キャッシュに保存（両方）
             __SCM_CACHE.fontNames = fontNames;
@@ -1883,7 +1883,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 __loading.setMax((fontNames && fontNames.length) ? fontNames.length : 100);
                 __loading.setValue((fontNames && fontNames.length) ? fontNames.length : 100);
                 __loading.setText(getLabel("loading.ready"));
-            } catch (_) { }
+            } catch (e) { }
             __loading.close();
         }
 
@@ -1902,21 +1902,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                         var msg = w.add("statictext", undefined, initialText || getLabel("loading.text"));
                         var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
                         bar.preferredSize = [260, 14];
-                        try { w.show(); } catch (_) { }
+                        try { w.show(); } catch (e) { }
                         return {
                             win: w,
                             msg: msg,
                             bar: bar,
-                            setText: function (t) { try { msg.text = t; w.update(); } catch (_) { } },
-                            setValue: function (v) { try { bar.value = v; w.update(); } catch (_) { } },
-                            setMax: function (m) { try { bar.maxvalue = m; w.update(); } catch (_) { } },
-                            close: function () { try { w.close(); } catch (_) { } }
+                            setText: function (t) { try { msg.text = t; w.update(); } catch (e) { } },
+                            setValue: function (v) { try { bar.value = v; w.update(); } catch (e) { } },
+                            setMax: function (m) { try { bar.maxvalue = m; w.update(); } catch (e) { } },
+                            close: function () { try { w.close(); } catch (e) { } }
                         };
                     };
                 }
                 __ddLoading = __createLoadingPalette(getLabel("loading.title"), getLabel("loading.fontsSet"), fontNames.length);
             }
-        } catch (_) { }
+        } catch (e) { }
 
         for (var iFont = 0; iFont < fontNames.length; iFont++) {
             ddFont.add("item", fontNames[iFont]);
@@ -1924,7 +1924,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 try {
                     __ddLoading.setValue(iFont);
                     __ddLoading.setText(getLabel("loading.fontsSet") + " (" + iFont + "/" + fontNames.length + ")");
-                } catch (_) { }
+                } catch (e) { }
             }
         }
 
@@ -1932,7 +1932,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             try {
                 __ddLoading.setValue(fontNames.length);
                 __ddLoading.setText(getLabel("loading.ready"));
-            } catch (_) { }
+            } catch (e) { }
             __ddLoading.close();
         }
 
@@ -1992,7 +1992,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             try {
                 __PREVIEW_TASK_ID = null;
                 refreshPreview();
-            } catch (_) { }
+            } catch (e) { }
         };
 
         /* プレビュー更新をデバウンスして予約 / Schedule a debounced preview refresh */
@@ -2000,12 +2000,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             // immediate===true のときは遅延なしで1回だけ実行
             try {
                 if (__PREVIEW_TASK_ID) {
-                    try { app.cancelTask(__PREVIEW_TASK_ID); } catch (_) { }
+                    try { app.cancelTask(__PREVIEW_TASK_ID); } catch (e) { }
                     __PREVIEW_TASK_ID = null;
                 }
                 var delay = (immediate === true) ? 0 : __PREVIEW_DELAY_MS;
                 __PREVIEW_TASK_ID = app.scheduleTask('$.global.__SCM_doRefreshPreview()', delay, false);
-            } catch (_) {
+            } catch (e) {
                 // scheduleTask が使えない/失敗した環境では従来通り即時更新
                 try { refreshPreview(); } catch (__e) { }
             }
@@ -2018,7 +2018,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 for (var k in map) {
                     if (map.hasOwnProperty(k) && map[k] && map[k].value) return k;
                 }
-            } catch (_) { }
+            } catch (e) { }
             return null;
         }
 
@@ -2029,12 +2029,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     if (!map.hasOwnProperty(k) || !map[k]) continue;
                     map[k].value = (k === key);
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /* ドロップダウンの選択テキストを返す / Return the selected text of a dropdown */
         function __SCM_getDropdownText(dd) {
-            try { return (dd && dd.selection) ? (dd.selection.text || "") : ""; } catch (_) { }
+            try { return (dd && dd.selection) ? (dd.selection.text || "") : ""; } catch (e) { }
             return "";
         }
 
@@ -2046,7 +2046,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 for (var i = 0; i < dd.items.length; i++) {
                     if (dd.items[i].text === t) { dd.selection = i; return true; }
                 }
-            } catch (_) { }
+            } catch (e) { }
             return false;
         }
 
@@ -2110,8 +2110,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         function __SCM_applyPreset(obj) {
             if (!obj) return;
 
-            function setTextSafe(et, v) { try { if (et && v != null) et.text = String(v); } catch (_) { } }
-            function setCheckSafe(chk, v) { try { if (chk && v != null) chk.value = !!v; } catch (_) { } }
+            function setTextSafe(et, v) { try { if (et && v != null) et.text = String(v); } catch (e) { } }
+            function setCheckSafe(chk, v) { try { if (chk && v != null) chk.value = !!v; } catch (e) { } }
 
             // date
             setTextSafe(inputY, obj.y);
@@ -2126,7 +2126,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             // year
             setCheckSafe(chkTopYear, obj.showTopYear);
             setTextSafe(inputTopYearBottomMargin, obj.topYearBottomMargin);
-            try { gYearMargin.enabled = !!(chkTopYear && chkTopYear.value); } catch (_) { }
+            try { gYearMargin.enabled = !!(chkTopYear && chkTopYear.value); } catch (e) { }
 
             // month
             setCheckSafe(chkMonthYear, obj.includeYearInMonthTitle);
@@ -2161,16 +2161,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             setCheckSafe(chkHolidayRed, obj.holidayRed);
 
             // dropdowns
-            try { if (ddFavFont && obj.favFont != null) __SCM_setDropdownByText(ddFavFont, obj.favFont); } catch (_) { }
-            try { if (ddFont && obj.fontName != null) __SCM_setDropdownByText(ddFont, obj.fontName); } catch (_) { }
+            try { if (ddFavFont && obj.favFont != null) __SCM_setDropdownByText(ddFavFont, obj.favFont); } catch (e) { }
+            try { if (ddFont && obj.fontName != null) __SCM_setDropdownByText(ddFont, obj.fontName); } catch (e) { }
 
             // enable sync
             try {
                 var mc = Math.round(Number(inputMonths.text));
                 pnlMonthOuter.enabled = (mc !== 1);
-            } catch (_) { }
+            } catch (e) { }
 
-            try { schedulePreviewRefresh(true); } catch (_) { }
+            try { schedulePreviewRefresh(true); } catch (e) { }
         }
 
         /* プリセットを保存用テキスト(JS/JSON)へ変換 / Convert a preset to savable text (JS/JSON) */
@@ -2182,7 +2182,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     var json = JSON.stringify(obj, null, 2);
                     return "// SmartCalendarMaker preset\n// " + SCRIPT_VERSION + "\n(" + json + ")\n";
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // JSON が無い/使えない環境向け（ExtendScript）
             try {
@@ -2193,7 +2193,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     if (!/^\s*\(.*\)\s*$/.test(src)) src = "(" + src + ")";
                     return "// SmartCalendarMaker preset\n// " + SCRIPT_VERSION + "\n" + src + "\n";
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // 最終フォールバック：空オブジェクト
             return "// SmartCalendarMaker preset\n// " + SCRIPT_VERSION + "\n({})\n";
@@ -2209,7 +2209,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (typeof JSON !== "undefined" && JSON && typeof JSON.parse === "function") {
                     return JSON.parse(s);
                 }
-            } catch (_) { }
+            } catch (e) { }
             try {
                 // allow files saved as: ( { ... } ) or ({...}) or just {...}
                 var body = s;
@@ -2240,7 +2240,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 var nameLower = String(f.name || "").toLowerCase();
                 if (!/\.(jsxpreset|json)$/i.test(nameLower)) {
                     // default extension
-                    try { f = new File(f.fsName + ".jsxpreset"); } catch (_) { }
+                    try { f = new File(f.fsName + ".jsxpreset"); } catch (e) { }
                     nameLower = String(f.name || "").toLowerCase();
                 }
 
@@ -2281,11 +2281,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     var label = "";
                     try {
                         label = f.displayName || f.name || "";
-                    } catch (_) { }
+                    } catch (e) { }
                     label = String(label || "");
                     label = label.replace(/\.(json|jsxpreset)$/i, "");
                     if (label) __SCM_addPresetToDropdown(label, obj);
-                } catch (_) { }
+                } catch (e) { }
 
                 __SCM_applyPreset(obj);
                 alert(getLabel("preset.loaded"));
@@ -2307,13 +2307,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (__mc > 24) __mc = 24;
                 pnlMonthOuter.enabled = (__mc !== 1);
                 // レイアウトの月数/列数は 1ヶ月 のときディム
-                try { gCount.enabled = (__mc !== 1); } catch (_) { }
+                try { gCount.enabled = (__mc !== 1); } catch (e) { }
                 // ゴーストは 1ヶ月 のときだけ有効
                 try {
                     chkGhost.enabled = (__mc === 1);
                     if (__mc !== 1) chkGhost.value = false;
-                } catch (_) { }
-            } catch (_) { }
+                } catch (e) { }
+            } catch (e) { }
 
             if (!previewChk.value) return;
 
@@ -2352,16 +2352,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 chkTopYear.enabled = isP12;
                 __SCM_syncYearPanelDimToFontSize();
 
-                try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
+                try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
 
                 // 12ヶ月 プリセット時は「1月から」を強制
                 if (isP12) {
                     rbStartJan.value = true;
                     rbStartCurrent.value = false;
                     // 12ヶ月のときは月タイトルの「年を併記」をOFF
-                    try { chkMonthYear.value = false; } catch (_) { }
+                    try { chkMonthYear.value = false; } catch (e) { }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             var fontSize = Number(inputFontSize.text);
             if (!fontSize || fontSize <= 0) return;
@@ -2440,10 +2440,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             if (outerMarginY > 5000) outerMarginY = 5000;
 
             var startFromJanuary = false;
-            try { startFromJanuary = (rbStartJan && rbStartJan.value) ? true : false; } catch (_) { }
+            try { startFromJanuary = (rbStartJan && rbStartJan.value) ? true : false; } catch (e) { }
 
             var weekStartMonday = true;
-            try { weekStartMonday = (rbWeekSun && rbWeekSun.value) ? false : true; } catch (_) { }
+            try { weekStartMonday = (rbWeekSun && rbWeekSun.value) ? false : true; } catch (e) { }
 
             var weekdayLabelMode = getWeekdayLabelMode();
             try {
@@ -2500,7 +2500,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 };
                 buildCalendarOpt(doc, baseDate, PREVIEW_LAYER_NAME, options);
             } catch (e) {
-                try { removeLayerIfExists(doc, PREVIEW_LAYER_NAME); } catch (_) { }
+                try { removeLayerIfExists(doc, PREVIEW_LAYER_NAME); } catch (e) { }
                 alert("Preview error:\n\n" + e);
                 return;
             }
@@ -2631,7 +2631,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
             // プレビューONで既に描画済みなら、それをそのまま確定（再描画しない）
             var __existingPreview = null;
-            try { __existingPreview = getLayerByName(doc, PREVIEW_LAYER_NAME); } catch (_) { }
+            try { __existingPreview = getLayerByName(doc, PREVIEW_LAYER_NAME); } catch (e) { }
             var __finalName = "Calendar_" + baseDate.getFullYear() + "_" + pad2(baseDate.getMonth() + 1);
             try {
                 if (previewChk && previewChk.value && __existingPreview && __existingPreview.pageItems && __existingPreview.pageItems.length > 0) {
@@ -2640,7 +2640,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     dlg.close(1);
                     return;
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // プレビューOFFや未描画の場合は、ここで確定生成
             clearLayerContents(doc, PREVIEW_LAYER_NAME);
@@ -2707,10 +2707,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             if (outerMarginY > 5000) outerMarginY = 5000;
 
             var startFromJanuary = false;
-            try { startFromJanuary = (rbStartJan && rbStartJan.value) ? true : false; } catch (_) { }
+            try { startFromJanuary = (rbStartJan && rbStartJan.value) ? true : false; } catch (e) { }
 
             var weekStartMonday = true;
-            try { weekStartMonday = (rbWeekSun && rbWeekSun.value) ? false : true; } catch (_) { }
+            try { weekStartMonday = (rbWeekSun && rbWeekSun.value) ? false : true; } catch (e) { }
 
             var weekdayLabelMode = getWeekdayLabelMode();
 
@@ -2792,7 +2792,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     __SCM_VIEW.centerPoint = __SCM_ORG_CENTER;
                     app.redraw();
                 }
-            } catch (_) { }
+            } catch (e) { }
             removeLayerIfExists(doc, PREVIEW_LAYER_NAME);
             app.redraw();
             dlg.close(0);
@@ -2949,7 +2949,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 __K10.magenta = 0;
                 __K10.yellow = 0;
                 __K10.black = 10; // K10
-            } catch (_) { __K10 = null; }
+            } catch (e) { __K10 = null; }
 
             // ===== ゴースト文字色: K30 =====
             var __K30 = null;
@@ -2959,7 +2959,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 __K30.magenta = 0;
                 __K30.yellow = 0;
                 __K30.black = 30; // K30
-            } catch (_) { __K30 = null; }
+            } catch (e) { __K30 = null; }
 
             monthCount = Math.round(Number(monthCount));
             if (!monthCount || monthCount < 1) monthCount = 1;
@@ -3058,7 +3058,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 try {
                     monthGroup = layer.groupItems.add();
                     monthGroup.name = "Month_" + info.year + "_" + pad2(info.month0 + 1);
-                } catch (_) { monthGroup = null; }
+                } catch (e) { monthGroup = null; }
 
                 var colI = bi % colCount;
                 var rowI = Math.floor(bi / colCount);
@@ -3095,7 +3095,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                         var pm0 = info.month0 - 1;
                         if (pm0 < 0) { pm0 = 11; py--; }
                         prevDaysInMonth = (new Date(py, pm0 + 1, 0)).getDate();
-                    } catch (_) { prevDaysInMonth = 0; }
+                    } catch (e) { prevDaysInMonth = 0; }
                 }
 
                 for (var idx = 0; idx < totalCells; idx++) {
@@ -3146,9 +3146,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                             __cellRect.filled = true;
                             __cellRect.fillColor = __K10;
                             if (monthGroup) {
-                                try { __cellRect.move(monthGroup, ElementPlacement.PLACEATBEGINNING); } catch (_) { }
+                                try { __cellRect.move(monthGroup, ElementPlacement.PLACEATBEGINNING); } catch (e) { }
                             }
-                        } catch (_) { }
+                        } catch (e) { }
                     }
 
                     // 日曜の赤は当月のみ（ゴーストはK30で上書き）
@@ -3165,7 +3165,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                             try {
                                 __strokeC = new CMYKColor();
                                 __strokeC.cyan = 0; __strokeC.magenta = 0; __strokeC.yellow = 0; __strokeC.black = 100; // K100
-                            } catch (_) { __strokeC = null; }
+                            } catch (e) { __strokeC = null; }
 
                             function __drawLine(x1, y1, x2, y2) {
                                 var ln = layer.pathItems.add();
@@ -3175,7 +3175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                                 if (__strokeC) ln.strokeColor = __strokeC;
                                 ln.setEntirePath([[x1, y1], [x2, y2]]);
                                 if (monthGroup) {
-                                    try { ln.move(monthGroup, ElementPlacement.PLACEATEND); } catch (_) { }
+                                    try { ln.move(monthGroup, ElementPlacement.PLACEATEND); } catch (e) { }
                                 }
                                 return ln;
                             }
@@ -3192,7 +3192,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                                 if (strokeLeft) __drawLine(__xL, __cellBotY, __xL, __cellTopY);
                                 if (strokeRight) __drawLine(__xR, __cellBotY, __xR, __cellTopY);
                             }
-                        } catch (_) { }
+                        } catch (e) { }
                     }
 
                     // 祝日（当月のみ）
@@ -3206,18 +3206,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                                 oc.green = 140;
                                 oc.blue = 0; // orange
                                 tf.textRange.characterAttributes.fillColor = oc;
-                            } catch (_) { }
+                            } catch (e) { }
                         }
                     }
 
                     // ゴースト文字色（K30）
                     if (isGhostDay && __K30 && tf) {
-                        try { tf.textRange.characterAttributes.fillColor = __K30; } catch (_) { }
+                        try { tf.textRange.characterAttributes.fillColor = __K30; } catch (e) { }
                     }
 
                     // 前後関係を最終確定（背景→最背面、テキスト→最前面）
-                    try { if (__cellRect) __cellRect.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
-                    try { if (tf) tf.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
+                    try { if (__cellRect) __cellRect.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
+                    try { if (tf) tf.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (e) { }
                 }
             }
         }
@@ -3234,11 +3234,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 var c = new RGBColor();
                 c.red = 0; c.green = 0; c.blue = 0;
                 p.strokeColor = c;
-            } catch (_) { }
+            } catch (e) { }
 
             // 生成後にグループへ移動
             if (parentGroup) {
-                try { p.move(parentGroup, ElementPlacement.PLACEATEND); } catch (_) { }
+                try { p.move(parentGroup, ElementPlacement.PLACEATEND); } catch (e) { }
             }
             return p;
         }
@@ -3260,7 +3260,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             if (fontName) {
                 try {
                     tf.textRange.characterAttributes.textFont = app.textFonts.getByName(fontName);
-                } catch (_) { }
+                } catch (e) { }
             }
 
             // 日曜日カラー（赤）
@@ -3269,7 +3269,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     var rc = new RGBColor();
                     rc.red = 255; rc.green = 0; rc.blue = 0;
                     tf.textRange.characterAttributes.fillColor = rc;
-                } catch (_) { }
+                } catch (e) { }
             }
 
             if (alignMode === "right") tf.textRange.justification = Justification.RIGHT;
@@ -3278,7 +3278,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
             // 生成後にグループへ移動
             if (parentGroup) {
-                try { tf.move(parentGroup, ElementPlacement.PLACEATEND); } catch (_) { }
+                try { tf.move(parentGroup, ElementPlacement.PLACEATEND); } catch (e) { }
             }
             return tf;
         }
@@ -3333,13 +3333,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
                 // レイヤーごと削除（中身を1つずつ消すより高速な場合が多い）
                 lyr.remove();
-            } catch (_) { }
+            } catch (e) { }
 
             try {
                 // 同名レイヤーを再作成
                 var newLyr = doc.layers.add();
                 newLyr.name = name;
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /* 同名レイヤーがあれば削除 / Remove a layer if it exists */

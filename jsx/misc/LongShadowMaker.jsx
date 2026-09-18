@@ -158,7 +158,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         try {
             if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
             if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
-        } catch (_) { }
+        } catch (e) { }
         return key;
     }
 
@@ -189,7 +189,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 var arr = [];
                 try {
                     for (var i = 0; i < it.pathItems.length; i++) arr.push(it.pathItems[i]);
-                } catch (_) { }
+                } catch (e) { }
                 return arr;
             }
 
@@ -200,7 +200,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 function collectFrom(container) {
                     if (!container) return;
                     var items = null;
-                    try { items = container.pageItems; } catch (_) { items = null; }
+                    try { items = container.pageItems; } catch (e) { items = null; }
                     if (!items) return;
 
                     for (var j = 0; j < items.length; j++) {
@@ -212,7 +212,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                         } else if (child.typename === "CompoundPathItem") {
                             try {
                                 for (var k = 0; k < child.pathItems.length; k++) out.push(child.pathItems[k]);
-                            } catch (_) { }
+                            } catch (e) { }
                         } else if (child.typename === "GroupItem") {
                             collectFrom(child);
                         }
@@ -231,7 +231,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             for (var i = 0; i < subPaths.length; i++) {
                 try {
                     if (!subPaths[i].closed) return false;
-                } catch (_) {
+                } catch (e) {
                     return false;
                 }
             }
@@ -251,16 +251,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
         function tagTempBaseDeep(it) {
             if (!it) return;
-            try { it.name = TEMP_BASE_NAME; } catch (_) { }
+            try { it.name = TEMP_BASE_NAME; } catch (e) { }
             try {
                 if (it.typename === 'GroupItem') {
                     for (var i = 0; i < it.pageItems.length; i++) tagTempBaseDeep(it.pageItems[i]);
                 } else if (it.typename === 'CompoundPathItem') {
                     for (var j = 0; j < it.pathItems.length; j++) {
-                        try { it.pathItems[j].name = TEMP_BASE_NAME; } catch (_) { }
+                        try { it.pathItems[j].name = TEMP_BASE_NAME; } catch (e) { }
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function removeAllTempBasesByName() {
@@ -273,61 +273,61 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                             var lyr = layers[i];
                             if (!lyr) continue;
                             var nm = '';
-                            try { nm = lyr.name; } catch (_) { nm = ''; }
+                            try { nm = lyr.name; } catch (e) { nm = ''; }
                             if (nm === TEMP_BASE_NAME) {
                                 // unlock/visible before remove
-                                try { lyr.locked = false; } catch (_) { }
-                                try { lyr.visible = true; } catch (_) { }
-                                try { lyr.remove(); } catch (_) { }
+                                try { lyr.locked = false; } catch (e) { }
+                                try { lyr.visible = true; } catch (e) { }
+                                try { lyr.remove(); } catch (e) { }
                             }
-                        } catch (_) { }
+                        } catch (e) { }
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
             function unlockChain(it) {
                 try {
                     // unlock self
-                    try { it.locked = false; } catch (_) { }
-                    try { it.hidden = false; } catch (_) { }
+                    try { it.locked = false; } catch (e) { }
+                    try { it.hidden = false; } catch (e) { }
 
                     // unlock parent chain (GroupItem/Layer)
                     var p = null;
-                    try { p = it.parent; } catch (_) { p = null; }
+                    try { p = it.parent; } catch (e) { p = null; }
                     var guard = 0;
                     while (p && guard++ < 50) {
                         try {
                             if (p.typename === 'Layer') {
-                                try { p.locked = false; } catch (_) { }
-                                try { p.visible = true; } catch (_) { }
+                                try { p.locked = false; } catch (e) { }
+                                try { p.visible = true; } catch (e) { }
                                 break;
                             }
                             if (p.typename === 'GroupItem') {
-                                try { p.locked = false; } catch (_) { }
-                                try { p.hidden = false; } catch (_) { }
+                                try { p.locked = false; } catch (e) { }
+                                try { p.hidden = false; } catch (e) { }
                             }
-                            try { p = p.parent; } catch (_) { p = null; }
-                        } catch (_) {
+                            try { p = p.parent; } catch (e) { p = null; }
+                        } catch (e) {
                             break;
                         }
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
 
             function forceRemove(it) {
-                try { if (!it || !it.isValid) return; } catch (_) { return; }
+                try { if (!it || !it.isValid) return; } catch (e) { return; }
                 // first: unlock chain
-                try { unlockChain(it); } catch (_) { }
+                try { unlockChain(it); } catch (e) { }
                 // try direct remove
-                try { it.remove(); return; } catch (_) { }
+                try { it.remove(); return; } catch (e) { }
                 // fallback: select + clear
                 try {
                     doc.selection = null;
                     it.selected = true;
                     app.executeMenuCommand('clear');
-                } catch (_) { }
-                try { doc.selection = null; } catch (_) { }
+                } catch (e) { }
+                try { doc.selection = null; } catch (e) { }
                 // last try
-                try { if (it && it.isValid) it.remove(); } catch (_) { }
+                try { if (it && it.isValid) it.remove(); } catch (e) { }
             }
 
             try {
@@ -338,13 +338,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                         var g = gi[i];
                         if (!g || !g.isValid) continue;
                         var nm = '';
-                        try { nm = g.name; } catch (_) { nm = ''; }
+                        try { nm = g.name; } catch (e) { nm = ''; }
                         if (nm === TEMP_BASE_NAME) {
                             forceRemove(g);
                         }
-                    } catch (_) { }
+                    } catch (e) { }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // Also sweep remaining pageItems (covers non-group leftovers)
             try {
@@ -354,13 +354,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                         var it = items[j];
                         if (!it || !it.isValid) continue;
                         var nm2 = '';
-                        try { nm2 = it.name; } catch (_) { nm2 = ''; }
+                        try { nm2 = it.name; } catch (e) { nm2 = ''; }
                         if (nm2 === TEMP_BASE_NAME) {
                             forceRemove(it);
                         }
-                    } catch (_) { }
+                    } catch (e) { }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // Path/Compound はここで閉パス検証。Group/Text は実行時に一時パスへ変換して検証する。
@@ -391,24 +391,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             var trash = []; // 一時生成物を全部ここに入れて最後に削除する
 
             res.cleanup = function () {
-                try { doc.selection = null; } catch (_) { }
+                try { doc.selection = null; } catch (e) { }
                 try {
                     for (var ti = trash.length - 1; ti >= 0; ti--) {
                         try {
                             var it = trash[ti];
                             if (it && it.isValid) it.remove();
-                        } catch (_) { }
+                        } catch (e) { }
                     }
-                } catch (_) { }
+                } catch (e) { }
 
                 // 念のため
-                try { if (merged && merged.isValid) merged.remove(); } catch (_) { }
-                try { if (tempDup && tempDup.isValid) tempDup.remove(); } catch (_) { }
+                try { if (merged && merged.isValid) merged.remove(); } catch (e) { }
+                try { if (tempDup && tempDup.isValid) tempDup.remove(); } catch (e) { }
             };
 
             try {
                 tempDup = groupItem.duplicate();
-                try { trash.push(tempDup); } catch (_) { }
+                try { trash.push(tempDup); } catch (e) { }
 
                 // duplicate を選択して PathFinder → Expand
                 doc.selection = null;
@@ -421,7 +421,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     if (items && items.length) {
                         for (var t0 = 0; t0 < items.length; t0++) trash.push(items[t0]);
                     }
-                } catch (_) { }
+                } catch (e) { }
 
                 if (!items || items.length === 0) {
                     res.message = getLabel('cannotGetMergedFromGroup');
@@ -433,9 +433,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 } else {
                     // 複数残った場合は一度グループ化して再合体
                     var g = doc.groupItems.add();
-                    try { trash.push(g); } catch (_) { }
+                    try { trash.push(g); } catch (e) { }
                     for (var i = 0; i < items.length; i++) {
-                        try { items[i].move(g, ElementPlacement.PLACEATEND); } catch (_) { }
+                        try { items[i].move(g, ElementPlacement.PLACEATEND); } catch (e) { }
                     }
                     doc.selection = null;
                     g.selected = true;
@@ -447,7 +447,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                         if (items2 && items2.length) {
                             for (var t1 = 0; t1 < items2.length; t1++) trash.push(items2[t1]);
                         }
-                    } catch (_) { }
+                    } catch (e) { }
 
                     if (items2 && items2.length === 1) {
                         merged = items2[0];
@@ -456,9 +456,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     }
                 }
 
-                try { if (merged) trash.push(merged); } catch (_) { }
+                try { if (merged) trash.push(merged); } catch (e) { }
                 // 一時ベース（②）にタグ付け（子要素まで）
-                try { tagTempBaseDeep(merged); } catch (_) { }
+                try { tagTempBaseDeep(merged); } catch (e) { }
                 res.item = merged;
                 res.ok = true;
                 return res;
@@ -483,23 +483,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             var trash = [];
 
             res.cleanup = function () {
-                try { doc.selection = null; } catch (_) { }
+                try { doc.selection = null; } catch (e) { }
                 try {
                     for (var ti = trash.length - 1; ti >= 0; ti--) {
                         try {
                             var it = trash[ti];
                             if (it && it.isValid) it.remove();
-                        } catch (_) { }
+                        } catch (e) { }
                     }
-                } catch (_) { }
-                try { if (merged && merged.isValid) merged.remove(); } catch (_) { }
-                try { if (tempDup && tempDup.isValid) tempDup.remove(); } catch (_) { }
+                } catch (e) { }
+                try { if (merged && merged.isValid) merged.remove(); } catch (e) { }
+                try { if (tempDup && tempDup.isValid) tempDup.remove(); } catch (e) { }
             };
 
             try {
                 // ① テキストを複製
                 tempDup = textFrame.duplicate();
-                try { trash.push(tempDup); } catch (_) { }
+                try { trash.push(tempDup); } catch (e) { }
 
                 // ② アウトライン化（v15方式：TextFrame#createOutline を使用）
                 // createOutline() は元の TextFrame を削除して GroupItem/CompoundPathItem を返す
@@ -523,15 +523,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 // cleanup 対象は「アウトライン化で生成されたルート」だけにする。
                 // 子要素まで個別に trash に積むと、後段処理で移動・合体された要素を誤って削除して
                 // 生成済みのロングシャドウが消えることがあるため。
-                try { trash.push(outlined); } catch (_) { }
+                try { trash.push(outlined); } catch (e) { }
 
                 // 選択状態が残ると後段の処理に巻き込まれるので解除
-                try { doc.selection = null; } catch (_) { }
-                try { outlined.selected = false; } catch (_) { }
+                try { doc.selection = null; } catch (e) { }
+                try { outlined.selected = false; } catch (e) { }
 
                 merged = outlined;
                 // 一時ベース（②）にタグ付け（子要素まで）
-                try { tagTempBaseDeep(merged); } catch (_) { }
+                try { tagTempBaseDeep(merged); } catch (e) { }
                 res.item = merged;
                 res.ok = true;
                 return res;
@@ -617,9 +617,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         var initialOffset = 0;
         try {
             var bOff = null;
-            try { bOff = originalPath.geometricBounds; } catch (_) { bOff = null; }
+            try { bOff = originalPath.geometricBounds; } catch (e) { bOff = null; }
             if (!bOff) {
-                try { bOff = originalPath.visibleBounds; } catch (_) { bOff = null; }
+                try { bOff = originalPath.visibleBounds; } catch (e) { bOff = null; }
             }
             if (bOff && bOff.length === 4) {
                 var wPtOff = Math.abs(bOff[2] - bOff[0]);
@@ -640,7 +640,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     initialOffset = Math.round(offsetBasePt);
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
 
         var etOff = gOff.add("edittext", undefined, String(initialOffset));
         etOff.characters = 4;
@@ -681,12 +681,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         // オフセットUIの有効/無効（ディム表示）
         function updateOffsetEnabled() {
             var on = !!cbOffsetRow.value;
-            try { etOff.enabled = on; } catch (_) { }
-            try { rbMiter.enabled = on; } catch (_) { }
-            try { rbRound.enabled = on; } catch (_) { }
-            try { rbBevel.enabled = on; } catch (_) { }
-            try { stOffUnit.enabled = on; } catch (_) { }
-            try { pJoin.enabled = on; } catch (_) { }
+            try { etOff.enabled = on; } catch (e) { }
+            try { rbMiter.enabled = on; } catch (e) { }
+            try { rbRound.enabled = on; } catch (e) { }
+            try { rbBevel.enabled = on; } catch (e) { }
+            try { stOffUnit.enabled = on; } catch (e) { }
+            try { pJoin.enabled = on; } catch (e) { }
         }
 
         cbOffsetRow.onClick = function () {
@@ -895,7 +895,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                         v = Math.round(v);
                     }
                     editText.text = String(v);
-                } catch (_) { }
+                } catch (e) { }
                 syncing = false;
 
                 // プレビュー更新（ONの時のみ）
@@ -912,7 +912,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     if (isNaN(v)) v = 0;
                     v = clamp(v, min, max);
                     slider.value = Math.round(v);
-                } catch (_) { }
+                } catch (e) { }
                 syncing = false;
             }
 
@@ -925,7 +925,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             // editText側の変化に追随（既存のonChangingは残しつつ、同期だけ追加）
             var prevOnChanging = editText.onChanging;
             editText.onChanging = function () {
-                try { setSliderFromEdit(); } catch (_) { }
+                try { setSliderFromEdit(); } catch (e) { }
                 if (typeof prevOnChanging === "function") prevOnChanging();
             };
         }
@@ -1035,7 +1035,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         function duplicateMoveScale(item, dx, dy, scalePercent) {
             if (!item) return null;
             var dup = null;
-            try { dup = item.duplicate(); } catch (_) { dup = null; }
+            try { dup = item.duplicate(); } catch (e) { dup = null; }
             if (!dup) return null;
 
             // scale: percent (100 = 等倍)
@@ -1044,12 +1044,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 if (sp !== 100 && dup && typeof dup.resize === 'function') {
                     try { dup.resize(sp, sp, true, true, true, true, true, Transformation.CENTER); }
                     catch (eR1) {
-                        try { dup.resize(sp, sp, true, true, true, true, true); } catch (_) { }
+                        try { dup.resize(sp, sp, true, true, true, true, true); } catch (e) { }
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
-            try { dup.translate(dx, dy); } catch (_) { }
+            try { dup.translate(dx, dy); } catch (e) { }
             return dup;
         }
 
@@ -1078,7 +1078,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                         pts.push(bezierPoint(p0, p1, p2, p3, t));
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             return pts;
         }
@@ -1089,7 +1089,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             if (!item) return out;
 
             function pushIfClosed(p) {
-                try { if (p && p.typename === 'PathItem' && p.closed) out.push(p); } catch (_) { }
+                try { if (p && p.typename === 'PathItem' && p.closed) out.push(p); } catch (e) { }
             }
 
             try {
@@ -1117,7 +1117,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     }
                     return out;
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             return out;
         }
@@ -1140,8 +1140,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     p.filled = true;
                     if (baseFill) p.fillColor = baseFill;
                     created.push(p);
-                } catch (_) {
-                    try { if (p && p.isValid) p.remove(); } catch (_) { }
+                } catch (e) {
+                    try { if (p && p.isValid) p.remove(); } catch (e) { }
                 }
             }
             return created;
@@ -1163,14 +1163,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             // 複製側の閉パス群を抽出
             var dupPaths = collectClosedPathsForBridge(dup);
             if (!dupPaths || dupPaths.length === 0) {
-                try { dup.remove(); } catch (_) { }
+                try { dup.remove(); } catch (e) { }
                 return null;
             }
 
             // ペアリング：数が違う場合は最小数で処理（落とさない優先）
             var pairCount = Math.min(basePaths.length, dupPaths.length);
             if (pairCount === 0) {
-                try { dup.remove(); } catch (_) { }
+                try { dup.remove(); } catch (e) { }
                 return null;
             }
 
@@ -1179,7 +1179,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
             // ベースの塗りを基準に彩度を落とす
             var baseFill = null;
-            try { baseFill = desaturateColorFromFill(basePaths[0].fillColor, 0.7); } catch (_) { baseFill = null; }
+            try { baseFill = desaturateColorFromFill(basePaths[0].fillColor, 0.7); } catch (e) { baseFill = null; }
 
             for (var i = 0; i < pairCount; i++) {
                 var a = basePaths[i];
@@ -1196,7 +1196,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             }
 
             // 複製側（dup）は最終結果には不要
-            try { dup.remove(); } catch (_) { }
+            try { dup.remove(); } catch (e) { }
 
             return g;
         }
@@ -1207,7 +1207,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             try {
                 if (rbRound && rbRound.value) return 0;
                 if (rbBevel && rbBevel.value) return 1;
-            } catch (_) { }
+            } catch (e) { }
             return 2; // マイター
         }
 
@@ -1222,7 +1222,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             for (var i = 0; i < items.length; i++) {
                 try {
                     items[i].move(g, ElementPlacement.PLACEATEND);
-                } catch (_) { }
+                } catch (e) { }
             }
             return g;
         }
@@ -1241,7 +1241,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
             try {
                 cGroup.applyEffect(xml);
-            } catch (_) { }
+            } catch (e) { }
 
             // 角丸（Round）の場合、後処理として Pathfinder Merge を実行
             if (joinCode === 0) {
@@ -1250,7 +1250,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     cGroup.selected = true;
                     app.executeMenuCommand('Live Pathfinder Merge');
                     doc.selection = null;
-                } catch (_) { }
+                } catch (e) { }
             }
         }
 
@@ -1277,7 +1277,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                             }
                             return;
                         }
-                    } catch (_) { }
+                    } catch (e) { }
                 }
 
                 var targets = [];
@@ -1285,17 +1285,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 if (!targets.length) return;
 
                 // Select targets and run Simplify
-                try { doc.selection = null; } catch (_) { }
+                try { doc.selection = null; } catch (e) { }
                 for (var i = 0; i < targets.length; i++) {
-                    try { targets[i].selected = true; } catch (_) { }
+                    try { targets[i].selected = true; } catch (e) { }
                 }
 
                 // NOTE: This menu command opens the Simplify dialog (Illustrator limitation)
-                try { app.executeMenuCommand("simplify menu item"); } catch (_) { }
+                try { app.executeMenuCommand("simplify menu item"); } catch (e) { }
 
                 // clear selection to avoid affecting later operations
-                try { doc.selection = null; } catch (_) { }
-            } catch (_) { }
+                try { doc.selection = null; } catch (e) { }
+            } catch (e) { }
         }
 
         // Scale special-case: treat 1% as 0.01% for ultra-small extrusion
@@ -1326,8 +1326,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             var baseSubPaths = originalSubPaths;
 
             function cleanupTempBaseSafely() {
-                try { baseCleanup(); } catch (_) { }
-                try { removeAllTempBasesByName(); } catch (_) { }
+                try { baseCleanup(); } catch (e) { }
+                try { removeAllTempBasesByName(); } catch (e) { }
             }
 
             if (originalPath.typename === "GroupItem") {
@@ -1372,22 +1372,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 try {
                     pathB = baseItem.duplicate();
                     // scale: percent (100 = 等倍)
-                    try { pathB.resize(scale, scale, true, true, true, true, true, Transformation.CENTER); } catch (_) { }
-                    try { pathB.translate(dx, dy); } catch (_) { }
-                } catch (_) { pathB = null; }
+                    try { pathB.resize(scale, scale, true, true, true, true, true, Transformation.CENTER); } catch (e) { }
+                    try { pathB.translate(dx, dy); } catch (e) { }
+                } catch (e) { pathB = null; }
                 // TextFrame はアウトライン化せず、テキストそのものを複製して表示
                 if (originalPath.typename === "TextFrame") {
                     function makeTextPreviewDup(f, op) {
                         var d = null;
-                        try { d = originalPath.duplicate(); } catch (_) { d = null; }
+                        try { d = originalPath.duplicate(); } catch (e) { d = null; }
                         if (!d) return null;
 
                         // scale interpolation: 100 -> scale
                         var s = 100 + (scale - 100) * f;
-                        try { d.resize(s, s, true, true, true, true, true, Transformation.CENTER); } catch (_) { }
-                        try { d.translate(dx * f, dy * f); } catch (_) { }
-                        try { d.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (_) { }
-                        try { d.opacity = op; } catch (_) { }
+                        try { d.resize(s, s, true, true, true, true, true, Transformation.CENTER); } catch (e) { }
+                        try { d.translate(dx * f, dy * f); } catch (e) { }
+                        try { d.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (e) { }
+                        try { d.opacity = op; } catch (e) { }
                         return d;
                     }
 
@@ -1398,35 +1398,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                     makeTextPreviewDup(0.5, 60);
                     makeTextPreviewDup(0.25, 80);
 
-                    try { doc.selection = null; } catch (_) { }
+                    try { doc.selection = null; } catch (e) { }
                     app.redraw();
                     return;
                 }
 
                 function makePreviewDup(f, op) {
                     var d = null;
-                    try { d = baseItem.duplicate(); } catch (_) { d = null; }
+                    try { d = baseItem.duplicate(); } catch (e) { d = null; }
                     if (!d) return null;
 
                     var s = 100 + (scale - 100) * f;
-                    try { d.resize(s, s, true, true, true, true, true, Transformation.CENTER); } catch (_) { }
-                    try { d.translate(dx * f, dy * f); } catch (_) { }
-                    try { d.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (_) { }
-                    try { d.opacity = op; } catch (_) { }
+                    try { d.resize(s, s, true, true, true, true, true, Transformation.CENTER); } catch (e) { }
+                    try { d.translate(dx * f, dy * f); } catch (e) { }
+                    try { d.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (e) { }
+                    try { d.opacity = op; } catch (e) { }
                     return d;
                 }
 
                 // 中間表示（scale=100%でも表示する）
                 // 生成順：薄い→濃い（手前が見やすい）
-                try { if (pathB) pathB.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (_) { }
-                try { if (pathB) pathB.opacity = 20; } catch (_) { }
+                try { if (pathB) pathB.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (e) { }
+                try { if (pathB) pathB.opacity = 20; } catch (e) { }
 
                 makePreviewDup(0.75, 40);
                 makePreviewDup(0.5, 60);
                 makePreviewDup(0.25, 80);
 
                 // 選択解除
-                try { doc.selection = null; } catch (_) { }
+                try { doc.selection = null; } catch (e) { }
 
                 // Group 由来の一時ベースがある場合は片付け（pathBは残す）
                 cleanupTempBaseSafely();
@@ -1451,12 +1451,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 app.executeMenuCommand('Live Pathfinder Merge');
                 app.executeMenuCommand('Live Pathfinder Add');
                 app.executeMenuCommand('expandStyle');
-            } catch (_) { }
+            } catch (e) { }
 
             // 合体後の選択結果をまとめてグループ化（オフセット適用の受け皿）
             var resultItems = null;
-            try { resultItems = doc.selection; } catch (_) { resultItems = null; }
-            try { doc.selection = null; } catch (_) { }
+            try { resultItems = doc.selection; } catch (e) { resultItems = null; }
+            try { doc.selection = null; } catch (e) { }
             var cGroup = null;
             try {
                 if (resultItems && resultItems.length) {
@@ -1464,10 +1464,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 } else {
                     cGroup = shadowGroup;
                 }
-            } catch (_) { cGroup = shadowGroup; }
+            } catch (e) { cGroup = shadowGroup; }
 
             // パスの単純化（任意）
-            try { simplifyPathsInItem(cGroup); } catch (_) { }
+            try { simplifyPathsInItem(cGroup); } catch (e) { }
 
             // オフセット（ライブ効果）をCグループに適用
             applyOffsetEffectToCGroup(cGroup);
@@ -1480,30 +1480,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 try {
                     shadowItem.move(originalItem, ElementPlacement.PLACEAFTER);
                     return;
-                } catch (_) { }
+                } catch (e) { }
 
                 // TextFrame や特殊な親のとき move が失敗する場合があるので、同一レイヤーへ移して背面側に置く
                 try {
                     var lyr = null;
-                    try { lyr = originalItem.layer; } catch (_) { lyr = null; }
+                    try { lyr = originalItem.layer; } catch (e) { lyr = null; }
                     if (lyr) {
                         // レイヤー先頭（背面側）へ。ドキュメント全体の最背面には送らない。
                         shadowItem.move(lyr, ElementPlacement.PLACEATBEGINNING);
                         return;
                     }
-                } catch (_) { }
+                } catch (e) { }
 
                 // 最後の手段：ドキュメント全体の背面（これで見えなくなるケースもあるため最後に）
-                try { shadowItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+                try { shadowItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
             })(cGroup, originalPath);
 
             // 一時ベース（Group由来など）の後始末
             cleanupTempBaseSafely();
 
             // 最終保険：Pathfinder/expand後に残った一時ベースを完全掃除
-            try { removeAllTempBasesByName(); } catch (_) { }
+            try { removeAllTempBasesByName(); } catch (e) { }
             // 最終保険：一時レイヤー（__LongShadowTempBase__）が残っていれば削除
-            try { removeTempLayerByName(); } catch (_) { }
+            try { removeTempLayerByName(); } catch (e) { }
 
             // 単一パス（PathItem）実行時は、生成したシャドウ（Cグループ）を選択状態にする
             try {
@@ -1511,7 +1511,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 if (originalPath && originalPath.typename === "PathItem" && cGroup && cGroup.isValid) {
                     doc.selection = [cGroup];
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             app.redraw();
             return;
@@ -1556,8 +1556,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             if (isPreviewing) {
                 app.undo();
             }
-            try { removeAllTempBasesByName(); } catch (_) { }
-            try { removeTempLayerByName(); } catch (_) { }
+            try { removeAllTempBasesByName(); } catch (e) { }
+            try { removeTempLayerByName(); } catch (e) { }
             dlg.close();
         };
 

@@ -139,7 +139,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // Safe alert helper (used by __TMKPageCount_ module)
     if (typeof safeAlertKey === "undefined") {
         var safeAlertKey = function (key) {
-            try { alert(getLabel(key)); } catch (_) { }
+            try { alert(getLabel(key)); } catch (e) { }
         };
     }
 
@@ -291,7 +291,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                             if (vb && vb.length === 4) {
                                 placedTemp.position = [vb[0], vb[1]];
                             }
-                        } catch (_) { }
+                        } catch (e) { }
 
                         // Use the existing logic without modifying it
                         var lastFromFile = PC_getLastPageFromSelection([placedTemp]);
@@ -299,7 +299,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         if (setResultTextFn) setResultTextFn(lastFromFile);
                     } finally {
                         if (placedTemp) {
-                            try { placedTemp.remove(); } catch (_) { }
+                            try { placedTemp.remove(); } catch (e) { }
                         }
                     }
                     return;
@@ -312,12 +312,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 try {
                     var placedSel = PC_findFirstPlacedItem(doc.selection);
                     if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
-                } catch (_) { }
+                } catch (e) { }
 
                 if (setResultTextFn) setResultTextFn(last);
             } catch (e) {
                 alert(e);
-                try { if (setResultTextFn) setResultTextFn(null); } catch (_) { }
+                try { if (setResultTextFn) setResultTextFn(null); } catch (e) { }
             }
         }
 
@@ -362,7 +362,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e) {
                 alert(e);
             } finally {
-                try { file.close(); } catch (_) { }
+                try { file.close(); } catch (e) { }
             }
             return res;
         }
@@ -411,7 +411,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return c ? String(c) : '';
                 }
                 return cur;
-            } catch (_) { }
+            } catch (e) { }
             return String(currentTotalText || '');
         }
 
@@ -480,7 +480,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum) {
         var p = "";
-        try { p = (fileA && fileA.fsName) ? String(fileA.fsName) : String(fileA); } catch (_) { p = String(fileA); }
+        try { p = (fileA && fileA.fsName) ? String(fileA.fsName) : String(fileA); } catch (e) { p = String(fileA); }
         return p + "|" + String(cropMode) + "|" + String(pageNum);
     }
 
@@ -490,7 +490,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var k = __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum);
             var v = box[k];
             if (v && v.w > 0 && v.h > 0) return v;
-        } catch (_) { }
+        } catch (e) { }
         return null;
     }
 
@@ -500,7 +500,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var box = __SC_getAutoFitMeasureCache();
             var k = __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum);
             box[k] = { w: w, h: h };
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // 入力された文字列（例："1-20", "1,3,5"）を数字の配列に変換する関数
@@ -557,7 +557,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             st.view = doc.activeView;
             st.zoom = st.view.zoom;
             st.center = st.view.centerPoint;
-        } catch (_) { }
+        } catch (e) { }
         return st;
     }
 
@@ -567,7 +567,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var v = state.view || doc.activeView;
             if (v && state.zoom != null) v.zoom = state.zoom;
             if (v && state.center != null) v.centerPoint = state.center;
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
@@ -587,7 +587,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         g.orientation = "row";
         g.alignChildren = ["center", "center"];
         g.alignment = "center";
-        try { if (options.margins) g.margins = options.margins; } catch (_) { }
+        try { if (options.margins) g.margins = options.margins; } catch (e) { }
 
         var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
 
@@ -596,11 +596,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
             else initZoom = Number(doc.activeView.zoom);
-        } catch (_) { }
+        } catch (e) { }
         if (!initZoom || isNaN(initZoom)) initZoom = 1;
 
         var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
-        try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+        try { sld.preferredSize.width = sliderWidth; } catch (e) { }
 
         var chkLight = null;
         if (showLightMode) {
@@ -618,7 +618,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!v) return;
                 v.zoom = z;
                 if (doRedraw) { app.redraw(); }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function syncFromView() {
@@ -626,7 +626,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
                 if (!v) return;
                 sld.value = v.zoom;
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // Live drag (disabled in light mode)
@@ -643,7 +643,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (chkLight) {
             chkLight.onClick = function () {
                 // Toggle feels consistent: apply current value immediately
-                try { applyZoom(Number(sld.value)); } catch (_) { }
+                try { applyZoom(Number(sld.value)); } catch (e) { }
             };
         }
 
@@ -664,7 +664,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function __SC_getSourceDocKey(fileObj) {
         try { return (fileObj && fileObj.fsName) ? String(fileObj.fsName) : String(fileObj); }
-        catch (_) { return String(fileObj); }
+        catch (e) { return String(fileObj); }
     }
 
     function __SC_getSourcePageCount(fileObj) {
@@ -680,16 +680,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var n = 0;
             try {
                 tempDoc = app.open(fileObj);
-                try { n = (tempDoc && tempDoc.artboards) ? tempDoc.artboards.length : 0; } catch (_) { n = 0; }
-            } catch (_) {
+                try { n = (tempDoc && tempDoc.artboards) ? tempDoc.artboards.length : 0; } catch (e) { n = 0; }
+            } catch (e) {
                 n = 0;
             } finally {
-                try { if (tempDoc) tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (_) { }
+                try { if (tempDoc) tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (e) { }
             }
 
             if (n > 0) cache[key] = n;
             return n;
-        } catch (_) { }
+        } catch (e) { }
         return 0;
     }
 
@@ -730,7 +730,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function __SC_buildTargetPages(specifiedStr, totalCount, sourceCount) {
         var base = [];
-        try { base = parsePageNumbers(String(specifiedStr || '')); } catch (_) { base = []; }
+        try { base = parsePageNumbers(String(specifiedStr || '')); } catch (e) { base = []; }
         if (!base || base.length === 0) base = [1];
         if (sourceCount > 0) {
             base = __SC_filterPagesWithinCount(base, sourceCount);
@@ -765,13 +765,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var v = parseInt(m[1], 10);
             if (isNaN(v) || v <= 0) return 0;
             return v;
-        } catch (_) {
+        } catch (e) {
             return 0;
         }
     }
 
     function __SC_removeItemSafe(it) {
-        try { if (it) it.remove(); } catch (_) { }
+        try { if (it) it.remove(); } catch (e) { }
     }
 
     function __SC_clearPreviewCache(__previewCache) {
@@ -811,14 +811,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     for (var i = doc.groupItems.length - 1; i >= 0; i--) {
                         var g = doc.groupItems[i];
                         if (g && g.name === name) {
-                            try { g.remove(); } catch (_) { }
+                            try { g.remove(); } catch (e) { }
                             removed = true;
                         }
                     }
-                } catch (_) { }
+                } catch (e) { }
                 if (!removed) break;
             }
-        } catch (_) { }
+        } catch (e) { }
     }
     function __SC_shuffleIndexArray(n) {
         var a = [];
@@ -994,14 +994,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // Build target pages from 指定/総数/sourceCount
             var pages = [];
-            try { pages = getTargetPagesFromUI(); } catch (_) { pages = []; }
+            try { pages = getTargetPagesFromUI(); } catch (e) { pages = []; }
             if (!pages || pages.length === 0) pages = [1];
 
             // If Total is empty, show the resolved count
             try {
                 var curT = String(etTotal.text || '');
                 if (!curT) etTotal.text = String(pages.length);
-            } catch (_) { }
+            } catch (e) { }
 
             // Clear previous cache/items (and any leftovers)
             __SC_clearPreviewCache(__previewCache);
@@ -1012,12 +1012,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 __previewCache.group = doc.groupItems.add();
                 __previewCache.group.name = '__SC_previewGroup__';
-            } catch (_) {
+            } catch (e) {
                 __previewCache.group = null;
             }
 
             var cropMode = 2;
-            try { cropMode = getCropModeFromUI(); } catch (_) { cropMode = 2; }
+            try { cropMode = getCropModeFromUI(); } catch (e) { cropMode = 2; }
 
             __previewCache.items = [];
             __previewCache.baseW = [];
@@ -1043,16 +1043,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     it.file = fileA;
 
                     // Move into the preview group so later rotation/layout acts on a single container
-                    try { if (__previewCache.group) it.moveToEnd(__previewCache.group); } catch (_) { }
+                    try { if (__previewCache.group) it.moveToEnd(__previewCache.group); } catch (e) { }
 
                     __previewCache.items.push(it);
                     __previewCache.baseW.push(it.width);
                     __previewCache.baseH.push(it.height);
                 } catch (ePlace) {
                     // Clean up partially created item
-                    try { if (it) it.remove(); } catch (_) { }
+                    try { if (it) it.remove(); } catch (e) { }
                 } finally {
-                    try { __SC_resetImportPageNumber(fileA); } catch (_) { }
+                    try { __SC_resetImportPageNumber(fileA); } catch (e) { }
                 }
             }
 
@@ -1060,9 +1060,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 if (cbBg && cbBg.value) {
                     __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
-                    try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+                    try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // Apply current layout settings to the newly placed items
             applyLayoutToCachedItems();
@@ -1087,7 +1087,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     etPath.text = getLabel('notSelected');
                     etPath.helpTip = '';
                 }
-            } catch (_) {
+            } catch (e) {
                 try {
                     etPath.text = f ? String(f.name) : getLabel('notSelected');
                     etPath.helpTip = f ? String(f.fsName) : '';
@@ -1100,11 +1100,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         function setResultText(last) {
             if (!last) {
-                try { etRange.text = ''; } catch (_) { }
+                try { etRange.text = ''; } catch (e) { }
                 try { etTotal.text = ''; } catch (__) { }
             } else {
-                try { etRange.text = '1-' + last; } catch (_) { }
-                try { __SC_sourceCount = parseInt(last, 10) || 0; } catch (_) { __SC_sourceCount = 0; }
+                try { etRange.text = '1-' + last; } catch (e) { }
+                try { __SC_sourceCount = parseInt(last, 10) || 0; } catch (e) { __SC_sourceCount = 0; }
                 // Do not override user's manual Total. Only auto-sync when we are already in auto mode,
                 // or when Total is empty (fresh state).
                 try {
@@ -1112,7 +1112,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (__SC_autoTotal || cur === '' || cur === getLabel('notSelected')) {
                         __SC_autoTotal = true;
                     }
-                } catch (_) {
+                } catch (e) {
                     // keep current __SC_autoTotal
                 }
                 etTotal.text = PC.updateTotalFromRange(etRange.text, etTotal.text);
@@ -1124,7 +1124,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (typeof ddCrop !== "undefined" && ddCrop) {
                     ddCrop.enabled = __SC_isPdfFile(fileA);
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function triggerPreviewUpdate() {
@@ -1132,35 +1132,35 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function syncLayoutInputsBeforeFinalize() {
-            try { syncColsFromEdit(); } catch (_) { }
-            try { syncSpacingFromEdit(); } catch (_) { }
-            try { syncShiftFromEdit(); } catch (_) { }
-            try { syncScaleFromEdit(); } catch (_) { }
-            try { syncRotateFromEdit(); } catch (_) { }
+            try { syncColsFromEdit(); } catch (e) { }
+            try { syncSpacingFromEdit(); } catch (e) { }
+            try { syncShiftFromEdit(); } catch (e) { }
+            try { syncScaleFromEdit(); } catch (e) { }
+            try { syncRotateFromEdit(); } catch (e) { }
 
             try {
                 var m = parseFloat(editMargin.text);
                 if (isNaN(m) || m < 0) m = 0;
                 editMargin.text = String(__SC_round(m, 2));
-            } catch (_) { }
+            } catch (e) { }
 
             try {
                 var r = parseFloat(editRound.text);
                 if (isNaN(r) || r < 0) r = 0;
                 editRound.text = String(__SC_round(r, 2));
-            } catch (_) { }
+            } catch (e) { }
 
             try {
                 var mr = parseFloat(editMaskRound.text);
                 if (isNaN(mr) || mr < 0) mr = 0;
                 editMaskRound.text = String(__SC_round(mr, 2));
-            } catch (_) { }
+            } catch (e) { }
 
             try {
                 updateMaskUI();
                 updateBgControls();
                 initSourceDependentUI();
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function bakePreviewRandomOrderForFinalize() {
@@ -1187,7 +1187,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 for (var j = 0; j < orderedItems.length; j++) identity.push(j);
                 __previewCache.randOrder = identity.slice(0);
                 __previewCache.finalRandOrder = identity.slice(0);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         btnBrowse.onClick = function () {
@@ -1253,7 +1253,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 srcCount = (__SC_sourceCount > 0)
                     ? __SC_sourceCount
                     : __SC_getSourcePageCount(fileA);
-            } catch (_) {
+            } catch (e) {
                 srcCount = 0;
             }
             return __SC_buildTargetPages(specified, total, srcCount);
@@ -1280,13 +1280,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 // Use PDFImport for both PDF and AI (AI is handled by the PDF import pipeline when placing)
                 app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", n);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function __SC_resetImportPageNumber(fileObj) {
             try {
                 app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /* グリッド / Grid */
@@ -1948,7 +1948,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (srcCount > 0) {
                     pages = __SC_repeatPagesWithinCount(pages, srcCount);
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             if (!pages || pages.length === 0) pages = [1];
 
@@ -2161,16 +2161,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                                 app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pagesForCenter[0]);
                                 temp = doc.placedItems.add();
                                 temp.file = fileA;
-                                try { temp.resize(finalScale, finalScale); } catch (_) { }
+                                try { temp.resize(finalScale, finalScale); } catch (e) { }
                                 itemW = temp.width;
                             } catch (eTmp) {
                                 itemW = 0;
                             } finally {
-                                try { if (temp) temp.remove(); } catch (_) { }
-                                try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (_) { }
+                                try { if (temp) temp.remove(); } catch (e) { }
+                                try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (e) { }
                             }
                         }
-                    } catch (_) {
+                    } catch (e) {
                         itemW = 0;
                     }
 
@@ -2190,7 +2190,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         if (isFinite(oxU)) {
                             cbOffsetX.value = true;
                             sldOffsetX.enabled = true;
-                            try { sldOffsetX.value = oxU; } catch (_) { }
+                            try { sldOffsetX.value = oxU; } catch (e) { }
                         }
                     }
                 } catch (eCenter) { }
@@ -2375,13 +2375,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (cbBg.value && __previewCache.bgItem) {
                     __previewCache.bgItem.fillColor = getBgRGBColorOrDefault();
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // If we previously grouped for rotation, un-rotate back to 0 by delta
             if (__previewCache.group && __previewCache.currentRot !== 0) {
                 try {
                     __previewCache.group.rotate(-__previewCache.currentRot);
-                } catch (_) { }
+                } catch (e) { }
                 __previewCache.currentRot = 0;
             }
 
@@ -2405,7 +2405,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 try {
                     it.width = bw * (finalScale / 100.0);
                     it.height = bh * (finalScale / 100.0);
-                } catch (_) { }
+                } catch (e) { }
 
                 // Map to grid position
                 var cr = indexToColRow(i);
@@ -2418,7 +2418,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     else y += Math.abs(colShiftPt);
                 }
 
-                try { it.position = [x, y]; } catch (_) { }
+                try { it.position = [x, y]; } catch (e) { }
             }
 
             // -------------------------------------------------
@@ -2444,14 +2444,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                                 // Try to wrap this item now
                                 var clipGrp = null;
-                                try { clipGrp = __SC_wrapWithClipGroup(doc, it0); } catch (_) { clipGrp = null; }
+                                try { clipGrp = __SC_wrapWithClipGroup(doc, it0); } catch (e) { clipGrp = null; }
 
                                 if (clipGrp) {
                                     // Keep the index mapping stable (important for baseW/baseH and randOrder)
                                     __previewCache.items[wi] = clipGrp;
 
                                     // Move the new clip group into the persistent rotation group (if any)
-                                    try { if (__previewCache.group) clipGrp.moveToEnd(__previewCache.group); } catch (_) { }
+                                    try { if (__previewCache.group) clipGrp.moveToEnd(__previewCache.group); } catch (e) { }
                                 }
                             }
                         }
@@ -2467,13 +2467,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                                     if (itG && itG.typename === "GroupItem") {
                                         __SC_applyRoundCorners([itG], roundPt);
                                     }
-                                } catch (_) { }
+                                } catch (e) { }
                             }
                             __previewCache.previewRoundRadiusPt = roundPt;
                         }
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // Rotation (group-based) and center to artboard center
             if (doRotate && rot !== 0 && __previewCache.group) {
@@ -2488,7 +2488,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (oxPt !== 0 || oyPt !== 0) {
                         __previewCache.group.translate(oxPt, -oyPt);
                     }
-                } catch (_) { }
+                } catch (e) { }
             } else {
                 // Non-rotate offsets: apply by shifting start already is done in non-rotate path; here we just apply nothing.
             }
@@ -2509,14 +2509,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (!__previewCache.bgItem) {
                         try {
                             __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
-                        } catch (_) {
+                        } catch (e) {
                             __previewCache.bgItem = null;
                         }
                     }
                     // 色だけ更新
                     if (__previewCache.bgItem) {
-                        try { __previewCache.bgItem.fillColor = getBgRGBColorOrDefault(); } catch (_) { }
-                        try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+                        try { __previewCache.bgItem.fillColor = getBgRGBColorOrDefault(); } catch (e) { }
+                        try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
                     }
                 } else {
                     // 背景OFF：bgItemを消す
@@ -3236,8 +3236,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e) {
                 alert(getLabel("alertPlaceError"));
             } finally {
-                try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (_) { }
-                try { __SC_resetImportPageNumber(fileA); } catch (_) { }
+                try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (e) { }
+                try { __SC_resetImportPageNumber(fileA); } catch (e) { }
             }
             var allItems = placedItemsOnly;
             if (bgItem) {
@@ -3262,7 +3262,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (srcCount > 0) {
                     pages = repeatPagesWithinCount(pages, srcCount);
                 }
-            } catch (_) { }
+            } catch (e) { }
             if (!pages || pages.length === 0) return;
 
             var cropMode = getCropModeFromUI();
@@ -3271,7 +3271,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (cbBg.value) {
                 try {
                     __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
-                } catch (_) {
+                } catch (e) {
                     __previewCache.bgItem = null;
                 }
             }
@@ -3288,11 +3288,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     __previewCache.items.push(it);
                     __previewCache.baseW.push(it.width);
                     __previewCache.baseH.push(it.height);
-                } catch (_) {
+                } catch (e) {
                     // ignore individual failures
                 }
             }
-            try { __SC_resetImportPageNumber(fileA); } catch (_) { }
+            try { __SC_resetImportPageNumber(fileA); } catch (e) { }
 
             __previewCache.cropMode = cropMode;
             __previewCache.pagesKey = String(editPages.text);
@@ -3301,7 +3301,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 var grp = doc.groupItems.add();
                 for (var gi = __previewCache.items.length - 1; gi >= 0; gi--) {
-                    try { __previewCache.items[gi].moveToBeginning(grp); } catch (_) { }
+                    try { __previewCache.items[gi].moveToBeginning(grp); } catch (e) { }
                 }
                 __previewCache.group = grp;
                 __previewCache.currentRot = 0;
@@ -3324,7 +3324,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     app.cancelTask(__previewTaskId);
                     __previewTaskId = null;
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // Preview cache removal is enough (clearPreview() would early-return when cache exists)
             __SC_clearPreviewCache(__previewCache);
@@ -3376,7 +3376,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (srcCount2 > 0) {
                     finalPages = repeatPagesWithinCount(finalPages, srcCount2);
                 }
-            } catch (_) { }
+            } catch (e) { }
             var finalCols = parseInt(editCols.text, 10) || 5;
             var finalSpacingUnit = parseFloat(editSpacing.text);
             if (isNaN(finalSpacingUnit) || finalSpacingUnit < 0) finalSpacingUnit = 0;

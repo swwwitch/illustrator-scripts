@@ -133,7 +133,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < doc.layers.length; i++) {
             try {
                 if (doc.layers[i].name === BG_LAYER_NAME) { lyr = doc.layers[i]; break; }
-            } catch (_) { }
+            } catch (e) { }
         }
         if (!lyr) {
             lyr = doc.layers.add();
@@ -149,7 +149,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     bgLayer.groupItems[i].remove();
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function randInt(min, max) {
@@ -169,7 +169,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rect.stroked = false;
             rect.filled = true;
             rect.fillColor = makeRandomFill();
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function jitterRectOutward(rect, maxPt) {
@@ -177,7 +177,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!rect.pathPoints || rect.pathPoints.length < 4) return;
 
         var b;
-        try { b = rect.geometricBounds; } catch (_) { return; }
+        try { b = rect.geometricBounds; } catch (e) { return; }
         // b: [L, T, R, B]
         var cx = (b[0] + b[2]) / 2;
         var cy = (b[1] + b[3]) / 2;
@@ -202,7 +202,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 pp.anchor = [ax + ox, ay + oy];
                 pp.leftDirection = [pp.leftDirection[0] + ox, pp.leftDirection[1] + oy];
                 pp.rightDirection = [pp.rightDirection[0] + ox, pp.rightDirection[1] + oy];
-            } catch (_) { }
+            } catch (e) { }
         }
     }
 
@@ -250,7 +250,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         out.push(it);
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         try {
@@ -288,7 +288,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             out.push(outlined);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function createBackgroundRectsByOutlining(frames) {
@@ -309,21 +309,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // A) duplicate behind original
             try {
                 dup = tf.duplicate();
-                try { dup.move(tf, ElementPlacement.PLACEAFTER); } catch (_) { }
-            } catch (_) {
+                try { dup.move(tf, ElementPlacement.PLACEAFTER); } catch (e) { }
+            } catch (e) {
                 continue;
             }
 
             // B) outline the duplicate
             try {
                 outlined = dup.createOutline();
-            } catch (_) {
-                try { if (dup) dup.remove(); } catch (_) { }
+            } catch (e) {
+                try { if (dup) dup.remove(); } catch (e) { }
                 continue;
             }
 
             // remove duplicate text
-            try { if (dup) dup.remove(); } catch (_) { }
+            try { if (dup) dup.remove(); } catch (e) { }
 
             // C) treat each top-level group as a character group
             var charGroups = [];
@@ -334,16 +334,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 try {
                     var b = charGroups[j].geometricBounds;
                     addRectFromBounds(bgGroup, b);
-                } catch (_) { }
+                } catch (e) { }
             }
 
             // E) delete outlined artwork (C)
-            try { if (outlined) outlined.remove(); } catch (_) { }
+            try { if (outlined) outlined.remove(); } catch (e) { }
         }
 
         // Keep backgrounds behind content
-        try { bgGroup.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
-        try { bgLayer.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+        try { bgGroup.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
+        try { bgLayer.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
     }
 
     function setTrackingForFrames(frames, trackingVal) {
@@ -354,7 +354,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 // tracking is in 1/1000 em
                 item.textRange.characterAttributes.tracking = trackingVal;
-            } catch (_) { }
+            } catch (e) { }
         }
     }
 
@@ -363,7 +363,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < doc.layers.length; i++) {
                 if (doc.layers[i] && doc.layers[i].name === BG_LAYER_NAME) return doc.layers[i];
             }
-        } catch (_) { }
+        } catch (e) { }
         return null;
     }
 
@@ -403,7 +403,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (matchJAKeyword(n1) || matchJAKeyword(n2) || matchJAKeyword(n3)) {
                         list.push(f);
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
 
             return list;
@@ -416,7 +416,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < currentSelection.length; i++) {
                 try {
                     if (currentSelection[i] && currentSelection[i].typename === "TextFrame") frames.push(currentSelection[i]);
-                } catch (_) { }
+                } catch (e) { }
             }
             return frames;
         }
@@ -438,7 +438,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                             return true;
                         }
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
             return false;
         }
@@ -459,7 +459,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try {
                         var randomFontIndex = Math.floor(Math.random() * fontList.length);
                         chars[j].characterAttributes.textFont = fontList[randomFontIndex];
-                    } catch (_) {
+                    } catch (e) {
                         // 特定のフォントが適用できない場合は無視
                     }
                 }
@@ -519,9 +519,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnCancel = colR.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
         var btnOK = colR.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
-        try { colC.preferredSize.width = 20; } catch (_) { }
-        try { bottom.alignment = ['fill', 'bottom']; } catch (_) { }
-        try { colR.alignment = ['right', 'center']; } catch (_) { }
+        try { colC.preferredSize.width = 20; } catch (e) { }
+        try { bottom.alignment = ['fill', 'bottom']; } catch (e) { }
+        try { colR.alignment = ['right', 'center']; } catch (e) { }
 
         // プレビュー状態：プレビュー描画を閉じるときに一括Undo / Preview state: undo all preview steps on close
         var _previewApplied = false;
@@ -569,7 +569,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 // ランダムを走らせる場合のみ、直前プレビューを undo で戻す
                 if (randomizeFonts && _previewApplied) {
-                    try { app.undo(); } catch (_) { }
+                    try { app.undo(); } catch (e) { }
                 }
 
                 // 1) random fonts (optional)
@@ -611,7 +611,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (countHistory) PreviewHistory.bump();
                     return;
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             _do();
             if (countHistory) PreviewHistory.bump();

@@ -70,14 +70,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function __getFirstSelectedTextSnapshot() {
         // ベースラインが取れていれば、その最初の TextRange の baseline を使う
         if (__baselineReady && __baselineRanges && __baselineRanges.length > 0) {
-            try { return __baselineRanges[0].baseline; } catch (_) { }
+            try { return __baselineRanges[0].baseline; } catch (e) { }
         }
         // フォールバック：選択（または全テキスト）から最初の TextRange の現在値
         try {
             var tmp = [];
             for (var i = 0; i < currentSelection.length; i++) collectTextRanges(currentSelection[i], tmp);
             if (tmp.length > 0) return tmp[0].contents;
-        } catch (_) { }
+        } catch (e) { }
         return "";
     }
 
@@ -88,7 +88,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (mode === "word") return toWordCap(s);
             if (mode === "sentence") return toSentenceCasePreserveAcronyms(s);
             if (mode === "title") return toTitleCase(s);
-        } catch (_) { }
+        } catch (e) { }
         return s;
     }
 
@@ -107,7 +107,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < __baselineRanges.length; i++) {
             if (__baselineRanges[i].tr === tr) return;
         }
-        try { __baselineRanges.push({ tr: tr, baseline: tr.contents }); } catch (_) { }
+        try { __baselineRanges.push({ tr: tr, baseline: tr.contents }); } catch (e) { }
     }
 
     function __collectBaseline(item) {
@@ -128,7 +128,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function __restoreBaseline() {
         if (!__baselineReady) return;
         for (var i = 0; i < __baselineRanges.length; i++) {
-            try { __baselineRanges[i].tr.contents = __baselineRanges[i].baseline; } catch (_) { }
+            try { __baselineRanges[i].tr.contents = __baselineRanges[i].baseline; } catch (e) { }
         }
     }
 
@@ -150,7 +150,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var delPanel = tabs.add("tab", undefined, "削除");
     delPanel.orientation = "column";
     delPanel.alignChildren = ["left", "top"];
-    try { delPanel.margins = panelMargins; } catch (_) { }
+    try { delPanel.margins = panelMargins; } catch (e) { }
 
     // 行頭/行末
     var cbLead = delPanel.add("checkbox", undefined, "行頭のスペース");
@@ -166,7 +166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var numPanel = tabs.add("tab", undefined, "ナンバリング");
     numPanel.orientation = "column";
     numPanel.alignChildren = ["left", "top"];
-    try { numPanel.margins = panelMargins; } catch (_) { }
+    try { numPanel.margins = panelMargins; } catch (e) { }
 
     // 2カラム（左：ボタン / 右：形式）
     var numCols = numPanel.add("group");
@@ -193,7 +193,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var b = parent.add("button", undefined, label);
         b.preferredSize.height = 22; // 少し小さめ
         b.onClick = function () {
-            try { onRun(); } catch (_) { }
+            try { onRun(); } catch (e) { }
             requestPreview();
         };
         return b;
@@ -215,7 +215,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbNumEnd.value = false;
         cbRenumber.value = false;
         __renumberStyle = "num";
-        try { rbNumDot.value = true; } catch (_) { }
+        try { rbNumDot.value = true; } catch (e) { }
 
         // プレビューON時：ナンバリング処理で失われた元の行頭マーカー等を戻すため、
         // ダイアログ表示時点（初回プレビュー適用後）のベースラインへ復元してから再適用する。
@@ -224,14 +224,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         requestPreview();
-        try { updateCaseExamples(); } catch (_) { }
+        try { updateCaseExamples(); } catch (e) { }
     };
 
     // 出力形式（振り直し）
     var numStylePanel = numColRight.add("panel", undefined, "形式");
     numStylePanel.orientation = "column";
     numStylePanel.alignChildren = ["left", "top"];
-    try { numStylePanel.margins = panelMargins; } catch (_) { }
+    try { numStylePanel.margins = panelMargins; } catch (e) { }
 
     var rbNumDot = numStylePanel.add("radiobutton", undefined, "1. いちご");
     var rbAlphaDot = numStylePanel.add("radiobutton", undefined, "A. いちご");
@@ -258,7 +258,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var optPanel = tabs.add("tab", undefined, "行");
     optPanel.orientation = "column";
     optPanel.alignChildren = ["left", "top"];
-    try { optPanel.margins = panelMargins; } catch (_) { }
+    try { optPanel.margins = panelMargins; } catch (e) { }
 
     // 改行変換（状態フラグ）
     var rbForcedToPara = { value: false };   // 強制改行→改行
@@ -272,7 +272,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var b = parent.add("button", undefined, label);
         b.preferredSize.height = 22; // 少し小さめ
         b.onClick = function () {
-            try { onRun(); } catch (_) { }
+            try { onRun(); } catch (e) { }
             requestPreview();
         };
         return b;
@@ -302,7 +302,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var sortPanel = optPanel.add("panel", undefined, "ソート");
     sortPanel.orientation = "column";
     sortPanel.alignChildren = ["left", "top"];
-    try { sortPanel.margins = panelMargins; } catch (_) { }
+    try { sortPanel.margins = panelMargins; } catch (e) { }
 
     var sortGroup = sortPanel.add("group");
     sortGroup.orientation = "column";
@@ -320,7 +320,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var alnumPanel = tabs.add("tab", undefined, "アルファベット");
     alnumPanel.orientation = "column";
     alnumPanel.alignChildren = ["left", "top"];
-    try { alnumPanel.margins = panelMargins; } catch (_) { }
+    try { alnumPanel.margins = panelMargins; } catch (e) { }
 
     // --- 英字のケース変換（ボタン＋例） ---
     var caseGroup = alnumPanel.add("group");
@@ -344,7 +344,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var st = row.add("statictext", undefined, "");
         st.preferredSize.width = 240;
-        try { st.justify = "left"; } catch (_) { }
+        try { st.justify = "left"; } catch (e) { }
 
         __caseExampleLabels[mode] = st;
         return b;
@@ -359,7 +359,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (__caseExampleLabels.word) __caseExampleLabels.word.text = __normalizeExampleText(__formatCaseExample("word", src));
             if (__caseExampleLabels.sentence) __caseExampleLabels.sentence.text = __normalizeExampleText(__formatCaseExample("sentence", src));
             if (__caseExampleLabels.title) __caseExampleLabels.title.text = __normalizeExampleText(__formatCaseExample("title", src));
-        } catch (_) { }
+        } catch (e) { }
     }
 
     makeSmallButton(caseGroup, "すべて大文字に", "upper");
@@ -383,7 +383,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cbNumEnd.value = false;
             cbRenumber.value = false;
             __renumberStyle = "num";
-            try { rbNumDot.value = true; } catch (_) { }
+            try { rbNumDot.value = true; } catch (e) { }
 
             rbForcedToPara.value = false;
             rbParaToForced.value = false;
@@ -401,18 +401,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             __caseMode = null;
 
             chkPreview.value = true;
-        } catch (_) { }
+        } catch (e) { }
 
         // 初期状態（=プレビューON前提）として再描画のみ
         app.redraw();
-        try { updateCaseExamples(); } catch (_) { }
+        try { updateCaseExamples(); } catch (e) { }
     };
 
     // --- その他（Tab） ---
     var otherPanel = tabs.add("tab", undefined, "その他");
     otherPanel.orientation = "column";
     otherPanel.alignChildren = ["left", "top"];
-    try { otherPanel.margins = panelMargins; } catch (_) { }
+    try { otherPanel.margins = panelMargins; } catch (e) { }
 
     var cbTabToSpace = otherPanel.add("checkbox", undefined, "タブ→半角スペースに");
     cbTabToSpace.value = false;
@@ -472,7 +472,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // - プレビューONなら既に適用済みなので、ここでは何もしない
         // - プレビューOFFなら、OK時に1回だけ適用
         if (!chkPreview.value) {
-            try { applyProcessToSelection(); } catch (_) { }
+            try { applyProcessToSelection(); } catch (e) { }
         }
         w.close(1);
     };
@@ -508,7 +508,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             applyProcessToSelection();
             app.redraw(); // プレビューON時のみ強制再描画
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // 初回表示時：プレビューがONならまず適用 → その結果を「ベースライン」として記録
@@ -519,7 +519,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         // requestPreview 内で apply が走った後の状態（または未適用のまま）を保持
         __takeBaseline();
-        try { updateCaseExamples(); } catch (_) { }
+        try { updateCaseExamples(); } catch (e) { }
     };
 
     // UI 変更時にプレビュー更新

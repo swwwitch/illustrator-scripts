@@ -308,7 +308,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {void}
      */
     function logError(err, context) {
-        try { $.writeln("[" + SCRIPT_NAME + "] " + context + ": " + err); } catch (_) { }
+        try { $.writeln("[" + SCRIPT_NAME + "] " + context + ": " + err); } catch (e) { }
     }
 
     /**
@@ -413,7 +413,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {number} 単位コード（読めない場合は 2 = pt）
      */
     function getUnitCode(preferenceKey) {
-        try { return app.preferences.getIntegerPreference(preferenceKey); } catch (_) { }
+        try { return app.preferences.getIntegerPreference(preferenceKey); } catch (e) { }
         return 2;
     }
 
@@ -460,7 +460,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      * @returns {Layer|null} 見つかったレイヤー（無ければ null）
      */
     function findLayerByName(doc, layerName) {
-        try { return doc.layers.getByName(layerName); } catch (_) { }
+        try { return doc.layers.getByName(layerName); } catch (e) { }
         return null;
     }
 
@@ -501,7 +501,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         try {
             if (item.note === SCRIPT_MARKER) return true;
             return String(item.name || "").indexOf(SCRIPT_MARKER) === 0;
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
@@ -530,7 +530,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         if (!selectedItems || selectedItems.length === 0) return false;
         for (var i = 0; i < selectedItems.length; i++) {
             var layer = null;
-            try { layer = selectedItems[i].layer; } catch (_) { }
+            try { layer = selectedItems[i].layer; } catch (e) { }
             if (!layer || layer.name !== layerName) return false;
         }
         return true;
@@ -642,7 +642,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
                     /* 同じレイヤーの末尾に複製し、複製だけをアウトライン化する / Duplicate first, outline the copy only */
                     var duplicated = item.duplicate(item.layer, ElementPlacement.PLACEATEND);
                     var outlined = duplicated.createOutline();
-                    try { duplicated.remove(); } catch (_) { }
+                    try { duplicated.remove(); } catch (e) { }
                     if (outlined) outlineRoots.push(outlined);
                 } catch (e) {
                     /* 1つ失敗しても全体は止めない / Keep going even if one frame fails */
@@ -669,7 +669,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
     function cleanupTempOutlines(outlineRoots) {
         if (!outlineRoots) return;
         for (var i = outlineRoots.length - 1; i >= 0; i--) {
-            try { outlineRoots[i].remove(); } catch (_) { }
+            try { outlineRoots[i].remove(); } catch (e) { }
         }
     }
 
@@ -1293,7 +1293,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
 
         /* 直前の表示位置を引き継ぐ / Restore the last dialog position */
         if (session.dialogLocation) {
-            try { mainDialog.location = session.dialogLocation; } catch (_) { }
+            try { mainDialog.location = session.dialogLocation; } catch (e) { }
         }
 
         // --- 2カラム / Two columns ---
@@ -1517,7 +1517,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
          */
         function soloDirectionOnAltClick(clickedCheckbox, otherA, otherB) {
             var keyboard = null;
-            try { keyboard = ScriptUI.environment.keyboardState; } catch (_) { }
+            try { keyboard = ScriptUI.environment.keyboardState; } catch (e) { }
             if (!keyboard || !keyboard.altKey) return;
             if (!clickedCheckbox.value) return;
 
@@ -1582,7 +1582,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
         var dialogResult = mainDialog.show();
 
         clearPreview();
-        try { session.dialogLocation = [mainDialog.location[0], mainDialog.location[1]]; } catch (_) { }
+        try { session.dialogLocation = [mainDialog.location[0], mainDialog.location[1]]; } catch (e) { }
 
         return (dialogResult === 1) ? getUISettings() : null;
     }
@@ -1707,7 +1707,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd801b9b0367f"; /* 紹�
      */
     function moveZoomCenterByModifier(doc, view) {
         var keyboard = null;
-        try { keyboard = ScriptUI.environment.keyboardState; } catch (_) { }
+        try { keyboard = ScriptUI.environment.keyboardState; } catch (e) { }
         if (!keyboard) return false;
 
         var hasSelection = !!(doc.selection && doc.selection.length > 0);

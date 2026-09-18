@@ -740,6 +740,134 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
     }
 
     // =========================================
+    // ダイアログの補助 / Dialog helpers
+    // showDistributeDialog のローカル状態に依存しないものをここにまとめる
+    // These do not touch showDistributeDialog's local state
+    // =========================================
+
+    /**
+     * 入力欄の値を整数として読み取ります。/ Read an integer from a field.
+     *
+     * @param {EditText} inputField - 対象の入力欄。
+     * @returns {number|null} 読み取った整数。数値でない場合は null。
+     */
+    function readCount(inputField) {
+        var value = parseInt(inputField.text, 10);
+        return isFinite(value) ? value : null;
+    }
+
+    /**
+     * 配列に指定アイテムが含まれるかを判定します。/ Test whether the list contains the item.
+     *
+     * @param {Array<PageItem>} items - 検索対象の配列。
+     * @param {PageItem} item - 探すオブジェクト。
+     * @returns {boolean} 含まれる場合は true。
+     */
+    function containsItem(items, item) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] === item) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 全セルを行→列の順に走査します。/ Iterate cells in row-major order.
+     *
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {function(number[]): (boolean|void)} handleCell - セル矩形を受け取る処理。false を返すと走査を中断します。
+     * @returns {void}
+     */
+    function eachCell(gridMetrics, handleCell) {
+        for (var i = 0; i < gridMetrics.rowCount; i++) {
+            var cellTop = gridMetrics.originTop - (gridMetrics.cellHeight + gridMetrics.gutter) * i;
+            for (var j = 0; j < gridMetrics.columnCount; j++) {
+                var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * j;
+                var cellRect = [cellLeft, cellTop, cellLeft + gridMetrics.cellWidth, cellTop - gridMetrics.cellHeight];
+                if (handleCell(cellRect) === false) return;
+            }
+        }
+    }
+
+    /**
+     * 全セルの長方形を描画します。/ Draw rectangles for every cell.
+     *
+     * @param {Layer} cellLayer - 描画先のレイヤー。
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @param {boolean} asGuide - ガイドに変換する場合は true。
+     * @returns {void}
+     */
+    function drawCells(cellLayer, gridMetrics, asGuide) {
+        var fillColor = getCellFillColor();
+        var opacity = readOpacity();
+
+        eachCell(gridMetrics, function (cellRect) {
+            var cellRectangle = cellLayer.pathItems.rectangle(
+                cellRect[1], cellRect[0], gridMetrics.cellWidth, gridMetrics.cellHeight);
+            cellRectangle.stroked = false;
+            cellRectangle.filled = (fillColor !== null);
+            if (fillColor) cellRectangle.fillColor = fillColor;
+            if (opacity !== null) cellRectangle.opacity = opacity;
+            if (asGuide) cellRectangle.guides = true;
+        });
+        cellLayer.zOrder(ZOrderMethod.SENDTOBACK);
+    }
+
+    /**
+     * 各セルの中央へオブジェクトを1つずつ配置します。/ Place one object at the center of each cell.
+     *
+     * @param {Array<PageItem>} items - 配置するオブジェクト（配置順）。
+     * @param {GridMetrics} gridMetrics - グリッドの寸法。
+     * @returns {void}
+     */
+    function placeItemsInCells(items, gridMetrics) {
+        var index = 0;
+        eachCell(gridMetrics, function (cellRect) {
+            if (index >= items.length) return false;
+
+            var bounds = items[index].visibleBounds;
+            var dx = (cellRect[0] + cellRect[2]) / 2 - (bounds[0] + bounds[2]) / 2;
+            var dy = (cellRect[1] + cellRect[3]) / 2 - (bounds[1] + bounds[3]) / 2;
+            items[index].translate(dx, dy);
+            index++;
+        });
+    }
+
+    /**
+     * 上下キーで数値を増減します（Shift:10単位、Option:0.1単位）。/ Step a value with arrow keys.
+     *
+     * @param {EditText} inputField - 対象の入力欄。
+     * @param {boolean} allowsDecimal - 小数の増減を許可する場合は true。
+     * @param {number} minValue - 下限値。
+     * @returns {void}
+     */
+    function enableArrowKeyStep(inputField, allowsDecimal, minValue) {
+        inputField.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+
+            var value = Number(inputField.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var direction = (event.keyName === "Up") ? 1 : -1;
+
+            if (keyboard.shiftKey) {
+                // 10 の倍数へ丸めながら増減
+                value = (direction > 0) ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            } else if (keyboard.altKey && allowsDecimal) {
+                value = Math.round((value + direction * 0.1) * 10) / 10;
+            } else {
+                value = Math.round(value) + direction;
+            }
+
+            inputField.text = String(Math.max(minValue, value));
+            event.preventDefault();
+
+            syncGutterEnabled();
+            updatePreview();
+        });
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
@@ -795,17 +923,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         // -----------------------------------------
         // 入力値の取得 / Input readers
         // -----------------------------------------
-
-        /**
-         * 入力欄の値を整数として読み取ります。/ Read an integer from a field.
-         *
-         * @param {EditText} inputField - 対象の入力欄。
-         * @returns {number|null} 読み取った整数。数値でない場合は null。
-         */
-        function readCount(inputField) {
-            var value = parseInt(inputField.text, 10);
-            return isFinite(value) ? value : null;
-        }
 
         /**
          * 入力欄の値を pt 換算の長さとして読み取ります。/ Read a length in points from a field.
@@ -878,20 +995,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         }
 
         /**
-         * 配列に指定アイテムが含まれるかを判定します。/ Test whether the list contains the item.
-         *
-         * @param {Array<PageItem>} items - 検索対象の配列。
-         * @param {PageItem} item - 探すオブジェクト。
-         * @returns {boolean} 含まれる場合は true。
-         */
-        function containsItem(items, item) {
-            for (var i = 0; i < items.length; i++) {
-                if (items[i] === item) return true;
-            }
-            return false;
-        }
-
-        /**
          * ランダム順を現在の配置対象に合わせ直します。/ Rebuild the random order for the current items.
          * 対象の切り替えでアイテムが増減しても破綻しないようにします。
          *
@@ -952,24 +1055,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             };
         }
 
-        /**
-         * 全セルを行→列の順に走査します。/ Iterate cells in row-major order.
-         *
-         * @param {GridMetrics} gridMetrics - グリッドの寸法。
-         * @param {function(number[]): (boolean|void)} handleCell - セル矩形を受け取る処理。false を返すと走査を中断します。
-         * @returns {void}
-         */
-        function eachCell(gridMetrics, handleCell) {
-            for (var i = 0; i < gridMetrics.rowCount; i++) {
-                var cellTop = gridMetrics.originTop - (gridMetrics.cellHeight + gridMetrics.gutter) * i;
-                for (var j = 0; j < gridMetrics.columnCount; j++) {
-                    var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * j;
-                    var cellRect = [cellLeft, cellTop, cellLeft + gridMetrics.cellWidth, cellTop - gridMetrics.cellHeight];
-                    if (handleCell(cellRect) === false) return;
-                }
-            }
-        }
-
         // -----------------------------------------
         // 描画と配置 / Drawing and placement
         // -----------------------------------------
@@ -1006,50 +1091,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             if (cellUI.blackCellRadio.value) return createGrayColor(100, 0);
             if (cellUI.whiteCellRadio.value) return createGrayColor(0, 255);
             return null;
-        }
-
-        /**
-         * 全セルの長方形を描画します。/ Draw rectangles for every cell.
-         *
-         * @param {Layer} cellLayer - 描画先のレイヤー。
-         * @param {GridMetrics} gridMetrics - グリッドの寸法。
-         * @param {boolean} asGuide - ガイドに変換する場合は true。
-         * @returns {void}
-         */
-        function drawCells(cellLayer, gridMetrics, asGuide) {
-            var fillColor = getCellFillColor();
-            var opacity = readOpacity();
-
-            eachCell(gridMetrics, function (cellRect) {
-                var cellRectangle = cellLayer.pathItems.rectangle(
-                    cellRect[1], cellRect[0], gridMetrics.cellWidth, gridMetrics.cellHeight);
-                cellRectangle.stroked = false;
-                cellRectangle.filled = (fillColor !== null);
-                if (fillColor) cellRectangle.fillColor = fillColor;
-                if (opacity !== null) cellRectangle.opacity = opacity;
-                if (asGuide) cellRectangle.guides = true;
-            });
-            cellLayer.zOrder(ZOrderMethod.SENDTOBACK);
-        }
-
-        /**
-         * 各セルの中央へオブジェクトを1つずつ配置します。/ Place one object at the center of each cell.
-         *
-         * @param {Array<PageItem>} items - 配置するオブジェクト（配置順）。
-         * @param {GridMetrics} gridMetrics - グリッドの寸法。
-         * @returns {void}
-         */
-        function placeItemsInCells(items, gridMetrics) {
-            var index = 0;
-            eachCell(gridMetrics, function (cellRect) {
-                if (index >= items.length) return false;
-
-                var bounds = items[index].visibleBounds;
-                var dx = (cellRect[0] + cellRect[2]) / 2 - (bounds[0] + bounds[2]) / 2;
-                var dy = (cellRect[1] + cellRect[3]) / 2 - (bounds[1] + bounds[3]) / 2;
-                items[index].translate(dx, dy);
-                index++;
-            });
         }
 
         /**
@@ -1257,41 +1298,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
             }
             doc.selection = cellItems;
             return true;
-        }
-
-        /**
-         * 上下キーで数値を増減します（Shift:10単位、Option:0.1単位）。/ Step a value with arrow keys.
-         *
-         * @param {EditText} inputField - 対象の入力欄。
-         * @param {boolean} allowsDecimal - 小数の増減を許可する場合は true。
-         * @param {number} minValue - 下限値。
-         * @returns {void}
-         */
-        function enableArrowKeyStep(inputField, allowsDecimal, minValue) {
-            inputField.addEventListener("keydown", function (event) {
-                if (event.keyName !== "Up" && event.keyName !== "Down") return;
-
-                var value = Number(inputField.text);
-                if (isNaN(value)) return;
-
-                var keyboard = ScriptUI.environment.keyboardState;
-                var direction = (event.keyName === "Up") ? 1 : -1;
-
-                if (keyboard.shiftKey) {
-                    // 10 の倍数へ丸めながら増減
-                    value = (direction > 0) ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
-                } else if (keyboard.altKey && allowsDecimal) {
-                    value = Math.round((value + direction * 0.1) * 10) / 10;
-                } else {
-                    value = Math.round(value) + direction;
-                }
-
-                inputField.text = String(Math.max(minValue, value));
-                event.preventDefault();
-
-                syncGutterEnabled();
-                updatePreview();
-            });
         }
 
         // -----------------------------------------

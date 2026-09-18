@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したエリア内文字の垂直方向の配置と行揃えを、まとめて中央にそろえます。閉じたパスを選択している場合はエリア内文字に変換し、サンプルテキスト（テキストを1つだけ一緒に選択しているとき、またはパスとテキストを1つずつグループ化しているときはその内容）を流し込みます。
+選択したエリア内文字の垂直方向の配置と行揃えを、まとめて中央にそろえます。閉じたパスを選択している場合はエリア内文字に変換し、サンプルテキスト、または一緒に選択した／グループ化したテキストの内容を流し込みます（グループは流し込み後に解除）。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Sets both the vertical alignment and the justification of the selected Area Type frames to center in one pass. Selected closed paths are converted to Area Type and filled with sample text, or with the contents of a text object selected alongside or grouped with the path.
+Sets both the vertical alignment and the justification of the selected Area Type frames to center in one pass. Selected closed paths are converted to Area Type and filled with sample text, or with the contents of a text object selected alongside or grouped with the path (such a group is released once the text is poured).
 
 See the README for details.
 

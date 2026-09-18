@@ -251,7 +251,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* ç´¹ä
             var ln = (e && e.line) ? (" line " + e.line) : "";
             var fn = (e && e.fileName) ? (" (" + e.fileName + ")") : "";
             return msg + ln + fn;
-        } catch (_) {
+        } catch (e) {
             return String(e);
         }
     }

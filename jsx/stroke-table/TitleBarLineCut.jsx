@@ -1,6 +1,6 @@
 #target illustrator
 #targetengine "TitleBarLineCutEngine"
-try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } catch (_) { }
+try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } catch (e) { }
 
 /*
 
@@ -222,17 +222,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 newRect.stroked = refForAppearance.stroked;
                 newRect.filled = refForAppearance.filled;
-                try { newRect.strokeColor = refForAppearance.strokeColor; } catch (_) { }
-                try { newRect.fillColor = refForAppearance.fillColor; } catch (_) { }
-                try { newRect.strokeWidth = refForAppearance.strokeWidth; } catch (_) { }
-                try { newRect.strokeDashes = refForAppearance.strokeDashes; } catch (_) { }
-                try { newRect.dashOffset = refForAppearance.dashOffset; } catch (_) { }
-                try { newRect.strokeCap = refForAppearance.strokeCap; } catch (_) { }
-                try { newRect.strokeJoin = refForAppearance.strokeJoin; } catch (_) { }
-                try { newRect.miterLimit = refForAppearance.miterLimit; } catch (_) { }
-                try { newRect.strokeOverprint = refForAppearance.strokeOverprint; } catch (_) { }
-                try { newRect.opacity = refForAppearance.opacity; } catch (_) { }
-                try { newRect.blendingMode = refForAppearance.blendingMode; } catch (_) { }
+                try { newRect.strokeColor = refForAppearance.strokeColor; } catch (e) { }
+                try { newRect.fillColor = refForAppearance.fillColor; } catch (e) { }
+                try { newRect.strokeWidth = refForAppearance.strokeWidth; } catch (e) { }
+                try { newRect.strokeDashes = refForAppearance.strokeDashes; } catch (e) { }
+                try { newRect.dashOffset = refForAppearance.dashOffset; } catch (e) { }
+                try { newRect.strokeCap = refForAppearance.strokeCap; } catch (e) { }
+                try { newRect.strokeJoin = refForAppearance.strokeJoin; } catch (e) { }
+                try { newRect.miterLimit = refForAppearance.miterLimit; } catch (e) { }
+                try { newRect.strokeOverprint = refForAppearance.strokeOverprint; } catch (e) { }
+                try { newRect.opacity = refForAppearance.opacity; } catch (e) { }
+                try { newRect.blendingMode = refForAppearance.blendingMode; } catch (e) { }
             } catch (e) { }
 
             // Keep stacking position roughly similar: put the new rect where the old one was.
@@ -503,7 +503,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 try { outlined.remove(); } catch (e) { }
             } catch (e) {
                 // フォールバック：通常のvisibleBounds
-                try { __textBoundsForCalc = tf.visibleBounds.slice(0); } catch (_) { __textBoundsForCalc = null; }
+                try { __textBoundsForCalc = tf.visibleBounds.slice(0); } catch (e) { __textBoundsForCalc = null; }
             }
         }
 
@@ -846,7 +846,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try {
                         var sw0 = (rectC && rectC.stroked) ? rectC.strokeWidth : 1;
                         eps = Math.max(0.05, sw0 * 0.25);
-                    } catch (_) { }
+                    } catch (e) { }
 
                     function nudgeEnd(idx, step) {
                         // step: +1 to search forward, -1 to search backward for a distinct neighbor
@@ -1291,7 +1291,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 try {
                     rectC = makeStrokeOnlyFromA(rectA);
                     // 可能ならBの後ろへ
-                    try { if (rectB) rectC.move(rectB, ElementPlacement.PLACEAFTER); } catch (_) { }
+                    try { if (rectB) rectC.move(rectB, ElementPlacement.PLACEAFTER); } catch (e) { }
                 } catch (e) {
                     rectC = null;
                 }

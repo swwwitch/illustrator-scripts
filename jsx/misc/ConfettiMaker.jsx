@@ -199,7 +199,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             try {
                 /* measureString が使える場合は実測 / Measure the string when the API is available */
                 textWidth = checkboxList[i].graphics.measureString(checkboxText).width;
-            } catch (_) {
+            } catch (e) {
                 /* フォールバック: 文字数ベース / Fall back to a character-count estimate */
                 textWidth = checkboxText.length * 7;
             }
@@ -315,7 +315,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
                 if (err.line) message += " (line: " + String(err.line) + ")";
             }
             $.writeln(message);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     if (!app.documents.length) {
@@ -1129,10 +1129,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         } catch (eCreateSymbol) {
             logError(eCreateSymbol, "createSymbolConfetti");
             if (symbolItem && !wrapGroup) {
-                try { symbolItem.remove(); } catch (_) { }
+                try { symbolItem.remove(); } catch (e) { }
             }
             if (wrapGroup) {
-                try { wrapGroup.remove(); } catch (_) { }
+                try { wrapGroup.remove(); } catch (e) { }
             }
             return null;
         }
@@ -1169,7 +1169,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
 
         try {
             item.transform(shearMatrix, true, true, true, true, 1, Transformation.CENTER);
-        } catch (_) {
+        } catch (e) {
             /* フォールバック: shear API（環境によってはこちらが効く）/ Fall back to the shear API */
             try { item.shear(deg); } catch (eShear) { logError(eShear, "applyShearToItem"); }
         }
@@ -1368,13 +1368,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
             if (doc.selection && doc.selection.length > 0) return doc.selection[0];
         } catch (eUniteGroup) {
             logError(eUniteGroup, "uniteGroupToSinglePath.pathfinder");
-            try { duplicated.remove(); } catch (_) { }
+            try { duplicated.remove(); } catch (e) { }
             return null;
         } finally {
             doc.selection = null;
             var itemsToReselect = (previousSelection && previousSelection.length) ? previousSelection : [selectedItem];
             for (var i = 0; i < itemsToReselect.length; i++) {
-                try { itemsToReselect[i].selected = true; } catch (_) { }
+                try { itemsToReselect[i].selected = true; } catch (e) { }
             }
         }
         return null;
@@ -1561,7 +1561,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
      * @returns {void}
      */
     function cleanupScheduledGlobals() {
-        try { delete $.global.__ConfettiMaker_runDebouncedPreview; } catch (_) { }
+        try { delete $.global.__ConfettiMaker_runDebouncedPreview; } catch (e) { }
     }
 
     /**
@@ -1570,7 +1570,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
      */
     function cancelScheduledPreview() {
         if (!debounceTaskId) return;
-        try { app.cancelTask(debounceTaskId); } catch (_) { }
+        try { app.cancelTask(debounceTaskId); } catch (e) { }
         debounceTaskId = 0;
     }
 
@@ -1600,7 +1600,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         try {
             var keyboardState = ScriptUI.environment.keyboardState;
             return { altKey: !!keyboardState.altKey, metaKey: !!keyboardState.metaKey };
-        } catch (_) {
+        } catch (e) {
             return { altKey: false, metaKey: false };
         }
     }
@@ -1858,7 +1858,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
                 movedItems.push(previewItem);
             } catch (eMoveItem) {
                 logError(eMoveItem, "finalize.moveItem");
-                try { previewItem.remove(); } catch (_) { break; }
+                try { previewItem.remove(); } catch (e) { break; }
             }
         }
 

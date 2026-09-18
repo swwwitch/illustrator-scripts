@@ -909,10 +909,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * @returns {void}
          */
         function attachHover(button) {
-            try {
-                button.addEventListener("mouseover", function() { button.isHover = true; redrawControl(button); });
-                button.addEventListener("mouseout", function() { button.isHover = false; redrawControl(button); });
-            } catch (e) {}
+            button.addEventListener("mouseover", function() { button.isHover = true; redrawControl(button); });
+            button.addEventListener("mouseout", function() { button.isHover = false; redrawControl(button); });
         }
 
         // =========================================
@@ -1108,9 +1106,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
             /* 選択の変化はパレットへ操作しに来た瞬間に拾う（Illustrator にタイマーAPIが無いため）
                Illustrator has no timer API, so the selection is re-read when the user comes to the palette */
             win.onActivate = function() { onPaletteFocus(true); };
-            try {
-                win.addEventListener("mouseover", function() { onPaletteFocus(false); });
-            } catch (mouseoverError) {}
+            win.addEventListener("mouseover", function() { onPaletteFocus(false); });
 
             win.addEventListener("keydown", function(event) { onPaletteKeyDown(win, event); });
 
@@ -1853,9 +1849,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
          * @returns {void}
          */
         function saveWindowLocation(win) {
-            try {
-                $.global[WINDOW_LOCATION_KEY] = [win.location[0], win.location[1]];
-            } catch (locationError) {}
+            $.global[WINDOW_LOCATION_KEY] = [win.location[0], win.location[1]];
         }
 
         /**

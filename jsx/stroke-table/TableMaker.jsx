@@ -121,7 +121,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function setDialogOpacity(dlg, opacityValue) {
         try {
             dlg.opacity = opacityValue;
-        } catch (_) {
+        } catch (e) {
             // opacity をサポートしない環境では無視
         }
     }
@@ -144,10 +144,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rect.fillColor = createCmykColor(0, 0, 0, k);
 
             // 生成物は選択状態にしておく（元コード互換）
-            try { rect.selected = true; } catch (_) { }
+            try { rect.selected = true; } catch (e) { }
 
             // 生成順を末尾へ
-            try { rect.move(rect.layer, ElementPlacement.PLACEATEND); } catch (_) { }
+            try { rect.move(rect.layer, ElementPlacement.PLACEATEND); } catch (e) { }
         }
     }
 
@@ -195,7 +195,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // 仕様：不要な場面で alert は出さない
             try {
                 $.writeln("エラー: " + e);
-            } catch (_) { }
+            } catch (e) { }
             return;
         }
     }
@@ -227,7 +227,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (i = 0; i < pathItems.length; i++) {
             try {
                 pathItems[i].remove();
-            } catch (_) { }
+            } catch (e) { }
         }
     }
 
@@ -427,7 +427,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {Boolean} heading 見出しの強調を行うかどうか
      */
     function buildRulesForTextFrame(textFrame, targetLayer, strokeWidthPt, shapeMode, verticalLines, heading) {
-        try { textFrame.selected = false; } catch (_) { }
+        try { textFrame.selected = false; } catch (e) { }
 
         var bounds = textFrame.geometricBounds; // [left, top, right, bottom]
         var paragraphs = textFrame.paragraphs;
@@ -534,8 +534,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
             rect.fillColor = createCmykColor(0, 0, 0, k);
 
-            try { rect.selected = true; } catch (_) { }
-            try { rect.move(rect.layer, ElementPlacement.PLACEATEND); } catch (_) { }
+            try { rect.selected = true; } catch (e) { }
+            try { rect.move(rect.layer, ElementPlacement.PLACEATEND); } catch (e) { }
         }
     }
 
@@ -597,8 +597,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         item.strokeWidth = strokeWidthPt;
         item.strokeColor = createCmykColor(0, 0, 0, 100);
 
-        try { item.selected = true; } catch (_) { }
-        try { item.move(item.layer, ElementPlacement.PLACEATEND); } catch (_) { }
+        try { item.selected = true; } catch (e) { }
+        try { item.move(item.layer, ElementPlacement.PLACEATEND); } catch (e) { }
     }
 
     /**
@@ -677,7 +677,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var p;
         for (p = 0; p < paragraphs.length; p++) {
             var ts = null;
-            try { ts = paragraphs[p].tabStops; } catch (_) { ts = null; }
+            try { ts = paragraphs[p].tabStops; } catch (e) { ts = null; }
 
             if (!ts || ts.length === 0) continue;
             found = true;
@@ -685,7 +685,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var i;
             for (i = 0; i < ts.length; i++) {
                 var pos = null;
-                try { pos = ts[i].position; } catch (_) { pos = null; }
+                try { pos = ts[i].position; } catch (e) { pos = null; }
                 if (pos === null || pos === undefined) continue;
                 if (pos <= 0) continue;
 

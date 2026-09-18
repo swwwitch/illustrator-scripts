@@ -36,21 +36,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 // スクリプトバージョン
 
-// 矩形の交差判定（[top,left,bottom,right]）/ Rectangle intersection test
-function rectanglesIntersect(rectA, rectB) {
-    // 右 < 左 / left > right / 上 < 下 のいずれかで非交差
-    if (rectA[3] < rectB[1]) return false; // a.right < b.left
-    if (rectA[1] > rectB[3]) return false; // a.left > b.right
-    if (rectA[0] < rectB[2]) return false; // a.top < b.bottom
-    if (rectA[2] > rectB[0]) return false; // a.bottom > b.top
-    return true;
-}
-
-// artboardRect([left, top, right, bottom]) → [top, left, bottom, right]
-function artboardRectToBounds(artboardRect) {
-    return [artboardRect[1], artboardRect[0], artboardRect[3], artboardRect[2]];
-}
-
 // 点が矩形内にあるか（含む境界）/ Point-in-rect (inclusive)
 function isPointInRect(x, y, rect) { // rect: [left, top, right, bottom]
     return (x >= rect[0] && x <= rect[2] && y <= rect[1] && y >= rect[3]);

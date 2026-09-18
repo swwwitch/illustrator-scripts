@@ -150,7 +150,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var ln = (e && e.line) ? (" line " + e.line) : "";
             var fn = (e && e.fileName) ? (" (" + e.fileName + ")") : "";
             return msg + ln + fn;
-        } catch (_) {
+        } catch (e) {
             return String(e);
         }
     }
@@ -313,7 +313,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             wLabel.maximumSize = [maxLabelW, 1000];
             hLabel.minimumSize = [maxLabelW, 0];
             hLabel.maximumSize = [maxLabelW, 1000];
-        } catch (_) {}
+        } catch (e) {}
 
         // 初期フォーカス：幅 / Set initial focus to Width field on open (preserve any existing onShow)
         dlg.onShow = (function(prev) {
@@ -564,10 +564,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateSizePanelDisplay();
         }
 
-        function updatePreview() {
-            applyResizePreview();
-        }
-
         wValue.onChanging = applyResizePreview;
         hValue.onChanging = applyResizePreview;
         changeValueByArrowKey(wValue, applyResizePreview);
@@ -682,19 +678,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    /* 選択オブジェクト群から最大のバウンディングボックスを取得 / Get maximum bounding box from multiple items */
-    function getMaxBounds(items, usePreviewBounds) {
-        var bounds = getBounds(items[0], usePreviewBounds);
-        for (var i = 1; i < items.length; i++) {
-            var itemBounds = getBounds(items[i], usePreviewBounds);
-            bounds[0] = Math.min(bounds[0], itemBounds[0]);
-            bounds[1] = Math.max(bounds[1], itemBounds[1]);
-            bounds[2] = Math.max(bounds[2], itemBounds[2]);
-            bounds[3] = Math.min(bounds[3], itemBounds[3]);
-        }
-        return bounds;
-    }
-
     /* オブジェクトのバウンディングボックスを取得 / Get bounding box of a single object
        usePreviewBounds=true なら visibleBounds（プレビュー境界: 塗り/線を含む）
        usePreviewBounds=false なら geometricBounds（幾何境界: パス外形のみ） */
@@ -753,7 +736,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     } catch (e) {
         try {
             $.writeln("[FitArtboardWithMargin] ERROR: " + formatError(e));
-        } catch (_) {}
+        } catch (e) {}
         alert(LABELS.errorOccurred[uiLang] + formatError(e));
     }
 

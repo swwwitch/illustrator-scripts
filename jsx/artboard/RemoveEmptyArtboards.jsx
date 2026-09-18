@@ -61,14 +61,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
     }
 
-    /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
-    function labelWithCount(key, count) {
-        if (uiLang === 'ja') {
-            return getLabel(key) + '（' + count + '）';
-        }
-        return getLabel(key) + ' (' + count + ')';
-    }
-
     // =========================================
     // アートボード判定 / Artboard detection
     // =========================================

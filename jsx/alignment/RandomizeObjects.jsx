@@ -104,12 +104,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
         dialog: {
-            title: { ja: "ランダム化 " + SCRIPT_VERSION, en: "Randomize " + SCRIPT_VERSION }
+            title: { ja: "ランダム化", en: "Randomize" }
         },
         distance: {
             panelTitle:   { ja: "移動距離", en: "Distance" },
-            horizontal:   { ja: "横:", en: "Horizontal:" },
-            vertical:     { ja: "縦:", en: "Vertical:" },
+            horizontal:   { ja: "横", en: "Horizontal" },
+            vertical:     { ja: "縦", en: "Vertical" },
             link:         { ja: "連動", en: "Link" },
             gatherCenter: { ja: "中央に集める", en: "Gather to Center" },
             avoidOverlap: { ja: "重なりを避ける", en: "Avoid Overlap" }
@@ -130,6 +130,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             panelTitle: { ja: "オプション", en: "Options" },
             rotate:     { ja: "回転", en: "Rotate" },
             opacity:    { ja: "不透明度", en: "Opacity" }
+        },
+        tooltip: {
+            distanceHorizontal: { ja: "指定した値の範囲で、左右にランダムに動かします。", en: "Moves each object left or right by a random amount up to this value." },
+            distanceVertical:   { ja: "指定した値の範囲で、上下にランダムに動かします。", en: "Moves each object up or down by a random amount up to this value." },
+            distanceLink:       { ja: "横と同じ値を縦にも使います。", en: "Uses the horizontal value for the vertical one too." },
+            gatherCenter: {
+                ja: "選択範囲の中心へオブジェクトを寄せ集めます。",
+                en: "Pulls the objects together toward the centre of the selection."
+            },
+            avoidOverlap: {
+                ja: "オブジェクトどうしが重ならない位置へ散らします。十分な余白がないと完全には解消できません。",
+                en: "Spreads the objects so they no longer overlap. Without enough room some overlaps may remain."
+            },
+            colorNone:        { ja: "塗りカラーは変更しません。", en: "Leaves the fill colors alone." },
+            colorShuffle:     { ja: "選択内にある塗りカラーどうしを入れ替えます。", en: "Swaps the existing fill colors among the selected objects." },
+            colorFullShuffle: { ja: "塗りカラーを入れ替えたうえで、同じ色が隣り合わないように並べ替えます。", en: "Swaps the fill colors and avoids leaving the same color side by side." },
+            scaleWidth:  { ja: "指定した％の範囲で幅をランダムに変えます。", en: "Varies the width randomly within this percentage." },
+            scaleHeight: { ja: "指定した％の範囲で高さをランダムに変えます。", en: "Varies the height randomly within this percentage." },
+            scaleLink:   { ja: "幅と同じ値を高さにも使い、縦横比を保ちます。", en: "Uses the width value for the height too, keeping the aspect ratio." },
+            rotate:      { ja: "指定した角度の範囲でランダムに回転します。", en: "Rotates each object randomly within this angle." },
+            opacity:     { ja: "指定した％の範囲で不透明度をランダムに変えます。", en: "Varies the opacity randomly within this percentage." },
+            random:      { ja: "現在の設定でランダム化をやり直します。押すたびに結果が変わります。", en: "Re-randomizes with the current settings. Each press gives a different result." },
+            reset:       { ja: "実行前の状態に戻します。", en: "Restores the state before any randomizing." }
         },
         button: {
             random: { ja: "ランダム", en: "Random" },
@@ -228,22 +251,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     /**
      * チェックボックス＋数値入力欄の行を生成する
      * @param {Panel|Group} parentContainer - 追加先
-     * @param {string} labelText - チェックボックスのラベル
+     * @param {string} rowLabel - チェックボックスのラベル
      * @param {number} labelWidth - ラベル幅（0以下なら指定しない）
      * @param {string} unitText - 入力欄の後ろに添える単位（不要なら空文字）
+     * @param {string} [tooltipText] - チェックボックスと入力欄に付けるツールチップ
      * @returns {object} { check: Checkbox, field: EditText }
      */
-    function addNumericFieldRow(parentContainer, labelText, labelWidth, unitText) {
+    function addNumericFieldRow(parentContainer, rowLabel, labelWidth, unitText, tooltipText) {
         var numericFieldRow = parentContainer.add("group");
         setupRow(numericFieldRow);
 
-        var checkbox = numericFieldRow.add("checkbox", undefined, labelText);
+        var checkbox = numericFieldRow.add("checkbox", undefined, rowLabel);
         if (labelWidth > 0) checkbox.preferredSize.width = labelWidth;
+        if (tooltipText) checkbox.helpTip = tooltipText;
 
         /* 初期状態はOFF・入力欄はディム / Every row starts unchecked and dimmed */
         var field = numericFieldRow.add("edittext", undefined, "0");
         field.characters = NUMERIC_FIELD_CHARS;
         field.enabled = false;
+        if (tooltipText) field.helpTip = tooltipText;
 
         if (unitText) numericFieldRow.add("statictext", undefined, unitText);
 
@@ -1132,9 +1158,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
      * @param {string} secondaryLabel - 2つ目（縦・高さ）のラベル
      * @param {string} linkLabel - 連動チェックボックスのラベル
      * @param {number} labelWidth - ラベル幅（0以下なら指定しない）
+     * @param {object} axisTooltips - primary / secondary / link のツールチップ
      * @returns {object} { panel, checkX, fieldX, checkY, fieldY, linkCheck }
      */
-    function buildAxisPairPanel(parentColumn, panelTitle, primaryLabel, secondaryLabel, linkLabel, labelWidth) {
+    function buildAxisPairPanel(parentColumn, panelTitle, primaryLabel, secondaryLabel, linkLabel, labelWidth, axisTooltips) {
+        if (!axisTooltips) axisTooltips = {};
         var axisPanel = addPanel(parentColumn, panelTitle);
 
         var axisRow = axisPanel.add("group");
@@ -1144,10 +1172,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         axisFieldColumn.orientation = "column";
         axisFieldColumn.alignChildren = ["left", "center"];
 
-        var primaryField = addNumericFieldRow(axisFieldColumn, primaryLabel, labelWidth, "");
-        var secondaryField = addNumericFieldRow(axisFieldColumn, secondaryLabel, labelWidth, "");
+        var primaryField = addNumericFieldRow(axisFieldColumn, primaryLabel, labelWidth, "", axisTooltips.primary);
+        var secondaryField = addNumericFieldRow(axisFieldColumn, secondaryLabel, labelWidth, "", axisTooltips.secondary);
 
         var linkCheck = axisRow.add("checkbox", undefined, linkLabel);
+        linkCheck.helpTip = axisTooltips.link;
         linkCheck.value = true;
 
         return {
@@ -1172,7 +1201,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             getLabel('distance', 'horizontal'),
             getLabel('distance', 'vertical'),
             getLabel('distance', 'link'),
-            0
+            0,
+            {
+                primary: getLabel('tooltip', 'distanceHorizontal'),
+                secondary: getLabel('tooltip', 'distanceVertical'),
+                link: getLabel('tooltip', 'distanceLink')
+            }
         );
 
         /* 再配置ボタンはパネル幅いっぱいに広げず中央に置く / Keep the buttons centered instead of filling the panel */
@@ -1182,9 +1216,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         repositionButtonColumn.alignment = ["fill", "center"];
 
         distanceControls.gatherButton = repositionButtonColumn.add("button", undefined, getLabel('distance', 'gatherCenter'));
+        distanceControls.gatherButton.helpTip = getLabel('tooltip', 'gatherCenter');
         distanceControls.gatherButton.preferredSize = REPOSITION_BUTTON_SIZE;
 
         distanceControls.avoidButton = repositionButtonColumn.add("button", undefined, getLabel('distance', 'avoidOverlap'));
+        distanceControls.avoidButton.helpTip = getLabel('tooltip', 'avoidOverlap');
         distanceControls.avoidButton.preferredSize = REPOSITION_BUTTON_SIZE;
 
         return distanceControls;
@@ -1199,8 +1235,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         var colorPanel = addPanel(parentColumn, getLabel('color', 'panelTitle'));
 
         var noneRadio = colorPanel.add("radiobutton", undefined, getLabel('color', 'none'));
+        noneRadio.helpTip = getLabel('tooltip', 'colorNone');
         var shuffleRadio = colorPanel.add("radiobutton", undefined, getLabel('color', 'shuffle'));
+        shuffleRadio.helpTip = getLabel('tooltip', 'colorShuffle');
         var fullShuffleRadio = colorPanel.add("radiobutton", undefined, getLabel('color', 'fullShuffle'));
+        fullShuffleRadio.helpTip = getLabel('tooltip', 'colorFullShuffle');
         noneRadio.value = true;
 
         return { noneRadio: noneRadio, shuffleRadio: shuffleRadio, fullShuffleRadio: fullShuffleRadio };
@@ -1218,7 +1257,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
             getLabel('scale', 'width'),
             getLabel('scale', 'height'),
             getLabel('scale', 'link'),
-            SCALE_LABEL_WIDTH
+            SCALE_LABEL_WIDTH,
+            {
+                primary: getLabel('tooltip', 'scaleWidth'),
+                secondary: getLabel('tooltip', 'scaleHeight'),
+                link: getLabel('tooltip', 'scaleLink')
+            }
         );
     }
 
@@ -1230,12 +1274,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     function buildOptionsPanel(parentColumn) {
         var optionsPanel = addPanel(parentColumn, getLabel('options', 'panelTitle'));
 
-        var rotateField = addNumericFieldRow(optionsPanel, getLabel('options', 'rotate'), OPTIONS_LABEL_WIDTH, "°");
+        var rotateField = addNumericFieldRow(optionsPanel, getLabel('options', 'rotate'), OPTIONS_LABEL_WIDTH, "°", getLabel('tooltip', 'rotate'));
         var rotateSlider = optionsPanel.add("slider", undefined, 0, 0, ROTATE_RANGE_MAX);
+        rotateSlider.helpTip = getLabel('tooltip', 'rotate');
         rotateSlider.alignment = ["fill", "center"];
 
-        var opacityField = addNumericFieldRow(optionsPanel, getLabel('options', 'opacity'), OPTIONS_LABEL_WIDTH, "%");
+        var opacityField = addNumericFieldRow(optionsPanel, getLabel('options', 'opacity'), OPTIONS_LABEL_WIDTH, "%", getLabel('tooltip', 'opacity'));
         var opacitySlider = optionsPanel.add("slider", undefined, 0, 0, OPACITY_RANGE_MAX);
+        opacitySlider.helpTip = getLabel('tooltip', 'opacity');
         opacitySlider.alignment = ["fill", "center"];
 
         /* スライダーの上限をセクションに持たせ、連動と同期の処理を共通化する / Carry the slider maximum so binding and syncing can share code */
@@ -1260,7 +1306,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
         var randomizeGroup = buttonBar.add("group");
         setupRow(randomizeGroup, "left");
         var randomButton = randomizeGroup.add("button", undefined, getLabel('button', 'random'));
+        randomButton.helpTip = getLabel('tooltip', 'random');
         var resetButton = randomizeGroup.add("button", undefined, getLabel('button', 'reset'));
+        resetButton.helpTip = getLabel('tooltip', 'reset');
 
         /* 左右のボタン群を両端へ寄せるスペーサー / Spacer that pushes the two groups apart */
         var flexibleSpacer = buttonBar.add("group");
@@ -1563,7 +1611,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nba8235fe91b2"; /* 紹�
     function showRandomizeDialog(doc) {
         var session = createPreviewSession(doc);
 
-        var dialogWindow = createDialogWindow(getLabel('dialog', 'title'));
+        var dialogWindow = createDialogWindow(getLabel('dialog', 'title') + " " + SCRIPT_VERSION);
         toggleLiveCornerAnnotator();
 
         var dialogControls = buildDialogControls(dialogWindow);

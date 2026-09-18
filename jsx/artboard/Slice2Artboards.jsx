@@ -203,13 +203,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) { }
-    }
-
     /* 上下キーで数値を増減する（Shift：10単位）/ Step a value with the arrow keys (Shift: by 10) */
     function enableArrowKeyStep(inputField, allowsNegative) {
         inputField.addEventListener("keydown", function (event) {

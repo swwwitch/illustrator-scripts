@@ -65,7 +65,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var o = LABELS[key];
             if (!o) return key;
             return o[uiLang] || o.ja || o.en || key;
-        } catch (_) {
+        } catch (e) {
             return key;
         }
     }
@@ -94,7 +94,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (out && out.length >= 3) {
                 return { r: out[0], g: out[1], b: out[2] };
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // Fallback (simple approximation)
         var C = c / 100, M = m / 100, Y = y / 100, K = k / 100;
@@ -142,7 +142,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         var rgb = cmykToRgbApprox(c.cyan, c.magenta, c.yellow, c.black);
                         return normalizeHexString(rgbToHexString(rgb.r, rgb.g, rgb.b));
                     }
-                } catch (_) { }
+                } catch (e) { }
                 return null;
             }
 
@@ -160,7 +160,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             return null;
-        } catch (_) {
+        } catch (e) {
             return null;
         }
     }
@@ -230,8 +230,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             event.preventDefault();
 
             // 既存の同期・プレビュー更新を流用
-            try { if (typeof editText.onChanging === "function") editText.onChanging(); } catch (_) { }
-            try { if (typeof editText.onChange === "function") editText.onChange(); } catch (_) { }
+            try { if (typeof editText.onChanging === "function") editText.onChanging(); } catch (e) { }
+            try { if (typeof editText.onChange === "function") editText.onChange(); } catch (e) { }
         });
     }
 
@@ -301,7 +301,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 現在のHEXカラー表示（カラーチップ） / Current HEX color swatch
         var colorSwatch = g1.add("panel");
-        try { colorSwatch.margins = 0; } catch (_) { }
+        try { colorSwatch.margins = 0; } catch (e) { }
         colorSwatch.preferredSize = [46, 46];
 
         g1.add("statictext", undefined, getLabel("labelHex"));
@@ -316,12 +316,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!nh) return null;
                 var rgb = hexToRgb(nh);
                 return rgb;
-            } catch (_) { }
+            } catch (e) { }
             return null;
         }
 
         function updateColorSwatch() {
-            try { colorSwatch.update(); } catch (_) { }
+            try { colorSwatch.update(); } catch (e) { }
         }
 
         colorSwatch.onDraw = function () {
@@ -346,13 +346,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 var stroke = g.newPen(g.PenType.SOLID_COLOR, [0.6, 0.6, 0.6, 1], 1);
                 g.strokePath(stroke);
-            } catch (_) { }
+            } catch (e) { }
         };
         // 初期値を正規化 / Normalize initial value
         try {
             var nh = normalizeHexString(inputHex.text);
             if (nh) inputHex.text = nh;
-        } catch (_) { }
+        } catch (e) { }
         updateColorSwatch();
 
         // ステップ数パネル / Steps panel
@@ -421,15 +421,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             v = clamp(Number(v) || 0, -1, 1);
             v = Math.round(v * 10) / 10;
             inputContrast.text = v.toFixed(1);
-            try { sldContrast.value = v; } catch (_) { }
+            try { sldContrast.value = v; } catch (e) { }
         }
         setContrastShiftValue(0);
 
         // CONTRAST SHIFT UI 有効/無効 / Enable/disable contrast UI
         function setContrastEnabled(v) {
-            try { contrastPanel.enabled = !!v; } catch (_) { }
-            try { inputContrast.enabled = !!v; } catch (_) { }
-            try { sldContrast.enabled = !!v; } catch (_) { }
+            try { contrastPanel.enabled = !!v; } catch (e) { }
+            try { inputContrast.enabled = !!v; } catch (e) { }
+            try { sldContrast.enabled = !!v; } catch (e) { }
         }
 
         // --- 2. アルゴリズム選択 (ラジオボタン) ---
@@ -474,7 +474,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 if (!__previewEnabled) return;
                 previewPanel.update(); // onDraw を発火させる
-            } catch (_) {
+            } catch (e) {
                 try { previewPanel.notify("onDraw"); } catch (__) { }
             }
         };
@@ -486,7 +486,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // CONTRAST SHIFT のUI連動（updatePreview定義後に接続）
         inputContrast.onChanging = function () {
             var v = getContrastShiftValue();
-            try { sldContrast.value = v; } catch (_) { }
+            try { sldContrast.value = v; } catch (e) { }
             updatePreview();
         };
         inputContrast.onChange = function () {
@@ -544,16 +544,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function setPreviewEnabled(v) {
             __previewEnabled = !!v;
             // visible は変えない（レイアウトが上下にガタつくため）
-            try { previewPanel.enabled = __previewEnabled; } catch (_) { }
+            try { previewPanel.enabled = __previewEnabled; } catch (e) { }
             // 見た目を即時反映
-            try { previewPanel.update(); } catch (_) { }
+            try { previewPanel.update(); } catch (e) { }
         }
 
         // ステップUI有効/無効
         function setStepsEnabled(v) {
-            try { stepsPanel.enabled = !!v; } catch (_) { }
-            try { inputCount.enabled = !!v; } catch (_) { }
-            try { sldCount.enabled = !!v; } catch (_) { }
+            try { stepsPanel.enabled = !!v; } catch (e) { }
+            try { inputCount.enabled = !!v; } catch (e) { }
+            try { sldCount.enabled = !!v; } catch (e) { }
         }
 
         // 初期状態：デフォルトは「すべて」なのでプレビュー無効 / Initial: default is "All" => disable preview
@@ -564,7 +564,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbTailwind.onClick = function () {
             // Tailwind は常に11・ステップ数UIはディム / Tailwind: fixed 11, dim steps UI
             inputCount.text = "11";
-            try { sldCount.value = 11; } catch (_) { }
+            try { sldCount.value = 11; } catch (e) { }
             setStepsEnabled(false);
             setContrastEnabled(true);
             setPreviewEnabled(true);
@@ -597,7 +597,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbLch.onClick = function () {
             // LCH は常に11・ステップ数UIはディム / LCH: fixed 11, dim steps UI
             inputCount.text = "11";
-            try { sldCount.value = 11; } catch (_) { }
+            try { sldCount.value = 11; } catch (e) { }
             setStepsEnabled(false);
             setContrastEnabled(true);
             setPreviewEnabled(true);
@@ -606,7 +606,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbAll.onClick = function () {
             // 「すべて」はステップ数=11で計算（UIも合わせる）
             inputCount.text = "11";
-            try { sldCount.value = 11; } catch (_) { }
+            try { sldCount.value = 11; } catch (e) { }
             // 「すべて」選択時はプレビューを無効化（レイアウトは固定）
             setPreviewEnabled(false);
             setStepsEnabled(false);
@@ -643,19 +643,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 再描画 / Redraw (preview refresh)
         btnRedraw.onClick = function () {
-            try { updateColorSwatch(); } catch (_) { }
+            try { updateColorSwatch(); } catch (e) { }
 
             // ダイアログ内プレビューを強制再描画（プレビュー無効時も） / Force dialog preview repaint
             try {
                 var __prev = __previewEnabled;
                 __previewEnabled = true;
-                try { previewPanel.update(); } catch (_) { }
-                try { updatePreview(); } catch (_) { }
+                try { previewPanel.update(); } catch (e) { }
+                try { updatePreview(); } catch (e) { }
                 __previewEnabled = __prev;
-            } catch (_) { }
+            } catch (e) { }
 
             // ダイアログ全体の再描画 / Refresh dialog
-            try { win.update(); } catch (_) { }
+            try { win.update(); } catch (e) { }
 
             // Illustrator画面の再描画 / Force Illustrator UI redraw
             app.redraw();
@@ -663,7 +663,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // キャンセル / Cancel
         btnCancel.onClick = function () {
-            try { win.close(); } catch (_) { }
+            try { win.close(); } catch (e) { }
         };
 
         // ステップ数取得（全角数字→半角、NaN時はスライダー値を採用、1〜20にクランプ）
@@ -682,7 +682,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // 文字入力が不正な場合はスライダーにフォールバック
             if (!isFinite(v) || isNaN(v)) {
-                try { v = Math.round(Number(sldCount.value)); } catch (_) { v = 5; }
+                try { v = Math.round(Number(sldCount.value)); } catch (e) { v = 5; }
             }
 
             // クランプ（UI仕様：1〜20）
@@ -726,7 +726,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // OK押下時に値を正規化してUIへ反映（全角/空欄対策）
             var vFixed = getStepCount();
             inputCount.text = String(vFixed);
-            try { sldCount.value = vFixed; } catch (_) { }
+            try { sldCount.value = vFixed; } catch (e) { }
             // 出力オプション / Output options
             var outHex = !!chkOutputHex.value;
             var outRgb = !!chkOutputRgb.value;
@@ -760,12 +760,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
                 if (e.keyName === "Enter" || e.keyName === "Return") {
                     e.preventDefault();
-                    try { btnOk.notify("onClick"); } catch (_) {
+                    try { btnOk.notify("onClick"); } catch (e) {
                         try { btnOk.onClick(); } catch (__) { }
                     }
                     return;
                 }
-            } catch (_) { }
+            } catch (e) { }
         });
         win.show();
     }
@@ -1195,9 +1195,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rgbGroup = doc.groupItems.add();
 
         // 前面順（RGB/HEX/Title を前に）
-        try { titleGroup.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
-        try { rgbGroup.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
-        try { hexGroup.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
+        try { titleGroup.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (e) { }
+        try { rgbGroup.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (e) { }
+        try { hexGroup.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (e) { }
 
         // タイトル / Title
         if (algoName && algoName.length && headerH > 0) {
@@ -1209,13 +1209,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 tf.position = [left, top - 8];
 
                 // 左揃え
-                try { tf.textRange.paragraphAttributes.justification = Justification.LEFT; } catch (_) { }
+                try { tf.textRange.paragraphAttributes.justification = Justification.LEFT; } catch (e) { }
 
                 // フォント設定：Avenir-Book / 11pt
                 try {
                     tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Avenir-Book");
                     tf.textRange.size = 11;
-                } catch (_) { }
+                } catch (e) { }
 
                 // 念のため属性を正規化（最初の1個だけ崩れる対策）
                 try {
@@ -1223,24 +1223,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     tf.textRange.characterAttributes.verticalScale = 100;
                     tf.textRange.characterAttributes.tracking = 0;
                     tf.textRange.characterAttributes.baselineShift = 0;
-                } catch (_) { }
+                } catch (e) { }
 
                 // 塗り：黒
                 try {
                     var tcol = new RGBColor();
                     tcol.red = 0; tcol.green = 0; tcol.blue = 0;
                     tf.textRange.fillColor = tcol;
-                } catch (_) { }
+                } catch (e) { }
 
                 // 見た目の左端を left に合わせる（フォント/サイズ確定後に補正）
                 try {
                     var gbT = tf.geometricBounds; // [left, top, right, bottom]
                     var dxT = left - gbT[0];
                     tf.position = [tf.position[0] + dxT, tf.position[1]];
-                } catch (_) { }
+                } catch (e) { }
 
-                try { tf.move(titleGroup, ElementPlacement.PLACEATEND); } catch (_) { }
-            } catch (_) { }
+                try { tf.move(titleGroup, ElementPlacement.PLACEATEND); } catch (e) { }
+            } catch (e) { }
         }
 
         // テキスト共通ヘルパー / Text helpers
@@ -1248,17 +1248,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 tf.textRange.size = sizePt;
                 var f = null;
-                try { f = app.textFonts.getByName(fontName); } catch (_) { }
+                try { f = app.textFonts.getByName(fontName); } catch (e) { }
                 if (!f) {
                     try { f = app.textFonts.getByName("Avenir-Book"); } catch (__) { }
                 }
                 if (f) tf.textRange.characterAttributes.textFont = f;
-            } catch (_) { }
+            } catch (e) { }
             try {
                 var tcol = new RGBColor();
                 tcol.red = 0; tcol.green = 0; tcol.blue = 0;
                 tf.textRange.fillColor = tcol;
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function __addLabel(text, x, y, sizePt, parentGroup) {
@@ -1267,9 +1267,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 tf.contents = text;
                 __setTextStyle(tf, sizePt, "Avenir-Book");
                 tf.position = [x, y];
-                try { tf.move(parentGroup, ElementPlacement.PLACEATEND); } catch (_) { }
+                try { tf.move(parentGroup, ElementPlacement.PLACEATEND); } catch (e) { }
                 return tf;
-            } catch (_) { }
+            } catch (e) { }
             return null;
         }
 
@@ -1278,7 +1278,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var gb = tf.geometricBounds; // [left, top, right, bottom]
                 var dx = targetX - gb[0];
                 tf.position = [tf.position[0] + dx, tf.position[1]];
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // 矩形位置 / Rectangles
@@ -1332,11 +1332,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
         }
-    }
-
-    function drawPaletteBlock(doc, left, top, width, headerH, swH, data, algoName, outHex, outRgb, contrastShift) {
-        // 旧API互換：共通描画へ委譲 / Backward-compatible wrapper
-        drawPaletteRow(doc, left, top, width, headerH, swH, data, algoName, outHex, outRgb, contrastShift);
     }
 
     main();

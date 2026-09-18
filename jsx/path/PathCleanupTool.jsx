@@ -190,7 +190,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* ç´¹ä
         function logProcessError(context, e) {
             try {
                 $.writeln("[PathCleanupTool] " + context + ": " + e);
-            } catch (_) {
+            } catch (e) {
                 // ignore logging failure
             }
         }
@@ -311,7 +311,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* ç´¹ä
                 var savedLocation = $.global[DLG_LOC_KEY];
                 if (!savedLocation || savedLocation.length !== 2) return null;
                 return [Number(savedLocation[0]), Number(savedLocation[1])];
-            } catch (_) {
+            } catch (e) {
                 return null;
             }
         }
@@ -327,7 +327,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* ç´¹ä
                 var dialogLocation = dlg.location; // [x,y]
                 if (!dialogLocation || dialogLocation.length !== 2) return;
                 $.global[DLG_LOC_KEY] = [Number(dialogLocation[0]), Number(dialogLocation[1])];
-            } catch (_) {
+            } catch (e) {
                 // ignore
             }
         }
@@ -342,7 +342,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* ç´¹ä
             if (!savedLocation) return;
             try {
                 dlg.location = savedLocation;
-            } catch (_) {
+            } catch (e) {
                 // ignore
             }
         }
@@ -371,16 +371,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* ç´¹ä
                         try {
                             if (currentItem.layer.locked === true) return true;
                             if (currentItem.layer.visible === false) return true;
-                        } catch (_) { }
+                        } catch (e) { }
                     }
-                } catch (_) {
+                } catch (e) {
                     // ignore property access errors
                 }
 
                 // Walk up
                 try {
                     currentItem = currentItem.parent;
-                } catch (_) {
+                } catch (e) {
                     break;
                 }
 
@@ -1895,7 +1895,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* ç´¹ä
                     try {
                         item.selected = true;
                         restoredCount++;
-                    } catch (_) {
+                    } catch (e) {
                         // skip items that can no longer be selected
                     }
                 }
@@ -1924,7 +1924,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* ç´¹ä
                     try {
                         pathItem.selected = true;
                         restoredCount++;
-                    } catch (_) {
+                    } catch (e) {
                         // skip items that can no longer be selected
                     }
                 }

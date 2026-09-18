@@ -172,14 +172,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     editText.text = String(value);
 
                     // Prevent default arrow key behavior (cursor move)
-                    try { event.preventDefault(); } catch (_) { }
+                    try { event.preventDefault(); } catch (e) { }
 
                     if (onChanged && typeof onChanged === 'function') {
-                        try { onChanged(); } catch (_) { }
+                        try { onChanged(); } catch (e) { }
                     }
-                } catch (_) { }
+                } catch (e) { }
             });
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // Get items
@@ -191,7 +191,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var selection = doc.selection;
     // Base selection snapshot (used for stable preview while dialog is open)
     var __baseSelection = [];
-    try { __baseSelection = selection.slice(0); } catch (_) { __baseSelection = []; }
+    try { __baseSelection = selection.slice(0); } catch (e) { __baseSelection = []; }
 
     var targetItems = getTargetTextItems(selection);
     var selectedPaths = getSelectedPathItems(selection);
@@ -199,7 +199,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 現在の選択からターゲット・パスと UI 有効状態を取り直す / Re-read targets, paths and UI enabled-state from the current selection */
     function __refreshInputsFromSelection() {
         var curSel = [];
-        try { curSel = doc.selection; } catch (_) { curSel = []; }
+        try { curSel = doc.selection; } catch (e) { curSel = []; }
 
         // During preview, selection may become empty; fall back to the base selection.
         if (!curSel || curSel.length === 0) {
@@ -221,10 +221,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                             hasPathTextTarget = true;
                             break;
                         }
-                    } catch (_) { }
+                    } catch (e) { }
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // "パス上文字に" is available if a path is selected OR a PathText provides its own path
         var canToPathText = hasSelectedPath || hasPathTextTarget;
@@ -236,11 +236,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        try { rbToPathText.enabled = canToPathText; } catch (_) { }
-        try { rbSplitTextAndPath.enabled = canSplit; } catch (_) { }
-        try { cbSplitDeletePath.enabled = canSplit; } catch (_) { }
-        try { rbSplitTextAndPathNoFormat.enabled = canSplit; } catch (_) { }
-        try { rbGenCircle.enabled = true; } catch (_) { }
+        try { rbToPathText.enabled = canToPathText; } catch (e) { }
+        try { rbSplitTextAndPath.enabled = canSplit; } catch (e) { }
+        try { cbSplitDeletePath.enabled = canSplit; } catch (e) { }
+        try { rbSplitTextAndPathNoFormat.enabled = canSplit; } catch (e) { }
+        try { rbGenCircle.enabled = true; } catch (e) { }
 
         // Auto-switch only if the currently selected mode is not available
         try {
@@ -255,10 +255,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 rbGenArcPath.value = true;
                 applyArcModePresets();
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // Update panel enabled state only after UI is ready
-        try { __updatePanelsByMode(); } catch (_) { }
+        try { __updatePanelsByMode(); } catch (e) { }
     }
 
     // Validation
@@ -323,16 +323,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // Hint
         var st = editDlg.add('statictext', undefined, getLabel('dlgTextEditHint'), { multiline: true });
-        try { st.preferredSize.width = 360; } catch (_) { }
+        try { st.preferredSize.width = 360; } catch (e) { }
 
         // Resolve targets at click-time (do not rely on stale snapshot)
         var __editTargets = [];
         try {
             var __curSel = [];
-            try { __curSel = doc.selection; } catch (_) { __curSel = []; }
+            try { __curSel = doc.selection; } catch (e) { __curSel = []; }
             if (!__curSel || __curSel.length === 0) __curSel = __baseSelection;
             __editTargets = getTargetTextItems(__curSel);
-        } catch (_) { __editTargets = []; }
+        } catch (e) { __editTargets = []; }
 
         // Initial text
         var initText = '';
@@ -340,7 +340,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (__editTargets && __editTargets.length > 0 && __editTargets[0] && __editTargets[0].typename === 'TextFrame') {
                 initText = String(__editTargets[0].contents);
             }
-        } catch (_) { initText = ''; }
+        } catch (e) { initText = ''; }
 
         var et = editDlg.add('edittext', undefined, initText, { multiline: true });
         et.preferredSize = [320, 80];
@@ -360,7 +360,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = 0; i < __editTargets.length; i++) {
                 var textFrame = __editTargets[i];
                 if (!textFrame || textFrame.typename !== 'TextFrame') continue;
-                try { textFrame.contents = newText; } catch (_) { }
+                try { textFrame.contents = newText; } catch (e) { }
             }
             // Refresh input states and preview
             __refreshInputsFromSelection();
@@ -387,15 +387,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // --- Mutually exclusive helpers for Process/Split radios ---
     /* 「処理」ラジオをすべて OFF（排他制御用）/ Turn off all "Process" radios (mutual-exclusion helper) */
     function __clearProcessRadios() {
-        try { rbToPathText.value = false; } catch (_) { }
-        try { rbGenArcPath.value = false; } catch (_) { }
-        try { rbGenCircle.value = false; } catch (_) { }
+        try { rbToPathText.value = false; } catch (e) { }
+        try { rbGenArcPath.value = false; } catch (e) { }
+        try { rbGenCircle.value = false; } catch (e) { }
     }
 
     /* 「分離」ラジオをすべて OFF（排他制御用）/ Turn off all "Split" radios (mutual-exclusion helper) */
     function __clearSplitRadios() {
-        try { rbSplitTextAndPath.value = false; } catch (_) { }
-        try { rbSplitTextAndPathNoFormat.value = false; } catch (_) { }
+        try { rbSplitTextAndPath.value = false; } catch (e) { }
+        try { rbSplitTextAndPathNoFormat.value = false; } catch (e) { }
     }
 
     // Auto-enable/disable based on selection (selected path OR PathText can provide a path)
@@ -410,7 +410,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
         }
-    } catch (_) { }
+    } catch (e) { }
 
     // If PathText is selected, default effect = Rainbow (apply after effect UI is created)
     var __defaultRainbow = hasPathTextTarget;
@@ -418,11 +418,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var canToPathText = hasSelectedPath || hasPathTextTarget;
     var canSplit = hasPathTextTarget;
 
-    try { rbToPathText.enabled = canToPathText; } catch (_) { }
-    try { rbSplitTextAndPath.enabled = canSplit; } catch (_) { }
-    try { rbSplitTextAndPathNoFormat.enabled = canSplit; } catch (_) { }
-    try { cbSplitDeletePath.enabled = canSplit; } catch (_) { }
-    try { rbGenCircle.enabled = true; } catch (_) { }
+    try { rbToPathText.enabled = canToPathText; } catch (e) { }
+    try { rbSplitTextAndPath.enabled = canSplit; } catch (e) { }
+    try { rbSplitTextAndPathNoFormat.enabled = canSplit; } catch (e) { }
+    try { cbSplitDeletePath.enabled = canSplit; } catch (e) { }
+    try { rbGenCircle.enabled = true; } catch (e) { }
 
     if (!canToPathText && rbToPathText.value) {
         rbToPathText.value = false;
@@ -490,7 +490,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 fitTextToOpenPathByTracking(frames);  // トラッキングで合わせる / fit by tracking
             }
             // 「しない」: 何もしない / "None": do nothing
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // -------------------------------------------------
@@ -525,7 +525,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // Apply default rainbow AFTER effect UI exists
     if (__defaultRainbow) {
-        try { rbEffectRainbow.value = true; } catch (_) { }
+        try { rbEffectRainbow.value = true; } catch (e) { }
     }
 
     // Position (start/end) panel  (moved to FULL WIDTH)
@@ -658,13 +658,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function __preview_clear() {
         // Remove temp items
         for (var i = __previewTempItems.length - 1; i >= 0; i--) {
-            try { __previewTempItems[i].remove(); } catch (_) { }
+            try { __previewTempItems[i].remove(); } catch (e) { }
         }
         __previewTempItems = [];
 
         // Restore originals visibility
         for (var j = __previewHiddenOriginals.length - 1; j >= 0; j--) {
-            try { __previewHiddenOriginals[j].hidden = false; } catch (_) { }
+            try { __previewHiddenOriginals[j].hidden = false; } catch (e) { }
         }
         // Restore path appearance changed during preview
         for (var p = __previewPathStates.length - 1; p >= 0; p--) {
@@ -675,7 +675,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 st.item.strokeWidth = st.strokeWidth;
                 st.item.strokeColor = st.strokeColor;
                 st.item.opacity = st.opacity;
-            } catch (_) { }
+            } catch (e) { }
         }
         __previewPathStates = [];
 
@@ -698,7 +698,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 strokeColor: pathItem.strokeColor,
                 opacity: pathItem.opacity
             });
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* CompoundPath も展開して各 PathItem に処理を適用 / Run a function on each underlying PathItem (handles CompoundPathItem) */
@@ -707,12 +707,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!pathItem || !styleFn) return;
             if (pathItem.typename === 'CompoundPathItem') {
                 for (var cp = 0; cp < pathItem.pathItems.length; cp++) {
-                    try { styleFn(pathItem.pathItems[cp]); } catch (_) { }
+                    try { styleFn(pathItem.pathItems[cp]); } catch (e) { }
                 }
             } else {
-                try { styleFn(pathItem); } catch (_) { }
+                try { styleFn(pathItem); } catch (e) { }
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* スミ100%の CMYKColor を生成 / Create a 100%-black CMYKColor */
@@ -769,14 +769,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
             item.hidden = true;
             __previewHiddenOriginals.push(item);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* 現在の設定でプレビューを再生成（Undo なし）/ Rebuild the preview with the current settings (no undo) */
     function __preview_apply() {
         __preview_clear();
         // Restore base selection so preview stays stable even after selection changes
-        try { doc.selection = __baseSelection; } catch (_) { }
+        try { doc.selection = __baseSelection; } catch (e) { }
         __refreshInputsFromSelection();
 
         if (!targetItems || targetItems.length === 0) {
@@ -827,18 +827,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rbAlignCenter.value = true;
             rbEffectRainbow.value = true;
             rbFitWidthFontSize.value = true;
-        } catch (_) { }
+        } catch (e) { }
     }
 
     rbToPathText.onClick = function () {
         __clearSplitRadios();
-        try { rbFitWidthNone.value = true; } catch (_) { }
+        try { rbFitWidthNone.value = true; } catch (e) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbGenCircle.onClick = function () {
         __clearSplitRadios();
-        try { rbFitWidthNone.value = true; } catch (_) { }
+        try { rbFitWidthNone.value = true; } catch (e) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
@@ -850,13 +850,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
     rbSplitTextAndPath.onClick = function () {
         __clearProcessRadios();
-        try { rbFitWidthNone.value = true; } catch (_) { }
+        try { rbFitWidthNone.value = true; } catch (e) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbSplitTextAndPathNoFormat.onClick = function () {
         __clearProcessRadios();
-        try { rbFitWidthNone.value = true; } catch (_) { }
+        try { rbFitWidthNone.value = true; } catch (e) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
@@ -868,7 +868,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             isSplitMode = (rbSplitTextAndPath && rbSplitTextAndPath.value) ||
                 (rbSplitTextAndPathNoFormat && rbSplitTextAndPathNoFormat.value);
             isCircleMode = (rbGenCircle && rbGenCircle.value);
-        } catch (_) {
+        } catch (e) {
             isSplitMode = false;
             isCircleMode = false;
         }
@@ -888,7 +888,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pnlFitWidth.enabled = en && !isCircleMode;
             grpArcDir.enabled = en && !isCircleMode;
             grpArcRoundness.enabled = en && !isCircleMode;
-        } catch (_) { }
+        } catch (e) { }
     }
 
     cbReverse.onClick = refreshPreviewIfNeeded;
@@ -935,7 +935,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var fallbackSize = firstTarget.textRange.characterAttributes.size;
                 if (fallbackSize && !isNaN(fallbackSize)) return fallbackSize;
             }
-        } catch (_) { }
+        } catch (e) { }
         return 100; // fallback
     }
 
@@ -945,7 +945,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var limit = Math.max(1, Math.round(getReferenceFontSizePt() * 10));
             slider.minvalue = -limit;
             slider.maxvalue = limit;
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* 入力欄からベースラインのスライダーへ同期 / Sync the baseline-shift slider from the edit field */
@@ -964,8 +964,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             v = __clamp(v, minPt, maxPt);
 
             etBaseShift.text = formatOneDecimal(v);
-            try { slBaseShift.value = Math.round(v * 10); } catch (_) { }
-        } catch (_) { }
+            try { slBaseShift.value = Math.round(v * 10); } catch (e) { }
+        } catch (e) { }
         __bsSyncLock = false;
     }
 
@@ -977,7 +977,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateDeltaSliderRange(slBaseShift);
             var v = (slBaseShift.value / 10.0);
             etBaseShift.text = formatOneDecimal(v);
-        } catch (_) { }
+        } catch (e) { }
         __bsSyncLock = false;
     }
 
@@ -998,8 +998,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (v > 500) v = 500;
             if (v < -100) v = -100;
             etTracking.text = String(v);
-            try { slTracking.value = v; } catch (_) { }
-        } catch (_) { }
+            try { slTracking.value = v; } catch (e) { }
+        } catch (e) { }
         __trkSyncLock = false;
     }
 
@@ -1010,7 +1010,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             var v = Math.round(slTracking.value);
             etTracking.text = String(v);
-        } catch (_) { }
+        } catch (e) { }
         __trkSyncLock = false;
     }
 
@@ -1039,8 +1039,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             v = __clamp(v, minPt, maxPt);
 
             etFontSize.text = formatOneDecimal(v);
-            try { slFontSize.value = Math.round(v * 10); } catch (_) { }
-        } catch (_) { }
+            try { slFontSize.value = Math.round(v * 10); } catch (e) { }
+        } catch (e) { }
         __fsSyncLock = false;
     }
 
@@ -1052,7 +1052,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateDeltaSliderRange(slFontSize);
             var v = (slFontSize.value / 10.0);
             etFontSize.text = formatOneDecimal(v);
-        } catch (_) { }
+        } catch (e) { }
         __fsSyncLock = false;
     }
 
@@ -1072,7 +1072,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             slStartT.enabled = sOn;
             etEndT.enabled = eOn;
             slEndT.enabled = eOn;
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* 入力欄から開始/終了位置のスライダーへ同期 / Sync start/end position sliders from the edit fields */
@@ -1098,9 +1098,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             etStartT.text = formatOneDecimal(s);
             etEndT.text = formatOneDecimal(e);
 
-            try { slStartT.value = Math.round(s * 100); } catch (_) { }
-            try { slEndT.value = Math.round(e * 100); } catch (_) { }
-        } catch (_) { }
+            try { slStartT.value = Math.round(s * 100); } catch (e) { }
+            try { slEndT.value = Math.round(e * 100); } catch (e) { }
+        } catch (e) { }
         __tSyncLock = false;
     }
 
@@ -1126,7 +1126,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             etStartT.text = formatOneDecimal(s);
             etEndT.text = formatOneDecimal(e);
-        } catch (_) { }
+        } catch (e) { }
         __tSyncLock = false;
     }
 
@@ -1182,7 +1182,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             __preview_apply();
             app.redraw();
         }
-    } catch (_) { }
+    } catch (e) { }
 
     var res = dlg.show();
     if (res !== 1) return false;
@@ -1197,18 +1197,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!effectCommand) return;
 
         var previousSelection = null;
-        try { previousSelection = doc.selection; } catch (_) { previousSelection = null; }
+        try { previousSelection = doc.selection; } catch (e) { previousSelection = null; }
 
         try {
-            try { doc.selection = []; } catch (_) { }
-            try { textFrame.selected = true; } catch (_) { }
+            try { doc.selection = []; } catch (e) { }
+            try { textFrame.selected = true; } catch (e) { }
             app.executeMenuCommand(effectCommand);
-        } catch (_) {
+        } catch (e) {
             // ignore
         }
 
         // Always restore selection (safer)
-        try { doc.selection = previousSelection; } catch (_) { }
+        try { doc.selection = previousSelection; } catch (e) { }
     }
 
     /* 選択中の効果に対応するメニューコマンド名を返す / Return the menu command name for the selected effect */
@@ -1241,14 +1241,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 if (textFrame.paragraphs && textFrame.paragraphs.length > 0) {
                     for (var i = 0; i < textFrame.paragraphs.length; i++) {
-                        try { textFrame.paragraphs[i].paragraphAttributes.justification = justification; } catch (_) { }
+                        try { textFrame.paragraphs[i].paragraphAttributes.justification = justification; } catch (e) { }
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // Fallback apply to whole range
-            try { textFrame.textRange.paragraphAttributes.justification = justification; } catch (_) { }
-        } catch (_) { }
+            try { textFrame.textRange.paragraphAttributes.justification = justification; } catch (e) { }
+        } catch (e) { }
     }
 
     /* 値を min〜max の範囲に収める / Clamp a number to the min–max range */
@@ -1280,7 +1280,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 textFrame.endTValue = endValue;
             }
 
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* 文字列を数値へ変換（失敗時は既定値）/ Parse a string as a number (fallback when invalid) */
@@ -1297,9 +1297,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (textFrame.textRanges && textFrame.textRanges.length > 0) {
                 for (var i = 0; i < textFrame.textRanges.length; i++) ranges.push(textFrame.textRanges[i]);
             }
-        } catch (_) { }
+        } catch (e) { }
         if (ranges.length === 0) {
-            try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (_) { ranges = []; }
+            try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (e) { ranges = []; }
         }
         return ranges;
     }
@@ -1314,7 +1314,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var nextValue = attributes[attributeName] + delta;
                 if (typeof clampMin === 'number' && nextValue < clampMin) nextValue = clampMin;
                 attributes[attributeName] = nextValue;
-            } catch (_) { }
+            } catch (e) { }
         }
     }
 
@@ -1337,7 +1337,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function createPathTextFrame(textPath, originalText, currentLayer, previewMode) {
         var textOnAPath = currentLayer.textFrames.pathText(textPath);
         // 重ね順を保持（他オブジェクトの背面に回り込まないように）/ Keep stacking order
-        try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (_) { }
+        try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (e) { }
         if (previewMode) __previewTempItems.push(textOnAPath);
         return textOnAPath;
     }
@@ -1347,11 +1347,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             if (textFrame.paragraphs && textFrame.paragraphs.length > 0) {
                 for (var p = 0; p < textFrame.paragraphs.length; p++) {
-                    try { textFrame.paragraphs[p].paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
+                    try { textFrame.paragraphs[p].paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
                 }
             }
-        } catch (_) { }
-        try { textFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
+        } catch (e) { }
+        try { textFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
     }
 
     /* パス上文字の共通仕上げ：内側配置・効果・内容複製・各種調整を適用し元テキストを除去 / Shared finishing of path text (inside placement, effect, content copy, adjustments, remove original) */
@@ -1360,7 +1360,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 内側配置 / Inside placement
         if (cbReverse.value) {
-            try { textOnAPath.textPath.polarity = PolarityValues.NEGATIVE; } catch (_) { }
+            try { textOnAPath.textPath.polarity = PolarityValues.NEGATIVE; } catch (e) { }
         }
 
         applyPathTextEffect(textOnAPath, previewMode);
@@ -1373,7 +1373,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // Clamp only to the global end cap (0..5); start may exceed 1 for circles.
                 textOnAPath.startTValue = __clamp(textOnAPath.startTValue + shiftAmount, 0.0, 5.0);
                 textOnAPath.endTValue = __clamp(textOnAPath.endTValue + shiftAmount, 0.0, 5.0);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // テキスト内容を元から複製 / Copy text content from the original
@@ -1397,12 +1397,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (previewMode) {
             __preview_hideOriginal(originalText);
         } else {
-            try { originalText.remove(); } catch (_) { }
+            try { originalText.remove(); } catch (e) { }
         }
 
         // 実行時は生成したパス上文字を選択 / Select the created path text on execute
         if (!previewMode) {
-            try { textOnAPath.selected = true; } catch (_) { }
+            try { textOnAPath.selected = true; } catch (e) { }
         }
     }
 
@@ -1466,7 +1466,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
             newPath.closed = originalPath.closed;
             return newPath;
-        } catch (_) {
+        } catch (e) {
             return null;
         }
     }
@@ -1476,19 +1476,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!pathText || pathText.typename !== 'TextFrame') return false;
 
         var isPathText = false;
-        try { isPathText = (pathText.kind === TextType.PATHTEXT); } catch (_) { isPathText = false; }
+        try { isPathText = (pathText.kind === TextType.PATHTEXT); } catch (e) { isPathText = false; }
         if (!isPathText) return false;
 
         var originalPath = null;
-        try { originalPath = pathText.textPath; } catch (_) { originalPath = null; }
+        try { originalPath = pathText.textPath; } catch (e) { originalPath = null; }
         if (!originalPath) return false;
 
         var curLayer = null;
-        try { curLayer = pathText.layer; } catch (_) { curLayer = null; }
+        try { curLayer = pathText.layer; } catch (e) { curLayer = null; }
 
         // 1) 「パスを削除」OFF ならハンドルを保持してパスを複製
         var deletePath = false;
-        try { deletePath = (cbSplitDeletePath && cbSplitDeletePath.value); } catch (_) { deletePath = false; }
+        try { deletePath = (cbSplitDeletePath && cbSplitDeletePath.value); } catch (e) { deletePath = false; }
 
         if (!deletePath) {
             var newPath = duplicatePathWithHandles(originalPath, curLayer);
@@ -1499,7 +1499,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     newPath.stroked = true;
                     newPath.strokeColor = makeBlackCMYK();
                     newPath.strokeWidth = 1;
-                } catch (_) { }
+                } catch (e) { }
                 if (previewMode) __previewTempItems.push(newPath);
             }
         }
@@ -1508,7 +1508,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var newText = null;
         try {
             newText = (curLayer ? curLayer.textFrames.add() : doc.textFrames.add());
-        } catch (_) {
+        } catch (e) {
             newText = null;
         }
 
@@ -1516,13 +1516,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 var anchorPoint = originalPath.pathPoints[0].anchor;
                 newText.position = [anchorPoint[0], anchorPoint[1]];
-            } catch (_) { }
+            } catch (e) { }
 
             // 内容コピー（書式を保持する/しない）/ Copy content (keep formatting or not)
             if (keepFormatting) {
-                try { pathText.textRange.duplicate(newText); } catch (_) { }
+                try { pathText.textRange.duplicate(newText); } catch (e) { }
             } else {
-                try { newText.contents = pathText.contents; } catch (_) { }
+                try { newText.contents = pathText.contents; } catch (e) { }
             }
 
             applyFontSizeDelta(newText);      // 文字サイズ（既存値 + 指定値）
@@ -1537,13 +1537,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         var dstAttr = newText.textRanges[c].characterAttributes;
                         dstAttr.fillColor = srcAttr.fillColor;
                         dstAttr.strokeColor = srcAttr.strokeColor;
-                    } catch (_) { }
+                    } catch (e) { }
                 }
             }
 
             // 行揃え（duplicate 後に適用）と重ね順の保持
-            try { applyJustificationToTextFrame(newText); } catch (_) { }
-            try { newText.move(pathText, ElementPlacement.PLACEBEFORE); } catch (_) { }
+            try { applyJustificationToTextFrame(newText); } catch (e) { }
+            try { newText.move(pathText, ElementPlacement.PLACEBEFORE); } catch (e) { }
 
             if (previewMode) __previewTempItems.push(newText);
         }
@@ -1553,7 +1553,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (previewMode) {
                 __preview_hideOriginal(pathText);
             } else {
-                try { pathText.remove(); } catch (_) { }
+                try { pathText.remove(); } catch (e) { }
             }
         }
         return true;
@@ -1585,10 +1585,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (previewMode) {
                     __preview_hideOriginal(p);
                 } else {
-                    try { p.remove(); } catch (_) { }
+                    try { p.remove(); } catch (e) { }
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* メイン処理：アーチパスを生成してパス上文字を作成 / Main process: generate an arc path and create path text */
@@ -1620,7 +1620,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // 変換時に AI がスタイルを上書きするため、パス上文字のパスも非表示に
             try {
                 if (textOnAPath.textPath) __applyInvisiblePathStyle(textOnAPath.textPath);
-            } catch (_) { }
+            } catch (e) { }
 
             decoratePathText(textOnAPath, originalText, previewMode);
             __createdTexts.push(textOnAPath);
@@ -1656,7 +1656,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             // 生成した正円を中心まわりに時計回り90°回転
-            try { textPath.rotate(90, true, true, true, true, Transformation.CENTER); } catch (_) { }
+            try { textPath.rotate(90, true, true, true, true, Transformation.CENTER); } catch (e) { }
 
             var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
 
@@ -1669,7 +1669,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         __applyExecutePathStyle(textOnAPath.textPath);
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // 正円は常に中央揃え。内側配置時は開始/終了位置を +0.5 補正
             decoratePathText(textOnAPath, originalText, previewMode, {
@@ -1699,7 +1699,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         textBounds[3] = measureTexts[0].geometricBounds[3];
 
         for (var r = 0; r < measureTexts.length; r++) {
-            try { measureTexts[r].remove(); } catch (_) { }
+            try { measureTexts[r].remove(); } catch (e) { }
         }
         return textBounds;
     }
@@ -1711,7 +1711,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (typeof slArcRoundness !== 'undefined' && slArcRoundness) {
                 percent = Number(slArcRoundness.value);
             }
-        } catch (_) { percent = 50; }
+        } catch (e) { percent = 50; }
         if (isNaN(percent)) percent = 50;
         if (percent < 0) percent = 0;
         if (percent > 100) percent = 100;
@@ -1722,7 +1722,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function readArcDirectionSign() {
         try {
             if (typeof rbArcDown !== 'undefined' && rbArcDown && rbArcDown.value) return -1;
-        } catch (_) { }
+        } catch (e) { }
         return 1;
     }
 
@@ -1771,7 +1771,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 arcPath.stroked = false;
                 arcPath.filled = false;
-            } catch (_) { }
+            } catch (e) { }
 
             // ハンドルを調整してアーチ状に曲げる / Bend into an arc
             applyArcHandles(arcPath, readArcRoundnessPercent(), readArcDirectionSign());
@@ -1791,12 +1791,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // Use outline bounds for stability
             var measureText = originalText.duplicate();
             var measureOutline = null;
-            try { measureOutline = measureText.createOutline(); } catch (_) { measureOutline = null; }
-            try { measureText.remove(); } catch (_) { }
+            try { measureOutline = measureText.createOutline(); } catch (e) { measureOutline = null; }
+            try { measureText.remove(); } catch (e) { }
             if (!measureOutline) return null;
 
             var outlineBounds = measureOutline.geometricBounds; // [L, T, R, B]
-            try { measureOutline.remove(); } catch (_) { }
+            try { measureOutline.remove(); } catch (e) { }
 
             var textWidth = outlineBounds[2] - outlineBounds[0];
             if (!textWidth || isNaN(textWidth) || textWidth <= 0) return null;
@@ -1815,7 +1815,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 circlePath.stroked = false;
                 circlePath.filled = false;
-            } catch (_) { }
+            } catch (e) { }
 
             return circlePath;
         } catch (e) {
@@ -1836,7 +1836,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return originalText.textPath;
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
         return null;
     }
 
@@ -1852,14 +1852,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 basePath.stroked = false;
                 basePath.filled = false;
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* 複製対象の PathItem を取得（CompoundPath は先頭を使用）/ Resolve the PathItem to duplicate (first item for a CompoundPathItem) */
     function resolveSourcePath(basePath) {
         try {
             return (basePath.typename === 'CompoundPathItem') ? basePath.pathItems[0] : basePath;
-        } catch (_) {
+        } catch (e) {
             return null;
         }
     }
@@ -1872,14 +1872,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 1) Try native duplicate first (fast)
         try {
             var dup = srcPath.duplicate();
-            try { dup.move(currentLayer, ElementPlacement.PLACEATBEGINNING); } catch (_) { }
+            try { dup.move(currentLayer, ElementPlacement.PLACEATBEGINNING); } catch (e) { }
             return dup;
-        } catch (_) {
+        } catch (e) {
             // 2) Fallback: duplicate by copying anchors/handles (more robust)
             try {
                 var dup2 = duplicatePathWithHandles(srcPath, currentLayer);
                 return dup2;
-            } catch (_) {
+            } catch (e) {
                 return null;
             }
         }
@@ -1895,7 +1895,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (item.kind === TextType.POINTTEXT || item.kind === TextType.PATHTEXT) {
                         textItems.push(item);
                     }
-                } catch (_) { }
+                } catch (e) { }
             } else if (item.typename === 'GroupItem') {
                 textItems = textItems.concat(getTargetTextItems(item.pageItems));
             }
@@ -1928,7 +1928,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 return false;
             }
             if (item.typename === 'PathItem') return !!item.closed;
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
@@ -1943,7 +1943,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // Only OPEN paths
             if (isClosedPathItem(textPath)) return false;
             return true;
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
@@ -1951,7 +1951,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getLineAmount(textFrame) {
         try {
             if (textFrame.lines && textFrame.lines.length > 0) return textFrame.lines.length;
-        } catch (_) { }
+        } catch (e) { }
         return 1;
     }
 
@@ -1975,7 +1975,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } else if (textFrame.characters.length > 0) {
                 return true;
             }
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
@@ -2023,12 +2023,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     shrinkIterations++;
                     if (shrinkIterations >= opt.maxShrinkIter) {
                         if (opt.alertOnMaxIter) {
-                            try { alert('フィット処理（縮小）が上限回数に達しました'); } catch (_) { }
+                            try { alert('フィット処理（縮小）が上限回数に達しました'); } catch (e) { }
                         }
                         break;
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         for (var i = 0; i < frames.length; i++) {
@@ -2101,7 +2101,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         iterations++;
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         for (var i = 0; i < frames.length; i++) {

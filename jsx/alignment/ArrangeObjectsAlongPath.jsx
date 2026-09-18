@@ -42,171 +42,94 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-      dialogTitle: {
-        ja: "パスに沿って配置",
-        en: "Arrange Objects Along Path"
-      },
-      panelBasePath: {
-        ja: "パス処理",
-        en: "Base Path Handling"
-      },
-      preview: {
-        ja: "プレビュー",
-        en: "Preview"
-      },
-      panelPathOrder: {
-        ja: "基準",
-        en: "Base Path"
-      },
-      panelTargetPath: {
-        ja: "対象パス",
-        en: "Target Path"
-      },
-      panelPlaceObjects: {
-        ja: "配置するオブジェクト",
-        en: "Objects to Arrange"
-      },
-      panelOrder: {
-        ja: "順番",
-        en: "Order"
-      },
-      panelSpacing: {
-        ja: "間隔",
-        en: "Spacing"
-      },
-      // --- Duplicate panel labels ---
-      panelDuplicate: {
-        ja: "複製",
-        en: "Duplicate"
-      },
-      duplicateCount: {
-        ja: "複製数",
-        en: "Count"
-      },
-      // --- End Duplicate panel labels ---
-      spacingEven: {
-        ja: "均等（現状）",
-        en: "Even (Current)"
-      },
-      spacingRandom: {
-        ja: "ランダム",
-        en: "Random"
-      },
-      orderCurrent: {
-        ja: "正順",
-        en: "Current"
-      },
-      orderReverse: {
-        ja: "逆順",
-        en: "Reverse"
-      },
-      orderRandom: {
-        ja: "ランダム",
-        en: "Random"
-      },
-      panelRotation: {
-        ja: "回転",
-        en: "Rotation"
-      },
-      rotationFlip180: {
-        ja: "反転",
-        en: "Flip"
-      },
-      rotationNone: {
-        ja: "正立",
-        en: "Upright"
-      },
-      rotationPerpendicular: {
-        ja: "それぞれ垂直",
-        en: "Perpendicular"
-      },
-      rotationPathPerpendicular: {
-        ja: "パスに沿う（接線）",
-        en: "Follow Path (Tangent)"
-      },
-      rotationAngle: {
-        ja: "角度指定",
-        en: "Angle"
-      },
-      rotationRandom: {
-        ja: "ランダム",
-        en: "Random"
-      },
-      autoLargest: {
-        ja: "自動（面積最大）",
-        en: "Auto (Largest)"
-      },
-      frontmost: {
-        ja: "最前面",
-        en: "Frontmost"
-      },
-      backmost: {
-        ja: "最背面",
-        en: "Backmost"
-      },
-      groupPlaced: {
-        ja: "グループ化",
-        en: "Group placed objects"
-      },
-      allRandom: {
-        ja: "一括ランダム",
-        en: "Random"
-      },
-      basePathModeNone: {
-        ja: "何もしない",
-        en: "Do nothing"
-      },
-      basePathModeHide: {
-        ja: "「塗り／線」なし",
-        en: "No fill / no stroke"
-      },
-      basePathModeDelete: {
-        ja: "削除",
-        en: "Delete"
-      },
-      btnCancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-      },
-      btnOK: {
-        ja: "OK",
-        en: "OK"
-      },
-      alertNoDocument: {
-        ja: "ドキュメントがありません。",
-        en: "No document is open."
-      },
-      alertNeedSelection: {
-        ja: "A（複数オブジェクト）とB（基準パス）を選択してください。基準パス（B）は「自動（面積最大）/ 最前面 / 最背面」で指定できます。",
-        en: "Select A (objects) and B (a path). Choose the base path by Auto (largest), Frontmost, or Backmost."
-      },
-      alertNoBasePath: {
-        ja: "選択範囲に基準となるパス（B）が見つかりません。基準パスにしたいパス（PathItem）を含めて選択してください。",
-        en: "No base path (B) was found. Include a PathItem to be used as the base path."
-      },
-      alertNoItems: {
-        ja: "配置対象（A）が見つかりません。",
-        en: "No placeable objects (A) were found."
-      },
-      alertPathTooShort: {
-        ja: "パスが短すぎます。",
-        en: "The path is too short."
-      },
-      alertPathAnalyzeFailed: {
-        ja: "パスの解析に失敗しました。",
-        en: "Failed to analyze the path."
-      },
-      alertPathLengthZero: {
-        ja: "パス長が0です。",
-        en: "The path length is zero."
-      }
+        var LABELS = {
+        dialog: {
+            title: { ja: "パスに沿って配置", en: "Arrange Objects Along Path" }
+        },
+        panel: {
+            basePath: { ja: "パス処理", en: "Base Path Handling" },
+            pathOrder: { ja: "基準", en: "Base Path" },
+            targetPath: { ja: "対象パス", en: "Target Path" },
+            placeObjects: { ja: "配置するオブジェクト", en: "Objects to Arrange" },
+            order: { ja: "順番", en: "Order" },
+            spacing: { ja: "間隔", en: "Spacing" },
+            duplicate: { ja: "複製", en: "Duplicate" },
+            rotation: { ja: "回転", en: "Rotation" }
+        },
+        fieldLabel: {
+            duplicateCount: { ja: "複製数", en: "Count" }
+        },
+        checkbox: {
+            rotationFlip180: { ja: "反転", en: "Flip" },
+            allRandom: { ja: "一括ランダム", en: "Random" },
+            preview: { ja: "プレビュー", en: "Preview" },
+            groupPlaced: { ja: "グループ化", en: "Group placed objects" }
+        },
+        radio: {
+            spacingEven: { ja: "均等（現状）", en: "Even (Current)" },
+            spacingRandom: { ja: "ランダム", en: "Random" },
+            orderCurrent: { ja: "正順", en: "Current" },
+            orderReverse: { ja: "逆順", en: "Reverse" },
+            orderRandom: { ja: "ランダム", en: "Random" },
+            rotationNone: { ja: "正立", en: "Upright" },
+            rotationPerpendicular: { ja: "それぞれ垂直", en: "Perpendicular" },
+            rotationPathPerpendicular: { ja: "パスに沿う（接線）", en: "Follow Path (Tangent)" },
+            rotationAngle: { ja: "角度指定", en: "Angle" },
+            rotationRandom: { ja: "ランダム", en: "Random" },
+            autoLargest: { ja: "自動（面積最大）", en: "Auto (Largest)" },
+            frontmost: { ja: "最前面", en: "Frontmost" },
+            backmost: { ja: "最背面", en: "Backmost" },
+            basePathModeNone: { ja: "何もしない", en: "Do nothing" },
+            basePathModeHide: { ja: "「塗り／線」なし", en: "No fill / no stroke" },
+            basePathModeDelete: { ja: "削除", en: "Delete" }
+        },
+        tooltip: {
+            basePath: { ja: "基準にしたパス（B）を、配置後にどう扱うかを決めます。", en: "What to do with the base path (B) once the objects are placed." },
+            pathOrder: { ja: "選択の中から、どれを基準のパス（B）とみなすかを決めます。", en: "Which of the selected paths is treated as the base path (B)." },
+            order: { ja: "オブジェクトをパスに沿って並べる順序です。", en: "The order the objects are laid along the path." },
+            spacing: { ja: "パス上に配置する間隔の決め方です。", en: "How the objects are spaced along the path." },
+            duplicateCount: {
+                ja: "選択したオブジェクトを複製して数を増やしてから配置します。1 なら複製しません。",
+                en: "Duplicates the selection to this many copies before arranging. 1 means no duplication."
+            },
+            rotation: { ja: "配置したオブジェクトの向きの決め方です。", en: "How each placed object is rotated." },
+            rotationAngle: { ja: "「角度指定」を選んだときに適用する角度です。", en: "The angle applied when Angle is selected." },
+            groupPlaced: { ja: "配置したオブジェクトを1つのグループにまとめます。", en: "Groups the placed objects into a single group." },
+            preview: {
+                ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+                en: "Shows the result on the canvas. Cancel restores the original state."
+            },
+            allRandom: { ja: "順番・間隔・回転をまとめてランダムに設定します。", en: "Sets order, spacing and rotation all to random at once." }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントがありません。", en: "No document is open." },
+            needSelection: {
+                ja: "A（複数オブジェクト）とB（基準パス）を選択してください。基準パス（B）は「自動（面積最大）/ 最前面 / 最背面」で指定できます。",
+                en: "Select A (objects) and B (a path). Choose the base path by Auto (largest), Frontmost, or Backmost."
+            },
+            noBasePath: {
+                ja: "選択範囲に基準となるパス（B）が見つかりません。基準パスにしたいパス（PathItem）を含めて選択してください。",
+                en: "No base path (B) was found. Include a PathItem to be used as the base path."
+            },
+            noItems: { ja: "配置対象（A）が見つかりません。", en: "No placeable objects (A) were found." },
+            pathTooShort: { ja: "パスが短すぎます。", en: "The path is too short." },
+            pathAnalyzeFailed: { ja: "パスの解析に失敗しました。", en: "Failed to analyze the path." },
+            pathLengthZero: { ja: "パス長が0です。", en: "The path length is zero." }
+        }
     };
 
-    function getLabel(key) {
-      var entry = LABELS[key];
-      if (!entry) return key;
-      return entry[uiLang] || entry.en || key;
+    function getLabel(labelPath) {
+      var pathKeys = String(labelPath).split(".");
+      var labelNode = LABELS;
+      for (var i = 0; i < pathKeys.length; i++) {
+        labelNode = labelNode[pathKeys[i]];
+        if (!labelNode) return labelPath;
+      }
+      return labelNode[uiLang] || labelNode.en || labelPath;
     }
 
     /* ダイアログ外観設定 / Dialog appearance settings */
@@ -289,7 +212,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Trigger existing change handlers so preview/UI stays in sync
         try {
           if (typeof editText.onChange === "function") editText.onChange();
-        } catch (_) { }
+        } catch (e) { }
       });
     }
 
@@ -363,7 +286,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           var rule = (rbAutoLargest && rbAutoLargest.value) ? "auto" : ((rbFrontmost && rbFrontmost.value) ? "front" : "back");
           parts.push("rule:" + rule);
           return parts.join("|");
-        } catch (_) {
+        } catch (e) {
           return "sel:?";
         }
       }
@@ -385,7 +308,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         _alertLastSigByKey[labelKey] = sig;
 
         _alertLock = true;
-        try { alert(getLabel(labelKey)); } catch (_) { }
+        try { alert(getLabel(labelKey)); } catch (e) { }
         _alertLock = false;
       }
 
@@ -394,7 +317,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < previewHiddenItems.length; i++) {
           var it = previewHiddenItems[i];
           var st = previewHiddenStates[i];
-          try { it.hidden = st; } catch (_) { }
+          try { it.hidden = st; } catch (e) { }
         }
         previewHiddenItems = [];
         previewHiddenStates = [];
@@ -412,10 +335,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (previewHiddenItems[k] === it) return;
           }
           var prevHidden = false;
-          try { prevHidden = !!it.hidden; } catch (_) { prevHidden = false; }
+          try { prevHidden = !!it.hidden; } catch (e) { prevHidden = false; }
           previewHiddenItems.push(it);
           previewHiddenStates.push(prevHidden);
-          try { it.hidden = true; } catch (_) { }
+          try { it.hidden = true; } catch (e) { }
         }
 
         pushItem(baseItem);
@@ -429,7 +352,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       function clearPreview() {
         try {
           if (previewLayer) {
-            try { previewLayer.locked = false; } catch (_) { }
+            try { previewLayer.locked = false; } catch (e) { }
             previewLayer.remove();
           }
         } catch (e) {
@@ -444,7 +367,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           if ((!cur || cur.length === 0) && previewSelSnapshot && previewSelSnapshot.length) {
             doc.selection = previewSelSnapshot;
           }
-        } catch (_) { }
+        } catch (e) { }
 
         app.redraw();
       }
@@ -493,14 +416,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var orderedSrcItems = applyOrderToArray(srcItems, orderMode, true);
 
         var dupCount = 1;
-        try { dupCount = getDupCount(); } catch (_) { dupCount = 1; }
+        try { dupCount = getDupCount(); } catch (e) { dupCount = 1; }
         if (dupCount < 1) dupCount = 1;
 
         // Keep current selection (duplication may change selection) / 選択状態を保持
         var keepSelArr = [];
         try {
           for (var ks = 0; ks < curSel.length; ks++) keepSelArr.push(curSel[ks]);
-        } catch (_) { }
+        } catch (e) { }
 
         // Create preview layer on top / プレビュー用レイヤーを最前面に作成
         try {
@@ -516,7 +439,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           gPrev = previewLayer.groupItems.add();
           gPrev.name = "Preview_ArrangedAlongPath";
         } catch (eG) {
-          try { previewLayer.remove(); } catch (_) { }
+          try { previewLayer.remove(); } catch (e) { }
           previewLayer = null;
           return false;
         }
@@ -526,7 +449,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
           prevPath = base.duplicate(gPrev, ElementPlacement.PLACEATBEGINNING);
         } catch (eP) {
-          try { previewLayer.remove(); } catch (_) { }
+          try { previewLayer.remove(); } catch (e) { }
           previewLayer = null;
           return false;
         }
@@ -536,7 +459,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           try {
             prevPath.filled = false;
             prevPath.stroked = false;
-          } catch (_) { }
+          } catch (e) { }
         }
 
         // Duplicate items / 配置対象を複製
@@ -546,7 +469,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
               var dup = orderedSrcItems[di].duplicate(gPrev, ElementPlacement.PLACEATEND);
               prevItems.push(dup);
-            } catch (_) {
+            } catch (e) {
               // skip
             }
           }
@@ -582,21 +505,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // If delete is selected, remove preview path after arranging / 削除選択時は配置後にパスを消す
         if (rbDelete.value) {
-          try { prevPath.remove(); } catch (_) { }
+          try { prevPath.remove(); } catch (e) { }
         }
 
         // Hide originals while preview is shown / プレビュー表示中は元オブジェクトを隠す
         hideOriginalItemsForPreview(base, srcItems);
 
         // Restore selection / 選択を復元
-        try { doc.selection = keepSelArr; } catch (_) { }
+        try { doc.selection = keepSelArr; } catch (e) { }
         app.redraw();
 
         return true;
       }
 
       /* ダイアログ / Dialog */
-      var dlg = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
+      var dlg = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
       dlg.orientation = "column";
       dlg.alignChildren = "fill";
 
@@ -610,78 +533,82 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       cols.alignChildren = ["fill", "top"];
       cols.spacing = 15;
 
-      var colL = cols.add("group");
-      colL.orientation = "column";
-      colL.alignChildren = "fill";
-      colL.alignment = "top";
+      var leftColumn = cols.add("group");
+      leftColumn.orientation = "column";
+      leftColumn.alignChildren = "fill";
+      leftColumn.alignment = "top";
 
-      var colR = cols.add("group");
-      colR.orientation = "column";
-      colR.alignChildren = "fill";
-      colR.alignment = "top";
+      var rightColumn = cols.add("group");
+      rightColumn.orientation = "column";
+      rightColumn.alignChildren = "fill";
+      rightColumn.alignment = "top";
 
       // Target path / 対象パス
-      var targetPathPanel = colL.add("panel", undefined, getLabel('panelTargetPath'));
+      var targetPathPanel = leftColumn.add("panel", undefined, getLabel('panel.targetPath'));
       targetPathPanel.orientation = "column";
       targetPathPanel.alignChildren = "left";
       targetPathPanel.margins = [15, 20, 15, 15];
 
       // 対象 / Target
-      var orderPanel = targetPathPanel.add("panel", undefined, getLabel('panelPathOrder'));
+      var orderPanel = targetPathPanel.add("panel", undefined, getLabel('panel.pathOrder'));
+      orderPanel.helpTip = getLabel('tooltip.pathOrder');
       orderPanel.orientation = "column";
       orderPanel.alignChildren = "left";
       orderPanel.margins = [15, 20, 15, 10];
 
-      var rbAutoLargest = orderPanel.add("radiobutton", undefined, getLabel('autoLargest'));
-      var rbFrontmost = orderPanel.add("radiobutton", undefined, getLabel('frontmost'));
-      var rbBackmost = orderPanel.add("radiobutton", undefined, getLabel('backmost'));
+      var rbAutoLargest = orderPanel.add("radiobutton", undefined, getLabel('radio.autoLargest'));
+      var rbFrontmost = orderPanel.add("radiobutton", undefined, getLabel('radio.frontmost'));
+      var rbBackmost = orderPanel.add("radiobutton", undefined, getLabel('radio.backmost'));
       rbAutoLargest.value = true; // default: Auto (largest-area)
 
       // 処理 / Handling
-      var optPanel = targetPathPanel.add("panel", undefined, getLabel('panelBasePath'));
-      optPanel.orientation = "column";
-      optPanel.alignChildren = "left";
-      optPanel.margins = [15, 20, 15, 10];
+      var basePathPanel = targetPathPanel.add("panel", undefined, getLabel('panel.basePath'));
+      basePathPanel.helpTip = getLabel('tooltip.basePath');
+      basePathPanel.orientation = "column";
+      basePathPanel.alignChildren = "left";
+      basePathPanel.margins = [15, 20, 15, 10];
 
       /* 基準パスの扱い（排他） / Base path handling (exclusive) */
-      var rbNone = optPanel.add("radiobutton", undefined, getLabel('basePathModeNone'));
-      var rbHide = optPanel.add("radiobutton", undefined, getLabel('basePathModeHide'));
-      var rbDelete = optPanel.add("radiobutton", undefined, getLabel('basePathModeDelete'));
+      var rbNone = basePathPanel.add("radiobutton", undefined, getLabel('radio.basePathModeNone'));
+      var rbHide = basePathPanel.add("radiobutton", undefined, getLabel('radio.basePathModeHide'));
+      var rbDelete = basePathPanel.add("radiobutton", undefined, getLabel('radio.basePathModeDelete'));
       rbHide.value = true; // default（旧「塗り/線をなしに」ON相当）
 
       // Objects to arrange / 配置するオブジェクト
-      var placeObjPanel = colR.add("panel", undefined, getLabel('panelPlaceObjects'));
+      var placeObjPanel = rightColumn.add("panel", undefined, getLabel('panel.placeObjects'));
       placeObjPanel.orientation = "column";
       placeObjPanel.alignChildren = "fill";
       placeObjPanel.margins = [15, 20, 15, 10];
 
       // Duplicate / 複製
-      var dupPanel = placeObjPanel.add("panel", undefined, getLabel('panelDuplicate'));
+      var dupPanel = placeObjPanel.add("panel", undefined, getLabel('panel.duplicate'));
+      dupPanel.helpTip = getLabel('tooltip.duplicateCount');
       dupPanel.orientation = "column";
       dupPanel.alignChildren = "fill";
       dupPanel.margins = [15, 20, 15, 10];
 
-      var gDupTop = dupPanel.add("group");
-      gDupTop.orientation = "row";
-      gDupTop.alignChildren = ["left", "center"];
-      gDupTop.spacing = 10;
+      var duplicateTopRow = dupPanel.add("group");
+      duplicateTopRow.orientation = "row";
+      duplicateTopRow.alignChildren = ["left", "center"];
+      duplicateTopRow.spacing = 10;
 
-      var cbDupEnable = gDupTop.add("checkbox", undefined, "");
+      var cbDupEnable = duplicateTopRow.add("checkbox", undefined, "");
       // Default behavior based on initial selection count
       var initialSelCount = (currentSelection && currentSelection.length) ? currentSelection.length : 0;
       cbDupEnable.value = (initialSelCount === 2); // ON only when exactly 2 selected
       cbDupEnable.preferredSize.width = 18;
 
-      var stDup = gDupTop.add("statictext", undefined, getLabel('duplicateCount'));
-      var etDupCount = gDupTop.add("edittext", undefined, "2");
+      var stDup = duplicateTopRow.add("statictext", undefined, getLabel('fieldLabel.duplicateCount'));
+      var etDupCount = duplicateTopRow.add("edittext", undefined, "2");
+      etDupCount.helpTip = getLabel('tooltip.duplicateCount');
       etDupCount.characters = 4;
       changeValueByArrowKey(etDupCount, false);
 
-      var gDupSld = dupPanel.add("group");
-      gDupSld.orientation = "row";
-      gDupSld.alignChildren = ["left", "center"];
+      var duplicateSliderRow = dupPanel.add("group");
+      duplicateSliderRow.orientation = "row";
+      duplicateSliderRow.alignChildren = ["left", "center"];
 
-      var sldDupCount = gDupSld.add("slider", undefined, 2, 2, 20);
+      var sldDupCount = duplicateSliderRow.add("slider", undefined, 2, 2, 20);
       sldDupCount.preferredSize.width = 180;
       if (cbDupEnable.value) {
         etDupCount.text = "2";
@@ -742,82 +669,86 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       updateDupUI();
 
       // Put all rotation radios under ONE parent group (for grouping & order) / 回転ラジオを同一groupに
-      var rotPanel = placeObjPanel.add("panel", undefined, getLabel('panelRotation'));
+      var rotPanel = placeObjPanel.add("panel", undefined, getLabel('panel.rotation'));
+      rotPanel.helpTip = getLabel('tooltip.rotation');
       rotPanel.orientation = "column";
       rotPanel.alignChildren = "left";
       rotPanel.margins = [15, 20, 15, 10];
 
       // Put all rotation radios under ONE parent group (for grouping & order) / 回転ラジオを同一groupに
-      var gRotRadios = rotPanel.add("group");
-      gRotRadios.orientation = "column";
-      gRotRadios.alignChildren = "left";
+      var rotationRadioGroup = rotPanel.add("group");
+      rotationRadioGroup.orientation = "column";
+      rotationRadioGroup.alignChildren = "left";
 
       // Rotation modes / 回転モード（順番：何もしない → それぞれ垂直 → それぞれ垂直（逆） → パスに対して垂直 → ランダム → 角度指定）
-      var rbRotNone = gRotRadios.add("radiobutton", undefined, getLabel('rotationNone'));
-      var rbRotPerp = gRotRadios.add("radiobutton", undefined, getLabel('rotationPerpendicular'));
-      var rbRotPathPerp = gRotRadios.add("radiobutton", undefined, getLabel('rotationPathPerpendicular'));
-      var rbRotRandom = gRotRadios.add("radiobutton", undefined, getLabel('rotationRandom'));
+      var rbRotNone = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationNone'));
+      var rbRotPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationPerpendicular'));
+      var rbRotPathPerp = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationPathPerpendicular'));
+      var rbRotRandom = rotationRadioGroup.add("radiobutton", undefined, getLabel('radio.rotationRandom'));
       rbRotNone.value = true; // default
 
       // Angle (single line) / 角度指定（1行）
-      var gRotAngleRow = gRotRadios.add("group");
-      gRotAngleRow.orientation = "row";
-      gRotAngleRow.alignChildren = ["left", "center"];
-      gRotAngleRow.spacing = 6;
+      var rotationAngleRow = rotationRadioGroup.add("group");
+      rotationAngleRow.orientation = "row";
+      rotationAngleRow.alignChildren = ["left", "center"];
+      rotationAngleRow.spacing = 6;
 
-      var rbRotAngle = gRotAngleRow.add("radiobutton", undefined, getLabel('rotationAngle'));
-      var etRotAngle = gRotAngleRow.add("edittext", undefined, "0");
+      var rbRotAngle = rotationAngleRow.add("radiobutton", undefined, getLabel('radio.rotationAngle'));
+      var etRotAngle = rotationAngleRow.add("edittext", undefined, "0");
+      etRotAngle.helpTip = getLabel('tooltip.rotationAngle');
       etRotAngle.characters = 3;
       changeValueByArrowKey(etRotAngle, true);
-      var stRotDeg = gRotAngleRow.add("statictext", undefined, "°");
+      var stRotDeg = rotationAngleRow.add("statictext", undefined, "°");
 
       // 180° rotation checkbox
-      var cbRotFlip180 = rotPanel.add("checkbox", undefined, getLabel('rotationFlip180'));
+      var cbRotFlip180 = rotPanel.add("checkbox", undefined, getLabel('checkbox.rotationFlip180'));
       cbRotFlip180.value = false;
       cbRotFlip180.onClick = function () { rebuildPreviewIfNeeded(); };
 
       // Order / 順番
-      var orderModePanel = placeObjPanel.add("panel", undefined, getLabel('panelOrder'));
+      var orderModePanel = placeObjPanel.add("panel", undefined, getLabel('panel.order'));
+      orderModePanel.helpTip = getLabel('tooltip.order');
       orderModePanel.orientation = "row";
       orderModePanel.alignChildren = ["left", "center"];
       orderModePanel.margins = [15, 20, 15, 10];
       orderModePanel.spacing = 12;
 
-      var rbOrderCurrent = orderModePanel.add("radiobutton", undefined, getLabel('orderCurrent'));
-      var rbOrderReverse = orderModePanel.add("radiobutton", undefined, getLabel('orderReverse'));
-      var rbOrderRandom = orderModePanel.add("radiobutton", undefined, getLabel('orderRandom'));
+      var rbOrderCurrent = orderModePanel.add("radiobutton", undefined, getLabel('radio.orderCurrent'));
+      var rbOrderReverse = orderModePanel.add("radiobutton", undefined, getLabel('radio.orderReverse'));
+      var rbOrderRandom = orderModePanel.add("radiobutton", undefined, getLabel('radio.orderRandom'));
       rbOrderCurrent.value = true; // default
 
       // Spacing / 間隔
-      var spacingPanel = placeObjPanel.add("panel", undefined, getLabel('panelSpacing'));
+      var spacingPanel = placeObjPanel.add("panel", undefined, getLabel('panel.spacing'));
+      spacingPanel.helpTip = getLabel('tooltip.spacing');
       spacingPanel.orientation = "column";
       spacingPanel.alignChildren = "fill";
       spacingPanel.margins = [15, 20, 15, 10];
 
       // Radios (horizontal) / ラジオ（横並び）
-      var gSpacingRadios = spacingPanel.add("group");
-      gSpacingRadios.orientation = "row";
-      gSpacingRadios.alignChildren = ["left", "center"];
-      gSpacingRadios.spacing = 12;
+      var spacingRadioGroup = spacingPanel.add("group");
+      spacingRadioGroup.orientation = "row";
+      spacingRadioGroup.alignChildren = ["left", "center"];
+      spacingRadioGroup.spacing = 12;
 
-      var rbSpacingEven = gSpacingRadios.add("radiobutton", undefined, getLabel('spacingEven'));
-      var rbSpacingRandom = gSpacingRadios.add("radiobutton", undefined, getLabel('spacingRandom'));
+      var rbSpacingEven = spacingRadioGroup.add("radiobutton", undefined, getLabel('radio.spacingEven'));
+      var rbSpacingRandom = spacingRadioGroup.add("radiobutton", undefined, getLabel('radio.spacingRandom'));
       rbSpacingEven.value = true; // default
 
       // Slider (enabled only when Random) / スライダー（ランダム選択時のみ有効）
-      var gSpacingSld = spacingPanel.add("group");
-      gSpacingSld.orientation = "row";
-      gSpacingSld.alignChildren = ["left", "center"];
+      var spacingSliderRow = spacingPanel.add("group");
+      spacingSliderRow.orientation = "row";
+      spacingSliderRow.alignChildren = ["left", "center"];
 
       // small indent under radios
-      // var stSpIndent = gSpacingSld.add("statictext", undefined, "");
+      // var stSpIndent = spacingSliderRow.add("statictext", undefined, "");
       // stSpIndent.preferredSize.width = 18;
 
-      var sldSpacingJitter = gSpacingSld.add("slider", undefined, spacingRandomJitterRatio, 0.1, 1.0);
+      var sldSpacingJitter = spacingSliderRow.add("slider", undefined, spacingRandomJitterRatio, 0.1, 1.0);
       sldSpacingJitter.preferredSize.width = 180;
 
       // Hidden label (kept for logic; no layout space) / 非表示ラベル（ロジック用・余白なし）
-      var stSpacingJitterVal = gSpacingSld.add("statictext", undefined, "");
+      var stSpacingJitterVal = spacingSliderRow.add("statictext", undefined, "");
       stSpacingJitterVal.visible = false;
       stSpacingJitterVal.minimumSize.width = 0;
       stSpacingJitterVal.maximumSize.width = 0;
@@ -839,15 +770,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       stGrpSpL.maximumSize.width = 10000;
 
       // checkboxes (centered)
-      var gGrpChecks = gGroupPlaced.add("group");
-      gGrpChecks.orientation = "row";
-      gGrpChecks.alignChildren = ["center", "center"];
-      gGrpChecks.spacing = 12;
+      var groupOptionRow = gGroupPlaced.add("group");
+      groupOptionRow.orientation = "row";
+      groupOptionRow.alignChildren = ["center", "center"];
+      groupOptionRow.spacing = 12;
 
-      var cbGroupPlaced = gGrpChecks.add("checkbox", undefined, getLabel('groupPlaced'));
+      var cbGroupPlaced = groupOptionRow.add("checkbox", undefined, getLabel('checkbox.groupPlaced'));
+      cbGroupPlaced.helpTip = getLabel('tooltip.groupPlaced');
       cbGroupPlaced.value = true; // default ON
 
-      var cbAllRandom = gGrpChecks.add("checkbox", undefined, getLabel('allRandom'));
+      var cbAllRandom = groupOptionRow.add("checkbox", undefined, getLabel('checkbox.allRandom'));
+      cbAllRandom.helpTip = getLabel('tooltip.allRandom');
       cbAllRandom.value = false;
 
       // right spacer
@@ -863,12 +796,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       bottomBar.alignChildren = ["left", "center"];
 
       // Left: Preview / 左：プレビュー
-      var gBottomL = bottomBar.add("group");
-      gBottomL.orientation = "row";
-      gBottomL.alignChildren = ["left", "center"];
-      var cbPreview = gBottomL.add("checkbox", undefined, getLabel('preview'));
+      var footerLeftGroup = bottomBar.add("group");
+      footerLeftGroup.orientation = "row";
+      footerLeftGroup.alignChildren = ["left", "center"];
+      var cbPreview = footerLeftGroup.add("checkbox", undefined, getLabel('checkbox.preview'));
+      cbPreview.helpTip = getLabel('tooltip.preview');
       cbPreview.value = false;
-      gBottomL.margins = [0, 0, 0, 0];
+      footerLeftGroup.margins = [0, 0, 0, 0];
 
       // Middle: spacer / 中央：スペーサー
 
@@ -877,17 +811,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       stSpacer.minimumSize.width = 0;
 
       // Right: Buttons / 右：ボタン
-      var btns = bottomBar.add("group");
-      btns.orientation = "row";
-      btns.alignment = "right";
-      btns.alignChildren = ["right", "center"];
+      var btnRowGroup = bottomBar.add("group");
+      btnRowGroup.orientation = "row";
+      btnRowGroup.alignment = "right";
+      btnRowGroup.alignChildren = ["right", "center"];
 
-      var btnCancel = btns.add("button", undefined, getLabel('btnCancel'), { name: "cancel" });
-      var btnOK = btns.add("button", undefined, getLabel('btnOK'), { name: "ok" });
+      var btnCancel = btnRowGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+      var btnOK = btnRowGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
 
       // Ensure Cancel always closes / キャンセルで必ず閉じる
       btnCancel.onClick = function () {
-        try { dlg.close(0); } catch (_) { }
+        try { dlg.close(0); } catch (e) { }
       };
 
       // Wire preview handlers / プレビュー連動
@@ -925,16 +859,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           else if (rbRotPerp.value) mode = "perp";
           else if (rbRotPathPerp.value) mode = "path_perp";
           else if (rbRotRandom.value) mode = "random";
-        } catch (_) { mode = "none"; }
+        } catch (e) { mode = "none"; }
 
         var ang = 0;
         try {
           ang = Number(etRotAngle.text);
           if (isNaN(ang)) ang = 0;
-        } catch (_) { ang = 0; }
+        } catch (e) { ang = 0; }
 
         var flip180 = false;
-        try { flip180 = !!cbRotFlip180.value; } catch (_) { flip180 = false; }
+        try { flip180 = !!cbRotFlip180.value; } catch (e) { flip180 = false; }
 
         return { mode: mode, angle: ang, flip180: flip180 };
       }
@@ -943,14 +877,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
           if (rbOrderReverse.value) return "reverse";
           if (rbOrderRandom.value) return "random";
-        } catch (_) { }
+        } catch (e) { }
         return "current";
       }
 
       function getSpacingMode() {
         try {
           if (rbSpacingRandom.value) return "random";
-        } catch (_) { }
+        } catch (e) { }
         return "even";
       }
 
@@ -962,7 +896,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
       function getZOrderPosSafe(it) {
         var z = null;
-        try { z = it.zOrderPosition; } catch (_) { z = null; }
+        try { z = it.zOrderPosition; } catch (e) { z = null; }
         if (z === null || z === undefined) return null;
         return z;
       }
@@ -1155,8 +1089,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // Focus angle field when Angle is selected so ↑↓ works immediately
         if (mode === "angle") {
-          try { etRotAngle.active = true; } catch (_) { }
-          try { etRotAngle.selection = [0, etRotAngle.text.length]; } catch (_) { }
+          try { etRotAngle.active = true; } catch (e) { }
+          try { etRotAngle.selection = [0, etRotAngle.text.length]; } catch (e) { }
         }
 
         rebuildPreviewIfNeeded();
@@ -1276,8 +1210,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       if (!currentSelection || currentSelection.length < 2) {
         // Fallback to snapshot if selection was dropped during preview
         if (previewSelSnapshot && previewSelSnapshot.length >= 2) {
-          try { doc.selection = previewSelSnapshot; } catch (_) { }
-          try { currentSelection = doc.selection; } catch (_) { }
+          try { doc.selection = previewSelSnapshot; } catch (e) { }
+          try { currentSelection = doc.selection; } catch (e) { }
         }
       }
 
@@ -1320,7 +1254,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
       // Duplicate items (except target path) / 対象パス以外のオブジェクトを複製
       var dupCountFinal = 1;
-      try { dupCountFinal = getDupCount(); } catch (_) { dupCountFinal = 1; }
+      try { dupCountFinal = getDupCount(); } catch (e) { dupCountFinal = 1; }
       if (dupCountFinal < 1) dupCountFinal = 1;
 
       var orderModeFinal = getOrderMode();
@@ -1337,10 +1271,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var dup2 = null;
             try {
               dup2 = src.duplicate(src.parent, ElementPlacement.PLACEAFTER);
-            } catch (_) {
+            } catch (e) {
               try {
                 dup2 = src.duplicate(doc.activeLayer, ElementPlacement.PLACEATEND);
-              } catch (_) {
+              } catch (e) {
                 dup2 = null;
               }
             }
@@ -1448,7 +1382,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           try {
             var m = it.matrix;
             return Math.atan2(m.mValueB, m.mValueA) * 180 / Math.PI;
-          } catch (_) {
+          } catch (e) {
             return 0;
           }
         }
@@ -1460,7 +1394,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           while (delta < -180) delta += 360;
           try {
             it.rotate(delta, true, true, true, true, Transformation.CENTER);
-          } catch (_) { }
+          } catch (e) { }
         }
 
         // --- Tangent angle at distance (stable at ends) ---
@@ -1523,7 +1457,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
               var diff = Math.abs(Number(lastRandomSpacing.totalLen) - Number(totalLen));
               okReuse = (diff < 0.01);
-            } catch (_) { okReuse = false; }
+            } catch (e) { okReuse = false; }
 
             if (okReuse) {
               ds = [];
@@ -1642,7 +1576,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           if (add180 !== 0 && (!rot || !rot.mode || rot.mode === "none")) {
             try {
               itemsArray[j].rotate(add180, true, true, true, true, Transformation.CENTER);
-            } catch (_) { }
+            } catch (e) { }
           }
 
           if (rot && rot.mode && rot.mode !== "none") {
@@ -1650,12 +1584,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
               var angDeg = rot.angle || 0;
               try {
                 itemsArray[j].rotate(angDeg + add180, true, true, true, true, Transformation.CENTER);
-              } catch (_) { }
+              } catch (e) { }
             } else if (rot.mode === "random") {
               var angRnd = (Math.random() * 360) - 180;
               try {
                 itemsArray[j].rotate(angRnd + add180, true, true, true, true, Transformation.CENTER);
-              } catch (_) { }
+              } catch (e) { }
             } else if (rot.mode === "perp") {
               // Perpendicular to center vector (tangent) / 中心へのベクトルに垂直（接線方向）
               var cc = getItemCenter(itemsArray[j]);
@@ -1697,7 +1631,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
               // Closed paths can use PathItem.area (may be negative depending on direction)
               a = Math.abs(o.area);
-            } catch (_) {
+            } catch (e) {
               a = null;
             }
 
@@ -1721,9 +1655,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       function getBoundsArea(item) {
         var b = null;
         // Prefer visibleBounds (includes stroke) to match visual area
-        try { b = item.visibleBounds; } catch (_) { b = null; }
+        try { b = item.visibleBounds; } catch (e) { b = null; }
         if (!b) {
-          try { b = item.geometricBounds; } catch (_) { b = null; }
+          try { b = item.geometricBounds; } catch (e) { b = null; }
         }
         if (!b || b.length < 4) return 0;
         var w = Math.abs(b[2] - b[0]);
@@ -1740,7 +1674,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           if (!isPathItem(o)) continue;
 
           var z = null;
-          try { z = o.zOrderPosition; } catch (_) { z = null; }
+          try { z = o.zOrderPosition; } catch (e) { z = null; }
           if (z === null || z === undefined) continue;
 
           if (minZ === null || z < minZ) {
@@ -1766,7 +1700,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           if (!isPathItem(o)) continue;
 
           var z = null;
-          try { z = o.zOrderPosition; } catch (_) { z = null; }
+          try { z = o.zOrderPosition; } catch (e) { z = null; }
           if (z === null || z === undefined) continue;
 
           if (maxZ === null || z > maxZ) {

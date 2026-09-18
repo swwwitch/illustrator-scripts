@@ -111,7 +111,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
             if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
-        } catch (_) { }
+        } catch (e) { }
         return String(key);
     }
 
@@ -150,30 +150,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getTextFramePosition(tf) {
         try {
             if (tf && tf.position) return [tf.position[0], tf.position[1]];
-        } catch (_) { }
+        } catch (e) { }
         try {
             if (tf) return [tf.left, tf.top];
-        } catch (_) { }
+        } catch (e) { }
         return null;
     }
 
     function setTextFramePosition(tf, pos) {
         if (!tf || !pos) return;
-        try { tf.position = [pos[0], pos[1]]; return; } catch (_) { }
-        try { tf.left = pos[0]; tf.top = pos[1]; } catch (_) { }
+        try { tf.position = [pos[0], pos[1]]; return; } catch (e) { }
+        try { tf.left = pos[0]; tf.top = pos[1]; } catch (e) { }
     }
 
     // Undo後に参照が無効化されることがあるため、可能なら選択から再取得
     function refreshOriginalObjRef() {
         try {
             if (originalObj && originalObj.typename === "TextFrame") return;
-        } catch (_) { }
+        } catch (e) { }
         try {
             var s2 = app.activeDocument.selection;
             if (s2 && s2.length === 1 && s2[0].typename === "TextFrame") {
                 originalObj = s2[0];
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // 数字/英字ラン（複数）を抽出してセグメント化 / Tokenize digits & letters
@@ -274,13 +274,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function measureOutlinedHeightPt(textFrame) {
         try {
             var tmp = textFrame.duplicate();
-            try { tmp.selected = false; } catch (_) { }
+            try { tmp.selected = false; } catch (e) { }
 
             var outlined = tmp.createOutline(); // GroupItem
             var gb = outlined.geometricBounds;  // [L, T, R, B]
             var h = gb[1] - gb[3];
 
-            try { outlined.remove(); } catch (_) { }
+            try { outlined.remove(); } catch (e) { }
             return h;
         } catch (e) {
             return null;
@@ -340,7 +340,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function getUnitInfo(prefKey) {
         var code = 2;
-        try { code = app.preferences.getIntegerPreference(prefKey); } catch (_) { code = 2; }
+        try { code = app.preferences.getIntegerPreference(prefKey); } catch (e) { code = 2; }
         return {
             code: code,
             label: getUnitLabel(code, prefKey),
@@ -363,7 +363,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var v = 1;
         try {
             v = parseInt(String(stepInput.text), 10);
-        } catch (_) { v = 1; }
+        } catch (e) { v = 1; }
         if (isNaN(v)) v = 1;
         if (v === 0) v = 1;
         return v;
@@ -390,7 +390,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     app.undo();
                     return true;
                 }
-            } catch (_) { }
+            } catch (e) { }
             try {
                 app.executeMenuCommand("undo");
                 return true;
@@ -403,7 +403,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             bump: function () { _count++; if (_count > _MAX_UNDO) _count = _MAX_UNDO; },
             bumpBy: function (n) {
                 var k = 0;
-                try { k = parseInt(n, 10); } catch (_) { k = 0; }
+                try { k = parseInt(n, 10); } catch (e) { k = 0; }
                 if (isNaN(k) || k <= 0) return;
                 _count += k;
                 if (_count > _MAX_UNDO) _count = _MAX_UNDO;
@@ -434,7 +434,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var y = parseFloat(p[1]);
             if (isNaN(x) || isNaN(y)) return null;
             return { x: x, y: y };
-        } catch (_) { }
+        } catch (e) { }
         return null;
     }
 
@@ -445,14 +445,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var y = winObj.location[1];
             if (x == null || y == null) return;
             app.preferences.setStringPreference(__WINPOS_KEY, String(x) + "," + String(y));
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // 前回位置を復元（失敗したらデフォルトのまま） / Restore previous position
     try {
         var __p = __readDialogPos();
         if (__p) win.location = [__p.x, __p.y];
-    } catch (_) { }
+    } catch (e) { }
 
     win.orientation = "column";
     win.alignChildren = "fill";
@@ -648,12 +648,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (isNaN(dupCount) || dupCount < 0) return len;
 
             var stepVal = 1;
-            try { stepVal = getStepValue(); } catch (_) { stepVal = 1; }
+            try { stepVal = getStepValue(); } catch (e) { stepVal = 1; }
 
             var endVal = baseStartNum + (dupCount * stepVal);
             var dynLen = Math.max(String(baseStartNum).length, String(endVal).length);
             if (dynLen > len) len = dynLen;
-        } catch (_) { }
+        } catch (e) { }
         return len;
     }
 
@@ -663,7 +663,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var dlen = getDynamicPadLengthFor(baseStartNum, baseLen);
                 return zeroPad(num, dlen);
             }
-        } catch (_) { }
+        } catch (e) { }
         return String(num);
     }
 
@@ -824,7 +824,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (patternType === "date_ymd") {
             var baseDate = parseDateFromTokens(arr);
             if (!baseDate) {
-                try { originalObj.contents = rebuildText(arr); } catch (_) { }
+                try { originalObj.contents = rebuildText(arr); } catch (e) { }
                 setTextFramePosition(originalObj, __posKeep);
                 return;
             }
@@ -832,7 +832,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             arr[0] = parts[0]; arr[1] = parts[1]; arr[2] = parts[2];
             var t = rebuildText(arr);
             t = applyWeekdayToText(t, baseDate);
-            try { originalObj.contents = t; } catch (_) { }
+            try { originalObj.contents = t; } catch (e) { }
             setTextFramePosition(originalObj, __posKeep);
             return;
         }
@@ -841,7 +841,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (patternType === "time_hm") {
             var baseTime = parseTimeFromTokens(arr);
             if (!baseTime) {
-                try { originalObj.contents = rebuildText(arr); } catch (_) { }
+                try { originalObj.contents = rebuildText(arr); } catch (e) { }
                 setTextFramePosition(originalObj, __posKeep);
                 return;
             }
@@ -851,7 +851,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var mm = total % 60;
             var parts2 = formatTimeToTokens({ h: h, m: mm });
             arr[0] = parts2[0]; arr[1] = parts2[1];
-            try { originalObj.contents = rebuildText(arr); } catch (_) { }
+            try { originalObj.contents = rebuildText(arr); } catch (e) { }
             setTextFramePosition(originalObj, __posKeep);
             return;
         }
@@ -862,7 +862,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (baseA == null) baseA = 1;
             var isLower = (String(arr[targetIndex]) === String(arr[targetIndex]).toLowerCase());
             arr[targetIndex] = numberToAlpha(baseA, isLower);
-            try { originalObj.contents = rebuildText(arr); } catch (_) { }
+            try { originalObj.contents = rebuildText(arr); } catch (e) { }
             setTextFramePosition(originalObj, __posKeep);
             return;
         }
@@ -872,7 +872,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var base = parseInt(arr[targetIndex], 10);
             if (isNaN(base)) base = 0;
             arr[targetIndex] = formatNumberByOption(base, base, targetLength);
-            try { originalObj.contents = rebuildText(arr); } catch (_) { }
+            try { originalObj.contents = rebuildText(arr); } catch (e) { }
             setTextFramePosition(originalObj, __posKeep);
             return;
         }
@@ -882,9 +882,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var base2 = parseInt(arr[targetIndex], 10);
             if (isNaN(base2)) base2 = 0;
             arr[targetIndex] = formatNumberByOption(base2, base2, targetLength);
-            try { originalObj.contents = rebuildText(arr); } catch (_) { }
+            try { originalObj.contents = rebuildText(arr); } catch (e) { }
         } else {
-            try { originalObj.contents = __originalTextSnapshot; } catch (_) { }
+            try { originalObj.contents = __originalTextSnapshot; } catch (e) { }
         }
         setTextFramePosition(originalObj, __posKeep);
     }
@@ -975,13 +975,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function mergeLinesIntoOriginalAndRemovePreviews() {
         var __posKeep = getTextFramePosition(originalObj);
         var lines = [];
-        try { lines.push(String(originalObj.contents)); } catch (_) { lines.push(""); }
+        try { lines.push(String(originalObj.contents)); } catch (e) { lines.push(""); }
 
         for (var i = 0; i < previewObjects.length; i++) {
-            try { lines.push(String(previewObjects[i].contents)); } catch (_) { lines.push(""); }
+            try { lines.push(String(previewObjects[i].contents)); } catch (e) { lines.push(""); }
         }
 
-        try { originalObj.contents = lines.join("\r"); } catch (_) { }
+        try { originalObj.contents = lines.join("\r"); } catch (e) { }
 
         // 行送り（leading）を設定 / Set leading
         // 行送り = 文字サイズ(pt) + ［間隔］(text/units→pt)
@@ -995,14 +995,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var leadingPt = fsPt + gapPt;
             if (!isNaN(leadingPt) && leadingPt > 0) {
-                try { originalObj.textRange.characterAttributes.autoLeading = false; } catch (_) { }
-                try { originalObj.textRange.characterAttributes.leading = leadingPt; } catch (_) { }
+                try { originalObj.textRange.characterAttributes.autoLeading = false; } catch (e) { }
+                try { originalObj.textRange.characterAttributes.leading = leadingPt; } catch (e) { }
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // 統合後は複製したテキストを削除 / Remove merged duplicates
         for (var j = previewObjects.length - 1; j >= 0; j--) {
-            try { previewObjects[j].remove(); } catch (_) { }
+            try { previewObjects[j].remove(); } catch (e) { }
         }
         previewObjects = [];
         setTextFramePosition(originalObj, __posKeep);
@@ -1011,7 +1011,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* プレビュー削除 / Clear preview */
     function clearPreview() {
         var removed = 0;
-        try { removed = previewObjects ? previewObjects.length : 0; } catch (_) { removed = 0; }
+        try { removed = previewObjects ? previewObjects.length : 0; } catch (e) { removed = 0; }
         for (var i = (previewObjects ? previewObjects.length - 1 : -1); i >= 0; i--) {
             try { previewObjects[i].remove(); } catch (e) { }
         }
@@ -1031,14 +1031,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var raw = String(startInput.text);
             if (tokenTypes[targetIndex] === "alpha1") {
                 if (!isAlphaToken(raw)) {
-                    try { clearPreview(); } catch (_) { }
+                    try { clearPreview(); } catch (e) { }
                     app.redraw();
                     return;
                 }
             } else {
                 var t = parseInt(raw, 10);
                 if (isNaN(t)) {
-                    try { clearPreview(); } catch (_) { }
+                    try { clearPreview(); } catch (e) { }
                     app.redraw();
                     return;
                 }
@@ -1046,7 +1046,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // プレビュー再生成（Undo を使わず remove ベースで安定化）
-        try { clearPreview(); } catch (_) { }
+        try { clearPreview(); } catch (e) { }
         previewObjects = generateNumbers();
         app.redraw();
     }
@@ -1060,11 +1060,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     cancelBtn.onClick = function () {
         __suspendPreview = true;
         var __posKeep = getTextFramePosition(originalObj);
-        try { clearPreview(); } catch (_) { }
-        try { originalObj.contents = __originalTextSnapshot; } catch (_) { }
+        try { clearPreview(); } catch (e) { }
+        try { originalObj.contents = __originalTextSnapshot; } catch (e) { }
         setTextFramePosition(originalObj, __posKeep);
         __suspendPreview = false;
-        try { __writeDialogPos(win); } catch (_) { }
+        try { __writeDialogPos(win); } catch (e) { }
         win.close();
     };
 
@@ -1095,18 +1095,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 管理対象外
         previewObjects = [];
 
-        try { __writeDialogPos(win); } catch (_) { }
+        try { __writeDialogPos(win); } catch (e) { }
         win.close();
     };
 
     // タイトルバーの×で閉じた場合もプレビューを消し、元テキストを復帰 / Close (X)
     win.onClose = function () {
-        try { __writeDialogPos(win); } catch (_) { }
+        try { __writeDialogPos(win); } catch (e) { }
         if (__closingByOK) return;
         __suspendPreview = true;
         var __posKeep = getTextFramePosition(originalObj);
-        try { clearPreview(); } catch (_) { }
-        try { originalObj.contents = __originalTextSnapshot; } catch (_) { }
+        try { clearPreview(); } catch (e) { }
+        try { originalObj.contents = __originalTextSnapshot; } catch (e) { }
         setTextFramePosition(originalObj, __posKeep);
         __suspendPreview = false;
     };

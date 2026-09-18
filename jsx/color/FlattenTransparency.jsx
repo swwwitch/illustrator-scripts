@@ -104,7 +104,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       f.close();
 
       app.loadAction(f);
-      try { f.remove(); } catch (_) {}
+      try { f.remove(); } catch (e) {}
 
       app.doScript(ACTION_NAME, SET_NAME, false);
       app.unloadAction(SET_NAME, '');

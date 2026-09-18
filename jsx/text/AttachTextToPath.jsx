@@ -143,7 +143,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         try {
             if (!item) return;
             item.remove();
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // Push only if not already in the array (by reference)
@@ -196,7 +196,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         try {
             if (!item || !layer) return;
             item.move(layer, ElementPlacement.PLACEATBEGINNING);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // Collect items recursively from GroupItem.pageItems using a predicate.

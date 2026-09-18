@@ -666,7 +666,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) {
             try {
                 alert('[TileSmallIntoLarge] Error:\\n' + e);
-            } catch (_) {}
+            } catch (e) {}
         }
     }
     try {

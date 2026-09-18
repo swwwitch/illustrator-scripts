@@ -19,7 +19,7 @@ Selected closed paths are converted to Area Type first and then treated the same
 - Center the selected Area Type frames both vertically and horizontally
 - Convert closed paths (rectangles and the like) to Area Type filled with sample text
 - With one rectangle and one text object selected, pour that text into the shape
-- Pour the text of a group made of one rectangle and one text object into that same group's shape
+- Pour the text of a group made of one rectangle and one text object into that same group's shape, then release the group
 - Process any number of objects at once
 
 ### Usage
@@ -61,6 +61,7 @@ The sample text and its formatting can be changed in the "User settings" block a
 - For a compound path only the first path becomes the Area Type frame; the emptied compound path is removed.
 - The "one closed path plus one text" case is detected only when the selection holds exactly two objects. With three or more selected, the paths get the sample text.
 - A group qualifies only when it holds exactly one closed path and one text object. Any other group is searched for nested groups instead.
+- When the pair sits in a nested group, the resulting Area Type frame stays inside the outer group.
 - Clipping groups are skipped.
 - Only font, size and fill color are carried over; other character attributes fall back to the defaults.
 

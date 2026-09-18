@@ -388,7 +388,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         try {
             $.writeln(msg);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* 改行正規化ユーティリティ */
@@ -1246,7 +1246,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 /* 末尾改行を事前に除去 */
                 trimTrailingBreaks(srcFrame);
                 if (/^\s*$/.test(srcFrame.contents)) {
-                    try { srcFrame.remove(); } catch (_) { }
+                    try { srcFrame.remove(); } catch (e) { }
                     continue;
                 }
 
@@ -1307,7 +1307,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         srcFrame.move(splitResults[0], ElementPlacement.PLACEBEFORE);
                         splitResults.unshift(srcFrame);
                     }
-                } catch (_) { }
+                } catch (e) { }
 
                 for (var r = 0; r < splitResults.length; r++) {
                     resultFrames.push(splitResults[r]);
@@ -1348,42 +1348,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function stripStyleKeepFirstFont(textFrame) {
             if (!textFrame || textFrame.typename !== "TextFrame") return;
             var tr, chars;
-            try { tr = textFrame.textRange; } catch (_) { return; }
-            try { chars = tr.characters; } catch (_) { return; }
+            try { tr = textFrame.textRange; } catch (e) { return; }
+            try { chars = tr.characters; } catch (e) { return; }
             if (!chars || chars.length < 1) return;
 
             var firstCA;
-            try { firstCA = chars[0].characterAttributes; } catch (_) { return; }
+            try { firstCA = chars[0].characterAttributes; } catch (e) { return; }
             var keepFont, keepSize;
-            try { keepFont = firstCA.textFont; } catch (_) { keepFont = null; }
-            try { keepSize = firstCA.size; } catch (_) { keepSize = null; }
+            try { keepFont = firstCA.textFont; } catch (e) { keepFont = null; }
+            try { keepSize = firstCA.size; } catch (e) { keepSize = null; }
 
             var ca;
-            try { ca = tr.characterAttributes; } catch (_) { return; }
-            try { if (keepFont) ca.textFont = keepFont; } catch (_) { }
-            try { if (keepSize != null) ca.size = keepSize; } catch (_) { }
-            try { var black = new GrayColor(); black.gray = 100; ca.fillColor = black; } catch (_) { }
-            try { ca.baselineShift = 0; } catch (_) { }
-            try { ca.horizontalScale = 100; } catch (_) { }
-            try { ca.verticalScale = 100; } catch (_) { }
-            try { ca.rotation = 0; } catch (_) { }
-            try { ca.tracking = 0; } catch (_) { }
-            try { ca.kerningMethod = KerningMethod.METRICS; } catch (_) { }
-            try { ca.autoLeading = true; } catch (_) { }
+            try { ca = tr.characterAttributes; } catch (e) { return; }
+            try { if (keepFont) ca.textFont = keepFont; } catch (e) { }
+            try { if (keepSize != null) ca.size = keepSize; } catch (e) { }
+            try { var black = new GrayColor(); black.gray = 100; ca.fillColor = black; } catch (e) { }
+            try { ca.baselineShift = 0; } catch (e) { }
+            try { ca.horizontalScale = 100; } catch (e) { }
+            try { ca.verticalScale = 100; } catch (e) { }
+            try { ca.rotation = 0; } catch (e) { }
+            try { ca.tracking = 0; } catch (e) { }
+            try { ca.kerningMethod = KerningMethod.METRICS; } catch (e) { }
+            try { ca.autoLeading = true; } catch (e) { }
 
             for (var i = 0; i < chars.length; i++) {
                 var c2;
-                try { c2 = chars[i].characterAttributes; } catch (_) { continue; }
-                try { if (keepFont) c2.textFont = keepFont; } catch (_) { }
-                try { if (keepSize != null) c2.size = keepSize; } catch (_) { }
-                try { var bk = new GrayColor(); bk.gray = 100; c2.fillColor = bk; } catch (_) { }
-                try { c2.baselineShift = 0; } catch (_) { }
-                try { c2.horizontalScale = 100; } catch (_) { }
-                try { c2.verticalScale = 100; } catch (_) { }
-                try { c2.rotation = 0; } catch (_) { }
-                try { c2.tracking = 0; } catch (_) { }
-                try { c2.kerningMethod = KerningMethod.METRICS; } catch (_) { }
-                try { c2.autoLeading = true; } catch (_) { }
+                try { c2 = chars[i].characterAttributes; } catch (e) { continue; }
+                try { if (keepFont) c2.textFont = keepFont; } catch (e) { }
+                try { if (keepSize != null) c2.size = keepSize; } catch (e) { }
+                try { var bk = new GrayColor(); bk.gray = 100; c2.fillColor = bk; } catch (e) { }
+                try { c2.baselineShift = 0; } catch (e) { }
+                try { c2.horizontalScale = 100; } catch (e) { }
+                try { c2.verticalScale = 100; } catch (e) { }
+                try { c2.rotation = 0; } catch (e) { }
+                try { c2.tracking = 0; } catch (e) { }
+                try { c2.kerningMethod = KerningMethod.METRICS; } catch (e) { }
+                try { c2.autoLeading = true; } catch (e) { }
             }
         }
 
@@ -1392,13 +1392,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!textFrame || textFrame.typename !== "TextFrame") return [];
 
             var tr, chars, n;
-            try { tr = textFrame.textRange; } catch (_) { return []; }
-            try { chars = tr.characters; } catch (_) { return []; }
-            try { n = chars.length; } catch (_) { return []; }
+            try { tr = textFrame.textRange; } catch (e) { return []; }
+            try { chars = tr.characters; } catch (e) { return []; }
+            try { n = chars.length; } catch (e) { return []; }
             if (!n || n <= 0) return [];
 
             var outlineInfo = null;
-            try { outlineInfo = buildOutlineCharBounds(textFrame); } catch (_) { outlineInfo = null; }
+            try { outlineInfo = buildOutlineCharBounds(textFrame); } catch (e) { outlineInfo = null; }
 
             if (outlineInfo && outlineInfo.ok && outlineInfo.boundsList && outlineInfo.boundsList.length > 0) {
                 var boundsList = outlineInfo.boundsList;
@@ -1408,17 +1408,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 for (var ci = 0; ci < n; ci++) {
                     var ch;
-                    try { ch = chars[ci]; } catch (_) { continue; }
+                    try { ch = chars[ci]; } catch (e) { continue; }
                     var content = "";
-                    try { content = ch.contents; } catch (_) { continue; }
+                    try { content = ch.contents; } catch (e) { continue; }
                     if (content === "") continue;
 
                     var code = content.charCodeAt(0);
                     if (code === 13 || code === 10 || code === 9 || content === " " || content === "\u3000") continue;
 
                     if (bi >= boundsList.length) {
-                        for (var x = 0; x < made.length; x++) { try { made[x].remove(); } catch (_) { } }
-                        try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
+                        for (var x = 0; x < made.length; x++) { try { made[x].remove(); } catch (e) { } }
+                        try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (e) { }
                         return splitCharFallback(textFrame, keepStyle);
                     }
 
@@ -1426,9 +1426,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try {
                         nf = layer.textFrames.add();
                         nf.contents = content;
-                    } catch (_) {
-                        for (var x2 = 0; x2 < made.length; x2++) { try { made[x2].remove(); } catch (_) { } }
-                        try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
+                    } catch (e) {
+                        for (var x2 = 0; x2 < made.length; x2++) { try { made[x2].remove(); } catch (e) { } }
+                        try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (e) { }
                         return splitCharFallback(textFrame, keepStyle);
                     }
 
@@ -1440,10 +1440,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                     try {
                         moveFrameToMatchBounds(nf, boundsList[bi]);
-                    } catch (_) {
-                        try { nf.remove(); } catch (_) { }
-                        for (var x3 = 0; x3 < made.length; x3++) { try { made[x3].remove(); } catch (_) { } }
-                        try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
+                    } catch (e) {
+                        try { nf.remove(); } catch (e) { }
+                        for (var x3 = 0; x3 < made.length; x3++) { try { made[x3].remove(); } catch (e) { } }
+                        try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (e) { }
                         return splitCharFallback(textFrame, keepStyle);
                     }
 
@@ -1451,8 +1451,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     bi++;
                 }
 
-                try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
-                try { textFrame.remove(); } catch (_) { }
+                try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (e) { }
+                try { textFrame.remove(); } catch (e) { }
                 return made;
             }
 
@@ -1462,16 +1462,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* アウトラインのバウンディングボックス情報を構築 */
         function buildOutlineCharBounds(textFrame) {
             var dup = null;
-            try { dup = textFrame.duplicate(textFrame.parent, ElementPlacement.PLACEATBEGINNING); } catch (_) {
-                try { dup = textFrame.duplicate(textFrame.layer, ElementPlacement.PLACEATBEGINNING); } catch (_) { return { ok: false }; }
+            try { dup = textFrame.duplicate(textFrame.parent, ElementPlacement.PLACEATBEGINNING); } catch (e) {
+                try { dup = textFrame.duplicate(textFrame.layer, ElementPlacement.PLACEATBEGINNING); } catch (e) { return { ok: false }; }
             }
 
             var outlined = null;
-            try { outlined = dup.createOutline(); } catch (_) {
-                try { dup.remove(); } catch (_) { }
+            try { outlined = dup.createOutline(); } catch (e) {
+                try { dup.remove(); } catch (e) { }
                 return { ok: false };
             }
-            try { dup.remove(); } catch (_) { }
+            try { dup.remove(); } catch (e) { }
             if (!outlined) return { ok: false };
 
             var items = [];
@@ -1485,18 +1485,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 } else {
                     for (var k = 0; k < direct.length; k++) items.push(direct[k]);
                 }
-            } catch (_) { }
+            } catch (e) { }
 
-            try { sortOutlineItems(items, textFrame); } catch (_) { }
+            try { sortOutlineItems(items, textFrame); } catch (e) { }
 
             if (items.length === 0) {
-                try { outlined.remove(); } catch (_) { }
+                try { outlined.remove(); } catch (e) { }
                 return { ok: false };
             }
 
             var boundsList = [];
             for (var m = 0; m < items.length; m++) {
-                try { boundsList.push(items[m].geometricBounds); } catch (_) { }
+                try { boundsList.push(items[m].geometricBounds); } catch (e) { }
             }
 
             return { ok: boundsList.length > 0, outlinedRoot: outlined, boundsList: boundsList };
@@ -1509,7 +1509,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var arr = [];
             for (var i = 0; i < items.length; i++) {
                 var bnd;
-                try { bnd = items[i].geometricBounds; } catch (_) { continue; }
+                try { bnd = items[i].geometricBounds; } catch (e) { continue; }
                 if (!bnd || bnd.length !== 4) continue;
                 var L = bnd[0], T = bnd[1], R = bnd[2], B = bnd[3];
                 arr.push({ it: items[i], L: L, T: T, cx: (L + R) / 2, cy: (T + B) / 2, h: Math.abs(T - B), idx: i });
@@ -1571,9 +1571,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 文字属性をコピー */
         function copyCharAttrs(dstFrame, srcChar) {
             var src;
-            try { src = srcChar.characterAttributes; } catch (_) { return; }
+            try { src = srcChar.characterAttributes; } catch (e) { return; }
             var dst;
-            try { dst = dstFrame.textRange.characterAttributes; } catch (_) { return; }
+            try { dst = dstFrame.textRange.characterAttributes; } catch (e) { return; }
             try { dst.textFont = src.textFont; } catch (e) { debugLog("copyCharAttrs: textFont", e); }
             try { dst.size = src.size; } catch (e) { debugLog("copyCharAttrs: size", e); }
             try { dst.horizontalScale = src.horizontalScale; } catch (e) { debugLog("copyCharAttrs: horizontalScale", e); }
@@ -1593,28 +1593,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!nf || !targetBounds || targetBounds.length !== 4) return;
 
             var dup;
-            try { dup = nf.duplicate(nf.parent, ElementPlacement.PLACEATBEGINNING); } catch (_) {
-                try { dup = nf.duplicate(nf.layer, ElementPlacement.PLACEATBEGINNING); } catch (_) { return; }
+            try { dup = nf.duplicate(nf.parent, ElementPlacement.PLACEATBEGINNING); } catch (e) {
+                try { dup = nf.duplicate(nf.layer, ElementPlacement.PLACEATBEGINNING); } catch (e) { return; }
             }
 
             var outlined;
-            try { outlined = dup.createOutline(); } catch (_) {
-                try { dup.remove(); } catch (_) { }
+            try { outlined = dup.createOutline(); } catch (e) {
+                try { dup.remove(); } catch (e) { }
                 return;
             }
-            try { dup.remove(); } catch (_) { }
+            try { dup.remove(); } catch (e) { }
             if (!outlined) return;
 
             var bNow;
-            try { bNow = outlined.geometricBounds; } catch (_) { bNow = null; }
-            try { outlined.remove(); } catch (_) { }
+            try { bNow = outlined.geometricBounds; } catch (e) { bNow = null; }
+            try { outlined.remove(); } catch (e) { }
             if (!bNow || bNow.length !== 4) return;
 
             var dx = (targetBounds[0] + targetBounds[2]) / 2 - (bNow[0] + bNow[2]) / 2;
             var dy = (targetBounds[1] + targetBounds[3]) / 2 - (bNow[1] + bNow[3]) / 2;
 
-            try { nf.left += dx; nf.top += dy; } catch (_) {
-                try { nf.translate(dx, dy); } catch (_) { }
+            try { nf.left += dx; nf.top += dy; } catch (e) {
+                try { nf.translate(dx, dy); } catch (e) { }
             }
         }
 
@@ -1623,11 +1623,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!textFrame || textFrame.typename !== "TextFrame") return [];
 
             var textLength;
-            try { textLength = textFrame.textRange.characters.length; } catch (_) { return []; }
+            try { textLength = textFrame.textRange.characters.length; } catch (e) { return []; }
             if (!textLength) return [];
 
             var layer;
-            try { layer = textFrame.layer; } catch (_) { return []; }
+            try { layer = textFrame.layer; } catch (e) { return []; }
 
             var made = [];
             for (var i = textLength - 1; i >= 0; i--) {
@@ -1683,7 +1683,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 } catch (e) { debugLog("splitCharFallback: main loop", e); }
             }
 
-            try { textFrame.remove(); } catch (_) { }
+            try { textFrame.remove(); } catch (e) { }
             return made;
         }
 
@@ -1725,7 +1725,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 resultFrames.push(row[0]);
 
                 for (var k = 1; k < row.length; k++) {
-                    try { row[k].remove(); } catch (_) { }
+                    try { row[k].remove(); } catch (e) { }
                 }
             }
 
@@ -2734,13 +2734,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try {
                         var gfx = btnShowHiddenChar.graphics;
                         gfx.foregroundColor = gfx.newPen(gfx.PenType.SOLID_COLOR, [0.0, 0.5, 0.8], 1);
-                    } catch (_) { }
+                    } catch (e) { }
                 } else {
                     btnShowHiddenChar.text = hiddenCharLabel;
                     try {
                         var gfx2 = btnShowHiddenChar.graphics;
                         gfx2.foregroundColor = gfx2.newPen(gfx2.PenType.SOLID_COLOR, [0.0, 0.0, 0.0], 1);
-                    } catch (_) { }
+                    } catch (e) { }
                 }
             }
 
@@ -2798,7 +2798,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                 } catch (e) { debugLog("btnClose: finalize selection", e); }
                 if (hiddenCharOn) {
-                    try { app.executeMenuCommand('showHiddenChar'); } catch (_) { }
+                    try { app.executeMenuCommand('showHiddenChar'); } catch (e) { }
                 }
                 dialog.close();
             };

@@ -552,11 +552,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
         try {
             var existingPalette = $.global.__TextBreakSplitMergePalette;
             if (existingPalette) {
-                try { existingPalette.show(); } catch (_) { }
-                try { existingPalette.active = true; } catch (_) { }
+                try { existingPalette.show(); } catch (e) { }
+                try { existingPalette.active = true; } catch (e) { }
                 return;
             }
-        } catch (_) { }
+        } catch (e) { }
 
         /* ドキュメントが開かれていない場合は処理を終了 / Abort when no document is open */
         if (app.documents.length === 0) {

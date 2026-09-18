@@ -80,7 +80,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var currentSel = doc.selection;
                 doc.selection = null;
                 doc.selection = currentSel;
-            } catch (_) {}
+            } catch (e) {}
         }
 
         // If only one object is selected, there is no overlap to merge.
@@ -88,7 +88,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (doc.selection && doc.selection.length === 1) {
             try {
                 bakeOpacityIntoFillRecursive(doc.selection[0], 1.0, doc);
-            } catch (_) { }
+            } catch (e) { }
             alert('処理が完了しました。');
             return;
         }
@@ -115,7 +115,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 var gb = item.geometricBounds; // [left, top, right, bottom]
                 var zpos = null;
-                try { zpos = item.zOrderPosition; } catch (_) { zpos = null; }
+                try { zpos = item.zOrderPosition; } catch (e) { zpos = null; }
                 var stackIdx = getStackIndexInParent(item);
 
                 dataStack.push({
@@ -221,15 +221,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // Apply final color to the survivor (frontmost), set opacity to 100
                 try {
                     survivor.obj.fillColor = baseColor;
-                } catch (_) {}
+                } catch (e) {}
                 try {
                     survivor.obj.opacity = 100;
-                } catch (_) {}
+                } catch (e) {}
 
                 // Remove all others (keep survivor to preserve stacking order)
                 for (var m = 0; m < group.length; m++) {
                     if (group[m] === survivor) continue;
-                    try { group[m].obj.remove(); } catch (_) {}
+                    try { group[m].obj.remove(); } catch (e) {}
                 }
 
             } else {
@@ -254,46 +254,46 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         if (t === 'GroupItem') {
             var a = parentAlpha;
-            try { a = a * (item.opacity / 100); } catch (_) { }
+            try { a = a * (item.opacity / 100); } catch (e) { }
 
             // Recurse into children
             try {
                 for (var i = 0; i < item.pageItems.length; i++) {
                     bakeOpacityIntoFillRecursive(item.pageItems[i], a, doc);
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // Normalize group opacity
-            try { item.opacity = 100; } catch (_) { }
+            try { item.opacity = 100; } catch (e) { }
             return;
         }
 
         if (t === 'CompoundPathItem') {
             // CompoundPathItem contains pathItems
             var a2 = parentAlpha;
-            try { a2 = a2 * (item.opacity / 100); } catch (_) { }
+            try { a2 = a2 * (item.opacity / 100); } catch (e) { }
             try {
                 for (var j = 0; j < item.pathItems.length; j++) {
                     bakeOpacityIntoFillRecursive(item.pathItems[j], a2, doc);
                 }
-            } catch (_) { }
-            try { item.opacity = 100; } catch (_) { }
+            } catch (e) { }
+            try { item.opacity = 100; } catch (e) { }
             return;
         }
 
         if (t === 'PathItem') {
             var a3 = parentAlpha;
-            try { a3 = a3 * (item.opacity / 100); } catch (_) { }
+            try { a3 = a3 * (item.opacity / 100); } catch (e) { }
 
             // Only bake fill; keep stroke as-is (this script focuses on fill flattening)
             try {
                 if (item.filled && item.fillColor) {
                     item.fillColor = blendWithWhite(item.fillColor, a3, doc);
                 }
-            } catch (_) { }
+            } catch (e) { }
 
             // Normalize opacity
-            try { item.opacity = 100; } catch (_) { }
+            try { item.opacity = 100; } catch (e) { }
             return;
         }
 
@@ -306,18 +306,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getStackIndexInParent(it) {
         if (!it) return null;
         var p = null;
-        try { p = it.parent; } catch (_) { p = null; }
+        try { p = it.parent; } catch (e) { p = null; }
         if (!p) return null;
 
         var items = null;
-        try { items = p.pageItems; } catch (_) { items = null; }
+        try { items = p.pageItems; } catch (e) { items = null; }
         if (!items) return null;
 
         try {
             for (var i = 0; i < items.length; i++) {
                 if (items[i] === it) return i;
             }
-        } catch (_) {
+        } catch (e) {
             // ignore
         }
         return null;
@@ -393,7 +393,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     ColorConvertPurpose.defaultpurpose
                 );
                 return [rgb[0], rgb[1], rgb[2]];
-            } catch (_) {
+            } catch (e) {
                 // Fallback: naive conversion (rarely used)
                 var r = 255 * (1 - col.cyan / 100) * (1 - col.black / 100);
                 var g = 255 * (1 - col.magenta / 100) * (1 - col.black / 100);
@@ -423,7 +423,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 c.yellow = cmyk[2];
                 c.black = cmyk[3];
                 return c;
-            } catch (_) {
+            } catch (e) {
                 // Fallback: assign RGB (Illustrator will convert internally)
                 var r = new RGBColor();
                 r.red = rgb8[0]; r.green = rgb8[1]; r.blue = rgb8[2];
@@ -557,15 +557,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
         return false;
-    }
-
-    // Helper function to run menu command safely
-    function runMenu(commandName) {
-        try {
-            app.executeMenuCommand(commandName);
-        } catch (e) {
-            // ignore errors
-        }
     }
 
     main();

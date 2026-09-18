@@ -500,7 +500,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
 
                     /* ズームスライダーを現在の表示倍率に追従させる / Keep the zoom slider in step */
                     if (zoomFactor != null && zoomSlider) zoomSlider.value = Math.round(view.zoom * 100);
-                } catch (_) { }
+                } catch (e) { }
             }
 
             /**
@@ -571,7 +571,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                         view.zoom = originalZoom;
                         view.centerPoint = originalCenter;
                         app.redraw();
-                    } catch (_) { }
+                    } catch (e) { }
                     panX = 0;
                     panY = 0;
                 },
@@ -640,7 +640,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
         for (var i = 0; i < items.length; i++) {
             /* パスファインダーでグループが置き換わり、参照が無効になっていることがある
                A pathfinder result may have replaced a group, leaving a stale reference */
-            try { items[i].name = ""; } catch (_) { }
+            try { items[i].name = ""; } catch (e) { }
         }
     }
 
@@ -713,7 +713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
      * @returns {void}
      */
     function sendToBack(item) {
-        try { item.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+        try { item.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
     }
 
     /**
@@ -723,7 +723,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
      * @returns {void}
      */
     function removeItem(item) {
-        try { item.remove(); } catch (_) { }
+        try { item.remove(); } catch (e) { }
     }
 
     /**
@@ -748,7 +748,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
     function applyRoundCornersEffect(item, radiusPt) {
         if (!(radiusPt > 0)) return;
         var effectXml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius #value# "/></LiveEffect>';
-        try { item.applyEffect(effectXml.replace('#value#', radiusPt)); } catch (_) { }
+        try { item.applyEffect(effectXml.replace('#value#', radiusPt)); } catch (e) { }
     }
 
     (function () {
@@ -861,7 +861,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                     appearance.item.stroked = appearance.stroked;
                     appearance.item.strokeColor = appearance.strokeColor;
                     appearance.item.strokeWidth = appearance.strokeWidth;
-                } catch (_) { }
+                } catch (e) { }
             }
         }
 
@@ -923,7 +923,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 artboardBaseRect = doc.activeLayer.pathItems.rectangle(top, left, width, height);
                 setStroke(artboardBaseRect, makeGrayColor(GRAY_TINTS.rule), 1);
                 baseRects.push(artboardBaseRect);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /**
@@ -1468,7 +1468,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
 
                 /* 先にキーの既定動作を止める（値を書き換えたあとでは間に合わない環境がある）
                    Cancel the default first: some hosts apply it before we finish */
-                try { event.preventDefault(); } catch (_) { }
+                try { event.preventDefault(); } catch (e) { }
 
                 var keyboard = ScriptUI.environment.keyboardState;
                 var isUp = (event.keyName === "Up");
@@ -1493,7 +1493,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 // keydownでtextを書き換えた場合、onChangingが発火しないことがあるため明示的に呼ぶ
                 try {
                     if (typeof editText.onChanging === "function") editText.onChanging();
-                } catch (_) { }
+                } catch (e) { }
             });
         }
 
@@ -2552,7 +2552,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
 
                 tagItem(frameItem, TAG_FRAME_FILL);
                 sendToBack(frameItem);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         /**
@@ -2574,9 +2574,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
 
                 /* 結果は selection の先頭に入る / The result lands at the head of the selection */
                 if (doc.selection.length > 0) resultItem = doc.selection[0];
-            } catch (_) { }
+            } catch (e) { }
 
-            try { doc.selection = previousSelection; } catch (_) { }
+            try { doc.selection = previousSelection; } catch (e) { }
 
             return resultItem;
         }
@@ -2948,7 +2948,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹�
                 dividerLine.strokeWidth = 2;
                 dividerLine.strokeCap = StrokeCap.ROUNDENDCAP;
                 dividerLine.strokeDashes = [0, dividerLine.strokeWidth * 2];
-                try { dividerLine.strokeJoin = StrokeJoin.ROUNDENDJOIN; } catch (_) { }
+                try { dividerLine.strokeJoin = StrokeJoin.ROUNDENDJOIN; } catch (e) { }
                 return;
             }
 

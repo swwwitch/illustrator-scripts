@@ -262,16 +262,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     } else if (tempFrame) {
                         tempFrame.remove();
                     }
-                } catch (_) { }
+                } catch (e) { }
 
                 try {
                     doc.selection = null;
                     for (i = 0; i < prevSelection.length; i++) {
                         try {
                             prevSelection[i].selected = true;
-                        } catch (_) { }
+                        } catch (e) { }
                     }
-                } catch (_) { }
+                } catch (e) { }
             }
         }
 

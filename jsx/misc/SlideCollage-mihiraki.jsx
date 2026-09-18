@@ -93,7 +93,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // Safe alert helper (used by __TMKPageCount_ module)
     if (typeof safeAlertKey === "undefined") {
         var safeAlertKey = function (key) {
-            try { alert(getLabel(key)); } catch (_) { }
+            try { alert(getLabel(key)); } catch (e) { }
         };
     }
 
@@ -158,7 +158,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         if (vb && vb.length === 4) {
                             placedTemp.position = [vb[0], vb[1]];
                         }
-                    } catch (_) { }
+                    } catch (e) { }
 
                     // Use the existing logic without modifying it
                     var lastFromFile = __TMKPageCount_getLastPageFromSelection([placedTemp]);
@@ -166,7 +166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (setResultTextFn) setResultTextFn(lastFromFile);
                 } finally {
                     if (placedTemp) {
-                        try { placedTemp.remove(); } catch (_) { }
+                        try { placedTemp.remove(); } catch (e) { }
                     }
                 }
                 return;
@@ -179,12 +179,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 var placedSel = __TMKPageCount_findFirstPlacedItem(doc.selection);
                 if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
-            } catch (_) { }
+            } catch (e) { }
 
             if (setResultTextFn) setResultTextFn(last);
         } catch (e) {
             alert(e);
-            try { if (setResultTextFn) setResultTextFn(null); } catch (_) { }
+            try { if (setResultTextFn) setResultTextFn(null); } catch (e) { }
         }
     }
 
@@ -229,7 +229,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) {
             alert(e);
         } finally {
-            try { file.close(); } catch (_) { }
+            try { file.close(); } catch (e) { }
         }
         return res;
     }
@@ -272,7 +272,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
             file.close();
         } catch (e) {
-            try { file.close(); } catch (_) { }
+            try { file.close(); } catch (e) { }
         }
         return "L2R";
     }
@@ -474,10 +474,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             fileA = f || null;
 
             // Update crop dropdown availability (crop is meaningful only for PDF)
-            try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
+            try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (e) { }
 
             // 綴じ方向を自動検出
-            try { __SC_autoDetectBinding(f); } catch (_) { }
+            try { __SC_autoDetectBinding(f); } catch (e) { }
 
             try {
                 if (f) {
@@ -487,7 +487,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     etPath.text = getLabel('notSelected');
                     etPath.helpTip = '';
                 }
-            } catch (_) {
+            } catch (e) {
                 try {
                     etPath.text = f ? String(f.name) : getLabel('notSelected');
                     etPath.helpTip = f ? String(f.fsName) : '';
@@ -500,15 +500,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         function setResultText(last) {
             if (!last) {
-                try { etRange.text = ''; } catch (_) { }
+                try { etRange.text = ''; } catch (e) { }
             } else {
-                try { etRange.text = '1-' + last; } catch (_) { }
+                try { etRange.text = '1-' + last; } catch (e) { }
             }
         }
 
         // Initial: try selection
         __TMKPageCount_updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
-        try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
+        try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (e) { }
 
         btnBrowse.onClick = function () {
             var f = File.openDialog(getLabel('dlgPickFile'), getLabel('filterPick'));
@@ -553,7 +553,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 } else {
                     rbL2R.value = true;
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function __SC_getCropModeFromUI() {
@@ -577,13 +577,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 // Use PDFImport for both PDF and AI (AI is handled by the PDF import pipeline when placing)
                 app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", n);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         function __SC_resetImportPageNumber() {
             try {
                 app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // ボタン類（キャンセル・OK）
@@ -641,7 +641,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 };
             } finally {
                 if (measureItem) {
-                    try { measureItem.remove(); } catch (_) { }
+                    try { measureItem.remove(); } catch (e) { }
                 }
             }
         }
@@ -743,7 +743,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e) {
                 alert(getLabel("alertPlaceError"));
             } finally {
-                try { __SC_resetImportPageNumber(); } catch (_) { }
+                try { __SC_resetImportPageNumber(); } catch (e) { }
             }
         }
 

@@ -109,7 +109,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
             }
         } catch (e) {
             // suspendHistory 内の例外もここに来る
-            try { alert(getLabel("alertError") + e); } catch (_) { }
+            try { alert(getLabel("alertError") + e); } catch (e) { }
         }
     }
 
@@ -206,7 +206,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
             editText.text = String(value);
             if (typeof onChanged === "function") {
-                try { onChanged(); } catch (_) { }
+                try { onChanged(); } catch (e) { }
             }
         });
     }
@@ -320,7 +320,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
                 if (existing) {
                     var backupBase = baseLayerName + "_backup";
                     var backupName = createUniqueLayerName(doc, backupBase);
-                    try { existing.name = backupName; } catch (_) { }
+                    try { existing.name = backupName; } catch (e) { }
                 }
 
                 targetLayer = doc.layers.add();
@@ -340,7 +340,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
             // 最前面へ移動
             try {
                 targetLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
-            } catch (_) { }
+            } catch (e) { }
         }
 
         // 新しく引く線の格納先（グループ化オプション対応）
@@ -348,7 +348,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         if (shouldGroup) {
             lineGroup = targetLayer.groupItems.add();
             lineGroup.name = SCRIPT_MARKER + "_" + getLabel("groupName");
-            try { lineGroup.note = SCRIPT_MARKER; } catch (_) { }
+            try { lineGroup.note = SCRIPT_MARKER; } catch (e) { }
         } else {
             lineGroup = targetLayer;
         }
@@ -370,7 +370,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
                         dedupMap,
                         strokeWidthPt
                     );
-                } catch (_) { }
+                } catch (e) { }
             }
         }
 
@@ -451,7 +451,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
                     if (gb[2] > b[2]) b[2] = gb[2];
                     if (gb[3] < b[3]) b[3] = gb[3];
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
         return b;
     }
@@ -468,7 +468,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
             if (__EXTENDLINES_SESSION__.dlgLoc && __EXTENDLINES_SESSION__.dlgLoc.length === 2) {
                 win.location = __EXTENDLINES_SESSION__.dlgLoc;
             }
-        } catch (_) { }
+        } catch (e) { }
 
         // win.add("statictext", undefined, "隣り合うアンカーポイントの扱い：");
 
@@ -624,11 +624,11 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
             var previewLayer = doc.layers.add();
             previewLayer.name = previewLayerName;
-            try { previewLayer.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
+            try { previewLayer.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (e) { }
 
             var previewGroup = previewLayer.groupItems.add();
             previewGroup.name = SCRIPT_MARKER + "_PREVIEW";
-            try { previewGroup.note = SCRIPT_MARKER; } catch (_) { }
+            try { previewGroup.note = SCRIPT_MARKER; } catch (e) { }
 
             // UI状態を読む
             var mode = cbStraightOnly.value ? "STRAIGHT" : "CURVE";
@@ -678,7 +678,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
                             drawLeft, drawTop, drawRight, drawBottom,
                             shouldDedup, dedupMap, strokeWidthPt
                         );
-                    } catch (_) { }
+                    } catch (e) { }
                 }
             }
 
@@ -788,7 +788,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         // Save dialog position (session-only)
         try {
             __EXTENDLINES_SESSION__.dlgLoc = [win.location[0], win.location[1]];
-        } catch (_) { }
+        } catch (e) { }
 
         if (dialogReturn === 1) {
             result = {
@@ -823,7 +823,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
                     // 複製だけアウトライン化
                     var outlined = dup.createOutline();
                     // createOutline 後、複製テキストが残る場合があるので削除
-                    try { dup.remove(); } catch (_) { }
+                    try { dup.remove(); } catch (e) { }
 
                     if (outlined) {
                         outlineRoots.push(outlined);
@@ -858,7 +858,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         for (var i = outlineRoots.length - 1; i >= 0; i--) {
             try {
                 if (outlineRoots[i] && outlineRoots[i].remove) outlineRoots[i].remove();
-            } catch (_) { }
+            } catch (e) { }
         }
     }
 
@@ -870,16 +870,16 @@ var SCRIPT_MARKER = "__ExtendLines__";
                 var it = items[i];
                 if (!it) return false;
                 var lyr = null;
-                try { lyr = it.layer; } catch (_) { lyr = null; }
+                try { lyr = it.layer; } catch (e) { lyr = null; }
                 if (!lyr || lyr.name !== layerName) return false;
             }
             return true;
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
     function findLayerByName(doc, name) {
-        try { return doc.layers.getByName(name); } catch (_) { }
+        try { return doc.layers.getByName(name); } catch (e) { }
         return null;
     }
 
@@ -894,7 +894,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
     }
 
     function getLayerSafe(doc, name) {
-        try { return doc.layers.getByName(name); } catch (_) { }
+        try { return doc.layers.getByName(name); } catch (e) { }
         return null;
     }
 
@@ -902,7 +902,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         try {
             var lyr = getLayerSafe(doc, name);
             if (lyr) lyr.remove();
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // このスクリプトが生成したオブジェクトだけを削除（ユーザーの既存オブジェクトは残す）
@@ -914,15 +914,15 @@ var SCRIPT_MARKER = "__ExtendLines__";
                 var g = layer.groupItems[i];
                 if (!g) continue;
                 var n = "";
-                try { n = g.note || ""; } catch (_) { }
+                try { n = g.note || ""; } catch (e) { }
                 if (n === SCRIPT_MARKER) {
-                    try { g.remove(); } catch (_) { }
+                    try { g.remove(); } catch (e) { }
                     continue;
                 }
                 var nm = "";
-                try { nm = g.name || ""; } catch (_) { }
+                try { nm = g.name || ""; } catch (e) { }
                 if (nm.indexOf(SCRIPT_MARKER) === 0) {
-                    try { g.remove(); } catch (_) { }
+                    try { g.remove(); } catch (e) { }
                 }
             }
 
@@ -931,12 +931,12 @@ var SCRIPT_MARKER = "__ExtendLines__";
                 var p = layer.pathItems[j];
                 if (!p) continue;
                 var pn = "";
-                try { pn = p.note || ""; } catch (_) { }
+                try { pn = p.note || ""; } catch (e) { }
                 if (pn === SCRIPT_MARKER) {
-                    try { p.remove(); } catch (_) { }
+                    try { p.remove(); } catch (e) { }
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // 2つのアンカーポイント間が直線（ハンドルが出ていない）かどうかを判定する関数
@@ -1041,12 +1041,12 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
     // 補助線（延長線）と同じスタイルを適用
     function applyAuxStyle(pathItem, shouldGuide, strokeWidthPt) {
-        try { pathItem.note = SCRIPT_MARKER; } catch (_) { }
+        try { pathItem.note = SCRIPT_MARKER; } catch (e) { }
         pathItem.filled = false;
-        try { pathItem.fillColor = new NoColor(); } catch (_) { }
+        try { pathItem.fillColor = new NoColor(); } catch (e) { }
         if (shouldGuide) {
             pathItem.stroked = false;
-            try { pathItem.guides = true; } catch (_) { }
+            try { pathItem.guides = true; } catch (e) { }
         } else {
             pathItem.stroked = true;
 
@@ -1129,7 +1129,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
             ln.closed = false;
             applyAuxStyle(ln, shouldGuide, strokeWidthPt);
             return ln;
-        } catch (_) { }
+        } catch (e) { }
         return null;
     }
 
@@ -1179,11 +1179,11 @@ var SCRIPT_MARKER = "__ExtendLines__";
                 );
                 // 円の塗りは「なし」
                 circle.filled = false;
-                try { circle.fillColor = new NoColor(); } catch (_) { }
+                try { circle.fillColor = new NoColor(); } catch (e) { }
                 applyAuxStyle(circle, shouldGuide, strokeWidthPt);
                 circles.push(circle);
             }
-        } catch (_) { }
+        } catch (e) { }
 
         return circles;
     }

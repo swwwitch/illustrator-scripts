@@ -80,7 +80,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         try {
             if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
             if (LABELS[key] && LABELS[key].ja) return LABELS[key].ja;
-        } catch (_) { }
+        } catch (e) { }
         return key;
     }
 
@@ -135,14 +135,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                     editText.text = String(value);
 
                     // Prevent default arrow key behavior (cursor move)
-                    try { event.preventDefault(); } catch (_) { }
+                    try { event.preventDefault(); } catch (e) { }
 
                     if (onChanged && typeof onChanged === 'function') {
-                        try { onChanged(); } catch (_) { }
+                        try { onChanged(); } catch (e) { }
                     }
-                } catch (_) { }
+                } catch (e) { }
             });
-        } catch (_) { }
+        } catch (e) { }
     }
 
     /* ===== 選択の取得 / Selection ===== */
@@ -155,7 +155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
 
     // Base selection snapshot (used for stable preview while dialog is open)
     var baseSelection = [];
-    try { baseSelection = sel.slice(0); } catch (_) { baseSelection = []; }
+    try { baseSelection = sel.slice(0); } catch (e) { baseSelection = []; }
 
     var targetItems = getTargetTextItems(sel);
     var selectedPaths = getSelectedPathItems(sel);
@@ -292,13 +292,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     function clearPreview() {
         // Remove temp items
         for (var i = previewTempItems.length - 1; i >= 0; i--) {
-            try { previewTempItems[i].remove(); } catch (_) { }
+            try { previewTempItems[i].remove(); } catch (e) { }
         }
         previewTempItems = [];
 
         // Restore originals visibility
         for (var j = previewHiddenOriginals.length - 1; j >= 0; j--) {
-            try { previewHiddenOriginals[j].hidden = false; } catch (_) { }
+            try { previewHiddenOriginals[j].hidden = false; } catch (e) { }
         }
         previewHiddenOriginals = [];
     }
@@ -311,17 +311,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             }
             item.hidden = true;
             previewHiddenOriginals.push(item);
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function applyPreview() {
         clearPreview();
 
         // Restore base selection so preview stays stable even after selection changes
-        try { doc.selection = baseSelection; } catch (_) { }
+        try { doc.selection = baseSelection; } catch (e) { }
 
         var currentSelection = [];
-        try { currentSelection = doc.selection; } catch (_) { currentSelection = []; }
+        try { currentSelection = doc.selection; } catch (e) { currentSelection = []; }
         if (!currentSelection || currentSelection.length === 0) {
             currentSelection = baseSelection;
         }
@@ -376,8 +376,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         try {
             var v = Math.max(-100, Math.min(500, Math.round(parseNumber(etTracking.text, 0))));
             etTracking.text = String(v);
-            try { slTracking.value = v; } catch (_) { }
-        } catch (_) { }
+            try { slTracking.value = v; } catch (e) { }
+        } catch (e) { }
         trackingSyncLock = false;
     }
 
@@ -387,7 +387,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         try {
             var v = Math.round(slTracking.value);
             etTracking.text = String(v);
-        } catch (_) { }
+        } catch (e) { }
         trackingSyncLock = false;
     }
 
@@ -433,7 +433,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             applyPreview();
             app.redraw();
         }
-    } catch (_) { }
+    } catch (e) { }
 
     var dialogResult = dlg.show();
     if (dialogResult !== 1) return;
@@ -450,7 +450,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                     if (item.kind === TextType.POINTTEXT || item.kind === TextType.PATHTEXT) {
                         found.push(item);
                     }
-                } catch (_) { }
+                } catch (e) { }
             } else if (item.typename === 'GroupItem') {
                 found = found.concat(getTargetTextItems(item.pageItems));
             }
@@ -480,12 +480,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             if (!pathItem || !styleFn) return;
             if (pathItem.typename === 'CompoundPathItem') {
                 for (var cp = 0; cp < pathItem.pathItems.length; cp++) {
-                    try { styleFn(pathItem.pathItems[cp]); } catch (_) { }
+                    try { styleFn(pathItem.pathItems[cp]); } catch (e) { }
                 }
             } else {
-                try { styleFn(pathItem); } catch (_) { }
+                try { styleFn(pathItem); } catch (e) { }
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // Per-PathItem style: invisible (no fill, stroke color/weight 0).
@@ -513,10 +513,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                 if (previewMode) {
                     hideOriginalForPreview(path);
                 } else {
-                    try { path.remove(); } catch (_) { }
+                    try { path.remove(); } catch (e) { }
                 }
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // Apply center justification to all paragraphs of a text frame
@@ -528,12 +528,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                     for (var i = 0; i < textFrame.paragraphs.length; i++) {
                         try {
                             textFrame.paragraphs[i].paragraphAttributes.justification = Justification.CENTER;
-                        } catch (_) { }
+                        } catch (e) { }
                     }
                 }
-            } catch (_) { }
-            try { textFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
-        } catch (_) { }
+            } catch (e) { }
+            try { textFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
+        } catch (e) { }
     }
 
     /* ===== 効果・トラッキング / Effect & tracking ===== */
@@ -554,16 +554,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         if (!cmd) return;
 
         var prevSelection = null;
-        try { prevSelection = doc.selection; } catch (_) { prevSelection = null; }
+        try { prevSelection = doc.selection; } catch (e) { prevSelection = null; }
 
         try {
-            try { doc.selection = []; } catch (_) { }
-            try { textFrame.selected = true; } catch (_) { }
+            try { doc.selection = []; } catch (e) { }
+            try { textFrame.selected = true; } catch (e) { }
             app.executeMenuCommand(cmd);
-        } catch (_) { }
+        } catch (e) { }
 
         // Always restore the previous selection (safer)
-        try { doc.selection = prevSelection; } catch (_) { }
+        try { doc.selection = prevSelection; } catch (e) { }
     }
 
     // Collect every textRange of a frame (falls back to its single textRange)
@@ -573,9 +573,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             if (textFrame.textRanges && textFrame.textRanges.length > 0) {
                 for (var i = 0; i < textFrame.textRanges.length; i++) ranges.push(textFrame.textRanges[i]);
             }
-        } catch (_) { }
+        } catch (e) { }
         if (ranges.length === 0) {
-            try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (_) { ranges = []; }
+            try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (e) { ranges = []; }
         }
         return ranges;
     }
@@ -593,9 +593,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                 try {
                     var currentTracking = textRange.characterAttributes.tracking;
                     textRange.characterAttributes.tracking = currentTracking + delta;
-                } catch (_) { }
+                } catch (e) { }
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     // Measure rendered text bounds via temporary outlines: [L, T, R, B] or null
@@ -617,7 +617,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             bounds[3] = measureTexts[0].geometricBounds[3]; // baseline from the first line
 
             for (var r = 0; r < measureTexts.length; r++) {
-                try { measureTexts[r].remove(); } catch (_) { }
+                try { measureTexts[r].remove(); } catch (e) { }
             }
             return bounds;
         } catch (e) {
@@ -628,7 +628,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     // Roundness from the slider, clamped to 0-100 (50 = default arch)
     function readRoundnessPercent() {
         var percent = 50;
-        try { percent = Number(slArcRoundness.value); } catch (_) { percent = 50; }
+        try { percent = Number(slArcRoundness.value); } catch (e) { percent = 50; }
         if (isNaN(percent)) return 50;
         return Math.max(0, Math.min(100, percent));
     }
@@ -661,7 +661,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             if (!originalText || originalText.typename !== 'TextFrame') return null;
             if (!originalText.lines || originalText.lines.length === 0) return null;
             if (!originalText.textRanges || originalText.textRanges.length === 0) return null;
-        } catch (_) {
+        } catch (e) {
             return null;
         }
 
@@ -679,7 +679,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             try {
                 arcPath.stroked = false;
                 arcPath.filled = false;
-            } catch (_) { }
+            } catch (e) { }
 
             // Bend the straight path into an arc（上＝＋ / 下＝−）
             var directionSign = (rbArcDirectionDown && rbArcDirectionDown.value) ? -1 : 1;
@@ -718,14 +718,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             // Create text on the path
             var textOnAPath = currentLayer.textFrames.pathText(arcPath);
             // Keep stacking position (avoid appearing to disappear behind other objects)
-            try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (_) { }
+            try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (e) { }
             if (previewMode) previewTempItems.push(textOnAPath);
 
             // Keep the path used by the PathText invisible (AI may override style on conversion)
             try {
                 var pathTextPath = textOnAPath.textPath;
                 if (pathTextPath) applyInvisiblePathStyle(pathTextPath);
-            } catch (_) { }
+            } catch (e) { }
 
             // Duplicate textRanges from the original text frame
             for (var i = 0; i < originalText.textRanges.length; i++) {
@@ -754,17 +754,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
 
             // Select the created text on a path
             if (!previewMode) {
-                try { textOnAPath.selected = true; } catch (_) { }
+                try { textOnAPath.selected = true; } catch (e) { }
             }
         }
 
         // フィット：「しない」以外を選んだとき（ループ後にまとめて適用）
         if (rbFitTracking.value) {
             // 文字サイズを保ったまま、トラッキングでパス幅に合わせる
-            try { fitTextToOpenPathByTracking(createdTexts); } catch (_) { }
+            try { fitTextToOpenPathByTracking(createdTexts); } catch (e) { }
         } else if (rbFitFontSize.value) {
             // 文字サイズを変更してパス幅に合わせる（従来）
-            try { fitTextToOpenPath(createdTexts); } catch (_) { }
+            try { fitTextToOpenPath(createdTexts); } catch (e) { }
         }
     }
 
@@ -779,7 +779,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                 return false;
             }
             if (item.typename === 'PathItem') return !!item.closed;
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
@@ -794,7 +794,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             // Only OPEN paths
             if (isClosedPathItem(path)) return false;
             return true;
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
@@ -821,7 +821,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             } else if (textFrame.characters.length > 0) {
                 return true;
             }
-        } catch (_) { }
+        } catch (e) { }
         return false;
     }
 
@@ -829,7 +829,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     function getLineAmount(textFrame) {
         try {
             if (textFrame.lines && textFrame.lines.length > 0) return textFrame.lines.length;
-        } catch (_) { }
+        } catch (e) { }
         return 1;
     }
 
@@ -875,7 +875,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                     shrinkIter++;
                     if (shrinkIter >= opt.maxShrinkIter) break;
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         for (var i = 0; i < frames.length; i++) {
@@ -909,7 +909,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                 try {
                     var attributes = ranges[r].characterAttributes;
                     attributes.tracking = attributes.tracking + delta;
-                } catch (_) { }
+                } catch (e) { }
             }
         }
 
@@ -961,7 +961,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
                         iterations++;
                     }
                 }
-            } catch (_) { }
+            } catch (e) { }
         }
 
         for (var i = 0; i < frames.length; i++) {

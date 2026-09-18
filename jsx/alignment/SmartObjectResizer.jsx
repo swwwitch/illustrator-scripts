@@ -407,9 +407,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
     // 閉じるときに位置を記憶（セッション内のみ）
     dialog.onClose = function () {
-        try {
-            $.global[__SOR_SESSION_KEY] = [dialog.location[0], dialog.location[1]];
-        } catch (_) { }
+        $.global[__SOR_SESSION_KEY] = [dialog.location[0], dialog.location[1]];
         return true;
     };
 
@@ -533,7 +531,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             // onChange を明示的に呼ぶ（矢印キーでは onChange が発火しないことがある）
             try {
                 if (typeof editText.onChange === "function") editText.onChange();
-            } catch (_) { }
+            } catch (e) { }
         });
     }
 
@@ -1467,7 +1465,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
             if (createdItems.length === 0) return getPageItemBoundsObject(item, useVisibleBounds);
             return getBoundsFromItems(createdItems, useVisibleBounds);
-        } catch (_) {
+        } catch (e) {
             return getPageItemBoundsObject(item, useVisibleBounds);
         } finally {
             removeItemsSafe(createdItems);
@@ -1485,7 +1483,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             duplicateItem.selected = true;
             app.executeMenuCommand('expandStyle');
             expandedItems = copyCurrentSelection();
-        } catch (_) {
+        } catch (e) {
         } finally {
             restoreSelectionItems(previousSelection);
         }
@@ -1511,7 +1509,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
             for (var i = 0; i < items.length; i++) {
                 if (items[i] && items[i].isValid) items[i].selected = true;
             }
-        } catch (_) { }
+        } catch (e) { }
     }
 
     function outlineTextFramesInGroupDuplicate(groupItem) {
@@ -1565,13 +1563,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         for (var i = items.length - 1; i >= 0; i--) {
             try {
                 items[i].locked = false;
-            } catch (_) { }
+            } catch (e) { }
             try {
                 items[i].hidden = false;
-            } catch (_) { }
+            } catch (e) { }
             try {
                 items[i].remove();
-            } catch (_) { }
+            } catch (e) { }
         }
     }
 
