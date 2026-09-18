@@ -64,17 +64,20 @@ When a break sits between two Latin words, it becomes a space so the words do no
 | --- | --- |
 | Split by Line Breaks | Split into a separate text frame per line |
 | Split by Line Breaks (Keep Style) | Same, keeping character formatting and position |
+| Split by Visual Lines | Split area text at each wrapped line |
 | Split by Tabs | Split each paragraph at its tab positions |
 | Keep Style (split by character) | One frame per character, formatting kept |
 | Ignore Style (split by character) | One frame per character, formatting reset |
 
 The two line-break splits work differently under the hood. The first duplicates the frame, replaces its contents and positions the copies from the leading value. The second duplicates each paragraph with `TextRange.duplicate` and re-aligns it against the bottom edge (left edge for vertical text) recorded before the split. Use the second one when formatting matters.
 
+*Split by Visual Lines* splits on **composed lines** rather than on break characters, so the wrap points of area text count as line breaks too and the text comes apart exactly as it looks. Each resulting box is then shrunk to the narrowest width (height for vertical text) that still holds the line on one line. Shrinking a box moves the text with its justification, so the left edge is kept for left-aligned text, the right edge for right-aligned text and the center for centered text, which leaves every line where it was (boxes set to *Justify All Lines* are left alone, since there is no natural line width to shrink to). The button is enabled only while area text is selected.
+
 *Split by Tabs* measures **how far the character after each tab sits from the start of the paragraph** rather than reading the tab itself. The offsets come from outlining a duplicate, so table-like text keeps its visual alignment (when the measurement is not possible it falls back to spacing each piece half an em after the previous one).
 
 Character-level splitting duplicates the frame, converts it to outlines, reads the bounding box of each glyph, and fits a new frame to it. If outlining fails it falls back to accumulating character widths. Breaks, tabs and spaces (half- and full-width) never become frames.
 
-Split results are left as separate frames. **Hold Option (Alt) while clicking to collect them into a single group** — this applies to all five split buttons.
+Split results are left as separate frames. **Hold Option (Alt) while clicking to collect them into a single group** — this applies to all six split buttons.
 
 *Ignore Style* is not a full reset: **the font and size of the first character are kept.** Fill becomes black, baseline shift / rotation / tracking go to 0, and horizontal/vertical scale return to 100%.
 

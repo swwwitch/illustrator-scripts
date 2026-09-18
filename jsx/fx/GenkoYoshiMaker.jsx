@@ -5,17 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの文字送りをマス目にそろえ、1文字分の間隔で罫線を引き、行の両側に罫線を添えます。縦組み・横組みのどちらにも対応します。
-罫線の濃度、前後のマス、行の追加、線種、十字線などをダイアログで指定し、結果はその場でプレビューされます。
+選択したテキストを1文字＝1マスに組み直し、マスの区切りと行の両側の罫線、十字線を引きます。縦組み・横組み、ポイント文字・エリア内文字のいずれにも対応し、組み方向は変換しません。
+比率・自動行送り・罫線の濃度・太罫・十字線などはダイアログで指定し、結果はその場でプレビューされます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Matches the character advance of the selected text to a grid of cells, draws a rule at every
-character interval, and adds rules along both sides of each line. Vertical and horizontal text
-are both supported. A dialog sets the rule density, the extra cells and lines, the rule styles
-and the crosshairs, and previews the result live.
+Sets the selected text one character to a cell, then draws the cell rules, the rules along both
+sides of each line, and the crosshairs. Vertical and horizontal, point and area text are all
+supported, and the writing direction is left as it is. A dialog sets the scale, the auto leading,
+the rule density, the emphasis and the crosshairs, and previews the result live.
 
 See the README for details.
 
@@ -85,14 +85,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         label: {
             preset: { ja: "プリセット", en: "Preset" },
             scale: { ja: "比率", en: "Scale" },
-            extension: { ja: "伸張", en: "Extension" },
+            autoLeading: { ja: "自動行送り", en: "Auto leading" },
+            extension: { ja: "はみ出し", en: "Extension" },
             lineColor: { ja: "罫線の濃度", en: "Rule density" },
-            extraCells: { ja: "前後のマス", en: "Extra cells" },
-            /* 行が並ぶ向きは書字方向で変わる */
-            extraLines: {
-                vertical: { ja: "左右の行数", en: "Extra lines" },
-                horizontal: { ja: "上下の行数", en: "Extra lines" }
-            },
+            emphasisRatio: { ja: "太罫の比率", en: "Emphasis ratio" },
+            emphasisTarget: { ja: "太罫の対象", en: "Emphasis applies to" },
+            extraCells: { ja: "マスを追加", en: "Add cells" },
+            extraLines: { ja: "行を追加", en: "Add lines" },
+            emphasis: { ja: "強調", en: "Emphasis" },
+            /* 太罫の対象のうち、マスの区切りに付ける補足 */
+            emphasisTargetSuffix: { ja: "（n文字ごと）", en: " (at the interval)" },
             lineStyle: { ja: "線種", en: "Style" },
             segments: { ja: "分割数", en: "Segments" },
             emphasisPrefix: { ja: "", en: "Thicker every" },
@@ -100,12 +102,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         },
         checkbox: {
             adjustSize: { ja: "文字の比率を調整", en: "Adjust the character scale" },
-            sideRule: { ja: "外側にもう1本追加", en: "Add an outer rule" },
+            sideRule: { ja: "いちばん外に1本追加", en: "Add one more outside" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         preset: {
             standard: { ja: "標準", en: "Standard" },
-            noSideRule: { ja: "左右の縦罫なし", en: "No side rules" },
+            noSideRule: { ja: "外側の罫線なし", en: "No outer rules" },
             noCross: { ja: "十字線なし", en: "No crosshairs" },
             rulesOnly: { ja: "シンプル", en: "Simple" },
             custom: { ja: "カスタム", en: "Custom" }
@@ -124,6 +126,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
                 ja: "罫線の濃度。shiftを押しながらドラッグすると10%刻みになります。十字線の濃度は別（30%）です。",
                 en: "Density of the rules. Hold Shift to snap to 10% steps. The crosshairs keep their own density (30%)."
             },
+            emphasisRatio: {
+                ja: "太くする罫線の太さ。ふつうの罫線（0.1mm）に対する比率で指定します。",
+                en: "Weight of the emphasized rules, as a ratio of the normal ones (0.1mm)."
+            },
+            emphasisTarget: {
+                ja: "太罫の比率を使う罫線を選びます。行の両側の罫線と、n文字ごとに太くする区切りが対象です。",
+                en: "Picks which rules use the emphasis ratio: the rules along each line, and the cell rules thickened at the given interval."
+            },
             extraCells: {
                 ja: "文字の前後（上下）に足す空のマスの数。",
                 en: "Empty cells added before and after the text."
@@ -140,6 +150,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
                 ja: "文字の水平比率・垂直比率。下げた分はトラッキングで送りに戻します。",
                 en: "Horizontal and vertical scale of the characters; the tracking gives the advance back."
             },
+            autoLeading: {
+                ja: "行と行の送り。文字サイズに対する比率で、マス1つ分（100%）を超えた分が行と行のアキになります。外側の罫線もこのアキの位置に引かれます。",
+                en: "Distance from line to line as a percentage of the font size; anything over one cell (100%) becomes the gutter, and the outer rules follow it."
+            },
             extension: {
                 ja: "縦罫をマスの上下へ伸ばす量。",
                 en: "How far the vertical rules run past the cells."
@@ -151,6 +165,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             emphasis: {
                 ja: "指定した文字数ごとに横罫を太くします。",
                 en: "Thickens the horizontal rule at the given interval."
+            },
+            cellRuleStyle: {
+                ja: "マスの区切りを実線と破線から選びます。",
+                en: "Draws the cell rules solid or dashed."
+            },
+            crossStyle: {
+                ja: "各マスの中央に引く十字線の線種です。「なし」にすると引きません。",
+                en: "Style of the crosshairs at the center of every cell; None draws nothing."
             },
             crossSegments: {
                 ja: "十字線1本あたりの線分の本数。0か3以上の奇数で、線分と間隔は同じ長さになります。",
@@ -167,10 +189,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         },
         unit: {
             mm: { ja: "mm", en: "mm" },
-            percent: { ja: "%", en: "%" }
+            percent: { ja: "%", en: "%" },
+            characters: { ja: "文字", en: "characters" },
+            lines: { ja: "行", en: "lines" }
         },
         button: {
-            save: { ja: "保存", en: "Save" },
+            add: { ja: "追加", en: "Add" },
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "OK", en: "OK" }
         }
@@ -247,32 +271,167 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     // =========================================
 
     var LAYOUT = {
-        lineStrokeMM: 0.25,         /* 行の両側の罫線の太さ（mm）/ weight of the rules along each line (mm) */
         cellStrokeMM: 0.1,          /* マスの区切りの太さ（mm）/ weight of the cell rules (mm) */
         cellDashMM: [1, 1],         /* マスの区切りを破線にしたときの線分と間隔（mm）/ dash and gap of the dashed cell rules (mm) */
-        emphasisStrokeMM: 0.25,     /* 太くするマスの区切りの太さ（mm）/ weight of the emphasized cell rules (mm) */
         crossStrokeMM: 0.1,         /* 十字線の太さ（mm）/ crosshair weight (mm) */
         crossGray: 30,              /* 十字線の濃度（%、100で黒）/ crosshair density (%, 100 is black) */
-        sideRuleRatio: 0.25,        /* 外側の罫線の位置と、行と行のアキ（文字サイズに対する比率）/ side rule offset and gutter (ratio of the font size) */
         gridStartOffset: 0          /* 1本目の位置の微調整（pt、プラスで書字方向の手前へ）/ nudge of the first rule (pt) */
     };
 
     /* ダイアログの初期値 / Dialog defaults */
     var DEFAULTS = {
         strokeGray: 50,          /* 罫線の濃度（%、100で黒）/ rule density (%, 100 is black) */
+        emphasisRatio: 250,      /* 太罫の太さ（ふつうの罫線に対する%）/ weight of the emphasized rules (% of the normal ones) */
+        emphasizeLineRules: true,/* 行の両側の罫線を太罫にするか / use the emphasis ratio for the rules along each line */
+        emphasizeCellRules: true,/* n文字ごとの区切りを太罫にするか / use the emphasis ratio for the interval cell rules */
         extraCells: 0,           /* 文字の前後に足すマスの数 / empty cells added before and after the text */
         extraLines: 0,           /* テキストの行の外側に足す、空の行の数 / empty lines added outside the text */
         adjustSize: true,        /* 文字を比率とトラッキングでマスに合わせるか / fit the characters to the cells */
         scale: 90,               /* 水平・垂直比率（%）/ horizontal and vertical scale (%) */
+        autoLeading: 125,        /* 自動行送り（%）。100%を超えた分が行と行のアキ / auto leading (%); anything over 100% is the gutter */
         extensionMM: null,       /* 罫線を書字方向へ伸ばす量（mm）。null は文字サイズの1/4 / null means a quarter of the font size */
         dashedCellRules: false,  /* マスの区切りを破線にするか / draw the cell rules dashed */
-        emphasisEnabled: true,   /* 一定間隔の横罫を太くするか / thicken the horizontal rules at a fixed interval */
+        emphasisEnabled: true,   /* 一定間隔のマスの区切りを太くするか / thicken the cell rules at a fixed interval */
         emphasisEvery: 5,        /* 太くする間隔（文字数）/ interval of the thickened rules (characters) */
-        showSideRules: true,     /* 左右に縦罫を添えるか / add the side rules */
+        showSideRules: true,     /* いちばん外に罫線をもう1本添えるか / add one more rule outside */
         crossStyle: "dashed",    /* 十字線の線種（none / solid / dashed）/ crosshair style */
         crossSegments: 9,        /* 十字線1本あたりの線分の本数（線分と間隔は同じ長さ）/ dashes per crosshair line (dash and gap are equal) */
         preview: true            /* プレビューを表示するか / show the live preview */
     };
+
+    // =========================================
+    // 自動サイズ調整のアクション / Auto-size action
+    // =========================================
+
+    /* エリア内文字の自動サイズ調整は DOM から設定できないため、
+       その場で作ったアクションを実行する（AreaTypeToolkit.jsx 参考）
+       / Auto Size cannot be set from the DOM, so a temporary action is loaded and run */
+    var AUTO_SIZE_ACTION_SET = "GenkoYoshiMaker_AutoSize";
+    var AUTO_SIZE_ACTION_NAME = "AutoSizeOn";
+
+    /**
+     * 文字列をASCIIの16進に変換する
+     * @param {string} text 変換する文字列
+     * @return {string} 16進の文字列
+     */
+    function asciiToHex(text) {
+        var hex = "";
+
+        for (var i = 0; i < text.length; i++) {
+            var hexPair = text.charCodeAt(i).toString(16);
+
+            if (hexPair.length < 2) {
+                hexPair = "0" + hexPair;
+            }
+
+            hex += hexPair;
+        }
+
+        return hex;
+    }
+
+    /**
+     * アクション名のブロックを組み立てる
+     * @param {string} name アクション名
+     * @return {string} /name [ <長さ> <16進> ] のブロック
+     */
+    function buildActionNameBlock(name) {
+        return "/name [ " + name.length + " " + asciiToHex(name).toUpperCase() + " ]";
+    }
+
+    /**
+     * 自動サイズ調整のアクション定義（.aia 文字列）を組み立てる
+     * @return {string} アクションセットの定義
+     */
+    function buildAutoSizeAia() {
+        /* 1行の文字列にすると読みづらいので、配列にして join する */
+        var definition = [
+            "/version 3",
+            buildActionNameBlock(AUTO_SIZE_ACTION_SET),
+            "/isOpen 1",
+            "/actionCount 1",
+            "/action-1 {",
+            " " + buildActionNameBlock(AUTO_SIZE_ACTION_NAME),
+            " /keyIndex 0",
+            " /colorIndex 0",
+            " /isOpen 1",
+            " /eventCount 1",
+            " /event-1 {",
+            " /useRulersIn1stQuadrant 0",
+            " /internalName (adobe_SLOAreaTextDialog)",
+            " /localizedName [ 33 e382a8e383aae382a2e58685e69687e5ad97e382aae38397e382b7e383a7e383b3 ]",
+            " /isOpen 0",
+            " /isOn 1",
+            " /hasDialog 0",
+            " /parameterCount 1",
+            " /parameter-1 {",
+            " /key 1952539754",
+            " /showInPalette 4294967295",
+            " /type (integer)",
+            " /value 1",
+            " }",
+            " }",
+            "}"
+        ];
+
+        return definition.join("");
+    }
+
+    /**
+     * 自動サイズ調整のアクションを読み込む
+     * @return {void}
+     */
+    function loadAutoSizeAction() {
+        unloadAutoSizeAction();
+
+        var tempFile = new File(Folder.temp + "/GenkoYoshiMaker_AutoSize.aia");
+        tempFile.open("w");
+        tempFile.write(buildAutoSizeAia());
+        tempFile.close();
+
+        app.loadAction(tempFile);
+
+        try {
+            tempFile.remove();
+        } catch (removeError) {
+            /* 消せなくても動作に影響はない / Leaving the temp file behind is harmless */
+        }
+    }
+
+    /**
+     * 読み込んだアクションを破棄する
+     * @return {void}
+     */
+    function unloadAutoSizeAction() {
+        try {
+            app.unloadAction(AUTO_SIZE_ACTION_SET, "");
+        } catch (unloadError) {
+            /* 読み込まれていないときは何もしない / Nothing to unload */
+        }
+    }
+
+    /**
+     * エリア内文字の枠を文字に合わせる（自動サイズ調整）
+     * ダイアログを開いたままアクションを実行すると不安定なため、開く前と確定時だけ呼ぶ
+     * @param {Document} doc 対象のドキュメント
+     * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @return {void}
+     */
+    function fitAreaTextFrame(doc, textFrame) {
+        if (!isAreaText(textFrame)) {
+            return;
+        }
+
+        doc.selection = [textFrame];
+
+        try {
+            app.doScript(AUTO_SIZE_ACTION_NAME, AUTO_SIZE_ACTION_SET, false);
+        } catch (actionError) {
+            /* アクションを実行できない環境では枠のままにする / Leave the frame as it is when the action cannot run */
+        }
+
+        app.redraw();
+    }
 
     // =========================================
     // セッションの記憶 / Session memory
@@ -307,7 +466,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         {
             label: LABELS.preset.noSideRule,
             settings: {
-                strokeGray: 50, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, extensionMM: null, showSideRules: false,
+                strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: null, showSideRules: false,
                 dashedCellRules: false, emphasisEnabled: true, emphasisEvery: 5,
                 crossStyle: "dashed", crossSegments: 9
             }
@@ -315,7 +474,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         {
             label: LABELS.preset.noCross,
             settings: {
-                strokeGray: 50, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, extensionMM: null, showSideRules: true,
+                strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: null, showSideRules: true,
                 dashedCellRules: false, emphasisEnabled: true, emphasisEvery: 5,
                 crossStyle: "none", crossSegments: 9
             }
@@ -323,7 +482,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         {
             label: LABELS.preset.rulesOnly,
             settings: {
-                strokeGray: 50, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, extensionMM: 0, showSideRules: false,
+                strokeGray: 50, emphasisRatio: 250, emphasizeLineRules: true, emphasizeCellRules: true, extraCells: 0, extraLines: 0, adjustSize: true, scale: 90, autoLeading: 125, extensionMM: 0, showSideRules: false,
                 dashedCellRules: false, emphasisEnabled: false, emphasisEvery: 5,
                 crossStyle: "none", crossSegments: 9
             }
@@ -336,7 +495,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         labelWidth: (uiLang === "ja") ? 90 : 130,  /* 項目名の幅（px）/ width of the row labels (px) */
         panelMargins: [16, 20, 16, 12],            /* パネルの余白 [左, 上, 右, 下]（px）/ panel margins */
         panelSpacing: 8,                           /* パネル内の行間隔（px）/ spacing between the rows in a panel */
-        saveButtonWidth: 70                        /* ［保存］ボタンの幅（px）/ width of the Save button (px) */
+        saveButtonWidth: 70                        /* ［追加］ボタンの幅（px）/ width of the Add button (px) */
     };
 
     // =========================================
@@ -368,12 +527,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @param {number|boolean|object} value 設定する値
      * @return {boolean} 設定できたかどうか
      */
-    function setParagraphAttribute(textFrame, attributeName, value) {
+    function setCharacterAttributeByParagraph(textFrame, attributeName, value) {
         try {
             var paragraphs = textFrame.textRange.paragraphs;
 
             for (var i = 0; i < paragraphs.length; i++) {
                 paragraphs[i].characterAttributes[attributeName] = value;
+            }
+
+            return true;
+        } catch (attributeError) {
+            return false;
+        }
+    }
+
+    /**
+     * 段落ごとに段落属性を1つ設定する
+     * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @param {string} attributeName 属性名
+     * @param {number|boolean|object} value 設定する値
+     * @return {boolean} 設定できたかどうか
+     */
+    function setParagraphAttribute(textFrame, attributeName, value) {
+        try {
+            var paragraphs = textFrame.textRange.paragraphs;
+
+            for (var i = 0; i < paragraphs.length; i++) {
+                paragraphs[i].paragraphAttributes[attributeName] = value;
             }
 
             return true;
@@ -405,10 +585,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     /**
      * 1行ぶんの送りを求める（マス1つ＋行と行のアキ）
      * @param {number} cellSize マスの一辺（pt）
+     * @param {number} autoLeading 自動行送り（%）
      * @return {number} 行送り（pt）
      */
-    function getLinePitch(cellSize) {
-        return cellSize * (1 + LAYOUT.sideRuleRatio);
+    function getLinePitch(cellSize, autoLeading) {
+        return cellSize * autoLeading / 100;
+    }
+
+    /**
+     * 行と行のアキを求める（行送りからマス1つ分を引いた残り）
+     * @param {number} cellSize マスの一辺（pt）
+     * @param {number} autoLeading 自動行送り（%）
+     * @return {number} アキ（pt）
+     */
+    function getLineGutter(cellSize, autoLeading) {
+        return getLinePitch(cellSize, autoLeading) - cellSize;
     }
 
     /**
@@ -423,24 +614,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     /**
      * 1文字＝1マスになるよう文字属性をそろえる（1文字目のカーニングは実測後に入れる）
      * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @param {object} settings ダイアログで決めた設定
      * @param {number} scale 水平・垂直比率（%）
-     * @param {boolean} applyScale 比率そのものを書き換えるか
      * @return {array} 設定できなかった属性名の配列
      */
-    function alignCharactersToCells(textFrame, scale, applyScale) {
+    function alignCharactersToCells(textFrame, settings, scale) {
+        var applyScale = settings.adjustSize;
         var failed = [];
-        var fontSize = textFrame.textRange.characters[0].characterAttributes.size;
 
         /* 文字前後のアキは「自動」（-1）。0は「アキなし」で別物
            / Aki before and after is set to auto (-1); zero would mean "no aki" */
         var rangeSettings = [
             ["tracking", getTracking(scale)],
             ["akiLeft", -1],
-            ["akiRight", -1],
-            /* 行と行のアキも入れた送りにそろえる。自動行送りのままだと行がマスから外れる
-               / The leading carries the gutter, otherwise the lines drift off the cells */
-            ["autoLeading", false],
-            ["leading", getLinePitch(fontSize)]
+            ["akiRight", -1]
         ];
 
         /* 比率を変えない設定でも、送りは今の比率に合わせてそろえる
@@ -462,13 +649,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         var paragraphSettings = [
             ["Tsume", 0],
             ["proportionalMetrics", false],
-            ["kerningMethod", AutoKernType.NOAUTOKERN]
+            ["kerningMethod", AutoKernType.NOAUTOKERN],
+            /* 行送りは自動行送りに任せ、その比率をマス＋アキに合わせる
+               / The leading is left on auto, with its percentage set to one cell plus the gutter */
+            ["autoLeading", true]
         ];
 
         for (var j = 0; j < paragraphSettings.length; j++) {
-            if (!setParagraphAttribute(textFrame, paragraphSettings[j][0], paragraphSettings[j][1])) {
+            if (!setCharacterAttributeByParagraph(textFrame, paragraphSettings[j][0], paragraphSettings[j][1])) {
                 failed.push(paragraphSettings[j][0]);
             }
+        }
+
+        if (!setParagraphAttribute(textFrame, "autoLeadingAmount", settings.autoLeading)) {
+            failed.push("autoLeadingAmount");
         }
 
         /* 手動カーニングはいったん全文字0に戻す。1文字目だけ実測のあとに入れ直す
@@ -535,13 +729,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     function alignParagraphsToStart(textFrame) {
         var before = textFrame.geometricBounds;
 
-        try {
-            var paragraphs = textFrame.textRange.paragraphs;
-
-            for (var i = 0; i < paragraphs.length; i++) {
-                paragraphs[i].paragraphAttributes.justification = Justification.LEFT;
-            }
-        } catch (justificationError) {
+        if (!setParagraphAttribute(textFrame, "justification", Justification.LEFT)) {
             return false;
         }
 
@@ -566,7 +754,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {array} 設定できなかった属性名の配列
      */
     function applyGridAttributes(textFrame, settings, scale) {
-        var failed = alignCharactersToCells(textFrame, scale, settings.adjustSize);
+        var failed = alignCharactersToCells(textFrame, settings, scale);
 
         if (!alignParagraphsToStart(textFrame)) {
             failed.push("justification");
@@ -586,6 +774,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      */
     function isVerticalText(textFrame) {
         return textFrame.orientation === TextOrientation.VERTICAL;
+    }
+
+    /**
+     * テキストがエリア内文字かどうかを返す
+     * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @return {boolean} エリア内文字かどうか
+     */
+    function isAreaText(textFrame) {
+        return textFrame.kind === TextType.AREATEXT;
     }
 
     /**
@@ -619,9 +816,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * 罫線を引くのに必要な寸法を実測する（属性をそろえたあとに呼ぶ）
      * originX / originY は、1行目の1マス目の左上。cellCount は書字方向のマス数
      * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @param {object} settings ダイアログで決めた設定
      * @return {object|null} { isVertical, originX, originY, cellSize, cellCount, lineCount }。文字サイズを取得できないときは null
      */
-    function measureGrid(textFrame) {
+    function measureGrid(textFrame, settings) {
         /* 先頭文字の文字サイズを基準にする（比率を変えても size は元の値のまま） */
         var fontSize = textFrame.textRange.characters[0].characterAttributes.size;
 
@@ -646,7 +844,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         /* マスは文字サイズの正方形。字面は比率を下げた分だけ狭いので、
            行が並ぶ向きの寸法は実測せず、行送り×（行数−1）＋マス1つで求めて中央にそろえる
            / Cells are squares of the font size; the glyphs are narrower, so the line axis is centered instead of measured */
-        var lineSize = getLinePitch(fontSize) * (lineCount - 1) + fontSize;
+        var lineSize = getLinePitch(fontSize, settings.autoLeading) * (lineCount - 1) + fontSize;
 
         var metrics = {
             isVertical: isVertical,
@@ -655,12 +853,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             lineCount: lineCount
         };
 
+        /* ポイント文字は字面の中央に、エリア内文字は枠の左（横組みは上）にそろえる
+           / Point text is centered on the glyphs; area text follows the frame's left (top for horizontal) edge */
+        var isArea = isAreaText(textFrame);
+
         if (isVertical) {
-            metrics.originX = (bounds[0] + bounds[2]) / 2 - lineSize / 2;
+            metrics.originX = isArea ? bounds[0] : (bounds[0] + bounds[2]) / 2 - lineSize / 2;
             metrics.originY = bounds[1] + LAYOUT.gridStartOffset;
         } else {
             metrics.originX = bounds[0] - LAYOUT.gridStartOffset;
-            metrics.originY = (bounds[1] + bounds[3]) / 2 + lineSize / 2;
+            metrics.originY = isArea ? bounds[1] : (bounds[1] + bounds[3]) / 2 + lineSize / 2;
         }
 
         return metrics;
@@ -670,16 +872,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * テキストをマス目に合わせ、罫線の寸法を測る
      * @param {TextFrame} textFrame 対象のテキストフレーム
      * @param {object} settings ダイアログで決めた設定
+     * @param {boolean} fitFrame エリア内文字の枠を合わせ直すか（ダイアログを開いている間は false）
      * @return {object} { metrics, failed } 実測した寸法と、設定できなかった属性名
      */
-    function fitTextToGrid(textFrame, settings) {
+    function fitTextToGrid(textFrame, settings, fitFrame) {
         var scale = getEffectiveScale(textFrame, settings);
         var failed = applyGridAttributes(textFrame, settings, scale);
 
         /* 属性変更後の再組版を反映させてから境界を読む */
         app.redraw();
 
-        var metrics = measureGrid(textFrame);
+        if (fitFrame) {
+            fitAreaTextFrame(app.activeDocument, textFrame);
+        }
+
+        var metrics = measureGrid(textFrame, settings);
 
         /* 行頭のカーニングは実測のあとに入れる（先に入れると罫線ごとずれてしまう） */
         if (metrics && !applyLineStartKerning(textFrame, scale)) {
@@ -914,7 +1121,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      */
     function buildGridBlocks(grid, settings) {
         var linePositions = [];
-        var linePitch = getLinePitch(grid.cellSize);
+        var linePitch = getLinePitch(grid.cellSize, settings.autoLeading);
 
         for (var i = 0; i < grid.lineCount; i++) {
             linePositions.push(linePitch * i);
@@ -981,6 +1188,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     }
 
     /**
+     * 罫線の太さを求める（太罫の対象なら比率を掛ける）
+     * @param {object} settings ダイアログで決めた設定
+     * @param {boolean} isEmphasized 太罫にするかどうか
+     * @return {number} 線幅（pt）
+     */
+    function getRuleWidth(settings, isEmphasized) {
+        var ruleWidth = mmToPt(LAYOUT.cellStrokeMM);
+
+        return isEmphasized ? ruleWidth * settings.emphasisRatio / 100 : ruleWidth;
+    }
+
+    /**
      * マスの区切りを引く（縦組みでは横罫、横組みでは縦罫）
      * @param {GroupItem} group 罫線を入れるグループ
      * @param {object} rect ブロックの矩形
@@ -990,8 +1209,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {void}
      */
     function drawCellRules(group, rect, grid, settings, color) {
-        var cellWidth = mmToPt(LAYOUT.cellStrokeMM);
-        var emphasisWidth = mmToPt(LAYOUT.emphasisStrokeMM);
+        var cellWidth = getRuleWidth(settings, false);
+        var emphasisWidth = getRuleWidth(settings, settings.emphasizeCellRules);
 
         var dashes = settings.dashedCellRules ?
             [mmToPt(LAYOUT.cellDashMM[0]), mmToPt(LAYOUT.cellDashMM[1])] : [];
@@ -1026,7 +1245,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {void}
      */
     function drawLineRules(group, rect, grid, settings, color) {
-        var strokeWidth = mmToPt(LAYOUT.lineStrokeMM);
+        var strokeWidth = getRuleWidth(settings, settings.emphasizeLineRules);
 
         /* 突出線端にして、マスの角までしっかり届かせる / Projecting caps reach the corners of the cells */
         var strokeCap = StrokeCap.PROJECTINGENDCAP;
@@ -1057,8 +1276,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {void}
      */
     function drawSideRules(group, rect, grid, settings, color) {
-        var sideOffset = grid.cellSize * LAYOUT.sideRuleRatio;
-        var strokeWidth = mmToPt(LAYOUT.lineStrokeMM);
+        var sideOffset = getLineGutter(grid.cellSize, settings.autoLeading);
+        var strokeWidth = getRuleWidth(settings, settings.emphasizeLineRules);
         var strokeCap = StrokeCap.PROJECTINGENDCAP;
 
         if (grid.isVertical) {
@@ -1221,7 +1440,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         previewState.previewFrame = previewState.textFrame.duplicate();
         previewState.previewFrame.hidden = false;
 
-        var fitResult = fitTextToGrid(previewState.previewFrame, settings);
+        var fitResult = fitTextToGrid(previewState.previewFrame, settings, false);
 
         if (fitResult.metrics) {
             previewContext.metrics = fitResult.metrics;
@@ -1333,12 +1552,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     }
 
     /**
-     * 濃度をK表記にする
+     * 濃度を表示用の文字列にする
      * @param {number} grayPercent 濃度（%、100で黒）
      * @return {string} 表示用の文字列
      */
-    function formatGray(grayPercent) {
-        return "K" + Math.round(grayPercent);
+    function formatDensity(grayPercent) {
+        return Math.round(grayPercent) + "%";
     }
 
     /**
@@ -1453,23 +1672,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @param {object} labelEntry ja / en を持つラベル定義
      * @param {array} radioEntries ラジオのラベル定義の配列
      * @param {number} selectedIndex 最初に選ぶラジオの位置
+     * @param {object} tooltipEntry ツールチップのラベル定義（不要なときは null）
      * @return {object} { row, radios } 追加した行とラジオの配列
      */
-    function addRadioRow(parent, labelEntry, radioEntries, selectedIndex) {
+    function addRadioRow(parent, labelEntry, radioEntries, selectedIndex, tooltipEntry) {
         var row = addRow(parent);
-        addRowLabel(row, labelEntry);
+        var label = addRowLabel(row, labelEntry);
 
         var radioGroup = row.add("group");
         radioGroup.orientation = "row";
         radioGroup.alignChildren = ["left", "center"];
 
-        var radios = [];
+        var radios = [label];
 
         for (var i = 0; i < radioEntries.length; i++) {
             var radio = radioGroup.add("radiobutton", undefined, getLabel(radioEntries[i]));
             radio.value = (i === selectedIndex);
             radios.push(radio);
         }
+
+        setTooltip(radios, tooltipEntry);
+
+        /* 先頭のラベルは戻さない / The label is only there for the tooltip */
+        radios.shift();
 
         return { row: row, radios: radios };
     }
@@ -1561,7 +1786,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         fillPresetDropdown(presetDropdown);
         presetDropdown.selection = 0;
 
-        var saveButton = presetRow.add("button", undefined, getLabel(LABELS.button.save));
+        var saveButton = presetRow.add("button", undefined, getLabel(LABELS.button.add));
         saveButton.preferredSize.width = UI.saveButtonWidth;
 
         setTooltip([presetLabel, presetDropdown], LABELS.tooltip.preset);
@@ -1574,7 +1799,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * ［全体］パネルを追加する
      * @param {object} dialog 対象のウィンドウ
      * @param {boolean} isVertical 縦組みかどうか
-     * @return {object} { colorSlider, colorValueLabel, extraCellsInput, extraLinesInput }
+     * @return {object} 全体パネルのコントロール
      */
     function addOverallPanel(dialog, isVertical) {
         var overallPanel = addPanel(dialog, LABELS.panel.overall);
@@ -1586,17 +1811,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         colorSlider.alignment = ["fill", "center"];
 
         /* 幅は作成時の文字列で確保しておく / Reserve the width with the longest text */
-        var colorValueLabel = colorRow.add("statictext", undefined, formatGray(100));
-        colorValueLabel.text = formatGray(DEFAULTS.strokeGray);
+        var colorValueLabel = colorRow.add("statictext", undefined, formatDensity(100));
+        colorValueLabel.text = formatDensity(DEFAULTS.strokeGray);
 
         setTooltip([colorLabel, colorSlider], LABELS.tooltip.lineColor);
 
-        var extraCellsRow = addNumberRow(overallPanel, LABELS.label.extraCells, DEFAULTS.extraCells, null, LABELS.tooltip.extraCells);
-        var extraLinesRow = addNumberRow(overallPanel, orientedEntry(LABELS.label.extraLines, isVertical), DEFAULTS.extraLines, null, LABELS.tooltip.extraLines);
+        var emphasisRatioRow = addNumberRow(overallPanel, LABELS.label.emphasisRatio, DEFAULTS.emphasisRatio, LABELS.unit.percent, LABELS.tooltip.emphasisRatio);
+
+        var emphasisTargetRow = addRow(overallPanel);
+        var emphasisTargetLabel = addRowLabel(emphasisTargetRow, LABELS.label.emphasisTarget);
+
+        var emphasisTargetGroup = emphasisTargetRow.add("group");
+        emphasisTargetGroup.orientation = "row";
+        emphasisTargetGroup.alignChildren = ["left", "center"];
+
+        var emphasizeLineRulesCheckbox = emphasisTargetGroup.add("checkbox", undefined, getLabel(orientedEntry(LABELS.panel.lineRule, isVertical)));
+        emphasizeLineRulesCheckbox.value = DEFAULTS.emphasizeLineRules;
+
+        var cellRuleTargetLabel = getLabel(orientedEntry(LABELS.panel.cellRule, isVertical)) + getLabel(LABELS.label.emphasisTargetSuffix);
+        var emphasizeCellRulesCheckbox = emphasisTargetGroup.add("checkbox", undefined, cellRuleTargetLabel);
+        emphasizeCellRulesCheckbox.value = DEFAULTS.emphasizeCellRules;
+
+        setTooltip([emphasisTargetLabel, emphasizeLineRulesCheckbox, emphasizeCellRulesCheckbox], LABELS.tooltip.emphasisTarget);
+        var extraCellsRow = addNumberRow(overallPanel, LABELS.label.extraCells, DEFAULTS.extraCells, LABELS.unit.characters, LABELS.tooltip.extraCells);
+        var extraLinesRow = addNumberRow(overallPanel, LABELS.label.extraLines, DEFAULTS.extraLines, LABELS.unit.lines, LABELS.tooltip.extraLines);
 
         return {
             colorSlider: colorSlider,
             colorValueLabel: colorValueLabel,
+            emphasisRatioInput: emphasisRatioRow.input,
+            emphasizeLineRulesCheckbox: emphasizeLineRulesCheckbox,
+            emphasizeCellRulesCheckbox: emphasizeCellRulesCheckbox,
             extraCellsInput: extraCellsRow.input,
             extraLinesInput: extraLinesRow.input
         };
@@ -1612,11 +1857,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
 
         var adjustSizeCheckbox = addIndentedCheckbox(textPanel, LABELS.checkbox.adjustSize, DEFAULTS.adjustSize, LABELS.tooltip.adjustSize);
         var scaleRow = addNumberRow(textPanel, LABELS.label.scale, DEFAULTS.scale, LABELS.unit.percent, LABELS.tooltip.scale);
+        var autoLeadingRow = addNumberRow(textPanel, LABELS.label.autoLeading, DEFAULTS.autoLeading, LABELS.unit.percent, LABELS.tooltip.autoLeading);
 
         return {
             adjustSizeCheckbox: adjustSizeCheckbox,
             scaleRow: scaleRow.row,
-            scaleInput: scaleRow.input
+            scaleInput: scaleRow.input,
+            autoLeadingInput: autoLeadingRow.input
         };
     }
 
@@ -1649,10 +1896,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         var cellPanel = addPanel(dialog, orientedEntry(LABELS.panel.cellRule, isVertical));
 
         var styleRow = addRadioRow(cellPanel, LABELS.label.lineStyle,
-            [LABELS.radio.solid, LABELS.radio.dashed], DEFAULTS.dashedCellRules ? 1 : 0);
+            [LABELS.radio.solid, LABELS.radio.dashed], DEFAULTS.dashedCellRules ? 1 : 0, LABELS.tooltip.cellRuleStyle);
 
         var emphasisRow = addRow(cellPanel);
-        emphasisRow.add("statictext", undefined, "").preferredSize.width = UI.labelWidth;
+        var emphasisLabel = addRowLabel(emphasisRow, LABELS.label.emphasis);
 
         var emphasisCheckbox = emphasisRow.add("checkbox", undefined, "");
         emphasisCheckbox.value = DEFAULTS.emphasisEnabled;
@@ -1667,7 +1914,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         emphasisInput.characters = 3;
 
         emphasisRow.add("statictext", undefined, getLabel(LABELS.label.emphasisSuffix));
-        setTooltip([emphasisCheckbox, emphasisInput], LABELS.tooltip.emphasis);
+        setTooltip([emphasisLabel, emphasisCheckbox, emphasisInput], LABELS.tooltip.emphasis);
 
         return {
             cellSolidRadio: styleRow.radios[0],
@@ -1686,7 +1933,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         var crossPanel = addPanel(dialog, LABELS.panel.cross);
 
         var crossStyleRow = addRadioRow(crossPanel, LABELS.label.lineStyle,
-            [LABELS.radio.none, LABELS.radio.solid, LABELS.radio.dashed], crossStyleIndex(DEFAULTS.crossStyle));
+            [LABELS.radio.none, LABELS.radio.solid, LABELS.radio.dashed], crossStyleIndex(DEFAULTS.crossStyle), LABELS.tooltip.crossStyle);
 
         var crossSegmentsRow = addNumberRow(crossPanel, LABELS.label.segments, DEFAULTS.crossSegments, null, LABELS.tooltip.crossSegments);
 
@@ -1752,11 +1999,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             saveButton: preset.saveButton,
             colorSlider: overall.colorSlider,
             colorValueLabel: overall.colorValueLabel,
+            emphasisRatioInput: overall.emphasisRatioInput,
+            emphasizeLineRulesCheckbox: overall.emphasizeLineRulesCheckbox,
+            emphasizeCellRulesCheckbox: overall.emphasizeCellRulesCheckbox,
             extraCellsInput: overall.extraCellsInput,
             extraLinesInput: overall.extraLinesInput,
             adjustSizeCheckbox: text.adjustSizeCheckbox,
             scaleRow: text.scaleRow,
             scaleInput: text.scaleInput,
+            autoLeadingInput: text.autoLeadingInput,
             extensionInput: lineRule.extensionInput,
             sideRuleCheckbox: lineRule.sideRuleCheckbox,
             cellSolidRadio: cellRule.cellSolidRadio,
@@ -1804,10 +2055,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
     function readPresetValues(controls) {
         return {
             strokeGray: Math.round(controls.colorSlider.value),
+            emphasisRatio: readNumberField(controls.emphasisRatioInput, 1, DEFAULTS.emphasisRatio, false),
+            emphasizeLineRules: controls.emphasizeLineRulesCheckbox.value,
+            emphasizeCellRules: controls.emphasizeCellRulesCheckbox.value,
             extraCells: readNumberField(controls.extraCellsInput, 0, 0, true),
             extraLines: readNumberField(controls.extraLinesInput, 0, 0, true),
             adjustSize: controls.adjustSizeCheckbox.value,
             scale: readNumberField(controls.scaleInput, 1, DEFAULTS.scale, false),
+            autoLeading: readNumberField(controls.autoLeadingInput, 1, DEFAULTS.autoLeading, false),
             extensionMM: readNumberField(controls.extensionInput, 0, 0, false),
             dashedCellRules: controls.cellDashedRadio.value,
             emphasisEnabled: controls.emphasisCheckbox.value,
@@ -1828,10 +2083,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
 
         return {
             strokeGray: values.strokeGray,
+            emphasisRatio: values.emphasisRatio,
+            emphasizeLineRules: values.emphasizeLineRules,
+            emphasizeCellRules: values.emphasizeCellRules,
             extraCells: values.extraCells,
             extraLines: values.extraLines,
             adjustSize: values.adjustSize,
             scale: values.scale,
+            autoLeading: values.autoLeading,
             extension: mmToPt(values.extensionMM),
             dashedCellRules: values.dashedCellRules,
             emphasisEvery: values.emphasisEnabled ? values.emphasisEvery : 0,
@@ -1850,12 +2109,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      */
     function applyPresetValues(controls, values, defaultExtensionMM) {
         controls.colorSlider.value = values.strokeGray;
-        controls.colorValueLabel.text = formatGray(values.strokeGray);
+        controls.colorValueLabel.text = formatDensity(values.strokeGray);
+        controls.emphasisRatioInput.text = String(values.emphasisRatio);
+        controls.emphasizeLineRulesCheckbox.value = values.emphasizeLineRules;
+        controls.emphasizeCellRulesCheckbox.value = values.emphasizeCellRules;
         controls.extraCellsInput.text = String(values.extraCells);
         controls.extraLinesInput.text = String(values.extraLines);
 
         controls.adjustSizeCheckbox.value = values.adjustSize;
         controls.scaleInput.text = String(values.scale);
+        controls.autoLeadingInput.text = String(values.autoLeading);
 
         /* null は「文字サイズの1/4」/ null means a quarter of the font size */
         controls.extensionInput.text = String((values.extensionMM === null) ? defaultExtensionMM : values.extensionMM);
@@ -1900,16 +2163,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
                 controls.colorSlider.value = grayPercent;
             }
 
-            controls.colorValueLabel.text = formatGray(grayPercent);
+            controls.colorValueLabel.text = formatDensity(grayPercent);
         };
 
         /* ドラッグ中に引き直すと重いので、離したタイミングで更新する / Redraw once the drag ends */
         controls.colorSlider.onChange = callbacks.onSettingChanged;
 
         var numberFields = [
+            [controls.emphasisRatioInput, 1],
             [controls.extraCellsInput, 0],
             [controls.extraLinesInput, 0],
             [controls.scaleInput, 1],
+            [controls.autoLeadingInput, 1],
             [controls.extensionInput, 0],
             [controls.emphasisInput, 1]
         ];
@@ -1920,6 +2185,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         }
 
         var toggles = [
+            controls.emphasizeLineRulesCheckbox,
+            controls.emphasizeCellRulesCheckbox,
             controls.adjustSizeCheckbox,
             controls.sideRuleCheckbox,
             controls.emphasisCheckbox,
@@ -2074,7 +2341,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
      * @return {void}
      */
     function applyGridToText(doc, textFrame, settings) {
-        var fitResult = fitTextToGrid(textFrame, settings);
+        var fitResult = fitTextToGrid(textFrame, settings, true);
 
         if (!fitResult.metrics) {
             alert(getLabel(LABELS.alert.noFontSize));
@@ -2146,6 +2413,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             return;
         }
 
+        /* エリア内文字は、プレビューを作る前に枠を文字へ合わせておく
+           / Fit the area text frame before the preview copy is made */
+        if (isAreaText(textFrame)) {
+            loadAutoSizeAction();
+            fitAreaTextFrame(doc, textFrame);
+        }
+
         /* 原本は触らず、確定後と同じ状態にした複製でプレビューする / Preview on a copy, leaving the original untouched */
         var previewState = beginPreview(doc, textFrame);
 
@@ -2182,6 +2456,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
         try {
             runGridMaker();
         } finally {
+            unloadAutoSizeAction();
             toggleSelectionEdges();
         }
     }

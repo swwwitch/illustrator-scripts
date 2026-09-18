@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextBreakSplitMergePallete";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePallete.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMergePallete.md"; /* README (English) */
@@ -59,6 +59,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
     var AUTO_LEADING_RATIO   = 1.2;  /* 行送りが取得できないときのフォントサイズ比 */
     var MIN_LEADING_RATIO    = 1.2;  /* 連結後の行送りの下限（フォントサイズ比）*/
     var DEFAULT_FONT_SIZE_PT = 12;   /* 文字サイズが取得できないときの既定値（pt）*/
+    var BOX_FIT_STEPS        = 16;   /* 枠を1行の幅に詰めるときの二分探索の上限回数 */
+    var BOX_FIT_TOLERANCE    = 0.5;  /* 枠を1行の幅に詰めるときの精度（pt）*/
 
     // =========================================
     // レイアウト / Layout
@@ -1650,6 +1652,103 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             });
         }
 
+        /* 組まれた行が1行に収まっているか（折り返しも文字あふれも false）*/
+        function fitsInOneLine(frame) {
+            try {
+                if (frame.lines.length !== 1) return false;
+                return frame.lines[0].characters.length >= frame.characters.length;
+            } catch (e) { debugLog("fitsInOneLine", e); return false; }
+        }
+
+        /* 枠を詰めたときに文字が動かないよう、残す辺の位置を比率で返す（0=行頭側, 0.5=中央, 1=行末側）。
+           均等配置（最終行も均等）は行の自然な幅が決まらないので null を返し、詰める対象から外す */
+        function getLineAnchorRatio(frame) {
+            try {
+                var justification = frame.paragraphs[0].paragraphAttributes.justification;
+                if (justification === Justification.FULLJUSTIFY) return null;
+                if (justification === Justification.CENTER || justification === Justification.FULLJUSTIFYLASTLINECENTER) return 0.5;
+                if (justification === Justification.RIGHT || justification === Justification.FULLJUSTIFYLASTLINERIGHT) return 1;
+            } catch (e) { debugLog("getLineAnchorRatio", e); }
+            return 0;
+        }
+
+        /* 枠の組み方向のサイズと行頭側の辺の位置を返す（縦組みは上下を反転した軸で扱う）*/
+        function getBoxExtent(textPath, isHorizontal) {
+            var bounds = null;
+            try { bounds = textPath.geometricBounds; } catch (e) { debugLog("getBoxExtent", e); }
+            if (!bounds) return null;
+            return isHorizontal
+                ? { start: bounds[0], size: bounds[2] - bounds[0] }
+                : { start: -bounds[1], size: bounds[1] - bounds[3] };
+        }
+
+        /* 枠のサイズを組み方向に合わせて設定する（横組みは幅、縦組みは高さ）*/
+        function setBoxExtent(textPath, isHorizontal, size) {
+            if (!(size > 0)) return false;
+            try {
+                if (isHorizontal) textPath.width = size;
+                else textPath.height = size;
+            } catch (e) { debugLog("setBoxExtent", e); return false; }
+            return true;
+        }
+
+        /* エリア内文字の枠を、その行が折り返さない最小の幅（縦組みは高さ）まで詰める。
+           行の自然な幅を読む方法が無いので、折り返すかどうかを見ながら二分探索する。
+           詰めると行揃えに応じて文字が動くため、最後に元の文字位置へ戻す */
+        function fitAreaBoxToLine(frame) {
+            var textPath = null;
+            try {
+                if (frame.kind !== TextType.AREATEXT) return;
+                textPath = frame.textPath;
+            } catch (e) { debugLog("fitAreaBoxToLine: textPath", e); return; }
+            if (!textPath || !fitsInOneLine(frame)) return;
+
+            var anchorRatio = getLineAnchorRatio(frame);
+            if (anchorRatio === null) return;
+
+            var isHorizontal = (frame.orientation === TextOrientation.HORIZONTAL);
+            var box = getBoxExtent(textPath, isHorizontal);
+            if (!box || !(box.size > 0)) return;
+
+            /* 収まらない幅（tooSmall）と収まる幅（fitted）で挟み込む */
+            var tooSmall = 0;
+            var fitted = box.size;
+            for (var i = 0; i < BOX_FIT_STEPS && (fitted - tooSmall) > BOX_FIT_TOLERANCE; i++) {
+                var candidate = (tooSmall + fitted) / 2;
+                if (setBoxExtent(textPath, isHorizontal, candidate) && fitsInOneLine(frame)) fitted = candidate;
+                else tooSmall = candidate;
+            }
+            if (!setBoxExtent(textPath, isHorizontal, fitted)) return;
+
+            /* サイズ変更で残る辺は行揃えと無関係なので、比率で決めた位置へ戻す */
+            var fittedBox = getBoxExtent(textPath, isHorizontal);
+            if (!fittedBox) return;
+            var delta = (box.start + anchorRatio * (box.size - fitted)) - fittedBox.start;
+            if (!delta) return;
+            try {
+                frame.translate(isHorizontal ? delta : 0, isHorizontal ? 0 : -delta);
+            } catch (e) { debugLog("fitAreaBoxToLine: translate", e); }
+        }
+
+        /* 組まれている行の文字列と行送りをまとめて読み出す。
+           フレームを作り始めると lines を取り直せなくなるので、分割前に読み切っておく */
+        function collectVisualLines(frame) {
+            var lines = [];
+            var lineCount = 0;
+            try { lineCount = frame.lines.length; } catch (e) { debugLog("collectVisualLines: read lines", e); return lines; }
+
+            for (var i = 0; i < lineCount; i++) {
+                var line = null;
+                try { line = frame.lines[i]; } catch (e) { debugLog("collectVisualLines: line " + i, e); }
+                if (!line) break;
+
+                var lineText = "";
+                try { lineText = stripTrailingBreaks(line.contents); } catch (e) { debugLog("collectVisualLines: contents", e); }
+                lines.push({ text: lineText, leading: getParagraphMetrics(line, frame).leading });
+            }
+            return lines;
+        }
+
         /* 見かけの改行（折り返し位置）で分割する関数。
            lines は組まれた状態の行を返すので、エリア内文字の自動折り返しも1行として扱える。
            複製したフレームを行送り分ずつ送って置くことで、元の行位置へ揃える */
@@ -1663,26 +1762,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 var isHorizontal = (sourceFrame.orientation === TextOrientation.HORIZONTAL);
                 var originX = sourceFrame.position[0];
                 var originY = sourceFrame.position[1];
+                var lines = collectVisualLines(sourceFrame);
 
-                var lineCount = 0;
-                try { lineCount = sourceFrame.lines.length; } catch (e) { debugLog("splitByVisualLine: read lines", e); }
-
-                for (var j = 0; j < lineCount; j++) {
-                    var line = sourceFrame.lines[j];
-                    var metrics = getParagraphMetrics(line, sourceFrame);
-
+                for (var j = 0; j < lines.length; j++) {
                     /* 2行目以降は、その行の行送り分だけ次の行の位置へ送る（縦組みは左方向）*/
                     if (j > 0) {
-                        if (isHorizontal) originY -= metrics.leading;
-                        else originX -= metrics.leading;
+                        if (isHorizontal) originY -= lines[j].leading;
+                        else originX -= lines[j].leading;
                     }
-
-                    var lineText = stripTrailingBreaks(line.contents);
-                    if (lineText === "") continue;
+                    if (lines[j].text === "") continue;
 
                     var lineFrame = sourceFrame.duplicate(targetLayer);
-                    lineFrame.contents = lineText;
+                    lineFrame.contents = lines[j].text;
                     lineFrame.position = [originX, originY];
+                    fitAreaBoxToLine(lineFrame);
                     resultFrames.push(lineFrame);
                 }
                 sourceFrame.remove();
@@ -2469,7 +2562,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             reverseOrder, removeDuplicateLines, sortByCharCode, sortByLength, removeCjkLatinSpaces,
             addLineBreakPerChar, addLineBreakAtCount, convertForcedLineBreaks, convertToForcedBreaks,
             addLineBreakAtPunctuation, splitFramesByParagraph, getParagraphMetrics,
-            collectTabOffsetsByParagraph, splitByTab, splitByLineBreak, splitByVisualLine,
+            collectTabOffsetsByParagraph, splitByTab, splitByLineBreak,
+            fitsInOneLine, getLineAnchorRatio, getBoxExtent, setBoxExtent, fitAreaBoxToLine,
+            collectVisualLines, splitByVisualLine,
             trimTrailingBreaks, getTailAxis, splitFrameKeepStyle, splitByLineBreakKeepStyle,
             splitByCharKeepStyle, splitByCharIgnoreStyle, splitByChar, stripStyleKeepFirstFont, splitCharHighPrecision,
             buildOutlineCharBounds, sortOutlineItems, estimateCharRowThreshold, copyCharacterAttributes,
@@ -2490,7 +2585,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             ["LINE_Y_THRESHOLD", LINE_Y_THRESHOLD],
             ["AUTO_LEADING_RATIO", AUTO_LEADING_RATIO],
             ["MIN_LEADING_RATIO", MIN_LEADING_RATIO],
-            ["DEFAULT_FONT_SIZE_PT", DEFAULT_FONT_SIZE_PT]
+            ["DEFAULT_FONT_SIZE_PT", DEFAULT_FONT_SIZE_PT],
+            ["BOX_FIT_STEPS", BOX_FIT_STEPS],
+            ["BOX_FIT_TOLERANCE", BOX_FIT_TOLERANCE]
         ];
 
         /**
