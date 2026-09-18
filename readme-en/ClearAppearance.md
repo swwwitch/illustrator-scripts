@@ -1,4 +1,4 @@
-# ClearAppearance
+# Clear appearance, keep fill and stroke
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ClearAppearance.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/ClearAppearance.jsx)
 
@@ -16,8 +16,8 @@ A dialog first asks whether to restore anything, and which restore mode fits the
 
 ### Features
 
-- Path objects get their original fill, stroke and stroke weight reapplied
-- Restore mode selectable as "color only (fill and stroke)" or "color and stroke settings"
+- Paths and compound paths get their original fill, stroke and stroke weight reapplied
+- Restore mode selectable as "Fill, Stroke and Weight" or "Fill, Stroke + Stroke Details"
 - The latter also restores caps, joins, dashes, dash offset and miter limit
 - Opacity, blending mode and overprint can each be restored independently
 
@@ -27,6 +27,11 @@ A dialog first asks whether to restore anything, and which restore mode fits the
 2. Run the script.
 3. Choose the restore mode and click OK.
 
+### Article
+
+https://note.com/dtp_tranist/n/na4c70c5acd60
+
 ### Update History
 
+- v1.0.1 (2026-09-18)
 - v1.0 (2026-04-14)

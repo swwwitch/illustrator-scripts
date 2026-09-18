@@ -5,14 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-あらかじめ登録した複数のフォルダーから .ai/.svg ファイルをキーワードで絞り込み、選んだファイルをその場で開くファインダーです。
+あらかじめ登録した複数のフォルダーから .ai/.svg ファイルをキーワードで絞り込み、選んだファイルをその場で開くファインダーです。ファイルは複数選んでまとめて開けます。
 フォルダーとファイル名を左右のリストに分けて表示し、一度作った索引をキャッシュして次回以降の起動を早くします。
 
 詳細は README を参照してください。
 
 ### Overview
 
-A finder that filters .ai/.svg files across several registered folders by keyword and opens the selected file on the spot.
+A finder that filters .ai/.svg files across several registered folders by keyword and opens the selected files on the spot, several at a time.
 Folders and file names are shown in two side-by-side lists, and the index is cached so later launches start quickly.
 
 See the README for details.
@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFileFinder";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-18";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileFinder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileFinder.md"; /* README (English) */
@@ -1674,7 +1674,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         });
         folderListBox.preferredSize = FOLDER_LIST_SIZE;
 
+        /* shift / command を添えたクリックで複数選べるようにする / Shift or command click picks several files */
         var fileListBox = listRow.add("listbox", undefined, [], {
+            multiselect: true,
             numberOfColumns: 2,
             showHeaders: true,
             columnTitles: [getLabel(LABELS.listCaption.fileName), getLabel(LABELS.listCaption.modified)],
@@ -1862,7 +1864,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * ファインダーのダイアログを表示する
      * @param {Array<FileEntry>} fileEntries - 検索対象のファイル
      * @param {Array<Folder>} searchFolders - 現在の検索フォルダー
-     * @returns {{action: string, entry: FileEntry|null, folders: Array<Folder>|null}} 操作結果（"open" / "rescan" / "cancel"）
+     * @returns {{action: string, entries: Array<FileEntry>|null, folders: Array<Folder>|null}} 操作結果（"open" / "rescan" / "cancel"）
      */
     function showFinderDialog(fileEntries, searchFolders) {
         var finderDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
@@ -1919,7 +1921,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
         var filteredEntries = [];
         var listedEntries = [];
-        var dialogResult = { action: "cancel", entry: null, folders: null };
+        var dialogResult = { action: "cancel", entries: null, folders: null };
 
         /* 組み直し中の選択変更でファイルリストが何度も再構築されるのを防ぐ / Suppress cascaded rebuilds */
         var isRebuildingFolderList = false;
@@ -2146,15 +2148,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         }
 
         /**
-         * 右のリストで選択中のファイルを返す
-         * @returns {FileEntry|null} 選択中のファイル。未選択なら null
+         * 右のリストで選択中のファイルをすべて返す
+         * @returns {Array<FileEntry>} 選択中のファイル。未選択なら空の配列
          */
-        function selectedFileEntry() {
-            if (!fileListBox.selection) return null;
+        function selectedFileEntries() {
+            var selectedItems = fileListBox.selection;
+            if (!selectedItems) return [];
 
-            var selectedIndex = fileListBox.selection.entryIndex;
-            if (selectedIndex === undefined) return null;
-            return listedEntries[selectedIndex] || null;
+            /* 複数選択のリストでも1件のときは項目そのものが返る / A single hit comes back as the item itself */
+            if (!(selectedItems instanceof Array)) selectedItems = [selectedItems];
+
+            var selectedEntries = [];
+            for (var i = 0; i < selectedItems.length; i++) {
+                var selectedIndex = selectedItems[i].entryIndex;
+                if (selectedIndex === undefined) continue;
+                if (listedEntries[selectedIndex]) selectedEntries.push(listedEntries[selectedIndex]);
+            }
+            return selectedEntries;
         }
 
         /**
@@ -2162,29 +2172,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
          * @returns {void}
          */
         function updateSelectionState() {
-            btnOpen.enabled = !!selectedFileEntry();
+            btnOpen.enabled = selectedFileEntries().length > 0;
         }
 
         /**
          * 選択中のファイルを開く対象に確定してダイアログを閉じる
          * @returns {void}
          */
-        function openSelectedFile() {
-            var selectedEntry = selectedFileEntry();
-            if (!selectedEntry) return;
+        function openSelectedFiles() {
+            var selectedEntries = selectedFileEntries();
+            if (selectedEntries.length === 0) return;
 
             dialogResult.action = "open";
-            dialogResult.entry = selectedEntry;
+            dialogResult.entries = selectedEntries;
             finderDialog.close(1);
         }
 
         /**
          * 選択中のファイルをFinderで表示する（ダイアログは開いたまま）
+         * Finderへ渡せるのは1件ずつなので、複数選んでいるときは先頭だけを出す
          * @returns {void}
          */
         function revealSelectedFile() {
-            var selectedEntry = selectedFileEntry();
-            if (selectedEntry) revealFile(selectedEntry.file);
+            var selectedEntries = selectedFileEntries();
+            if (selectedEntries.length > 0) revealFile(selectedEntries[0].file);
         }
 
         /**
@@ -2336,7 +2347,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         function handleEnterToOpen(keyEvent) {
             if (keyEvent.keyName !== "Enter" && keyEvent.keyName !== "Return") return false;
 
-            openSelectedFile();
+            openSelectedFiles();
             keyEvent.preventDefault();
             if (keyEvent.stopPropagation) keyEvent.stopPropagation();
             return true;
@@ -2415,11 +2426,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                     revealSelectedFile();
                     return;
                 }
-                openSelectedFile();
+                openSelectedFiles();
             };
 
             btnPreferences.onClick = handlePreferences;
-            btnOpen.onClick = openSelectedFile;
+            btnOpen.onClick = openSelectedFiles;
             btnCancel.onClick = function () {
                 dialogResult.action = "cancel";
                 finderDialog.close();
@@ -2435,7 +2446,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                 /* ↓でファイルリストへ移る。1件も無いときは入力欄に留まる / Down moves into the file list */
                 if (event.keyName === "Down" && fileListBox.items.length > 0) {
                     fileListBox.active = true;
-                    if (!fileListBox.selection) fileListBox.selection = 0;
+                    if (selectedFileEntries().length === 0) fileListBox.selection = 0;
                     event.preventDefault();
                     return;
                 }
@@ -2571,6 +2582,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     }
 
     /**
+     * 選ばれたファイルを並び順のまま開く
+     * @param {Array<FileEntry>} targetEntries - 開くファイル
+     * @returns {void}
+     */
+    function openFileEntries(targetEntries) {
+        for (var i = 0; i < targetEntries.length; i++) {
+            openFileEntry(targetEntries[i]);
+        }
+    }
+
+    /**
      * 環境設定で編集した設定をまとめて記録する
      * @param {{folders: Array<Folder>, keywords: Array<string>, excludes: Array<string>}} settings - 編集後の設定
      * @returns {void}
@@ -2623,7 +2645,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                 continue;
             }
 
-            if (finderResult.action === "open") openFileEntry(finderResult.entry);
+            if (finderResult.action === "open") openFileEntries(finderResult.entries);
             break;
         }
     }

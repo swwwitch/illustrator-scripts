@@ -18,11 +18,11 @@ Adjustable presets support amount and strength controls, with an Undo-based prev
 
 - Shape icons for every preset
 - Four trapezoid presets
-- Eight parallelogram presets (four anchor corners by two axes)
+- Eight parallelogram presets (four fixed corners by two axes)
 - Four triangle presets
 - Two diagonal presets
-- Adjustable amount from `0.00` to `0.49`
-- Mild, Normal, and Boost strength options
+- Adjustable amount from `0%` to `49%`, shown alongside the effective value
+- Weak, Normal, and Strong strength options
 - Undo-based preview
 - Application to multiple selected objects
 - Japanese and English UI
@@ -32,7 +32,7 @@ Adjustable presets support amount and strength controls, with an Undo-based prev
 1. Select the objects to distort.
 2. Run `SmartFreeDistort.jsx`.
 3. Choose a preset in the dialog.
-4. For a trapezoid or parallelogram preset, adjust the amount and strength.
+4. For a trapezoid or parallelogram preset, set the amount and strength under Adjust.
 5. Enable Preview if you want to check the result.
 6. Click OK to apply the live effect.
 
@@ -49,11 +49,13 @@ Adjustable presets support amount and strength controls, with an Undo-based prev
 
 | Setting | Factor |
 | --- | ---: |
-| Mild | 0.25 |
+| Weak | 0.25 |
 | Normal | 0.5 |
-| Boost | 1.0 |
+| Strong | 1.0 |
 
-When the selection contains text, Mild is selected by default to reduce distortion of the letterforms.
+The readout below the slider shows the slider value and, in parentheses, the effective amount: the slider value times the factor above, doubled again for the parallelogram presets.
+
+When the selection contains text, Weak is selected by default to reduce distortion of the letterforms.
 
 ## Notes
 
@@ -69,6 +71,7 @@ When the selection contains text, Mild is selected by default to reduce distorti
 
 ## Changelog
 
+- v1.5.5 (2026-09-18): Revised the UI wording (Weak/Normal/Strong strength, a percent amount readout with the effective value, and concrete tooltips for the triangle, diagonal and parallelogram presets), added tooltips, and fixed target resolution after the preview is reverted along with the undo-boundary cleanup
 - v1.5.4 (2026-07-21): Added Japanese and English READMEs and linked them from the script's basic information
 - v1.5.3 (2026-07-21): Updated the overview for the current preset count and application flow
 - v1.5.2 (2026-07-21): Improved preview cleanup, target detection, and partial-application reporting

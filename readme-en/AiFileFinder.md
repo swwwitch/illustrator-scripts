@@ -12,7 +12,7 @@
 
 You want to reopen an `.ai` file you made a while ago, but you cannot remember which year's folder it went into. Searching in the Finder takes you a long way from the canvas, and File > Open Recent only goes back a few dozen entries.
 
-This script is a finder that filters `.ai` and `.svg` files across several registered folders by keyword and opens the selected file on the spot. The index is cached, so thousands of files do not keep you waiting.
+This script is a finder that filters `.ai` and `.svg` files across several registered folders by keyword and opens the selected files on the spot, several at a time. The index is cached, so thousands of files do not keep you waiting.
 
 ### Features
 
@@ -25,6 +25,7 @@ This script is a finder that filters `.ai` and `.svg` files across several regis
 - Filter by year, or by a period (year and month)
 - Sort by modified date or name, ascending or descending
 - File names are listed without their extension
+- Several files can be selected at once and opened together
 - Exclusions: hide files whose name or folder contains a given word; typing an excluded word as a keyword lifts that one exclusion
 - A file that is already open is brought to the front instead of being opened twice
 - Option-double-click reveals in the Finder; double-clicking a folder opens that folder
@@ -37,6 +38,8 @@ This script is a finder that filters `.ai` and `.svg` files across several regis
 3. Pick a search folder on the left to list only that folder's files on the right
 4. Select a file on the right and press `Enter`, double-click it, or click [Open]
 
+The list on the right takes multiple selections: Shift-click for a range, Command-click to add one at a time, and the selected files open in the order they are listed.
+
 Option-double-click reveals the file in the Finder instead of opening it. Double-clicking a folder on the left opens that search folder in the Finder.
 
 Keyboard:
@@ -44,7 +47,8 @@ Keyboard:
 | Key | Action |
 |---|---|
 | ↓ | Move from the keyword field to the file list |
-| Enter | Open the selected file (works from anywhere except the date fields) |
+| Enter | Open the selected files (works from anywhere except the date fields) |
+| Shift / Command + click | Select several files (they open together) |
 | Option + double-click | Reveal in the Finder instead of opening |
 | Double-click a folder | Open that search folder in the Finder |
 | Click the × in the keyword field | Clear the keyword and drop the filter |
@@ -162,6 +166,7 @@ It is rebuilt when:
 - Files whose modified date cannot be read are left out of the year and period filters
 - Setting a start later than the end simply matches nothing; the two are not swapped for you
 - Option-double-click selects the file in the Finder when `/Applications/RevealInFinder.app`, built with Automator, is present. Without it, or outside macOS, it just opens the enclosing folder
+- With several files selected, Option-double-click reveals only the first one
 - Search folders, keyword buttons, and exclusions are stored in the Illustrator preferences (`AiFileFinder.*`)
 - The extensions searched for are `.ai` and `.svg`. To change them, edit `FILE_EXTENSIONS` near the top of the script
 - File names are listed without their extension, so an `.ai` and an `.svg` of the same name look alike. Set `SHOW_FILE_EXTENSION` near the top of the script to `true` to tell them apart
@@ -177,5 +182,6 @@ ExtendScript has no way to select a file in the Finder, so the path is handed to
 
 ### Version history
 
+- v1.0.2 (2026-09-18): Multi-select in the file list, so the selected files open together
 - v1.0.1 (2026-08-28): Keep unmounted search folders in the settings; skip saving the index when a folder could not be read; fix the keyword button wrapping width, the year list against the exclusions, and the period filter for files with no modified date
 - v1.0.0 (2026-08-27): First release
