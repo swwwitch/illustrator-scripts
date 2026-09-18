@@ -167,12 +167,12 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [ColorToK100Converter](readme-en/ColorToK100Converter.md)
 - [ConvertToRectangle](readme-en/ConvertToRectangle.md)
 - [Applies randomized transformations to the selected obj…](readme-en/KPTSketchy.md)
+- [A persistent palette that applies the "Convert to Shap…](readme-en/LEConvertToShape.md)
 - [PathCleanupTool-v2](readme-en/PathCleanupTool-v2.md)
 - [PathUnite](readme-en/PathUnite.md)
 - [PathUniteOffsetTool](readme-en/PathUniteOffsetTool.md)
 - [RectangleToArc](readme-en/RectangleToArc.md)
 - [Creates regular shapes — circles, polygons, stars and…](readme-en/SmartShapeMaker-v2.md)
-- [A persistent palette that applies the "Convert to Shap…](readme-en/fx-all.md)
 - [長方形に変換](readme-en/長方形に変換.md)
 
 

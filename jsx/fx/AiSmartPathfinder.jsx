@@ -24,9 +24,9 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiSmartPathfinder";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-07-10";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinder.md"; /* README（日本語） */
@@ -131,6 +131,7 @@ var LABELS = {
         needTwo: { ja: "2つ以上のオブジェクトを選択してください", en: "Select two or more objects." },
         noCompound: { ja: "複合シェイプを選択してください", en: "Select a compound shape." },
         timeout: { ja: "タイムアウトしました",            en: "Timed out." },
+        timeoutPending: { ja: "前回の処理がまだ続いている可能性があります。完了していれば［OK］で続行します。", en: "The previous operation may still be running. Click OK to continue once it has finished." },
         error:   { ja: "エラー: ",                        en: "Error: " }
     },
     tip: {
@@ -178,6 +179,24 @@ function getLocalizedText(dotPath) {
 }
 
 /* ============================================================
+ * 基本設定 / Settings
+ * ============================================================ */
+
+/* メインエンジンへの委譲を待つ上限（秒）。文字数の多いテキストなどは処理が長引くため余裕を持たせる。
+ * この上限を過ぎても、メインエンジン側の処理自体は止まらない点に注意。
+ * Upper bound (seconds) for one delegation; the main engine keeps working past it. */
+var DELEGATE_TIMEOUT_SECONDS = 120;
+
+/* ［強制］でアンカーを消す走査の最大繰り返し回数。削除数が 0 になれば途中で抜ける。
+ * Max passes for the redundant-anchor sweep; it stops early once a pass removes nothing. */
+var CLEANUP_MAX_PASSES = 8;
+
+/* 選択状態の問い合わせを待つ上限（秒）。読み取りだけなので短くし、
+ * 応答が無ければボタンは押せる側へフォールバックする。
+ * Upper bound (seconds) for a read-only probe; it falls back to enabled when unanswered. */
+var PROBE_TIMEOUT_SECONDS = 5;
+
+/* ============================================================
  * シェイプモード定義 / Shape mode definitions
  * ============================================================ */
 
@@ -221,9 +240,8 @@ var PATHFINDER_MODES = [
  * ------------------------------------------------------------
  * ・DOM を触る処理はすべてここに集約し、押下のたびにメインエンジンへ委譲する
  * ・toString は改行を消すため、必ずセミコロンで終える
- * ・関数「本体内」にはコメント（// も /* *\/ も）を書かない。stripWorkerComments は
- *   JSDoc（/**）のみを対象にするため、本体内コメントは除去されず eval を壊しうる
- * ・文字列・正規表現に /** を書かない（誤除去の原因になる）
+ * ・関数「本体内」にはコメント（// も /* *\/ も）を書かない。sliceWorkerSource は
+ *   括弧の対応で本体末尾を探すため、コメント内の括弧・引用符で切り出し位置がずれる
  * ・追加・分割したら必ず WORKER_FUNCS に登録する
  * ============================================================ */
 
@@ -254,14 +272,13 @@ function ungroupSelectedGroups(currentDocument) {
 
 /**
  * 選択オブジェクトを複合シェイプ化する（メインエンジン用エントリ）。
- * keepCompound が false のときは拡張してフラットなパスにする。
+ * 複合シェイプのまま残す（拡張は［複合シェイプを拡張］ボタンの担当）。
  * 選択にグループが含まれる場合は先に解除し、その中身を対象にする。
  * @param {number} shapeModeValue enumerated 値 / enumerated value
  * @param {string} shapeModeName parameter-1 の /name / recorded parameter name
- * @param {boolean} keepCompound 複合シェイプのまま残すか（false なら拡張）/ keep as compound shape (false expands)
  * @returns {string} マーカー "OK" / "NODOC" / "NOSEL"（1つも未選択）/ "NEEDTWO"（2つ未満）/ "ERR:..."
  */
-function workerApplyCompoundShape(shapeModeValue, shapeModeName, keepCompound) {
+function workerApplyCompoundShape(shapeModeValue, shapeModeName) {
     if (app.documents.length === 0) { return "NODOC"; }
     var currentDocument = app.activeDocument;
     var currentSelection = currentDocument.selection;
@@ -287,7 +304,6 @@ function workerApplyCompoundShape(shapeModeValue, shapeModeName, keepCompound) {
     try {
         var actionSource = buildActionSource(actionConfig);
         playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
-        if (!keepCompound) { app.executeMenuCommand("expandStyle"); }
         app.redraw();
         return "OK";
     } catch (applyError) {
@@ -300,6 +316,8 @@ function workerApplyCompoundShape(shapeModeValue, shapeModeName, keepCompound) {
  * destructive が true のときは選択内のグループを先に解除し、その中身を対象にする（NEEDTWO 判定も解除後の数で行う）。
  * 複数選択時は効果対象を1つにまとめるため一時的にグループ化する（効果のまま destructive=false なら単体でも実行可）。
  * destructive が true のときは適用後に拡張し、その一時グループを解除してフラットなパスへ戻す。
+ * expandStyle は拡張結果を一時グループの中でさらにグループへ包むため、解除は ungroupAll で行う
+ * （destructive のときは冒頭の ungroupSelectedGroups で利用者のグループは既に無い）。
  * エラー時は作成した一時グループだけを選択し直して解除する（他の階層・選択には触れない）。
  * ※ この関数は BridgeTalk 委譲で toString 送信されるため、本体にコメントを書かず説明はこの JSDoc に集約する。
  * @param {number} command ライブ効果の Command 番号 / live effect Command index
@@ -337,7 +355,7 @@ function workerApplyPathfinder(command, removeUnpainted, removePoints, destructi
 
         if (destructive) {
             app.executeMenuCommand("expandStyle");
-            app.executeMenuCommand("ungroup");
+            app.executeMenuCommand("ungroupAll");
             groupedForOperation = false;
             temporaryGroup = null;
         }
@@ -505,6 +523,20 @@ function playTemporaryAction(actionSource, setName, actionName, actionFilePath) 
  * @returns {string} マーカー "OK" / "NODOC" / "NOCS"（複合シェイプ未選択）/ "ERR:..."
  */
 function workerExpandCompoundShape() {
+    return playCompoundShapeAction("AiSmartPathfinder_expand_", "ai_expand_compound_shape", "複合シェイプを拡張", 2020634212);
+}
+
+/**
+ * 選択中の複合シェイプ（DOM 上 PluginItem）に対し、integer パラメータ1個の
+ * ダイナミックアクションを一時アクションとして再生する。
+ * 拡張と解除はアクション構造が同じ（internalName・localizedName・key だけが違う）ため共用する。
+ * @param {string} tokenPrefix 一時アクション名の接頭辞 / prefix for the temporary action name
+ * @param {string} internalName ダイナミックアクションの internalName
+ * @param {string} localizedName 記録済み .aia の localizedName
+ * @param {number} expandParamKey parameter-1 の key
+ * @returns {string} マーカー "OK" / "NODOC" / "NOCS"（複合シェイプ未選択）/ "ERR:..."
+ */
+function playCompoundShapeAction(tokenPrefix, internalName, localizedName, expandParamKey) {
     if (app.documents.length === 0) { return "NODOC"; }
     var currentSelection = app.activeDocument.selection;
     if (!currentSelection || currentSelection.length < 1) { return "NOCS"; }
@@ -513,16 +545,16 @@ function workerExpandCompoundShape() {
         if (currentSelection[selectionIndex].typename === "PluginItem") { hasCompoundShape = true; break; }
     }
     if (!hasCompoundShape) { return "NOCS"; }
-    var uniqueToken = "AiSmartPathfinder_expand_"
+    var uniqueToken = tokenPrefix
         + (new Date()).getTime()
         + "_"
         + Math.floor(Math.random() * 100000);
     var actionConfig = {
         setName: uniqueToken + "_set",
         actionName: uniqueToken + "_action",
-        internalName: "ai_expand_compound_shape",
-        localizedName: "複合シェイプを拡張",
-        expandParamKey: 2020634212,
+        internalName: internalName,
+        localizedName: localizedName,
+        expandParamKey: expandParamKey,
         actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
     };
     try {
@@ -530,8 +562,8 @@ function workerExpandCompoundShape() {
         playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
         app.redraw();
         return "OK";
-    } catch (expandError) {
-        return "ERR:" + expandError;
+    } catch (compoundShapeError) {
+        return "ERR:" + compoundShapeError;
     }
 }
 
@@ -574,38 +606,11 @@ function buildExpandActionSource(actionConfig) {
  * 選択中の複合シェイプを解除する（メインエンジン用エントリ）。
  * クリック時に選択を判定し、複合シェイプ（DOM 上 PluginItem）が無ければ "NOCS" を返す。
  * 複合シェイプがあればダイナミックアクション ai_release_compound_shape を一時アクションとして再生する。
- * アクション構造は拡張と同じ integer パラメータ1個のため buildExpandActionSource を共用する。
+ * アクション構造は拡張と同じ integer パラメータ1個のため playCompoundShapeAction を共用する。
  * @returns {string} マーカー "OK" / "NODOC" / "NOCS"（複合シェイプ未選択）/ "ERR:..."
  */
 function workerReleaseCompoundShape() {
-    if (app.documents.length === 0) { return "NODOC"; }
-    var currentSelection = app.activeDocument.selection;
-    if (!currentSelection || currentSelection.length < 1) { return "NOCS"; }
-    var hasCompoundShape = false;
-    for (var selectionIndex = 0; selectionIndex < currentSelection.length; selectionIndex++) {
-        if (currentSelection[selectionIndex].typename === "PluginItem") { hasCompoundShape = true; break; }
-    }
-    if (!hasCompoundShape) { return "NOCS"; }
-    var uniqueToken = "AiSmartPathfinder_release_"
-        + (new Date()).getTime()
-        + "_"
-        + Math.floor(Math.random() * 100000);
-    var actionConfig = {
-        setName: uniqueToken + "_set",
-        actionName: uniqueToken + "_action",
-        internalName: "ai_release_compound_shape",
-        localizedName: "複合シェイプを解除",
-        expandParamKey: 1919710053,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
-    };
-    try {
-        var actionSource = buildExpandActionSource(actionConfig);
-        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
-        app.redraw();
-        return "OK";
-    } catch (releaseError) {
-        return "ERR:" + releaseError;
-    }
+    return playCompoundShapeAction("AiSmartPathfinder_release_", "ai_release_compound_shape", "複合シェイプを解除", 1919710053);
 }
 
 /**
@@ -625,27 +630,45 @@ function workerShowAppearancePanel() {
 /**
  * マド埋め：選択を複合パス解除→ライブパスファインダー（合体）でマドを埋める（メインエンジン用エントリ）。
  * expand が true のときは expandStyle で実体化してグループ解除する（実パスへ／PathCleanupTool の fillHolesOnSelection 相当）。
- * expand が false のときはライブ効果（アピアランス）のまま残す（グループのまま）。単一で ungroup が失敗しても握りつぶす。
+ * expandStyle は拡張結果を一時グループの中でさらにグループへ包むため、解除は ungroupAll で行う
+ * （合体済みなので利用者のグループは残っていない）。
+ * expand が false のときはライブ効果（アピアランス）のまま残す（グループのまま）。単一で解除が失敗しても握りつぶす。
+ * 途中で失敗したときは、作成した一時グループだけを選択し直して解除する。
+ * なお noCompoundPath による複合パスの解除は元に戻せないため、失敗時は取り消しが必要になる。
  * @param {boolean} expand 拡張して実パスにするか（false ならライブ効果のまま）
  * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
  */
 function workerFillHoles(expand) {
     if (app.documents.length === 0) { return "NODOC"; }
-    var currentSelection = app.activeDocument.selection;
+    var currentDocument = app.activeDocument;
+    var currentSelection = currentDocument.selection;
     if (!currentSelection || currentSelection.length < 1) { return "NOSEL"; }
+    var temporaryGroup = null;
     try {
         app.executeMenuCommand("group");
+        temporaryGroup = currentDocument.selection[0];
         app.executeMenuCommand("noCompoundPath");
         app.executeMenuCommand("Live Pathfinder Add");
         if (expand) {
             app.executeMenuCommand("expandStyle");
             try {
-                app.executeMenuCommand("ungroup");
+                app.executeMenuCommand("ungroupAll");
             } catch (ungroupError) { }
+            temporaryGroup = null;
         }
         app.redraw();
         return "OK";
     } catch (fillHolesError) {
+        if (temporaryGroup) {
+            try {
+                currentDocument.selection = null;
+                temporaryGroup.selected = true;
+                if (currentDocument.selection.length === 1
+                        && currentDocument.selection[0].typename === "GroupItem") {
+                    app.executeMenuCommand("ungroup");
+                }
+            } catch (rollbackError) { }
+        }
         return "ERR:" + fillHolesError;
     }
 }
@@ -694,6 +717,7 @@ function workerStrokeToFill() {
 /**
  * 選択パス（グループ・複合パス含む）から直線上の冗長なアンカーポイントを削除する（メインエンジン用エントリ）。
  * PathCleanupTool.jsx の「直線状のアンカーポイント」削除を許容誤差 0.02 固定で実行する。
+ * 1回では消しきれない（削除の結果あらたに共線になる）ことがあるため、削除数が 0 になるまで繰り返す。
  * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
  */
 function workerCleanupCollinear() {
@@ -705,8 +729,9 @@ function workerCleanupCollinear() {
         for (var i = 0; i < currentSelection.length; i++) {
             collectCleanupPathItems(currentSelection[i], targets);
         }
-        removeRedundantAnchorsCollinear(targets, 0.02);
-        removeRedundantAnchorsCollinear(targets, 0.02);
+        for (var pass = 0; pass < CLEANUP_MAX_PASSES; pass++) {
+            if (removeRedundantAnchorsCollinear(targets, 0.02) === 0) { break; }
+        }
         app.redraw();
         return "OK";
     } catch (cleanupError) {
@@ -781,21 +806,60 @@ function collectCleanupPathItems(item, pathItems) {
 }
 
 /**
- * 3点が一直線上にあるか（外積の絶対値が許容誤差未満か）を判定する。
+ * 点が直線 A-B 上にあるかを、点から直線への垂直距離で判定する。
+ * A と B がほぼ同一点のときはマンハッタン距離で代用する。
+ * @param {number[]} lineStart 直線の始点 [x,y]
+ * @param {number[]} lineEnd 直線の終点 [x,y]
+ * @param {number[]} testPoint 判定する点 [x,y]
+ * @param {number} tolerance 許容誤差（pt）
+ * @returns {boolean} 直線上とみなせれば true
+ */
+function isCleanupPointOnLine(lineStart, lineEnd, testPoint, tolerance) {
+    var abx = lineEnd[0] - lineStart[0];
+    var aby = lineEnd[1] - lineStart[1];
+    var lineLength = Math.sqrt(abx * abx + aby * aby);
+    if (lineLength < 1e-9) {
+        return (Math.abs(testPoint[0] - lineStart[0]) + Math.abs(testPoint[1] - lineStart[1])) < tolerance;
+    }
+    var apx = testPoint[0] - lineStart[0];
+    var apy = testPoint[1] - lineStart[1];
+    return (Math.abs(abx * apy - aby * apx) / lineLength) <= tolerance;
+}
+
+/**
+ * 3点が一直線上にあるかを、点Bから直線A-Cへの垂直距離で判定する。
+ * 外積をそのまま比較するとセグメント長に比例して感度が変わり、許容誤差が距離として
+ * 意味を持たなくなるため、距離に揃えて判定する（PathCleanupTool.jsx と同じ扱い）。
  * @param {number[]} pointA 端点1 [x,y]
  * @param {number[]} pointB 中間点 [x,y]
  * @param {number[]} pointC 端点2 [x,y]
- * @param {number} tolerance 許容誤差
+ * @param {number} tolerance 許容誤差（pt）
  * @returns {boolean} 一直線上なら true
  */
 function isCleanupCollinear(pointA, pointB, pointC, tolerance) {
-    var area = (pointB[0] - pointA[0]) * (pointC[1] - pointA[1]) - (pointB[1] - pointA[1]) * (pointC[0] - pointA[0]);
-    return Math.abs(area) < tolerance;
+    return isCleanupPointOnLine(pointA, pointC, pointB, tolerance);
+}
+
+/**
+ * 2つのアンカー間のセグメントが直線かを判定する。
+ * 手前のアンカーの右ハンドルと次のアンカーの左ハンドルが、
+ * アンカー同士を結ぶ直線上に載っているかで見る。
+ * @param {object} point0 手前の PathPoint
+ * @param {object} point1 次の PathPoint
+ * @param {number} tolerance 許容誤差（pt）
+ * @returns {boolean} 直線セグメントなら true
+ */
+function isCleanupStraightSegment(point0, point1, tolerance) {
+    return isCleanupPointOnLine(point0.anchor, point1.anchor, point0.rightDirection, tolerance) &&
+        isCleanupPointOnLine(point0.anchor, point1.anchor, point1.leftDirection, tolerance);
 }
 
 /**
  * 直線上の冗長なアンカーポイント（ハンドルなし・前後アンカーと一直線）を削除する。
  * オープンパスの端点は削除しない。削除でのインデックスずれを避けるため後ろから走査する。
+ * 中間点B自身のハンドルが畳まれているだけでは足りない。手前のアンカーの右ハンドルや
+ * 次のアンカーの左ハンドルが線から外れていると前後のセグメントは曲線なので、
+ * B を消すと形が変わる。前後のセグメントが直線であることも確かめる。
  * @param {object[]} targets PathItem 配列
  * @param {number} tolerance 許容誤差（0.02）
  * @returns {number} 削除したアンカー数
@@ -823,7 +887,10 @@ function removeRedundantAnchorsCollinear(targets, tolerance) {
                 var pC = pts[nextIndex];
                 var straightLeft = (Math.abs(pB.anchor[0] - pB.leftDirection[0]) + Math.abs(pB.anchor[1] - pB.leftDirection[1])) < tolerance;
                 var straightRight = (Math.abs(pB.anchor[0] - pB.rightDirection[0]) + Math.abs(pB.anchor[1] - pB.rightDirection[1])) < tolerance;
-                if (straightLeft && straightRight && isCleanupCollinear(pA.anchor, pB.anchor, pC.anchor, tolerance)) {
+                if (straightLeft && straightRight &&
+                    isCleanupStraightSegment(pA, pB, tolerance) &&
+                    isCleanupStraightSegment(pB, pC, tolerance) &&
+                    isCleanupCollinear(pA.anchor, pB.anchor, pC.anchor, tolerance)) {
                     pB.remove();
                     removedCount++;
                 }
@@ -915,31 +982,15 @@ function buildEnumeratedActionSource(actionConfig) {
 
 /**
  * アピアランスを解除：選択オブジェクトに「アピアランスを消去」ダイナミックアクションを再生する（メインエンジン用エントリ）。
- * ai_plugin_appearance（key 1835363957 / enumerated「アピアランスを消去」/ value 6）を一時アクションとして選択全体に一括再生する。
- * 記録済み .aia と同一パラメータ（セット名のみユニーク化して既存アクションセットとの衝突を回避）。塗り・線などの復元は行わない。
+ * アクションの組み立てと再生は playClearAppearanceAction に委ね、ここでは選択の判定だけを行う。塗り・線などの復元は行わない。
  * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
  */
 function workerClearAppearance() {
     if (app.documents.length === 0) { return "NODOC"; }
     var currentSelection = app.activeDocument.selection;
     if (!currentSelection || currentSelection.length < 1) { return "NOSEL"; }
-    var uniqueToken = "AiSmartPathfinder_clearapp_"
-        + (new Date()).getTime()
-        + "_"
-        + Math.floor(Math.random() * 100000);
-    var actionConfig = {
-        setName: uniqueToken + "_set",
-        actionName: uniqueToken + "_action",
-        internalName: "ai_plugin_appearance",
-        localizedName: "アピアランス",
-        enumKey: 1835363957,
-        enumName: "アピアランスを消去",
-        enumValue: 6,
-        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
-    };
     try {
-        var actionSource = buildEnumeratedActionSource(actionConfig);
-        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+        playClearAppearanceAction();
         app.redraw();
         return "OK";
     } catch (clearAppearanceError) {
@@ -994,8 +1045,7 @@ function workerClearEffectsOnly() {
         overprint: true
     };
     try {
-        var originalSelection = [];
-        for (var i = 0; i < currentSelection.length; i++) { originalSelection.push(currentSelection[i]); }
+        var originalSelection = snapshotItemsForClear(currentSelection);
         processClearEffectsItems(originalSelection, restoreOptions);
         currentDocument.selection = null;
         for (var r = 0; r < originalSelection.length; r++) {
@@ -1009,8 +1059,23 @@ function workerClearEffectsOnly() {
 }
 
 /**
+ * ライブなコレクションを配列へ写し取る。
+ * アピアランス消去はアイテムを差し替える・並べ替えることがあり、コレクションのまま回すと
+ * 長さとインデックスがずれて兄弟を取りこぼすため、走査前に固定する。
+ * @param {object} items PageItems コレクション / live collection
+ * @returns {object[]} 写し取った配列 / plain array copy
+ */
+function snapshotItemsForClear(items) {
+    var snapshot = [];
+    for (var i = 0; i < items.length; i++) { snapshot.push(items[i]); }
+    return snapshot;
+}
+
+/**
  * 選択項目を再帰的にたどり、種類ごとに効果のみ消去を適用する。
  * グループ（クリップ以外）は展開して再帰、クリップグループ・複合パスは消去のみ、パスは塗り・線を復元、テキストは文字塗りを復元。
+ * 上記以外（配置画像・ラスター・シンボル・メッシュ・プラグインアイテムなど）も、
+ * 素通りさせると効果が残ったまま "OK" になるため、不透明度・描画モードだけ残して消去する。
  * @param {object[]} items 対象項目配列 / target items
  * @param {object} restoreOptions 復元オプション / restore options
  * @returns {void}
@@ -1024,7 +1089,7 @@ function processClearEffectsItems(items, restoreOptions) {
                 if (item.clipped) {
                     clearEffectsAppearanceOnly(item, restoreOptions);
                 } else {
-                    processClearEffectsItems(item.pageItems, restoreOptions);
+                    processClearEffectsItems(snapshotItemsForClear(item.pageItems), restoreOptions);
                 }
                 break;
             case "PathItem":
@@ -1035,6 +1100,9 @@ function processClearEffectsItems(items, restoreOptions) {
                 break;
             case "TextFrame":
                 clearEffectsTextPreserveFill(item, restoreOptions);
+                break;
+            default:
+                clearEffectsAppearanceOnly(item, restoreOptions);
                 break;
         }
     }
@@ -1076,6 +1144,8 @@ function clearEffectsAppearanceOnly(item, restoreOptions) {
 
 /**
  * パス向け：アピアランスを消去し、元の塗り・線・線幅（＋設定に応じて線属性・オーバープリント・不透明度・描画モード）を復元する。
+ * 塗り・線があったのに cloneColorForClear が複製できなかった（未対応のカラー型）ときは、
+ * NoColor で潰すと元の色を失うため何も書き戻さず、アクション直後の状態をそのまま残す。
  * @param {object} item PathItem
  * @param {object} restoreOptions 復元オプション / restore options
  * @returns {void}
@@ -1128,7 +1198,7 @@ function clearEffectsPreserveFillStroke(item, restoreOptions) {
             if (restoreOptions.overprint) {
                 try { if (savedFillOverprint !== null) { item.fillOverprint = savedFillOverprint; } } catch (fillOverprintWriteError) { }
             }
-        } else {
+        } else if (!hasFill) {
             item.filled = false;
             item.fillColor = makeNoColorForClear();
         }
@@ -1147,7 +1217,7 @@ function clearEffectsPreserveFillStroke(item, restoreOptions) {
             if (restoreOptions.overprint) {
                 try { if (savedStrokeOverprint !== null) { item.strokeOverprint = savedStrokeOverprint; } } catch (strokeOverprintWriteError) { }
             }
-        } else {
+        } else if (!hasStroke) {
             item.stroked = false;
             item.strokeColor = makeNoColorForClear();
         }
@@ -1158,7 +1228,7 @@ function clearEffectsPreserveFillStroke(item, restoreOptions) {
 }
 
 /**
- * テキスト向け：アピアランスを消去し、文字単位の塗り（textFillPerChar）を復元する（線は復元しない）。
+ * テキスト向け：アピアランスを消去し、文字単位の塗りと線（textFillPerChar）を復元する。
  * @param {object} textFrame TextFrame
  * @param {object} restoreOptions 復元オプション / restore options
  * @returns {void}
@@ -1168,7 +1238,7 @@ function clearEffectsTextPreserveFill(textFrame, restoreOptions) {
         var textRange = textFrame.textRange;
         var characters = null;
         var characterCount = 0;
-        var characterFills = [];
+        var characterColors = [];
         var hasCharacters = false;
 
         try {
@@ -1183,16 +1253,16 @@ function clearEffectsTextPreserveFill(textFrame, restoreOptions) {
 
         if (restoreOptions.textFillPerChar && hasCharacters) {
             for (var i = 0; i < characterCount; i++) {
-                characterFills.push(getTextRangeFillCloneForClear(characters[i]));
+                characterColors.push(getTextRangeColorsForClear(characters[i]));
             }
         }
 
-        var firstCharacterFill = null;
+        var firstCharacterColors = null;
         if (restoreOptions.textFillFirst && hasCharacters) {
-            firstCharacterFill = getTextRangeFillCloneForClear(characters[0]);
+            firstCharacterColors = getTextRangeColorsForClear(characters[0]);
         }
 
-        var rangeFill = getTextRangeFillCloneForClear(textRange);
+        var rangeColors = getTextRangeColorsForClear(textRange);
 
         var savedOpacity = null;
         var savedBlendingMode = null;
@@ -1208,11 +1278,11 @@ function clearEffectsTextPreserveFill(textFrame, restoreOptions) {
 
         if (restoreOptions.textFillPerChar && hasCharacters) {
             for (var j = 0; j < characterCount; j++) {
-                restoreTextFillOnlyForClear(characters[j], characterFills[j]);
+                restoreTextColorsForClear(characters[j], characterColors[j]);
             }
         } else if (restoreOptions.textFillFirst) {
-            var fillToApply = firstCharacterFill || rangeFill;
-            restoreTextFillOnlyForClear(textRange, fillToApply);
+            var colorsToApply = (firstCharacterColors && firstCharacterColors.fill) ? firstCharacterColors : rangeColors;
+            restoreTextColorsForClear(textRange, colorsToApply);
         }
 
         try { if (savedOpacity !== null) { textFrame.opacity = savedOpacity; } } catch (opacityWriteError) { }
@@ -1263,6 +1333,12 @@ function cloneColorForClear(color) {
             patternColor.pattern = color.pattern;
             try { patternColor.matrix = color.matrix; } catch (patternMatrixError) { }
             return patternColor;
+        case "LabColor":
+            var labColor = new LabColor();
+            labColor.l = color.l;
+            labColor.a = color.a;
+            labColor.b = color.b;
+            return labColor;
         case "NoColor":
             return new NoColor();
         default:
@@ -1279,37 +1355,52 @@ function makeNoColorForClear() {
 }
 
 /**
- * テキスト範囲の塗りカラーを複製して返す（NoColor・取得失敗時は null）。
+ * テキスト範囲の塗り・線を複製して返す（NoColor・取得失敗時はそれぞれ null）。
  * @param {object} textRange TextRange
- * @returns {object} 複製した塗りカラー、または null / cloned fill color or null
+ * @returns {object} { fill, stroke, strokeWeight } の複製 / cloned colors
  */
-function getTextRangeFillCloneForClear(textRange) {
-    var fillColor = null;
+function getTextRangeColorsForClear(textRange) {
+    var colors = { fill: null, stroke: null, strokeWeight: null };
+    var attributes = null;
     try {
-        fillColor = textRange.characterAttributes.fillColor;
-    } catch (fillReadError) {
-        return null;
+        attributes = textRange.characterAttributes;
+    } catch (attributeReadError) {
+        return colors;
     }
-    if (fillColor && fillColor.typename && fillColor.typename !== "NoColor") {
-        return cloneColorForClear(fillColor);
-    }
-    return null;
+    try {
+        var fillColor = attributes.fillColor;
+        if (fillColor && fillColor.typename && fillColor.typename !== "NoColor") {
+            colors.fill = cloneColorForClear(fillColor);
+        }
+    } catch (fillReadError) { }
+    try {
+        var strokeColor = attributes.strokeColor;
+        if (strokeColor && strokeColor.typename && strokeColor.typename !== "NoColor") {
+            colors.stroke = cloneColorForClear(strokeColor);
+            colors.strokeWeight = attributes.strokeWeight;
+        }
+    } catch (strokeReadError) { }
+    return colors;
 }
 
 /**
- * テキスト範囲に塗りだけを復元する（線は NoColor に）。
+ * テキスト範囲に塗りと線を復元する。
+ * 元が NoColor、または未対応のカラー型で複製できなかった側は NoColor を書き戻す。
  * @param {object} textRange TextRange
- * @param {object} fill 復元する塗りカラー（null なら NoColor）/ fill color to restore (NoColor when null)
+ * @param {object} colors getTextRangeColorsForClear が返した複製 / cloned colors
  * @returns {void}
  */
-function restoreTextFillOnlyForClear(textRange, fill) {
+function restoreTextColorsForClear(textRange, colors) {
     var attributes = textRange.characterAttributes;
-    if (fill) {
-        attributes.fillColor = cloneColorForClear(fill);
+    attributes.fillColor = (colors && colors.fill) ? cloneColorForClear(colors.fill) : makeNoColorForClear();
+    if (colors && colors.stroke) {
+        attributes.strokeColor = cloneColorForClear(colors.stroke);
+        if (colors.strokeWeight !== null) {
+            try { attributes.strokeWeight = colors.strokeWeight; } catch (strokeWeightWriteError) { }
+        }
     } else {
-        attributes.fillColor = makeNoColorForClear();
+        attributes.strokeColor = makeNoColorForClear();
     }
-    attributes.strokeColor = makeNoColorForClear();
 }
 
 /* 委譲する worker 関数はすべてここに登録する（登録漏れ防止）/ register every delegated worker function */
@@ -1319,6 +1410,7 @@ var WORKER_FUNCS = [
     workerApplyPathfinder,
     workerExpandCompoundShape,
     workerReleaseCompoundShape,
+    playCompoundShapeAction,
     workerShowAppearancePanel,
     workerShowPathfinderPanel,
     workerSelectShapeBuilderTool,
@@ -1329,20 +1421,23 @@ var WORKER_FUNCS = [
     workerClearEffectsOnly,
     playClearAppearanceAction,
     processClearEffectsItems,
+    snapshotItemsForClear,
     selectOnlyForClear,
     clearEffectsAppearanceOnly,
     clearEffectsPreserveFillStroke,
     clearEffectsTextPreserveFill,
     cloneColorForClear,
     makeNoColorForClear,
-    getTextRangeFillCloneForClear,
-    restoreTextFillOnlyForClear,
+    getTextRangeColorsForClear,
+    restoreTextColorsForClear,
     buildEnumeratedActionSource,
     workerStrokeToFill,
     workerCleanupCollinear,
     isCleanupSkippable,
     collectCleanupPathItems,
+    isCleanupPointOnLine,
     isCleanupCollinear,
+    isCleanupStraightSegment,
     removeRedundantAnchorsCollinear,
     buildPathfinderXML,
     buildActionSource,
@@ -1357,20 +1452,79 @@ var WORKER_FUNCS = [
  * ============================================================ */
 
 /**
+ * 同梱する関数のソースを、関数本体の閉じ括弧までで切り出す。
+ *
+ * ExtendScript の Function.toString() は直後に置かれた JSDoc まで巻き込み、しかも
+ * コメント終端を欠落させて eval 全体を壊す。対応する閉じ括弧で切れば、後ろに何が
+ * 付いていても確実に落とせる。文字列リテラル中の括弧は数えない。
+ * 改行コードは環境によって CR が混ざるため、先に LF へ揃える。
+ * @param {Function} workerFunction 同梱する関数 / function to bundle
+ * @returns {string} 関数宣言だけを取り出したソース / the declaration alone
+ */
+function sliceWorkerSource(workerFunction) {
+    var source = String(workerFunction).replace(/\r\n?/g, "\n");
+    var quoteCharacter = null;
+    var isEscaped = false;
+    var depth = 0;
+    var hasOpened = false;
+    for (var i = 0; i < source.length; i++) {
+        var currentCharacter = source.charAt(i);
+        if (quoteCharacter !== null) {
+            if (isEscaped) {
+                isEscaped = false;
+            } else if (currentCharacter === "\\") {
+                isEscaped = true;
+            } else if (currentCharacter === quoteCharacter) {
+                quoteCharacter = null;
+            }
+            continue;
+        }
+        if (currentCharacter === '"' || currentCharacter === "'") {
+            quoteCharacter = currentCharacter;
+            continue;
+        }
+        if (currentCharacter === "{") {
+            depth++;
+            hasOpened = true;
+        } else if (currentCharacter === "}") {
+            depth--;
+            if (hasOpened && depth === 0) { return source.substring(0, i + 1); }
+        }
+    }
+    return source;
+}
+
+/* 同梱ソースは静的なので初回だけ組み立てて使い回す（クリックのたびに作り直さない）
+ * the bundled source is static; build it once and reuse it on every click */
+var workerSourceCache = null;
+
+/**
+ * 同梱する worker 関数群の連結ソースを返す（初回のみ組み立てる）。
+ * @returns {string} 連結済みの worker ソース / concatenated worker source
+ */
+function getWorkerSource() {
+    if (workerSourceCache === null) {
+        var parts = [];
+        for (var i = 0; i < WORKER_FUNCS.length; i++) {
+            parts.push(sliceWorkerSource(WORKER_FUNCS[i]));
+        }
+        workerSourceCache = parts.join("\n");
+    }
+    return workerSourceCache;
+}
+
+/* 直近の委譲がタイムアウトしたか。タイムアウトしてもメインエンジン側の処理は走り続けるため、
+ * これを立てたまま次の委譲をブロックし、選択の奪い合いで結果が壊れるのを防ぐ。
+ * whether the last delegation timed out; the main engine keeps working, so block the next call */
+var hasPendingTimeout = false;
+
+/**
  * worker 関数群と呼び出し式をメインエンジンで同期実行し、マーカー文字列を返す。
  * @param {string} callExpression メインエンジンで評価する呼び出し式 / call expression to evaluate
  * @returns {string} マーカー / marker string
  */
 function delegateCall(callExpression) {
-    var workerSource = "";
-    for (var i = 0; i < WORKER_FUNCS.length; i++) {
-        workerSource += WORKER_FUNCS[i].toString() + "\n";
-    }
-    /* ExtendScript の Function.toString() は関数間の JSDoc を末尾に取り込み、
-     * さらにコメント終端を欠落させて「未終了コメント」を作る（eval 全体が壊れる）。
-     * 全連結後にコメントを除去してから送る（次の function が終端の目印になる）。 */
-    workerSource = stripWorkerComments(workerSource);
-    var evalSource = workerSource + "\n" + callExpression + ";";
+    var evalSource = getWorkerSource() + "\n" + callExpression + ";";
 
     var resultHolder = { value: "TIMEOUT" };
     var bridge = new BridgeTalk();
@@ -1379,7 +1533,39 @@ function delegateCall(callExpression) {
     bridge.onResult = function (message) { resultHolder.value = String(message.body); };
     bridge.onError = function (message) { resultHolder.value = "ERR:" + String(message.body); };
     bridge.onTimeout = function () { resultHolder.value = "TIMEOUT"; };
-    bridge.send(10);
+    bridge.send(DELEGATE_TIMEOUT_SECONDS);
+    /* 上限を過ぎてもメインエンジンは処理を続けている。次の委譲を止めるため印を残す
+     * the main engine is still working past the cap; latch it so the next call is blocked */
+    if (resultHolder.value === "TIMEOUT") { hasPendingTimeout = true; }
+    return resultHolder.value;
+}
+
+/* 選択に複合シェイプ（DOM 上 PluginItem）があるかを返す式。worker 群を同梱せず単体で送れるよう
+ * 自己完結した即時関数にしてある / self-contained probe, sent without the worker bundle */
+var HAS_COMPOUND_SHAPE_PROBE = ''
+    + '(function () {'
+    + 'if (app.documents.length === 0) { return "NO"; }'
+    + 'var sel = app.activeDocument.selection;'
+    + 'if (!sel || sel.length < 1) { return "NO"; }'
+    + 'for (var i = 0; i < sel.length; i++) { if (sel[i].typename === "PluginItem") { return "YES"; } }'
+    + 'return "NO";'
+    + '})()';
+
+/**
+ * worker 関数群を同梱せず、短い式だけをメインエンジンで評価する（状態の問い合わせ用）。
+ * 同梱ソースが不要なぶん軽いので、選択状態の確認のように繰り返し呼ぶ用途に使う。
+ * @param {string} expression メインエンジンで評価する式 / expression to evaluate
+ * @returns {string} 評価結果の文字列（失敗・タイムアウト時は ""）/ result string, "" on failure
+ */
+function delegateProbe(expression) {
+    var resultHolder = { value: "" };
+    var bridge = new BridgeTalk();
+    bridge.target = "illustrator";
+    bridge.body = 'eval(decodeURIComponent("' + encodeURIComponent(expression) + '"));';
+    bridge.onResult = function (message) { resultHolder.value = String(message.body); };
+    bridge.onError = function () { resultHolder.value = ""; };
+    bridge.onTimeout = function () { resultHolder.value = ""; };
+    bridge.send(PROBE_TIMEOUT_SECONDS);
     return resultHolder.value;
 }
 
@@ -1397,80 +1583,14 @@ function quoteString(value) {
 }
 
 /**
- * BridgeTalkへ同梱するソースからコメントを取り除く
- *
- * 文字列リテラルの中身は保持し、ブロックコメントとJSDocだけを落とす。
- * @param {string} source - 対象のソース文字列
- * @returns {string} コメントを取り除いたソース
- */
-function stripWorkerComments(source) {
-    var output = "";
-    var quoteCharacter = null;
-    var isEscaped = false;
-    var inBlockComment = false;
-    var isJSDocComment = false;
-
-    for (var i = 0; i < source.length; i++) {
-        var currentCharacter = source.charAt(i);
-        var nextCharacter = (i + 1 < source.length) ? source.charAt(i + 1) : "";
-        var nextNextCharacter = (i + 2 < source.length) ? source.charAt(i + 2) : "";
-
-        if (inBlockComment) {
-            if (currentCharacter === "*" && nextCharacter === "/") {
-                inBlockComment = false;
-                isJSDocComment = false;
-                i++;
-            } else if (isJSDocComment && currentCharacter === "f"
-                    && source.substr(i, 8) === "function") {
-                inBlockComment = false;
-                isJSDocComment = false;
-                output += "function";
-                i += 7;
-            }
-            continue;
-        }
-
-        if (quoteCharacter !== null) {
-            output += currentCharacter;
-            if (isEscaped) {
-                isEscaped = false;
-            } else if (currentCharacter === "\\") {
-                isEscaped = true;
-            } else if (currentCharacter === quoteCharacter) {
-                quoteCharacter = null;
-            }
-            continue;
-        }
-
-        if (currentCharacter === '"' || currentCharacter === "'") {
-            quoteCharacter = currentCharacter;
-            output += currentCharacter;
-            continue;
-        }
-
-        if (currentCharacter === "/" && nextCharacter === "*" && nextNextCharacter === "*") {
-            inBlockComment = true;
-            isJSDocComment = true;
-            i += 2;
-            continue;
-        }
-
-        output += currentCharacter;
-    }
-
-    return output;
-}
-
-/**
  * 選択オブジェクトを複合シェイプ化する / apply the compound shape
  * @param {number} shapeModeValue enumerated 値 / enumerated value
  * @param {string} shapeModeName parameter-1 の /name / recorded parameter name
- * @param {boolean} keepCompound 複合シェイプのまま残すか（false なら拡張）/ keep as compound shape (false expands)
  * @returns {string} マーカー / marker string
  */
-function delegateApply(shapeModeValue, shapeModeName, keepCompound) {
+function delegateApply(shapeModeValue, shapeModeName) {
     return delegateCall('workerApplyCompoundShape('
-        + shapeModeValue + ', ' + quoteString(shapeModeName) + ', ' + (keepCompound ? 'true' : 'false') + ')');
+        + shapeModeValue + ', ' + quoteString(shapeModeName) + ')');
 }
 
 /**
@@ -2041,6 +2161,12 @@ function showPalette() {
 
     tabbedPanel.selection = 0;
 
+    /* 実行結果の表示欄。タブの外に置いて両タブで共有する
+     * status line, placed outside the tabs so both share it */
+    var statusText = paletteWindow.add("statictext", undefined, getLocalizedText("status.ready"), { truncate: "middle" });
+    statusText.alignment = "fill";
+    statusText.helpTip = getLocalizedText("tip.esc");
+
     /* モードパネル（出力モードの排他ラジオ・最上段）/ Mode panel (output-mode radios, top)
      * A: 実行（実際にパスへ）/ B: 複合シェイプ（上段のみ）/ C: 効果として適用（ライブ）
      */
@@ -2108,21 +2234,44 @@ function showPalette() {
     selectToolButton.helpTip = getLocalizedText("tip.selectTool");
     selectToolButton.alignment = "left";
 
+    /**
+     * ステータス欄の文言を差し替える
+     * @param {string} message - 表示する文言
+     * @returns {void}
+     */
+    function setStatus(message) {
+        try { statusText.text = message; } catch (statusWriteError) { }
+    }
+
     /* isBusy ガード付きで委譲を実行する / guarded delegate */
     /**
-     * 処理中の多重実行を防ぎながら、渡した処理を実行する
-     * @param {Function} produceStatus - 実行する処理
+     * 処理中の多重実行を防ぎながら渡した処理を実行し、戻り値をステータス欄へ出す
+     * @param {Function} produceStatus - 実行する処理（ステータス文言を返す）
      * @returns {void}
      */
     function runExclusive(produceStatus) {
         if (isBusy) { return; }
+        /* タイムアウトしてもメインエンジン側の処理は走り続ける。完了前に次を投げると
+         * 選択を奪い合って結果が壊れるため、ユーザーの確認が取れるまでブロックする
+         * the main engine keeps working past a timeout; block until the user confirms */
+        if (hasPendingTimeout) {
+            if (!confirm(getLocalizedText("status.timeoutPending"))) {
+                setStatus(getLocalizedText("status.timeoutPending"));
+                return;
+            }
+            hasPendingTimeout = false;
+        }
         isBusy = true;
+        var status = "";
         try {
-            produceStatus();
+            status = produceStatus();
         } catch (delegateError) {
+            status = getLocalizedText("status.error") + delegateError;
         } finally {
             isBusy = false;
         }
+        if (status) { setStatus(status); }
+        updateExpandEnabled();
     }
 
     /* 形状モード（上段4つ）クリックで即適用する / apply a Shape Mode on click
@@ -2146,7 +2295,7 @@ function showPalette() {
             runExclusive(function () {
                 if (modeCompoundRadio.value || withOption) {
                     /* B: ai_compound_shape の enumerated 値を渡す / pass the compound-shape enumerated value */
-                    return markerToStatus(delegateApply(mode.compoundValue, mode.name, true), mode);
+                    return markerToStatus(delegateApply(mode.compoundValue, mode.name), mode);
                 }
                 var destructive = !modeEffectRadio.value;
                 /* A/C: Pathfinder XML の Command 番号を渡す / pass the Pathfinder XML Command index */
@@ -2240,10 +2389,25 @@ function showPalette() {
     modeEffectRadio.onClick = updatePathfinderEnabled;
     updatePathfinderEnabled();
 
-    /* 拡張ボタンのクリックで選択中の複合シェイプを拡張する（判定はクリック時に worker 側で実施）
+    /* 選択に複合シェイプが無ければ拡張ボタンをディムする。
+     * パレットは選択変更の通知を受け取れないため、パレットがアクティブになった時と
+     * 各操作の直後に問い合わせ直す。押せてしまった場合も worker 側で "NOCS" を返す。
+     * dim the Expand button unless the selection holds a compound shape; the palette gets no
+     * selection-change event, so re-probe on activation and after each operation */
+    /**
+     * 選択内容に応じて［複合シェイプを拡張］ボタンの有効／無効を更新する
+     * @returns {void}
+     */
+    function updateExpandEnabled() {
+        if (isBusy || hasPendingTimeout) { return; }
+        var probeResult = delegateProbe(HAS_COMPOUND_SHAPE_PROBE);
+        expandButton.enabled = (probeResult !== "NO");
+    }
+    paletteWindow.onActivate = function () { updateExpandEnabled(); };
+    updateExpandEnabled();
+
+    /* 拡張ボタンのクリックで選択中の複合シェイプを拡張する（判定はクリック時に worker 側でも実施）
      * Option（Alt）+クリックのときは拡張ではなく解除する（直前の mousedown で記録した Option 状態を読む）
-     * パレットは選択変更を通知できず enabled のキャッシュは古くなるため、常に押せるようにして
-     * クリック時に複合シェイプの有無を判定する（無ければ worker 側で "NOCS" を返す）
      * expand the compound shape on click; Option-click releases it instead (read the Option state
      * recorded by the preceding mousedown). Validate the selection at click time in the worker. */
     expandButton.addEventListener("mousedown", makeAltRecorder(expandButton));
@@ -2406,6 +2570,9 @@ function showPalette() {
     /* レイアウトを確定させてから全プッシュボタンの高さのみ -2 で詰める（アイコンボタンは対象外）
      * finalize layout, then trim only the height of every push button by 2px (icon buttons excluded) */
     paletteWindow.layout.layout(true);
+    /* 長い文言でパレットが広がらないよう、確定した幅で頭打ちにする（以降は truncate で省略）
+     * cap the status width at its laid-out size so long messages cannot widen the palette */
+    statusText.maximumSize.width = statusText.size.width;
     var trimTargetButtons = [
         expandButton, cleanupButton,
         fillHolesExpandButton, fillHolesEffectButton,

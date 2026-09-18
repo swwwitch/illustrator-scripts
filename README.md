@@ -175,12 +175,12 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [更新日：2025-06-15](readme-ja/ColorToK100Converter.md)
 - [更新日：2026-05-24](readme-ja/ConvertToRectangle.md)
 - [選択したオブジェクトにランダムな変形を加え、手書き・スケッチ風の見た目に整えます](readme-ja/KPTSketchy.md)
+- [選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレット。パレットで「長方形／楕円」と「値を…](readme-ja/LEConvertToShape.md)
 - [更新日：2026-03-20](readme-ja/PathCleanupTool-v2.md)
 - [更新日：2026-05-10](readme-ja/PathUnite.md)
 - [更新日：2026-05-10](readme-ja/PathUniteOffsetTool.md)
 - [更新日：2026-05-19](readme-ja/RectangleToArc.md)
 - [SmartShapeMaker-v2](readme-ja/SmartShapeMaker-v2.md)
-- [選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレット。パレットで「長方形／楕円」と「値を…](readme-ja/fx-all.md)
 - [更新日：2026-05-20](readme-ja/長方形に変換.md)
 
 
