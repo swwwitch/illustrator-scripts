@@ -1,20 +1,22 @@
-# SmartFreeDistort.jsx
+# パスの自由変形をアイコンから適用
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-SmartFreeDistort.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartFreeDistort.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartFreeDistort.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 
-## 概要
+### 概要
 
 選択オブジェクトに Illustrator の「パスの自由変形」ライブ効果を適用するスクリプトです。台形・平行四辺形・三角形・対角線の全18プリセットをアイコンから選択できます。
 
 調整可能なプリセットでは変形量と強度を設定し、Undoベースのプレビューで結果を確認してから適用できます。
 
-## 主な機能
+<img alt="スマート パスの自由変形ダイアログの外観" src="../png/ss-744-1044-144-20260918-134524.png" width="50%" />
+
+### 主な機能
 
 - すべてのプリセットを形状アイコンで表示
 - 台形4種類
@@ -27,7 +29,7 @@
 - 複数オブジェクトへの一括適用
 - 日本語／英語UI
 
-## 使い方
+### 使い方
 
 1. パスの自由変形を適用するオブジェクトを選択します。
 2. `SmartFreeDistort.jsx` を実行します。
@@ -36,7 +38,7 @@
 5. 必要に応じて「プレビュー」を有効にし、結果を確認します。
 6. 「OK」をクリックしてライブ効果を適用します。
 
-## プリセット
+### プリセット
 
 | 種類 | プリセット数 | 変形量・強度 |
 | --- | ---: | --- |
@@ -45,7 +47,7 @@
 | 三角形 | 4 | 使用しない |
 | 対角線 | 2 | 使用しない |
 
-## 強度
+### 強度
 
 | 設定 | 倍率 |
 | --- | ---: |
@@ -57,7 +59,7 @@
 
 選択範囲にテキストが含まれる場合は、文字の崩れを抑えるため「弱」が初期値になります。
 
-## 注意事項
+### 注意点
 
 - Illustrator 2024〜2026に対応しています。
 - 効果を適用できない選択項目は処理対象から除外されます。
@@ -65,11 +67,11 @@
 - プレビューは Illustrator のUndo履歴を利用します。他の操作と混在すると、履歴が想定どおりにならない場合があります。
 - 三角形と対角線では、変形量と強度の設定は使用されません。
 
-## 紹介記事
+### 紹介記事
 
 [【Illustrator】自由変形を手軽に適用するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n15a7ae196a23)
 
-## 更新履歴
+### 更新履歴
 
 - v1.5.5 (2026-09-18): UI文言を見直し（強度を「弱／標準／強」に、変形量を%表示にして実効値を併記、三角形・対角線・平行四辺形のツールチップを具体化）、ツールチップを追加。プレビュー取り消し後の適用対象の判定と、Undo境界の後始末を修正
 - v1.5.4 (2026-07-21): 日本語・英語READMEを追加し、スクリプトの基本情報からリンク
