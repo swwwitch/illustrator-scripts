@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 言語判定 / Determine language */
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ構造） / Japanese-English labels (categorized) */
     var LABELS = {
@@ -83,8 +83,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    /* L(): ドットパス参照（null 耐性） / Dot-path lookup with null tolerance */
-    function L(path) {
+    /* getLabel(): ドットパス参照（null 耐性） / Dot-path lookup with null tolerance */
+    function getLabel(path) {
         var parts = String(path).split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -93,7 +93,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         if (node == null) return path;
         if (typeof node === "string") return node;
-        if (typeof node === "object" && node[lang] != null) return node[lang];
+        if (typeof node === "object" && node[uiLang] != null) return node[uiLang];
         return path;
     }
 
@@ -117,9 +117,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function wkCountTextStats() {
         if (app.documents.length === 0) { return "NODOC"; }
         var doc = app.activeDocument;
-        var sel = doc.selection;
-        if (!sel) { sel = []; }
-        var selCount = sel.length;
+        var currentSelection = doc.selection;
+        if (!currentSelection) { currentSelection = []; }
+        var selCount = currentSelection.length;
 
         var allCount = 0;
         function countAll(items) {
@@ -136,13 +136,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pointTextAll = 0, areaTextAll = 0, pathTextAll = 0;
         var fontSet = {};
 
-        for (var si = 0; si < sel.length; si++) {
-            if (sel[si].typename === "TextFrame") {
-                if (sel[si].kind === TextType.POINTTEXT) { pointTextSel++; }
-                else if (sel[si].kind === TextType.AREATEXT) { areaTextSel++; }
-                else if (sel[si].kind === TextType.PATHTEXT) { pathTextSel++; }
+        for (var si = 0; si < currentSelection.length; si++) {
+            if (currentSelection[si].typename === "TextFrame") {
+                if (currentSelection[si].kind === TextType.POINTTEXT) { pointTextSel++; }
+                else if (currentSelection[si].kind === TextType.AREATEXT) { areaTextSel++; }
+                else if (currentSelection[si].kind === TextType.PATHTEXT) { pathTextSel++; }
                 try {
-                    var ran = sel[si].textRange || sel[si].textRanges[0];
+                    var ran = currentSelection[si].textRange || currentSelection[si].textRanges[0];
                     var fnt = ran.characterAttributes.textFont.name;
                     fontSet[fnt] = true;
                 } catch (e) {}
@@ -171,11 +171,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var kanaSel = 0, kanaAll = 0;
         var lineCountSel = 0, lineCountAll = 0;
 
-        for (var sj = 0; sj < sel.length; sj++) {
-            if (sel[sj].typename === "TextFrame") {
-                try { totalCharSel += sel[sj].characters.length; } catch (e3) {}
+        for (var sj = 0; sj < currentSelection.length; sj++) {
+            if (currentSelection[sj].typename === "TextFrame") {
+                try { totalCharSel += currentSelection[sj].characters.length; } catch (e3) {}
                 try {
-                    var paras = sel[sj].paragraphs;
+                    var paras = currentSelection[sj].paragraphs;
                     var vp = 0;
                     for (var p = 0; p < paras.length; p++) {
                         var c = paras[p].contents;
@@ -183,9 +183,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                     paraCountSel += vp;
                 } catch (e4) {}
-                try { lineCountSel += sel[sj].lines.length; } catch (e5) {}
+                try { lineCountSel += currentSelection[sj].lines.length; } catch (e5) {}
                 try {
-                    var cont = sel[sj].contents;
+                    var cont = currentSelection[sj].contents;
                     if (typeof cont === "string") {
                         var mw = cont.match(/\b[a-zA-Z]+\b/g); if (mw) { wordCountSel += mw.length; }
                         var mf = cont.match(/[！-｠￠-￦]/g); if (mf) { fullwidthSel += mf.length; }
@@ -320,7 +320,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function buildPalette() {
-        var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
+        var win = new Window("palette", getLabel('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
         win.orientation = "column";
         win.alignChildren = ["fill", "top"];
 
@@ -329,45 +329,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         columnGroup.alignChildren = ["fill", "top"];
 
         /* 1. 文字・段落 / Characters & Paragraphs */
-        var panelCharPara = columnGroup.add("panel", undefined, L('panel.charPara'));
+        var panelCharPara = columnGroup.add("panel", undefined, getLabel('panel.charPara'));
         panelCharPara.orientation = "column";
         panelCharPara.alignChildren = ["fill", "top"];
         panelCharPara.margins = PANEL_MARGINS;
 
         /* 2. チェック項目 / Check items */
-        var panelCheck = columnGroup.add("panel", undefined, L('panel.check'));
+        var panelCheck = columnGroup.add("panel", undefined, getLabel('panel.check'));
         panelCheck.orientation = "column";
         panelCheck.alignChildren = ["fill", "top"];
         panelCheck.margins = PANEL_MARGINS;
 
         /* 3. 種別 / Type */
-        var panelKinds = columnGroup.add("panel", undefined, L('panel.kinds'));
+        var panelKinds = columnGroup.add("panel", undefined, getLabel('panel.kinds'));
         panelKinds.orientation = "column";
         panelKinds.alignChildren = ["fill", "top"];
         panelKinds.margins = PANEL_MARGINS;
 
         /* 4. その他 / Other */
-        var panelOther = columnGroup.add("panel", undefined, L('panel.other'));
+        var panelOther = columnGroup.add("panel", undefined, getLabel('panel.other'));
         panelOther.orientation = "column";
         panelOther.alignChildren = ["fill", "top"];
         panelOther.margins = PANEL_MARGINS;
 
         /* 値の statictext 参照を保持 / Keep references to value fields */
         var values = {
-            chars: addRow(panelCharPara, L('row.chars')),
-            paras: addRow(panelCharPara, L('row.paras')),
-            lines: addRow(panelCharPara, L('row.lines')),
-            words: addRow(panelCharPara, L('row.words')),
-            fullwidth: addRow(panelCheck, L('row.fullwidth')),
-            hankakuKana: addRow(panelCheck, L('row.hankakuKana')),
-            pointText: addRow(panelKinds, L('row.pointText')),
-            areaText: addRow(panelKinds, L('row.areaText')),
-            pathText: addRow(panelKinds, L('row.pathText')),
-            fonts: addRow(panelOther, L('row.fonts'))
+            chars: addRow(panelCharPara, getLabel('row.chars')),
+            paras: addRow(panelCharPara, getLabel('row.paras')),
+            lines: addRow(panelCharPara, getLabel('row.lines')),
+            words: addRow(panelCharPara, getLabel('row.words')),
+            fullwidth: addRow(panelCheck, getLabel('row.fullwidth')),
+            hankakuKana: addRow(panelCheck, getLabel('row.hankakuKana')),
+            pointText: addRow(panelKinds, getLabel('row.pointText')),
+            areaText: addRow(panelKinds, getLabel('row.areaText')),
+            pathText: addRow(panelKinds, getLabel('row.pathText')),
+            fonts: addRow(panelOther, getLabel('row.fonts'))
         };
 
         /* ステータス表示 / Status line */
-        var statusText = win.add("statictext", undefined, L('status.ready'));
+        var statusText = win.add("statictext", undefined, getLabel('status.ready'));
         statusText.alignment = ["fill", "bottom"];
 
         function setStatus(msg) {
@@ -376,16 +376,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 再集計 / Recount */
         function refresh() {
-            setStatus(L('status.busy'));
+            setStatus(getLabel('status.busy'));
             var resp = callMainEngine("wkCountTextStats()");
 
-            if (resp === "ERR:BUSY") { setStatus(L('status.busy')); return; }
-            if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
-            if (resp === "NODOC") { setStatus(L('status.noDoc')); return; }
-            if (resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+            if (resp === "ERR:BUSY") { setStatus(getLabel('status.busy')); return; }
+            if (resp === null || resp === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
+            if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); return; }
+            if (resp.indexOf("ERR:") === 0) { setStatus(getLabel('status.error') + ": " + resp.substring(4)); return; }
 
             var m = parseStats(resp);
-            if (!m) { setStatus(L('status.error')); return; }
+            if (!m) { setStatus(getLabel('status.error')); return; }
 
             values.chars.text = m.charSel + " / " + m.charAll;
             values.paras.text = m.paraSel + " / " + m.paraAll;
@@ -400,9 +400,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var selN = parseInt(m.selCount, 10) || 0;
             if (selN > 0) {
-                setStatus(L('status.selectedPrefix') + selN + L('status.selectedSuffix'));
+                setStatus(getLabel('status.selectedPrefix') + selN + getLabel('status.selectedSuffix'));
             } else {
-                setStatus(L('status.wholeDoc'));
+                setStatus(getLabel('status.wholeDoc'));
             }
         }
 
@@ -412,8 +412,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnRow.alignment = ["fill", "bottom"];
         btnRow.alignChildren = ["right", "center"];
 
-        var btnRefresh = btnRow.add("button", undefined, L('button.refresh'));
-        btnRefresh.helpTip = L('hint.refresh') + "\n" + L('hint.esc');
+        var btnRefresh = btnRow.add("button", undefined, getLabel('button.refresh'));
+        btnRefresh.helpTip = getLabel('hint.refresh') + "\n" + getLabel('hint.esc');
         /* onClick 連結（addEventListener('click') は不発の環境がある） */
         btnRefresh.onClick = refresh;
 
@@ -453,7 +453,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 常駐エンジンの変数に保持して GC 回避 / Keep in resident engine to avoid GC */
         $.global.__TextCountStatsPalette = win;
         win.onClose = function () {
-            try { $.global.__TextCountStatsPalette = null; } catch (e) {}
+            $.global.__TextCountStatsPalette = null;
         };
 
         win.center();

@@ -106,7 +106,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     // ラベル取得 / Get label
-    function L(labelKey) {
+    function getLabel(labelKey) {
         var labelEntry = LABELS[labelKey];
         if (!labelEntry) return labelKey;
         return labelEntry[currentLanguage] || labelEntry.en || labelKey;
@@ -281,7 +281,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // 縦並びパネルを追加（チェックボックス・ラジオを縦に並べる用）
     function addColumnPanel(parent, labelKey) {
-        var panel = parent.add("panel", undefined, L(labelKey));
+        var panel = parent.add("panel", undefined, getLabel(labelKey));
         setupPanel(panel);
         return panel;
     }
@@ -366,7 +366,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 設定ダイアログ / Settings dialog
     // ==============================
     function createSettingsDialogWindow() {
-        var dialog = new Window("dialog", L("dialogTitle") + "  " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialogTitle") + "  " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 16;
@@ -398,10 +398,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function buildTargetPanel(parent) {
         var targetPanel = addColumnPanel(parent, "panelTarget");
-        var eachRadio = targetPanel.add("radiobutton", undefined, L("targetEach"));
-        eachRadio.helpTip = L("targetEachTip");
-        var groupRadio = targetPanel.add("radiobutton", undefined, L("targetGroup"));
-        groupRadio.helpTip = L("targetGroupTip");
+        var eachRadio = targetPanel.add("radiobutton", undefined, getLabel("targetEach"));
+        eachRadio.helpTip = getLabel("targetEachTip");
+        var groupRadio = targetPanel.add("radiobutton", undefined, getLabel("targetGroup"));
+        groupRadio.helpTip = getLabel("targetGroupTip");
         eachRadio.value = true;
         return {
             eachRadio: eachRadio,
@@ -411,26 +411,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function buildOptionsPanel(parent, selectionHasTextItem) {
         var optionsPanel = addColumnPanel(parent, "panelOptions");
-        var previewBoundsCheck = optionsPanel.add("checkbox", undefined, L("previewBounds"));
-        previewBoundsCheck.helpTip = L("boundsTip");
-        var outlineTextCheck = optionsPanel.add("checkbox", undefined, L("outlineText"));
-        outlineTextCheck.helpTip = selectionHasTextItem ? L("outlineTextTip") : L("outlineTextDisabledTip");
+        var previewBoundsCheck = optionsPanel.add("checkbox", undefined, getLabel("previewBounds"));
+        previewBoundsCheck.helpTip = getLabel("boundsTip");
+        var outlineTextCheck = optionsPanel.add("checkbox", undefined, getLabel("outlineText"));
+        outlineTextCheck.helpTip = selectionHasTextItem ? getLabel("outlineTextTip") : getLabel("outlineTextDisabledTip");
         outlineTextCheck.enabled = selectionHasTextItem;
 
         var marginRow = optionsPanel.add("group");
         marginRow.orientation = "row";
         marginRow.alignChildren = ["left", "center"];
-        var useMarginCheck = marginRow.add("checkbox", undefined, L("useMargin"));
-        useMarginCheck.helpTip = L("marginTip");
+        var useMarginCheck = marginRow.add("checkbox", undefined, getLabel("useMargin"));
+        useMarginCheck.helpTip = getLabel("marginTip");
         var marginInput = marginRow.add("edittext", undefined, "0");
         marginInput.characters = 5;
         marginInput.enabled = false;
-        marginInput.helpTip = L("marginTip");
+        marginInput.helpTip = getLabel("marginTip");
         var marginUnitLabel = marginRow.add("statictext", undefined, getRulerUnitLabel());
         marginUnitLabel.enabled = false;
 
-        var dimCheck = optionsPanel.add("checkbox", undefined, L("dimSelection"));
-        dimCheck.helpTip = L("dimSelectionTip");
+        var dimCheck = optionsPanel.add("checkbox", undefined, getLabel("dimSelection"));
+        dimCheck.helpTip = getLabel("dimSelectionTip");
         dimCheck.value = true;
 
         return {
@@ -445,13 +445,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function buildOriginalPanel(parent, selectionAllImages) {
         var originalPanel = addColumnPanel(parent, "panelOriginal");
-        var keepRadio = originalPanel.add("radiobutton", undefined, L("originalKeep"));
-        keepRadio.helpTip = L("originalKeepTip");
-        var maskRadio = originalPanel.add("radiobutton", undefined, L("originalMask"));
-        maskRadio.helpTip = selectionAllImages ? L("maskTip") : L("maskImageOnly");
+        var keepRadio = originalPanel.add("radiobutton", undefined, getLabel("originalKeep"));
+        keepRadio.helpTip = getLabel("originalKeepTip");
+        var maskRadio = originalPanel.add("radiobutton", undefined, getLabel("originalMask"));
+        maskRadio.helpTip = selectionAllImages ? getLabel("maskTip") : getLabel("maskImageOnly");
         maskRadio.enabled = selectionAllImages;
-        var deleteRadio = originalPanel.add("radiobutton", undefined, L("originalDelete"));
-        deleteRadio.helpTip = L("originalDeleteTip");
+        var deleteRadio = originalPanel.add("radiobutton", undefined, getLabel("originalDelete"));
+        deleteRadio.helpTip = getLabel("originalDeleteTip");
         keepRadio.value = true;
         return {
             keepRadio: keepRadio,
@@ -470,11 +470,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         radios[DEFAULT_PRESET_INDEX].value = true;
 
         if (CURRENT_PRESET_INDEX >= 0) {
-            radios[CURRENT_PRESET_INDEX].helpTip = L("currentTip");
+            radios[CURRENT_PRESET_INDEX].helpTip = getLabel("currentTip");
         }
         if (selectionAllImages && CURRENT_PRESET_INDEX >= 0) {
             radios[CURRENT_PRESET_INDEX].enabled = false;
-            radios[CURRENT_PRESET_INDEX].helpTip = L("imageNotice");
+            radios[CURRENT_PRESET_INDEX].helpTip = getLabel("imageNotice");
         }
         return radios;
     }
@@ -484,11 +484,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var cornerRow = cornerPanel.add("group");
         cornerRow.orientation = "row";
         cornerRow.alignChildren = ["left", "center"];
-        var cornerRadiusLabel = cornerRow.add("statictext", undefined, L("cornerRadius"));
-        cornerRadiusLabel.helpTip = L("cornerRadiusTip");
+        var cornerRadiusLabel = cornerRow.add("statictext", undefined, getLabel("cornerRadius"));
+        cornerRadiusLabel.helpTip = getLabel("cornerRadiusTip");
         var cornerRadiusInput = cornerRow.add("edittext", undefined, "0");
         cornerRadiusInput.characters = 5;
-        cornerRadiusInput.helpTip = L("cornerRadiusTip");
+        cornerRadiusInput.helpTip = getLabel("cornerRadiusTip");
         var cornerUnitLabel = cornerRow.add("statictext", undefined, getRulerUnitLabel());
         return {
             cornerRadiusInput: cornerRadiusInput,
@@ -498,10 +498,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function buildOrderPanel(parent) {
         var orderPanel = addColumnPanel(parent, "panelOrder");
-        var frontRadio = orderPanel.add("radiobutton", undefined, L("orderFront"));
-        frontRadio.helpTip = L("orderFrontTip");
-        var backRadio = orderPanel.add("radiobutton", undefined, L("orderBack"));
-        backRadio.helpTip = L("orderBackTip");
+        var frontRadio = orderPanel.add("radiobutton", undefined, getLabel("orderFront"));
+        frontRadio.helpTip = getLabel("orderFrontTip");
+        var backRadio = orderPanel.add("radiobutton", undefined, getLabel("orderBack"));
+        backRadio.helpTip = getLabel("orderBackTip");
         frontRadio.value = true;
         return {
             frontRadio: frontRadio,
@@ -517,15 +517,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var buttonLeft = buttonRow.add("group");
         buttonLeft.alignment = ["left", "center"];
-        var previewCheck = buttonLeft.add("checkbox", undefined, L("preview"));
-        previewCheck.helpTip = L("previewTip");
+        var previewCheck = buttonLeft.add("checkbox", undefined, getLabel("preview"));
+        previewCheck.helpTip = getLabel("previewTip");
 
         var buttonSpacer = buttonRow.add("group");
         buttonSpacer.alignment = ["fill", "fill"];
 
         var buttonRight = buttonRow.add("group");
         buttonRight.alignment = ["right", "center"];
-        var cancelButton = buttonRight.add("button", undefined, L("cancel"), { name: "cancel" });
+        var cancelButton = buttonRight.add("button", undefined, getLabel("cancel"), { name: "cancel" });
         var okButton = buttonRight.add("button", undefined, "OK", { name: "ok" });
 
         return {
@@ -1133,19 +1133,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ==============================
     function main() {
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
         var doc = app.activeDocument;
         if (!doc.selection || doc.selection.length === 0) {
-            alert(L("noSelection"));
+            alert(getLabel("noSelection"));
             return;
         }
 
         var selectedItems = collectSelectedItems(doc);
         var eligibleItems = filterEligibleItems(selectedItems);
         if (eligibleItems.length === 0) {
-            alert(L("noResult"));
+            alert(getLabel("noResult"));
             return;
         }
 
@@ -1160,7 +1160,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var createdItems = produceRectangles(doc, eligibleItems, settings);
 
             if (createdItems.length === 0) {
-                alert(L("noResult"));
+                alert(getLabel("noResult"));
                 return;
             }
 

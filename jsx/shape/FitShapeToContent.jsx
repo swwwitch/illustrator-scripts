@@ -1185,8 +1185,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
             ctrl.commitFinal();
 
             /* commitFinal はプレビュー図形を選択状態で残す / commitFinal leaves the item selected */
-            var sel = app.activeDocument.selection;
-            if (sel && sel.length > 0) finalPreviewItem = sel[0];
+            var currentSelection = app.activeDocument.selection;
+            if (currentSelection && currentSelection.length > 0) finalPreviewItem = currentSelection[0];
 
             win.close(1);
         };
@@ -1263,11 +1263,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
 
     /**
      * 選択内容を検証してコンテンツと図形に振り分ける
-     * @param {Array<PageItem>} sel - ドキュメントの選択
+     * @param {Array<PageItem>} currentSelection - ドキュメントの選択
      * @returns {{contentItem: PageItem, shapeItem: PageItem|null, shapeIsAutoCreated: boolean}|null} 振り分け結果、不正なら null
      */
-    function parseSelection(sel) {
-        if (!sel || sel.length < 1 || sel.length > 2) {
+    function parseSelection(currentSelection) {
+        if (!currentSelection || currentSelection.length < 1 || currentSelection.length > 2) {
             alertSelectionError("selectOne");
             return null;
         }
@@ -1276,10 +1276,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         var shapeItem = null;
         var shapeIsAutoCreated = false;
 
-        if (sel.length === 2) {
+        if (currentSelection.length === 2) {
             /* 2つ選択：テキスト/グループ＋図形 / Two items: text or group, plus a shape */
-            for (var i = 0; i < sel.length; i++) {
-                var item = sel[i];
+            for (var i = 0; i < currentSelection.length; i++) {
+                var item = currentSelection[i];
                 if (isContentItem(item) && !contentItem) {
                     contentItem = item;
                 } else if (isShapeItem(item) && !shapeItem) {
@@ -1293,7 +1293,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
             /* 1つ選択：テキスト＋図形のグループなら、グループを保ったまま中身を使い分ける。
                それ以外はコンテンツとみなして長方形を自動作成する /
                One item: reuse the members of a text+shape group in place; otherwise auto-create a rectangle */
-            var selectedItem = sel[0];
+            var selectedItem = currentSelection[0];
             var groupMembers = null;
             if (selectedItem && selectedItem.typename === "GroupItem" && !isClippingGroupItem(selectedItem)) {
                 groupMembers = findContentAndShapeInGroup(selectedItem);

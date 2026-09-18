@@ -153,7 +153,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
      * @param {object} entry - ja / en を持つラベル定義
      * @returns {string} 表示する文言
      */
-    function L(entry) {
+    function getLabel(entry) {
         if (!entry) return "";
         var text = entry[currentLanguage] || entry.en || entry.ja || "";
         return String(text).replace(/\{slash\}/g, "/");
@@ -165,7 +165,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
      * @returns {string} コロン付きの項目名
      */
     function labelText(entry) {
-        return L(entry) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(entry) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -292,7 +292,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
      */
     function SC_alert(entry, e) {
         try {
-            var msg = L(entry);
+            var msg = getLabel(entry);
             var detail = SC_getErrorDetailText(e);
             if (detail) msg += "\n\n" + labelText(LABELS.label.errorDetails) + "\n" + detail;
             alert(msg);
@@ -975,7 +975,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         // ------------------------
         // UI構築
         // ------------------------
-        var win = new Window("dialog", L(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         win.alignChildren = "fill";
 
         var bodyGroup = win.add("group");
@@ -990,22 +990,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         rightColumnGroup.orientation = "column";
         rightColumnGroup.alignChildren = "fill";
 
-        var sourcePanel = leftColumnGroup.add('panel', undefined, L(LABELS.panel.source));
+        var sourcePanel = leftColumnGroup.add('panel', undefined, getLabel(LABELS.panel.source));
         setupPanel(sourcePanel);
-        var btnBrowse = sourcePanel.add('button', undefined, L(LABELS.button.selectFile));
+        var btnBrowse = sourcePanel.add('button', undefined, getLabel(LABELS.button.selectFile));
         // パネルの alignChildren は fill なので、ボタンだけ自前の幅で左寄せにする
         // The panel fills its children, so keep the button at its natural width
         btnBrowse.alignment = ["left", "center"];
-        btnBrowse.helpTip = L(LABELS.tooltip.source);
-        var stSourceName = sourcePanel.add('statictext', undefined, L(LABELS.label.notSelected));
+        btnBrowse.helpTip = getLabel(LABELS.tooltip.source);
+        var stSourceName = sourcePanel.add('statictext', undefined, getLabel(LABELS.label.notSelected));
         stSourceName.characters = 16;
 
-        var pagesPanel = leftColumnGroup.add('panel', undefined, L(LABELS.panel.pages));
+        var pagesPanel = leftColumnGroup.add('panel', undefined, getLabel(LABELS.panel.pages));
         setupPanel(pagesPanel);
         var rangeModeGroup = pagesPanel.add('group');
         setupGroup(rangeModeGroup, 'column');
-        var rbRangeAll = rangeModeGroup.add('radiobutton', undefined, L(LABELS.radio.rangeAll));
-        var rbRangeFirst = rangeModeGroup.add('radiobutton', undefined, L(LABELS.radio.rangeFirst));
+        var rbRangeAll = rangeModeGroup.add('radiobutton', undefined, getLabel(LABELS.radio.rangeAll));
+        var rbRangeFirst = rangeModeGroup.add('radiobutton', undefined, getLabel(LABELS.radio.rangeFirst));
         var rbRangeCustom = rangeModeGroup.add('radiobutton', undefined, labelText(LABELS.radio.rangeCustom));
         // 初期状態は「全ページ」を選択
         rbRangeAll.value = true;
@@ -1016,7 +1016,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         etRange.characters = 10;
         // 初期選択は「全ページ」なので無効から始める / Starts disabled: the default mode is All Pages
         etRange.enabled = false;
-        etRange.helpTip = L(LABELS.tooltip.customRange);
+        etRange.helpTip = getLabel(LABELS.tooltip.customRange);
 
         var totalPagesGroup = pagesPanel.add('group');
         totalPagesGroup.orientation = 'row';
@@ -1026,29 +1026,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         stTotalPages.characters = 8;
         stTotalPages.justify = 'right';
         stTotalPages.alignment = ['right', 'center'];
-        stTotalPages.helpTip = L(LABELS.tooltip.totalPages);
+        stTotalPages.helpTip = getLabel(LABELS.tooltip.totalPages);
 
-        var methodPanel = leftColumnGroup.add("panel", undefined, L(LABELS.panel.mode));
+        var methodPanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.mode));
         setupPanel(methodPanel);
         var methodGroup = methodPanel.add("group");
         setupGroup(methodGroup, "column");
-        var rbPerArtboard = methodGroup.add("radiobutton", undefined, L(LABELS.radio.perArtboard));
-        rbPerArtboard.helpTip = L(LABELS.tooltip.perArtboard);
-        var rbIgnoreArtboard = methodGroup.add("radiobutton", undefined, L(LABELS.radio.ignoreArtboard));
-        rbIgnoreArtboard.helpTip = L(LABELS.tooltip.ignoreArtboard);
+        var rbPerArtboard = methodGroup.add("radiobutton", undefined, getLabel(LABELS.radio.perArtboard));
+        rbPerArtboard.helpTip = getLabel(LABELS.tooltip.perArtboard);
+        var rbIgnoreArtboard = methodGroup.add("radiobutton", undefined, getLabel(LABELS.radio.ignoreArtboard));
+        rbIgnoreArtboard.helpTip = getLabel(LABELS.tooltip.ignoreArtboard);
         rbPerArtboard.value = true;
 
-        var layoutPanel = rightColumnGroup.add("panel", undefined, L(LABELS.panel.placement));
+        var layoutPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.placement));
         setupPanel(layoutPanel);
 
         var columnsGroup = layoutPanel.add("group");
         setupGroup(columnsGroup, "row");
         var stColsLabel = columnsGroup.add("statictext", undefined, labelText(LABELS.label.columns));
         stColsLabel.justify = "right";
-        var etCols = columnsGroup.add("edittext", undefined, L(LABELS.label.columnsAuto));
+        var etCols = columnsGroup.add("edittext", undefined, getLabel(LABELS.label.columnsAuto));
         etCols.characters = 5;
-        etCols.helpTip = L(LABELS.tooltip.columns);
-        stColsLabel.helpTip = L(LABELS.tooltip.columns);
+        etCols.helpTip = getLabel(LABELS.tooltip.columns);
+        stColsLabel.helpTip = getLabel(LABELS.tooltip.columns);
 
         var rowsGroup = layoutPanel.add("group");
         setupGroup(rowsGroup, "row");
@@ -1056,8 +1056,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         stRowsLabel.justify = "right";
         var stRowsValue = rowsGroup.add("statictext", undefined, "");
         stRowsValue.characters = 5;
-        stRowsLabel.helpTip = L(LABELS.tooltip.estimate);
-        stRowsValue.helpTip = L(LABELS.tooltip.estimate);
+        stRowsLabel.helpTip = getLabel(LABELS.tooltip.estimate);
+        stRowsValue.helpTip = getLabel(LABELS.tooltip.estimate);
 
         var gapGroup = layoutPanel.add("group");
         setupGroup(gapGroup, "row");
@@ -1065,11 +1065,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         stGapLabel.justify = "right";
         var etArtboardGap = gapGroup.add("edittext", undefined, String(DEFAULT_ARTBOARD_GAP));
         etArtboardGap.characters = 5;
-        var stGapUnit = gapGroup.add("statictext", undefined, L(LABELS.label.gapUnit));
+        var stGapUnit = gapGroup.add("statictext", undefined, getLabel(LABELS.label.gapUnit));
 
         // 倍率は［アートボードを無視］のときだけ効く条件付き項目なので、レイアウトから分ける
         // Scale only applies when ignoring artboards, so keep it out of the Layout panel
-        var optionPanel = rightColumnGroup.add("panel", undefined, L(LABELS.panel.option));
+        var optionPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.option));
         setupPanel(optionPanel);
 
         var scaleGroup = optionPanel.add("group");
@@ -1078,28 +1078,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         stScaleLabel.justify = "right";
         var etScale = scaleGroup.add("edittext", undefined, "100");
         etScale.characters = 5;
-        etScale.helpTip = L(LABELS.tooltip.scale);
-        stScaleLabel.helpTip = L(LABELS.tooltip.scale);
-        var stScaleUnit = scaleGroup.add("statictext", undefined, L(LABELS.label.scaleUnit));
+        etScale.helpTip = getLabel(LABELS.tooltip.scale);
+        stScaleLabel.helpTip = getLabel(LABELS.tooltip.scale);
+        var stScaleUnit = scaleGroup.add("statictext", undefined, getLabel(LABELS.label.scaleUnit));
 
-        var keiPanel = rightColumnGroup.add("panel", undefined, L(LABELS.panel.kei));
+        var keiPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.kei));
         setupPanel(keiPanel);
         var keiModeGroup = keiPanel.add("group");
         setupGroup(keiModeGroup, "column");
-        var rbKeiNone = keiModeGroup.add("radiobutton", undefined, L(LABELS.radio.keiNone));
-        var rbKeiClipGroup = keiModeGroup.add("radiobutton", undefined, L(LABELS.radio.keiClipGroup));
+        var rbKeiNone = keiModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.keiNone));
+        var rbKeiClipGroup = keiModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.keiClipGroup));
         rbKeiNone.value = true;
 
         var roundCornerGroup = keiPanel.add("group");
         setupGroup(roundCornerGroup, "row");
-        var cbRoundCorner = roundCornerGroup.add("checkbox", undefined, L(LABELS.checkbox.roundCorner));
+        var cbRoundCorner = roundCornerGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.roundCorner));
         var etRoundCorner = roundCornerGroup.add("edittext", undefined, "3");
         etRoundCorner.characters = 5;
         var stRoundCornerUnit = roundCornerGroup.add("statictext", undefined, getCurrentUnitLabel());
         cbRoundCorner.value = false;
         etRoundCorner.enabled = false;
-        cbRoundCorner.helpTip = L(LABELS.tooltip.roundCorner);
-        etRoundCorner.helpTip = L(LABELS.tooltip.roundCorner);
+        cbRoundCorner.helpTip = getLabel(LABELS.tooltip.roundCorner);
+        etRoundCorner.helpTip = getLabel(LABELS.tooltip.roundCorner);
 
         // === ボタンエリア（左スペーサー／右キャンセル・OK）/ Button area (spacer left, cancel+ok right)
         var btnRowGroup = win.add("group");
@@ -1120,8 +1120,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         btnRightGroup.alignment = ["right", "center"];
         btnRightGroup.alignChildren = ["right", "center"];
         btnRightGroup.spacing = 10;
-        var btnCancel = btnRightGroup.add("button", undefined, L(LABELS.button.cancel), { name: "cancel" });
-        var btnOk = btnRightGroup.add("button", undefined, L(LABELS.button.ok), { name: "ok" });
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOk = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
         btnOk.alignment = ["right", "center"];
 
         // ------------------------
@@ -1221,7 +1221,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
          * @returns {void}
          */
         function updateGapHelpTip() {
-            var helpText = rbPerArtboard.value ? L(LABELS.tooltip.gapPerArtboard) : L(LABELS.tooltip.gapIgnoreArtboard);
+            var helpText = rbPerArtboard.value ? getLabel(LABELS.tooltip.gapPerArtboard) : getLabel(LABELS.tooltip.gapIgnoreArtboard);
             stGapLabel.helpTip = helpText;
             etArtboardGap.helpTip = helpText;
             stGapUnit.helpTip = helpText;
@@ -1239,7 +1239,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         function getFileDisplayInfo(f) {
             if (!f) {
                 return {
-                    name: L(LABELS.label.notSelected),
+                    name: getLabel(LABELS.label.notSelected),
                     path: ''
                 };
             }
@@ -1250,7 +1250,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             try {
                 nameText = decodeURIComponent(f.name);
             } catch (e) {
-                nameText = String(f.name || L(LABELS.label.notSelected));
+                nameText = String(f.name || getLabel(LABELS.label.notSelected));
             }
 
             try {
@@ -1300,7 +1300,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
                 var textValue = String(editText.text);
                 var value;
 
-                if (textValue === L(LABELS.label.columnsAuto)) {
+                if (textValue === getLabel(LABELS.label.columnsAuto)) {
                     if (event.keyName == "Up") {
                         event.preventDefault();
                         editText.text = 1;
@@ -1437,7 +1437,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
          */
         function showProgress() {
             try {
-                progressWin = new Window("palette", L(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+                progressWin = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
                 progressWin.alignChildren = "fill";
                 progressBar = progressWin.add("progressbar", undefined, 0, 100);
                 progressBar.preferredSize.width = 300;
@@ -1597,7 +1597,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             }
 
             btnBrowse.onClick = function () {
-                var f = File.openDialog(L(LABELS.dialog.pickFile), isPdfOrAiFile);
+                var f = File.openDialog(getLabel(LABELS.dialog.pickFile), isPdfOrAiFile);
                 if (!f) return;
                 var last = updatePageCountFromPlacedOrFile(doc, f, setPathText);
                 detectedRangeText = last ? ('1-' + last) : '';
@@ -1623,7 +1623,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             etCols.onChange = function () {
                 // 0 以下や数値でない入力は自動扱いなので、確定時に表示も「自動」へ揃える
                 // Zero or non-numeric input means Auto; normalize the field text on commit
-                var autoText = L(LABELS.label.columnsAuto);
+                var autoText = getLabel(LABELS.label.columnsAuto);
                 if (getColsPerRow() === 0 && etCols.text !== autoText) etCols.text = autoText;
                 updateRowsInfo();
             };

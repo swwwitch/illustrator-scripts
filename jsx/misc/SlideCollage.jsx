@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -130,16 +130,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         defaultRound: { ja: "10", en: "10" }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var o = LABELS[key];
         if (!o) return key;
-        return o[lang] || o.en || o.ja || key;
+        return o[uiLang] || o.en || o.ja || key;
     }
 
     // Safe alert helper (used by __TMKPageCount_ module)
     if (typeof safeAlertKey === "undefined") {
         var safeAlertKey = function (key) {
-            try { alert(L(key)); } catch (_) { }
+            try { alert(getLabel(key)); } catch (_) { }
         };
     }
 
@@ -617,7 +617,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
                 if (!v) return;
                 v.zoom = z;
-                if (doRedraw) { try { app.redraw(); } catch (_) { } }
+                if (doRedraw) { app.redraw(); }
             } catch (_) { }
         }
 
@@ -850,7 +850,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var __SC_sourceCount = 0;
 
         if (app.documents.length === 0) {
-            alert(L("alertNeedDoc"));
+            alert(getLabel("alertNeedDoc"));
             return;
         }
 
@@ -902,7 +902,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var AUTO_FIT_ENABLED = true;
 
         // 2. ダイアログボックスの作成
-        var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         win.alignChildren = "fill";
         win.center();
 
@@ -922,20 +922,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.alignChildren = "fill";
 
         // Panel: 読み込みファイル / Source file
-        var pnlSource = leftCol.add('panel', undefined, L('panelSource'));
+        var pnlSource = leftCol.add('panel', undefined, getLabel('panelSource'));
         pnlSource.orientation = 'column';
         pnlSource.alignChildren = ['left', 'top'];
         pnlSource.margins = [15, 20, 15, 10];
 
         // ファイル指定ボタン（v5ロジックで fileA / ページ数推定を更新）
-        var btnBrowse = pnlSource.add('button', undefined, L('btnLoad'));
+        var btnBrowse = pnlSource.add('button', undefined, getLabel('btnLoad'));
 
         // ファイル名表示
-        var etPath = pnlSource.add('statictext', undefined, L('notSelected'));
+        var etPath = pnlSource.add('statictext', undefined, getLabel('notSelected'));
         etPath.characters = 20;
 
         // Panel: アートボード
-        var pnlAB = leftCol.add('panel', undefined, L('panelLoad'));
+        var pnlAB = leftCol.add('panel', undefined, getLabel('panelLoad'));
         pnlAB.orientation = 'column';
         pnlAB.alignChildren = ['left', 'top'];
         pnlAB.margins = [15, 20, 15, 10];
@@ -954,7 +954,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rowRange = colLeft.add('group');
         rowRange.orientation = 'row';
         rowRange.alignChildren = ['left', 'center'];
-        rowRange.add('statictext', undefined, L('range'));
+        rowRange.add('statictext', undefined, getLabel('range'));
         var etRange = rowRange.add('edittext', undefined, '');
         etRange.characters = 10;
         etRange.enabled = true;
@@ -966,7 +966,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rowTotal = colLeft.add('group');
         rowTotal.orientation = 'row';
         rowTotal.alignChildren = ['left', 'center'];
-        rowTotal.add('statictext', undefined, L('total'));
+        rowTotal.add('statictext', undefined, getLabel('total'));
         var etTotal = rowTotal.add('edittext', undefined, '');
         etTotal.characters = 4;
         etTotal.enabled = true;
@@ -983,7 +983,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rowLoadBtn = colRight.add('group');
         rowLoadBtn.orientation = 'row';
         rowLoadBtn.alignChildren = ['right', 'center'];
-        var btnPreview = rowLoadBtn.add('button', undefined, L('btnImport'));
+        var btnPreview = rowLoadBtn.add('button', undefined, getLabel('btnImport'));
 
         btnPreview.onClick = function () {
             // Require file selection
@@ -1084,15 +1084,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     etPath.text = decodeURIComponent(f.name);
                     etPath.helpTip = decodeURIComponent(f.fsName);
                 } else {
-                    etPath.text = L('notSelected');
+                    etPath.text = getLabel('notSelected');
                     etPath.helpTip = '';
                 }
             } catch (_) {
                 try {
-                    etPath.text = f ? String(f.name) : L('notSelected');
+                    etPath.text = f ? String(f.name) : getLabel('notSelected');
                     etPath.helpTip = f ? String(f.fsName) : '';
                 } catch (__) {
-                    etPath.text = L('notSelected');
+                    etPath.text = getLabel('notSelected');
                     etPath.helpTip = '';
                 }
             }
@@ -1109,7 +1109,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // or when Total is empty (fresh state).
                 try {
                     var cur = String(etTotal.text || '');
-                    if (__SC_autoTotal || cur === '' || cur === L('notSelected')) {
+                    if (__SC_autoTotal || cur === '' || cur === getLabel('notSelected')) {
                         __SC_autoTotal = true;
                     }
                 } catch (_) {
@@ -1191,7 +1191,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         btnBrowse.onClick = function () {
-            var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
+            var f = File.openDialog(getLabel('dlgPickFile'), getLabel('filterPick'));
             if (!f) return;
             PC.updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
         };
@@ -1208,12 +1208,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // --- トリミングパネル（配置範囲：PDF のトリミング設定） ---
-        var panelCrop = leftCol.add("panel", undefined, L("panelItem"));
+        var panelCrop = leftCol.add("panel", undefined, getLabel("panelItem"));
         panelCrop.alignChildren = "left";
         panelCrop.margins = [15, 20, 15, 10];
 
         // panelCrop.add("statictext", undefined, "トリミング");
-        var ddCrop = panelCrop.add("dropdownlist", undefined, [L("cropArt"), L("cropTrim"), L("cropCrop"), L("cropBleed")]);
+        var ddCrop = panelCrop.add("dropdownlist", undefined, [getLabel("cropArt"), getLabel("cropTrim"), getLabel("cropCrop"), getLabel("cropBleed")]);
         ddCrop.minimumSize.width = 160;
 
         /* 角丸 / Round corners */
@@ -1221,10 +1221,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupRound.orientation = "row";
         groupRound.alignChildren = ["left", "center"];
 
-        var cbRound = groupRound.add("checkbox", undefined, L("round"));
+        var cbRound = groupRound.add("checkbox", undefined, getLabel("round"));
         cbRound.value = false;
 
-        var editRound = groupRound.add("edittext", undefined, L("defaultRound"));
+        var editRound = groupRound.add("edittext", undefined, getLabel("defaultRound"));
         editRound.characters = 3;
 
         groupRound.add("statictext", undefined, rulerUnit.label);
@@ -1290,7 +1290,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* グリッド / Grid */
-        var panelLayout = rightCol.add("panel", undefined, L("panelGrid"));
+        var panelLayout = rightCol.add("panel", undefined, getLabel("panelGrid"));
         panelLayout.alignChildren = "left";
         panelLayout.margins = [15, 20, 15, 10];
 
@@ -1299,11 +1299,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupDir.orientation = "row";
         groupDir.alignChildren = ["left", "center"];
 
-        groupDir.add("statictext", undefined, L("direction"));
+        groupDir.add("statictext", undefined, getLabel("direction"));
 
-        var rbDirH = groupDir.add("radiobutton", undefined, L("dirH"));
-        var rbDirV = groupDir.add("radiobutton", undefined, L("dirV"));
-        var rbDirR = groupDir.add("radiobutton", undefined, L("dirRandom"));
+        var rbDirH = groupDir.add("radiobutton", undefined, getLabel("dirH"));
+        var rbDirV = groupDir.add("radiobutton", undefined, getLabel("dirV"));
+        var rbDirR = groupDir.add("radiobutton", undefined, getLabel("dirRandom"));
 
         // デフォルト：縦方向
         rbDirV.value = true;
@@ -1324,12 +1324,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupCols.orientation = "row";
         groupCols.alignChildren = ["left", "center"];
 
-        var stCols = groupCols.add("statictext", undefined, L("cols"));
+        var stCols = groupCols.add("statictext", undefined, getLabel("cols"));
         stCols.preferredSize.width = LABEL_W;
-        var editCols = groupCols.add("edittext", undefined, L("defaultCols"));
+        var editCols = groupCols.add("edittext", undefined, getLabel("defaultCols"));
         editCols.characters = 4;
 
-        var gapCols = groupCols.add("statictext", undefined, L("gapSpace"));
+        var gapCols = groupCols.add("statictext", undefined, getLabel("gapSpace"));
         gapCols.preferredSize.width = UNIT_W;
 
         var spacerCols = groupCols.add("group");
@@ -1367,7 +1367,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // リアルタイムプレビュー（確定時）
 
         var groupSpacing = panelLayout.add("group");
-        var stSpacing = groupSpacing.add("statictext", undefined, L("spacing"));
+        var stSpacing = groupSpacing.add("statictext", undefined, getLabel("spacing"));
         stSpacing.preferredSize.width = LABEL_W;
         var editSpacing = groupSpacing.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.factor), 2)));
         editSpacing.characters = 4;
@@ -1415,7 +1415,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // --- 偶数列パネル（配分/ずらし） ---
-        var panelEven = rightCol.add("panel", undefined, L("panelEven"));
+        var panelEven = rightCol.add("panel", undefined, getLabel("panelEven"));
         panelEven.alignChildren = "left";
         panelEven.margins = [15, 20, 15, 10];
 
@@ -1424,12 +1424,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupDist.orientation = "row";
         groupDist.alignChildren = ["left", "center"];
 
-        // var stDist = groupDist.add("statictext", undefined, L("dist"));
+        // var stDist = groupDist.add("statictext", undefined, getLabel("dist"));
         // stDist.preferredSize.width = LABEL_W;
 
-        var cbEvenPlus = groupDist.add("checkbox", undefined, L("evenPlus"));
+        var cbEvenPlus = groupDist.add("checkbox", undefined, getLabel("evenPlus"));
 
-        cbEvenPlus.helpTip = (lang === "ja")
+        cbEvenPlus.helpTip = (uiLang === "ja")
             ? "偶数列にスロットを1つ追加します。空きが出ることがあります。"
             : "Adds one extra slot to even columns. Empty spaces may appear.";
 
@@ -1442,16 +1442,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupColShift.orientation = "row";
         groupColShift.alignChildren = ["left", "center"];
 
-        var cbColShift = groupColShift.add("checkbox", undefined, L("shift"));
+        var cbColShift = groupColShift.add("checkbox", undefined, getLabel("shift"));
 
-        cbColShift.helpTip = (lang === "ja")
+        cbColShift.helpTip = (uiLang === "ja")
             ? "偶数列だけのYオフセット（上下方向のずらし）"
             : "Y-offset applied to even columns only.";
 
         cbColShift.preferredSize.width = LABEL_W;
         cbColShift.value = true;
 
-        var editColShift = groupColShift.add("edittext", undefined, L("defaultShift"));
+        var editColShift = groupColShift.add("edittext", undefined, getLabel("defaultShift"));
         editColShift.characters = 4;
 
         var stShiftUnit = groupColShift.add("statictext", undefined, rulerUnit.label);
@@ -1503,12 +1503,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         /* レイアウト / Layout */
-        var panelLayoutRight = rightCol.add("panel", undefined, L("panelLayout"));
+        var panelLayoutRight = rightCol.add("panel", undefined, getLabel("panelLayout"));
         panelLayoutRight.alignChildren = "left";
         panelLayoutRight.margins = [15, 20, 15, 10];
 
         // --- アートボードとマスクパネル（左カラム） ---
-        var panelArtboard = leftCol.add("panel", undefined, L("panelArtboard"));
+        var panelArtboard = leftCol.add("panel", undefined, getLabel("panelArtboard"));
         panelArtboard.alignChildren = "left";
         panelArtboard.margins = [15, 20, 15, 10];
 
@@ -1517,7 +1517,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupBg.orientation = "row";
         groupBg.alignChildren = ["left", "center"];
 
-        var cbBg = groupBg.add("checkbox", undefined, L("bg"));
+        var cbBg = groupBg.add("checkbox", undefined, getLabel("bg"));
         cbBg.value = true;
 
         // カラーチップ（表示用）
@@ -1525,7 +1525,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         colorSwatch.preferredSize = [24, 24];
 
         // HEX 入力
-        var editBgHex = groupBg.add("edittext", undefined, L("defaultHex"));
+        var editBgHex = groupBg.add("edittext", undefined, getLabel("defaultHex"));
         editBgHex.characters = 7;
 
         function makeRGBColor(r, g, b) {
@@ -1610,12 +1610,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { }
 
         // マスク（OK時に配置物をマージン内側でクリッピング）
-        var cbMask = panelArtboard.add("checkbox", undefined, L("mask"));
+        var cbMask = panelArtboard.add("checkbox", undefined, getLabel("mask"));
         cbMask.value = true;
 
         // 外側余白
         var groupMargin = panelArtboard.add("group");
-        var stMargin = groupMargin.add("statictext", undefined, L("margin"));
+        var stMargin = groupMargin.add("statictext", undefined, getLabel("margin"));
         var editMargin = groupMargin.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.factor), 2)));
         editMargin.characters = 5;
         groupMargin.add("statictext", undefined, rulerUnit.label);
@@ -1627,7 +1627,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupMaskRound.orientation = "row";
         groupMaskRound.alignChildren = ["left", "center"];
 
-        var cbMaskRound = groupMaskRound.add("checkbox", undefined, L("maskRound"));
+        var cbMaskRound = groupMaskRound.add("checkbox", undefined, getLabel("maskRound"));
         cbMaskRound.value = false;
 
         var editMaskRound = groupMaskRound.add("edittext", undefined, "20");
@@ -1671,12 +1671,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupScale.orientation = "row";
         groupScale.alignChildren = ["left", "center"];
 
-        var stScale = groupScale.add("statictext", undefined, L("scale"));
+        var stScale = groupScale.add("statictext", undefined, getLabel("scale"));
         stScale.preferredSize.width = LABEL_W;
-        var editScale = groupScale.add("edittext", undefined, L("defaultScale"));
+        var editScale = groupScale.add("edittext", undefined, getLabel("defaultScale"));
         editScale.characters = 4;
 
-        var stScaleUnit = groupScale.add("statictext", undefined, L("unitPercent"));
+        var stScaleUnit = groupScale.add("statictext", undefined, getLabel("unitPercent"));
         stScaleUnit.preferredSize.width = UNIT_W;
 
         var spacerScale = groupScale.add("group");
@@ -1727,17 +1727,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupRotate.orientation = "row";
         groupRotate.alignChildren = ["left", "center"];
 
-        var cbRotate = groupRotate.add("checkbox", undefined, L("rotate"));
-        cbRotate.helpTip = (lang === "ja")
+        var cbRotate = groupRotate.add("checkbox", undefined, getLabel("rotate"));
+        cbRotate.helpTip = (uiLang === "ja")
             ? "配置したアイテム全体を回転します（アートボード中心基準）。"
             : "Rotate the entire placed layout (centered on the artboard).";
         cbRotate.preferredSize.width = LABEL_W;
         cbRotate.value = true;
 
-        var editRotate = groupRotate.add("edittext", undefined, L("defaultRotate"));
+        var editRotate = groupRotate.add("edittext", undefined, getLabel("defaultRotate"));
         editRotate.characters = 4;
 
-        var stRotateUnit = groupRotate.add("statictext", undefined, L("unitDegree"));
+        var stRotateUnit = groupRotate.add("statictext", undefined, getLabel("unitDegree"));
         stRotateUnit.preferredSize.width = UNIT_W;
 
         var spacerRotate = groupRotate.add("group");
@@ -1812,7 +1812,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 横位置
         var groupOffsetX = panelLayoutRight.add("group");
-        var cbOffsetX = groupOffsetX.add("checkbox", undefined, L("offsetX"));
+        var cbOffsetX = groupOffsetX.add("checkbox", undefined, getLabel("offsetX"));
         cbOffsetX.preferredSize.width = OFFSET_LABEL_W;
         cbOffsetX.value = false;
 
@@ -1833,7 +1833,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 縦位置（＋で下へ）
         var groupOffsetY = panelLayoutRight.add("group");
-        var cbOffsetY = groupOffsetY.add("checkbox", undefined, L("offsetY"));
+        var cbOffsetY = groupOffsetY.add("checkbox", undefined, getLabel("offsetY"));
         cbOffsetY.preferredSize.width = OFFSET_LABEL_W;
         cbOffsetY.value = false;
 
@@ -2024,7 +2024,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Ensure import button uses the intended handler (supports Total)
         if (__SC_importHandler) btnPreview.onClick = __SC_importHandler;
 
-        var zoomCtrl = __TMKZoom_addControls(win, doc, L("zoom"), __zoomState, {
+        var zoomCtrl = __TMKZoom_addControls(win, doc, getLabel("zoom"), __zoomState, {
             min: 0.1,
             max: 4,
             sliderWidth: 340,
@@ -2033,7 +2033,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // ✅ lightweight mode
             lightMode: true,
-            lightModeLabel: L("lightMode"),
+            lightModeLabel: getLabel("lightMode"),
             lightModeDefault: false
         });
 
@@ -2059,15 +2059,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rightBtnGroup = groupButtons.add("group");
         rightBtnGroup.orientation = "row";
         rightBtnGroup.alignChildren = ["right", "center"];
-        var btnCancel = rightBtnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        var btnOk = rightBtnGroup.add("button", undefined, L("ok"), { name: "ok" });
+        var btnCancel = rightBtnGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+        var btnOk = rightBtnGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
         // (Preview/cache declarations moved earlier in main)
 
         function resetUIToDefaults() {
             try {
                 // Load
-                // editPages.text = L("defaultPages");
+                // editPages.text = getLabel("defaultPages");
                 cbLightPreview.value = true;
 
                 // Item
@@ -2075,7 +2075,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ddCrop.enabled = __SC_isPdfFile(fileA);
 
                 cbRound.value = false;
-                editRound.text = L("defaultRound");
+                editRound.text = getLabel("defaultRound");
                 editRound.enabled = cbRound.value;
 
                 // Grid
@@ -2093,18 +2093,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 // ずらし: OFF
                 cbColShift.value = false;
-                editColShift.text = L("defaultShift");
+                editColShift.text = getLabel("defaultShift");
                 syncShiftFromEdit();
                 editColShift.enabled = cbColShift.value;
                 sldColShift.enabled = cbColShift.value;
 
                 // Layout
-                editScale.text = L("defaultScale");
+                editScale.text = getLabel("defaultScale");
                 syncScaleFromEdit();
 
                 // 回転: OFF
                 cbRotate.value = false;
-                editRotate.text = L("defaultRotate");
+                editRotate.text = getLabel("defaultRotate");
                 syncRotateFromEdit();
                 editRotate.enabled = cbRotate.value;
                 sldRotate.enabled = cbRotate.value;
@@ -2197,7 +2197,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 // Artboard & Mask
                 cbBg.value = true;
-                editBgHex.text = L("defaultHex");
+                editBgHex.text = getLabel("defaultHex");
                 updateBgControls();
 
                 cbMask.value = true;
@@ -2500,7 +2500,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 // 読み込み前ならキャンバス更新不要（UI側は updateBgControls がやる）
                 if (!__previewCache.items || __previewCache.items.length === 0) {
-                    try { app.redraw(); } catch (_) { }
+                    app.redraw();
                     return;
                 }
 
@@ -2530,7 +2530,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
                 previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
 
-                try { app.redraw(); } catch (_) { }
+                app.redraw();
             } catch (e) { }
         }
 
@@ -3234,7 +3234,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
 
             } catch (e) {
-                alert(L("alertPlaceError"));
+                alert(getLabel("alertPlaceError"));
             } finally {
                 try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (_) { }
                 try { __SC_resetImportPageNumber(fileA); } catch (_) { }
@@ -3352,7 +3352,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (shouldRelayoutOnFinalize()) {
                     applyLayoutToCachedItems();
                 }
-                try { app.redraw(); } catch (_) { }
+                app.redraw();
             }
 
             __SC_saveDialogBounds(win.bounds);

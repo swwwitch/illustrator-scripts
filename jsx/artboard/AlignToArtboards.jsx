@@ -1223,9 +1223,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* ç´¹ä
 
     if (app.documents.length === 0) return;
 
-    var activeDocument = app.activeDocument;
-    if (!activeDocument.selection || activeDocument.selection.length === 0) return;
+    var documentRef = app.activeDocument;
+    if (!documentRef.selection || documentRef.selection.length === 0) return;
 
-    showAlignmentDialog(activeDocument);
+    showAlignmentDialog(documentRef);
 
 })();

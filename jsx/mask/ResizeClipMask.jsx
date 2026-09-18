@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* UIラベル定義 / UI label definitions */
     var LABELS = {
@@ -115,13 +115,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* マージンダイアログ表示 / Show margin dialog */
     function showMarginDialog(defaultValue, unitLabel, previewCallback) {
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dlg = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dlg.orientation = "column";
         dlg.alignChildren = "left";
         dlg.margins = 15;
 
         var inputGroup = dlg.add("group");
-        inputGroup.add("statictext", undefined, LABELS.margin[lang] + " (" + unitLabel + "):");
+        inputGroup.add("statictext", undefined, LABELS.margin[uiLang] + " (" + unitLabel + "):");
 
         var inputSubGroup = inputGroup.add("group");
         inputSubGroup.orientation = "row";
@@ -162,8 +162,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var btns = dlg.add("group");
         btns.alignment = "right";
-        var cancel = btns.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-        var ok = btns.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+        var cancel = btns.add("button", undefined, LABELS.cancel[uiLang], { name: "cancel" });
+        var ok = btns.add("button", undefined, LABELS.ok[uiLang], { name: "ok" });
 
         input.active = true;
         var result = dlg.show();
@@ -174,7 +174,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var margin = parseFloat(input.text);
         if (isNaN(margin)) {
-            alert(LABELS.noSelection[lang]);
+            alert(LABELS.noSelection[uiLang]);
             return null;
         }
         return margin;
@@ -248,15 +248,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* メイン処理 / Main function */
     function main() {
         if (app.documents.length === 0) {
-            alert(LABELS.noSelection[lang]);
+            alert(LABELS.noSelection[uiLang]);
             return;
         }
-        var sel = app.activeDocument.selection;
-        if (sel.length === 0) {
-            alert(LABELS.noSelection[lang]);
+        var currentSelection = app.activeDocument.selection;
+        if (currentSelection.length === 0) {
+            alert(LABELS.noSelection[uiLang]);
             return;
         }
-        var newSelection = collectMaskPaths(sel);
+        var newSelection = collectMaskPaths(currentSelection);
         var marginUnit = getCurrentUnitLabel();
         var defaultMarginValue = '0';
         var margin = showMarginDialog(defaultMarginValue, marginUnit, function(previewMargin) {
@@ -266,7 +266,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (margin === null) return;
         app.redraw();
         if (newSelection.length === 0) {
-            alert(LABELS.noMask[lang]);
+            alert(LABELS.noMask[uiLang]);
         }
     }
     main();

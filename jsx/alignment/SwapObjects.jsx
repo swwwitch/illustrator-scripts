@@ -91,19 +91,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
         },
         alert: {
             noDocument: {
-                ja: "ドキュメントを開いてから実行してください",
+                ja: "ドキュメントを開いてから実行してください。",
                 en: "Please open a document first."
             },
             selectTwoItems: {
-                ja: "2つのオブジェクトを選択してください",
+                ja: "2つのオブジェクトを選択してください。",
                 en: "Please select two objects."
             },
             unsupportedItem: {
-                ja: "対応していないオブジェクトが含まれています",
+                ja: "対応していないオブジェクトが含まれています。",
                 en: "The selection contains unsupported objects."
             },
             lockedOrHidden: {
-                ja: "ロックまたは非表示のオブジェクトは対象にできません",
+                ja: "ロックまたは非表示のオブジェクトは対象にできません。",
                 en: "Locked or hidden objects are not supported."
             }
         }
@@ -145,15 +145,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
 
     /**
      * ウィンドウに共通のレイアウト設定を適用する
-     * @param {Window} win - 対象のウィンドウ
+     * @param {Window} targetWindow - 対象のウィンドウ
      * @param {number} spacing - 要素間隔。省略時はWINDOW_SPACING
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
@@ -517,34 +517,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
     /**
      * 2つのオブジェクトをまとめて移動する
      * @param {PageItem[]} targetItems - 移動する2つのオブジェクト
-     * @param {object} offsets - itemA / itemB それぞれの移動量
+     * @param {object} offsetPair - itemA / itemB それぞれの移動量
      * @returns {void}
      */
-    function translateItems(targetItems, offsets) {
-        targetItems[0].translate(offsets.itemA.x, offsets.itemA.y);
-        targetItems[1].translate(offsets.itemB.x, offsets.itemB.y);
+    function translateItems(targetItems, offsetPair) {
+        targetItems[0].translate(offsetPair.itemA.x, offsetPair.itemA.y);
+        targetItems[1].translate(offsetPair.itemB.x, offsetPair.itemB.y);
     }
 
     /**
      * 移動量の符号を反転する
-     * @param {object} offsets - itemA / itemB それぞれの移動量
+     * @param {object} offsetPair - itemA / itemB それぞれの移動量
      * @returns {object} 符号を反転した移動量
      */
-    function negateOffsets(offsets) {
+    function negateOffsets(offsetPair) {
         return {
-            itemA: { x: -offsets.itemA.x, y: -offsets.itemA.y },
-            itemB: { x: -offsets.itemB.x, y: -offsets.itemB.y }
+            itemA: { x: -offsetPair.itemA.x, y: -offsetPair.itemA.y },
+            itemB: { x: -offsetPair.itemB.x, y: -offsetPair.itemB.y }
         };
     }
 
     /**
      * 実質移動しない移動量か判定する
-     * @param {object} offsets - itemA / itemB それぞれの移動量
+     * @param {object} offsetPair - itemA / itemB それぞれの移動量
      * @returns {boolean} 両方とも移動量がゼロとみなせる場合はtrue
      */
-    function isZeroOffsetPair(offsets) {
-        return isNearlyEqual(offsets.itemA.x, 0) && isNearlyEqual(offsets.itemA.y, 0) &&
-            isNearlyEqual(offsets.itemB.x, 0) && isNearlyEqual(offsets.itemB.y, 0);
+    function isZeroOffsetPair(offsetPair) {
+        return isNearlyEqual(offsetPair.itemA.x, 0) && isNearlyEqual(offsetPair.itemA.y, 0) &&
+            isNearlyEqual(offsetPair.itemB.x, 0) && isNearlyEqual(offsetPair.itemB.y, 0);
     }
 
     /**
@@ -580,7 +580,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2"; /* 紹�
     }
 
     // =========================================
-    // 移動量の計算 / Calculate offsets
+    // 移動量の計算 / Calculate offsetPair
     // =========================================
 
     /**

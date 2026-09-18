@@ -71,7 +71,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* キーからローカライズ文字列を取得 / Get a localized string by key */
-    function L(key) {
+    function getLabel(key) {
         var entry = getLabelEntry(key);
         if (entry) {
             if (entry[currentLanguage]) return entry[currentLanguage];
@@ -185,12 +185,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 選択内のパス上文字をポイント文字へ置き換えた選択配列を返す / Replace path text in selection with point text */
-    function preprocessPathTextSelection(doc, sel) {
-        if (!doc || !sel || !sel.length) return sel;
+    function preprocessPathTextSelection(doc, currentSelection) {
+        if (!doc || !currentSelection || !currentSelection.length) return currentSelection;
 
         var pathTexts = [];
-        for (var i = 0; i < sel.length; i++) {
-            var item = sel[i];
+        for (var i = 0; i < currentSelection.length; i++) {
+            var item = currentSelection[i];
             try {
                 if (item && item.typename === "TextFrame" && item.kind === TextType.PATHTEXT) {
                     pathTexts.push(item);
@@ -199,15 +199,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // 無効オブジェクト（削除済み等）はスキップ / Skip invalid objects
             }
         }
-        if (!pathTexts.length) return sel;
+        if (!pathTexts.length) return currentSelection;
 
         var newTexts = detachPathTextToPointText(doc, pathTexts);
-        if (!newTexts.length) return sel;
+        if (!newTexts.length) return currentSelection;
 
         // パス上文字を新ポイント文字に差し替えた新しい選択配列を構築 / Build replaced selection array
         var replacedSelection = [];
-        for (var j = 0; j < sel.length; j++) {
-            var keepItem = sel[j];
+        for (var j = 0; j < currentSelection.length; j++) {
+            var keepItem = currentSelection[j];
             try {
                 if (keepItem && keepItem.typename === "TextFrame" && keepItem.kind === TextType.PATHTEXT) {
                     // 旧オブジェクトは除外 / skip old
@@ -221,7 +221,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var k = 0; k < newTexts.length; k++) replacedSelection.push(newTexts[k]);
 
         try { doc.selection = replacedSelection; } catch (e) { }
-        try { app.redraw(); } catch (e2) { }
+        app.redraw();
 
         return replacedSelection;
     }
@@ -411,12 +411,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /* 選択オブジェクト群の可視バウンディングボックスの和を返す / Union of visibleBounds over a selection */
-    function getSelectionVisibleBounds(sel) {
-        if (!sel || !sel.length) return null;
+    function getSelectionVisibleBounds(currentSelection) {
+        if (!currentSelection || !currentSelection.length) return null;
         var left = null, top = null, right = null, bottom = null;
-        for (var i = 0; i < sel.length; i++) {
+        for (var i = 0; i < currentSelection.length; i++) {
             var vb;
-            try { vb = sel[i].visibleBounds; } catch (e) { continue; }
+            try { vb = currentSelection[i].visibleBounds; } catch (e) { continue; }
             if (!vb) continue;
             if (left === null || vb[0] < left) left = vb[0];
             if (top === null || vb[1] > top) top = vb[1];
@@ -591,8 +591,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 選択からモードを自動判定してエリア内文字へ変換 / Auto-detect mode and convert to area type */
-    function convertSelectionToAreaType(doc, sel) {
-        sel = preprocessPathTextSelection(doc, sel);
+    function convertSelectionToAreaType(doc, currentSelection) {
+        currentSelection = preprocessPathTextSelection(doc, currentSelection);
 
         var selection = app.activeDocument.selection;
         if (!selection || selection.length === 0) { return; }
@@ -683,12 +683,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     if (app.documents.length > 0) {
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (sel && sel.length > 0) {
+        if (currentSelection && currentSelection.length > 0) {
             var hasConvertibleText = false;
-            for (var i = 0; i < sel.length; i++) {
-                if (sel[i].typename === "TextFrame" && (sel[i].kind === TextType.POINTTEXT || sel[i].kind === TextType.PATHTEXT)) {
+            for (var i = 0; i < currentSelection.length; i++) {
+                if (currentSelection[i].typename === "TextFrame" && (currentSelection[i].kind === TextType.POINTTEXT || currentSelection[i].kind === TextType.PATHTEXT)) {
                     hasConvertibleText = true;
                 }
             }
@@ -697,18 +697,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // フレーム整列アクションを読み込み、終了時に破棄 / Load frame-alignment actions, unload on exit
                 loadAreaTextActions();
                 try {
-                    convertSelectionToAreaType(doc, sel);
+                    convertSelectionToAreaType(doc, currentSelection);
                 } finally {
                     unloadAreaTextActions();
                 }
             } else {
-                alert(L("alert.selectText"));
+                alert(getLabel("alert.selectText"));
             }
         } else {
-            alert(L("alert.selectText"));
+            alert(getLabel("alert.selectText"));
         }
     } else {
-        alert(L("alert.noDocument"));
+        alert(getLabel("alert.noDocument"));
     }
 
 })();

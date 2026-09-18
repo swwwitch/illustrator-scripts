@@ -41,7 +41,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLocaleLang();
+    var uiLang = getCurrentLocaleLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -193,12 +193,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var ATTRIBUTE_LABEL_WIDTH = 185;
 
-    function L(key) {
-        return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
+    function getLabel(key) {
+        return (LABELS[key] && LABELS[key][uiLang]) ? LABELS[key][uiLang] : key;
     }
 
     function labelText(key) {
-        return L(key) + (lang === "ja" ? "：" : ":");
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -326,7 +326,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 色を表示用文字列へ整形 / Format color for display */
     function formatColorForDialog(color) {
-        if (!color || !color.typename) return L("fillColorNone");
+        if (!color || !color.typename) return getLabel("fillColorNone");
         switch (color.typename) {
             case "RGBColor":
                 return "RGB(" + Math.round(color.red) + ", " + Math.round(color.green) + ", " + Math.round(color.blue) + ")";
@@ -347,7 +347,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return "Gradient";
                 }
             case "NoColor":
-                return L("fillColorNone");
+                return getLabel("fillColorNone");
             default:
                 return color.typename;
         }
@@ -995,7 +995,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var targetFont = app.textFonts.getByName(copiedAttributes.font.name);
                 characterAttributes.textFont = targetFont;
             } catch (e) {
-                throw new Error(L("errorFontNotFoundPrefix") + copiedAttributes.font.name + L("errorFontNotFoundSuffix"));
+                throw new Error(getLabel("errorFontNotFoundPrefix") + copiedAttributes.font.name + getLabel("errorFontNotFoundSuffix"));
             }
         }
 
@@ -1174,15 +1174,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ON/OFF表示を返す / Return ON/OFF display text */
     function formatBooleanForDialog(value) {
-        return value ? L("onValue") : L("offValue");
+        return value ? getLabel("onValue") : getLabel("offValue");
     }
 
     /* 組み方向表示を返す / Return orientation display text */
     function formatOrientationForDialog(orientation) {
         if (orientation === TextOrientation.VERTICAL) {
-            return L("verticalOrientation");
+            return getLabel("verticalOrientation");
         }
-        return L("horizontalOrientation");
+        return getLabel("horizontalOrientation");
     }
 
     /* ラベル幅を固定したチェックボックス行を追加 / Add checkbox row with fixed label width */
@@ -1196,7 +1196,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         label.preferredSize.width = labelWidth;
         label.justify = "right";
 
-        var checkboxLabel = isAvailable ? valueText : L("notStored");
+        var checkboxLabel = isAvailable ? valueText : getLabel("notStored");
         var checkbox = rowGroup.add("checkbox", undefined, checkboxLabel);
         checkbox.value = isAvailable && defaultValue;
         checkbox.enabled = isAvailable;
@@ -1221,7 +1221,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         valueGroup.alignChildren = "left";
         valueGroup.spacing = 2;
 
-        var checkboxLabel = isAvailable ? fontText : L("notStored");
+        var checkboxLabel = isAvailable ? fontText : getLabel("notStored");
         var checkbox = valueGroup.add("checkbox", undefined, checkboxLabel);
         checkbox.value = isAvailable && defaultValue;
         checkbox.enabled = isAvailable;
@@ -1264,7 +1264,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L("errorNoDocument"));
+            alert(getLabel("errorNoDocument"));
             return;
         }
 
@@ -1285,20 +1285,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var hasGraphicStyleNameStored = hasCopiedGraphicStyleName(copiedTextAttributes);
 
         if (!hasFont && !hasSize && !hasLeading && !hasAutoLeading && !hasTsume && !hasTracking && !hasKerningMethod && !hasProportionalMetrics && !hasOrientation && !hasJustification && !hasFillColor && !hasGraphicStyleNameStored) {
-            alert(L("errorNoCopiedAttributes"));
+            alert(getLabel("errorNoCopiedAttributes"));
             return;
         }
 
         var applyTargets = getApplyTargetsFromSelection(app.selection);
 
         if (applyTargets.length === 0) {
-            alert(L("errorNoTextSelection"));
+            alert(getLabel("errorNoTextSelection"));
             return;
         }
 
         for (var applyTargetIndex = 0; applyTargetIndex < applyTargets.length; applyTargetIndex++) {
             if (applyTargets[applyTargetIndex].textRange.characters.length === 0) {
-                alert(L("errorEmptyTextRange"));
+                alert(getLabel("errorEmptyTextRange"));
                 return;
             }
         }
@@ -1312,33 +1312,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* ダイアログ / Dialog */
-        var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         dlg.alignChildren = "left";
         dlg.margins = [16, 16, 26, 16];
         dlg.spacing = 10;
 
-        var fontDisplay = hasFont ? (copiedTextAttributes.font.family || L("notStored")) : L("notStored");
-        var fontStyleDisplay = hasFont ? (copiedTextAttributes.font.style || L("notStored")) : L("notStored");
-        var sizeDisplay = hasSize ? formatPointValueForDialog(copiedTextAttributes.size) : L("notStored");
-        var leadingDisplay = hasLeading ? formatPointValueForDialog(copiedTextAttributes.leading) : L("notStored");
-        var autoLeadingDisplay = hasAutoLeading ? formatBooleanForDialog(copiedTextAttributes.autoLeading) : L("notStored");
-        var tsumeDisplay = hasTsume ? String(copiedTextAttributes.tsume) : L("notStored");
-        var trackingDisplay = hasTracking ? String(copiedTextAttributes.tracking) : L("notStored");
+        var fontDisplay = hasFont ? (copiedTextAttributes.font.family || getLabel("notStored")) : getLabel("notStored");
+        var fontStyleDisplay = hasFont ? (copiedTextAttributes.font.style || getLabel("notStored")) : getLabel("notStored");
+        var sizeDisplay = hasSize ? formatPointValueForDialog(copiedTextAttributes.size) : getLabel("notStored");
+        var leadingDisplay = hasLeading ? formatPointValueForDialog(copiedTextAttributes.leading) : getLabel("notStored");
+        var autoLeadingDisplay = hasAutoLeading ? formatBooleanForDialog(copiedTextAttributes.autoLeading) : getLabel("notStored");
+        var tsumeDisplay = hasTsume ? String(copiedTextAttributes.tsume) : getLabel("notStored");
+        var trackingDisplay = hasTracking ? String(copiedTextAttributes.tracking) : getLabel("notStored");
         var kerningMethodDisplay = hasKerningMethod
             ? (copiedTextAttributes.kerningMethodLabel || String(copiedTextAttributes.kerningMethod))
-            : L("notStored");
-        var proportionalMetricsDisplay = hasProportionalMetrics ? formatBooleanForDialog(copiedTextAttributes.proportionalMetrics) : L("notStored");
+            : getLabel("notStored");
+        var proportionalMetricsDisplay = hasProportionalMetrics ? formatBooleanForDialog(copiedTextAttributes.proportionalMetrics) : getLabel("notStored");
         var orientationDisplay = hasOrientation
             ? (copiedTextAttributes.orientationLabel || formatOrientationForDialog(copiedTextAttributes.orientation))
-            : L("notStored");
+            : getLabel("notStored");
         var justificationDisplay = hasJustification
             ? (copiedTextAttributes.justificationLabel || String(copiedTextAttributes.justification))
-            : L("notStored");
+            : getLabel("notStored");
         var fillColorDisplay = hasFillColor
             ? (copiedTextAttributes.fillColorLabel || formatColorForDialog(copiedTextAttributes.fillColor))
-            : L("notStored");
+            : getLabel("notStored");
 
-        var fontSizeLeadingPanel = dlg.add("panel", undefined, L("fontSizeLeadingPanelTitle"));
+        var fontSizeLeadingPanel = dlg.add("panel", undefined, getLabel("fontSizeLeadingPanelTitle"));
         fontSizeLeadingPanel.orientation = "column";
         fontSizeLeadingPanel.alignChildren = "left";
         fontSizeLeadingPanel.margins = [15, 20, 15, 10];
@@ -1356,7 +1356,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         var cbAutoLeading = addAttributeCheckboxRow(fontSizeLeadingPanel, "autoLeadingLabel", autoLeadingDisplay, hasAutoLeading, false, ATTRIBUTE_LABEL_WIDTH);
 
-        var kerningPanel = dlg.add("panel", undefined, L("kerningPanelTitle"));
+        var kerningPanel = dlg.add("panel", undefined, getLabel("kerningPanelTitle"));
         kerningPanel.orientation = "column";
         kerningPanel.alignChildren = "left";
         kerningPanel.margins = [15, 20, 15, 10];
@@ -1368,7 +1368,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var cbTracking = addAttributeCheckboxRow(kerningPanel, "trackingLabel", trackingDisplay, hasTracking, false, ATTRIBUTE_LABEL_WIDTH);
         var cbTsume = addAttributeCheckboxRow(kerningPanel, "tsumeLabel", tsumeDisplay, hasTsume, false, ATTRIBUTE_LABEL_WIDTH);
 
-        var paragraphOtherPanel = dlg.add("panel", undefined, L("paragraphOtherPanelTitle"));
+        var paragraphOtherPanel = dlg.add("panel", undefined, getLabel("paragraphOtherPanelTitle"));
         paragraphOtherPanel.orientation = "column";
         paragraphOtherPanel.alignChildren = "left";
         paragraphOtherPanel.margins = [15, 20, 15, 10];
@@ -1380,7 +1380,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var cbJustification = addAttributeCheckboxRow(paragraphOtherPanel, "justificationLabel", justificationDisplay, hasJustification, false, ATTRIBUTE_LABEL_WIDTH);
 
         /* 塗りとグラフィックスタイル：3択ラジオで排他 / Fill & Graphic Style: 3-way radio */
-        var fillGraphicStylePanel = dlg.add("panel", undefined, L("fillGraphicStylePanelTitle"));
+        var fillGraphicStylePanel = dlg.add("panel", undefined, getLabel("fillGraphicStylePanelTitle"));
         fillGraphicStylePanel.orientation = "column";
         fillGraphicStylePanel.alignChildren = "left";
         fillGraphicStylePanel.margins = [15, 20, 15, 10];
@@ -1393,9 +1393,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (hasCopiedGSName) {
             graphicStyleRowText = graphicStyleExistsInDoc
                 ? copiedTextAttributes.graphicStyleName
-                : copiedTextAttributes.graphicStyleName + " " + L("graphicStyleNotFound");
+                : copiedTextAttributes.graphicStyleName + " " + getLabel("graphicStyleNotFound");
         } else {
-            graphicStyleRowText = L("notStored");
+            graphicStyleRowText = getLabel("notStored");
         }
 
         var FILL_GS_RADIO_NAME_WIDTH = 165;
@@ -1405,24 +1405,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         fgsNoneRow.orientation = "row";
         fgsNoneRow.alignChildren = ["left", "center"];
         fgsNoneRow.spacing = 6;
-        var rbFillGraphicStyleNone = fgsNoneRow.add("radiobutton", undefined, L("fillGraphicStyleNoneOption"));
+        var rbFillGraphicStyleNone = fgsNoneRow.add("radiobutton", undefined, getLabel("fillGraphicStyleNoneOption"));
 
         /* 「塗り」行 / "Fill" row */
         var fgsFillRow = fillGraphicStylePanel.add("group");
         fgsFillRow.orientation = "row";
         fgsFillRow.alignChildren = ["left", "center"];
         fgsFillRow.spacing = 6;
-        var rbFill = fgsFillRow.add("radiobutton", undefined, L("fillColorLabel"));
+        var rbFill = fgsFillRow.add("radiobutton", undefined, getLabel("fillColorLabel"));
         rbFill.preferredSize.width = FILL_GS_RADIO_NAME_WIDTH;
         rbFill.enabled = hasFillColor;
-        fgsFillRow.add("statictext", undefined, hasFillColor ? fillColorDisplay : L("notStored"));
+        fgsFillRow.add("statictext", undefined, hasFillColor ? fillColorDisplay : getLabel("notStored"));
 
         /* 「グラフィックスタイル」行 / "Graphic Style" row */
         var fgsGSRow = fillGraphicStylePanel.add("group");
         fgsGSRow.orientation = "row";
         fgsGSRow.alignChildren = ["left", "center"];
         fgsGSRow.spacing = 6;
-        var rbGraphicStyle = fgsGSRow.add("radiobutton", undefined, L("graphicStyleLabel"));
+        var rbGraphicStyle = fgsGSRow.add("radiobutton", undefined, getLabel("graphicStyleLabel"));
         rbGraphicStyle.preferredSize.width = FILL_GS_RADIO_NAME_WIDTH;
         rbGraphicStyle.enabled = graphicStyleExistsInDoc && canApplyOrientation;
         fgsGSRow.add("statictext", undefined, graphicStyleRowText);
@@ -1474,7 +1474,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var previewGroup = buttonArea.add("group");
         previewGroup.orientation = "row";
         previewGroup.alignChildren = ["left", "center"];
-        var cbPreview = previewGroup.add("checkbox", undefined, L("previewCheckbox"));
+        var cbPreview = previewGroup.add("checkbox", undefined, getLabel("previewCheckbox"));
         cbPreview.value = false;
 
         var spacer = buttonArea.add("group");
@@ -1484,8 +1484,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnGroup = buttonArea.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = ["right", "center"];
-        btnGroup.add("button", undefined, L("cancelButton"), { name: "cancel" });
-        btnGroup.add("button", undefined, L("applyButton"), { name: "ok" });
+        btnGroup.add("button", undefined, getLabel("cancelButton"), { name: "cancel" });
+        btnGroup.add("button", undefined, getLabel("applyButton"), { name: "ok" });
 
         /* スクリプト実行ごとにアクションキャッシュを初期化（#targetengine の永続性対策）
            Reset the action cache at the start of each run (handles #targetengine persistence) */
@@ -1589,7 +1589,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 restoreAppliedTextAttributesForTargets(applyTargets, originalTextAttributesList, lastAppliedState);
                 isPreviewApplied = false;
                 lastAppliedState = null;
-                alert(L("errorNoApplyItem"));
+                alert(getLabel("errorNoApplyItem"));
                 return;
             }
 

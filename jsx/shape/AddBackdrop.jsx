@@ -264,7 +264,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         try {
             var parts = key.split('.');
             var t = LABELS;
@@ -572,9 +572,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 func();
                 this.undoDepth++;
-                try { app.redraw(); } catch (_) { }
+                app.redraw();
             } catch (e) {
-                alert(L('message.previewError') + ": " + e);
+                alert(getLabel('message.previewError') + ": " + e);
             }
         };
 
@@ -619,7 +619,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Preview/Undo manager
         var previewMgr = new PreviewManager();
         // ダイアログ作成
-        var dlg = new Window('dialog', L('ui.dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('ui.dialogTitle') + ' ' + SCRIPT_VERSION);
         setDialogOpacity(dlg, __DIALOG_OPACITY);
         shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
 
@@ -632,9 +632,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpShapeTop.alignChildren = ['center', 'center'];
         grpShapeTop.alignment = 'center';
 
-        var rbPerfectCircle = grpShapeTop.add('radiobutton', undefined, L('option.perfectCircle'));
-        var rbSuperEllipse = grpShapeTop.add('radiobutton', undefined, L('option.superEllipse'));
-        var rbRectangle = grpShapeTop.add('radiobutton', undefined, L('option.rectangle'));
+        var rbPerfectCircle = grpShapeTop.add('radiobutton', undefined, getLabel('option.perfectCircle'));
+        var rbSuperEllipse = grpShapeTop.add('radiobutton', undefined, getLabel('option.superEllipse'));
+        var rbRectangle = grpShapeTop.add('radiobutton', undefined, getLabel('option.rectangle'));
 
         rbPerfectCircle.value = true; // デフォルトは正円
 
@@ -680,14 +680,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.alignChildren = ['fill', 'top'];
 
         // パネル：スケール（先頭へ移動）
-        var pnlScale = leftCol.add('panel', undefined, L('ui.scalePanel'));
+        var pnlScale = leftCol.add('panel', undefined, getLabel('ui.scalePanel'));
         pnlScale.orientation = 'column';
         pnlScale.alignChildren = ['fill', 'top'];
         pnlScale.margins = [15, 20, 15, 10];
 
         // 倍率（%表示）
         var grpScale = pnlScale.add('group');
-        grpScale.add('statictext', undefined, L('ui.magnification'));
+        grpScale.add('statictext', undefined, getLabel('ui.magnification'));
         var scaleInput = grpScale.add('edittext', undefined, '90');
         scaleInput.characters = 4;
         grpScale.add('statictext', undefined, '%');
@@ -696,7 +696,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var grpOneChar = pnlScale.add('group');
         grpOneChar.orientation = 'row';
         grpOneChar.alignChildren = ['left', 'center'];
-        var cbOneChar = grpOneChar.add('checkbox', undefined, L('option.oneChar'));
+        var cbOneChar = grpOneChar.add('checkbox', undefined, getLabel('option.oneChar'));
         cbOneChar.value = false;
 
         // スケールパネルは「長方形」選択時は 100% 固定 + ディム表示（ただし正方形ON時は例外で有効）
@@ -721,7 +721,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         syncScalePanelUI();
 
         // パネル：マージン（形状パネルの直下）
-        var marginPanel = leftCol.add('panel', undefined, L('ui.marginTitle'));
+        var marginPanel = leftCol.add('panel', undefined, getLabel('ui.marginTitle'));
         marginPanel.orientation = 'column';
         marginPanel.alignChildren = ['fill', 'top'];
         marginPanel.margins = [15, 20, 15, 10];
@@ -747,7 +747,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupMV.spacing = 10;
         groupMV.margins = 0;
 
-        groupMV.add('statictext', undefined, L('option.marginV'));
+        groupMV.add('statictext', undefined, getLabel('option.marginV'));
         var marginVInput = groupMV.add('edittext', undefined, '0');
         marginVInput.characters = 4;
         groupMV.add('statictext', undefined, __rulerLabel);
@@ -759,7 +759,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupMH.spacing = 10;
         groupMH.margins = 0;
 
-        groupMH.add('statictext', undefined, L('option.marginH'));
+        groupMH.add('statictext', undefined, getLabel('option.marginH'));
         var marginHInput = groupMH.add('edittext', undefined, '0');
         marginHInput.characters = 4;
         groupMH.add('statictext', undefined, __rulerLabel);
@@ -774,11 +774,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // small spacer to align checkbox between two rows
         try { marginRightCol.add('statictext', undefined, ''); } catch (_) { }
 
-        var cbMarginLink = marginRightCol.add('checkbox', undefined, L('option.link'));
+        var cbMarginLink = marginRightCol.add('checkbox', undefined, getLabel('option.link'));
         cbMarginLink.value = true; // デフォルトは連動
 
         // マージン：正方形
-        cbMarginSquare = marginPanel.add('checkbox', undefined, L('option.square'));
+        cbMarginSquare = marginPanel.add('checkbox', undefined, getLabel('option.square'));
         cbMarginSquare.value = false; // デフォルトOFF
 
         cbMarginSquare.onClick = function () {
@@ -849,7 +849,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // パネル：角丸（形状パネルの直下）
-        var roundPanel = leftCol.add('panel', undefined, L('ui.roundTitle'));
+        var roundPanel = leftCol.add('panel', undefined, getLabel('ui.roundTitle'));
         roundPanel.orientation = 'column';
         roundPanel.alignChildren = ['left', 'top'];
         roundPanel.margins = [15, 20, 15, 10];
@@ -870,7 +870,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pillRow = roundPanel.add('group');
         pillRow.orientation = 'row';
         pillRow.alignChildren = ['left', 'center'];
-        var cbPill = pillRow.add('checkbox', undefined, L('option.pillShape'));
+        var cbPill = pillRow.add('checkbox', undefined, getLabel('option.pillShape'));
         cbPill.value = false;
 
         // 角丸パネルは「長方形」選択時のみ有効（正円/スーパー楕円ではディム表示）
@@ -936,14 +936,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
 
         // パネル：グループ（スケールの直下）
-        var pnlGroup = leftCol.add('panel', undefined, L('ui.groupPanel'));
+        var pnlGroup = leftCol.add('panel', undefined, getLabel('ui.groupPanel'));
         pnlGroup.orientation = 'column';
         pnlGroup.alignChildren = ['fill', 'top'];
         pnlGroup.margins = [15, 20, 15, 10];
-        var cbGroup = pnlGroup.add('checkbox', undefined, L('option.groupWithText'));
+        var cbGroup = pnlGroup.add('checkbox', undefined, getLabel('option.groupWithText'));
         cbGroup.value = true;
 
-        var cbExclude = pnlGroup.add('checkbox', undefined, L('option.exclude'));
+        var cbExclude = pnlGroup.add('checkbox', undefined, getLabel('option.exclude'));
         cbExclude.value = false;
 
         // ロジック：中マド=ONなら自動でグループ化し、カラーを「テキストカラー」に強制
@@ -971,7 +971,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbGroup.onChanging = cbGroup.onClick;
 
         // パネル：座標調整（右カラムへ移動）
-        var pnlOffset = rightCol.add('panel', undefined, L('ui.axisPanel') + '（' + __rulerLabel + '）');
+        var pnlOffset = rightCol.add('panel', undefined, getLabel('ui.axisPanel') + '（' + __rulerLabel + '）');
         pnlOffset.orientation = 'column';
         pnlOffset.alignChildren = ['fill', 'top'];
         pnlOffset.margins = [15, 20, 15, 10];
@@ -990,7 +990,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         offsetYInput.characters = 4;
 
         // パネル：種別（塗り / 線 / 線幅を1行に） — 右カラム最下部へ移動
-        var pnlKind = rightCol.add('panel', undefined, L('ui.kindPanel'));
+        var pnlKind = rightCol.add('panel', undefined, getLabel('ui.kindPanel'));
         pnlKind.orientation = 'column';
         pnlKind.alignChildren = ['fill', 'top'];
         pnlKind.margins = [15, 20, 15, 10];
@@ -1001,8 +1001,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpKind.alignChildren = ['left', 'center'];
         grpKind.spacing = 10;
 
-        var rbFill = grpKind.add('radiobutton', undefined, L('option.fill'));
-        var rbStroke = grpKind.add('radiobutton', undefined, L('option.stroke'));
+        var rbFill = grpKind.add('radiobutton', undefined, getLabel('option.fill'));
+        var rbStroke = grpKind.add('radiobutton', undefined, getLabel('option.stroke'));
         rbFill.value = true; // デフォルトは塗り
 
         var strokeWInput = grpKind.add('edittext', undefined, '1');
@@ -1042,13 +1042,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbStroke.onChanging = rbFill.onClick;
 
         // パネル：カラー（右カラム）
-        var pnlColor = rightCol.add('panel', undefined, L('ui.colorPanel'));
+        var pnlColor = rightCol.add('panel', undefined, getLabel('ui.colorPanel'));
         pnlColor.orientation = 'column';
         pnlColor.alignChildren = ['fill', 'top'];
         pnlColor.margins = [15, 20, 15, 10];
 
         // パネル：不透明度（右カラム）
-        var pnlOpacity = rightCol.add('panel', undefined, L('ui.opacityPanel'));
+        var pnlOpacity = rightCol.add('panel', undefined, getLabel('ui.opacityPanel'));
         pnlOpacity.orientation = 'column';
         pnlOpacity.alignChildren = ['fill', 'top'];
         pnlOpacity.margins = [15, 20, 15, 10];
@@ -1068,11 +1068,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpMode.orientation = 'column';
         grpMode.alignChildren = ['left', 'top'];
 
-        var rbTextColor = grpMode.add('radiobutton', undefined, L('option.textColorRef'));
+        var rbTextColor = grpMode.add('radiobutton', undefined, getLabel('option.textColorRef'));
 
-        var rbBlack = grpMode.add('radiobutton', undefined, L('option.black'));
-        var rbWhite = grpMode.add('radiobutton', undefined, L('option.white'));
-        var rbCMYK = grpMode.add('radiobutton', undefined, L('option.cmyk'));
+        var rbBlack = grpMode.add('radiobutton', undefined, getLabel('option.black'));
+        var rbWhite = grpMode.add('radiobutton', undefined, getLabel('option.white'));
+        var rbCMYK = grpMode.add('radiobutton', undefined, getLabel('option.cmyk'));
 
         // デフォルトはブラック
         rbBlack.value = true;
@@ -1275,7 +1275,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 必要オブジェクト参照（プレビュー用に先に取得）
         var doc = app.activeDocument;
         if (!doc) {
-            alert(L('message.noDocument'));
+            alert(getLabel('message.noDocument'));
             return;
         }
 
@@ -1289,14 +1289,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (_) { }
 
-        var sel = app.selection;
-        if (!sel || sel.length === 0) {
-            alert(L('message.noSelection'));
+        var currentSelection = app.selection;
+        if (!currentSelection || currentSelection.length === 0) {
+            alert(getLabel('message.noSelection'));
             return;
         }
 
         // テキストがあれば従来ロジック（テキスト優先）
-        var textItem = findFirstTextItem(sel);
+        var textItem = findFirstTextItem(currentSelection);
         var isTextMode = !!textItem;
 
         // テキストが無い場合：選択オブジェクト（複数なら矩形合成）を対象にする
@@ -1357,8 +1357,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // パターン1: 単一グループ選択（テキスト＋図形/グループを内包）
-        if (sel.length === 1 && sel[0].typename === 'GroupItem' && isTextMode) {
-            var outerGrp = sel[0];
+        if (currentSelection.length === 1 && currentSelection[0].typename === 'GroupItem' && isTextMode) {
+            var outerGrp = currentSelection[0];
             for (var gi = 0; gi < outerGrp.pageItems.length; gi++) {
                 var gItem = outerGrp.pageItems[gi];
                 if (gItem === textItem) continue;
@@ -1384,11 +1384,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // パターン2: 複数選択（テキスト+図形、グループ+図形）
-        if (!existingBackdrop && sel.length >= 2) {
+        if (!existingBackdrop && currentSelection.length >= 2) {
             var _targets = [];
             var _backdrops = [];
-            for (var si = 0; si < sel.length; si++) {
-                var siItem = sel[si];
+            for (var si = 0; si < currentSelection.length; si++) {
+                var siItem = currentSelection[si];
                 if (siItem === textItem) continue;
                 if (siItem.typename === 'TextFrame' || siItem.typename === 'GroupItem') {
                     _targets.push(siItem);
@@ -1437,14 +1437,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // 対象は選択の先頭（move/place の基準）― 既に設定済みでなければ
             if (!targetItem) {
                 try {
-                    targetItem = sel[0];
+                    targetItem = currentSelection[0];
                 } catch (e) {
                     targetItem = null;
                 }
             }
 
             if (!targetItem) {
-                alert(L('message.targetResolveError'));
+                alert(getLabel('message.targetResolveError'));
                 return;
             }
         }
@@ -1515,8 +1515,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function measureSelectionBounds() {
             var b = null; // [l,t,r,b]
             try {
-                for (var i = 0; i < sel.length; i++) {
-                    var it = sel[i];
+                for (var i = 0; i < currentSelection.length; i++) {
+                    var it = currentSelection[i];
                     if (!it) continue;
                     // 置換対象の既存図形はバウンド計算から除外
                     if (existingBackdrop && it === existingBackdrop) continue;
@@ -1981,7 +1981,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                     return resultGroup;
                 } catch (eGroup) {
-                    alert(L('message.groupFailed') + ": " + eGroup);
+                    alert(getLabel('message.groupFailed') + ": " + eGroup);
                     return finalShape;
                 }
             }
@@ -2012,7 +2012,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!excludedResult) excludedResult = resultItem;
                 return excludedResult;
             } catch (eExclude) {
-                alert(L('message.excludeFailed') + ": " + eExclude);
+                alert(getLabel('message.excludeFailed') + ": " + eExclude);
                 return resultItem;
             } finally {
                 clearSelection();
@@ -2242,7 +2242,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     try {
         main();
     } catch (err) {
-        alert(L('message.genericError') + ": " + err);
+        alert(getLabel('message.genericError') + ": " + err);
     }
 
 })();

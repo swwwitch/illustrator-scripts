@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -134,7 +134,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function t(key) {
       var o = LABELS[key];
       if (!o) return key;
-      return (o[lang] != null) ? o[lang] : (o.en != null ? o.en : key);
+      return (o[uiLang] != null) ? o[uiLang] : (o.en != null ? o.en : key);
     }
 
     /**
@@ -166,7 +166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showDialog() {
-        var dlg = new Window('dialog', LABELS.dialogTitle[lang]);
+        var dlg = new Window('dialog', LABELS.dialogTitle[uiLang]);
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
         dlg.margins = [15, 20, 15, 10];
@@ -301,13 +301,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rbKeisenClipGroup = panelKeisen.add('radiobutton', undefined, t('keisenClipGroup'));
 
         // 選択オブジェクト全体の外接矩形から角丸のデフォルト値を算出
-        function calcDefaultRoundRadiusFromSelection(sel) {
+        function calcDefaultRoundRadiusFromSelection(currentSelection) {
             try {
-                if (!sel || sel.length === 0) return 10;
+                if (!currentSelection || currentSelection.length === 0) return 10;
 
                 var top = -Infinity, left = Infinity, bottom = Infinity, right = -Infinity;
-                for (var i = 0, n = sel.length; i < n; i++) {
-                    var b = sel[i].geometricBounds; // [top, left, bottom, right]
+                for (var i = 0, n = currentSelection.length; i < n; i++) {
+                    var b = currentSelection[i].geometricBounds; // [top, left, bottom, right]
                     if (!b || b.length !== 4) continue;
                     if (b[0] > top) top = b[0];
                     if (b[1] < left) left = b[1];
@@ -758,7 +758,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } finally {
             app.userInteractionLevel = previousInteractionLevel;
-            try { app.redraw(); } catch (e) { }
+            app.redraw();
         }
     }
 
@@ -1099,36 +1099,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 現在の選択から「クリップグループ」を作成し、選択を更新
     // 戻り値: 作成した groupItem（複数作成時は先頭を返す） / 作成できない場合は null
     function makeClippingFromSelection(doc) {
-        var sel = doc.selection;
-        if (!sel || sel.length === 0) return null;
+        var currentSelection = doc.selection;
+        if (!currentSelection || currentSelection.length === 0) return null;
 
         // すでにクリップグループが1つ選択されているなら、そのまま
-        if (sel.length === 1 && sel[0].typename === 'GroupItem' && sel[0].clipped) {
-            return sel[0];
+        if (currentSelection.length === 1 && currentSelection[0].typename === 'GroupItem' && currentSelection[0].clipped) {
+            return currentSelection[0];
         }
 
         var images = [];
         var paths = [];
         var i;
 
-        for (i = 0; i < sel.length; i++) {
-            if (!sel[i]) continue;
-            if (isImageItem(sel[i])) {
-                images.push(sel[i]);
-            } else if (sel[i].typename === 'PathItem') {
-                paths.push(sel[i]);
+        for (i = 0; i < currentSelection.length; i++) {
+            if (!currentSelection[i]) continue;
+            if (isImageItem(currentSelection[i])) {
+                images.push(currentSelection[i]);
+            } else if (currentSelection[i].typename === 'PathItem') {
+                paths.push(currentSelection[i]);
             }
         }
 
         // 画像1 + パス1（選択がちょうど2つ）
-        if (sel.length === 2 && images.length === 1 && paths.length === 1) {
+        if (currentSelection.length === 2 && images.length === 1 && paths.length === 1) {
             var g1 = createMaskWithPath(images[0], paths[0]);
             doc.selection = [g1];
             return g1;
         }
 
         // 画像1のみ
-        if (sel.length === 1 && images.length === 1) {
+        if (currentSelection.length === 1 && images.length === 1) {
             var g2 = createClippingMaskGroup(images[0]);
             doc.selection = [g2];
             return g2;
@@ -1151,10 +1151,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var groupItem = targetLayer.groupItems.add();
 
             // マスク以外を先に移動（末尾から）
-            for (i = sel.length - 1; i >= 0; i--) {
-                if (!sel[i]) continue;
-                if (sel[i] === maskPath) continue;
-                sel[i].moveToBeginning(groupItem);
+            for (i = currentSelection.length - 1; i >= 0; i--) {
+                if (!currentSelection[i]) continue;
+                if (currentSelection[i] === maskPath) continue;
+                currentSelection[i].moveToBeginning(groupItem);
             }
             maskPath.moveToBeginning(groupItem);
             groupItem.clipped = true;
@@ -1476,7 +1476,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } finally {
             app.userInteractionLevel = previousInteractionLevel;
-            try { app.redraw(); } catch (eR) { }
+            app.redraw();
         }
 
         return {
@@ -1620,14 +1620,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // すべてさしかえ
             // 選択した配置画像と「同じファイル名」のリンク配置画像をすべて、新しいファイルに差し替える
             if (linkMode === 'relinkAll') {
-                var sel = doc.selection;
-                if (!sel || sel.length === 0) {
+                var currentSelection = doc.selection;
+                if (!currentSelection || currentSelection.length === 0) {
                     doc.selection = null;
                     alert(t('alertSelectPlacedItem'));
                     return;
                 }
 
-                var selectedItem = sel[0];
+                var selectedItem = currentSelection[0];
                 if (!selectedItem || selectedItem.typename !== 'PlacedItem') {
                     doc.selection = null;
                     alert(t('alertSelectedNotPlacedItem'));
@@ -1690,7 +1690,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
 
                 // 画面更新
-                try { app.redraw(); } catch (eRedraw) { }
+                app.redraw();
 
                 // 既存の選択をクリア
                 doc.selection = null;

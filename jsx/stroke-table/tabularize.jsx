@@ -61,7 +61,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function getCurrentLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
-        var lang = getCurrentLang();
+        var uiLang = getCurrentLang();
 
         /* 日英ラベル定義 / Japanese-English label definitions */
         var LABELS = {
@@ -167,10 +167,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         };
 
-        function L(key) {
+        function getLabel(key) {
             var o = LABELS[key];
             if (!o) return key;
-            return o[lang] || o.ja || key;
+            return o[uiLang] || o.ja || key;
         }
 
         /* 単位ユーティリティ / Unit utilities */
@@ -243,7 +243,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // --- Shared document/layer/color references (must be declared to avoid ReferenceError in ExtendScript) ---
         var doc = null;
-        var sel = null;
+        var currentSelection = null;
         var baseLayer = null;
         var lineLayer = null;
         var fillLayer = null;
@@ -294,11 +294,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (_) { }
             previewItems = [];
             previewIsCurrent = false;
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         }
 
         /* ダイアログ / Dialog */
-        var dlg = new Window('dialog', L('dialogTitle'));
+        var dlg = new Window('dialog', getLabel('dialogTitle'));
         dlg.orientation = 'column';
         dlg.alignChildren = 'left';
 
@@ -410,21 +410,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gPreset.alignChildren = ['left', 'center'];
 
         // Preset label
-        var stPreset = gPreset.add('statictext', undefined, (lang === 'ja') ? 'プリセット：' : 'Preset:');
+        var stPreset = gPreset.add('statictext', undefined, (uiLang === 'ja') ? 'プリセット：' : 'Preset:');
 
         var ddPreset = gPreset.add('dropdownlist', undefined, [
-            (lang === 'ja') ? '（手動）' : '(Manual)',
-            (lang === 'ja') ? '塗りA' : 'Fill A',
-            (lang === 'ja') ? '塗りB' : 'Fill B',
-            (lang === 'ja') ? '塗りC' : 'Fill C',
-            (lang === 'ja') ? '塗り＋線A' : 'Fill+Stroke A',
-            (lang === 'ja') ? '塗り＋線B' : 'Fill+Stroke B',
-            (lang === 'ja') ? '線A-1' : 'Stroke A-1',
-            (lang === 'ja') ? '線A-2' : 'Stroke A-2',
-            (lang === 'ja') ? '線B-1' : 'Stroke B-1',
-            (lang === 'ja') ? '線B-2' : 'Stroke B-2',
-            (lang === 'ja') ? '線C-1' : 'Stroke C-1',
-            (lang === 'ja') ? '線C-2' : 'Stroke C-2'
+            (uiLang === 'ja') ? '（手動）' : '(Manual)',
+            (uiLang === 'ja') ? '塗りA' : 'Fill A',
+            (uiLang === 'ja') ? '塗りB' : 'Fill B',
+            (uiLang === 'ja') ? '塗りC' : 'Fill C',
+            (uiLang === 'ja') ? '塗り＋線A' : 'Fill+Stroke A',
+            (uiLang === 'ja') ? '塗り＋線B' : 'Fill+Stroke B',
+            (uiLang === 'ja') ? '線A-1' : 'Stroke A-1',
+            (uiLang === 'ja') ? '線A-2' : 'Stroke A-2',
+            (uiLang === 'ja') ? '線B-1' : 'Stroke B-1',
+            (uiLang === 'ja') ? '線B-2' : 'Stroke B-2',
+            (uiLang === 'ja') ? '線C-1' : 'Stroke C-1',
+            (uiLang === 'ja') ? '線C-2' : 'Stroke C-2'
         ]);
         ddPreset.selection = 0;
         // 初期状態は手動（＝何もしない）
@@ -465,7 +465,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* オプション / Options */
-        var pOpt = dlg.add('panel', undefined, L('optionPanel'));
+        var pOpt = dlg.add('panel', undefined, getLabel('optionPanel'));
         pOpt.orientation = 'column';
         pOpt.alignChildren = 'left';
         pOpt.margins = [15, 20, 15, 10];
@@ -476,7 +476,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gGutter.alignChildren = ['left', 'center'];
 
         // チェックOFF時はガター=0＆ディム表示 / When OFF, set gutter=0 and dim
-        var cbUseGutter = gGutter.add('checkbox', undefined, L('useGutter'));
+        var cbUseGutter = gGutter.add('checkbox', undefined, getLabel('useGutter'));
         cbUseGutter.value = true;
 
         var rulerUnitCode = getRulerUnitCode();
@@ -533,7 +533,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 1行目をヘッダー行にする / Treat first row as header */
-        var cbHeader = pOpt.add('checkbox', undefined, L('headerRow'));
+        var cbHeader = pOpt.add('checkbox', undefined, getLabel('headerRow'));
         cbHeader.value = true;
 
         /* 2カラムレイアウト / Two-column layout */
@@ -550,7 +550,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gRight.alignChildren = 'fill';
 
         /* 塗り / Fill */
-        var pFill = gLeft.add('panel', undefined, L('fillPanel'));
+        var pFill = gLeft.add('panel', undefined, getLabel('fillPanel'));
         pFill.orientation = 'column';
         pFill.alignChildren = 'left';
         pFill.margins = [15, 20, 15, 10];
@@ -559,27 +559,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gFill.orientation = 'row';
         gFill.alignChildren = ['left', 'center'];
 
-        var cbFill = gFill.add('checkbox', undefined, L('fillCheck'));
+        var cbFill = gFill.add('checkbox', undefined, getLabel('fillCheck'));
 
         // デフォルト：塗りOFF
         cbFill.value = false;
 
         /* 塗りオプション / Fill options */
-        var pFillOpt = pFill.add('panel', undefined, L('fillOptionPanel'));
+        var pFillOpt = pFill.add('panel', undefined, getLabel('fillOptionPanel'));
         pFillOpt.orientation = 'column';
         pFillOpt.alignChildren = 'left';
         pFillOpt.margins = [15, 20, 15, 10];
 
         // 行方向に連結（UI）
-        var cbFillJoinRow = pFillOpt.add('checkbox', undefined, L('fillJoinRow'));
+        var cbFillJoinRow = pFillOpt.add('checkbox', undefined, getLabel('fillJoinRow'));
         cbFillJoinRow.value = false;
 
         // ゼブラ（UI）
-        var cbZebra = pFillOpt.add('checkbox', undefined, L('zebra'));
+        var cbZebra = pFillOpt.add('checkbox', undefined, getLabel('zebra'));
         cbZebra.value = false;
 
         // ヘッダー行のみ（UI）
-        var cbFillHeaderOnly = pFillOpt.add('checkbox', undefined, L('fillHeaderOnly'));
+        var cbFillHeaderOnly = pFillOpt.add('checkbox', undefined, getLabel('fillHeaderOnly'));
         cbFillHeaderOnly.value = false;
 
         // 塗りOFFならゼブラ/行方向に連結/ヘッダー行のみ はディム表示
@@ -647,17 +647,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         applyFillEnabled();
 
         /* 縦罫 / Vertical rules */
-        var pVrule = gRight.add('panel', undefined, L('vRulePanel'));
+        var pVrule = gRight.add('panel', undefined, getLabel('vRulePanel'));
         pVrule.orientation = 'column';
         pVrule.alignChildren = 'left';
         pVrule.margins = [15, 20, 15, 10];
 
         // 線（横ケイ＋縦ケイの有効/無効）
-        var cbRule = pVrule.add('checkbox', undefined, L('ruleCheck'));
+        var cbRule = pVrule.add('checkbox', undefined, getLabel('ruleCheck'));
         cbRule.value = true;
 
         // 縦ケイ
-        var pVkei = pVrule.add('panel', undefined, L('vRuleLabel'));
+        var pVkei = pVrule.add('panel', undefined, getLabel('vRuleLabel'));
         pVkei.orientation = 'column';
         pVkei.alignChildren = 'left';
         pVkei.margins = [15, 20, 15, 10];
@@ -666,9 +666,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gVrule.orientation = 'column';
         gVrule.alignChildren = ['left', 'top'];
 
-        var rbVruleNone = gVrule.add('radiobutton', undefined, L('none'));
-        var rbVruleGapsOnly = gVrule.add('radiobutton', undefined, L('gapsOnly'));
-        var rbVruleAll = gVrule.add('radiobutton', undefined, L('all'));
+        var rbVruleNone = gVrule.add('radiobutton', undefined, getLabel('none'));
+        var rbVruleGapsOnly = gVrule.add('radiobutton', undefined, getLabel('gapsOnly'));
+        var rbVruleAll = gVrule.add('radiobutton', undefined, getLabel('all'));
 
         // デフォルト：列間のみ
         rbVruleGapsOnly.value = true;
@@ -991,7 +991,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnGroup.alignChildren = ['left', 'center'];
 
         // Preview toggle (left)
-        cbPreview = btnGroup.add('checkbox', undefined, (lang === 'ja') ? 'プレビュー' : 'Preview');
+        cbPreview = btnGroup.add('checkbox', undefined, (uiLang === 'ja') ? 'プレビュー' : 'Preview');
         cbPreview.value = true;
 
         // Spacer
@@ -999,8 +999,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         _sp.alignment = 'fill';
 
         // Buttons (right)
-        var btnCancel = btnGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
-        var btnOK = btnGroup.add('button', undefined, L('ok'), { name: 'ok' });
+        var btnCancel = btnGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+        var btnOK = btnGroup.add('button', undefined, getLabel('ok'), { name: 'ok' });
         btnCancel.alignment = 'right';
         btnOK.alignment = 'right';
 
@@ -1069,14 +1069,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (_) { }
         }
 
-        // Helper to ensure doc/sel/layers/colors for both preview and final
+        // Helper to ensure doc/currentSelection/layers/colors for both preview and final
         function ensureDocSelAndLayers() {
             try {
                 if (app.documents.length === 0) return false;
                 doc = app.activeDocument;
-                sel = doc.selection;
+                currentSelection = doc.selection;
                 baseLayer = doc.activeLayer;
-                if (!sel || sel.length === 0) return false;
+                if (!currentSelection || currentSelection.length === 0) return false;
 
                 // Layers
                 try {
@@ -1148,7 +1148,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 // Draw preview
                 generateMain();
-                try { app.redraw(); } catch (_) { }
+                app.redraw();
 
                 // Cleanup calc proxies only (outlined duplicates)
                 try {
@@ -1164,7 +1164,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 } catch (_) { }
 
                 previewIsCurrent = true;
-                try { app.redraw(); } catch (_) { }
+                app.redraw();
             } catch (_) {
                 try { clearPreview(); } catch (__) { }
                 previewIsCurrent = false;
@@ -1174,10 +1174,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // ドキュメントチェック（ダイアログより前に移動）
-        // Ensure doc/sel/layers/colors
+        // Ensure doc/currentSelection/layers/colors
         // Declare variables as globals (remove var to avoid shadowing)
         if (!ensureDocSelAndLayers()) {
-            if (app.documents.length === 0) { alert(L('alertOpenDoc')); } else { alert(L('alertSelectObj')); }
+            if (app.documents.length === 0) { alert(getLabel('alertOpenDoc')); } else { alert(getLabel('alertSelectObj')); }
             return;
         }
         // --- Calculation proxy layer and outline proxies for geometricBounds ---
@@ -1224,8 +1224,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // 2) proxies
             var seenSrc = [];
-            for (var i = 0; i < sel.length; i++) {
-                var it = sel[i];
+            for (var i = 0; i < currentSelection.length; i++) {
+                var it = currentSelection[i];
                 var g = getSelectedAncestorGroup(it);
                 if (g) it = g;
                 if (arrayHasRef(seenSrc, it)) continue;

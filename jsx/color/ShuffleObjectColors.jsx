@@ -44,7 +44,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ラベル定義 / Labels */
     var LABELS = {
@@ -86,8 +86,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         alertChoice: { ja: "塗りまたは線のいずれかを選択してください。", en: "Please select either fill or stroke." }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     // =========================================
@@ -107,14 +107,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function main() {
         if (app.documents.length === 0 || !app.activeDocument.selection || app.activeDocument.selection.length === 0) {
-            alert(L("alertSelect"));
+            alert(getLabel("alertSelect"));
             return;
         }
         showDialog();
     }
 
     function showDialog() {
-        var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "row";
         dialog.alignChildren = "top";
 
@@ -125,13 +125,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buildTargetPanel(leftGroup);
         buildExcludePanel(leftGroup);
 
-        randomCheckbox = leftGroup.add("checkbox", undefined, L("random"));
+        randomCheckbox = leftGroup.add("checkbox", undefined, getLabel("random"));
         randomCheckbox.value = true;
-        randomCheckbox.helpTip = L("tipRandom");
+        randomCheckbox.helpTip = getLabel("tipRandom");
 
-        balanceCheckbox = leftGroup.add("checkbox", undefined, L("balance"));
+        balanceCheckbox = leftGroup.add("checkbox", undefined, getLabel("balance"));
         balanceCheckbox.value = true;
-        balanceCheckbox.helpTip = L("tipBalance");
+        balanceCheckbox.helpTip = getLabel("tipBalance");
 
         buildButtons(dialog);
 
@@ -139,7 +139,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function buildTargetPanel(parent) {
-        var panel = parent.add("panel", undefined, L("panelTarget"));
+        var panel = parent.add("panel", undefined, getLabel("panelTarget"));
         panel.preferredSize.width = 120;
         panel.orientation = "column";
         panel.alignChildren = "left";
@@ -149,17 +149,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         row.orientation = "row";
         row.alignChildren = "left";
 
-        fillCheckbox = row.add("checkbox", undefined, L("fill"));
+        fillCheckbox = row.add("checkbox", undefined, getLabel("fill"));
         fillCheckbox.value = true;
-        fillCheckbox.helpTip = L("tipFill");
+        fillCheckbox.helpTip = getLabel("tipFill");
 
-        strokeCheckbox = row.add("checkbox", undefined, L("stroke"));
+        strokeCheckbox = row.add("checkbox", undefined, getLabel("stroke"));
         strokeCheckbox.value = true;
-        strokeCheckbox.helpTip = L("tipStroke");
+        strokeCheckbox.helpTip = getLabel("tipStroke");
     }
 
     function buildExcludePanel(parent) {
-        var panel = parent.add("panel", undefined, L("panelExclude"));
+        var panel = parent.add("panel", undefined, getLabel("panelExclude"));
         panel.preferredSize.width = 120;
         panel.orientation = "column";
         panel.alignChildren = "left";
@@ -169,13 +169,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         row.orientation = "row";
         row.alignChildren = "left";
 
-        blackCheckbox = row.add("checkbox", undefined, L("black"));
+        blackCheckbox = row.add("checkbox", undefined, getLabel("black"));
         blackCheckbox.value = true;
-        blackCheckbox.helpTip = L("tipBlack");
+        blackCheckbox.helpTip = getLabel("tipBlack");
 
-        whiteCheckbox = row.add("checkbox", undefined, L("white"));
+        whiteCheckbox = row.add("checkbox", undefined, getLabel("white"));
         whiteCheckbox.value = true;
-        whiteCheckbox.helpTip = L("tipWhite");
+        whiteCheckbox.helpTip = getLabel("tipWhite");
     }
 
     function buildButtons(dialog) {
@@ -187,7 +187,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var okBtn = rightGroup.add("button", undefined, "OK");
         okBtn.preferredSize.width = 80;
 
-        var cancelBtn = rightGroup.add("button", undefined, L("cancel"));
+        var cancelBtn = rightGroup.add("button", undefined, getLabel("cancel"));
         cancelBtn.preferredSize.width = 80;
 
         // スペーサー（縦に伸びる）
@@ -199,9 +199,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         applyGroup.orientation = "column";
         applyGroup.alignChildren = ["fill", "bottom"];
 
-        var applyBtn = applyGroup.add("button", undefined, L("apply"));
+        var applyBtn = applyGroup.add("button", undefined, getLabel("apply"));
         applyBtn.preferredSize.width = 80;
-        applyBtn.helpTip = L("tipApply");
+        applyBtn.helpTip = getLabel("tipApply");
 
         applyBtn.onClick = function () {
             applyBtn.enabled = false;
@@ -247,7 +247,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var randomize = randomCheckbox.value;
 
         if (!changeFill && !changeStroke) {
-            alert(L("alertChoice"));
+            alert(getLabel("alertChoice"));
             return false;
         }
 
@@ -256,7 +256,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var colorPool = buildColorPool(pathItems, changeFill, changeStroke, excludeBlack, excludeWhite, balancePreserve);
         if (colorPool.length === 0) {
-            alert(L("alertEmpty"));
+            alert(getLabel("alertEmpty"));
             return false;
         }
 

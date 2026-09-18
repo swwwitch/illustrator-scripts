@@ -157,14 +157,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
     };
 
     /* 言語に応じたラベル文字列を取得 / Resolve a label string for the current language */
-    function getLocalizedText(entry) {
+    function getLabel(entry) {
         if (!entry) return "";
         return entry[currentLanguage] || entry.ja || entry.en || "";
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(entry) {
-        return getLocalizedText(entry) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(entry) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -1125,26 +1125,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         { label: "110%", ratio: 1.1, auto: false, other: false },
         { label: "125%", ratio: 1.25, auto: false, other: false },
         { label: "150%", ratio: 1.5, auto: false, other: false },
-        { label: getLocalizedText(LABELS.leading.other), ratio: undefined, auto: false, other: true },
-        { label: getLocalizedText(LABELS.leading.auto), ratio: null, auto: true, other: false }
+        { label: getLabel(LABELS.leading.other), ratio: undefined, auto: false, other: true },
+        { label: getLabel(LABELS.leading.auto), ratio: null, auto: true, other: false }
     ];
 
     /* 文字組みアキ量設定の選択肢（index は mojikumiSet のインデックス、-1=なし）
        Mojikumi choices (index is the mojikumiSet index; -1 = None) */
     var MOJIKUMI_CHOICES = [
-        { index: -1, label: getLocalizedText(LABELS.mojikumi.none) },
-        { index: 0, label: getLocalizedText(LABELS.mojikumi.lineEndFullHalf) },
-        { index: 1, label: getLocalizedText(LABELS.mojikumi.punctHalf) },
-        { index: 2, label: getLocalizedText(LABELS.mojikumi.lineEndHalf) },
-        { index: 3, label: getLocalizedText(LABELS.mojikumi.lineEndFull) },
-        { index: 4, label: getLocalizedText(LABELS.mojikumi.punctFull) },
-        { index: 5, label: getLocalizedText(LABELS.mojikumi.tight) },
-        { index: 6, label: getLocalizedText(LABELS.mojikumi.solid) }
+        { index: -1, label: getLabel(LABELS.mojikumi.none) },
+        { index: 0, label: getLabel(LABELS.mojikumi.lineEndFullHalf) },
+        { index: 1, label: getLabel(LABELS.mojikumi.punctHalf) },
+        { index: 2, label: getLabel(LABELS.mojikumi.lineEndHalf) },
+        { index: 3, label: getLabel(LABELS.mojikumi.lineEndFull) },
+        { index: 4, label: getLabel(LABELS.mojikumi.punctFull) },
+        { index: 5, label: getLabel(LABELS.mojikumi.tight) },
+        { index: 6, label: getLabel(LABELS.mojikumi.solid) }
     ];
 
     /* 自動行送りラベルを組み立て（例: 自動（175%）/ Auto (175%)）/ Build the auto-leading label */
     function formatAutoLabel(amount) {
-        var baseLabel = getLocalizedText(LABELS.leading.auto);
+        var baseLabel = getLabel(LABELS.leading.auto);
         var roundedAmount = isNaN(amount) ? 175 : Math.round(amount);
         return currentLanguage === "ja" ? (baseLabel + "（" + roundedAmount + "%）") : (baseLabel + " (" + roundedAmount + "%)");
     }
@@ -1203,8 +1203,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
     /* 行送りの基準の選択肢 / Leading-basis choices */
     function getLeadingTypeChoices() {
         return [
-            { id: "top", label: getLocalizedText(LABELS.leading.typeTop) },
-            { id: "baseline", label: getLocalizedText(LABELS.leading.typeBaseline) }
+            { id: "top", label: getLabel(LABELS.leading.typeTop) },
+            { id: "baseline", label: getLabel(LABELS.leading.typeBaseline) }
         ];
     }
 
@@ -1418,7 +1418,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
 
     /* パレットを組み立てて参照を返す（イベント未接続）/ Build the palette and return references (events not wired yet) */
     function createPaletteUI(autoKernOptions, alignOptions, justifyOptions) {
-        var palette = new Window("palette", getLocalizedText(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var palette = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         palette.alignChildren = "fill";
 
         var unit = getTextUnit();
@@ -1447,23 +1447,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         leftColumn.alignChildren = ["fill", "top"];
         leftColumn.spacing = 8;
 
-        var fontPanel = leftColumn.add("panel", undefined, getLocalizedText(LABELS.field.docFonts));
+        var fontPanel = leftColumn.add("panel", undefined, getLabel(LABELS.field.docFonts));
         fontPanel.orientation = "column";
         fontPanel.alignChildren = ["fill", "top"];
         fontPanel.margins = [16, 20, 16, 12];
 
         var fontList = fontPanel.add("listbox", undefined, [], { multiselect: false });
         fontList.preferredSize = [184, 200]; // 1行分低く / One row shorter
-        fontList.helpTip = getLocalizedText(LABELS.tip.docFonts);
+        fontList.helpTip = getLabel(LABELS.tip.docFonts);
 
-        var presetPanel = leftColumn.add("panel", undefined, getLocalizedText(LABELS.field.presets));
+        var presetPanel = leftColumn.add("panel", undefined, getLabel(LABELS.field.presets));
         presetPanel.orientation = "column";
         presetPanel.alignChildren = ["fill", "top"];
         presetPanel.margins = [16, 20, 16, 12];
 
         var presetList = presetPanel.add("listbox", undefined, [], { multiselect: false });
         presetList.preferredSize = [184, 200];
-        presetList.helpTip = getLocalizedText(LABELS.tip.presets);
+        presetList.helpTip = getLabel(LABELS.tip.presets);
         fillPresetList(presetList, loadPresets());
 
         // プリセット操作ボタン（追加・上書き・削除）を横並びに / Preset action buttons (add / overwrite / delete) in a row
@@ -1475,17 +1475,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         // 小さめのボタンサイズ / Slightly smaller button size
         var presetButtonSize = [54, 22];
 
-        var addPresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.addPreset));
+        var addPresetButton = presetButtonRow.add("button", undefined, getLabel(LABELS.button.addPreset));
         addPresetButton.preferredSize = presetButtonSize;
-        addPresetButton.helpTip = getLocalizedText(LABELS.tip.addPreset);
+        addPresetButton.helpTip = getLabel(LABELS.tip.addPreset);
 
-        var overwritePresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.overwritePreset));
+        var overwritePresetButton = presetButtonRow.add("button", undefined, getLabel(LABELS.button.overwritePreset));
         overwritePresetButton.preferredSize = presetButtonSize;
-        overwritePresetButton.helpTip = getLocalizedText(LABELS.tip.overwritePreset);
+        overwritePresetButton.helpTip = getLabel(LABELS.tip.overwritePreset);
 
-        var deletePresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.deletePreset));
+        var deletePresetButton = presetButtonRow.add("button", undefined, getLabel(LABELS.button.deletePreset));
         deletePresetButton.preferredSize = presetButtonSize;
-        deletePresetButton.helpTip = getLocalizedText(LABELS.tip.deletePreset);
+        deletePresetButton.helpTip = getLabel(LABELS.tip.deletePreset);
 
         // ---- 中央カラム：フォントサイズ・自動カーニング・文字ツメ・文字揃え / Center column: font size, kerning, Tsume, alignment ----
         var centerColumn = mainRow.add("group");
@@ -1494,7 +1494,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         centerColumn.spacing = 8;
 
         // フォントサイズ（文字サイズ・比率・見かけ＋焼き込みトグル）/ Font size (size, scale, apparent + bake toggle)
-        var fontSizePanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.fontSizePanel));
+        var fontSizePanel = centerColumn.add("panel", undefined, getLabel(LABELS.field.fontSizePanel));
         fontSizePanel.orientation = "column";
         fontSizePanel.alignChildren = ["left", "top"];
         fontSizePanel.margins = [16, 20, 16, 12];
@@ -1505,7 +1505,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         var fsSizeRow = fontSizePanel.add("group");
         fsSizeRow.orientation = "row";
         fsSizeRow.alignChildren = ["left", "center"];
-        var fsSizeLabel = fsSizeRow.add("statictext", undefined, getLocalizedText(LABELS.field.fontSize) + sizeColon);
+        var fsSizeLabel = fsSizeRow.add("statictext", undefined, getLabel(LABELS.field.fontSize) + sizeColon);
         var fontSizeInput = fsSizeRow.add("edittext", undefined, "");
         fontSizeInput.characters = 4;
         fsSizeRow.add("statictext", undefined, unit.label);
@@ -1513,7 +1513,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         var fsScaleRow = fontSizePanel.add("group");
         fsScaleRow.orientation = "row";
         fsScaleRow.alignChildren = ["left", "center"];
-        var fsScaleLabel = fsScaleRow.add("statictext", undefined, getLocalizedText(LABELS.field.scale) + sizeColon);
+        var fsScaleLabel = fsScaleRow.add("statictext", undefined, getLabel(LABELS.field.scale) + sizeColon);
         var scaleInput = fsScaleRow.add("edittext", undefined, "100");
         scaleInput.characters = 4;
         fsScaleRow.add("statictext", undefined, "%");
@@ -1521,14 +1521,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         var fsApparentRow = fontSizePanel.add("group");
         fsApparentRow.orientation = "row";
         fsApparentRow.alignChildren = ["left", "center"];
-        var fsApparentLabel = fsApparentRow.add("statictext", undefined, getLocalizedText(LABELS.field.apparent) + sizeColon);
+        var fsApparentLabel = fsApparentRow.add("statictext", undefined, getLabel(LABELS.field.apparent) + sizeColon);
         var apparentValueLabel = fsApparentRow.add("statictext", undefined, "--");
         apparentValueLabel.characters = 5;
         var fsApparentUnit = fsApparentRow.add("statictext", undefined, unit.label);
 
-        fsSizeLabel.helpTip = getLocalizedText(LABELS.tip.fontSize); fontSizeInput.helpTip = fsSizeLabel.helpTip;
-        fsScaleLabel.helpTip = getLocalizedText(LABELS.tip.scale); scaleInput.helpTip = fsScaleLabel.helpTip;
-        fsApparentLabel.helpTip = getLocalizedText(LABELS.tip.apparent); apparentValueLabel.helpTip = fsApparentLabel.helpTip;
+        fsSizeLabel.helpTip = getLabel(LABELS.tip.fontSize); fontSizeInput.helpTip = fsSizeLabel.helpTip;
+        fsScaleLabel.helpTip = getLabel(LABELS.tip.scale); scaleInput.helpTip = fsScaleLabel.helpTip;
+        fsApparentLabel.helpTip = getLabel(LABELS.tip.apparent); apparentValueLabel.helpTip = fsApparentLabel.helpTip;
 
         // ラベル幅を揃える / Unify label widths
         var fsLabelWidth = 55;
@@ -1536,16 +1536,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         fsScaleLabel.preferredSize.width = fsLabelWidth;
         fsApparentLabel.preferredSize.width = fsLabelWidth;
 
-        var autoKernPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.autoKern));
+        var autoKernPanel = centerColumn.add("panel", undefined, getLabel(LABELS.field.autoKern));
         autoKernPanel.orientation = "column";
         autoKernPanel.alignChildren = ["left", "top"];
         autoKernPanel.margins = [16, 20, 16, 12];
         autoKernPanel.spacing = 6; // 行送りのラジオと同じ間隔 / Same row spacing as the leading radios
-        autoKernPanel.helpTip = getLocalizedText(LABELS.tip.autoKern);
+        autoKernPanel.helpTip = getLabel(LABELS.tip.autoKern);
 
         var kernRadios = [];
         for (var i = 0; i < autoKernOptions.length; i++) {
-            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLocalizedText(autoKernOptions[i].label));
+            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLabel(autoKernOptions[i].label));
             kernRadio.value = false;
             kernRadio.index = i;
             kernRadios.push(kernRadio);
@@ -1553,7 +1553,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
 
         // 字間調整（文字ツメ・トラッキング）：各行「ラベル：［入力］」＋スライダー
         // Letter spacing (Tsume / Tracking): each row "label: [input]" then a slider
-        var spacingPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.spacingAdjust));
+        var spacingPanel = centerColumn.add("panel", undefined, getLabel(LABELS.field.spacingAdjust));
         setupPanel(spacingPanel, 6);
 
         var tsumeRow = spacingPanel.add("group");
@@ -1561,7 +1561,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         tsumeRow.add("statictext", undefined, labelText(LABELS.field.tsume));
         var tsumeInput = tsumeRow.add("edittext", undefined, "0");
         tsumeInput.characters = 4;
-        tsumeInput.helpTip = getLocalizedText(LABELS.tip.tsume);
+        tsumeInput.helpTip = getLabel(LABELS.tip.tsume);
         tsumeRow.add("statictext", undefined, "%");
         var tsumeSlider = spacingPanel.add("slider", undefined, 0, 0, 100);
         tsumeSlider.preferredSize.width = 150;
@@ -1575,25 +1575,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         trackingRow.add("statictext", undefined, labelText(LABELS.field.tracking));
         var trackingInput = trackingRow.add("edittext", undefined, "0");
         trackingInput.characters = 4;
-        trackingInput.helpTip = getLocalizedText(LABELS.tip.tracking);
+        trackingInput.helpTip = getLabel(LABELS.tip.tracking);
         var trackingSlider = spacingPanel.add("slider", undefined, 0, -100, 500);
         trackingSlider.preferredSize.width = 150;
 
-        var alignPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
+        var alignPanel = centerColumn.add("panel", undefined, getLabel(LABELS.field.align));
         alignPanel.orientation = "column";
         alignPanel.alignChildren = ["left", "top"];
         alignPanel.margins = [16, 20, 16, 12];
         alignPanel.spacing = 6;
-        alignPanel.helpTip = getLocalizedText(LABELS.tip.align);
+        alignPanel.helpTip = getLabel(LABELS.tip.align);
 
         // 3つのラジオ：欧文ベースライン／中央／その他（その他は残りをポップアップで指定）
         // Three radios: Roman baseline / Center / Other (Other picks the rest from a popup)
         // ラジオは alignId で排他制御（親が異なるため selectAlignRadio で手動切替）
         var alignRadios = [];
-        var alignRomanRadio = alignPanel.add("radiobutton", undefined, getLocalizedText(LABELS.align.roman));
+        var alignRomanRadio = alignPanel.add("radiobutton", undefined, getLabel(LABELS.align.roman));
         alignRomanRadio.alignId = "roman";
         alignRadios.push(alignRomanRadio);
-        var alignCenterRadio = alignPanel.add("radiobutton", undefined, getLocalizedText(LABELS.align.center));
+        var alignCenterRadio = alignPanel.add("radiobutton", undefined, getLabel(LABELS.align.center));
         alignCenterRadio.alignId = "center";
         alignRadios.push(alignCenterRadio);
 
@@ -1602,7 +1602,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         alignOtherRow.orientation = "row";
         alignOtherRow.alignChildren = ["left", "center"];
         alignOtherRow.spacing = 6;
-        var alignOtherRadio = alignOtherRow.add("radiobutton", undefined, getLocalizedText(LABELS.leading.other));
+        var alignOtherRadio = alignOtherRow.add("radiobutton", undefined, getLabel(LABELS.leading.other));
         alignOtherRadio.alignId = "other";
         alignRadios.push(alignOtherRadio);
         var alignOtherOptions = [
@@ -1613,7 +1613,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         ];
         var alignOtherDropdown = alignOtherRow.add("dropdownlist", undefined, []);
         for (var optionIndex = 0; optionIndex < alignOtherOptions.length; optionIndex++) {
-            alignOtherDropdown.add("item", getLocalizedText(alignOtherOptions[optionIndex].label));
+            alignOtherDropdown.add("item", getLabel(alignOtherOptions[optionIndex].label));
         }
         alignOtherDropdown.selection = 0;
         alignOtherDropdown.preferredSize.width = 110; // 少し狭く / A bit narrower
@@ -1625,7 +1625,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         rightColumn.alignChildren = ["fill", "top"];
         rightColumn.spacing = 8;
 
-        var rolePanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.role));
+        var rolePanel = rightColumn.add("panel", undefined, getLabel(LABELS.field.role));
         rolePanel.orientation = "column";
         rolePanel.alignChildren = ["center", "top"];
         rolePanel.margins = [16, 20, 16, 12];
@@ -1633,18 +1633,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         roleRow.orientation = "row";
         roleRow.spacing = 16;
         roleRow.alignment = ["center", "top"]; // 左右中央 / Horizontally centered
-        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.body));
-        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.heading));
-        rolePanel.helpTip = getLocalizedText(LABELS.tip.role);
+        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLabel(LABELS.role.body));
+        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLabel(LABELS.role.heading));
+        rolePanel.helpTip = getLabel(LABELS.tip.role);
         roleBodyRadio.helpTip = rolePanel.helpTip;
         roleHeadingRadio.helpTip = rolePanel.helpTip;
 
-        var justifyPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
+        var justifyPanel = rightColumn.add("panel", undefined, getLabel(LABELS.field.justify));
         justifyPanel.orientation = "row";
         justifyPanel.alignChildren = ["center", "center"]; // ボタン列を左右中央に / Center the button row horizontally
         justifyPanel.margins = [16, 20, 16, 12];
         justifyPanel.spacing = 7;
-        justifyPanel.helpTip = getLocalizedText(LABELS.tip.justify);
+        justifyPanel.helpTip = getLabel(LABELS.tip.justify);
 
         // アクティブな行揃え id と UI 明暗を共有（onDraw のクロージャから参照）/ Shared active id + theme (read by onDraw closures)
         var justifyState = { activeId: "", isLight: isLightUI() };
@@ -1652,7 +1652,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         for (var buttonIndex = 0; buttonIndex < justifyOptions.length; buttonIndex++) {
             var justifyOption = justifyOptions[buttonIndex];
             var justifyButton = justifyPanel.add("button", undefined, "");
-            justifyButton.helpTip = getLocalizedText(justifyOption.label);
+            justifyButton.helpTip = getLabel(justifyOption.label);
             justifyButton.preferredSize = [26, 26];
             justifyButton.minimumSize = [26, 26];
             justifyButton.maximumSize = [26, 26];
@@ -1662,12 +1662,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
             justifyButtons.push(justifyButton);
         }
 
-        var leadingPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.leading));
+        var leadingPanel = rightColumn.add("panel", undefined, getLabel(LABELS.field.leading));
         leadingPanel.orientation = "column";
         leadingPanel.alignChildren = "left";
         leadingPanel.margins = PANEL_MARGINS;
         leadingPanel.spacing = 8;
-        leadingPanel.helpTip = getLocalizedText(LABELS.tip.leading);
+        leadingPanel.helpTip = getLabel(LABELS.tip.leading);
 
         // 個別／共通はタイトルなしのパネルに入れる / Individual / Common in a titleless panel
         var modePanel = leadingPanel.add("panel", undefined, "");
@@ -1676,10 +1676,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         modePanel.alignment = ["fill", "middle"];
         modePanel.margins = [10, 6, 10, 4];
         modePanel.spacing = 12;
-        var modePerLine = modePanel.add("radiobutton", undefined, getLocalizedText(LABELS.leading.perLine));
-        var modeCommon = modePanel.add("radiobutton", undefined, getLocalizedText(LABELS.leading.common));
-        modePerLine.helpTip = getLocalizedText(LABELS.leading.tipPerLine);
-        modeCommon.helpTip = getLocalizedText(LABELS.leading.tipCommon);
+        var modePerLine = modePanel.add("radiobutton", undefined, getLabel(LABELS.leading.perLine));
+        var modeCommon = modePanel.add("radiobutton", undefined, getLabel(LABELS.leading.common));
+        modePerLine.helpTip = getLabel(LABELS.leading.tipPerLine);
+        modeCommon.helpTip = getLabel(LABELS.leading.tipCommon);
         modePerLine.value = true;
 
         // ラジオを縦一列に並べる（「その他」「自動」は同じ行にインラインで入力欄）
@@ -1723,9 +1723,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         changeAutoGroup.alignment = ["fill", "top"];
         changeAutoGroup.alignChildren = ["center", "top"];
         changeAutoGroup.margins = [0, 0, 0, 3]; // [左, 上, 右, 下]
-        var changeAutoButton = changeAutoGroup.add("button", undefined, getLocalizedText(LABELS.button.changeAuto));
+        var changeAutoButton = changeAutoGroup.add("button", undefined, getLabel(LABELS.button.changeAuto));
         changeAutoButton.preferredSize.height = 22; // プリセットボタンと高さを揃えて小さく / Match the preset buttons' height
-        changeAutoButton.helpTip = getLocalizedText(LABELS.tip.changeAuto);
+        changeAutoButton.helpTip = getLabel(LABELS.tip.changeAuto);
 
         // 行送りの基準：タイトルなしパネルとして行送りパネル内に配置（個別／共通と同じ体裁）
         // Leading basis: a titleless panel inside the leading panel (same style as Individual / Common)
@@ -1735,7 +1735,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         leadingBasisPanel.alignment = ["fill", "top"];
         leadingBasisPanel.margins = [10, 8, 10, 8];
         leadingBasisPanel.spacing = 6;
-        leadingBasisPanel.helpTip = getLocalizedText(LABELS.tip.leadingType);
+        leadingBasisPanel.helpTip = getLabel(LABELS.tip.leadingType);
         var leadingBasisRadios = [];
         for (var basisIndex = 0; basisIndex < leadingBasisChoices.length; basisIndex++) {
             var leadingBasisRadio = leadingBasisPanel.add("radiobutton", undefined, leadingBasisChoices[basisIndex].label);
@@ -1745,12 +1745,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         leadingBasisRadios[0].value = true;
 
         // 文字組みアキ量設定（ポップアップ）/ Mojikumi spacing set (popup)
-        var mojikumiPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.mojikumi));
+        var mojikumiPanel = rightColumn.add("panel", undefined, getLabel(LABELS.field.mojikumi));
         mojikumiPanel.orientation = "column";
         mojikumiPanel.alignChildren = "fill";
         mojikumiPanel.margins = PANEL_MARGINS;
         mojikumiPanel.spacing = 8;
-        mojikumiPanel.helpTip = getLocalizedText(LABELS.tip.mojikumi);
+        mojikumiPanel.helpTip = getLabel(LABELS.tip.mojikumi);
 
         var mojikumiItems = [];
         for (var mojikumiChoiceIndex = 0; mojikumiChoiceIndex < MOJIKUMI_CHOICES.length; mojikumiChoiceIndex++) mojikumiItems.push(MOJIKUMI_CHOICES[mojikumiChoiceIndex].label);
@@ -1762,17 +1762,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
         var footerGroup = palette.add("group");
         footerGroup.orientation = "row";
         footerGroup.alignment = "fill";
-        var hiddenCharButton = footerGroup.add("button", undefined, getLocalizedText(LABELS.button.hiddenChar));
+        var hiddenCharButton = footerGroup.add("button", undefined, getLabel(LABELS.button.hiddenChar));
         hiddenCharButton.alignment = ["left", "center"];
-        hiddenCharButton.helpTip = getLocalizedText(LABELS.tip.hiddenChar);
+        hiddenCharButton.helpTip = getLabel(LABELS.tip.hiddenChar);
         var footerSpacer = footerGroup.add("statictext", undefined, "");
         footerSpacer.alignment = ["fill", "center"];
-        var reloadButton = footerGroup.add("button", undefined, getLocalizedText(LABELS.button.reload));
+        var reloadButton = footerGroup.add("button", undefined, getLabel(LABELS.button.reload));
         reloadButton.alignment = ["right", "center"];
-        reloadButton.helpTip = getLocalizedText(LABELS.tip.reload);
-        var resetButton = footerGroup.add("button", undefined, getLocalizedText(LABELS.button.reset));
+        reloadButton.helpTip = getLabel(LABELS.tip.reload);
+        var resetButton = footerGroup.add("button", undefined, getLabel(LABELS.button.reset));
         resetButton.alignment = ["right", "center"];
-        resetButton.helpTip = getLocalizedText(LABELS.tip.reset);
+        resetButton.helpTip = getLabel(LABELS.tip.reset);
 
         return {
             palette: palette,
@@ -1835,16 +1835,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
 
     /* カーニング method id を表示ラベルへ / Kerning method id to a display label */
     function kernLabel(kernId) {
-        if (kernId === "mono") return getLocalizedText(LABELS.autoKern.mono);
-        if (kernId === "zero") return getLocalizedText(LABELS.autoKern.zero);
-        if (kernId === "metrics") return getLocalizedText(LABELS.autoKern.metrics);
-        if (kernId === "optical") return getLocalizedText(LABELS.autoKern.optical);
+        if (kernId === "mono") return getLabel(LABELS.autoKern.mono);
+        if (kernId === "zero") return getLabel(LABELS.autoKern.zero);
+        if (kernId === "metrics") return getLabel(LABELS.autoKern.metrics);
+        if (kernId === "optical") return getLabel(LABELS.autoKern.optical);
         return "—";
     }
 
     /* 行揃え id を表示ラベルへ / Justification id to a display label */
     function justifyLabel(justifyId) {
-        return (justifyId && LABELS.justify[justifyId]) ? getLocalizedText(LABELS.justify[justifyId]) : "—";
+        return (justifyId && LABELS.justify[justifyId]) ? getLabel(LABELS.justify[justifyId]) : "—";
     }
 
     /* "count|isAuto|leadingPt|basePt|autoAmount|leadingTypeId|paraCount|alignmentId|
@@ -2295,7 +2295,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/yukifurushima/n/n9f2078dc156f"; /* �
             var input = null;
             try {
                 var currentAmount = isNaN(lastAutoAmount) ? 175 : lastAutoAmount;
-                input = prompt(getLocalizedText(LABELS.tip.changeAuto), String(currentAmount), getLocalizedText(LABELS.button.changeAuto));
+                input = prompt(getLabel(LABELS.tip.changeAuto), String(currentAmount), getLabel(LABELS.button.changeAuto));
             } finally {
                 changeAutoBusy = false;
             }

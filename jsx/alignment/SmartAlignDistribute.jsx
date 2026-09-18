@@ -40,9 +40,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
-    var dialogOpacity = 0.97;
-    var DLG_POS_MEM_KEY = "__SmartAlignAndTileTateSimple_DlgPos__";
+    var DIALOG_OPACITY = 0.97;
+    var DIALOG_POSITION_KEY = "__SmartAlignDistribute_DialogPosition__";
     var PREVIEW_MIN_INTERVAL_MS = 80;
+    /* 計測用に一時的に作るグループの名前 / name of the throwaway measuring group */
+    var TEMP_MEASURE_GROUP_NAME = "__SmartAlignDistribute_TempMeasure__";
     var PREVIEW_SCHEDULE_MS = 60;
 
     // =========================================
@@ -53,7 +55,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         /* === ダイアログ / Dialog === */
@@ -63,6 +65,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* === 共通 / Common === */
         common: {
+            ok:     { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
 
@@ -71,7 +74,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             panel: { ja: "方向", en: "Direction" },
             auto: { ja: "自動", en: "Auto" },
             vertical: { ja: "縦", en: "Vertical" },
-            horizontal: { ja: "横", en: "Horizontal" }
+            horizontal: { ja: "横", en: "Horizontal" },
+            autoTip: {
+                ja: "選択範囲が横長なら横並び、縦長なら縦並びとして扱います。",
+                en: "Lays the objects out in a row when the selection is wider than tall, in a column otherwise."
+            },
+            verticalTip: { ja: "上から下へ縦に並べます。", en: "Stacks the objects from top to bottom." },
+            horizontalTip: { ja: "左から右へ横に並べます。", en: "Lays the objects out from left to right." }
         },
 
         /* === 間隔 / Spacing === */
@@ -94,7 +103,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             vTop: { ja: "上", en: "Top" },
             vMiddle: { ja: "中央", en: "Middle" },
             vBottom: { ja: "下", en: "Bottom" },
-            vNone: { ja: "なし", en: "None" }
+            vNone: { ja: "なし", en: "None" },
+            horizontalTip: {
+                ja: "縦に並べたときの左右の揃え方です。N／L／C／R キーでも切り替えられます。",
+                en: "Horizontal alignment used when stacking vertically. The keys N / L / C / R switch it."
+            },
+            verticalTip: {
+                ja: "横に並べたときの上下の揃え方です。N／T／M／B キーでも切り替えられます。",
+                en: "Vertical alignment used when laying out horizontally. The keys N / T / M / B switch it."
+            }
         },
 
         /* === オプション / Options === */
@@ -124,16 +141,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ドットパスのキーで LABELS から現在言語の文字列を取得（{slash}→"/"） / Resolve dotted key in LABELS for current language ({slash}→"/") */
-    function L(path) {
-        var node = LABELS;
-        var parts = path.split(".");
-        for (var i = 0; i < parts.length; i++) {
-            if (node == null) return path;
-            node = node[parts[i]];
+    function getLabel(labelPath) {
+        var labelNode = LABELS;
+        var pathKeys = labelPath.split(".");
+        for (var i = 0; i < pathKeys.length; i++) {
+            if (labelNode == null) return labelPath;
+            labelNode = labelNode[pathKeys[i]];
         }
-        if (node == null) return path;
-        var text = (node[lang] != null) ? node[lang] : node.en;
-        if (text == null) return path;
+        if (labelNode == null) return labelPath;
+        var text = (labelNode[uiLang] != null) ? labelNode[uiLang] : labelNode.en;
+        if (text == null) return labelPath;
         return String(text).replace(/\{slash\}/g, "/");
     }
 
@@ -213,46 +230,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ダイアログ位置をセッション内に復元 / Load dialog position within session */
     function loadDialogPosition() {
-        try {
-            var savedPosition = $.global[DLG_POS_MEM_KEY];
-            if (savedPosition && savedPosition.length === 2) return [savedPosition[0], savedPosition[1]];
-        } catch (e) { }
-        return null;
+        var savedPosition = $.global[DIALOG_POSITION_KEY];
+        return (savedPosition && savedPosition.length === 2) ? [savedPosition[0], savedPosition[1]] : null;
     }
 
     /* ダイアログ位置をセッション内に保存 / Save dialog position within session */
-    function saveDialogPosition(location) {
-        try {
-            if (!location || location.length !== 2) return;
-            $.global[DLG_POS_MEM_KEY] = [Math.round(location[0]), Math.round(location[1])];
-        } catch (e) { }
+    function saveDialogPosition(dialogLocation) {
+        if (!dialogLocation || dialogLocation.length !== 2) return;
+        $.global[DIALOG_POSITION_KEY] = [Math.round(dialogLocation[0]), Math.round(dialogLocation[1])];
     }
 
     /* クリップグループのクリッピングパスを取得（無ければ null） / Get clipping path of a clip group (null if none) */
-    function getClippingPath(item) {
-        if (!item) return null;
-        try {
-            if (item.typename !== "GroupItem" || !item.clipped) return null;
-            var children = item.pageItems;
-            for (var i = 0; i < children.length; i++) {
-                var child = children[i];
+    function getClippingPath(targetItem) {
+        if (!targetItem || targetItem.typename !== "GroupItem" || !targetItem.clipped) return null;
+
+        var children = targetItem.pageItems;
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+            /* clipping を持たない種類のアイテムが混ざると例外になる / some item kinds do not expose clipping */
+            try {
+                if (child.clipping === true) return child;
+            } catch (e) { }
+            /* 複合パスはマスク本体に clipping が無く、内部パスに付く / Compound path: clipping flag sits on inner path, not the wrapper */
+            if (child.typename === "CompoundPathItem" && child.pathItems && child.pathItems.length) {
                 try {
-                    if (child.clipping === true) return child;
-                } catch (eClip) { }
-                /* 複合パスはマスク本体に clipping が無く、内部パスに付く / Compound path: clipping flag sits on inner path, not the wrapper */
-                if (child.typename === "CompoundPathItem" && child.pathItems && child.pathItems.length) {
-                    try { if (child.pathItems[0].clipping === true) return child; } catch (eCompound) { }
-                }
+                    if (child.pathItems[0].clipping === true) return child;
+                } catch (e) { }
             }
-        } catch (e) { }
+        }
         return null;
     }
 
     /* アイテムの境界を取得（クリップグループはクリッピングパスを対象） / Get item bounds (clip group → its clipping path) */
-    function getItemBounds(item, usePreviewBounds) {
-        var clipPath = getClippingPath(item);
-        if (clipPath) item = clipPath;
-        return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
+    function getItemBounds(pageItem, usePreviewBounds) {
+        var clipPath = getClippingPath(pageItem);
+        var measuredItem = clipPath ? clipPath : pageItem;
+        return usePreviewBounds ? measuredItem.visibleBounds : measuredItem.geometricBounds;
     }
 
     /* 選択範囲の幅・高さスパンを取得 / Get the span of a selection */
@@ -349,37 +362,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
     }
 
-    /* N/L/C/R/T/M/B キーで揃えラジオを切替 / Keyboard handler for align radio switching */
-    function addAlignKeyHandler(target, getDirection, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, onUpdate) {
-        target.addEventListener("keydown", function (event) {
-            var keyName = event.keyName;
-            var direction = (typeof getDirection === "function") ? getDirection() : "vertical";
+    /* N/getLabel/C/R/T/M/B キーで揃えラジオを切替 / Keyboard handler for align radio switching */
+    /* 揃えのショートカットキーと、対応するラジオのキー / Shortcut keys mapped to a radio in each row */
+    var HORIZONTAL_ALIGN_RADIO_BY_KEY = { "N": "none", "L": "left", "C": "center", "R": "right" };
+    var VERTICAL_ALIGN_RADIO_BY_KEY = { "N": "none", "T": "top", "M": "middle", "B": "bottom" };
 
-            function applyAndUpdate() {
-                event.preventDefault();
-                if (typeof onUpdate === "function") onUpdate();
+    /* N / L / C / R / T / M / B キーで揃えのラジオを切り替える / Switch the align radios with the shortcut keys
+       alignRadios: { horizontal: {none,left,center,right}, vertical: {none,top,middle,bottom}, getDirection } */
+    function addAlignKeyHandler(keyTarget, alignRadios, onUpdate) {
+        keyTarget.addEventListener("keydown", function (event) {
+            /* 横並びのときは上下の揃え、縦並びのときは左右の揃えを操作する
+               A horizontal layout adjusts the vertical align, and vice versa */
+            var isHorizontalLayout = (alignRadios.getDirection() === "horizontal");
+            var radioByKey = isHorizontalLayout ? VERTICAL_ALIGN_RADIO_BY_KEY : HORIZONTAL_ALIGN_RADIO_BY_KEY;
+            var radioSet = isHorizontalLayout ? alignRadios.vertical : alignRadios.horizontal;
+
+            var radioKey = radioByKey[event.keyName];
+            if (!radioKey) return;
+
+            for (var key in radioSet) {
+                radioSet[key].value = (key === radioKey);
             }
-
-            /* "なし" は両方向共通 / "None" works for both axes */
-            if (keyName === "N") {
-                if (direction === "horizontal") rbVNone.value = true;
-                else rbHNone.value = true;
-                applyAndUpdate();
-                return;
-            }
-
-            /* 縦並び: L/C/R で左右揃え / Vertical stacking: L/C/R for horizontal alignment */
-            if (direction !== "horizontal") {
-                if (keyName === "L") { rbHLeft.value = true; applyAndUpdate(); return; }
-                if (keyName === "C") { rbHCenter.value = true; applyAndUpdate(); return; }
-                if (keyName === "R") { rbHRight.value = true; applyAndUpdate(); return; }
-                return;
-            }
-
-            /* 横並び: T/M/B で上下揃え / Horizontal stacking: T/M/B for vertical alignment */
-            if (keyName === "T") { rbVTop.value = true; applyAndUpdate(); return; }
-            if (keyName === "M") { rbVMiddle.value = true; applyAndUpdate(); return; }
-            if (keyName === "B") { rbVBottom.value = true; applyAndUpdate(); return; }
+            event.preventDefault();
+            if (onUpdate) onUpdate();
         });
     }
 
@@ -413,21 +418,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         if (!containerHasText(originalItem)) return null;
 
-        var doc = activeDocument;
+        var doc = app.activeDocument;
         var measureGroup = null;
         try {
             var layer = null;
             try { layer = originalItem.layer; } catch (eLayer) { }
             if (!layer) layer = doc.activeLayer;
             measureGroup = layer.groupItems.add();
-            try { measureGroup.name = "__SAT_TempMeasure__"; } catch (_) { }
+            measureGroup.name = TEMP_MEASURE_GROUP_NAME;
 
             var duplicatedItem = null;
             try {
                 duplicatedItem = originalItem.duplicate(measureGroup, ElementPlacement.PLACEATEND);
             } catch (eDup) {
                 duplicatedItem = originalItem.duplicate();
-                try { duplicatedItem.move(measureGroup, ElementPlacement.PLACEATEND); } catch (_) { }
+                duplicatedItem.move(measureGroup, ElementPlacement.PLACEATEND);
             }
 
             outlineAllTextInContainer(duplicatedItem);
@@ -575,19 +580,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* メインダイアログを構築して整列/分布を実行 / Build the main dialog and run align/distribute */
     function showArrangeDialog() {
-        var dialog = new Window("dialog", L('dialog.title') + ' ' + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.opacity = dialogOpacity;
+        var alignDialog = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        alignDialog.orientation = "column";
+        alignDialog.alignChildren = "fill";
+        alignDialog.opacity = DIALOG_OPACITY;
 
         var lastPosition = loadDialogPosition();
-        if (lastPosition) dialog.location = lastPosition;
+        if (lastPosition) alignDialog.location = lastPosition;
 
         /* キャンセル時に復元するため現在のプリファレンスを保存 / Preserve preference for cancel */
         var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
 
         /* 選択スナップショット / Snapshot selection */
-        var originalSelection = activeDocument.selection.slice();
+        var originalSelection = app.activeDocument.selection.slice();
         var previewState = { isUndo: false };
         var detectedDirection = detectDirection(originalSelection);
 
@@ -598,13 +603,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* ---- UI: 方向 / Direction ---- */
-        var directionPanel = dialog.add("panel", undefined, L('direction.panel'));
+        var directionPanel = alignDialog.add("panel", undefined, getLabel('direction.panel'));
         directionPanel.orientation = "row";
         directionPanel.alignChildren = ["center", "center"];
         directionPanel.margins = [15, 20, 15, 10];
-        var rbDirAuto = directionPanel.add("radiobutton", undefined, L('direction.auto'));
-        var rbDirVertical = directionPanel.add("radiobutton", undefined, L('direction.vertical'));
-        var rbDirHorizontal = directionPanel.add("radiobutton", undefined, L('direction.horizontal'));
+        var rbDirAuto = directionPanel.add("radiobutton", undefined, getLabel('direction.auto'));
+        rbDirAuto.helpTip = getLabel('direction.autoTip');
+        var rbDirVertical = directionPanel.add("radiobutton", undefined, getLabel('direction.vertical'));
+        rbDirVertical.helpTip = getLabel('direction.verticalTip');
+        var rbDirHorizontal = directionPanel.add("radiobutton", undefined, getLabel('direction.horizontal'));
+        rbDirHorizontal.helpTip = getLabel('direction.horizontalTip');
         rbDirVertical.value = true; /* デフォルトを「縦」に / Default to Vertical */
 
         /* 選択中のラジオから実効方向を返す（自動は判定結果） / Resolve effective direction from radios (auto → detected) */
@@ -615,21 +623,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* ---- UI: 間隔 / Spacing ---- */
-        var spacingPanel = dialog.add("panel", undefined, L('spacing.label'));
+        var spacingPanel = alignDialog.add("panel", undefined, getLabel('spacing.label'));
         spacingPanel.orientation = "column";
         spacingPanel.alignChildren = ["center", "center"];
         spacingPanel.margins = [15, 20, 15, 10];
-        var spacingRow = spacingPanel.add("group");
-        spacingRow.orientation = "row";
-        spacingRow.alignChildren = ["left", "center"];
-        var spacingInput = spacingRow.add("edittext", undefined, "0");
+        var spacingRowGroup = spacingPanel.add("group");
+        spacingRowGroup.orientation = "row";
+        spacingRowGroup.alignChildren = ["left", "center"];
+        var spacingInput = spacingRowGroup.add("edittext", undefined, "0");
         spacingInput.characters = 3;
-        spacingInput.helpTip = L('spacing.tip');
-        spacingRow.add("statictext", undefined, getCurrentUnitLabel());
+        spacingInput.helpTip = getLabel('spacing.tip');
+        spacingRowGroup.add("statictext", undefined, getCurrentUnitLabel());
         changeValueByArrowKey(spacingInput, true, function () { requestPreviewUpdate(); });
 
         /* ---- UI: 揃え / Alignment ---- */
-        var alignPanel = dialog.add("panel", undefined, "");
+        var alignPanel = alignDialog.add("panel", undefined, "");
         alignPanel.orientation = "column";
         alignPanel.alignChildren = ["left", "center"];
         alignPanel.margins = [15, 20, 15, 10];
@@ -637,20 +645,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var hAlignGroup = alignPanel.add("group");
         hAlignGroup.orientation = "row";
         hAlignGroup.alignChildren = ["left", "center"];
-        var rbHNone = hAlignGroup.add("radiobutton", undefined, L('align.hNone'));
-        var rbHLeft = hAlignGroup.add("radiobutton", undefined, L('align.hLeft'));
-        var rbHCenter = hAlignGroup.add("radiobutton", undefined, L('align.hCenter'));
-        var rbHRight = hAlignGroup.add("radiobutton", undefined, L('align.hRight'));
+        var rbHNone = hAlignGroup.add("radiobutton", undefined, getLabel('align.hNone'));
+        var rbHLeft = hAlignGroup.add("radiobutton", undefined, getLabel('align.hLeft'));
+        var rbHCenter = hAlignGroup.add("radiobutton", undefined, getLabel('align.hCenter'));
+        var rbHRight = hAlignGroup.add("radiobutton", undefined, getLabel('align.hRight'));
         rbHCenter.value = true; /* デフォルトを「中央」に / Default to Center */
+        rbHNone.helpTip = rbHLeft.helpTip = rbHCenter.helpTip = rbHRight.helpTip = getLabel('align.horizontalTip');
 
         var vAlignGroup = alignPanel.add("group");
         vAlignGroup.orientation = "row";
         vAlignGroup.alignChildren = ["left", "center"];
-        var rbVNone = vAlignGroup.add("radiobutton", undefined, L('align.vNone'));
-        var rbVTop = vAlignGroup.add("radiobutton", undefined, L('align.vTop'));
-        var rbVMiddle = vAlignGroup.add("radiobutton", undefined, L('align.vMiddle'));
-        var rbVBottom = vAlignGroup.add("radiobutton", undefined, L('align.vBottom'));
+        var rbVNone = vAlignGroup.add("radiobutton", undefined, getLabel('align.vNone'));
+        var rbVTop = vAlignGroup.add("radiobutton", undefined, getLabel('align.vTop'));
+        var rbVMiddle = vAlignGroup.add("radiobutton", undefined, getLabel('align.vMiddle'));
+        var rbVBottom = vAlignGroup.add("radiobutton", undefined, getLabel('align.vBottom'));
         rbVMiddle.value = true;
+        rbVNone.helpTip = rbVTop.helpTip = rbVMiddle.helpTip = rbVBottom.helpTip = getLabel('align.verticalTip');
+
+        /* キーハンドラーへ渡すラジオ一式 / The radio set handed to the key handler */
+        var alignRadios = {
+            horizontal: { none: rbHNone, left: rbHLeft, center: rbHCenter, right: rbHRight },
+            vertical: { none: rbVNone, top: rbVTop, middle: rbVMiddle, bottom: rbVBottom },
+            getDirection: getEffectiveDirection
+        };
 
         rbVNone.onClick = function () { requestPreviewUpdate(); };
         rbVTop.onClick = function () { requestPreviewUpdate(); };
@@ -662,35 +679,35 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbHNone.onClick = function () { requestPreviewUpdate(); };
 
         /* ---- UI: オプション / Options ---- */
-        var optionsGroup = dialog.add("group");
+        var optionsGroup = alignDialog.add("group");
         optionsGroup.orientation = "column";
         optionsGroup.alignChildren = ["left", "center"];
         optionsGroup.alignment = ["fill", "top"];
         optionsGroup.margins = [15, 5, 15, 5];
 
-        var usePreviewBoundsCheckbox = optionsGroup.add("checkbox", undefined, L('options.useBounds'));
+        var usePreviewBoundsCheckbox = optionsGroup.add("checkbox", undefined, getLabel('options.useBounds'));
         usePreviewBoundsCheckbox.value = true;
-        usePreviewBoundsCheckbox.helpTip = L('options.useBoundsTip');
+        usePreviewBoundsCheckbox.helpTip = getLabel('options.useBoundsTip');
         usePreviewBoundsCheckbox.onClick = function () {
             /* 境界モードが変わるとアウトライン計測結果も再計算 / Outline cache invalid when bounds mode changes */
             outlineMeasureCache = [];
             requestPreviewUpdate();
         };
 
-        var measureTextOutlineCheckbox = optionsGroup.add("checkbox", undefined, L('options.measureText'));
+        var measureTextOutlineCheckbox = optionsGroup.add("checkbox", undefined, getLabel('options.measureText'));
         measureTextOutlineCheckbox.value = false;
-        measureTextOutlineCheckbox.helpTip = L('options.measureTextTip');
+        measureTextOutlineCheckbox.helpTip = getLabel('options.measureTextTip');
 
-        var randomCheckbox = optionsGroup.add("checkbox", undefined, L('options.random'));
+        var randomCheckbox = optionsGroup.add("checkbox", undefined, getLabel('options.random'));
         randomCheckbox.value = false;
-        randomCheckbox.helpTip = L('options.randomTip');
+        randomCheckbox.helpTip = getLabel('options.randomTip');
 
         /* ---- UI: ボタン / Buttons ---- */
-        var buttonGroup = dialog.add("group");
-        buttonGroup.alignment = "center";
-        buttonGroup.alignChildren = ["center", "center"];
-        buttonGroup.add("button", undefined, L('common.cancel'), { name: "cancel" });
-        buttonGroup.add("button", undefined, "OK", { name: "ok" });
+        var btnRowGroup = alignDialog.add("group");
+        btnRowGroup.alignment = "center";
+        btnRowGroup.alignChildren = ["center", "center"];
+        btnRowGroup.add("button", undefined, getLabel('common.cancel'), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel('common.ok'), { name: "ok" });
 
         /* ---- 内部状態 / Internal state ---- */
         var randomOrderCache = null;
@@ -766,11 +783,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             vAlignGroup.visible = true;
 
             if (direction === "horizontal") {
-                alignPanel.text = L('align.verticalTitle');
+                alignPanel.text = getLabel('align.verticalTitle');
                 hAlignGroup.enabled = false;
                 vAlignGroup.enabled = true;
             } else {
-                alignPanel.text = L('align.horizontalTitle');
+                alignPanel.text = getLabel('align.horizontalTitle');
                 hAlignGroup.enabled = true;
                 vAlignGroup.enabled = false;
             }
@@ -780,7 +797,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 measureTextOutlineCheckbox.enabled = (direction !== "horizontal") && selectionHasText;
             } catch (e) { }
 
-            try { dialog.layout.layout(true); } catch (e) { }
+            try { alignDialog.layout.layout(true); } catch (e) { }
         }
 
         /* ---- プレビュー更新（前回 preview を app.undo() で巻き戻して再生成） / Preview update via app.undo() ---- */
@@ -819,8 +836,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* ---- イベントバインド / Event bindings ---- */
-        addAlignKeyHandler(dialog, getEffectiveDirection, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, requestPreviewUpdate);
-        addAlignKeyHandler(spacingInput, getEffectiveDirection, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, requestPreviewUpdate);
+        addAlignKeyHandler(alignDialog, alignRadios, requestPreviewUpdate);
+        addAlignKeyHandler(spacingInput, alignRadios, requestPreviewUpdate);
 
         /* 方向変更時に揃えUIを同期してプレビュー更新 / On direction change, sync align UI and refresh preview */
         function onDirChanged() { syncAlignUI(); requestPreviewUpdate(); }
@@ -843,13 +860,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         requestPreviewUpdate();
         spacingInput.active = true;
 
-        var dialogResult = dialog.show();
+        var dialogResult = alignDialog.show();
         try { if (__previewTaskId) app.cancelTask(__previewTaskId); } catch (e) { }
-        saveDialogPosition(dialog.location);
+        saveDialogPosition(alignDialog.location);
 
         if (dialogResult !== 1) {
             /* キャンセル: プレビューを undo してプリファレンスも戻す / Cancel: undo preview & restore preference */
-            cleanupPreview(previewState, activeDocument);
+            cleanupPreview(previewState, app.activeDocument);
             app.preferences.setBooleanPreference("includeStrokeInBounds", originalIncludeStrokeInBounds);
             app.redraw();
             return false;
@@ -859,7 +876,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         undoPreview(previewState);
         try { app.preferences.setBooleanPreference("includeStrokeInBounds", usePreviewBoundsCheckbox.value); } catch (e) { }
         applyLayoutToSelection();
-        try { app.redraw(); } catch (e) { }
+        app.redraw();
         return true;
     }
 
@@ -870,14 +887,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 選択を検証してダイアログを起動 / Validate selection and launch the dialog */
     function main() {
         try {
-            var selectedItems = activeDocument.selection;
+            var selectedItems = app.activeDocument.selection;
             if (!selectedItems || selectedItems.length === 0) {
-                alert(L('error.needSelection'));
+                alert(getLabel('error.needSelection'));
                 return;
             }
             showArrangeDialog();
         } catch (e) {
-            alert(L('error.prefix') + e.message);
+            alert(getLabel('error.prefix') + e.message);
         }
     }
 

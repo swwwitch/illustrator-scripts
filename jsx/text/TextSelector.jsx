@@ -203,7 +203,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -224,7 +224,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L("error.noDocument"));
+            alert(getLabel("error.noDocument"));
             return;
         }
 
@@ -448,55 +448,55 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ダイアログボックス / Dialog box
         // =========================================
 
-        var dialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
 
         /* 選択条件パネルを作成 / Create selection criteria panel */
-        var selectionPanel = dialog.add("panel", undefined, L("panel.selection"));
+        var selectionPanel = dialog.add("panel", undefined, getLabel("panel.selection"));
         setupPanelLayout(selectionPanel, 10);
         selectionPanel.margins = [15, 20, 15, 15];
 
         /* 対象アートボードパネル / Target artboard panel */
-        var artboardScopePanel = selectionPanel.add("panel", undefined, L("panel.artboardScope"));
+        var artboardScopePanel = selectionPanel.add("panel", undefined, getLabel("panel.artboardScope"));
         artboardScopePanel.orientation = "row";
         artboardScopePanel.alignChildren = ["left", "center"];
         artboardScopePanel.alignment = "fill";
         artboardScopePanel.margins = [15, 20, 15, 15];
         artboardScopePanel.spacing = 20;
 
-        var rbArtboardAll = artboardScopePanel.add("radiobutton", undefined, L("artboard.all"));
-        var rbArtboardCurrent = artboardScopePanel.add("radiobutton", undefined, L("artboard.current"));
+        var rbArtboardAll = artboardScopePanel.add("radiobutton", undefined, getLabel("artboard.all"));
+        var rbArtboardCurrent = artboardScopePanel.add("radiobutton", undefined, getLabel("artboard.current"));
         rbArtboardAll.value = true;
 
-        setHelpTip(rbArtboardAll, L("tip.artboardAll"));
-        setHelpTip(rbArtboardCurrent, L("tip.artboardCurrent"));
+        setHelpTip(rbArtboardAll, getLabel("tip.artboardAll"));
+        setHelpTip(rbArtboardCurrent, getLabel("tip.artboardCurrent"));
 
         setupExclusiveRadioButtons([rbArtboardAll, rbArtboardCurrent]);
 
         /* 属性選択パネル / Attribute selection panel */
-        var attributePanel = selectionPanel.add("panel", undefined, L("panel.attribute"));
+        var attributePanel = selectionPanel.add("panel", undefined, getLabel("panel.attribute"));
         setupPanelLayout(attributePanel, 6);
         attributePanel.enabled = hasInitialSelection;
 
         var ATTRIBUTE_LABEL_WIDTH = 150;
-        var fontFamilyPreviewRow = addRadioWithPreview(attributePanel, L("attribute.fontFamily"), initialAttributePreview.family, ATTRIBUTE_LABEL_WIDTH);
-        var fontFamilyStylePreviewRow = addRadioWithPreview(attributePanel, L("attribute.fontFamilyStyle"), initialAttributePreview.familyStyle, ATTRIBUTE_LABEL_WIDTH);
-        var fontFamilyStyleSizePreviewRow = addRadioWithPreview(attributePanel, L("attribute.fontFamilyStyleSize"), initialAttributePreview.familyStyleSize, ATTRIBUTE_LABEL_WIDTH);
-        var fontSizePreviewRow = addRadioWithPreview(attributePanel, L("attribute.fontSize"), initialAttributePreview.size, ATTRIBUTE_LABEL_WIDTH);
+        var fontFamilyPreviewRow = addRadioWithPreview(attributePanel, getLabel("attribute.fontFamily"), initialAttributePreview.family, ATTRIBUTE_LABEL_WIDTH);
+        var fontFamilyStylePreviewRow = addRadioWithPreview(attributePanel, getLabel("attribute.fontFamilyStyle"), initialAttributePreview.familyStyle, ATTRIBUTE_LABEL_WIDTH);
+        var fontFamilyStyleSizePreviewRow = addRadioWithPreview(attributePanel, getLabel("attribute.fontFamilyStyleSize"), initialAttributePreview.familyStyleSize, ATTRIBUTE_LABEL_WIDTH);
+        var fontSizePreviewRow = addRadioWithPreview(attributePanel, getLabel("attribute.fontSize"), initialAttributePreview.size, ATTRIBUTE_LABEL_WIDTH);
 
         var rbFontFamily = fontFamilyPreviewRow.radioButton;
         var rbFontFamilyStyle = fontFamilyStylePreviewRow.radioButton;
         var rbFontFamilyStyleSize = fontFamilyStyleSizePreviewRow.radioButton;
         var rbFontSize = fontSizePreviewRow.radioButton;
-        var rbTextFillColor = addRadioOnlyRow(attributePanel, L("attribute.textFillColor"), ATTRIBUTE_LABEL_WIDTH).radioButton;
-        var opacityPreviewRow = addRadioWithPreview(attributePanel, L("attribute.opacity"), initialAttributePreview.opacity, ATTRIBUTE_LABEL_WIDTH);
+        var rbTextFillColor = addRadioOnlyRow(attributePanel, getLabel("attribute.textFillColor"), ATTRIBUTE_LABEL_WIDTH).radioButton;
+        var opacityPreviewRow = addRadioWithPreview(attributePanel, getLabel("attribute.opacity"), initialAttributePreview.opacity, ATTRIBUTE_LABEL_WIDTH);
         var rbOpacity = opacityPreviewRow.radioButton;
 
-        setHelpTip(rbFontFamily, L("tip.fontFamily"));
-        setHelpTip(rbFontFamilyStyle, L("tip.fontFamilyStyle"));
-        setHelpTip(rbFontFamilyStyleSize, L("tip.fontFamilyStyleSize"));
-        setHelpTip(rbFontSize, L("tip.fontSize"));
-        setHelpTip(rbTextFillColor, L("tip.textFillColor"));
-        setHelpTip(rbOpacity, L("tip.opacity"));
+        setHelpTip(rbFontFamily, getLabel("tip.fontFamily"));
+        setHelpTip(rbFontFamilyStyle, getLabel("tip.fontFamilyStyle"));
+        setHelpTip(rbFontFamilyStyleSize, getLabel("tip.fontFamilyStyleSize"));
+        setHelpTip(rbFontSize, getLabel("tip.fontSize"));
+        setHelpTip(rbTextFillColor, getLabel("tip.textFillColor"));
+        setHelpTip(rbOpacity, getLabel("tip.opacity"));
 
         /* テキスト種類と文字列条件を横並びに配置 / Arrange text type and string condition panels side by side */
         var textConditionGroup = selectionPanel.add("group");
@@ -505,19 +505,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         textConditionGroup.alignment = "fill";
 
         /* テキスト種類パネルを追加 / Add text type panel */
-        var textTypePanel = textConditionGroup.add("panel", undefined, L("panel.textType"));
+        var textTypePanel = textConditionGroup.add("panel", undefined, getLabel("panel.textType"));
         setupPanelLayout(textTypePanel, 6);
 
         /* テキスト種類ラジオボタン / Text type radio buttons */
-        var rbAllText = textTypePanel.add("radiobutton", undefined, L("textType.all"));
-        var rbPointText = textTypePanel.add("radiobutton", undefined, L("textType.point"));
-        var rbAreaText = textTypePanel.add("radiobutton", undefined, L("textType.area"));
-        var rbPathText = textTypePanel.add("radiobutton", undefined, L("textType.path"));
+        var rbAllText = textTypePanel.add("radiobutton", undefined, getLabel("textType.all"));
+        var rbPointText = textTypePanel.add("radiobutton", undefined, getLabel("textType.point"));
+        var rbAreaText = textTypePanel.add("radiobutton", undefined, getLabel("textType.area"));
+        var rbPathText = textTypePanel.add("radiobutton", undefined, getLabel("textType.path"));
 
-        setHelpTip(rbAllText, L("tip.allText"));
-        setHelpTip(rbPointText, L("tip.pointText"));
-        setHelpTip(rbAreaText, L("tip.areaText"));
-        setHelpTip(rbPathText, L("tip.pathText"));
+        setHelpTip(rbAllText, getLabel("tip.allText"));
+        setHelpTip(rbPointText, getLabel("tip.pointText"));
+        setHelpTip(rbAreaText, getLabel("tip.areaText"));
+        setHelpTip(rbPathText, getLabel("tip.pathText"));
 
         /* 初期選択を設定（選択があれば「＋スタイルとサイズ」、なければ「すべて」） / Set initial selection */
         if (hasInitialSelection) {
@@ -527,13 +527,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 文字列条件パネルを作成 / Create string condition panel */
-        var textMatchPanelTitle = L("panel.textMatch");
+        var textMatchPanelTitle = getLabel("panel.textMatch");
         var textMatchPanel = textConditionGroup.add("panel", undefined, textMatchPanelTitle);
         setupPanelLayout(textMatchPanel, 6);
 
         var textKeywordInput = textMatchPanel.add("edittext", undefined, initialString);
         textKeywordInput.characters = 22;
-        setHelpTip(textKeywordInput, L("tip.keywordInput"));
+        setHelpTip(textKeywordInput, getLabel("tip.keywordInput"));
 
         var textMatchOptionsGroup = textMatchPanel.add("group");
         textMatchOptionsGroup.orientation = "row";
@@ -553,19 +553,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         textMatchRightColumnGroup.orientation = "column";
         textMatchRightColumnGroup.alignChildren = "left";
 
-        var rbExactMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, L("match.exact"));
-        var rbLooseMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, L("match.contains"));
+        var rbExactMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, getLabel("match.exact"));
+        var rbLooseMatch = textMatchLeftColumnGroup.add("radiobutton", undefined, getLabel("match.contains"));
 
-        var rbStartsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, L("match.startsWith"));
-        var rbEndsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, L("match.endsWith"));
+        var rbStartsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, getLabel("match.startsWith"));
+        var rbEndsWith = textMatchCenterColumnGroup.add("radiobutton", undefined, getLabel("match.endsWith"));
 
-        var rbRegexMatch = textMatchRightColumnGroup.add("radiobutton", undefined, L("match.regex"));
+        var rbRegexMatch = textMatchRightColumnGroup.add("radiobutton", undefined, getLabel("match.regex"));
 
-        setHelpTip(rbExactMatch, L("tip.exactMatch"));
-        setHelpTip(rbStartsWith, L("tip.startsWith"));
-        setHelpTip(rbEndsWith, L("tip.endsWith"));
-        setHelpTip(rbLooseMatch, L("tip.containsMatch"));
-        setHelpTip(rbRegexMatch, L("tip.regexMatch"));
+        setHelpTip(rbExactMatch, getLabel("tip.exactMatch"));
+        setHelpTip(rbStartsWith, getLabel("tip.startsWith"));
+        setHelpTip(rbEndsWith, getLabel("tip.endsWith"));
+        setHelpTip(rbLooseMatch, getLabel("tip.containsMatch"));
+        setHelpTip(rbRegexMatch, getLabel("tip.regexMatch"));
 
         /* 選択条件ラジオボタンをまとめる / Collect selection condition radio buttons */
         var selectionRadios = [
@@ -725,14 +725,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 文字列条件の入力を検証 / Validate string condition input */
         function validateTextMatchInput(keyword, matchMode) {
             if (!keyword) {
-                alert(L("error.emptyKeyword"));
+                alert(getLabel("error.emptyKeyword"));
                 return null;
             }
             if (matchMode === "regex") {
                 try {
                     return { regex: new RegExp(keyword) };
                 } catch (regexError) {
-                    alert(L("error.invalidRegex"));
+                    alert(getLabel("error.invalidRegex"));
                     return null;
                 }
             }
@@ -777,24 +777,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 選択後の処理パネルを作成 / Create after-selection processing panel */
-        var optionPanel = dialog.add("panel", undefined, L("panel.postProcess"));
+        var optionPanel = dialog.add("panel", undefined, getLabel("panel.postProcess"));
         setupPanelLayout(optionPanel, 6);
         /* ドキュメント内に TextFrame が 0 件なら後処理は無意味なのでディム / Disable post-process when document has no text frames */
         optionPanel.enabled = app.activeDocument.textFrames.length > 0;
 
-        var rbNoPostProcess = optionPanel.add("radiobutton", undefined, L("postProcess.none"));
-        var rbHide = optionPanel.add("radiobutton", undefined, L("postProcess.hide"));
-        var rbHideOthers = optionPanel.add("radiobutton", undefined, L("postProcess.hideOthers"));
-        var rbMove = optionPanel.add("radiobutton", undefined, L("postProcess.moveToTextLayer"));
-        var rbBulkEdit = optionPanel.add("radiobutton", undefined, L("postProcess.bulkEdit"));
+        var rbNoPostProcess = optionPanel.add("radiobutton", undefined, getLabel("postProcess.none"));
+        var rbHide = optionPanel.add("radiobutton", undefined, getLabel("postProcess.hide"));
+        var rbHideOthers = optionPanel.add("radiobutton", undefined, getLabel("postProcess.hideOthers"));
+        var rbMove = optionPanel.add("radiobutton", undefined, getLabel("postProcess.moveToTextLayer"));
+        var rbBulkEdit = optionPanel.add("radiobutton", undefined, getLabel("postProcess.bulkEdit"));
 
         rbNoPostProcess.value = true;
 
-        setHelpTip(rbNoPostProcess, L("tip.noPostProcess"));
-        setHelpTip(rbHide, L("tip.hideAfterSelection"));
-        setHelpTip(rbHideOthers, L("tip.hideOthers"));
-        setHelpTip(rbMove, L("tip.moveToTextLayer"));
-        setHelpTip(rbBulkEdit, L("tip.bulkEdit"));
+        setHelpTip(rbNoPostProcess, getLabel("tip.noPostProcess"));
+        setHelpTip(rbHide, getLabel("tip.hideAfterSelection"));
+        setHelpTip(rbHideOthers, getLabel("tip.hideOthers"));
+        setHelpTip(rbMove, getLabel("tip.moveToTextLayer"));
+        setHelpTip(rbBulkEdit, getLabel("tip.bulkEdit"));
 
         setupExclusiveRadioButtons([
             rbNoPostProcess,
@@ -833,7 +833,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 return;
             }
 
-            var bulkDialog = new Window("dialog", L("dialog.bulkEditTitle"));
+            var bulkDialog = new Window("dialog", getLabel("dialog.bulkEditTitle"));
             bulkDialog.orientation = "column";
             bulkDialog.alignChildren = "fill";
             bulkDialog.spacing = 10;
@@ -848,7 +848,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var bulkButtonGroup = bulkDialog.add("group");
             bulkButtonGroup.alignment = "right";
-            var bulkCancelBtn = bulkButtonGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
+            var bulkCancelBtn = bulkButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
             var bulkOkBtn = bulkButtonGroup.add("button", undefined, "OK", { name: "ok" });
 
             bulkOkBtn.onClick = function () {
@@ -1084,13 +1084,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
 
-        var cancelBtn = buttonGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
+        var cancelBtn = buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var okBtn = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         /* 選択件数を確定し後処理を適用（0件ならアラート） / Finalize by count, then apply post-process (alert if none) */
         function finalizeSelection(count, postProcessMode) {
             if (count === 0) {
-                alert(L("error.noMatch"));
+                alert(getLabel("error.noMatch"));
                 return;
             }
             applyPostProcessToSelection(postProcessMode);

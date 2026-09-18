@@ -37,13 +37,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* ç´¹ä
 
 (function () {
 
-    var lang = (function () {
+    var uiLang = (function () {
         /* æ—¥æœ¬èªž / English */
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     })();
 
-    function L(obj) {
-        return obj[lang] || obj.en;
+    function getLabel(obj) {
+        return obj[uiLang] || obj.en;
     }
 
     var LABELS = {
@@ -63,22 +63,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* ç´¹ä
     // =============================================================
 
     function showSwapDialog() {
-        var dialog = new Window("dialog", L(LABELS.dialogTitle));
+        var dialog = new Window("dialog", getLabel(LABELS.dialogTitle));
         dialog.alignChildren = "fill";
 
-        var targetPanel = dialog.add("panel", undefined, L(LABELS.panelTarget));
+        var targetPanel = dialog.add("panel", undefined, getLabel(LABELS.panelTarget));
         targetPanel.orientation = "column";
         targetPanel.alignChildren = "left";
         targetPanel.margins = [15, 20, 15, 15];
 
-        var radioContents = targetPanel.add("radiobutton", undefined, L(LABELS.modeContents));
-        var radioFormat = targetPanel.add("radiobutton", undefined, L(LABELS.modeFormat));
-        var radioPosition = targetPanel.add("radiobutton", undefined, L(LABELS.modePosition));
+        var radioContents = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modeContents));
+        var radioFormat = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modeFormat));
+        var radioPosition = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modePosition));
         radioContents.value = true;
 
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "right";
-        var cancelButton = buttonGroup.add("button", undefined, L(LABELS.cancel), { name: "cancel" });
+        var cancelButton = buttonGroup.add("button", undefined, getLabel(LABELS.cancel), { name: "cancel" });
         var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         if (dialog.show() !== 1) {
@@ -175,7 +175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* ç´¹ä
 
     function main() {
         if (app.documents.length === 0) {
-            alert(L(LABELS.noDocument));
+            alert(getLabel(LABELS.noDocument));
             return;
         }
 
@@ -183,11 +183,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* ç´¹ä
         var selectedItems = doc.selection;
 
         if (selectedItems.length !== 2) {
-            alert(L(LABELS.needTwo));
+            alert(getLabel(LABELS.needTwo));
             return;
         }
         if (selectedItems[0].typename !== "TextFrame" || selectedItems[1].typename !== "TextFrame") {
-            alert(L(LABELS.needText));
+            alert(getLabel(LABELS.needText));
             return;
         }
 

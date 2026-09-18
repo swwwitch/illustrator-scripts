@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* =============================
        ラベル定義 / UI Labels
@@ -206,39 +206,39 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        ダイアログ生成 / Dialog Construction
        ============================= */
     function showTargetDialog(defaults) {
-        var w = new Window("dialog", LABELS.dialogTitle[lang]);
+        var w = new Window("dialog", LABELS.dialogTitle[uiLang]);
 
-        var pTargets = w.add("panel", undefined, LABELS.panelTargets[lang]);
+        var pTargets = w.add("panel", undefined, LABELS.panelTargets[uiLang]);
         pTargets.orientation = "column";
         pTargets.alignChildren = "left";
         pTargets.margins = [15, 20, 15, 10];
         pTargets.alignment = "left";
 
-        var cbText = pTargets.add("checkbox", undefined, LABELS.text[lang]);
-        var cbImage = pTargets.add("checkbox", undefined, LABELS.image[lang]);
-        var cbRect = pTargets.add("checkbox", undefined, LABELS.rect[lang]);
+        var cbText = pTargets.add("checkbox", undefined, LABELS.text[uiLang]);
+        var cbImage = pTargets.add("checkbox", undefined, LABELS.image[uiLang]);
+        var cbRect = pTargets.add("checkbox", undefined, LABELS.rect[uiLang]);
 
         cbText.value = !!defaults.text;
         cbImage.value = !!defaults.image;
         cbRect.value = !!defaults.rect;
 
         // 対象パネル内にクリップグループのチェックボックスを配置
-        var cbClip = pTargets.add("checkbox", undefined, LABELS.clipGroup[lang]);
+        var cbClip = pTargets.add("checkbox", undefined, LABELS.clipGroup[uiLang]);
         cbClip.value = !!(typeof defaults.clipGroup !== 'undefined' ? defaults.clipGroup : CONFIG.clipGroup);
 
         /* クリップ範囲 UI は廃止（常に Topmost） / Clip scope UI removed (always Topmost) */
 
         // テキスト設定パネル
-        var pText = w.add("panel", undefined, LABELS.panelText[lang]);
+        var pText = w.add("panel", undefined, LABELS.panelText[uiLang]);
         pText.orientation = "column";
         pText.alignChildren = "left";
         pText.margins = [15, 20, 15, 10];
         pText.alignment = "left";
-        var cbKeepRatio = pText.add("checkbox", undefined, LABELS.keepRatio[lang]);
+        var cbKeepRatio = pText.add("checkbox", undefined, LABELS.keepRatio[uiLang]);
         cbKeepRatio.value = (typeof defaults.textKeepRatio !== 'undefined') ? !!defaults.textKeepRatio : CONFIG.textKeepRatio;
 
         // オプション：しきい値
-        var pOpts = w.add("panel", undefined, LABELS.panelOptions[lang]);
+        var pOpts = w.add("panel", undefined, LABELS.panelOptions[uiLang]);
         pOpts.orientation = "column";
         pOpts.alignChildren = "left";
         pOpts.margins = [15, 20, 15, 10];
@@ -246,17 +246,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var gEps = pOpts.add("group");
         gEps.orientation = "row";
         gEps.alignChildren = "left";
-        gEps.add("statictext", undefined, LABELS.epsilon[lang]);
+        gEps.add("statictext", undefined, LABELS.epsilon[uiLang]);
         var etEps = gEps.add("edittext", undefined, String((typeof defaults.epsilonDeg !== 'undefined') ? defaults.epsilonDeg : CONFIG.epsilonDeg));
         etEps.characters = 6;
         changeValueByArrowKey(etEps);
 
         var gBtns = w.add("group");
         gBtns.alignment = "center";
-        var btnCancel = gBtns.add("button", undefined, LABELS.cancel[lang], {
+        var btnCancel = gBtns.add("button", undefined, LABELS.cancel[uiLang], {
             name: "cancel"
         });
-        var btnOK = gBtns.add("button", undefined, LABELS.ok[lang], {
+        var btnOK = gBtns.add("button", undefined, LABELS.ok[uiLang], {
             name: "ok"
         });
 
@@ -667,7 +667,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // ダイアログで対象タイプを選択
-        var dlg = showTargetDialog({
+        var dialog = showTargetDialog({
             text: CONFIG.defaultTargets.text,
             image: CONFIG.defaultTargets.image,
             rect: CONFIG.defaultTargets.rect,
@@ -676,18 +676,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             clipScope: CONFIG.clipScope,
             textKeepRatio: CONFIG.textKeepRatio
         });
-        if (!dlg.ok) {
+        if (!dialog.ok) {
             return;
         }
-        var targets = dlg.targets;
-        CONFIG.epsilonDeg = dlg.epsilonDeg;
-        CONFIG.clipGroup = dlg.clipGroup;
-        CONFIG.clipScope = dlg.clipScope;
-        CONFIG.textKeepRatio = dlg.textKeepRatio;
+        var targets = dialog.targets;
+        CONFIG.epsilonDeg = dialog.epsilonDeg;
+        CONFIG.clipGroup = dialog.clipGroup;
+        CONFIG.clipScope = dialog.clipScope;
+        CONFIG.textKeepRatio = dialog.textKeepRatio;
         resetHostCache(); // 設定変更に伴いホスト解決キャッシュをクリア / Clear cache after settings are applied
 
         // 選択を走査してタイプ別に収集
-        var sel = app.selection;
+        var currentSelection = app.selection;
         var textArr = [];
         var imageArr = [];
         var rectArr = [];
@@ -718,7 +718,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
         }
-        collect(sel);
+        collect(currentSelection);
 
         var changed = 0;
         var r1 = null,

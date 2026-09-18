@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -98,10 +98,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ダイアログを表示してユーザーに設定を選ばせる / Show dialog and get user settings */
     function showRelinkDialog() {
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.alignChildren = "fill";
 
-        var folderGroup = dialog.add("panel", undefined, LABELS.folderLabel[lang]);
+        var folderGroup = dialog.add("panel", undefined, LABELS.folderLabel[uiLang]);
         folderGroup.orientation = "column";
         folderGroup.alignment = "fill";
         folderGroup.margins = [5, 20, 5, 10];
@@ -109,9 +109,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var folderPath = folderGroup.add("edittext", undefined, "");
         folderPath.characters = 30;
 
-        var chooseBtn = folderGroup.add("button", undefined, LABELS.chooseButton[lang]);
+        var chooseBtn = folderGroup.add("button", undefined, LABELS.chooseButton[uiLang]);
         chooseBtn.onClick = function() {
-            var target = Folder.selectDialog(LABELS.folderLabel[lang]);
+            var target = Folder.selectDialog(LABELS.folderLabel[uiLang]);
             if (target) folderPath.text = target.fsName;
         };
 
@@ -120,22 +120,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         middleGroup.alignment = "center";
         middleGroup.spacing = 20;
 
-        var matchGroup = middleGroup.add("panel", undefined, LABELS.matchGroup[lang]);
+        var matchGroup = middleGroup.add("panel", undefined, LABELS.matchGroup[uiLang]);
         matchGroup.orientation = "column";
         matchGroup.alignment = "top";
         matchGroup.margins = [15, 20, 15, 10];
 
         // --- 対象パネル ---
-        var targetGroup = middleGroup.add("panel", undefined, LABELS.targetGroup[lang]);
+        var targetGroup = middleGroup.add("panel", undefined, LABELS.targetGroup[uiLang]);
         targetGroup.orientation = "column";
         targetGroup.alignment = "top";
         targetGroup.margins = [15, 20, 15, 10];
 
-        var chkMissingOnly = targetGroup.add("checkbox", undefined, LABELS.chkMissing[lang]);
+        var chkMissingOnly = targetGroup.add("checkbox", undefined, LABELS.chkMissing[uiLang]);
         chkMissingOnly.alignment = "left";
         chkMissingOnly.value = true; // デフォルト
 
-        var chkAll = targetGroup.add("checkbox", undefined, LABELS.chkAll[lang]);
+        var chkAll = targetGroup.add("checkbox", undefined, LABELS.chkAll[uiLang]);
         chkAll.alignment = "left";
 
         // --- 追加: リンク切れ/有効リンクの有無をチェック ---
@@ -164,7 +164,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (e) {}
 
-        var options = LABELS.options[lang];
+        var options = LABELS.options[uiLang];
 
         var radioButtons = [];
         for (var i = 0; i < options.length; i++) {
@@ -176,8 +176,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnGroup = dialog.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = "center";
-        btnGroup.add("button", undefined, LABELS.cancel[lang], {name:"cancel"});
-        var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {name:"ok"});
+        btnGroup.add("button", undefined, LABELS.cancel[uiLang], {name:"cancel"});
+        var okBtn = btnGroup.add("button", undefined, LABELS.ok[uiLang], {name:"ok"});
 
         return validateDialogInput(dialog, folderPath, options, radioButtons, chkMissingOnly, chkAll);
     }

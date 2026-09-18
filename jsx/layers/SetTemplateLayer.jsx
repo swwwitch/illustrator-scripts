@@ -45,7 +45,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ローカライズ / Localization
     // =========================================================
 
-    var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     var LABELS = {
         dialogTitle:   { ja: "テンプレートレイヤー設定 " + SCRIPT_VERSION, en: "Template Layer Setup " + SCRIPT_VERSION },
@@ -56,8 +56,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cancel:        { ja: "キャンセル", en: "Cancel" }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     // 名前でレイヤーを検索（見つからなければ null） / Find a layer by name (null if missing)
@@ -98,26 +98,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ダイアログ / Dialog
     // =========================================================
 
-    var dialog = new Window("dialog", L("dialogTitle"));
+    var dialog = new Window("dialog", getLabel("dialogTitle"));
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
     dialog.margins = 16;
     dialog.spacing = 12;
 
     // --- パネル：対象 / Panel: Target ---
-    var targetLayerPanel = dialog.add("panel", undefined, L("panelTarget"));
+    var targetLayerPanel = dialog.add("panel", undefined, getLabel("panelTarget"));
     targetLayerPanel.orientation = "column";
     targetLayerPanel.alignChildren = "left";
     targetLayerPanel.margins = [16, 20, 16, 12];
     targetLayerPanel.spacing = 8;
 
-    var selectedLayerRadio = targetLayerPanel.add("radiobutton", undefined, L("radioSelected"));
+    var selectedLayerRadio = targetLayerPanel.add("radiobutton", undefined, getLabel("radioSelected"));
 
     // 「指定 ____」を 1 行で構成 / Build "Specified ____" on one row
     var specifiedLayerRow = targetLayerPanel.add("group");
     specifiedLayerRow.orientation = "row";
     specifiedLayerRow.spacing = 2;
-    var specifiedLayerRadio = specifiedLayerRow.add("radiobutton", undefined, L("radioSpecified"));
+    var specifiedLayerRadio = specifiedLayerRow.add("radiobutton", undefined, getLabel("radioSpecified"));
     var specifiedLayerInput = specifiedLayerRow.add("edittext", undefined, specifiedLayerName);
     specifiedLayerInput.characters = 8;
 
@@ -136,14 +136,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     specifiedLayerInput.onActivate = function() { selectTarget(false); };
 
     // --- チェックボックス：レイヤー名に接頭辞を付ける / Checkbox: prefix layer name ---
-    var prefixCommentCheckbox = dialog.add("checkbox", undefined, L("prefixComment"));
+    var prefixCommentCheckbox = dialog.add("checkbox", undefined, getLabel("prefixComment"));
     prefixCommentCheckbox.value = true; /* 既定でON / Default: ON */
 
     // --- ボタン / Buttons（Mac 規約：Cancel → OK） ---
     var buttonGroup = dialog.add("group");
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "center";
-    buttonGroup.add("button", undefined, L("cancel"), { name: "cancel" });
+    buttonGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
     buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
     if (dialog.show() !== 1) {

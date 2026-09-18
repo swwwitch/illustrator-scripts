@@ -60,7 +60,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n103ac6622657"; /* 紹�
     var KEYWORD_FIELD_CHARS = 30;               /* キーワード欄の最小幅（文字数）/ minimum width of the keyword field */
     var COLUMN_FIELD_CHARS  = 3;                /* 列数欄の最小幅（文字数）/ minimum width of the column field */
 
-
     /**
      * パネルに共通レイアウトを適用する
      * @param {Panel} targetPanel - 対象パネル

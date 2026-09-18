@@ -369,7 +369,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* ç´¹ä
                     try { app.undo(); } catch (e) { break; }
                     this.undoDepth--;
                 }
-                try { app.redraw(); } catch (e) { }
+                app.redraw();
             };
 
             /**

@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var STEP_VALUE = 1;
     var SHIFT_MODE = "day";
@@ -113,8 +113,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
-        if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
+    function getLabel(key) {
+        if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
         if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
         return key;
     }
@@ -132,17 +132,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return null;
     }
 
-    function findFirstTextFrameInSelection(sel) {
-        if (!sel || sel.length === 0) return null;
-        for (var i = 0; i < sel.length; i++) {
-            var found = findFirstTextFrame(sel[i]);
+    function findFirstTextFrameInSelection(currentSelection) {
+        if (!currentSelection || currentSelection.length === 0) return null;
+        for (var i = 0; i < currentSelection.length; i++) {
+            var found = findFirstTextFrame(currentSelection[i]);
             if (found) return found;
         }
         return null;
     }
 
     function showDialog() {
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
         dlg.margins = 15;
@@ -157,9 +157,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         try {
             var doc = app.activeDocument;
-            var sel = doc.selection;
-            if (sel && sel.length > 0) {
-                var target = findFirstTextFrameInSelection(sel);
+            var currentSelection = doc.selection;
+            if (currentSelection && currentSelection.length > 0) {
+                var target = findFirstTextFrameInSelection(currentSelection);
                 if (target && target.typename === "TextFrame") {
                     var txtContent = target.contents.replace(/^\s+|\s+$/g, "");
                     var lineBreak = String.fromCharCode(13);
@@ -227,7 +227,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpOriginal.alignChildren = ['left', 'center'];
         grpOriginal.spacing = 10;
 
-        var lblOriginal = grpOriginal.add('statictext', undefined, L('originalLabel'));
+        var lblOriginal = grpOriginal.add('statictext', undefined, getLabel('originalLabel'));
         var stOriginalValue = grpOriginal.add('statictext', undefined, originalSample || "");
 
         var grpResult = grpPreview.add('group');
@@ -235,7 +235,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpResult.alignChildren = ['left', 'center'];
         grpResult.spacing = 5;
 
-        var lblResult = grpResult.add('statictext', undefined, L('resultLabel'));
+        var lblResult = grpResult.add('statictext', undefined, getLabel('resultLabel'));
         var stResultValue = grpResult.add('statictext', undefined, "");
         var stCalcValue = grpResult.add('statictext', undefined, "");
 
@@ -341,7 +341,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateResultPreview();
         };
 
-        var pnlDir = dlg.add('panel', undefined, L('dirPanelTitle'));
+        var pnlDir = dlg.add('panel', undefined, getLabel('dirPanelTitle'));
         pnlDir.orientation = 'column';
         pnlDir.alignChildren = ['left', 'top'];
         pnlDir.margins = [15, 20, 15, 13];
@@ -351,7 +351,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpStep.orientation = 'row';
         grpStep.alignChildren = ['left', 'center'];
         grpStep.spacing = 5;
-        grpStep.add('statictext', undefined, L('stepLabel'));
+        grpStep.add('statictext', undefined, getLabel('stepLabel'));
         var edtStep = grpStep.add('edittext', undefined, "1");
         edtStep.characters = 5;
         changeValueByArrowKey(edtStep);
@@ -369,14 +369,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // When the pattern is like "12.1", let the user choose between numeric and date interpretation
         var rbModeNumber, rbModeDate;
         if (hasDot2Ambiguous) {
-            var pnlMode = dlg.add('panel', undefined, L('modePanelTitle'));
+            var pnlMode = dlg.add('panel', undefined, getLabel('modePanelTitle'));
             pnlMode.orientation = 'row';
             pnlMode.alignChildren = ['left', 'center'];
             pnlMode.margins = [15, 20, 15, 10];
             pnlMode.spacing = 15;
 
-            rbModeNumber = pnlMode.add('radiobutton', undefined, L('modeNumber'));
-            rbModeDate = pnlMode.add('radiobutton', undefined, L('modeDate'));
+            rbModeNumber = pnlMode.add('radiobutton', undefined, getLabel('modeNumber'));
+            rbModeDate = pnlMode.add('radiobutton', undefined, getLabel('modeDate'));
 
             // デフォルトは「数字」
             DOT2_MODE = "number";
@@ -394,7 +394,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var rbTargetYear, rbTargetMonth, rbTargetDay;
         if (hasYMDTarget) {
-            var pnlTarget = dlg.add('panel', undefined, L('targetLabel'));
+            var pnlTarget = dlg.add('panel', undefined, getLabel('targetLabel'));
             pnlTarget.orientation = 'column';
             pnlTarget.alignChildren = ['left', 'top'];
             pnlTarget.margins = [15, 20, 15, 10];
@@ -461,8 +461,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpButtons.alignment = ['fill', 'bottom'];
         grpButtons.spacing = 10;
 
-        var btnCancel = grpButtons.add('button', undefined, L('btnCancel'));
-        var btnOK = grpButtons.add('button', undefined, L('btnOK'));
+        var btnCancel = grpButtons.add('button', undefined, getLabel('btnCancel'));
+        var btnOK = grpButtons.add('button', undefined, getLabel('btnOK'));
 
         btnOK.onClick = function() {
             var v = parseInt(edtStep.text, 10);
@@ -499,7 +499,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 processSelectedItem(selectedItems[i]);
             }
         } catch (e) {
-            alert(L("errorGeneric") + String.fromCharCode(13) + e.message, L("errorTitle"));
+            alert(getLabel("errorGeneric") + String.fromCharCode(13) + e.message, getLabel("errorTitle"));
         }
     }
 

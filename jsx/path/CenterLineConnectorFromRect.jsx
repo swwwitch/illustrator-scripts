@@ -52,7 +52,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -85,12 +85,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ラベル取得 / Get label */
     function getLabel(key) {
-        return LABELS[key][lang];
+        return LABELS[key][uiLang];
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return getLabel(key) + (lang === 'ja' ? '：' : ':');
+        return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
     }
 
     // =========================================

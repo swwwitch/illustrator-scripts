@@ -40,9 +40,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     var doc = app.activeDocument;
-    var sel = doc.selection;
+    var currentSelection = doc.selection;
 
-    if (sel.length < 2) {
+    if (currentSelection.length < 2) {
         alert("エラー: 複数の画像と図形を選択してください。");
         return;
     }
@@ -51,8 +51,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var masks = [];
 
     // 1. 選択アイテムを「画像」と「図形」に分類
-    for (var i = 0; i < sel.length; i++) {
-        var item = sel[i];
+    for (var i = 0; i < currentSelection.length; i++) {
+        var item = currentSelection[i];
         if (item.typename === "PathItem" || item.typename === "CompoundPathItem") {
             // クリップグループ内のパスなどが誤って選択されないよう、親がLayerかGroupのみ対象にするなど
             // 簡易的なチェックですが、通常選択ならこれでOK

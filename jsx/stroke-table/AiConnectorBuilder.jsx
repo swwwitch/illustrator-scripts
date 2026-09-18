@@ -99,7 +99,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var KEY_ALIGN         = 1634494318;      /* algn: 線の位置 / stroke alignment */
     var UNIT_POINT        = 592476268;       /* ポイント / point（parameter /unit） */
 
-
     /* 判定の許容値 / Tolerances */
     var KEY_DETECT_TOLERANCE_PT = 0.001; /* 整列後に「動いていない」とみなす差（pt） */
     var COORD_TOLERANCE_PT      = 0.001; /* 座標が同じとみなす差（pt） */
@@ -2408,7 +2407,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var arrowTipField = addRadioRow(arrowPanel, LABELS.fieldLabel.arrowTip, [ARROW_TIP_OPTIONS[0].label, ARROW_TIP_OPTIONS[1].label], ARROW_CHOICES[DEFAULT_ARROW_INDEX].tip, LABELS.tooltip.arrowTip, true);
     var endGapField = addNumberRow(arrowPanel, LABELS.fieldLabel.endGap, DEFAULT_END_GAP, LABELS.unit.pt, LABELS.tooltip.endGap);
     var strokeCapField = addRadioRow(arrowPanel, LABELS.fieldLabel.strokeCap, [STROKE_CAP_OPTIONS[0].label, STROKE_CAP_OPTIONS[1].label, STROKE_CAP_OPTIONS[2].label], DEFAULT_STROKE_CAP, LABELS.tooltip.strokeCap, true);
-
 
     /**
      * ダイアログの入力値を設定として取り出す

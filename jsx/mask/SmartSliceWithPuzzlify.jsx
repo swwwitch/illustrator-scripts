@@ -40,7 +40,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
   function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
   }
-  var lang = getCurrentLang();
+  var uiLang = getCurrentLang();
 
   /* 日英ラベル定義 / Japanese-English label definitions */
   var LABELS = {
@@ -103,8 +103,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     cancel: { ja: "キャンセル", en: "Cancel" }
   };
 
-  function L(key) {
-    return LABELS[key][lang];
+  function getLabel(key) {
+    return LABELS[key][uiLang];
   }
 
   // 単位コードとラベルのマップ
@@ -214,7 +214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
 
   /* ダイアログボックス作成 / Build the dialog window */
   function createDialog() {
-    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
     dlg.orientation = 'column';
     dlg.alignment = 'right';
 
@@ -228,8 +228,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     var modeGroup = commonGroup.add("group");
     modeGroup.orientation = "row";
     modeGroup.alignChildren = "left";
-    var modeRadioGrid = modeGroup.add("radiobutton", undefined, LABELS.modeGridSplit[lang]);
-    var modeRadioPuzzle = modeGroup.add("radiobutton", undefined, LABELS.modePuzzle[lang]);
+    var modeRadioGrid = modeGroup.add("radiobutton", undefined, LABELS.modeGridSplit[uiLang]);
+    var modeRadioPuzzle = modeGroup.add("radiobutton", undefined, LABELS.modePuzzle[uiLang]);
     modeRadioGrid.value = true;
 
     /* 縦積みのパネル群 / Vertically stacked panels */
@@ -238,7 +238,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     panelsGroup.alignChildren = 'fill';
 
     /* 分割パネル: ピース数 / 列数・行数 / 形状 / オフセット / オーバーラップ */
-    var splitPanel = panelsGroup.add('panel', undefined, LABELS.panelSplit[lang]);
+    var splitPanel = panelsGroup.add('panel', undefined, LABELS.panelSplit[uiLang]);
     splitPanel.orientation = 'column';
     splitPanel.alignChildren = 'left';
     splitPanel.margins = [15, 20, 15, 10];
@@ -247,7 +247,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     var totalPiecesGroup = splitPanel.add("group");
     totalPiecesGroup.orientation = "row";
     totalPiecesGroup.alignment = "left";
-    var totalPiecesLabel = totalPiecesGroup.add("statictext", undefined, LABELS.totalPieces[lang]);
+    var totalPiecesLabel = totalPiecesGroup.add("statictext", undefined, LABELS.totalPieces[uiLang]);
     var totalPiecesInput = totalPiecesGroup.add("edittext", undefined, "25");
     totalPiecesInput.characters = 4;
 
@@ -257,12 +257,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     rowColGroup.alignChildren = 'left';
     var colGroup = rowColGroup.add('group');
     colGroup.orientation = 'row';
-    colGroup.add('statictext', undefined, LABELS.columns[lang]);
+    colGroup.add('statictext', undefined, LABELS.columns[uiLang]);
     var columnsInput = colGroup.add('edittext', undefined, "6");
     columnsInput.characters = 3;
     var rowGroup = rowColGroup.add('group');
     rowGroup.orientation = 'row';
-    rowGroup.add('statictext', undefined, LABELS.rows[lang]);
+    rowGroup.add('statictext', undefined, LABELS.rows[uiLang]);
     var rowsInput = rowGroup.add('edittext', undefined, "4");
     rowsInput.characters = 3;
 
@@ -314,22 +314,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     shapeGroup.alignChildren = ["left", "top"];
     shapeGroup.margins = [0, 10, 0, 10];
 
-    var shapeLabel = shapeGroup.add('statictext', undefined, L('shapeLabel'));
+    var shapeLabel = shapeGroup.add('statictext', undefined, getLabel('shapeLabel'));
     shapeLabel.preferredSize.width = 28;
 
     var shapeOptions = shapeGroup.add("group");
     shapeOptions.orientation = "column";
     shapeOptions.alignChildren = "left";
 
-    var shapeRadioTraditional = shapeOptions.add("radiobutton", undefined, LABELS.shapeTraditional[lang]);
-    var shapeRadioRandom = shapeOptions.add("radiobutton", undefined, LABELS.shapeRandom[lang]);
+    var shapeRadioTraditional = shapeOptions.add("radiobutton", undefined, LABELS.shapeTraditional[uiLang]);
+    var shapeRadioRandom = shapeOptions.add("radiobutton", undefined, LABELS.shapeRandom[uiLang]);
     shapeRadioTraditional.value = true;
 
     /* オフセット */
     var offsetGroup = splitPanel.add("group");
     offsetGroup.orientation = "row";
     offsetGroup.alignChildren = "left";
-    var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[lang]);
+    var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[uiLang]);
     offsetCheckbox.value = false;
     var offsetValueInput = offsetGroup.add("edittext", undefined, "-2");
     offsetValueInput.characters = 4;
@@ -346,7 +346,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     var overlapGroup = splitPanel.add("group");
     overlapGroup.orientation = "row";
     overlapGroup.alignChildren = "left";
-    var overlapCheckbox = overlapGroup.add('checkbox', undefined, LABELS.overlap[lang]);
+    var overlapCheckbox = overlapGroup.add('checkbox', undefined, LABELS.overlap[uiLang]);
     overlapCheckbox.value = false;
     var overlapInput = overlapGroup.add("edittext", undefined, "10");
     overlapInput.characters = 4;
@@ -360,7 +360,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     };
 
     /* オプションパネル: バラけ処理 / ケイ / 角丸 */
-    var optionsPanel = panelsGroup.add('panel', undefined, LABELS.panelOptions[lang]);
+    var optionsPanel = panelsGroup.add('panel', undefined, LABELS.panelOptions[uiLang]);
     optionsPanel.orientation = 'column';
     optionsPanel.alignChildren = 'left';
     optionsPanel.margins = [15, 20, 15, 10];
@@ -369,7 +369,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     var scatterGroup = optionsPanel.add("group");
     scatterGroup.orientation = "row";
     scatterGroup.alignChildren = "left";
-    var scatterCheckbox = scatterGroup.add('checkbox', undefined, LABELS.explode[lang]);
+    var scatterCheckbox = scatterGroup.add('checkbox', undefined, LABELS.explode[uiLang]);
     scatterCheckbox.value = false;
     var scatterStrengthInput = scatterGroup.add("edittext", undefined, "30");
     scatterStrengthInput.characters = 4;
@@ -385,14 +385,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     var ruleGroup = optionsPanel.add("group");
     ruleGroup.orientation = "row";
     ruleGroup.alignChildren = "left";
-    var ruleCheckbox = ruleGroup.add('checkbox', undefined, LABELS.ruleCheck[lang]);
+    var ruleCheckbox = ruleGroup.add('checkbox', undefined, LABELS.ruleCheck[uiLang]);
     ruleCheckbox.value = false;
 
     /* 角丸 */
     var roundCornerGroup = optionsPanel.add("group");
     roundCornerGroup.orientation = "row";
     roundCornerGroup.alignChildren = "left";
-    var roundCornerCheckbox = roundCornerGroup.add('checkbox', undefined, LABELS.roundCheck[lang]);
+    var roundCornerCheckbox = roundCornerGroup.add('checkbox', undefined, LABELS.roundCheck[uiLang]);
     roundCornerCheckbox.value = false;
     var roundRadiusInput = roundCornerGroup.add("edittext", undefined, "3");
     roundRadiusInput.characters = 5;
@@ -476,8 +476,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     var buttonGroup = dlg.add('group');
     buttonGroup.orientation = 'row';
     buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[lang], { name: "cancel" });
-    var okBtn = buttonGroup.add('button', undefined, LABELS.okBtn[lang], { name: "ok" });
+    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[uiLang], { name: "cancel" });
+    var okBtn = buttonGroup.add('button', undefined, LABELS.okBtn[uiLang], { name: "ok" });
     okBtn.active = true;
 
     // Add arrow-key increment/decrement support for edittext fields
@@ -550,7 +550,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
       }
       return null;
     } catch (err) {
-      alert(L("alertGeneralError") + err.message);
+      alert(getLabel("alertGeneralError") + err.message);
       return null;
     } finally {
       // 必ず UIレベルと選択状態を戻す
@@ -661,7 +661,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         tempGroup.remove();
         workingSourceItem = symbolItem;
       } catch (e) {
-        alert(L("alertMultiSymbolizeFailed") + e);
+        alert(getLabel("alertMultiSymbolizeFailed") + e);
         return null;
       }
     } else {
@@ -682,7 +682,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         workingSourceItem.remove();
         workingSourceItem = rasterSymbolItem;
       } catch (e) {
-        alert(L("alertRasterSymbolizeFailed") + e);
+        alert(getLabel("alertRasterSymbolizeFailed") + e);
         return null;
       }
     }
@@ -703,7 +703,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
         workingSourceItem.remove();
         workingSourceItem = vectorSymbolItem;
       } catch (e) {
-        alert(L("alertVectorSymbolizeFailed") + e);
+        alert(getLabel("alertVectorSymbolizeFailed") + e);
         return null;
       }
     }
@@ -737,7 +737,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
       maskPath.clipping = true;
       clippingGroup.clipped = true;
     } else {
-      alert(L("alertMaskNotPath"));
+      alert(getLabel("alertMaskNotPath"));
     }
     return clippingGroup;
   }
@@ -1240,14 +1240,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
                     }
                   }
                   if (maskPath.typename !== "PathItem") {
-                    alert(L("alertOffsetGroupNoPath"));
+                    alert(getLabel("alertOffsetGroupNoPath"));
                   }
                 } else {
-                  alert(L("alertOffsetUnexpectedType"));
+                  alert(getLabel("alertOffsetUnexpectedType"));
                 }
               }
             } catch (e) {
-              alert(L("alertOffsetError") + e.message);
+              alert(getLabel("alertOffsetError") + e.message);
             }
           }
 
@@ -1300,7 +1300,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
             puzzlifyDialog.update();
           });
         } catch (e) {
-          alert(L("alertScriptError") + e);
+          alert(getLabel("alertScriptError") + e);
         }
 
         /* 処理完了後にダイアログを閉じる / Close dialog after processing completes */
@@ -1309,7 +1309,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
 
       puzzlifyDialog.show();
     } catch (e) {
-      alert(L("alertScriptError") + e);
+      alert(getLabel("alertScriptError") + e);
     }
   }
 

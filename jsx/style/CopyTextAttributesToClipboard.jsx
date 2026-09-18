@@ -41,7 +41,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLocaleLang();
+    var uiLang = getCurrentLocaleLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -155,12 +155,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
-        return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
+    function getLabel(key) {
+        return (LABELS[key] && LABELS[key][uiLang]) ? LABELS[key][uiLang] : key;
     }
 
     function labelText(key) {
-        return L(key) + (lang === "ja" ? "：" : ":");
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -242,7 +242,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* Boolean値をオン/オフラベルに変換 / Convert boolean to on/off label */
     function formatBooleanLabel(boolValue) {
-        return boolValue ? L("valueOn") : L("valueOff");
+        return boolValue ? getLabel("valueOn") : getLabel("valueOff");
     }
 
     // =========================================
@@ -302,7 +302,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 色を表示用文字列へ整形 / Format color for display */
     function formatColorForDisplay(color) {
-        if (!color || !color.typename) return L("fillColorNone");
+        if (!color || !color.typename) return getLabel("fillColorNone");
         switch (color.typename) {
             case "RGBColor":
                 return "RGB(" + Math.round(color.red) + ", " + Math.round(color.green) + ", " + Math.round(color.blue) + ")";
@@ -323,7 +323,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return "Gradient";
                 }
             case "NoColor":
-                return L("fillColorNone");
+                return getLabel("fillColorNone");
             default:
                 return color.typename;
         }
@@ -355,13 +355,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getKerningMethodLabel(kerningMethod) {
         switch (kerningMethod) {
             case AutoKernType.AUTO:
-                return (lang === "ja") ? "メトリクス" : "Metrics";
+                return (uiLang === "ja") ? "メトリクス" : "Metrics";
             case AutoKernType.METRICSROMANONLY:
-                return (lang === "ja") ? "和文等幅" : "Metrics - Roman Only";
+                return (uiLang === "ja") ? "和文等幅" : "Metrics - Roman Only";
             case AutoKernType.OPTICAL:
-                return (lang === "ja") ? "オプティカル" : "Optical";
+                return (uiLang === "ja") ? "オプティカル" : "Optical";
             default:
-                return (lang === "ja") ? "なし" : "None";
+                return (uiLang === "ja") ? "なし" : "None";
         }
     }
 
@@ -369,8 +369,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getOrientationLabel(textFrame) {
         if (!textFrame) return "";
         return (textFrame.orientation === TextOrientation.VERTICAL)
-            ? ((lang === "ja") ? "縦組み" : "Vertical")
-            : ((lang === "ja") ? "横組み" : "Horizontal");
+            ? ((uiLang === "ja") ? "縦組み" : "Vertical")
+            : ((uiLang === "ja") ? "横組み" : "Horizontal");
     }
 
     /* 自動行送り値を真偽値として解釈 / Interpret auto leading value as boolean */
@@ -619,14 +619,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 結果表示ダイアログ / Show result dialog */
     function showResultDialog(info) {
-        var dialog = new Window("dialog", L("copiedMessageTitle"));
+        var dialog = new Window("dialog", getLabel("copiedMessageTitle"));
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.spacing = 10;
         dialog.margins = 16;
 
         function createInfoPanel(titleKey) {
-            var panel = dialog.add("panel", undefined, L(titleKey));
+            var panel = dialog.add("panel", undefined, getLabel(titleKey));
             panel.orientation = "column";
             panel.alignChildren = "left";
             panel.margins = [15, 20, 15, 10];
@@ -669,11 +669,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 塗りとグラフィックスタイル：取得したものを並べて表示
            Fill & Graphic Style: show captured info side by side */
         addRow(fillGraphicStylePanel, "fillColor", info.fillColorLabel);
-        addRow(fillGraphicStylePanel, "graphicStyle", info.graphicStyleName ? info.graphicStyleName : L("graphicStyleNotRegistered"));
+        addRow(fillGraphicStylePanel, "graphicStyle", info.graphicStyleName ? info.graphicStyleName : getLabel("graphicStyleNotRegistered"));
 
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "right";
-        var closeButton = buttonGroup.add("button", undefined, L("closeButton"), { name: "ok" });
+        var closeButton = buttonGroup.add("button", undefined, getLabel("closeButton"), { name: "ok" });
         closeButton.onClick = function () { dialog.close(); };
 
         dialog.show();
@@ -683,25 +683,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getJustificationLabel(justification) {
         try {
             if (justification === Justification.LEFT) {
-                return (lang === "ja") ? "左揃え" : "Left";
+                return (uiLang === "ja") ? "左揃え" : "Left";
             }
             if (justification === Justification.CENTER) {
-                return (lang === "ja") ? "中央揃え" : "Center";
+                return (uiLang === "ja") ? "中央揃え" : "Center";
             }
             if (justification === Justification.RIGHT) {
-                return (lang === "ja") ? "右揃え" : "Right";
+                return (uiLang === "ja") ? "右揃え" : "Right";
             }
             if (justification === Justification.FULLJUSTIFYLASTLINELEFT) {
-                return (lang === "ja") ? "均等配置（最終行左揃え）" : "Justify with last line aligned left";
+                return (uiLang === "ja") ? "均等配置（最終行左揃え）" : "Justify with last line aligned left";
             }
             if (justification === Justification.FULLJUSTIFYLASTLINECENTER) {
-                return (lang === "ja") ? "均等配置（最終行中央揃え）" : "Justify with last line centered";
+                return (uiLang === "ja") ? "均等配置（最終行中央揃え）" : "Justify with last line centered";
             }
             if (justification === Justification.FULLJUSTIFYLASTLINERIGHT) {
-                return (lang === "ja") ? "均等配置（最終行右揃え）" : "Justify with last line aligned right";
+                return (uiLang === "ja") ? "均等配置（最終行右揃え）" : "Justify with last line aligned right";
             }
             if (justification === Justification.FULLJUSTIFY) {
-                return (lang === "ja") ? "均等配置" : "Full justify";
+                return (uiLang === "ja") ? "均等配置" : "Full justify";
             }
         } catch (e) {
             return "—";
@@ -711,7 +711,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L("errorNoDocument"));
+            alert(getLabel("errorNoDocument"));
             return;
         }
 
@@ -730,12 +730,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (!sourceTextRange) {
-            alert(L("errorNoTextSelection"));
+            alert(getLabel("errorNoTextSelection"));
             return;
         }
 
         if (sourceTextRange.characters.length === 0) {
-            alert(L("errorEmptyTextRange"));
+            alert(getLabel("errorEmptyTextRange"));
             return;
         }
 

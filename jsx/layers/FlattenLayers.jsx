@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: {
@@ -153,10 +153,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var entry = LABELS[key];
         if (!entry) return key;
-        return entry[lang] || entry.en;
+        return entry[uiLang] || entry.en;
     }
 
     function createProcessStats() {
@@ -173,16 +173,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showOptionsDialog(documentRef, hasExistingMergedLayer) {
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dlg.orientation = 'column';
         dlg.alignChildren = 'fill';
 
-        var processPanel = dlg.add('panel', undefined, L('process'));
+        var processPanel = dlg.add('panel', undefined, getLabel('process'));
         processPanel.orientation = 'column';
         processPanel.alignChildren = 'fill';
         processPanel.margins = [15, 20, 15, 10];
 
-        var cbPromoteSublayers = processPanel.add('checkbox', undefined, L('promoteSublayers'));
+        var cbPromoteSublayers = processPanel.add('checkbox', undefined, getLabel('promoteSublayers'));
         cbPromoteSublayers.value = true;
 
         function documentHasAnyLockedLayers(container) {
@@ -350,23 +350,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!hasAnySublayers) cbPromoteSublayers.value = false;
 
         // ガイド設定パネル / Guides panel
-        var guidesPanel = processPanel.add('panel', undefined, L('guides'));
+        var guidesPanel = processPanel.add('panel', undefined, getLabel('guides'));
         guidesPanel.orientation = 'column';
         guidesPanel.alignChildren = 'left';
         guidesPanel.margins = [15, 20, 15, 10];
         guidesPanel.enabled = hasAnyGuides;
 
-        var rbIntegrateGuides = guidesPanel.add('radiobutton', undefined, L('integrateGuides'));
+        var rbIntegrateGuides = guidesPanel.add('radiobutton', undefined, getLabel('integrateGuides'));
         rbIntegrateGuides.value = false;
 
-        var rbKeepGuidesInCurrentLayer = guidesPanel.add('radiobutton', undefined, L('keepGuidesInCurrentLayer'));
+        var rbKeepGuidesInCurrentLayer = guidesPanel.add('radiobutton', undefined, getLabel('keepGuidesInCurrentLayer'));
         rbKeepGuidesInCurrentLayer.value = false;
 
         var separateGuidesGroup = guidesPanel.add('group');
         separateGuidesGroup.orientation = 'row';
         separateGuidesGroup.alignChildren = ['left', 'center'];
 
-        var rbSeparateGuides = separateGuidesGroup.add('radiobutton', undefined, L('separateGuides'));
+        var rbSeparateGuides = separateGuidesGroup.add('radiobutton', undefined, getLabel('separateGuides'));
         rbSeparateGuides.value = true;
 
         var etGuideLayerName = separateGuidesGroup.add('edittext', undefined, '_guide');
@@ -384,7 +384,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var hasGuidesInExcludedLayers = documentHasAnyGuidesInExcludedLayers(documentRef);
 
-        var cbIncludeGuidesFromExcludedLayers = guidesPanel.add('checkbox', undefined, L('includeGuidesFromExcludedLayers'));
+        var cbIncludeGuidesFromExcludedLayers = guidesPanel.add('checkbox', undefined, getLabel('includeGuidesFromExcludedLayers'));
         cbIncludeGuidesFromExcludedLayers.value = hasGuidesInExcludedLayers;
         cbIncludeGuidesFromExcludedLayers.enabled = hasGuidesInExcludedLayers && rbSeparateGuides.value;
 
@@ -429,7 +429,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateGuideOptionsState('integrate');
         }
 
-        var destPanel = dlg.add('panel', undefined, L('destination'));
+        var destPanel = dlg.add('panel', undefined, getLabel('destination'));
         destPanel.orientation = 'column';
         destPanel.alignChildren = 'left';
         destPanel.margins = [15, 20, 15, 10];
@@ -437,11 +437,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var nameGroup = destPanel.add('group');
         nameGroup.orientation = 'row';
         nameGroup.alignChildren = ['left', 'center'];
-        var nameLabel = nameGroup.add('statictext', undefined, L('layerName'));
+        var nameLabel = nameGroup.add('statictext', undefined, getLabel('layerName'));
         var etLayerName = nameGroup.add('edittext', undefined, '_mergedLayer');
         etLayerName.characters = 19;
 
-        var cbReuseExistingMergedLayer = destPanel.add('checkbox', undefined, L('reuseExistingMergedLayer'));
+        var cbReuseExistingMergedLayer = destPanel.add('checkbox', undefined, getLabel('reuseExistingMergedLayer'));
         cbReuseExistingMergedLayer.value = hasExistingMergedLayer;
         cbReuseExistingMergedLayer.enabled = hasExistingMergedLayer;
 
@@ -467,7 +467,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var colorGroup = destPanel.add('group');
         colorGroup.orientation = 'row';
         colorGroup.alignChildren = ['left', 'center'];
-        var colorLabel = colorGroup.add('statictext', undefined, L('layerColor'));
+        var colorLabel = colorGroup.add('statictext', undefined, getLabel('layerColor'));
         var colorSwatch = colorGroup.add('panel');
         colorSwatch.preferredSize = [14, 14];
         colorSwatch.minimumSize = [14, 14];
@@ -497,7 +497,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         etLayerName.onChange = updateReuseExistingMergedLayerState;
         updateReuseExistingMergedLayerState();
 
-        var excludePanel = processPanel.add('panel', undefined, L('exclude'));
+        var excludePanel = processPanel.add('panel', undefined, getLabel('exclude'));
         excludePanel.orientation = 'column';
         excludePanel.alignChildren = 'fill';
         excludePanel.margins = [15, 20, 15, 10];
@@ -508,36 +508,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         excludeGroup.spacing = 15;
 
         // 左カラム：レイヤー / Left column: layers
-        var layerExcludePanel = excludeGroup.add('panel', undefined, L('layersPanelTitle'));
+        var layerExcludePanel = excludeGroup.add('panel', undefined, getLabel('layersPanelTitle'));
         layerExcludePanel.orientation = 'column';
         layerExcludePanel.alignChildren = 'left';
         layerExcludePanel.margins = [15, 20, 15, 10];
 
-        var cbSkipLocked = layerExcludePanel.add('checkbox', undefined, L('lockedPanelTitle'));
+        var cbSkipLocked = layerExcludePanel.add('checkbox', undefined, getLabel('lockedPanelTitle'));
         cbSkipLocked.value = false;
         cbSkipLocked.enabled = hasAnyLockedLayers;
         if (!hasAnyLockedLayers) cbSkipLocked.value = false;
 
-        var cbSkipHidden = layerExcludePanel.add('checkbox', undefined, L('hiddenPanelTitle'));
+        var cbSkipHidden = layerExcludePanel.add('checkbox', undefined, getLabel('hiddenPanelTitle'));
         cbSkipHidden.value = false;
         cbSkipHidden.enabled = hasAnyHiddenLayers;
         if (!hasAnyHiddenLayers) cbSkipHidden.value = false;
 
-        var cbSkipSlashSlashLayers = layerExcludePanel.add('checkbox', undefined, L('slashSlashLayer'));
+        var cbSkipSlashSlashLayers = layerExcludePanel.add('checkbox', undefined, getLabel('slashSlashLayer'));
         cbSkipSlashSlashLayers.value = false;
         cbSkipSlashSlashLayers.enabled = hasAnySlashSlashLayers;
         if (!hasAnySlashSlashLayers) cbSkipSlashSlashLayers.value = false;
 
         // 右カラム：オブジェクト / Right column: objects
-        var objectExcludePanel = excludeGroup.add('panel', undefined, L('objectsPanelTitle'));
+        var objectExcludePanel = excludeGroup.add('panel', undefined, getLabel('objectsPanelTitle'));
         objectExcludePanel.orientation = 'column';
         objectExcludePanel.alignChildren = 'left';
         objectExcludePanel.margins = [15, 20, 15, 10];
 
-        var cbSkipLockedObjects = objectExcludePanel.add('checkbox', undefined, L('lockedPanelTitle'));
+        var cbSkipLockedObjects = objectExcludePanel.add('checkbox', undefined, getLabel('lockedPanelTitle'));
         cbSkipLockedObjects.value = false;
 
-        var cbSkipHiddenObjects = objectExcludePanel.add('checkbox', undefined, L('hiddenPanelTitle'));
+        var cbSkipHiddenObjects = objectExcludePanel.add('checkbox', undefined, getLabel('hiddenPanelTitle'));
         cbSkipHiddenObjects.value = false;
         cbSkipHiddenObjects.enabled = hasAnyHiddenObjects;
         if (!hasAnyHiddenObjects) cbSkipHiddenObjects.value = false;
@@ -545,7 +545,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var toggleAllGroup = excludePanel.add('group');
         toggleAllGroup.orientation = 'row';
         toggleAllGroup.alignment = ['left', 'top'];
-        var cbToggleAllExclusions = toggleAllGroup.add('checkbox', undefined, L('toggleAllExclusions'));
+        var cbToggleAllExclusions = toggleAllGroup.add('checkbox', undefined, getLabel('toggleAllExclusions'));
         cbToggleAllExclusions.value = false;
 
         function updateToggleAllExclusionsState() {
@@ -606,20 +606,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbSkipHiddenObjects.onClick = updateToggleAllExclusionsState;
         updateToggleAllExclusionsState();
 
-        var optionsPanel = dlg.add('panel', undefined, L('options'));
+        var optionsPanel = dlg.add('panel', undefined, getLabel('options'));
         optionsPanel.orientation = 'column';
         optionsPanel.alignChildren = 'left';
         optionsPanel.margins = [15, 20, 15, 10];
 
-        var cbDeleteEmpty = optionsPanel.add('checkbox', undefined, L('deleteEmptyLayers'));
+        var cbDeleteEmpty = optionsPanel.add('checkbox', undefined, getLabel('deleteEmptyLayers'));
         cbDeleteEmpty.value = true;
 
         var buttonGroup = dlg.add('group');
         buttonGroup.orientation = 'row';
         buttonGroup.alignment = ['center', 'center'];
         buttonGroup.alignChildren = ['center', 'center'];
-        buttonGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
-        buttonGroup.add('button', undefined, L('ok'), { name: 'ok' });
+        buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+        buttonGroup.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
         if (dlg.show() !== 1) {
             return null;
@@ -790,28 +790,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var messages = [];
         if (stats.moveFailureCount > 0) {
-            messages.push((lang === 'ja' ? '移動失敗' : 'Move failures') + ': ' + stats.moveFailureCount);
+            messages.push((uiLang === 'ja' ? '移動失敗' : 'Move failures') + ': ' + stats.moveFailureCount);
         }
         if (stats.deleteFailureCount > 0) {
-            messages.push((lang === 'ja' ? '削除失敗' : 'Delete failures') + ': ' + stats.deleteFailureCount);
+            messages.push((uiLang === 'ja' ? '削除失敗' : 'Delete failures') + ': ' + stats.deleteFailureCount);
         }
         if (stats.visibilityRestoreFailureCount > 0) {
-            messages.push((lang === 'ja' ? '表示状態の復元失敗' : 'Visibility restore failures') + ': ' + stats.visibilityRestoreFailureCount);
+            messages.push((uiLang === 'ja' ? '表示状態の復元失敗' : 'Visibility restore failures') + ': ' + stats.visibilityRestoreFailureCount);
         }
         if (stats.layerLockRestoreFailureCount > 0) {
-            messages.push((lang === 'ja' ? 'レイヤーロック復元失敗' : 'Layer lock restore failures') + ': ' + stats.layerLockRestoreFailureCount);
+            messages.push((uiLang === 'ja' ? 'レイヤーロック復元失敗' : 'Layer lock restore failures') + ': ' + stats.layerLockRestoreFailureCount);
         }
         if (stats.itemLockRestoreFailureCount > 0) {
-            messages.push((lang === 'ja' ? 'オブジェクトロック復元失敗' : 'Item lock restore failures') + ': ' + stats.itemLockRestoreFailureCount);
+            messages.push((uiLang === 'ja' ? 'オブジェクトロック復元失敗' : 'Item lock restore failures') + ': ' + stats.itemLockRestoreFailureCount);
         }
         if (stats.topLevelPromotionFailureCount > 0) {
-            messages.push((lang === 'ja' ? '最上位化失敗' : 'Top-level promotion failures') + ': ' + stats.topLevelPromotionFailureCount);
+            messages.push((uiLang === 'ja' ? '最上位化失敗' : 'Top-level promotion failures') + ': ' + stats.topLevelPromotionFailureCount);
         }
         if (stats.guideSeparationFailureCount > 0) {
-            messages.push((lang === 'ja' ? 'ガイド分離失敗' : 'Guide separation failures') + ': ' + stats.guideSeparationFailureCount);
+            messages.push((uiLang === 'ja' ? 'ガイド分離失敗' : 'Guide separation failures') + ': ' + stats.guideSeparationFailureCount);
         }
         if (stats.parentAccessFailureCount > 0) {
-            messages.push((lang === 'ja' ? '親レイヤーアクセス失敗' : 'Parent access failures') + ': ' + stats.parentAccessFailureCount);
+            messages.push((uiLang === 'ja' ? '親レイヤーアクセス失敗' : 'Parent access failures') + ': ' + stats.parentAccessFailureCount);
         }
         if (messages.length > 0) {
             alert(messages.join('\n'));

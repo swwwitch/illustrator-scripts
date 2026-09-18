@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したエリア内文字の垂直方向の配置と行揃えを、まとめて中央にそろえます。閉じたパスを選択している場合はエリア内文字に変換し、サンプルテキスト（テキストを1つだけ一緒に選択しているときはその内容）を流し込みます。
+選択したエリア内文字の垂直方向の配置と行揃えを、まとめて中央にそろえます。閉じたパスを選択している場合はエリア内文字に変換し、サンプルテキスト（テキストを1つだけ一緒に選択しているとき、またはパスとテキストを1つずつグループ化しているときはその内容）を流し込みます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Sets both the vertical alignment and the justification of the selected Area Type frames to center in one pass. Selected closed paths are converted to Area Type and filled with sample text, or with the contents of a single text object selected alongside.
+Sets both the vertical alignment and the justification of the selected Area Type frames to center in one pass. Selected closed paths are converted to Area Type and filled with sample text, or with the contents of a text object selected alongside or grouped with the path.
 
 See the README for details.
 
@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeCenterMiddle";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeCenterMiddle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeCenterMiddle.md"; /* README (English) */
@@ -260,25 +260,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 閉じたパスをまとめてエリア内文字にしてテキストを流し込む
+     * 組み合わせごとに、閉じたパスをエリア内文字にしてテキストを流し込む
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} shapeItems - 変換するパス
-     * @param {TextFrame} sourceTextFrame - 流し込むテキスト（nullならサンプルテキスト）
+     * @param {Array} fillJobs - shapeItem（変換するパス）と sourceTextFrame（流し込み元。nullならサンプルテキスト）の組み合わせ
      * @returns {Array<TextFrame>} 作成したエリア内文字
      */
-    function fillShapesWithText(doc, shapeItems, sourceTextFrame) {
+    function fillShapesWithText(doc, fillJobs) {
+        var sampleText = (currentLanguage === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN;
+        var sampleFont = findAvailableTextFont((currentLanguage === "ja") ? DUMMY_FONT_JA : DUMMY_FONT_EN);
         var createdFrames = [];
-        var bodyText = sourceTextFrame ? sourceTextFrame.contents : ((currentLanguage === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN);
-        var sampleFont = sourceTextFrame ? null : findAvailableTextFont((currentLanguage === "ja") ? DUMMY_FONT_JA : DUMMY_FONT_EN);
 
-        for (var i = 0; i < shapeItems.length; i++) {
-            var areaFrame = convertShapeToAreaText(doc, shapeItems[i], bodyText);
+        for (var i = 0; i < fillJobs.length; i++) {
+            var sourceTextFrame = fillJobs[i].sourceTextFrame;
+            var areaFrame = convertShapeToAreaText(doc, fillJobs[i].shapeItem, sourceTextFrame ? sourceTextFrame.contents : sampleText);
             if (!areaFrame) continue;
             applyTextStyle(areaFrame, sourceTextFrame, sampleFont);
             createdFrames.push(areaFrame);
+            if (!sourceTextFrame) continue;
+            var pairGroup = (sourceTextFrame.parent.typename === "GroupItem") ? sourceTextFrame.parent : null;
+            /* 流し込みが済んだ元のテキストは残さない / Remove the source text once it has been poured */
+            sourceTextFrame.remove();
+            if (!pairGroup) continue;
+            /* 組み合わせのグループは、エリア内文字を外に出して解除する / Ungroup the pair by moving the frame out and dropping the empty group */
+            try {
+                areaFrame.move(pairGroup, ElementPlacement.PLACEBEFORE);
+                if (pairGroup.pageItems.length === 0) pairGroup.remove();
+            } catch (e) { }
         }
-        /* 流し込みが済んだ元のテキストは残さない / Remove the source text once it has been poured */
-        if (sourceTextFrame && createdFrames.length) sourceTextFrame.remove();
         return createdFrames;
     }
 
@@ -287,12 +295,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 選択オブジェクトを、エリア内文字・閉じたパス・それ以外のテキストに仕分ける
+     * グループが「閉じたパス1つ＋テキスト1つ」なら、その組み合わせを返す
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @returns {object} shapeItem / textFrame を持つオブジェクト（該当しなければnull）
+     */
+    function getShapeTextPair(groupItem) {
+        /* クリップグループの枠はマスクなので対象にしない / The frame of a clipping group is a mask, not a shape to convert */
+        if (groupItem.clipped) return null;
+        var members = groupItem.pageItems;
+        if (members.length !== 2) return null;
+        var pair = { shapeItem: null, textFrame: null };
+        for (var i = 0; i < members.length; i++) {
+            if (members[i].typename === "TextFrame") pair.textFrame = members[i];
+            else if (getClosedPathItem(members[i])) pair.shapeItem = members[i];
+        }
+        return (pair.shapeItem && pair.textFrame) ? pair : null;
+    }
+
+    /**
+     * グループから「閉じたパス1つ＋テキスト1つ」の組み合わせを集める
+     * @param {GroupItem} groupItem - 対象のグループ
+     * @param {Array} pairs - 集めた組み合わせの入れ物
+     * @returns {void}
+     */
+    function collectShapeTextPairs(groupItem, pairs) {
+        var pair = getShapeTextPair(groupItem);
+        if (pair) {
+            pairs.push(pair);
+            return;
+        }
+        /* 該当しないグループは、入れ子になっているグループを見る / Look into nested groups when the group itself is not a pair */
+        for (var i = 0; i < groupItem.pageItems.length; i++) {
+            if (groupItem.pageItems[i].typename === "GroupItem") collectShapeTextPairs(groupItem.pageItems[i], pairs);
+        }
+    }
+
+    /**
+     * 選択オブジェクトを、エリア内文字・閉じたパス・それ以外のテキスト・グループの組み合わせに仕分ける
      * @param {Array} selection - ドキュメントの選択内容
-     * @returns {object} areaTextFrames / shapeItems / otherTextFrames を持つオブジェクト
+     * @returns {object} areaTextFrames / shapeItems / otherTextFrames / shapePairs を持つオブジェクト
      */
     function classifySelection(selection) {
-        var picked = { areaTextFrames: [], shapeItems: [], otherTextFrames: [] };
+        var picked = { areaTextFrames: [], shapeItems: [], otherTextFrames: [], shapePairs: [] };
         /* 文字編集中は選択がTextRangeになり、ページアイテムが取り出せない / While editing text the selection is a TextRange, not page items */
         if (!selection || !selection.length) return picked;
         for (var i = 0; i < selection.length; i++) {
@@ -301,6 +345,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (item.typename === "TextFrame") {
                 if (item.kind === TextType.AREATEXT) picked.areaTextFrames.push(item);
                 else picked.otherTextFrames.push(item);
+            } else if (item.typename === "GroupItem") {
+                collectShapeTextPairs(item, picked.shapePairs);
             } else if (getClosedPathItem(item)) {
                 picked.shapeItems.push(item);
             }
@@ -309,15 +355,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 「閉じたパス1つ＋テキスト1つ」の選択なら、流し込み元のテキストを返す
+     * 流し込む組み合わせ（パスと流し込み元のテキスト）を作る
      * @param {object} picked - classifySelection() の戻り値
      * @param {number} selectionLength - 選択オブジェクトの数
-     * @returns {TextFrame} 流し込み元のテキスト（該当しなければnull）
+     * @returns {Array<object>} shapeItem / sourceTextFrame を持つオブジェクトの配列
      */
-    function getSourceTextFrame(picked, selectionLength) {
-        if (selectionLength !== 2) return null;
-        if (picked.shapeItems.length !== 1 || picked.otherTextFrames.length !== 1) return null;
-        return picked.otherTextFrames[0];
+    function buildFillJobs(picked, selectionLength) {
+        /* 「閉じたパス1つ＋テキスト1つ」の選択なら、そのテキストを流し込む / Pour the selected text when it is a single path plus a single text */
+        var sourceTextFrame = (selectionLength === 2 && picked.shapeItems.length === 1 && picked.otherTextFrames.length === 1) ? picked.otherTextFrames[0] : null;
+        var fillJobs = [];
+        for (var i = 0; i < picked.shapeItems.length; i++) {
+            fillJobs.push({ shapeItem: picked.shapeItems[i], sourceTextFrame: sourceTextFrame });
+        }
+        /* グループはそれぞれの中のテキストを流し込む / Each group pours the text it holds */
+        for (var j = 0; j < picked.shapePairs.length; j++) {
+            fillJobs.push({ shapeItem: picked.shapePairs[j].shapeItem, sourceTextFrame: picked.shapePairs[j].textFrame });
+        }
+        return fillJobs;
     }
 
     /**
@@ -347,17 +401,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var doc = app.activeDocument;
     var picked = classifySelection(doc.selection);
+    var fillJobs = buildFillJobs(picked, doc.selection.length);
     var targetFrames = picked.areaTextFrames;
-    if (!targetFrames.length && !picked.shapeItems.length) {
+    if (!targetFrames.length && !fillJobs.length) {
         alert(getLabel("alert.selectTarget"));
         return;
     }
 
     /* パスはエリア内文字に変換してテキストを流し込む / Turn paths into Area Type and pour text into them */
-    if (picked.shapeItems.length) {
-        var sourceTextFrame = getSourceTextFrame(picked, doc.selection.length);
-        targetFrames = targetFrames.concat(fillShapesWithText(doc, picked.shapeItems, sourceTextFrame));
-    }
+    if (fillJobs.length) targetFrames = targetFrames.concat(fillShapesWithText(doc, fillJobs));
 
     loadAlignmentAction();
     try {

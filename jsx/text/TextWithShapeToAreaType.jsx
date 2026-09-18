@@ -115,7 +115,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* キーからローカライズ文字列を取得 / Get a localized string by key */
-    function L(key) {
+    function getLabel(key) {
         var entry = getLabelEntry(key);
         if (entry) {
             if (entry[currentLanguage]) return entry[currentLanguage];
@@ -229,12 +229,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 選択内のパス上文字をポイント文字へ置き換えた選択配列を返す / Replace path text in selection with point text */
-    function preprocessPathTextSelection(doc, sel) {
-        if (!doc || !sel || !sel.length) return sel;
+    function preprocessPathTextSelection(doc, currentSelection) {
+        if (!doc || !currentSelection || !currentSelection.length) return currentSelection;
 
         var pathTexts = [];
-        for (var i = 0; i < sel.length; i++) {
-            var item = sel[i];
+        for (var i = 0; i < currentSelection.length; i++) {
+            var item = currentSelection[i];
             try {
                 if (item && item.typename === "TextFrame" && item.kind === TextType.PATHTEXT) {
                     pathTexts.push(item);
@@ -243,15 +243,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // 無効オブジェクト（削除済み等）はスキップ / Skip invalid objects
             }
         }
-        if (!pathTexts.length) return sel;
+        if (!pathTexts.length) return currentSelection;
 
         var newTexts = detachPathTextToPointText(doc, pathTexts);
-        if (!newTexts.length) return sel;
+        if (!newTexts.length) return currentSelection;
 
         // パス上文字を新ポイント文字に差し替えた新しい選択配列を構築 / Build replaced selection array
         var replacedSelection = [];
-        for (var j = 0; j < sel.length; j++) {
-            var keepItem = sel[j];
+        for (var j = 0; j < currentSelection.length; j++) {
+            var keepItem = currentSelection[j];
             try {
                 if (keepItem && keepItem.typename === "TextFrame" && keepItem.kind === TextType.PATHTEXT) {
                     // 旧オブジェクトは除外 / skip old
@@ -265,7 +265,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var k = 0; k < newTexts.length; k++) replacedSelection.push(newTexts[k]);
 
         try { doc.selection = replacedSelection; } catch (e) { }
-        try { app.redraw(); } catch (e2) { }
+        app.redraw();
 
         return replacedSelection;
     }
@@ -521,7 +521,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* スタイル用 AI ファイルを選ばせる（キャンセルで空文字）/ Let the user pick a style AI file */
     function pickStyleFile() {
-        var picked = File.openDialog(L("ui.pickFile"), function (candidate) {
+        var picked = File.openDialog(getLabel("ui.pickFile"), function (candidate) {
             return (candidate instanceof Folder) || /\.ai$/i.test(candidate.name);
         });
         return picked ? picked.fsName : "";
@@ -534,7 +534,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function importStylesFrom(destinationDoc, filePath) {
         var styleFile = new File(filePath);
         if (!styleFile.exists) {
-            alert(L("alert.fileNotFound") + getDisplayFileName(filePath));
+            alert(getLabel("alert.fileNotFound") + getDisplayFileName(filePath));
             return null;
         }
         var styleSourceDoc = app.open(styleFile);
@@ -558,7 +558,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         app.executeMenuCommand("paste");
         try { importLayer.remove(); } catch (e) { }
         // モーダルダイアログ表示中でも貼り付けの残像を即座に消す / Redraw now so the paste doesn't linger under the modal dialog
-        try { app.redraw(); } catch (e2) { }
+        app.redraw();
 
         // 実際に書類へ登録されたスタイル名だけを返す / Keep only names actually registered in the destination
         var importedStyleNames = [];
@@ -574,7 +574,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (findGraphicStyle(destinationDoc, styleName)) return true;
         if (importStylesFrom(destinationDoc, filePath) === null) return false;
         if (!findGraphicStyle(destinationDoc, styleName)) {
-            alert(L("alert.styleNotFound") + styleName);
+            alert(getLabel("alert.styleNotFound") + styleName);
             return false;
         }
         return true;
@@ -594,12 +594,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /* 選択オブジェクト群の可視バウンディングボックスの和を返す / Union of visibleBounds over a selection */
-    function getSelectionVisibleBounds(sel) {
-        if (!sel || !sel.length) return null;
+    function getSelectionVisibleBounds(currentSelection) {
+        if (!currentSelection || !currentSelection.length) return null;
         var left = null, top = null, right = null, bottom = null;
-        for (var i = 0; i < sel.length; i++) {
+        for (var i = 0; i < currentSelection.length; i++) {
             var itemBounds;
-            try { itemBounds = sel[i].visibleBounds; } catch (e) { continue; }
+            try { itemBounds = currentSelection[i].visibleBounds; } catch (e) { continue; }
             if (!itemBounds) continue;
             if (left === null || itemBounds[0] < left) left = itemBounds[0];
             if (top === null || itemBounds[1] > top) top = itemBounds[1];
@@ -775,8 +775,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 選択からモードを自動判定してエリア内文字へ変換 / Auto-detect mode and convert to area type */
-    function convertSelectionToAreaType(doc, sel, options) {
-        sel = preprocessPathTextSelection(doc, sel);
+    function convertSelectionToAreaType(doc, currentSelection, options) {
+        currentSelection = preprocessPathTextSelection(doc, currentSelection);
 
         var selection = app.activeDocument.selection;
         if (!selection || selection.length === 0) { return; }
@@ -793,7 +793,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 図形は長方形のみ対応。長方形以外の閉じたパスだけが図形として選ばれている場合は中止
         // Only rectangles are supported. Abort when a non-rectangle closed path is the only shape selected.
-        if (hasNonRectShape && !hasFrameShape) { alert(L("alert.rectangleOnly")); return; }
+        if (hasNonRectShape && !hasFrameShape) { alert(getLabel("alert.rectangleOnly")); return; }
 
         // テキスト＋図形 → 図形をフレームに / テキストのみ → 計測した実寸でフレーム
         // Text + shape → use the shape as the frame; text only → frame at the measured real size
@@ -911,30 +911,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             styleNames: (savedStyleState && savedStyleState.styleNames) || []
         };
 
-        var dialog = new Window("dialog", L("ui.dialogTitle") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("ui.dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 15;
 
-        var sizeAdjustPanel = dialog.add("panel", undefined, L("ui.sizeAdjustPanel"));
+        var sizeAdjustPanel = dialog.add("panel", undefined, getLabel("ui.sizeAdjustPanel"));
         setupPanel(sizeAdjustPanel, 6);
 
         // 大きさ調整 する / しない / Size adjustment on / off
         var adjustModeGroup = sizeAdjustPanel.add("group");
-        var adjustOnRadio = adjustModeGroup.add("radiobutton", undefined, L("ui.doAdjust"));
-        var adjustOffRadio = adjustModeGroup.add("radiobutton", undefined, L("ui.dontAdjust"));
+        var adjustOnRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("ui.doAdjust"));
+        var adjustOffRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("ui.dontAdjust"));
         adjustOffRadio.value = true; // 既定は「しない」/ Default: off
 
         // 幅・高さの倍率（別々の行、百分率 % で入力）/ Width and height ratios (separate rows, entered as %)
         var widthRow = sizeAdjustPanel.add("group");
-        var widthLabel = widthRow.add("statictext", undefined, L("ui.widthRatio"));
+        var widthLabel = widthRow.add("statictext", undefined, getLabel("ui.widthRatio"));
         widthLabel.preferredSize.width = 44;
         var widthInput = widthRow.add("edittext", undefined, String(Math.round(BUTTON_WIDTH_RATIO * 100)));
         widthInput.characters = 5;
         widthRow.add("statictext", undefined, "%");
 
         var heightRow = sizeAdjustPanel.add("group");
-        var heightLabel = heightRow.add("statictext", undefined, L("ui.heightRatio"));
+        var heightLabel = heightRow.add("statictext", undefined, getLabel("ui.heightRatio"));
         heightLabel.preferredSize.width = 44;
         var heightInput = heightRow.add("edittext", undefined, String(Math.round(BUTTON_HEIGHT_RATIO * 100)));
         heightInput.characters = 5;
@@ -949,9 +949,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         updateRatioInputsEnabled();
 
         // グラフィックスタイル（元の見た目／読み込んだスタイル）/ Graphic style (original appearance / loaded styles)
-        var stylePanel = dialog.add("panel", undefined, L("ui.stylePanel"));
+        var stylePanel = dialog.add("panel", undefined, getLabel("ui.stylePanel"));
         setupPanel(stylePanel, 6);
-        var styleOriginalRadio = stylePanel.add("radiobutton", undefined, L("ui.styleOriginal"));
+        var styleOriginalRadio = stylePanel.add("radiobutton", undefined, getLabel("ui.styleOriginal"));
         styleOriginalRadio.value = true; // 既定は「元の見た目」/ Default: original appearance
 
         // 読み込んだスタイルのラジオを差し替えるためのコンテナ / Container whose radios get rebuilt on reload
@@ -962,27 +962,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var importedRadios = []; // { radio, styleName }
 
         // スタイルの読み込みパネル（ボタンの下にファイル名を表示）/ Load-styles panel (filename shown below the button)
-        var loadPanel = dialog.add("panel", undefined, L("ui.loadPanel"));
+        var loadPanel = dialog.add("panel", undefined, getLabel("ui.loadPanel"));
         setupPanel(loadPanel, 6);
         // 読み込み / 再読み込みボタンを左寄せで横並び / Load & Reload buttons in a left-aligned row
         var loadButtonRow = loadPanel.add("group");
         loadButtonRow.alignment = "left";
-        var loadButton = loadButtonRow.add("button", undefined, L("ui.loadButton"));
-        loadButton.helpTip = L("ui.noStylesHint"); // 使い方はツールチップで案内 / Usage hint shown as a tooltip
-        var reloadButton = loadButtonRow.add("button", undefined, L("ui.reloadButton"));
-        reloadButton.helpTip = L("ui.reloadHint"); // 記憶したファイルから再取り込み / Re-import from the remembered file
+        var loadButton = loadButtonRow.add("button", undefined, getLabel("ui.loadButton"));
+        loadButton.helpTip = getLabel("ui.noStylesHint"); // 使い方はツールチップで案内 / Usage hint shown as a tooltip
+        var reloadButton = loadButtonRow.add("button", undefined, getLabel("ui.reloadButton"));
+        reloadButton.helpTip = getLabel("ui.reloadHint"); // 記憶したファイルから再取り込み / Re-import from the remembered file
         var fileNameText = loadPanel.add("statictext", undefined, "", { truncate: "middle" });
         fileNameText.preferredSize.width = 240;
 
         // ボタン（Mac規約：キャンセル → OK）/ Buttons (Mac order: Cancel → OK)
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "right";
-        var cancelButton = buttonGroup.add("button", undefined, L("ui.cancel"), { name: "cancel" });
+        var cancelButton = buttonGroup.add("button", undefined, getLabel("ui.cancel"), { name: "cancel" });
         var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         /* 選択中のファイル名表示と再読み込みボタンの有効状態を更新 / Update the file-name label and Reload's enabled state */
         function refreshFileLabel() {
-            fileNameText.text = styleState.filePath ? getDisplayFileName(styleState.filePath) : L("ui.noFileSelected");
+            fileNameText.text = styleState.filePath ? getDisplayFileName(styleState.filePath) : getLabel("ui.noFileSelected");
             reloadButton.enabled = !!styleState.filePath; // 記憶したファイルが無ければ再読み込み不可 / Disable Reload without a remembered file
         }
 
@@ -1058,12 +1058,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     if (app.documents.length > 0) {
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (sel && sel.length > 0) {
+        if (currentSelection && currentSelection.length > 0) {
             var hasConvertibleText = false;
-            for (var i = 0; i < sel.length; i++) {
-                if (sel[i].typename === "TextFrame" && (sel[i].kind === TextType.POINTTEXT || sel[i].kind === TextType.PATHTEXT)) {
+            for (var i = 0; i < currentSelection.length; i++) {
+                if (currentSelection[i].typename === "TextFrame" && (currentSelection[i].kind === TextType.POINTTEXT || currentSelection[i].kind === TextType.PATHTEXT)) {
                     hasConvertibleText = true;
                 }
             }
@@ -1080,27 +1080,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         externalReady = ensureExternalStyle(doc, options.externalStyleName, options.styleFilePath);
                         if (externalReady) {
                             // 取り込みで選択が外れるため復帰 / Restore selection (import clears it)
-                            try { doc.selection = sel; } catch (eSel) { }
+                            try { doc.selection = currentSelection; } catch (eSel) { }
                         }
                     }
                     if (externalReady) {
                         // フレーム整列アクションを読み込み、終了時に破棄 / Load frame-alignment actions, unload on exit
                         loadAreaTextActions();
                         try {
-                            convertSelectionToAreaType(doc, sel, options);
+                            convertSelectionToAreaType(doc, currentSelection, options);
                         } finally {
                             unloadAreaTextActions();
                         }
                     }
                 }
             } else {
-                alert(L("alert.selectText"));
+                alert(getLabel("alert.selectText"));
             }
         } else {
-            alert(L("alert.selectText"));
+            alert(getLabel("alert.selectText"));
         }
     } else {
-        alert(L("alert.noDocument"));
+        alert(getLabel("alert.noDocument"));
     }
 
 })();

@@ -45,7 +45,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -195,10 +195,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var v = LABELS[key];
         if (!v) return key;
-        return (v[lang] !== undefined) ? v[lang] : (v.en !== undefined ? v.en : key);
+        return (v[uiLang] !== undefined) ? v[uiLang] : (v.en !== undefined ? v.en : key);
     }
 
     /* 単位ラベル取得ユーティリティ / Unit label utilities */
@@ -346,21 +346,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L("alertOpenDoc"));
+            alert(getLabel("alertOpenDoc"));
             return;
         }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (!sel || sel.length !== 2) {
-            alert(L("alertSelectTwoItems"));
+        if (!currentSelection || currentSelection.length !== 2) {
+            alert(getLabel("alertSelectTwoItems"));
             return;
         }
 
         // Keep original two items; ordering depends on direction at draw time
-        var itemA = sel[0];
-        var itemB = sel[1];
+        var itemA = currentSelection[0];
+        var itemB = currentSelection[1];
 
         // --- Auto direction detection / 方向を自動判別 ---
         function detectDirectionModeBySelection(itemA, itemB) {
@@ -833,9 +833,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pp = it.pathPoints;
                 if (!pp || pp.length !== 4) continue;
 
-                var sel = 0;
-                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-                if (sel > 0 && sel < 4) continue;
+                var currentSelection = 0;
+                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) currentSelection++;
+                if (currentSelection > 0 && currentSelection < 4) continue;
 
                 var idx = [0, 1, 2, 3];
                 idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });
@@ -856,9 +856,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pp = it.pathPoints;
                 if (!pp || pp.length !== 4) continue;
 
-                var sel = 0;
-                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-                if (sel > 0 && sel < 4) continue;
+                var currentSelection = 0;
+                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) currentSelection++;
+                if (currentSelection > 0 && currentSelection < 4) continue;
 
                 var idx = [0, 1, 2, 3];
                 idx.sort(function (x, y) { return pp[y].anchor[1] - pp[x].anchor[1]; }); // top first
@@ -877,9 +877,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pp = it.pathPoints;
                 if (!pp || pp.length !== 4) continue;
 
-                var sel = 0;
-                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-                if (sel > 0 && sel < 4) continue;
+                var currentSelection = 0;
+                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) currentSelection++;
+                if (currentSelection > 0 && currentSelection < 4) continue;
 
                 var idx = [0, 1, 2, 3];
                 idx.sort(function (x, y) { return pp[x].anchor[1] - pp[y].anchor[1]; }); // bottom first
@@ -935,7 +935,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function safeRedraw() {
-            try { app.redraw(); } catch (e) { }
+            app.redraw();
         }
 
         // --- プレビュー状態 ---
@@ -1380,7 +1380,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * ダイアログ（プレビュー付き）
          */
         function showHeightDialog(defaultPercent, previewFn, clearPreviewFn) {
-            var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
             dlg.orientation = 'column';
             dlg.alignChildren = ['fill', 'top'];
             dlg.margins = 18;
@@ -1398,14 +1398,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             row.alignment = ['center', 'top'];
 
             // Main size label (will be swapped by direction)
-            var stMainSizeLabel = row.add('statictext', undefined, L('labelHeight'));
+            var stMainSizeLabel = row.add('statictext', undefined, getLabel('labelHeight'));
 
             var et = row.add('edittext', undefined, String((ss && ss.percent !== undefined) ? ss.percent : defaultPercent));
             et.characters = 6;
             et.active = true;
             changeValueByArrowKey(et, false, applyPreview);
 
-            row.add('statictext', undefined, L('labelPercent'));
+            row.add('statictext', undefined, getLabel('labelPercent'));
 
             // --- Direction UI removed; mode is fixed to AUTO_DIRECTION_MODE ---
             function getDirectionMode() {
@@ -1425,16 +1425,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             drawPanel.margins = [15, 20, 15, 10];
 
             // Keep variable names; label text will be swapped for vertical mode
-            var cbFillLeft = drawPanel.add('checkbox', undefined, L('labelFillLeft'));
+            var cbFillLeft = drawPanel.add('checkbox', undefined, getLabel('labelFillLeft'));
             cbFillLeft.value = (ss.fillLeft !== undefined) ? !!ss.fillLeft : true;
 
-            var cbFillRight = drawPanel.add('checkbox', undefined, L('labelFillRight'));
+            var cbFillRight = drawPanel.add('checkbox', undefined, getLabel('labelFillRight'));
             cbFillRight.value = (ss.fillRight !== undefined) ? !!ss.fillRight : true;
 
-            var cbOverallFrame = drawPanel.add('checkbox', undefined, L('labelOverallFrame'));
+            var cbOverallFrame = drawPanel.add('checkbox', undefined, getLabel('labelOverallFrame'));
             cbOverallFrame.value = (ss.overallFrame !== undefined) ? !!ss.overallFrame : false;
 
-            var cbDivider = drawPanel.add('checkbox', undefined, L('labelDivider'));
+            var cbDivider = drawPanel.add('checkbox', undefined, getLabel('labelDivider'));
             cbDivider.value = (ss.divider !== undefined) ? !!ss.divider : false;
 
             // --- 線オプション / Stroke options (Right column) ---
@@ -1443,7 +1443,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rightCol.alignChildren = ['fill', 'top'];
             rightCol.spacing = 12;
 
-            var linePanel = rightCol.add('panel', undefined, L('panelLine'));
+            var linePanel = rightCol.add('panel', undefined, getLabel('panelLine'));
             linePanel.orientation = 'column';
             linePanel.alignChildren = ['left', 'top'];
             linePanel.margins = [15, 20, 15, 10];
@@ -1452,7 +1452,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             lineRow.orientation = 'row';
             lineRow.alignChildren = ['left', 'center'];
 
-            lineRow.add('statictext', undefined, L('labelStrokeWidth'));
+            lineRow.add('statictext', undefined, getLabel('labelStrokeWidth'));
             var etStroke = lineRow.add('edittext', undefined, (ss && ss.strokeUnit !== undefined) ? String(ss.strokeUnit) : formatUnitValue(ptToUnit(1, "strokeUnits")));
             etStroke.characters = 4;
             changeValueByArrowKey(etStroke, false, applyPreview);
@@ -1462,7 +1462,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cornerRow.orientation = 'row';
             cornerRow.alignChildren = ['left', 'center'];
 
-            cornerRow.add('statictext', undefined, L('labelCornerRadius'));
+            cornerRow.add('statictext', undefined, getLabel('labelCornerRadius'));
             var etCorner = cornerRow.add('edittext', undefined, (ss && ss.cornerUnit !== undefined) ? String(ss.cornerUnit) : formatUnitValue(ptToUnit(0, "rulerType")));
             etCorner.characters = 4;
             cornerRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("rulerType"));
@@ -1482,7 +1482,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateCornerEnabled();
 
             // --- バランス / Balance (full-width, spanning both columns) ---
-            var pinPanel = dlg.add('panel', undefined, L('panelFixed'));
+            var pinPanel = dlg.add('panel', undefined, getLabel('panelFixed'));
             pinPanel.orientation = 'column';
             pinPanel.alignChildren = ['fill', 'top'];
             pinPanel.margins = [15, 20, 15, 10];
@@ -1493,9 +1493,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pinRadioRow.alignChildren = ['left', 'center'];
 
             // Keep variable names; text will be swapped for vertical mode
-            var rbPinNone = pinRadioRow.add('radiobutton', undefined, L('fixedNone'));
-            var rbPinLeft = pinRadioRow.add('radiobutton', undefined, L('fixedLeft'));
-            var rbPinRight = pinRadioRow.add('radiobutton', undefined, L('fixedRight'));
+            var rbPinNone = pinRadioRow.add('radiobutton', undefined, getLabel('fixedNone'));
+            var rbPinLeft = pinRadioRow.add('radiobutton', undefined, getLabel('fixedLeft'));
+            var rbPinRight = pinRadioRow.add('radiobutton', undefined, getLabel('fixedRight'));
             rbPinNone.value = (ss.balanceMode === 'none');
             rbPinLeft.value = (ss.balanceMode === 'left');
             rbPinRight.value = (ss.balanceMode === 'right');
@@ -1511,7 +1511,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pinWidthValueRow.orientation = 'row';
             pinWidthValueRow.alignChildren = ['left', 'center'];
 
-            pinWidthValueRow.add('statictext', undefined, L('labelWidth'));
+            pinWidthValueRow.add('statictext', undefined, getLabel('labelWidth'));
 
             var defaultWidthUnit = (ss && ss.widthUnit !== undefined)
                 ? ss.widthUnit
@@ -1655,18 +1655,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             function updateDirectionUILabels() {
                 var isV = (AUTO_DIRECTION_MODE === 'vertical');
 
-                try { stMainSizeLabel.text = isV ? L('labelWidthMain') : L('labelHeight'); } catch (e0) { }
+                try { stMainSizeLabel.text = isV ? getLabel('labelWidthMain') : getLabel('labelHeight'); } catch (e0) { }
 
-                try { cbFillLeft.text = isV ? L('labelFillTop') : L('labelFillLeft'); } catch (e1) { }
-                try { cbFillRight.text = isV ? L('labelFillBottom') : L('labelFillRight'); } catch (e2) { }
+                try { cbFillLeft.text = isV ? getLabel('labelFillTop') : getLabel('labelFillLeft'); } catch (e1) { }
+                try { cbFillRight.text = isV ? getLabel('labelFillBottom') : getLabel('labelFillRight'); } catch (e2) { }
 
-                try { rbPinLeft.text = isV ? L('fixedTop') : L('fixedLeft'); } catch (e3) { }
-                try { rbPinRight.text = isV ? L('fixedBottom') : L('fixedRight'); } catch (e4) { }
+                try { rbPinLeft.text = isV ? getLabel('fixedTop') : getLabel('fixedLeft'); } catch (e3) { }
+                try { rbPinRight.text = isV ? getLabel('fixedBottom') : getLabel('fixedRight'); } catch (e4) { }
             }
 
             updateDirectionUILabels();
 
-            var cbPreview = dlg.add('checkbox', undefined, L('labelPreview'));
+            var cbPreview = dlg.add('checkbox', undefined, getLabel('labelPreview'));
             cbPreview.value = (ss.preview !== undefined) ? !!ss.preview : true;
 
             function parsePercent() {
@@ -1808,13 +1808,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             btns.orientation = 'row';
             btns.alignment = ['right', 'center'];
 
-            var cancelBtn = btns.add('button', undefined, L('labelCancel'), { name: 'cancel' });
-            var okBtn = btns.add('button', undefined, L('labelOK'), { name: 'ok' });
+            var cancelBtn = btns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
+            var okBtn = btns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
 
             okBtn.onClick = function () {
                 var v = parsePercent();
                 if (v === null) {
-                    alert(L('alertHeightInvalid'));
+                    alert(getLabel('alertHeightInvalid'));
                     return;
                 }
                 try { removeMarkedTempItems(doc); } catch (eTmpOK) { }
@@ -2104,7 +2104,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                 }
             }
-            activeDocument.selection = s;
+            app.activeDocument.selection = s;
         }
 
         function getPnt(pt, rad, len) {
@@ -2300,9 +2300,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pp = it.pathPoints;
                 if (!pp || pp.length !== 4) continue;
 
-                var sel = 0;
-                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-                if (sel > 0 && sel < 4) continue;
+                var currentSelection = 0;
+                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) currentSelection++;
+                if (currentSelection > 0 && currentSelection < 4) continue;
 
                 var idx = [0, 1, 2, 3];
                 idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });

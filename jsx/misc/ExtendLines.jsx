@@ -42,7 +42,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -78,10 +78,10 @@ var SCRIPT_MARKER = "__ExtendLines__";
         alertError: { ja: "エラー: ", en: "Error: " }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var v = LABELS[key];
         if (!v) return key;
-        return v[lang] || v.en || v.ja || key;
+        return v[uiLang] || v.en || v.ja || key;
     }
 
     /* セッション保持（Illustrator終了で破棄） / Session-only state (forgotten when Illustrator quits) */
@@ -89,27 +89,27 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
     function main() {
         if (app.documents.length === 0) {
-            alert(L("alertNoDoc"));
+            alert(getLabel("alertNoDoc"));
             return;
         }
 
         var doc = app.activeDocument;
         if (!doc) {
-            alert(L("alertNoDoc"));
+            alert(getLabel("alertNoDoc"));
             return;
         }
 
         // Undo 1回で元に戻せるように、処理を1つの履歴にまとめる
         try {
             if (doc.suspendHistory) {
-                doc.suspendHistory(L("historyTitle"), "mainImpl()");
+                doc.suspendHistory(getLabel("historyTitle"), "mainImpl()");
             } else {
                 // 古い環境向けフォールバック
                 mainImpl();
             }
         } catch (e) {
             // suspendHistory 内の例外もここに来る
-            try { alert(L("alertError") + e); } catch (_) { }
+            try { alert(getLabel("alertError") + e); } catch (_) { }
         }
     }
 
@@ -213,10 +213,10 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
     function mainImpl() {
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (!sel || sel.length === 0) {
-            alert(L("alertNoSelection"));
+        if (!currentSelection || currentSelection.length === 0) {
+            alert(getLabel("alertNoSelection"));
             return;
         }
 
@@ -225,24 +225,24 @@ var SCRIPT_MARKER = "__ExtendLines__";
         var tempOutlineRoots = [];
 
         // まず通常のパスを抽出
-        extractPathItems(sel, targetPaths);
+        extractPathItems(currentSelection, targetPaths);
 
         // テキストがあれば一時アウトライン化してパスを追加
-        var tmp = outlineTextFromSelection(sel);
+        var tmp = outlineTextFromSelection(currentSelection);
         tempOutlineRoots = tmp.outlineRoots;
         if (tempOutlineRoots.length > 0) {
             extractPathItems(tempOutlineRoots, targetPaths);
         }
 
         if (targetPaths.length === 0) {
-            alert(L("alertNoValidPath"));
+            alert(getLabel("alertNoValidPath"));
             // 一時アウトラインがあれば後始末
             cleanupTempOutlines(tempOutlineRoots);
             return;
         }
 
         // ダイアログの表示
-        var dialogResult = showDialog(doc, sel, targetPaths);
+        var dialogResult = showDialog(doc, currentSelection, targetPaths);
         if (dialogResult === null) {
             cleanupTempOutlines(tempOutlineRoots);
             return; // キャンセルされた場合は終了
@@ -277,7 +277,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         var drawBottom = abBottom;
 
         // 選択全体のバウンディング
-        var selBounds = getUnionBounds(sel);
+        var selBounds = getUnionBounds(currentSelection);
         if (selBounds) {
             var sL = selBounds[0], sT = selBounds[1], sR = selBounds[2], sB = selBounds[3];
 
@@ -312,7 +312,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
             var baseLayerName = "_construction";
 
             // 選択が _construction 上なら、元のオブジェクトを消さないため新規レイヤーを作る
-            var mustCreateNew = isSelectionOnLayer(sel, baseLayerName);
+            var mustCreateNew = isSelectionOnLayer(currentSelection, baseLayerName);
 
             if (mustCreateNew) {
                 // 既存の _construction をバックアップ名へリネームし、新しい _construction を作る
@@ -347,7 +347,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         var lineGroup;
         if (shouldGroup) {
             lineGroup = targetLayer.groupItems.add();
-            lineGroup.name = SCRIPT_MARKER + "_" + L("groupName");
+            lineGroup.name = SCRIPT_MARKER + "_" + getLabel("groupName");
             try { lineGroup.note = SCRIPT_MARKER; } catch (_) { }
         } else {
             lineGroup = targetLayer;
@@ -457,8 +457,8 @@ var SCRIPT_MARKER = "__ExtendLines__";
     }
 
     /* ダイアログを表示して設定を取得 / Show dialog and get settings */
-    function showDialog(doc, sel, targetPaths) {
-        var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+    function showDialog(doc, currentSelection, targetPaths) {
+        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         win.orientation = "column";
         win.alignChildren = ["left", "top"];
         win.margins = 15;
@@ -480,7 +480,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         cols.spacing = 10;
 
         // 補助線を描画 panel
-        var pnlExtend = cols.add("panel", undefined, L("panelAuxLines"));
+        var pnlExtend = cols.add("panel", undefined, getLabel("panelAuxLines"));
         pnlExtend.orientation = "column";
         pnlExtend.alignChildren = ["left", "top"];
         pnlExtend.margins = [15, 20, 15, 10];
@@ -497,27 +497,27 @@ var SCRIPT_MARKER = "__ExtendLines__";
         rowStraight.alignChildren = ["left", "center"];
         rowStraight.spacing = 0;
 
-        var cbStraightOnly = rowStraight.add("checkbox", undefined, L("modeStraightOnly"));
+        var cbStraightOnly = rowStraight.add("checkbox", undefined, getLabel("modeStraightOnly"));
         cbStraightOnly.value = true; // デフォルトON
 
         // 追加オプション（補助線を描画 panel 内）
-        var cbArcToCircle = rbGroup.add("checkbox", undefined, L("cbArcToCircle"));
+        var cbArcToCircle = rbGroup.add("checkbox", undefined, getLabel("cbArcToCircle"));
         cbArcToCircle.value = true; // デフォルトON
 
         // 円弧オプション（補助線を描画 panel 内）
-        var pnlArcOpt = rbGroup.add("panel", undefined, L("panelArcOptions"));
+        var pnlArcOpt = rbGroup.add("panel", undefined, getLabel("panelArcOptions"));
         pnlArcOpt.orientation = "column";
         pnlArcOpt.alignChildren = ["left", "top"];
         pnlArcOpt.margins = [15, 20, 15, 10];
-        pnlArcOpt.helpTip = L("arcOptionsHint");
+        pnlArcOpt.helpTip = getLabel("arcOptionsHint");
 
         var grpArcRb = pnlArcOpt.add("group");
         grpArcRb.orientation = "column";
         grpArcRb.alignChildren = ["left", "top"];
 
-        var rbArcIgnore = grpArcRb.add("radiobutton", undefined, L("arcFallbackIgnore"));
-        var rbArcStraight = grpArcRb.add("radiobutton", undefined, L("arcFallbackStraight"));
-        var rbArcExtend = grpArcRb.add("radiobutton", undefined, L("arcFallbackExtend"));
+        var rbArcIgnore = grpArcRb.add("radiobutton", undefined, getLabel("arcFallbackIgnore"));
+        var rbArcStraight = grpArcRb.add("radiobutton", undefined, getLabel("arcFallbackStraight"));
+        var rbArcExtend = grpArcRb.add("radiobutton", undefined, getLabel("arcFallbackExtend"));
         rbArcIgnore.value = true; // デフォルト：無視
 
         // 念のため排他を強制（環境差で同時ONになる事故を防ぐ）
@@ -543,7 +543,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         strokeRow.alignChildren = ["left", "center"];
         strokeRow.spacing = 6;
 
-        strokeRow.add("statictext", undefined, L("strokeWidth"));
+        strokeRow.add("statictext", undefined, getLabel("strokeWidth"));
 
         var strokeUnitCode = getStrokeUnitCode();
         var strokeUnitFactor = getPtFactorFromUnitCode(strokeUnitCode);
@@ -590,22 +590,22 @@ var SCRIPT_MARKER = "__ExtendLines__";
         }
 
         // オプションパネル
-        var optPanel = cols.add("panel", undefined, L("panelOptions"));
+        var optPanel = cols.add("panel", undefined, getLabel("panelOptions"));
         optPanel.orientation = "column";
         optPanel.alignChildren = ["left", "top"];
         optPanel.margins = [15, 20, 15, 10];
         optPanel.alignment = ["fill", "top"]; // ダイアログ左右いっぱいに
 
-        var cbGroup = optPanel.add("checkbox", undefined, L("cbGroup"));
+        var cbGroup = optPanel.add("checkbox", undefined, getLabel("cbGroup"));
         cbGroup.value = true; // デフォルトON
 
-        var cbSeparateLayer = optPanel.add("checkbox", undefined, L("cbSeparateLayer"));
+        var cbSeparateLayer = optPanel.add("checkbox", undefined, getLabel("cbSeparateLayer"));
         cbSeparateLayer.value = true; // デフォルトON
 
-        var cbGuide = optPanel.add("checkbox", undefined, L("cbGuide"));
+        var cbGuide = optPanel.add("checkbox", undefined, getLabel("cbGuide"));
         cbGuide.value = false; // デフォルトOFF
 
-        var cbDedup = optPanel.add("checkbox", undefined, L("cbDedup"));
+        var cbDedup = optPanel.add("checkbox", undefined, getLabel("cbDedup"));
         cbDedup.value = true; // デフォルトON
 
         // Preview layer name (unique per dialog instance)
@@ -613,7 +613,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
         function clearPreview() {
             removeLayerIfExists(doc, previewLayerName);
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         }
 
         function updatePreviewFromUI() {
@@ -646,7 +646,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
             var drawLeft = abLeft, drawTop = abTop, drawRight = abRight, drawBottom = abBottom;
 
-            var selBounds = getUnionBounds(sel);
+            var selBounds = getUnionBounds(currentSelection);
             if (selBounds) {
                 var sL = selBounds[0], sT = selBounds[1], sR = selBounds[2], sB = selBounds[3];
                 var intersects = !(sR < abLeft || sL > abRight || sT < abBottom || sB > abTop);
@@ -714,7 +714,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
                 }
             }
 
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         }
 
         // 2カラムの下に余白
@@ -727,7 +727,7 @@ var SCRIPT_MARKER = "__ExtendLines__";
         btnRowGroup.alignment = ["fill", "top"];
 
         // 左：プレビュー
-        var cbPreview = btnRowGroup.add("checkbox", undefined, L("cbPreview"));
+        var cbPreview = btnRowGroup.add("checkbox", undefined, getLabel("cbPreview"));
         cbPreview.value = false;
 
         // --- Preview event wiring (must be after cbPreview is created) ---
@@ -776,8 +776,8 @@ var SCRIPT_MARKER = "__ExtendLines__";
         btnsRight.alignChildren = ["right", "center"];
         btnsRight.spacing = 10;
 
-        var btnCancel = btnsRight.add("button", undefined, L("btnCancel"), { name: "cancel" });
-        var btnOk = btnsRight.add("button", undefined, L("btnOk"), { name: "ok" });
+        var btnCancel = btnsRight.add("button", undefined, getLabel("btnCancel"), { name: "cancel" });
+        var btnOk = btnsRight.add("button", undefined, getLabel("btnOk"), { name: "ok" });
 
         var result = null;
         var dialogReturn = win.show();

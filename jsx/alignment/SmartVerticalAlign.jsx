@@ -58,9 +58,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
     /* 整列位置。ラジオボタン・メニューコマンド・ショートカットキーを1か所で対応付ける
        / Alignment options: radio button, menu command and shortcut key in one table */
     var ALIGN_OPTIONS = [
-        { labelKey: 'radio.top',    menuCommand: 'Vertical Align Top',    shortcutKey: 'T' },
-        { labelKey: 'radio.center', menuCommand: 'Vertical Align Center', shortcutKey: 'M' },
-        { labelKey: 'radio.bottom', menuCommand: 'Vertical Align Bottom', shortcutKey: 'B' }
+        { labelKey: 'radio.top',    tooltipKey: 'tooltip.top',    menuCommand: 'Vertical Align Top',    shortcutKey: 'T' },
+        { labelKey: 'radio.center', tooltipKey: 'tooltip.center', menuCommand: 'Vertical Align Center', shortcutKey: 'M' },
+        { labelKey: 'radio.bottom', tooltipKey: 'tooltip.bottom', menuCommand: 'Vertical Align Bottom', shortcutKey: 'B' }
     ];
     var ALIGN_INDEX_CENTER = 1;
     var ALIGN_INDEX_BOTTOM = 2;
@@ -68,8 +68,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
     /* ［字形の境界に整列］のチェックボックスと、対応する環境設定キー・文字種
        / Glyph-bounds checkboxes with their preference key and text kind */
     var GLYPH_BOUNDS_OPTIONS = [
-        { labelKey: 'checkbox.pointText', prefKey: 'EnableActualPointTextSpaceAlign', textKind: TextType.POINTTEXT },
-        { labelKey: 'checkbox.areaText',  prefKey: 'EnableActualAreaTextSpaceAlign',  textKind: TextType.AREATEXT }
+        { labelKey: 'checkbox.pointText', tooltipKey: 'tooltip.pointText', prefKey: 'EnableActualPointTextSpaceAlign', textKind: TextType.POINTTEXT },
+        { labelKey: 'checkbox.areaText',  tooltipKey: 'tooltip.areaText',  prefKey: 'EnableActualAreaTextSpaceAlign',  textKind: TextType.AREATEXT }
     ];
     var GLYPH_INDEX_POINT_TEXT = 0;
 
@@ -139,7 +139,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
         },
         panel: {
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
-            alignment: { ja: "整列", en: "Alignment" }
+            alignment: { ja: "整列位置", en: "Alignment" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
+        },
+        tooltip: {
+            top:    { ja: "選択範囲の上端にそろえます（T キー）", en: "Align to the top of the selection (T)" },
+            center: { ja: "選択範囲の上下中央にそろえます（M キー）", en: "Align to the vertical center of the selection (M)" },
+            bottom: { ja: "選択範囲の下端にそろえます（B キー）", en: "Align to the bottom of the selection (B)" },
+            pointText: {
+                ja: "ポイント文字を、仮想ボディではなく字形の実際の輪郭でそろえます。",
+                en: "Aligns point text by the actual glyph outlines instead of the em box."
+            },
+            areaText: {
+                ja: "エリア内文字を、テキストエリアの枠ではなく字形の実際の輪郭でそろえます。",
+                en: "Aligns area text by the actual glyph outlines instead of the text area frame."
+            },
+            previewBounds: {
+                ja: "線幅や効果を含めた見た目の端を基準にそろえます（環境設定の［プレビュー境界を使用］を切り替えます）。",
+                en: "Aligns by the visible edges including strokes and effects (toggles the Use Preview Bounds preference)."
+            }
         },
         checkbox: {
             pointText: { ja: "ポイント文字", en: "Point Text" },
@@ -191,7 +211,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
 
     /**
      * 選択中の整列対象オブジェクトを配列で取得する
-     * @returns {Array<PageItem>} 整列対象のオブジェクト
+     * @returns {PageItem[]} 整列対象のオブジェクト
      */
     function getAlignableSelection() {
         var currentSelection = app.activeDocument.selection;
@@ -256,8 +276,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
     /**
      * ［字形の境界に整列］パネルを追加する
      * @param {Window} targetDialog - 追加先のダイアログ
-     * @param {Array<PageItem>} alignableItems - 選択中の整列対象オブジェクト
-     * @returns {Array<Checkbox>} GLYPH_BOUNDS_OPTIONS と同じ並びのチェックボックス
+     * @param {PageItem[]} alignableItems - 選択中の整列対象オブジェクト
+     * @returns {Checkbox[]} GLYPH_BOUNDS_OPTIONS と同じ並びのチェックボックス
      */
     function addGlyphBoundsPanel(targetDialog, alignableItems) {
         var glyphBoundsPanel = targetDialog.add('panel', undefined, getLabel('panel.glyphBounds'));
@@ -277,26 +297,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
     /**
      * ［字形の境界に整列］のチェックボックスを1つ追加し、環境設定とプレビューに結び付ける
      * @param {Panel} parentPanel - 追加先のパネル
-     * @param {Object} glyphOption - GLYPH_BOUNDS_OPTIONS の1項目
+     * @param {object} glyphOption - GLYPH_BOUNDS_OPTIONS の1項目
      * @param {TextType} selectedTextKind - 選択中の文字種（テキスト以外は null）
      * @returns {Checkbox} 追加したチェックボックス
      */
     function addGlyphBoundsCheckbox(parentPanel, glyphOption, selectedTextKind) {
-        var checkbox = parentPanel.add('checkbox', undefined, getLabel(glyphOption.labelKey));
-        checkbox.value = app.preferences.getBooleanPreference(glyphOption.prefKey);
+        var glyphBoundsCheckbox = parentPanel.add('checkbox', undefined, getLabel(glyphOption.labelKey));
+        glyphBoundsCheckbox.helpTip = getLabel(glyphOption.tooltipKey);
+        glyphBoundsCheckbox.value = app.preferences.getBooleanPreference(glyphOption.prefKey);
 
         /* 選択が別の文字種ならディム / Dim when the selection is the other text kind */
         if (selectedTextKind != null && selectedTextKind !== glyphOption.textKind) {
-            checkbox.enabled = false;
+            glyphBoundsCheckbox.enabled = false;
         }
 
         /* ON/OFFで環境設定を書き換え、そのままプレビューを更新
            / Write the preference and refresh the preview on every toggle */
-        checkbox.onClick = function () {
-            app.preferences.setBooleanPreference(glyphOption.prefKey, checkbox.value === true);
+        glyphBoundsCheckbox.onClick = function () {
+            app.preferences.setBooleanPreference(glyphOption.prefKey, glyphBoundsCheckbox.value === true);
             applyPreviewAlignment();
         };
-        return checkbox;
+        return glyphBoundsCheckbox;
     }
 
     /**
@@ -310,6 +331,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
 
         for (var i = 0; i < ALIGN_OPTIONS.length; i++) {
             var alignRadio = alignmentPanel.add('radiobutton', undefined, getLabel(ALIGN_OPTIONS[i].labelKey));
+            alignRadio.helpTip = getLabel(ALIGN_OPTIONS[i].tooltipKey);
             alignRadio.onClick = applyPreviewAlignment;
             alignRadios.push(alignRadio);
         }
@@ -327,6 +349,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
         previewBoundsRow.margins = PREVIEW_ROW_MARGINS;
 
         var previewBoundsCheckbox = previewBoundsRow.add('checkbox', undefined, getLabel('checkbox.previewBounds'));
+        previewBoundsCheckbox.helpTip = getLabel('tooltip.previewBounds');
         previewBoundsCheckbox.value = DEFAULT_USE_PREVIEW_BOUNDS;
         previewBoundsCheckbox.onClick = function () {
             /* ONで線幅・効果を境界に含める / ON: include stroke and effects in the bounds */
@@ -378,7 +401,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
 
     /**
      * 選択内容に応じて整列位置とポイント文字チェックボックスの初期値を決める
-     * @param {Array<PageItem>} alignableItems - 選択中の整列対象オブジェクト
+     * @param {PageItem[]} alignableItems - 選択中の整列対象オブジェクト
      * @param {Checkbox} pointTextCheckbox - ポイント文字のチェックボックス
      * @returns {void}
      */
@@ -416,24 +439,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9ee716675032"; /* 紹�
      * @returns {void}
      */
     function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel('alert.noDocument'));
+            return;
+        }
+
         var alignableItems = getAlignableSelection();
 
-        var dialog = new Window('dialog');
-        dialog.text = getLabel('dialog.title') + ' ' + SCRIPT_VERSION;
-        dialog.orientation = 'column';
-        dialog.alignChildren = ['fill', 'top'];
-        dialog.opacity = DIALOG_OPACITY;
-        shiftDialogPosition(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+        var alignDialog = new Window('dialog');
+        alignDialog.text = getLabel('dialog.title') + ' ' + SCRIPT_VERSION;
+        alignDialog.orientation = 'column';
+        alignDialog.alignChildren = ['fill', 'top'];
+        alignDialog.opacity = DIALOG_OPACITY;
+        shiftDialogPosition(alignDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
-        var glyphBoundsCheckboxes = addGlyphBoundsPanel(dialog, alignableItems);
-        addAlignmentPanel(dialog);
-        addPreviewBoundsRow(dialog);
-        addButtonRow(dialog);
-        addAlignmentKeyHandler(dialog);
+        var glyphBoundsCheckboxes = addGlyphBoundsPanel(alignDialog, alignableItems);
+        addAlignmentPanel(alignDialog);
+        addPreviewBoundsRow(alignDialog);
+        addButtonRow(alignDialog);
+        addAlignmentKeyHandler(alignDialog);
 
         applyDefaultAlignment(alignableItems, glyphBoundsCheckboxes[GLYPH_INDEX_POINT_TEXT]);
 
-        dialog.show();
+        alignDialog.show();
     }
 
     main();

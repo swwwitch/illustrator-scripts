@@ -37,8 +37,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne38eeee5abc8?nt=_30841
 
     function getCurrentLang() {
         // 言語を取得し、"ja" または "en" で返す / Get language code as "ja" or "en"
-        var lang = app.locale || $.locale || "en";
-        if (lang.indexOf("ja") === 0) {
+        var uiLang = app.locale || $.locale || "en";
+        if (uiLang.indexOf("ja") === 0) {
             return "ja";
         } else {
             return "en";

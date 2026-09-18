@@ -167,11 +167,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        var sel = app.activeDocument.selection;
+        var currentSelection = app.activeDocument.selection;
 
         try {
-            for (var i = 0; i < sel.length; i++) {
-                processItem(sel[i]);
+            for (var i = 0; i < currentSelection.length; i++) {
+                processItem(currentSelection[i]);
             }
         } catch (e) {
             alert("カラーの適用中にエラーが発生しました:\n" + e);

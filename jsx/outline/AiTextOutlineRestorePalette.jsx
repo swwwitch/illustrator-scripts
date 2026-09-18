@@ -137,7 +137,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      * @param {string} path - "panel.outline" のようなドット区切りのキー
      * @returns {string} ロケールに対応する文言。見つからない場合は英語、それも無ければパスをそのまま返す
      */
-    function L(path) {
+    function getLabel(path) {
         var parts = String(path).split('.');
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -420,7 +420,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         var selectedTextFrames = workerFilterByType(currentSelection, ["TextFrame"]);
         if (selectedTextFrames.length < 1) { return "NOSEL"; }
         /* geometricBounds を確定させるための再描画は1回だけ（件数分繰り返さない） */
-        try { app.redraw(); } catch (eDraw) {}
+        app.redraw();
         var outlineGroups = [];
         var errorText = null;
         var loopIndex;
@@ -1227,7 +1227,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         workerSetAttr(doc, "activeLayer", restoredTextLayer || restoreReport.targetLayer);
         /* 最後にもう一度だけ再描画する。ループ内の redraw は位置合わせ用で「フレーム生成の直後」にしか入らないため、
            その後の元アウトラインの削除・退避（とくに最終件）が画面に反映されないまま残る */
-        try { app.redraw(); } catch (eRedraw) {}
+        app.redraw();
         return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "") + (runError ? ":PARTIAL" : "");
     }
 
@@ -1412,7 +1412,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      * @returns {string} 対応する文言。該当が無ければ null
      */
     function statusTextForCode(result) {
-        return (result != null && STATUS_CODE_KEYS[result]) ? L(STATUS_CODE_KEYS[result]) : null;
+        return (result != null && STATUS_CODE_KEYS[result]) ? getLabel(STATUS_CODE_KEYS[result]) : null;
     }
 
     /* "ERR:" 付きの戻り値は詳細まで出す / Error text, with the detail when present */
@@ -1422,8 +1422,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      * @returns {string} "ERR:" で始まる場合は詳細付き、それ以外は汎用のエラー文言
      */
     function errorStatusText(result) {
-        if (result != null && result.indexOf("ERR") === 0) { return L('status.err') + ": " + result.substring(4); }
-        return L('status.err');
+        if (result != null && result.indexOf("ERR") === 0) { return getLabel('status.err') + ": " + result.substring(4); }
+        return getLabel('status.err');
     }
 
     /**
@@ -1438,9 +1438,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         if (result.indexOf("OK") === 0) {
             var parts = result.split(":");
             var count = (parts.length > 1) ? parts[1] : "";
-            var message = L(doneKey) + (count ? " (" + count + ")" : "");
-            if (result.indexOf("FONT") >= 0) { message += " / " + L('status.fontWarn'); }
-            if (result.indexOf("PARTIAL") >= 0) { message += " / " + L('status.partial'); }
+            var message = getLabel(doneKey) + (count ? " (" + count + ")" : "");
+            if (result.indexOf("FONT") >= 0) { message += " / " + getLabel('status.fontWarn'); }
+            if (result.indexOf("PARTIAL") >= 0) { message += " / " + getLabel('status.partial'); }
             setStatus(win, message);
             return;
         }
@@ -1491,7 +1491,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         var result;
         isBusy = true;
         try {
-            setStatus(win, L('status.busy'));
+            setStatus(win, getLabel('status.busy'));
             result = callWorkerSafely(entryCall);
         } finally {
             // 例外で抜けても必ず戻す（立ちっぱなしだと以降のボタンが黙って無反応になる）
@@ -1585,7 +1585,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         if (result != null && result.indexOf("NOTE:") === 0) {
             // 一覧の作り直し（removeAll）は populateNoteList 側で行う
             populateNoteList(win, result.substring(5));
-            if (!keepStatus) { setStatus(win, L('status.memoLoaded')); }
+            if (!keepStatus) { setStatus(win, getLabel('status.memoLoaded')); }
             return;
         }
         win.noteList.removeAll();
@@ -1615,8 +1615,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      * @returns {Button} 追加したボタン
      */
     function addButton(parent, labelKey, tipKey, handler) {
-        var button = parent.add("button", undefined, L(labelKey));
-        button.helpTip = L(tipKey);
+        var button = parent.add("button", undefined, getLabel(labelKey));
+        button.helpTip = getLabel(tipKey);
         button.onClick = handler;
         return button;
     }
@@ -1630,8 +1630,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
      * @returns {Panel} 追加したパネル
      */
     function addPanel(win, labelKey, tipKey) {
-        var panel = win.add("panel", undefined, L(labelKey));
-        panel.helpTip = L(tipKey);
+        var panel = win.add("panel", undefined, getLabel(labelKey));
+        panel.helpTip = getLabel(tipKey);
         setupPanel(panel, 6);
         return panel;
     }
@@ -1661,11 +1661,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         win.noteList = selectedObjectPanel.add("listbox", undefined, [], {
             numberOfColumns: 2,
             showHeaders: true,
-            columnTitles: [L('listCol.item'), L('listCol.value')],
+            columnTitles: [getLabel('listCol.item'), getLabel('listCol.value')],
             columnWidths: [140, 170]
         });
         win.noteList.preferredSize = [320, 340]; // 16行分 / 16 rows
-        win.noteList.helpTip = L('listCol.hint');
+        win.noteList.helpTip = getLabel('listCol.hint');
 
         // メモ操作の行：左＝属性パネル / 中央＝スペーサー / 右＝メモを読み込み
         var noteActionRow = selectedObjectPanel.add("group");
@@ -1701,12 +1701,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         addButton(restoreButtonRow, 'button.restore', 'button.restoreTip', function () { onRestoreClick(win); });
 
         // 復元オプション：アウトラインを残す／別レイヤーに復元（いずれも既定 ON）
-        win.keepOutlineCheck = restorePanel.add("checkbox", undefined, L('option.keepOutline'));
-        win.keepOutlineCheck.helpTip = L('option.keepOutlineTip');
+        win.keepOutlineCheck = restorePanel.add("checkbox", undefined, getLabel('option.keepOutline'));
+        win.keepOutlineCheck.helpTip = getLabel('option.keepOutlineTip');
         win.keepOutlineCheck.value = true;
 
-        win.separateLayerCheck = restorePanel.add("checkbox", undefined, L('option.separateLayer'));
-        win.separateLayerCheck.helpTip = L('option.separateLayerTip');
+        win.separateLayerCheck = restorePanel.add("checkbox", undefined, getLabel('option.separateLayer'));
+        win.separateLayerCheck.helpTip = getLabel('option.separateLayerTip');
         win.separateLayerCheck.value = true;
     }
 
@@ -1723,7 +1723,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
             $.global.__textOutlineMemoPalette = null;
         }
 
-        var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
+        var win = new Window("palette", getLabel('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
         setupWindow(win);
 
         buildOutlinePanel(win);
@@ -1731,7 +1731,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹�
         buildRestorePanel(win);
 
         // ステータス表示 / Status
-        win.statusText = win.add("statictext", undefined, L('status.ready'));
+        win.statusText = win.add("statictext", undefined, getLabel('status.ready'));
         win.statusText.alignment = "left";
 
         // Esc で閉じる

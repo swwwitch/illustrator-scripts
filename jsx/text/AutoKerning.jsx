@@ -70,7 +70,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
     };
 
     /* 言語に応じたラベル文字列を取得 / Resolve a label string for the current language */
-    function getLocalizedText(entry) {
+    function getLabel(entry) {
         if (!entry) return "";
         return entry[currentLanguage] || entry.ja || entry.en || "";
     }
@@ -164,17 +164,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
 
     /* ダイアログを組み立てて参照を返す（イベント未接続）/ Build the dialog and return references (events not wired yet) */
     function createDialogUI(autoKernOptions) {
-        var dialog = new Window("dialog", getLocalizedText(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         dialog.alignChildren = "fill";
 
-        var autoKernPanel = dialog.add("panel", undefined, getLocalizedText(LABELS.field.autoKern));
+        var autoKernPanel = dialog.add("panel", undefined, getLabel(LABELS.field.autoKern));
         autoKernPanel.orientation = "column";
         autoKernPanel.alignChildren = ["left", "top"];
         autoKernPanel.margins = [16, 20, 16, 12];
 
         var kernRadios = [];
         for (var i = 0; i < autoKernOptions.length; i++) {
-            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLocalizedText(autoKernOptions[i].label));
+            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLabel(autoKernOptions[i].label));
             kernRadio.value = (i === 0);
             kernRadio.index = i;
             kernRadios.push(kernRadio);
@@ -182,15 +182,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
 
         /* パネルの外に置く（方式に連動しつつ単独でも操作できる）
            Sits outside the panel: follows the method, but can also be toggled on its own */
-        var propMetricsCheckbox = dialog.add("checkbox", undefined, getLocalizedText(LABELS.field.propMetrics));
+        var propMetricsCheckbox = dialog.add("checkbox", undefined, getLabel(LABELS.field.propMetrics));
         propMetricsCheckbox.value = false;
         propMetricsCheckbox.alignment = "left";
 
         var buttonGroup = dialog.add("group");
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
-        var cancelButton = buttonGroup.add("button", undefined, getLocalizedText(LABELS.button.cancel), { name: "cancel" });
-        var okButton = buttonGroup.add("button", undefined, getLocalizedText(LABELS.button.ok), { name: "ok" });
+        var cancelButton = buttonGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var okButton = buttonGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
         okButton.preferredSize.width = 90;
         cancelButton.preferredSize.width = 90;
 
@@ -298,7 +298,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
 
         var targetRanges = getSelectedTextRanges();
         if (targetRanges.length === 0) {
-            alert(getLocalizedText(LABELS.alert.selectText));
+            alert(getLabel(LABELS.alert.selectText));
             return;
         }
 

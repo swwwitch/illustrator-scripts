@@ -89,7 +89,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} labelKey - LABELS のキー / key of LABELS
      * @returns {string} ローカライズ済み文字列 / localized string
      */
-    function getLocalizedText(labelKey) {
+    function getLabel(labelKey) {
         /* 現在の言語の文言を返し、無ければ英語にフォールバック / Return the string for the current language, falling back to English */
         var labelEntry = LABELS[labelKey];
         return labelEntry ? (labelEntry[currentLanguage] || labelEntry.en) : labelKey;
@@ -218,14 +218,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function selectCurrentParagraph() {
         /* ドキュメントが無ければ何もできない / Nothing to do without a document */
         if (app.documents.length === 0) {
-            alert(getLocalizedText("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
 
         /* テキスト編集中でなければ対象の段落が決まらない / Without a text cursor there is no paragraph to act on */
         var activeTextRange = getActiveTextRange();
         if (!activeTextRange) {
-            alert(getLocalizedText("noTextCursor"));
+            alert(getLabel("noTextCursor"));
             return;
         }
 
@@ -236,7 +236,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 段落をまたぐ選択は対象を特定できない / A selection spanning paragraphs has no single target */
         if (spansMultipleParagraphs(storyText, activeTextRange)) {
-            alert(getLocalizedText("multipleParagraphs"));
+            alert(getLabel("multipleParagraphs"));
             return;
         }
 
@@ -244,7 +244,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* An empty paragraph has nothing to select only when INCLUDE_PARAGRAPH_RETURN is false */
         var paragraphRange = getParagraphRange(storyText, activeTextRange);
         if (paragraphRange.end <= paragraphRange.start) {
-            alert(getLocalizedText("emptyParagraph"));
+            alert(getLabel("emptyParagraph"));
             return;
         }
 

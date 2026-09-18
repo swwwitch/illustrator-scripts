@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -77,9 +77,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ラベル取得関数 / Label resolver */
-    function L(key) {
+    function getLabel(key) {
       try {
-        return LABELS[key][lang] || LABELS[key].en;
+        return LABELS[key][uiLang] || LABELS[key].en;
       } catch (e) {
         return key;
       }
@@ -332,7 +332,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ダイアログボックス生成 / Create Dialog Box */
         (function createSpacingDialog() {
             /* ダイアログのタイトルはラベル＋バージョン / Dialog title = label + version */
-            var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
 
             // ウィンドウ見た目 / Window appearance
             var offsetX = 300;
@@ -358,7 +358,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var rowS = dlg.add('group');
             rowS.alignment = ['fill', 'top'];
             rowS.alignChildren = ['left', 'center'];
-            var lblS = rowS.add('statictext', undefined, L('spacing'));
+            var lblS = rowS.add('statictext', undefined, getLabel('spacing'));
             try { lblS.justify = 'right'; } catch (e) {}
             lblS.preferredSize.width = labelWidth;
             var unitCodeNowForDefault = TG.getRulerType();
@@ -425,7 +425,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var rowM = dlg.add('group');
             rowM.alignment = ['fill', 'top'];
             rowM.alignChildren = ['left', 'center'];
-            var lblM = rowM.add('statictext', undefined, L('margin'));
+            var lblM = rowM.add('statictext', undefined, getLabel('margin'));
             try { lblM.justify = 'right'; } catch (e) {}
             lblM.preferredSize.width = labelWidth;
             var marginEdit = rowM.add('edittext', undefined, '0');
@@ -457,7 +457,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var rowB = rowBWrap.add('group');
             rowB.alignChildren = ['left', 'center'];
-            var brickChk = rowB.add('checkbox', undefined, L('brick'));
+            var brickChk = rowB.add('checkbox', undefined, getLabel('brick'));
             brickChk.value = false;
             brickChk.onClick = function() {
                 updatePreviewFromFields();
@@ -466,14 +466,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             /* シンボル化して複製 / Duplicate as Symbol */
             var rowSym = rowBWrap.add('group');
             rowSym.alignChildren = ['left', 'center'];
-            var symChk = rowSym.add('checkbox', undefined, L('symbolize'));
+            var symChk = rowSym.add('checkbox', undefined, getLabel('symbolize'));
             symChk.value = false;
 
             /* ボタン / Buttons */
             var btns = dlg.add('group');
             btns.alignment = 'right';
-            btns.add('button', undefined, L('cancel'), { name: 'cancel' });
-            btns.add('button', undefined, L('ok'), { name: 'ok' });
+            btns.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+            btns.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
             var res = dlg.show();
             if (res !== 1) {

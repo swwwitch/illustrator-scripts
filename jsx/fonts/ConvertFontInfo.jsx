@@ -78,7 +78,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var currentLanguage = getCurrentLang();
 
-    function L(key) {
+    function getLabel(key) {
         var labelEntry = LABELS;
         var keyParts = key.split('.');
         for (var keyPartIndex = 0; keyPartIndex < keyParts.length; keyPartIndex++) {
@@ -253,9 +253,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sourceFont = originalTextFrameInfo.font;
 
         return [
-            { label: L('detail.familyLabel'), value: sourceFont.family },
-            { label: L('detail.styleLabel'), value: sourceFont.style },
-            { label: L('detail.nameLabel'), value: sourceFont.name }
+            { label: getLabel('detail.familyLabel'), value: sourceFont.family },
+            { label: getLabel('detail.styleLabel'), value: sourceFont.style },
+            { label: getLabel('detail.nameLabel'), value: sourceFont.name }
         ];
     }
 
@@ -355,7 +355,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showDialog(originalTextFrameInfos) {
-        var dialog = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
 
         var dialogContainer = dialog.add("group");
         dialogContainer.orientation = "column";
@@ -381,7 +381,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var radioColumnWidth = 180;
         var formatRadioButtons = [];
 
-        var formatPanel = dialogContainer.add("panel", undefined, L('panel.title'));
+        var formatPanel = dialogContainer.add("panel", undefined, getLabel('panel.title'));
         formatPanel.orientation = "column";
         formatPanel.alignChildren = "left";
         formatPanel.alignment = "fill";
@@ -399,10 +399,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var radioColumn = formatRow.add("group");
             radioColumn.preferredSize.width = radioColumnWidth;
-            var radioButton = radioColumn.add("radiobutton", undefined, L(labelKey));
+            var radioButton = radioColumn.add("radiobutton", undefined, getLabel(labelKey));
 
             if (helpTipKey) {
-                radioButton.helpTip = L(helpTipKey);
+                radioButton.helpTip = getLabel(helpTipKey);
             }
 
             if (previewText) {
@@ -457,7 +457,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cancelButtonGroup.orientation = "row";
         cancelButtonGroup.alignChildren = ["left", "center"];
         cancelButtonGroup.alignment = ["left", "center"];
-        cancelButtonGroup.add("button", undefined, L('button.cancel'), { name: "cancel" });
+        cancelButtonGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
 
         var centerSpacerGroup = buttonGroup.add("group");
         centerSpacerGroup.alignment = ["fill", "fill"];
@@ -467,7 +467,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         okButtonGroup.orientation = "row";
         okButtonGroup.alignChildren = ["right", "center"];
         okButtonGroup.alignment = ["right", "center"];
-        var okButton = okButtonGroup.add("button", undefined, L('button.ok'), { name: "ok" });
+        var okButton = okButtonGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
         dialog.defaultElement = okButton;
     }
 

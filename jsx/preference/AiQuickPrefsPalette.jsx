@@ -66,7 +66,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ分け）/ Japanese-English label definitions (categorized) */
     var LABELS = {
@@ -154,18 +154,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             node = node[parts[i]];
         }
         if (node == null) return key;
-        var text = node[currentLanguage] || node.en || "";
+        var text = node[uiLang] || node.en || "";
         return text.replace(/\{slash\}/g, "/");
-    }
-
-    /* 現在言語のラベル文字列を返す / Return the current-language label string */
-    function L(key) {
-        return getLabel(key);
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -255,7 +250,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     function buildStrokeColorNames() {
         var names = [];
         for (var i = 0; i < STROKE_COLOR_PRESETS.length; i++) {
-            names.push(L(STROKE_COLOR_PRESETS[i].labelKey));
+            names.push(getLabel(STROKE_COLOR_PRESETS[i].labelKey));
         }
         return names;
     }
@@ -544,8 +539,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* Create a checkbox bound to a writer function applyValue(value) (sets helpTip when tooltipKey is given).
        Storing applyValue on the control lets a single click and a group toggle share one writer */
     function addBoundCheckbox(parent, labelKey, tooltipKey, applyValue) {
-        var checkbox = parent.add('checkbox', undefined, L(labelKey));
-        if (tooltipKey) checkbox.helpTip = L(tooltipKey);
+        var checkbox = parent.add('checkbox', undefined, getLabel(labelKey));
+        if (tooltipKey) checkbox.helpTip = getLabel(tooltipKey);
         checkbox.applyValue = applyValue;
         checkbox.onClick = function () {
             checkbox.applyValue(checkbox.value === true);
@@ -621,7 +616,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         PREF_STATE.cursorKeyLengthPt = parseFloat(initialPrefs.cursorKeyLength);
         if (isNaN(PREF_STATE.cursorKeyLengthPt)) PREF_STATE.cursorKeyLengthPt = 1.0;
 
-        var dialog = new Window('palette', L('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('palette', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
         dialog.opacity = DIALOG_OPACITY;
@@ -660,14 +655,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 左列：キー増加 / 整列 / Left column: Key input / Align ----- */
 
         /* キー増加パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
-        var keyInputPanel = leftColumn.add('panel', undefined, L('panel.keyInput'));
+        var keyInputPanel = leftColumn.add('panel', undefined, getLabel('panel.keyInput'));
         keyInputPanel.orientation = 'row';
         keyInputPanel.alignChildren = ['left', 'center'];
         keyInputPanel.margins = PANEL_MARGINS;
 
         var cursorStepField = keyInputPanel.add('edittext', undefined, "1.0");
         cursorStepField.characters = 4;
-        cursorStepField.helpTip = L('tooltip.cursorStep');
+        cursorStepField.helpTip = getLabel('tooltip.cursorStep');
 
         /* 手入力が始まったら未確定フラグを立てる（保存時に下ろす）。フォーカスではなく未保存の入力で判定するため、
            onShow の自動フォーカスや、ウィンドウ単位のフォーカス移動では同期がブロックされない */
@@ -683,7 +678,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             unitDropdown.add('item', getUnitLabel(UNIT_POPUP_CODES[i]));
         }
         unitDropdown.preferredSize.width = 55;
-        unitDropdown.helpTip = L('tooltip.unit');
+        unitDropdown.helpTip = getLabel('tooltip.unit');
 
         /* 単位ポップアップ：選んだ単位を定規単位(rulerType)へ反映し、表示を再計算 / Unit popup: apply the chosen unit to rulerType and recompute the display */
         unitDropdown.onChange = function () {
@@ -699,14 +694,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         changeValueByArrowKey(cursorStepField);
 
         /* 整列パネル / Align panel */
-        var alignPanel = leftColumn.add('panel', undefined, L('panel.align'));
+        var alignPanel = leftColumn.add('panel', undefined, getLabel('panel.align'));
         setupPanel(alignPanel);
 
         /* プレビュー境界 / Preview bounds */
         var checkboxPreview = addBooleanCheckbox(alignPanel, 'checkbox.previewBounds', 'includeStrokeInBounds', 'tooltip.previewBounds');
 
         /* 字形の境界に整列パネル（整列パネルとは独立、左列に並べる）/ Align to glyph bounds panel (independent of Align, stacked in the left column) */
-        var glyphBoundsPanel = leftColumn.add('panel', undefined, L('panel.glyphBounds'));
+        var glyphBoundsPanel = leftColumn.add('panel', undefined, getLabel('panel.glyphBounds'));
         setupPanel(glyphBoundsPanel);
 
         var checkboxPoint = addBooleanCheckbox(glyphBoundsPanel, 'checkbox.pointText', 'EnableActualPointTextSpaceAlign', 'tooltip.pointText');
@@ -718,7 +713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 右列：変形 / Right column: Transform ----- */
 
         /* 変形パネル / Transform panel */
-        var transformPanel = rightColumn.add('panel', undefined, L('panel.transform'));
+        var transformPanel = rightColumn.add('panel', undefined, getLabel('panel.transform'));
         setupPanel(transformPanel);
 
         /* パターンを変形 / Transform patterns */
@@ -734,7 +729,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         linkCheckboxGroup([checkboxPattern, checkboxCorner, checkboxStroke]);
 
         /* 変形（反転）パネル（変形オプションの下・横並び・ラベル幅・左右中央）/ Transform (Flip) panel (below Transform Options, side by side, sized to label, centered) */
-        var flipPanel = rightColumn.add('panel', undefined, L('panel.flip'));
+        var flipPanel = rightColumn.add('panel', undefined, getLabel('panel.flip'));
         setupPanel(flipPanel);
         flipPanel.alignChildren = ['center', 'top'];
 
@@ -744,15 +739,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         flipRow.alignChildren = ['center', 'center'];
 
         /* 水平方向に反転（選択全体の中心を基点に左右反転）/ Flip horizontal (around selection center) */
-        var btnFlipHorizontal = flipRow.add('button', undefined, L('button.flipHorizontal'));
-        btnFlipHorizontal.helpTip = L('tooltip.flipHorizontal');
+        var btnFlipHorizontal = flipRow.add('button', undefined, getLabel('button.flipHorizontal'));
+        btnFlipHorizontal.helpTip = getLabel('tooltip.flipHorizontal');
         btnFlipHorizontal.onClick = function () {
             btFlipSelection(-100, 100);
         };
 
         /* 垂直方向に反転（選択全体の中心を基点に上下反転）/ Flip vertical (around selection center) */
-        var btnFlipVertical = flipRow.add('button', undefined, L('button.flipVertical'));
-        btnFlipVertical.helpTip = L('tooltip.flipVertical');
+        var btnFlipVertical = flipRow.add('button', undefined, getLabel('button.flipVertical'));
+        btnFlipVertical.helpTip = getLabel('tooltip.flipVertical');
         btnFlipVertical.onClick = function () {
             btFlipSelection(100, -100);
         };
@@ -762,17 +757,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         rotateGroup.orientation = 'row';
         rotateGroup.alignChildren = ['left', 'center'];
 
-        var btnRotate = rotateGroup.add('button', undefined, L('button.rotate'));
-        btnRotate.helpTip = L('tooltip.rotate');
+        var btnRotate = rotateGroup.add('button', undefined, getLabel('button.rotate'));
+        btnRotate.helpTip = getLabel('tooltip.rotate');
 
         var rotateDirGroup = rotateGroup.add('group');
         rotateDirGroup.orientation = 'column';
         rotateDirGroup.alignChildren = ['left', 'center'];
 
-        var radioRotateCCW = rotateDirGroup.add('radiobutton', undefined, L('button.rotateCCW'));
-        radioRotateCCW.helpTip = L('tooltip.rotateCCW');
-        var radioRotateCW = rotateDirGroup.add('radiobutton', undefined, L('button.rotateCW'));
-        radioRotateCW.helpTip = L('tooltip.rotateCW');
+        var radioRotateCCW = rotateDirGroup.add('radiobutton', undefined, getLabel('button.rotateCCW'));
+        radioRotateCCW.helpTip = getLabel('tooltip.rotateCCW');
+        var radioRotateCW = rotateDirGroup.add('radiobutton', undefined, getLabel('button.rotateCW'));
+        radioRotateCW.helpTip = getLabel('tooltip.rotateCW');
         radioRotateCCW.value = true; /* デフォルトは反時計回り / Default: counterclockwise */
 
         btnRotate.onClick = function () {
@@ -783,7 +778,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 全幅：アートボード名と枠線 / その他（一番下）/ Full width: Artboard / Other (bottom) ----- */
 
         /* アートボード名と枠線パネル / Artboard name & border panel */
-        var artboardPanel = mainGroup.add('panel', undefined, L('panel.artboard'));
+        var artboardPanel = mainGroup.add('panel', undefined, getLabel('panel.artboard'));
         setupPanel(artboardPanel);
 
         var suppressArtboardChange = false;
@@ -802,22 +797,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         artboardRightCol.alignChildren = ['left', 'top'];
 
         /* アートボード名を表示 / Show artboard name */
-        var checkboxShowArtboardName = artboardLeftCol.add('checkbox', undefined, L('checkbox.showArtboardName'));
-        checkboxShowArtboardName.helpTip = L('tooltip.showArtboardName');
+        var checkboxShowArtboardName = artboardLeftCol.add('checkbox', undefined, getLabel('checkbox.showArtboardName'));
+        checkboxShowArtboardName.helpTip = getLabel('tooltip.showArtboardName');
         checkboxShowArtboardName.onClick = function () {
             applyArtboard();
         };
 
         /* ビデオ定規（メニューコマンドのトグル）/ Video ruler (menu-command toggle) */
-        var btnVideoRuler = artboardRightCol.add('button', undefined, L('button.videoRuler'));
+        var btnVideoRuler = artboardRightCol.add('button', undefined, getLabel('button.videoRuler'));
         btnVideoRuler.alignment = ['left', 'top']; /* 幅いっぱいにしない（ラベル幅）/ Do not fill width (size to label) */
-        btnVideoRuler.helpTip = L('tooltip.videoRuler');
+        btnVideoRuler.helpTip = getLabel('tooltip.videoRuler');
         btnVideoRuler.onClick = function () {
             runInMainEngine('try{app.executeMenuCommand("videoruler");}catch(e){}');
         };
 
         /* アートボードの枠線サブパネル / Artboard border sub-panel */
-        var artboardBorderPanel = artboardPanel.add('panel', undefined, L('panel.artboardBorder'));
+        var artboardBorderPanel = artboardPanel.add('panel', undefined, getLabel('panel.artboardBorder'));
         setupPanel(artboardBorderPanel);
 
         /* ハイライトのカラー / Highlight color */
@@ -826,7 +821,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         strokeColorRow.alignChildren = ['left', 'center'];
         strokeColorRow.add('statictext', undefined, labelText('label.strokeColor'));
         var strokeColorDropdown = strokeColorRow.add('dropdownlist', undefined, buildStrokeColorNames());
-        strokeColorDropdown.helpTip = L('tooltip.strokeColor');
+        strokeColorDropdown.helpTip = getLabel('tooltip.strokeColor');
         strokeColorDropdown.onChange = function () {
             if (suppressArtboardChange || !strokeColorDropdown.selection) return;
             applyArtboard();
@@ -843,7 +838,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         var rbStrokeWidth4 = strokeWidthRow.add('radiobutton', undefined, '4');
         var rbStrokeWidths = [rbStrokeWidth1, rbStrokeWidth2, rbStrokeWidth3, rbStrokeWidth4];
         for (var i = 0; i < rbStrokeWidths.length; i++) {
-            rbStrokeWidths[i].helpTip = L('tooltip.strokeWidth');
+            rbStrokeWidths[i].helpTip = getLabel('tooltip.strokeWidth');
             rbStrokeWidths[i].onClick = function () {
                 applyArtboard();
             };
@@ -880,7 +875,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         }
 
         /* コピー/ペーストパネル / Copy / Paste panel */
-        var copyPastePanel = mainGroup.add('panel', undefined, L('panel.copyPaste'));
+        var copyPastePanel = mainGroup.add('panel', undefined, getLabel('panel.copyPaste'));
         setupPanel(copyPastePanel);
 
         /* 書式なしペースト / Paste without formatting */
@@ -890,7 +885,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         var checkboxPastePreserve = addBooleanCheckbox(copyPastePanel, 'checkbox.pastePreserve', 'layers/pastePreserve', 'tooltip.pastePreserve');
 
         /* 描画パネル（コピー/ペーストの下）/ Drawing panel (below Copy / Paste) */
-        var drawingPanel = mainGroup.add('panel', undefined, L('panel.drawing'));
+        var drawingPanel = mainGroup.add('panel', undefined, getLabel('panel.drawing'));
         setupPanel(drawingPanel);
 
         /* リアルタイムの描画と編集（左）＋ 更新ボタン（右端）を横並び。チェックボックスを伸縮させて余白を吸収し、ボタンを右へ寄せる */
@@ -905,8 +900,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         checkboxRealtime.alignment = ['fill', 'center']; /* 余白を吸収してボタンを右端へ / Absorb slack to push the button to the right */
 
         /* GPU プレビューを更新（View using GPU を2回トグルして再描画）/ Refresh GPU preview (toggle View using GPU twice to redraw) */
-        var btnRefreshGpuPreview = drawingRow.add('button', undefined, L('button.refreshGpuPreview'));
-        btnRefreshGpuPreview.helpTip = L('tooltip.refreshGpuPreview');
+        var btnRefreshGpuPreview = drawingRow.add('button', undefined, getLabel('button.refreshGpuPreview'));
+        btnRefreshGpuPreview.helpTip = getLabel('tooltip.refreshGpuPreview');
         btnRefreshGpuPreview.onClick = function () {
             runInMainEngine('try{app.executeMenuCommand("View using GPU");app.executeMenuCommand("View using GPU");}catch(e){}');
         };

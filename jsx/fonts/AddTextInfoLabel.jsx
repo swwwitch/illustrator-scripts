@@ -272,10 +272,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
     }
 
     function showOptionDialog() {
-        var dlg = new Window("dialog", "テキスト情報を追加");
-        dlg.alignChildren = "left";
+        var dialog = new Window("dialog", "テキスト情報を追加");
+        dialog.alignChildren = "left";
 
-        var topGroup = dlg.add("group");
+        var topGroup = dialog.add("group");
         topGroup.orientation = "row";
         topGroup.alignChildren = "top";
 
@@ -293,7 +293,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         var modeFull = modeGroup.add("radiobutton", undefined, "詳細");
         modeCompact.value = true;
 
-        var infoGroup = dlg.add("panel", undefined, "表示項目（詳細表示時のみ有効）");
+        var infoGroup = dialog.add("panel", undefined, "表示項目（詳細表示時のみ有効）");
         infoGroup.orientation = "column";
         infoGroup.alignChildren = "left";
         infoGroup.margins = [15, 20, 15, 15];
@@ -374,12 +374,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         modeCompact.onClick = updateInfoGroupState;
         updateInfoGroupState(); // 初期化
 
-        var btnGroup = dlg.add("group");
+        var btnGroup = dialog.add("group");
         btnGroup.alignment = "right";
         btnGroup.add("button", undefined, "キャンセル", {name: "cancel"});
         btnGroup.add("button", undefined, "OK", {name: "ok"});
 
-        if (dlg.show() !== 1) return null;
+        if (dialog.show() !== 1) return null;
 
         return {
             position: posBottom.value ? "bottom" : "right",

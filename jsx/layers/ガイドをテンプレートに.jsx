@@ -50,7 +50,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
     };
 
-    function L(key) {
+    function getLabel(key) {
         if (LABELS[key] && LABELS[key][currentLanguage]) {
             return LABELS[key][currentLanguage];
         }
@@ -118,7 +118,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================================
 
     if (app.documents.length === 0) {
-        alert(L("noDocument"));
+        alert(getLabel("noDocument"));
         return;
     }
 

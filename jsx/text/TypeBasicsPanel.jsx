@@ -90,14 +90,14 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
     };
 
     /* 言語に応じたラベル文字列を取得 / Resolve a label string for the current language */
-    function getLocalizedText(entry) {
+    function getLabel(entry) {
         if (!entry) return "";
         return entry[currentLanguage] || entry.ja || entry.en || "";
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(entry) {
-        return getLocalizedText(entry) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(entry) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -603,10 +603,10 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
 
     /* 「フォントサイズと行送り」パネルを構築して参照を返す / Build the "Font Size & Leading" panel */
     function buildLeadingPanel(parent, textUnit) {
-        var leadingPanel = parent.add("panel", undefined, getLocalizedText(LABELS.field.sizeAndLeading));
+        var leadingPanel = parent.add("panel", undefined, getLabel(LABELS.field.sizeAndLeading));
         setupPanel(leadingPanel, 6);
         leadingPanel.alignChildren = "left";
-        leadingPanel.helpTip = getLocalizedText(LABELS.tip.leading);
+        leadingPanel.helpTip = getLabel(LABELS.tip.leading);
 
         var leadColon = currentLanguage === "ja" ? "：" : ": ";
 
@@ -614,34 +614,34 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         var leadSizeRow = leadingPanel.add("group");
         leadSizeRow.orientation = "row";
         leadSizeRow.alignChildren = ["left", "center"];
-        var leadSizeLabel = leadSizeRow.add("statictext", undefined, getLocalizedText(LABELS.field.fontSize) + leadColon);
+        var leadSizeLabel = leadSizeRow.add("statictext", undefined, getLabel(LABELS.field.fontSize) + leadColon);
         var fontSizeInput = leadSizeRow.add("edittext", undefined, "");
         fontSizeInput.characters = 4;
         leadSizeRow.add("statictext", undefined, textUnit.label);
-        leadSizeLabel.helpTip = getLocalizedText(LABELS.tip.fontSize); fontSizeInput.helpTip = leadSizeLabel.helpTip;
+        leadSizeLabel.helpTip = getLabel(LABELS.tip.fontSize); fontSizeInput.helpTip = leadSizeLabel.helpTip;
 
         // 実質（フォントサイズ×行送り% の結果。ここに入力すると % を逆算）/ Effective leading (size × %)
         var leadEffectiveRow = leadingPanel.add("group");
         leadEffectiveRow.orientation = "row";
         leadEffectiveRow.alignChildren = ["left", "center"];
-        var leadEffectiveLabel = leadEffectiveRow.add("statictext", undefined, getLocalizedText(LABELS.field.leading) + leadColon);
+        var leadEffectiveLabel = leadEffectiveRow.add("statictext", undefined, getLabel(LABELS.field.leading) + leadColon);
         var leadingEffectiveInput = leadEffectiveRow.add("edittext", undefined, "");
         leadingEffectiveInput.characters = 4;
         leadEffectiveRow.add("statictext", undefined, getLeadingUnitLabel(textUnit.code));
-        leadEffectiveLabel.helpTip = getLocalizedText(LABELS.tip.leadingEffective); leadingEffectiveInput.helpTip = leadEffectiveLabel.helpTip;
+        leadEffectiveLabel.helpTip = getLabel(LABELS.tip.leadingEffective); leadingEffectiveInput.helpTip = leadEffectiveLabel.helpTip;
 
         // 行送り（自動行送り量 %）/ Leading (auto-leading amount %)
         var leadPercentRow = leadingPanel.add("group");
         leadPercentRow.orientation = "row";
         leadPercentRow.alignChildren = ["left", "center"];
-        var leadPercentLabel = leadPercentRow.add("statictext", undefined, getLocalizedText(LABELS.field.leadingPercent) + leadColon);
+        var leadPercentLabel = leadPercentRow.add("statictext", undefined, getLabel(LABELS.field.leadingPercent) + leadColon);
         var leadingPercentInput = leadPercentRow.add("edittext", undefined, "");
         leadingPercentInput.characters = 4;
         leadPercentRow.add("statictext", undefined, "%");
-        var leadingAutoButton = leadPercentRow.add("button", undefined, getLocalizedText(LABELS.button.auto));
+        var leadingAutoButton = leadPercentRow.add("button", undefined, getLabel(LABELS.button.auto));
         leadingAutoButton.preferredSize.width = 68;
-        leadingAutoButton.helpTip = getLocalizedText(LABELS.tip.leadingAuto);
-        leadPercentLabel.helpTip = getLocalizedText(LABELS.tip.leading); leadingPercentInput.helpTip = leadPercentLabel.helpTip;
+        leadingAutoButton.helpTip = getLabel(LABELS.tip.leadingAuto);
+        leadPercentLabel.helpTip = getLabel(LABELS.tip.leading); leadingPercentInput.helpTip = leadPercentLabel.helpTip;
 
         // ラベル幅を揃える / Unify label widths
         var leadLabelWidth = 68;
@@ -659,14 +659,14 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
 
     /* 「自動カーニング」パネルを構築して参照を返す / Build the "Auto Kerning" panel */
     function buildAutoKernPanel(parent, autoKernOptions) {
-        var autoKernPanel = parent.add("panel", undefined, getLocalizedText(LABELS.field.autoKern));
+        var autoKernPanel = parent.add("panel", undefined, getLabel(LABELS.field.autoKern));
         setupPanel(autoKernPanel, 6);
         autoKernPanel.alignChildren = ["left", "top"];
-        autoKernPanel.helpTip = getLocalizedText(LABELS.tip.autoKern);
+        autoKernPanel.helpTip = getLabel(LABELS.tip.autoKern);
 
         var kernRadios = [];
         for (var i = 0; i < autoKernOptions.length; i++) {
-            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLocalizedText(autoKernOptions[i].label));
+            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLabel(autoKernOptions[i].label));
             kernRadio.value = false;
             kernRadio.index = i;
             kernRadios.push(kernRadio);
@@ -676,7 +676,7 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
 
     /* 「字間調整」（文字ツメ・トラッキング）パネルを構築して参照を返す / Build the "Letter Spacing" panel */
     function buildSpacingPanel(parent) {
-        var spacingPanel = parent.add("panel", undefined, getLocalizedText(LABELS.field.spacingAdjust));
+        var spacingPanel = parent.add("panel", undefined, getLabel(LABELS.field.spacingAdjust));
         setupPanel(spacingPanel, 6);
 
         // プロポーショナルメトリクス（自動カーニングの「メトリクス」に連動する現在ロジックを可視化）
@@ -684,15 +684,15 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         var propMetricsRow = spacingPanel.add("group");
         setupGroup(propMetricsRow, "row");
         propMetricsRow.margins = [0, 0, 0, 4];
-        var propMetricsCheckbox = propMetricsRow.add("checkbox", undefined, getLocalizedText(LABELS.field.propMetrics));
-        propMetricsCheckbox.helpTip = getLocalizedText(LABELS.tip.proportionalMetrics);
+        var propMetricsCheckbox = propMetricsRow.add("checkbox", undefined, getLabel(LABELS.field.propMetrics));
+        propMetricsCheckbox.helpTip = getLabel(LABELS.tip.proportionalMetrics);
 
         var tsumeRow = spacingPanel.add("group");
         setupGroup(tsumeRow, "row");
         tsumeRow.add("statictext", undefined, labelText(LABELS.field.tsume));
         var tsumeInput = tsumeRow.add("edittext", undefined, "0");
         tsumeInput.characters = 3;
-        tsumeInput.helpTip = getLocalizedText(LABELS.tip.tsume);
+        tsumeInput.helpTip = getLabel(LABELS.tip.tsume);
         tsumeRow.add("statictext", undefined, "%");
         var tsumeSlider = spacingPanel.add("slider", undefined, 0, 0, 100);
 
@@ -705,7 +705,7 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         trackingRow.add("statictext", undefined, labelText(LABELS.field.tracking));
         var trackingInput = trackingRow.add("edittext", undefined, "0");
         trackingInput.characters = 3;
-        trackingInput.helpTip = getLocalizedText(LABELS.tip.tracking);
+        trackingInput.helpTip = getLabel(LABELS.tip.tracking);
         var trackingSlider = spacingPanel.add("slider", undefined, 0, -100, 500);
 
         return {
@@ -719,7 +719,7 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
 
     /* パレットを組み立てて参照を返す（イベント未接続）/ Build the palette and return references (events not wired yet) */
     function createPaletteUI(autoKernOptions) {
-        var palette = new Window("palette", getLocalizedText(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var palette = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         palette.alignChildren = "fill";
 
         var textUnit = getTextUnit();
@@ -741,9 +741,9 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         footerGroup.alignment = "fill";
         var footerSpacer = footerGroup.add("statictext", undefined, "");
         footerSpacer.alignment = ["fill", "center"];
-        var reloadButton = footerGroup.add("button", undefined, getLocalizedText(LABELS.button.reload));
+        var reloadButton = footerGroup.add("button", undefined, getLabel(LABELS.button.reload));
         reloadButton.alignment = ["right", "center"];
-        reloadButton.helpTip = getLocalizedText(LABELS.tip.reload);
+        reloadButton.helpTip = getLabel(LABELS.tip.reload);
 
         return {
             palette: palette,
@@ -796,7 +796,7 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
         /* 重要処理の失敗をダイアログで通知 / Surface an important-op failure via an alert */
         function showWorkerError(actionId, payload) {
             var detail = payload ? (": " + String(payload)) : "";
-            try { alert("⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail); } catch (e) { }
+            try { alert("⚠ " + getLabel(LABELS.msg.applyError) + " [" + actionId + "]" + detail); } catch (e) { }
         }
 
         // 委譲する共通処理（実行中なら最新要求として保留）/ Delegate an apply action (queued while another is in flight)

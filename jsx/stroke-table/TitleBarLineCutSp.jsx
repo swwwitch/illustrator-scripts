@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     // 日英ラベル定義 / Japanese-English label definitions
     var LABELS = {
@@ -60,16 +60,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         alertSelectTwo: { ja: "2つのオブジェクト（円と長方形）を選択してください。", en: "Select two objects (circle and rectangle)." }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var obj = LABELS[key];
         if (!obj) return key;
-        return obj[lang] || obj.ja || key;
+        return obj[uiLang] || obj.ja || key;
     }
 
     (function () {
         // ドキュメントが開かれているか確認
         if (app.documents.length === 0) {
-            alert(L('alertNoDoc'));
+            alert(getLabel('alertNoDoc'));
             return;
         }
 
@@ -77,18 +77,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // ↑↓ / Shift+↑↓ / Option(Alt)+↑↓ で数値を増減（ScriptUI edittext 用）
 
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
         // 2つのオブジェクトが選択されているか確認
-        if (!sel || sel.length !== 2) {
-            alert(L('alertSelectTwo'));
+        if (!currentSelection || currentSelection.length !== 2) {
+            alert(getLabel('alertSelectTwo'));
             return;
         }
 
         // selection[0] が最前面（上） = 長方形 (B)
         // selection[1] が最背面（下） = 円 (A)
-        var objectB = sel[0];
-        var objectA = sel[1];
+        var objectB = currentSelection[0];
+        var objectA = currentSelection[1];
 
         // 最後に必ずBを再表示するための保険
         var __restoreB = objectB;
@@ -286,12 +286,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var __offsetDefaultPt = (__cHeightPtForDefault > 0) ? (__cHeightPtForDefault / 3) : 10;
 
         // オフセット値ダイアログ
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
 
         var grp1 = dlg.add('group');
-        var lblOffset = grp1.add('statictext', undefined, L('offset'));
+        var lblOffset = grp1.add('statictext', undefined, getLabel('offset'));
         // lblOffset.justification = 'right';
         var __offsetPrefKey = "rulerType";
         // __offsetDefaultPt は「C高さ/3（pt）」で事前計算済み
@@ -301,13 +301,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grp1.add('statictext', undefined, getCurrentUnitLabel(__offsetPrefKey));
 
         // 線設定パネル
-        var panelStroke = dlg.add('panel', undefined, L('strokePanel'));
+        var panelStroke = dlg.add('panel', undefined, getLabel('strokePanel'));
         panelStroke.orientation = 'column';
         panelStroke.alignChildren = ['fill', 'top'];
         panelStroke.margins = [15, 20, 15, 10];
 
         var grp2 = panelStroke.add('group');
-        var lblStroke = grp2.add('statictext', undefined, L('strokeWidth'));
+        var lblStroke = grp2.add('statictext', undefined, getLabel('strokeWidth'));
 
         var __strokePrefKey = "strokeUnits";
         var __strokeDefaultPt = 2;
@@ -317,13 +317,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grp2.add('statictext', undefined, getCurrentUnitLabel(__strokePrefKey));
 
         // 線端設定
-        var panelCap = panelStroke.add('panel', undefined, L('capPanel'));
+        var panelCap = panelStroke.add('panel', undefined, getLabel('capPanel'));
         panelCap.orientation = 'column';
         panelCap.alignChildren = 'left';
         panelCap.margins = [15, 20, 15, 10];
 
-        var rbCapButt = panelCap.add('radiobutton', undefined, L('capButt'));
-        var rbCapRound = panelCap.add('radiobutton', undefined, L('capRound'));
+        var rbCapButt = panelCap.add('radiobutton', undefined, getLabel('capButt'));
+        var rbCapRound = panelCap.add('radiobutton', undefined, getLabel('capRound'));
 
         rbCapButt.value = true; // デフォルト
 
@@ -335,14 +335,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // 角の形状（線のジョイン）
-        var panelJoin = panelStroke.add('panel', undefined, L('joinPanel'));
+        var panelJoin = panelStroke.add('panel', undefined, getLabel('joinPanel'));
         panelJoin.orientation = 'column';
         panelJoin.alignChildren = 'left';
         panelJoin.margins = [15, 20, 15, 10];
 
-        var rbJoinMiter = panelJoin.add('radiobutton', undefined, L('joinMiter'));
-        var rbJoinRound = panelJoin.add('radiobutton', undefined, L('joinRound'));
-        var rbJoinBevel = panelJoin.add('radiobutton', undefined, L('joinBevel'));
+        var rbJoinMiter = panelJoin.add('radiobutton', undefined, getLabel('joinMiter'));
+        var rbJoinRound = panelJoin.add('radiobutton', undefined, getLabel('joinRound'));
+        var rbJoinBevel = panelJoin.add('radiobutton', undefined, getLabel('joinBevel'));
 
         rbJoinMiter.value = true; // デフォルト
 
@@ -353,11 +353,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var btnLeft = btns.add('group');
         btnLeft.alignment = 'left';
-        var cancelBtn = btnLeft.add('button', undefined, L('cancel'), { name: 'cancel' });
+        var cancelBtn = btnLeft.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
 
         var btnRight = btns.add('group');
         btnRight.alignment = 'right';
-        var okBtn = btnRight.add('button', undefined, L('ok'), { name: 'ok' });
+        var okBtn = btnRight.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
         if (dlg.show() !== 1) return;
 

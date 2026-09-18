@@ -55,7 +55,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ分け）/ Japanese-English label definitions (categorized) */
     var LABELS = {
@@ -115,13 +115,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             node = node[parts[i]];
         }
         if (node == null) return key;
-        var text = node[currentLanguage] || node.en || "";
+        var text = node[uiLang] || node.en || "";
         return text.replace(/\{slash\}/g, "/");
-    }
-
-    /* 現在言語のラベル文字列を返す / Return the current-language label string */
-    function L(key) {
-        return getLabel(key);
     }
 
     // =========================================
@@ -410,8 +405,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
 
     /* Boolean 環境設定にバインドしたチェックボックスを生成して返す（tooltipKey 指定時は helpTip も設定）/ Create a checkbox bound to a boolean preference (sets helpTip when tooltipKey is given) */
     function addBooleanCheckbox(parent, labelKey, prefKey, tooltipKey) {
-        var checkbox = parent.add('checkbox', undefined, L(labelKey));
-        if (tooltipKey) checkbox.helpTip = L(tooltipKey);
+        var checkbox = parent.add('checkbox', undefined, getLabel(labelKey));
+        if (tooltipKey) checkbox.helpTip = getLabel(tooltipKey);
         checkbox.onClick = function () {
             btSetBooleanPreference(prefKey, checkbox.value === true);
         };
@@ -518,7 +513,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* アイコンボタンを1つ生成して登録 / Create and register one icon button */
     function addIconButton(parentGroup, buttonDef) {
         var button = parentGroup.add("button", undefined, "");
-        button.helpTip = L(buttonDef.tooltip);
+        button.helpTip = getLabel(buttonDef.tooltip);
         button.preferredSize = [26, 26];
         button.minimumSize = [26, 26];
         button.maximumSize = [26, 26];
@@ -540,7 +535,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     /* 9軸（3×3）の基準点ウィジェットを生成 / Create the 9-axis (3x3) anchor widget */
     function addAnchorWidget(parentGroup) {
         var widget = parentGroup.add("button", undefined, "");
-        widget.helpTip = L('tooltip.anchor');
+        widget.helpTip = getLabel('tooltip.anchor');
         widget.preferredSize = [44, 44];
         widget.minimumSize = [44, 44];
         widget.maximumSize = [44, 44];
@@ -835,7 +830,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* UI の明暗からアイコンの配色を決定 / Decide icon colors from the light/dark UI */
         initIconColors();
 
-        var dialog = new Window('palette', L('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('palette', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
         dialog.opacity = DIALOG_OPACITY;
@@ -874,14 +869,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 左列：キー増加 / 整列オプション / 変形オプション / Left column: Key input / Align Options / Transform Options ----- */
 
         /* キー増加パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
-        var keyInputPanel = leftColumn.add('panel', undefined, L('panel.keyInput'));
+        var keyInputPanel = leftColumn.add('panel', undefined, getLabel('panel.keyInput'));
         keyInputPanel.orientation = 'row';
         keyInputPanel.alignChildren = ['left', 'center'];
         keyInputPanel.margins = PANEL_MARGINS;
 
         var cursorStepField = keyInputPanel.add('edittext', undefined, "1.0");
         cursorStepField.characters = 4;
-        cursorStepField.helpTip = L('tooltip.cursorStep');
+        cursorStepField.helpTip = getLabel('tooltip.cursorStep');
 
         /* 編集中フラグ：キー増加欄にフォーカスがある間は外部同期で値を上書きしない / Editing flag: don't let external sync overwrite while the field has focus */
         var isEditingCursorStep = false;
@@ -894,7 +889,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             unitDropdown.add('item', getUnitLabel(UNIT_POPUP_CODES[i]));
         }
         unitDropdown.preferredSize.width = 55;
-        unitDropdown.helpTip = L('tooltip.unit');
+        unitDropdown.helpTip = getLabel('tooltip.unit');
 
         /* 単位ポップアップ：選んだ単位を定規単位(rulerType)へ反映し、表示を再計算 / Unit popup: apply the chosen unit to rulerType and recompute the display */
         unitDropdown.onChange = function () {
@@ -909,7 +904,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         changeValueByArrowKey(cursorStepField);
 
         /* 整列パネル（左列・キー増加の下）/ Align panel (left column, below Key input) */
-        var alignPanel = leftColumn.add('panel', undefined, L('panel.align'));
+        var alignPanel = leftColumn.add('panel', undefined, getLabel('panel.align'));
         setupPanel(alignPanel);
 
         /* プレビュー境界 / Preview bounds */
@@ -918,7 +913,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 右列：反転と回転 / 字形の境界に整列 / Right column: Flip & Rotate / Align to Glyph Bounds ----- */
 
         /* 反転と回転パネル（右列・字形の境界に整列の上）。アイコンボタン（2×2）＋9軸の基準点ウィジェット / Flip & Rotate panel (right column, above Align to Glyph Bounds); icon buttons (2x2) + 9-axis anchor widget */
-        var flipPanel = rightColumn.add('panel', undefined, L('panel.flip'));
+        var flipPanel = rightColumn.add('panel', undefined, getLabel('panel.flip'));
         setupPanel(flipPanel);
         flipPanel.alignChildren = ['center', 'top'];
 
@@ -947,15 +942,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         addAnchorWidget(anchorRow);
 
         /* 字形の境界に整列パネル（右列・反転と回転の下）/ Align to glyph bounds panel (right column, below Flip & Rotate) */
-        var glyphBoundsPanel = rightColumn.add('panel', undefined, L('panel.glyphBounds'));
+        var glyphBoundsPanel = rightColumn.add('panel', undefined, getLabel('panel.glyphBounds'));
         setupPanel(glyphBoundsPanel);
 
         /* 字形の境界に整列の2チェック（ポイント文字／エリア内文字）。Option+クリックで2つをまとめてON/OFF */
         /* The two Align-to-Glyph-Bounds checks (Point Type / Area Type); Option+click toggles both at once */
-        var checkboxPoint = glyphBoundsPanel.add('checkbox', undefined, L('checkbox.pointText'));
-        checkboxPoint.helpTip = L('tooltip.pointText');
-        var checkboxArea = glyphBoundsPanel.add('checkbox', undefined, L('checkbox.areaText'));
-        checkboxArea.helpTip = L('tooltip.areaText');
+        var checkboxPoint = glyphBoundsPanel.add('checkbox', undefined, getLabel('checkbox.pointText'));
+        checkboxPoint.helpTip = getLabel('tooltip.pointText');
+        var checkboxArea = glyphBoundsPanel.add('checkbox', undefined, getLabel('checkbox.areaText'));
+        checkboxArea.helpTip = getLabel('tooltip.areaText');
 
         /* 各チェックの現在値を環境設定へ反映 / Apply each checkbox value to its preference */
         function applyGlyphPoint() { btSetBooleanPreference("EnableActualPointTextSpaceAlign", checkboxPoint.value === true); }
@@ -979,23 +974,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         checkboxArea.onClick = function () { onGlyphBoundsClick(checkboxArea); };
 
         /* 変形オプションパネル（左列・整列オプションの下）/ Transform Options panel (left column, below Align Options) */
-        var transformPanel = leftColumn.add('panel', undefined, L('panel.transform'));
+        var transformPanel = leftColumn.add('panel', undefined, getLabel('panel.transform'));
         setupPanel(transformPanel);
 
         /* 変形オプションの3チェック（パターン／角／線幅と効果）。Option+クリックで3つをまとめてON/OFF */
         /* The three Transform Options (Pattern / Corners / Strokes & Effects); Option+click toggles all three at once */
 
         /* パターンを変形 / Transform patterns */
-        var checkboxPattern = transformPanel.add('checkbox', undefined, L('checkbox.transformPattern'));
-        checkboxPattern.helpTip = L('tooltip.transformPattern');
+        var checkboxPattern = transformPanel.add('checkbox', undefined, getLabel('checkbox.transformPattern'));
+        checkboxPattern.helpTip = getLabel('tooltip.transformPattern');
 
         /* 角を拡大・縮小（1=ON, 2=OFF。Boolean でなく整数）/ Scale corners (1=ON, 2=OFF; integer pref) */
-        var checkboxCorner = transformPanel.add('checkbox', undefined, L('checkbox.scaleCorners'));
-        checkboxCorner.helpTip = L('tooltip.scaleCorners');
+        var checkboxCorner = transformPanel.add('checkbox', undefined, getLabel('checkbox.scaleCorners'));
+        checkboxCorner.helpTip = getLabel('tooltip.scaleCorners');
 
         /* 線幅と効果も拡大・縮小 / Scale strokes and effects */
-        var checkboxStroke = transformPanel.add('checkbox', undefined, L('checkbox.scaleStroke'));
-        checkboxStroke.helpTip = L('tooltip.scaleStroke');
+        var checkboxStroke = transformPanel.add('checkbox', undefined, getLabel('checkbox.scaleStroke'));
+        checkboxStroke.helpTip = getLabel('tooltip.scaleStroke');
 
         /* 各チェックの現在値を環境設定へ反映（角は 1/2 の整数）/ Apply each checkbox value to its preference (corners is the integer 1/2) */
         function applyTransformPattern() { btSetBooleanPreference("transformPatterns", checkboxPattern.value === true); }
@@ -1026,7 +1021,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 全幅：コピー/ペースト / 描画 / Full width: Copy / Paste / Drawing ----- */
 
         /* コピー/ペーストパネル / Copy / Paste panel */
-        var copyPastePanel = mainGroup.add('panel', undefined, L('panel.copyPaste'));
+        var copyPastePanel = mainGroup.add('panel', undefined, getLabel('panel.copyPaste'));
         setupPanel(copyPastePanel);
 
         /* 書式なしペースト / Paste without formatting */
@@ -1036,7 +1031,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         var checkboxPastePreserve = addBooleanCheckbox(copyPastePanel, 'checkbox.pastePreserve', 'layers/pastePreserve', 'tooltip.pastePreserve');
 
         /* 描画パネル（コピー/ペーストの下）/ Drawing panel (below Copy / Paste) */
-        var drawingPanel = mainGroup.add('panel', undefined, L('panel.drawing'));
+        var drawingPanel = mainGroup.add('panel', undefined, getLabel('panel.drawing'));
         setupPanel(drawingPanel);
 
         /* リアルタイムの描画と編集（上段）＋ 更新ボタン（次の行）を縦並び / Real-time editing checkbox (top) + Refresh button (next line), stacked */
@@ -1045,9 +1040,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         var checkboxRealtime = addBooleanCheckbox(drawingPanel, 'checkbox.realtimeDrawing', 'LiveEdit_State_Machine', 'tooltip.realtimeDrawing');
 
         /* GPU プレビューを更新（View using GPU を2回トグルして再描画）/ Refresh GPU preview (toggle View using GPU twice to redraw) */
-        var btnRefreshGpuPreview = drawingPanel.add('button', undefined, L('button.refreshGpuPreview'));
+        var btnRefreshGpuPreview = drawingPanel.add('button', undefined, getLabel('button.refreshGpuPreview'));
         btnRefreshGpuPreview.alignment = ['left', 'top']; /* 幅いっぱいにしない（ラベル幅）/ Do not fill width (size to label) */
-        btnRefreshGpuPreview.helpTip = L('tooltip.refreshGpuPreview');
+        btnRefreshGpuPreview.helpTip = getLabel('tooltip.refreshGpuPreview');
         btnRefreshGpuPreview.onClick = function () {
             runInMainEngine('try{app.executeMenuCommand("View using GPU");app.executeMenuCommand("View using GPU");}catch(e){}');
         };

@@ -41,7 +41,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ構造） / Japanese-English labels (categorized) */
     var LABELS = {
@@ -141,8 +141,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         }
     };
 
-    /* L(): ドットパス参照（null 耐性） / Dot-path lookup with null tolerance */
-    function L(path) {
+    /* getLabel(): ドットパス参照（null 耐性） / Dot-path lookup with null tolerance */
+    function getLabel(path) {
         var parts = String(path).split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -151,13 +151,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         }
         if (node == null) return path;
         if (typeof node === "string") return node;
-        if (typeof node === "object" && node[lang] != null) return node[lang];
+        if (typeof node === "object" && node[uiLang] != null) return node[uiLang];
         return path;
     }
 
     /* 書き出し用：末尾コロンを半角へ正規化 / Normalize trailing colon for export */
     function LX(path) {
-        return L(path).replace(/[：:]\s*$/, ":");
+        return getLabel(path).replace(/[：:]\s*$/, ":");
     }
 
     (function () {
@@ -325,9 +325,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             }
         }
 
-        function wkSortSelection(sel) {
+        function wkSortSelection(currentSelection) {
             var arr = [];
-            for (var i = 0; i < sel.length; i++) { arr.push(sel[i]); }
+            for (var i = 0; i < currentSelection.length; i++) { arr.push(currentSelection[i]); }
             arr.sort(function (a, b) {
                 var aTop = 0, bTop = 0, aLeft = 0, bLeft = 0;
                 try { aTop = a.geometricBounds[1]; } catch (e) {}
@@ -343,9 +343,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         function wkCollect() {
             if (app.documents.length === 0) { return "NODOC"; }
             var doc = app.activeDocument;
-            var sel = doc.selection;
-            if (!sel) { sel = []; }
-            var selCount = sel.length;
+            var currentSelection = doc.selection;
+            if (!currentSelection) { currentSelection = []; }
+            var selCount = currentSelection.length;
 
             var allCount = 0;
             function countAll(items) {
@@ -364,25 +364,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             var opacitySel = 0, opacityAll = 0, blendSel = 0, blendAll = 0;
             var rulerSel = 0, rulerAll = 0, abguideSel = 0, abguideAll = 0, otherguideSel = 0, otherguideAll = 0;
 
-            for (var i = 0; i < sel.length; i++) {
-                if (sel[i].typename === "CompoundPathItem") { cpathSel++; }
-                if (sel[i].typename === "PluginItem") {
-                    try { if (sel[i].name && sel[i].name.indexOf("Compound Shape") !== -1) { cshapeSel++; } } catch (e) {}
+            for (var i = 0; i < currentSelection.length; i++) {
+                if (currentSelection[i].typename === "CompoundPathItem") { cpathSel++; }
+                if (currentSelection[i].typename === "PluginItem") {
+                    try { if (currentSelection[i].name && currentSelection[i].name.indexOf("Compound Shape") !== -1) { cshapeSel++; } } catch (e) {}
                 }
-                try { var t0 = wkCountTransparency(sel[i]); opacitySel += t0.opacityLt100; blendSel += t0.blendNotNormal; } catch (e2) {}
+                try { var t0 = wkCountTransparency(currentSelection[i]); opacitySel += t0.opacityLt100; blendSel += t0.blendNotNormal; } catch (e2) {}
                 try {
-                    if (sel[i].typename === "PathItem") {
-                        var g0 = wkCountGuides(sel[i], doc); rulerSel += g0.ruler; abguideSel += g0.artboard; otherguideSel += g0.other;
-                    } else if (sel[i].typename === "CompoundPathItem") {
-                        for (var gg = 0; gg < sel[i].pathItems.length; gg++) {
-                            var g1 = wkCountGuides(sel[i].pathItems[gg], doc); rulerSel += g1.ruler; abguideSel += g1.artboard; otherguideSel += g1.other;
+                    if (currentSelection[i].typename === "PathItem") {
+                        var g0 = wkCountGuides(currentSelection[i], doc); rulerSel += g0.ruler; abguideSel += g0.artboard; otherguideSel += g0.other;
+                    } else if (currentSelection[i].typename === "CompoundPathItem") {
+                        for (var gg = 0; gg < currentSelection[i].pathItems.length; gg++) {
+                            var g1 = wkCountGuides(currentSelection[i].pathItems[gg], doc); rulerSel += g1.ruler; abguideSel += g1.artboard; otherguideSel += g1.other;
                         }
                     }
                 } catch (e3) {}
             }
 
             var pathStatsSel = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
-            for (var i2 = 0; i2 < sel.length; i2++) { wkCountPathStats(sel[i2], pathStatsSel); }
+            for (var i2 = 0; i2 < currentSelection.length; i2++) { wkCountPathStats(currentSelection[i2], pathStatsSel); }
 
             for (var k = 0; k < allItems.length; k++) {
                 var obj = allItems[k];
@@ -406,17 +406,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             for (var k2 = 0; k2 < allItems.length; k2++) { wkCountPathStats(allItems[k2], pathStatsAll); }
 
             var textStatsSel = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
-            for (var i3 = 0; i3 < sel.length; i3++) { wkCountTextStats(sel[i3], textStatsSel); }
+            for (var i3 = 0; i3 < currentSelection.length; i3++) { wkCountTextStats(currentSelection[i3], textStatsSel); }
             var textStatsAll = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
             for (var k3 = 0; k3 < allItems.length; k3++) { wkCountTextStats(allItems[k3], textStatsAll); }
 
             var linkedSel = 0, linkedAll = 0, embedSel = 0, embedAll = 0, brokenSel = 0, brokenAll = 0;
-            for (var i4 = 0; i4 < sel.length; i4++) {
-                if (sel[i4].typename === "PlacedItem") {
-                    if (sel[i4].embedded) { embedSel++; }
+            for (var i4 = 0; i4 < currentSelection.length; i4++) {
+                if (currentSelection[i4].typename === "PlacedItem") {
+                    if (currentSelection[i4].embedded) { embedSel++; }
                     else {
                         linkedSel++;
-                        try { var f = sel[i4].file; if (!f || !f.exists) { brokenSel++; } } catch (e7) { brokenSel++; }
+                        try { var f = currentSelection[i4].file; if (!f || !f.exists) { brokenSel++; } } catch (e7) { brokenSel++; }
                     }
                 }
             }
@@ -431,7 +431,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
                 }
             }
 
-            var sorted = wkSortSelection(sel);
+            var sorted = wkSortSelection(currentSelection);
             var memoParts = [];
             for (var mi = 0; mi < sorted.length; mi++) {
                 var nt = "";
@@ -440,8 +440,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             }
 
             var groupSel = 0, groupAll = 0, clipSel = 0, clipAll = 0;
-            for (var i5 = 0; i5 < sel.length; i5++) {
-                if (sel[i5].typename === "GroupItem") { groupSel++; if (sel[i5].clipped) { clipSel++; } }
+            for (var i5 = 0; i5 < currentSelection.length; i5++) {
+                if (currentSelection[i5].typename === "GroupItem") { groupSel++; if (currentSelection[i5].clipped) { clipSel++; } }
             }
             for (var k5 = 0; k5 < allItems.length; k5++) {
                 if (allItems[k5].typename === "GroupItem") { groupAll++; if (allItems[k5].clipped) { clipAll++; } }
@@ -510,12 +510,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
         function wkApplyMemo(index, enc) {
             if (app.documents.length === 0) { return "NODOC"; }
-            var sel = app.activeDocument.selection;
-            if (!sel) { sel = []; }
-            if (index < 0 || index >= sel.length) { return "IDX"; }
-            var sorted = wkSortSelection(sel);
+            var currentSelection = app.activeDocument.selection;
+            if (!currentSelection) { currentSelection = []; }
+            if (index < 0 || index >= currentSelection.length) { return "IDX"; }
+            var sorted = wkSortSelection(currentSelection);
             try { sorted[index].note = decodeURIComponent(enc); } catch (e) { return "ERR:" + e; }
-            try { app.redraw(); } catch (e2) {}
+            app.redraw();
             return "OK";
         }
 
@@ -621,7 +621,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         }
 
         function buildPalette() {
-            var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
+            var win = new Window("palette", getLabel('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
             win.orientation = "column";
             win.alignChildren = "center";
             win.margins = [15, 10, 15, 15];
@@ -633,12 +633,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             var switchRow = win.add("group");
             switchRow.orientation = "row";
             switchRow.alignChildren = ["center", "center"];
-            switchRow.helpTip = L('hint.shortcut');
+            switchRow.helpTip = getLabel('hint.shortcut');
 
-            var rbInfo = switchRow.add("radiobutton", undefined, L('tab.info'));
-            var rbMemo = switchRow.add("radiobutton", undefined, L('tab.memo'));
-            rbInfo.helpTip = L('hint.shortcut');
-            rbMemo.helpTip = L('hint.shortcut');
+            var rbInfo = switchRow.add("radiobutton", undefined, getLabel('tab.info'));
+            var rbMemo = switchRow.add("radiobutton", undefined, getLabel('tab.memo'));
+            rbInfo.helpTip = getLabel('hint.shortcut');
+            rbMemo.helpTip = getLabel('hint.shortcut');
             rbInfo.value = true;
 
             var stackWrap = win.add("group");
@@ -670,7 +670,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             rightCol.alignChildren = ["fill", "top"];
 
             function addPanel(col, titlePath) {
-                var p = col.add("panel", undefined, L(titlePath));
+                var p = col.add("panel", undefined, getLabel(titlePath));
                 p.orientation = "column";
                 p.alignChildren = ["fill", "top"];
                 p.margins = PANEL_MARGINS;
@@ -681,24 +681,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
             /* 左カラム / Left column */
             var panelBasics = addPanel(leftCol, 'panel.basics');
-            v.artboards = addStatRow(panelBasics, L('row.artboards'), LABEL_WIDTH_LEFT);
-            v.objects = addStatRow(panelBasics, L('row.objects'), LABEL_WIDTH_LEFT);
+            v.artboards = addStatRow(panelBasics, getLabel('row.artboards'), LABEL_WIDTH_LEFT);
+            v.objects = addStatRow(panelBasics, getLabel('row.objects'), LABEL_WIDTH_LEFT);
 
             var panelText = addPanel(leftCol, 'panel.texts');
-            v.texts = addStatRow(panelText, L('row.texts'), LABEL_WIDTH_LEFT);
-            v.pointText = addStatRow(panelText, L('row.pointText'), LABEL_WIDTH_LEFT);
-            v.areaText = addStatRow(panelText, L('row.areaText'), LABEL_WIDTH_LEFT);
-            v.pathText = addStatRow(panelText, L('row.pathText'), LABEL_WIDTH_LEFT);
+            v.texts = addStatRow(panelText, getLabel('row.texts'), LABEL_WIDTH_LEFT);
+            v.pointText = addStatRow(panelText, getLabel('row.pointText'), LABEL_WIDTH_LEFT);
+            v.areaText = addStatRow(panelText, getLabel('row.areaText'), LABEL_WIDTH_LEFT);
+            v.pathText = addStatRow(panelText, getLabel('row.pathText'), LABEL_WIDTH_LEFT);
 
             var panelCharPara = addPanel(leftCol, 'panel.charPara');
-            v.chars = addStatRow(panelCharPara, L('row.chars'), LABEL_WIDTH_LEFT);
-            v.paras = addStatRow(panelCharPara, L('row.paras'), LABEL_WIDTH_LEFT);
-            v.forcedBreaks = addStatRow(panelCharPara, L('row.forcedBreaks'), LABEL_WIDTH_LEFT);
+            v.chars = addStatRow(panelCharPara, getLabel('row.chars'), LABEL_WIDTH_LEFT);
+            v.paras = addStatRow(panelCharPara, getLabel('row.paras'), LABEL_WIDTH_LEFT);
+            v.forcedBreaks = addStatRow(panelCharPara, getLabel('row.forcedBreaks'), LABEL_WIDTH_LEFT);
 
             var panelImage = addPanel(leftCol, 'panel.images');
-            v.linked = addStatRow(panelImage, L('row.linked'), LABEL_WIDTH_LEFT);
-            v.embed = addStatRow(panelImage, L('row.embed'), LABEL_WIDTH_LEFT);
-            v.broken = addStatRow(panelImage, L('row.broken'), LABEL_WIDTH_LEFT);
+            v.linked = addStatRow(panelImage, getLabel('row.linked'), LABEL_WIDTH_LEFT);
+            v.embed = addStatRow(panelImage, getLabel('row.embed'), LABEL_WIDTH_LEFT);
+            v.broken = addStatRow(panelImage, getLabel('row.broken'), LABEL_WIDTH_LEFT);
 
             var panelMemo = addPanel(leftCol, 'panel.memo');
             var memoReadOnly = panelMemo.add("statictext", undefined, "", { multiline: true });
@@ -706,29 +706,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
             /* 右カラム / Right column */
             var panelGroup = addPanel(rightCol, 'panel.group');
-            v.group = addStatRow(panelGroup, L('row.group'), LABEL_WIDTH_RIGHT);
-            v.clipGroup = addStatRow(panelGroup, L('row.clipGroup'), LABEL_WIDTH_RIGHT);
+            v.group = addStatRow(panelGroup, getLabel('row.group'), LABEL_WIDTH_RIGHT);
+            v.clipGroup = addStatRow(panelGroup, getLabel('row.clipGroup'), LABEL_WIDTH_RIGHT);
 
             var panelTransparency = addPanel(rightCol, 'panel.transparency');
-            v.opacityLt100 = addStatRow(panelTransparency, L('row.opacityLt100'), LABEL_WIDTH_RIGHT);
-            v.blendNotNormal = addStatRow(panelTransparency, L('row.blendNotNormal'), LABEL_WIDTH_RIGHT);
+            v.opacityLt100 = addStatRow(panelTransparency, getLabel('row.opacityLt100'), LABEL_WIDTH_RIGHT);
+            v.blendNotNormal = addStatRow(panelTransparency, getLabel('row.blendNotNormal'), LABEL_WIDTH_RIGHT);
 
             var panelPath = addPanel(rightCol, 'panel.path');
-            v.pathCount = addStatRow(panelPath, L('row.pathCount'), LABEL_WIDTH_RIGHT);
-            v.openPath = addStatRow(panelPath, L('row.openPath'), LABEL_WIDTH_RIGHT);
-            v.closedPath = addStatRow(panelPath, L('row.closedPath'), LABEL_WIDTH_RIGHT);
-            v.anchors = addStatRow(panelPath, L('row.anchors'), LABEL_WIDTH_RIGHT);
-            v.handles = addStatRow(panelPath, L('row.handles'), LABEL_WIDTH_RIGHT);
-            v.compoundPath = addStatRow(panelPath, L('row.compoundPath'), LABEL_WIDTH_RIGHT);
-            v.compoundShape = addStatRow(panelPath, L('row.compoundShape'), LABEL_WIDTH_RIGHT);
+            v.pathCount = addStatRow(panelPath, getLabel('row.pathCount'), LABEL_WIDTH_RIGHT);
+            v.openPath = addStatRow(panelPath, getLabel('row.openPath'), LABEL_WIDTH_RIGHT);
+            v.closedPath = addStatRow(panelPath, getLabel('row.closedPath'), LABEL_WIDTH_RIGHT);
+            v.anchors = addStatRow(panelPath, getLabel('row.anchors'), LABEL_WIDTH_RIGHT);
+            v.handles = addStatRow(panelPath, getLabel('row.handles'), LABEL_WIDTH_RIGHT);
+            v.compoundPath = addStatRow(panelPath, getLabel('row.compoundPath'), LABEL_WIDTH_RIGHT);
+            v.compoundShape = addStatRow(panelPath, getLabel('row.compoundShape'), LABEL_WIDTH_RIGHT);
 
             var panelGuide = addPanel(rightCol, 'panel.guide');
-            v.rulerGuides = addStatRow(panelGuide, L('row.rulerGuides'), LABEL_WIDTH_RIGHT);
-            v.artboardGuides = addStatRow(panelGuide, L('row.artboardGuides'), LABEL_WIDTH_RIGHT);
-            v.otherGuides = addStatRow(panelGuide, L('row.otherGuides'), LABEL_WIDTH_RIGHT);
+            v.rulerGuides = addStatRow(panelGuide, getLabel('row.rulerGuides'), LABEL_WIDTH_RIGHT);
+            v.artboardGuides = addStatRow(panelGuide, getLabel('row.artboardGuides'), LABEL_WIDTH_RIGHT);
+            v.otherGuides = addStatRow(panelGuide, getLabel('row.otherGuides'), LABEL_WIDTH_RIGHT);
 
             /* ステータス / Status line */
-            var statusText = win.add("statictext", undefined, L('status.ready'));
+            var statusText = win.add("statictext", undefined, getLabel('status.ready'));
             statusText.alignment = ["fill", "bottom"];
 
             function setStatus(msg) { try { statusText.text = msg; } catch (e) {} }
@@ -786,7 +786,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
                 for (var i = 0; i < memoList.length; i++) {
                     if (memoList[i] && memoList[i] !== "") { nonEmpty.push(memoList[i]); }
                 }
-                var text = (nonEmpty.length === 1) ? nonEmpty[0] : (nonEmpty.length > 1 ? L('memo.multiple') : "");
+                var text = (nonEmpty.length === 1) ? nonEmpty[0] : (nonEmpty.length > 1 ? getLabel('memo.multiple') : "");
                 try { memoReadOnly.text = text; } catch (e) {}
             }
 
@@ -798,7 +798,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
                 memoFields = [];
 
                 if (!memoList || memoList.length === 0) {
-                    tab2.add("statictext", undefined, L('memo.none'));
+                    tab2.add("statictext", undefined, getLabel('memo.none'));
                     relayout();
                     return;
                 }
@@ -811,7 +811,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
                         var field = row.add("edittext", undefined, noteText, { multiline: true });
                         field.preferredSize = [340, 44];
                         memoFields.push(field);
-                        var applyBtn = row.add("button", undefined, L('button.applyMemo'));
+                        var applyBtn = row.add("button", undefined, getLabel('button.applyMemo'));
                         applyBtn.onClick = function () { applyMemo(idx, field.text); };
                     })(i, memoList[i]);
                 }
@@ -820,16 +820,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
             /* 再集計 / Recount */
             function refresh() {
-                setStatus(L('status.busy'));
+                setStatus(getLabel('status.busy'));
                 var resp = callMainEngine("wkCollect()");
 
-                if (resp === "ERR:BUSY") { setStatus(L('status.busy')); return; }
-                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
-                if (resp === "NODOC") { setStatus(L('status.noDoc')); clearValues(); updateMemoReadonly([]); rebuildMemo([]); return; }
-                if (resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+                if (resp === "ERR:BUSY") { setStatus(getLabel('status.busy')); return; }
+                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
+                if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); clearValues(); updateMemoReadonly([]); rebuildMemo([]); return; }
+                if (resp.indexOf("ERR:") === 0) { setStatus(getLabel('status.error') + ": " + resp.substring(4)); return; }
 
                 var data = parseCollect(resp);
-                if (!data) { setStatus(L('status.error')); return; }
+                if (!data) { setStatus(getLabel('status.error')); return; }
 
                 lastData = data;
                 applyValues(data.map);
@@ -838,32 +838,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
                 var selN = parseInt(data.map.selCount, 10) || 0;
                 if (selN > 0) {
-                    setStatus(L('status.selectedPrefix') + selN + L('status.selectedSuffix'));
+                    setStatus(getLabel('status.selectedPrefix') + selN + getLabel('status.selectedSuffix'));
                 } else {
-                    setStatus(L('status.wholeDoc'));
+                    setStatus(getLabel('status.wholeDoc'));
                 }
             }
 
             /* メモ適用 / Apply a note */
             function applyMemo(idx, text) {
-                setStatus(L('status.busy'));
+                setStatus(getLabel('status.busy'));
                 var resp = callMainEngine("wkApplyMemo(" + idx + ",\"" + encodeURIComponent(text) + "\")");
-                if (resp === "OK") { setStatus(L('status.memoApplied')); refresh(); }
-                else if (resp === "NODOC") { setStatus(L('status.noDoc')); }
-                else if (resp === "IDX") { setStatus(L('status.selChanged')); }
-                else { setStatus(L('status.error') + ": " + resp); }
+                if (resp === "OK") { setStatus(getLabel('status.memoApplied')); refresh(); }
+                else if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); }
+                else if (resp === "IDX") { setStatus(getLabel('status.selChanged')); }
+                else { setStatus(getLabel('status.error') + ": " + resp); }
             }
 
             /* レポート書き出し（収集データからパレット側で生成） / Export report */
             function exportReport() {
-                setStatus(L('status.busy'));
+                setStatus(getLabel('status.busy'));
                 var resp = callMainEngine("wkCollect()");
-                if (resp === "NODOC") { setStatus(L('status.noDoc')); return; }
-                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
-                if (typeof resp === "string" && resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+                if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); return; }
+                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
+                if (typeof resp === "string" && resp.indexOf("ERR:") === 0) { setStatus(getLabel('status.error') + ": " + resp.substring(4)); return; }
 
                 var data = parseCollect(resp);
-                if (!data) { setStatus(L('status.error')); return; }
+                if (!data) { setStatus(getLabel('status.error')); return; }
                 var m = data.map;
 
                 try {
@@ -880,14 +880,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
                     function wPair(path2, selVal, allVal) { file.writeln(LX(path2) + " " + selVal + " / " + allVal); }
                     function wSingle(path2, val) { file.writeln(LX(path2) + " " + val); }
-                    function wSection(path2) { file.writeln(""); file.writeln(L(path2)); }
+                    function wSection(path2) { file.writeln(""); file.writeln(getLabel(path2)); }
 
                     if (file.open("w")) {
-                        file.writeln(L('report.title'));
-                        file.writeln(L('report.document') + " " + fullName);
-                        file.writeln(L('report.date') + " " + yyyy + "-" + mm + "-" + dd);
+                        file.writeln(getLabel('report.title'));
+                        file.writeln(getLabel('report.document') + " " + fullName);
+                        file.writeln(getLabel('report.date') + " " + yyyy + "-" + mm + "-" + dd);
                         file.writeln("");
-                        file.writeln(L('report.valueNote'));
+                        file.writeln(getLabel('report.valueNote'));
 
                         wSection('section.basics');
                         wSingle('row.artboards', m.artboards);
@@ -939,12 +939,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
                         wPair('row.otherGuides', m.otherguideSel, m.otherguideAll);
 
                         file.close();
-                        setStatus(L('status.exportedPrefix') + path);
+                        setStatus(getLabel('status.exportedPrefix') + path);
                     } else {
-                        setStatus(L('status.exportFailOpen'));
+                        setStatus(getLabel('status.exportFailOpen'));
                     }
                 } catch (err) {
-                    setStatus(L('status.error') + ": " + err);
+                    setStatus(getLabel('status.error') + ": " + err);
                 }
             }
 
@@ -956,8 +956,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
             var btnLeft = btnRow.add("group");
             btnLeft.alignChildren = ["left", "center"];
-            var btnExport = btnLeft.add("button", undefined, L('button.exportPreset'));
-            btnExport.helpTip = L('hint.esc');
+            var btnExport = btnLeft.add("button", undefined, getLabel('button.exportPreset'));
+            btnExport.helpTip = getLabel('hint.esc');
 
             var spacer = btnRow.add("statictext", undefined, "");
             spacer.alignment = ["fill", "fill"];
@@ -965,8 +965,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
 
             var btnRight = btnRow.add("group");
             btnRight.alignChildren = ["right", "center"];
-            var btnRefresh = btnRight.add("button", undefined, L('button.refresh'));
-            btnRefresh.helpTip = L('hint.refresh') + "\n" + L('hint.esc');
+            var btnRefresh = btnRight.add("button", undefined, getLabel('button.refresh'));
+            btnRefresh.helpTip = getLabel('hint.refresh') + "\n" + getLabel('hint.esc');
 
             btnExport.onClick = exportReport;
             btnRefresh.onClick = refresh;
@@ -1052,8 +1052,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             $.global.__SelectionInspectorPalette = win;
             win.onClose = function () {
                 rememberLocation(win);
-                try { app.redraw(); } catch (e) {}
-                try { $.global.__SelectionInspectorPalette = null; } catch (e2) {}
+                app.redraw();
+                $.global.__SelectionInspectorPalette = null;
             };
 
             restoreLocation(win);

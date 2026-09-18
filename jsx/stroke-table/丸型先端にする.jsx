@@ -50,11 +50,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     if (app.documents.length > 0) {
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (sel.length > 0) {
-            for (var i = 0; i < sel.length; i++) {
-                applyProjectingCap(sel[i]);
+        if (currentSelection.length > 0) {
+            for (var i = 0; i < currentSelection.length; i++) {
+                applyProjectingCap(currentSelection[i]);
             }
             // alert("選択されたパスアイテムの線端を突出先端に設定しました。");
         } else {

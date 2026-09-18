@@ -11,7 +11,7 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 ### Overview
 
-Groups the selection by the artboard each object sits on, resizes every group as one unit to the artboard width (90% by default) while keeping its aspect ratio, and centers it on that artboard. When fitting to the width would exceed the artboard height, it fits to the height (90% by default) instead.
+Groups the currentSelection by the artboard each object sits on, resizes every group as one unit to the artboard width (90% by default) while keeping its aspect ratio, and centers it on that artboard. When fitting to the width would exceed the artboard height, it fits to the height (90% by default) instead.
 
 See the README for details.
 
@@ -75,7 +75,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         alert: {
             noDocument:  { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noSelection: { ja: "オブジェクトが選択されていません。", en: "No object is selected." },
-            zeroWidth:   { ja: "選択範囲または仕上がり幅が0のため、リサイズできません。", en: "The selection or the target width is zero, so nothing can be resized." }
+            zeroWidth:   { ja: "選択範囲または仕上がり幅が0のため、リサイズできません。", en: "The currentSelection or the target width is zero, so nothing can be resized." }
         }
     };
 
@@ -99,26 +99,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * オブジェクト1つの境界を返す（USE_PREVIEW_BOUNDS に従う）
-     * @param {PageItem} item - 対象オブジェクト
+     * @param {PageItem} targetItem - 対象オブジェクト
      * @returns {number[]} [左, 上, 右, 下] の座標
      */
-    function getItemBounds(item) {
-        return USE_PREVIEW_BOUNDS ? item.visibleBounds : item.geometricBounds;
+    function getItemBounds(targetItem) {
+        return USE_PREVIEW_BOUNDS ? targetItem.visibleBounds : targetItem.geometricBounds;
     }
 
     /**
      * 選択オブジェクト全体を囲む矩形を求める
-     * @param {Array} items - 対象オブジェクト
+     * @param {PageItem[]} targetItems - 対象オブジェクト
      * @returns {number[]} [左, 上, 右, 下] の座標
      */
-    function getCombinedBounds(items) {
-        var bounds = getItemBounds(items[0]);
+    function getCombinedBounds(targetItems) {
+        var bounds = getItemBounds(targetItems[0]);
         var left = bounds[0];
         var top = bounds[1];
         var right = bounds[2];
         var bottom = bounds[3];
-        for (var i = 1; i < items.length; i++) {
-            var itemBounds = getItemBounds(items[i]);
+        for (var i = 1; i < targetItems.length; i++) {
+            var itemBounds = getItemBounds(targetItems[i]);
             if (itemBounds[0] < left) left = itemBounds[0];
             if (itemBounds[1] > top) top = itemBounds[1];
             if (itemBounds[2] > right) right = itemBounds[2];
@@ -129,11 +129,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * 矩形の中心座標を求める
-     * @param {number[]} rect - [左, 上, 右, 下] の座標
+     * @param {number[]} boundsRect - [左, 上, 右, 下] の座標
      * @returns {number[]} [中心X, 中心Y] の座標
      */
-    function getRectCenter(rect) {
-        return [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2];
+    function getRectCenter(boundsRect) {
+        return [(boundsRect[0] + boundsRect[2]) / 2, (boundsRect[1] + boundsRect[3]) / 2];
     }
 
     /**
@@ -170,16 +170,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                 searchOrder.push(i);
             }
         }
-        var bestIndex = -1;
-        var bestArea = 0;
+        var largestOverlapIndex = -1;
+        var largestOverlapArea = 0;
         for (var j = 0; j < searchOrder.length; j++) {
-            var area = getOverlapArea(selectionBounds, doc.artboards[searchOrder[j]].artboardRect);
-            if (area > bestArea) {
-                bestArea = area;
-                bestIndex = searchOrder[j];
+            var overlapArea = getOverlapArea(selectionBounds, doc.artboards[searchOrder[j]].artboardRect);
+            if (overlapArea > largestOverlapArea) {
+                largestOverlapArea = overlapArea;
+                largestOverlapIndex = searchOrder[j];
             }
         }
-        return bestIndex;
+        return largestOverlapIndex;
     }
 
     /**
@@ -227,21 +227,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 選択オブジェクトを、それぞれが属するアートボードごとに振り分ける
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} items - 対象オブジェクト
-     * @returns {Array} { artboardRect: number[], items: Array } の配列（最初に見つかったアートボード順）
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @returns {Array} { artboardRect: number[], items: PageItem[] } の配列（最初に見つかったアートボード順）
      */
-    function groupItemsByArtboard(doc, items) {
-        var groups = [];
-        var groupByIndex = {};
-        for (var i = 0; i < items.length; i++) {
-            var artboardIndex = findTargetArtboardIndex(doc, getItemBounds(items[i]));
-            if (!groupByIndex[artboardIndex]) {
-                groupByIndex[artboardIndex] = { artboardRect: doc.artboards[artboardIndex].artboardRect, items: [] };
-                groups.push(groupByIndex[artboardIndex]);
+    function groupItemsByArtboard(doc, targetItems) {
+        var artboardGroups = [];
+        var groupsByArtboardIndex = {};
+        for (var i = 0; i < targetItems.length; i++) {
+            var artboardIndex = findTargetArtboardIndex(doc, getItemBounds(targetItems[i]));
+            if (!groupsByArtboardIndex[artboardIndex]) {
+                groupsByArtboardIndex[artboardIndex] = { artboardRect: doc.artboards[artboardIndex].artboardRect, items: [] };
+                artboardGroups.push(groupsByArtboardIndex[artboardIndex]);
             }
-            groupByIndex[artboardIndex].items.push(items[i]);
+            groupsByArtboardIndex[artboardIndex].items.push(targetItems[i]);
         }
-        return groups;
+        return artboardGroups;
     }
 
     // =========================================
@@ -271,50 +271,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * 選択全体をひとまとまりとして等倍スケールする（グループ化しない）
      * クラスタの左上を原点に、各オブジェクトのサイズと相対位置を同じ倍率で変形するため、
      * 親階層や重ね順を変えずに縦横比と配置の関係を保てる
-     * @param {Array} items - 対象オブジェクト
+     * @param {PageItem[]} targetItems - 対象オブジェクト
      * @param {number} scaleFactor - 倍率（1 で等倍）
      * @returns {void}
      */
-    function scaleItemsAsCluster(items, scaleFactor) {
+    function scaleItemsAsCluster(targetItems, scaleFactor) {
         /* リサイズで位置がずれる前に、各オブジェクトの左上とクラスタの左上を控える
-           Record each item's top-left and the cluster origin before anything moves */
+           Record each targetItem's top-left and the cluster origin before anything moves */
         var originLeft = null;
         var originTop = null;
         var originalPositions = [];
-        for (var i = 0; i < items.length; i++) {
-            var itemLeft = items[i].left;
-            var itemTop = items[i].top;
+        for (var i = 0; i < targetItems.length; i++) {
+            var itemLeft = targetItems[i].left;
+            var itemTop = targetItems[i].top;
             originalPositions.push({ left: itemLeft, top: itemTop });
             if (originLeft === null || itemLeft < originLeft) originLeft = itemLeft;
             if (originTop === null || itemTop > originTop) originTop = itemTop;
         }
 
         var scalePercent = scaleFactor * 100;
-        for (var j = 0; j < items.length; j++) {
-            var item = items[j];
+        for (var j = 0; j < targetItems.length; j++) {
+            var targetItem = targetItems[j];
             /* 線幅・パターン・グラデーションも同じ倍率で変形する / Scale strokes, patterns and gradients alike */
-            item.resize(scalePercent, scalePercent, true, true, true, true, scalePercent, Transformation.TOPLEFT);
+            targetItem.resize(scalePercent, scalePercent, true, true, true, true, scalePercent, Transformation.TOPLEFT);
             /* 原点からの相対位置も同倍率でスケール / Scale the offset from the origin by the same factor */
-            item.left = originLeft + (originalPositions[j].left - originLeft) * scaleFactor;
-            item.top = originTop - (originTop - originalPositions[j].top) * scaleFactor;
+            targetItem.left = originLeft + (originalPositions[j].left - originLeft) * scaleFactor;
+            targetItem.top = originTop - (originTop - originalPositions[j].top) * scaleFactor;
         }
     }
 
     /**
      * 選択全体をアートボードの中央へ移動する
-     * @param {Array} items - 対象オブジェクト
+     * @param {PageItem[]} targetItems - 対象オブジェクト
      * @param {number[]} artboardRect - [左, 上, 右, 下] の座標
      * @param {boolean} centerVertically - 上下中央にもそろえる場合は true
      * @returns {void}
      */
-    function centerItemsOnArtboard(items, artboardRect, centerVertically) {
+    function centerItemsOnArtboard(targetItems, artboardRect, centerVertically) {
         var artboardCenter = getRectCenter(artboardRect);
-        var selectionCenter = getRectCenter(getCombinedBounds(items));
+        var selectionCenter = getRectCenter(getCombinedBounds(targetItems));
         var dx = artboardCenter[0] - selectionCenter[0];
         var dy = centerVertically ? (artboardCenter[1] - selectionCenter[1]) : 0;
-        for (var i = 0; i < items.length; i++) {
-            items[i].left += dx;
-            items[i].top += dy;
+        for (var i = 0; i < targetItems.length; i++) {
+            targetItems[i].left += dx;
+            targetItems[i].top += dy;
         }
     }
 
@@ -325,7 +325,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 文字を部分選択している場合に、その文字を含むテキストオブジェクトを選択し直す
      * @param {Document} doc - 対象ドキュメント
-     * @returns {Array} 選択し直したテキストオブジェクト
+     * @returns {TextFrame[]} 選択し直したテキストオブジェクト
      */
     function selectTextFramesFromTextRange(doc) {
         var storyFrames = doc.selection.story.textFrames;
@@ -345,20 +345,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      * 選択中のオブジェクトを固定した配列で取得する
      * doc.selection はライブ参照になりうるため、変形前にコピーして固定する
      * @param {Document} doc - 対象ドキュメント
-     * @returns {Array} 選択中のオブジェクト（選択がない場合は空配列）
+     * @returns {PageItem[]} 選択中のオブジェクト（選択がない場合は空配列）
      */
     function getSelectedItems(doc) {
-        var selection = doc.selection;
-        /* 文字を部分選択しているときは selection が TextRange になるため、テキストオブジェクトに置き換える
-           A partial text selection comes back as a TextRange; promote it to the text object */
-        if (selection && !(selection instanceof Array)) {
+        var currentSelection = doc.selection;
+        /* 文字を部分選択しているときは currentSelection が TextRange になるため、テキストオブジェクトに置き換える
+           A partial text currentSelection comes back as a TextRange; promote it to the text object */
+        if (currentSelection && !(currentSelection instanceof Array)) {
             return selectTextFramesFromTextRange(doc);
         }
-        var items = [];
-        for (var i = 0; selection && i < selection.length; i++) {
-            items.push(selection[i]);
+        var targetItems = [];
+        for (var i = 0; currentSelection && i < currentSelection.length; i++) {
+            targetItems.push(currentSelection[i]);
         }
-        return items;
+        return targetItems;
     }
 
     // =========================================
@@ -376,25 +376,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         }
         var doc = app.activeDocument;
 
-        var items = getSelectedItems(doc);
-        if (items.length === 0) {
+        var targetItems = getSelectedItems(doc);
+        if (targetItems.length === 0) {
             alert(getLabel("alert", "noSelection"));
             return;
         }
 
         /* 重なるアートボードごとに分けて、それぞれを1つのまとまりとして処理する
-           Split the selection per artboard and handle each group as its own cluster */
-        var groups = groupItemsByArtboard(doc, items);
+           Split the currentSelection per artboard and handle each group as its own cluster */
+        var artboardGroups = groupItemsByArtboard(doc, targetItems);
         var resizedCount = 0;
-        for (var i = 0; i < groups.length; i++) {
-            var groupBounds = getCombinedBounds(groups[i].items);
-            var scaleFactor = getFitScaleFactor(groupBounds, groups[i].artboardRect);
+        for (var i = 0; i < artboardGroups.length; i++) {
+            var groupBounds = getCombinedBounds(artboardGroups[i].items);
+            var scaleFactor = getFitScaleFactor(groupBounds, artboardGroups[i].artboardRect);
             /* 幅が0のときは倍率を求められないので、そのグループは飛ばす / Skip a group with no measurable width */
             if (!isFinite(scaleFactor) || scaleFactor <= 0) {
                 continue;
             }
-            scaleItemsAsCluster(groups[i].items, scaleFactor);
-            centerItemsOnArtboard(groups[i].items, groups[i].artboardRect, CENTER_VERTICALLY);
+            scaleItemsAsCluster(artboardGroups[i].items, scaleFactor);
+            centerItemsOnArtboard(artboardGroups[i].items, artboardGroups[i].artboardRect, CENTER_VERTICALLY);
             resizedCount++;
         }
         if (resizedCount === 0) {

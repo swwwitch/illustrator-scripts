@@ -40,7 +40,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: { ja: "テキストの収集と編集", en: "Collect and Edit Text" },
@@ -102,13 +102,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         noMatchingFontText: { ja: "該当するテキストがありません", en: "No matching text found" }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     function main() {
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
         var doc = app.activeDocument;
@@ -493,7 +493,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 } catch (err) { }
 
                 if (result.length === 0) {
-                    result.push(L('unknownFont'));
+                    result.push(getLabel('unknownFont'));
                 }
                 return result;
             }
@@ -546,12 +546,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                     for (i = 0; i < chars.length; i++) {
                         try {
                             fontObj = chars[i].characterAttributes.textFont;
-                            psName = fontObj.name || L('unknownFont');
-                            familyName = fontObj.family || L('unknownFont');
+                            psName = fontObj.name || getLabel('unknownFont');
+                            familyName = fontObj.family || getLabel('unknownFont');
                             styleName = fontObj.style || '';
                         } catch (e) {
-                            psName = L('unknownFont');
-                            familyName = L('unknownFont');
+                            psName = getLabel('unknownFont');
+                            familyName = getLabel('unknownFont');
                             styleName = '';
                         }
                         key = psName + '\t' + familyName + '\t' + styleName;
@@ -568,8 +568,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
                 if (triples.length === 0) {
                     triples.push({
-                        psName: L('unknownFont'),
-                        familyName: L('unknownFont'),
+                        psName: getLabel('unknownFont'),
+                        familyName: getLabel('unknownFont'),
                         styleName: ''
                     });
                 }
@@ -608,7 +608,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 } catch (err) { }
 
                 if (result.length === 0) {
-                    result.push(L('unknownFont'));
+                    result.push(getLabel('unknownFont'));
                 }
                 return result;
             }
@@ -1077,7 +1077,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var scopedItems = collectScopedSymbolItems(options, exportScopeMode);
 
                 collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
-                    var sep = (lang === 'ja') ? '：' : ': ';
+                    var sep = (uiLang === 'ja') ? '：' : ': ';
                     results.push(symbolName + sep + text.replace(/[\r\n]+/g, ' '));
                 });
 
@@ -1113,7 +1113,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
                 listBox.removeAll();
                 for (var i = 0; i < textFrameList.length; i++) {
-                    listBox.add("item", (i + 1) + L("itemPrefix") + makeLabel(textFrameList[i].contents));
+                    listBox.add("item", (i + 1) + getLabel("itemPrefix") + makeLabel(textFrameList[i].contents));
                 }
                 editBox.text = "";
                 if (textFrameList.length > 0) {
@@ -1159,7 +1159,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             // =========================================
 
             function buildDialogUI() {
-                var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+                var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
                 dlg.orientation = "column";
                 dlg.alignChildren = ["fill", "top"];
 
@@ -1169,7 +1169,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 infoTabs.preferredSize = [550, 350];
                 infoTabs.margins = [15, 10, 1, 10];
 
-                var canvasTab = infoTabs.add("tab", undefined, L("tabCanvas"));
+                var canvasTab = infoTabs.add("tab", undefined, getLabel("tabCanvas"));
                 canvasTab.orientation = "row";
                 canvasTab.alignChildren = ["fill", "fill"];
                 canvasTab.margins = [15, 20, 1, 10];
@@ -1184,12 +1184,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 leftCol.orientation = "column";
                 leftCol.alignChildren = ["fill", "fill"];
 
-                leftCol.add("statictext", undefined, L("textListLabel"));
+                leftCol.add("statictext", undefined, getLabel("textListLabel"));
                 var listBox = leftCol.add("listbox", [0, 0, 250, 194], []);
-                leftCol.add("statictext", undefined, L("textEditLabel"));
+                leftCol.add("statictext", undefined, getLabel("textEditLabel"));
                 var editBox = leftCol.add("edittext", [0, 0, 250, 72], "", { multiline: true, scrolling: true });
 
-                leftCol.add("statictext", undefined, L("symbolTextLabel"));
+                leftCol.add("statictext", undefined, getLabel("symbolTextLabel"));
                 var symbolListBox = leftCol.add("listbox", [0, 0, 250, SYMBOL_LIST_MIN_ROWS * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT], []);
                 symbolListBox.alignment = ["fill", "fill"];
 
@@ -1199,7 +1199,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 rightCol.alignChildren = ["fill", "top"];
 
                 /* 対象テキストパネル / Target text panel */
-                var targetPanel = rightCol.add("panel", undefined, L("panelTargetText"));
+                var targetPanel = rightCol.add("panel", undefined, getLabel("panelTargetText"));
                 targetPanel.orientation = "column";
                 targetPanel.alignChildren = ["left", "top"];
                 targetPanel.margins = [15, 20, 1, 10];
@@ -1207,39 +1207,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var rbGroup = targetPanel.add("group");
                 rbGroup.orientation = "column";
                 rbGroup.alignChildren = ["left", "top"];
-                var rbArtboard = rbGroup.add("radiobutton", undefined, L("rbCurrentArtboard"));
-                var rbAll = rbGroup.add("radiobutton", undefined, L("rbAllArtboards"));
+                var rbArtboard = rbGroup.add("radiobutton", undefined, getLabel("rbCurrentArtboard"));
+                var rbAll = rbGroup.add("radiobutton", undefined, getLabel("rbAllArtboards"));
                 rbArtboard.value = true;
 
                 var cbRow = targetPanel.add("group");
                 cbRow.orientation = "row";
-                var cbOutside = cbRow.add("checkbox", undefined, L("cbOutside"));
+                var cbOutside = cbRow.add("checkbox", undefined, getLabel("cbOutside"));
                 cbOutside.value = false;
                 cbOutside.enabled = false;
 
-                var layerPanel = rightCol.add("panel", undefined, L("panelLayerText"));
+                var layerPanel = rightCol.add("panel", undefined, getLabel("panelLayerText"));
                 layerPanel.orientation = "column";
                 layerPanel.alignChildren = ["left", "top"];
                 layerPanel.margins = [15, 20, 1, 10];
 
-                var cbSkipComment = layerPanel.add("checkbox", undefined, L("cbSkipComment"));
+                var cbSkipComment = layerPanel.add("checkbox", undefined, getLabel("cbSkipComment"));
                 cbSkipComment.value = false;
 
-                var cbIncludeLocked = layerPanel.add("checkbox", undefined, L("cbIncludeLocked"));
+                var cbIncludeLocked = layerPanel.add("checkbox", undefined, getLabel("cbIncludeLocked"));
                 cbIncludeLocked.value = false;
-                var cbIncludeHidden = layerPanel.add("checkbox", undefined, L("cbIncludeHidden"));
+                var cbIncludeHidden = layerPanel.add("checkbox", undefined, getLabel("cbIncludeHidden"));
                 cbIncludeHidden.value = false;
 
-                var sortPanel = rightCol.add("panel", undefined, L("panelSort"));
+                var sortPanel = rightCol.add("panel", undefined, getLabel("panelSort"));
                 sortPanel.orientation = "column";
                 sortPanel.alignChildren = ["left", "top"];
                 sortPanel.margins = [15, 20, 1, 10];
                 var sortGroup = sortPanel.add("group");
                 sortGroup.orientation = "row";
                 sortGroup.alignChildren = ["left", "center"];
-                var rbSortNone = sortGroup.add("radiobutton", undefined, L("sortNone"));
-                var rbSortXY = sortGroup.add("radiobutton", undefined, L("sortXY"));
-                var rbSortABC = sortGroup.add("radiobutton", undefined, L("sortABC"));
+                var rbSortNone = sortGroup.add("radiobutton", undefined, getLabel("sortNone"));
+                var rbSortXY = sortGroup.add("radiobutton", undefined, getLabel("sortXY"));
+                var rbSortABC = sortGroup.add("radiobutton", undefined, getLabel("sortABC"));
                 rbSortNone.value = true;
 
                 var optionsGroup = rightCol.add("group");
@@ -1247,80 +1247,80 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 optionsGroup.alignChildren = ["left", "top"];
                 optionsGroup.margins = [15, 5, 15, 10];
 
-                var cbDedup = optionsGroup.add("checkbox", undefined, L("cbDedup"));
+                var cbDedup = optionsGroup.add("checkbox", undefined, getLabel("cbDedup"));
                 cbDedup.value = true;
 
-                var isFormat = optionsGroup.add("checkbox", undefined, L("keepFormat"));
+                var isFormat = optionsGroup.add("checkbox", undefined, getLabel("keepFormat"));
                 isFormat.value = true;
-                isFormat.helpTip = L("keepFormatTip");
+                isFormat.helpTip = getLabel("keepFormatTip");
 
-                var isPreview = optionsGroup.add("checkbox", undefined, L("preview"));
-                isPreview.helpTip = L("previewTip");
+                var isPreview = optionsGroup.add("checkbox", undefined, getLabel("preview"));
+                isPreview.helpTip = getLabel("previewTip");
 
-                var layerNamesTab = infoTabs.add("tab", undefined, L("tabLayerNames"));
+                var layerNamesTab = infoTabs.add("tab", undefined, getLabel("tabLayerNames"));
                 layerNamesTab.orientation = "column";
                 layerNamesTab.alignChildren = ["fill", "top"];
                 layerNamesTab.margins = [15, 20, 0, 10];
                 layerNamesTab.spacing = 10;
 
-                layerNamesTab.add("statictext", undefined, L("layerNameListLabel"));
+                layerNamesTab.add("statictext", undefined, getLabel("layerNameListLabel"));
 
                 var layerScopePanel = layerNamesTab.add("group");
                 layerScopePanel.orientation = "row";
                 layerScopePanel.alignChildren = ["left", "center"];
                 layerScopePanel.spacing = 15;
 
-                var rbLayerScopeTop = layerScopePanel.add("radiobutton", undefined, L("layerScopeTop"));
-                var rbLayerScopeAll = layerScopePanel.add("radiobutton", undefined, L("layerScopeAll"));
+                var rbLayerScopeTop = layerScopePanel.add("radiobutton", undefined, getLabel("layerScopeTop"));
+                var rbLayerScopeAll = layerScopePanel.add("radiobutton", undefined, getLabel("layerScopeAll"));
                 rbLayerScopeTop.value = true;
 
                 var layerNameEdit = layerNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
                 layerNameEdit.alignment = ["fill", "fill"];
 
-                var artboardNamesTab = infoTabs.add("tab", undefined, L("tabArtboardNames"));
+                var artboardNamesTab = infoTabs.add("tab", undefined, getLabel("tabArtboardNames"));
                 artboardNamesTab.orientation = "column";
                 artboardNamesTab.alignChildren = ["fill", "top"];
                 artboardNamesTab.margins = [15, 20, 0, 10];
                 artboardNamesTab.spacing = 10;
 
-                artboardNamesTab.add("statictext", undefined, L("artboardNameListLabel"));
+                artboardNamesTab.add("statictext", undefined, getLabel("artboardNameListLabel"));
 
                 var artboardScopeGroup = artboardNamesTab.add("group");
                 artboardScopeGroup.orientation = "row";
                 artboardScopeGroup.alignChildren = ["left", "center"];
                 artboardScopeGroup.spacing = 15;
 
-                var rbArtboardScopeNumbered = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeNumbered"));
-                var rbArtboardScopeRaw = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeRaw"));
+                var rbArtboardScopeNumbered = artboardScopeGroup.add("radiobutton", undefined, getLabel("artboardScopeNumbered"));
+                var rbArtboardScopeRaw = artboardScopeGroup.add("radiobutton", undefined, getLabel("artboardScopeRaw"));
                 rbArtboardScopeNumbered.value = true;
 
                 var artboardNameEdit = artboardNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
                 artboardNameEdit.alignment = ["fill", "fill"];
 
-                var fontNamesTab = infoTabs.add("tab", undefined, L("tabFontNames"));
+                var fontNamesTab = infoTabs.add("tab", undefined, getLabel("tabFontNames"));
                 fontNamesTab.orientation = "column";
                 fontNamesTab.alignChildren = ["fill", "top"];
                 fontNamesTab.margins = [15, 20, 0, 10];
                 fontNamesTab.spacing = 10;
 
-                fontNamesTab.add("statictext", undefined, L("fontListLabel"));
+                fontNamesTab.add("statictext", undefined, getLabel("fontListLabel"));
 
                 var fontToggleGroup = fontNamesTab.add("group");
                 fontToggleGroup.orientation = "row";
                 fontToggleGroup.alignChildren = ["left", "center"];
                 fontToggleGroup.spacing = 15;
 
-                var cbFontPS = fontToggleGroup.add("checkbox", undefined, L("fontTogglePS"));
+                var cbFontPS = fontToggleGroup.add("checkbox", undefined, getLabel("fontTogglePS"));
                 cbFontPS.value = true;
-                var cbFontFamily = fontToggleGroup.add("checkbox", undefined, L("fontToggleFamily"));
+                var cbFontFamily = fontToggleGroup.add("checkbox", undefined, getLabel("fontToggleFamily"));
                 cbFontFamily.value = true;
-                var cbFontStyle = fontToggleGroup.add("checkbox", undefined, L("fontToggleStyle"));
+                var cbFontStyle = fontToggleGroup.add("checkbox", undefined, getLabel("fontToggleStyle"));
                 cbFontStyle.value = true;
 
                 var fontNameListBox = fontNamesTab.add("listbox", undefined, [], {
                     numberOfColumns: 3,
                     showHeaders: true,
-                    columnTitles: [L("fontColumnPS"), L("fontColumnFamily"), L("fontColumnStyle")],
+                    columnTitles: [getLabel("fontColumnPS"), getLabel("fontColumnFamily"), getLabel("fontColumnStyle")],
                     columnWidths: [180, 180, 120]
                 });
                 fontNameListBox.alignment = ["fill", "fill"];
@@ -1334,7 +1334,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var leftButtons = buttonRow.add("group");
                 leftButtons.orientation = "row";
                 leftButtons.alignChildren = ["left", "center"];
-                var exportTextBtn = leftButtons.add("button", undefined, L("exportText"));
+                var exportTextBtn = leftButtons.add("button", undefined, getLabel("exportText"));
 
                 var spacer = buttonRow.add("group");
                 spacer.alignment = ["fill", "fill"];
@@ -1343,14 +1343,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var rightButtons = buttonRow.add("group");
                 rightButtons.orientation = "row";
                 rightButtons.alignChildren = ["right", "center"];
-                var cancelBtn = rightButtons.add("button", undefined, L("cancel"), { name: "cancel" });
-                var closeBtn = rightButtons.add("button", undefined, L("ok"), { name: "ok" });
+                var cancelBtn = rightButtons.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+                var closeBtn = rightButtons.add("button", undefined, getLabel("ok"), { name: "ok" });
                 dlg.defaultElement = closeBtn;
 
                 /* CC 2020 v24.3 はプレビュー時にクラッシュするため無効化 / Disable preview in CC 2020 v24.3 because it may crash */
                 if (parseInt(app.version) == 24) {
                     isPreview.enabled = false;
-                    isPreview.helpTip = L("previewDisabledTip");
+                    isPreview.helpTip = getLabel("previewDisabledTip");
                 }
 
                 return {
@@ -1452,7 +1452,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 } catch (e1) { }
 
                 if (matches.length === 0) {
-                    alert(L('noMatchingFontText'));
+                    alert(getLabel('noMatchingFontText'));
                     return;
                 }
 
@@ -1462,9 +1462,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                     } catch (e2) { }
                 }
 
-                try {
-                    app.redraw();
-                } catch (e3) { }
+                app.redraw();
             }
 
             cbFontPS.onClick = function () { refreshInfoTabs(); };
@@ -1567,7 +1565,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                         if (file && file.opened) file.close();
                     } catch (closeErr) { }
                     restorePreviewIfNeeded(wasPreviewActive);
-                    alert(L('exportFailed') + '\n' + e);
+                    alert(getLabel('exportFailed') + '\n' + e);
                 }
             };
 
@@ -1643,13 +1641,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                     name = doc.artboards[index].name;
                 } catch (e) { }
                 if (!name) {
-                    name = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
+                    name = (uiLang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
                 }
                 return name;
             }
 
             function getArtboardDisplayName(index) {
-                var numberText = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
+                var numberText = (uiLang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
                 return numberText + ': ' + getRawArtboardName(index);
             }
 
@@ -1667,9 +1665,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var scopedItems = collectScopedSymbolItems(options, scopeMode);
 
                 collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
-                    var openParen = (lang === 'ja') ? '〈' : ' «';
-                    var closeParen = (lang === 'ja') ? '〉' : '»';
-                    var prefix = (lang === 'ja') ? 'シンボル：' : 'Symbol: ';
+                    var openParen = (uiLang === 'ja') ? '〈' : ' «';
+                    var closeParen = (uiLang === 'ja') ? '〉' : '»';
+                    var prefix = (uiLang === 'ja') ? 'シンボル：' : 'Symbol: ';
                     results.push({
                         artboardIndex: artboardIndex,
                         text: text + openParen + prefix + symbolName + closeParen
@@ -1711,7 +1709,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             function collectArtboardGroupedFontFrames(options, scopeMode) {
                 var groups = [];
                 var outsideGroup = {
-                    name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
+                    name: (uiLang === 'ja') ? 'アートボード外' : 'Outside Artboards',
                     frames: []
                 };
                 var i;
@@ -1762,7 +1760,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             }
 
             function showExportOptionsDialog() {
-                var exportDlg = new Window('dialog', L('exportDialogTitle'));
+                var exportDlg = new Window('dialog', getLabel('exportDialogTitle'));
                 var optionsPanel;
                 var cbExportText;
                 var cbExportFonts;
@@ -1774,22 +1772,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 exportDlg.orientation = 'column';
                 exportDlg.alignChildren = ['fill', 'top'];
 
-                optionsPanel = exportDlg.add('panel', undefined, L('exportDialogTitle'));
+                optionsPanel = exportDlg.add('panel', undefined, getLabel('exportDialogTitle'));
                 optionsPanel.orientation = 'column';
                 optionsPanel.alignChildren = ['left', 'top'];
                 optionsPanel.margins = [15, 20, 15, 10];
 
-                cbExportText = optionsPanel.add('checkbox', undefined, L('exportIncludeText'));
+                cbExportText = optionsPanel.add('checkbox', undefined, getLabel('exportIncludeText'));
                 cbExportText.value = true;
 
-                cbExportFonts = optionsPanel.add('checkbox', undefined, L('exportIncludeFonts'));
+                cbExportFonts = optionsPanel.add('checkbox', undefined, getLabel('exportIncludeFonts'));
                 cbExportFonts.value = true;
 
                 // Move "Open file after export" checkbox below the panel
                 // (see below)
 
                 // Add "Open file after export" checkbox below the panel
-                cbOpenAfter = exportDlg.add('checkbox', undefined, L('exportOpenAfter'));
+                cbOpenAfter = exportDlg.add('checkbox', undefined, getLabel('exportOpenAfter'));
                 cbOpenAfter.value = true;
 
                 buttonRow = exportDlg.add('group');
@@ -1797,8 +1795,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 buttonRow.alignChildren = ['center', 'center'];
                 buttonRow.alignment = ['center', 'center'];
 
-                cancelButton = buttonRow.add('button', undefined, L('cancel'), { name: 'cancel' });
-                okButton = buttonRow.add('button', undefined, L('ok'), { name: 'ok' });
+                cancelButton = buttonRow.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+                okButton = buttonRow.add('button', undefined, getLabel('ok'), { name: 'ok' });
                 exportDlg.defaultElement = okButton;
 
                 if (exportDlg.show() !== 1) {
@@ -1815,7 +1813,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             function collectArtboardGroupedExportData(options, scopeMode) {
                 var groups = [];
                 var outsideGroup = {
-                    name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
+                    name: (uiLang === 'ja') ? 'アートボード外' : 'Outside Artboards',
                     texts: []
                 };
                 var i;

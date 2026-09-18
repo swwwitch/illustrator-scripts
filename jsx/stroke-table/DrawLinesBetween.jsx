@@ -1,3 +1,4 @@
+#targetengine "RulesBetweenObjects"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -36,10 +37,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    //#targetengine "RulesBetweenObjects"
-     #targetengine "RulesBetweenObjects"
-    app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
     /*
       DrawLinesBetween.jsx
 
@@ -72,7 +69,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -142,9 +139,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         if (!LABELS[key]) return key;
-        return LABELS[key][lang] || LABELS[key].en || key;
+        return LABELS[key][uiLang] || LABELS[key].en || key;
     }
 
     // ----------------------------------------
@@ -274,21 +271,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DIALOG_OFFSET_Y = 0;
     var DIALOG_OPACITY = 0.98;
 
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function () {
+    function shiftDialogPosition(dialog, offsetX, offsetY) {
+        dialog.onShow = function () {
             try {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
+                var currentX = dialog.location[0];
+                var currentY = dialog.location[1];
+                dialog.location = [currentX + offsetX, currentY + offsetY];
             } catch (e) {
                 // location が取得できない環境向けフォールバック
             }
         };
     }
 
-    function setDialogOpacity(dlg, opacityValue) {
+    function setDialogOpacity(dialog, opacityValue) {
         try {
-            dlg.opacity = opacityValue;
+            dialog.opacity = opacityValue;
         } catch (e) {
             // opacity 未対応環境向けフォールバック
         }
@@ -348,11 +345,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showDialog() {
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
-        setDialogOpacity(dlg, DIALOG_OPACITY);
-        shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
-        dlg.orientation = 'column';
-        dlg.alignChildren = ['fill', 'top'];
+        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
+        setDialogOpacity(dialog, DIALOG_OPACITY);
+        shiftDialogPosition(dialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+        dialog.orientation = 'column';
+        dialog.alignChildren = ['fill', 'top'];
         var saved = loadSettings();
         var strokeUnitCodeForUI = getStrokeUnitsCode();
         var strokeUnitLabel = getUnitLabel(strokeUnitCodeForUI, "strokeUnits");
@@ -367,21 +364,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (typeof saved.marginPt === "number") defaultMarginUI = fromPt(saved.marginPt, strokeUnitCodeForUI, "strokeUnits");
         }
 
-        var lineGroup = dlg.add('group');
-        lineGroup.add('statictext', undefined, L('lineWidth'));
+        var lineGroup = dialog.add('group');
+        lineGroup.add('statictext', undefined, getLabel('lineWidth'));
         var lineWidthInput = lineGroup.add('edittext', undefined, formatNumberForUI(defaultLineWeightUI));
         lineWidthInput.characters = 6;
         changeValueByArrowKey(lineWidthInput);
         lineGroup.add('statictext', undefined, '(' + strokeUnitLabel + ')');
 
-        var marginGroup = dlg.add('group');
-        marginGroup.add('statictext', undefined, L('extension'));
+        var marginGroup = dialog.add('group');
+        marginGroup.add('statictext', undefined, getLabel('extension'));
         var marginInput = marginGroup.add('edittext', undefined, formatNumberForUI(defaultMarginUI));
         marginInput.characters = 6;
         changeValueByArrowKey(marginInput);
         marginGroup.add('statictext', undefined, '(' + strokeUnitLabel + ')');
 
-        var capPanel = dlg.add('panel', undefined, L('lineCap'));
+        var capPanel = dialog.add('panel', undefined, getLabel('lineCap'));
         capPanel.orientation = 'column';
         capPanel.alignChildren = ['left', 'top'];
         capPanel.margins = [15, 20, 15, 10];
@@ -390,9 +387,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         capGroup.orientation = 'column';
         capGroup.alignChildren = ['left', 'center'];
 
-        var capNoneRadio = capGroup.add('radiobutton', undefined, L('capButt'));
-        var capRoundRadio = capGroup.add('radiobutton', undefined, L('capRound'));
-        var capProjectingRadio = capGroup.add('radiobutton', undefined, L('capProjecting'));
+        var capNoneRadio = capGroup.add('radiobutton', undefined, getLabel('capButt'));
+        var capRoundRadio = capGroup.add('radiobutton', undefined, getLabel('capRound'));
+        var capProjectingRadio = capGroup.add('radiobutton', undefined, getLabel('capProjecting'));
 
         // デフォルト：なし（BUTT）/ Default: Butt
         capNoneRadio.value = true;
@@ -408,7 +405,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // --- Rule Length Panel 追加 ---
-        var lengthPanel = dlg.add('panel', undefined, L('ruleLength'));
+        var lengthPanel = dialog.add('panel', undefined, getLabel('ruleLength'));
         lengthPanel.orientation = 'column';
         lengthPanel.alignChildren = ['left', 'top'];
         lengthPanel.margins = [15, 20, 15, 10];
@@ -417,33 +414,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lengthGroup.orientation = 'column';
         lengthGroup.alignChildren = ['left', 'center'];
 
-        var lengthObjectRadio = lengthGroup.add('radiobutton', undefined, L('ruleLengthObject'));
-        var lengthCommonRadio = lengthGroup.add('radiobutton', undefined, L('ruleLengthCommon'));
+        var lengthObjectRadio = lengthGroup.add('radiobutton', undefined, getLabel('ruleLengthObject'));
+        var lengthCommonRadio = lengthGroup.add('radiobutton', undefined, getLabel('ruleLengthCommon'));
 
         // デフォルト：共通
         lengthCommonRadio.value = true;
 
-        var btnGroup = dlg.add('group');
+        var btnGroup = dialog.add('group');
         btnGroup.alignment = ['right', 'center'];
         btnGroup.orientation = 'row';
-        var cancelBtn = btnGroup.add('button', undefined, L('cancel'), {name: 'cancel'});
-        var okBtn = btnGroup.add('button', undefined, L('ok'), {name: 'ok'});
+        var cancelBtn = btnGroup.add('button', undefined, getLabel('cancel'), {name: 'cancel'});
+        var okBtn = btnGroup.add('button', undefined, getLabel('ok'), {name: 'ok'});
         okBtn.active = true;          // Enterキー＝OK
-        dlg.defaultElement = okBtn;  // 環境依存対策
+        dialog.defaultElement = okBtn;  // 環境依存対策
 
-        if (dlg.show() !== 1) {
+        if (dialog.show() !== 1) {
             return null;
         }
 
         var lineWeightVal = Number(lineWidthInput.text);
         if (isNaN(lineWeightVal) || lineWeightVal <= 0) {
-            alert(L('alertNeedPositiveStroke'));
+            alert(getLabel('alertNeedPositiveStroke'));
             return null;
         }
 
         var marginVal = Number(marginInput.text);
         if (isNaN(marginVal)) {
-            alert(L('alertNeedNumberExtension'));
+            alert(getLabel('alertNeedNumberExtension'));
             return null;
         }
         var strokeUnitCode = strokeUnitCodeForUI;
@@ -499,12 +496,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // メイン処理 / Main process
         if (app.documents.length === 0) {
-            alert(L('alertNoDoc'));
+            alert(getLabel('alertNoDoc'));
             return;
         }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
         // テキストは複製→アウトライン化してから bounds を参照し、最後に複製物を削除
         // / For TextFrame: duplicate -> create outlines -> use outlined bounds -> remove duplicates at the end
@@ -634,8 +631,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var proxyItems = [];
-        for (var i = 0; i < sel.length; i++) {
-            proxyItems.push(makeBoundsProxy(sel[i]));
+        for (var i = 0; i < currentSelection.length; i++) {
+            proxyItems.push(makeBoundsProxy(currentSelection[i]));
         }
 
         // 左右に並ぶ要素を行単位でグループ化

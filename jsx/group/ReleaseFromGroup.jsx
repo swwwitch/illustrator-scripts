@@ -43,7 +43,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var lang = getCurrentLang();
+var uiLang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
@@ -58,7 +58,7 @@ var LABELS = {
  * @param {string} key - LABELS のキー
  * @returns {string} ロケールに対応する文言。見つからない場合は英語、それも無ければキーをそのまま返す
  */
-function L(path) {
+function getLabel(path) {
     var parts = String(path).split(".");
     var node = LABELS;
     for (var i = 0; i < parts.length; i++) {
@@ -66,7 +66,7 @@ function L(path) {
         node = node[parts[i]];
     }
     if (node == null) return path;
-    if (node[lang] != null) return node[lang];
+    if (node[uiLang] != null) return node[uiLang];
     return (node.en != null) ? node.en : path;
 }
 
@@ -74,11 +74,11 @@ function L(path) {
 var doc = app.documents.length && app.activeDocument;
 if (!doc) return;
 
-var sel = doc.selection;
-if (!sel.length) return;
+var currentSelection = doc.selection;
+if (!currentSelection.length) return;
 
 // 2. 選択されたすべてのオブジェクトを退避
-var targets = [].slice.call(sel);
+var targets = [].slice.call(currentSelection);
 
 // 3. 重ね順が逆転しないように「逆順（後ろから）」で処理を行う
 for (var j = targets.length - 1; j >= 0; j--) {

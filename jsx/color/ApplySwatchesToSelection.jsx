@@ -67,12 +67,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     function main() {
-        var lang = getCurrentLang();
+        var uiLang = getCurrentLang();
 
         try {
             // ドキュメントが開かれているか確認
             if (app.documents.length === 0) {
-                alert(LABELS.errNoDoc[lang]);
+                alert(LABELS.errNoDoc[uiLang]);
                 return;
             }
             var activeDoc = app.activeDocument;
@@ -83,7 +83,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // 選択オブジェクトがあるか確認
             if ((selectedItems.length === 0) && !selectedTextRange) {
-                alert(LABELS.errNoSelection[lang]);
+                alert(LABELS.errNoSelection[uiLang]);
                 return;
             }
 
@@ -187,7 +187,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
         } catch (e) {
-            alert(LABELS.errUnexpected[lang] + e.message);
+            alert(LABELS.errUnexpected[uiLang] + e.message);
         }
     }
 

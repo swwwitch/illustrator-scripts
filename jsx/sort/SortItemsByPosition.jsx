@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
     var LABELS = {
         dialogTitle: { ja: "重ね順の変更 v1.0", en: "Reorder Objects v1.0" },
         sortPanel:   { ja: "ソート基準", en: "Sort Criteria" },
@@ -171,7 +171,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var items = collectItems(doc, hasSelection, !hasSelection);
 
         /* ダイアログ構築開始 */
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = "left";
 
@@ -186,14 +186,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         leftGroup.alignChildren = "left";
 
         /* ソートパネル */
-        var radioPanel = leftGroup.add("panel", undefined, LABELS.sortPanel[lang]);
+        var radioPanel = leftGroup.add("panel", undefined, LABELS.sortPanel[uiLang]);
         radioPanel.orientation = "column";
         radioPanel.alignChildren = "left";
         radioPanel.margins = [15, 20, 15, 10];
 
-        var sortRadioXLeft = radioPanel.add("radiobutton", undefined, LABELS.xLeft[lang]);
-        var sortRadioYTop = radioPanel.add("radiobutton", undefined, LABELS.yTop[lang]);
-        var sortRadioRandom = radioPanel.add("radiobutton", undefined, LABELS.random[lang]);
+        var sortRadioXLeft = radioPanel.add("radiobutton", undefined, LABELS.xLeft[uiLang]);
+        var sortRadioYTop = radioPanel.add("radiobutton", undefined, LABELS.yTop[uiLang]);
+        var sortRadioRandom = radioPanel.add("radiobutton", undefined, LABELS.random[uiLang]);
         if (autoMode === "y") {
             sortRadioYTop.value = true;
         } else {
@@ -201,12 +201,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 対象パネル */
-        var targetPanel = leftGroup.add("panel", undefined, LABELS.targetPanel[lang]);
+        var targetPanel = leftGroup.add("panel", undefined, LABELS.targetPanel[uiLang]);
         targetPanel.orientation = "column";
         targetPanel.alignChildren = "left";
         targetPanel.margins = [15, 20, 15, 10];
-        var selectionRadio = targetPanel.add("radiobutton", undefined, LABELS.selection[lang]);
-        var artboardRadio = targetPanel.add("radiobutton", undefined, LABELS.artboard[lang]);
+        var selectionRadio = targetPanel.add("radiobutton", undefined, LABELS.selection[uiLang]);
+        var artboardRadio = targetPanel.add("radiobutton", undefined, LABELS.artboard[uiLang]);
         selectionRadio.value = hasSelection;
         artboardRadio.value = !hasSelection;
 
@@ -220,7 +220,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         moveLayerGroup.orientation = "column";
         moveLayerGroup.alignChildren = "center";
         moveLayerGroup.preferredSize.width = uniformPanelWidth;
-        var moveTopLayerCheckbox = moveLayerGroup.add("checkbox", undefined, LABELS.moveLayer[lang]);
+        var moveTopLayerCheckbox = moveLayerGroup.add("checkbox", undefined, LABELS.moveLayer[uiLang]);
         moveTopLayerCheckbox.value = false;
 
         // 選択オブジェクトが単一レイヤーの場合、レイヤー移動チェックボックスを無効化
@@ -241,16 +241,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightGroup.orientation = "column";
         rightGroup.alignChildren = "right";
         var buttonWidth = 100;
-        var okBtn = rightGroup.add("button", undefined, LABELS.ok[lang], { name: "OK" });
+        var okBtn = rightGroup.add("button", undefined, LABELS.ok[uiLang], { name: "OK" });
         okBtn.preferredSize.width = buttonWidth;
 
-        var reverseBtn = rightGroup.add("button", undefined, LABELS.reverse[lang]);
+        var reverseBtn = rightGroup.add("button", undefined, LABELS.reverse[uiLang]);
         reverseBtn.preferredSize.width = buttonWidth;
 
         var spacer = rightGroup.add("statictext", undefined, "");
         spacer.preferredSize.height = 100;
 
-        var cancelBtn = rightGroup.add("button", undefined, LABELS.cancel[lang]);
+        var cancelBtn = rightGroup.add("button", undefined, LABELS.cancel[uiLang]);
         cancelBtn.preferredSize.width = buttonWidth;
 
         /* 反転ボタン有効/無効の更新（常に有効） */

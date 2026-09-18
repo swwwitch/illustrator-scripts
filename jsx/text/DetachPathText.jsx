@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -59,49 +59,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ラベル取得ヘルパー / Label lookup helper */
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     // ==========================================
     // UI: ダイアログ / Dialog
     // ==========================================
     function showOptionsDialog() {
-        var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
-        dlg.margins = 18;
+        var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = ["fill", "top"];
+        dialog.margins = 18;
 
         /* テキストパネル / Text panel */
-        var pnlKeep = dlg.add("panel", undefined, L("pnlKeep"));
+        var pnlKeep = dialog.add("panel", undefined, getLabel("pnlKeep"));
         pnlKeep.orientation = "column";
         pnlKeep.alignChildren = ["left", "top"];
         pnlKeep.margins = [15, 20, 15, 12];
 
-        var rbFull = pnlKeep.add("radiobutton", undefined, L("rbFull"));
-        var rbFast = pnlKeep.add("radiobutton", undefined, L("rbFast"));
-        var rbNone = pnlKeep.add("radiobutton", undefined, L("rbNone"));
+        var rbFull = pnlKeep.add("radiobutton", undefined, getLabel("rbFull"));
+        var rbFast = pnlKeep.add("radiobutton", undefined, getLabel("rbFast"));
+        var rbNone = pnlKeep.add("radiobutton", undefined, getLabel("rbNone"));
         rbFull.value = true;
 
         /* パスパネル / Path panel */
-        var pnlPath = dlg.add("panel", undefined, L("pnlPath"));
+        var pnlPath = dialog.add("panel", undefined, getLabel("pnlPath"));
         pnlPath.orientation = "column";
         pnlPath.alignChildren = ["left", "top"];
         pnlPath.margins = [15, 20, 15, 12];
 
-        var rbPathBlack = pnlPath.add("radiobutton", undefined, L("rbPathBlack"));
-        var rbPathNone = pnlPath.add("radiobutton", undefined, L("rbPathNone"));
-        var rbPathDelete = pnlPath.add("radiobutton", undefined, L("rbPathDelete"));
+        var rbPathBlack = pnlPath.add("radiobutton", undefined, getLabel("rbPathBlack"));
+        var rbPathNone = pnlPath.add("radiobutton", undefined, getLabel("rbPathNone"));
+        var rbPathDelete = pnlPath.add("radiobutton", undefined, getLabel("rbPathDelete"));
         rbPathBlack.value = true; // デフォルト / Default
 
         /* ボタングループ / Button group */
-        var grpBtns = dlg.add("group");
+        var grpBtns = dialog.add("group");
         grpBtns.orientation = "row";
         grpBtns.alignChildren = ["right", "center"];
         grpBtns.alignment = ["fill", "top"];
 
-        var btnCancel = grpBtns.add("button", undefined, L("btnCancel"));
-        var btnOk = grpBtns.add("button", undefined, L("btnOk"), { name: "ok" });
+        var btnCancel = grpBtns.add("button", undefined, getLabel("btnCancel"));
+        var btnOk = grpBtns.add("button", undefined, getLabel("btnOk"), { name: "ok" });
 
         var result = null;
         btnOk.onClick = function () {
@@ -111,19 +111,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 pathNoStroke: rbPathNone.value,
                 pathDelete: rbPathDelete.value
             };
-            dlg.close(1);
+            dialog.close(1);
         };
         btnCancel.onClick = function () {
-            dlg.close(0);
+            dialog.close(0);
         };
 
-        var r = dlg.show();
+        var r = dialog.show();
         return (r === 1) ? result : null;
     }
 
     function main() {
         if (app.documents.length === 0) {
-            alert(L("alertNoDoc"));
+            alert(getLabel("alertNoDoc"));
             return;
         }
 
@@ -131,24 +131,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!opt) return; // キャンセル / Cancelled
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (sel.length === 0) {
-            alert(L("alertNoSel"));
+        if (currentSelection.length === 0) {
+            alert(getLabel("alertNoSel"));
             return;
         }
 
         var pathTexts = [];
 
         /* 選択からパス上文字を抽出 / Extract path text from selection */
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "TextFrame" && sel[i].kind === TextType.PATHTEXT) {
-                pathTexts.push(sel[i]);
+        for (var i = 0; i < currentSelection.length; i++) {
+            if (currentSelection[i].typename === "TextFrame" && currentSelection[i].kind === TextType.PATHTEXT) {
+                pathTexts.push(currentSelection[i]);
             }
         }
 
         if (pathTexts.length === 0) {
-            alert(L("alertNoPath"));
+            alert(getLabel("alertNoPath"));
             return;
         }
 

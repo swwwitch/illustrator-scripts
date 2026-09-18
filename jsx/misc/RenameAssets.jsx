@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ローカライズ定義（キー→{ja,en} 形式） / Localization in key→{ja,en} form */
     var LABELS = {
@@ -131,12 +131,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // Localize helpers
     function t(key) {
         var m = LABELS[key];
-        return m ? (lang === 'ja' ? m.ja : m.en) : key;
+        return m ? (uiLang === 'ja' ? m.ja : m.en) : key;
     }
 
     function tf(key) {
         var m = LABELS[key];
-        return m ? (lang === 'ja' ? m.ja : m.en) : function() {
+        return m ? (uiLang === 'ja' ? m.ja : m.en) : function() {
             return "";
         };
     }

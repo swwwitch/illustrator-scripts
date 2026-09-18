@@ -1807,7 +1807,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         } else if (initialFrame) {
             try { app.activeDocument.selection = [initialFrame]; } catch (e2) { }
         }
-        try { app.redraw(); } catch (e3) { }
+        app.redraw();
 
         // 調整対象（非分離モード用に固定）。
         // モーダルダイアログ中は selection が変動/取得不能になることがあるため、変換ダイアログから渡された配列を優先する。
@@ -2319,7 +2319,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             // undo に失敗したときはプレビューが残るので、フラグを倒さず次の機会にやり直す
             // A failed undo leaves the preview in place, so the flag stays up for the next attempt
             try { app.undo(); } catch (e) { return; }
-            try { app.redraw(); } catch (e2) { }
+            app.redraw();
             isPreviewActive = false;
 
             // undo 後は参照が無効化されるため、対象を取り直す

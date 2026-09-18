@@ -136,7 +136,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ドット区切りのキー（例 "checkbox.showLabel"）でカテゴリ分けされた LABELS を引く / Look up a categorized label by dot-separated key */
         // 末尾の {slash} はスラッシュ "/" に置換する（ソース内に裸の "/" を書かないため）
-        function L(keyPath) {
+        function getLabel(keyPath) {
             var node = LABELS;
             var parts = keyPath.split(".");
             for (var i = 0; i < parts.length; i++) {
@@ -150,18 +150,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (app.name !== "Adobe Illustrator") {
-            alert(L("alert.needIllustrator"));
+            alert(getLabel("alert.needIllustrator"));
             return;
         }
 
         // 単一アートボード（または2つ未満）のときはパレットを出さずに終了
         // Exit without showing the palette unless there are 2+ artboards
         if (app.documents.length === 0 || app.activeDocument.artboards.length < 2) {
-            alert(L("alert.needArtboards"));
+            alert(getLabel("alert.needArtboards"));
             return;
         }
 
-        var SCRIPT_NAME = L("dialog.title") + " " + SCRIPT_VERSION;
+        var SCRIPT_NAME = getLabel("dialog.title") + " " + SCRIPT_VERSION;
         var PREF_FILE = new File(Folder.userData + "/ArtboardNavigator/palette-position.txt");
         var SETTINGS_FILE = new File(Folder.userData + "/ArtboardNavigator/settings.txt");
 
@@ -224,11 +224,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 切替ごとに作り直す。OFF・全体表示・閉じる時はレイヤーごと削除する。
 
         var navButtonDefinitions = [
-            { tip: L("tooltip.first"), icon: "first", command: "first" },
-            { tip: L("tooltip.prev"), icon: "prev", command: "prev" },
-            { tip: L("tooltip.list"), icon: "list", command: "list" },
-            { tip: L("tooltip.next"), icon: "next", command: "next" },
-            { tip: L("tooltip.last"), icon: "last", command: "last" }
+            { tip: getLabel("tooltip.first"), icon: "first", command: "first" },
+            { tip: getLabel("tooltip.prev"), icon: "prev", command: "prev" },
+            { tip: getLabel("tooltip.list"), icon: "list", command: "list" },
+            { tip: getLabel("tooltip.next"), icon: "next", command: "next" },
+            { tip: getLabel("tooltip.last"), icon: "last", command: "last" }
         ];
 
         // コマンド名 → ボタンの対応（先頭／最終ボタンの有効・無効切替に使う）
@@ -259,14 +259,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // オプション設定パネル / Options panel
-        var optionsPanel = paletteWindow.add("panel", undefined, L("panel.options"));
+        var optionsPanel = paletteWindow.add("panel", undefined, getLabel("panel.options"));
         optionsPanel.orientation = "column";
         optionsPanel.alignChildren = ["left", "top"];
         optionsPanel.alignment = ["fill", "top"];
         optionsPanel.margins = [16, 20, 16, 12];
 
         // アニメーションの ON/OFF（OFF で以降のオプションをディム表示）
-        var animationCheckbox = optionsPanel.add("checkbox", undefined, L("checkbox.animation"));
+        var animationCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.animation"));
         animationCheckbox.value = settingBool(savedSettings, "animation", true);
 
         // 前後のアートボードへ移動するスピード（右ほど速い） / Speed of moving to the prev/next artboard (faster toward the right)
@@ -275,7 +275,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         speedRow.alignChildren = ["left", "center"];
         speedRow.alignment = ["fill", "top"];
 
-        var speedLabel = speedRow.add("statictext", undefined, L("slider.speed"));
+        var speedLabel = speedRow.add("statictext", undefined, getLabel("slider.speed"));
         var speedSlider = speedRow.add("slider", undefined, initialSpeed, MIN_SPEED, MAX_SPEED);
         speedSlider.alignment = ["fill", "center"];
         speedSlider.preferredSize = [120, -1];
@@ -290,14 +290,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // イーズの ON/OFF（OFF で線形＝イーズなし）
-        var easeCheckbox = optionsPanel.add("checkbox", undefined, L("checkbox.ease"));
+        var easeCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.ease"));
         easeCheckbox.value = settingBool(savedSettings, "ease", true);
         easeCheckbox.onClick = function () {
             saveSettings();
         };
 
         // Prezi モード：前後移動の途中で一度ズームを下げてから寄せる（Prezi 風）
-        var preziCheckbox = optionsPanel.add("checkbox", undefined, L("checkbox.prezi"));
+        var preziCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.prezi"));
         preziCheckbox.value = settingBool(savedSettings, "prezi", true);
 
         // Prezi モードで下げるズーム量（中央 0.5、左ほど弱く右ほど強い） / Prezi zoom-out amount
@@ -306,7 +306,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         preziDipRow.alignChildren = ["left", "center"];
         preziDipRow.alignment = ["fill", "top"];
 
-        var preziDipLabel = preziDipRow.add("statictext", undefined, L("slider.preziDip"));
+        var preziDipLabel = preziDipRow.add("statictext", undefined, getLabel("slider.preziDip"));
         var preziDipSlider = preziDipRow.add("slider", undefined, preziDipRatio, 0, 1);
         preziDipSlider.alignment = ["fill", "center"];
         preziDipSlider.preferredSize = [120, -1];
@@ -348,7 +348,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // アートボード名ラベルの表示 ON/OFF
         // ON のときだけ、移動先の左上に「番号：アートボード名」を専用レイヤー
         //（ロックON・プリントOFF）へ描画する。OFF のときは描画もレイヤー作成もしない。
-        var showArtboardNameCheckbox = optionsPanel.add("checkbox", undefined, L("checkbox.showLabel"));
+        var showArtboardNameCheckbox = optionsPanel.add("checkbox", undefined, getLabel("checkbox.showLabel"));
         showArtboardNameCheckbox.value = settingBool(savedSettings, "showLabel", true);
         showArtboardNameCheckbox.onClick = function () {
             if (!this.value) {
@@ -365,14 +365,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         listVisibilityRow.alignment = ["fill", "top"];
         listVisibilityRow.margins = 5;
 
-        var listVisibilityCheckbox = listVisibilityRow.add("checkbox", undefined, L("checkbox.listVisible"));
+        var listVisibilityCheckbox = listVisibilityRow.add("checkbox", undefined, getLabel("checkbox.listVisible"));
         listVisibilityCheckbox.value = settingBool(savedSettings, "listVisible", true);
 
         // アートボード一覧（番号｜アートボード名）。行を選ぶとそのアートボードへ移動
         var artboardListBox = paletteWindow.add("listbox", undefined, [], {
             numberOfColumns: 2,
             showHeaders: true,
-            columnTitles: [L("column.number"), L("column.name")],
+            columnTitles: [getLabel("column.number"), getLabel("column.name")],
             columnWidths: [44, 156]
         });
         // リサイズ時に一覧が縦横とも追従して広がるようにする

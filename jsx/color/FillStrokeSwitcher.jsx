@@ -171,7 +171,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
     };
 
     /* キーから現在言語のラベルを取得 / Look up a localized label */
-    function L(key) {
+    function getLabel(key) {
         if (!LABELS[key]) {
             return key;
         }
@@ -790,7 +790,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
     function showModeDialog(originalSelection) {
         var snapshots = captureSelectionState(originalSelection);
 
-        var dialog = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
 
@@ -798,28 +798,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
         panelsGroup.orientation = 'row';
         panelsGroup.alignChildren = ['fill', 'fill'];
 
-        var convertPanel = panelsGroup.add('panel', undefined, L('convertPanelTitle'));
+        var convertPanel = panelsGroup.add('panel', undefined, getLabel('convertPanelTitle'));
         setupPanel(convertPanel);
 
-        var removePanel = panelsGroup.add('panel', undefined, L('removePanelTitle'));
+        var removePanel = panelsGroup.add('panel', undefined, getLabel('removePanelTitle'));
         setupPanel(removePanel);
 
-        var swapRadio = convertPanel.add('radiobutton', undefined, L('modeSwap'));
-        swapRadio.helpTip = L('modeSwapTip');
-        var fillToStrokeRadio = convertPanel.add('radiobutton', undefined, L('modeFillToStroke'));
-        fillToStrokeRadio.helpTip = L('modeFillToStrokeTip');
-        var strokeToFillRadio = convertPanel.add('radiobutton', undefined, L('modeStrokeToFill'));
-        strokeToFillRadio.helpTip = L('modeStrokeToFillTip');
-        var swapBetweenObjectsRadio = convertPanel.add('radiobutton', undefined, L('modeSwapBetween'));
-        swapBetweenObjectsRadio.helpTip = L('modeSwapBetweenTip');
+        var swapRadio = convertPanel.add('radiobutton', undefined, getLabel('modeSwap'));
+        swapRadio.helpTip = getLabel('modeSwapTip');
+        var fillToStrokeRadio = convertPanel.add('radiobutton', undefined, getLabel('modeFillToStroke'));
+        fillToStrokeRadio.helpTip = getLabel('modeFillToStrokeTip');
+        var strokeToFillRadio = convertPanel.add('radiobutton', undefined, getLabel('modeStrokeToFill'));
+        strokeToFillRadio.helpTip = getLabel('modeStrokeToFillTip');
+        var swapBetweenObjectsRadio = convertPanel.add('radiobutton', undefined, getLabel('modeSwapBetween'));
+        swapBetweenObjectsRadio.helpTip = getLabel('modeSwapBetweenTip');
         swapBetweenObjectsRadio.enabled = (originalSelection && originalSelection.length === 2);
 
-        var eraseFillRadio = removePanel.add('radiobutton', undefined, L('modeFillNone'));
-        eraseFillRadio.helpTip = L('modeFillNoneTip');
-        var eraseStrokeRadio = removePanel.add('radiobutton', undefined, L('modeStrokeNone'));
-        eraseStrokeRadio.helpTip = L('modeStrokeNoneTip');
-        var eraseFillAndStrokeRadio = removePanel.add('radiobutton', undefined, L('modeFillStrokeNone'));
-        eraseFillAndStrokeRadio.helpTip = L('modeFillStrokeNoneTip');
+        var eraseFillRadio = removePanel.add('radiobutton', undefined, getLabel('modeFillNone'));
+        eraseFillRadio.helpTip = getLabel('modeFillNoneTip');
+        var eraseStrokeRadio = removePanel.add('radiobutton', undefined, getLabel('modeStrokeNone'));
+        eraseStrokeRadio.helpTip = getLabel('modeStrokeNoneTip');
+        var eraseFillAndStrokeRadio = removePanel.add('radiobutton', undefined, getLabel('modeFillStrokeNone'));
+        eraseFillAndStrokeRadio.helpTip = getLabel('modeFillStrokeNoneTip');
 
         var allRadios = [
             swapRadio,
@@ -862,8 +862,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
         var leftCol = buttonGroup.add('group');
         leftCol.orientation = 'row';
         leftCol.alignment = ['left', 'center'];
-        var previewCheckbox = leftCol.add('checkbox', undefined, L('preview'));
-        previewCheckbox.helpTip = L('previewTip');
+        var previewCheckbox = leftCol.add('checkbox', undefined, getLabel('preview'));
+        previewCheckbox.helpTip = getLabel('previewTip');
         previewCheckbox.onClick = refreshPreview;
 
         var spacerCol = buttonGroup.add('group');
@@ -872,8 +872,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
         var rightCol = buttonGroup.add('group');
         rightCol.orientation = 'row';
         rightCol.alignment = ['right', 'center'];
-        rightCol.add('button', undefined, L('cancel'), { name: 'cancel' });
-        rightCol.add('button', undefined, L('ok'), { name: 'ok' });
+        rightCol.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+        rightCol.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
         if (dialog.show() !== 1) {
             restoreSelectionState(snapshots);
@@ -895,17 +895,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
     /* エントリポイント / Entry point */
     function main() {
         if (app.documents.length === 0) {
-            alert(L('noDocument'));
+            alert(getLabel('noDocument'));
             return;
         }
 
         if (app.selection.length === 0) {
-            alert(L('noSelection'));
+            alert(getLabel('noSelection'));
             return;
         }
 
         if (app.selection.length > 2) {
-            alert(L('tooManyObjects'));
+            alert(getLabel('tooManyObjects'));
             return;
         }
 
@@ -937,17 +937,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/shibumi/n/n5229b4357dd3"; /* 紹介�
 
         var messages = [];
         if (stats.pathFailureCount > 0) {
-            messages.push(L('pathFailures') + ': ' + stats.pathFailureCount);
+            messages.push(getLabel('pathFailures') + ': ' + stats.pathFailureCount);
         }
         if (stats.textFailureCount > 0) {
-            messages.push(L('textFailures') + ': ' + stats.textFailureCount);
+            messages.push(getLabel('textFailures') + ': ' + stats.textFailureCount);
         }
         if (stats.selectionRestoreFailureCount > 0) {
-            messages.push(L('selectionRestoreFailures') + ': ' + stats.selectionRestoreFailureCount);
+            messages.push(getLabel('selectionRestoreFailures') + ': ' + stats.selectionRestoreFailureCount);
         }
         if (stats.failureDetails.length > 0) {
             messages.push('');
-            messages.push(L('details'));
+            messages.push(getLabel('details'));
             for (var j = 0; j < stats.failureDetails.length; j++) {
                 messages.push('- ' + stats.failureDetails[j]);
             }

@@ -93,7 +93,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ドット区切りキーでラベルを取得 / Resolve a label by dot-separated key */
-    function L(keyPath) {
+    function getLabel(keyPath) {
         var parts = keyPath.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -104,15 +104,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(keyPath) {
-        return L(keyPath) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(keyPath) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
     function labelWithCount(keyPath, count) {
         if (currentLanguage === "ja") {
-            return L(keyPath) + "（" + count + "）";
+            return getLabel(keyPath) + "（" + count + "）";
         }
-        return L(keyPath) + " (" + count + ")";
+        return getLabel(keyPath) + " (" + count + ")";
     }
 
     // =========================================
@@ -174,21 +174,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 事前チェック / Pre-flight checks */
         if (app.documents.length === 0) {
-            alert(L("alert.noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
         if (app.selection.length === 0) {
-            alert(L("alert.noSelection"));
+            alert(getLabel("alert.noSelection"));
             return;
         }
 
         /* ダイアログを構築（タイトルバーにバージョンを表示）/ Build the dialog (version shown in the title bar) */
-        var lineBreakDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var lineBreakDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         lineBreakDialog.orientation = "column";
         lineBreakDialog.alignChildren = "fill";
 
         /* 改行対象文字のチェックボックスパネル / Checkbox panel for target characters */
-        var targetPanel = lineBreakDialog.add("panel", undefined, L("panel.targets"));
+        var targetPanel = lineBreakDialog.add("panel", undefined, getLabel("panel.targets"));
         setupPanel(targetPanel, 6);
 
         var targetCheckboxes = [];
@@ -199,11 +199,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* フォントサイズ調整のパネル / Panel for font size adjustment */
-        var sizePanel = lineBreakDialog.add("panel", undefined, L("panel.sizeAdjust"));
+        var sizePanel = lineBreakDialog.add("panel", undefined, getLabel("panel.sizeAdjust"));
         setupPanel(sizePanel, 6);
 
-        var caseParticleCheckbox = sizePanel.add("checkbox", undefined, L("checkbox.caseParticle"));
-        var hiraganaCheckbox = sizePanel.add("checkbox", undefined, L("checkbox.hiragana"));
+        var caseParticleCheckbox = sizePanel.add("checkbox", undefined, getLabel("checkbox.caseParticle"));
+        var hiraganaCheckbox = sizePanel.add("checkbox", undefined, getLabel("checkbox.hiragana"));
 
         /* サイズ：［　］% の入力行 / Size: [ ] % input row */
         var sizeGroup = sizePanel.add("group");
@@ -218,7 +218,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
 
-        var cancelButton = buttonGroup.add("button", undefined, L("button.cancel"));
+        var cancelButton = buttonGroup.add("button", undefined, getLabel("button.cancel"));
         var okButton = buttonGroup.add("button", undefined, "OK");
 
         cancelButton.onClick = function () {
@@ -241,11 +241,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var wantsSizeAdjust = sizeOptions.adjustCaseParticle || sizeOptions.adjustHiragana;
 
             if (selectedMarks.length === 0 && !wantsSizeAdjust) {
-                alert(L("alert.noTarget"));
+                alert(getLabel("alert.noTarget"));
                 return;
             }
             if (wantsSizeAdjust && (isNaN(sizeOptions.sizePercent) || sizeOptions.sizePercent <= 0)) {
-                alert(L("alert.invalidSize"));
+                alert(getLabel("alert.invalidSize"));
                 return;
             }
 

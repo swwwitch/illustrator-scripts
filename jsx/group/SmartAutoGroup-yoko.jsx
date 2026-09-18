@@ -57,7 +57,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ別） / Bilingual labels grouped by category */
     var LABELS = {
@@ -120,13 +120,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ラベル取得（ドット区切りキーで現在の言語の文字列を返す） / Get the label by dotted key */
-    function L(key) {
+    function getLabel(key) {
         var parts = key.split('.');
         var entry = LABELS;
         for (var i = 0; i < parts.length; i++) {
             entry = entry[parts[i]];
         }
-        return entry[lang];
+        return entry[uiLang];
     }
 
     // =========================================
@@ -184,26 +184,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ダイアログUIの表示とユーザー選択取得 / Show the dialog and return the user's choice */
     function showDialog(initialTolerance, initialPerArtboard, hasMultipleArtboards) {
-        var dialog = new Window("dialog", L('dialog.title') + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = [15, 20, 15, 10];
 
-        var conditionPanel = dialog.add("panel", undefined, L('panel.condition'));
+        var conditionPanel = dialog.add("panel", undefined, getLabel('panel.condition'));
         conditionPanel.orientation = "column";
         conditionPanel.alignChildren = "left";
         conditionPanel.margins = [15, 20, 15, 10];
 
         var toleranceSlider = addSliderRow(
             conditionPanel,
-            L('field.verticalTolerance'),
+            getLabel('field.verticalTolerance'),
             initialTolerance,
-            L('field.verticalToleranceTip')
+            getLabel('field.verticalToleranceTip')
         );
 
-        var perArtboardCheck = conditionPanel.add("checkbox", undefined, L('field.groupPerArtboard'));
+        var perArtboardCheck = conditionPanel.add("checkbox", undefined, getLabel('field.groupPerArtboard'));
         perArtboardCheck.value = initialPerArtboard;
-        perArtboardCheck.helpTip = L('field.groupPerArtboardTip');
+        perArtboardCheck.helpTip = getLabel('field.groupPerArtboardTip');
         // アートボードが1つしかない場合は意味がないのでディム表示
         perArtboardCheck.enabled = hasMultipleArtboards;
 
@@ -211,8 +211,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonRow.orientation = "row";
         buttonRow.alignment = "right";
         buttonRow.margins = [0, 6, 0, 6];
-        var cancelButton = buttonRow.add("button", undefined, L('button.cancel'));
-        var groupButton = buttonRow.add("button", undefined, L('button.group'), {
+        var cancelButton = buttonRow.add("button", undefined, getLabel('button.cancel'));
+        var groupButton = buttonRow.add("button", undefined, getLabel('button.group'), {
             name: "ok"
         });
 
@@ -338,12 +338,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 進捗バーのパレットを作成して表示する / Create and show a progress palette */
     function createProgress(maxValue) {
-        var win = new Window("palette", L('dialog.title') + " " + SCRIPT_VERSION);
+        var win = new Window("palette", getLabel('dialog.title') + " " + SCRIPT_VERSION);
         win.orientation = "column";
         win.alignChildren = "fill";
         win.margins = 16;
 
-        win.add("statictext", undefined, L('progress.title'));
+        win.add("statictext", undefined, getLabel('progress.title'));
 
         var bar = win.add("progressbar", undefined, 0, maxValue);
         bar.preferredSize.width = 280;
@@ -387,7 +387,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // グループ化されなかった単独オブジェクトがあれば再実行を促す
         if (ungroupedCount > 0) {
-            var retryMessage = L('message.retry').replace("{0}", ungroupedCount);
+            var retryMessage = getLabel('message.retry').replace("{0}", ungroupedCount);
             if (confirm(retryMessage)) {
                 main(verticalTolerance, groupPerArtboard);
                 return;
@@ -395,7 +395,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         app.redraw();
-        alert(L('message.result').replace("○", newGroups.length));
+        alert(getLabel('message.result').replace("○", newGroups.length));
         selectItems(newGroups);
         return newGroups;
     }

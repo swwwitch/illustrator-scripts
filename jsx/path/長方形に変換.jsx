@@ -46,7 +46,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     // ==============================
     // ラベル定義 / Label definitions
@@ -80,12 +80,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getLabel(labelKey) {
         var labelEntry = LABELS[labelKey];
         if (!labelEntry) return labelKey;
-        return labelEntry[lang] || labelEntry.en || labelKey;
+        return labelEntry[uiLang] || labelEntry.en || labelKey;
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(labelKey) {
-        return getLabel(labelKey) + (lang === 'ja' ? '：' : ':');
+        return getLabel(labelKey) + (uiLang === 'ja' ? '：' : ':');
     }
 
     // ==============================
@@ -189,7 +189,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(appearancePanel);
         var appearanceRadios = [];
         for (var i = 0; i < FILL_STROKE_PRESETS.length; i++) {
-            var presetLabel = FILL_STROKE_PRESETS[i][lang] || FILL_STROKE_PRESETS[i].en;
+            var presetLabel = FILL_STROKE_PRESETS[i][uiLang] || FILL_STROKE_PRESETS[i].en;
             appearanceRadios.push(appearancePanel.add("radiobutton", undefined, presetLabel));
         }
         appearanceRadios[DEFAULT_PRESET_INDEX].value = true;

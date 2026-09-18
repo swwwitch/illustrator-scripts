@@ -144,7 +144,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
             title: { ja: "アートボードに整列", en: "Align to Artboard" }
         },
         panel: {
-            alignment: { ja: "整列", en: "Alignment" },
+            alignment: { ja: "整列先", en: "Align To" },
             option:    { ja: "オプション", en: "Options" }
         },
         checkbox: {
@@ -156,9 +156,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
             ok:     { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
+        tooltip: {
+            anchorWidget: {
+                ja: "アートボードのどこに揃えるかを3×3のマスで選びます。\nW E R／S D F／X C V キーでも選べます。\n矢印キーを押すと、その向きへ1段階ずつ整列します。",
+                en: "Pick where on the artboard to align using the 3x3 grid.\nThe keys W E R / S D F / X C V select a cell too.\nAn arrow key aligns one step in that direction."
+            },
+            previewBounds: {
+                ja: "線幅や効果を含めた見た目の端を基準に整列します（B キーで切り替え）。",
+                en: "Aligns by the visible edges including strokes and effects (B toggles it)."
+            },
+            useGuides: {
+                ja: "アートボードの端より手前にガイドがあれば、そのガイドに揃えます（G キーで切り替え）。\n3×3で整列先を選んでいる間は使えません。",
+                en: "Snaps to a guide when one sits before the artboard edge (G toggles it).\nUnavailable while a cell of the 3x3 grid is selected."
+            },
+            preview: {
+                ja: "結果を画面で確認します。キャンセルすると元の位置に戻ります。",
+                en: "Shows the result on the canvas. Cancel restores the original positions."
+            }
+        },
         alert: {
+            noDocument:             { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noSelection:            { ja: "オブジェクトが選択されていません。", en: "No objects are selected." },
-            generalError:           { ja: "エラーが発生しました", en: "An error occurred" },
             invalidGuideSearchMode: { ja: "GUIDE_SEARCH_MODE の指定が不正です", en: "Invalid GUIDE_SEARCH_MODE" }
         }
     };
@@ -316,6 +334,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
         /* 背景はコントロールの地色で塗り、パネルと同色に見せる / Paint the control background so the widget blends into the panel */
         try {
+            graphics.newPath();
             graphics.rectPath(0, 0, widgetWidth, widgetHeight);
             graphics.fillPath(graphics.backgroundColor);
         } catch (e) {}
@@ -382,7 +401,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
     /**
      * 選択オブジェクト群を包含する境界を返す
-     * @param {Array} pageItems - 対象オブジェクトの配列
+     * @param {PageItem[]} pageItems - 対象オブジェクトの配列
      * @param {boolean} usePreviewBounds - 線や効果を含めるなら true
      * @returns {number[]} [左, 上, 右, 下]
      */
@@ -463,7 +482,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
      * アートボード内側のガイドから、整列先として使う座標を探す
      * @param {number} selectionEdge - 選択範囲の境界値
      * @param {string} alignmentSide - 整列先（EDGE_RULES のキー）
-     * @param {Object} alignContext - 整列コンテキスト
+     * @param {object} alignContext - 整列コンテキスト
      * @returns {number} 吸着先の座標。見つからなければ null
      */
     function findGuideSnapValue(selectionEdge, alignmentSide, alignContext) {
@@ -501,7 +520,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
      * @param {Document} documentRef - 対象ドキュメント
      * @param {number[]} artboardRect - アクティブアートボードの矩形 [左, 上, 右, 下]
      * @param {boolean} useGuides - ガイドを整列先に含めるなら true
-     * @returns {Object} 整列コンテキスト
+     * @returns {object} 整列コンテキスト
      */
     function createAlignContext(documentRef, artboardRect, useGuides) {
         return { documentRef: documentRef, artboardRect: artboardRect, useGuides: useGuides };
@@ -511,7 +530,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
      * 1軸分の整列オフセットを計算する
      * @param {string} alignmentSide - 整列先（EDGE_RULES のキー）
      * @param {number[]} selectionBounds - 選択範囲の境界 [左, 上, 右, 下]
-     * @param {Object} alignContext - 整列コンテキスト
+     * @param {object} alignContext - 整列コンテキスト
      * @returns {number} 移動量
      */
     function computeAxisOffset(alignmentSide, selectionBounds, alignContext) {
@@ -530,8 +549,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
     /**
      * 選択オブジェクトの現在位置を控える
-     * @param {Array} pageItems - 対象オブジェクトの配列
-     * @returns {Array<number[]>} [X, Y] の配列
+     * @param {PageItem[]} pageItems - 対象オブジェクトの配列
+     * @returns {number[][]} [X, Y] の配列
      */
     function captureItemPositions(pageItems) {
         var capturedPositions = [];
@@ -544,8 +563,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
     /**
      * 控えた位置へオブジェクトを戻す
-     * @param {Array} pageItems - 対象オブジェクトの配列
-     * @param {Array<number[]>} capturedPositions - captureItemPositions() の戻り値
+     * @param {PageItem[]} pageItems - 対象オブジェクトの配列
+     * @param {number[][]} capturedPositions - captureItemPositions() の戻り値
      * @returns {void}
      */
     function restoreItemPositions(pageItems, capturedPositions) {
@@ -556,9 +575,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
     /**
      * 整列を1回分適用する（境界の計測からオフセットの適用まで）
-     * @param {Array} pageItems - 対象オブジェクトの配列
-     * @param {Object} alignmentAxes - 整列軸 { horizontal, vertical }
-     * @param {Object} alignContext - 整列コンテキスト
+     * @param {PageItem[]} pageItems - 対象オブジェクトの配列
+     * @param {object} alignmentAxes - 整列軸 { horizontal, vertical }
+     * @param {object} alignContext - 整列コンテキスト
      * @param {boolean} usePreviewBounds - 線や効果を含めるなら true
      * @returns {void}
      */
@@ -587,10 +606,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
     /**
      * プレビューと矢印キーのステップ移動をまとめた整列セッションを作る
-     * @param {Array} pageItems - 対象オブジェクトの配列
+     * @param {PageItem[]} pageItems - 対象オブジェクトの配列
      * @param {Document} documentRef - 対象ドキュメント
      * @param {number[]} artboardRect - アクティブアートボードの矩形 [左, 上, 右, 下]
-     * @returns {Object} preview / step / restoreOriginal をまとめたオブジェクト
+     * @returns {object} preview / step / restoreOriginal をまとめたオブジェクト
      */
     function createAlignmentSession(pageItems, documentRef, artboardRect) {
         /* originalPositions はキャンセル時の完全復元用（不変）、
@@ -602,14 +621,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
         /**
          * 基準位置に戻してからプレビューの整列を適用する
-         * @param {Object} settings - 整列軸・境界・ガイドの設定。null なら復元のみ
+         * @param {object} previewSettings - 整列軸・境界・ガイドの設定。null なら復元のみ
          * @returns {void}
          */
-        function preview(settings) {
+        function preview(previewSettings) {
             restoreItemPositions(pageItems, basePositions);
-            if (settings && settings.alignmentAxes) {
-                var alignContext = createAlignContext(documentRef, artboardRect, settings.useGuides);
-                applyAlignment(pageItems, settings.alignmentAxes, alignContext, settings.usePreviewBounds);
+            if (previewSettings && previewSettings.alignmentAxes) {
+                var alignContext = createAlignContext(documentRef, artboardRect, previewSettings.useGuides);
+                applyAlignment(pageItems, previewSettings.alignmentAxes, alignContext, previewSettings.usePreviewBounds);
             }
             app.redraw();
         }
@@ -617,14 +636,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
         /**
          * 矢印キーによる1段階の整列（スクリプトを1回実行したのと同じ挙動）
          * @param {string} alignmentSide - "left" / "right" / "top" / "bottom"
-         * @param {Object} settings - 境界とガイドの設定
+         * @param {object} stepSettings - 境界とガイドの設定
          * @returns {void}
          */
-        function step(alignmentSide, settings) {
+        function step(alignmentSide, stepSettings) {
             preview({
                 alignmentAxes: AXES_BY_ALIGNMENT_SIDE[alignmentSide],
-                usePreviewBounds: settings.usePreviewBounds,
-                useGuides: settings.useGuides
+                usePreviewBounds: stepSettings.usePreviewBounds,
+                useGuides: stepSettings.useGuides
             });
             /* 動いた先を次の基準にして、押すたびにさらに先へ進めるようにする
                The new position becomes the baseline so each press advances further */
@@ -649,20 +668,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
     /**
      * 整列オプションのダイアログを表示し、選択内容を返す
-     * @param {Object} initialSettings - 境界とガイドの初期値
-     * @param {Object} alignmentSession - プレビューとステップ移動を担う整列セッション
-     * @returns {Object} 整列軸・境界・ガイドの設定。キャンセル時は null
+     * @param {object} initialSettings - 境界とガイドの初期値
+     * @param {object} alignmentSession - プレビューとステップ移動を担う整列セッション
+     * @returns {object} 整列軸・境界・ガイドの設定。キャンセル時は null
      */
     function showAlignmentDialog(initialSettings, alignmentSession) {
         initAnchorColors();
 
-        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ["fill", "top"];
-        dialog.margins = WINDOW_MARGINS;
-        dialog.spacing = WINDOW_SPACING;
+        var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        alignDialog.orientation = "column";
+        alignDialog.alignChildren = ["fill", "top"];
+        alignDialog.margins = WINDOW_MARGINS;
+        alignDialog.spacing = WINDOW_SPACING;
 
-        var alignmentPanel = addPanel(dialog, getLabel("panel.alignment"));
+        var alignmentPanel = addPanel(alignDialog, getLabel("panel.alignment"));
         alignmentPanel.margins = ANCHOR_PANEL_MARGINS;
         alignmentPanel.alignChildren = ["center", "top"];
 
@@ -670,22 +689,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
         anchorWidget.preferredSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
         anchorWidget.minimumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
         anchorWidget.maximumSize = [ANCHOR_WIDGET_SIZE, ANCHOR_WIDGET_SIZE];
+        anchorWidget.helpTip = getLabel("tooltip.anchorWidget");
         anchorWidget.selectedAnchorIndex = NO_ANCHOR_INDEX;
         anchorWidget.onDraw = function () {
             drawAnchorWidget(this);
         };
 
-        var optionPanel = addPanel(dialog, getLabel("panel.option"));
+        var optionPanel = addPanel(alignDialog, getLabel("panel.option"));
         optionPanel.alignChildren = ["left", "top"];
 
         var previewBoundsCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
+        previewBoundsCheckbox.helpTip = getLabel("tooltip.previewBounds");
         previewBoundsCheckbox.value = initialSettings.usePreviewBounds;
 
         var useGuidesCheckbox = optionPanel.add("checkbox", undefined, getLabel("checkbox.useGuides"));
+        useGuidesCheckbox.helpTip = getLabel("tooltip.useGuides");
         useGuidesCheckbox.value = initialSettings.useGuides;
 
         /* ボタンエリア：左にプレビュー、右にキャンセル・OK / Button row: preview on the left, Cancel/OK on the right */
-        var btnRowGroup = dialog.add("group");
+        var btnRowGroup = alignDialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
         btnRowGroup.alignment = ["fill", "bottom"];
@@ -694,6 +716,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
         var btnLeftGroup = btnRowGroup.add("group");
         setupRow(btnLeftGroup, "left");
         var previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+        previewCheckbox.helpTip = getLabel("tooltip.preview");
         previewCheckbox.value = false;
 
         var spacer = btnRowGroup.add("group");
@@ -708,7 +731,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
 
         /**
          * 現在のダイアログの状態を設定オブジェクトにまとめる
-         * @returns {Object} 整列軸・境界・ガイドの設定（整列先が未選択なら alignmentAxes は null）
+         * @returns {object} 整列軸・境界・ガイドの設定（整列先が未選択なら alignmentAxes は null）
          */
         function getCurrentSettings() {
             var selectedIndex = anchorWidget.selectedAnchorIndex;
@@ -776,7 +799,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
         /* 矢印キーの向きと、1段階の整列で使う整列先 / Arrow keys mapped to the target of one step */
         var STEP_SIDE_BY_KEY = { "Up": "top", "Down": "bottom", "Left": "left", "Right": "right" };
 
-        dialog.addEventListener("keyup", function (keyEvent) {
+        alignDialog.addEventListener("keyup", function (keyEvent) {
             var stepSide = STEP_SIDE_BY_KEY[keyEvent.keyName];
             if (stepSide) {
                 /* 矢印キー：押すたびに「スクリプトを1回実行」相当のステップ移動。
@@ -802,7 +825,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
             }
         });
 
-        var dialogShowResult = dialog.show();
+        var dialogShowResult = alignDialog.show();
 
         /* OK / キャンセルどちらでも、閉じる際はいったん基準位置へ戻す（最終整列は main 側で改めて適用）
            On both OK and Cancel the items go back to the baseline; main re-applies the final alignment */
@@ -819,48 +842,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4ae0e1e70481"; /* 紹�
      * @returns {void}
      */
     function main() {
-        try {
-            if (GUIDE_SEARCH_MODE !== "inside" && GUIDE_SEARCH_MODE !== "nearest") {
-                alert(labelText("alert.invalidGuideSearchMode") + GUIDE_SEARCH_MODE);
-                return;
-            }
-
-            var documentRef = app.activeDocument;
-            var selectedItems = documentRef.selection;
-            if (selectedItems.length === 0) {
-                alert(getLabel("alert.noSelection"));
-                return;
-            }
-
-            var artboards = documentRef.artboards;
-            var artboardRect = artboards[artboards.getActiveArtboardIndex()].artboardRect;
-
-            var settings = {
-                /* ダイアログを出さないときはファイル名から整列先を決める / Without the dialog the filename picks the target */
-                alignmentAxes: AXES_BY_ALIGNMENT_SIDE[detectAlignmentSideFromFileName()],
-                /* プレビュー境界使用の初期値は環境設定から取得 / Seed the preview-bounds option from the preferences */
-                usePreviewBounds: app.preferences.getBooleanPreference("includeStrokeInBounds"),
-                useGuides: USE_GUIDES
-            };
-
-            if (SHOW_DIALOG) {
-                var alignmentSession = createAlignmentSession(selectedItems, documentRef, artboardRect);
-                settings = showAlignmentDialog(settings, alignmentSession);
-                if (settings === null) {
-                    /* キャンセル：矢印キーでのステップ移動も含めて完全復元 / Cancel restores the arrow-key steps too */
-                    alignmentSession.restoreOriginal();
-                    return;
-                }
-                /* 整列先が未選択なら、矢印キーでの最終位置をそのまま確定する
-                   With no target selected, the arrow-key result stands as-is */
-                if (!settings.alignmentAxes) return;
-            }
-
-            var alignContext = createAlignContext(documentRef, artboardRect, settings.useGuides);
-            applyAlignment(selectedItems, settings.alignmentAxes, alignContext, settings.usePreviewBounds);
-        } catch (error) {
-            alert(labelText("alert.generalError") + error.message);
+        if (GUIDE_SEARCH_MODE !== "inside" && GUIDE_SEARCH_MODE !== "nearest") {
+            alert(labelText("alert.invalidGuideSearchMode") + GUIDE_SEARCH_MODE);
+            return;
         }
+
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
+            return;
+        }
+
+        var documentRef = app.activeDocument;
+        var selectedItems = documentRef.selection;
+        if (selectedItems.length === 0) {
+            alert(getLabel("alert.noSelection"));
+            return;
+        }
+
+        var artboards = documentRef.artboards;
+        var artboardRect = artboards[artboards.getActiveArtboardIndex()].artboardRect;
+
+        var alignSettings = {
+            /* ダイアログを出さないときはファイル名から整列先を決める / Without the dialog the filename picks the target */
+            alignmentAxes: AXES_BY_ALIGNMENT_SIDE[detectAlignmentSideFromFileName()],
+            /* プレビュー境界使用の初期値は環境設定から取得 / Seed the preview-bounds option from the preferences */
+            usePreviewBounds: app.preferences.getBooleanPreference("includeStrokeInBounds"),
+            useGuides: USE_GUIDES
+        };
+
+        if (SHOW_DIALOG) {
+            var alignmentSession = createAlignmentSession(selectedItems, documentRef, artboardRect);
+            alignSettings = showAlignmentDialog(alignSettings, alignmentSession);
+            if (alignSettings === null) {
+                /* キャンセル：矢印キーでのステップ移動も含めて完全復元 / Cancel restores the arrow-key steps too */
+                alignmentSession.restoreOriginal();
+                return;
+            }
+            /* 整列先が未選択なら、矢印キーでの最終位置をそのまま確定する
+               With no target selected, the arrow-key result stands as-is */
+            if (!alignSettings.alignmentAxes) return;
+        }
+
+        var alignContext = createAlignContext(documentRef, artboardRect, alignSettings.useGuides);
+        applyAlignment(selectedItems, alignSettings.alignmentAxes, alignContext, alignSettings.usePreviewBounds);
     }
 
     main();

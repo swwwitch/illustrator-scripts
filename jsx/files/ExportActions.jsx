@@ -34,8 +34,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    #target illustrator
-
     (function () {
         // デスクトップのパスを取得
         var desktop = Folder.desktop;

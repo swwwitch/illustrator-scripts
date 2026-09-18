@@ -40,7 +40,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: { ja: "テキスト一覧と書き出し", en: "Text Collector & Exporter" },
@@ -62,13 +62,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         textListLabel: { ja: "テキスト一覧", en: "Text List" },
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     function main() {
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
         var doc = app.activeDocument;
@@ -576,7 +576,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             // =========================================
 
             function buildDialogUI() {
-                var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+                var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
                 dlg.orientation = "column";
                 dlg.alignChildren = ["fill", "top"];
 
@@ -590,7 +590,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 leftCol.orientation = "column";
                 leftCol.alignChildren = ["fill", "top"];
 
-                leftCol.add("statictext", undefined, L("textListLabel"));
+                leftCol.add("statictext", undefined, getLabel("textListLabel"));
                 var listBox = leftCol.add("edittext", [0, 0, 250, 284], "", { multiline: true, scrolling: true, readonly: true });
 
                 /* 右カラム / Right column */
@@ -599,7 +599,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 rightCol.alignChildren = ["fill", "top"];
 
                 /* 対象テキストパネル / Target text panel */
-                var targetPanel = rightCol.add("panel", undefined, L("panelTargetText"));
+                var targetPanel = rightCol.add("panel", undefined, getLabel("panelTargetText"));
                 targetPanel.orientation = "column";
                 targetPanel.alignChildren = ["left", "top"];
                 targetPanel.margins = [15, 20, 15, 10];
@@ -607,34 +607,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var rbGroup = targetPanel.add("group");
                 rbGroup.orientation = "column";
                 rbGroup.alignChildren = ["left", "top"];
-                var rbArtboard = rbGroup.add("radiobutton", undefined, L("rbCurrentArtboard"));
-                var rbAll = rbGroup.add("radiobutton", undefined, L("rbAllArtboards"));
+                var rbArtboard = rbGroup.add("radiobutton", undefined, getLabel("rbCurrentArtboard"));
+                var rbAll = rbGroup.add("radiobutton", undefined, getLabel("rbAllArtboards"));
                 rbArtboard.value = true;
 
                 var cbRow = targetPanel.add("group");
                 cbRow.orientation = "row";
-                var cbOutside = cbRow.add("checkbox", undefined, L("cbOutside"));
+                var cbOutside = cbRow.add("checkbox", undefined, getLabel("cbOutside"));
                 cbOutside.value = false;
                 cbOutside.enabled = false;
 
-                var layerPanel = rightCol.add("panel", undefined, L("panelLayerText"));
+                var layerPanel = rightCol.add("panel", undefined, getLabel("panelLayerText"));
                 layerPanel.orientation = "column";
                 layerPanel.alignChildren = ["left", "top"];
                 layerPanel.margins = [15, 20, 15, 10];
 
-                var cbSkipComment = layerPanel.add("checkbox", undefined, L("cbSkipComment"));
+                var cbSkipComment = layerPanel.add("checkbox", undefined, getLabel("cbSkipComment"));
                 cbSkipComment.value = false;
 
-                var cbIncludeLocked = layerPanel.add("checkbox", undefined, L("cbIncludeLocked"));
+                var cbIncludeLocked = layerPanel.add("checkbox", undefined, getLabel("cbIncludeLocked"));
                 cbIncludeLocked.value = false;
-                var cbIncludeHidden = layerPanel.add("checkbox", undefined, L("cbIncludeHidden"));
+                var cbIncludeHidden = layerPanel.add("checkbox", undefined, getLabel("cbIncludeHidden"));
                 cbIncludeHidden.value = false;
 
                 var dupGroup = rightCol.add("group");
                 dupGroup.orientation = "row";
                 dupGroup.alignChildren = ["center", "center"];
                 dupGroup.alignment = ["center", "top"];
-                var cbRemoveDuplicates = dupGroup.add("checkbox", undefined, L("cbRemoveDuplicates"));
+                var cbRemoveDuplicates = dupGroup.add("checkbox", undefined, getLabel("cbRemoveDuplicates"));
                 cbRemoveDuplicates.value = false;
 
                 var buttonRow = dlg.add("group");
@@ -644,7 +644,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var leftButtons = buttonRow.add("group");
                 leftButtons.orientation = "row";
                 leftButtons.alignChildren = ["left", "center"];
-                var cancelBtn = leftButtons.add("button", undefined, L("cancel"), { name: "cancel" });
+                var cancelBtn = leftButtons.add("button", undefined, getLabel("cancel"), { name: "cancel" });
 
                 var spacer = buttonRow.add("group");
                 spacer.alignment = ["fill", "fill"];
@@ -653,8 +653,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 var rightButtons = buttonRow.add("group");
                 rightButtons.orientation = "row";
                 rightButtons.alignChildren = ["right", "center"];
-                var copyTextBtn = rightButtons.add("button", undefined, L("copyText"));
-                var exportTextBtn = rightButtons.add("button", undefined, L("exportAndClose"), { name: "ok" });
+                var copyTextBtn = rightButtons.add("button", undefined, getLabel("copyText"));
+                var exportTextBtn = rightButtons.add("button", undefined, getLabel("exportAndClose"), { name: "ok" });
                 dlg.defaultElement = exportTextBtn;
 
                 return {
@@ -717,13 +717,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                     }
                     file.write(content);
                     file.close();
-                    alert(L('exportDone') + '\n' + file.fsName);
+                    alert(getLabel('exportDone') + '\n' + file.fsName);
                     dlg.close();
                 } catch (e) {
                     try {
                         if (file && file.opened) file.close();
                     } catch (closeErr) { }
-                    alert(L('exportFailed') + '\n' + e);
+                    alert(getLabel('exportFailed') + '\n' + e);
                 }
             };
 
@@ -752,9 +752,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                     name = doc.artboards[index].name;
                 } catch (e) { }
                 if (!name) {
-                    name = (lang === 'ja') ? 'アートボード ' + (index + 1) : 'Artboard ' + (index + 1);
+                    name = (uiLang === 'ja') ? 'アートボード ' + (index + 1) : 'Artboard ' + (index + 1);
                 }
-                numberText = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
+                numberText = (uiLang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
                 return numberText + ': ' + name;
             }
 
@@ -983,7 +983,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
             function collectArtboardGroupedExportData(options) {
                 var groups = [];
                 var outsideGroup = {
-                    name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
+                    name: (uiLang === 'ja') ? 'アートボード外' : 'Outside Artboards',
                     texts: []
                 };
                 var i;

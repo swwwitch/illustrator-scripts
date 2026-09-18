@@ -42,21 +42,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var keyboardIncrementPt = app.preferences.getRealPreference("cursorKeyLength")
 
     // 横並び → 最も右を固定し、以降を keyboardIncrementPt ずつ左へ等間隔配置
-    var objectsRightToLeft = sortByHorizontalPosition(selectedObjects)
+    var objectsRightToLeft = sortRightToLeft(selectedObjects)
     for (var i = 1; i < objectsRightToLeft.length; i++) {
         objectsRightToLeft[i].translate(-i * keyboardIncrementPt, 0)
     }
 
     /**
      * 選択オブジェクトを左端X（position[0]）の降順で並べ替えた新しい配列を返す
-     * @param {Array<PageItem>} objects - 並べ替える対象のオブジェクト
-     * @returns {Array<PageItem>} 左端Xの降順に並べ替えた新しい配列
+     * @param {PageItem[]} targetObjects - 並べ替える対象のオブジェクト
+     * @returns {PageItem[]} 左端Xの降順に並べ替えた新しい配列
      */
-    function sortByHorizontalPosition(objects) {
+    function sortRightToLeft(targetObjects) {
         var sortedObjects = []
-        for (var i = 0; i < objects.length; i++) sortedObjects.push(objects[i])
-        sortedObjects.sort(function (a, b) {
-            return b.position[0] - a.position[0]
+        for (var i = 0; i < targetObjects.length; i++) sortedObjects.push(targetObjects[i])
+        sortedObjects.sort(function (itemA, itemB) {
+            return itemB.position[0] - itemA.position[0]
         })
         return sortedObjects
     }

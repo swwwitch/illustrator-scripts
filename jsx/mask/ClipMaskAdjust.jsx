@@ -36,13 +36,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
     var doc = app.activeDocument;
-    var sel = doc.selection;
+    var currentSelection = doc.selection;
 
     // 初期選択（参照）を保持：最終確定時に選択を戻すため
     var originalSelection = [];
-    for (var si = 0; si < sel.length; si++) originalSelection.push(sel[si]);
+    for (var si = 0; si < currentSelection.length; si++) originalSelection.push(currentSelection[si]);
 
-    if (sel.length === 0) {
+    if (currentSelection.length === 0) {
         // ローカライズ後にアラートを出すため、ここでは LANG/L が未定義
         alert("Please select a clipping mask group.");
         return;
@@ -99,7 +99,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var L = LABELS[LANG];
 
     // ここでローカライズ済みメッセージに置き換える（LANG/L 決定後）
-    if (sel.length === 0) {
+    if (currentSelection.length === 0) {
         alert(L.selectClipMask);
         return;
     }
@@ -468,7 +468,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
     }
 
-    var initialScale = getCurrentScale(sel[0]);
+    var initialScale = getCurrentScale(currentSelection[0]);
 
     // UI作成
     var win = new Window("dialog", L.dialogTitle);
@@ -580,7 +580,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     roundGroup.orientation = "row";
     roundGroup.spacing = 5;
     var checkRound = roundGroup.add("checkbox", undefined, L.round);
-    var defaultRound = getDefaultRoundRadiusFromMask(sel[0]);
+    var defaultRound = getDefaultRoundRadiusFromMask(currentSelection[0]);
     var roundInput = roundGroup.add("edittext", undefined, (defaultRound != null ? String(defaultRound) : "10"));
     roundInput.characters = 4;
     roundGroup.add("statictext", undefined, CURRENT_UNIT_LABEL);
@@ -592,7 +592,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     maskNone.value = true;
     checkRound.value = false;
-    changeValueByArrowKey(roundInput, function () { checkRound.value = true; clearAppearanceForClipGroups(sel); updatePreview(); });
+    changeValueByArrowKey(roundInput, function () { checkRound.value = true; clearAppearanceForClipGroups(currentSelection); updatePreview(); });
     // ボタン
     var btnGroup = win.add("group");
     var cancelBtn = btnGroup.add("button", undefined, L.cancel, { name: "cancel" });
@@ -637,7 +637,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function setRoundRadiusToHalfOfSquareMask() {
         try {
-            var g = sel[0];
+            var g = currentSelection[0];
             if (!g || g.typename !== 'GroupItem' || !g.clipped) return;
 
             // クリッピングパスを取得
@@ -701,16 +701,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function updatePreview() {
         // Undo を使わずに直接反映（角丸の重複だけは毎回除去してから再適用）
-        for (var i = 0; i < sel.length; i++) {
-            var it = sel[i];
+        for (var i = 0; i < currentSelection.length; i++) {
+            var it = currentSelection[i];
             if (it && it.typename === 'GroupItem' && it.clipped) {
                 removeRoundCornersEffect(it);
             }
         }
 
         var state = getInputState();
-        processSelection(sel, state.fitMode, state.maskMode, state.anchorIndex, state.manualScaleVal, state.roundVal, state.applyRound, state.tweakX, state.tweakY);
-        if (state.fitMode !== "manual") scaleInput.text = getCurrentScale(sel[0]);
+        processSelection(currentSelection, state.fitMode, state.maskMode, state.anchorIndex, state.manualScaleVal, state.roundVal, state.applyRound, state.tweakX, state.tweakY);
+        if (state.fitMode !== "manual") scaleInput.text = getCurrentScale(currentSelection[0]);
 
         app.redraw();
     }
@@ -737,7 +737,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     checkRound.onClick = function () {
         // ［角丸］をOFFにしたら、クリップグループのアピアランスを消去して重複を防ぐ
         if (!checkRound.value) {
-            clearAppearanceForClipGroups(sel);
+            clearAppearanceForClipGroups(currentSelection);
         }
         updatePreview();
     };
@@ -751,12 +751,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var radiusPt = valueInCurrentUnitToPt(parseFloat(roundInput.text) || 0);
 
             // 既存の LiveEffect があれば「半径だけ」更新（新規適用しない）
-            var ok = updateRoundCornersRadiusOnly(sel[0], radiusPt);
+            var ok = updateRoundCornersRadiusOnly(currentSelection[0], radiusPt);
 
             // 難しい場合（見つからない／形式が違う）は、アピアランス消去→再適用
             if (!ok) {
-                clearAppearanceForClipGroups(sel);
-                applyRoundCornersEffect(sel[0], radiusPt);
+                clearAppearanceForClipGroups(currentSelection);
+                applyRoundCornersEffect(currentSelection[0], radiusPt);
             }
 
             app.redraw();
@@ -774,7 +774,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
     roundInput.onChanging = function () {
         checkRound.value = true;
-        clearAppearanceForClipGroups(sel);
+        clearAppearanceForClipGroups(currentSelection);
         updatePreview();
     };
     for (var i = 0; i < anchorRadios.length; i++) {
@@ -808,7 +808,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     // 実行時に1回だけ：クリップグループのアピアランスを消去
-    clearAppearanceForClipGroups(sel);
+    clearAppearanceForClipGroups(currentSelection);
 
     updatePreview();
     win.show();

@@ -42,7 +42,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var TARGET_STYLE_NAME = "temp_style";
 
         /* === ローカライズ / Localization === */
-        var lang = ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+        var uiLang = ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 
         var LABELS = {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
@@ -55,7 +55,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function getLabel(key) {
             var entry = LABELS[key];
             if (!entry) return key;
-            return entry[lang] || entry.en || key;
+            return entry[uiLang] || entry.en || key;
         }
 
         /* === コアロジック / Core logic === */
@@ -71,11 +71,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function applyStyleToSelection(doc, style) {
-            var sel = doc.selection;
+            var currentSelection = doc.selection;
             var appliedCount = 0;
-            for (var i = 0; i < sel.length; i++) {
+            for (var i = 0; i < currentSelection.length; i++) {
                 try {
-                    style.applyTo(sel[i]);
+                    style.applyTo(currentSelection[i]);
                     appliedCount++;
                 } catch (e) {
                     // 適用できないアイテムはスキップ / skip items that cannot accept the style

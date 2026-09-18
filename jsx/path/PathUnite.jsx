@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         errorNoDocument: {
@@ -51,8 +51,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     function getLabel(key) {
-        if (LABELS[key] && LABELS[key][lang]) {
-            return LABELS[key][lang];
+        if (LABELS[key] && LABELS[key][uiLang]) {
+            return LABELS[key][uiLang];
         }
         if (LABELS[key] && LABELS[key].en) {
             return LABELS[key].en;

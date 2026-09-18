@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -85,10 +85,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var entry = LABELS[key];
         if (!entry) return key;
-        if (lang === 'ja' && entry.ja) return entry.ja;
+        if (uiLang === 'ja' && entry.ja) return entry.ja;
         if (entry.en) return entry.en;
         if (entry.ja) return entry.ja;
         return key;
@@ -319,7 +319,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {{strokeWidthPt:Number, shapeMode:String, verticalLines:Boolean, heading:Boolean}|null} キャンセル時は null
      */
     function showRuleSettingsDialog(defaultValue, displayUnit) {
-        var dlg = new Window('dialog', L('dialogTitle'));
+        var dlg = new Window('dialog', getLabel('dialogTitle'));
 
         // ダイアログの透明度と位置 / Dialog opacity & position
         setDialogOpacity(dlg, DIALOG_OPACITY);
@@ -332,7 +332,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         widthGroup.orientation = 'row';
         widthGroup.alignChildren = ['left', 'center'];
 
-        widthGroup.add('statictext', undefined, L('strokeWidth'));
+        widthGroup.add('statictext', undefined, getLabel('strokeWidth'));
         var editText = widthGroup.add('edittext', undefined, String(defaultValue));
         editText.characters = 5;
 
@@ -341,14 +341,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var unitLabel = widthGroup.add('statictext', undefined, displayUnit);
 
         /* 形状 / Shape */
-        var shapePanel = dlg.add('panel', undefined, L('shapePanel'));
+        var shapePanel = dlg.add('panel', undefined, getLabel('shapePanel'));
         shapePanel.orientation = 'column';
         shapePanel.alignChildren = ['left', 'top'];
         shapePanel.margins = [15, 20, 15, 10];
 
-        var rbRect = shapePanel.add('radiobutton', undefined, L('shapeRect'));
-        var rbTopBottom = shapePanel.add('radiobutton', undefined, L('shapeTopBottom'));
-        var rbRowRect = shapePanel.add('radiobutton', undefined, L('shapeRowRect'));
+        var rbRect = shapePanel.add('radiobutton', undefined, getLabel('shapeRect'));
+        var rbTopBottom = shapePanel.add('radiobutton', undefined, getLabel('shapeTopBottom'));
+        var rbRowRect = shapePanel.add('radiobutton', undefined, getLabel('shapeRowRect'));
         rbTopBottom.value = true;
 
         /* オプション / Options */
@@ -359,10 +359,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // グループ内の要素も中央揃え
         optionGroup.alignChildren = ['center', 'center'];
 
-        var cbVerticalLines = optionGroup.add('checkbox', undefined, L('verticalLines'));
+        var cbVerticalLines = optionGroup.add('checkbox', undefined, getLabel('verticalLines'));
         cbVerticalLines.value = false;
 
-        var cbHeading = optionGroup.add('checkbox', undefined, L('heading'));
+        var cbHeading = optionGroup.add('checkbox', undefined, getLabel('heading'));
         cbHeading.value = true;
 
         function updateLineWidthEnabled() {
@@ -393,8 +393,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = 'row';
         buttonGroup.alignment = 'right';
 
-        buttonGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
-        var okBtn = buttonGroup.add('button', undefined, L('ok'), { name: 'ok' });
+        buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+        var okBtn = buttonGroup.add('button', undefined, getLabel('ok'), { name: 'ok' });
         okBtn.active = true; // デフォルトボタンは右側（OK）
 
         if (dlg.show() !== 1) {

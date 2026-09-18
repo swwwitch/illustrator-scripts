@@ -39,7 +39,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -76,9 +76,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         tipPreview: { ja: "ONの間は仮の結果を表示します。OFFまたはキャンセルで元に戻ります。", en: "Shows a temporary result while enabled. Turning it off or cancelling restores the original." }
     };
 
-    function L(key) {
+    function getLabel(key) {
         try {
-            if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
+            if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
             if (LABELS[key] && LABELS[key].ja) return LABELS[key].ja;
         } catch (_) { }
         return key;
@@ -147,7 +147,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
 
     /* ===== 選択の取得 / Selection ===== */
     if (app.documents.length === 0) {
-        alert(L('alertNoDoc'));
+        alert(getLabel('alertNoDoc'));
         return;
     }
     var doc = app.activeDocument;
@@ -161,12 +161,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     var selectedPaths = getSelectedPathItems(sel);
 
     if (targetItems.length === 0) {
-        alert(L('alertNoText'));
+        alert(getLabel('alertNoText'));
         return;
     }
 
     /* ===== ダイアログ / Dialog ===== */
-    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
     dlg.orientation = 'column';
     dlg.alignChildren = ['fill', 'top'];
     dlg.margins = [15, 20, 15, 15];
@@ -180,13 +180,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     grpRoundness.alignChildren = ['left', 'center'];
     // grpRoundness.margins = [0, 5, 0, 10];
 
-    var stArcRoundness = grpRoundness.add('statictext', undefined, L('arcRoundness'));
+    var stArcRoundness = grpRoundness.add('statictext', undefined, getLabel('arcRoundness'));
     stArcRoundness.preferredSize.width = LABEL_COLUMN_WIDTH;
-    stArcRoundness.helpTip = L('tipRoundness');
+    stArcRoundness.helpTip = getLabel('tipRoundness');
     // Slider: 0 = flat, 50 = default arch, 100 = roundest
     var slArcRoundness = grpRoundness.add('slider', undefined, 50, 0, 100);
     slArcRoundness.preferredSize.width = 200;
-    slArcRoundness.helpTip = L('tipRoundness');
+    slArcRoundness.helpTip = getLabel('tipRoundness');
 
     /* アーチ方向 / Arc direction */
     var grpArcDirection = dlg.add('group');
@@ -194,13 +194,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     grpArcDirection.alignChildren = ['left', 'center'];
     // grpArcDirection.margins = [0, 0, 0, 10];
 
-    var stArcDirection = grpArcDirection.add('statictext', undefined, L('arcDirection'));
+    var stArcDirection = grpArcDirection.add('statictext', undefined, getLabel('arcDirection'));
     stArcDirection.preferredSize.width = LABEL_COLUMN_WIDTH;
-    stArcDirection.helpTip = L('tipDirection');
-    var rbArcDirectionUp = grpArcDirection.add('radiobutton', undefined, L('arcDirectionUp'));
-    rbArcDirectionUp.helpTip = L('tipDirection');
-    var rbArcDirectionDown = grpArcDirection.add('radiobutton', undefined, L('arcDirectionDown'));
-    rbArcDirectionDown.helpTip = L('tipDirection');
+    stArcDirection.helpTip = getLabel('tipDirection');
+    var rbArcDirectionUp = grpArcDirection.add('radiobutton', undefined, getLabel('arcDirectionUp'));
+    rbArcDirectionUp.helpTip = getLabel('tipDirection');
+    var rbArcDirectionDown = grpArcDirection.add('radiobutton', undefined, getLabel('arcDirectionDown'));
+    rbArcDirectionDown.helpTip = getLabel('tipDirection');
     rbArcDirectionUp.value = true;
 
     /* フィット / Fit */
@@ -209,16 +209,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     grpFit.alignChildren = ['left', 'center'];
 
     // 先頭ラベル「パス幅に合わせる：」 / Leading label "Fit to path width:"
-    var stFit = grpFit.add('statictext', undefined, L('fit'));
+    var stFit = grpFit.add('statictext', undefined, getLabel('fit'));
     stFit.preferredSize.width = LABEL_COLUMN_WIDTH;
-    stFit.helpTip = L('tipFit');
+    stFit.helpTip = getLabel('tipFit');
     // フィット方法：しない（初期値）／文字サイズ＝サイズ変更／トラッキング＝サイズ維持で字間調整
-    var rbFitNone = grpFit.add('radiobutton', undefined, L('fitNone'));
-    rbFitNone.helpTip = L('tipFitNone');
-    var rbFitFontSize = grpFit.add('radiobutton', undefined, L('fitByFontSize'));
-    rbFitFontSize.helpTip = L('tipFitMethod');
-    var rbFitTracking = grpFit.add('radiobutton', undefined, L('fitByTracking'));
-    rbFitTracking.helpTip = L('tipFitMethod');
+    var rbFitNone = grpFit.add('radiobutton', undefined, getLabel('fitNone'));
+    rbFitNone.helpTip = getLabel('tipFitNone');
+    var rbFitFontSize = grpFit.add('radiobutton', undefined, getLabel('fitByFontSize'));
+    rbFitFontSize.helpTip = getLabel('tipFitMethod');
+    var rbFitTracking = grpFit.add('radiobutton', undefined, getLabel('fitByTracking'));
+    rbFitTracking.helpTip = getLabel('tipFitMethod');
     // 既定は従来どおりパス幅に合わせない / Default = no fit (legacy default)
     rbFitNone.value = true;
 
@@ -228,19 +228,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     grpEffect.alignChildren = ['left', 'center'];
     // grpEffect.margins = [0, 0, 0, 10];
 
-    var stEffect = grpEffect.add('statictext', undefined, L('effect'));
+    var stEffect = grpEffect.add('statictext', undefined, getLabel('effect'));
     stEffect.preferredSize.width = LABEL_COLUMN_WIDTH;
-    stEffect.helpTip = L('tipEffect');
-    var rbEffectRainbow = grpEffect.add('radiobutton', undefined, L('effectRainbow'));
-    rbEffectRainbow.helpTip = L('tipEffect');
-    var rbEffectDistort = grpEffect.add('radiobutton', undefined, L('effectDistort'));
-    rbEffectDistort.helpTip = L('tipEffect');
-    var rbEffectRibbon = grpEffect.add('radiobutton', undefined, L('effectRibbon'));
-    rbEffectRibbon.helpTip = L('tipEffect');
-    var rbEffectStep = grpEffect.add('radiobutton', undefined, L('effectStep'));
-    rbEffectStep.helpTip = L('tipEffect');
-    var rbEffectGravity = grpEffect.add('radiobutton', undefined, L('effectGravity'));
-    rbEffectGravity.helpTip = L('tipEffect');
+    stEffect.helpTip = getLabel('tipEffect');
+    var rbEffectRainbow = grpEffect.add('radiobutton', undefined, getLabel('effectRainbow'));
+    rbEffectRainbow.helpTip = getLabel('tipEffect');
+    var rbEffectDistort = grpEffect.add('radiobutton', undefined, getLabel('effectDistort'));
+    rbEffectDistort.helpTip = getLabel('tipEffect');
+    var rbEffectRibbon = grpEffect.add('radiobutton', undefined, getLabel('effectRibbon'));
+    rbEffectRibbon.helpTip = getLabel('tipEffect');
+    var rbEffectStep = grpEffect.add('radiobutton', undefined, getLabel('effectStep'));
+    rbEffectStep.helpTip = getLabel('tipEffect');
+    var rbEffectGravity = grpEffect.add('radiobutton', undefined, getLabel('effectGravity'));
+    rbEffectGravity.helpTip = getLabel('tipEffect');
     // 既定はパス上文字の標準スタイルと同じ「虹」 / Default = Rainbow (Illustrator's own default)
     rbEffectRainbow.value = true;
 
@@ -250,19 +250,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     grpTracking.alignChildren = ['left', 'center'];
     // grpTracking.margins = [0, 0, 0, 10];
 
-    var stTracking = grpTracking.add('statictext', undefined, L('tracking'));
+    var stTracking = grpTracking.add('statictext', undefined, getLabel('tracking'));
     stTracking.preferredSize.width = LABEL_COLUMN_WIDTH;
-    stTracking.helpTip = L('tipTracking');
+    stTracking.helpTip = getLabel('tipTracking');
     // チェックOFFでトラッキング加算を無効化（値は0に固定）/ Checkbox OFF disables tracking (forced to 0)
     var cbTracking = grpTracking.add('checkbox', undefined, '');
-    cbTracking.helpTip = L('tipTrackingToggle');
+    cbTracking.helpTip = getLabel('tipTrackingToggle');
     cbTracking.value = true;
     var etTracking = grpTracking.add('edittext', undefined, '0');
     etTracking.characters = 6;
-    etTracking.helpTip = L('tipTracking');
+    etTracking.helpTip = getLabel('tipTracking');
     var slTracking = grpTracking.add('slider', undefined, 0, -100, 500);
     slTracking.preferredSize.width = 150;
-    slTracking.helpTip = L('tipTracking');
+    slTracking.helpTip = getLabel('tipTracking');
     // 矢印キーで増減 / Arrow-key support for tracking
     changeValueByArrowKey(etTracking, true, function () { syncTrackingFromEdit(); refreshPreviewIfNeeded(); });
 
@@ -275,15 +275,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     var leftFooter = footer.add('group');
     leftFooter.orientation = 'row';
     leftFooter.alignment = ['left', 'center'];
-    var cbPreview = leftFooter.add('checkbox', undefined, L('preview'));
-    cbPreview.helpTip = L('tipPreview');
+    var cbPreview = leftFooter.add('checkbox', undefined, getLabel('preview'));
+    cbPreview.helpTip = getLabel('tipPreview');
     cbPreview.value = true;
 
     var rightFooter = footer.add('group');
     rightFooter.orientation = 'row';
     rightFooter.alignment = ['right', 'center'];
-    var btnCancel = rightFooter.add('button', undefined, L('cancel'));
-    var btnOk = rightFooter.add('button', undefined, L('ok'), { name: 'ok' });
+    var btnCancel = rightFooter.add('button', undefined, getLabel('cancel'));
+    var btnOk = rightFooter.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
     /* ===== プレビュー（Undoなし） / Preview (no undo) ===== */
     var previewTempItems = [];        // items created during preview
@@ -334,7 +334,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         }
 
         generateArcText(false, true);
-        try { app.redraw(); } catch (_) { }
+        app.redraw();
     }
 
     function refreshPreviewIfNeeded() {
@@ -411,7 +411,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             applyPreview();
         } else {
             clearPreview();
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         }
     };
 
@@ -431,7 +431,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     try {
         if (cbPreview.value) {
             applyPreview();
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         }
     } catch (_) { }
 
@@ -707,7 +707,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             // Create an arc-like path from the text bounds
             var arcPath = createArcPathFromText(originalText, currentLayer);
             if (!arcPath) {
-                if (showAlerts) alert(L('alertArcFail'));
+                if (showAlerts) alert(getLabel('alertArcFail'));
                 continue;
             }
 

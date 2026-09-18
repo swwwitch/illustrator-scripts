@@ -90,7 +90,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialog: {
@@ -194,7 +194,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * @returns {string} 表示言語の文言。
      */
     function getLabel(labelEntry) {
-        return labelEntry[lang];
+        return labelEntry[uiLang];
     }
 
     /**
@@ -204,7 +204,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
      * @returns {string} コロンを付けた文言。
      */
     function labelText(labelEntry) {
-        return getLabel(labelEntry) + (lang === "ja" ? "：" : ":");
+        return getLabel(labelEntry) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -621,8 +621,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         spacingColumn.alignChildren = "left";
 
         // ラベル幅は日本語環境と英語環境で個別に指定
-        var divisionLabelWidth = (lang === "ja") ? 45 : 60;
-        var spacingLabelWidth = (lang === "ja") ? 70 : 75;
+        var divisionLabelWidth = (uiLang === "ja") ? 45 : 60;
+        var spacingLabelWidth = (uiLang === "ja") ? 70 : 75;
 
         /**
          * ラベルと入力欄の1行を作成します。/ Build one label-and-field row.
@@ -731,7 +731,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         // 左右のボタンを引き離すためのスペーサー
         var footerSpacer = footerRow.add("group");
         footerSpacer.alignment = ["fill", "fill"];
-        footerSpacer.minimumSize.width = (lang === "ja") ? 40 : 60;
+        footerSpacer.minimumSize.width = (uiLang === "ja") ? 40 : 60;
         footerSpacer.maximumSize.height = 0;
 
         controls.cancelButton = footerRow.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });

@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -84,16 +84,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     };
 
-    function L(key) {
+    function getLabel(key) {
         var o = LABELS[key];
         if (!o) return key;
-        return o[lang] || o.en || o.ja || key;
+        return o[uiLang] || o.en || o.ja || key;
     }
 
     // Safe alert helper (used by __TMKPageCount_ module)
     if (typeof safeAlertKey === "undefined") {
         var safeAlertKey = function (key) {
-            try { alert(L(key)); } catch (_) { }
+            try { alert(getLabel(key)); } catch (_) { }
         };
     }
 
@@ -410,7 +410,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function main() {
 
         if (app.documents.length === 0) {
-            alert(L("alertNeedDoc"));
+            alert(getLabel("alertNeedDoc"));
             return;
         }
 
@@ -419,7 +419,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var fileA = null;
 
         // 2. ダイアログボックスの作成
-        var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         win.alignChildren = "fill";
 
         // セッション中のダイアログ位置を復元 / Restore dialog position in this session
@@ -442,20 +442,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         leftCol.alignChildren = "fill";
 
         // Panel: 読み込みファイル / Source file
-        var pnlSource = leftCol.add('panel', undefined, L('panelSource'));
+        var pnlSource = leftCol.add('panel', undefined, getLabel('panelSource'));
         pnlSource.orientation = 'column';
         pnlSource.alignChildren = ['left', 'top'];
         pnlSource.margins = [15, 20, 15, 10];
 
         // ファイル指定ボタン（fileA とページ範囲表示を更新）
-        var btnBrowse = pnlSource.add('button', undefined, L('btnLoad'));
+        var btnBrowse = pnlSource.add('button', undefined, getLabel('btnLoad'));
 
         // ファイル名表示
-        var etPath = pnlSource.add('statictext', undefined, L('notSelected'));
+        var etPath = pnlSource.add('statictext', undefined, getLabel('notSelected'));
         etPath.characters = 20;
 
         // Panel: アートボード
-        var pnlAB = leftCol.add('panel', undefined, L('panelLoad'));
+        var pnlAB = leftCol.add('panel', undefined, getLabel('panelLoad'));
         pnlAB.orientation = 'column';
         pnlAB.alignChildren = ['left', 'top'];
         pnlAB.margins = [15, 20, 15, 10];
@@ -464,7 +464,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rowRange = pnlAB.add('group');
         rowRange.orientation = 'row';
         rowRange.alignChildren = ['left', 'center'];
-        rowRange.add('statictext', undefined, L('range'));
+        rowRange.add('statictext', undefined, getLabel('range'));
         var etRange = rowRange.add('edittext', undefined, '');
         etRange.characters = 10;
         etRange.enabled = true;
@@ -484,15 +484,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     etPath.text = decodeURIComponent(f.name);
                     etPath.helpTip = decodeURIComponent(f.fsName);
                 } else {
-                    etPath.text = L('notSelected');
+                    etPath.text = getLabel('notSelected');
                     etPath.helpTip = '';
                 }
             } catch (_) {
                 try {
-                    etPath.text = f ? String(f.name) : L('notSelected');
+                    etPath.text = f ? String(f.name) : getLabel('notSelected');
                     etPath.helpTip = f ? String(f.fsName) : '';
                 } catch (__) {
-                    etPath.text = L('notSelected');
+                    etPath.text = getLabel('notSelected');
                     etPath.helpTip = '';
                 }
             }
@@ -511,18 +511,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
 
         btnBrowse.onClick = function () {
-            var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
+            var f = File.openDialog(getLabel('dlgPickFile'), getLabel('filterPick'));
             if (!f) return;
             __TMKPageCount_updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
         };
 
         // --- アイテムパネル（PDF のトリミング設定と綴じ方向） ---
-        var panelCrop = leftCol.add("panel", undefined, L("panelItem"));
+        var panelCrop = leftCol.add("panel", undefined, getLabel("panelItem"));
         panelCrop.alignChildren = "left";
         panelCrop.margins = [15, 20, 15, 10];
 
         // panelCrop.add("statictext", undefined, "トリミング");
-        var ddCrop = panelCrop.add("dropdownlist", undefined, [L("cropArt"), L("cropTrim"), L("cropCrop"), L("cropBleed")]);
+        var ddCrop = panelCrop.add("dropdownlist", undefined, [getLabel("cropArt"), getLabel("cropTrim"), getLabel("cropCrop"), getLabel("cropBleed")]);
         ddCrop.minimumSize.width = 160;
 
         // デフォルト：仕上がり
@@ -535,8 +535,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupBind.orientation = "row";
         groupBind.alignChildren = ["left", "center"];
 
-        var rbR2L = groupBind.add("radiobutton", undefined, L("bindR2L"));
-        var rbL2R = groupBind.add("radiobutton", undefined, L("bindL2R"));
+        var rbR2L = groupBind.add("radiobutton", undefined, getLabel("bindR2L"));
+        var rbL2R = groupBind.add("radiobutton", undefined, getLabel("bindL2R"));
         rbR2L.value = true; // デフォルト：右綴じ
 
         function __SC_isR2L() {
@@ -591,8 +591,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupButtons.orientation = "row";
         groupButtons.alignChildren = ["center", "center"];
 
-        var btnCancel = groupButtons.add("button", undefined, L("cancel"), { name: "cancel" });
-        var btnOk = groupButtons.add("button", undefined, L("ok"), { name: "ok" });
+        var btnCancel = groupButtons.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+        var btnOk = groupButtons.add("button", undefined, getLabel("ok"), { name: "ok" });
 
         // -----------------------------------------
         // 指定アートボードのマージン内側でクリッピングマスクを適用
@@ -741,7 +741,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     abCount = result.abCount;
                 }
             } catch (e) {
-                alert(L("alertPlaceError"));
+                alert(getLabel("alertPlaceError"));
             } finally {
                 try { __SC_resetImportPageNumber(); } catch (_) { }
             }

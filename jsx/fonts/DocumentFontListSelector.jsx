@@ -86,7 +86,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* 言語に応じたラベル文字列を取得 / Resolve a label string for the current language */
-    function getLocalizedText(entry) {
+    function getLabel(entry) {
         if (!entry) return "";
         return entry[currentLanguage] || entry.ja || entry.en || "";
     }
@@ -126,8 +126,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 選択中のテキスト範囲を取得 / Get selected text ranges from the current document */
     function getSelectedTextRanges() {
-        var activeDocument = app.activeDocument;
-        var currentSelection = activeDocument.selection;
+        var documentRef = app.activeDocument;
+        var currentSelection = documentRef.selection;
         var selectedRanges = [];
         if (!currentSelection) return selectedRanges;
         /* テキスト編集モードでは selection が TextRange になる / In text-edit mode the selection is a TextRange */
@@ -214,10 +214,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 現在のアートボードの矩形を取得（取れなければ null）/ Get the active artboard rect ([L,T,R,B]); null if unavailable */
-    function getActiveArtboardRect(activeDocument) {
+    function getActiveArtboardRect(documentRef) {
         try {
-            var activeIndex = activeDocument.artboards.getActiveArtboardIndex();
-            return activeDocument.artboards[activeIndex].artboardRect;
+            var activeIndex = documentRef.artboards.getActiveArtboardIndex();
+            return documentRef.artboards[activeIndex].artboardRect;
         } catch (e) {
             return null;
         }
@@ -276,11 +276,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        includeLocked が false ならロックされたテキストフレームは除外 / If includeLocked is false, skip locked text frames
        使用数 = その組み合わせを含むテキストフレームの数（1フレーム内で複数回使っても1）/ count = number of text frames that use the combo (a frame counts once)
        1行 = psName \t displayName \t size \t leading \t autoLeading(0/1) \t tsume \t tracking \t kernId \t proportionalMetrics(0/1) \t count */
-    function collectDocumentCombosRaw(activeDocument, currentArtboardOnly, includeHidden, includeLocked) {
+    function collectDocumentCombosRaw(documentRef, currentArtboardOnly, includeHidden, includeLocked) {
         var comboOrder = [], comboData = {}, comboRows = [];
         var TAB = String.fromCharCode(9), LF = String.fromCharCode(10);
-        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
-        var textFrames = activeDocument.textFrames;
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(documentRef) : null;
+        var textFrames = documentRef.textFrames;
         for (var f = 0; f < textFrames.length; f++) {
             if (!includeHidden && !isItemVisible(textFrames[f])) continue;
             if (!includeLocked && !isItemUnlocked(textFrames[f])) continue;
@@ -347,10 +347,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 組み合わせに一致する文字を含むテキストフレームを選択 / Select text frames containing characters that match the combo
        戻り値: 選択したフレーム数 / Returns the number of selected frames */
-    function selectFramesMatchingCombo(activeDocument, combo, currentArtboardOnly, includeHidden, includeLocked) {
+    function selectFramesMatchingCombo(documentRef, combo, currentArtboardOnly, includeHidden, includeLocked) {
         var targetKey = comboKey(combo);
-        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
-        var textFrames = activeDocument.textFrames;
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(documentRef) : null;
+        var textFrames = documentRef.textFrames;
         var matchedFrames = [];
         for (var f = 0; f < textFrames.length; f++) {
             if (!includeHidden && !isItemVisible(textFrames[f])) continue;
@@ -366,7 +366,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 一致0件のときは現在の選択を保持（消してから「なし」と出さない）/ Keep the current selection when nothing matched
         if (matchedFrames.length === 0) return 0;
         // 配列を直接代入すれば既存選択を一括置換できる / Assigning the array replaces the current selection wholesale
-        activeDocument.selection = matchedFrames;
+        documentRef.selection = matchedFrames;
         return matchedFrames.length;
     }
 
@@ -486,7 +486,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* カーニング method id を表示ラベルへ / Kerning method id to a display label */
     function kernLabel(kernMethodId) {
         var labelEntry = LABELS.autoKern[kernMethodId];
-        return labelEntry ? getLocalizedText(labelEntry) : "—";
+        return labelEntry ? getLabel(labelEntry) : "—";
     }
 
     /* 各列のセル文字列を組み立て / Build the per-column cell strings
@@ -495,7 +495,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var countText = isNaN(combo.count) ? "?" : String(combo.count);
         var sizeText = formatNumber(combo.size) + "pt";
         var leadingText = combo.autoLeading
-            ? getLocalizedText(LABELS.autoLeading)
+            ? getLabel(LABELS.autoLeading)
             : formatNumber(combo.leading) + "pt";
         var tsumeText = String(Math.round(combo.tsume));
         var trackingText = isNaN(combo.tracking) ? "?" : String(Math.round(combo.tracking));
@@ -561,20 +561,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* パレットを組み立てて参照を返す（イベント未接続）/ Build the palette and return references (events not wired yet) */
     function createPaletteUI() {
-        var palette = new Window("palette", getLocalizedText(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var palette = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         palette.alignChildren = ["fill", "top"];
         palette.margins = 16;
         palette.spacing = 10;
 
         var columnTitles = [
-            getLocalizedText(LABELS.column.count),
-            getLocalizedText(LABELS.column.font),
-            getLocalizedText(LABELS.column.size),
-            getLocalizedText(LABELS.column.leading),
-            getLocalizedText(LABELS.column.kern),
-            getLocalizedText(LABELS.column.tsume),
-            getLocalizedText(LABELS.column.tracking),
-            getLocalizedText(LABELS.column.propMetrics)
+            getLabel(LABELS.column.count),
+            getLabel(LABELS.column.font),
+            getLabel(LABELS.column.size),
+            getLabel(LABELS.column.leading),
+            getLabel(LABELS.column.kern),
+            getLabel(LABELS.column.tsume),
+            getLabel(LABELS.column.tracking),
+            getLabel(LABELS.column.propMetrics)
         ];
         var columnWidths = [50, 160, 60, 70, 90, 70, 70, 70];
 
@@ -589,13 +589,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 下マージンを +5（チェックボックス行とリストの間隔を少し広げる）/ +5 bottom margin (a bit more gap below the checkboxes)
         topRow.margins = [0, 0, 0, 5];
 
-        var includeLockedCheckbox = topRow.add("checkbox", undefined, getLocalizedText(LABELS.control.includeLocked));
+        var includeLockedCheckbox = topRow.add("checkbox", undefined, getLabel(LABELS.control.includeLocked));
         includeLockedCheckbox.value = true;
 
-        var includeHiddenCheckbox = topRow.add("checkbox", undefined, getLocalizedText(LABELS.control.includeHidden));
+        var includeHiddenCheckbox = topRow.add("checkbox", undefined, getLabel(LABELS.control.includeHidden));
         includeHiddenCheckbox.value = true;
 
-        var currentArtboardCheckbox = topRow.add("checkbox", undefined, getLocalizedText(LABELS.control.currentArtboardOnly));
+        var currentArtboardCheckbox = topRow.add("checkbox", undefined, getLabel(LABELS.control.currentArtboardOnly));
         currentArtboardCheckbox.value = false;
 
         var comboListBox = palette.add("listbox", undefined, [], {
@@ -616,7 +616,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonRow.margins = [0, 10, 0, 0];
 
         // 左：クリックで適用するか（OFF のあいだはクリックしても適用しない）/ Left: whether a click applies (no apply while OFF)
-        var applyOnClickCheckbox = buttonRow.add("checkbox", undefined, getLocalizedText(LABELS.control.applyOnClick));
+        var applyOnClickCheckbox = buttonRow.add("checkbox", undefined, getLabel(LABELS.control.applyOnClick));
         applyOnClickCheckbox.alignment = ["left", "center"];
         applyOnClickCheckbox.value = true;
 
@@ -627,11 +627,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         spacer.minimumSize = [10, 1];
 
         // 右：一覧を再走査 / Right: rescan the list
-        var refreshButton = buttonRow.add("button", undefined, getLocalizedText(LABELS.button.refresh));
+        var refreshButton = buttonRow.add("button", undefined, getLabel(LABELS.button.refresh));
         refreshButton.alignment = ["right", "center"];
 
         // 右：選択中の条件に一致するテキストを選択 / Right: select text matching the selected condition
-        var selectMatchingButton = buttonRow.add("button", undefined, getLocalizedText(LABELS.button.selectMatching));
+        var selectMatchingButton = buttonRow.add("button", undefined, getLabel(LABELS.button.selectMatching));
         selectMatchingButton.alignment = ["right", "center"];
 
         return {
@@ -683,7 +683,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 applyInProgress = false;
                 // 選択が無いときだけ警告（適用0件＝ロック範囲などとは区別）/ Warn only when nothing was selected (distinct from 0 applied)
                 if (status === "ok" && payload === "nosel") {
-                    alert(getLocalizedText(LABELS.status.needSelection));
+                    alert(getLabel(LABELS.status.needSelection));
                 }
             });
         };
@@ -691,7 +691,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ---- 選択中の条件に一致するテキストを選択 / Select text matching the selected condition ----
         paletteUI.selectMatchingButton.onClick = function () {
             if (!paletteUI.comboListBox.selection) {
-                alert(getLocalizedText(LABELS.status.needCondition));
+                alert(getLabel(LABELS.status.needCondition));
                 return;
             }
             var combo = currentCombos[paletteUI.comboListBox.selection.comboIndex];
@@ -704,7 +704,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             matchingParams.includeLocked = paletteUI.includeLockedCheckbox.value;
             runWorker("selectMatching", matchingParams, function (status, payload) {
                 if (status === "ok" && payload === "0") {
-                    alert(getLocalizedText(LABELS.status.noMatch));
+                    alert(getLabel(LABELS.status.noMatch));
                 }
             });
         };

@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -136,20 +136,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ダイアログの組み立て / Build dialog */
     function createDialog(defaultScaleText, targetItems) {
-        var dlg = new Window('dialog', LABELS.dialogTitle[lang] + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', LABELS.dialogTitle[uiLang] + ' ' + SCRIPT_VERSION);
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
 
         var inputGroup = dlg.add('group');
         inputGroup.orientation = 'row';
         inputGroup.alignChildren = ['left', 'center'];
-        inputGroup.add('statictext', undefined, LABELS.scale[lang]);
+        inputGroup.add('statictext', undefined, LABELS.scale[uiLang]);
 
         var scaleInput = inputGroup.add('edittext', undefined, defaultScaleText);
         scaleInput.characters = 4;
         changeValueByArrowKey(scaleInput);
         scaleInput.active = true;
-        inputGroup.add('statictext', undefined, LABELS.percent[lang]);
+        inputGroup.add('statictext', undefined, LABELS.percent[uiLang]);
 
         function applyFromField() {
             var val = parseFloat(scaleInput.text);
@@ -167,8 +167,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var btnGroup = dlg.add('group');
         btnGroup.alignment = 'center';
-        var cancelBtn = btnGroup.add('button', undefined, LABELS.cancel[lang]);
-        var okBtn = btnGroup.add('button', undefined, LABELS.ok[lang]);
+        var cancelBtn = btnGroup.add('button', undefined, LABELS.cancel[uiLang]);
+        var okBtn = btnGroup.add('button', undefined, LABELS.ok[uiLang]);
         okBtn.name = 'ok';
         cancelBtn.name = 'cancel';
         // Enter / Esc shortcuts
@@ -186,14 +186,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (app.documents.length === 0) {
             return;
         }
-        var sel = app.activeDocument.selection;
-        if (!sel || sel.length === 0) {
+        var currentSelection = app.activeDocument.selection;
+        if (!currentSelection || currentSelection.length === 0) {
             return;
         }
 
         var targetItems = [];
-        for (var i = 0; i < sel.length; i++) {
-            var it = sel[i];
+        for (var i = 0; i < currentSelection.length; i++) {
+            var it = currentSelection[i];
             if (!isTargetItem(it)) continue;
             targetItems.push(it);
         }

@@ -199,6 +199,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
             alignRight:  { ja: "右", en: "Right" },
             alignNone:   { ja: "なし", en: "None" }
         },
+        tooltip: {
+            directionHorizontal: { ja: "左から右へ並べます。行数を指定すると折り返します。", en: "Lays the objects out left to right, wrapping at the given number of rows." },
+            directionVertical:   { ja: "上から下へ並べます。列数を指定すると折り返します。", en: "Stacks the objects top to bottom, wrapping at the given number of columns." },
+            laneCount: {
+                ja: "何行（横並び）／何列（縦並び）で折り返すかを指定します。1 なら折り返しません。",
+                en: "How many rows (horizontal) or columns (vertical) to wrap at. 1 means no wrapping."
+            },
+            useGrid: {
+                ja: "各セルの大きさをそろえた格子に配置します。オフのときは各オブジェクトの大きさのまま詰めます。",
+                en: "Places the objects on a grid of equal cells. Off packs them at their own sizes."
+            },
+            hMargin: { ja: "横方向のアキです。↑↓キーで増減できます。", en: "Horizontal gap. The arrow keys step the value." },
+            vMargin: { ja: "縦方向のアキです。↑↓キーで増減できます。", en: "Vertical gap. The arrow keys step the value." },
+            linkMargins: { ja: "横のアキと同じ値を縦にも使います。オフにすると縦を個別に指定できます。", en: "Uses the horizontal gap for the vertical one too. Turn it off to set them separately." },
+            alignVertical:   { ja: "各行の中でオブジェクトを上下どこにそろえるかです。", en: "Where to align the objects vertically within each row." },
+            alignHorizontal: { ja: "各列の中でオブジェクトを左右どこにそろえるかです。", en: "Where to align the objects horizontally within each column." },
+            useKeyObject: {
+                ja: "最後にクリックしたキーオブジェクトの位置を動かさずに、他を並べ直します。キーオブジェクトが無いときは選べません。",
+                en: "Keeps the key object where it is and arranges the rest around it. Unavailable when there is no key object."
+            },
+            usePreviewBounds: {
+                ja: "線幅や効果を含めた見た目の端を基準にします。オフにするとパスの端が基準になります。",
+                en: "Measures by the visible edges including strokes and effects. Off measures the path edges."
+            },
+            randomize: { ja: "並べる順序をシャッフルします。", en: "Shuffles the order the objects are laid out in." }
+        },
         button: {
             ok:     { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
@@ -683,27 +709,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
      * @param {object} keyObject - キーオブジェクト（未検出のときは null）
      * @returns {object} 確定した配置設定。キャンセル時は null
      */
-    function showArrangeDialog(targetItems, keyObject) {
-        var dialogWindow = new Window("dialog", getLabel('dialog', 'title') + " " + SCRIPT_VERSION);
-        setupWindow(dialogWindow);
-        dialogWindow.opacity = DIALOG_OPACITY;
-        dialogWindow.onShow = function() {
-            dialogWindow.location = [dialogWindow.location[0] + DIALOG_OFFSET_X, dialogWindow.location[1] + DIALOG_OFFSET_Y];
-        };
+    /**
+     * ラジオボタンの一覧に同じツールチップを設定する
+     * @param {RadioButton[]} radioList - 対象のラジオボタン
+     * @param {string} helpTipText - 設定するツールチップ
+     * @returns {void}
+     */
+    function setRadiosHelpTip(radioList, helpTipText) {
+        for (var i = 0; i < radioList.length; i++) {
+            radioList[i].helpTip = helpTipText;
+        }
+    }
 
-        var previewManager = new PreviewManager();
-        /* キャンセル時に戻せるよう、境界計算の環境設定を控える / Remember the bounds preference so Cancel can restore it */
-        var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
-        /* キーオブジェクトのプレビュー前の位置 / Key object position before any preview */
-        var keyOrigin = keyObject ? [keyObject.left, keyObject.top] : null;
-
+    /**
+     * 整列と分布ダイアログのパネルとコントロールを組み立てる（振る舞いの結線は呼び出し側で行う）
+     * @param {Window} dialogWindow - 組み立て先のダイアログ
+     * @param {PageItem} keyObject - キーオブジェクト（無ければ null）
+     * @returns {object} 生成したコントロールをまとめたオブジェクト
+     */
+    function buildArrangeDialogControls(dialogWindow, keyObject) {
         /* 方向パネル（並べる方向と行数／列数）/ Direction panel: tiling direction and lane count */
         var directionPanel = addPanel(dialogWindow, getLabel('panel', 'direction'));
 
         var directionRow = directionPanel.add("group");
         setupRow(directionRow);
         var horizontalRadio = directionRow.add("radiobutton", undefined, getLabel('radio', 'directionHorizontal'));
+        horizontalRadio.helpTip = getLabel('tooltip', 'directionHorizontal');
         var verticalRadio = directionRow.add("radiobutton", undefined, getLabel('radio', 'directionVertical'));
+        verticalRadio.helpTip = getLabel('tooltip', 'directionVertical');
         horizontalRadio.value = (DEFAULT_DIRECTION === "horizontal");
         verticalRadio.value = !horizontalRadio.value;
 
@@ -713,37 +746,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var laneCountLabel = addFieldLabel(laneCountRow, "");
         var laneCountInput = laneCountRow.add("edittext", undefined, DEFAULT_LANE_COUNT);
         laneCountInput.characters = FIELD_CHAR_WIDTH;
+        laneCountInput.helpTip = getLabel('tooltip', 'laneCount');
 
-        /* 直近でプレビューへ反映した値（同じ値での二重更新を避ける）/ Value last pushed to the preview */
-        var appliedLaneCountText = laneCountInput.text;
 
-        /**
-         * 行数・列数が変わったときだけプレビューを更新する
-         * @returns {void}
-         */
-        function updatePreviewForLaneCount() {
-            if (laneCountInput.text === appliedLaneCountText) return;
-            appliedLaneCountText = laneCountInput.text;
-            updatePreview();
-        }
 
-        /* 入力中は数値として読めるときだけ反映する（打っている途中で書き換えない）/ While typing, refresh only when the text parses */
-        laneCountInput.onChanging = function() {
-            var typedLaneCount = parseInt(laneCountInput.text, 10);
-            if (isNaN(typedLaneCount) || typedLaneCount < 1) return;
-            updatePreviewForLaneCount();
-        };
 
-        /* 確定時に1以上の整数へ丸める（表示と実際に使う値を一致させる）/ Snap to an integer of 1 or more on commit */
-        laneCountInput.onChange = function() {
-            var laneCountValue = parseInt(laneCountInput.text, 10);
-            if (isNaN(laneCountValue) || laneCountValue < 1) laneCountValue = 1;
-            laneCountInput.text = laneCountValue;
-            updatePreviewForLaneCount();
-        };
-        changeValueByArrowKey(laneCountInput, false, updatePreviewForLaneCount, 1);
 
         var gridCheckbox = addOptionCheckbox(directionPanel, getLabel('checkbox', 'useGrid'), DEFAULT_USE_GRID);
+        gridCheckbox.helpTip = getLabel('tooltip', 'useGrid');
 
         /* 間隔パネル（左＝横・縦の入力、右＝連動）/ Spacing panel: fields on the left, link on the right */
         var spacingPanel = addPanel(dialogWindow, getLabel('panel', 'spacing') + " (" + getCurrentUnit().label + ")");
@@ -760,16 +770,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         addFieldLabel(hMarginRow, labelText('fieldLabel', 'hMargin'));
         var hMarginInput = hMarginRow.add("edittext", undefined, DEFAULT_MARGIN);
         hMarginInput.characters = FIELD_CHAR_WIDTH;
-        changeValueByArrowKey(hMarginInput, true, syncMarginsAndPreview);
+        hMarginInput.helpTip = getLabel('tooltip', 'hMargin');
 
         var vMarginRow = marginColumn.add("group");
         setupRow(vMarginRow);
         addFieldLabel(vMarginRow, labelText('fieldLabel', 'vMargin'));
         var vMarginInput = vMarginRow.add("edittext", undefined, DEFAULT_MARGIN);
         vMarginInput.characters = FIELD_CHAR_WIDTH;
-        changeValueByArrowKey(vMarginInput, true, updatePreview);
+        vMarginInput.helpTip = getLabel('tooltip', 'vMargin');
 
         var linkCheckbox = spacingRow.add("checkbox", undefined, getLabel('checkbox', 'linkMargins'));
+        linkCheckbox.helpTip = getLabel('tooltip', 'linkMargins');
         linkCheckbox.value = DEFAULT_LINK_MARGINS;
         /* 連動中は縦をディムして横の値に合わせる / While linked, dim V and mirror H */
         vMarginInput.enabled = !linkCheckbox.value;
@@ -787,6 +798,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var vAlignBottomRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignBottom'));
         var vAlignNoneRadio = vAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignNone'));
         var vAlignRadios = [vAlignTopRadio, vAlignMiddleRadio, vAlignBottomRadio, vAlignNoneRadio];
+        setRadiosHelpTip(vAlignRadios, getLabel('tooltip', 'alignVertical'));
         vAlignTopRadio.value = true;
 
         var hAlignRow = alignmentPanel.add("group");
@@ -796,6 +808,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         var hAlignRightRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignRight'));
         var hAlignNoneRadio = hAlignRow.add("radiobutton", undefined, getLabel('radio', 'alignNone'));
         var hAlignRadios = [hAlignLeftRadio, hAlignCenterRadio, hAlignRightRadio, hAlignNoneRadio];
+        setRadiosHelpTip(hAlignRadios, getLabel('tooltip', 'alignHorizontal'));
         hAlignLeftRadio.value = true;
 
         /* オプションパネル / Options panel */
@@ -803,9 +816,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
 
         /* キーオブジェクトが未検出のときはディム / Dimmed when no key object is detected */
         var keyObjectCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'useKeyObject'), !!keyObject);
+        keyObjectCheckbox.helpTip = getLabel('tooltip', 'useKeyObject');
         keyObjectCheckbox.enabled = !!keyObject;
         var previewBoundsCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'usePreviewBounds'), DEFAULT_USE_PREVIEW_BOUNDS);
+        previewBoundsCheckbox.helpTip = getLabel('tooltip', 'usePreviewBounds');
         var randomizeCheckbox = addOptionCheckbox(optionsPanel, getLabel('checkbox', 'randomize'), DEFAULT_RANDOMIZE);
+        randomizeCheckbox.helpTip = getLabel('tooltip', 'randomize');
 
         /* ボタンエリア（左右中央）/ Button bar, centered */
         var btnRowGroup = dialogWindow.add("group");
@@ -813,6 +829,96 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         btnRowGroup.margins = BUTTON_BAR_MARGINS;
         btnRowGroup.add("button", undefined, getLabel('button', 'cancel'), { name: "cancel" });
         btnRowGroup.add("button", undefined, getLabel('button', 'ok'), { name: "ok" });
+
+        return {
+            horizontalRadio: horizontalRadio,
+            verticalRadio: verticalRadio,
+            laneCountLabel: laneCountLabel,
+            laneCountInput: laneCountInput,
+            gridCheckbox: gridCheckbox,
+            hMarginInput: hMarginInput,
+            vMarginInput: vMarginInput,
+            linkCheckbox: linkCheckbox,
+            vAlignTopRadio: vAlignTopRadio,
+            vAlignMiddleRadio: vAlignMiddleRadio,
+            vAlignBottomRadio: vAlignBottomRadio,
+            vAlignNoneRadio: vAlignNoneRadio,
+            vAlignRadios: vAlignRadios,
+            hAlignLeftRadio: hAlignLeftRadio,
+            hAlignCenterRadio: hAlignCenterRadio,
+            hAlignRightRadio: hAlignRightRadio,
+            hAlignNoneRadio: hAlignNoneRadio,
+            hAlignRadios: hAlignRadios,
+            keyObjectCheckbox: keyObjectCheckbox,
+            previewBoundsCheckbox: previewBoundsCheckbox,
+            randomizeCheckbox: randomizeCheckbox
+        };
+    }
+
+    function showArrangeDialog(targetItems, keyObject) {
+        var dialogWindow = new Window("dialog", getLabel('dialog', 'title') + " " + SCRIPT_VERSION);
+        setupWindow(dialogWindow);
+        dialogWindow.opacity = DIALOG_OPACITY;
+        dialogWindow.onShow = function() {
+            dialogWindow.location = [dialogWindow.location[0] + DIALOG_OFFSET_X, dialogWindow.location[1] + DIALOG_OFFSET_Y];
+        };
+
+        var previewManager = new PreviewManager();
+        /* キャンセル時に戻せるよう、境界計算の環境設定を控える / Remember the bounds preference so Cancel can restore it */
+        var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
+        /* キーオブジェクトのプレビュー前の位置 / Key object position before any preview */
+        var keyOrigin = keyObject ? [keyObject.left, keyObject.top] : null;
+
+        var dialogControls = buildArrangeDialogControls(dialogWindow, keyObject);
+        var horizontalRadio = dialogControls.horizontalRadio;
+        var verticalRadio = dialogControls.verticalRadio;
+        var laneCountLabel = dialogControls.laneCountLabel;
+        var laneCountInput = dialogControls.laneCountInput;
+        var gridCheckbox = dialogControls.gridCheckbox;
+        var hMarginInput = dialogControls.hMarginInput;
+        var vMarginInput = dialogControls.vMarginInput;
+        var linkCheckbox = dialogControls.linkCheckbox;
+        var vAlignTopRadio = dialogControls.vAlignTopRadio;
+        var vAlignMiddleRadio = dialogControls.vAlignMiddleRadio;
+        var vAlignBottomRadio = dialogControls.vAlignBottomRadio;
+        var vAlignNoneRadio = dialogControls.vAlignNoneRadio;
+        var vAlignRadios = dialogControls.vAlignRadios;
+        var hAlignLeftRadio = dialogControls.hAlignLeftRadio;
+        var hAlignCenterRadio = dialogControls.hAlignCenterRadio;
+        var hAlignRightRadio = dialogControls.hAlignRightRadio;
+        var hAlignNoneRadio = dialogControls.hAlignNoneRadio;
+        var hAlignRadios = dialogControls.hAlignRadios;
+        var keyObjectCheckbox = dialogControls.keyObjectCheckbox;
+        var previewBoundsCheckbox = dialogControls.previewBoundsCheckbox;
+        var randomizeCheckbox = dialogControls.randomizeCheckbox;
+
+        /* 直近でプレビューへ反映した値（同じ値での二重更新を避ける）/ Value last pushed to the preview */
+        var appliedLaneCountText = laneCountInput.text;
+        /**
+         * 行数・列数が変わったときだけプレビューを更新する
+         * @returns {void}
+         */
+        function updatePreviewForLaneCount() {
+            if (laneCountInput.text === appliedLaneCountText) return;
+            appliedLaneCountText = laneCountInput.text;
+            updatePreview();
+        }
+        /* 入力中は数値として読めるときだけ反映する（打っている途中で書き換えない）/ While typing, refresh only when the text parses */
+        laneCountInput.onChanging = function() {
+            var typedLaneCount = parseInt(laneCountInput.text, 10);
+            if (isNaN(typedLaneCount) || typedLaneCount < 1) return;
+            updatePreviewForLaneCount();
+        };
+        /* 確定時に1以上の整数へ丸める（表示と実際に使う値を一致させる）/ Snap to an integer of 1 or more on commit */
+        laneCountInput.onChange = function() {
+            var laneCountValue = parseInt(laneCountInput.text, 10);
+            if (isNaN(laneCountValue) || laneCountValue < 1) laneCountValue = 1;
+            laneCountInput.text = laneCountValue;
+            updatePreviewForLaneCount();
+        };
+        changeValueByArrowKey(laneCountInput, false, updatePreviewForLaneCount, 1);
+        changeValueByArrowKey(hMarginInput, true, syncMarginsAndPreview);
+        changeValueByArrowKey(vMarginInput, true, updatePreview);
 
         /**
          * ラジオボタンの一覧をまとめて有効・無効にする

@@ -111,17 +111,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       }
     };
 
-    function getLocalizedText(table, key) {
+    function getLabel(table, key) {
       if (!table[key]) return key;
       return table[key][currentLanguage] || table[key].en || key;
     }
 
     function getUILabel(key) {
-      return getLocalizedText(UI_LABELS, key);
+      return getLabel(UI_LABELS, key);
     }
 
     function getErrorLabel(key) {
-      return getLocalizedText(ERROR_LABELS, key);
+      return getLabel(ERROR_LABELS, key);
     }
 
     function getErrorMessage(key, detail) {

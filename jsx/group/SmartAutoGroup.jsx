@@ -42,7 +42,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     // 日英ラベル定義（UI表示順）
     var LABELS = {
@@ -92,7 +92,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ダイアログUIの表示とユーザー選択取得
     function showDialog(prevThreshold, prevGroupMode) {
-        var dialog = new Window("dialog", LABELS.modeGroupTitle[lang]);
+        var dialog = new Window("dialog", LABELS.modeGroupTitle[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = [25, 10, 25, 10];
@@ -103,12 +103,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         modeGroup.margins = [15, 10, 15, 10];
 
         var radioButtons = {
-            overlapOnly: modeGroup.add("radiobutton", undefined, LABELS.overlapOnly[lang]),
-            vertical: modeGroup.add("radiobutton", undefined, LABELS.vertical[lang]),
-            horizontal: modeGroup.add("radiobutton", undefined, LABELS.horizontal[lang]),
-            proximity: modeGroup.add("radiobutton", undefined, LABELS.proximity[lang])
+            overlapOnly: modeGroup.add("radiobutton", undefined, LABELS.overlapOnly[uiLang]),
+            vertical: modeGroup.add("radiobutton", undefined, LABELS.vertical[uiLang]),
+            horizontal: modeGroup.add("radiobutton", undefined, LABELS.horizontal[uiLang]),
+            proximity: modeGroup.add("radiobutton", undefined, LABELS.proximity[uiLang])
         };
-        var thresholdGroup = dialog.add("panel", undefined, LABELS.threshold[lang]);
+        var thresholdGroup = dialog.add("panel", undefined, LABELS.threshold[uiLang]);
         thresholdGroup.orientation = "column";
         thresholdGroup.alignChildren = "left";
         thresholdGroup.margins = [15, 20, 15, 10];
@@ -152,12 +152,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
         buttonGroup.margins = [0, 10, 0, 10]
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.group[lang], {
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[uiLang]);
+        var okBtn = buttonGroup.add("button", undefined, LABELS.group[uiLang], {
             name: "ok"
         });
 
-        dialog.text = LABELS.modeGroupTitle[lang];
+        dialog.text = LABELS.modeGroupTitle[uiLang];
 
         thresholdSlider.onChanging = function() {
             thresholdLabel.text = Math.round(thresholdSlider.value) + " pt";
@@ -349,7 +349,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (groups[i].length === 1) ungroupedCount++;
         }
         if (ungroupedCount > 0) {
-            var retryMsg = LABELS.retryMessage[lang].replace("{0}", ungroupedCount);
+            var retryMsg = LABELS.retryMessage[uiLang].replace("{0}", ungroupedCount);
             var retry = confirm(retryMsg);
             if (retry) {
                 showDialog(overlapThreshold, groupMode);
@@ -357,7 +357,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 return;
             }
         }
-        var alertMsg = LABELS.resultMessage[lang].replace("○", newGroups.length);
+        var alertMsg = LABELS.resultMessage[uiLang].replace("○", newGroups.length);
         app.redraw();
         alert(alertMsg);
         // 新規グループを選択状態に設定
@@ -394,10 +394,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // デフォルトグループモードを選択範囲から自動判定
     function detectDefaultGroupMode() {
         if (!app.documents.length) return "horizontal";
-        var sel = app.activeDocument.selection;
-        if (!sel || sel.length === 0) return "horizontal";
+        var currentSelection = app.activeDocument.selection;
+        if (!currentSelection || currentSelection.length === 0) return "horizontal";
 
-        var bounds = getCombinedBounds(sel);
+        var bounds = getCombinedBounds(currentSelection);
         var width = bounds[2] - bounds[0];
         var height = bounds[1] - bounds[3];
 
@@ -422,11 +422,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 重なりのみでグループ化する関数（overlapOnlyモード用）
     function groupOverlappingObjectsByOverlap() {
         if (!app.documents.length) return;
-        var sel = app.activeDocument.selection;
-        if (!sel || sel.length === 0) return;
+        var currentSelection = app.activeDocument.selection;
+        if (!currentSelection || currentSelection.length === 0) return;
 
         var threshold = -1; // 重なりのみで判定するため
-        var groups = getGroupedOverlappingItems(sel, threshold);
+        var groups = getGroupedOverlappingItems(currentSelection, threshold);
         var doc = app.activeDocument;
         var newGroups = [];
 
@@ -454,9 +454,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             newGroups[i].selected = true;
         }
         if (newGroups.length === 0) {
-            alert((lang === "ja") ? "グループ化は行われませんでした" : "No groups were created.");
+            alert((uiLang === "ja") ? "グループ化は行われませんでした" : "No groups were created.");
         } else {
-            var alertMsg = LABELS.resultMessage[lang].replace("○", newGroups.length);
+            var alertMsg = LABELS.resultMessage[uiLang].replace("○", newGroups.length);
             app.redraw();
             alert(alertMsg);
         }
@@ -466,10 +466,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 近接度によるグループ化（proximity モード）
     function groupOverlappingObjectsByProximity() {
         if (!app.documents.length) return;
-        var sel = app.activeDocument.selection;
-        if (!sel || sel.length === 0) return;
+        var currentSelection = app.activeDocument.selection;
+        if (!currentSelection || currentSelection.length === 0) return;
 
-        var groups = getGroupedOverlappingItems(sel, overlapThreshold);
+        var groups = getGroupedOverlappingItems(currentSelection, overlapThreshold);
         var doc = app.activeDocument;
         var newGroups = [];
 
@@ -498,7 +498,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (groups[i].length === 1) ungroupedCount++;
         }
         if (ungroupedCount > 0) {
-            var retryMsg = LABELS.retryMessage[lang].replace("{0}", ungroupedCount);
+            var retryMsg = LABELS.retryMessage[uiLang].replace("{0}", ungroupedCount);
             var retry = confirm(retryMsg);
             if (retry) {
                 showDialog(overlapThreshold, groupMode);
@@ -513,9 +513,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (newGroups.length === 0) {
-            alert((lang === "ja") ? "グループ化は行われませんでした" : "No groups were created.");
+            alert((uiLang === "ja") ? "グループ化は行われませんでした" : "No groups were created.");
         } else {
-            var alertMsg = LABELS.resultMessage[lang].replace("○", newGroups.length);
+            var alertMsg = LABELS.resultMessage[uiLang].replace("○", newGroups.length);
             app.redraw();
             alert(alertMsg);
         }

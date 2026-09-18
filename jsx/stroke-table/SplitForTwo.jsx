@@ -43,7 +43,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -254,10 +254,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
     };
 
-    function L(key) {
+    function getLabel(key) {
         var v = LABELS[key];
         if (!v) return key;
-        return (v[lang] !== undefined) ? v[lang] : (v.en !== undefined ? v.en : key);
+        return (v[uiLang] !== undefined) ? v[uiLang] : (v.en !== undefined ? v.en : key);
     }
 
     /* 単位ラベル取得ユーティリティ / Unit label utilities */
@@ -419,19 +419,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L("alertOpenDoc"));
+            alert(getLabel("alertOpenDoc"));
             return;
         }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (!sel || sel.length !== 1) {
-            alert(L("alertSelectOneItem"));
+        if (!currentSelection || currentSelection.length !== 1) {
+            alert(getLabel("alertSelectOneItem"));
             return;
         }
 
-        var item = sel[0];
+        var item = currentSelection[0];
 
         // --- Temporary marker (cleanup) / 一時生成物マーカー（後片付け） ---
         var TEMP_NOTE = "__SplitBackgroundForTwo_TEMP__";
@@ -1166,7 +1166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function buildColorPickerUI(state, initRgb) {
-            var d = new Window('dialog', L('colorPickerTitle'));
+            var d = new Window('dialog', getLabel('colorPickerTitle'));
             d.orientation = 'column';
             d.alignChildren = ['fill', 'top'];
 
@@ -1183,9 +1183,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             colorTypeRow.orientation = 'row';
             colorTypeRow.alignment = ['center', 'top'];
             colorTypeRow.alignChildren = ['left', 'center'];
-            var rbWhite = colorTypeRow.add('radiobutton', undefined, L('labelWhite'));
-            var rbBlack = colorTypeRow.add('radiobutton', undefined, L('labelBlack'));
-            var rbCustom = colorTypeRow.add('radiobutton', undefined, L('labelCustom'));
+            var rbWhite = colorTypeRow.add('radiobutton', undefined, getLabel('labelWhite'));
+            var rbBlack = colorTypeRow.add('radiobutton', undefined, getLabel('labelBlack'));
+            var rbCustom = colorTypeRow.add('radiobutton', undefined, getLabel('labelCustom'));
 
             previewOrig.onDraw = function () {
                 var gr = this.graphics;
@@ -1198,7 +1198,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tabPanel.alignment = ['fill', 'top'];
             tabPanel.alignChildren = ['fill', 'top'];
 
-            var tabRGB = tabPanel.add('tab', undefined, L('labelRGB'));
+            var tabRGB = tabPanel.add('tab', undefined, getLabel('labelRGB'));
             tabRGB.orientation = 'column';
             tabRGB.alignChildren = ['fill', 'top'];
             tabRGB.margins = [15, 20, 15, 10];
@@ -1220,12 +1220,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var etHex = hexRow.add('edittext', undefined, rgbToHex(state.rgb.r, state.rgb.g, state.rgb.b));
             etHex.characters = 6;
 
-            var tabCMYK = tabPanel.add('tab', undefined, L('labelCMYK'));
+            var tabCMYK = tabPanel.add('tab', undefined, getLabel('labelCMYK'));
             tabCMYK.orientation = 'column';
             tabCMYK.alignChildren = ['fill', 'top'];
             tabCMYK.margins = [15, 20, 15, 10];
 
-            var cbGray = tabCMYK.add('checkbox', undefined, L('labelGray'));
+            var cbGray = tabCMYK.add('checkbox', undefined, getLabel('labelGray'));
 
             var cmykPanel = tabCMYK.add('group');
             cmykPanel.orientation = 'column';
@@ -1249,8 +1249,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             btns.orientation = 'row';
             btns.alignment = ['center', 'center'];
             btns.margins = [0, 10, 0, 0];
-            btns.add('button', undefined, L('labelCancel'), { name: 'cancel' });
-            btns.add('button', undefined, L('labelOK'), { name: 'ok' });
+            btns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
+            btns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
 
             return {
                 dialog: d,
@@ -1716,7 +1716,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function safeRedraw() {
-            try { app.redraw(); } catch (e) { }
+            app.redraw();
         }
 
         var previewState = {
@@ -2075,7 +2075,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * ダイアログ（プレビュー付き）
          */
         function showHeightDialog(previewFn, clearPreviewRects) {
-            var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
             dlg.orientation = 'column';
             dlg.alignChildren = ['fill', 'top'];
             dlg.margins = 18;
@@ -2162,7 +2162,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             function refreshPresetDropdown() {
                 ddPreset.removeAll();
-                ddPreset.add('item', L('presetPlaceholder'));
+                ddPreset.add('item', getLabel('presetPlaceholder'));
                 var names = getPresetNames();
                 for (var i = 0; i < names.length; i++) {
                     ddPreset.add('item', names[i]);
@@ -2198,9 +2198,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (f.open('w')) {
                     f.write(lines.join('\n'));
                     f.close();
-                    alert(L('alertExportedSettings') + '\n' + filePath);
+                    alert(getLabel('alertExportedSettings') + '\n' + filePath);
                 } else {
-                    alert(L('alertExportFailed'));
+                    alert(getLabel('alertExportFailed'));
                 }
             }
 
@@ -2210,15 +2210,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 row.alignChildren = ['left', 'center'];
                 row.alignment = ['center', 'top'];
 
-                row.add('statictext', undefined, L('panelPreset'));
-                var dropdown = row.add('dropdownlist', undefined, [L('presetPlaceholder')]);
+                row.add('statictext', undefined, getLabel('panelPreset'));
+                var dropdown = row.add('dropdownlist', undefined, [getLabel('presetPlaceholder')]);
                 dropdown.preferredSize = [120, -1];
                 dropdown.selection = 0;
 
-                var btnSave = row.add('button', undefined, L('labelSave'));
+                var btnSave = row.add('button', undefined, getLabel('labelSave'));
                 btnSave.preferredSize = [50, -1];
 
-                var btnExport = row.add('button', undefined, L('labelExport'));
+                var btnExport = row.add('button', undefined, getLabel('labelExport'));
                 btnExport.preferredSize = [60, -1];
 
                 (function () {
@@ -2236,20 +2236,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 };
 
                 btnSave.onClick = function () {
-                    var nameDialog = new Window('dialog', L('presetSaveTitle'));
+                    var nameDialog = new Window('dialog', getLabel('presetSaveTitle'));
                     nameDialog.orientation = 'column';
                     nameDialog.alignChildren = ['fill', 'top'];
-                    nameDialog.add('statictext', undefined, L('presetNamePrompt'));
+                    nameDialog.add('statictext', undefined, getLabel('presetNamePrompt'));
                     var etName = nameDialog.add('edittext', undefined, '');
                     etName.characters = 20;
                     etName.active = true;
                     var nameBtns = nameDialog.add('group');
                     nameBtns.alignment = ['right', 'center'];
-                    nameBtns.add('button', undefined, L('labelCancel'), { name: 'cancel' });
-                    nameBtns.add('button', undefined, L('labelOK'), { name: 'ok' });
+                    nameBtns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
+                    nameBtns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
                     if (nameDialog.show() !== 1) return;
                     var name = etName.text;
-                    if (!name || name === '' || name === L('presetPlaceholder')) return;
+                    if (!name || name === '' || name === getLabel('presetPlaceholder')) return;
                     $.global[PRESETS_KEY][name] = getCurrentPresetData();
                     refreshPresetDropdown();
                 };
@@ -2267,7 +2267,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             function buildFillPanel(parent) {
-                var panel = parent.add('panel', undefined, L('panelFill'));
+                var panel = parent.add('panel', undefined, getLabel('panelFill'));
                 panel.orientation = 'column';
                 panel.alignChildren = ['left', 'top'];
                 panel.margins = [15, 20, 15, 10];
@@ -2276,7 +2276,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var fillLeftRow = panel.add('group');
                 fillLeftRow.orientation = 'row';
                 fillLeftRow.alignChildren = ['left', 'center'];
-                var cbLeft = fillLeftRow.add('checkbox', undefined, L('labelFillLeft'));
+                var cbLeft = fillLeftRow.add('checkbox', undefined, getLabel('labelFillLeft'));
                 cbLeft.value = (ss.fillLeft !== undefined) ? !!ss.fillLeft : true;
                 var etLeft = fillLeftRow.add('edittext', undefined, (ss.colorLeft !== undefined) ? ss.colorLeft : 'DCDCDC');
                 etLeft.preferredSize = [0, 0];
@@ -2286,7 +2286,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var fillRightRow = panel.add('group');
                 fillRightRow.orientation = 'row';
                 fillRightRow.alignChildren = ['left', 'center'];
-                var cbRight = fillRightRow.add('checkbox', undefined, L('labelFillRight'));
+                var cbRight = fillRightRow.add('checkbox', undefined, getLabel('labelFillRight'));
                 cbRight.value = (ss.fillRight !== undefined) ? !!ss.fillRight : true;
                 var etRight = fillRightRow.add('edittext', undefined, (ss.colorRight !== undefined) ? ss.colorRight : '808080');
                 etRight.preferredSize = [0, 0];
@@ -2303,7 +2303,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             function buildLinePanel(parent) {
-                var panel = parent.add('panel', undefined, L('panelLine'));
+                var panel = parent.add('panel', undefined, getLabel('panelLine'));
                 panel.orientation = 'column';
                 panel.alignChildren = ['left', 'top'];
                 panel.margins = [15, 20, 15, 10];
@@ -2313,20 +2313,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 lineCbRow.orientation = 'row';
                 lineCbRow.alignChildren = ['left', 'center'];
 
-                var cbFrame = lineCbRow.add('checkbox', undefined, L('labelOverallFrame'));
+                var cbFrame = lineCbRow.add('checkbox', undefined, getLabel('labelOverallFrame'));
                 cbFrame.value = (ss.overallFrame !== undefined) ? !!ss.overallFrame : false;
 
                 var lineCbRow2 = panel.add('group');
                 lineCbRow2.orientation = 'row';
                 lineCbRow2.alignChildren = ['left', 'center'];
-                var cbDiv = lineCbRow2.add('checkbox', undefined, L('labelDivider'));
+                var cbDiv = lineCbRow2.add('checkbox', undefined, getLabel('labelDivider'));
                 cbDiv.value = (ss.divider !== undefined) ? !!ss.divider : false;
 
                 var strokeRow = panel.add('group');
                 strokeRow.orientation = 'row';
                 strokeRow.alignChildren = ['left', 'center'];
 
-                strokeRow.add('statictext', undefined, L('labelStrokeWidth'));
+                strokeRow.add('statictext', undefined, getLabel('labelStrokeWidth'));
                 var etStrokeLocal = strokeRow.add('edittext', undefined, (ss && ss.strokeUnit !== undefined) ? String(ss.strokeUnit) : formatUnitValue(ptToUnit(1, "strokeUnits")));
                 etStrokeLocal.characters = 3;
                 changeValueByArrowKey(etStrokeLocal, false, applyPreview);
@@ -2335,7 +2335,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var colorRow = panel.add('group');
                 colorRow.orientation = 'row';
                 colorRow.alignChildren = ['left', 'center'];
-                colorRow.add('statictext', undefined, L('labelColor'));
+                colorRow.add('statictext', undefined, getLabel('labelColor'));
                 var etStrokeColorLocal = colorRow.add('edittext', undefined, (ss.strokeColor !== undefined) ? ss.strokeColor : '000000');
                 etStrokeColorLocal.preferredSize = [0, 0];
                 etStrokeColorLocal.visible = false;
@@ -2354,7 +2354,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             function buildOptionPanel(parent) {
                 var cornerUnitLabel = getCurrentUnitLabelByPrefKey("rulerType");
-                var panel = parent.add('panel', undefined, L('labelCornerRadius') + '\u00A0(' + cornerUnitLabel + ')');
+                var panel = parent.add('panel', undefined, getLabel('labelCornerRadius') + '\u00A0(' + cornerUnitLabel + ')');
                 panel.orientation = 'column';
                 panel.alignChildren = ['left', 'top'];
                 panel.margins = [15, 20, 15, 10];
@@ -2363,13 +2363,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pillRow = panel.add('group');
                 pillRow.orientation = 'row';
                 pillRow.alignChildren = ['left', 'center'];
-                var cbCornerAutoLocal = pillRow.add('checkbox', undefined, L('labelPillShape'));
+                var cbCornerAutoLocal = pillRow.add('checkbox', undefined, getLabel('labelPillShape'));
                 cbCornerAutoLocal.value = (ss.cornerAuto !== undefined) ? !!ss.cornerAuto : false;
 
                 var linkRow = panel.add('group');
                 linkRow.orientation = 'row';
                 linkRow.alignChildren = ['left', 'center'];
-                var cbCornerLink = linkRow.add('checkbox', undefined, L('labelCornerLink'));
+                var cbCornerLink = linkRow.add('checkbox', undefined, getLabel('labelCornerLink'));
                 cbCornerLink.value = (ss.cornerLink !== undefined) ? !!ss.cornerLink : false;
 
                 var perCornerRow = panel.add('group');
@@ -2385,7 +2385,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var cornerTLRow = cornerLeftCol.add('group');
                 cornerTLRow.orientation = 'row';
                 cornerTLRow.alignChildren = ['left', 'center'];
-                var cbCornerTL = cornerTLRow.add('checkbox', undefined, L('labelCornerTL'));
+                var cbCornerTL = cornerTLRow.add('checkbox', undefined, getLabel('labelCornerTL'));
                 cbCornerTL.value = (ss.cornerTL !== undefined) ? !!ss.cornerTL : false;
                 var etCornerTL = cornerTLRow.add('edittext', undefined, (ss.cornerTLVal !== undefined) ? String(ss.cornerTLVal) : '0');
                 etCornerTL.characters = 4;
@@ -2394,7 +2394,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var cornerBLRow = cornerLeftCol.add('group');
                 cornerBLRow.orientation = 'row';
                 cornerBLRow.alignChildren = ['left', 'center'];
-                var cbCornerBL = cornerBLRow.add('checkbox', undefined, L('labelCornerBL'));
+                var cbCornerBL = cornerBLRow.add('checkbox', undefined, getLabel('labelCornerBL'));
                 cbCornerBL.value = (ss.cornerBL !== undefined) ? !!ss.cornerBL : false;
                 var etCornerBL = cornerBLRow.add('edittext', undefined, (ss.cornerBLVal !== undefined) ? String(ss.cornerBLVal) : '0');
                 etCornerBL.characters = 4;
@@ -2408,7 +2408,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var cornerTRRow = cornerRightCol.add('group');
                 cornerTRRow.orientation = 'row';
                 cornerTRRow.alignChildren = ['left', 'center'];
-                var cbCornerTR = cornerTRRow.add('checkbox', undefined, L('labelCornerTR'));
+                var cbCornerTR = cornerTRRow.add('checkbox', undefined, getLabel('labelCornerTR'));
                 cbCornerTR.value = (ss.cornerTR !== undefined) ? !!ss.cornerTR : false;
                 var etCornerTR = cornerTRRow.add('edittext', undefined, (ss.cornerTRVal !== undefined) ? String(ss.cornerTRVal) : '0');
                 etCornerTR.characters = 4;
@@ -2417,7 +2417,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var cornerBRRow = cornerRightCol.add('group');
                 cornerBRRow.orientation = 'row';
                 cornerBRRow.alignChildren = ['left', 'center'];
-                var cbCornerBR = cornerBRRow.add('checkbox', undefined, L('labelCornerBR'));
+                var cbCornerBR = cornerBRRow.add('checkbox', undefined, getLabel('labelCornerBR'));
                 cbCornerBR.value = (ss.cornerBR !== undefined) ? !!ss.cornerBR : false;
                 var etCornerBR = cornerBRRow.add('edittext', undefined, (ss.cornerBRVal !== undefined) ? String(ss.cornerBRVal) : '0');
                 etCornerBR.characters = 4;
@@ -2435,7 +2435,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             function buildBalancePanel(parent) {
-                var panel = parent.add('panel', undefined, L('panelFixed'));
+                var panel = parent.add('panel', undefined, getLabel('panelFixed'));
                 panel.orientation = 'column';
                 panel.alignChildren = ['fill', 'top'];
                 panel.margins = [15, 20, 15, 10];
@@ -2451,26 +2451,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var leftRowLocal = pinWidthColLocal.add('group');
                 leftRowLocal.orientation = 'row';
                 leftRowLocal.alignChildren = ['left', 'center'];
-                var stLeftLabelLocal = leftRowLocal.add('statictext', undefined, L('labelFillLeft'));
+                var stLeftLabelLocal = leftRowLocal.add('statictext', undefined, getLabel('labelFillLeft'));
                 var etLeftWidthLocal = leftRowLocal.add('edittext', undefined, '0');
                 etLeftWidthLocal.characters = 5;
                 leftRowLocal.add('statictext', undefined, unitLabelLocal);
                 var etLeftPctLocal = leftRowLocal.add('edittext', undefined, '50');
                 etLeftPctLocal.characters = 3;
                 leftRowLocal.add('statictext', undefined, '%');
-                var cbSquareLeftLocal = leftRowLocal.add('checkbox', undefined, L('labelSquare'));
+                var cbSquareLeftLocal = leftRowLocal.add('checkbox', undefined, getLabel('labelSquare'));
 
                 var rightRowLocal = pinWidthColLocal.add('group');
                 rightRowLocal.orientation = 'row';
                 rightRowLocal.alignChildren = ['left', 'center'];
-                var stRightLabelLocal = rightRowLocal.add('statictext', undefined, L('labelFillRight'));
+                var stRightLabelLocal = rightRowLocal.add('statictext', undefined, getLabel('labelFillRight'));
                 var etRightWidthLocal = rightRowLocal.add('edittext', undefined, '0');
                 etRightWidthLocal.characters = 5;
                 rightRowLocal.add('statictext', undefined, unitLabelLocal);
                 var etRightPctLocal = rightRowLocal.add('edittext', undefined, '50');
                 etRightPctLocal.characters = 3;
                 rightRowLocal.add('statictext', undefined, '%');
-                var cbSquareRightLocal = rightRowLocal.add('checkbox', undefined, L('labelSquare'));
+                var cbSquareRightLocal = rightRowLocal.add('checkbox', undefined, getLabel('labelSquare'));
 
                 var sliderRowLocal = pinWidthColLocal.add('group');
                 sliderRowLocal.orientation = 'row';
@@ -2581,13 +2581,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var btnPresetExport = presetUI.btnPresetExport;
 
             // --- 分割方向 / Split direction ---
-            var splitDirPanel = dlg.add('panel', undefined, L('panelSplitDirection'));
+            var splitDirPanel = dlg.add('panel', undefined, getLabel('panelSplitDirection'));
             splitDirPanel.orientation = 'row';
             splitDirPanel.alignChildren = ['center', 'center'];
             splitDirPanel.margins = [15, 20, 15, 10];
             splitDirPanel.alignment = ['fill', 'top'];
-            var rbSplitLR = splitDirPanel.add('radiobutton', undefined, L('labelSplitLR'));
-            var rbSplitTB = splitDirPanel.add('radiobutton', undefined, L('labelSplitTB'));
+            var rbSplitLR = splitDirPanel.add('radiobutton', undefined, getLabel('labelSplitLR'));
+            var rbSplitTB = splitDirPanel.add('radiobutton', undefined, getLabel('labelSplitTB'));
             var savedSplitDir = (ss.splitDirection !== undefined) ? ss.splitDirection : 'lr';
             rbSplitLR.value = (savedSplitDir === 'lr');
             rbSplitTB.value = (savedSplitDir === 'tb');
@@ -3058,10 +3058,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             function updateBalanceLabels() {
                 var isVert = rbSplitTB.value;
-                try { stLeftLabel.text = isVert ? L('labelTop') : L('labelFillLeft'); } catch (e) { }
-                try { stRightLabel.text = isVert ? L('labelBottom') : L('labelFillRight'); } catch (e) { }
-                try { cbFillLeft.text = isVert ? L('labelTop') : L('labelFillLeft'); } catch (e) { }
-                try { cbFillRight.text = isVert ? L('labelBottom') : L('labelFillRight'); } catch (e) { }
+                try { stLeftLabel.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft'); } catch (e) { }
+                try { stRightLabel.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight'); } catch (e) { }
+                try { cbFillLeft.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft'); } catch (e) { }
+                try { cbFillRight.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight'); } catch (e) { }
             }
 
             rbSplitLR.onClick = function () { updateBalanceLabels(); try { updateWidthSliderMaxBySelection(); } catch (e) { } applyPreview(); };
@@ -3094,7 +3094,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cbFillLeft.onClick = function () { applyPreview(); };
             cbFillRight.onClick = function () { applyPreview(); };
 
-            var cbGroupItems = dlg.add('checkbox', undefined, L('labelGroupItems'));
+            var cbGroupItems = dlg.add('checkbox', undefined, getLabel('labelGroupItems'));
             cbGroupItems.value = true;
             cbGroupItems.alignment = ['center', 'center'];
 
@@ -3102,8 +3102,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             btns.orientation = 'row';
             btns.alignment = ['center', 'center'];
 
-            var cancelBtn = btns.add('button', undefined, L('labelCancel'), { name: 'cancel' });
-            var okBtn = btns.add('button', undefined, L('labelOK'), { name: 'ok' });
+            var cancelBtn = btns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
+            var okBtn = btns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
 
             okBtn.onClick = function () {
                 try { removeMarkedTempItems(doc); } catch (eTmpOK) { }
@@ -3417,7 +3417,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                 }
             }
-            activeDocument.selection = s;
+            app.activeDocument.selection = s;
         }
 
         function getPnt(pt, rad, len) {

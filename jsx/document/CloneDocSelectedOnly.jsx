@@ -45,7 +45,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
     var LABELS = {
         noDocument: { ja: "開いているドキュメントがありません。", en: "No documents are open." },
         notSaved: { ja: "ドキュメントが一度も保存されていません。先に保存してください。", en: "The document has never been saved. Please save it first." },
@@ -58,7 +58,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var originalDoc = app.activeDocument;
             // Check if the document has been saved at least once
             if (!originalDoc.saved) {
-                alert(LABELS.notSaved[lang]);
+                alert(LABELS.notSaved[uiLang]);
                 return;
             }
             var originalFilePath = originalDoc.fullName;
@@ -66,7 +66,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var selectedItems = getSelectedItems(originalDoc);
             if (selectedItems.length === 0) {
-                alert(LABELS.noSelection[lang]);
+                alert(LABELS.noSelection[uiLang]);
             } else {
                 var tempFileName = generateTempFileName(originalFilePath, getBaseName(originalFileName), getExtension(originalFileName));
                 var tempFilePath = new File(originalFilePath.path + "/" + tempFileName);
@@ -77,7 +77,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
             }
         } else {
-            alert(LABELS.noDocument[lang]);
+            alert(LABELS.noDocument[uiLang]);
         }
     }
     // スクリプト終了 // Script end

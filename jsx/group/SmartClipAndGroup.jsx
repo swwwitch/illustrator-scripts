@@ -43,7 +43,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
     // 日英ラベル定義 / Define label (ja/en)
     // ラベル定義（UI出現順に再配置）
     var LABELS = {
@@ -140,33 +140,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         var sel = getValidSelection();
         // ラジオボタンの初期選択
         var defaultKey = (sel && isAllPlacedItems(sel)) ? "clipPlacedOnly" : "group";
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = "left";
         dialog.margins = [25, 20, 25, 20];
 
         // クリッピングマスク用パネル
-        var clipPanel = dialog.add("panel", undefined, LABELS.clipPanel[lang]);
+        var clipPanel = dialog.add("panel", undefined, LABELS.clipPanel[uiLang]);
         clipPanel.orientation = "column";
         clipPanel.alignChildren = "left";
         clipPanel.margins = [15, 20, 15, 10];
 
         // グループ化用パネル
-        var groupPanel = dialog.add("panel", undefined, LABELS.groupPanel[lang]);
+        var groupPanel = dialog.add("panel", undefined, LABELS.groupPanel[uiLang]);
         groupPanel.orientation = "column";
         groupPanel.alignChildren = "left";
         groupPanel.margins = [15, 20, 15, 10];
 
         // ラジオボタン定義
         var radioButtons = {};
-        radioButtons.clipFront = clipPanel.add("radiobutton", undefined, LABELS.clipFront[lang]);
-        radioButtons.clip = clipPanel.add("radiobutton", undefined, LABELS.clip[lang]);
-        radioButtons.clipPlacedOnly = clipPanel.add("radiobutton", undefined, LABELS.clipPlacedOnly[lang]);
-        radioButtons.overlap = groupPanel.add("radiobutton", undefined, LABELS.overlap[lang]);
-        radioButtons.group = groupPanel.add("radiobutton", undefined, LABELS.group[lang]);
+        radioButtons.clipFront = clipPanel.add("radiobutton", undefined, LABELS.clipFront[uiLang]);
+        radioButtons.clip = clipPanel.add("radiobutton", undefined, LABELS.clip[uiLang]);
+        radioButtons.clipPlacedOnly = clipPanel.add("radiobutton", undefined, LABELS.clipPlacedOnly[uiLang]);
+        radioButtons.overlap = groupPanel.add("radiobutton", undefined, LABELS.overlap[uiLang]);
+        radioButtons.group = groupPanel.add("radiobutton", undefined, LABELS.group[uiLang]);
         // 追加: 上下方向・左右方向ラジオボタン
-        radioButtons.vertical = groupPanel.add("radiobutton", undefined, LABELS.vertical[lang]);
-        radioButtons.horizontal = groupPanel.add("radiobutton", undefined, LABELS.horizontal[lang]);
+        radioButtons.vertical = groupPanel.add("radiobutton", undefined, LABELS.vertical[uiLang]);
+        radioButtons.horizontal = groupPanel.add("radiobutton", undefined, LABELS.horizontal[uiLang]);
 
         // 初期選択ラジオボタン設定
         radioButtons[defaultKey].value = true;
@@ -175,7 +175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         var thresholdSlider = groupPanel.add("slider", undefined, 10, 0, 100);
         thresholdSlider.value = (typeof initialThreshold === "number") ? initialThreshold : 10;
         thresholdSlider.preferredSize.width = 150;
-        var thresholdLabel = groupPanel.add("statictext", undefined, LABELS.threshold[lang]);
+        var thresholdLabel = groupPanel.add("statictext", undefined, LABELS.threshold[uiLang]);
         thresholdLabel.alignment = "center";
         thresholdLabel.characters = 5;
         thresholdLabel.text = Math.round(thresholdSlider.value) + " pt";
@@ -190,13 +190,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         var buttonGroup = dialog.add("group");
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], {
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[uiLang]);
+        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[uiLang], {
             name: "ok"
         });
 
         // ダイアログタイトル設定
-        dialog.text = LABELS.dialogTitle[lang];
+        dialog.text = LABELS.dialogTitle[uiLang];
 
         var result = null;
         // しきい値スライダーの有効制御

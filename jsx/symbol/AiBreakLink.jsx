@@ -72,7 +72,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -154,7 +154,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
             if (!entry) break;
             entry = entry[pathParts[i]];
         }
-        if (entry && entry[lang]) return entry[lang];
+        if (entry && entry[uiLang]) return entry[uiLang];
         if (entry && entry.en) return entry.en;
         return labelPath;
     }
@@ -166,7 +166,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
      * @returns {string} コロン付きのラベル。
      */
     function getLabelWithColon(labelPath) {
-        return getLabel(labelPath) + (lang === "ja" ? "：" : ":");
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -229,9 +229,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
             return;
         }
 
-        var activeDocument = app.activeDocument;
+        var documentRef = app.activeDocument;
 
-        if (activeDocument.selection.length === 0) {
+        if (documentRef.selection.length === 0) {
             return;
         }
 
@@ -839,7 +839,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
         // メイン処理 / Main
         // =========================================
 
-        var symbolItems = collectSymbolItemsFromSelection(activeDocument.selection);
+        var symbolItems = collectSymbolItemsFromSelection(documentRef.selection);
 
         if (symbolItems.length === 0) {
             return;
@@ -861,13 +861,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
         /* 処理後の選択方針 / Post-processing selection policy */
         /* 元の選択は復元せず、解除後に生成されたアイテムを選択状態として残す / Do not restore the original selection; keep the generated unlinked items selected */
         /* 初期選択はここで一度だけ解除し、生成物を配列に集めて末尾でまとめて選択する / Clear the initial selection once here, collect generated items, and select them all at the end */
-        activeDocument.selection = null;
+        documentRef.selection = null;
 
         var generatedResultItems = [];
         for (var i = 0; i < symbolItems.length; i++) {
             /* 1つのシンボルで失敗しても、残りのシンボルの処理は続行する / Keep processing the remaining symbols even if one of them fails */
             try {
-                var producedItems = processSymbolItem(symbolItems[i], activeDocument);
+                var producedItems = processSymbolItem(symbolItems[i], documentRef);
                 for (var j = 0; j < producedItems.length; j++) {
                     generatedResultItems.push(producedItems[j]);
                 }
@@ -877,7 +877,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf729c53f4300"; /* 紹�
         }
 
         /* 全シンボルの生成物を最終的に選択状態へ（static / dynamic / 完全解除で共通）/ Select every symbol's generated items at the end (uniform for static / dynamic / full-ungroup) */
-        activeDocument.selection = null;
+        documentRef.selection = null;
         for (var k = 0; k < generatedResultItems.length; k++) {
             setItemSelectedSafely(generatedResultItems[k], true, getLabel("log.selectGeneratedResultItem"));
         }

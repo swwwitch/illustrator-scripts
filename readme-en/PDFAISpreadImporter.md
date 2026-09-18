@@ -36,6 +36,11 @@ Landscape pages are detected as spreads and split into two artboards, left and r
 - The raster effects resolution is fixed at 300 ppi.
 - Use PDFAIImporter.jsx when you do not want the pages split.
 
+### Article
+
+[Import a spread PDF one page at a time in Illustrator (Japanese)](https://note.com/dtp_tranist/n/n5514d9f2c5f8)
+
 ### Update History
 
+- v1.1.1 (2026-09-19): Added a link to the article and tooltips to each option, and reorganised the internal naming and structure
 - v1.1.0 (2026-03-18)

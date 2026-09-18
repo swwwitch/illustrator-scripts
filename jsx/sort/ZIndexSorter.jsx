@@ -94,7 +94,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* アイテムを基準アイテムの前に順に配置 / Reorder items based on the first element */
     function reorderItems(items) {
@@ -107,14 +107,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 選択アイテムの重ね順を逆転 / Reverse Z-order of selected items */
-    function reverseZOrder(sel) {
-        if (!sel || sel.length < 2) {
-            alert(LABELS.errors.selectMore[lang]);
+    function reverseZOrder(currentSelection) {
+        if (!currentSelection || currentSelection.length < 2) {
+            alert(LABELS.errors.selectMore[uiLang]);
             return;
         }
         var items = [];
-        for (var i = 0; i < sel.length; i++) {
-            items.push(sel[i]);
+        for (var i = 0; i < currentSelection.length; i++) {
+            items.push(currentSelection[i]);
         }
         reorderItems(items);
     }
@@ -131,14 +131,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 指定軸で選択アイテムを並べ替え / Sort selected items by specified axis */
-    function sortByAxis(sel, axis, order) {
-        if (!sel || sel.length < 2) {
-            alert(LABELS.errors.selectMore[lang]);
+    function sortByAxis(currentSelection, axis, order) {
+        if (!currentSelection || currentSelection.length < 2) {
+            alert(LABELS.errors.selectMore[uiLang]);
             return;
         }
         var items = [];
-        for (var i = 0; i < sel.length; i++) {
-            items.push(sel[i]);
+        for (var i = 0; i < currentSelection.length; i++) {
+            items.push(currentSelection[i]);
         }
 
         if (order === "rand") {
@@ -159,64 +159,64 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* X軸で並べ替え / Sort by X axis */
-    function sortByXAxis(sel, order) {
-        sortByAxis(sel, "x", order);
+    function sortByXAxis(currentSelection, order) {
+        sortByAxis(currentSelection, "x", order);
     }
 
     /* Y軸で並べ替え / Sort by Y axis */
-    function sortByYAxis(sel, order) {
-        sortByAxis(sel, "y", order);
+    function sortByYAxis(currentSelection, order) {
+        sortByAxis(currentSelection, "y", order);
     }
 
     /* 有効な選択を返す。なければ null / Return valid selection or null */
     function getValidSelection() {
         if (app.documents.length === 0) {
-            alert(LABELS.errors.noDocument[lang]);
+            alert(LABELS.errors.noDocument[uiLang]);
             return null;
         }
         var doc = app.activeDocument;
-        var sel = doc.selection;
-        if (!sel || sel.length < 2) {
-            alert(LABELS.errors.selectMore[lang]);
+        var currentSelection = doc.selection;
+        if (!currentSelection || currentSelection.length < 2) {
+            alert(LABELS.errors.selectMore[uiLang]);
             return null;
         }
-        return sel;
+        return currentSelection;
     }
 
     function main() {
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
-        dlg.alignChildren = "left";
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
+        dialog.alignChildren = "left";
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
         var originalOrder = [];
-        for (var i = 0; i < sel.length; i++) {
-            originalOrder.push(sel[i]);
+        for (var i = 0; i < currentSelection.length; i++) {
+            originalOrder.push(currentSelection[i]);
         }
 
-        var sortPanel = dlg.add("panel", undefined, LABELS.sortMethod[lang]);
+        var sortPanel = dialog.add("panel", undefined, LABELS.sortMethod[uiLang]);
         sortPanel.orientation = "column";
         sortPanel.alignChildren = "left";
         sortPanel.margins = [15, 20, 15, 10];
-        var rbZOrder = sortPanel.add("radiobutton", undefined, LABELS.zOrder[lang]);
-        var rbXAxis  = sortPanel.add("radiobutton", undefined, LABELS.xAxis[lang]);
-        var rbYAxis  = sortPanel.add("radiobutton", undefined, LABELS.yAxis[lang]);
+        var rbZOrder = sortPanel.add("radiobutton", undefined, LABELS.zOrder[uiLang]);
+        var rbXAxis  = sortPanel.add("radiobutton", undefined, LABELS.xAxis[uiLang]);
+        var rbYAxis  = sortPanel.add("radiobutton", undefined, LABELS.yAxis[uiLang]);
         rbZOrder.value = true;
 
-        var orderPanel = dlg.add("panel", undefined, LABELS.orderMethod[lang]);
+        var orderPanel = dialog.add("panel", undefined, LABELS.orderMethod[uiLang]);
         orderPanel.orientation = "column";
         orderPanel.alignChildren = "left";
         orderPanel.margins = [15, 20, 15, 10];
-        var rbAsc  = orderPanel.add("radiobutton", undefined, LABELS.asc[lang]);
-        var rbDesc = orderPanel.add("radiobutton", undefined, LABELS.desc[lang]);
-        var rbRand = orderPanel.add("radiobutton", undefined, LABELS.rand[lang]);
+        var rbAsc  = orderPanel.add("radiobutton", undefined, LABELS.asc[uiLang]);
+        var rbDesc = orderPanel.add("radiobutton", undefined, LABELS.desc[uiLang]);
+        var rbRand = orderPanel.add("radiobutton", undefined, LABELS.rand[uiLang]);
         rbAsc.value = true;
 
-        var btnGroup = dlg.add("group");
+        var btnGroup = dialog.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = ["right", "bottom"];
-        var btnCancel = btnGroup.add("button", undefined, LABELS.cancel[lang], {name: "cancel"});
-        var btnOK = btnGroup.add("button", undefined, LABELS.ok[lang], {name: "ok"});
+        var btnCancel = btnGroup.add("button", undefined, LABELS.cancel[uiLang], {name: "cancel"});
+        var btnOK = btnGroup.add("button", undefined, LABELS.ok[uiLang], {name: "ok"});
 
         var currentOrder = "asc";
 
@@ -229,18 +229,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 currentOrder = "asc";
             }
 
-            var sel = getValidSelection();
-            if (!sel) return;
+            var currentSelection = getValidSelection();
+            if (!currentSelection) return;
 
             switch (true) {
                 case rbZOrder.value:
-                    reverseZOrder(sel);
+                    reverseZOrder(currentSelection);
                     break;
                 case rbXAxis.value:
-                    sortByXAxis(sel, currentOrder);
+                    sortByXAxis(currentSelection, currentOrder);
                     break;
                 case rbYAxis.value:
-                    sortByYAxis(sel, currentOrder);
+                    sortByYAxis(currentSelection, currentOrder);
                     break;
             }
             app.redraw();
@@ -254,7 +254,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbRand.onClick   = applyPreviewWithOrder;
 
         btnOK.onClick = function() {
-            dlg.close(1);
+            dialog.close(1);
         };
 
         btnCancel.onClick = function() {
@@ -262,29 +262,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 reorderItems(originalOrder);
                 app.redraw();
             }
-            dlg.close(0);
+            dialog.close(0);
         };
 
         var offsetX = 300;
         var offsetY = 0;
         var dialogOpacity = 0.97;
 
-        function shiftDialogPosition(dlg, offsetX, offsetY) {
-            dlg.onShow = function () {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
+        function shiftDialogPosition(dialog, offsetX, offsetY) {
+            dialog.onShow = function () {
+                var currentX = dialog.location[0];
+                var currentY = dialog.location[1];
+                dialog.location = [currentX + offsetX, currentY + offsetY];
             };
         }
 
-        function setDialogOpacity(dlg, opacityValue) {
-            dlg.opacity = opacityValue;
+        function setDialogOpacity(dialog, opacityValue) {
+            dialog.opacity = opacityValue;
         }
 
-        setDialogOpacity(dlg, dialogOpacity);
-        shiftDialogPosition(dlg, offsetX, offsetY);
+        setDialogOpacity(dialog, dialogOpacity);
+        shiftDialogPosition(dialog, offsetX, offsetY);
 
-        dlg.show();
+        dialog.show();
     }
 
     main();

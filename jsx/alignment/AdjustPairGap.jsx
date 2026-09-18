@@ -177,7 +177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     var currentLanguage = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     /* ドット区切りキー（"mode.group" など）でロケールに応じたラベルを返す / Return a localized label by dotted key */
-    function getLocalizedText(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var entry = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -189,14 +189,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return getLocalizedText(key) + (currentLanguage === 'ja' ? '：' : ':');
+        return getLabel(key) + (currentLanguage === 'ja' ? '：' : ':');
     }
 
     /* 単位を括弧で添えたタイトル（日本語は全角括弧、英語は半角）。各行に単位を並べる代わりに
        パネル名へまとめる / Title with the unit in parentheses (full-width in JA), so the rows
        themselves don't need to repeat it */
     function labelWithUnit(key, unit) {
-        return getLocalizedText(key) + (currentLanguage === 'ja' ? '（' + unit + '）' : ' (' + unit + ')');
+        return getLabel(key) + (currentLanguage === 'ja' ? '（' + unit + '）' : ' (' + unit + ')');
     }
 
     // =========================================
@@ -323,7 +323,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
        Default fixes the right side (horizontal). Event wiring is left to the caller.
        返り値 / Returns: { panel, fixedRadios, selectFixedRadio, getFixedSide } */
     function buildFixedSidePanel(parentGroup) {
-        var panel = parentGroup.add("panel", undefined, getLocalizedText('fixedSide.label'));
+        var panel = parentGroup.add("panel", undefined, getLabel('fixedSide.label'));
         setupPanel(panel, 2);
         // 十字レイアウトの左右に余白を足す（+8）/ Add left/right margin to the cross layout (+8)
         panel.margins = [PANEL_MARGINS[0] + 8, PANEL_MARGINS[1], PANEL_MARGINS[2] + 8, PANEL_MARGINS[3]];
@@ -377,7 +377,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             }
         }
         for (var i = 0; i < fixedRadios.length; i++) {
-            fixedRadios[i].helpTip = getLocalizedText('tip.fixedSide');
+            fixedRadios[i].helpTip = getLabel('tip.fixedSide');
         }
         rightRadio.value = true; // 既定：右を固定（左が動く＝水平）/ Default: fix right (horizontal)
 
@@ -426,16 +426,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var defaultSpacingDisplay = Math.round((initialGapPoints / pointsPerUnit) * 100) / 100;
         var spacingInput = spacingRow.add("edittext", undefined, String(defaultSpacingDisplay));
         spacingInput.characters = 4;
-        spacingInput.helpTip = getLocalizedText('tip.spacing');
+        spacingInput.helpTip = getLabel('tip.spacing');
 
         // チェックボックス：プレビュー境界（左添え）/ Preview-bounds checkbox (left)
         var previewBoundsGroup = panel.add("group");
         previewBoundsGroup.orientation = "row";
         previewBoundsGroup.alignment = "left";
         previewBoundsGroup.margins = [0, 5, 0, 0]; // 上マージン5 / Top margin 5
-        var previewBoundsCheckbox = previewBoundsGroup.add("checkbox", undefined, getLocalizedText('options.previewBounds'));
+        var previewBoundsCheckbox = previewBoundsGroup.add("checkbox", undefined, getLabel('options.previewBounds'));
         previewBoundsCheckbox.value = false; // OFF=幾何境界 / ON=プレビュー境界
-        previewBoundsCheckbox.helpTip = getLocalizedText('tip.previewBounds');
+        previewBoundsCheckbox.helpTip = getLabel('tip.previewBounds');
 
         /* 入力値を pt に換算して取得する / Get the gap in pt from the input */
         function getSpacingInPoints() {
@@ -487,12 +487,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         alignRow.alignChildren = ["left", "center"];
         var alignLabel = alignRow.add("statictext", undefined, labelText('panel.align'));
         var radios = {
-            none: alignRow.add("radiobutton", undefined, getLocalizedText('align.none')),
+            none: alignRow.add("radiobutton", undefined, getLabel('align.none')),
             start: alignRow.add("radiobutton", undefined,
-                widerText(getLocalizedText('fixedSide.left'), getLocalizedText('fixedSide.top'))),
-            center: alignRow.add("radiobutton", undefined, getLocalizedText('align.center')),
+                widerText(getLabel('fixedSide.left'), getLabel('fixedSide.top'))),
+            center: alignRow.add("radiobutton", undefined, getLabel('align.center')),
             end: alignRow.add("radiobutton", undefined,
-                widerText(getLocalizedText('fixedSide.right'), getLocalizedText('fixedSide.bottom')))
+                widerText(getLabel('fixedSide.right'), getLabel('fixedSide.bottom')))
         };
         radios.none.value = true; // 既定：整列なし / Default: no alignment
 
@@ -516,11 +516,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
            Switch the orientation (start/end labels and tooltips). Changing the text does not
            re-run layout, so call this once the layout is settled (from onShow onward). */
         function setOrientation(isHorizontal) {
-            radios.start.text = getLocalizedText(isHorizontal ? 'fixedSide.left' : 'fixedSide.top');
-            radios.end.text = getLocalizedText(isHorizontal ? 'fixedSide.right' : 'fixedSide.bottom');
-            var alignTip = getLocalizedText(isHorizontal ? 'tip.alignH' : 'tip.alignV');
+            radios.start.text = getLabel(isHorizontal ? 'fixedSide.left' : 'fixedSide.top');
+            radios.end.text = getLabel(isHorizontal ? 'fixedSide.right' : 'fixedSide.bottom');
+            var alignTip = getLabel(isHorizontal ? 'tip.alignH' : 'tip.alignV');
             for (var key in radios) { radios[key].helpTip = alignTip; }
-            offsetInput.helpTip = getLocalizedText(isHorizontal ? 'tip.offsetHorizontal' : 'tip.offsetVertical');
+            offsetInput.helpTip = getLabel(isHorizontal ? 'tip.offsetHorizontal' : 'tip.offsetVertical');
         }
 
         return {
@@ -656,7 +656,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
        applySpacing). Event wiring is left to the caller.
        返り値 / Returns: { panel, buttons, getJustifyMode, setJustifyMode } */
     function buildJustifyPanel(parentGroup) {
-        var panel = parentGroup.add("panel", undefined, getLocalizedText('justify.label'));
+        var panel = parentGroup.add("panel", undefined, getLabel('justify.label'));
         setupPanel(panel, 4);
         panel.orientation = "row"; // ボタン横並び / buttons in a row
         panel.alignChildren = ["center", "center"]; // ボタン列をパネルの左右中央に / Center the button row in the panel
@@ -674,8 +674,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         var buttons = [];
         for (var i = 0; i < options.length; i++) {
             // ラベルは描画に失敗したときのフォールバック（drawOSControl）でも使う / text is also the fallback label
-            var button = panel.add("button", undefined, getLocalizedText('justify.' + options[i].id));
-            button.helpTip = getLocalizedText(options[i].tip);
+            var button = panel.add("button", undefined, getLabel('justify.' + options[i].id));
+            button.helpTip = getLabel(options[i].tip);
             button.preferredSize = JUSTIFY_BUTTON_SIZE;
             button.minimumSize = JUSTIFY_BUTTON_SIZE;
             button.maximumSize = JUSTIFY_BUTTON_SIZE; // 伸ばさない / keep the fixed size
@@ -1068,19 +1068,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
 
     (function () {
         if (app.documents.length === 0) {
-            alert(getLocalizedText('alert.noDocument'));
+            alert(getLabel('alert.noDocument'));
             return;
         }
 
-        var activeDocument = app.activeDocument;
+        var documentRef = app.activeDocument;
 
         // doc.selection を配列にコピーしておく（後の選択変更や undo の影響を受けないように）
         // Copy doc.selection into a plain array (immune to later selection changes / undo)
-        var liveSelection = activeDocument.selection;
+        var liveSelection = documentRef.selection;
         // selection が無効・未選択のケースを先に弾く（Illustrator では稀に null になる）
         // Guard against an invalid / empty selection (selection can be null in rare cases)
         if (!liveSelection || liveSelection.length === 0) {
-            alert(getLocalizedText('alert.selectTwo'));
+            alert(getLabel('alert.selectTwo'));
             return;
         }
         var selectedItems = [];
@@ -1089,7 +1089,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         }
 
         if (selectedItems.length < 2) {
-            alert(getLocalizedText('alert.selectTwo'));
+            alert(getLabel('alert.selectTwo'));
             return;
         }
 
@@ -1472,21 +1472,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
         // =========================================
         /* ダイアログを生成して表示し、OK されたら true を返す / Build, show dialog; return true on OK */
         function showSettingsDialog() {
-            var dialog = new Window("dialog", getLocalizedText('dialog.title') + ' ' + SCRIPT_VERSION);
+            var dialog = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
             dialog.orientation = "column";
             dialog.alignChildren = "fill";
 
             // モード / Mode（1カラム・ラジオ横並び）/ Mode (single column, radios in a row)
-            var modePanel = dialog.add("panel", undefined, getLocalizedText('mode.label'));
+            var modePanel = dialog.add("panel", undefined, getLabel('mode.label'));
             setupPanel(modePanel, 6);
             modePanel.orientation = "column"; // ラジオ縦並び / radios stacked
             modePanel.alignChildren = ["left", "top"];
-            var modeGroupRadio = modePanel.add("radiobutton", undefined, getLocalizedText('mode.group'));        // グループ
-            var modeAutoPairRadio = modePanel.add("radiobutton", undefined, getLocalizedText('mode.auto'));      // 自動ペア認識
-            var modeArtboardRadio = modePanel.add("radiobutton", undefined, getLocalizedText('mode.artboard'));  // アートボード
-            modeGroupRadio.helpTip = getLocalizedText('tip.modeGroup');
-            modeAutoPairRadio.helpTip = getLocalizedText('tip.modeAutoPair');
-            modeArtboardRadio.helpTip = getLocalizedText('tip.modeArtboard');
+            var modeGroupRadio = modePanel.add("radiobutton", undefined, getLabel('mode.group'));        // グループ
+            var modeAutoPairRadio = modePanel.add("radiobutton", undefined, getLabel('mode.auto'));      // 自動ペア認識
+            var modeArtboardRadio = modePanel.add("radiobutton", undefined, getLabel('mode.artboard'));  // アートボード
+            modeGroupRadio.helpTip = getLabel('tip.modeGroup');
+            modeAutoPairRadio.helpTip = getLabel('tip.modeAutoPair');
+            modeArtboardRadio.helpTip = getLabel('tip.modeArtboard');
             // 初期選択は下の復元ブロックで initialMode に従って入れる / Initial selection is set from initialMode below
 
             // キーオブジェクト と オフセット を2カラムで左右に並べる / Key object + Offset side by side (two columns)
@@ -1671,7 +1671,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
             btnRowGroup.orientation = "row";
             btnRowGroup.alignment = ["center", "bottom"]; // ボタンをダイアログの左右中央に / Center the buttons in the dialog
             btnRowGroup.alignChildren = ["center", "center"];
-            var btnCancel = btnRowGroup.add("button", undefined, getLocalizedText('button.cancel'), { name: "cancel" });
+            var btnCancel = btnRowGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
             var btnOK = btnRowGroup.add("button", undefined, "OK", { name: "ok" });
             // 行揃えのボタンが増えたので Enter / ESC の行き先を明示する
             // Spell out where Enter / ESC go, now that the justification buttons are pushbuttons too

@@ -115,7 +115,33 @@ var LABELS = {
         transpose: { ja: "行列入れ替え", en: "Swap Rows{slash}Columns" }
     },
     button: {
+        ok: { ja: "OK", en: "OK" },
         cancel: { ja: "キャンセル", en: "Cancel" }
+    },
+    tooltip: {
+        horizontal: { ja: "左右に隣り合うオブジェクトのあいだにあける間隔です。↑↓キーで増減できます。", en: "Gap left between horizontally adjacent objects. The arrow keys step the value." },
+        vertical:   { ja: "上下に隣り合うオブジェクトのあいだにあける間隔です。↑↓キーで増減できます。", en: "Gap left between vertically adjacent objects. The arrow keys step the value." },
+        link: { ja: "左右の間隔と同じ値を上下にも使います。オフにすると上下を個別に指定できます。", en: "Uses the horizontal gap for the vertical one too. Turn it off to set them separately." },
+        brick: {
+            ja: "1行ごとに半ピッチずらして、レンガ積みのように配置します。",
+            en: "Offsets every other row by half a pitch, like a brick wall."
+        },
+        honeycomb: {
+            ja: "レンガ状に加えて行送りを詰め、六角形に近い並びにします。",
+            en: "Adds to the brick offset a tighter row step, giving a honeycomb-like arrangement."
+        },
+        forceGrid: {
+            ja: "歯抜けや行ごとの個数違いがあっても、行数・列数をそろえた格子として並べ直します。",
+            en: "Rebuilds the layout as an even grid even when rows have gaps or different counts."
+        },
+        centerInCell: {
+            ja: "各セルの中でオブジェクトを天地左右中央にそろえます（強制グリッドのときだけ使えます）。",
+            en: "Centers each object inside its cell. Available only with Force Grid."
+        },
+        transpose: {
+            ja: "行と列を入れ替えて並べ直します。歯抜けのある配置にも対応します。",
+            en: "Swaps rows and columns. Layouts with gaps are handled too."
+        }
     },
     alert: {
         noDocument: { ja: "ドキュメントを開いてください。", en: "Open a document first." },
@@ -135,7 +161,7 @@ var LABELS = {
  * @param {string} path - ラベルのパス（例: "dialog.title", "checkbox.brick"）。
  * @returns {string} 現在の言語のラベル文字列。見つからない場合は path をそのまま返す。
  */
-function L(path) {
+function getLabel(path) {
     var node = LABELS;
     var parts = path.split('.');
     for (var i = 0; i < parts.length; i++) {
@@ -352,7 +378,7 @@ function changeValueByArrowKey(editText) {
  */
 function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexagon, runTransposeIfNeeded, restoreInitialPositions, resetBaselineToCurrent, initialGapX) {
     // タイトルとバージョンを合成 / combine title and version
-    var dialogTitle = L('dialog.title') + ' ' + SCRIPT_VERSION;
+    var dialogTitle = getLabel('dialog.title') + ' ' + SCRIPT_VERSION;
 
     var dialog = new Window('dialog', dialogTitle);
     setupWindow(dialog);
@@ -368,7 +394,7 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
     var unitFactor = getUnitToPointFactor();
 
     // パネル名に単位を出す / show unit in panel title
-    var spacingPanel = dialog.add('panel', undefined, L('panel.spacing') + ' (' + getCurrentUnitLabel() + ')');
+    var spacingPanel = dialog.add('panel', undefined, getLabel('panel.spacing') + ' (' + getCurrentUnitLabel() + ')');
     // 2カラム構成なので row のまま余白のみ共通化 / two-column panel: keep row, share margins
     spacingPanel.orientation = 'row';
     spacingPanel.alignChildren = 'top';
@@ -382,16 +408,18 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
     gapInputColumn.alignChildren = 'left';
 
     var horizontalGapGroup = gapInputColumn.add('group');
-    horizontalGapGroup.add('statictext', undefined, L('field.horizontal'));
+    horizontalGapGroup.add('statictext', undefined, getLabel('field.horizontal'));
     // 初期値は pt を表示単位に換算して表示 / show initial value converted from pt to the display unit
     var horizontalGapInput = horizontalGapGroup.add('edittext', undefined, (initialGapX / unitFactor).toFixed(1));
+    horizontalGapInput.helpTip = getLabel('tooltip.horizontal');
     horizontalGapInput.characters = 4;
     changeValueByArrowKey(horizontalGapInput);
 
     var verticalGapGroup = gapInputColumn.add('group');
-    verticalGapGroup.add('statictext', undefined, L('field.vertical'));
+    verticalGapGroup.add('statictext', undefined, getLabel('field.vertical'));
     // 初期表示では負の値を使わない
     var verticalGapInput = verticalGapGroup.add('edittext', undefined, '0');
+    verticalGapInput.helpTip = getLabel('tooltip.vertical');
     verticalGapInput.characters = 4;
     changeValueByArrowKey(verticalGapInput);
 
@@ -402,44 +430,50 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
     linkColumn.alignment = ['fill', 'fill'];
     var linkColumnSpacer = linkColumn.add('statictext', undefined, '');
     linkColumnSpacer.alignment = ['fill', 'fill'];
-    var linkCheckbox = linkColumn.add('checkbox', undefined, L('checkbox.link'));
+    var linkCheckbox = linkColumn.add('checkbox', undefined, getLabel('checkbox.link'));
+    linkCheckbox.helpTip = getLabel('tooltip.link');
 
     // オプション（チェックボックスをまとめる）/ Options panel
-    var optionsPanel = dialog.add('panel', undefined, L('panel.options'));
+    var optionsPanel = dialog.add('panel', undefined, getLabel('panel.options'));
     setupPanel(optionsPanel, 6);
 
     // レンガ状 / Brick
     var brickGroup = optionsPanel.add('group');
     setupRow(brickGroup, 'left');
-    var brickCheckbox = brickGroup.add('checkbox', undefined, L('checkbox.brick'));
+    var brickCheckbox = brickGroup.add('checkbox', undefined, getLabel('checkbox.brick'));
+    brickCheckbox.helpTip = getLabel('tooltip.brick');
     brickCheckbox.value = false;
 
     // ハニカム（レンガ状のサブオプション）/ Honeycomb (sub-option of Brick)
     var honeycombGroup = optionsPanel.add('group');
     setupRow(honeycombGroup, 'left');
     honeycombGroup.margins = [15, 0, 0, 0];
-    var honeycombCheckbox = honeycombGroup.add('checkbox', undefined, L('checkbox.honeycomb'));
+    var honeycombCheckbox = honeycombGroup.add('checkbox', undefined, getLabel('checkbox.honeycomb'));
+    honeycombCheckbox.helpTip = getLabel('tooltip.honeycomb');
     honeycombCheckbox.value = false;
     honeycombCheckbox.enabled = false;
 
     // 強制グリッド / Force Grid
     var forceGridGroup = optionsPanel.add('group');
     setupRow(forceGridGroup, 'left');
-    var forceGridCheckbox = forceGridGroup.add('checkbox', undefined, L('checkbox.forceGrid'));
+    var forceGridCheckbox = forceGridGroup.add('checkbox', undefined, getLabel('checkbox.forceGrid'));
+    forceGridCheckbox.helpTip = getLabel('tooltip.forceGrid');
     forceGridCheckbox.value = !!$.global.__regridForceGrid;
 
     // 中央揃え（強制グリッドのサブオプション）/ Center in cell (sub-option of Force Grid)
     var centerInCellGroup = optionsPanel.add('group');
     setupRow(centerInCellGroup, 'left');
     centerInCellGroup.margins = [15, 0, 0, 0];
-    var centerInCellCheckbox = centerInCellGroup.add('checkbox', undefined, L('checkbox.centerInCell'));
+    var centerInCellCheckbox = centerInCellGroup.add('checkbox', undefined, getLabel('checkbox.centerInCell'));
+    centerInCellCheckbox.helpTip = getLabel('tooltip.centerInCell');
     centerInCellCheckbox.value = !!$.global.__regridCenterInCell;
     centerInCellCheckbox.enabled = forceGridCheckbox.value;
 
     // 行列入れ替え / Swap rows/columns
     var transposeGroup = optionsPanel.add('group');
     setupRow(transposeGroup, 'left');
-    var transposeCheckbox = transposeGroup.add('checkbox', undefined, L('checkbox.transpose'));
+    var transposeCheckbox = transposeGroup.add('checkbox', undefined, getLabel('checkbox.transpose'));
+    transposeCheckbox.helpTip = getLabel('tooltip.transpose');
     transposeCheckbox.value = false;
 
     // 初期状態 / initial state
@@ -453,8 +487,8 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
     // ボタン行（パネル外・中央寄せ、いっぱいに広げない）/ buttons (outside panels, centered, not stretched)
     var buttonGroup = dialog.add('group');
     setupRow(buttonGroup, 'center');
-    var cancelButton = buttonGroup.add('button', undefined, L('button.cancel'), { name: 'cancel' });
-    var okButton = buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
+    var cancelButton = buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+    var okButton = buttonGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
     /**
      * 現在のオプション（レンガ／ハニカム／通常）に応じて間隔適用関数を選んで実行する。
@@ -614,9 +648,142 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
 
     // グローバルに公開したプレビュー関数を破棄（古いクロージャの残留・別スクリプトとの衝突を防ぐ）
     // Drop the exposed preview closure so a stale dialog does not linger / collide with other scripts
-    try { $.global.updatePreview = null; } catch (e) { }
+    $.global.updatePreview = null;
 
     // (removed global focus cleanup)
+}
+
+// =========================================
+// レイアウト計算の補助 / Layout helpers
+// main のローカル状態に依存しないものはここにまとめる / These do not touch main's local state
+// =========================================
+
+/**
+ * 控えておいたスナップショットの位置へオブジェクトを戻す
+ * @param {Array<Object>} snapshot - item / left / top を持つ位置情報の配列
+ * @returns {void}
+ */
+function restoreFrom(snapshot) {
+    for (var i = 0; i < snapshot.length; i++) {
+        var snapshotEntry = snapshot[i];
+        var currentBounds = getLayoutBounds(snapshotEntry.item);
+        var currentLeft = currentBounds[0];
+        var currentTop = currentBounds[1];
+        snapshotEntry.item.translate(snapshotEntry.left - currentLeft, snapshotEntry.top - currentTop);
+    }
+}
+
+/**
+ * レイアウト計算に使う外接矩形を返す
+ *
+ * すでにグループになっているものは中身を分解せず「グループ＝1つのオブジェクト」として扱う。
+ * クリップグループはクリップパスの geometricBounds（＝可視領域）を優先し、
+ * それ以外は item.geometricBounds を使う。
+ * @param {PageItem} item - 対象のオブジェクト
+ * @returns {Array<number>} [left, top, right, bottom]
+ */
+function getLayoutBounds(item) {
+    try {
+        if (item.typename === 'GroupItem' && item.clipped) {
+            // GroupItem の中から clipping パスを探す
+            if (item.pathItems && item.pathItems.length > 0) {
+                for (var i = 0; i < item.pathItems.length; i++) {
+                    if (item.pathItems[i].clipping) return item.pathItems[i].geometricBounds;
+                }
+            }
+            // CompoundPath が clipping のケース
+            if (item.compoundPathItems && item.compoundPathItems.length > 0) {
+                for (var j = 0; j < item.compoundPathItems.length; j++) {
+                    var compoundPath = item.compoundPathItems[j];
+                    if (compoundPath.pathItems && compoundPath.pathItems.length > 0 && compoundPath.pathItems[0].clipping) {
+                        return compoundPath.pathItems[0].geometricBounds;
+                    }
+                }
+            }
+            // fallback
+            return item.geometricBounds;
+        }
+    } catch (e) { }
+
+    return item.geometricBounds;
+}
+
+/**
+ * 昇順に並んだ数値配列の、隣接する差分の中央値を返す
+ * @param {Array<number>} sortedAsc - 昇順に並んだ数値配列
+ * @returns {number} 隣接差分の中央値。要素が2未満なら0
+ */
+function medianAdjacentDiff(sortedAsc) {
+    if (!sortedAsc || sortedAsc.length < 2) return 0;
+    var diffs = [];
+    for (var i = 1; i < sortedAsc.length; i++) {
+        diffs.push(Math.abs(sortedAsc[i] - sortedAsc[i - 1]));
+    }
+    diffs.sort(function (a, b) { return a - b; });
+    return diffs[Math.floor(diffs.length / 2)];
+}
+
+/**
+ * 対象の列・行インデックスを解決する。
+ * Force Grid で事前割り当て済み（colIndex/rowIndex）ならそれを優先し、
+ * なければ列／行センターへの最近傍で推定する。
+ *
+ * @param {object} currentEntry - layoutInfo.boundsList の要素。
+ * @param {Array} colCenters - 列センター配列。
+ * @param {Array} rowCenters - 行センター配列。
+ * @returns {{col:number, row:number}} 列・行インデックス。
+ */
+function resolveColRow(currentEntry, colCenters, rowCenters) {
+    var colIndex = (typeof currentEntry.colIndex === 'number') ? currentEntry.colIndex : null;
+    var rowIndex = (typeof currentEntry.rowIndex === 'number') ? currentEntry.rowIndex : null;
+
+    if (colIndex === null) {
+        colIndex = 0;
+        var minDX = Number.MAX_VALUE;
+        for (var c2 = 0; c2 < colCenters.length; c2++) {
+            var dx = Math.abs(colCenters[c2].x - currentEntry.bounds[0]);
+            if (dx < minDX) { minDX = dx; colIndex = c2; }
+        }
+    }
+
+    if (rowIndex === null) {
+        rowIndex = 0;
+        var minDY = Number.MAX_VALUE;
+        for (var r2 = 0; r2 < rowCenters.length; r2++) {
+            var dy = Math.abs(rowCenters[r2].y - currentEntry.bounds[1]);
+            if (dy < minDY) { minDY = dy; rowIndex = r2; }
+        }
+    }
+
+    return { col: colIndex, row: rowIndex };
+}
+
+/**
+ * レンガ／ハニカムで使う半ピッチを算出する。
+ * 目標列ピッチ＝中央値幅 + gapX。推定できない場合は列センター間隔の中央値を使う。
+ *
+ * @param {Array} colWidths - 列ごとの最大幅。
+ * @param {Array} colCenters - 列センター配列。
+ * @param {number} gapX - 左右間隔。
+ * @returns {number} 半ピッチ（pitch / 2）。
+ */
+function computeHalfPitch(colWidths, colCenters, gapX) {
+    var sortedColWidths = [];
+    if (colWidths && colWidths.length > 0) {
+        for (var wi = 0; wi < colWidths.length; wi++) sortedColWidths.push(colWidths[wi]);
+        sortedColWidths.sort(function (a, b) { return a - b; });
+    }
+    var medianColWidth = (sortedColWidths.length > 0) ? sortedColWidths[Math.floor(sortedColWidths.length / 2)] : 0; // median width
+    var pitch = (medianColWidth > 0) ? (medianColWidth + gapX) : 0;
+
+    // fallback：列が1つ等で推定できない場合は現状の列位置差 / fallback to current centers diff
+    if (pitch === 0) {
+        var colLefts = [];
+        for (var iC = 0; iC < colCenters.length; iC++) colLefts.push(colCenters[iC].x);
+        colLefts.sort(function (a, b) { return a - b; });
+        pitch = medianAdjacentDiff(colLefts);
+    }
+    return pitch / 2.0;
 }
 
 /**
@@ -627,12 +794,12 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
 function main() {
     // ドキュメントチェック / document check
     if (app.documents.length === 0) {
-        alert(L('alert.noDocument'));
+        alert(getLabel('alert.noDocument'));
         return;
     }
     var doc = app.activeDocument;
     if (!doc.selection || doc.selection.length === 0) {
-        alert(L('alert.noSelection'));
+        alert(getLabel('alert.noSelection'));
         return;
     }
 
@@ -643,7 +810,7 @@ function main() {
         selectedItems.push(selectionItem);
     }
     if (selectedItems.length < 2) {
-        alert(L('alert.needTwo'));
+        alert(getLabel('alert.needTwo'));
         return;
     }
 
@@ -684,59 +851,6 @@ function main() {
         });
     }
 
-    /**
-     * 控えておいたスナップショットの位置へオブジェクトを戻す
-     * @param {Array<Object>} snapshot - item / left / top を持つ位置情報の配列
-     * @returns {void}
-     */
-    function restoreFrom(snapshot) {
-        for (var i = 0; i < snapshot.length; i++) {
-            var snapshotEntry = snapshot[i];
-            var currentBounds = getLayoutBounds(snapshotEntry.item);
-            var currentLeft = currentBounds[0];
-            var currentTop = currentBounds[1];
-            snapshotEntry.item.translate(snapshotEntry.left - currentLeft, snapshotEntry.top - currentTop);
-        }
-    }
-
-    /*
-レイアウト計算用の境界を取得 / Get bounds for layout calculation
-- すでにグループになっているものは、中身を分解せず「グループ＝1つのオブジェクト」として扱う
-- クリップグループの場合はクリップパスの geometricBounds を優先（=可視領域）
-- それ以外は item.geometricBounds（GroupItem なら子全体の外接 bbox）
-*/
-    /**
-     * レイアウト計算に使う外接矩形を返す
-     *
-     * クリップグループはマスクパスの geometricBounds を使い、グループ全体を1つのbboxとして扱う。
-     * @param {PageItem} item - 対象のオブジェクト
-     * @returns {Array<number>} [left, top, right, bottom]
-     */
-    function getLayoutBounds(item) {
-        try {
-            if (item.typename === 'GroupItem' && item.clipped) {
-                // GroupItem の中から clipping パスを探す
-                if (item.pathItems && item.pathItems.length > 0) {
-                    for (var i = 0; i < item.pathItems.length; i++) {
-                        if (item.pathItems[i].clipping) return item.pathItems[i].geometricBounds;
-                    }
-                }
-                // CompoundPath が clipping のケース
-                if (item.compoundPathItems && item.compoundPathItems.length > 0) {
-                    for (var j = 0; j < item.compoundPathItems.length; j++) {
-                        var compoundPath = item.compoundPathItems[j];
-                        if (compoundPath.pathItems && compoundPath.pathItems.length > 0 && compoundPath.pathItems[0].clipping) {
-                            return compoundPath.pathItems[0].geometricBounds;
-                        }
-                    }
-                }
-                // fallback
-                return item.geometricBounds;
-            }
-        } catch (e) { }
-
-        return item.geometricBounds;
-    }
 
     /**
      * 選択オブジェクトの外接境界一覧と、最小の幅・高さを収集する。
@@ -1072,7 +1186,7 @@ function main() {
             var colIndex = nearestIndex(colClusters, leftX(targetItem));
             var cellKey = rowIndex + "," + colIndex;
             if (occupancy[cellKey]) {
-                alert(L('alert.cellConflict') + "(" + rowIndex + "," + colIndex + ")");
+                alert(getLabel('alert.cellConflict') + "(" + rowIndex + "," + colIndex + ")");
                 return;
             }
             occupancy[cellKey] = targetItem;
@@ -1154,20 +1268,6 @@ function main() {
         restoreFrom(initialPositions);
     }
 
-    /**
-     * 昇順に並んだ数値配列の、隣接する差分の中央値を返す
-     * @param {Array<number>} sortedAsc - 昇順に並んだ数値配列
-     * @returns {number} 隣接差分の中央値。要素が2未満なら0
-     */
-    function medianAdjacentDiff(sortedAsc) {
-        if (!sortedAsc || sortedAsc.length < 2) return 0;
-        var diffs = [];
-        for (var i = 1; i < sortedAsc.length; i++) {
-            diffs.push(Math.abs(sortedAsc[i] - sortedAsc[i - 1]));
-        }
-        diffs.sort(function (a, b) { return a - b; });
-        return diffs[Math.floor(diffs.length / 2)];
-    }
 
     /**
      * boundsList の要素の元座標（左上）を originalPositions から引く。
@@ -1185,68 +1285,7 @@ function main() {
         return { left: currentEntry.bounds[0], top: currentEntry.bounds[1] };
     }
 
-    /**
-     * 対象の列・行インデックスを解決する。
-     * Force Grid で事前割り当て済み（colIndex/rowIndex）ならそれを優先し、
-     * なければ列／行センターへの最近傍で推定する。
-     *
-     * @param {object} currentEntry - layoutInfo.boundsList の要素。
-     * @param {Array} colCenters - 列センター配列。
-     * @param {Array} rowCenters - 行センター配列。
-     * @returns {{col:number, row:number}} 列・行インデックス。
-     */
-    function resolveColRow(currentEntry, colCenters, rowCenters) {
-        var colIndex = (typeof currentEntry.colIndex === 'number') ? currentEntry.colIndex : null;
-        var rowIndex = (typeof currentEntry.rowIndex === 'number') ? currentEntry.rowIndex : null;
 
-        if (colIndex === null) {
-            colIndex = 0;
-            var minDX = Number.MAX_VALUE;
-            for (var c2 = 0; c2 < colCenters.length; c2++) {
-                var dx = Math.abs(colCenters[c2].x - currentEntry.bounds[0]);
-                if (dx < minDX) { minDX = dx; colIndex = c2; }
-            }
-        }
-
-        if (rowIndex === null) {
-            rowIndex = 0;
-            var minDY = Number.MAX_VALUE;
-            for (var r2 = 0; r2 < rowCenters.length; r2++) {
-                var dy = Math.abs(rowCenters[r2].y - currentEntry.bounds[1]);
-                if (dy < minDY) { minDY = dy; rowIndex = r2; }
-            }
-        }
-
-        return { col: colIndex, row: rowIndex };
-    }
-
-    /**
-     * レンガ／ハニカムで使う半ピッチを算出する。
-     * 目標列ピッチ＝中央値幅 + gapX。推定できない場合は列センター間隔の中央値を使う。
-     *
-     * @param {Array} colWidths - 列ごとの最大幅。
-     * @param {Array} colCenters - 列センター配列。
-     * @param {number} gapX - 左右間隔。
-     * @returns {number} 半ピッチ（pitch / 2）。
-     */
-    function computeHalfPitch(colWidths, colCenters, gapX) {
-        var sortedColWidths = [];
-        if (colWidths && colWidths.length > 0) {
-            for (var wi = 0; wi < colWidths.length; wi++) sortedColWidths.push(colWidths[wi]);
-            sortedColWidths.sort(function (a, b) { return a - b; });
-        }
-        var medianColWidth = (sortedColWidths.length > 0) ? sortedColWidths[Math.floor(sortedColWidths.length / 2)] : 0; // median width
-        var pitch = (medianColWidth > 0) ? (medianColWidth + gapX) : 0;
-
-        // fallback：列が1つ等で推定できない場合は現状の列位置差 / fallback to current centers diff
-        if (pitch === 0) {
-            var colLefts = [];
-            for (var iC = 0; iC < colCenters.length; iC++) colLefts.push(colCenters[iC].x);
-            colLefts.sort(function (a, b) { return a - b; });
-            pitch = medianAdjacentDiff(colLefts);
-        }
-        return pitch / 2.0;
-    }
 
     /**
      * グリッド配置を適用する共通処理。通常／レンガ／ハニカムを引数で切り替える。

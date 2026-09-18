@@ -96,7 +96,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* 指定キーのローカライズ文字列を取得（ドット区切りパス対応）/ Resolve localized string by dotted key path */
-    function L(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -149,26 +149,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* スタイルを選ばせ、対応するグラフィックスタイル名を返す（キャンセルで null）/ Ask which style, return its graphic-style name */
     function chooseGraphicStyleName() {
-        var styleDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var styleDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         styleDialog.orientation = "column";
         styleDialog.alignChildren = ["fill", "top"];
 
         // スタイル選択（パネル＋ラジオ）/ Style panel with radios
-        var stylePanel = styleDialog.add("panel", undefined, L("style.panelTitle"));
+        var stylePanel = styleDialog.add("panel", undefined, getLabel("style.panelTitle"));
         stylePanel.orientation = "column";
         stylePanel.alignChildren = ["left", "top"];
         stylePanel.margins = [16, 20, 16, 12];
         stylePanel.spacing = 8;
-        var whiteTextRadio = stylePanel.add("radiobutton", undefined, L("style.whiteText"));
-        var frameOnlyRadio = stylePanel.add("radiobutton", undefined, L("style.frameOnly"));
+        var whiteTextRadio = stylePanel.add("radiobutton", undefined, getLabel("style.whiteText"));
+        var frameOnlyRadio = stylePanel.add("radiobutton", undefined, getLabel("style.frameOnly"));
         whiteTextRadio.value = true; // 既定 / Default
 
         // ボタン行（Mac 規約: キャンセル → 適用）/ Buttons (Mac order: Cancel → Apply)
         var dialogButtonGroup = styleDialog.add("group");
         dialogButtonGroup.alignment = ["right", "bottom"];
         dialogButtonGroup.alignChildren = ["right", "center"];
-        dialogButtonGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        dialogButtonGroup.add("button", undefined, L("button.apply"), { name: "ok" });
+        dialogButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        dialogButtonGroup.add("button", undefined, getLabel("button.apply"), { name: "ok" });
 
         if (styleDialog.show() !== 1) return null;
         return frameOnlyRadio.value ? STYLE_NAME_FRAME_ONLY : STYLE_NAME_WHITE_TEXT;
@@ -182,7 +182,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function importStyles(destinationDoc) {
         var styleFile = new File(encodeURI(TARGET_FILE_PATH));
         if (!styleFile.exists) {
-            alert(L("message.fileNotFoundTitle") + "\n" + L("message.fileNotFoundBody") + getDisplayFileName(TARGET_FILE_PATH));
+            alert(getLabel("message.fileNotFoundTitle") + "\n" + getLabel("message.fileNotFoundBody") + getDisplayFileName(TARGET_FILE_PATH));
             return false;
         }
         var styleSourceDoc = app.open(styleFile);
@@ -210,7 +210,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         if (!importStyles(destinationDoc)) return null; // importStyles 側でファイル未検出を警告 / importStyles alerts on missing file
         graphicStyle = findGraphicStyle(destinationDoc, styleName);
-        if (!graphicStyle) alert(L("message.styleNotFound") + styleName);
+        if (!graphicStyle) alert(getLabel("message.styleNotFound") + styleName);
         return graphicStyle;
     }
 
@@ -222,7 +222,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function main() {
         // ドキュメントの存在を確認 / Check for an open document
         if (app.documents.length === 0) {
-            alert(L("message.openDocFirst"));
+            alert(getLabel("message.openDocFirst"));
             return;
         }
         var destinationDoc = app.activeDocument;
@@ -230,7 +230,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 選択オブジェクトを確保 / Capture current selection
         var currentSelection = destinationDoc.selection;
         if (!currentSelection || currentSelection.length === 0) {
-            alert(L("message.selectObjectFirst"));
+            alert(getLabel("message.selectObjectFirst"));
             return;
         }
         var selectedItems = [];

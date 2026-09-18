@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -98,12 +98,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ローカライズされたラベル取得 / Get a localized label */
-    function L(key) {
+    function getLabel(key) {
         var entry = LABELS[key];
         if (!entry) {
             return key;
         }
-        return entry[lang] || entry.en;
+        return entry[uiLang] || entry.en;
     }
 
     // =========================================
@@ -112,14 +112,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L("errNoDocument"));
+            alert(getLabel("errNoDocument"));
             return;
         }
 
         var doc = app.activeDocument;
 
         if (doc.selection.length === 0) {
-            alert(L("errNoSelection"));
+            alert(getLabel("errNoSelection"));
             return;
         }
 
@@ -138,14 +138,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         collectPathItems(doc.selection, pathItems);
 
         if (pathItems.length === 0) {
-            alert(L("errNoPathInSelection"));
+            alert(getLabel("errNoPathInSelection"));
             return;
         }
 
         var outerRect = findOuterRectangle(pathItems);
 
         if (!outerRect) {
-            alert(L("errOuterRectNotFound"));
+            alert(getLabel("errOuterRectNotFound"));
             return;
         }
 
@@ -185,7 +185,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
 
         if (verticalLines.length === 0 && horizontalLines.length === 0) {
-            alert(L("errNoRulesFound"));
+            alert(getLabel("errNoRulesFound"));
             return;
         }
 
@@ -193,23 +193,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ダイアログを作成 / Create dialog */
         function createDialog(horizontalLineCount, verticalLineCount) {
-            var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+            var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
 
             dialog.orientation = "column";
             dialog.alignChildren = "fill";
 
-            var targetPanel = dialog.add("panel", undefined, L("panelTarget"));
+            var targetPanel = dialog.add("panel", undefined, getLabel("panelTarget"));
             setupPanel(targetPanel, 6);
 
-            var horizontalRulesCheckbox = targetPanel.add("checkbox", undefined, L("averageHorizontal"));
+            var horizontalRulesCheckbox = targetPanel.add("checkbox", undefined, getLabel("averageHorizontal"));
             horizontalRulesCheckbox.value = false;
             horizontalRulesCheckbox.enabled = horizontalLineCount > 0;
 
-            var verticalRulesCheckbox = targetPanel.add("checkbox", undefined, L("averageVertical"));
+            var verticalRulesCheckbox = targetPanel.add("checkbox", undefined, getLabel("averageVertical"));
             verticalRulesCheckbox.value = false;
             verticalRulesCheckbox.enabled = verticalLineCount > 0;
 
-            var matchRuleLengthsCheckbox = targetPanel.add("checkbox", undefined, L("matchRuleLengths"));
+            var matchRuleLengthsCheckbox = targetPanel.add("checkbox", undefined, getLabel("matchRuleLengths"));
             matchRuleLengthsCheckbox.value = false;
             matchRuleLengthsCheckbox.enabled = horizontalLineCount > 0 || verticalLineCount > 0;
 
@@ -217,15 +217,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             previewGroup.orientation = "row";
             previewGroup.alignment = "center";
 
-            var previewCheckbox = previewGroup.add("checkbox", undefined, L("preview"));
+            var previewCheckbox = previewGroup.add("checkbox", undefined, getLabel("preview"));
             previewCheckbox.value = true;
 
             var buttonGroup = dialog.add("group");
             buttonGroup.orientation = "row";
             buttonGroup.alignment = "center";
 
-            var cancelButton = buttonGroup.add("button", undefined, L("cancel"));
-            var okButton = buttonGroup.add("button", undefined, L("ok"));
+            var cancelButton = buttonGroup.add("button", undefined, getLabel("cancel"));
+            var okButton = buttonGroup.add("button", undefined, getLabel("ok"));
 
             return {
                 dialog: dialog,

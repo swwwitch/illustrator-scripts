@@ -165,7 +165,7 @@ var LABELS = {
  * @param {string} dotPath 例 "mode.unite" / e.g. "mode.unite"
  * @returns {string} ローカライズ済み文字列 / localized string
  */
-function getLocalizedText(dotPath) {
+function getLabel(dotPath) {
     var parts = String(dotPath).split(".");
     var labelNode = LABELS;
     for (var i = 0; i < parts.length; i++) {
@@ -205,7 +205,7 @@ var PROBE_TIMEOUT_SECONDS = 5;
  * pathfinderCommand: A/C（実行・効果）用 Pathfinder XML の Command 番号 / Pathfinder XML Command index
  * name             : parameter-1 の /name（.aia に記録された表示名）/ recorded parameter name
  * icon             : onDraw の描画種別 / icon draw type
- * labelKey         : getLocalizedText() のドットパス / dotted label key
+ * labelKey         : getLabel() のドットパス / dotted label key
  *
  * ★ 番号体系を分離して持つ / NOTE: two separate numbering systems, held in separate fields
  *   複合シェイプの enumerated 値と Pathfinder XML の Command は本来別体系。
@@ -223,7 +223,7 @@ var SHAPE_MODES = [
 /* パスファインダー（Adobe Pathfinder ライブ効果）/ Pathfinders (Adobe Pathfinder live effect)
  * command  : ライブ効果の Command 番号 / live effect Command index
  * icon     : onDraw の描画種別 / icon draw type
- * labelKey : getLocalizedText() のドットパス / dotted label key
+ * labelKey : getLabel() のドットパス / dotted label key
  * unpainted: 「塗りのないアートワークを削除」が効くか（分割・アウトラインのみ）/ ExtractUnpainted applies (Divide/Outline only)
  */
 var PATHFINDER_MODES = [
@@ -1711,13 +1711,13 @@ function delegateCleanupCollinear() {
  * @returns {string} 表示用テキスト / status text
  */
 function markerToStatus(marker, mode) {
-    if (marker === "OK") { return getLocalizedText(mode.labelKey) + ": " + getLocalizedText("status.applied"); }
-    if (marker === "NODOC") { return getLocalizedText("status.noDoc"); }
-    if (marker === "NOSEL") { return getLocalizedText("status.noSel"); }
-    if (marker === "NEEDTWO") { return getLocalizedText("status.needTwo"); }
-    if (marker === "NOCS") { return getLocalizedText("status.noCompound"); }
-    if (marker === "TIMEOUT") { return getLocalizedText("status.timeout"); }
-    if (marker.indexOf("ERR:") === 0) { return getLocalizedText("status.error") + marker.substring(4); }
+    if (marker === "OK") { return getLabel(mode.labelKey) + ": " + getLabel("status.applied"); }
+    if (marker === "NODOC") { return getLabel("status.noDoc"); }
+    if (marker === "NOSEL") { return getLabel("status.noSel"); }
+    if (marker === "NEEDTWO") { return getLabel("status.needTwo"); }
+    if (marker === "NOCS") { return getLabel("status.noCompound"); }
+    if (marker === "TIMEOUT") { return getLabel("status.timeout"); }
+    if (marker.indexOf("ERR:") === 0) { return getLabel("status.error") + marker.substring(4); }
     return marker;
 }
 
@@ -1990,10 +1990,10 @@ function addOperationButton(container, operation, onClickHandler) {
     cell.spacing = 2;
     var button = cell.add("iconbutton", undefined, undefined, { style: "toolbutton" });
     button.preferredSize = [46, 46];
-    button.helpTip = getLocalizedText(operation.labelKey);
+    button.helpTip = getLabel(operation.labelKey);
     button.onDraw = makeIconDrawer(operation.icon);
     button.onClick = onClickHandler;
-    var caption = cell.add("statictext", undefined, getLocalizedText("caption." + operation.icon));
+    var caption = cell.add("statictext", undefined, getLabel("caption." + operation.icon));
     caption.justify = "center";
     button.__caption = caption;
     button.__cell = cell;
@@ -2031,18 +2031,18 @@ function unifyIconCellWidths(buttons) {
  * @returns {{execute: object, compound: object, effect: object}} ラジオボタン群 / radios
  */
 function buildModePanel(parentWindow) {
-    var panel = parentWindow.add("panel", undefined, getLocalizedText("panel.mode"));
+    var panel = parentWindow.add("panel", undefined, getLabel("panel.mode"));
     setupPanel(panel);
     var radios = {
-        execute:  panel.add("radiobutton", undefined, getLocalizedText("apply.execute")),
-        compound: panel.add("radiobutton", undefined, getLocalizedText("apply.compound")),
-        effect:   panel.add("radiobutton", undefined, getLocalizedText("apply.effect"))
+        execute:  panel.add("radiobutton", undefined, getLabel("apply.execute")),
+        compound: panel.add("radiobutton", undefined, getLabel("apply.compound")),
+        effect:   panel.add("radiobutton", undefined, getLabel("apply.effect"))
     };
     radios.execute.value = true;
     /* ショートカットは UI ラベルには出さず helpTip に載せる / show shortcuts in helpTip, not in the label */
-    radios.execute.helpTip = getLocalizedText("tip.shortcutExecute");
-    radios.compound.helpTip = getLocalizedText("tip.compoundApply") + " / " + getLocalizedText("tip.shortcutCompound");
-    radios.effect.helpTip = getLocalizedText("tip.shortcutEffect");
+    radios.execute.helpTip = getLabel("tip.shortcutExecute");
+    radios.compound.helpTip = getLabel("tip.compoundApply") + " / " + getLabel("tip.shortcutCompound");
+    radios.effect.helpTip = getLabel("tip.shortcutEffect");
     /* ボタン類は広げず左寄せ / keep button-like controls left-aligned */
     radios.execute.alignment = "left";
     radios.compound.alignment = "left";
@@ -2056,7 +2056,7 @@ function buildModePanel(parentWindow) {
  * @returns {object} パネル / the panel
  */
 function buildShapeModePanel(parentWindow) {
-    var panel = parentWindow.add("panel", undefined, getLocalizedText("panel.shapeMode"));
+    var panel = parentWindow.add("panel", undefined, getLabel("panel.shapeMode"));
     panel.orientation = "row";
     panel.alignChildren = "center";
     panel.margins = ICON_PANEL_MARGINS;
@@ -2070,7 +2070,7 @@ function buildShapeModePanel(parentWindow) {
  * @returns {object[]} 2つの行グループ / two row groups
  */
 function buildPathfinderRows(parentWindow) {
-    var panel = parentWindow.add("panel", undefined, getLocalizedText("panel.pathfinder"));
+    var panel = parentWindow.add("panel", undefined, getLabel("panel.pathfinder"));
     panel.orientation = "column";
     panel.alignChildren = "center";
     panel.margins = ICON_PANEL_MARGINS;
@@ -2093,7 +2093,7 @@ function buildPathfinderRows(parentWindow) {
  * @returns {{removePoints: object, removeUnpainted: object, expand: object, cleanup: object}} 各コントロール / controls
  */
 function buildOptionPanel(parentWindow) {
-    var panel = parentWindow.add("panel", undefined, getLocalizedText("panel.option"));
+    var panel = parentWindow.add("panel", undefined, getLabel("panel.option"));
     setupPanel(panel);
     /* 「余分なポイントを削除」と［強制］ボタンを同じ行に横並び / removePoints checkbox + Force button on one row */
     var removePointsRow = panel.add("group");
@@ -2102,16 +2102,16 @@ function buildOptionPanel(parentWindow) {
     removePointsRow.alignment = "left";
     removePointsRow.spacing = PANEL_SPACING;
     var controls = {
-        removePoints:    removePointsRow.add("checkbox", undefined, getLocalizedText("option.removePoints")),
-        cleanup:         removePointsRow.add("button", undefined, getLocalizedText("button.cleanup")),
-        removeUnpainted: panel.add("checkbox", undefined, getLocalizedText("option.removeUnpainted")),
-        expand:          panel.add("button", undefined, getLocalizedText("button.expand"))
+        removePoints:    removePointsRow.add("checkbox", undefined, getLabel("option.removePoints")),
+        cleanup:         removePointsRow.add("button", undefined, getLabel("button.cleanup")),
+        removeUnpainted: panel.add("checkbox", undefined, getLabel("option.removeUnpainted")),
+        expand:          panel.add("button", undefined, getLabel("button.expand"))
     };
     controls.removePoints.value = true;
     controls.removeUnpainted.value = false;
-    controls.removeUnpainted.helpTip = getLocalizedText("tip.removeUnpainted");
-    controls.expand.helpTip = getLocalizedText("tip.expand") + " / " + getLocalizedText("tip.optionRelease");
-    controls.cleanup.helpTip = getLocalizedText("tip.cleanup");
+    controls.removeUnpainted.helpTip = getLabel("tip.removeUnpainted");
+    controls.expand.helpTip = getLabel("tip.expand") + " / " + getLabel("tip.optionRelease");
+    controls.cleanup.helpTip = getLabel("tip.cleanup");
     controls.removeUnpainted.alignment = "left";
     controls.expand.alignment = "center";
     return controls;
@@ -2137,7 +2137,7 @@ function showPalette() {
     /* 再入防止（BridgeTalk 同期送信中の多重発火を防ぐ）/ re-entrancy guard for this palette session */
     var isBusy = false;
 
-    var paletteWindow = new Window("palette", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+    var paletteWindow = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
     setupWindow(paletteWindow);
     /* タブを入れるので外周余白は小さめにし、各タブ側で内側余白を持たせる / smaller window margin; tabs hold the inner padding */
     paletteWindow.margins = 8;
@@ -2147,13 +2147,13 @@ function showPalette() {
     tabbedPanel.alignChildren = "fill";
     tabbedPanel.alignment = "fill";
 
-    var basicTab = tabbedPanel.add("tab", undefined, getLocalizedText("tab.basic"));
+    var basicTab = tabbedPanel.add("tab", undefined, getLabel("tab.basic"));
     basicTab.orientation = "column";
     basicTab.alignChildren = "fill";
     basicTab.margins = [12, 14, 0, 12];
     basicTab.spacing = WINDOW_SPACING;
 
-    var specialTab = tabbedPanel.add("tab", undefined, getLocalizedText("tab.special"));
+    var specialTab = tabbedPanel.add("tab", undefined, getLabel("tab.special"));
     specialTab.orientation = "column";
     specialTab.alignChildren = "fill";
     specialTab.margins = [12, 14, 0, 12];
@@ -2163,9 +2163,9 @@ function showPalette() {
 
     /* 実行結果の表示欄。タブの外に置いて両タブで共有する
      * status line, placed outside the tabs so both share it */
-    var statusText = paletteWindow.add("statictext", undefined, getLocalizedText("status.ready"), { truncate: "middle" });
+    var statusText = paletteWindow.add("statictext", undefined, getLabel("status.ready"), { truncate: "middle" });
     statusText.alignment = "fill";
-    statusText.helpTip = getLocalizedText("tip.esc");
+    statusText.helpTip = getLabel("tip.esc");
 
     /* モードパネル（出力モードの排他ラジオ・最上段）/ Mode panel (output-mode radios, top)
      * A: 実行（実際にパスへ）/ B: 複合シェイプ（上段のみ）/ C: 効果として適用（ライブ）
@@ -2189,49 +2189,49 @@ function showPalette() {
     var cleanupButton = optionControls.cleanup;
 
     /* その他タブ：マド埋め／変換／アピアランス／ツール、パネルを表示の4パネル / "Special" tab: four grouped panels */
-    var fillHolesPanel = specialTab.add("panel", undefined, getLocalizedText("panel.fillHoles"));
+    var fillHolesPanel = specialTab.add("panel", undefined, getLabel("panel.fillHoles"));
     setupPanel(fillHolesPanel);
     var fillHolesRow = fillHolesPanel.add("group");
     fillHolesRow.orientation = "column";
     fillHolesRow.alignment = "left";
     fillHolesRow.alignChildren = "fill";
-    var fillHolesExpandButton = fillHolesRow.add("button", undefined, getLocalizedText("button.fillHolesExpand"));
-    fillHolesExpandButton.helpTip = getLocalizedText("tip.fillHolesExpand");
-    var fillHolesEffectButton = fillHolesRow.add("button", undefined, getLocalizedText("button.fillHolesEffect"));
-    fillHolesEffectButton.helpTip = getLocalizedText("tip.fillHolesEffect");
+    var fillHolesExpandButton = fillHolesRow.add("button", undefined, getLabel("button.fillHolesExpand"));
+    fillHolesExpandButton.helpTip = getLabel("tip.fillHolesExpand");
+    var fillHolesEffectButton = fillHolesRow.add("button", undefined, getLabel("button.fillHolesEffect"));
+    fillHolesEffectButton.helpTip = getLabel("tip.fillHolesEffect");
 
-    var convertPanel = specialTab.add("panel", undefined, getLocalizedText("panel.convert"));
+    var convertPanel = specialTab.add("panel", undefined, getLabel("panel.convert"));
     setupPanel(convertPanel);
-    var strokeToFillButton = convertPanel.add("button", undefined, getLocalizedText("button.strokeToFill"));
-    strokeToFillButton.helpTip = getLocalizedText("tip.strokeToFill");
+    var strokeToFillButton = convertPanel.add("button", undefined, getLabel("button.strokeToFill"));
+    strokeToFillButton.helpTip = getLabel("tip.strokeToFill");
     strokeToFillButton.alignment = "left";
 
-    var appearancePanel = specialTab.add("panel", undefined, getLocalizedText("panel.appearance"));
+    var appearancePanel = specialTab.add("panel", undefined, getLabel("panel.appearance"));
     setupPanel(appearancePanel);
     var appearanceRow = appearancePanel.add("group");
     appearanceRow.orientation = "column";
     appearanceRow.alignment = "left";
     appearanceRow.alignChildren = "fill";
-    var expandAppearanceButton = appearanceRow.add("button", undefined, getLocalizedText("button.expandAppearance"));
-    expandAppearanceButton.helpTip = getLocalizedText("tip.expandAppearance");
-    var clearEffectsOnlyButton = appearanceRow.add("button", undefined, getLocalizedText("button.clearEffectsOnly"));
-    clearEffectsOnlyButton.helpTip = getLocalizedText("tip.clearEffectsOnly");
-    var clearAppearanceButton = appearanceRow.add("button", undefined, getLocalizedText("button.clearAppearance"));
-    clearAppearanceButton.helpTip = getLocalizedText("tip.clearAppearance");
+    var expandAppearanceButton = appearanceRow.add("button", undefined, getLabel("button.expandAppearance"));
+    expandAppearanceButton.helpTip = getLabel("tip.expandAppearance");
+    var clearEffectsOnlyButton = appearanceRow.add("button", undefined, getLabel("button.clearEffectsOnly"));
+    clearEffectsOnlyButton.helpTip = getLabel("tip.clearEffectsOnly");
+    var clearAppearanceButton = appearanceRow.add("button", undefined, getLabel("button.clearAppearance"));
+    clearAppearanceButton.helpTip = getLabel("tip.clearAppearance");
 
-    var showPanelPanel = specialTab.add("panel", undefined, getLocalizedText("panel.showPanel"));
+    var showPanelPanel = specialTab.add("panel", undefined, getLabel("panel.showPanel"));
     setupPanel(showPanelPanel);
-    var appearanceButton = showPanelPanel.add("button", undefined, getLocalizedText("button.appearance"));
-    appearanceButton.helpTip = getLocalizedText("tip.appearance");
+    var appearanceButton = showPanelPanel.add("button", undefined, getLabel("button.appearance"));
+    appearanceButton.helpTip = getLabel("tip.appearance");
     appearanceButton.alignment = "left";
-    var pathfinderPanelButton = showPanelPanel.add("button", undefined, getLocalizedText("button.pathfinderPanel"));
-    pathfinderPanelButton.helpTip = getLocalizedText("tip.pathfinderPanel");
+    var pathfinderPanelButton = showPanelPanel.add("button", undefined, getLabel("button.pathfinderPanel"));
+    pathfinderPanelButton.helpTip = getLabel("tip.pathfinderPanel");
     pathfinderPanelButton.alignment = "left";
-    var shapeBuilderButton = showPanelPanel.add("button", undefined, getLocalizedText("button.shapeBuilder"));
-    shapeBuilderButton.helpTip = getLocalizedText("tip.shapeBuilder");
+    var shapeBuilderButton = showPanelPanel.add("button", undefined, getLabel("button.shapeBuilder"));
+    shapeBuilderButton.helpTip = getLabel("tip.shapeBuilder");
     shapeBuilderButton.alignment = "left";
-    var selectToolButton = showPanelPanel.add("button", undefined, getLocalizedText("button.selectTool"));
-    selectToolButton.helpTip = getLocalizedText("tip.selectTool");
+    var selectToolButton = showPanelPanel.add("button", undefined, getLabel("button.selectTool"));
+    selectToolButton.helpTip = getLabel("tip.selectTool");
     selectToolButton.alignment = "left";
 
     /**
@@ -2255,8 +2255,8 @@ function showPalette() {
          * 選択を奪い合って結果が壊れるため、ユーザーの確認が取れるまでブロックする
          * the main engine keeps working past a timeout; block until the user confirms */
         if (hasPendingTimeout) {
-            if (!confirm(getLocalizedText("status.timeoutPending"))) {
-                setStatus(getLocalizedText("status.timeoutPending"));
+            if (!confirm(getLabel("status.timeoutPending"))) {
+                setStatus(getLabel("status.timeoutPending"));
                 return;
             }
             hasPendingTimeout = false;
@@ -2266,7 +2266,7 @@ function showPalette() {
         try {
             status = produceStatus();
         } catch (delegateError) {
-            status = getLocalizedText("status.error") + delegateError;
+            status = getLabel("status.error") + delegateError;
         } finally {
             isBusy = false;
         }
@@ -2324,7 +2324,7 @@ function showPalette() {
         var mode = SHAPE_MODES[i];
         var shapeModeButton = addOperationButton(shapeModePanel, mode, makeApplyHandler(mode));
         /* Option+クリックのヒントと mousedown での alt 記録を上乗せ / add Option-click hint & alt recorder */
-        shapeModeButton.helpTip = getLocalizedText(mode.labelKey) + " / " + getLocalizedText("tip.optionCompound");
+        shapeModeButton.helpTip = getLabel(mode.labelKey) + " / " + getLabel("tip.optionCompound");
         shapeModeButton.addEventListener("mousedown", makeAltRecorder(shapeModeButton));
     }
 
@@ -2362,7 +2362,7 @@ function showPalette() {
         var pathfinderRow = pathfinderRows[Math.floor(pathfinderIndex / 3)]; /* 3個ごとに改行 / 3 per row */
         var pathfinderButton = addOperationButton(pathfinderRow, pathfinder, makePathfinderHandler(pathfinder));
         /* Option+クリックのヒントと mousedown での alt 記録を上乗せ / add Option-click hint & alt recorder */
-        pathfinderButton.helpTip = getLocalizedText(pathfinder.labelKey) + " / " + getLocalizedText("tip.optionEffect");
+        pathfinderButton.helpTip = getLabel(pathfinder.labelKey) + " / " + getLabel("tip.optionEffect");
         pathfinderButton.addEventListener("mousedown", makeAltRecorder(pathfinderButton));
         pathfinderButtons.push(pathfinderButton);
     }
@@ -2433,8 +2433,8 @@ function showPalette() {
      */
     function updateExpandButtonLabel(withOption) {
         expandButton.text = withOption
-            ? getLocalizedText("button.expandRelease")
-            : getLocalizedText("button.expand");
+            ? getLabel("button.expandRelease")
+            : getLabel("button.expand");
     }
     expandButton.addEventListener("mousemove", function (mouseEvent) {
         updateExpandButtonLabel(mouseEvent.altKey === true);

@@ -40,10 +40,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     var doc = app.activeDocument;
-    var sel = doc.selection;
+    var currentSelection = doc.selection;
 
     // 選択アイテムが2つでない場合はエラー
-    if (sel.length !== 2) {
+    if (currentSelection.length !== 2) {
         alert("エラー: 1つの図形（マスク用）と1つの画像を選択してください。");
         return;
     }
@@ -52,8 +52,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var targetImg = null; // マスクされる画像
 
     // 選択アイテムを分類する
-    for (var i = 0; i < sel.length; i++) {
-        var item = sel[i];
+    for (var i = 0; i < currentSelection.length; i++) {
+        var item = currentSelection[i];
         if (item.typename === "PathItem" || item.typename === "CompoundPathItem") {
             maskObj = item;
         } else if (item.typename === "PlacedItem" || item.typename === "RasterItem") {

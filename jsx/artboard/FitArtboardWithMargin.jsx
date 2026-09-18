@@ -70,7 +70,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     var UI_COLON = (currentLanguage === "ja") ? "：" : ": "; // UIラベル用コロン（言語別）/ label colon per language
 
     /* ローカライズ文字列を取得（キー漏れ時は英語へフォールバック） / Get localized text, fallback to English */
-    function getLocalizedText(entry) {
+    function getLabel(entry) {
         if (!entry) return "";
         if (entry[currentLanguage] != null) return entry[currentLanguage];
         return (entry.en != null) ? entry.en : "";
@@ -758,7 +758,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     /* マージン入力ダイアログを表示し設定を返す（ライブプレビュー付き） / Show margin dialog with live preview
        selectionItems はダイアログ表示時に固定した選択アイテム配列（「合わせる」で使用）。 */
     function showMarginDialog(defaultMargin, rulerUnit, artboardCount, hasSelection, selectionItems) {
-        var dialog = new Window("dialog", getLocalizedText(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
 
         // ダイアログ位置の記憶（保存関数を受け取る） / wire position persistence, get the saver
         var persistDialogLocation = attachPositionPersistence(dialog, "__FitArtboardWithMargin_Dialog", CONFIG.offsetX);
@@ -780,7 +780,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         }
 
         /* 調整基準パネル（操作＋対象＋サイズの3グループ） / Basis panel: operation + scope + axis */
-        var targetPanel = dialog.add("panel", undefined, getLocalizedText(LABELS.panel.target));
+        var targetPanel = dialog.add("panel", undefined, getLabel(LABELS.panel.target));
         setupPanel(targetPanel);
 
         var basisLabelWidth = (currentLanguage === "ja") ? 40 : 76;
@@ -789,46 +789,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         var operationRow = targetPanel.add("group");
         operationRow.orientation = "row";
         operationRow.alignChildren = ["left", "top"];
-        var operationLabel = operationRow.add("statictext", undefined, getLocalizedText(LABELS.groupLabel.operation) + UI_COLON);
+        var operationLabel = operationRow.add("statictext", undefined, getLabel(LABELS.groupLabel.operation) + UI_COLON);
         operationLabel.preferredSize.width = basisLabelWidth;
         var operationGroup = operationRow.add("group");
         operationGroup.orientation = "column";
         operationGroup.alignChildren = "left";
-        var fitRadio = operationGroup.add("radiobutton", undefined, getLocalizedText(LABELS.radio.fit));
-        fitRadio.helpTip = getLocalizedText(LABELS.tooltip.opFit);
-        var expandRadio = operationGroup.add("radiobutton", undefined, getLocalizedText(LABELS.radio.expand));
-        expandRadio.helpTip = getLocalizedText(LABELS.tooltip.opExpand);
+        var fitRadio = operationGroup.add("radiobutton", undefined, getLabel(LABELS.radio.fit));
+        fitRadio.helpTip = getLabel(LABELS.tooltip.opFit);
+        var expandRadio = operationGroup.add("radiobutton", undefined, getLabel(LABELS.radio.expand));
+        expandRadio.helpTip = getLabel(LABELS.tooltip.opExpand);
 
         /* 対象：現在のアートボード / すべてのアートボード（ラジオは縦並び） / Scope group (vertical radios) */
         var scopeRow = targetPanel.add("group");
         scopeRow.orientation = "row";
         scopeRow.alignChildren = ["left", "top"];
-        var scopeLabel = scopeRow.add("statictext", undefined, getLocalizedText(LABELS.groupLabel.scope) + UI_COLON);
+        var scopeLabel = scopeRow.add("statictext", undefined, getLabel(LABELS.groupLabel.scope) + UI_COLON);
         scopeLabel.preferredSize.width = basisLabelWidth;
         var scopeGroup = scopeRow.add("group");
         scopeGroup.orientation = "column";
         scopeGroup.alignChildren = "left";
-        var currentRadio = scopeGroup.add("radiobutton", undefined, getLocalizedText(LABELS.radio.current));
-        currentRadio.helpTip = getLocalizedText(LABELS.tooltip.scopeCurrent);
-        var allRadio = scopeGroup.add("radiobutton", undefined, getLocalizedText(LABELS.radio.all));
-        allRadio.helpTip = getLocalizedText(LABELS.tooltip.scopeAll);
+        var currentRadio = scopeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.current));
+        currentRadio.helpTip = getLabel(LABELS.tooltip.scopeCurrent);
+        var allRadio = scopeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.all));
+        allRadio.helpTip = getLabel(LABELS.tooltip.scopeAll);
 
         /* サイズ：幅／高さ（OFFにした方は実行時のサイズのまま固定） / Axis targets: width & height (off keeps the original size) */
         var axisRow = targetPanel.add("group");
         axisRow.orientation = "row";
         axisRow.alignChildren = ["left", "center"];
-        var axisLabel = axisRow.add("statictext", undefined, getLocalizedText(LABELS.groupLabel.axis) + UI_COLON);
+        var axisLabel = axisRow.add("statictext", undefined, getLabel(LABELS.groupLabel.axis) + UI_COLON);
         axisLabel.preferredSize.width = basisLabelWidth;
         var axisGroup = axisRow.add("group");
         axisGroup.orientation = "row";
         axisGroup.alignChildren = ["left", "center"];
         axisGroup.spacing = COLUMN_SPACING;
-        var widthEnabledCheckbox = axisGroup.add("checkbox", undefined, getLocalizedText(LABELS.field.width));
+        var widthEnabledCheckbox = axisGroup.add("checkbox", undefined, getLabel(LABELS.field.width));
         widthEnabledCheckbox.value = initial.horizontalEnabled;
-        widthEnabledCheckbox.helpTip = getLocalizedText(LABELS.tooltip.axisEnable);
-        var heightEnabledCheckbox = axisGroup.add("checkbox", undefined, getLocalizedText(LABELS.field.height));
+        widthEnabledCheckbox.helpTip = getLabel(LABELS.tooltip.axisEnable);
+        var heightEnabledCheckbox = axisGroup.add("checkbox", undefined, getLabel(LABELS.field.height));
         heightEnabledCheckbox.value = initial.verticalEnabled;
-        heightEnabledCheckbox.helpTip = getLocalizedText(LABELS.tooltip.axisEnable);
+        heightEnabledCheckbox.helpTip = getLabel(LABELS.tooltip.axisEnable);
 
         /* 現在の操作・対象を取得 / current operation & scope */
         function getOperation() { return fitRadio.value ? "fit" : "expand"; }
@@ -852,7 +852,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         refreshScopeState();
 
         /* マージン入力パネル（2カラム） / Margin input panel (two columns) */
-        var marginPanel = dialog.add("panel", undefined, getLocalizedText(LABELS.panel.margin) + " (" + rulerUnit + ")");
+        var marginPanel = dialog.add("panel", undefined, getLabel(LABELS.panel.margin) + " (" + rulerUnit + ")");
         setupPanel(marginPanel);
         marginPanel.orientation = "row";
         marginPanel.alignChildren = ["left", "top"];
@@ -871,21 +871,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         var verticalMarginRow = marginFieldsColumn.add("group");
         verticalMarginRow.orientation = "row";
         verticalMarginRow.alignChildren = ["left", "center"];
-        var verticalMarginLabel = verticalMarginRow.add("statictext", undefined, getLocalizedText(LABELS.field.vertical));
+        var verticalMarginLabel = verticalMarginRow.add("statictext", undefined, getLabel(LABELS.field.vertical));
         verticalMarginLabel.justify = "right";
         var verticalMarginInput = verticalMarginRow.add("edittext", undefined, initial.marginV);
         verticalMarginInput.characters = 4;
-        verticalMarginInput.helpTip = getLocalizedText(LABELS.tooltip.marginInput);
+        verticalMarginInput.helpTip = getLabel(LABELS.tooltip.marginInput);
 
         /* 左右マージン入力欄（「幅」OFFで無効） / Horizontal margin input (disabled when Width is off) */
         var horizontalMarginRow = marginFieldsColumn.add("group");
         horizontalMarginRow.orientation = "row";
         horizontalMarginRow.alignChildren = ["left", "center"];
-        var horizontalMarginLabel = horizontalMarginRow.add("statictext", undefined, getLocalizedText(LABELS.field.horizontal));
+        var horizontalMarginLabel = horizontalMarginRow.add("statictext", undefined, getLabel(LABELS.field.horizontal));
         horizontalMarginLabel.justify = "right";
         var horizontalMarginInput = horizontalMarginRow.add("edittext", undefined, initial.link ? initial.marginV : initial.marginH);
         horizontalMarginInput.characters = 4;
-        horizontalMarginInput.helpTip = getLocalizedText(LABELS.tooltip.marginInput);
+        horizontalMarginInput.helpTip = getLabel(LABELS.tooltip.marginInput);
 
         /* 行ラベルの幅を揃えて入力欄位置を統一 / Align label widths so inputs line up */
         var fieldLabelWidth = (currentLanguage === "ja") ? 32 : 62;
@@ -893,9 +893,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         horizontalMarginLabel.preferredSize.width = fieldLabelWidth;
 
         /* 連動チェックボックス / Linked checkbox */
-        var linkCheckbox = linkColumn.add("checkbox", undefined, getLocalizedText(LABELS.checkbox.linked));
+        var linkCheckbox = linkColumn.add("checkbox", undefined, getLabel(LABELS.checkbox.linked));
         linkCheckbox.value = initial.link;
-        linkCheckbox.helpTip = getLocalizedText(LABELS.tooltip.link);
+        linkCheckbox.helpTip = getLabel(LABELS.tooltip.link);
 
         /* 入力欄と連動チェックの有効/無効を現在の状態から更新 / Refresh input & link enabled states
            上下=「高さ」ON、左右=「幅」ON かつ 非連動、連動=幅・高さが両方ONのときだけ有効。 */
@@ -910,9 +910,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         refreshMarginInputStates();
 
         /* プレビュー境界（visibleBounds を採用するか。「合わせる」系のときのみ有効） / use visibleBounds; only for fit modes */
-        var previewBoundsCheckbox = linkColumn.add("checkbox", undefined, getLocalizedText(LABELS.checkbox.previewBounds));
+        var previewBoundsCheckbox = linkColumn.add("checkbox", undefined, getLabel(LABELS.checkbox.previewBounds));
         previewBoundsCheckbox.value = initial.previewBounds;
-        previewBoundsCheckbox.helpTip = getLocalizedText(LABELS.tooltip.previewBounds);
+        previewBoundsCheckbox.helpTip = getLabel(LABELS.tooltip.previewBounds);
         previewBoundsCheckbox.enabled = (initial.operation === "fit"); // 合わせる時のみ有効 / only for fit
         previewBoundsCheckbox.onClick = updatePreview;
 
@@ -1059,7 +1059,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         allRadio.onClick = onBasisChange;
 
         /* アートボードの微調整パネル / Artboard fine-tuning panel */
-        var optionsPanel = dialog.add("panel", undefined, getLocalizedText(LABELS.panel.options));
+        var optionsPanel = dialog.add("panel", undefined, getLabel(LABELS.panel.options));
         setupPanel(optionsPanel);
 
         // 丸めモード（XYWHの整数化方法） / rounding mode for artboard X/Y/W/H
@@ -1067,12 +1067,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         var roundModeGroup = optionsPanel.add("group");
         roundModeGroup.orientation = "column";
         roundModeGroup.alignChildren = "left";
-        var roundPixelRadio = roundModeGroup.add("radiobutton", undefined, getLocalizedText(LABELS.roundMode.pixelGrid));
-        var roundUnitRadio = roundModeGroup.add("radiobutton", undefined, getLocalizedText(LABELS.roundMode.currentUnit));
-        var roundNoneRadio = roundModeGroup.add("radiobutton", undefined, getLocalizedText(LABELS.roundMode.none));
-        roundPixelRadio.helpTip = getLocalizedText(LABELS.tooltip.roundPixel);
-        roundUnitRadio.helpTip = getLocalizedText(LABELS.tooltip.roundUnit);
-        roundNoneRadio.helpTip = getLocalizedText(LABELS.tooltip.roundNone);
+        var roundPixelRadio = roundModeGroup.add("radiobutton", undefined, getLabel(LABELS.roundMode.pixelGrid));
+        var roundUnitRadio = roundModeGroup.add("radiobutton", undefined, getLabel(LABELS.roundMode.currentUnit));
+        var roundNoneRadio = roundModeGroup.add("radiobutton", undefined, getLabel(LABELS.roundMode.none));
+        roundPixelRadio.helpTip = getLabel(LABELS.tooltip.roundPixel);
+        roundUnitRadio.helpTip = getLabel(LABELS.tooltip.roundUnit);
+        roundNoneRadio.helpTip = getLabel(LABELS.tooltip.roundNone);
         roundUnitRadio.value = (initial.roundMode === "currentUnit");
         roundNoneRadio.value = (initial.roundMode === "none");
         roundPixelRadio.value = !roundUnitRadio.value && !roundNoneRadio.value; // 既定 / default
@@ -1085,8 +1085,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         setupRow(buttonGroup, "center");
         buttonGroup.alignChildren = ["center", "center"];
         buttonGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        var cancelButton = buttonGroup.add("button", undefined, getLocalizedText(LABELS.button.cancel), { name: "cancel" });
-        var okButton = buttonGroup.add("button", undefined, getLocalizedText(LABELS.button.ok), { name: "ok" });
+        var cancelButton = buttonGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var okButton = buttonGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
         var dialogResult = null;
         okButton.onClick = function () {
@@ -1118,7 +1118,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
                 previewManager.confirm();
                 dialog.close(1);
             } else {
-                alert(getLocalizedText(LABELS.alert.enterNumber));
+                alert(getLabel(LABELS.alert.enterNumber));
             }
         };
         cancelButton.onClick = function () {
@@ -1150,7 +1150,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         try {
             // ドキュメント未オープンなら分かりやすく案内して終了 / friendly guard when no document is open
             if (app.documents.length === 0) {
-                alert(getLocalizedText(LABELS.alert.noDocument));
+                alert(getLabel(LABELS.alert.noDocument));
                 return;
             }
             var doc = app.activeDocument;
@@ -1214,14 +1214,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
                 }
             }
 
-            if (skippedCount > 0) alert(getLocalizedText(LABELS.alert.marginTooLarge));
+            if (skippedCount > 0) alert(getLabel(LABELS.alert.marginTooLarge));
 
             // 適用が完了したときのみ選択ツールへ切り替え（キャンセル・エラー時は切り替えない） / switch tool only after a successful run
             app.selectTool("Adobe Select Tool");
 
         } catch (e) {
             $.writeln("[FitArtboardWithMargin] ERROR: " + formatError(e));
-            alert(getLocalizedText(LABELS.alert.errorOccurred) + formatError(e));
+            alert(getLabel(LABELS.alert.errorOccurred) + formatError(e));
         }
     }
 

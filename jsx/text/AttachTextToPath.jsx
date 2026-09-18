@@ -39,7 +39,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         alert: {
@@ -50,7 +50,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         }
     };
 
-    function L(path) {
+    function getLabel(path) {
         var parts = String(path).split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -58,29 +58,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             node = node[parts[i]];
         }
         if (node == null) return path;
-        if (node[lang] != null) return node[lang];
+        if (node[uiLang] != null) return node[uiLang];
         return (node.en != null) ? node.en : path;
     }
 
     // Get items
     if (app.documents.length === 0) {
-        alert(L('alert.noDocument'));
+        alert(getLabel('alert.noDocument'));
         return false;
     }
     var doc = app.activeDocument;
-    var sel = doc.selection;
+    var currentSelection = doc.selection;
 
-    var targetItems = getTargetTextItems(sel);
-    var selectedPaths = getSelectedPathItems(sel);
+    var targetItems = getTargetTextItems(currentSelection);
+    var selectedPaths = getSelectedPathItems(currentSelection);
 
     // Validation
     if (targetItems.length === 0) {
-        alert(L('alert.noTargetText'));
+        alert(getLabel('alert.noTargetText'));
         return false;
     }
 
     if (!selectedPaths || selectedPaths.length === 0) {
-        alert(L('alert.needPath'));
+        alert(getLabel('alert.needPath'));
         return false;
     }
 
@@ -104,7 +104,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
             var basePath = resolveBasePathForText(selectedPaths, targetItems.length, j);
             if (!basePath) {
                 // Should not happen because of Validation, but keep defensive
-                alert(L('alert.needPath'));
+                alert(getLabel('alert.needPath'));
                 continue;
             }
 
@@ -113,7 +113,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
 
             var textPath = duplicatePathForText(basePath, currentLayer);
             if (!textPath) {
-                alert(L('alert.duplicateFailed'));
+                alert(getLabel('alert.duplicateFailed'));
                 continue;
             }
 

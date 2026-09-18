@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -184,7 +184,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             });
             return copyList;
         } catch (e) {
-            alert(LABELS.alertSortError[lang] + e.message);
+            alert(LABELS.alertSortError[uiLang] + e.message);
             return frameList;
         }
     }
@@ -193,14 +193,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function main() {
         /* 選択確認 / Check selection */
         if (app.documents.length === 0 || app.activeDocument.selection.length === 0) {
-            alert(LABELS.alertSelectAreaText[lang]);
+            alert(LABELS.alertSelectAreaText[uiLang]);
             return;
         }
 
         var areaTextFrame = app.activeDocument.selection[0];
 
         if (areaTextFrame.typename !== "TextFrame" || areaTextFrame.kind !== TextType.AREATEXT) {
-            alert(LABELS.alertSelectAreaText[lang]);
+            alert(LABELS.alertSelectAreaText[uiLang]);
             return;
         }
 

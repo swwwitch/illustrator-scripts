@@ -67,7 +67,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialog: {
@@ -112,13 +112,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ドット区切りパスで多言語ラベルを取得 / Resolve a localized label by dot-path */
-    function L(path) {
+    function getLabel(path) {
         var parts = path.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
             node = node && node[parts[i]];
         }
-        if (node && node[lang]) return node[lang];
+        if (node && node[uiLang]) return node[uiLang];
         if (node && node.en) return node.en;
         return path;
     }
@@ -597,49 +597,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             separateGradient: (disallowSeparate ? false : loadBool('separateGradient', DEFAULT_OPTIONS.separateGradient))
         };
 
-        var dlg = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
 
         /* カラー関連パネル / Color-related panel */
-        var colorPanel = dlg.add('panel', undefined, L('panel.color'));
+        var colorPanel = dlg.add('panel', undefined, getLabel('panel.color'));
         colorPanel.orientation = 'column';
         colorPanel.alignChildren = ['fill', 'top'];
         colorPanel.margins = [15, 20, 15, 10];
 
-        var cbGlobal = colorPanel.add('checkbox', undefined, L('checkbox.globalColor'));
+        var cbGlobal = colorPanel.add('checkbox', undefined, getLabel('checkbox.globalColor'));
         cbGlobal.value = opts.makeGlobal;
-        cbGlobal.helpTip = L('tooltip.globalColor');
+        cbGlobal.helpTip = getLabel('tooltip.globalColor');
 
-        var cbGradient = colorPanel.add('checkbox', undefined, L('checkbox.createGradient'));
+        var cbGradient = colorPanel.add('checkbox', undefined, getLabel('checkbox.createGradient'));
         cbGradient.value = opts.makeGradient;
 
         var radioGroup = colorPanel.add('group');
         radioGroup.orientation = 'row';
         radioGroup.alignChildren = ['left', 'center'];
 
-        var rbNormal = radioGroup.add('radiobutton', undefined, L('radio.normal'));
-        var rbSeparate = radioGroup.add('radiobutton', undefined, L('radio.separate'));
-        rbSeparate.helpTip = L('tooltip.separate');
+        var rbNormal = radioGroup.add('radiobutton', undefined, getLabel('radio.normal'));
+        var rbSeparate = radioGroup.add('radiobutton', undefined, getLabel('radio.separate'));
+        rbSeparate.helpTip = getLabel('tooltip.separate');
         rbSeparate.value = !!opts.separateGradient;
         rbNormal.value = !rbSeparate.value;
 
         /* 長方形パネル / Rectangle panel */
-        var rectPanel = dlg.add('panel', undefined, L('panel.rect'));
+        var rectPanel = dlg.add('panel', undefined, getLabel('panel.rect'));
         rectPanel.orientation = 'column';
         rectPanel.alignChildren = ['fill', 'top'];
         rectPanel.margins = [15, 20, 15, 10];
 
-        var cbRect = rectPanel.add('checkbox', undefined, L('checkbox.createRect'));
+        var cbRect = rectPanel.add('checkbox', undefined, getLabel('checkbox.createRect'));
         cbRect.value = opts.makeRect;
 
-        var cbSelSize = rectPanel.add('checkbox', undefined, L('checkbox.useSelectionSize'));
+        var cbSelSize = rectPanel.add('checkbox', undefined, getLabel('checkbox.useSelectionSize'));
         cbSelSize.value = opts.useSelectionSize;
-        cbSelSize.helpTip = L('tooltip.useSelectionSize');
+        cbSelSize.helpTip = getLabel('tooltip.useSelectionSize');
 
-        var cbGStyle = rectPanel.add('checkbox', undefined, L('checkbox.registerGraphicStyle'));
+        var cbGStyle = rectPanel.add('checkbox', undefined, getLabel('checkbox.registerGraphicStyle'));
         cbGStyle.value = opts.registerGraphicStyle;
-        cbGStyle.helpTip = L('tooltip.registerGraphicStyle');
+        cbGStyle.helpTip = getLabel('tooltip.registerGraphicStyle');
 
         /* チェック状態の連動 / Sync enabled state across controls */
         function syncEnable() {
@@ -669,7 +669,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* OK／キャンセル / OK and Cancel */
         var buttonGroup = dlg.add('group');
         buttonGroup.alignment = 'right';
-        buttonGroup.add('button', undefined, L('button.cancel'), { name: 'cancel' });
+        buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
         buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
 
         function persistFromUI() {

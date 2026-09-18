@@ -95,7 +95,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      * @param {object} labelEntry - { ja: string, en: string } 形式のラベル定義
      * @returns {string} 現在の言語のラベル文字列
      */
-    function L(labelEntry) {
+    function getLabel(labelEntry) {
         if (!labelEntry) return "";
         return String((labelEntry[currentLanguage] != null) ? labelEntry[currentLanguage] : labelEntry.en);
     }
@@ -235,7 +235,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      * @returns {object} 追加したチェックボックス
      */
     function addCheckbox(targetPanel, labelEntry, initialValue) {
-        var checkbox = targetPanel.add('checkbox', undefined, L(labelEntry));
+        var checkbox = targetPanel.add('checkbox', undefined, getLabel(labelEntry));
         checkbox.value = initialValue;
         return checkbox;
     }
@@ -463,7 +463,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      * @returns {object} パネル内のコントロール一式
      */
     function buildPlacedImagePanel(parentGroup, isEnabled) {
-        var pnlPlacedImage = parentGroup.add('panel', undefined, L(LABELS.panel.placedImage));
+        var pnlPlacedImage = parentGroup.add('panel', undefined, getLabel(LABELS.panel.placedImage));
         applyPanelLayout(pnlPlacedImage, PANEL_SPACING_COMPACT);
 
         var cbRotate = addCheckbox(pnlPlacedImage, LABELS.checkbox.rotate, true);
@@ -520,7 +520,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      * @returns {object} パネル内のコントロール一式
      */
     function buildClippedGroupPanel(parentGroup, isEnabled) {
-        var pnlClippedGroup = parentGroup.add('panel', undefined, L(LABELS.panel.clippedGroup));
+        var pnlClippedGroup = parentGroup.add('panel', undefined, getLabel(LABELS.panel.clippedGroup));
         applyPanelLayout(pnlClippedGroup, PANEL_SPACING_COMPACT);
 
         var controls = {
@@ -539,7 +539,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      * @returns {object} パネル内のコントロール一式
      */
     function buildTextFramePanel(parentGroup, isEnabled) {
-        var pnlTextFrame = parentGroup.add('panel', undefined, L(LABELS.panel.textFrame));
+        var pnlTextFrame = parentGroup.add('panel', undefined, getLabel(LABELS.panel.textFrame));
         applyPanelLayout(pnlTextFrame, PANEL_SPACING_COMPACT);
 
         var controls = {
@@ -560,7 +560,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      * @returns {object} 追加した回転チェックボックス
      */
     function buildRotateOnlyPanel(parentGroup, titleEntry, isEnabled) {
-        var rotateOnlyPanel = parentGroup.add('panel', undefined, L(titleEntry));
+        var rotateOnlyPanel = parentGroup.add('panel', undefined, getLabel(titleEntry));
         applyPanelLayout(rotateOnlyPanel, PANEL_SPACING_COMPACT);
 
         var cbRotate = addCheckbox(rotateOnlyPanel, LABELS.checkbox.rotate, true);
@@ -588,8 +588,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         btnRightGroup.alignChildren = ['right', 'center'];
         btnRightGroup.spacing = PANEL_SPACING;
 
-        var btnCancel = btnRightGroup.add('button', undefined, L(LABELS.button.cancel), { name: 'cancel' });
-        var btnReset = btnRightGroup.add('button', undefined, L(LABELS.button.reset), { name: 'ok' });
+        var btnCancel = btnRightGroup.add('button', undefined, getLabel(LABELS.button.cancel), { name: 'cancel' });
+        var btnReset = btnRightGroup.add('button', undefined, getLabel(LABELS.button.reset), { name: 'ok' });
 
         /* 閉じる直前の位置を記憶 / remember the location just before closing */
         btnReset.onClick = function () {
@@ -622,7 +622,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
     function showResetOptionsDialog(selectedItems) {
         var capabilities = getSelectionCapabilities(selectedItems);
 
-        var mainDialog = new Window('dialog', L(LABELS.dialog.title) + ' ' + SCRIPT_VERSION);
+        var mainDialog = new Window('dialog', getLabel(LABELS.dialog.title) + ' ' + SCRIPT_VERSION);
         applyWindowLayout(mainDialog);
         mainDialog.opacity = DIALOG_OPACITY;
         bindDialogLocationMemory(mainDialog);
@@ -1525,14 +1525,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      */
     function main() {
         if (!app.documents.length) {
-            alert(L(LABELS.alert.noDocument));
+            alert(getLabel(LABELS.alert.noDocument));
             return;
         }
 
         var currentDocument = app.activeDocument;
         var currentSelection = currentDocument.selection;
         if (!currentSelection || currentSelection.length === 0) {
-            alert(L(LABELS.alert.selectFirst));
+            alert(getLabel(LABELS.alert.selectFirst));
             return;
         }
 
@@ -1558,7 +1558,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         /* 元の選択に戻す / restore the original selection */
         currentDocument.selection = originalSelection;
 
-        if (processedCount === 0) alert(L(LABELS.alert.noTarget));
+        if (processedCount === 0) alert(getLabel(LABELS.alert.noTarget));
     }
 
     main();

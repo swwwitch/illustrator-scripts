@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -59,11 +59,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       historyPreview: { ja: "FontShuffle プレビュー", en: "FontShuffle Preview" }
     };
 
-    function L(key) {
+    function getLabel(key) {
       try {
         var o = LABELS[key];
         if (!o) return String(key);
-        return (o[lang] != null) ? o[lang] : (o.ja != null ? o.ja : String(key));
+        return (o[uiLang] != null) ? o[uiLang] : (o.ja != null ? o.ja : String(key));
       } catch (e) {
         return String(key);
       }
@@ -113,7 +113,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     (function () {
         // ドキュメントが開かれているか確認
         if (app.documents.length === 0) {
-            alert(L('alertNoDoc'));
+            alert(getLabel('alertNoDoc'));
             return;
         }
 
@@ -410,12 +410,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function getSelectionTextFrames() {
-            var sel = doc.selection;
-            if (!sel || sel.length === 0) return [];
+            var currentSelection = doc.selection;
+            if (!currentSelection || currentSelection.length === 0) return [];
             var frames = [];
-            for (var i = 0; i < sel.length; i++) {
+            for (var i = 0; i < currentSelection.length; i++) {
                 try {
-                    if (sel[i] && sel[i].typename === "TextFrame") frames.push(sel[i]);
+                    if (currentSelection[i] && currentSelection[i].typename === "TextFrame") frames.push(currentSelection[i]);
                 } catch (_) { }
             }
             return frames;
@@ -471,7 +471,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // --- Dialog ---
     // ダイアログ / Dialog
         var DIALOG_KEY = "__FontShuffle_Dialog__";
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         DialogPersist.setOpacity(dlg, 0.98);
         dlg.onShow = function () {
             DialogPersist.restorePosition(dlg, DIALOG_KEY, 300, 0);
@@ -480,12 +480,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
 
-        var info = dlg.add('statictext', undefined, L('info'));
+        var info = dlg.add('statictext', undefined, getLabel('info'));
         info.characters = 52;
 
-        var chkMorisawa = dlg.add('checkbox', undefined, L('limitToJPFonts'));
+        var chkMorisawa = dlg.add('checkbox', undefined, getLabel('limitToJPFonts'));
         chkMorisawa.value = false;
-        var chkManifesto = dlg.add('checkbox', undefined, L('manifestoStyle'));
+        var chkManifesto = dlg.add('checkbox', undefined, getLabel('manifestoStyle'));
         chkManifesto.value = false;
 
         // 犯行声明文風のON/OFFは、プレビュー済みなら「ランダムを回さず」見た目だけ更新
@@ -504,7 +504,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var colL = bottom.add('group');
         colL.orientation = 'row';
         colL.alignChildren = ['left', 'center'];
-        var btnRerun = colL.add('button', undefined, L('rerun'));
+        var btnRerun = colL.add('button', undefined, getLabel('rerun'));
 
         // Center spacer
         var colC = bottom.add('group');
@@ -516,8 +516,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var colR = bottom.add('group');
         colR.orientation = 'row';
         colR.alignChildren = ['right', 'center'];
-        var btnCancel = colR.add('button', undefined, L('cancel'), { name: 'cancel' });
-        var btnOK = colR.add('button', undefined, L('ok'), { name: 'ok' });
+        var btnCancel = colR.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+        var btnOK = colR.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
         try { colC.preferredSize.width = 20; } catch (_) { }
         try { bottom.alignment = ['fill', 'bottom']; } catch (_) { }
@@ -563,7 +563,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             function _do() {
                 var frames = getSelectionTextFrames();
                 if (frames.length === 0) {
-                    alert(L('alertSelectText'));
+                    alert(getLabel('alertSelectText'));
                     return;
                 }
 
@@ -578,7 +578,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     if (chkMorisawa && chkMorisawa.value) {
                         fontList = getMorisawaFonts();
                         if (!fontList || fontList.length === 0) {
-                            alert(L('alertNoJPFonts'));
+                            alert(getLabel('alertNoJPFonts'));
                             return;
                         }
                     } else {
@@ -607,7 +607,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // Try to keep the operation to a single history step (so undo once works)
             try {
                 if (doc && doc.suspendHistory) {
-                    doc.suspendHistory(L('historyPreview'), '_do()');
+                    doc.suspendHistory(getLabel('historyPreview'), '_do()');
                     if (countHistory) PreviewHistory.bump();
                     return;
                 }

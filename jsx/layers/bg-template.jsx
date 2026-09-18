@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     // UIラベル定義 / UI Label Definitions
     var LABELS = {
@@ -325,12 +325,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var doc = app.activeDocument;
 
             /* ダイアログボックスを表示 / Show dialog box */
-            var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+            var dlg = new Window("dialog", LABELS.dialogTitle[uiLang]);
             dlg.orientation = "column";
             dlg.alignChildren = "left";
 
             /* --- Two-column color panel (CMYK left, RGB right) --- */
-            var colorPanel = dlg.add("panel", undefined, LABELS.colorPanel[lang]);
+            var colorPanel = dlg.add("panel", undefined, LABELS.colorPanel[uiLang]);
             colorPanel.orientation = "row";
             colorPanel.alignChildren = ["fill", "top"];
             colorPanel.margins = [15, 20, 15, 10];
@@ -397,22 +397,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var marginGroup = dlg.add("group");
             marginGroup.orientation = "row";
 
-            marginGroup.add("statictext", undefined, LABELS.marginLabel[lang]);
+            marginGroup.add("statictext", undefined, LABELS.marginLabel[uiLang]);
             var marginInput = marginGroup.add("edittext", undefined, "0");
             marginInput.characters = 4;
             var unitLabel = marginGroup.add("statictext", undefined, getCurrentUnitLabel());
 
             changeValueByArrowKey(marginInput);
 
-            var templateCheckbox = dlg.add("checkbox", undefined, LABELS.templateCheckbox[lang]);
+            var templateCheckbox = dlg.add("checkbox", undefined, LABELS.templateCheckbox[uiLang]);
             templateCheckbox.value = true; // デフォルトでON
 
             var btnGroup = dlg.add("group");
             btnGroup.orientation = "row";
             btnGroup.alignment = "center"; // 中央揃え / Center alignment
 
-            var cancelBtn = btnGroup.add("button", undefined, LABELS.cancelButton[lang], {name:"cancel"});
-            var okBtn = btnGroup.add("button", undefined, LABELS.okButton[lang], {name:"ok"});
+            var cancelBtn = btnGroup.add("button", undefined, LABELS.cancelButton[uiLang], {name:"cancel"});
+            var okBtn = btnGroup.add("button", undefined, LABELS.okButton[uiLang], {name:"ok"});
 
             if (dlg.show() != 1) {
                 return; // キャンセル時は終了

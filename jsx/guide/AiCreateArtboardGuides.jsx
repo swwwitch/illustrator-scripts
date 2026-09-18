@@ -142,7 +142,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
     };
 
     /* LABELS からドット区切りのキーで文言を取得 / Resolve a label by dotted key */
-    function getLocalizedText(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -155,15 +155,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return getLocalizedText(key) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
     function labelWithCount(key, count) {
         if (currentLanguage === "ja") {
-            return getLocalizedText(key) + "（" + count + "）";
+            return getLabel(key) + "（" + count + "）";
         }
-        return getLocalizedText(key) + " (" + count + ")";
+        return getLabel(key) + " (" + count + ")";
     }
 
     // =========================================
@@ -279,7 +279,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         changeValueByArrowKey(inputField);
 
         if (tooltipKey) {
-            var tooltip = getLocalizedText(tooltipKey);
+            var tooltip = getLabel(tooltipKey);
             fieldLabel.helpTip = tooltip;
             inputField.helpTip = tooltip;
         }
@@ -289,38 +289,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
 
     /* 中心とエッジのガイドパネルを構築 / Build the center & edge guides panel */
     function buildEdgePanel(parent, unitLabel) {
-        var edgePanel = parent.add("panel", undefined, getLocalizedText("panel.edge"));
+        var edgePanel = parent.add("panel", undefined, getLabel("panel.edge"));
         setupPanel(edgePanel);
 
         /* 中心ガイド（垂直・水平。マスターとは独立）/ Center guides (vertical/horizontal; independent of the edge master) */
-        var verticalCheckbox = edgePanel.add("checkbox", undefined, getLocalizedText("checkbox.centerVertical"));
-        verticalCheckbox.helpTip = getLocalizedText("tip.centerVertical");
+        var verticalCheckbox = edgePanel.add("checkbox", undefined, getLabel("checkbox.centerVertical"));
+        verticalCheckbox.helpTip = getLabel("tip.centerVertical");
         verticalCheckbox.value = false;
 
-        var horizontalCheckbox = edgePanel.add("checkbox", undefined, getLocalizedText("checkbox.centerHorizontal"));
-        horizontalCheckbox.helpTip = getLocalizedText("tip.centerHorizontal");
+        var horizontalCheckbox = edgePanel.add("checkbox", undefined, getLabel("checkbox.centerHorizontal"));
+        horizontalCheckbox.helpTip = getLabel("tip.centerHorizontal");
         horizontalCheckbox.value = false;
 
         /* エッジ描画のマスタースイッチ（既定OFF。OFFで十字・延長をディム）/ Edge master toggle (default OFF; dims the cross and extend) */
-        var drawEdgesCheckbox = edgePanel.add("checkbox", undefined, getLocalizedText("checkbox.drawEdges"));
-        drawEdgesCheckbox.helpTip = getLocalizedText("tip.drawEdges");
+        var drawEdgesCheckbox = edgePanel.add("checkbox", undefined, getLabel("checkbox.drawEdges"));
+        drawEdgesCheckbox.helpTip = getLabel("tip.drawEdges");
         drawEdgesCheckbox.value = false;
 
         /* 上・左右・下の十字配置（各行を中央寄せ）/ Cross layout (each row centered) */
         var topRow = edgePanel.add("group");
         topRow.alignment = "center";
-        var topCheckbox = topRow.add("checkbox", undefined, getLocalizedText("edge.top"));
+        var topCheckbox = topRow.add("checkbox", undefined, getLabel("edge.top"));
 
         var middleRow = edgePanel.add("group");
         middleRow.orientation = "row";
         middleRow.alignment = "center";
         middleRow.spacing = 24;
-        var leftCheckbox = middleRow.add("checkbox", undefined, getLocalizedText("edge.left"));
-        var rightCheckbox = middleRow.add("checkbox", undefined, getLocalizedText("edge.right"));
+        var leftCheckbox = middleRow.add("checkbox", undefined, getLabel("edge.left"));
+        var rightCheckbox = middleRow.add("checkbox", undefined, getLabel("edge.right"));
 
         var bottomRow = edgePanel.add("group");
         bottomRow.alignment = "center";
-        var bottomCheckbox = bottomRow.add("checkbox", undefined, getLocalizedText("edge.bottom"));
+        var bottomCheckbox = bottomRow.add("checkbox", undefined, getLabel("edge.bottom"));
 
         /* 各チェックボックスの幅を少し広げる / Slightly widen each checkbox */
         topCheckbox.preferredSize.width = EDGE_CHECKBOX_WIDTH;
@@ -329,10 +329,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         bottomCheckbox.preferredSize.width = EDGE_CHECKBOX_WIDTH;
 
         /* 各辺の説明 tooltip / Per-edge tooltips */
-        topCheckbox.helpTip = getLocalizedText("tip.edgeTop");
-        bottomCheckbox.helpTip = getLocalizedText("tip.edgeBottom");
-        leftCheckbox.helpTip = getLocalizedText("tip.edgeLeft");
-        rightCheckbox.helpTip = getLocalizedText("tip.edgeRight");
+        topCheckbox.helpTip = getLabel("tip.edgeTop");
+        bottomCheckbox.helpTip = getLabel("tip.edgeBottom");
+        leftCheckbox.helpTip = getLabel("tip.edgeLeft");
+        rightCheckbox.helpTip = getLabel("tip.edgeRight");
 
         /* 既定はすべて ON / Default all ON */
         topCheckbox.value = leftCheckbox.value = rightCheckbox.value = bottomCheckbox.value = true;
@@ -341,8 +341,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         var edgeExtendInput = addUnitField(edgePanel, "field.edgeExtend", String(mmToCurrentUnit(DEFAULT_EDGE_EXTEND_MM)), unitLabel, "tip.edgeExtend");
 
         /* 中心・エッジの描画スコープ（すべて / アクティブのみ。マスターとは独立）/ Center & edge drawing scope (independent of masters) */
-        var allArtboardsCheckbox = edgePanel.add("checkbox", undefined, getLocalizedText("checkbox.allArtboards"));
-        allArtboardsCheckbox.helpTip = getLocalizedText("tip.drawAllArtboards");
+        var allArtboardsCheckbox = edgePanel.add("checkbox", undefined, getLabel("checkbox.allArtboards"));
+        allArtboardsCheckbox.helpTip = getLabel("tip.drawAllArtboards");
         allArtboardsCheckbox.value = false;
 
         /* 有効/無効の同期 / Sync enabled state */
@@ -380,18 +380,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
     function buildConvertPanel(parent, unitLabel, convertibleCount) {
         var convertPanel = parent.add("panel", undefined, labelWithCount("panel.convert", convertibleCount));
         setupPanel(convertPanel);
-        convertPanel.helpTip = getLocalizedText("tip.target");
+        convertPanel.helpTip = getLabel("tip.target");
 
         /* 変換のマスタースイッチ（OFFで以下をディム）/ Master toggle (OFF dims the rest) */
-        var convertGuidesCheckbox = convertPanel.add("checkbox", undefined, getLocalizedText("checkbox.convertGuides"));
-        convertGuidesCheckbox.helpTip = getLocalizedText("tip.convertGuides");
+        var convertGuidesCheckbox = convertPanel.add("checkbox", undefined, getLabel("checkbox.convertGuides"));
+        convertGuidesCheckbox.helpTip = getLabel("tip.convertGuides");
         convertGuidesCheckbox.value = true;
 
         var extendInput = addUnitField(convertPanel, "field.extend", String(DEFAULT_EXTEND), unitLabel, "tip.extend");
 
         /* 変換のスコープ（重なるすべてのアートボード。一番下）/ Conversion scope (every overlapping artboard; bottom) */
-        var allArtboardsCheckbox = convertPanel.add("checkbox", undefined, getLocalizedText("checkbox.allArtboards"));
-        allArtboardsCheckbox.helpTip = getLocalizedText("tip.allArtboards");
+        var allArtboardsCheckbox = convertPanel.add("checkbox", undefined, getLabel("checkbox.allArtboards"));
+        allArtboardsCheckbox.helpTip = getLabel("tip.allArtboards");
         allArtboardsCheckbox.value = false;
 
         /* マスターOFF時にディムする要素 / Elements dimmed when the master toggle is OFF */
@@ -406,7 +406,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         if (convertibleCount === 0) {
             convertGuidesCheckbox.value = false;
             convertGuidesCheckbox.enabled = false;
-            convertPanel.add("statictext", undefined, getLocalizedText("hint.noConvertTargets"));
+            convertPanel.add("statictext", undefined, getLabel("hint.noConvertTargets"));
         }
         convertGuidesCheckbox.onClick(); // 初期状態を反映 / apply initial state
 
@@ -423,7 +423,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         var convertibleCount = convertTargets.length;
 
         /* ダイアログ本体 / Dialog window */
-        var dialog = new Window("dialog", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = ["fill", "top"];
         dialog.margins = 16;
@@ -437,14 +437,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
         var edgeControls = buildEdgePanel(dialog, unitLabel);
 
         /* プレビュー切り替え（既定ON）/ Preview toggle (default ON) */
-        var previewCheckbox = dialog.add("checkbox", undefined, getLocalizedText("checkbox.preview"));
+        var previewCheckbox = dialog.add("checkbox", undefined, getLabel("checkbox.preview"));
         previewCheckbox.value = true;
 
         /* ボタン（左右中央・上にマージン5・Mac 順：Cancel → OK）/ Buttons (centered, 5px top margin, Mac order: Cancel → OK) */
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "center";
         buttonGroup.margins = [0, 5, 0, 0];
-        var cancelButton = buttonGroup.add("button", undefined, getLocalizedText("button.cancel"), { name: "cancel" });
+        var cancelButton = buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         /* 現在のUIから設定を読み取る / Read options from the current UI */
@@ -820,7 +820,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n56d9c936a364"; /* 紹�
 
         /* ドキュメントの有無を確認 / Check that a document is open */
         if (app.documents.length === 0) {
-            alert(getLocalizedText("alert.noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
 

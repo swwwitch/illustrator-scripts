@@ -37,9 +37,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
 (function () {
 
-    #target illustrator
-    app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
     // ユーザー設定 / User settings
     // =========================================
 
@@ -312,7 +309,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
     };
 
     /* ドット区切りのキーでラベルを取得 / Resolve a label by dot-separated key path */
-    function L(labelPath) {
+    function getLabel(labelPath) {
         var keys = labelPath.split(".");
         var node = LABELS;
         for (var i = 0; i < keys.length; i++) {
@@ -325,15 +322,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(labelPath) {
-        return L(labelPath) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(labelPath) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
     function labelWithCount(labelPath, count) {
         if (currentLanguage === "ja") {
-            return L(labelPath) + "（" + count + "）";
+            return getLabel(labelPath) + "（" + count + "）";
         }
-        return L(labelPath) + " (" + count + ")";
+        return getLabel(labelPath) + " (" + count + ")";
     }
 
     // =========================================
@@ -371,26 +368,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         /* ドキュメントの有無を確認 / Ensure a document is open */
         if (app.documents.length === 0) {
-            alert(L("alert.noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
-        var activeDocument = app.activeDocument;
+        var documentRef = app.activeDocument;
 
         // -----------------------------------------
         // ダイアログ / Dialog
         // -----------------------------------------
 
-        var mainDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         mainDialog.orientation = "column";
         mainDialog.alignChildren = "left";
 
         /* 対象パネル（ラジオは縦並び）/ Target panel (radios in a column) */
         var targetPanel = addPanel(mainDialog, "panel.target");
-        targetPanel.helpTip = L("tooltip.target");
-        var rbTargetSelection = targetPanel.add("radiobutton", undefined, L("radio.targetSelection"));
-        var rbTargetDocument = targetPanel.add("radiobutton", undefined, L("radio.targetDocument"));
-        var rbTargetArtboard = targetPanel.add("radiobutton", undefined, L("radio.targetArtboard"));
+        targetPanel.helpTip = getLabel("tooltip.target");
+        var rbTargetSelection = targetPanel.add("radiobutton", undefined, getLabel("radio.targetSelection"));
+        var rbTargetDocument = targetPanel.add("radiobutton", undefined, getLabel("radio.targetDocument"));
+        var rbTargetArtboard = targetPanel.add("radiobutton", undefined, getLabel("radio.targetArtboard"));
         rbTargetSelection.value = true;
 
         /* 変換設定パネル（文字セット/N/UD/P と Max/MaxN をまとめる）/ Conversion panel (variant columns + presets) */
@@ -403,8 +400,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         /* 左カラム: 文字セットパネル（Std/Pro/Pr5/Pr6 はローカライズ不要の固有名）/ Left: character set */
         var charsetPanel = addPanel(variantColumns, "panel.charset");
-        charsetPanel.helpTip = L("tooltip.charset");
-        var rbCharsetKeep = charsetPanel.add("radiobutton", undefined, L("radio.keep"));
+        charsetPanel.helpTip = getLabel("tooltip.charset");
+        var rbCharsetKeep = charsetPanel.add("radiobutton", undefined, getLabel("radio.keep"));
         var rbCharsetStd = charsetPanel.add("radiobutton", undefined, "Std");
         var rbCharsetPro = charsetPanel.add("radiobutton", undefined, "Pro");
         var rbCharsetPr5 = charsetPanel.add("radiobutton", undefined, "Pr5");
@@ -416,18 +413,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         setupGroup(nNtColumn, "column");
 
         var nVariantPanel = addPanel(nNtColumn, "panel.nSetting");
-        nVariantPanel.helpTip = L("tooltip.nSetting");
-        var rbNKeep = nVariantPanel.add("radiobutton", undefined, L("radio.keep"));
-        var rbNOff = nVariantPanel.add("radiobutton", undefined, L("radio.nOff"));
-        var rbNOn = nVariantPanel.add("radiobutton", undefined, L("radio.nOn"));
+        nVariantPanel.helpTip = getLabel("tooltip.nSetting");
+        var rbNKeep = nVariantPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+        var rbNOff = nVariantPanel.add("radiobutton", undefined, getLabel("radio.nOff"));
+        var rbNOn = nVariantPanel.add("radiobutton", undefined, getLabel("radio.nOn"));
         rbNKeep.value = true;
 
         /* NT 設定パネル（新ゴ ⇄ 新ゴNT）/ NT panel (ShinGo <-> ShinGo NT) */
         var ntPanel = addPanel(nNtColumn, "panel.ntSetting");
-        ntPanel.helpTip = L("tooltip.nt");
-        var rbNTKeep = ntPanel.add("radiobutton", undefined, L("radio.keep"));
-        var rbNTOff = ntPanel.add("radiobutton", undefined, L("radio.ntOff"));
-        var rbNTOn = ntPanel.add("radiobutton", undefined, L("radio.ntOn"));
+        ntPanel.helpTip = getLabel("tooltip.nt");
+        var rbNTKeep = ntPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+        var rbNTOff = ntPanel.add("radiobutton", undefined, getLabel("radio.ntOff"));
+        var rbNTOn = ntPanel.add("radiobutton", undefined, getLabel("radio.ntOn"));
         rbNTKeep.value = true;
 
         /* 右カラム: UD 設定・P 設定 / Right: UD and P */
@@ -435,17 +432,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         setupGroup(udProportionalColumn, "column");
 
         var udVariantPanel = addPanel(udProportionalColumn, "panel.udSetting");
-        udVariantPanel.helpTip = L("tooltip.udSetting");
-        var rbUDKeep = udVariantPanel.add("radiobutton", undefined, L("radio.keep"));
-        var rbUDOff = udVariantPanel.add("radiobutton", undefined, L("radio.udOff"));
-        var rbUDOn = udVariantPanel.add("radiobutton", undefined, L("radio.udOn"));
+        udVariantPanel.helpTip = getLabel("tooltip.udSetting");
+        var rbUDKeep = udVariantPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+        var rbUDOff = udVariantPanel.add("radiobutton", undefined, getLabel("radio.udOff"));
+        var rbUDOn = udVariantPanel.add("radiobutton", undefined, getLabel("radio.udOn"));
         rbUDKeep.value = true;
 
         var proportionalPanel = addPanel(udProportionalColumn, "panel.pSetting");
-        proportionalPanel.helpTip = L("tooltip.pSetting");
-        var rbPKeep = proportionalPanel.add("radiobutton", undefined, L("radio.keep"));
-        var rbPOff = proportionalPanel.add("radiobutton", undefined, L("radio.pOff"));
-        var rbPOn = proportionalPanel.add("radiobutton", undefined, L("radio.pOn"));
+        proportionalPanel.helpTip = getLabel("tooltip.pSetting");
+        var rbPKeep = proportionalPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+        var rbPOff = proportionalPanel.add("radiobutton", undefined, getLabel("radio.pOff"));
+        var rbPOn = proportionalPanel.add("radiobutton", undefined, getLabel("radio.pOn"));
         rbPKeep.value = true;
 
         /* 文字セット名 → ラジオボタンの対応 / Map charset name to its radio button */
@@ -486,7 +483,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         presetRow.alignment = ["center", "top"]; // 左右中央 / horizontally centered
         presetRow.margins = [0, 5, 0, 0]; // 上に 5px の余白 / 5px top margin
         var presetMaxButton = presetRow.add("button", undefined, "Max");
-        presetMaxButton.helpTip = L("tooltip.presetMax");
+        presetMaxButton.helpTip = getLabel("tooltip.presetMax");
         presetMaxButton.onClick = function () {
             applyRichestCharset(CHARSET_RANK_NO_N);
             rbUDOn.value = true;
@@ -495,7 +492,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             maxPresetActive = true;
         };
         var presetMaxNButton = presetRow.add("button", undefined, "MaxN");
-        presetMaxNButton.helpTip = L("tooltip.presetMaxN");
+        presetMaxNButton.helpTip = getLabel("tooltip.presetMaxN");
         presetMaxNButton.onClick = function () {
             applyRichestCharset(CHARSET_RANK_WITH_N);
             rbUDOn.value = true;
@@ -506,24 +503,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         /* オプションパネル / Options panel */
         var optionsPanel = addPanel(mainDialog, "panel.options");
-        var cbIntegrateGakusan = optionsPanel.add("checkbox", undefined, L("checkbox.integrateGakusan"));
-        cbIntegrateGakusan.helpTip = L("tooltip.integrateGakusan");
+        var cbIntegrateGakusan = optionsPanel.add("checkbox", undefined, getLabel("checkbox.integrateGakusan"));
+        cbIntegrateGakusan.helpTip = getLabel("tooltip.integrateGakusan");
         cbIntegrateGakusan.value = INTEGRATE_GAKUSAN_TO_STANDARD;
-        var cbIncludeStyles = optionsPanel.add("checkbox", undefined, L("checkbox.includeStyles"));
-        cbIncludeStyles.helpTip = L("tooltip.includeStyles");
+        var cbIncludeStyles = optionsPanel.add("checkbox", undefined, getLabel("checkbox.includeStyles"));
+        cbIncludeStyles.helpTip = getLabel("tooltip.includeStyles");
         cbIncludeStyles.value = true;
-        var cbIncludeLocked = optionsPanel.add("checkbox", undefined, L("checkbox.includeLocked"));
-        cbIncludeLocked.helpTip = L("tooltip.includeLocked");
+        var cbIncludeLocked = optionsPanel.add("checkbox", undefined, getLabel("checkbox.includeLocked"));
+        cbIncludeLocked.helpTip = getLabel("tooltip.includeLocked");
         cbIncludeLocked.value = false;
-        var cbIncludeHidden = optionsPanel.add("checkbox", undefined, L("checkbox.includeHidden"));
-        cbIncludeHidden.helpTip = L("tooltip.includeHidden");
+        var cbIncludeHidden = optionsPanel.add("checkbox", undefined, getLabel("checkbox.includeHidden"));
+        cbIncludeHidden.helpTip = getLabel("tooltip.includeHidden");
         cbIncludeHidden.value = false;
 
         /* ボタン（Mac 規約: キャンセル → OK、OK は非ローカライズ）/ Buttons (Mac order: Cancel then OK, OK is not localized) */
         var buttonRow = mainDialog.add("group");
         buttonRow.orientation = "row";
         buttonRow.alignment = "right";
-        var cancelButton = buttonRow.add("button", undefined, L("button.cancel"));
+        var cancelButton = buttonRow.add("button", undefined, getLabel("button.cancel"));
         var okButton = buttonRow.add("button", undefined, "OK");
 
         cancelButton.onClick = function () { mainDialog.close(0); };
@@ -560,8 +557,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         var confirmBeforeRun = CONFIRM_BEFORE_RUN;
 
         /* 選択モードなのに未選択ならエラー / Error if selection mode but nothing selected */
-        if (targetMode === "selection" && activeDocument.selection.length === 0) {
-            alert(L("alert.noSelection"));
+        if (targetMode === "selection" && documentRef.selection.length === 0) {
+            alert(getLabel("alert.noSelection"));
             return;
         }
 
@@ -575,7 +572,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         sortFramesByCanvasPosition(targetFrames);
 
         if (targetFrames.length === 0 && !includeStyles) {
-            alert(L("alert.noTarget"));
+            alert(getLabel("alert.noTarget"));
             return;
         }
 
@@ -600,12 +597,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         /* 段落・文字スタイルもスキャン / Scan paragraph and character styles too */
         if (includeStyles) {
-            scanStylesForChanges(activeDocument.paragraphStyles);
-            scanStylesForChanges(activeDocument.characterStyles);
+            scanStylesForChanges(documentRef.paragraphStyles);
+            scanStylesForChanges(documentRef.characterStyles);
         }
 
         if (directChanges.length === 0 && weightSubChanges.length === 0 && missingChanges.length === 0) {
-            alert(L("alert.noChange"));
+            alert(getLabel("alert.noChange"));
             return;
         }
 
@@ -640,11 +637,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
         }
         // スタイルは適用のみ（テキストオブジェクト数には数えない）/ Styles are applied but not counted as text objects
         if (includeStyles) {
-            applyChangesToStyles(activeDocument.paragraphStyles, fontNameMap);
-            applyChangesToStyles(activeDocument.characterStyles, fontNameMap);
+            applyChangesToStyles(documentRef.paragraphStyles, fontNameMap);
+            applyChangesToStyles(documentRef.characterStyles, fontNameMap);
         }
 
-        alert(L("alert.done") + "\n\n" + labelText("alert.changedCount") + changedCount);
+        alert(getLabel("alert.done") + "\n\n" + labelText("alert.changedCount") + changedCount);
 
         // =========================================
         // 対象収集 / Target collection
@@ -666,19 +663,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
                 return collectDocumentFrames(null);
             }
             if (mode === "artboard") {
-                var activeIndex = activeDocument.artboards.getActiveArtboardIndex();
-                return collectDocumentFrames(activeDocument.artboards[activeIndex].artboardRect);
+                var activeIndex = documentRef.artboards.getActiveArtboardIndex();
+                return collectDocumentFrames(documentRef.artboards[activeIndex].artboardRect);
             }
             var selectedFrames = [];
-            collectFramesFromSelection(activeDocument.selection, selectedFrames);
+            collectFramesFromSelection(documentRef.selection, selectedFrames);
             return selectedFrames;
         }
 
         /* ドキュメント内の全テキストフレームをロック/非表示フィルタ付きで集める / Collect document frames with lock/hidden filtering */
         function collectDocumentFrames(artboardRect) {
             var collected = [];
-            for (var i = 0; i < activeDocument.textFrames.length; i++) {
-                var frame = activeDocument.textFrames[i];
+            for (var i = 0; i < documentRef.textFrames.length; i++) {
+                var frame = documentRef.textFrames[i];
                 if (!includeLocked && isLockedEffective(frame)) continue;
                 if (!includeHidden && isHiddenEffective(frame)) continue;
                 if (artboardRect && !boundsIntersect(frame.geometricBounds, artboardRect)) continue;
@@ -1086,7 +1083,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         /* 変更プレビューを表示し、各項目を ON/OFF させて結果を返す / Show preview with per-item ON/OFF and return the result */
         function showConfirmDialog() {
-            var confirmDialog = new Window("dialog", L("confirm.title"));
+            var confirmDialog = new Window("dialog", getLabel("confirm.title"));
             confirmDialog.orientation = "column";
             confirmDialog.alignChildren = "fill";
             // 左右マージンを +10 / Add 10 to left & right margins
@@ -1099,28 +1096,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
             var beforeWidth = computeBeforeColumnWidth(confirmDialog, [directChanges, weightSubChanges]);
 
             if (directChanges.length > 0) {
-                confirmDialog.add("statictext", undefined, L("confirm.willChange"));
+                confirmDialog.add("statictext", undefined, getLabel("confirm.willChange"));
                 addChangeCheckboxes(confirmDialog, directChanges, itemCheckboxes, beforeWidth);
             }
             if (weightSubChanges.length > 0) {
-                confirmDialog.add("statictext", undefined, L("confirm.nearWeight"));
+                confirmDialog.add("statictext", undefined, getLabel("confirm.nearWeight"));
                 addChangeCheckboxes(confirmDialog, weightSubChanges, itemCheckboxes, beforeWidth);
             }
             if (missingChanges.length > 0) {
-                confirmDialog.add("statictext", undefined, L("confirm.notInstalled"));
+                confirmDialog.add("statictext", undefined, getLabel("confirm.notInstalled"));
                 var missingNames = uniqueArray(extractNewFontNames(missingChanges));
                 for (var k = 0; k < missingNames.length; k++) {
                     confirmDialog.add("statictext", undefined, "　" + missingNames[k]);
                 }
             }
 
-            confirmDialog.add("statictext", undefined, L("confirm.prompt"));
+            confirmDialog.add("statictext", undefined, getLabel("confirm.prompt"));
 
             var confirmButtonRow = confirmDialog.add("group");
             confirmButtonRow.orientation = "row";
             confirmButtonRow.alignment = "right";
-            var confirmCancelButton = confirmButtonRow.add("button", undefined, L("button.cancel"));
-            var confirmRunButton = confirmButtonRow.add("button", undefined, L("button.run"));
+            var confirmCancelButton = confirmButtonRow.add("button", undefined, getLabel("button.cancel"));
+            var confirmRunButton = confirmButtonRow.add("button", undefined, getLabel("button.run"));
             confirmCancelButton.onClick = function () { confirmDialog.close(0); };
             confirmRunButton.onClick = function () { confirmDialog.close(1); };
 
@@ -1292,7 +1289,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
 
         /* ダイアログにパネルを追加（共通設定）/ Add a panel to the dialog (shared setup) */
         function addPanel(parent, labelPath, spacing) {
-            var panel = parent.add("panel", undefined, L(labelPath));
+            var panel = parent.add("panel", undefined, getLabel(labelPath));
             setupPanel(panel, spacing);
             return panel;
         }

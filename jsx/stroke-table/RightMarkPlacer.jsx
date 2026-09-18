@@ -82,7 +82,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -171,7 +171,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             if (!entry) break;
             entry = entry[pathParts[i]];
         }
-        if (entry && entry[lang]) return entry[lang];
+        if (entry && entry[uiLang]) return entry[uiLang];
         if (entry && entry.en) return entry.en;
         return labelPath;
     }
@@ -478,17 +478,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             return;
         }
 
-        var activeDocument = app.activeDocument;
+        var documentRef = app.activeDocument;
 
         /* ロック・非表示のレイヤーには作成できないので、先に知らせる / Nothing can be created on a locked or hidden layer */
-        if (activeDocument.activeLayer.locked || !activeDocument.activeLayer.visible) {
+        if (documentRef.activeLayer.locked || !documentRef.activeLayer.visible) {
             alert(getLabel("alert.lockedLayer"));
             return;
         }
 
         var selectedItems = [];
-        for (var selectionIndex = 0; selectionIndex < activeDocument.selection.length; selectionIndex++) {
-            selectedItems.push(activeDocument.selection[selectionIndex]);
+        for (var selectionIndex = 0; selectionIndex < documentRef.selection.length; selectionIndex++) {
+            selectedItems.push(documentRef.selection[selectionIndex]);
         }
 
         if (selectedItems.length < 2) {
@@ -549,7 +549,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
          * @returns {void}
          */
         function restoreSelection(items) {
-            activeDocument.selection = null;
+            documentRef.selection = null;
             for (var i = 0; i < items.length; i++) {
                 selectItemSafely(items[i], getLabel("log.restoreSelection"));
             }
@@ -1480,7 +1480,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
          * @returns {object} 作成した PathItem。
          */
         function createStrokedPath(points, strokeWidthPt, endOptions, closed) {
-            var path = activeDocument.activeLayer.pathItems.add();
+            var path = documentRef.activeLayer.pathItems.add();
             path.setEntirePath(points);
             path.closed = !!closed;
             path.filled = false;
@@ -1498,7 +1498,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
          * @returns {object} 作成した PathItem。
          */
         function createFilledPath(points) {
-            var path = activeDocument.activeLayer.pathItems.add();
+            var path = documentRef.activeLayer.pathItems.add();
             path.setEntirePath(points);
             path.closed = true;
             path.filled = true;
@@ -1514,7 +1514,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
          * @returns {object} 作成した GroupItem。
          */
         function groupItems(items) {
-            var group = activeDocument.activeLayer.groupItems.add();
+            var group = documentRef.activeLayer.groupItems.add();
             for (var i = 0; i < items.length; i++) {
                 items[i].move(group, ElementPlacement.INSIDE);
             }
@@ -1701,19 +1701,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
             var outlinedShaft = parts.shaft;
 
             try {
-                activeDocument.selection = [parts.shaft];
+                documentRef.selection = [parts.shaft];
                 app.executeMenuCommand("Live Outline Stroke");
-                if (activeDocument.selection && activeDocument.selection.length > 0) {
-                    outlinedShaft = activeDocument.selection[0];
+                if (documentRef.selection && documentRef.selection.length > 0) {
+                    outlinedShaft = documentRef.selection[0];
                 }
 
-                activeDocument.selection = [outlinedShaft, parts.head];
+                documentRef.selection = [outlinedShaft, parts.head];
                 app.executeMenuCommand("group");
                 app.executeMenuCommand("Live Pathfinder Add");
 
                 /* 1つにまとまったときだけ成功とみなす / Treat it as merged only when a single item is left */
-                if (activeDocument.selection && activeDocument.selection.length === 1) {
-                    return activeDocument.selection[0];
+                if (documentRef.selection && documentRef.selection.length === 1) {
+                    return documentRef.selection[0];
                 }
             } catch (e) {
                 logScriptError(getLabel("log.mergeSolidArrow"), e);
@@ -2102,7 +2102,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
             /* ➡ だけは選択状態を使うメニューコマンドを呼ぶため、ここで1回だけ退避・復元する / Only the solid arrow drives menu commands, so save and restore the selection once */
             var previousSelection = (values.shapeKey === "arrow3")
-                ? collectionToArray(activeDocument.selection)
+                ? collectionToArray(documentRef.selection)
                 : null;
 
             try {
@@ -2309,7 +2309,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
 
             /* プレビューがあれば、それをそのまま結果として確定する / When a preview exists, keep it as the result */
             if (previewItems.length > 0) {
-                activeDocument.selection = previewItems;
+                documentRef.selection = previewItems;
                 previewItems = [];
                 dialog.close(1);
                 return;
@@ -2322,7 +2322,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
                 alert(getLabel("alert.noGap"));
                 return;
             }
-            activeDocument.selection = createdItems;
+            documentRef.selection = createdItems;
         };
 
         controls.cancelButton.onClick = function () {

@@ -44,7 +44,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -175,9 +175,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
      * @param {string} key - LABELS のキー
      * @returns {string} ロケールに対応する文言。見つからない場合はキーをそのまま返す
      */
-    function L(key) {
+    function getLabel(key) {
       try {
-        return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
+        return (LABELS[key] && LABELS[key][uiLang]) ? LABELS[key][uiLang] : key;
       } catch (e) {
         return key;
       }
@@ -434,7 +434,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         } catch (e) {}
 
         // --- ダイアログボックス / Dialog ---
-        var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = ["fill", "top"];
 
@@ -452,7 +452,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         rightColumn.alignChildren = ["fill", "top"];
 
         // --- 表示 / Display ---
-        var displayPanel = leftColumn.add("panel", undefined, L("panelSampleSettings"));
+        var displayPanel = leftColumn.add("panel", undefined, getLabel("panelSampleSettings"));
         displayPanel.orientation = "column";
         displayPanel.alignChildren = ["fill", "top"];
         displayPanel.margins = [15, 20, 15, 10];
@@ -469,7 +469,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var textUnitLabel = getCurrentTextUnitLabel();
 
         // ラベル末尾の「:」を除去（ja/en両対応） / Remove trailing colon from label
-        var fontSizeLabelText = String(L("labelFontSize")).replace(/[:：]\s*$/, "");
+        var fontSizeLabelText = String(getLabel("labelFontSize")).replace(/[:：]\s*$/, "");
         fontSizeGroup.add("statictext", undefined, fontSizeLabelText);
 
         var defaultFontSizeDisplay = ptToCurrentTextUnit(defaultFontSizePt);
@@ -480,7 +480,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         fontSizeGroup.add("statictext", undefined, "(" + textUnitLabel + ")");
 
         // --- 表示オプション / Display options ---
-        var displayOptionGroup = rightColumn.add("panel", undefined, L("panelFontNameDisplay"));
+        var displayOptionGroup = rightColumn.add("panel", undefined, getLabel("panelFontNameDisplay"));
         displayOptionGroup.orientation = "column";
         displayOptionGroup.alignChildren = ["left", "top"];
         displayOptionGroup.margins = [15, 20, 15, 10];
@@ -488,14 +488,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var showFontNameCheckbox = displayOptionGroup.add(
             "checkbox",
             undefined,
-            L("checkboxShowFontName")
+            getLabel("checkboxShowFontName")
         );
         showFontNameCheckbox.value = true;
 
         var showPostScriptNameCheckbox = displayOptionGroup.add(
             "checkbox",
             undefined,
-            L("checkboxShowPostScriptName")
+            getLabel("checkboxShowPostScriptName")
         );
         showPostScriptNameCheckbox.value = false;
 
@@ -504,7 +504,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         fullWidthGroup.orientation = "column";
         fullWidthGroup.alignChildren = ["fill", "top"];
 
-        var excludeListPanel = fullWidthGroup.add("panel", undefined, L("panelExcludeList"));
+        var excludeListPanel = fullWidthGroup.add("panel", undefined, getLabel("panelExcludeList"));
         excludeListPanel.orientation = "column";
         excludeListPanel.alignChildren = ["fill", "top"];
         excludeListPanel.margins = [15, 20, 15, 10];
@@ -522,35 +522,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var excludeItalicCheckbox = excludeCol1.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeItalic")
+            getLabel("checkboxExcludeItalic")
         );
         excludeItalicCheckbox.value = true; // 既定で除外 / Default: exclude
 
         var excludeSystemFontsCheckbox = excludeCol1.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeSystemFonts")
+            getLabel("checkboxExcludeSystemFonts")
         );
         excludeSystemFontsCheckbox.value = true;
 
         var excludeVariableFontsCheckbox = excludeCol1.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeVariableFonts")
+            getLabel("checkboxExcludeVariableFonts")
         );
         excludeVariableFontsCheckbox.value = true;
 
         var excludeIllustratorBundledCheckbox = excludeCol1.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeIllustratorBundled")
+            getLabel("checkboxExcludeIllustratorBundled")
         );
         excludeIllustratorBundledCheckbox.value = true;
 
         var excludeCompositeFontsCheckbox = excludeCol1.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeCompositeFonts")
+            getLabel("checkboxExcludeCompositeFonts")
         );
         excludeCompositeFontsCheckbox.value = true;
 
@@ -562,42 +562,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var excludeKoreanCheckbox = excludeCol2.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeKorean")
+            getLabel("checkboxExcludeKorean")
         );
         excludeKoreanCheckbox.value = true;
 
         var excludeChineseSCCheckbox = excludeCol2.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeChineseSC")
+            getLabel("checkboxExcludeChineseSC")
         );
         excludeChineseSCCheckbox.value = true;
 
         var excludeChineseTCCheckbox = excludeCol2.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeChineseTC")
+            getLabel("checkboxExcludeChineseTC")
         );
         excludeChineseTCCheckbox.value = true;
 
         var excludeHebrewCheckbox = excludeCol2.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeHebrew")
+            getLabel("checkboxExcludeHebrew")
         );
         excludeHebrewCheckbox.value = true;
 
         var excludeThaiCheckbox = excludeCol2.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeThai")
+            getLabel("checkboxExcludeThai")
         );
         excludeThaiCheckbox.value = true;
 
         var excludeArabicCheckbox = excludeCol2.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeArabic")
+            getLabel("checkboxExcludeArabic")
         );
         excludeArabicCheckbox.value = true;
 
@@ -609,19 +609,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var excludeMorisawaCheckbox = excludeCol3.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeMorisawa")
+            getLabel("checkboxExcludeMorisawa")
         );
         excludeMorisawaCheckbox.value = true;
 
         var excludeFontworksCheckbox = excludeCol3.add(
             "checkbox",
             undefined,
-            L("checkboxExcludeFontworks")
+            getLabel("checkboxExcludeFontworks")
         );
         excludeFontworksCheckbox.value = true;
 
         // --- 除外リスト / Exclude list ---
-        var excludeOptionGroup = excludeCol3.add("panel", undefined, L("panelExcludeAdd"));
+        var excludeOptionGroup = excludeCol3.add("panel", undefined, getLabel("panelExcludeAdd"));
         excludeOptionGroup.orientation = "column";
         excludeOptionGroup.alignChildren = ["left", "top"];
         excludeOptionGroup.margins = [15, 20, 15, 10];
@@ -629,13 +629,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var addSelectedFontToExcludeCheckbox = excludeOptionGroup.add(
             "checkbox",
             undefined,
-            L("checkboxAddSelectedFontToExclude")
+            getLabel("checkboxAddSelectedFontToExclude")
         );
         addSelectedFontToExcludeCheckbox.value = false;
 
         var selectedFontLabelText = hasSelectedText && selectedFontName
-            ? (L("labelSelectedFontPrefix") + selectedFontName)
-            : (L("labelSelectedFontPrefix") + L("labelSelectedFontNone"));
+            ? (getLabel("labelSelectedFontPrefix") + selectedFontName)
+            : (getLabel("labelSelectedFontPrefix") + getLabel("labelSelectedFontNone"));
         var selectedFontLabel = excludeOptionGroup.add("statictext", undefined, selectedFontLabelText);
 
         // 選択テキストがない場合は無効化 / Disable when there is no selected text font
@@ -645,8 +645,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
 
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "right";
-        var cancelButton = buttonGroup.add("button", undefined, L("buttonCancel"), {name:"cancel"});
-        var okButton = buttonGroup.add("button", undefined, L("buttonOK"), {name:"ok"});
+        var cancelButton = buttonGroup.add("button", undefined, getLabel("buttonCancel"), {name:"cancel"});
+        var okButton = buttonGroup.add("button", undefined, getLabel("buttonOK"), {name:"ok"});
 
         if (dialog.show() !== 1) return;
 
@@ -701,7 +701,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var fontCount = allFonts.length; // パフォーマンス改善のためキャッシュ
 
         // --- 進捗表示（プログレスバー） / Progress bar ---
-        var progressPalette = new Window("palette", L("progressTitle"));
+        var progressPalette = new Window("palette", getLabel("progressTitle"));
         progressPalette.orientation = "column";
         progressPalette.alignChildren = ["fill", "top"];
 
@@ -713,14 +713,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var progressButtonGroup = progressPalette.add("group");
         progressButtonGroup.alignment = "right";
 
-        var progressCancelButton = progressButtonGroup.add("button", undefined, L("progressCancel"));
+        var progressCancelButton = progressButtonGroup.add("button", undefined, getLabel("progressCancel"));
         var isCancelled = false;
 
         progressCancelButton.onClick = function () {
             isCancelled = true;
             try {
                 progressCancelButton.enabled = false;
-                progressLabel.text = L("progressCancelled");
+                progressLabel.text = getLabel("progressCancelled");
                 progressPalette.update();
             } catch (e) {}
         };

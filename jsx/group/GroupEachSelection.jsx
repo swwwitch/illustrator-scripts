@@ -44,10 +44,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     var doc = app.activeDocument;
-    var sel = doc.selection;
+    var currentSelection = doc.selection;
 
     // オブジェクトが選択されているか確認
-    if (sel.length === 0) {
+    if (currentSelection.length === 0) {
         alert("オブジェクトが選択されていません。");
         return;
     }
@@ -57,8 +57,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // いったん配列にコピーしてから処理するのが一般的ですが、
     // 今回は単純な移動なのでループで回します。
 
-    for (var i = 0; i < sel.length; i++) {
-        var item = sel[i];
+    for (var i = 0; i < currentSelection.length; i++) {
+        var item = currentSelection[i];
 
         // すでにグループ化されているものをさらにグループ化するのか、
         // 単体のパスなどをグループに入れるのかに関わらず、

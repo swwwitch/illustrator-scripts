@@ -356,11 +356,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
     };
 
     /**
-     * ドット記法でローカライズ済み文字列を取得 / Get the localized string by dotted key (e.g. L('dialog.title'))
+     * ドット記法でローカライズ済み文字列を取得 / Get the localized string by dotted key (e.g. getLabel('dialog.title'))
      * @param {string} path ドット記法のキー（例 'dialog.title'）
      * @returns {string} 現在の言語のラベル（未定義ならキーをそのまま）
      */
-    function L(path) {
+    function getLabel(path) {
         var parts = String(path).split('.');
         var entry = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -376,7 +376,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {string} コロンを付けたラベル
      */
     function labelText(path) {
-        return L(path) + (currentLanguage === 'ja' ? '：' : ':');
+        return getLabel(path) + (currentLanguage === 'ja' ? '：' : ':');
     }
 
     // =========================================
@@ -1385,7 +1385,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      */
     function ensureTargetFolder(folder) {
         if (folder) return folder;
-        var pickedFile = pickAiDestination(L('message.chooseDestination'));
+        var pickedFile = pickAiDestination(getLabel('message.chooseDestination'));
         return pickedFile ? pickedFile.parent : null;
     }
 
@@ -1399,7 +1399,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         if (!destFile.exists) return true;
         // 大文字小文字・濁点の合成違いだけのリネームは自分自身への上書きなので確認しない
         if (isSamePathSpelling(destFile.fsName, originalFsPath)) return true;
-        return confirm(L('message.confirmOverwrite') + '\n\n' + destFile.fsName);
+        return confirm(getLabel('message.confirmOverwrite') + '\n\n' + destFile.fsName);
     }
 
     /**
@@ -1469,14 +1469,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
             if (!doc.saved) doc.save();
             var originalFile = File(originalFsPath);
             if (!originalFile.exists) {
-                throw new Error(L('message.saveFailed') + '\n' + destFile.fsName);
+                throw new Error(getLabel('message.saveFailed') + '\n' + destFile.fsName);
             }
             // File.copy() は既存ファイルを上書きしない。上書きは確認済みなので先に取り除く
             if (destFile.exists && !destFile.remove()) {
-                throw new Error(L('message.saveFailed') + '\n' + destFile.fsName);
+                throw new Error(getLabel('message.saveFailed') + '\n' + destFile.fsName);
             }
             if (!originalFile.copy(destFile)) {
-                throw new Error(L('message.saveFailed') + '\n' + destFile.fsName);
+                throw new Error(getLabel('message.saveFailed') + '\n' + destFile.fsName);
             }
             return;
         }
@@ -1603,12 +1603,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {object} パネル内のコントロール
      */
     function buildSortPanel(parent, currentOrderAvailable) {
-        var panel = parent.add('panel', undefined, L('panel.sort'));
+        var panel = parent.add('panel', undefined, getLabel('panel.sort'));
         setupPanel(panel);
-        var sortOffRadio = panel.add('radiobutton', undefined, L('radio.sortOff'));
-        sortOffRadio.helpTip = L('tip.sort');
-        var sortCurrentRadio = panel.add('radiobutton', undefined, L('radio.sortCurrent'));
-        sortCurrentRadio.helpTip = L('tip.sort');
+        var sortOffRadio = panel.add('radiobutton', undefined, getLabel('radio.sortOff'));
+        sortOffRadio.helpTip = getLabel('tip.sort');
+        var sortCurrentRadio = panel.add('radiobutton', undefined, getLabel('radio.sortCurrent'));
+        sortCurrentRadio.helpTip = getLabel('tip.sort');
         if (!currentOrderAvailable) sortCurrentRadio.enabled = false;
         // 「カスタム順」ラジオと「順序を編集...」ボタンを同じ行に並べる
         var customRow = panel.add('group');
@@ -1616,9 +1616,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         customRow.alignment = ['fill', 'top'];
         customRow.alignChildren = ['left', 'center'];
         customRow.spacing = 8;
-        var sortOnRadio = customRow.add('radiobutton', undefined, L('radio.sortOn'));
-        sortOnRadio.helpTip = L('tip.sort');
-        var sortButton = customRow.add('button', undefined, L('button.sort'));
+        var sortOnRadio = customRow.add('radiobutton', undefined, getLabel('radio.sortOn'));
+        sortOnRadio.helpTip = getLabel('tip.sort');
+        var sortButton = customRow.add('button', undefined, getLabel('button.sort'));
         // 並び順の初期値は prefs を見ず、常に「現在のファイル名に準じる」（不可なら「標準順」）に固定
         var initialSort = currentOrderAvailable ? 'current' : 'off';
         /**
@@ -1663,10 +1663,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {object} パネル内のコントロール
      */
     function buildOpModePanel(parent, defaultVersionOnly) {
-        var panel = parent.add('panel', undefined, L('panel.opMode'));
+        var panel = parent.add('panel', undefined, getLabel('panel.opMode'));
         setupPanel(panel);
-        var versionOnlyRadio = panel.add('radiobutton', undefined, L('radio.opVersionOnly'));
-        var fullRadio = panel.add('radiobutton', undefined, L('radio.opFull'));
+        var versionOnlyRadio = panel.add('radiobutton', undefined, getLabel('radio.opVersionOnly'));
+        var fullRadio = panel.add('radiobutton', undefined, getLabel('radio.opFull'));
         versionOnlyRadio.value = !!defaultVersionOnly;
         fullRadio.value = !defaultVersionOnly;
         return {
@@ -1685,18 +1685,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {object} パネル内のコントロール
      */
     function buildModePanel(parent, isNative) {
-        var panel = parent.add('panel', undefined, L('panel.mode'));
+        var panel = parent.add('panel', undefined, getLabel('panel.mode'));
         setupPanel(panel);
-        var renameRadio = panel.add('radiobutton', undefined, L('radio.rename'));
+        var renameRadio = panel.add('radiobutton', undefined, getLabel('radio.rename'));
         // .ai 以外の書類は保存が形式変換になるため、元ファイルを消すリネームは選ばせない
         renameRadio.enabled = !!isNative;
-        renameRadio.helpTip = isNative ? L('tip.rename') : L('tip.nonNativeUnsupported');
-        var saveAsRadio = panel.add('radiobutton', undefined, L('radio.saveAs'));
-        saveAsRadio.helpTip = L('tip.saveAs');
-        var saveCopyRadio = panel.add('radiobutton', undefined, L('radio.saveCopy'));
+        renameRadio.helpTip = isNative ? getLabel('tip.rename') : getLabel('tip.nonNativeUnsupported');
+        var saveAsRadio = panel.add('radiobutton', undefined, getLabel('radio.saveAs'));
+        saveAsRadio.helpTip = getLabel('tip.saveAs');
+        var saveCopyRadio = panel.add('radiobutton', undefined, getLabel('radio.saveCopy'));
         // コピーは元ファイルのバイトコピーなので、.ai 以外だと中身と拡張子が食い違う
         saveCopyRadio.enabled = !!isNative;
-        saveCopyRadio.helpTip = isNative ? L('tip.saveCopy') : L('tip.nonNativeUnsupported');
+        saveCopyRadio.helpTip = isNative ? getLabel('tip.saveCopy') : getLabel('tip.nonNativeUnsupported');
         // 初期選択は常に「別名で保存」
         renameRadio.value = false;
         saveAsRadio.value = true;
@@ -1722,7 +1722,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {object} パネル内のコントロールとラベル参照
      */
     function buildFilenamePanel(parent, currentName) {
-        var panel = parent.add('panel', undefined, L('panel.filename'));
+        var panel = parent.add('panel', undefined, getLabel('panel.filename'));
         setupPanel(panel);
 
         var currentNameRow = panel.add('group');
@@ -1758,7 +1758,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {object} パネル内のコントロールと取得関数
      */
     function buildOptionsPanel(parent, segments, prefs, parentFolderName, grandparentFolderName) {
-        var panel = parent.add('panel', undefined, L('panel.options'));
+        var panel = parent.add('panel', undefined, getLabel('panel.options'));
         setupPanel(panel);
 
         // ベース: 検出値を初期表示する入力欄。空欄可、prefs には保存しない
@@ -1766,10 +1766,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         var baseRow = panel.add('group');
         baseRow.orientation = 'row';
         var baseLabel = baseRow.add('statictext', undefined, labelText('label.base'), { justify: 'right' });
-        baseLabel.helpTip = L('tip.base');
+        baseLabel.helpTip = getLabel('tip.base');
         var baseField = baseRow.add('edittext', undefined, detectedBase);
         baseField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
-        baseField.helpTip = L('tip.base');
+        baseField.helpTip = getLabel('tip.base');
 
         // 元ファイル名のテキスト部（base / status / date / version 以外）をサブテキストとして検出
         var detectedTitle = getFirstSegmentValue(segments, 'text');
@@ -1781,16 +1781,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         titleSection.spacing = 4;
 
         var titleRow = addRadioRow(titleSection, 'label.title', 'tip.title', [
-            { key: 'none', text: L('radio.titleNone') },
-            { key: 'custom', text: L('radio.titleCustom') },
-            { key: 'parent', text: L('radio.titleParent') },
-            { key: 'grandparent', text: L('radio.titleGrandparent') }
+            { key: 'none', text: getLabel('radio.titleNone') },
+            { key: 'custom', text: getLabel('radio.titleCustom') },
+            { key: 'parent', text: getLabel('radio.titleParent') },
+            { key: 'grandparent', text: getLabel('radio.titleGrandparent') }
         ]);
         titleRow.group.alignment = ['left', 'top'];
         // 親/2 階層上のフォルダー名がある場合は helpTip にフォルダ名を追記、無ければ無効化
-        if (parentFolderName) titleRow.radios.parent.helpTip = L('tip.title') + ' (' + parentFolderName + ')';
+        if (parentFolderName) titleRow.radios.parent.helpTip = getLabel('tip.title') + ' (' + parentFolderName + ')';
         else titleRow.radios.parent.enabled = false;
-        if (grandparentFolderName) titleRow.radios.grandparent.helpTip = L('tip.title') + ' (' + grandparentFolderName + ')';
+        if (grandparentFolderName) titleRow.radios.grandparent.helpTip = getLabel('tip.title') + ' (' + grandparentFolderName + ')';
         else titleRow.radios.grandparent.enabled = false;
 
         // 「指定」用の入力欄は次の行（ラベル列幅だけ左に余白を入れて radios に揃える）
@@ -1800,7 +1800,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         var titleFieldSpacer = titleFieldRow.add('statictext', undefined, '');
         var titleField = titleFieldRow.add('edittext', undefined, detectedTitle);
         titleField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
-        titleField.helpTip = L('tip.title');
+        titleField.helpTip = getLabel('tip.title');
 
         // 初期モード: 元ファイル名にサブテキストが無ければ「なし」を強制。
         // 検出できた場合は prefs.titleMode を優先、無ければ 'custom'（parent/grandparent は対応フォルダ名必須）
@@ -1832,9 +1832,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
             var statusRow = panel.add('group');
             statusRow.orientation = 'row';
             statusLabel = statusRow.add('statictext', undefined, labelText('label.status'), { justify: 'right' });
-            statusLabel.helpTip = L('tip.status');
+            statusLabel.helpTip = getLabel('tip.status');
             statusDropdown = statusRow.add('dropdownlist', undefined, undefined);
-            statusDropdown.helpTip = L('tip.status');
+            statusDropdown.helpTip = getLabel('tip.status');
             var parsedStatus = getFirstSegmentValue(segments, 'status');
             var initialStatus = parsedStatus || ((prefs && prefs.status) ? prefs.status : '');
             var initialStatusIndex = -1;
@@ -1856,17 +1856,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         // タイムスタンプ（なし / YYYYMMDD / YYYY-MM-DD。デフォルト YYYYMMDD）
         // 末尾に「時刻も付与」(HHMM) チェックボックスを同居
         var timestampRow = addRadioRow(panel, 'label.timestamp', 'tip.timestamp', [
-            { key: 'none', text: L('radio.timestampNone') },
-            { key: 'date', text: L('radio.timestampDate') },
-            { key: 'dateDash', text: L('radio.timestampDateDash') }
+            { key: 'none', text: getLabel('radio.timestampNone') },
+            { key: 'date', text: getLabel('radio.timestampDate') },
+            { key: 'dateDash', text: getLabel('radio.timestampDateDash') }
         ]);
         var initialTimestamp = pickPref(prefs, 'timestamp', ['none', 'date', 'dateDash'], 'date');
         timestampRow.radios.none.value = (initialTimestamp === 'none');
         timestampRow.radios.date.value = (initialTimestamp === 'date');
         timestampRow.radios.dateDash.value = (initialTimestamp === 'dateDash');
 
-        var timestampHHMMCheckbox = timestampRow.group.add('checkbox', undefined, L('radio.timestampWithTime'));
-        timestampHHMMCheckbox.helpTip = L('tip.timestampWithTime');
+        var timestampHHMMCheckbox = timestampRow.group.add('checkbox', undefined, getLabel('radio.timestampWithTime'));
+        timestampHHMMCheckbox.helpTip = getLabel('tip.timestampWithTime');
         timestampHHMMCheckbox.value = pickPref(prefs, 'timestampTime', ['no', 'hhmm'], 'no') === 'hhmm';
 
         /**
@@ -1902,23 +1902,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
             pageRow = panel.add('group');
             pageRow.orientation = 'row';
             var pageLabel = pageRow.add('statictext', undefined, labelText('label.page'), { justify: 'right' });
-            pageLabel.helpTip = L('tip.page');
-            pageCheckbox = pageRow.add('checkbox', undefined, L('radio.pageEnable'));
-            pageCheckbox.helpTip = L('tip.page');
+            pageLabel.helpTip = getLabel('tip.page');
+            pageCheckbox = pageRow.add('checkbox', undefined, getLabel('radio.pageEnable'));
+            pageCheckbox.helpTip = getLabel('tip.page');
             // 既存の連番を検出したら prefs より優先して必ず ON（既存 pageNN を消さない）
             pageCheckbox.value = detectedPage
                 ? true
                 : (pickPref(prefs, 'pageEnable', ['no', 'yes'], 'no') === 'yes');
             pagePrefixField = pageRow.add('edittext', undefined, '');
             pagePrefixField.preferredSize.width = 60;
-            pagePrefixField.helpTip = L('tip.page');
+            pagePrefixField.helpTip = getLabel('tip.page');
             pagePrefixField.text = detectedPagePrefix
                 ? detectedPagePrefix
                 : ((prefs && typeof prefs.pagePrefix === 'string') ? prefs.pagePrefix : 'page');
-            pagePadRadio2 = pageRow.add('radiobutton', undefined, L('radio.pagePad2'));
-            pagePadRadio2.helpTip = L('tip.page');
-            pagePadRadio3 = pageRow.add('radiobutton', undefined, L('radio.pagePad3'));
-            pagePadRadio3.helpTip = L('tip.page');
+            pagePadRadio2 = pageRow.add('radiobutton', undefined, getLabel('radio.pagePad2'));
+            pagePadRadio2.helpTip = getLabel('tip.page');
+            pagePadRadio3 = pageRow.add('radiobutton', undefined, getLabel('radio.pagePad3'));
+            pagePadRadio3.helpTip = getLabel('tip.page');
             var initialPagePad = detectedPagePad ? detectedPagePad : pickPref(prefs, 'pagePad', ['2', '3'], '2');
             pagePadRadio2.value = (initialPagePad === '2');
             pagePadRadio3.value = (initialPagePad === '3');
@@ -1941,10 +1941,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         // バージョン番号（なし / v1, v2… / v01, v02… / v001, v002…。初期値は「なし」）
         // ES3 で 'short' を裸キーにすると予約語エラーになるため、ローカル変数名は short_ にする
         var versionRow = addRadioRow(panel, 'label.version', 'tip.version', [
-            { key: 'none', text: L('radio.versionNone') },
-            { key: 'short_', text: L('radio.versionShort') },
-            { key: 'padded', text: L('radio.versionPadded') },
-            { key: 'paddedWide', text: L('radio.versionPaddedWide') }
+            { key: 'none', text: getLabel('radio.versionNone') },
+            { key: 'short_', text: getLabel('radio.versionShort') },
+            { key: 'padded', text: getLabel('radio.versionPadded') },
+            { key: 'paddedWide', text: getLabel('radio.versionPaddedWide') }
         ]);
         // デフォルトは「なし」。元ファイルに v 番号がある場合は prefs を優先（無ければ「なし」）
         var hasOriginalVersion = !!getFirstSegmentValue(segments, 'version');
@@ -1960,7 +1960,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         var separatorRow = null;
         if (FEATURE_SEPARATOR) {
             separatorRow = addRadioRow(panel, 'label.separator', 'tip.separator', [
-                { key: 'noChange', text: L('radio.noChange') },
+                { key: 'noChange', text: getLabel('radio.noChange') },
                 { key: 'dash', text: '-' },
                 { key: 'underscore', text: '_' }
             ]);
@@ -1976,8 +1976,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         var nfcRow = null;
         if (FEATURE_NFC) {
             nfcRow = addRadioRow(panel, 'label.nfc', 'tip.nfc', [
-                { key: 'keep', text: L('radio.noChange') },
-                { key: 'combine', text: L('radio.nfcCombine') }
+                { key: 'keep', text: getLabel('radio.noChange') },
+                { key: 'combine', text: getLabel('radio.nfcCombine') }
             ]);
             var initialNfc = pickPref(prefs, 'nfc', ['keep', 'combine'], 'combine');
             nfcRow.radios.keep.value = (initialNfc === 'keep');
@@ -1991,9 +1991,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         var halfwidthKanaCheckbox = null;
         if (FEATURE_CLEAN) {
             cleanRow = addRadioRow(panel, 'label.clean', 'tip.clean', [
-                { key: 'remove', text: L('radio.cleanRemove') },
-                { key: 'dash', text: L('radio.changeToDash') },
-                { key: 'underscore', text: L('radio.changeToUnderscore') }
+                { key: 'remove', text: getLabel('radio.cleanRemove') },
+                { key: 'dash', text: getLabel('radio.changeToDash') },
+                { key: 'underscore', text: getLabel('radio.changeToUnderscore') }
             ]);
             var initialClean = pickPref(prefs, 'clean', ['remove', 'dash', 'underscore'], 'dash');
             cleanRow.radios.remove.value = (initialClean === 'remove');
@@ -2001,8 +2001,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
             cleanRow.radios.underscore.value = (initialClean === 'underscore');
 
             if (FEATURE_HALFWIDTH_KANA) {
-                halfwidthKanaCheckbox = cleanRow.group.add('checkbox', undefined, L('radio.halfwidthKanaConvert'));
-                halfwidthKanaCheckbox.helpTip = L('tip.halfwidthKana');
+                halfwidthKanaCheckbox = cleanRow.group.add('checkbox', undefined, getLabel('radio.halfwidthKanaConvert'));
+                halfwidthKanaCheckbox.helpTip = getLabel('tip.halfwidthKana');
                 halfwidthKanaCheckbox.value = pickPref(prefs, 'halfwidthKana', ['keep', 'convert'], 'convert') === 'convert';
             }
         }
@@ -2011,9 +2011,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         var translitRow = null;
         if (FEATURE_TRANSLITERATE) {
             translitRow = addRadioRow(panel, 'label.translit', 'tip.translit', [
-                { key: 'keep', text: L('radio.noChange') },
-                { key: 'remove', text: L('radio.translitRemove') },
-                { key: 'convert', text: L('radio.translitConvert') }
+                { key: 'keep', text: getLabel('radio.noChange') },
+                { key: 'remove', text: getLabel('radio.translitRemove') },
+                { key: 'convert', text: getLabel('radio.translitConvert') }
             ]);
             var initialTranslit = pickPref(prefs, 'translit', ['keep', 'remove', 'convert'], 'convert');
             translitRow.radios.keep.value = (initialTranslit === 'keep');
@@ -2162,11 +2162,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {array} 編集後の並び（キャンセル時は null）
      */
     function openSortDialog(initialOrder) {
-        var sortDialog = new Window('dialog', L('sort.title'));
+        var sortDialog = new Window('dialog', getLabel('sort.title'));
         sortDialog.opacity = DIALOG_OPACITY;
         setupWindow(sortDialog);
 
-        var hintText = sortDialog.add('statictext', undefined, L('sort.hint'));
+        var hintText = sortDialog.add('statictext', undefined, getLabel('sort.hint'));
         hintText.alignment = 'left';
 
         var bodyGroup = sortDialog.add('group');
@@ -2177,7 +2177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         var orderList = bodyGroup.add('listbox', undefined, []);
         orderList.preferredSize = [200, 140];
         for (var i = 0; i < order.length; i++) {
-            orderList.add('item', L('label.' + order[i]));
+            orderList.add('item', getLabel('label.' + order[i]));
         }
         orderList.selection = 0;
 
@@ -2196,7 +2196,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
          */
         function refreshList(newIndex) {
             for (var i = 0; i < order.length; i++) {
-                orderList.items[i].text = L('label.' + order[i]);
+                orderList.items[i].text = getLabel('label.' + order[i]);
             }
             orderList.selection = newIndex;
         }
@@ -2219,7 +2219,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
 
         var buttonRow = sortDialog.add('group');
         buttonRow.alignment = ['center', 'top'];
-        buttonRow.add('button', undefined, L('button.cancel'), { name: 'cancel' });
+        buttonRow.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
         buttonRow.add('button', undefined, 'OK', { name: 'ok' });
 
         if (sortDialog.show() !== 1) return null;
@@ -2305,7 +2305,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
 
     /**
      * ラベル + ラジオ群を 1 行追加して { group, label, radios: { key: radio, ... } } を返す。
-     * radioDefs: [{ key, text }, ...]。すべてのコントロールに L(tipKey) の helpTip を設定
+     * radioDefs: [{ key, text }, ...]。すべてのコントロールに getLabel(tipKey) の helpTip を設定
      * Add a label + radio row; returns { group, label, radios }
      * @param {Panel} panel 追加先のパネル
      * @param {string} labelKey ラベルのキー
@@ -2316,7 +2316,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
     function addRadioRow(panel, labelKey, tipKey, radioDefs) {
         var row = panel.add('group');
         row.orientation = 'row';
-        var tipText = L(tipKey);
+        var tipText = getLabel(tipKey);
         // ラベルは右揃え（alignLabelWidths で固定列幅になるため右端が入力欄側に揃う）
         var label = row.add('statictext', undefined, labelText(labelKey), { justify: 'right' });
         label.helpTip = tipText;
@@ -2361,7 +2361,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      * @returns {object} {dialog, getUIState, getMode}
      */
     function createDialog(segments, currentName, prefs, parentFolderName, grandparentFolderName, folder, isNative) {
-        var dialog = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.opacity = DIALOG_OPACITY;
         setupWindow(dialog);
 
@@ -2459,7 +2459,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
             }
             var uiState = currentUIState();
             var finalBase = applyNameTransforms(buildFinalName(segments, uiState), uiState, folder, '.ai');
-            filename.finalNameValue.text = finalBase ? (finalBase + '.ai') : L('message.emptyName');
+            filename.finalNameValue.text = finalBase ? (finalBase + '.ai') : getLabel('message.emptyName');
         }
 
         opMode.versionOnlyRadio.onClick = function () {
@@ -2543,7 +2543,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         // ---- ボタン（右寄せ Cancel / OK） ----
         var buttonGroup = dialog.add('group');
         buttonGroup.alignment = ['right', 'top'];
-        buttonGroup.add('button', undefined, L('button.cancel'), { name: 'cancel' });
+        buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
         buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
 
         // 初期モードが「バージョンのみ」のときは該当 UI を隠した状態で表示
@@ -2566,7 +2566,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
      */
     function main() {
         if (app.documents.length === 0) {
-            alert(L('message.noDoc'));
+            alert(getLabel('message.noDoc'));
             return;
         }
 
@@ -2601,7 +2601,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         // 整形前だけでなく整形後も判定する。記号だけ・絵文字だけの名前は
         // clean / collapse を通ると空になり、そのままでは「.ai」という不可視ファイルになる
         if (!newBaseName) {
-            alert(L('message.emptyName'));
+            alert(getLabel('message.emptyName'));
             return;
         }
 
@@ -2610,7 +2610,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
         // 長さチェック（拡張子込み）: 上限超過なら確認ダイアログを出して続行可
         var fullByteLength = byteLengthUTF8(newBaseName + '.ai');
         if (fullByteLength > FEATURE_MAX_FILENAME_BYTES) {
-            var warningMessage = L('message.confirmTooLong')
+            var warningMessage = getLabel('message.confirmTooLong')
                 .replace('{bytes}', String(fullByteLength))
                 .replace('{limit}', String(FEATURE_MAX_FILENAME_BYTES));
             if (!confirm(warningMessage + '\n\n' + newBaseName + '.ai')) return;
@@ -2646,7 +2646,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
                 savePrefs(prefsToSave);
             }
         } catch (e) {
-            alert(L('message.saveFailed') + '\n' + e);
+            alert(getLabel('message.saveFailed') + '\n' + e);
         }
     }
 

@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     // -------------------------------
     // 日英ラベル定義 / Japanese-English label definitions
@@ -115,21 +115,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function main() {
 
         if (app.documents.length == 0) {
-            alert(LABELS.noDocument[lang]);
+            alert(LABELS.noDocument[uiLang]);
             return;
         }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
-        var panel = dialog.add("panel", undefined, LABELS.modePanel[lang]);
+        var panel = dialog.add("panel", undefined, LABELS.modePanel[uiLang]);
         panel.orientation = "row"; /* 横並びに変更 / Change to horizontal layout */
         panel.alignChildren = "left";
         panel.margins = [15, 20, 15, 10];
 
-        var rbMask = panel.add("radiobutton", undefined, LABELS.mask[lang]);
-        var rbRelease = panel.add("radiobutton", undefined, LABELS.maskRelease[lang]);
+        var rbMask = panel.add("radiobutton", undefined, LABELS.mask[uiLang]);
+        var rbRelease = panel.add("radiobutton", undefined, LABELS.maskRelease[uiLang]);
         rbMask.value = true;
 
         // ラジオボタン切り替え時のパネル有効/無効制御 / Enable/disable panels on radio button toggle
@@ -142,14 +142,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             releasePanel.enabled = true;
         };
 
-        var marginGroup = dialog.add("panel", undefined, LABELS.maskOption[lang]);
+        var marginGroup = dialog.add("panel", undefined, LABELS.maskOption[uiLang]);
         marginGroup.orientation = "column";
         marginGroup.alignChildren = "left";
         marginGroup.margins = [15, 20, 15, 10];
         var marginRow = marginGroup.add("group");
         marginRow.orientation = "row";
         marginRow.alignChildren = "left";
-        marginRow.add("statictext", undefined, LABELS.margin[lang] + ":");
+        marginRow.add("statictext", undefined, LABELS.margin[uiLang] + ":");
         // --- 単位ラベル追加 / Add unit label ---
         var unitLabelMap = {
             0: "in",
@@ -206,22 +206,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var unitLabel = getCurrentUnitLabel();
         marginRow.add("statictext", undefined, "(" + unitLabel + ")");
 
-        var cbRemoveOutside = marginGroup.add("checkbox", undefined, LABELS.removeOutside[lang]);
+        var cbRemoveOutside = marginGroup.add("checkbox", undefined, LABELS.removeOutside[uiLang]);
         cbRemoveOutside.alignment = "left";
 
-        var cbIncludeLocked = marginGroup.add("checkbox", undefined, LABELS.includeLocked[lang]);
+        var cbIncludeLocked = marginGroup.add("checkbox", undefined, LABELS.includeLocked[uiLang]);
         cbIncludeLocked.value = true; /* デフォルトをONに設定 / Default ON */
 
         // チェックボックス追加 / Add checkbox
-        var cbIncludeHidden = marginGroup.add("checkbox", undefined, LABELS.includeHidden[lang]);
+        var cbIncludeHidden = marginGroup.add("checkbox", undefined, LABELS.includeHidden[uiLang]);
         cbIncludeHidden.value = true; /* デフォルトをONに設定 / Default ON */
 
-        var releasePanel = dialog.add("panel", undefined, LABELS.releaseOption[lang]);
+        var releasePanel = dialog.add("panel", undefined, LABELS.releaseOption[uiLang]);
         releasePanel.orientation = "column";
         releasePanel.alignChildren = "left";
         releasePanel.margins = [15, 20, 15, 10];
 
-        var cbUngroup = releasePanel.add("checkbox", undefined, LABELS.ungroupLabel[lang]);
+        var cbUngroup = releasePanel.add("checkbox", undefined, LABELS.ungroupLabel[uiLang]);
         cbUngroup.value = true;
         releasePanel.enabled = false;
 
@@ -229,10 +229,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
 
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang], {
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[uiLang], {
             name: "cancel"
         });
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], {
+        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[uiLang], {
             name: "ok"
         });
 

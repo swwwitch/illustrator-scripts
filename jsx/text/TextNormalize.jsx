@@ -36,14 +36,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
     if (app.documents.length === 0) { alert("ドキュメントが開かれていません。"); return; }
-    var sel = app.selection;
+    var currentSelection = app.selection;
 
     // 選択がない場合は、ドキュメント内すべてのテキストを対象にする
-    if (!sel || sel.length === 0) {
-        sel = [];
+    if (!currentSelection || currentSelection.length === 0) {
+        currentSelection = [];
         var allFrames = app.activeDocument.textFrames;
         for (var i = 0; i < allFrames.length; i++) {
-            sel.push(allFrames[i]);
+            currentSelection.push(allFrames[i]);
         }
     }
 
@@ -75,7 +75,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // フォールバック：選択（または全テキスト）から最初の TextRange の現在値
         try {
             var tmp = [];
-            for (var i = 0; i < sel.length; i++) collectTextRanges(sel[i], tmp);
+            for (var i = 0; i < currentSelection.length; i++) collectTextRanges(currentSelection[i], tmp);
             if (tmp.length > 0) return tmp[0].contents;
         } catch (_) { }
         return "";
@@ -121,7 +121,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function __takeBaseline() {
         __baselineRanges = [];
-        for (var i = 0; i < sel.length; i++) __collectBaseline(sel[i]);
+        for (var i = 0; i < currentSelection.length; i++) __collectBaseline(currentSelection[i]);
         __baselineReady = true;
     }
 
@@ -404,7 +404,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (_) { }
 
         // 初期状態（=プレビューON前提）として再描画のみ
-        try { app.redraw(); } catch (_) { }
+        app.redraw();
         try { updateCaseExamples(); } catch (_) { }
     };
 
@@ -499,7 +499,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function applyProcessToSelection() {
         var targets = [];
-        for (var i = 0; i < sel.length; i++) collectTextRanges(sel[i], targets);
+        for (var i = 0; i < currentSelection.length; i++) collectTextRanges(currentSelection[i], targets);
         for (var j = 0; j < targets.length; j++) formatTextRange(targets[j]);
     }
 

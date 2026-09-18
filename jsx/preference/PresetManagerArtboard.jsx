@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -132,8 +132,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     function main() {
@@ -144,15 +144,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Constants / 定数定義
         // =========================================
         var STROKE_COLOR_PRESETS = [
-            { key: "LIGHT_BLUE", label: L("artboardColorLightBlue"), r: 0.29, g: 0.52, b: 1.0 },
-            { key: "RED", label: L("artboardColorRed"), r: 1.0, g: 0.29, b: 0.29 },
-            { key: "GREEN", label: L("artboardColorGreen"), r: 0.0, g: 0.65, b: 0.31 },
-            { key: "BLUE", label: L("artboardColorBlue"), r: 0.0, g: 0.45, b: 0.78 },
-            { key: "MAGENTA", label: L("artboardColorMagenta"), r: 1.0, g: 0.0, b: 1.0 },
-            { key: "CYAN", label: L("artboardColorCyan"), r: 0.0, g: 1.0, b: 1.0 },
-            { key: "GREY", label: L("artboardColorGrey"), r: 0.65, g: 0.65, b: 0.65 },
-            { key: "BLACK", label: L("artboardColorBlack"), r: 0.0, g: 0.0, b: 0.0 },
-            { key: "YELLOW", label: L("artboardColorYellow"), r: 1.0, g: 1.0, b: 0.0 }
+            { key: "LIGHT_BLUE", label: getLabel("artboardColorLightBlue"), r: 0.29, g: 0.52, b: 1.0 },
+            { key: "RED", label: getLabel("artboardColorRed"), r: 1.0, g: 0.29, b: 0.29 },
+            { key: "GREEN", label: getLabel("artboardColorGreen"), r: 0.0, g: 0.65, b: 0.31 },
+            { key: "BLUE", label: getLabel("artboardColorBlue"), r: 0.0, g: 0.45, b: 0.78 },
+            { key: "MAGENTA", label: getLabel("artboardColorMagenta"), r: 1.0, g: 0.0, b: 1.0 },
+            { key: "CYAN", label: getLabel("artboardColorCyan"), r: 0.0, g: 1.0, b: 1.0 },
+            { key: "GREY", label: getLabel("artboardColorGrey"), r: 0.65, g: 0.65, b: 0.65 },
+            { key: "BLACK", label: getLabel("artboardColorBlack"), r: 0.0, g: 0.0, b: 0.0 },
+            { key: "YELLOW", label: getLabel("artboardColorYellow"), r: 1.0, g: 1.0, b: 0.0 }
         ];
         var STROKE_COLOR_INDEX = {
             LIGHT_BLUE: 0,
@@ -245,7 +245,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /*
       Build main dialog / ダイアログ生成
     */
-        var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         var mainGroup = dlg.add("group");
         mainGroup.orientation = "column";
         mainGroup.alignChildren = "left";
@@ -254,25 +254,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var presetRow = mainGroup.add("group");
         presetRow.orientation = "row";
         presetRow.alignment = "center";
-        var rbPresetDefault = presetRow.add("radiobutton", undefined, L("presetDefault"));
-        var rbPresetEmphasis = presetRow.add("radiobutton", undefined, L("presetEmphasis"));
-        var rbPresetLight = presetRow.add("radiobutton", undefined, L("presetLight"));
+        var rbPresetDefault = presetRow.add("radiobutton", undefined, getLabel("presetDefault"));
+        var rbPresetEmphasis = presetRow.add("radiobutton", undefined, getLabel("presetEmphasis"));
+        var rbPresetLight = presetRow.add("radiobutton", undefined, getLabel("presetLight"));
 
         /*
       Artboard panel / ［アートボード］
     */
-        var panelArtboard = mainGroup.add("panel", undefined, L("panelArtboardTitle"));
+        var panelArtboard = mainGroup.add("panel", undefined, getLabel("panelArtboardTitle"));
         panelArtboard.orientation = "column";
         panelArtboard.alignChildren = ["fill", "top"];
         panelArtboard.alignment = ["fill", "top"];
         panelArtboard.margins = [15, 20, 15, 10];
 
-        var cbShowArtboardName = panelArtboard.add("checkbox", undefined, L("cbShowArtboardName"));
+        var cbShowArtboardName = panelArtboard.add("checkbox", undefined, getLabel("cbShowArtboardName"));
         cbShowArtboardName.helpTip = LABELS.cbShowArtboardName.ja + " / " + LABELS.cbShowArtboardName.en;
         cbShowArtboardName.value = !!getBool("showArtboardLabelOnCanvas", false);
 
         // Artboard border panel / アートボードの枠線パネル
-        var panelArtboardBorder = panelArtboard.add("panel", undefined, L("panelArtboardBorderTitle"));
+        var panelArtboardBorder = panelArtboard.add("panel", undefined, getLabel("panelArtboardBorderTitle"));
         panelArtboardBorder.orientation = "column";
         panelArtboardBorder.alignChildren = ["fill", "top"];
         panelArtboardBorder.alignment = ["fill", "top"];
@@ -282,7 +282,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var strokeColorRow = panelArtboardBorder.add("group");
         strokeColorRow.orientation = "row";
         strokeColorRow.alignChildren = ["left", "center"];
-        strokeColorRow.add("statictext", undefined, L("artboardStrokeColor") + "：");
+        strokeColorRow.add("statictext", undefined, getLabel("artboardStrokeColor") + "：");
 
         var ddStrokeColor = strokeColorRow.add("dropdownlist", undefined, buildStrokeColorNames());
 
@@ -290,7 +290,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var strokeWidthRow = panelArtboardBorder.add("group");
         strokeWidthRow.orientation = "row";
         strokeWidthRow.alignChildren = ["left", "center"];
-        strokeWidthRow.add("statictext", undefined, L("artboardStrokeWidth") + "：");
+        strokeWidthRow.add("statictext", undefined, getLabel("artboardStrokeWidth") + "：");
         var rbStrokeWidth1 = strokeWidthRow.add("radiobutton", undefined, "1");
         var rbStrokeWidth2 = strokeWidthRow.add("radiobutton", undefined, "2");
         var rbStrokeWidth3 = strokeWidthRow.add("radiobutton", undefined, "3");
@@ -306,7 +306,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var leftGroup = outerGroup.add("group");
         leftGroup.orientation = "row";
         leftGroup.alignChildren = ["left", "center"];
-        var btnVideoRuler = leftGroup.add("button", undefined, L("VideoRuler"));
+        var btnVideoRuler = leftGroup.add("button", undefined, getLabel("VideoRuler"));
 
         var spacer = outerGroup.add("group");
         spacer.alignment = ["fill", "fill"];
@@ -315,7 +315,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightGroup.orientation = "row";
         rightGroup.alignChildren = ["right", "center"];
         rightGroup.spacing = 10;
-        var btnOK = rightGroup.add("button", undefined, L("OK"), {
+        var btnOK = rightGroup.add("button", undefined, getLabel("OK"), {
             name: "ok"
         });
 

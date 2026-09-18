@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -72,11 +72,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         chkRotTrackComp: { ja: "文字回転によるトラッキング補正", en: "Tracking compensation for rotation" }
     };
 
-    function L(key) {
+    function getLabel(key) {
         try {
             var o = LABELS[key];
             if (!o) return key;
-            return o[lang] || o.ja || o.en || key;
+            return o[uiLang] || o.ja || o.en || key;
         } catch (_) {
             return key;
         }
@@ -125,9 +125,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { return app.preferences.getIntegerPreference(key); } catch (_) { return fallback; }
     }
 
-    if (app.documents.length === 0) { alert(L("alertNoDoc")); return; }
+    if (app.documents.length === 0) { alert(getLabel("alertNoDoc")); return; }
     var doc = app.activeDocument;
-    if (!doc.selection || doc.selection.length === 0) { alert(L("alertSelectText")); return; }
+    if (!doc.selection || doc.selection.length === 0) { alert(getLabel("alertSelectText")); return; }
 
     // --- view zoom helpers (used by Zoom slider) ---
     function _getSelectionBounds(sel) {
@@ -160,7 +160,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { view.zoom = zoomFactor; } catch (_) { }
         try { if (centerPoint) view.centerPoint = centerPoint; } catch (_) { }
         if (doRedraw !== false) {
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         }
     }
 
@@ -523,7 +523,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var ranges = collectTextRanges(doc.selection);
     var selTextFrames = getSelectionTextFrames(doc.selection);
-    if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
+    if (ranges.length === 0) { alert(getLabel("alertSelectTextRange")); return; }
 
     // --- PreviewManager (No-Undo preview) ---
     // Goal: avoid History jumping back on every preview update.
@@ -846,7 +846,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     try { clearBackgroundRectsIfAny(); } catch (_) { }
 
     // --- UI ---
-    var w = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+    var w = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
     // --- dialog position persistence ---
     var __dlgPrefKeyX = "AutoTouchType/dialogX";
     var __dlgPrefKeyY = "AutoTouchType/dialogY";
@@ -872,7 +872,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     w.alignChildren = ["fill", "top"];
 
     // --- panel: 文字タッチ ---
-    var pnlTouch = w.add("panel", undefined, L("panelTouch"));
+    var pnlTouch = w.add("panel", undefined, getLabel("panelTouch"));
     pnlTouch.orientation = "column";
     pnlTouch.alignChildren = ["fill", "top"];
     pnlTouch.margins = [15, 20, 15, 10];
@@ -883,14 +883,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gFontRow.alignChildren = ["fill", "top"];
 
     // --- panel: フォント ---
-    var pnlFont = gFontRow.add("panel", undefined, L("panelFont"));
+    var pnlFont = gFontRow.add("panel", undefined, getLabel("panelFont"));
     pnlFont.orientation = "column";
     pnlFont.alignChildren = ["left", "top"];
     pnlFont.margins = [15, 20, 15, 10];
     pnlFont.alignment = ["fill", "top"];
 
-    var chkFontRandom = pnlFont.add("checkbox", undefined, L("chkFontRandom"));
-    var chkFontJPOnly = pnlFont.add("checkbox", undefined, L("chkFontJPOnly"));
+    var chkFontRandom = pnlFont.add("checkbox", undefined, getLabel("chkFontRandom"));
+    var chkFontJPOnly = pnlFont.add("checkbox", undefined, getLabel("chkFontJPOnly"));
 
     function updateFontOptionEnabled() {
         // 「ランダム」がOFFのときは「和文フォントに限定」をディム
@@ -904,20 +904,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // --- panel: 「犯行声明文」風 ---
-    var pnlRansom = gFontRow.add("panel", undefined, L("panelRansom"));
+    var pnlRansom = gFontRow.add("panel", undefined, getLabel("panelRansom"));
     pnlRansom.orientation = "column";
     pnlRansom.alignChildren = ["left", "top"];
     pnlRansom.margins = [15, 20, 15, 10];
     pnlRansom.alignment = ["fill", "top"];
 
-    var chkFontRansom = pnlRansom.add("checkbox", undefined, L("chkRansomEnable"));
+    var chkFontRansom = pnlRansom.add("checkbox", undefined, getLabel("chkRansomEnable"));
 
     // tracking row: checkbox + value field
     var gRansomTrk = pnlRansom.add("group");
     gRansomTrk.orientation = "row";
     gRansomTrk.alignChildren = ["left", "center"];
 
-    var chkRansomTrack = gRansomTrk.add("checkbox", undefined, L("chkRansomTrack"));
+    var chkRansomTrack = gRansomTrk.add("checkbox", undefined, getLabel("chkRansomTrack"));
     var edtRansomTrk = gRansomTrk.add("edittext", undefined, "200");
     edtRansomTrk.characters = 5;
 
@@ -947,7 +947,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var chkBase = gBase.add("checkbox", undefined, "");
     chkBase.value = true;
     chkBase.preferredSize.width = 15;
-    var stBase = gBase.add("statictext", undefined, L("labelBaseline"));
+    var stBase = gBase.add("statictext", undefined, getLabel("labelBaseline"));
     // baseline unit follows "text/asianunits" (label + pt conversion)
     var __baseUnitCode = getPrefIntSafe("text/asianunits", 2); // 2=pt
     var __baseUnitLabel = getUnitLabel(__baseUnitCode, "text/asianunits");
@@ -991,7 +991,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var chkScale = gH.add("checkbox", undefined, "");
     chkScale.value = true;
     chkScale.preferredSize.width = 15;
-    var stH = gH.add("statictext", undefined, L("labelScale"));
+    var stH = gH.add("statictext", undefined, getLabel("labelScale"));
     var edtH = gH.add("edittext", undefined, "10");
     edtH.characters = 4;
     var stUnitH = gH.add("statictext", undefined, "%");
@@ -1002,7 +1002,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var chkKern = gKern.add("checkbox", undefined, "");
     chkKern.value = true;
     chkKern.preferredSize.width = 15;
-    var stKern = gKern.add("statictext", undefined, L("labelKerning"));
+    var stKern = gKern.add("statictext", undefined, getLabel("labelKerning"));
     var edtKern = gKern.add("edittext", undefined, "50");
     edtKern.characters = 4;
     var stUnitKern = gKern.add("statictext", undefined, "/1000em");
@@ -1013,7 +1013,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var chkRot = gRot.add("checkbox", undefined, "");
     chkRot.value = true;
     chkRot.preferredSize.width = 15;
-    var stRot = gRot.add("statictext", undefined, L("labelRotation"));
+    var stRot = gRot.add("statictext", undefined, getLabel("labelRotation"));
     var edtRot = gRot.add("edittext", undefined, "5");
     edtRot.characters = 4;
     var stUnitRot = gRot.add("statictext", undefined, "°");
@@ -1032,8 +1032,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gTouchLeft.orientation = "row";
     gTouchLeft.alignChildren = ["left", "center"];
 
-    var btnAllOn = gTouchLeft.add("button", undefined, L("btnAllOn"));
-    var btnAllOff = gTouchLeft.add("button", undefined, L("btnAllOff"));
+    var btnAllOn = gTouchLeft.add("button", undefined, getLabel("btnAllOn"));
+    var btnAllOff = gTouchLeft.add("button", undefined, getLabel("btnAllOff"));
 
     var gTouchSpacer = gTouchButtons.add("group");
     gTouchSpacer.orientation = "row";
@@ -1044,7 +1044,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gTouchRight.orientation = "row";
     gTouchRight.alignChildren = ["right", "center"];
 
-    var chkRotTrackComp = gTouchRight.add("checkbox", undefined, L("chkRotTrackComp"));
+    var chkRotTrackComp = gTouchRight.add("checkbox", undefined, getLabel("chkRotTrackComp"));
     chkRotTrackComp.value = true; // default ON
 
     // Make these utility buttons slightly smaller
@@ -1160,7 +1160,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gZoom.alignChildren = ["center", "center"];
     gZoom.margins = [0, 0, 0, 0];
 
-    var stZoom = gZoom.add("statictext", undefined, L("labelZoom"));
+    var stZoom = gZoom.add("statictext", undefined, getLabel("labelZoom"));
     var __initZoomPct = 100;
     try { if (__originalZoom != null) __initZoomPct = Math.round(__originalZoom * 100); } catch (_) { }
     if (__initZoomPct < 10) __initZoomPct = 10;
@@ -1168,7 +1168,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
     sldZoom.preferredSize.width = 270;
 
-    var chkZoomLight = gZoom.add("checkbox", undefined, L("chkZoomLight"));
+    var chkZoomLight = gZoom.add("checkbox", undefined, getLabel("chkZoomLight"));
     chkZoomLight.value = false;
 
     // NOTE: applying zoom on every `onChanging` can be heavy.
@@ -1223,8 +1223,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     btnLeft.orientation = "row";
     btnLeft.alignChildren = ["left", "center"];
 
-    var btnRerun = btnLeft.add("button", undefined, L("btnRerun"));
-    var btnReset = btnLeft.add("button", undefined, L("btnReset"));
+    var btnRerun = btnLeft.add("button", undefined, getLabel("btnRerun"));
+    var btnReset = btnLeft.add("button", undefined, getLabel("btnReset"));
 
     function isTouchAllOff() {
         try {
@@ -1251,8 +1251,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var btnRight = btnRow.add("group");
     btnRight.orientation = "row";
     btnRight.alignChildren = ["right", "center"];
-    var btnCancel = btnRight.add("button", undefined, L("btnCancel"));
-    var btnOK = btnRight.add("button", undefined, L("btnOK"));
+    var btnCancel = btnRight.add("button", undefined, getLabel("btnCancel"));
+    var btnOK = btnRight.add("button", undefined, getLabel("btnOK"));
 
     // --- debounced preview (reduce heavy redraw on onChanging/key repeat) ---
     var __pvTaskId = null;
@@ -1313,7 +1313,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (optFont.fontRandom && optFont.jpOnly) {
             optFont.jpFonts = getJPFontsCached();
             if (!optFont.jpFonts || optFont.jpFonts.length === 0) {
-                alert(L('alertNoJPFonts'));
+                alert(getLabel('alertNoJPFonts'));
                 return;
             }
         }
@@ -1332,7 +1332,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
         });
         // One redraw for preview
-        try { app.redraw(); } catch (_) { }
+        app.redraw();
     }
 
     edtBase.onChanging = function () { syncFromEdit(edtBase, sldBase); requestPreview(); };
@@ -1422,7 +1422,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (chkFontRansom && chkFontRansom.value && chkRansomTrack && chkRansomTrack.value) {
                 __rtv = parseNum(edtRansomTrk.text);
                 if (__rtv === null) {
-                    alert(L("alertEnterNumber"));
+                    alert(getLabel("alertEnterNumber"));
                     return;
                 }
             }
@@ -1432,7 +1432,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             (chkScale.value && hPct === null) ||
             (chkRot.value && rot === null) ||
             (chkKern.value && kern === null)) {
-            alert(L("alertEnterNumber"));
+            alert(getLabel("alertEnterNumber"));
             return;
         }
 
@@ -1450,7 +1450,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (optFont.fontRandom && optFont.jpOnly) {
             optFont.jpFonts = getJPFontsCached();
             if (!optFont.jpFonts || optFont.jpFonts.length === 0) {
-                alert(L('alertNoJPFonts'));
+                alert(getLabel('alertNoJPFonts'));
                 return;
             }
         }
@@ -1568,7 +1568,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (_) { }
 
-        try { app.redraw(); } catch (_) { }
+        app.redraw();
 
         // Keep JP-only auto rule consistent (checkbox state may remain as-is)
         try { updateFontOptionEnabled(); } catch (_) { }
@@ -1582,7 +1582,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { previewMgr.cancel(); } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
         try { restoreViewIfNeeded(); } catch (_) { }
-        try { app.redraw(); } catch (_) { }
+        app.redraw();
         __closedByOK = false;
         w.close(0);
     };

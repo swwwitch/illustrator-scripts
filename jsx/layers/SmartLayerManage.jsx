@@ -81,28 +81,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
             noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects selected." }
         };
 
-        var lang = ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+        var uiLang = ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
-        dlg.orientation = "row";
-        dlg.alignChildren = ["fill", "top"];
-        dlg.spacing = 20;
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
+        dialog.orientation = "row";
+        dialog.alignChildren = ["fill", "top"];
+        dialog.spacing = 20;
 
-        var leftGroup = dlg.add("group");
+        var leftGroup = dialog.add("group");
         leftGroup.orientation = "column";
         leftGroup.alignChildren = ["left", "top"];
 
-        var objPanel = leftGroup.add("panel", undefined, LABELS.panelTitle[lang]);
+        var objPanel = leftGroup.add("panel", undefined, LABELS.panelTitle[uiLang]);
         objPanel.orientation = "column";
         objPanel.alignChildren = ["left", "top"];
         objPanel.margins = [15, 20, 15, 10];
 
-        var radioSelected = objPanel.add("radiobutton", undefined, LABELS.selectedObj[lang]);
-        var radioAllText = objPanel.add("radiobutton", undefined, LABELS.allText[lang]);
-        var radioAll = objPanel.add("radiobutton", undefined, LABELS.allObj[lang]);
-        var radioAllForce = objPanel.add("radiobutton", undefined, LABELS.allForce[lang]);
-        var sel = doc.selection;
-        var hasSelection = sel && sel.length > 0;
+        var radioSelected = objPanel.add("radiobutton", undefined, LABELS.selectedObj[uiLang]);
+        var radioAllText = objPanel.add("radiobutton", undefined, LABELS.allText[uiLang]);
+        var radioAll = objPanel.add("radiobutton", undefined, LABELS.allObj[uiLang]);
+        var radioAllForce = objPanel.add("radiobutton", undefined, LABELS.allForce[uiLang]);
+        var currentSelection = doc.selection;
+        var hasSelection = currentSelection && currentSelection.length > 0;
 
         // デフォルト選択は選択有無で自動判定
         radioSelected.value = hasSelection;
@@ -113,14 +113,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
         deleteGroup.alignChildren = ["center", "center"];
         deleteGroup.margins = [5, 5, 0, 0];
 
-        var deleteEmptyLayersCheckbox = deleteGroup.add("checkbox", undefined, LABELS.deleteEmpty[lang]);
+        var deleteEmptyLayersCheckbox = deleteGroup.add("checkbox", undefined, LABELS.deleteEmpty[uiLang]);
         deleteEmptyLayersCheckbox.value = true;
 
-        var rightGroup = dlg.add("group");
+        var rightGroup = dialog.add("group");
         rightGroup.orientation = "column";
         rightGroup.alignChildren = ["fill", "top"];
 
-        var radioLayerGroup = rightGroup.add("panel", undefined, LABELS.layerList[lang]);
+        var radioLayerGroup = rightGroup.add("panel", undefined, LABELS.layerList[uiLang]);
         radioLayerGroup.orientation = "column";
         radioLayerGroup.alignChildren = ["left", "top"];
         radioLayerGroup.margins = [15, 20, 15, 10];
@@ -171,12 +171,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
         // Set initial enabled state
         newLayerNameField.enabled = radioNewLayer.value;
 
-        var buttonGroup = dlg.add("group");
+        var buttonGroup = dialog.add("group");
         buttonGroup.orientation = "column";
         buttonGroup.alignChildren = ["fill", "top"];
 
-        var moveBtn = buttonGroup.add("button", undefined, LABELS.move[lang], {name: "ok"});
-        var closeBtn = buttonGroup.add("button", undefined, LABELS.close[lang]);
+        var moveBtn = buttonGroup.add("button", undefined, LABELS.move[uiLang], {name: "ok"});
+        var closeBtn = buttonGroup.add("button", undefined, LABELS.close[uiLang]);
 
         moveBtn.onClick = function() {
             var targetLayer = null;
@@ -200,7 +200,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
                     }
                 }
                 if (!targetLayerName) {
-                    alert(LABELS.noLayerSelected[lang]);
+                    alert(LABELS.noLayerSelected[uiLang]);
                     return;
                 }
                 targetLayer = doc.layers.getByName(targetLayerName);
@@ -209,12 +209,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
             // 移動対象アイテム収集
             var itemsToMove = [];
             if (radioSelected.value) {
-                var sel = doc.selection;
-                if (!sel || sel.length === 0) {
-                    alert(LABELS.noSelection[lang]);
+                var currentSelection = doc.selection;
+                if (!currentSelection || currentSelection.length === 0) {
+                    alert(LABELS.noSelection[uiLang]);
                     return;
                 }
-                itemsToMove = sel;
+                itemsToMove = currentSelection;
             } else if (radioAllText.value) {
                 // 全テキストフレームを再帰的に収集
                 itemsToMove = [];
@@ -244,14 +244,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
 
             // 移動先レイヤーのカラーを変更
             changeSelectedLayerColorToRGB(targetLayer, 79, 128, 255);
-            dlg.close();
+            dialog.close();
         };
 
         closeBtn.onClick = function() {
-            dlg.close();
+            dialog.close();
         };
 
-        dlg.show();
+        dialog.show();
     }
 
     // グループなどのコンテナから全pageItemsを再帰的に収集

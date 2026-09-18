@@ -49,7 +49,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialog: {
@@ -94,20 +94,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ドット区切りパスで多言語ラベルを取得 / Resolve a localized label by dot-path */
-    function L(path) {
+    function getLabel(path) {
         var parts = path.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
             node = node && node[parts[i]];
         }
-        if (node && node[lang]) return node[lang];
+        if (node && node[uiLang]) return node[uiLang];
         if (node && node.en) return node.en;
         return path;
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(path) {
-        return L(path) + (lang === 'ja' ? '：' : ':');
+        return getLabel(path) + (uiLang === 'ja' ? '：' : ':');
     }
 
     // =========================================
@@ -119,21 +119,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* スクリプトのエントリポイント / Script entry point */
     function main() {
         if (app.documents.length === 0) {
-            alert(L('alert.noDocument'));
+            alert(getLabel('alert.noDocument'));
             return;
         }
         var doc = app.activeDocument;
         var selection = doc.selection;
 
         if (!selection || selection.length === 0) {
-            alert(L('alert.noSelection'));
+            alert(getLabel('alert.noSelection'));
             return;
         }
 
         /* 選択の中からグラデーション塗り＋ストップ 2 つ以上のオブジェクトのみ抽出 / Filter to gradient-filled objects with 2+ stops */
         var targets = collectGradientTargets(selection);
         if (targets.length === 0) {
-            alert(L('alert.noGradient'));
+            alert(getLabel('alert.noGradient'));
             return;
         }
 
@@ -183,13 +183,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* オプション入力ダイアログを表示し入力結果を返す / Show the options dialog and return user input */
     function showStopDialog() {
-        var dlg = new Window("dialog", L('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dlg.orientation = "column";
         dlg.alignChildren = ["fill", "top"];
         dlg.spacing = 15;
         dlg.margins = 20;
 
-        var settingsPanel = dlg.add("panel", undefined, L('panel.settings'));
+        var settingsPanel = dlg.add("panel", undefined, getLabel('panel.settings'));
         settingsPanel.orientation = "column";
         settingsPanel.alignChildren = ["left", "center"];
         settingsPanel.margins = 15;
@@ -200,20 +200,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var stopCountInput = stopCountGroup.add("edittext", undefined, String(DEFAULT_STOP_COUNT));
         stopCountInput.characters = 5;
 
-        var separateCheckbox = settingsPanel.add("checkbox", undefined, L('checkbox.separate'));
+        var separateCheckbox = settingsPanel.add("checkbox", undefined, getLabel('checkbox.separate'));
         separateCheckbox.value = false;
-        separateCheckbox.helpTip = L('tooltip.separate');
+        separateCheckbox.helpTip = getLabel('tooltip.separate');
 
         var buttonGroup = dlg.add("group");
         buttonGroup.alignment = "right";
-        buttonGroup.add("button", undefined, L('button.cancel'), { name: "cancel" });
+        buttonGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
         buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         if (dlg.show() !== 1) return null;
 
         var stopCount = parseInt(stopCountInput.text, 10);
         if (isNaN(stopCount) || stopCount < 1) {
-            alert(L('alert.invalidCount'));
+            alert(getLabel('alert.invalidCount'));
             return null;
         }
         return { stopCount: stopCount, useSeparate: separateCheckbox.value };

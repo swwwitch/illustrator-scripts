@@ -1354,12 +1354,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
      * @returns {Object} ダイアログと各コントロールへの参照。
      */
     function createDialog() {
-        var dlg = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = ["fill", "top"];
 
         /* プリセット / Presets */
-        var presetRow = dlg.add("group");
+        var presetRow = dialog.add("group");
         presetRow.orientation = "row";
         presetRow.alignment = ["center", "top"];
         presetRow.alignChildren = ["left", "center"];
@@ -1381,7 +1381,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         btnExport.helpTip = getLabel(LABELS.tooltip.exportPreset);
 
         /* 共通設定とクリアスペース / Common settings and clear space */
-        var commonPanel = setupPanel(dlg.add("panel", undefined, getLabel(LABELS.panel.common)), "fill");
+        var commonPanel = setupPanel(dialog.add("panel", undefined, getLabel(LABELS.panel.common)), "fill");
 
         var commonColumns = commonPanel.add("group");
         commonColumns.orientation = "row";
@@ -1435,7 +1435,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         layerNameInput.helpTip = getLabel(LABELS.tooltip.targetLayer);
 
         /* 横線・縦線の2カラム / Two columns for the horizontal and vertical lines */
-        var panelColumns = dlg.add("group");
+        var panelColumns = dialog.add("group");
         panelColumns.orientation = "row";
         panelColumns.alignChildren = ["fill", "top"];
 
@@ -1536,7 +1536,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         diagonalElementsCheck.helpTip = getLabel(LABELS.tooltip.diagonalElements);
 
         /* ボタンエリア / Button area */
-        var btnRowGroup = dlg.add("group");
+        var btnRowGroup = dialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.alignment = ["fill", "bottom"];
 
@@ -1558,7 +1558,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
         var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
         return {
-            dialog: dlg,
+            dialog: dialog,
             presetDropdown: presetDropdown,
             btnExport: btnExport,
             horizontalPanel: horizontalPanel,

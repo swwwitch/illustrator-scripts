@@ -39,20 +39,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var DIALOG_OFFSET_Y = 0;
     var DIALOG_OPACITY = 0.98;
 
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        var prevOnShow = dlg.onShow;
-        dlg.onShow = function () {
+    function shiftDialogPosition(dialog, offsetX, offsetY) {
+        var prevOnShow = dialog.onShow;
+        dialog.onShow = function () {
             try { if (prevOnShow) prevOnShow(); } catch (e) {}
             try {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
+                var currentX = dialog.location[0];
+                var currentY = dialog.location[1];
+                dialog.location = [currentX + offsetX, currentY + offsetY];
             } catch (e2) {}
         };
     }
 
-    function setDialogOpacity(dlg, opacityValue) {
-        try { dlg.opacity = opacityValue; } catch (e) {}
+    function setDialogOpacity(dialog, opacityValue) {
+        try { dialog.opacity = opacityValue; } catch (e) {}
     }
 
     /**
@@ -61,7 +61,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /**
      * 言語ラベル定義
@@ -88,30 +88,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         errNoNumeric: { ja: "数字が入力されたテキストオブジェクトが見つかりませんでした。", en: "No numeric text objects found." }
     };
 
-    function L(key) { return LABELS[key][lang] || LABELS[key]["en"]; }
+    function getLabel(key) { return LABELS[key][uiLang] || LABELS[key]["en"]; }
 
     main();
 
     function main() {
-        if (app.documents.length === 0) { alert(L('errNoDoc')); return; }
+        if (app.documents.length === 0) { alert(getLabel('errNoDoc')); return; }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (sel.length === 0) { alert(L('errNoSelection')); return; }
+        if (currentSelection.length === 0) { alert(getLabel('errNoSelection')); return; }
 
         var textObjects = [];
 
         /* オブジェクト情報の取得 */
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "TextFrame") {
-                var content = sel[i].contents;
+        for (var i = 0; i < currentSelection.length; i++) {
+            if (currentSelection[i].typename === "TextFrame") {
+                var content = currentSelection[i].contents;
                 if (!isNaN(parseFloat(content)) && isFinite(content)) {
                     textObjects.push({
-                        obj: sel[i],
+                        obj: currentSelection[i],
                         value: parseFloat(content),
-                        x: sel[i].left,
-                        y: sel[i].top,
+                        x: currentSelection[i].left,
+                        y: currentSelection[i].top,
                         stackOrder: i,
                         original: content
                     });
@@ -119,13 +119,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
 
-        if (textObjects.length === 0) { alert(L('errNoNumeric')); return; }
+        if (textObjects.length === 0) { alert(getLabel('errNoNumeric')); return; }
 
         // プレビュー時のUndo管理
         var previewMgr = new PreviewManager();
 
         /* ダイアログボックスの作成 */
-        var win = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         win.orientation = "row";
         win.alignChildren = ["left", "top"];
         win.spacing = 20;
@@ -143,7 +143,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 開始番号
         var groupStart = leftCol.add("group");
-        groupStart.add("statictext", undefined, L('startNum'));
+        groupStart.add("statictext", undefined, getLabel('startNum'));
         var inputNumber = groupStart.add("edittext", undefined, "");
         var initialMin = textObjects.slice().sort(function (a, b) { return a.value - b.value; })[0].value;
         inputNumber.text = initialMin;
@@ -151,41 +151,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         inputNumber.active = true;
 
         // 並び順パネル
-        var sortPanel = leftCol.add("panel", undefined, L('sortOrder'));
+        var sortPanel = leftCol.add("panel", undefined, getLabel('sortOrder'));
         sortPanel.orientation = "column";
         sortPanel.alignChildren = ["left", "top"];
         sortPanel.margins = [15, 20, 15, 10];
         sortPanel.spacing = 4;
 
-        var rbIgnore = sortPanel.add("radiobutton", undefined, L('currentVal'));
-        var rbVertical = sortPanel.add("radiobutton", undefined, L('vertical'));
-        var rbHorizontal = sortPanel.add("radiobutton", undefined, L('horizontal'));
-        var rbZ = sortPanel.add("radiobutton", undefined, L('zPattern'));
-        var rbN = sortPanel.add("radiobutton", undefined, L('nPattern'));
-        var rbStackTop = sortPanel.add("radiobutton", undefined, L('stackTop'));
+        var rbIgnore = sortPanel.add("radiobutton", undefined, getLabel('currentVal'));
+        var rbVertical = sortPanel.add("radiobutton", undefined, getLabel('vertical'));
+        var rbHorizontal = sortPanel.add("radiobutton", undefined, getLabel('horizontal'));
+        var rbZ = sortPanel.add("radiobutton", undefined, getLabel('zPattern'));
+        var rbN = sortPanel.add("radiobutton", undefined, getLabel('nPattern'));
+        var rbStackTop = sortPanel.add("radiobutton", undefined, getLabel('stackTop'));
         rbIgnore.value = true;
 
         // オプション（横並び）
         var optionsGroup = leftCol.add("group");
         optionsGroup.orientation = "row";
         optionsGroup.spacing = 20;
-        var chkReverse = optionsGroup.add("checkbox", undefined, L('reverse'));
-        var chkZeroPad = optionsGroup.add("checkbox", undefined, L('zeroPad'));
+        var chkReverse = optionsGroup.add("checkbox", undefined, getLabel('reverse'));
+        var chkZeroPad = optionsGroup.add("checkbox", undefined, getLabel('zeroPad'));
 
         // テキスト追加パネル
-        var textAddPanel = leftCol.add("panel", undefined, L('textAdd'));
+        var textAddPanel = leftCol.add("panel", undefined, getLabel('textAdd'));
         textAddPanel.orientation = "column";
         textAddPanel.alignChildren = ["right", "top"];
         textAddPanel.margins = [15, 20, 15, 15];
         textAddPanel.spacing = 8;
 
         var groupPrefix = textAddPanel.add("group");
-        groupPrefix.add("statictext", undefined, L('prefix'));
+        groupPrefix.add("statictext", undefined, getLabel('prefix'));
         var inputPrefix = groupPrefix.add("edittext", undefined, "");
         inputPrefix.characters = 12;
 
         var groupSuffix = textAddPanel.add("group");
-        groupSuffix.add("statictext", undefined, L('suffix'));
+        groupSuffix.add("statictext", undefined, getLabel('suffix'));
         var inputSuffix = groupSuffix.add("edittext", undefined, "");
         inputSuffix.characters = 12;
 
@@ -196,8 +196,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.preferredSize.width = 100;
         rightCol.spacing = 10;
 
-        var btnOK = rightCol.add("button", undefined, L('ok'), { name: "ok" });
-        var btnCancel = rightCol.add("button", undefined, L('cancel'), { name: "cancel" });
+        var btnOK = rightCol.add("button", undefined, getLabel('ok'), { name: "ok" });
+        var btnCancel = rightCol.add("button", undefined, getLabel('cancel'), { name: "cancel" });
 
         btnCancel.onClick = function () {
             previewMgr.rollback();

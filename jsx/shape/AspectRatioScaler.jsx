@@ -38,7 +38,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         // Dialog title / ダイアログタイトル
@@ -133,9 +133,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     };
 
     // Localization helper
-    function L(key) {
+    function getLabel(key) {
         try {
-            return LABELS[key][lang] || "";
+            return LABELS[key][uiLang] || "";
         } catch (e) {
             return "";
         }
@@ -261,7 +261,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
 
         var offsetX = 300;
         var dialogOpacity = 0.97;
-        var dialog = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         setDialogOpacity(dialog, dialogOpacity);
         shiftDialogPosition(dialog, offsetX, 0);
         dialog.alignChildren = "left";
@@ -282,7 +282,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         rightCol.alignChildren = ["fill", "top"];
 
         // --- Basis panel (Horizontal / Vertical) --- (UI only; no logic yet)
-        var basisPanel = rightCol.add("panel", undefined, LABELS.basisPanel[lang]);
+        var basisPanel = rightCol.add("panel", undefined, LABELS.basisPanel[uiLang]);
         basisPanel.orientation = "column";
         basisPanel.alignChildren = "left";
         basisPanel.margins = [15, 20, 15, 10];
@@ -291,12 +291,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         var basisGroup = basisPanel.add("group");
         basisGroup.orientation = "row";
         basisGroup.alignChildren = "left";
-        basisHorizontalRadio = basisGroup.add("radiobutton", undefined, LABELS.basisHorizontal[lang]);
-        basisVerticalRadio = basisGroup.add("radiobutton", undefined, LABELS.basisVertical[lang]);
+        basisHorizontalRadio = basisGroup.add("radiobutton", undefined, LABELS.basisHorizontal[uiLang]);
+        basisVerticalRadio = basisGroup.add("radiobutton", undefined, LABELS.basisVertical[uiLang]);
         basisHorizontalRadio.value = true;
         basisVerticalRadio.value = false;
 
-        var aspectPanel = leftCol.add("panel", undefined, LABELS.aspectLabel[lang]);
+        var aspectPanel = leftCol.add("panel", undefined, LABELS.aspectLabel[uiLang]);
         aspectPanel.orientation = "column";
         aspectPanel.alignChildren = "left";
         aspectPanel.margins = [15, 20, 15, 10];
@@ -305,10 +305,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         var aspectGroup = aspectPanel.add("group");
         aspectGroup.orientation = "column";
         aspectGroup.alignChildren = "left";
-        ratio169 = aspectGroup.add("radiobutton", undefined, LABELS.ratio169[lang]);
-        ratio11 = aspectGroup.add("radiobutton", undefined, LABELS.ratio11[lang]);
-        ratioA4 = aspectGroup.add("radiobutton", undefined, LABELS.ratioA4[lang]);
-        ratioCustom = aspectGroup.add("radiobutton", undefined, LABELS.ratioCustom[lang]);
+        ratio169 = aspectGroup.add("radiobutton", undefined, LABELS.ratio169[uiLang]);
+        ratio11 = aspectGroup.add("radiobutton", undefined, LABELS.ratio11[uiLang]);
+        ratioA4 = aspectGroup.add("radiobutton", undefined, LABELS.ratioA4[uiLang]);
+        ratioCustom = aspectGroup.add("radiobutton", undefined, LABELS.ratioCustom[uiLang]);
 
         var customRatioGroup = aspectPanel.add("group");
         customRatioGroup.orientation = "row";
@@ -329,7 +329,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
 
         ratio169.value = true;
 
-        var basePanel = rightCol.add("panel", undefined, LABELS.baseLabel[lang]);
+        var basePanel = rightCol.add("panel", undefined, LABELS.baseLabel[uiLang]);
         basePanel.orientation = "column";
         basePanel.alignChildren = "left";
         basePanel.margins = [15, 20, 15, 10];
@@ -338,13 +338,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         var baseGroup = basePanel.add("group");
         baseGroup.orientation = "column";
         baseGroup.alignChildren = "left";
-        baseWidthRadio = baseGroup.add("radiobutton", undefined, LABELS.baseWidth[lang]);
-        baseHeightRadio = baseGroup.add("radiobutton", undefined, LABELS.baseHeight[lang]);
+        baseWidthRadio = baseGroup.add("radiobutton", undefined, LABELS.baseWidth[uiLang]);
+        baseHeightRadio = baseGroup.add("radiobutton", undefined, LABELS.baseHeight[uiLang]);
         baseWidthRadio.value = true; // default Landscape
         baseHeightRadio.value = false;
 
         // --- Size panel under Base ---
-        var sizePanel = rightCol.add("panel", undefined, LABELS.sizePanel[lang]);
+        var sizePanel = rightCol.add("panel", undefined, LABELS.sizePanel[uiLang]);
         sizePanel.orientation = "column";
         sizePanel.alignChildren = "left";
         sizePanel.margins = [15, 20, 15, 10];
@@ -354,7 +354,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         sizeRow.orientation = "row";
         sizeRow.alignChildren = ["left", "center"];
 
-        var stWidthLabel = sizeRow.add("statictext", undefined, LABELS.labelWidth[lang]);
+        var stWidthLabel = sizeRow.add("statictext", undefined, LABELS.labelWidth[uiLang]);
         var etWidthValue = sizeRow.add("edittext", undefined, "");
         etWidthValue.characters = 5; // 少し広め / slightly wider
         var stUnitLabel = sizeRow.add("statictext", undefined, getCurrentUnitLabel());
@@ -365,32 +365,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             var fixByHeight = false;
             try { fixByHeight = (basisVerticalRadio && basisVerticalRadio.value) ? true : false; } catch (e) { fixByHeight = false; }
             stWidthLabel.text = fixByHeight
-                ? (LABELS.labelHeight ? LABELS.labelHeight[lang] : "高さ")
-                : (LABELS.labelWidth ? LABELS.labelWidth[lang] : "横幅");
+                ? (LABELS.labelHeight ? LABELS.labelHeight[uiLang] : "高さ")
+                : (LABELS.labelWidth ? LABELS.labelWidth[uiLang] : "横幅");
         }
         updateSizeLabel();
 
         var pixelGroup = dialog.add("group");
         pixelGroup.orientation = "column";
         pixelGroup.alignChildren = "left";
-        var alignToPixel = pixelGroup.add("checkbox", undefined, LABELS.alignToPixelGrid[lang]);
+        var alignToPixel = pixelGroup.add("checkbox", undefined, LABELS.alignToPixelGrid[uiLang]);
         var __isPxRuler = false;
         try {
             __isPxRuler = (app.preferences.getIntegerPreference("rulerType") === 6);
         } catch (e) {}
         alignToPixel.value = __isPxRuler; // px時のみON、その他はOFF
 
-        var convertToArtboard = pixelGroup.add("checkbox", undefined, LABELS.convertToArtboard[lang]);
+        var convertToArtboard = pixelGroup.add("checkbox", undefined, LABELS.convertToArtboard[uiLang]);
         convertToArtboard.value = false;
 
         var buttonGroup = dialog.add("group");
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "center";
 
-        var btnCancel = buttonGroup.add("button", undefined, LABELS.cancel[lang], {
+        var btnCancel = buttonGroup.add("button", undefined, LABELS.cancel[uiLang], {
             name: "cancel"
         });
-        var btnOk = buttonGroup.add("button", undefined, LABELS.run[lang], {
+        var btnOk = buttonGroup.add("button", undefined, LABELS.run[uiLang], {
             name: "ok"
         });
 

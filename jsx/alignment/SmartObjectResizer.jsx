@@ -189,7 +189,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
     // "panel.base" のようなドット区切りパスで LABELS から文字列を取得
     // Resolve a dotted path like "panel.base" from LABELS
-    function L(path) {
+    function getLabel(path) {
         var parts = path.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -204,7 +204,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // 行ラベルに末尾コロンを付与（コロンのロケール差は uiSymbol("colon") に一元化）
     // Field row label with a trailing locale-aware colon (full-width JA ： / half-width EN :)
     function fieldLabel(path) {
-        return L(path) + uiSymbol("colon");
+        return getLabel(path) + uiSymbol("colon");
     }
 
     // LABELS 内の {colon} などのプレースホルダを言語別記号へ展開
@@ -245,7 +245,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // =========================================
 
     if (app.documents.length === 0) {
-        alert(L("alert.noDocument"));
+        alert(getLabel("alert.noDocument"));
         return;
     }
     var doc = app.activeDocument;
@@ -277,7 +277,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // =========================================
 
     if (!doc.selection || doc.selection.length === 0) {
-        alert(L("alert.selectObject"));
+        alert(getLabel("alert.selectObject"));
         return;
     }
     // doc.selection はライブ参照になりうるため、配列にコピーして固定する
@@ -372,7 +372,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     var outlineBoundsCacheSeq = 1;
     var outlineIdMap = [];
 
-    var dialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+    var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
     dialog.alignChildren = ["left", "top"];
     // 左右インセットと下余白はここで一括管理（各ペイン／フッターの左右マージンは 0）
     dialog.margins = [20, 0, 20, 20];
@@ -425,12 +425,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     ratioGroup.alignment = ["center", "top"]; // 中央揃え
 
     // 「縦横比保持」「片辺のみ」ラジオボタン
-    var keepRatioRadio = ratioGroup.add("radiobutton", undefined, L("radio.keepAspect"));
-    var oneSideOnlyRadio = ratioGroup.add("radiobutton", undefined, L("radio.oneSideOnly"));
+    var keepRatioRadio = ratioGroup.add("radiobutton", undefined, getLabel("radio.keepAspect"));
+    var oneSideOnlyRadio = ratioGroup.add("radiobutton", undefined, getLabel("radio.oneSideOnly"));
 
     keepRatioRadio.value = true; // デフォルトで「縦横比保持」を選択
-    setHelpTip(keepRatioRadio, L("tooltip.keepAspect"));
-    setHelpTip(oneSideOnlyRadio, L("tooltip.oneSideOnly"));
+    setHelpTip(keepRatioRadio, getLabel("tooltip.keepAspect"));
+    setHelpTip(oneSideOnlyRadio, getLabel("tooltip.oneSideOnly"));
 
     // 「片辺のみ」でディムされる基準（基準辺／面積）の選択を解除する。
     // ディムするだけだと value が残り、getSelectedResizeMode() が enabled を見ないため
@@ -472,7 +472,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // 余白は dialog.margins（左右）と columnsGroup.spacing（カラム間）で管理
 
     // resizeBasePanel を左ペイン内にパネルとして追加
-    var resizeBasePanel = leftPane.add("panel", undefined, L("panel.base"));
+    var resizeBasePanel = leftPane.add("panel", undefined, getLabel("panel.base"));
     setupPanel(resizeBasePanel);
 
     var allRadioButtons = [];
@@ -619,23 +619,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
 
     // 新しい順序でラジオボタンとグループを作成
     // 1. 最大
-    var maxRadios = createRadioGroup(fieldLabel("field.max"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var maxRadios = createRadioGroup(fieldLabel("field.max"), [getLabel("radio.width"), getLabel("radio.height")], resizeBasePanel);
     // 2. 最小
-    var minRadios = createRadioGroup(fieldLabel("field.min"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var minRadios = createRadioGroup(fieldLabel("field.min"), [getLabel("radio.width"), getLabel("radio.height")], resizeBasePanel);
     // 3. キーオブジェクト
-    var keyRadios = createRadioGroup(fieldLabel("field.key"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var keyRadios = createRadioGroup(fieldLabel("field.key"), [getLabel("radio.width"), getLabel("radio.height")], resizeBasePanel);
     // 4. 指定サイズ（ラジオ＋数値欄一体）
-    var fixedRadios = createFixedSizeGroup(fieldLabel("field.fixed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var fixedRadios = createFixedSizeGroup(fieldLabel("field.fixed"), [getLabel("radio.width"), getLabel("radio.height")], resizeBasePanel);
     // 5. 基準辺
-    var baseRadios = createRadioGroup(fieldLabel("field.base"), [L("radio.longSide"), L("radio.shortSide")], resizeBasePanel);
+    var baseRadios = createRadioGroup(fieldLabel("field.base"), [getLabel("radio.longSide"), getLabel("radio.shortSide")], resizeBasePanel);
     // 6. 面積
-    var areaRadios = createRadioGroup(fieldLabel("field.area"), [L("radio.areaMax"), L("radio.areaMin")], resizeBasePanel);
+    var areaRadios = createRadioGroup(fieldLabel("field.area"), [getLabel("radio.areaMax"), getLabel("radio.areaMin")], resizeBasePanel);
     // 7. --- ディバイダー ---
     resizeBasePanel.add("statictext", undefined, "  ───────────────  ");
     // 8. アートボード
-    var artboardRadios = createRadioGroup(fieldLabel("field.artboard"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var artboardRadios = createRadioGroup(fieldLabel("field.artboard"), [getLabel("radio.width"), getLabel("radio.height")], resizeBasePanel);
     // 9. 裁ち落とし
-    var bleedRadios = createRadioGroup(fieldLabel("field.bleed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var bleedRadios = createRadioGroup(fieldLabel("field.bleed"), [getLabel("radio.width"), getLabel("radio.height")], resizeBasePanel);
 
     // キーオブジェクトが特定できなかったときは、この行だけディムする
     keyRadios[0].parent.enabled = !!keyObject;
@@ -645,11 +645,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     radioGroups.push(maxRadios, minRadios, keyRadios, fixedRadios, baseRadios, areaRadios, artboardRadios, bleedRadios);
 
     // 意味が自明でない基準にツールチップを設定（最大／最小／指定サイズは自明なため付けない）
-    setHelpTip(keyRadios, keyObject ? L("tooltip.key") : L("tooltip.keyNone"));
-    setHelpTip(baseRadios, L("tooltip.base"));
-    setHelpTip(areaRadios, L("tooltip.area"));
-    setHelpTip(artboardRadios, L("tooltip.artboard"));
-    setHelpTip(bleedRadios, L("tooltip.bleed"));
+    setHelpTip(keyRadios, keyObject ? getLabel("tooltip.key") : getLabel("tooltip.keyNone"));
+    setHelpTip(baseRadios, getLabel("tooltip.base"));
+    setHelpTip(areaRadios, getLabel("tooltip.area"));
+    setHelpTip(artboardRadios, getLabel("tooltip.artboard"));
+    setHelpTip(bleedRadios, getLabel("tooltip.bleed"));
 
     // --- 整列チェック群 ---
     // 整列チェックボックスをすべてOFFにする共通関数
@@ -738,10 +738,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         applyResizeBySelection();
     }
 
-    var textOutlineBoundsCheck = previewGroup.add("checkbox", undefined, L("checkbox.textOutlineBounds"));
+    var textOutlineBoundsCheck = previewGroup.add("checkbox", undefined, getLabel("checkbox.textOutlineBounds"));
     textOutlineBoundsCheck.value = false;
     textOutlineBoundsCheck.onClick = onPreviewOptionChanged;
-    setHelpTip(textOutlineBoundsCheck, L("tooltip.textOutline"));
+    setHelpTip(textOutlineBoundsCheck, getLabel("tooltip.textOutline"));
 
     function updateTextOutlineOptionState() {
         var hasText = false;
@@ -762,10 +762,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
         }
     }
 
-    var previewCheck = previewGroup.add("checkbox", undefined, L("checkbox.previewBounds"));
+    var previewCheck = previewGroup.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
     previewCheck.value = true;
     previewCheck.onClick = onPreviewOptionChanged;
-    setHelpTip(previewCheck, L("tooltip.preview"));
+    setHelpTip(previewCheck, getLabel("tooltip.preview"));
 
     updateTextOutlineOptionState();
 
@@ -775,16 +775,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     rightPane.alignChildren = ["fill", "top"];
 
     // 横位置パネル（左/中央/右 ＋ 縦方向の分配）: チェックは縦並び
-    var hAlignPanel = rightPane.add("panel", undefined, L("panel.hAlign"));
+    var hAlignPanel = rightPane.add("panel", undefined, getLabel("panel.hAlign"));
     setupPanel(hAlignPanel, 5);
-    var alignLeftCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignLeft"));
-    var alignCenterCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignCenter"));
-    var alignRightCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignRight"));
+    var alignLeftCheck = hAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignLeft"));
+    var alignCenterCheck = hAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignCenter"));
+    var alignRightCheck = hAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignRight"));
     addSpacer(hAlignPanel, 5); // 「均等」の上の余白（整列⇔分配の区切り）
-    var alignEvenCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignEven"));
-    var alignEvenZeroCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignZero"));
-    setHelpTip(alignEvenCheck, L("tooltip.alignEven"));
-    setHelpTip(alignEvenZeroCheck, L("tooltip.alignZero"));
+    var alignEvenCheck = hAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignEven"));
+    var alignEvenZeroCheck = hAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignZero"));
+    setHelpTip(alignEvenCheck, getLabel("tooltip.alignEven"));
+    setHelpTip(alignEvenZeroCheck, getLabel("tooltip.alignZero"));
     alignLeftCheck.value = false;
     alignCenterCheck.value = false;
     alignRightCheck.value = false;
@@ -792,16 +792,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     alignEvenZeroCheck.value = false;
 
     // 縦位置パネル（上/中央/下 ＋ 横方向の分配）: チェックは縦並び
-    var vAlignPanel = rightPane.add("panel", undefined, L("panel.vAlign"));
+    var vAlignPanel = rightPane.add("panel", undefined, getLabel("panel.vAlign"));
     setupPanel(vAlignPanel, 5);
-    var alignTopCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignTop"));
-    var alignMiddleCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignMiddle"));
-    var alignBottomCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignBottom"));
+    var alignTopCheck = vAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignTop"));
+    var alignMiddleCheck = vAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignMiddle"));
+    var alignBottomCheck = vAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignBottom"));
     addSpacer(vAlignPanel, 5); // 「均等」の上の余白（整列⇔分配の区切り）
-    var alignHorizontalEvenCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignEven"));
-    var alignHorizontalEvenZeroCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignZero"));
-    setHelpTip(alignHorizontalEvenCheck, L("tooltip.alignEven"));
-    setHelpTip(alignHorizontalEvenZeroCheck, L("tooltip.alignZero"));
+    var alignHorizontalEvenCheck = vAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignEven"));
+    var alignHorizontalEvenZeroCheck = vAlignPanel.add("checkbox", undefined, getLabel("checkbox.alignZero"));
+    setHelpTip(alignHorizontalEvenCheck, getLabel("tooltip.alignEven"));
+    setHelpTip(alignHorizontalEvenZeroCheck, getLabel("tooltip.alignZero"));
     alignTopCheck.value = false;
     alignMiddleCheck.value = false;
     alignBottomCheck.value = false;
@@ -1017,8 +1017,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     // 左側グループ / Left-side button group
     var btnLeftGroup = btnRowGroup.add("group");
     btnLeftGroup.alignChildren = ["left", "center"];
-    var btnReset = btnLeftGroup.add("button", undefined, L("button.reset"));
-    setHelpTip(btnReset, L("tooltip.reset"));
+    var btnReset = btnLeftGroup.add("button", undefined, getLabel("button.reset"));
+    setHelpTip(btnReset, getLabel("tooltip.reset"));
     btnReset.onClick = function () {
         // 基準ラジオ・整列チェック・基準状態をすべて解除して、UI と実状態を初期状態にそろえる。
         // resizeBaseStates を消さないと、この後に整列をクリックしたとき
@@ -1054,7 +1054,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹�
     var DIALOG_RESULT_OK = 1;
     var DIALOG_RESULT_CANCEL = 2;
 
-    var btnCancel = btnRightGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
+    var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
     btnCancel.onClick = function () {
         dialog.close(DIALOG_RESULT_CANCEL);
     };

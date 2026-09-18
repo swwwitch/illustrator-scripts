@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -52,21 +52,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ラベル取得 / Get localized label by key */
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return L(key) + (lang === 'ja' ? '：' : ':');
+        return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
     }
 
     /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
     function labelWithCount(key, count) {
-        if (lang === 'ja') {
-            return L(key) + '（' + count + '）';
+        if (uiLang === 'ja') {
+            return getLabel(key) + '（' + count + '）';
         }
-        return L(key) + ' (' + count + ')';
+        return getLabel(key) + ' (' + count + ')';
     }
 
     // =========================================
@@ -161,7 +161,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        countIgnore: 非表示を無視した場合の対象数 / count when ignoring hidden
        countAll:    非表示も占有とみなした場合の対象数 / count when hidden counts as occupant */
     function showOptionsDialog(countIgnore, countAll) {
-        var dialog = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dialog.orientation = 'column';
         dialog.alignChildren = 'fill';
         dialog.margins = 16;
@@ -171,13 +171,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var countText = dialog.add('statictext', undefined, labelText('removalTarget') + countIgnore);
 
         /* オプション: 非表示要素を無視 / Option: ignore hidden elements */
-        var hiddenCheckbox = dialog.add('checkbox', undefined, L('ignoreHidden'));
+        var hiddenCheckbox = dialog.add('checkbox', undefined, getLabel('ignoreHidden'));
         hiddenCheckbox.value = true;
 
         /* ボタン行 (Mac 規約: Cancel → OK) / Button row (Mac convention) */
         var buttonGroup = dialog.add('group');
         buttonGroup.alignment = 'right';
-        buttonGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
+        buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
         var okButton = buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
         okButton.enabled = (countIgnore > 0);
 
@@ -198,13 +198,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function main() {
         if (app.documents.length === 0) {
-            alert(L('noDocument'));
+            alert(getLabel('noDocument'));
             return;
         }
 
         var doc = app.activeDocument;
         if (doc.artboards.length <= 1) {
-            alert(L('onlyOneArtboard'));
+            alert(getLabel('onlyOneArtboard'));
             return;
         }
 

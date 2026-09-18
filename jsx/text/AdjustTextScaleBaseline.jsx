@@ -48,7 +48,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: {
@@ -112,19 +112,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 文字選択状態を取得 / Get selected characters from current document */
     function getTextSelection() {
-        var sel = app.selection;
+        var currentSelection = app.selection;
         var res = [];
-        if (!sel || sel.length === 0) return res;
-        for (var i = 0; i < sel.length; i++) {
-            var item = sel[i];
+        if (!currentSelection || currentSelection.length === 0) return res;
+        for (var i = 0; i < currentSelection.length; i++) {
+            var item = currentSelection[i];
             if (item instanceof TextFrame) {
                 res.push(item.textRange);
             } else if (item instanceof TextRange) {
                 res.push(item);
             }
         }
-        if (!(sel instanceof Array) && sel instanceof TextRange) {
-            res.push(sel);
+        if (!(currentSelection instanceof Array) && currentSelection instanceof TextRange) {
+            res.push(currentSelection);
         }
         return res;
     }
@@ -312,7 +312,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var targetRanges = getTextSelection();
         if (targetRanges.length === 0) {
-            alert(LABELS.selectTextAlert[lang]);
+            alert(LABELS.selectTextAlert[uiLang]);
             return;
         }
 
@@ -426,7 +426,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             displayGroup.children[2].enabled = !isDimmed;
         }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.alignChildren = "left";
 
         var offsetX = 300;
@@ -450,11 +450,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var targetTextGroup = leftCol.add("group");
         targetTextGroup.orientation = "row";
-        targetTextGroup.add("statictext", undefined, LABELS.targetChar[lang]);
+        targetTextGroup.add("statictext", undefined, LABELS.targetChar[uiLang]);
         var targetCharInput = targetTextGroup.add("edittext", undefined, uniqueNonAN);
         targetCharInput.characters = 10;
 
-        var infoPanel = leftCol.add("panel", undefined, LABELS.adjust[lang]);
+        var infoPanel = leftCol.add("panel", undefined, LABELS.adjust[uiLang]);
         infoPanel.orientation = "column";
         infoPanel.alignChildren = ["left", "top"];
         infoPanel.margins = [15, 10, 15, 10];
@@ -470,7 +470,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sizeGroup = radioGroup.add("group", undefined, { orientation: "row" });
         sizeGroup.margins = [0, 10, 0, 0];
         sizeGroup.alignChildren = "left";
-        var sizeLabel = sizeGroup.add("statictext", undefined, LABELS.fontSize[lang]);
+        var sizeLabel = sizeGroup.add("statictext", undefined, LABELS.fontSize[uiLang]);
         sizeLabel.justify = "right";
         uiElements.sizeInput = sizeGroup.add("edittext", undefined, "0");
         uiElements.sizeInput.characters = 4;
@@ -481,7 +481,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var scaleGroup = radioGroup.add("group", undefined, { orientation: "row" });
         scaleGroup.margins = [0, 0, 0, 6];
-        var scaleLabel = scaleGroup.add("statictext", undefined, LABELS.scale[lang]);
+        var scaleLabel = scaleGroup.add("statictext", undefined, LABELS.scale[uiLang]);
         scaleLabel.justify = "right";
         uiElements.hScaleInput = scaleGroup.add("edittext", undefined, "100");
         uiElements.hScaleInput.characters = 4;
@@ -490,7 +490,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         uiElements.hScaleInput.enabled = true;
 
         var displayGroup = infoPanel.add("group", undefined, { orientation: "row" });
-        var apparentLabel = displayGroup.add("statictext", undefined, LABELS.apparent[lang]);
+        var apparentLabel = displayGroup.add("statictext", undefined, LABELS.apparent[uiLang]);
         apparentLabel.justify = "right";
         uiElements.apparentSizeText = displayGroup.add("statictext", undefined, "--");
         uiElements.apparentSizeText.characters = 5;
@@ -500,7 +500,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         baselineGroup.orientation = "row";
         baselineGroup.alignChildren = ["right", "center"];
 
-        var baselineLabel = baselineGroup.add("statictext", undefined, LABELS.baselineShiftLabel[lang]);
+        var baselineLabel = baselineGroup.add("statictext", undefined, LABELS.baselineShiftLabel[uiLang]);
         baselineLabel.justify = "right";
 
         function setUnifiedLabelWidth() {
@@ -611,7 +611,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         kerningGroup.orientation = "row";
         kerningGroup.alignChildren = ["right", "center"];
 
-        var kerningLabel = kerningGroup.add("statictext", undefined, LABELS.kerning[lang]);
+        var kerningLabel = kerningGroup.add("statictext", undefined, LABELS.kerning[uiLang]);
         kerningLabel.justify = "right";
 
         uiElements.kerningInput = kerningGroup.add("edittext", undefined, "0");
@@ -632,7 +632,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         trackingGroup.orientation = "row";
         trackingGroup.alignChildren = ["right", "center"];
 
-        var trackingLabel = trackingGroup.add("statictext", undefined, LABELS.tracking[lang]);
+        var trackingLabel = trackingGroup.add("statictext", undefined, LABELS.tracking[uiLang]);
         trackingLabel.justify = "right";
         trackingLabel.preferredSize.width = 120;
 
@@ -653,11 +653,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonGroup = rightCol.add("group");
         buttonGroup.alignment = "right";
         buttonGroup.orientation = "column";
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
+        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[uiLang]);
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[uiLang]);
         var cancelResetSpacer = buttonGroup.add("statictext", undefined, "");
         cancelResetSpacer.preferredSize.height = 50;
-        var resetBtn = buttonGroup.add("button", undefined, LABELS.reset[lang]);
+        var resetBtn = buttonGroup.add("button", undefined, LABELS.reset[uiLang]);
         resetBtn.preferredSize.width = 90;
         cancelBtn.preferredSize.width = 90;
         okBtn.preferredSize.width = 90;

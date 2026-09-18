@@ -56,8 +56,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    var activeDocument = app.activeDocument;
-    var selectionItems = activeDocument.selection;
+    var documentRef = app.activeDocument;
+    var selectionItems = documentRef.selection;
 
     if (selectionItems.length === 0) {
         alert("テキストを選択してください。");

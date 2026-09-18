@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -74,19 +74,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* ダイアログを表示し、ユーザーの選択を取得 / Show dialog and get user selection */
     function showDialog() {
         /* ダイアログタイトル（日本語固定） / Dialog title (fixed Japanese) */
-        var dialog = new Window("dialog", LABELS.dialog.title[lang]);
+        var dialog = new Window("dialog", LABELS.dialog.title[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
         /* 対象範囲パネル / Target scope panel */
-        var scopeGroup = dialog.add("panel", undefined, LABELS.panel.scope[lang]);
+        var scopeGroup = dialog.add("panel", undefined, LABELS.panel.scope[uiLang]);
         scopeGroup.orientation = "column";
         scopeGroup.alignChildren = "left";
         scopeGroup.margins = [15, 20, 15, 10];
 
         var scopeRadios = {
-            excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.radio.excludeSelected[lang]),
-            allObjects: scopeGroup.add("radiobutton", undefined, LABELS.radio.allObjects[lang])
+            excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.radio.excludeSelected[uiLang]),
+            allObjects: scopeGroup.add("radiobutton", undefined, LABELS.radio.allObjects[uiLang])
         };
 
         /* Set radio default based on selection */
@@ -103,13 +103,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* アートボード外処理パネル / Outside artboard action panel */
-        var abGroup = dialog.add("panel", undefined, LABELS.panel.outside[lang]);
+        var abGroup = dialog.add("panel", undefined, LABELS.panel.outside[uiLang]);
         abGroup.orientation = "column";
         abGroup.alignChildren = "left";
         abGroup.margins = [15, 20, 15, 10];
 
-        var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.radio.remove[lang]);
-        var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.radio.ignore[lang]);
+        var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.radio.remove[uiLang]);
+        var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.radio.ignore[uiLang]);
         ignoreRadio.value = true;
 
         /* オプション（保管用レイヤー、ロック含む） / Option (backup layer, include locked) */
@@ -118,18 +118,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         optionGroup.alignChildren = "left";
         optionGroup.margins = [15, 0, 15, 10];
 
-        var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.includeLocked[lang]);
+        var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.includeLocked[uiLang]);
         ignoreLockedCheckbox.value = true;
 
-        var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.moveToBackup[lang]);
+        var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.moveToBackup[uiLang]);
         backupCheckbox.value = false;
 
         /* ボタン / Buttons */
         var buttonGroup = dialog.add("group");
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "center";
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.button.cancel[lang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.button.ok[lang], {
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.button.cancel[uiLang]);
+        var okBtn = buttonGroup.add("button", undefined, LABELS.button.ok[uiLang], {
             name: "ok"
         });
 
@@ -260,9 +260,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         if (mode === 1) {
             /* 「選択オブジェクトを残す」: Delete/move all objects inside current artboard except selected */
-            var sel = doc.selection;
-            if (!sel || sel.length === 0) {
-                alert(LABELS.alert.noSelection[lang]);
+            var currentSelection = doc.selection;
+            if (!currentSelection || currentSelection.length === 0) {
+                alert(LABELS.alert.noSelection[uiLang]);
                 return;
             }
             /* Collect all objects inside current artboard (including locked/hidden as per includeLocked) */
@@ -300,15 +300,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             collectInsideItems(doc.pageItems);
             /* Exclude selected objects */
             var selectedSet = {};
-            for (var si = 0; si < sel.length; si++) {
-                selectedSet[sel[si]] = true;
+            for (var si = 0; si < currentSelection.length; si++) {
+                selectedSet[currentSelection[si]] = true;
             }
             /* For ExtendScript, compare by reference */
             var filteredItems = [];
             for (var ii = 0; ii < insideItems.length; ii++) {
                 var isSelected = false;
-                for (var sj = 0; sj < sel.length; sj++) {
-                    if (insideItems[ii] === sel[sj]) {
+                for (var sj = 0; sj < currentSelection.length; sj++) {
+                    if (insideItems[ii] === currentSelection[sj]) {
                         isSelected = true;
                         break;
                     }
@@ -321,7 +321,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (outsideItems.length === 0) {
-            alert(LABELS.alert.noTargets[lang]);
+            alert(LABELS.alert.noTargets[uiLang]);
             return;
         }
 

@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -125,8 +125,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     function main() {
@@ -135,14 +135,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
         var originalSelection = [];
-        for (var selIndex = 0; selIndex < sel.length; selIndex++) {
-            originalSelection.push(sel[selIndex]);
+        for (var selIndex = 0; selIndex < currentSelection.length; selIndex++) {
+            originalSelection.push(currentSelection[selIndex]);
         }
 
-        if (sel.length === 0) {
-            alert(L("selectObjectAlert"));
+        if (currentSelection.length === 0) {
+            alert(getLabel("selectObjectAlert"));
             return;
         }
 
@@ -153,7 +153,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         try {
             /* 選択オブジェクトの情報を保持 / Store selected object data */
-            targetObjects = collectGradientTargets(sel, isCMYK);
+            targetObjects = collectGradientTargets(currentSelection, isCMYK);
 
             if (targetObjects.length === 0) {
                 return;
@@ -311,9 +311,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     } catch (cleanupErr) { }
                 } finally {
                     restoreSelection();
-                    try {
-                        app.redraw();
-                    } catch (e2) { }
+                    app.redraw();
                 }
             }
 
@@ -395,9 +393,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 restoreSelection();
             } catch (e) { }
-            try {
-                app.redraw();
-            } catch (e) { }
+            app.redraw();
         }
     }
 
@@ -406,7 +402,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     function buildDialogUI() {
-        var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         dlg.orientation = "column";
         dlg.alignChildren = ["fill", "top"];
 
@@ -415,21 +411,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         topGroup.alignChildren = ["fill", "top"];
 
         /* 終点カラーの設定 / Set end color options */
-        var panel = topGroup.add("panel", undefined, L("endpointColorPanel"));
+        var panel = topGroup.add("panel", undefined, getLabel("endpointColorPanel"));
         panel.orientation = "column";
         panel.alignChildren = ["left", "top"];
         panel.margins = [15, 20, 15, 10];
 
-        var radioBlack = panel.add("radiobutton", undefined, L("black"));
-        var radioWhite = panel.add("radiobutton", undefined, L("white"));
-        var radioTransparent = panel.add("radiobutton", undefined, L("transparent"));
-        var radioComplementary = panel.add("radiobutton", undefined, L("complementary"));
+        var radioBlack = panel.add("radiobutton", undefined, getLabel("black"));
+        var radioWhite = panel.add("radiobutton", undefined, getLabel("white"));
+        var radioTransparent = panel.add("radiobutton", undefined, getLabel("transparent"));
+        var radioComplementary = panel.add("radiobutton", undefined, getLabel("complementary"));
         /* 淡色ラジオ＋スライダー / Tint radio + slider */
         var tintLabelGroup = panel.add("group");
         tintLabelGroup.orientation = "row";
         tintLabelGroup.alignChildren = ["left", "center"];
         tintLabelGroup.spacing = 4;
-        var radioTint = tintLabelGroup.add("radiobutton", undefined, L("tint"));
+        var radioTint = tintLabelGroup.add("radiobutton", undefined, getLabel("tint"));
         var tintValue = tintLabelGroup.add("statictext", undefined, "50%");
         tintValue.characters = 5;
 
@@ -439,7 +435,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         radioTransparent.value = true; // デフォルト / Default
 
-        var anglePanel = topGroup.add("panel", undefined, L("anglePanel"));
+        var anglePanel = topGroup.add("panel", undefined, getLabel("anglePanel"));
         anglePanel.orientation = "column";
         anglePanel.alignChildren = ["left", "top"];
         anglePanel.margins = [15, 20, 15, 10];
@@ -451,29 +447,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var angle90 = anglePanel.add("radiobutton", undefined, "90");
         angle0.value = true; // デフォルト / Default
 
-        var sourcePanel = dlg.add("panel", undefined, L("sourceColorPanel"));
+        var sourcePanel = dlg.add("panel", undefined, getLabel("sourceColorPanel"));
         sourcePanel.orientation = "row";
         sourcePanel.alignChildren = ["left", "center"];
         sourcePanel.margins = [15, 20, 15, 10];
 
-        var sourceDropdown = sourcePanel.add("dropdownlist", undefined, [L("auto")]);
+        var sourceDropdown = sourcePanel.add("dropdownlist", undefined, [getLabel("auto")]);
         sourceDropdown.selection = 0; // デフォルト / Default
 
         /* オプションの設定 / Set options */
-        var optPanel = dlg.add("panel", undefined, L("optionsPanel"));
+        var optPanel = dlg.add("panel", undefined, getLabel("optionsPanel"));
         optPanel.orientation = "column";
         optPanel.alignChildren = ["left", "top"];
         optPanel.margins = [15, 20, 15, 10];
 
-        var chkSeparate = optPanel.add("checkbox", undefined, L("separateGradient"));
-        var chkReverse = optPanel.add("checkbox", undefined, L("reverse"));
-        var chkPreview = optPanel.add("checkbox", undefined, L("preview"));
+        var chkSeparate = optPanel.add("checkbox", undefined, getLabel("separateGradient"));
+        var chkReverse = optPanel.add("checkbox", undefined, getLabel("reverse"));
+        var chkPreview = optPanel.add("checkbox", undefined, getLabel("preview"));
 
         /* ボタンの設定 / Set button layout */
         var btnGroup = dlg.add("group");
         btnGroup.alignment = ["center", "center"]; // 中央揃え / Center align
-        btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        btnGroup.add("button", undefined, L("ok"), { name: "ok" });
+        btnGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+        btnGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
         return {
             dlg: dlg,
@@ -510,19 +506,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var gradientFill = getSingleGradientFillColor(targetObjects);
         if (!gradientFill) {
-            sourceDropdown.add("item", L("auto"));
+            sourceDropdown.add("item", getLabel("auto"));
             sourceDropdown.selection = 0;
             return;
         }
 
         var sourceColors = collectSourceColorsFromGradient(gradientFill, isCMYK);
         if (sourceColors.length === 0) {
-            sourceDropdown.add("item", L("auto"));
+            sourceDropdown.add("item", getLabel("auto"));
             sourceDropdown.selection = 0;
             return;
         }
 
-        sourceDropdown.add("item", L("auto"));
+        sourceDropdown.add("item", getLabel("auto"));
         for (var i = 0; i < sourceColors.length; i++) {
             sourceDropdown.add("item", formatSourceColorLabel(sourceColors[i], i));
         }
@@ -799,11 +795,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (color.typename === "GrayColor") {
-            return L("gray") + ' ' + formatColorNumber(color.gray);
+            return getLabel("gray") + ' ' + formatColorNumber(color.gray);
         }
 
         if (color.typename === "SpotColor") {
-            var spotName = (color.spot && color.spot.name) ? color.spot.name : L("spot");
+            var spotName = (color.spot && color.spot.name) ? color.spot.name : getLabel("spot");
             return spotName + ' ' + formatColorNumber(color.tint) + '%';
         }
 
@@ -1058,7 +1054,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             c.gray = 100 - orgColor.gray;
             return c;
         } else if (orgColor.typename === "SpotColor") {
-            throw new Error(L("unsupportedSpotComplementary"));
+            throw new Error(getLabel("unsupportedSpotComplementary"));
         }
         return createBlackColor(isCMYK);
     }

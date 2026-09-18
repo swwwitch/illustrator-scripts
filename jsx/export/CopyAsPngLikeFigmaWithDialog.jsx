@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
     var LABELS = {
         dialogTitle: { ja: "ビットマップとしてコピー", en: "Copy as PNG" },
         dpi: { ja: "解像度", en: "Resolution" },
@@ -68,41 +68,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     function createDialog() {
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dlg = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dlg.orientation = "column";
         dlg.alignChildren = "left";
 
         var dpiGroup = dlg.add("group");
         dpiGroup.orientation = "row";
-        dpiGroup.add("statictext", undefined, LABELS.dpi[lang] + ":");
+        dpiGroup.add("statictext", undefined, LABELS.dpi[uiLang] + ":");
         var dpiDropdown = dpiGroup.add("dropdownlist", undefined, ["72", "150", "300", "600", "1200"]);
-        dpiGroup.add("statictext", undefined, LABELS.dpiUnit[lang]);
+        dpiGroup.add("statictext", undefined, LABELS.dpiUnit[uiLang]);
         dpiDropdown.selection = 3;
 
         var bgGroup = dlg.add("group");
         bgGroup.orientation = "row";
         bgGroup.alignChildren = "left";
-        bgGroup.add("statictext", undefined, LABELS.background[lang]);
-        var bgTransparent = bgGroup.add("radiobutton", undefined, LABELS.transparent[lang]);
-        var bgWhite = bgGroup.add("radiobutton", undefined, LABELS.white[lang]);
-        var bgBlack = bgGroup.add("radiobutton", undefined, LABELS.black[lang]);
+        bgGroup.add("statictext", undefined, LABELS.background[uiLang]);
+        var bgTransparent = bgGroup.add("radiobutton", undefined, LABELS.transparent[uiLang]);
+        var bgWhite = bgGroup.add("radiobutton", undefined, LABELS.white[uiLang]);
+        var bgBlack = bgGroup.add("radiobutton", undefined, LABELS.black[uiLang]);
         bgWhite.value = true;
 
         var marginGroup = dlg.add("group");
         marginGroup.orientation = "row";
-        marginGroup.add("statictext", undefined, LABELS.margin[lang] + ":");
+        marginGroup.add("statictext", undefined, LABELS.margin[uiLang] + ":");
         var marginInput = marginGroup.add("edittext", undefined, "0");
         marginInput.characters = 4;
 
         var aaGroup = dlg.add("group");
-        var aaCheckbox = aaGroup.add("checkbox", undefined, LABELS.antialias[lang]);
+        var aaCheckbox = aaGroup.add("checkbox", undefined, LABELS.antialias[uiLang]);
         aaCheckbox.value = true;
 
         var btnGroup = dlg.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = "right";
-        btnGroup.add("button", undefined, LABELS.cancel[lang]);
-        btnGroup.add("button", undefined, LABELS.ok[lang]);
+        btnGroup.add("button", undefined, LABELS.cancel[uiLang]);
+        btnGroup.add("button", undefined, LABELS.ok[uiLang]);
 
         return {
             dialog: dlg,
@@ -138,7 +138,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var progressWin = new Window("palette", "処理中...");
         progressWin.pbar = progressWin.add("progressbar", [20, 20, 300, 10], 0, 100);
-        progressWin.st = progressWin.add("statictext", undefined, LABELS.processing[lang]);
+        progressWin.st = progressWin.add("statictext", undefined, LABELS.processing[uiLang]);
         progressWin.show();
 
         function updateProgress(value, text) {
@@ -148,13 +148,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         try {
-            updateProgress(10, LABELS.step1[lang]);
+            updateProgress(10, LABELS.step1[uiLang]);
             var tempLayer = doc.layers.add();
             tempLayer.name = "__TEMP_LAYER__";
             tempLayer.locked = false;
             tempLayer.visible = true;
 
-            updateProgress(20, LABELS.step2[lang]);
+            updateProgress(20, LABELS.step2[uiLang]);
             var duplicatedItems = [];
             var tempGroup = tempLayer.groupItems.add();
             for (var i = 0; i < originalSelection.length; i++) {
@@ -162,7 +162,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 duplicatedItems.push(dup);
             }
 
-            updateProgress(35, LABELS.step3[lang]);
+            updateProgress(35, LABELS.step3[uiLang]);
             var bounds = tempGroup.visibleBounds;
             var margin = settings.margin || 0;
             var rect = doc.pathItems.rectangle(
@@ -175,7 +175,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rect.filled = false;
             rect.move(tempLayer, ElementPlacement.PLACEATBEGINNING);
 
-            updateProgress(50, LABELS.step4[lang]);
+            updateProgress(50, LABELS.step4[uiLang]);
             var options = new RasterizeOptions();
             options.resolution = settings.dpi;
             options.transparency = (settings.background === "transparent");
@@ -186,15 +186,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var rasterized = doc.rasterize(tempGroup, rect.geometricBounds, options);
 
-            updateProgress(70, LABELS.step5[lang]);
+            updateProgress(70, LABELS.step5[uiLang]);
             var resizeRatio = Math.round((settings.dpi / 72) * 100);
             rasterized.resize(resizeRatio, resizeRatio, true, true, true, true, resizeRatio, Transformation.CENTER);
 
-            updateProgress(85, LABELS.step6[lang]);
+            updateProgress(85, LABELS.step6[uiLang]);
             app.selection = [rasterized];
             app.executeMenuCommand("copy");
 
-            updateProgress(95, LABELS.step7[lang]);
+            updateProgress(95, LABELS.step7[uiLang]);
             try { rasterized.remove(); } catch (e) {}
             try { rect.remove(); } catch (e) {}
             for (var j = 0; j < duplicatedItems.length; j++) {
@@ -205,10 +205,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             app.selection = originalSelection;
 
-            updateProgress(100, LABELS.done[lang]);
+            updateProgress(100, LABELS.done[uiLang]);
 
             progressWin.close();
-            alert(settings.dpi + LABELS.copiedMsg[lang] + resizeRatio + "%" + LABELS.copiedMsgSuffix[lang]);
+            alert(settings.dpi + LABELS.copiedMsg[uiLang] + resizeRatio + "%" + LABELS.copiedMsgSuffix[uiLang]);
         } catch (err) {
             progressWin.close();
             alert("エラーが発生しました: " + err.message);
@@ -217,7 +217,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function main() {
         if (app.documents.length === 0 || app.selection.length === 0) {
-            alert(LABELS.alertNoSelection[lang]);
+            alert(LABELS.alertNoSelection[uiLang]);
             return;
         }
 

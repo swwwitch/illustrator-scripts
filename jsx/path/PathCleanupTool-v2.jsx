@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -217,24 +217,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return removeDuplicateAnchorsOnTargets(targets);
         }
 
-        function L(key) {
+        function getLabel(key) {
             var v = LABELS[key];
             if (!v) return String(key);
-            return v[lang] || v.ja || String(key);
+            return v[uiLang] || v.ja || String(key);
         }
 
         function getSelectionOrAlert() {
             if (!hasDocument()) {
-                alert(L('alertNoDocument'));
+                alert(getLabel('alertNoDocument'));
                 return null;
             }
             var doc = app.activeDocument;
-            var sel = doc.selection;
-            if (!(sel instanceof Array) || sel.length === 0) {
-                alert(L('alertNeedSelection'));
+            var currentSelection = doc.selection;
+            if (!(currentSelection instanceof Array) || currentSelection.length === 0) {
+                alert(getLabel('alertNeedSelection'));
                 return null;
             }
-            return sel;
+            return currentSelection;
         }
 
         // 3点が一直線上にあるか判定（外積を使用）
@@ -398,10 +398,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!hasDocument()) return info;
 
             var doc = app.activeDocument;
-            var sel = doc.selection;
-            if (!(sel instanceof Array) || sel.length === 0) return info;
+            var currentSelection = doc.selection;
+            if (!(currentSelection instanceof Array) || currentSelection.length === 0) return info;
 
-            var targets = getTargetPathItemsFromSelection(sel);
+            var targets = getTargetPathItemsFromSelection(currentSelection);
 
             for (var i = 0; i < targets.length; i++) {
                 var item = targets[i];
@@ -796,11 +796,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
             }
             var doc = app.activeDocument;
-            var sel = doc.selection;
-            if (!(sel instanceof Array) || sel.length === 0) {
+            var currentSelection = doc.selection;
+            if (!(currentSelection instanceof Array) || currentSelection.length === 0) {
                 return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
             }
-            var targets = getTargetPathItemsFromSelection(sel);
+            var targets = getTargetPathItemsFromSelection(currentSelection);
             return getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles);
         }
 
@@ -861,7 +861,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             function getActiveMode() {
                 return (tpanel.selection === tabOther) ? 'other' : 'process';
             }
-            var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
             dlg.orientation = 'column';
             dlg.alignChildren = ['fill', 'top'];
             dlg.margins = 18;
@@ -871,7 +871,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 saveDialogLocation(dlg);
             };
 
-            var pnlInfo = dlg.add('panel', undefined, L('panelCurrentInfo'));
+            var pnlInfo = dlg.add('panel', undefined, getLabel('panelCurrentInfo'));
             pnlInfo.orientation = 'column';
             pnlInfo.alignChildren = ['left', 'top'];
             pnlInfo.margins = [5, 20, 5, 10];
@@ -881,7 +881,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 row.orientation = 'row';
                 row.alignChildren = ['left', 'center'];
 
-                var stLabel = row.add('statictext', undefined, L(labelKey));
+                var stLabel = row.add('statictext', undefined, getLabel(labelKey));
                 stLabel.characters = 16;
                 stLabel.justify = 'right';
 
@@ -933,12 +933,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tpanel.alignChildren = ['fill', 'top'];
 
             // --- Tab 1: 削除対象 ---
-            var tabProcess = tpanel.add('tab', undefined, L('tabProcess'));
+            var tabProcess = tpanel.add('tab', undefined, getLabel('tabProcess'));
             tabProcess.orientation = 'column';
             tabProcess.alignChildren = ['left', 'top'];
             tabProcess.margins = [15, 15, 15, 10];
 
-            var cbSameAnchors = tabProcess.add('checkbox', undefined, L('cbRemoveSameAnchors'));
+            var cbSameAnchors = tabProcess.add('checkbox', undefined, getLabel('cbRemoveSameAnchors'));
             cbSameAnchors.value = false;
 
             // Tolerance for collinear anchor detection (0.01 - 3.00)
@@ -948,7 +948,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpAnchors.alignChildren = ['left', 'top'];
             grpAnchors.margins = [0, 15, 0, 15];
 
-            var cbAnchors = grpAnchors.add('checkbox', undefined, L('cbRemoveAnchors'));
+            var cbAnchors = grpAnchors.add('checkbox', undefined, getLabel('cbRemoveAnchors'));
             cbAnchors.value = true;
 
             var grpTolAnchor = grpAnchors.add('group');
@@ -956,7 +956,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpTolAnchor.alignChildren = ['left', 'center'];
             grpTolAnchor.margins = [20, 0, 0, 0];
 
-            var stTolAnchor = grpTolAnchor.add('statictext', undefined, L('labelTolAnchor'));
+            var stTolAnchor = grpTolAnchor.add('statictext', undefined, getLabel('labelTolAnchor'));
             stTolAnchor.characters = 6;
 
             var etTolAnchor = grpTolAnchor.add('edittext', undefined, TOL_ANCHOR_COLLINEAR.toFixed(2));
@@ -1000,7 +1000,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpHandle.alignChildren = ['left', 'top'];
             // grpHandle.margins = [0, 0, 0, 8];
 
-            var cbHandle = grpHandle.add('checkbox', undefined, L('cbRemoveHandles'));
+            var cbHandle = grpHandle.add('checkbox', undefined, getLabel('cbRemoveHandles'));
             cbHandle.value = true;
 
             // Tolerance for straight-segment handle detection (0.01 - 3.00)
@@ -1009,7 +1009,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpTol.alignChildren = ['left', 'center'];
             grpTol.margins = [20, 0, 0, 0];
 
-            var stTol = grpTol.add('statictext', undefined, L('labelTolHandle'));
+            var stTol = grpTol.add('statictext', undefined, getLabel('labelTolHandle'));
             stTol.characters = 6;
 
             var etTol = grpTol.add('edittext', undefined, TOL_HANDLE_COLLINEAR.toFixed(2));
@@ -1075,15 +1075,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpTol.enabled = cbHandle.value;
 
             // --- Tab 2: その他 ---
-            var tabOther = tpanel.add('tab', undefined, L('tabOther'));
+            var tabOther = tpanel.add('tab', undefined, getLabel('tabOther'));
             tabOther.orientation = 'column';
             tabOther.alignChildren = ['left', 'top'];
             tabOther.margins = [15, 15, 15, 10];
 
-            var rbSmooth = tabOther.add('radiobutton', undefined, L('rbConvertSmooth'));
-            var rbCorner = tabOther.add('radiobutton', undefined, L('rbConvertCorner'));
-            var rbAdd = tabOther.add('radiobutton', undefined, L('rbAddAnchors'));
-            var rbSplit = tabOther.add('radiobutton', undefined, L('rbSplitAtAnchors'));
+            var rbSmooth = tabOther.add('radiobutton', undefined, getLabel('rbConvertSmooth'));
+            var rbCorner = tabOther.add('radiobutton', undefined, getLabel('rbConvertCorner'));
+            var rbAdd = tabOther.add('radiobutton', undefined, getLabel('rbAddAnchors'));
+            var rbSplit = tabOther.add('radiobutton', undefined, getLabel('rbSplitAtAnchors'));
             rbSmooth.value = true;
 
             rbSmooth.onClick = rbCorner.onClick = rbAdd.onClick = rbSplit.onClick = function () {
@@ -1101,8 +1101,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             btns.alignChildren = ['center', 'center'];
             btns.alignment = ['center', 'top'];
 
-            var btnCancel = btns.add('button', undefined, L('btnCancel'), { name: 'cancel' });
-            var btnOK = btns.add('button', undefined, L('btnOK'), { name: 'ok' });
+            var btnCancel = btns.add('button', undefined, getLabel('btnCancel'), { name: 'cancel' });
+            var btnOK = btns.add('button', undefined, getLabel('btnOK'), { name: 'ok' });
 
             var result = {
                 ok: false,
@@ -1333,17 +1333,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // タブindex依存だと ScriptUI 環境差で誤判定しうるため、明示状態で分岐する
         if (ui.activeMode === 'other') {
             // --- その他タブ: 変換・分割処理 ---
-            var sel = selectionAtOpen.slice(0);
+            var currentSelection = selectionAtOpen.slice(0);
             if (ui.convertMode === 'add') {
                 app.executeMenuCommand('Add Anchor Points2');
             } else if (ui.convertMode === 'split') {
-                for (var n = 0; n < sel.length; n++) {
-                    splitItem(sel[n]);
+                for (var n = 0; n < currentSelection.length; n++) {
+                    splitItem(currentSelection[n]);
                 }
             } else {
-                for (var n = 0; n < sel.length; n++) {
-                    if (!sel[n]) continue;
-                    convertPathItem(sel[n], ui.convertMode);
+                for (var n = 0; n < currentSelection.length; n++) {
+                    if (!currentSelection[n]) continue;
+                    convertPathItem(currentSelection[n], ui.convertMode);
                 }
             }
         } else {

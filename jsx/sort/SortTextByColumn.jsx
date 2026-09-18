@@ -37,20 +37,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     function main() {
-        var lang = getCurrentLang();
+        var uiLang = getCurrentLang();
 
         if (app.documents.length === 0) {
             alert("ドキュメントを開いてください。");
             return;
         }
 
-        var sel = app.activeDocument.selection;
-        if (sel.length !== 1 || sel[0].typename !== "TextFrame") {
+        var currentSelection = app.activeDocument.selection;
+        if (currentSelection.length !== 1 || currentSelection[0].typename !== "TextFrame") {
             alert("1つのテキストオブジェクトを選択してください。");
             return;
         }
 
-        var textFrame = sel[0];
+        var textFrame = currentSelection[0];
         var lineBreak = "\r";
         var tabChar = "\t";
         var lines = textFrame.contents.split(lineBreak);
@@ -75,7 +75,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             previewCols = lines[0].split(tabChar);
         }
 
-        var sortOptions = showSortOptionsDialog(previewCols, lines, lang, hasHeaderCandidate);
+        var sortOptions = showSortOptionsDialog(previewCols, lines, uiLang, hasHeaderCandidate);
         if (sortOptions === null) return;
 
         var selectedColumn = sortOptions.column;
@@ -223,12 +223,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* 並び替え対象の列、順序、見出し行の有無を選択するダイアログ表示 */
-    function showSortOptionsDialog(columns, lines, lang, hasHeaderCandidate) {
-        var dlg = new Window("dialog", LABELS.SORT_COLUMN[lang]);
-        dlg.orientation = "column";
-        dlg.alignChildren = "left";
+    function showSortOptionsDialog(columns, lines, uiLang, hasHeaderCandidate) {
+        var dialog = new Window("dialog", LABELS.SORT_COLUMN[uiLang]);
+        dialog.orientation = "column";
+        dialog.alignChildren = "left";
 
-        var columnPanel = dlg.add("panel", undefined, LABELS.SORT_COLUMN[lang]);
+        var columnPanel = dialog.add("panel", undefined, LABELS.SORT_COLUMN[uiLang]);
         columnPanel.orientation = "column";
         columnPanel.alignChildren = "left";
         columnPanel.margins = [10, 25, 10, 10];
@@ -255,24 +255,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 列ごとにラジオボタンを作成しプレビューを表示 */
         for (var i = 0; i < columns.length; i++) {
             var previewStr = previews[i].join(", ");
-            var btnLabel = (lang === "ja" ? "【列" : "[Row ") + (i + 1) + (lang === "ja" ? "】" : "] ") + previewStr + "…";
+            var btnLabel = (uiLang === "ja" ? "【列" : "[Row ") + (i + 1) + (uiLang === "ja" ? "】" : "] ") + previewStr + "…";
             var btn = columnGroup.add("radiobutton", undefined, btnLabel);
             radioButtons.push(btn);
         }
 
-        var orderPanel = dlg.add("panel", undefined, LABELS.SORT_ORDER[lang]);
+        var orderPanel = dialog.add("panel", undefined, LABELS.SORT_ORDER[uiLang]);
         orderPanel.orientation = "column";
         orderPanel.alignChildren = "left";
         orderPanel.margins = [10, 25, 10, 10];
 
         var orderGroup = orderPanel.add("group");
         orderGroup.orientation = "row";
-        var ascBtn = orderGroup.add("radiobutton", undefined, LABELS.ASCENDING[lang]);
-        var descBtn = orderGroup.add("radiobutton", undefined, LABELS.DESCENDING[lang]);
-        var randomBtn = orderGroup.add("radiobutton", undefined, LABELS.RANDOM[lang]);
+        var ascBtn = orderGroup.add("radiobutton", undefined, LABELS.ASCENDING[uiLang]);
+        var descBtn = orderGroup.add("radiobutton", undefined, LABELS.DESCENDING[uiLang]);
+        var randomBtn = orderGroup.add("radiobutton", undefined, LABELS.RANDOM[uiLang]);
         ascBtn.value = true;
 
-        var headerCheckbox = dlg.add("checkbox", undefined, LABELS.HEADER[lang]);
+        var headerCheckbox = dialog.add("checkbox", undefined, LABELS.HEADER[uiLang]);
         headerCheckbox.value = false;
 
         if (hasHeaderCandidate) {
@@ -316,7 +316,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         radioButtons[defaultColIndex].value = true;
 
-        var btnGroup = dlg.add("group");
+        var btnGroup = dialog.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = "right";
         btnGroup.add("button", undefined, "Cancel", {
@@ -326,7 +326,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             name: "OK"
         });
 
-        if (dlg.show() !== 1) return null;
+        if (dialog.show() !== 1) return null;
 
         var selectedIndex = 0;
         for (var j = 0; j < radioButtons.length; j++) {

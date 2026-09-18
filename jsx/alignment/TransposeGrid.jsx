@@ -35,172 +35,232 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
-    if (app.documents.length === 0) { alert("ドキュメントがありません。"); return; }
-    var doc = app.activeDocument;
-    var sel = doc.selection;
-    if (!sel || sel.length < 1) { alert("オブジェクトを選択してください。"); return; }
 
-    // ---- 調整パラメータ
-    var SNAP_X_TOL = 8.0;   // X方向の「同じ列」とみなす許容（pt）
-    var SNAP_Y_TOL = 8.0;   // Y方向の「同じ行」とみなす許容（pt）
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+    /* 同じ列とみなす左端Xの許容差（pt）/ tolerance for treating lefts as one column */
+    var SAME_COLUMN_TOLERANCE_PT = 8.0;
+    /* 同じ行とみなす上端Yの許容差（pt）/ tolerance for treating tops as one row */
+    var SAME_ROW_TOLERANCE_PT = 8.0;
 
-    // visibleBounds: [left, top, right, bottom]
-    function leftX(it){ return it.visibleBounds[0]; }
-    function topY(it){ return it.visibleBounds[1]; }
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-    // 近い値をクラスタリングして「列X一覧」「行Y一覧」を作る
-    function clusterValues(values, tol){
-        values.sort(function(a,b){ return a-b; });
-        var centers = [];
-        for (var i=0; i<values.length; i++){
-            var v = values[i];
-            var found = -1;
-            for (var c=0; c<centers.length; c++){
-                if (Math.abs(v - centers[c]) <= tol) { found = c; break; }
+    /**
+     * 選択オブジェクトを行・列に割り当て、グリッドを転置（行⇄列）する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert("ドキュメントが開かれていません。");
+            return;
+        }
+
+        var selectedObjects = app.activeDocument.selection;
+        if (!selectedObjects || selectedObjects.length < 1) {
+            alert("オブジェクトを選択してください。");
+            return;
+        }
+
+        var selectedItems = [];
+        for (var i = 0; i < selectedObjects.length; i++) selectedItems.push(selectedObjects[i]);
+
+        /* すべての左端X・上端Yを集めて行・列の候補を作る / collect lefts and tops to derive the axes */
+        var leftXValues = [];
+        var topYValues = [];
+        for (var k = 0; k < selectedItems.length; k++) {
+            leftXValues.push(getLeftX(selectedItems[k]));
+            topYValues.push(getTopY(selectedItems[k]));
+        }
+
+        var columnXValues = clusterValues(leftXValues, SAME_COLUMN_TOLERANCE_PT); /* 左→右 */
+        var rowYValues = clusterValues(topYValues, SAME_ROW_TOLERANCE_PT);
+        /* Illustrator座標では上ほどYが大きいので「上→下」に並べ直す / top-down order */
+        rowYValues.sort(function (valueA, valueB) { return valueB - valueA; });
+
+        var rowCount = rowYValues.length;
+        var columnCount = columnXValues.length;
+
+        var gridAssignments = assignItemsToGrid(selectedItems, rowYValues, columnXValues);
+        if (gridAssignments === null) return; /* 同一セル衝突。assignItemsToGrid が通知済み */
+
+        var targetPitch = resolveTargetPitch(columnXValues, rowYValues, rowCount, columnCount);
+        if (targetPitch === null) return; /* ピッチを推定できず。resolveTargetPitch が通知済み */
+
+        /* 転置後グリッドの基準は元の左上に固定する / keep the original top-left as the origin */
+        var originLeft = columnXValues[0];
+        var originTop = rowYValues[0];
+
+        for (var m = 0; m < gridAssignments.length; m++) {
+            var targetItem = gridAssignments[m].item;
+            /* 行と列を入れ替えた位置へ移動する / rows become columns and vice versa */
+            var targetLeft = originLeft + gridAssignments[m].rowIndex * targetPitch.columnPitchPt;
+            var targetTop = originTop - gridAssignments[m].columnIndex * targetPitch.rowPitchPt;
+
+            var itemBounds = targetItem.visibleBounds;
+            targetItem.translate(targetLeft - itemBounds[0], targetTop - itemBounds[1]);
+        }
+    }
+
+    /**
+     * オブジェクトの左端X（visibleBounds[0]）を返す
+     * @param {PageItem} pageItem - 対象のオブジェクト
+     * @returns {number} 左端X（pt）
+     */
+    function getLeftX(pageItem) {
+        return pageItem.visibleBounds[0];
+    }
+
+    /**
+     * オブジェクトの上端Y（visibleBounds[1]）を返す
+     * @param {PageItem} pageItem - 対象のオブジェクト
+     * @returns {number} 上端Y（pt）
+     */
+    function getTopY(pageItem) {
+        return pageItem.visibleBounds[1];
+    }
+
+    /**
+     * 近い値をまとめて、行または列の代表座標一覧を作る
+     * @param {number[]} values - まとめる座標値
+     * @param {number} tolerancePt - 同じ行／列とみなす許容差（pt）
+     * @returns {number[]} 昇順に並べた代表座標
+     */
+    function clusterValues(values, tolerancePt) {
+        values.sort(function (valueA, valueB) { return valueA - valueB; });
+
+        var clusterCenters = [];
+        for (var i = 0; i < values.length; i++) {
+            var matchedIndex = -1;
+            for (var j = 0; j < clusterCenters.length; j++) {
+                if (Math.abs(values[i] - clusterCenters[j]) <= tolerancePt) {
+                    matchedIndex = j;
+                    break;
+                }
             }
-            if (found < 0) centers.push(v);
-            else {
-                // 中心を軽く平均して安定させる
-                centers[found] = (centers[found] + v) / 2.0;
+            if (matchedIndex < 0) {
+                clusterCenters.push(values[i]);
+            } else {
+                /* 中心を軽く平均して安定させる / average lightly to keep the center stable */
+                clusterCenters[matchedIndex] = (clusterCenters[matchedIndex] + values[i]) / 2.0;
             }
         }
-        // もう一度ソートして安定化
-        centers.sort(function(a,b){ return a-b; });
-        return centers;
+
+        clusterCenters.sort(function (valueA, valueB) { return valueA - valueB; });
+        return clusterCenters;
     }
 
-    function nearestIndex(arr, v){
-        var best = 0;
-        var bestD = Math.abs(v - arr[0]);
-        for (var i=1; i<arr.length; i++){
-            var d = Math.abs(v - arr[i]);
-            if (d < bestD){ bestD = d; best = i; }
+    /**
+     * 値に最も近い要素の添字を返す
+     * @param {number[]} candidateValues - 探索対象の座標一覧
+     * @param {number} value - 基準となる座標
+     * @returns {number} 最も近い要素の添字
+     */
+    function findNearestIndex(candidateValues, value) {
+        var nearestIndex = 0;
+        var nearestDistance = Math.abs(value - candidateValues[0]);
+        for (var i = 1; i < candidateValues.length; i++) {
+            var distance = Math.abs(value - candidateValues[i]);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestIndex = i;
+            }
         }
-        return best;
+        return nearestIndex;
     }
 
-    // 選択を配列化
-    var items = [];
-    for (var i=0; i<sel.length; i++) items.push(sel[i]);
+    /**
+     * 各オブジェクトを (行, 列) に割り当てる。歯抜けは許容するが、同一セルの重複は中止する
+     * @param {PageItem[]} selectedItems - 割り当てるオブジェクト
+     * @param {number[]} rowYValues - 行の代表Y（上→下）
+     * @param {number[]} columnXValues - 列の代表X（左→右）
+     * @returns {Array|null} {item, rowIndex, columnIndex} の配列。重複があれば null
+     */
+    function assignItemsToGrid(selectedItems, rowYValues, columnXValues) {
+        var occupiedCells = {};
+        var gridAssignments = [];
 
-    // すべての left/top を集めて行・列候補を作る
-    var xs = [], ys = [];
-    for (var k=0; k<items.length; k++){
-        xs.push(leftX(items[k]));
-        ys.push(topY(items[k]));
-    }
-    var colXs = clusterValues(xs, SNAP_X_TOL); // 左→右
-    var rowYs = clusterValues(ys, SNAP_Y_TOL); // 下→上になりがちなので後で並べ替える
+        for (var i = 0; i < selectedItems.length; i++) {
+            var rowIndex = findNearestIndex(rowYValues, getTopY(selectedItems[i]));
+            var columnIndex = findNearestIndex(columnXValues, getLeftX(selectedItems[i]));
+            var cellKey = rowIndex + "," + columnIndex;
 
-    // Illustrator座標では上ほどYが大きいことが多いので「上→下」に並べる
-    rowYs.sort(function(a,b){ return b-a; });
+            if (occupiedCells[cellKey]) {
+                alert("同一セルに複数オブジェクトが割り当てられました。\n" +
+                    "許容値（SAME_COLUMN_TOLERANCE_PT / SAME_ROW_TOLERANCE_PT）を下げるか、整列状態を確認してください。\n" +
+                    "衝突セル: (" + rowIndex + "," + columnIndex + ")");
+                return null;
+            }
 
-    var rowCount = rowYs.length;
-    var colCount = colXs.length;
-
-    // 各オブジェクトを(行,列)に割り当て
-    // 歯抜けOK。ただし同一セルに複数来たら警告して止める（必要なら“近い方優先”などに拡張可）
-    var occupancy = {}; // key "r,c" -> item
-    var mapping = [];   // {item, r, c}
-    for (var m=0; m<items.length; m++){
-        var it = items[m];
-        var r = nearestIndex(rowYs, topY(it));
-        var c = nearestIndex(colXs, leftX(it));
-
-        var key = r + "," + c;
-        if (occupancy[key]) {
-            alert("同一セルに複数オブジェクトが割り当てられました。\n" +
-                  "許容値(SNAP_X_TOL / SNAP_Y_TOL)を下げるか、整列状態を確認してください。\n" +
-                  "衝突セル: (" + r + "," + c + ")");
-            return;
+            occupiedCells[cellKey] = true;
+            gridAssignments.push({ item: selectedItems[i], rowIndex: rowIndex, columnIndex: columnIndex });
         }
-        occupancy[key] = it;
-        mapping.push({ item: it, r: r, c: c });
+
+        return gridAssignments;
     }
 
-    // 転置後のグリッドは
-    //  Xは「行インデックス」を列方向に（ただし rowCount が列数になる）
-    //  Yは「列インデックス」を行方向に（ただし colCount が行数になる）
-    // つまり転置先の列X一覧＝ rowYsに対応する数だけ必要…ではなく
-    // 「元の列X一覧」「元の行Y一覧」をそのまま使って転置すると形が変わるので、
-    // 今回は “元の列ピッチ/元の行ピッチ” を使って新しい軸を作ります。
+    /**
+     * 隣接差の中央値から代表ピッチを求める
+     * @param {number[]} sortedValues - 昇順または降順に並んだ座標
+     * @returns {number} 代表ピッチ（要素が1つ以下なら0）
+     */
+    function medianAdjacentGap(sortedValues) {
+        if (sortedValues.length < 2) return 0;
 
-    // 代表ピッチを推定（隣接差の中央値）
-    function medianDiff(sortedDescOrAsc){
-        if (sortedDescOrAsc.length < 2) return 0;
-        var diffs = [];
-        for (var i=1; i<sortedDescOrAsc.length; i++){
-            diffs.push(Math.abs(sortedDescOrAsc[i] - sortedDescOrAsc[i-1]));
+        var gaps = [];
+        for (var i = 1; i < sortedValues.length; i++) {
+            gaps.push(Math.abs(sortedValues[i] - sortedValues[i - 1]));
         }
-        diffs.sort(function(a,b){ return a-b; });
-        return diffs[Math.floor(diffs.length/2)];
+        gaps.sort(function (valueA, valueB) { return valueA - valueB; });
+        return gaps[Math.floor(gaps.length / 2)];
     }
 
-    // 元の列/行のピッチを推定（隣接差の中央値）
-    // ※行や列が1つしかない場合は0になる
-    var pitchX = (colXs.length >= 2) ? medianDiff(colXs) : 0;
-    var pitchY = (rowYs.length >= 2) ? medianDiff(rowYs) : 0;
+    /**
+     * 転置後に使う行・列のピッチを決める
+     * 1行だけ／1列だけのときは、取れている側のピッチをもう一方へ流用する。
+     * @param {number[]} columnXValues - 列の代表X
+     * @param {number[]} rowYValues - 行の代表Y
+     * @param {number} rowCount - 検出した行数
+     * @param {number} columnCount - 検出した列数
+     * @returns {{columnPitchPt: number, rowPitchPt: number}|null} 使用するピッチ。推定できなければ null
+     */
+    function resolveTargetPitch(columnXValues, rowYValues, rowCount, columnCount) {
+        var columnPitchPt = medianAdjacentGap(columnXValues);
+        var rowPitchPt = medianAdjacentGap(rowYValues);
 
-    // 1行→1列、1列→1行にも対応
-    // - 1行しかない場合: 横方向ピッチ(pitchX)を縦方向の並び間隔として流用
-    // - 1列しかない場合: 縦方向ピッチ(pitchY)を横方向の並び間隔として流用
-    var pitchXEff = pitchX;
-    var pitchYEff = pitchY;
-
-    if (rowCount === 1 && colCount === 1) {
-        alert("1つしか選択されていないため、転置できません。");
-        return;
-    }
-
-    if (rowCount === 1 && colCount > 1) {
-        // 1行 → 1列
-        if (pitchX === 0) {
-            alert("1行は検出できましたが、列ピッチが推定できませんでした。");
-            return;
+        if (rowCount === 1 && columnCount === 1) {
+            alert("1つしか選択されていないため、転置できません。");
+            return null;
         }
-        pitchXEff = pitchX;   // 新しいX方向は列数=1なので実質使われにくいが、定義しておく
-        pitchYEff = pitchX;   // 横ピッチを縦ピッチとして使用
-    } else if (colCount === 1 && rowCount > 1) {
-        // 1列 → 1行
-        if (pitchY === 0) {
-            alert("1列は検出できましたが、行ピッチが推定できませんでした。");
-            return;
+
+        /* 1行 → 1列。横ピッチを縦ピッチとして流用する / reuse the column pitch for the new rows */
+        if (rowCount === 1) {
+            if (columnPitchPt === 0) {
+                alert("1行は検出できましたが、列ピッチが推定できませんでした。");
+                return null;
+            }
+            return { columnPitchPt: columnPitchPt, rowPitchPt: columnPitchPt };
         }
-        pitchXEff = pitchY;   // 縦ピッチを横ピッチとして使用
-        pitchYEff = pitchY;   // 新しいY方向は行数=1なので実質使われにくいが、定義しておく
-    } else {
-        // 通常（2行以上 かつ 2列以上）
-        if (pitchX === 0 || pitchY === 0) {
+
+        /* 1列 → 1行。縦ピッチを横ピッチとして流用する / reuse the row pitch for the new columns */
+        if (columnCount === 1) {
+            if (rowPitchPt === 0) {
+                alert("1列は検出できましたが、行ピッチが推定できませんでした。");
+                return null;
+            }
+            return { columnPitchPt: rowPitchPt, rowPitchPt: rowPitchPt };
+        }
+
+        if (columnPitchPt === 0 || rowPitchPt === 0) {
             alert("行または列のピッチが推定できませんでした。許容値や整列状態を確認してください。");
-            return;
+            return null;
         }
+
+        return { columnPitchPt: columnPitchPt, rowPitchPt: rowPitchPt };
     }
 
-    // 転置後グリッドの基準（左上固定）
-    var originLeft = colXs[0];  // 最左
-    var originTop  = rowYs[0];  // 最上
+    main();
 
-    // 転置先の列数=元の行数、行数=元の列数
-    // 目標位置（見かけの左上が合うように移動）
-    for (var t=0; t<mapping.length; t++){
-        var obj = mapping[t].item;
-        var r0 = mapping[t].r;
-        var c0 = mapping[t].c;
-
-        var newCol = r0;
-        var newRow = c0;
-
-        var targetLeft = originLeft + newCol * pitchXEff;
-        var targetTop  = originTop  - newRow * pitchYEff;
-
-        var b = obj.visibleBounds;
-        var curLeft = b[0];
-        var curTop  = b[1];
-
-        obj.translate(targetLeft - curLeft, targetTop - curTop);
-    }
-
-    // alert("転置しました（歯抜け対応）。\n" +
-    //       "検出: 行=" + rowCount + " 列=" + colCount + "\n" +
-    //       "推定ピッチ: X=" + pitchX.toFixed(2) + "pt, Y=" + pitchY.toFixed(2) + "pt");
 })();

@@ -42,7 +42,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ構造） / Japanese-English labels (categorized) */
     var LABELS = {
@@ -100,7 +100,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} path ラベルのドットパス（例: "row.pathCount"）
      * @returns {string} ローカライズ済み文字列
      */
-    function L(path) {
+    function getLabel(path) {
         var parts = String(path).split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -109,7 +109,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         if (node == null) return path;
         if (typeof node === "string") return node;
-        if (typeof node === "object" && node[lang] != null) return node[lang];
+        if (typeof node === "object" && node[uiLang] != null) return node[uiLang];
         return path;
     }
 
@@ -119,7 +119,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {string} 正規化済み文字列
      */
     function LX(path) {
-        return L(path).replace(/[：:]\s*$/, ":");
+        return getLabel(path).replace(/[：:]\s*$/, ":");
     }
 
     (function () {
@@ -183,18 +183,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function wkCollect() {
             if (app.documents.length === 0) { return "NODOC"; }
             var doc = app.activeDocument;
-            var sel = doc.selection;
-            if (!sel) { sel = []; }
-            var selCount = sel.length;
+            var currentSelection = doc.selection;
+            if (!currentSelection) { currentSelection = []; }
+            var selCount = currentSelection.length;
 
             var allItems = doc.pageItems;
 
             var cpathSel = 0, cpathAll = 0, cshapeSel = 0, cshapeAll = 0;
 
-            for (var i = 0; i < sel.length; i++) {
-                if (sel[i].typename === "CompoundPathItem") { cpathSel++; }
-                if (sel[i].typename === "PluginItem") {
-                    try { if (sel[i].name && sel[i].name.indexOf("Compound Shape") !== -1) { cshapeSel++; } } catch (e) {}
+            for (var i = 0; i < currentSelection.length; i++) {
+                if (currentSelection[i].typename === "CompoundPathItem") { cpathSel++; }
+                if (currentSelection[i].typename === "PluginItem") {
+                    try { if (currentSelection[i].name && currentSelection[i].name.indexOf("Compound Shape") !== -1) { cshapeSel++; } } catch (e) {}
                 }
             }
 
@@ -207,7 +207,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             var pathStatsSel = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
-            for (var i2 = 0; i2 < sel.length; i2++) { wkCountPathStats(sel[i2], pathStatsSel); }
+            for (var i2 = 0; i2 < currentSelection.length; i2++) { wkCountPathStats(currentSelection[i2], pathStatsSel); }
 
             var pathStatsAll = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
             for (var k2 = 0; k2 < allItems.length; k2++) { wkCountPathStats(allItems[k2], pathStatsAll); }
@@ -338,7 +338,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {object} 構築済みの Window（palette）
          */
         function buildPalette() {
-            var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
+            var win = new Window("palette", getLabel('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
             win.orientation = "column";
             win.alignChildren = "center";
             win.margins = [15, 10, 15, 15];
@@ -350,21 +350,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var v = {};
 
-            var panelPath = content.add("panel", undefined, L('panel.path'));
+            var panelPath = content.add("panel", undefined, getLabel('panel.path'));
             panelPath.orientation = "column";
             panelPath.alignChildren = ["fill", "top"];
             panelPath.margins = PANEL_MARGINS;
 
-            v.pathCount = addStatRow(panelPath, L('row.pathCount'), LABEL_WIDTH);
-            v.openPath = addStatRow(panelPath, L('row.openPath'), LABEL_WIDTH);
-            v.closedPath = addStatRow(panelPath, L('row.closedPath'), LABEL_WIDTH);
-            v.anchors = addStatRow(panelPath, L('row.anchors'), LABEL_WIDTH);
-            v.handles = addStatRow(panelPath, L('row.handles'), LABEL_WIDTH);
-            v.compoundPath = addStatRow(panelPath, L('row.compoundPath'), LABEL_WIDTH);
-            v.compoundShape = addStatRow(panelPath, L('row.compoundShape'), LABEL_WIDTH);
+            v.pathCount = addStatRow(panelPath, getLabel('row.pathCount'), LABEL_WIDTH);
+            v.openPath = addStatRow(panelPath, getLabel('row.openPath'), LABEL_WIDTH);
+            v.closedPath = addStatRow(panelPath, getLabel('row.closedPath'), LABEL_WIDTH);
+            v.anchors = addStatRow(panelPath, getLabel('row.anchors'), LABEL_WIDTH);
+            v.handles = addStatRow(panelPath, getLabel('row.handles'), LABEL_WIDTH);
+            v.compoundPath = addStatRow(panelPath, getLabel('row.compoundPath'), LABEL_WIDTH);
+            v.compoundShape = addStatRow(panelPath, getLabel('row.compoundShape'), LABEL_WIDTH);
 
             /* ステータス / Status line */
-            var statusText = win.add("statictext", undefined, L('status.ready'));
+            var statusText = win.add("statictext", undefined, getLabel('status.ready'));
             statusText.alignment = ["fill", "bottom"];
 
             /**
@@ -402,24 +402,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
              * @returns {void}
              */
             function refresh() {
-                setStatus(L('status.busy'));
+                setStatus(getLabel('status.busy'));
                 var resp = callMainEngine("wkCollect()");
 
-                if (resp === "ERR:BUSY") { setStatus(L('status.busy')); return; }
-                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
-                if (resp === "NODOC") { setStatus(L('status.noDoc')); clearValues(); return; }
-                if (resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+                if (resp === "ERR:BUSY") { setStatus(getLabel('status.busy')); return; }
+                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
+                if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); clearValues(); return; }
+                if (resp.indexOf("ERR:") === 0) { setStatus(getLabel('status.error') + ": " + resp.substring(4)); return; }
 
                 var map = parseCollect(resp);
-                if (!map) { setStatus(L('status.error')); return; }
+                if (!map) { setStatus(getLabel('status.error')); return; }
 
                 applyValues(map);
 
                 var selN = parseInt(map.selCount, 10) || 0;
                 if (selN > 0) {
-                    setStatus(L('status.selectedPrefix') + selN + L('status.selectedSuffix'));
+                    setStatus(getLabel('status.selectedPrefix') + selN + getLabel('status.selectedSuffix'));
                 } else {
-                    setStatus(L('status.wholeDoc'));
+                    setStatus(getLabel('status.wholeDoc'));
                 }
             }
 
@@ -428,14 +428,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
              * @returns {void}
              */
             function exportReport() {
-                setStatus(L('status.busy'));
+                setStatus(getLabel('status.busy'));
                 var resp = callMainEngine("wkCollect()");
-                if (resp === "NODOC") { setStatus(L('status.noDoc')); return; }
-                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
-                if (typeof resp === "string" && resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+                if (resp === "NODOC") { setStatus(getLabel('status.noDoc')); return; }
+                if (resp === null || resp === "ERR:TIMEOUT") { setStatus(getLabel('status.timeout')); return; }
+                if (typeof resp === "string" && resp.indexOf("ERR:") === 0) { setStatus(getLabel('status.error') + ": " + resp.substring(4)); return; }
 
                 var m = parseCollect(resp);
-                if (!m) { setStatus(L('status.error')); return; }
+                if (!m) { setStatus(getLabel('status.error')); return; }
 
                 try {
                     var fullName = m.docName || "";
@@ -463,14 +463,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                      * @param {string} path2 見出しのドットパス
                      * @returns {void}
                      */
-                    function wSection(path2) { file.writeln(""); file.writeln(L(path2)); }
+                    function wSection(path2) { file.writeln(""); file.writeln(getLabel(path2)); }
 
                     if (file.open("w")) {
-                        file.writeln(L('report.title'));
-                        file.writeln(L('report.document') + " " + fullName);
-                        file.writeln(L('report.date') + " " + yyyy + "-" + mm + "-" + dd);
+                        file.writeln(getLabel('report.title'));
+                        file.writeln(getLabel('report.document') + " " + fullName);
+                        file.writeln(getLabel('report.date') + " " + yyyy + "-" + mm + "-" + dd);
                         file.writeln("");
-                        file.writeln(L('report.valueNote'));
+                        file.writeln(getLabel('report.valueNote'));
 
                         wSection('section.paths');
                         wPair('row.pathCount', m.pathCountSel, m.pathCountAll);
@@ -482,12 +482,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                         wPair('row.compoundShape', m.cshapeSel, m.cshapeAll);
 
                         file.close();
-                        setStatus(L('status.exportedPrefix') + path);
+                        setStatus(getLabel('status.exportedPrefix') + path);
                     } else {
-                        setStatus(L('status.exportFailOpen'));
+                        setStatus(getLabel('status.exportFailOpen'));
                     }
                 } catch (err) {
-                    setStatus(L('status.error') + ": " + err);
+                    setStatus(getLabel('status.error') + ": " + err);
                 }
             }
 
@@ -499,8 +499,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var btnLeft = btnRow.add("group");
             btnLeft.alignChildren = ["left", "center"];
-            var btnExport = btnLeft.add("button", undefined, L('button.exportPreset'));
-            btnExport.helpTip = L('hint.esc');
+            var btnExport = btnLeft.add("button", undefined, getLabel('button.exportPreset'));
+            btnExport.helpTip = getLabel('hint.esc');
 
             var spacer = btnRow.add("statictext", undefined, "");
             spacer.alignment = ["fill", "fill"];
@@ -508,8 +508,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var btnRight = btnRow.add("group");
             btnRight.alignChildren = ["right", "center"];
-            var btnRefresh = btnRight.add("button", undefined, L('button.refresh'));
-            btnRefresh.helpTip = L('hint.refresh') + "\n" + L('hint.esc');
+            var btnRefresh = btnRight.add("button", undefined, getLabel('button.refresh'));
+            btnRefresh.helpTip = getLabel('hint.refresh') + "\n" + getLabel('hint.esc');
 
             btnExport.onClick = exportReport;
             btnRefresh.onClick = refresh;
@@ -594,8 +594,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             $.global.__PathInspectorPalette = win;
             win.onClose = function () {
                 rememberLocation(win);
-                try { app.redraw(); } catch (e) {}
-                try { $.global.__PathInspectorPalette = null; } catch (e2) {}
+                app.redraw();
+                $.global.__PathInspectorPalette = null;
             };
 
             restoreLocation(win);

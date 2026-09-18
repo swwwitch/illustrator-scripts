@@ -23,421 +23,364 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PDFAISpreadImporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAISpreadImporter.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAISpreadImporter.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAISpreadImporter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAISpreadImporter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
-    // 生成されるアートボード間のデフォルト間隔（pt）
-    var DEFAULT_ARTBOARD_GAP = 100;
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    // 新規出力ドキュメントのデフォルト・ラスタライズ効果解像度（ppi）
-    var DEFAULT_RASTER_EFFECTS_RESOLUTION = 300;
+    /* 生成されるアートボード間の間隔（pt） / Gap between generated artboards (pt) */
+    var ARTBOARD_GAP = 100;
 
-    function getCurrentLang() {
+    /* 新規出力ドキュメントのラスタライズ効果解像度（ppi） / Raster effects resolution of the new document (ppi) */
+    var RASTER_EFFECTS_RESOLUTION = 300;
+
+    /* 見開きと判定する横長比（幅 > 高さ × この値） / Aspect ratio that marks a page as a spread */
+    var SPREAD_ASPECT_RATIO = 1.2;
+
+    /* 綴じ方向の判定で読むPDFの行数 / Number of PDF lines scanned for the binding direction */
+    var BINDING_SCAN_LINE_LIMIT = 200;
+
+    /* 全アートボードを表示するときの余白率 / Padding ratio when fitting all artboards in the view */
+    var VIEW_FIT_PADDING_RATIO = 0.9;
+
+    /* PDF読み込み時のトリミング指定値 / Crop-to values used when importing a PDF */
+    var CROP_CROP = 1;
+    var CROP_BLEED = 2;
+    var CROP_TRIM = 3;
+    var CROP_ART = 4;
+
+    /* トリミング指定の初期選択（仕上がり） / Default crop option */
+    var DEFAULT_CROP_INDEX = 2;
+
+    // =========================================
+    // レイアウト設定 / Layout settings
+    // =========================================
+
+    var PANEL_MARGINS = [15, 20, 15, 10];
+    var BUTTON_ROW_TOP_MARGIN = 10;
+    var SOURCE_NAME_CHARS = 16;
+    var PAGE_RANGE_CHARS = 10;
+    var CROP_LIST_MIN_WIDTH = 160;
+
+    // =========================================
+    // 多言語ラベル / Localized labels
+    // =========================================
+
+    /**
+     * UIの表示言語を判定します。
+     * @returns {string} "ja" または "en"
+     */
+    function getUiLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
-
-    /* 日英ラベル定義 */
+    var uiLang = getUiLang();
 
     var LABELS = {
-        dialogTitle: {
-            ja: "PDF/AI見開き配置",
-            en: "PDF/AI Spread Placement"
+        dialog: {
+            title: { ja: "PDF/AI見開き配置", en: "PDF/AI Spread Placement" },
+            pickFile: { ja: "PDF/AIを選択してください", en: "Select a PDF/AI" },
+            pickFilter: { ja: "PDF/AI:*.pdf;*.ai", en: "PDF/AI:*.pdf;*.ai" }
         },
 
-        // パネル
-        panelLoad: { ja: "アートボード", en: "Artboards" },
-        panelSource: { ja: "読み込みファイル", en: "Source File" },
-        panelItem: { ja: "配置方法", en: "Placement" },
-        panelNewDoc: { ja: "新規ドキュメント", en: "New Document" },
+        panel: {
+            source: { ja: "読み込みファイル", en: "Source File" },
+            artboard: { ja: "アートボード", en: "Artboards" },
+            placement: { ja: "配置方法", en: "Placement" },
+            newDocument: { ja: "新規ドキュメント", en: "New Document" }
+        },
 
-        // 読み込みパネル
-        btnLoad: { ja: "ファイル指定", en: "Select File" },
-        range: { ja: "指定", en: "Range" },
-        dlgPickFile: { ja: "PDF/AIを選択してください", en: "Select a PDF/AI" },
-        filterPick: { ja: "PDF/AI:*.pdf;*.ai", en: "PDF/AI:*.pdf;*.ai" },
-        alertLinkUnknown: { ja: "画像のリンク先が不明でした。", en: "Image link not found." },
-        alertPageCountFail: { ja: "リンクされたPDF/AIファイルのページ数を取得できませんでした。", en: "Could not determine the page count of the linked PDF/AI file." },
-        alertPickPdfAi: { ja: "PDFまたはAIファイルを選択してください。", en: "Please select a PDF or AI file." },
-        notSelected: { ja: "未指定", en: "Not selected" },
+        fieldLabel: {
+            pageRange: { ja: "指定", en: "Range" },
+            evenPage: { ja: "偶数ページ:", en: "Even Pages:" },
+            colorMode: { ja: "カラーモード", en: "Color Mode" },
+            notSelected: { ja: "未指定", en: "Not selected" }
+        },
 
-        // 綴じ方向
-        bindR2L: { ja: "右", en: "Right" },
-        bindL2R: { ja: "左", en: "Left" },
-        evenPage: { ja: "偶数ページ:", en: "Even Pages:" },
-        colorMode: { ja: "カラーモード", en: "Color Mode" },
-        colorModeCMYK: { ja: "CMYK", en: "CMYK" },
-        colorModeRGB: { ja: "RGB", en: "RGB" },
+        radio: {
+            evenPageRight: { ja: "右", en: "Right" },
+            evenPageLeft: { ja: "左", en: "Left" },
+            colorModeCMYK: { ja: "CMYK", en: "CMYK" },
+            colorModeRGB: { ja: "RGB", en: "RGB" }
+        },
 
-        // 配置方法パネル
-        cropArt: { ja: "アート", en: "Art" },
-        cropTrim: { ja: "トリミング", en: "Trim" },
-        cropCrop: { ja: "仕上がり", en: "Crop" },
-        cropBleed: { ja: "裁ち落とし", en: "Bleed" },
+        dropdown: {
+            cropArt: { ja: "アート", en: "Art" },
+            cropTrim: { ja: "トリミング", en: "Trim" },
+            cropCrop: { ja: "仕上がり", en: "Crop" },
+            cropBleed: { ja: "裁ち落とし", en: "Bleed" }
+        },
 
-        // ボタン
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        ok: { ja: "OK", en: "OK" },
+        button: {
+            selectFile: { ja: "ファイル指定", en: "Select File" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
+        },
 
-        // ファイル / アラート
-        alertNeedDoc: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
-        alertPlaceError: { ja: "配置中にエラーが発生しました。", en: "An error occurred while placing the pages." },
-        alertNeedFile: { ja: "先に［ファイル指定］で読み込みファイルを選択してください。", en: "Please select a source file first." },
-        errorDetails: { ja: "詳細:", en: "Details:" },
+        tooltip: {
+            selectFile: {
+                ja: "読み込むPDF/AIファイルを選びます。選択中の配置画像があれば、起動時にそのリンク先を読み込みます。",
+                en: "Choose the PDF/AI file to import. A selected placed image is picked up on startup."
+            },
+            pageRange: {
+                ja: "読み込むページを「1-10」「1,3,5」のように指定します。空欄のときは1ページ目だけを配置します。",
+                en: "Pages to import, written as 1-10 or 1,3,5. Leave it empty to place only the first page."
+            },
+            cropMode: {
+                ja: "PDFのどの領域を基準に配置するかを選びます。AIファイルでは使用しません。",
+                en: "Which PDF box the pages are placed from. Not used for AI files."
+            },
+            evenPage: {
+                ja: "見開きを左右に分割したとき、偶数ページを置く側です。PDFの綴じ方向から自動で設定します。",
+                en: "Which side the even pages go to when a spread is split. Detected from the PDF binding direction."
+            }
+        },
+
+        alert: {
+            needDocument: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
+            needFile: { ja: "先に［ファイル指定］で読み込みファイルを選択してください。", en: "Please select a source file first." },
+            pickPdfAi: { ja: "PDFまたはAIファイルを選択してください。", en: "Please select a PDF or AI file." },
+            linkUnknown: { ja: "画像のリンク先が不明でした。", en: "Image link not found." },
+            pageCountFailed: { ja: "リンクされたPDF/AIファイルのページ数を取得できませんでした。", en: "Could not determine the page count of the linked PDF/AI file." },
+            placeFailed: { ja: "配置中にエラーが発生しました。", en: "An error occurred while placing the pages." },
+            errorDetails: { ja: "詳細:", en: "Details:" }
+        }
     };
 
-    function L(key) {
-        var o = LABELS[key];
-        if (!o) return key;
-        return o[lang] || o.en || o.ja || key;
+    /**
+     * ラベル定義から表示言語の文字列を取り出します。
+     * @param {object} labelSet - { ja: string, en: string } 形式のラベル定義
+     * @returns {string} 表示言語の文字列
+     */
+    function getLabel(labelSet) {
+        if (!labelSet) return "";
+        return labelSet[uiLang] || labelSet.en || labelSet.ja || "";
     }
 
-    // アラート補助
-    function SC_getErrorDetailText(e) {
+    /* トリミング指定の選択肢。ドロップダウンの並び順と一致させます。 */
+    var CROP_OPTIONS = [
+        { value: CROP_ART, labelSet: LABELS.dropdown.cropArt },
+        { value: CROP_TRIM, labelSet: LABELS.dropdown.cropTrim },
+        { value: CROP_CROP, labelSet: LABELS.dropdown.cropCrop },
+        { value: CROP_BLEED, labelSet: LABELS.dropdown.cropBleed }
+    ];
+
+    // =========================================
+    // アラート表示 / Alerts
+    // =========================================
+
+    /**
+     * 例外オブジェクトから表示用の詳細文字列を取り出します。
+     * @param {*} e - 例外オブジェクトまたは文字列
+     * @returns {string} 詳細文字列。詳細がなければ空文字
+     */
+    function getErrorDetailText(e) {
         if (e === undefined || e === null) return "";
-        try {
-            if (typeof e === "string") return e;
-            if (e && e.message) return String(e.message);
-            return String(e);
-        } catch (_) {
-            return "";
-        }
+        if (typeof e === "string") return e;
+        return String((e && e.message) ? e.message : e);
     }
 
-    function SC_alert(key, e) {
-        try {
-            var msg = L(key);
-            var detail = SC_getErrorDetailText(e);
-            if (detail) msg += "\n\n" + L("errorDetails") + "\n" + detail;
-            alert(msg);
-        } catch (_) { }
-    }
-
-    // ========================
-    // 配置処理ヘルパー
-    // - 配置前のページ番号指定
-    // - 配置サイズの計測
-    // - アートボード内でのクリッピングマスク適用
-    // - 単ページ / 見開きページの配置
-    // - 全アートボードが見える表示倍率への調整
-    // ========================
-
-    function placementSetImportPageNumber(pageNum) {
-        var n = parseInt(pageNum, 10);
-        if (isNaN(n) || n < 1) n = 1;
-        try {
-            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", n);
-        } catch (_) { }
-    }
-
-    function placementResetImportPageNumber() {
-        try {
-            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
-        } catch (_) { }
-    }
-
-    function placementApplyMaskToArtboard(doc, item, abRect, marginPt) {
-        if (!item) return null;
-        var m = (typeof marginPt === "number" && !isNaN(marginPt) && marginPt >= 0) ? marginPt : 0;
-
-        var left = abRect[0] + m;
-        var top = abRect[1] - m;
-        var w = Math.abs(abRect[2] - abRect[0]) - (m * 2);
-        var h = Math.abs(abRect[1] - abRect[3]) - (m * 2);
-        if (w <= 0) w = 1;
-        if (h <= 0) h = 1;
-
-        var maskPath = doc.activeLayer.pathItems.rectangle(top, left, w, h);
-        maskPath.stroked = false;
-        maskPath.filled = false;
-        maskPath.clipping = true;
-
-        var grp = doc.groupItems.add();
-        try { item.moveToEnd(grp); } catch (e1) { }
-        try { maskPath.moveToBeginning(grp); } catch (e0) { }
-
-        grp.clipped = true;
-        return grp;
-    }
-
-    function placementMeasurePlacedPageSize(doc, fileObj, pageNum, cropMode) {
-        if (isPdfLikeFile(fileObj)) {
-            SC_setPdfCropPreference(cropMode);
-        }
-        placementSetImportPageNumber(pageNum);
-
-        var measureItem = null;
-        try {
-            measureItem = doc.placedItems.add();
-            measureItem.file = fileObj;
-            return {
-                width: measureItem.width,
-                height: measureItem.height
-            };
-        } finally {
-            if (measureItem) {
-                try { measureItem.remove(); } catch (_) { }
-            }
-        }
-    }
-
-    function placementUseOrAddArtboard(doc, activeIdx, abRect, abCount) {
-        if (abCount === 0) {
-            doc.artboards[activeIdx].artboardRect = abRect;
-        } else {
-            doc.artboards.add(abRect);
-        }
-        return abCount + 1;
-    }
-
-    function placementPlacePageWithMask(doc, fileObj, pageNum, abRect, pos, cropMode) {
-        if (isPdfLikeFile(fileObj)) {
-            SC_setPdfCropPreference(cropMode);
-        }
-        placementSetImportPageNumber(pageNum);
-
-        var item = doc.placedItems.add();
-        item.file = fileObj;
-        item.position = pos;
-        placementApplyMaskToArtboard(doc, item, abRect, 0);
-        return item;
-    }
-
-    function placementPlaceSinglePage(doc, fileObj, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, abGap) {
-        var singleRect = [nextX, baseTop, nextX + pageW, baseTop - pageH];
-        abCount = placementUseOrAddArtboard(doc, activeIdx, singleRect, abCount);
-        placementPlacePageWithMask(doc, fileObj, pageNum, singleRect, [nextX, baseTop], cropMode);
-        return {
-            nextX: nextX + pageW + abGap,
-            abCount: abCount
-        };
-    }
-
-    function placementPlaceSpreadHalf(doc, fileObj, pageNum, abRect, posX, baseTop, activeIdx, abCount, cropMode) {
-        abCount = placementUseOrAddArtboard(doc, activeIdx, abRect, abCount);
-        placementPlacePageWithMask(doc, fileObj, pageNum, abRect, [posX, baseTop], cropMode);
-        return abCount;
-    }
-
-    function placementPlaceSpreadPage(doc, fileObj, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, isR2L, abGap) {
-        var halfW = pageW / 2;
-
-        var firstRect = [nextX, baseTop, nextX + halfW, baseTop - pageH];
-        var firstPosX = isR2L ? (nextX - halfW) : nextX;
-        abCount = placementPlaceSpreadHalf(doc, fileObj, pageNum, firstRect, firstPosX, baseTop, activeIdx, abCount, cropMode);
-        nextX += halfW + abGap;
-
-        var secondRect = [nextX, baseTop, nextX + halfW, baseTop - pageH];
-        var secondPosX = isR2L ? nextX : (nextX - halfW);
-        abCount = placementPlaceSpreadHalf(doc, fileObj, pageNum, secondRect, secondPosX, baseTop, activeIdx, abCount, cropMode);
-        nextX += halfW + abGap;
-
-        return {
-            nextX: nextX,
-            abCount: abCount
-        };
-    }
-
-    function placementFitAllArtboardsInView(targetDoc) {
-        if (!targetDoc || !targetDoc.artboards || targetDoc.artboards.length === 0) return;
-
-        try {
-            app.activeDocument = targetDoc;
-        } catch (_) { }
-
-        try {
-            var view = targetDoc.activeView;
-            if (!view) return;
-
-            var unionLeft = null;
-            var unionTop = null;
-            var unionRight = null;
-            var unionBottom = null;
-
-            for (var i = 0; i < targetDoc.artboards.length; i++) {
-                var r = targetDoc.artboards[i].artboardRect;
-                if (unionLeft === null || r[0] < unionLeft) unionLeft = r[0];
-                if (unionTop === null || r[1] > unionTop) unionTop = r[1];
-                if (unionRight === null || r[2] > unionRight) unionRight = r[2];
-                if (unionBottom === null || r[3] < unionBottom) unionBottom = r[3];
-            }
-
-            if (unionLeft === null) return;
-
-            var unionWidth = unionRight - unionLeft;
-            var unionHeight = unionTop - unionBottom;
-            if (unionWidth <= 0 || unionHeight <= 0) return;
-
-            var currentBounds = view.bounds;
-            var currentWidth = currentBounds[2] - currentBounds[0];
-            var currentHeight = currentBounds[1] - currentBounds[3];
-            var currentZoom = view.zoom;
-            if (!(currentWidth > 0) || !(currentHeight > 0) || !(currentZoom > 0)) return;
-
-            var paddingScale = 0.9;
-            var zoomX = currentZoom * (currentWidth / unionWidth);
-            var zoomY = currentZoom * (currentHeight / unionHeight);
-            var targetZoom = Math.min(zoomX, zoomY) * paddingScale;
-
-            view.centerPoint = [
-                (unionLeft + unionRight) / 2,
-                (unionTop + unionBottom) / 2
-            ];
-            view.zoom = targetZoom;
-        } catch (_) { }
+    /**
+     * アラートを表示します。例外を渡すと詳細を併記します。
+     * @param {object} labelSet - 表示するメッセージのラベル定義
+     * @param {*} [e] - 例外オブジェクト
+     * @returns {void}
+     */
+    function showAlert(labelSet, e) {
+        var message = getLabel(labelSet);
+        var detail = getErrorDetailText(e);
+        if (detail) message += "\n\n" + getLabel(LABELS.alert.errorDetails) + "\n" + detail;
+        alert(message);
     }
 
     // =========================================
-    // PDF配置時のトリミング指定
-    // Art / Trim / Bleed / Crop に対応
+    // ファイル判定 / File checks
     // =========================================
 
-    // UI用トリミング定数
-    var CROP_ART = 4;
-    var CROP_TRIM = 3;
-    var CROP_BLEED = 2;
-    var CROP_CROP = 1;
-
-    // ============================================================
-    // ページ数取得ヘルパー
-    // - リンクされた PDF/AI の総ページ数（最終ページ番号）を推定
-    // - ファイルが明示指定された場合は、一時配置して既存の選択ベースの
-    //   ページ数取得ロジックを再利用し、取得後すぐに削除
-    // - 現在の選択に対してリンク変更や内容変更は行わない
-    // ============================================================
-
-    function getLastPageFromSelection(selectionItems) {
-        var placed = pageCountFindFirstPlacedItem(selectionItems);
-        if (!placed) return null;
-
-        var f = placed.file;
-        if (!f) {
-            SC_alert('alertLinkUnknown');
-            return null;
-        }
-
-        var name = decodeURIComponent(f.name);
-        if (!/\.(?:pdf|ai)$/i.test(name)) return null;
-
-        var last = getPageLengthFromFile(f);
-        if (!last || isNaN(Number(last)) || Number(last) <= 0) {
-            SC_alert('alertPageCountFail');
-            return null;
-        }
-
-        return Number(last);
-    }
-
-    function updatePageCountFromPlacedOrFile(doc, fileObjOrNull, setPathTextFn, setResultTextFn) {
-        var placedTemp = null;
-
+    /**
+     * URLエンコードされた文字列を復号します。復号できない場合は元の文字列を返します。
+     * @param {string} text - 復号する文字列
+     * @returns {string} 復号後の文字列
+     */
+    function decodeSafely(text) {
+        var source = String(text || "");
         try {
-            // ファイル指定時は一時配置して、既存の選択ベースのページ数取得ロジックを再利用
-            if (fileObjOrNull) {
-                var name = decodeURIComponent(fileObjOrNull.name);
-                if (!/\.(?:pdf|ai)$/i.test(name)) {
-                    SC_alert('alertPickPdfAi');
-                    if (setResultTextFn) setResultTextFn(null);
-                    return;
-                }
-
-                try {
-                    placedTemp = doc.placedItems.add();
-                    placedTemp.file = fileObjOrNull;
-
-                    // 一時配置物は、いったん表示中ビューの左上付近へ置く
-                    try {
-                        var vb = doc.activeView && doc.activeView.bounds ? doc.activeView.bounds : null;
-                        if (vb && vb.length === 4) {
-                            placedTemp.position = [vb[0], vb[1]];
-                        }
-                    } catch (_) { }
-
-                    // 既存ロジックをそのまま使って総ページ数を取得
-                    var lastFromFile = getLastPageFromSelection([placedTemp]);
-                    if (setPathTextFn) setPathTextFn(fileObjOrNull);
-                    if (setResultTextFn) setResultTextFn(lastFromFile);
-                } finally {
-                    if (placedTemp) {
-                        try { placedTemp.remove(); } catch (_) { }
-                    }
-                }
-                return;
-            }
-
-            // ファイル未指定時は現在の選択から取得（PlacedItem が選択されている前提）
-            var last = getLastPageFromSelection(doc.selection);
-
-            // 選択中の配置画像があれば、そのファイルパス表示も更新
-            try {
-                var placedSel = pageCountFindFirstPlacedItem(doc.selection);
-                if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
-            } catch (_) { }
-
-            if (setResultTextFn) setResultTextFn(last);
+            return decodeURIComponent(source);
         } catch (e) {
-            SC_alert("alertPageCountFail", e);
-            try { if (setResultTextFn) setResultTextFn(null); } catch (_) { }
+            return source;
         }
     }
 
-    function pageCountFindFirstPlacedItem(items) {
+    /**
+     * PDFまたはAIファイルかどうかを拡張子で判定します。
+     * @param {File} file - 判定するファイル
+     * @returns {boolean} PDFまたはAIなら true
+     */
+    function isPdfOrAiFile(file) {
+        return !!file && /\.(?:pdf|ai)$/i.test(decodeSafely(file.name));
+    }
+
+    /**
+     * PDFファイルかどうかを拡張子で判定します。
+     * @param {File} file - 判定するファイル
+     * @returns {boolean} PDFなら true
+     */
+    function isPdfFile(file) {
+        return !!file && /\.pdf$/i.test(decodeSafely(file.name));
+    }
+
+    // =========================================
+    // ページ指定の解析 / Page range parsing
+    // =========================================
+
+    /**
+     * 「1-20」「1,3,5」のような文字列をページ番号の配列に変換します。
+     * @param {string} rangeText - ページ指定の文字列
+     * @returns {Array<number>} ページ番号の配列
+     */
+    function parsePageNumbers(rangeText) {
+        var pageNumbers = [];
+        var tokens = String(rangeText || "").split(",");
+
+        for (var i = 0; i < tokens.length; i++) {
+            var token = tokens[i].replace(/^\s+|\s+$/g, "");
+
+            if (token.indexOf("-") > -1) {
+                var edges = token.split("-");
+                var start = parseInt(edges[0], 10);
+                var end = parseInt(edges[1], 10);
+                if (isNaN(start) || isNaN(end)) continue;
+
+                var firstPage = Math.min(start, end);
+                var lastPage = Math.max(start, end);
+                for (var j = firstPage; j <= lastPage; j++) {
+                    pageNumbers.push(j);
+                }
+            } else {
+                var singlePage = parseInt(token, 10);
+                if (!isNaN(singlePage)) pageNumbers.push(singlePage);
+            }
+        }
+        return pageNumbers;
+    }
+
+    // =========================================
+    // ページ数の取得 / Page count
+    // =========================================
+
+    /**
+     * 選択内容から最初の配置画像を再帰的に探します。
+     * @param {Array} items - 走査するページアイテムの配列
+     * @returns {PlacedItem|null} 見つかった配置画像。なければ null
+     */
+    function findFirstPlacedItem(items) {
         if (!items || items.length <= 0) return null;
+
         for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            if (!it) continue;
-            var n = (it.constructor && it.constructor.name) ? it.constructor.name : '';
-            if (n === 'PlacedItem') return it;
-            if (n === 'GroupItem') {
-                var hit = pageCountFindFirstPlacedItem(it.pageItems);
-                if (hit) return hit;
+            var item = items[i];
+            if (!item) continue;
+
+            var typeName = (item.constructor && item.constructor.name) ? item.constructor.name : "";
+            if (typeName === "PlacedItem") return item;
+            if (typeName === "GroupItem") {
+                var found = findFirstPlacedItem(item.pageItems);
+                if (found) return found;
             }
         }
         return null;
     }
 
-    // pdf/aiから総ページ数を推定（既存ロジックを維持しつつ最小化）
-    function getPageLengthFromFile(file) {
-        var tg = /<<\/Count\s(\d+)/;
-        var c1 = /<<\/Type\/Page\/Parent/;
-        var c2 = /\/Type\s\/Page\s/;
-        var c3 = /\/StructParents\s\d+.*\/Type\/Page>>/;
-        var tg2 = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
-        var tg3 = /\/Type\/Pages/;
-        var tg4 = /\/Count\s(\d+)/;
+    /**
+     * PDF/AIファイルを走査して総ページ数を推定します。
+     * @param {File} file - 読み取るPDF/AIファイル
+     * @returns {number|null} 総ページ数。取得できなければ null
+     */
+    function readPageCountFromFile(file) {
+        var countPattern = /<<\/Count\s(\d+)/;
+        var linearizedPattern = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
+        var pagesTypePattern = /\/Type\/Pages/;
+        var countValuePattern = /\/Count\s(\d+)/;
+        var pagePatterns = [/<<\/Type\/Page\/Parent/, /\/Type\s\/Page\s/, /\/StructParents\s\d+.*\/Type\/Page>>/];
 
-        var res, wd, len = 0, num = 0;
+        var pageCount = 0;
+        var countedPages = 0;
+
         try {
-            file.open('r');
+            if (!file.open("r")) return null;
+
             while (!file.eof) {
-                wd = file.readln();
-                if (tg.test(wd) || tg2.test(wd)) { res = Number(RegExp.$1); break; }
-                if (c1.test(wd) || c2.test(wd) || c3.test(wd)) len++;
-                if (tg3.test(wd)) {
-                    wd = file.readln();
-                    if (tg4.test(wd)) { num = Number(RegExp.$1); if (len < num) len = num; }
+                var line = file.readln();
+
+                /* ページ数が直接書かれていれば、その値を採用する */
+                if (countPattern.test(line) || linearizedPattern.test(line)) {
+                    pageCount = Number(RegExp.$1);
+                    break;
+                }
+
+                /* ページを表す行を数える */
+                for (var i = 0; i < pagePatterns.length; i++) {
+                    if (pagePatterns[i].test(line)) {
+                        countedPages++;
+                        break;
+                    }
+                }
+
+                /* /Type/Pages の次行に総数があれば、多いほうを採用する */
+                if (pagesTypePattern.test(line)) {
+                    line = file.readln();
+                    if (countValuePattern.test(line)) {
+                        var declaredCount = Number(RegExp.$1);
+                        if (countedPages < declaredCount) countedPages = declaredCount;
+                    }
                 }
             }
-            if (len > 0) res = len;
+            if (countedPages > 0) pageCount = countedPages;
         } catch (e) {
-            SC_alert("alertPageCountFail", e);
+            return null;
         } finally {
-            try { file.close(); } catch (_) { }
+            file.close();
         }
-        return res;
+
+        return (pageCount > 0) ? pageCount : null;
     }
 
-    function SC_setPdfCropPreference(cropVal) {
+    /**
+     * PDF/AIファイルの総ページ数を取得します。取得できない場合はアラートを表示します。
+     * @param {File} file - 読み取るPDF/AIファイル
+     * @returns {number|null} 総ページ数。取得できなければ null
+     */
+    function getPageCount(file) {
+        var pageCount = readPageCountFromFile(file);
+        if (!pageCount) {
+            showAlert(LABELS.alert.pageCountFailed);
+            return null;
+        }
+        return pageCount;
+    }
+
+    // =========================================
+    // PDF読み込みの環境設定 / PDF import preferences
+    // =========================================
+
+    /**
+     * PDF読み込み時のトリミング指定を環境設定に書き込みます。
+     * Illustratorのバージョン差を吸収するため、複数のキーに同じ値を試します。
+     * @param {number} cropValue - CROP_ART / CROP_TRIM / CROP_CROP / CROP_BLEED のいずれか
+     * @returns {void}
+     */
+    function setPdfCropPreference(cropValue) {
         var keys = [
             "plugin/PDFImport/CropToBox",
             "plugin/PDFImport/CropTo",
@@ -446,424 +389,687 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ];
         for (var i = 0; i < keys.length; i++) {
             try {
-                app.preferences.setIntegerPreference(keys[i], cropVal);
+                app.preferences.setIntegerPreference(keys[i], cropValue);
             } catch (e) { }
         }
     }
 
-    // =========================================
-    // PDF綴じ方向の自動検出
-    // /Direction /R2L があれば偶数ページを右、それ以外は左として判定
-    // =========================================
+    /**
+     * 次に読み込むPDFのページ番号を環境設定に書き込みます。
+     * @param {number} pageNumber - 読み込むページ番号（1以上）
+     * @returns {void}
+     */
+    function setImportPageNumber(pageNumber) {
+        var targetPage = parseInt(pageNumber, 10);
+        if (isNaN(targetPage) || targetPage < 1) targetPage = 1;
 
-    function SC_detectPdfBindingDirection(file) {
-        // returns "R2L" or "L2R"
-        var dir = "L2R";
         try {
-            file.open('r');
+            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", targetPage);
+        } catch (e) { }
+    }
+
+    /**
+     * PDFの綴じ方向を判定します。/Direction /R2L があれば右綴じとみなします。
+     * @param {File} file - 判定するPDF/AIファイル
+     * @returns {boolean} 右綴じ（偶数ページが右）なら true
+     */
+    function isRightBoundFile(file) {
+        var isRightBound = false;
+
+        try {
+            if (!file.open("r")) return false;
+
             var lineCount = 0;
-            while (!file.eof && lineCount < 200) {
-                var line = file.readln();
+            while (!file.eof && lineCount < BINDING_SCAN_LINE_LIMIT) {
                 lineCount++;
-                if (/\/Direction\s*\/R2L/.test(line)) {
-                    dir = "R2L";
+                if (/\/Direction\s*\/R2L/.test(file.readln())) {
+                    isRightBound = true;
                     break;
                 }
             }
         } catch (e) {
+            return false;
         } finally {
-            try { file.close(); } catch (_) { }
+            file.close();
         }
-        return dir;
+
+        return isRightBound;
+    }
+
+    // =========================================
+    // ページの配置 / Page placement
+    // =========================================
+
+    /**
+     * 配置処理で共有する状態です。
+     * @typedef {object} PlacementContext
+     * @property {Document} doc - 配置先ドキュメント
+     * @property {File} file - 読み込むPDF/AIファイル
+     * @property {number} cropMode - トリミング指定値
+     * @property {boolean} evenPageOnRight - 偶数ページを右に置くなら true
+     * @property {number} activeArtboardIndex - 最初に再利用するアートボードの番号
+     * @property {number} nextX - 次のアートボードの左端（pt）
+     * @property {number} top - アートボードの上端（pt）
+     * @property {number} artboardCount - 生成済みアートボード数
+     */
+
+    /**
+     * 指定ページを一時的に配置して、実寸のページサイズを測ります。
+     * @param {Document} doc - 一時配置に使うドキュメント
+     * @param {File} file - 読み込むPDF/AIファイル
+     * @param {number} pageNumber - 測定するページ番号
+     * @param {number} cropMode - トリミング指定値
+     * @returns {{width: number, height: number}} ページの幅と高さ（pt）
+     */
+    function measurePlacedPageSize(doc, file, pageNumber, cropMode) {
+        setPdfCropPreference(cropMode);
+        setImportPageNumber(pageNumber);
+
+        var probeItem = null;
+        try {
+            probeItem = doc.placedItems.add();
+            probeItem.file = file;
+            return {
+                width: probeItem.width,
+                height: probeItem.height
+            };
+        } finally {
+            /* 測定用の配置物は、元の例外を隠さないように個別に握りつぶす */
+            if (probeItem) {
+                try { probeItem.remove(); } catch (e) { }
+            }
+        }
     }
 
     /**
-     * Illustrator のバージョン差異を吸収するため、複数キーに試行します。
-     * 期待する値（多くの環境で）: 0=Media, 1=Crop, 2=Bleed, 3=Trim, 4=Art
+     * 配置物をアートボードの矩形でクリッピングマスクします。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PlacedItem} item - マスクする配置物
+     * @param {Array<number>} artboardRect - アートボードの矩形 [左, 上, 右, 下]
+     * @returns {GroupItem} マスクを適用したグループ
      */
+    function clipItemToArtboard(doc, item, artboardRect) {
+        var width = Math.abs(artboardRect[2] - artboardRect[0]);
+        var height = Math.abs(artboardRect[1] - artboardRect[3]);
 
-    function isPdfLikeFile(f) {
-        var n = String((f && f.name) || "").toLowerCase();
-        return (n.indexOf(".pdf") > -1) || (n.indexOf(".ai") > -1);
+        var clipPath = doc.activeLayer.pathItems.rectangle(artboardRect[1], artboardRect[0], width, height);
+        clipPath.stroked = false;
+        clipPath.filled = false;
+        clipPath.clipping = true;
+
+        var clipGroup = doc.groupItems.add();
+        item.moveToEnd(clipGroup);
+        clipPath.moveToBeginning(clipGroup);
+        clipGroup.clipped = true;
+
+        return clipGroup;
     }
 
-    // トリミング設定は PDF のときのみ有効。AI では無効のままにする。
-    function isPdfFile(f) {
-        var n = String((f && f.name) || "").toLowerCase();
-        return (n.indexOf(".pdf") > -1);
+    /**
+     * 最初の1枚はアクティブなアートボードを使い、2枚目以降は新規に追加します。
+     * @param {PlacementContext} context - 配置処理の状態
+     * @param {Array<number>} artboardRect - アートボードの矩形 [左, 上, 右, 下]
+     * @returns {void}
+     */
+    function addOrReuseArtboard(context, artboardRect) {
+        if (context.artboardCount === 0) {
+            context.doc.artboards[context.activeArtboardIndex].artboardRect = artboardRect;
+        } else {
+            context.doc.artboards.add(artboardRect);
+        }
+        context.artboardCount++;
     }
 
-    // 入力された文字列（例："1-20", "1,3,5"）を数字の配列に変換する関数
-    function parsePageNumbers(inputStr) {
-        var result = [];
-        var parts = inputStr.split(',');
+    /**
+     * 指定ページを配置し、アートボードの矩形でクリッピングマスクします。
+     * @param {PlacementContext} context - 配置処理の状態
+     * @param {number} pageNumber - 配置するページ番号
+     * @param {Array<number>} artboardRect - アートボードの矩形 [左, 上, 右, 下]
+     * @param {Array<number>} position - 配置位置 [x, y]
+     * @returns {void}
+     */
+    function placePageWithClip(context, pageNumber, artboardRect, position) {
+        setPdfCropPreference(context.cropMode);
+        setImportPageNumber(pageNumber);
 
-        for (var i = 0; i < parts.length; i++) {
-            var part = parts[i].replace(/^\s+|\s+$/g, '');
+        var placedItem = context.doc.placedItems.add();
+        placedItem.file = context.file;
+        placedItem.position = position;
+        clipItemToArtboard(context.doc, placedItem, artboardRect);
+    }
 
-            if (part.indexOf('-') > -1) {
-                var bounds = part.split('-');
-                var start = parseInt(bounds[0], 10);
-                var end = parseInt(bounds[1], 10);
+    /**
+     * 単ページを1つのアートボードに配置します。
+     * @param {PlacementContext} context - 配置処理の状態
+     * @param {number} pageNumber - 配置するページ番号
+     * @param {number} pageWidth - ページの幅（pt）
+     * @param {number} pageHeight - ページの高さ（pt）
+     * @returns {void}
+     */
+    function placeSinglePage(context, pageNumber, pageWidth, pageHeight) {
+        var artboardRect = [context.nextX, context.top, context.nextX + pageWidth, context.top - pageHeight];
 
-                if (!isNaN(start) && !isNaN(end)) {
-                    var min = Math.min(start, end);
-                    var max = Math.max(start, end);
-                    for (var j = min; j <= max; j++) {
-                        result.push(j);
-                    }
-                }
+        addOrReuseArtboard(context, artboardRect);
+        placePageWithClip(context, pageNumber, artboardRect, [context.nextX, context.top]);
+        context.nextX += pageWidth + ARTBOARD_GAP;
+    }
+
+    /**
+     * 見開きページを左右に分割し、2つのアートボードに配置します。
+     * @param {PlacementContext} context - 配置処理の状態
+     * @param {number} pageNumber - 配置するページ番号
+     * @param {number} pageWidth - 見開き全体の幅（pt）
+     * @param {number} pageHeight - ページの高さ（pt）
+     * @returns {void}
+     */
+    function placeSpreadPage(context, pageNumber, pageWidth, pageHeight) {
+        var halfWidth = pageWidth / 2;
+
+        for (var order = 0; order < 2; order++) {
+            var artboardRect = [context.nextX, context.top, context.nextX + halfWidth, context.top - pageHeight];
+
+            /* 右綴じは右半分から、左綴じは左半分から並べる */
+            var showsRightHalf = (order === 0) ? context.evenPageOnRight : !context.evenPageOnRight;
+            var positionX = showsRightHalf ? (context.nextX - halfWidth) : context.nextX;
+
+            addOrReuseArtboard(context, artboardRect);
+            placePageWithClip(context, pageNumber, artboardRect, [positionX, context.top]);
+            context.nextX += halfWidth + ARTBOARD_GAP;
+        }
+    }
+
+    /**
+     * 指定されたページを順に配置します。横長ページは見開きとして分割します。
+     * @param {PlacementContext} context - 配置処理の状態
+     * @param {Array<number>} pageNumbers - 配置するページ番号の配列
+     * @returns {void}
+     */
+    function placePages(context, pageNumbers) {
+        for (var i = 0; i < pageNumbers.length; i++) {
+            var pageNumber = pageNumbers[i];
+            if (isNaN(pageNumber) || pageNumber < 1) pageNumber = 1;
+
+            var pageSize = measurePlacedPageSize(context.doc, context.file, pageNumber, context.cropMode);
+
+            if (pageSize.width > pageSize.height * SPREAD_ASPECT_RATIO) {
+                placeSpreadPage(context, pageNumber, pageSize.width, pageSize.height);
             } else {
-                var num = parseInt(part, 10);
-                if (!isNaN(num)) {
-                    result.push(num);
-                }
+                placeSinglePage(context, pageNumber, pageSize.width, pageSize.height);
             }
         }
-        return result;
     }
+
+    // =========================================
+    // 表示倍率の調整 / View adjustment
+    // =========================================
+
+    /**
+     * 全アートボードを囲む矩形を求めます。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Array<number>|null} 矩形 [左, 上, 右, 下]。アートボードがなければ null
+     */
+    function getArtboardsUnionRect(doc) {
+        var artboards = doc.artboards;
+        if (!artboards || artboards.length === 0) return null;
+
+        var unionRect = artboards[0].artboardRect.slice(0);
+        for (var i = 1; i < artboards.length; i++) {
+            var rect = artboards[i].artboardRect;
+            if (rect[0] < unionRect[0]) unionRect[0] = rect[0];
+            if (rect[1] > unionRect[1]) unionRect[1] = rect[1];
+            if (rect[2] > unionRect[2]) unionRect[2] = rect[2];
+            if (rect[3] < unionRect[3]) unionRect[3] = rect[3];
+        }
+        return unionRect;
+    }
+
+    /**
+     * 指定した矩形が収まるように、表示位置と表示倍率を合わせます。
+     * @param {View} view - 対象のビュー
+     * @param {Array<number>} rect - 収める矩形 [左, 上, 右, 下]
+     * @returns {void}
+     */
+    function fitViewToRect(view, rect) {
+        var targetWidth = rect[2] - rect[0];
+        var targetHeight = rect[1] - rect[3];
+        if (targetWidth <= 0 || targetHeight <= 0) return;
+
+        var bounds = view.bounds;
+        var viewWidth = bounds[2] - bounds[0];
+        var viewHeight = bounds[1] - bounds[3];
+        var currentZoom = view.zoom;
+        if (viewWidth <= 0 || viewHeight <= 0 || currentZoom <= 0) return;
+
+        var zoomToFitWidth = currentZoom * (viewWidth / targetWidth);
+        var zoomToFitHeight = currentZoom * (viewHeight / targetHeight);
+
+        view.centerPoint = [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2];
+        view.zoom = Math.min(zoomToFitWidth, zoomToFitHeight) * VIEW_FIT_PADDING_RATIO;
+    }
+
+    /**
+     * 全アートボードが見える表示倍率に調整します。
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {void}
+     */
+    function fitAllArtboardsInView(doc) {
+        /* 表示の調整に失敗しても、配置結果はそのまま残す */
+        try {
+            app.activeDocument = doc;
+
+            var unionRect = getArtboardsUnionRect(doc);
+            var view = doc.activeView;
+            if (unionRect && view) fitViewToRect(view, unionRect);
+        } catch (e) { }
+    }
+
+    // =========================================
+    // ダイアログの構築 / Dialog construction
+    // =========================================
+
+    /**
+     * 行グループの並びと揃えを設定します。
+     * @param {Group} rowGroup - 設定する行グループ
+     * @returns {Group} 設定後の行グループ
+     */
+    function setupRow(rowGroup) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = ["left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        return rowGroup;
+    }
+
+    /**
+     * パネルの並びと余白を設定します。
+     * @param {Panel} panel - 設定するパネル
+     * @returns {Panel} 設定後のパネル
+     */
+    function setupPanel(panel) {
+        panel.orientation = "column";
+        panel.alignChildren = ["left", "top"];
+        panel.margins = PANEL_MARGINS;
+        return panel;
+    }
+
+    /**
+     * ［読み込みファイル］パネルを作成します。
+     * @param {Group} parentGroup - 追加先のグループ
+     * @returns {{btnSelectFile: Button, sourceNameText: StaticText}} パネル内のコントロール
+     */
+    function buildSourcePanel(parentGroup) {
+        var sourcePanel = setupPanel(parentGroup.add("panel", undefined, getLabel(LABELS.panel.source)));
+
+        var btnSelectFile = sourcePanel.add("button", undefined, getLabel(LABELS.button.selectFile));
+        btnSelectFile.helpTip = getLabel(LABELS.tooltip.selectFile);
+
+        var sourceNameText = sourcePanel.add("statictext", undefined, getLabel(LABELS.fieldLabel.notSelected));
+        sourceNameText.characters = SOURCE_NAME_CHARS;
+
+        return {
+            btnSelectFile: btnSelectFile,
+            sourceNameText: sourceNameText
+        };
+    }
+
+    /**
+     * ［新規ドキュメント］パネルを作成します。
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {Document} sourceDoc - 実行時のアクティブドキュメント
+     * @returns {{rbColorCMYK: RadioButton, rbColorRGB: RadioButton}} パネル内のコントロール
+     */
+    function buildNewDocumentPanel(parentGroup, sourceDoc) {
+        var newDocumentPanel = setupPanel(parentGroup.add("panel", undefined, getLabel(LABELS.panel.newDocument)));
+        newDocumentPanel.add("statictext", undefined, getLabel(LABELS.fieldLabel.colorMode));
+
+        var colorModeGroup = setupRow(newDocumentPanel.add("group"));
+        var rbColorCMYK = colorModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.colorModeCMYK));
+        var rbColorRGB = colorModeGroup.add("radiobutton", undefined, getLabel(LABELS.radio.colorModeRGB));
+
+        /* 元ドキュメントのカラーモードを初期値にする */
+        if (sourceDoc.documentColorSpace === DocumentColorSpace.RGB) rbColorRGB.value = true;
+        else rbColorCMYK.value = true;
+
+        return {
+            rbColorCMYK: rbColorCMYK,
+            rbColorRGB: rbColorRGB
+        };
+    }
+
+    /**
+     * ［アートボード］パネルを作成します。
+     * @param {Group} parentGroup - 追加先のグループ
+     * @returns {{etPageRange: EditText}} パネル内のコントロール
+     */
+    function buildArtboardPanel(parentGroup) {
+        var artboardPanel = setupPanel(parentGroup.add("panel", undefined, getLabel(LABELS.panel.artboard)));
+
+        var pageRangeGroup = setupRow(artboardPanel.add("group"));
+        pageRangeGroup.add("statictext", undefined, getLabel(LABELS.fieldLabel.pageRange));
+
+        var etPageRange = pageRangeGroup.add("edittext", undefined, "");
+        etPageRange.characters = PAGE_RANGE_CHARS;
+        etPageRange.helpTip = getLabel(LABELS.tooltip.pageRange);
+
+        return {
+            etPageRange: etPageRange
+        };
+    }
+
+    /**
+     * ［配置方法］パネルを作成します。
+     * @param {Group} parentGroup - 追加先のグループ
+     * @returns {{ddCropMode: DropDownList, rbEvenPageRight: RadioButton, rbEvenPageLeft: RadioButton}} パネル内のコントロール
+     */
+    function buildPlacementPanel(parentGroup) {
+        var placementPanel = setupPanel(parentGroup.add("panel", undefined, getLabel(LABELS.panel.placement)));
+
+        var cropNames = [];
+        for (var i = 0; i < CROP_OPTIONS.length; i++) {
+            cropNames.push(getLabel(CROP_OPTIONS[i].labelSet));
+        }
+
+        var ddCropMode = placementPanel.add("dropdownlist", undefined, cropNames);
+        ddCropMode.minimumSize.width = CROP_LIST_MIN_WIDTH;
+        ddCropMode.selection = DEFAULT_CROP_INDEX;
+        ddCropMode.helpTip = getLabel(LABELS.tooltip.cropMode);
+        /* トリミング指定はPDFのときだけ使うので、ファイル確定まで無効にする */
+        ddCropMode.enabled = false;
+
+        var evenPageGroup = setupRow(placementPanel.add("group"));
+        evenPageGroup.helpTip = getLabel(LABELS.tooltip.evenPage);
+        evenPageGroup.add("statictext", undefined, getLabel(LABELS.fieldLabel.evenPage));
+
+        var rbEvenPageRight = evenPageGroup.add("radiobutton", undefined, getLabel(LABELS.radio.evenPageRight));
+        var rbEvenPageLeft = evenPageGroup.add("radiobutton", undefined, getLabel(LABELS.radio.evenPageLeft));
+        rbEvenPageRight.value = true;
+        rbEvenPageRight.helpTip = getLabel(LABELS.tooltip.evenPage);
+        rbEvenPageLeft.helpTip = getLabel(LABELS.tooltip.evenPage);
+
+        return {
+            ddCropMode: ddCropMode,
+            rbEvenPageRight: rbEvenPageRight,
+            rbEvenPageLeft: rbEvenPageLeft
+        };
+    }
+
+    /**
+     * ボタンエリアを作成します。OK／キャンセルはScriptUIの標準動作でダイアログを閉じます。
+     * @param {Window} dialogWindow - 追加先のダイアログ
+     * @returns {void}
+     */
+    function buildButtonRow(dialogWindow) {
+        var btnRowGroup = dialogWindow.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+    }
+
+    /**
+     * ダイアログ全体を組み立てます。
+     * @param {Document} sourceDoc - 実行時のアクティブドキュメント
+     * @returns {object} ダイアログと各コントロールの参照
+     */
+    function buildDialog(sourceDoc) {
+        var dialogWindow = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        dialogWindow.alignChildren = "fill";
+
+        var columnsGroup = dialogWindow.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+
+        var leftColumnGroup = columnsGroup.add("group");
+        leftColumnGroup.orientation = "column";
+        leftColumnGroup.alignChildren = "fill";
+
+        var rightColumnGroup = columnsGroup.add("group");
+        rightColumnGroup.orientation = "column";
+        rightColumnGroup.alignChildren = "fill";
+
+        var sourcePanel = buildSourcePanel(leftColumnGroup);
+        var newDocumentPanel = buildNewDocumentPanel(rightColumnGroup, sourceDoc);
+        var artboardPanel = buildArtboardPanel(leftColumnGroup);
+        var placementPanel = buildPlacementPanel(rightColumnGroup);
+        buildButtonRow(dialogWindow);
+
+        return {
+            dialogWindow: dialogWindow,
+            btnSelectFile: sourcePanel.btnSelectFile,
+            sourceNameText: sourcePanel.sourceNameText,
+            rbColorCMYK: newDocumentPanel.rbColorCMYK,
+            rbColorRGB: newDocumentPanel.rbColorRGB,
+            etPageRange: artboardPanel.etPageRange,
+            ddCropMode: placementPanel.ddCropMode,
+            rbEvenPageRight: placementPanel.rbEvenPageRight,
+            rbEvenPageLeft: placementPanel.rbEvenPageLeft
+        };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
     function main() {
 
         if (app.documents.length === 0) {
-            SC_alert("alertNeedDoc");
+            showAlert(LABELS.alert.needDocument);
             return;
         }
 
-        var srcDoc = app.activeDocument;
-        var docColorSpace = srcDoc.documentColorSpace;
+        var sourceDoc = app.activeDocument;
 
-        function getInitialOutputDocSize(srcDoc, fileObj, rangeText, cropMode) {
-            var pages = parsePageNumbers(rangeText || '');
-            var firstPage = (pages && pages.length > 0) ? parseInt(pages[0], 10) : 1;
-            if (isNaN(firstPage) || firstPage < 1) firstPage = 1;
+        /* 現在の読み込み対象ファイル。未選択時は null。 */
+        var sourceFile = null;
 
-            if (!fileObj) {
-                return {
-                    width: srcDoc.width,
-                    height: srcDoc.height
-                };
+        var dialogUI = buildDialog(sourceDoc);
+        var dialogWindow = dialogUI.dialogWindow;
+        var btnSelectFile = dialogUI.btnSelectFile;
+        var sourceNameText = dialogUI.sourceNameText;
+        var rbColorRGB = dialogUI.rbColorRGB;
+        var etPageRange = dialogUI.etPageRange;
+        var ddCropMode = dialogUI.ddCropMode;
+        var rbEvenPageRight = dialogUI.rbEvenPageRight;
+        var rbEvenPageLeft = dialogUI.rbEvenPageLeft;
+
+        // ------------------------
+        // UIの更新
+        // ------------------------
+
+        /**
+         * 読み込み対象ファイルを差し替え、ファイル名・トリミング指定・綴じ方向を更新します。
+         * @param {File} file - 読み込み対象のPDF/AIファイル
+         * @returns {void}
+         */
+        function updateSourceFile(file) {
+            sourceFile = file || null;
+
+            /* トリミング指定はPDFのときのみ有効 */
+            ddCropMode.enabled = isPdfFile(sourceFile);
+
+            /* PDFの綴じ方向から偶数ページの位置を自動設定 */
+            if (sourceFile) {
+                if (isRightBoundFile(sourceFile)) rbEvenPageRight.value = true;
+                else rbEvenPageLeft.value = true;
             }
 
-            try {
-                // Ensure we use placementMeasurePlacedPageSize, not any old/legacy measurePlacedPageSize
-                return placementMeasurePlacedPageSize(srcDoc, fileObj, firstPage, cropMode);
-            } catch (_) {
-                return {
-                    width: srcDoc.width,
-                    height: srcDoc.height
-                };
+            sourceNameText.text = sourceFile ? decodeSafely(sourceFile.name) : getLabel(LABELS.fieldLabel.notSelected);
+            sourceNameText.helpTip = sourceFile ? decodeSafely(sourceFile.fsName) : "";
+        }
+
+        /**
+         * ページ指定欄に、取得した総ページ数から初期値を入れます。
+         * @param {number|null} pageCount - 総ページ数
+         * @returns {void}
+         */
+        function updatePageRangeField(pageCount) {
+            etPageRange.text = pageCount ? ("1-" + pageCount) : "";
+        }
+
+        /**
+         * ［ファイル指定］で選んだファイルをダイアログに反映します。
+         * @param {File} file - 選択したファイル
+         * @returns {void}
+         */
+        function loadSourceFile(file) {
+            if (!isPdfOrAiFile(file)) {
+                showAlert(LABELS.alert.pickPdfAi);
+                updatePageRangeField(null);
+                return;
             }
+
+            var pageCount = getPageCount(file);
+            updateSourceFile(file);
+            updatePageRangeField(pageCount);
         }
 
-        var doc = null;
+        /**
+         * 選択中の配置画像がPDF/AIなら、そのリンク先をダイアログに反映します。
+         * @returns {void}
+         */
+        function loadSourceFromSelection() {
+            var placedItem = findFirstPlacedItem(sourceDoc.selection);
+            if (!placedItem) return;
 
-        // 現在の読み込み対象ファイル。未選択時は null。
-        var fileA = null;
-
-        // ------------------------
-        // UI構築
-        // ------------------------
-        function buildDialogUI() {
-            var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-            win.alignChildren = "fill";
-
-            var cols = win.add("group");
-            cols.orientation = "row";
-            cols.alignChildren = ["fill", "top"];
-
-            var leftCol = cols.add("group");
-            leftCol.orientation = "column";
-            leftCol.alignChildren = "fill";
-
-            var rightCol = cols.add("group");
-            rightCol.orientation = "column";
-            rightCol.alignChildren = "fill";
-
-            var pnlSource = leftCol.add('panel', undefined, L('panelSource'));
-            pnlSource.orientation = 'column';
-            pnlSource.alignChildren = ['left', 'top'];
-            pnlSource.margins = [15, 20, 15, 10];
-            var btnBrowse = pnlSource.add('button', undefined, L('btnLoad'));
-            var etPath = pnlSource.add('statictext', undefined, L('notSelected'));
-            etPath.characters = 16;
-
-            var pnlNewDoc = rightCol.add('panel', undefined, L('panelNewDoc'));
-            pnlNewDoc.orientation = 'column';
-            pnlNewDoc.alignChildren = ['left', 'top'];
-            pnlNewDoc.margins = [15, 20, 15, 10];
-            pnlNewDoc.add('statictext', undefined, L('colorMode'));
-            var rowColorMode = pnlNewDoc.add('group');
-            rowColorMode.orientation = 'row';
-            rowColorMode.alignChildren = ['left', 'center'];
-            var rbColorCMYK = rowColorMode.add('radiobutton', undefined, L('colorModeCMYK'));
-            var rbColorRGB = rowColorMode.add('radiobutton', undefined, L('colorModeRGB'));
-            if (srcDoc.documentColorSpace === DocumentColorSpace.RGB) rbColorRGB.value = true;
-            else rbColorCMYK.value = true;
-
-            var pnlAB = leftCol.add('panel', undefined, L('panelLoad'));
-            pnlAB.orientation = 'column';
-            pnlAB.alignChildren = ['left', 'top'];
-            pnlAB.margins = [15, 20, 15, 10];
-            var rowRange = pnlAB.add('group');
-            rowRange.orientation = 'row';
-            rowRange.alignChildren = ['left', 'center'];
-            rowRange.add('statictext', undefined, L('range'));
-            var etRange = rowRange.add('edittext', undefined, '');
-            etRange.characters = 10;
-            etRange.enabled = true;
-
-            var panelCrop = rightCol.add("panel", undefined, L("panelItem"));
-            panelCrop.alignChildren = "left";
-            panelCrop.margins = [15, 20, 15, 10];
-            var ddCrop = panelCrop.add("dropdownlist", undefined, [L("cropArt"), L("cropTrim"), L("cropCrop"), L("cropBleed")]);
-            ddCrop.minimumSize.width = 160;
-            ddCrop.selection = 2;
-            var groupBind = panelCrop.add("group");
-            groupBind.orientation = "row";
-            groupBind.alignChildren = ["left", "center"];
-            groupBind.add("statictext", undefined, L("evenPage"));
-            var rbR2L = groupBind.add("radiobutton", undefined, L("bindR2L"));
-            var rbL2R = groupBind.add("radiobutton", undefined, L("bindL2R"));
-            rbR2L.value = true;
-
-            var groupButtons = win.add("group");
-            groupButtons.orientation = "row";
-            groupButtons.alignChildren = ["center", "center"];
-            var btnCancel = groupButtons.add("button", undefined, L("cancel"), { name: "cancel" });
-            var btnOk = groupButtons.add("button", undefined, L("ok"), { name: "ok" });
-
-            return {
-                win: win,
-                btnBrowse: btnBrowse,
-                etPath: etPath,
-                rbColorCMYK: rbColorCMYK,
-                rbColorRGB: rbColorRGB,
-                etRange: etRange,
-                ddCrop: ddCrop,
-                rbR2L: rbR2L,
-                rbL2R: rbL2R,
-                btnCancel: btnCancel,
-                btnOk: btnOk
-            };
-        }
-
-        // ダイアログUIを構築し、必要な参照を取り出す
-        var ui = buildDialogUI();
-        var win = ui.win;
-        var btnBrowse = ui.btnBrowse;
-        var etPath = ui.etPath;
-        var rbColorCMYK = ui.rbColorCMYK;
-        var rbColorRGB = ui.rbColorRGB;
-        var etRange = ui.etRange;
-        var ddCrop = ui.ddCrop;
-        var rbR2L = ui.rbR2L;
-        var rbL2R = ui.rbL2R;
-        var btnCancel = ui.btnCancel;
-        var btnOk = ui.btnOk;
-
-        // ------------------------
-        // UI表示補助
-        // ------------------------
-        function getFileDisplayName(f) {
-            if (!f) return L('notSelected');
-            try {
-                return decodeURIComponent(f.name);
-            } catch (_) {
-                return String(f.name || L('notSelected'));
+            if (!placedItem.file) {
+                showAlert(LABELS.alert.linkUnknown);
+                return;
             }
-        }
+            if (!isPdfOrAiFile(placedItem.file)) return;
 
-        function getFileDisplayPath(f) {
-            if (!f) return '';
-            try {
-                return decodeURIComponent(f.fsName);
-            } catch (_) {
-                return String(f.fsName || '');
-            }
-        }
-
-        function setPathText(f) {
-            // 現在の読み込み対象ファイル参照も更新
-            fileA = f || null;
-
-            // トリミング設定は PDF のときのみ有効化
-            ddCrop.enabled = isPdfFile(fileA);
-
-            // PDF の /Direction を見て偶数ページ位置を自動設定
-            autoDetectBinding(f);
-
-            etPath.text = getFileDisplayName(f);
-            etPath.helpTip = getFileDisplayPath(f);
-        }
-
-        function setResultText(last) {
-            etRange.text = last ? ('1-' + last) : '';
+            var pageCount = getPageCount(placedItem.file);
+            updateSourceFile(placedItem.file);
+            updatePageRangeField(pageCount);
         }
 
         // ------------------------
-        // UIイベント配線
+        // ダイアログの設定値
         // ------------------------
-        function bindDialogEvents() {
-            btnBrowse.onClick = function () {
-                var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
-                if (!f) return;
-                updatePageCountFromPlacedOrFile(srcDoc, f, setPathText, setResultText);
-            };
 
-            btnCancel.onClick = function () {
-                closeDialog(2);
-            };
-
-            btnOk.onClick = function () {
-                closeDialog(1);
-            };
-        }
-
-        // ------------------------
-        // 初期状態反映
-        // ------------------------
-        function initializeDialogState() {
-            ddCrop.enabled = isPdfFile(fileA);
-            updatePageCountFromPlacedOrFile(srcDoc, null, setPathText, setResultText);
-            ddCrop.enabled = isPdfFile(fileA);
-        }
-
-        // ------------------------
-        // 出力ドキュメント設定
-        // ------------------------
-        function getSelectedDocColorSpace() {
+        /**
+         * 新規ドキュメントのカラーモードを返します。
+         * @returns {DocumentColorSpace} 選択されたカラーモード
+         */
+        function getSelectedColorSpace() {
             return rbColorRGB.value ? DocumentColorSpace.RGB : DocumentColorSpace.CMYK;
         }
 
-        // 現在は UI から変更せず、既定値を返す
-        function getArtboardGap() {
-            return DEFAULT_ARTBOARD_GAP;
-        }
-
-        // 現在は UI から変更せず、既定値を返す
-        function getRasterEffectsResolution() {
-            return DEFAULT_RASTER_EFFECTS_RESOLUTION;
-        }
-
-        function applyDocumentRasterEffectsResolution(targetDoc) {
-            if (!targetDoc) return;
-            try {
-                var res = getRasterEffectsResolution();
-                var settings = targetDoc.rasterEffectSettings;
-                settings.resolution = res;
-                targetDoc.rasterEffectSettings = settings;
-            } catch (_) { }
-        }
-
-        // ------------------------
-        // 配置オプション取得
-        // ------------------------
-        function isR2L() {
-            return !!rbR2L.value;
-        }
-
-        // ファイル選択時に綴じ方向を自動検出して反映
-        function autoDetectBinding(f) {
-            if (!f) return;
-            try {
-                var dir = SC_detectPdfBindingDirection(f);
-                if (dir === "R2L") {
-                    rbR2L.value = true;
-                } else {
-                    rbL2R.value = true;
-                }
-            } catch (_) { }
-        }
-
-        function getCropModeFromUI() {
-            var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
-            // 0:アート / 1:トリミング / 2:仕上がり / 3:裁ち落とし
-            if (idx === 0) return CROP_ART;
-            if (idx === 1) return CROP_TRIM;
-            if (idx === 3) return CROP_BLEED;
-            // 仕上がりは CropBox を想定
-            return CROP_CROP;
+        /**
+         * 選択されたトリミング指定値を返します。
+         * @returns {number} CROP_ART / CROP_TRIM / CROP_CROP / CROP_BLEED のいずれか
+         */
+        function getSelectedCropMode() {
+            var index = ddCropMode.selection ? ddCropMode.selection.index : DEFAULT_CROP_INDEX;
+            var option = CROP_OPTIONS[index];
+            return option ? option.value : CROP_CROP;
         }
 
         // ------------------------
         // 実行処理
         // ------------------------
-        function placeOnIndividualArtboards(targetPages, cropMode, isR2L) {
-            if (!doc) {
-                var initialSize = getInitialOutputDocSize(srcDoc, fileA, etRange.text, cropMode);
-                docColorSpace = getSelectedDocColorSpace();
-                doc = app.documents.add(
-                    docColorSpace,
-                    initialSize.width,
-                    initialSize.height
-                );
-                applyDocumentRasterEffectsResolution(doc);
-                app.activeDocument = doc;
-            }
-            var activeIdx = doc.artboards.getActiveArtboardIndex();
-            var baseRect = doc.artboards[activeIdx].artboardRect;
-            var nextX = baseRect[0];
-            var baseTop = baseRect[1];
 
-            var abGap = getArtboardGap();
-            var abCount = 0;
-            var completed = false;
+        /**
+         * 新規ドキュメントの初期サイズを、最初に配置するページから求めます。
+         * @param {number} cropMode - トリミング指定値
+         * @returns {{width: number, height: number}} ドキュメントの幅と高さ（pt）
+         */
+        function getOutputDocSize(cropMode) {
+            var pageNumbers = parsePageNumbers(etPageRange.text);
+            var firstPage = (pageNumbers.length > 0) ? pageNumbers[0] : 1;
+            if (firstPage < 1) firstPage = 1;
 
+            /* 測定できないときは元ドキュメントのサイズで作成する */
             try {
-                for (var i = 0; i < targetPages.length; i++) {
-                    var pageNum = parseInt(targetPages[i], 10);
-                    if (isNaN(pageNum) || pageNum < 1) pageNum = 1;
+                return measurePlacedPageSize(sourceDoc, sourceFile, firstPage, cropMode);
+            } catch (e) {
+                return {
+                    width: sourceDoc.width,
+                    height: sourceDoc.height
+                };
+            }
+        }
 
-                    var pageSize = placementMeasurePlacedPageSize(doc, fileA, pageNum, cropMode);
-                    var pageW = pageSize.width;
-                    var pageH = pageSize.height;
-                    var isSpread = (pageW > pageH * 1.2);
-                    var result;
+        /**
+         * 配置先の新規ドキュメントを作成します。
+         * @param {number} cropMode - トリミング指定値
+         * @returns {Document} 作成したドキュメント
+         */
+        function createOutputDoc(cropMode) {
+            var outputSize = getOutputDocSize(cropMode);
+            var outputDoc = app.documents.add(getSelectedColorSpace(), outputSize.width, outputSize.height);
 
-                    if (isSpread) {
-                        result = placementPlaceSpreadPage(doc, fileA, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, isR2L, abGap);
-                    } else {
-                        result = placementPlaceSinglePage(doc, fileA, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, abGap);
-                    }
+            /* ラスタライズ効果解像度の設定に失敗しても配置は続行する */
+            try {
+                var rasterSettings = outputDoc.rasterEffectSettings;
+                rasterSettings.resolution = RASTER_EFFECTS_RESOLUTION;
+                outputDoc.rasterEffectSettings = rasterSettings;
+            } catch (e) { }
 
-                    nextX = result.nextX;
-                    abCount = result.abCount;
-                }
+            app.activeDocument = outputDoc;
+            return outputDoc;
+        }
+
+        /**
+         * 新規ドキュメントを作成し、指定ページを個別のアートボードに配置します。
+         * @param {Array<number>} pageNumbers - 配置するページ番号の配列
+         * @param {number} cropMode - トリミング指定値
+         * @param {boolean} evenPageOnRight - 偶数ページを右に置くなら true
+         * @returns {void}
+         */
+        function importPages(pageNumbers, cropMode, evenPageOnRight) {
+            var outputDoc = createOutputDoc(cropMode);
+            var activeArtboardIndex = outputDoc.artboards.getActiveArtboardIndex();
+            var baseRect = outputDoc.artboards[activeArtboardIndex].artboardRect;
+
+            var context = {
+                doc: outputDoc,
+                file: sourceFile,
+                cropMode: cropMode,
+                evenPageOnRight: evenPageOnRight,
+                activeArtboardIndex: activeArtboardIndex,
+                nextX: baseRect[0],
+                top: baseRect[1],
+                artboardCount: 0
+            };
+
+            var completed = false;
+            try {
+                placePages(context, pageNumbers);
                 completed = true;
             } catch (e) {
-                SC_alert("alertPlaceError", e);
+                showAlert(LABELS.alert.placeFailed, e);
             } finally {
-                try { placementResetImportPageNumber(); } catch (_) { }
+                /* 読み込みページ番号の環境設定を既定に戻す */
+                setImportPageNumber(1);
             }
 
-            if (completed) {
-                placementFitAllArtboardsInView(doc);
-            }
+            if (completed) fitAllArtboardsInView(outputDoc);
         }
 
         // ------------------------
-        // ダイアログ終了処理
+        // イベントと初期表示
         // ------------------------
-        function closeDialog(resultCode) {
-            win.close(resultCode);
+
+        btnSelectFile.onClick = function () {
+            var file = File.openDialog(getLabel(LABELS.dialog.pickFile), getLabel(LABELS.dialog.pickFilter));
+            if (file) loadSourceFile(file);
+        };
+
+        loadSourceFromSelection();
+
+        if (dialogWindow.show() !== 1) return;
+
+        if (!sourceFile) {
+            showAlert(LABELS.alert.needFile);
+            return;
         }
 
-        bindDialogEvents();
-        initializeDialogState();
+        var pageNumbers = parsePageNumbers(etPageRange.text);
+        if (pageNumbers.length === 0) pageNumbers = [1];
 
-        if (win.show() === 1) {
-            if (!fileA) {
-                SC_alert('alertNeedFile');
-            } else {
-                var finalPages = parsePageNumbers(etRange.text);
-                if (!finalPages || finalPages.length === 0) finalPages = [1];
-
-                var cropMode = getCropModeFromUI();
-                placeOnIndividualArtboards(finalPages, cropMode, isR2L());
-            }
-        }
-
+        importPages(pageNumbers, getSelectedCropMode(), rbEvenPageRight.value);
     }
 
     main();

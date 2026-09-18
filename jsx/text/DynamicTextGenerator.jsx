@@ -112,7 +112,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -314,7 +314,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
             if (node == null) break;
             node = node[arguments[i]];
         }
-        return (node && node[lang] != null) ? node[lang] : "";
+        return (node && node[uiLang] != null) ? node[uiLang] : "";
     }
 
     /* ===== ユーティリティ / Utilities ===== */
@@ -824,7 +824,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         var modeButton = modeCell.add('iconbutton', undefined, undefined, { style: 'toolbutton' });
         modeButton.preferredSize = MODE_ICON_SIZE;
         // ヘルプチップは「モード名：説明」の形にする / help tip reads "name: description"
-        modeButton.helpTip = getModeLabel(MODES[modeIndex].key) + (lang === 'ja' ? '：' : ': ') + getLabel('tooltip', MODES[modeIndex].tipKey);
+        modeButton.helpTip = getModeLabel(MODES[modeIndex].key) + (uiLang === 'ja' ? '：' : ': ') + getLabel('tooltip', MODES[modeIndex].tipKey);
         modeButton.onDraw = makeModeIconDrawer(MODES[modeIndex].key);
         modeButton.onClick = makeModeSelector(MODES[modeIndex].key);
         modeButtons.push(modeButton);
@@ -1190,7 +1190,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         if (!isModeSelected()) return;
 
         generatePathText(false, true);
-        try { app.redraw(); } catch (e) { }
+        app.redraw();
     }
 
     /**

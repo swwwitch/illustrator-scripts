@@ -178,7 +178,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         if (!LABELS[key]) return key;
         var entry = LABELS[key];
         return entry[currentLanguage] || entry.en || key;
@@ -186,23 +186,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* エラー表示ヘルパー / Error display helper */
     function showError(key) {
-        alert(L(key));
+        alert(getLabel(key));
     }
 
     /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
     function labelWithCount(key, count) {
         if (currentLanguage === "ja") {
-            return L(key) + "（" + count + "）";
+            return getLabel(key) + "（" + count + "）";
         }
-        return L(key) + " (" + count + ")";
+        return getLabel(key) + " (" + count + ")";
     }
 
     /* 値付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with value (full-width JA parentheses, half-width EN parentheses) */
     function labelWithValue(key, valueText) {
         if (currentLanguage === "ja") {
-            return L(key) + "（" + valueText + "）";
+            return getLabel(key) + "（" + valueText + "）";
         }
-        return L(key) + " (" + valueText + ")";
+        return getLabel(key) + " (" + valueText + ")";
     }
 
     /* 任意テキストへの値付け（日本語は全角括弧、英語は半角括弧）/ Append value to arbitrary text (full-width JA parentheses, half-width EN parentheses) */
@@ -657,7 +657,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showFilterDialog(originalSelection) {
-        var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
@@ -668,7 +668,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         captureVisualState(originalSelection, visualSnapshot);
 
         /* 上部：選択オブジェクト以外の挙動 / Top: behavior for non-selected items */
-        var nonSelectedPanel = dialog.add("panel", undefined, L("nonSelectedPanel"));
+        var nonSelectedPanel = dialog.add("panel", undefined, getLabel("nonSelectedPanel"));
         nonSelectedPanel.orientation = "column";
         nonSelectedPanel.alignChildren = ["left", "center"];
         nonSelectedPanel.margins = PANEL_MARGINS;
@@ -679,8 +679,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         nonSelectedRadioGroup.alignChildren = ["left", "center"];
         nonSelectedRadioGroup.spacing = 12;
 
-        var rbNonSelNone = nonSelectedRadioGroup.add("radiobutton", undefined, L("nonSelectedNone"));
-        var rbNonSelHide = nonSelectedRadioGroup.add("radiobutton", undefined, L("nonSelectedHide"));
+        var rbNonSelNone = nonSelectedRadioGroup.add("radiobutton", undefined, getLabel("nonSelectedNone"));
+        var rbNonSelHide = nonSelectedRadioGroup.add("radiobutton", undefined, getLabel("nonSelectedHide"));
         var rbNonSelOpacity = nonSelectedRadioGroup.add("radiobutton", undefined, labelWithValue("nonSelectedOpacity", DEFAULT_NON_SELECTED_OPACITY + "%"));
 
         var nonSelectedOpacitySliderGroup = nonSelectedPanel.add("group");
@@ -711,14 +711,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 簡易モード：横並びチェックボックス / Quick mode: horizontal checkboxes */
-        var simplePanel = dialog.add("panel", undefined, L("simplePanel"));
+        var simplePanel = dialog.add("panel", undefined, getLabel("simplePanel"));
         simplePanel.orientation = "row";
         simplePanel.alignChildren = ["left", "center"];
         simplePanel.margins = PANEL_MARGINS;
         simplePanel.spacing = 12;
-        var cbSimpleText = simplePanel.add("checkbox", undefined, L("simpleText"));
-        var cbSimpleStrokeOnly = simplePanel.add("checkbox", undefined, L("simpleStrokeOnly"));
-        var cbSimpleFillOnlyPath = simplePanel.add("checkbox", undefined, L("simpleFillOnlyPath"));
+        var cbSimpleText = simplePanel.add("checkbox", undefined, getLabel("simpleText"));
+        var cbSimpleStrokeOnly = simplePanel.add("checkbox", undefined, getLabel("simpleStrokeOnly"));
+        var cbSimpleFillOnlyPath = simplePanel.add("checkbox", undefined, getLabel("simpleFillOnlyPath"));
 
         var columnGroup = dialog.add("group");
         columnGroup.orientation = "row";
@@ -735,32 +735,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightColumn.alignChildren = "fill";
         rightColumn.alignment = ["fill", "top"];
 
-        var textPanel = leftColumn.add("panel", undefined, L("textPanel"));
+        var textPanel = leftColumn.add("panel", undefined, getLabel("textPanel"));
         setupPanel(textPanel, 6);
         var cbText = textPanel.add("checkbox", undefined, labelWithCount("textObject", counts.text));
         var cbAreaText = textPanel.add("checkbox", undefined, labelWithCount("areaText", counts.areaText));
         var cbPathText = textPanel.add("checkbox", undefined, labelWithCount("pathText", counts.pathText));
 
-        var alignmentPanel = leftColumn.add("panel", undefined, L("alignmentPanel"));
+        var alignmentPanel = leftColumn.add("panel", undefined, getLabel("alignmentPanel"));
         setupPanel(alignmentPanel, 6);
         var cbAlignLeft = alignmentPanel.add("checkbox", undefined, labelWithCount("alignLeft", counts.alignLeft));
         var cbAlignCenter = alignmentPanel.add("checkbox", undefined, labelWithCount("alignCenter", counts.alignCenter));
         var cbAlignRight = alignmentPanel.add("checkbox", undefined, labelWithCount("alignRight", counts.alignRight));
 
-        var pathPanel = rightColumn.add("panel", undefined, L("pathPanel"));
+        var pathPanel = rightColumn.add("panel", undefined, getLabel("pathPanel"));
         setupPanel(pathPanel, 6);
         var cbOpenPath = pathPanel.add("checkbox", undefined, labelWithCount("openPath", counts.openPath));
         var cbHorizontalLine = pathPanel.add("checkbox", undefined, labelWithCount("horizontalLine", counts.horizontalLine));
         var cbVerticalLine = pathPanel.add("checkbox", undefined, labelWithCount("verticalLine", counts.verticalLine));
 
-        var closedPathPanel = rightColumn.add("panel", undefined, L("closedPathPanel"));
+        var closedPathPanel = rightColumn.add("panel", undefined, getLabel("closedPathPanel"));
         setupPanel(closedPathPanel, 6);
         var cbClosedPathFillOnly = closedPathPanel.add("checkbox", undefined, labelWithCount("closedPathFillOnly", counts.closedPathFillOnly));
         var cbClosedPathStrokeOnly = closedPathPanel.add("checkbox", undefined, labelWithCount("closedPathStrokeOnly", counts.closedPathStrokeOnly));
         var cbClosedPathFillAndStroke = closedPathPanel.add("checkbox", undefined, labelWithCount("closedPathFillAndStroke", counts.closedPathFillAndStroke));
 
         /* フォントパネル：カラム貫通（全幅） / Font panel spanning across columns */
-        var fontPanel = dialog.add("panel", undefined, L("fontPanel"));
+        var fontPanel = dialog.add("panel", undefined, getLabel("fontPanel"));
         setupPanel(fontPanel, 6);
         var fontCheckboxes = [];
         var fontNames = getSortedFontNames(counts.fonts);
@@ -834,9 +834,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             restoreVisualState(visualSnapshot);
             applyFilterToSelection(originalSelection, readFilterOptions(dialogUi));
             applyNonSelectedBehavior(originalSelection, getNonSelectedMode(), getNonSelectedOpacityValue());
-            try {
-                app.redraw();
-            } catch (e) { }
+            app.redraw();
         }
 
         rbNonSelNone.onClick = function () {
@@ -895,12 +893,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         leftButtonGroup.alignment = ["left", "center"];
 
         var isOutlineMode = false;
-        var previewButton = leftButtonGroup.add("button", undefined, L("btnOutlineOn"));
+        var previewButton = leftButtonGroup.add("button", undefined, getLabel("btnOutlineOn"));
         previewButton.onClick = function () {
             try {
                 app.executeMenuCommand("preview");
                 isOutlineMode = !isOutlineMode;
-                previewButton.text = isOutlineMode ? L("btnOutlineOff") : L("btnOutlineOn");
+                previewButton.text = isOutlineMode ? getLabel("btnOutlineOff") : getLabel("btnOutlineOn");
             } catch (e) { }
         };
 
@@ -912,8 +910,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightButtonGroup.orientation = "row";
         rightButtonGroup.alignChildren = ["right", "center"];
         rightButtonGroup.alignment = ["right", "center"];
-        rightButtonGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        rightButtonGroup.add("button", undefined, L("ok"), { name: "ok" });
+        rightButtonGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+        rightButtonGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
         updateNonSelectedOpacitySliderEnabled();
         updateCanvasSelection();

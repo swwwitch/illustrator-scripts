@@ -40,16 +40,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
-    function L(key) {
+    function getLabel(key) {
         var entry = LABELS[key];
         if (!entry) return key;
-        return entry[lang] || entry.ja || key;
+        return entry[uiLang] || entry.ja || key;
     }
 
     function labelText(key) {
-        return L(key) + (lang === "ja" ? "：" : ":");
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
     /* 日英ラベル定義 / Japanese-English label definitions */
@@ -375,7 +375,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function drawRandomParentChildLines() {
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
 
@@ -868,11 +868,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* ダイアログボックス / Dialog box */
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
+        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = ["fill", "top"];
 
-        var mainColumns = dlg.add("group");
+        var mainColumns = dialog.add("group");
         mainColumns.orientation = "row";
         mainColumns.alignChildren = ["fill", "top"];
         mainColumns.alignment = ["fill", "top"];
@@ -888,19 +888,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.alignment = ["fill", "fill"];
 
         /* 雨の種類ラジオボタン / Rain type radio buttons */
-        var radioPanel = leftCol.add("panel", undefined, L("panelRainType"));
+        var radioPanel = leftCol.add("panel", undefined, getLabel("panelRainType"));
         radioPanel.margins = [15, 20, 15, 10];
         radioPanel.orientation = "column";
         radioPanel.alignment = "fill";
         radioPanel.alignChildren = "left";
-        var rbHarusame = radioPanel.add("radiobutton", undefined, L("rainHarusame"));
-        var rbSamidare = radioPanel.add("radiobutton", undefined, L("rainSamidare"));
-        var rbTeppouame = radioPanel.add("radiobutton", undefined, L("rainTeppouame"));
-        var rbAmatsubu = radioPanel.add("radiobutton", undefined, L("rainAmatsubu"));
-        var rbMizutama = radioPanel.add("radiobutton", undefined, L("rainMizutama"));
+        var rbHarusame = radioPanel.add("radiobutton", undefined, getLabel("rainHarusame"));
+        var rbSamidare = radioPanel.add("radiobutton", undefined, getLabel("rainSamidare"));
+        var rbTeppouame = radioPanel.add("radiobutton", undefined, getLabel("rainTeppouame"));
+        var rbAmatsubu = radioPanel.add("radiobutton", undefined, getLabel("rainAmatsubu"));
+        var rbMizutama = radioPanel.add("radiobutton", undefined, getLabel("rainMizutama"));
         rbHarusame.value = true;
 
-        var optionPanel = rightCol.add("panel", undefined, L("panelOptions"));
+        var optionPanel = rightCol.add("panel", undefined, getLabel("panelOptions"));
         optionPanel.margins = [15, 20, 15, 10];
         optionPanel.orientation = "column";
         optionPanel.alignChildren = ["left", "top"];
@@ -915,7 +915,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblScale.justify = "right";
         var inputScale = grpScale.add("edittext", undefined, presets.harusame.defaultScale || "100");
         inputScale.characters = 4;
-        var txtScaleUnit = grpScale.add("statictext", undefined, L("unitPercent"));
+        var txtScaleUnit = grpScale.add("statictext", undefined, getLabel("unitPercent"));
 
         var grpScaleSlider = optionPanel.add("group");
         grpScaleSlider.alignment = ["fill", "top"];
@@ -937,7 +937,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblAngle.justify = "right";
         var inputAngle = grpAngle.add("edittext", undefined, presets.harusame.defaultAngle || String(presets.harusame.angleDeg || 45));
         inputAngle.characters = 6;
-        var txtAngleUnit = grpAngle.add("statictext", undefined, L("unitDegree"));
+        var txtAngleUnit = grpAngle.add("statictext", undefined, getLabel("unitDegree"));
 
         var grpDensity = optionPanel.add("group");
         grpDensity.alignment = "left";
@@ -946,7 +946,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblDensity.justify = "right";
         var inputDensity = grpDensity.add("edittext", undefined, presets.harusame.defaultDensity);
         inputDensity.characters = 6;
-        grpDensity.add("statictext", undefined, L("unitLines"));
+        grpDensity.add("statictext", undefined, getLabel("unitLines"));
 
         var grpSpacing = optionPanel.add("group");
         grpSpacing.alignment = "left";
@@ -966,7 +966,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         inputMargin.characters = 6;
         grpMargin.add("statictext", undefined, rulerUnitInfo.label);
 
-        var raindropPanel = optionPanel.add("panel", undefined, L("panelRaindrop"));
+        var raindropPanel = optionPanel.add("panel", undefined, getLabel("panelRaindrop"));
         raindropPanel.orientation = "column";
         raindropPanel.alignChildren = ["left", "top"];
         raindropPanel.alignment = ["fill", "top"];
@@ -976,19 +976,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpRaindropAppearance.orientation = "row";
         grpRaindropAppearance.alignChildren = ["left", "center"];
 
-        var chkRaindropFill = grpRaindropAppearance.add("checkbox", undefined, L("chkRaindropFill"));
+        var chkRaindropFill = grpRaindropAppearance.add("checkbox", undefined, getLabel("chkRaindropFill"));
         chkRaindropFill.value = true;
 
-        var chkRaindropStroke = grpRaindropAppearance.add("checkbox", undefined, L("chkRaindropStroke"));
+        var chkRaindropStroke = grpRaindropAppearance.add("checkbox", undefined, getLabel("chkRaindropStroke"));
         chkRaindropStroke.value = false;
 
         var grpRaindropShapes = raindropPanel.add("group");
         grpRaindropShapes.orientation = "row";
         grpRaindropShapes.alignChildren = ["left", "center"];
 
-        var rbRaindropA = grpRaindropShapes.add("radiobutton", undefined, L("raindropShapeA"));
-        var rbRaindropB = grpRaindropShapes.add("radiobutton", undefined, L("raindropShapeB"));
-        var rbRaindropC = grpRaindropShapes.add("radiobutton", undefined, L("raindropShapeC"));
+        var rbRaindropA = grpRaindropShapes.add("radiobutton", undefined, getLabel("raindropShapeA"));
+        var rbRaindropB = grpRaindropShapes.add("radiobutton", undefined, getLabel("raindropShapeB"));
+        var rbRaindropC = grpRaindropShapes.add("radiobutton", undefined, getLabel("raindropShapeC"));
         rbRaindropB.value = true;
 
         changeValueByArrowKey(inputStrokeWidth, true, false);
@@ -999,12 +999,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         changeValueByArrowKey(inputScale, false, false);
 
         /* 2カラムにしないUI / UI outside the two-column layout */
-        var bottomBar = dlg.add("group");
+        var bottomBar = dialog.add("group");
         bottomBar.orientation = "row";
         bottomBar.alignChildren = ["left", "center"];
         bottomBar.alignment = ["fill", "top"];
 
-        var chkPreview = bottomBar.add("checkbox", undefined, L("preview"));
+        var chkPreview = bottomBar.add("checkbox", undefined, getLabel("preview"));
         chkPreview.value = false;
 
         var bottomSpacer = bottomBar.add("group");
@@ -1014,8 +1014,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnGroup = bottomBar.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignChildren = ["right", "center"];
-        btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        btnGroup.add("button", undefined, L("ok"), { name: "ok" });
+        btnGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+        btnGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
         /* イベントハンドラ / Event handlers */
         rbHarusame.onClick = onPresetChange;
@@ -1052,7 +1052,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updatePreview();
         };
 
-        var result = dlg.show();
+        var result = dialog.show();
 
         if (result !== 1) {
             removePreview();
@@ -1070,32 +1070,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         if (!preset.penetrate && (isNaN(mainStrokeWidth) || mainStrokeWidth <= 0)) {
             removePreview();
-            alert(L("invalidStrokeWidth"));
+            alert(getLabel("invalidStrokeWidth"));
             return;
         }
         if (!preset.penetrate && !preset.polkadot && isNaN(angle)) {
             removePreview();
-            alert(L("invalidAngle"));
+            alert(getLabel("invalidAngle"));
             return;
         }
         if (isNaN(numLines) || numLines <= 0) {
             removePreview();
-            alert(L("invalidDensity"));
+            alert(getLabel("invalidDensity"));
             return;
         }
         if (!isValidScaleValue(scale)) {
             removePreview();
-            alert(L("invalidScale"));
+            alert(getLabel("invalidScale"));
             return;
         }
         if (!isValidMarginPt(margin)) {
             removePreview();
-            alert(L("invalidMargin"));
+            alert(getLabel("invalidMargin"));
             return;
         }
         if (!preset.noChild && !preset.raindrop && !preset.polkadot && (isNaN(spacing) || spacing < 0)) {
             removePreview();
-            alert(L("invalidSpacing"));
+            alert(getLabel("invalidSpacing"));
             return;
         }
 

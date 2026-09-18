@@ -108,7 +108,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
 
-        var lang = getCurrentLang();
+        var uiLang = getCurrentLang();
 
         /* 日英ラベル定義 / Japanese-English label definitions */
         var LABELS = {
@@ -239,9 +239,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
          * @param {object} labelEntry - LABELS のリーフ（{ ja, en }）。
          * @returns {string} 現在の言語の文言。{slash} は / に置き換えます。
          */
-        function L(labelEntry) {
+        function getLabel(labelEntry) {
             /* 日本語が未定義なら英語にフォールバック / Fall back to English when ja is missing */
-            var text = (labelEntry && labelEntry[lang]) || (labelEntry && labelEntry.en) || "";
+            var text = (labelEntry && labelEntry[uiLang]) || (labelEntry && labelEntry.en) || "";
             return text.replace(/\{slash\}/g, "/");
         }
 
@@ -506,7 +506,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             var activeArtboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
 
             return {
-                layer: L(LABELS.artwork.newLayerName),
+                layer: getLabel(LABELS.artwork.newLayerName),
                 artboard: activeArtboard.name + ARTBOARD_NAME_SUFFIX,
                 document: getFileBaseName(doc.name) + DOCUMENT_NAME_SUFFIX
             };
@@ -536,13 +536,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             rowGroup.alignChildren = ["left", "center"];
             rowGroup.spacing = 8;
 
-            var targetRadio = rowGroup.add("radiobutton", undefined, L(radioEntry));
+            var targetRadio = rowGroup.add("radiobutton", undefined, getLabel(radioEntry));
             targetRadio.preferredSize.width = TARGET_RADIO_WIDTH;
-            targetRadio.helpTip = L(radioTipEntry);
+            targetRadio.helpTip = getLabel(radioTipEntry);
 
             var nameInput = rowGroup.add("edittext", undefined, defaultName);
             nameInput.characters = 18;
-            nameInput.helpTip = L(inputTipEntry);
+            nameInput.helpTip = getLabel(inputTipEntry);
 
             return { radio: targetRadio, input: nameInput, group: rowGroup };
         }
@@ -558,7 +558,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             var documentExtension = getFileExtension(doc.name) || ".ai";
 
             /* タイトルにバージョンを添える / Show the version next to the title */
-            var dialog = new Window("dialog", L(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+            var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
             dialog.orientation = "column";
             dialog.alignChildren = ["fill", "top"];
             dialog.spacing = 12;
@@ -566,7 +566,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
 
             /* 作成対象パネル。1行につき「ラジオボタン＋名前の入力欄」を並べる
                Create target panel: one row per target, radio + name input */
-            var createTargetPanel = dialog.add("panel", undefined, L(LABELS.panel.createTarget));
+            var createTargetPanel = dialog.add("panel", undefined, getLabel(LABELS.panel.createTarget));
             createTargetPanel.orientation = "column";
             createTargetPanel.alignChildren = ["left", "top"];
             createTargetPanel.spacing = 8;
@@ -581,56 +581,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
 
             /* ドキュメントだけは拡張子を添えて示す / Show the extension next to the document name */
             var extensionLabel = documentRow.group.add("statictext", undefined, documentExtension);
-            extensionLabel.helpTip = L(LABELS.tip.extension);
+            extensionLabel.helpTip = getLabel(LABELS.tip.extension);
 
             /* アートボードの配置パネル / Artboard placement panel */
             var rulerUnit = getRulerUnitInfo();
             var autoSpacingPt = computeAutoSpacingPt(doc,
                 app.preferences.getRealPreference('plugin/ArtboardRearrange/ArtboardSpacing'));
 
-            var artboardLayoutPanel = dialog.add("panel", undefined, L(LABELS.panel.artboardLayout));
+            var artboardLayoutPanel = dialog.add("panel", undefined, getLabel(LABELS.panel.artboardLayout));
             artboardLayoutPanel.orientation = "row";
             artboardLayoutPanel.alignChildren = ["left", "center"];
             artboardLayoutPanel.spacing = 8;
             artboardLayoutPanel.margins = [15, 20, 15, 15];
 
-            var directionLabel = artboardLayoutPanel.add("statictext", undefined, L(LABELS.label.direction));
+            var directionLabel = artboardLayoutPanel.add("statictext", undefined, getLabel(LABELS.label.direction));
 
             /* ラジオボタンは同じグループに入れて排他にする
                Keep both radios in one group so ScriptUI makes them exclusive */
             var directionGroup = artboardLayoutPanel.add("group");
             directionGroup.orientation = "row";
             directionGroup.spacing = 8;
-            var directionRightRadio = directionGroup.add("radiobutton", undefined, L(LABELS.radio.directionRight));
-            var directionDownRadio = directionGroup.add("radiobutton", undefined, L(LABELS.radio.directionDown));
+            var directionRightRadio = directionGroup.add("radiobutton", undefined, getLabel(LABELS.radio.directionRight));
+            var directionDownRadio = directionGroup.add("radiobutton", undefined, getLabel(LABELS.radio.directionDown));
 
-            var spacingLabel = artboardLayoutPanel.add("statictext", undefined, L(LABELS.label.spacing));
+            var spacingLabel = artboardLayoutPanel.add("statictext", undefined, getLabel(LABELS.label.spacing));
             var spacingInput = artboardLayoutPanel.add("edittext", undefined,
                 formatSpacingValue(autoSpacingPt / rulerUnit.factor));
             spacingInput.characters = 5;
             changeValueByArrowKey(spacingInput);
             var spacingUnitLabel = artboardLayoutPanel.add("statictext", undefined, rulerUnit.label);
 
-            directionRightRadio.helpTip = L(LABELS.tip.direction);
-            directionDownRadio.helpTip = L(LABELS.tip.direction);
-            spacingInput.helpTip = L(LABELS.tip.spacing);
+            directionRightRadio.helpTip = getLabel(LABELS.tip.direction);
+            directionDownRadio.helpTip = getLabel(LABELS.tip.direction);
+            spacingInput.helpTip = getLabel(LABELS.tip.spacing);
 
             /* オプションパネル / Options panel */
-            var optionPanel = dialog.add("panel", undefined, L(LABELS.panel.options));
+            var optionPanel = dialog.add("panel", undefined, getLabel(LABELS.panel.options));
             optionPanel.orientation = "column";
             optionPanel.alignChildren = ["left", "top"];
             optionPanel.spacing = 8;
             optionPanel.margins = [15, 20, 15, 15];
 
-            var duplicateCheckbox = optionPanel.add("checkbox", undefined, L(LABELS.checkbox.duplicate));
-            var includeLockedCheckbox = optionPanel.add("checkbox", undefined, L(LABELS.checkbox.includeLocked));
-            var includeHiddenCheckbox = optionPanel.add("checkbox", undefined, L(LABELS.checkbox.includeHidden));
+            var duplicateCheckbox = optionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.duplicate));
+            var includeLockedCheckbox = optionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.includeLocked));
+            var includeHiddenCheckbox = optionPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.includeHidden));
 
             /* ディム表示になる理由はUIから読み取れないので、ツールチップで補う
                Nothing on screen explains why a control is dimmed, so tooltips fill that in */
-            duplicateCheckbox.helpTip = L(LABELS.tip.duplicate);
-            includeLockedCheckbox.helpTip = L(LABELS.tip.includeObjects);
-            includeHiddenCheckbox.helpTip = L(LABELS.tip.includeObjects);
+            duplicateCheckbox.helpTip = getLabel(LABELS.tip.duplicate);
+            includeLockedCheckbox.helpTip = getLabel(LABELS.tip.includeObjects);
+            includeHiddenCheckbox.helpTip = getLabel(LABELS.tip.includeObjects);
 
             /* 前回の設定があれば復元する / Restore the previous settings when there are any */
             var savedOptions = getSessionCreateOptions();
@@ -739,10 +739,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             var dialogButtonGroup = dialog.add("group");
             dialogButtonGroup.orientation = "row";
             dialogButtonGroup.alignment = ["right", "top"];
-            var cancelButton = dialogButtonGroup.add("button", undefined, L(LABELS.button.cancel), { name: "cancel" });
-            var okButton = dialogButtonGroup.add("button", undefined, L(LABELS.button.ok), { name: "ok" });
-            cancelButton.helpTip = L(LABELS.tip.cancel);
-            okButton.helpTip = L(LABELS.tip.ok);
+            var cancelButton = dialogButtonGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+            var okButton = dialogButtonGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+            cancelButton.helpTip = getLabel(LABELS.tip.cancel);
+            okButton.helpTip = getLabel(LABELS.tip.ok);
 
             if (dialog.show() !== 1) return null;
 
@@ -834,7 +834,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
                Snapshot before the loop: move() changes the live selection */
             var selectedItems = snapshotSelection(doc);
             if (selectedItems.length === 0) {
-                alert(L(LABELS.alert.noSelection));
+                alert(getLabel(LABELS.alert.noSelection));
                 return;
             }
 
@@ -1300,7 +1300,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
         function createArtboardFromSelection(doc, useDuplicate, artboardName, directionAxis, spacingPt) {
             var selectedItems = snapshotSelection(doc);
             if (selectedItems.length === 0) {
-                alert(L(LABELS.alert.noSelection));
+                alert(getLabel(LABELS.alert.noSelection));
                 return;
             }
 
@@ -1310,7 +1310,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             var artboardLimit = (parseFloat(app.version) >= 22) ? 1000 : 100;
 
             if (originalArtboardCount + 1 > artboardLimit) {
-                alert(L(LABELS.alert.artboardLimit));
+                alert(getLabel(LABELS.alert.artboardLimit));
                 return;
             }
 
@@ -1321,7 +1321,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
 
             var artboardLayout = planArtboardLayout(doc, activeArtboardIndex, directionAxis, spacingPt);
             if (artboardLayout === null) {
-                alert(L(LABELS.alert.noSpace));
+                alert(getLabel(LABELS.alert.noSpace));
                 return;
             }
 
@@ -1394,7 +1394,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
          * @returns {{setMessage: function, close: function}} 進捗パレットの操作口。
          */
         function openProgressPalette() {
-            var palette = new Window("palette", L(LABELS.progress.title));
+            var palette = new Window("palette", getLabel(LABELS.progress.title));
             palette.orientation = "column";
             palette.alignChildren = ["fill", "center"];
             palette.margins = 20;
@@ -1411,7 +1411,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
                  * @returns {void}
                  */
                 setMessage: function (labelEntry) {
-                    messageText.text = L(labelEntry);
+                    messageText.text = getLabel(labelEntry);
                     palette.update();
                 },
 
@@ -1620,7 +1620,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
          */
         function createDocumentFromSelection(doc, includeLocked, includeHidden, fileBaseName) {
             if (snapshotSelection(doc).length === 0) {
-                alert(L(LABELS.alert.noSelection));
+                alert(getLabel(LABELS.alert.noSelection));
                 return;
             }
 
@@ -1628,7 +1628,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
                Unsaved changes would be lost when the source document is reopened */
             var originalFile = doc.saved ? doc.fullName : null;
             if (originalFile === null || !originalFile.exists) {
-                alert(L(LABELS.alert.needsSave));
+                alert(getLabel(LABELS.alert.needsSave));
                 return;
             }
 
@@ -1640,10 +1640,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
             /* 元ファイルに上書きすると、開き直す先が複製になってしまう
                Overwriting the source would leave nothing to reopen */
             if (duplicateFile.fsName === originalFile.fsName) {
-                alert(L(LABELS.alert.sameAsSource));
+                alert(getLabel(LABELS.alert.sameAsSource));
                 return;
             }
-            if (duplicateFile.exists && !confirm(L(LABELS.alert.overwrite) + "\n" + duplicateFile.name)) {
+            if (duplicateFile.exists && !confirm(getLabel(LABELS.alert.overwrite) + "\n" + duplicateFile.name)) {
                 return;
             }
 
@@ -1715,7 +1715,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
          */
         function main() {
             if (app.documents.length === 0) {
-                alert(L(LABELS.alert.noDocument));
+                alert(getLabel(LABELS.alert.noDocument));
                 return;
             }
 
@@ -1744,7 +1744,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0f02f73a748d"; /* 紹�
         try {
             main();
         } catch (err) {
-            alert(L(LABELS.alert.unexpected) + err);
+            alert(getLabel(LABELS.alert.unexpected) + err);
         }
 
     })();

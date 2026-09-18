@@ -51,7 +51,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ分け）/ Japanese-English label definitions (categorized) */
     var LABELS = {
@@ -110,26 +110,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             node = node[parts[i]];
         }
         if (node == null) return key;
-        var text = node[lang] || node.en || "";
+        var text = node[uiLang] || node.en || "";
         return text.replace(/\{slash\}/g, "/");
-    }
-
-    /* 現在言語のラベル文字列を返す / Return the current-language label string */
-    function L(key) {
-        return getLabel(key);
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return getLabel(key) + (lang === "ja" ? "：" : ":");
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
     /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
     function labelWithCount(key, count) {
-        if (lang === "ja") {
-            return L(key) + "（" + count + "）";
+        if (uiLang === "ja") {
+            return getLabel(key) + "（" + count + "）";
         }
-        return L(key) + " (" + count + ")";
+        return getLabel(key) + " (" + count + ")";
     }
 
     // =========================================
@@ -211,7 +206,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     function buildStrokeColorNames() {
         var names = [];
         for (var i = 0; i < STROKE_COLOR_PRESETS.length; i++) {
-            names.push(L(STROKE_COLOR_PRESETS[i].labelKey));
+            names.push(getLabel(STROKE_COLOR_PRESETS[i].labelKey));
         }
         return names;
     }
@@ -492,7 +487,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         PREF_STATE.cursorKeyLengthPt = parseFloat(initialPrefs.cursorKeyLength);
         if (isNaN(PREF_STATE.cursorKeyLengthPt)) PREF_STATE.cursorKeyLengthPt = 1.0;
 
-        var dialog = new Window('palette', L('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('palette', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
         dialog.opacity = DIALOG_OPACITY;
@@ -523,7 +518,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 左列：キー増加 / 変形と整列 / Left column: Key input / Transform & Align ----- */
 
         /* キー増加パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
-        var keyInputPanel = leftColumn.add('panel', undefined, L('panel.keyInput'));
+        var keyInputPanel = leftColumn.add('panel', undefined, getLabel('panel.keyInput'));
         keyInputPanel.orientation = 'row';
         keyInputPanel.alignChildren = ['left', 'center'];
         keyInputPanel.margins = [8, 20, 8, 15];
@@ -551,29 +546,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         changeValueByArrowKey(keyField);
 
         /* 変形と整列パネル / Transform & Align panel */
-        var transformPanel = leftColumn.add('panel', undefined, L('panel.transform'));
+        var transformPanel = leftColumn.add('panel', undefined, getLabel('panel.transform'));
         setupPanel(transformPanel);
 
         /* プレビュー境界 / Preview bounds */
-        var checkboxPreview = transformPanel.add('checkbox', undefined, L('checkbox.previewBounds'));
+        var checkboxPreview = transformPanel.add('checkbox', undefined, getLabel('checkbox.previewBounds'));
         checkboxPreview.onClick = function () {
             btSetBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
         };
 
         /* パターンを変形 / Transform patterns */
-        var checkboxPattern = transformPanel.add('checkbox', undefined, L('checkbox.transformPattern'));
+        var checkboxPattern = transformPanel.add('checkbox', undefined, getLabel('checkbox.transformPattern'));
         checkboxPattern.onClick = function () {
             btSetBooleanPreference("transformPatterns", checkboxPattern.value === true);
         };
 
         /* 角を拡大・縮小（1=ON, 2=OFF）/ Scale corners (1=ON, 2=OFF) */
-        var checkboxCorner = transformPanel.add('checkbox', undefined, L('checkbox.scaleCorners'));
+        var checkboxCorner = transformPanel.add('checkbox', undefined, getLabel('checkbox.scaleCorners'));
         checkboxCorner.onClick = function () {
             btSetIntegerPreference("policyForPreservingCorners", checkboxCorner.value ? 1 : 2);
         };
 
         /* 線幅と効果も拡大・縮小 / Scale strokes and effects */
-        var checkboxStroke = transformPanel.add('checkbox', undefined, L('checkbox.scaleStroke'));
+        var checkboxStroke = transformPanel.add('checkbox', undefined, getLabel('checkbox.scaleStroke'));
         checkboxStroke.onClick = function () {
             btSetBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
         };
@@ -581,11 +576,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 右列：字形の境界に整列 / ガイドと定規 / Right column: Glyph bounds / Guides & Rulers ----- */
 
         /* 字形の境界に整列パネル / Align to glyph bounds panel */
-        var glyphPanel = rightColumn.add('panel', undefined, L('panel.glyphBounds'));
+        var glyphPanel = rightColumn.add('panel', undefined, getLabel('panel.glyphBounds'));
         setupPanel(glyphPanel);
 
-        var checkboxPoint = glyphPanel.add('checkbox', undefined, L('checkbox.pointText'));
-        var checkboxArea = glyphPanel.add('checkbox', undefined, L('checkbox.areaText'));
+        var checkboxPoint = glyphPanel.add('checkbox', undefined, getLabel('checkbox.pointText'));
+        var checkboxArea = glyphPanel.add('checkbox', undefined, getLabel('checkbox.areaText'));
 
         bindCheckboxes([
             { checkbox: checkboxPoint, prefKey: 'EnableActualPointTextSpaceAlign' },
@@ -593,23 +588,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         ]);
 
         /* ガイドと定規パネル / Guides & Rulers panel */
-        var guidePanel = rightColumn.add('panel', undefined, L('panel.guide'));
+        var guidePanel = rightColumn.add('panel', undefined, getLabel('panel.guide'));
         setupPanel(guidePanel);
 
         /* ガイドを表示 / Show guides */
-        var checkboxGuideShow = guidePanel.add('checkbox', undefined, L('checkbox.guideShow'));
+        var checkboxGuideShow = guidePanel.add('checkbox', undefined, getLabel('checkbox.guideShow'));
         checkboxGuideShow.onClick = function () {
             btSetBooleanPreference("showGuides", checkboxGuideShow.value === true);
         };
 
         /* ガイドをロック / Lock guides */
-        var checkboxGuideLock = guidePanel.add('checkbox', undefined, L('checkbox.guideLock'));
+        var checkboxGuideLock = guidePanel.add('checkbox', undefined, getLabel('checkbox.guideLock'));
         checkboxGuideLock.onClick = function () {
             btSetBooleanPreference("lockGuides", checkboxGuideLock.value === true);
         };
 
         /* ビデオ定規（メニューコマンドのトグル）/ Video ruler (menu-command toggle) */
-        var btnVideoRuler = guidePanel.add('button', undefined, L('button.videoRuler'));
+        var btnVideoRuler = guidePanel.add('button', undefined, getLabel('button.videoRuler'));
         btnVideoRuler.alignment = ['left', 'top']; /* 幅いっぱいにしない（ラベル幅）/ Do not fill width (size to label) */
         btnVideoRuler.onClick = function () {
             runInMainEngine('try{app.executeMenuCommand("videoruler");}catch(e){}');
@@ -618,7 +613,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         /* ----- 全幅：アートボード名と枠線 / その他（一番下）/ Full width: Artboard / Other (bottom) ----- */
 
         /* アートボード名と枠線パネル / Artboard name & border panel */
-        var artboardPanel = mainGroup.add('panel', undefined, L('panel.artboard'));
+        var artboardPanel = mainGroup.add('panel', undefined, getLabel('panel.artboard'));
         artboardPanel.orientation = 'column';
         artboardPanel.alignChildren = ['fill', 'top'];
         artboardPanel.margins = [8, 20, 8, 15];
@@ -626,19 +621,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         var suppressArtboardChange = false;
 
         /* アートボード名を表示 / Show artboard name */
-        var cbShowArtboardName = artboardPanel.add('checkbox', undefined, L('checkbox.showArtboardName'));
+        var cbShowArtboardName = artboardPanel.add('checkbox', undefined, getLabel('checkbox.showArtboardName'));
         cbShowArtboardName.onClick = function () {
             applyArtboard();
         };
 
         /* カンバスカラーをホワイトに（ON=1, OFF=0）/ Canvas color white (ON=1, OFF=0) */
-        var checkboxCanvasWhite = artboardPanel.add('checkbox', undefined, L('checkbox.canvasWhite'));
+        var checkboxCanvasWhite = artboardPanel.add('checkbox', undefined, getLabel('checkbox.canvasWhite'));
         checkboxCanvasWhite.onClick = function () {
             btSetIntegerPreference("uiCanvasIsWhite", checkboxCanvasWhite.value ? 1 : 0);
         };
 
         /* アートボードの枠線サブパネル / Artboard border sub-panel */
-        var artboardBorderPanel = artboardPanel.add('panel', undefined, L('panel.artboardBorder'));
+        var artboardBorderPanel = artboardPanel.add('panel', undefined, getLabel('panel.artboardBorder'));
         artboardBorderPanel.orientation = 'column';
         artboardBorderPanel.alignChildren = ['left', 'top'];
         artboardBorderPanel.margins = [8, 20, 8, 15];
@@ -686,17 +681,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         }
 
         /* その他パネル（一番下）/ Other panel (bottom) */
-        var etcPanel = mainGroup.add('panel', undefined, L('panel.etc'));
+        var etcPanel = mainGroup.add('panel', undefined, getLabel('panel.etc'));
         setupPanel(etcPanel);
 
         /* リアルタイムの描画と編集 / Real-time drawing & editing */
-        var checkboxRealtime = etcPanel.add('checkbox', undefined, L('checkbox.realtimeDrawing'));
+        var checkboxRealtime = etcPanel.add('checkbox', undefined, getLabel('checkbox.realtimeDrawing'));
         checkboxRealtime.onClick = function () {
             btSetBooleanPreference("LiveEdit_State_Machine", checkboxRealtime.value === true);
         };
 
         /* 書式なしペースト / Paste without formatting */
-        var checkboxPastePlain = etcPanel.add('checkbox', undefined, L('checkbox.pastePlain'));
+        var checkboxPastePlain = etcPanel.add('checkbox', undefined, getLabel('checkbox.pastePlain'));
         checkboxPastePlain.onClick = function () {
             btSetBooleanPreference("plugin/FileClipboard/pasteWithoutFormatting", checkboxPastePlain.value === true);
         };

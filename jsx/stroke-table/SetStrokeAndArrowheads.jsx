@@ -155,7 +155,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ドット区切りのキーからローカライズ文字列を取得 / Resolve a dotted key to a localized string */
-    function L(keyPath) {
+    function getLabel(keyPath) {
         var parts = String(keyPath).split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -174,8 +174,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 先端位置の選択肢 / Tip alignment options（ahal の enumerated 値 / enumerated values） */
     var ARROW_ALIGN_OPTIONS = [
-        { label: L("tipAlign.atEndLabel"),     name: L("tipAlign.atEndName"),     value: 0 },
-        { label: L("tipAlign.beyondEndLabel"), name: L("tipAlign.beyondEndName"), value: 1 }
+        { label: getLabel("tipAlign.atEndLabel"),     name: getLabel("tipAlign.atEndName"),     value: 0 },
+        { label: getLabel("tipAlign.beyondEndLabel"), name: getLabel("tipAlign.beyondEndName"), value: 1 }
     ];
 
     // =========================================
@@ -401,9 +401,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 矢印名の一覧を作る / Build the arrowhead name list */
     function buildArrowNameList() {
-        var names = [L("arrow.none")];
+        var names = [getLabel("arrow.none")];
         for (var i = 1; i <= ARROW_COUNT; i++) {
-            names.push(L("arrow.prefix") + i);
+            names.push(getLabel("arrow.prefix") + i);
         }
         return names;
     }
@@ -416,25 +416,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var arrowNames = buildArrowNameList();
         var preview = createPreviewController();
 
-        var dialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialog);
 
         /* 線幅 / Stroke width */
-        var strokePanel = dialog.add("panel", undefined, L("panel.stroke"));
+        var strokePanel = dialog.add("panel", undefined, getLabel("panel.stroke"));
         setupPanel(strokePanel);
 
         var strokeRow = strokePanel.add("group");
         setupRow(strokeRow);
-        strokeRow.add("statictext", undefined, L("field.strokeWidth"));
+        strokeRow.add("statictext", undefined, getLabel("field.strokeWidth"));
         var strokeWidthInput = strokeRow.add("edittext", undefined, String(DEFAULT_STROKE_WIDTH));
         strokeWidthInput.characters = FIELD_CHARACTERS;
-        strokeRow.add("statictext", undefined, L("field.unitPt"));
+        strokeRow.add("statictext", undefined, getLabel("field.unitPt"));
 
         /* 矢印 / Arrowheads */
-        var arrowPanel = dialog.add("panel", undefined, L("panel.arrow"));
+        var arrowPanel = dialog.add("panel", undefined, getLabel("panel.arrow"));
         setupPanel(arrowPanel);
 
-        var linkCheckbox = arrowPanel.add("checkbox", undefined, L("checkbox.linkEnds"));
+        var linkCheckbox = arrowPanel.add("checkbox", undefined, getLabel("checkbox.linkEnds"));
         linkCheckbox.value = false;
         linkCheckbox.alignment = "left";
 
@@ -451,7 +451,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var shapeRow = panel.add("group");
             setupRow(shapeRow);
-            var shapeLabel = shapeRow.add("statictext", undefined, L("field.shape"));
+            var shapeLabel = shapeRow.add("statictext", undefined, getLabel("field.shape"));
             shapeLabel.preferredSize.width = LABEL_WIDTH;
             var shapeList = shapeRow.add("dropdownlist", undefined, arrowNames);
             shapeList.selection = 0;
@@ -459,17 +459,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var scaleRow = panel.add("group");
             setupRow(scaleRow);
-            var scaleLabel = scaleRow.add("statictext", undefined, L("field.scale"));
+            var scaleLabel = scaleRow.add("statictext", undefined, getLabel("field.scale"));
             scaleLabel.preferredSize.width = LABEL_WIDTH;
             var scaleInput = scaleRow.add("edittext", undefined, String(DEFAULT_ARROW_SCALE));
             scaleInput.characters = FIELD_CHARACTERS;
-            scaleRow.add("statictext", undefined, L("field.unitPercent"));
+            scaleRow.add("statictext", undefined, getLabel("field.unitPercent"));
 
             return { shapeList: shapeList, scaleInput: scaleInput };
         }
 
-        var startColumn = addArrowColumn(arrowColumns, L("panel.start"));
-        var endColumn   = addArrowColumn(arrowColumns, L("panel.end"));
+        var startColumn = addArrowColumn(arrowColumns, getLabel("panel.start"));
+        var endColumn   = addArrowColumn(arrowColumns, getLabel("panel.end"));
 
         var startShapeList  = startColumn.shapeList;
         var startScaleInput = startColumn.scaleInput;
@@ -477,7 +477,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var endScaleInput   = endColumn.scaleInput;
 
         /* 先端位置 / Tip alignment */
-        var alignPanel = dialog.add("panel", undefined, L("panel.tipAlign"));
+        var alignPanel = dialog.add("panel", undefined, getLabel("panel.tipAlign"));
         setupPanel(alignPanel, 6);
 
         var alignRadios = [];
@@ -497,7 +497,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var buttonLeft = buttonGroup.add("group");
         buttonLeft.alignment = ["left", "center"];
-        var previewCheckbox = buttonLeft.add("checkbox", undefined, L("checkbox.preview"));
+        var previewCheckbox = buttonLeft.add("checkbox", undefined, getLabel("checkbox.preview"));
         previewCheckbox.value = false;
 
         var buttonCenter = buttonGroup.add("group");
@@ -505,7 +505,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var buttonRight = buttonGroup.add("group");
         buttonRight.alignment = ["right", "center"];
-        buttonRight.add("button", undefined, L("button.cancel"), { name: "cancel" });
+        buttonRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonRight.add("button", undefined, "OK", { name: "ok" });
 
         /* 連動時は始点の値を終点にコピー / Mirror start values onto end when linked */
@@ -631,7 +631,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var settings = readSettings();
         if (!settings) {
-            alert(L("alert.invalidWidth"));
+            alert(getLabel("alert.invalidWidth"));
             return null;
         }
         return settings;
@@ -794,7 +794,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             actionFile.encoding = "BINARY";
             if (!actionFile.open("w")) {
-                throw new Error(L("alert.actionFailed"));
+                throw new Error(getLabel("alert.actionFailed"));
             }
             isActionFileOpen = true;
 
@@ -828,11 +828,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* Verify preconditions, then apply the dialog input through the action */
     function main() {
         if (app.documents.length === 0) {
-            alert(L("alert.noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
         if (app.activeDocument.selection.length === 0) {
-            alert(L("alert.noSelection"));
+            alert(getLabel("alert.noSelection"));
             return;
         }
 

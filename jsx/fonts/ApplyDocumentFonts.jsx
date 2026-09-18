@@ -40,7 +40,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
     var LABELS = {
         dialogTitle: {
             ja: "ドキュメントフォントを適用",
@@ -98,7 +98,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
 
     function main() {
         if (app.documents.length === 0) {
-            alert(LABELS.noDocument[lang]);
+            alert(LABELS.noDocument[uiLang]);
             return;
         }
 
@@ -173,16 +173,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
             return Math.min(300, Math.max(100, fontList.length * 20));
         }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = ["left", "top"];
         dialog.margins = 20;
 
-        dialog.add("statictext", undefined, LABELS.searchLabel[lang]);
+        dialog.add("statictext", undefined, LABELS.searchLabel[uiLang]);
         var filterInput = dialog.add("edittext", undefined, "");
         filterInput.preferredSize = [400, 24];
 
-        dialog.add("statictext", undefined, LABELS.listLabel[lang]);
+        dialog.add("statictext", undefined, LABELS.listLabel[uiLang]);
         var listBox = dialog.add("listbox", undefined, [], { multiselect: false });
         listBox.preferredSize = [400, getListBoxHeight(sortedFonts)];
 
@@ -238,7 +238,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
                 }
                 app.redraw();
             } catch (e) {
-                alert(LABELS.errorApplyFont[lang]);
+                alert(LABELS.errorApplyFont[uiLang]);
             }
         };
 
@@ -253,7 +253,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
         leftGroup.orientation = "row";
         leftGroup.alignChildren = "left";
         leftGroup.alignment = ["left", "center"];
-        var exportButton = leftGroup.add("button", undefined, LABELS.exportLabel[lang]);
+        var exportButton = leftGroup.add("button", undefined, LABELS.exportLabel[uiLang]);
 
         var spacer = outerGroup.add("group");
         spacer.alignment = ["fill", "fill"];
@@ -264,8 +264,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
         rightGroup.alignChildren = ["right", "center"];
         rightGroup.alignment = ["right", "center"];
         rightGroup.spacing = 10;
-        var cancelButton = rightGroup.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-        var okButton = rightGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+        var cancelButton = rightGroup.add("button", undefined, LABELS.cancel[uiLang], { name: "cancel" });
+        var okButton = rightGroup.add("button", undefined, LABELS.ok[uiLang], { name: "ok" });
 
         okButton.onClick = function() {
             dialog.close();
@@ -284,7 +284,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
         exportButton.onClick = function() {
             var docPath = doc.fullName.fsName;
             var docName = doc.name.replace(/\.[^\.]+$/, "");
-            var defaultFileName = docName + ((lang === "ja") ? "-ドキュメントフォント一覧.txt" : "-Document-Font-List.txt");
+            var defaultFileName = docName + ((uiLang === "ja") ? "-ドキュメントフォント一覧.txt" : "-Document-Font-List.txt");
 
             var desktopFolder = Folder.desktop;
             var saveFile = new File(desktopFolder.fsName + "/" + defaultFileName);
@@ -295,9 +295,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
             }
 
             var output = "";
-            output += LABELS.exportHeader[lang] + "\n\n";
-            output += LABELS.exportDocLabel[lang] + docPath + "\n\n";
-            output += LABELS.exportFontCount[lang] + fontNames.length + "\n\n";
+            output += LABELS.exportHeader[uiLang] + "\n\n";
+            output += LABELS.exportDocLabel[uiLang] + docPath + "\n\n";
+            output += LABELS.exportFontCount[uiLang] + fontNames.length + "\n\n";
             output += fontNames.join("\n") + "\n";
 
             try {
@@ -305,9 +305,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n01d6ef7e9b5f"; /* 紹�
                 saveFile.open("w");
                 saveFile.write(output);
                 saveFile.close();
-                alert(LABELS.exportSuccess[lang] + saveFile.fsName);
+                alert(LABELS.exportSuccess[uiLang] + saveFile.fsName);
             } catch (e) {
-                alert(LABELS.exportFail[lang]);
+                alert(LABELS.exportFail[uiLang]);
             }
         };
 

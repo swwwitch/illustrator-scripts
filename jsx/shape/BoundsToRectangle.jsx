@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -154,10 +154,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var item = LABELS[key];
         if (!item) return key;
-        if (lang === "ja") {
+        if (uiLang === "ja") {
             return (item.ja !== undefined) ? item.ja : key;
         }
         return (item.en !== undefined) ? item.en : ((item.ja !== undefined) ? item.ja : key);
@@ -218,10 +218,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ダイアログを表示して設定を取得 / Show dialog and get options */
         function showDialogAndGetOptions() {
             /* ダイアログボックスを作成 / Build dialog */
-            var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+            var dlg = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
             dlg.alignChildren = ["left", "top"];
 
-            var radioPanel = dlg.add("panel", undefined, L("inheritSourcePanel"));
+            var radioPanel = dlg.add("panel", undefined, getLabel("inheritSourcePanel"));
             radioPanel.alignment = ["fill", "fill"];
             radioPanel.alignChildren = ["left", "top"];
             radioPanel.margins = [15, 20, 15, 10];
@@ -234,38 +234,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 radioButtons.push(rb);
             }
 
-            var optionPanel = dlg.add("panel", undefined, L("optionsPanel"));
+            var optionPanel = dlg.add("panel", undefined, getLabel("optionsPanel"));
             optionPanel.alignment = ["fill", "fill"];
             optionPanel.alignChildren = ["left", "top"];
             optionPanel.margins = [15, 20, 15, 10];
 
-            var useVisibleBounds = optionPanel.add("checkbox", undefined, L("useVisibleBounds"));
+            var useVisibleBounds = optionPanel.add("checkbox", undefined, getLabel("useVisibleBounds"));
             useVisibleBounds.value = true;
-            useVisibleBounds.helpTip = L("useVisibleBoundsTip");
+            useVisibleBounds.helpTip = getLabel("useVisibleBoundsTip");
             useVisibleBounds.onClick = function () {
                 activeBoundsData = useVisibleBounds.value ? visibleBoundsData : geometricBoundsData;
                 updatePreview(radioButtons, previewCheck);
             };
 
-            var keepOriginals = optionPanel.add("checkbox", undefined, L("keepOriginals"));
+            var keepOriginals = optionPanel.add("checkbox", undefined, getLabel("keepOriginals"));
             keepOriginals.value = false;
-            keepOriginals.helpTip = L("keepOriginalsTip");
-            var showCenter = optionPanel.add("checkbox", undefined, L("showCenter"));
+            keepOriginals.helpTip = getLabel("keepOriginalsTip");
+            var showCenter = optionPanel.add("checkbox", undefined, getLabel("showCenter"));
             showCenter.value = true;
-            showCenter.helpTip = L("showCenterTip");
+            showCenter.helpTip = getLabel("showCenterTip");
 
             var bottomGroup = dlg.add("group");
             bottomGroup.alignment = ["fill", "top"];
             bottomGroup.alignChildren = ["center", "center"];
 
-            var previewCheck = bottomGroup.add("checkbox", undefined, L("preview"));
+            var previewCheck = bottomGroup.add("checkbox", undefined, getLabel("preview"));
             previewCheck.value = false;
-            previewCheck.helpTip = L("previewTip");
+            previewCheck.helpTip = getLabel("previewTip");
             previewCheck.onClick = function () { updatePreview(radioButtons, previewCheck); };
 
             var btnGroup = dlg.add("group");
-            btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-            btnGroup.add("button", undefined, L("ok"), { name: "ok" });
+            btnGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+            btnGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
             dlg.layout.layout(true);
             restoreDialogLocation(dlg);
@@ -363,20 +363,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (sel.length === 0) {
-            alert(L("noSelection"));
+        if (currentSelection.length === 0) {
+            alert(getLabel("noSelection"));
             return;
         }
 
         /* 選択オブジェクトの情報を事前に保存 / Cache selected object data in advance */
-        var selectionData = collectSelectionData(sel);
+        var selectionData = collectSelectionData(currentSelection);
         var objects = selectionData.objects;
         var visibleBoundsData = selectionData.visibleBoundsData;
         var geometricBoundsData = selectionData.geometricBoundsData;
@@ -390,15 +390,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* typenameの表示名マッピング / Localized typename label mapping */
         var typenameMap = {
-            "PathItem": L("pathItem"),
-            "CompoundPathItem": L("compoundPathItem"),
-            "GroupItem": L("groupItem"),
-            "TextFrame": L("textFrame"),
-            "PlacedItem": L("placedItem"),
-            "RasterItem": L("rasterItem"),
-            "SymbolItem": L("symbolItem"),
-            "MeshItem": L("meshItem"),
-            "PluginItem": L("pluginItem")
+            "PathItem": getLabel("pathItem"),
+            "CompoundPathItem": getLabel("compoundPathItem"),
+            "GroupItem": getLabel("groupItem"),
+            "TextFrame": getLabel("textFrame"),
+            "PlacedItem": getLabel("placedItem"),
+            "RasterItem": getLabel("rasterItem"),
+            "SymbolItem": getLabel("symbolItem"),
+            "MeshItem": getLabel("meshItem"),
+            "PluginItem": getLabel("pluginItem")
         };
 
         /* オブジェクトの表示名を取得 / Get display label for an object */
@@ -409,7 +409,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } else {
                 label = typenameMap[obj.typename] || obj.typename;
             }
-            return (index + 1) + ": " + L("objectLabelPrefix") + label;
+            return (index + 1) + ": " + getLabel("objectLabelPrefix") + label;
         }
 
         /* 一時レイヤー（遅延生成） / Temporary preview layer (lazy creation) */
@@ -418,7 +418,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function ensureTempLayer() {
             if (!tempLayer) {
                 tempLayer = doc.layers.add();
-                tempLayer.name = L("tempLayerName");
+                tempLayer.name = getLabel("tempLayerName");
             }
         }
 

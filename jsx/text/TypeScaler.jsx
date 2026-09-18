@@ -44,7 +44,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -141,11 +141,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function getSelectedTextFrames() {
-      var sel = app.activeDocument.selection;
+      var currentSelection = app.activeDocument.selection;
       var frames = [];
-      for (var i = 0; i < sel.length; i++) {
-        if (sel[i].typename === "TextFrame") {
-          frames.push(sel[i]);
+      for (var i = 0; i < currentSelection.length; i++) {
+        if (currentSelection[i].typename === "TextFrame") {
+          frames.push(currentSelection[i]);
         }
       }
       return frames;
@@ -206,7 +206,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       // =========================
       // UI構築
       // =========================
-      var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+      var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
       dialog.orientation = "column";
       dialog.alignChildren = "left";
 
@@ -216,10 +216,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       sizeGroup.orientation = "row";
       sizeGroup.margins = [0, 0, 0, 15];
       sizeGroup.spacing = 5;
-      sizeGroup.add("statictext", undefined, LABELS.baseLabel[lang]);
+      sizeGroup.add("statictext", undefined, LABELS.baseLabel[uiLang]);
       var sizeInput = sizeGroup.add("edittext", undefined, $.global.__sizeValue);
       sizeInput.characters = 4;
-      sizeGroup.add("statictext", undefined, LABELS.unitLabel[lang].replace("単位", textUnitLabel));
+      sizeGroup.add("statictext", undefined, LABELS.unitLabel[uiLang].replace("単位", textUnitLabel));
       changeValueByArrowKey(sizeInput);
 
       var ratioPopup = sizeGroup.add("dropdownlist", undefined, ratioLabels);
@@ -244,24 +244,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       rightPanel.alignment = "top";
       rightPanel.alignChildren = "left";
 
-      var samplePanel = rightPanel.add("panel", undefined, LABELS.samplePanel[lang]);
+      var samplePanel = rightPanel.add("panel", undefined, LABELS.samplePanel[uiLang]);
       samplePanel.orientation = "column";
       samplePanel.alignChildren = "left";
       samplePanel.margins = [15, 20, 15, 10];
 
-      var sampleInput = samplePanel.add("edittext", undefined, LABELS.sampleText[lang]);
+      var sampleInput = samplePanel.add("edittext", undefined, LABELS.sampleText[uiLang]);
       sampleInput.characters = 20;
-      var showSizeCheckbox = samplePanel.add("checkbox", undefined, LABELS.showSizeCheckbox[lang]);
+      var showSizeCheckbox = samplePanel.add("checkbox", undefined, LABELS.showSizeCheckbox[uiLang]);
       showSizeCheckbox.value = true;
-      var sampleBtn = samplePanel.add("button", undefined, LABELS.sampleBtn[lang]);
+      var sampleBtn = samplePanel.add("button", undefined, LABELS.sampleBtn[uiLang]);
       sampleBtn.alignment = "right";
 
       // ボタングループをダイアログ下部に追加
       var buttonGroup = dialog.add("group");
       buttonGroup.orientation = "row";
       buttonGroup.alignment = "center";
-      var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtn[lang]);
-      var okBtn = buttonGroup.add("button", undefined, LABELS.okBtn[lang]);
+      var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtn[uiLang]);
+      var okBtn = buttonGroup.add("button", undefined, LABELS.okBtn[uiLang]);
 
       // =========================
       // イベント定義
@@ -289,7 +289,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       // OKボタン押下時（選択テキストにサイズ適用）
       okBtn.onClick = function () {
         if (!sizeList.selection) {
-          alert(LABELS.alertSelectSize[lang]);
+          alert(LABELS.alertSelectSize[uiLang]);
           return;
         }
         var selectedText = sizeList.selection.text;
@@ -303,13 +303,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
         if (isNaN(sizeValue) || sizeValue <= 0) {
-          alert(LABELS.alertInvalidSize[lang]);
+          alert(LABELS.alertInvalidSize[uiLang]);
           return;
         }
 
-        var sel = app.activeDocument.selection;
-        for (var i = 0; i < sel.length; i++) {
-          var item = sel[i];
+        var currentSelection = app.activeDocument.selection;
+        for (var i = 0; i < currentSelection.length; i++) {
+          var item = currentSelection[i];
           try {
             if (item.typename === "TextRange") {
               item.characterAttributes.size = sizeValue;
@@ -319,7 +319,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
               }
             }
           } catch (e) {
-            alert(LABELS.alertApplyError[lang] + e.message);
+            alert(LABELS.alertApplyError[uiLang] + e.message);
           }
         }
         app.redraw(); // ← この行を追加
@@ -351,17 +351,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         $.global.__sizeValue = sizeInput.text;
         $.global.__ratioIndex = ratioPopup.selection ? ratioPopup.selection.index : 0;
         if (isNaN(baseSize) || baseSize <= 0) {
-          alert(LABELS.alertInvalidBase[lang]);
+          alert(LABELS.alertInvalidBase[uiLang]);
           return;
         }
 
         // 現在の選択からフォントを取得（最初に見つかったテキストフレームから）
-        var sel = app.activeDocument.selection;
+        var currentSelection = app.activeDocument.selection;
         var selectedFont = null;
-        for (var i = 0; i < sel.length; i++) {
-          if (sel[i].typename === "TextFrame") {
+        for (var i = 0; i < currentSelection.length; i++) {
+          if (currentSelection[i].typename === "TextFrame") {
             try {
-              selectedFont = sel[i].textRange.characterAttributes.textFont;
+              selectedFont = currentSelection[i].textRange.characterAttributes.textFont;
               break;
             } catch (e) {
               // 無視して次のオブジェクトを見る
@@ -391,14 +391,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
               tf.textRange.characterAttributes.textFont = selectedFont;
             } catch (e) {
-              alert(LABELS.alertFontError[lang] + e.message);
+              alert(LABELS.alertFontError[uiLang] + e.message);
             }
           }
 
           try {
             tf.textRange.characterAttributes.size = fontSize;
           } catch (e) {
-            alert(LABELS.alertApplyError[lang] + e.message);
+            alert(LABELS.alertApplyError[uiLang] + e.message);
           }
 
           y -= fontSize + yOffset;

@@ -36,20 +36,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 var KeepInView = (function () {
 
+    // =========================================
     // ユーザー設定 / User Settings
     // =========================================
     /* 結果が可視領域からはみ出したときに合わせる倍率（1で余白なし。小さいほど余白が増える）
-       呼び出し側から options.fitRatio で上書きできる */
+       呼び出し側から viewOptions.fitRatio で上書きできる */
     var DEFAULT_FIT_RATIO = 0.9;
 
     // =========================================
     // ローカライズ / Localization
     // =========================================
     var LABELS = {
-        checkbox: { ja: "結果を画面内に表示", en: "Keep the result in view" },
+        checkbox: {
+            keepInView: { ja: "結果を画面内に表示", en: "Keep the result in view" }
+        },
         tooltip: {
-            ja: "変換した結果が画面から外れたときに、見える位置へ表示を移します。すでに見えているときは動かしません。",
-            en: "Moves the view so the converted result stays visible. The view is left alone when it is already in sight."
+            keepInView: {
+                ja: "処理した結果が画面から外れたときに、見える位置へ表示を移します。すでに見えているときは動かしません。",
+                en: "Moves the view so the result stays visible. The view is left alone when it is already in sight."
+            }
         }
     };
 
@@ -62,16 +67,20 @@ var KeepInView = (function () {
     }
 
     /**
-     * 内蔵ラベルを取り出す
-     * @param {string} key - "checkbox" または "tooltip"
-     * @param {string} lang - "ja" または "en"（省略時はUI言語）
+     * LABELS からラベルを取り出す
+     * @param {string} labelPath - "checkbox.keepInView" のようなドット区切りのキー
+     * @param {string} [uiLang] - "ja" または "en"（省略時はUI言語）
      * @returns {string} ラベル文字列（見つからない場合は空文字）
      */
-    function getLabel(key, lang) {
-        var entry = LABELS[key];
-        if (!entry) return "";
-        if (!lang) lang = getCurrentLang();
-        return (entry[lang] != null) ? entry[lang] : entry.en;
+    function getLabel(labelPath, uiLang) {
+        var pathParts = labelPath.split(".");
+        var entry = LABELS;
+        for (var i = 0; i < pathParts.length; i++) {
+            entry = entry[pathParts[i]];
+            if (!entry) return "";
+        }
+        if (!uiLang) uiLang = getCurrentLang();
+        return (entry[uiLang] != null) ? entry[uiLang] : entry.en;
     }
 
     // =========================================
@@ -80,80 +89,87 @@ var KeepInView = (function () {
 
     /**
      * 「結果を画面内に表示」チェックボックスを作る（ラベルとツールチップは内蔵）
-     * @param {Group|Panel|Window} parent - 追加先のコンテナ
-     * @param {object} options - value: 初期値（既定 true）／lang: 表示言語／text: ラベルの差し替え
+     * @param {Group|Panel|Window} parentContainer - 追加先のコンテナ
+     * @param {object} [checkboxOptions] - value: 初期値（既定 true）／lang: 表示言語／text: ラベルの差し替え
      * @returns {Checkbox} 作成したチェックボックス
      */
-    function addCheckbox(parent, options) {
-        if (!options) options = {};
+    function addCheckbox(parentContainer, checkboxOptions) {
+        if (!checkboxOptions) checkboxOptions = {};
 
-        var lang = options.lang || getCurrentLang();
-        var checkbox = parent.add('checkbox', undefined, options.text || getLabel('checkbox', lang));
-        checkbox.helpTip = getLabel('tooltip', lang);
+        var uiLang = checkboxOptions.lang || getCurrentLang();
+        var checkbox = parentContainer.add('checkbox', undefined,
+            checkboxOptions.text || getLabel('checkbox.keepInView', uiLang));
+        checkbox.helpTip = getLabel('tooltip.keepInView', uiLang);
         /* 明示的に false を渡したときだけOFFで始める / only an explicit false starts it unchecked */
-        checkbox.value = (options.value !== false);
+        checkbox.value = (checkboxOptions.value !== false);
         return checkbox;
     }
 
     /**
      * 複数アイテムを囲む外接範囲を求める
-     * @param {PageItem[]} items - 対象アイテム
+     * @param {PageItem[]} targetItems - 対象アイテム
      * @returns {{left: number, top: number, right: number, bottom: number}|null} 外接範囲（求められない場合は null）
      */
-    function getItemsBounds(items) {
-        var bounds = null;
+    function getItemsBounds(targetItems) {
+        var unionBounds = null;
 
-        for (var i = 0; i < items.length; i++) {
+        for (var i = 0; i < targetItems.length; i++) {
             var itemBounds;
+            /* visibleBounds を持たないアイテムが混ざることがある / some items do not expose visibleBounds */
             try {
-                itemBounds = items[i].visibleBounds; // [left, top, right, bottom]
+                itemBounds = targetItems[i].visibleBounds; // [left, top, right, bottom]
             } catch (e) {
                 continue;
             }
-            if (bounds === null) {
-                bounds = { left: itemBounds[0], top: itemBounds[1], right: itemBounds[2], bottom: itemBounds[3] };
+            if (unionBounds === null) {
+                unionBounds = { left: itemBounds[0], top: itemBounds[1], right: itemBounds[2], bottom: itemBounds[3] };
                 continue;
             }
-            if (itemBounds[0] < bounds.left) bounds.left = itemBounds[0];
-            if (itemBounds[1] > bounds.top) bounds.top = itemBounds[1];
-            if (itemBounds[2] > bounds.right) bounds.right = itemBounds[2];
-            if (itemBounds[3] < bounds.bottom) bounds.bottom = itemBounds[3];
+            if (itemBounds[0] < unionBounds.left) unionBounds.left = itemBounds[0];
+            if (itemBounds[1] > unionBounds.top) unionBounds.top = itemBounds[1];
+            if (itemBounds[2] > unionBounds.right) unionBounds.right = itemBounds[2];
+            if (itemBounds[3] < unionBounds.bottom) unionBounds.bottom = itemBounds[3];
         }
-        return bounds;
+        return unionBounds;
+    }
+
+    /**
+     * 外接範囲がすでに可視領域に収まっているか調べる
+     * @param {{left: number, top: number, right: number, bottom: number}} targetBounds - 対象の外接範囲
+     * @param {number[]} viewBounds - ビューの範囲 [left, top, right, bottom]
+     * @returns {boolean} 全体が見えていれば true
+     */
+    function isFullyVisible(targetBounds, viewBounds) {
+        return targetBounds.left >= viewBounds[0] && targetBounds.right <= viewBounds[2] &&
+            targetBounds.top <= viewBounds[1] && targetBounds.bottom >= viewBounds[3];
     }
 
     /**
      * 結果が可視領域に収まっていなければ、見えるように表示位置とズームを合わせる
      * すでに見えているときは何もしないので、操作のたびに画面が動くことはない
-     * @param {PageItem[]} items - 見えるようにしたいアイテム
-     * @param {object} options - doc: 対象ドキュメント（省略時は最前面）／fitRatio: 収めるときの倍率
+     * @param {PageItem[]} targetItems - 見えるようにしたいアイテム
+     * @param {object} [viewOptions] - doc: 対象ドキュメント（省略時は最前面）／fitRatio: 収めるときの倍率
      * @returns {boolean} 表示を動かしたら true
      */
-    function ensureVisible(items, options) {
-        if (!items || items.length === 0) return false;
-        if (!options) options = {};
+    function ensureVisible(targetItems, viewOptions) {
+        if (!targetItems || targetItems.length === 0) return false;
+        if (!viewOptions) viewOptions = {};
 
-        var bounds = getItemsBounds(items);
-        if (bounds === null) return false;
+        var targetBounds = getItemsBounds(targetItems);
+        if (targetBounds === null) return false;
 
-        var activeView;
-        try {
-            var targetDoc = options.doc || app.activeDocument;
-            activeView = targetDoc.views[0];
-        } catch (e) {
-            return false;
-        }
-        if (!activeView) return false;
+        var targetDoc = viewOptions.doc || (app.documents.length > 0 ? app.activeDocument : null);
+        if (!targetDoc || targetDoc.views.length === 0) return false;
+        var activeView = targetDoc.views[0];
 
         var viewBounds = activeView.bounds; // [left, top, right, bottom]
         /* すでに全体が見えているなら動かさない / leave the view alone when everything is already visible */
-        if (bounds.left >= viewBounds[0] && bounds.right <= viewBounds[2] &&
-            bounds.top <= viewBounds[1] && bounds.bottom >= viewBounds[3]) return false;
+        if (isFullyVisible(targetBounds, viewBounds)) return false;
 
-        var fitRatio = (options.fitRatio > 0) ? options.fitRatio : DEFAULT_FIT_RATIO;
+        var fitRatio = (viewOptions.fitRatio > 0) ? viewOptions.fitRatio : DEFAULT_FIT_RATIO;
 
-        var targetWidth = bounds.right - bounds.left;
-        var targetHeight = bounds.top - bounds.bottom;
+        var targetWidth = targetBounds.right - targetBounds.left;
+        var targetHeight = targetBounds.top - targetBounds.bottom;
         var visibleWidth = viewBounds[2] - viewBounds[0];
         var visibleHeight = viewBounds[1] - viewBounds[3];
 
@@ -167,7 +183,7 @@ var KeepInView = (function () {
         }
 
         /* 中心を合わせてからズームする（ズームは中心を保つ）/ center first, then zoom about that center */
-        activeView.centerPoint = [bounds.left + targetWidth / 2, bounds.top - targetHeight / 2];
+        activeView.centerPoint = [targetBounds.left + targetWidth / 2, targetBounds.top - targetHeight / 2];
         activeView.zoom = targetZoom;
         return true;
     }

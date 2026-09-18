@@ -171,7 +171,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     };
 
     /* 指定キーのローカライズ文字列を取得（ドット区切りパス対応）/ Resolve localized string by dotted key path */
-    function L(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -183,7 +183,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return L(key) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -232,7 +232,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
 
     /* フォルダーを選択して設定を保存（キャンセルで空文字）/ Pick a folder and store it ("" if cancelled) */
     function pickAndSaveLibraryFolder() {
-        var pickedFolder = Folder.selectDialog(L("prompt.pickLibraryFolder"));
+        var pickedFolder = Folder.selectDialog(getLabel("prompt.pickLibraryFolder"));
         if (!pickedFolder) return "";
         var folderPath = pickedFolder.fsName + "/";
         app.preferences.setStringPreference(PREF_KEY_LIBRARY_FOLDER, folderPath);
@@ -342,12 +342,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         var tsvFile = getLibraryTsvFile();
         var parentFolder = tsvFile.parent;
         if (parentFolder && !parentFolder.exists && !parentFolder.create()) {
-            alert(L("error.tsvFolder") + parentFolder.fsName);
+            alert(getLabel("error.tsvFolder") + parentFolder.fsName);
             return false;
         }
         tsvFile.encoding = "UTF-8";
         if (!tsvFile.open("w")) {
-            alert(L("error.tsvOpenWrite") + tsvFile.fsName);
+            alert(getLabel("error.tsvOpenWrite") + tsvFile.fsName);
             return false;
         }
 
@@ -394,7 +394,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     function ensureFolder(folder) {
         if (!folder) return false;
         if (folder.exists || folder.create()) return true;
-        alert(L("error.createFolder") + folder.fsName);
+        alert(getLabel("error.createFolder") + folder.fsName);
         return false;
     }
 
@@ -404,7 +404,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         if (sourceFile.fsName === destFile.fsName) return true; // 同一ファイルなら何もしない / Same file
         if (destFile.exists) destFile.remove();
         if (sourceFile.copy(destFile.fsName)) return true;
-        alert(L("error.copyFile") + destFile.fsName);
+        alert(getLabel("error.copyFile") + destFile.fsName);
         return false;
     }
 
@@ -428,7 +428,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
 
     /* 表示名とカテゴリを入力させる（キャンセルで null）/ Ask for label + category (null on cancel) */
     function askLabelAndCategory(baseName) {
-        var registerWindow = new Window("dialog", L("prompt.registerTitle") + " " + SCRIPT_VERSION);
+        var registerWindow = new Window("dialog", getLabel("prompt.registerTitle") + " " + SCRIPT_VERSION);
         setupWindow(registerWindow);
 
         // 表示名入力 / Label field
@@ -440,10 +440,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         labelField.characters = 20;
 
         // カテゴリ選択（パネル＋ラジオ）/ Category panel with radios
-        var categoryPanel = registerWindow.add("panel", undefined, L("category.panelTitle"));
+        var categoryPanel = registerWindow.add("panel", undefined, getLabel("category.panelTitle"));
         setupPanel(categoryPanel, 6);
-        var styleRadio = categoryPanel.add("radiobutton", undefined, L("category.styleBrushSymbol"));
-        var fontRadio = categoryPanel.add("radiobutton", undefined, L("category.font"));
+        var styleRadio = categoryPanel.add("radiobutton", undefined, getLabel("category.styleBrushSymbol"));
+        var fontRadio = categoryPanel.add("radiobutton", undefined, getLabel("category.font"));
 
         // ファイル名からカテゴリを自動推定 / Auto-detect category from the file name
         var looksLikeFont = containsIgnoreCase(baseName, "font") || baseName.indexOf("フォント") !== -1;
@@ -453,8 +453,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         // ボタン行（パネル幅いっぱいに広げない）/ Button row (buttons must not stretch)
         var registerButtonRow = registerWindow.add("group");
         setupRow(registerButtonRow, "center");
-        var registerCancelButton = registerButtonRow.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var registerOkButton = registerButtonRow.add("button", undefined, L("button.register"), { name: "ok" });
+        var registerCancelButton = registerButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var registerOkButton = registerButtonRow.add("button", undefined, getLabel("button.register"), { name: "ok" });
         registerCancelButton.alignment = "left";
         registerOkButton.alignment = "left";
 
@@ -473,7 +473,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
        Copy an AI file into the library folder and register it (returns the file name, null if cancelled) */
     function registerStyleFile() {
         // 1) ファイル選択 / Pick an AI file
-        var pickedFile = File.openDialog(L("prompt.pickAi"), "*.ai");
+        var pickedFile = File.openDialog(getLabel("prompt.pickAi"), "*.ai");
         if (!pickedFile) return null;
 
         // 2) 保存先フォルダを確保してコピー / Ensure the folder, then copy
@@ -500,8 +500,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         // 5) TSVへ保存 / Save to TSV
         if (!saveStyleLibrary(styleLibrary)) return null;
 
-        alert((existingIndex >= 0 ? L("message.overwritten") : L("message.added")) + "\n" +
-            userInput.label + "  (" + destFileName + ")" + L("message.synced"));
+        alert((existingIndex >= 0 ? getLabel("message.overwritten") : getLabel("message.added")) + "\n" +
+            userInput.label + "  (" + destFileName + ")" + getLabel("message.synced"));
         return destFileName;
     }
 
@@ -514,9 +514,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         var categoryFilterRow = parent.add("group");
         setupRow(categoryFilterRow, "center");
 
-        var allRadio = categoryFilterRow.add("radiobutton", undefined, L("category.all"));
-        var styleRadio = categoryFilterRow.add("radiobutton", undefined, L("category.styleBrushSymbol"));
-        var fontRadio = categoryFilterRow.add("radiobutton", undefined, L("category.font"));
+        var allRadio = categoryFilterRow.add("radiobutton", undefined, getLabel("category.all"));
+        var styleRadio = categoryFilterRow.add("radiobutton", undefined, getLabel("category.styleBrushSymbol"));
+        var fontRadio = categoryFilterRow.add("radiobutton", undefined, getLabel("category.font"));
         allRadio.value = true;
 
         return { allRadio: allRadio, styleRadio: styleRadio, fontRadio: fontRadio };
@@ -530,9 +530,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
 
         var searchField = searchRow.add("edittext", undefined, "");
         searchField.characters = 24;
-        searchField.helpTip = L("search.placeholder");
+        searchField.helpTip = getLabel("search.placeholder");
 
-        var searchButton = searchRow.add("button", undefined, L("search.label"));
+        var searchButton = searchRow.add("button", undefined, getLabel("search.label"));
         searchButton.alignment = "left";
 
         return { field: searchField, button: searchButton };
@@ -547,7 +547,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
             multiselect: false,
             numberOfColumns: 2,
             showHeaders: true,
-            columnTitles: [L("column.content"), L("column.filename")],
+            columnTitles: [getLabel("column.content"), getLabel("column.filename")],
             columnWidths: [contentColumnWidth, filenameColumnWidth]
         });
         styleListBox.alignment = ["fill", "fill"];
@@ -561,10 +561,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         setupRow(destinationRow, "center");
         destinationRow.add("statictext", undefined, labelText("destination.label"));
 
-        var currentLayerRadio = destinationRow.add("radiobutton", undefined, L("destination.currentLayer"));
+        var currentLayerRadio = destinationRow.add("radiobutton", undefined, getLabel("destination.currentLayer"));
         var importLayerLabel = (currentLanguage === "ja") ?
-            L("destination.importLayer") + "（" + IMPORT_LAYER_NAME + "）" :
-            L("destination.importLayer") + " (" + IMPORT_LAYER_NAME + ")";
+            getLabel("destination.importLayer") + "（" + IMPORT_LAYER_NAME + "）" :
+            getLabel("destination.importLayer") + " (" + IMPORT_LAYER_NAME + ")";
         var importLayerRadio = destinationRow.add("radiobutton", undefined, importLayerLabel);
         currentLayerRadio.value = true;
 
@@ -577,8 +577,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         setupRow(footerRow, "fill");
         footerRow.margins = [0, 10, 0, 0];
 
-        var cancelButton = footerRow.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var folderButton = footerRow.add("button", undefined, L("button.folder"));
+        var cancelButton = footerRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var folderButton = footerRow.add("button", undefined, getLabel("button.folder"));
         cancelButton.alignment = "left";
         folderButton.alignment = "left";
 
@@ -586,8 +586,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         flexSpacer.alignment = ["fill", "fill"];
         flexSpacer.minimumSize = [0, 0];
 
-        var addButton = footerRow.add("button", undefined, L("button.add"));
-        var loadButton = footerRow.add("button", undefined, L("button.load"), { name: "ok" });
+        var addButton = footerRow.add("button", undefined, getLabel("button.add"));
+        var loadButton = footerRow.add("button", undefined, getLabel("button.load"), { name: "ok" });
         addButton.alignment = "left";
         loadButton.alignment = "left";
 
@@ -606,7 +606,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     /* ライブラリから1つ選択し、AIファイルのパスと貼り付け先を返す（キャンセルで null）
        Choose one item and return the AI file path plus the destination (null if cancelled) */
     function showStyleLibraryDialog() {
-        var libraryWindow = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var libraryWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(libraryWindow);
         libraryWindow.opacity = 0.98;
         libraryWindow.onShow = function() {
@@ -709,7 +709,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
 
         // フォルダー：保存先を選び直してライブラリを読み込み直す / Folder: re-pick the folder and reload the library
         function updateFolderHint() {
-            footer.folderButton.helpTip = L("message.folderHint") + styleLibraryFolder;
+            footer.folderButton.helpTip = getLabel("message.folderHint") + styleLibraryFolder;
         }
         updateFolderHint();
         footer.folderButton.onClick = function() {
@@ -740,7 +740,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
     function main() {
         // 貼り付け先のドキュメントを先に確認 / Check for the destination document first
         if (app.documents.length === 0) {
-            alert(L("message.openDocFirst"));
+            alert(getLabel("message.openDocFirst"));
             return;
         }
         var originalDoc = app.activeDocument;
@@ -748,7 +748,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         // フォルダー設定を確定し、ライブラリを読み込む / Resolve the folder setting, then load the library
         styleLibraryFolder = resolveLibraryFolder();
         if (styleLibraryFolder === "") {
-            alert(L("message.folderRequired"));
+            alert(getLabel("message.folderRequired"));
             return;
         }
         styleLibrary = loadStyleLibrary();
@@ -759,14 +759,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
         // 現在のレイヤーへペーストする場合は、編集可能かを確認 / When pasting into the current layer, make sure it is editable
         var currentLayer = originalDoc.activeLayer;
         if (!choice.useImportLayer && (currentLayer.locked || !currentLayer.visible)) {
-            alert(L("message.layerNotEditable") + currentLayer.name);
+            alert(getLabel("message.layerNotEditable") + currentLayer.name);
             return;
         }
 
         // 選択したファイルを開く / Open the chosen file
         var styleFile = new File(choice.filePath);
         if (!styleFile.exists) {
-            alert(L("message.fileNotFoundTitle") + "\n" + L("message.fileNotFoundBody") + decodeFileName(styleFile.name));
+            alert(getLabel("message.fileNotFoundTitle") + "\n" + getLabel("message.fileNotFoundBody") + decodeFileName(styleFile.name));
             return;
         }
         var styleDoc = app.open(styleFile);
@@ -778,7 +778,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0b929db4a4ad"; /* 紹�
             // Copying an empty selection would paste whatever was in the clipboard before
             styleDoc.close(SaveOptions.DONOTSAVECHANGES);
             app.activeDocument = originalDoc;
-            alert(L("message.nothingToCopy") + decodeFileName(styleFile.name));
+            alert(getLabel("message.nothingToCopy") + decodeFileName(styleFile.name));
             return;
         }
         app.executeMenuCommand("copy");

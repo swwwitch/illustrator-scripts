@@ -104,7 +104,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* キーからローカライズ文字列を取得 / Get a localized string by key */
-    function L(key) {
+    function getLabel(key) {
         var entry = getLabelEntry(key);
         if (entry) {
             if (entry[currentLanguage]) return entry[currentLanguage];
@@ -230,12 +230,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 選択内のパス上文字をポイント文字へ置き換えた選択配列を返す / Replace path text in selection with point text */
-    function preprocessPathTextSelection(doc, sel) {
-        if (!doc || !sel || !sel.length) return sel;
+    function preprocessPathTextSelection(doc, currentSelection) {
+        if (!doc || !currentSelection || !currentSelection.length) return currentSelection;
 
         var pathTexts = [];
-        for (var i = 0; i < sel.length; i++) {
-            var item = sel[i];
+        for (var i = 0; i < currentSelection.length; i++) {
+            var item = currentSelection[i];
             try {
                 if (item && item.typename === "TextFrame" && item.kind === TextType.PATHTEXT) {
                     pathTexts.push(item);
@@ -244,15 +244,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // 無効オブジェクト（削除済み等）はスキップ / Skip invalid objects
             }
         }
-        if (!pathTexts.length) return sel;
+        if (!pathTexts.length) return currentSelection;
 
         var newTexts = detachPathTextToPointText(doc, pathTexts);
-        if (!newTexts.length) return sel;
+        if (!newTexts.length) return currentSelection;
 
         // パス上文字を新ポイント文字に差し替えた新しい選択配列を構築 / Build replaced selection array
         var replacedSelection = [];
-        for (var j = 0; j < sel.length; j++) {
-            var keepItem = sel[j];
+        for (var j = 0; j < currentSelection.length; j++) {
+            var keepItem = currentSelection[j];
             try {
                 if (keepItem && keepItem.typename === "TextFrame" && keepItem.kind === TextType.PATHTEXT) {
                     // 旧オブジェクトは除外 / skip old
@@ -437,12 +437,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /* 選択オブジェクト群の可視バウンディングボックスの和を返す / Union of visibleBounds over a selection */
-    function getSelectionVisibleBounds(sel) {
-        if (!sel || !sel.length) return null;
+    function getSelectionVisibleBounds(currentSelection) {
+        if (!currentSelection || !currentSelection.length) return null;
         var left = null, top = null, right = null, bottom = null;
-        for (var i = 0; i < sel.length; i++) {
+        for (var i = 0; i < currentSelection.length; i++) {
             var itemBounds;
-            try { itemBounds = sel[i].visibleBounds; } catch (e) { continue; }
+            try { itemBounds = currentSelection[i].visibleBounds; } catch (e) { continue; }
             if (!itemBounds) continue;
             if (left === null || itemBounds[0] < left) left = itemBounds[0];
             if (top === null || itemBounds[1] > top) top = itemBounds[1];
@@ -603,16 +603,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } else {
             // 1件も変換できなかった＝内部で例外を握り潰している。無言終了せず理由を伝える
             // Nothing converted = an exception was swallowed internally. Surface it instead of exiting silently
-            var failMessage = L(alertKey);
+            var failMessage = getLabel(alertKey);
             if (lastConversionError) { failMessage += "\n" + lastConversionError; }
             alert(failMessage);
         }
     }
 
     /* 選択内のテキストをエリア内文字へ変換 / Convert the selected text into area type */
-    function convertSelectionToAreaType(doc, sel, options) {
+    function convertSelectionToAreaType(doc, currentSelection, options) {
         lastConversionError = null;
-        sel = preprocessPathTextSelection(doc, sel);
+        currentSelection = preprocessPathTextSelection(doc, currentSelection);
 
         var selection = app.activeDocument.selection;
         if (!selection || selection.length === 0) { return; }
@@ -752,9 +752,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 選択（エリア内文字）をポイント文字へ変換 / Convert the selected area type into point text */
-    function convertSelectionToPointText(doc, sel, options) {
+    function convertSelectionToPointText(doc, currentSelection, options) {
         lastConversionError = null;
-        finishConversion(convertAreaTypeToPointText(doc, sel, options), "alert.reverseFailed");
+        finishConversion(convertAreaTypeToPointText(doc, currentSelection, options), "alert.reverseFailed");
     }
 
     // =========================================
@@ -778,18 +778,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function describeTextType(item) {
         try {
             if (item.typename !== "TextFrame") return null;
-            if (item.kind === TextType.POINTTEXT) return L("textType.pointText");
-            if (item.kind === TextType.AREATEXT) return L("textType.areaText");
-            if (item.kind === TextType.PATHTEXT) return L("textType.pathText");
+            if (item.kind === TextType.POINTTEXT) return getLabel("textType.pointText");
+            if (item.kind === TextType.AREATEXT) return getLabel("textType.areaText");
+            if (item.kind === TextType.PATHTEXT) return getLabel("textType.pathText");
         } catch (e) { }
         return null;
     }
 
     /* 選択の内訳を「種類 ×個数」で要約 / Summarize the selection as "type ×count" */
-    function summarizeSelection(sel) {
+    function summarizeSelection(currentSelection) {
         var counts = {}, order = [];
-        for (var i = 0; i < sel.length; i++) {
-            var label = describeTextType(sel[i]) || L("textType.other");
+        for (var i = 0; i < currentSelection.length; i++) {
+            var label = describeTextType(currentSelection[i]) || getLabel("textType.other");
             if (!counts.hasOwnProperty(label)) { counts[label] = 0; order.push(label); }
             counts[label]++;
         }
@@ -802,32 +802,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        isReverse で順/逆のツールチップを切替
        Text-conversion options dialog (selection summary + Style: keep / don't keep). Returns {keepStyle} on OK, null on Cancel.
        isReverse switches the forward/reverse tooltips */
-    function showStyleDialog(sel, isReverse) {
-        var dialog = new Window("dialog", L("ui.dialogTitle") + " " + SCRIPT_VERSION);
+    function showStyleDialog(currentSelection, isReverse) {
+        var dialog = new Window("dialog", getLabel("ui.dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 15;
 
         // 現在の選択オブジェクトの内訳を表示 / Show a summary of the current selection
-        var selectionPanel = dialog.add("panel", undefined, L("ui.selectionPanel"));
+        var selectionPanel = dialog.add("panel", undefined, getLabel("ui.selectionPanel"));
         setupPanel(selectionPanel, 6);
-        selectionPanel.add("statictext", undefined, summarizeSelection(sel));
+        selectionPanel.add("statictext", undefined, summarizeSelection(currentSelection));
 
         // スタイル：アピアランス（見た目）を保持するか / Style: keep the appearance or not
-        var stylePanel = dialog.add("panel", undefined, L("ui.stylePanel"));
+        var stylePanel = dialog.add("panel", undefined, getLabel("ui.stylePanel"));
         setupPanel(stylePanel, 6);
         var styleChoiceGroup = stylePanel.add("group");
-        var styleKeepRadio = styleChoiceGroup.add("radiobutton", undefined, L("ui.keepStyle"));
-        var styleDontKeepRadio = styleChoiceGroup.add("radiobutton", undefined, L("ui.dontKeepStyle"));
+        var styleKeepRadio = styleChoiceGroup.add("radiobutton", undefined, getLabel("ui.keepStyle"));
+        var styleDontKeepRadio = styleChoiceGroup.add("radiobutton", undefined, getLabel("ui.dontKeepStyle"));
         styleKeepRadio.value = true; // 既定は「保持する」/ Default: keep
         // 順/逆で意味が異なるためツールチップで補足 / Tooltips clarify the per-direction meaning
-        styleKeepRadio.helpTip = L(isReverse ? "tooltip.keepReverse" : "tooltip.keepForward");
-        styleDontKeepRadio.helpTip = L(isReverse ? "tooltip.dontKeepReverse" : "tooltip.dontKeepForward");
+        styleKeepRadio.helpTip = getLabel(isReverse ? "tooltip.keepReverse" : "tooltip.keepForward");
+        styleDontKeepRadio.helpTip = getLabel(isReverse ? "tooltip.dontKeepReverse" : "tooltip.dontKeepForward");
 
         // ボタン（左右中央、Mac規約：キャンセル → OK）/ Buttons (centered; Mac order: Cancel → OK)
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "center";
-        var cancelButton = buttonGroup.add("button", undefined, L("ui.cancel"), { name: "cancel" });
+        var cancelButton = buttonGroup.add("button", undefined, getLabel("ui.cancel"), { name: "cancel" });
         var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         var dialogResult = null;
@@ -852,45 +852,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     if (app.documents.length > 0) {
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
-        if (sel && sel.length > 0) {
+        if (currentSelection && currentSelection.length > 0) {
             // 選択の種類を判定：エリア内文字なら逆変換、ポイント/パス文字なら順変換
             // Detect the selection: area type → reverse; point/path text → forward
             var hasAreaText = false, hasPointOrPathText = false;
-            for (var i = 0; i < sel.length; i++) {
-                if (sel[i].typename !== "TextFrame") continue;
-                if (sel[i].kind === TextType.AREATEXT) hasAreaText = true;
-                else if (sel[i].kind === TextType.POINTTEXT || sel[i].kind === TextType.PATHTEXT) hasPointOrPathText = true;
+            for (var i = 0; i < currentSelection.length; i++) {
+                if (currentSelection[i].typename !== "TextFrame") continue;
+                if (currentSelection[i].kind === TextType.AREATEXT) hasAreaText = true;
+                else if (currentSelection[i].kind === TextType.POINTTEXT || currentSelection[i].kind === TextType.PATHTEXT) hasPointOrPathText = true;
             }
 
             if (hasAreaText) {
                 // 逆変換：ダイアログ（選択表示＋保持する/保持しない）→ ポイント文字へ変換
                 // Reverse: dialog (selection summary + keep / don't keep) → convert to point text
-                var reverseOptions = showStyleDialog(sel, true);
+                var reverseOptions = showStyleDialog(currentSelection, true);
                 if (reverseOptions) {
-                    convertSelectionToPointText(doc, sel, reverseOptions);
+                    convertSelectionToPointText(doc, currentSelection, reverseOptions);
                 }
             } else if (hasPointOrPathText) {
                 // 順変換：ダイアログを表示（キャンセルで中止）/ Forward: show the dialog (Cancel aborts)
-                var options = showStyleDialog(sel, false);
+                var options = showStyleDialog(currentSelection, false);
                 if (options) {
                     // フレーム整列アクションを読み込み、終了時に破棄 / Load the frame-alignment action, unload on exit
                     loadFrameAlignmentAction();
                     try {
-                        convertSelectionToAreaType(doc, sel, options);
+                        convertSelectionToAreaType(doc, currentSelection, options);
                     } finally {
                         unloadFrameAlignmentAction();
                     }
                 }
             } else {
-                alert(L("alert.selectText"));
+                alert(getLabel("alert.selectText"));
             }
         } else {
-            alert(L("alert.selectText"));
+            alert(getLabel("alert.selectText"));
         }
     } else {
-        alert(L("alert.noDocument"));
+        alert(getLabel("alert.noDocument"));
     }
 
 })();

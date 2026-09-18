@@ -51,11 +51,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /**
      * 日英ラベル定義（カテゴリ別） / Japanese-English label definitions (by category)
-     * L("dialog.title") のようにドット区切りで参照する。短い文言は1行で記述。
+     * getLabel("dialog.title") のようにドット区切りで参照する。短い文言は1行で記述。
      * @type {Object}
      */
     var LABELS = {
@@ -205,7 +205,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
          * @param {string} keyPath - "dialog.title" のようなドット区切りのキー。
          * @returns {string} 現在の言語のラベル文字列。該当なしの場合はキー文字列。
          */
-        function L(keyPath) {
+        function getLabel(keyPath) {
             var parts = String(keyPath).split(".");
             var node = LABELS;
             for (var i = 0; i < parts.length; i++) {
@@ -213,12 +213,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                 node = node[parts[i]];
             }
             if (!node) return String(keyPath);
-            return node[lang] || node.ja || String(keyPath);
+            return node[uiLang] || node.ja || String(keyPath);
         }
 
         /** ラベル keyPath 末尾にコロンを付けて返します（日本語は全角、英語は半角）。 */
         function labelText(keyPath) {
-            return L(keyPath) + (lang === 'ja' ? '：' : ': ');
+            return getLabel(keyPath) + (uiLang === 'ja' ? '：' : ': ');
         }
 
         /**
@@ -227,16 +227,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
          */
         function getSelectionOrAlert() {
             if (!hasDocument()) {
-                alert(L('alert.noDocument'));
+                alert(getLabel('alert.noDocument'));
                 return null;
             }
             var doc = app.activeDocument;
-            var sel = doc.selection;
-            if (!(sel instanceof Array) || sel.length === 0) {
-                alert(L('alert.needSelection'));
+            var currentSelection = doc.selection;
+            if (!(currentSelection instanceof Array) || currentSelection.length === 0) {
+                alert(getLabel('alert.needSelection'));
                 return null;
             }
-            return sel;
+            return currentSelection;
         }
 
         /**
@@ -942,7 +942,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             function getActiveMode() {
                 return (tabbedPanel.selection === tabOther) ? 'other' : 'process';
             }
-            var dlg = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+            var dlg = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
             setupWindow(dlg);
 
             tryRestoreDialogLocation(dlg);
@@ -950,7 +950,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                 saveDialogLocation(dlg);
             };
 
-            var infoPanel = dlg.add('panel', undefined, L('panel.info'));
+            var infoPanel = dlg.add('panel', undefined, getLabel('panel.info'));
             setupPanel(infoPanel);
 
             /**
@@ -1070,13 +1070,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             tabbedPanel.alignChildren = ['fill', 'top'];
 
             // --- Tab 1: 削除対象 ---
-            var tabProcess = tabbedPanel.add('tab', undefined, L('tab.process'));
+            var tabProcess = tabbedPanel.add('tab', undefined, getLabel('tab.process'));
             setupPanel(tabProcess);
             /* タブ内の右余白を詰める（PANEL_MARGINS の右16→6）。サブプロパティ代入は反映されないため配列で上書き */
             tabProcess.margins = [16, 20, 6, 12];
 
-            var removeSameAnchorsCheckbox = tabProcess.add('checkbox', undefined, L('checkbox.removeSameAnchors'));
-            removeSameAnchorsCheckbox.helpTip = L('tooltip.removeSameAnchors');
+            var removeSameAnchorsCheckbox = tabProcess.add('checkbox', undefined, getLabel('checkbox.removeSameAnchors'));
+            removeSameAnchorsCheckbox.helpTip = getLabel('tooltip.removeSameAnchors');
             removeSameAnchorsCheckbox.value = true;
 
             // Tolerance for collinear anchor detection (0.01 - 3.00)
@@ -1086,8 +1086,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             anchorOptionsGroup.alignChildren = ['left', 'top'];
             anchorOptionsGroup.margins = [0, 15, 0, 15];
 
-            var removeAnchorsCheckbox = anchorOptionsGroup.add('checkbox', undefined, L('checkbox.removeAnchors'));
-            removeAnchorsCheckbox.helpTip = L('tooltip.removeAnchors');
+            var removeAnchorsCheckbox = anchorOptionsGroup.add('checkbox', undefined, getLabel('checkbox.removeAnchors'));
+            removeAnchorsCheckbox.helpTip = getLabel('tooltip.removeAnchors');
             removeAnchorsCheckbox.value = true;
 
             var anchorToleranceRow = anchorOptionsGroup.add('group');
@@ -1095,16 +1095,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             anchorToleranceRow.alignChildren = ['left', 'center'];
             anchorToleranceRow.margins = [20, 0, 0, 0];
 
-            var anchorToleranceLabel = anchorToleranceRow.add('statictext', undefined, L('label.tolAnchor'));
-            anchorToleranceLabel.helpTip = L('tooltip.tolAnchor');
+            var anchorToleranceLabel = anchorToleranceRow.add('statictext', undefined, getLabel('label.tolAnchor'));
+            anchorToleranceLabel.helpTip = getLabel('tooltip.tolAnchor');
             anchorToleranceLabel.characters = 6;
 
             var anchorToleranceInput = anchorToleranceRow.add('edittext', undefined, TOL_ANCHOR_COLLINEAR.toFixed(2));
-            anchorToleranceInput.helpTip = L('tooltip.tolAnchor');
+            anchorToleranceInput.helpTip = getLabel('tooltip.tolAnchor');
             anchorToleranceInput.characters = 6;
 
             var anchorToleranceSlider = anchorOptionsGroup.add('slider', undefined, Math.round(TOL_ANCHOR_COLLINEAR * 100), 1, 300);
-            anchorToleranceSlider.helpTip = L('tooltip.tolAnchor');
+            anchorToleranceSlider.helpTip = getLabel('tooltip.tolAnchor');
             anchorToleranceSlider.preferredSize.width = 160;
             anchorToleranceSlider.indent = 20;
 
@@ -1163,8 +1163,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             handleOptionsGroup.alignChildren = ['left', 'top'];
             // handleOptionsGroup.margins = [0, 0, 0, 8];
 
-            var removeHandlesCheckbox = handleOptionsGroup.add('checkbox', undefined, L('checkbox.removeHandles'));
-            removeHandlesCheckbox.helpTip = L('tooltip.removeHandles');
+            var removeHandlesCheckbox = handleOptionsGroup.add('checkbox', undefined, getLabel('checkbox.removeHandles'));
+            removeHandlesCheckbox.helpTip = getLabel('tooltip.removeHandles');
             removeHandlesCheckbox.value = true;
 
             // Tolerance for straight-segment handle detection (0.01 - 3.00)
@@ -1173,16 +1173,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             handleToleranceRow.alignChildren = ['left', 'center'];
             handleToleranceRow.margins = [20, 0, 0, 0];
 
-            var handleToleranceLabel = handleToleranceRow.add('statictext', undefined, L('label.tolHandle'));
-            handleToleranceLabel.helpTip = L('tooltip.tolHandle');
+            var handleToleranceLabel = handleToleranceRow.add('statictext', undefined, getLabel('label.tolHandle'));
+            handleToleranceLabel.helpTip = getLabel('tooltip.tolHandle');
             handleToleranceLabel.characters = 6;
 
             var handleToleranceInput = handleToleranceRow.add('edittext', undefined, TOL_HANDLE_COLLINEAR.toFixed(2));
-            handleToleranceInput.helpTip = L('tooltip.tolHandle');
+            handleToleranceInput.helpTip = getLabel('tooltip.tolHandle');
             handleToleranceInput.characters = 6;
 
             var handleToleranceSlider = handleOptionsGroup.add('slider', undefined, Math.round(TOL_HANDLE_COLLINEAR * 100), 1, 300);
-            handleToleranceSlider.helpTip = L('tooltip.tolHandle');
+            handleToleranceSlider.helpTip = getLabel('tooltip.tolHandle');
             handleToleranceSlider.preferredSize.width = 160;
             handleToleranceSlider.indent = 20;
 
@@ -1256,32 +1256,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             setHandleToleranceEnabled(removeHandlesCheckbox.value);
 
             // --- Tab 2: その他 ---
-            var tabOther = tabbedPanel.add('tab', undefined, L('tab.other'));
+            var tabOther = tabbedPanel.add('tab', undefined, getLabel('tab.other'));
             setupPanel(tabOther);
             /* タブ内の右余白を詰める（PANEL_MARGINS の右16→6）。サブプロパティ代入は反映されないため配列で上書き */
             tabOther.margins = [16, 20, 6, 12];
 
             // パネル1：アンカーポイントを変換（スムーズ／コーナー）
-            var convertPointsPanel = tabOther.add('panel', undefined, L('panel.convertPoints'));
+            var convertPointsPanel = tabOther.add('panel', undefined, getLabel('panel.convertPoints'));
             setupPanel(convertPointsPanel);
-            var smoothRadio = convertPointsPanel.add('radiobutton', undefined, L('radio.convertSmooth'));
-            var cornerRadio = convertPointsPanel.add('radiobutton', undefined, L('radio.convertCorner'));
+            var smoothRadio = convertPointsPanel.add('radiobutton', undefined, getLabel('radio.convertSmooth'));
+            var cornerRadio = convertPointsPanel.add('radiobutton', undefined, getLabel('radio.convertCorner'));
 
             // パネル2：アンカーポイントを追加（アンカー追加／極点追加）
-            var addPointsPanel = tabOther.add('panel', undefined, L('panel.addPoints'));
+            var addPointsPanel = tabOther.add('panel', undefined, getLabel('panel.addPoints'));
             setupPanel(addPointsPanel);
-            var addAnchorsRadio = addPointsPanel.add('radiobutton', undefined, L('radio.addAnchors'));
-            addAnchorsRadio.helpTip = L('tooltip.addAnchors');
-            var extremePointsRadio = addPointsPanel.add('radiobutton', undefined, L('radio.addExtremePoints'));
-            extremePointsRadio.helpTip = L('tooltip.addExtremePoints');
+            var addAnchorsRadio = addPointsPanel.add('radiobutton', undefined, getLabel('radio.addAnchors'));
+            addAnchorsRadio.helpTip = getLabel('tooltip.addAnchors');
+            var extremePointsRadio = addPointsPanel.add('radiobutton', undefined, getLabel('radio.addExtremePoints'));
+            extremePointsRadio.helpTip = getLabel('tooltip.addExtremePoints');
 
             // パネル3：その他（分割／マド埋め）
-            var pathOpsPanel = tabOther.add('panel', undefined, L('panel.pathOps'));
+            var pathOpsPanel = tabOther.add('panel', undefined, getLabel('panel.pathOps'));
             setupPanel(pathOpsPanel);
-            var splitRadio = pathOpsPanel.add('radiobutton', undefined, L('radio.splitAtAnchors'));
-            splitRadio.helpTip = L('tooltip.splitAtAnchors');
-            var fillHolesRadio = pathOpsPanel.add('radiobutton', undefined, L('radio.fillHoles'));
-            fillHolesRadio.helpTip = L('tooltip.fillHoles');
+            var splitRadio = pathOpsPanel.add('radiobutton', undefined, getLabel('radio.splitAtAnchors'));
+            splitRadio.helpTip = getLabel('tooltip.splitAtAnchors');
+            var fillHolesRadio = pathOpsPanel.add('radiobutton', undefined, getLabel('radio.fillHoles'));
+            fillHolesRadio.helpTip = getLabel('tooltip.fillHoles');
 
             // 選択内にマド（複合パス）が無ければ「マド埋め」は無効化（ディム表示）
             if (!hasHoles) {
@@ -1326,8 +1326,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             buttonRow.alignment = ['center', 'top'];
             buttonRow.margins = [0, 10, 0, 0];
 
-            var btnCancel = buttonRow.add('button', undefined, L('button.cancel'), { name: 'cancel' });
-            var btnOK = buttonRow.add('button', undefined, L('button.ok'), { name: 'ok' });
+            var btnCancel = buttonRow.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+            var btnOK = buttonRow.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
             /* ボタン生成前の予測表示では OK の状態を反映できないため、ここで一度反映する */
             updateOkEnabled();
@@ -1936,7 +1936,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
         // 実行前に選択を復元（1つも復元できなければ中止して理由を伝える）
         if (restoreSelection(selectionAtOpen) === 0) {
-            alert(L('alert.lostSelection'));
+            alert(getLabel('alert.lostSelection'));
             return;
         }
 

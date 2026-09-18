@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function getCurrentLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
-        var lang = getCurrentLang();
+        var uiLang = getCurrentLang();
 
         /* ------------------------------- */
         /* 日英ラベル定義 / Japanese-English label definitions */
@@ -64,12 +64,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         function main() {
             if (app.documents.length === 0) {
-                alert(LABELS.noDocument[lang]);
+                alert(LABELS.noDocument[uiLang]);
                 return;
             }
             var doc = app.activeDocument;
             if (doc.artboards.length === 0) {
-                alert(LABELS.noArtboards[lang]);
+                alert(LABELS.noArtboards[uiLang]);
                 return;
             }
 
@@ -122,7 +122,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function buildDialogUI() {
-            var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+            var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
             dialog.orientation = "column";
             dialog.alignChildren = ['fill', 'top'];
             dialog.spacing = 15;
@@ -133,7 +133,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             mainColumn.alignment = ['fill', 'top'];
 
             /* 行-列パネル / Row-Column panel */
-            var namingGroup = mainColumn.add("panel", undefined, LABELS.namingPanel[lang]);
+            var namingGroup = mainColumn.add("panel", undefined, LABELS.namingPanel[uiLang]);
             namingGroup.orientation = "column";
             namingGroup.alignChildren = ['fill', 'top'];
             namingGroup.margins = [15, 20, 15, 10];
@@ -146,15 +146,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var sourceRow = namingSettingsGroup.add("group");
             sourceRow.orientation = "row";
             sourceRow.alignChildren = ['left', 'center'];
-            var fromPositionRadio = sourceRow.add("radiobutton", undefined, LABELS.namingFromPosition[lang]);
-            var fromExistingRadio = sourceRow.add("radiobutton", undefined, LABELS.namingFromExisting[lang]);
+            var fromPositionRadio = sourceRow.add("radiobutton", undefined, LABELS.namingFromPosition[uiLang]);
+            var fromExistingRadio = sourceRow.add("radiobutton", undefined, LABELS.namingFromExisting[uiLang]);
             fromPositionRadio.value = true;
 
             /* 区切り文字 / Separator */
             var sepRow = namingSettingsGroup.add("group");
             sepRow.orientation = "row";
             sepRow.alignChildren = ['left', 'center'];
-            var sepLabel = sepRow.add("statictext", undefined, LABELS.namingSeparator[lang]);
+            var sepLabel = sepRow.add("statictext", undefined, LABELS.namingSeparator[uiLang]);
             sepLabel.preferredSize.width = 90;
             // sepLabel.justify = 'right';
             var sepHyphen = sepRow.add("radiobutton", undefined, "-");
@@ -166,7 +166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var padRow = namingSettingsGroup.add("group");
             padRow.orientation = "row";
             padRow.alignChildren = ['left', 'center'];
-            var padLabel = padRow.add("statictext", undefined, LABELS.namingPadWidth[lang]);
+            var padLabel = padRow.add("statictext", undefined, LABELS.namingPadWidth[uiLang]);
             padLabel.preferredSize.width = 90;
             var padW1 = padRow.add("radiobutton", undefined, "0");
             var padW2 = padRow.add("radiobutton", undefined, "00");
@@ -174,13 +174,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             padW1.value = true;
 
             /* 実行ボタン / Execute button */
-            var executeBtn = namingGroup.add("button", undefined, LABELS.namingEnable[lang]);
+            var executeBtn = namingGroup.add("button", undefined, LABELS.namingEnable[uiLang]);
 
             var buttonGroup = dialog.add("group");
             buttonGroup.orientation = "row";
             buttonGroup.alignment = ['center', 'bottom'];
 
-            var closeBtn = buttonGroup.add('button', undefined, LABELS.close[lang]);
+            var closeBtn = buttonGroup.add('button', undefined, LABELS.close[uiLang]);
 
             return {
                 dialog: dialog,

@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var optKeepSpaces = false;
     var optGroupMode = "none"; // none | line | all
@@ -106,32 +106,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { fn(); } catch (_) { }
     }
 
-    function L(key) {
+    function getLabel(key) {
         var o = LABELS[key];
         if (!o) return key;
-        return o[lang] || o.ja || key;
+        return o[uiLang] || o.ja || key;
     }
 
-    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
 
-    dlg.orientation = 'column';
-    dlg.alignChildren = ['fill', 'top'];
-    dlg.margins = 15;
+    dialog.orientation = 'column';
+    dialog.alignChildren = ['fill', 'top'];
+    dialog.margins = 15;
 
     // --- UI panel order: オプション (Opt) → グループ化 (Group) ---
 
-    var pnlOpt = dlg.add('panel', undefined, L('pnlOpt'));
+    var pnlOpt = dialog.add('panel', undefined, getLabel('pnlOpt'));
     pnlOpt.orientation = 'column';
     pnlOpt.alignChildren = ['left', 'top'];
     pnlOpt.margins = [15, 20, 15, 10];
 
-    var chkKeepStyle = pnlOpt.add('checkbox', undefined, L('chkKeepStyle'));
+    var chkKeepStyle = pnlOpt.add('checkbox', undefined, getLabel('chkKeepStyle'));
     chkKeepStyle.value = true;
-    var chkKeepSpaces = pnlOpt.add('checkbox', undefined, L('chkKeepSpaces'));
+    var chkKeepSpaces = pnlOpt.add('checkbox', undefined, getLabel('chkKeepSpaces'));
     chkKeepSpaces.value = false;
-    var chkConvertToAreaText = pnlOpt.add('checkbox', undefined, L('chkConvertToAreaText'));
+    var chkConvertToAreaText = pnlOpt.add('checkbox', undefined, getLabel('chkConvertToAreaText'));
     chkConvertToAreaText.value = false;
-    var chkMergeAreaText = pnlOpt.add('checkbox', undefined, L('chkMergeAreaText'));
+    var chkMergeAreaText = pnlOpt.add('checkbox', undefined, getLabel('chkMergeAreaText'));
     chkMergeAreaText.value = false;
 
     // エリア系オプションの同期: 連結は「変換がON」のときだけ有効
@@ -149,20 +149,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 初期状態
     syncAreaOptionsEnabled();
 
-    var pnlGroup = dlg.add('panel', undefined, L('pnlGroup'));
+    var pnlGroup = dialog.add('panel', undefined, getLabel('pnlGroup'));
     pnlGroup.orientation = 'column';
     pnlGroup.alignChildren = ['left', 'top'];
     pnlGroup.margins = [15, 20, 15, 10];
 
-    var rbGroupNone = pnlGroup.add('radiobutton', undefined, L('rbGroupNone'));
-    var rbGroupLine = pnlGroup.add('radiobutton', undefined, L('rbGroupLine'));
-    var rbGroupAll = pnlGroup.add('radiobutton', undefined, L('rbGroupAll'));
+    var rbGroupNone = pnlGroup.add('radiobutton', undefined, getLabel('rbGroupNone'));
+    var rbGroupLine = pnlGroup.add('radiobutton', undefined, getLabel('rbGroupLine'));
+    var rbGroupAll = pnlGroup.add('radiobutton', undefined, getLabel('rbGroupAll'));
     rbGroupAll.value = true; // default
 
-    var gBtns = dlg.add('group');
+    var gBtns = dialog.add('group');
     gBtns.alignment = 'right';
-    var btnCancel = gBtns.add('button', undefined, L('btnCancel'), { name: 'cancel' });
-    var btnOK = gBtns.add('button', undefined, L('btnOK'), { name: 'ok' });
+    var btnCancel = gBtns.add('button', undefined, getLabel('btnCancel'), { name: 'cancel' });
+    var btnOK = gBtns.add('button', undefined, getLabel('btnOK'), { name: 'ok' });
 
     btnOK.onClick = function () {
         optKeepSpaces = !!safeGet(function () { return chkKeepSpaces.value; }, false);
@@ -175,13 +175,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }, "none");
 
         safeDo(function () { main(); });
-        safeDo(function () { dlg.close(1); });
+        safeDo(function () { dialog.close(1); });
     };
     btnCancel.onClick = function () {
-        safeDo(function () { dlg.close(0); });
+        safeDo(function () { dialog.close(0); });
     };
 
-    dlg.show();
+    dialog.show();
 
     function main() {
         if (safeGet(function () { return app.documents.length; }, 0) === 0) return;
@@ -189,13 +189,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = safeGet(function () { return app.activeDocument; }, null);
         if (!doc) return;
 
-        var sel = safeGet(function () { return doc.selection; }, null);
-        if (!sel || sel.length === 0) return;
+        var currentSelection = safeGet(function () { return doc.selection; }, null);
+        if (!currentSelection || currentSelection.length === 0) return;
 
         /* TextFrame のみ抽出 / Collect TextFrames only */
         var targets = [];
-        for (var i = 0; i < sel.length; i++) {
-            var it = safeGet(function () { return sel[i]; }, null);
+        for (var i = 0; i < currentSelection.length; i++) {
+            var it = safeGet(function () { return currentSelection[i]; }, null);
             if (it && it.typename === "TextFrame") targets.push(it);
         }
         if (targets.length === 0) return;

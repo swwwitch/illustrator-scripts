@@ -37,9 +37,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var doc = app.documents.length && app.activeDocument;
     if (!doc) return;
 
-    var sel = doc.selection;
+    var currentSelection = doc.selection;
 
-    if (sel.length < 2) return;
+    if (currentSelection.length < 2) return;
 
     // ungroup
     app.executeMenuCommand('ungroup');

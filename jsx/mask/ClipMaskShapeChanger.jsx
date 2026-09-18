@@ -453,11 +453,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ダイアログボックス / Dialog */
     function showDialog() {
-        var dlg = new Window('dialog', 'クリップグループの形状変更 ' + SCRIPT_VERSION);
-        dlg.alignChildren = 'fill';
+        var dialog = new Window('dialog', 'クリップグループの形状変更 ' + SCRIPT_VERSION);
+        dialog.alignChildren = 'fill';
 
         // 2カラム / Two columns
-        var cols = dlg.add('group');
+        var cols = dialog.add('group');
         cols.orientation = 'row';
         cols.alignChildren = ['fill', 'top'];
         cols.spacing = 10;
@@ -671,7 +671,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         changeValueByArrowKey(editRoundRadius);
 
         // ボタン / Buttons
-        var btnGroup = dlg.add('group');
+        var btnGroup = dialog.add('group');
         btnGroup.alignment = 'right';
         var btnCancel = btnGroup.add('button', undefined, 'キャンセル', { name: 'cancel' });
         var btnOk = btnGroup.add('button', undefined, 'OK', { name: 'ok' });
@@ -703,14 +703,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 __roundCornerRadius = 0;
             }
 
-            dlg.close(1);
+            dialog.close(1);
         };
 
         btnCancel.onClick = function () {
-            dlg.close(0);
+            dialog.close(0);
         };
 
-        return dlg.show() === 1;
+        return dialog.show() === 1;
     }
 
     if (showDialog()) {

@@ -38,7 +38,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: {
@@ -175,7 +175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
     }
 
     /* 言語判定 / Determine language from locale */
-    // (Removed old getLang, using getCurrentLang and lang variable)
+    // (Removed old getLang, using getCurrentLang and uiLang variable)
 
     // 再帰的に選択内のすべての TextFrame を抽出 / Recursively extract all TextFrames in selection
     function getAllTextFrames(selection) {
@@ -409,8 +409,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
     /* 対象文字と基準文字を入力するダイアログを表示 / Show dialog to input target and reference characters */
     function showDialog(textFrames, previewMgr) {
-        // var lang = getLang(); // Use global lang
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        // var uiLang = getLang(); // Use global uiLang
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = "left";
 
@@ -446,15 +446,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         inputGroup.margins = [15, 5, 15, 5];
 
         var targetGroup = inputGroup.add("group");
-        targetGroup.add("statictext", undefined, LABELS.targetCharLabel[lang]);
+        targetGroup.add("statictext", undefined, LABELS.targetCharLabel[uiLang]);
         var targetInput = targetGroup.add("edittext", undefined, defaultTarget);
         targetInput.characters = 6;
         targetInput.active = true;
-        targetInput.helpTip = LABELS.helpTips.targetInput[lang];
+        targetInput.helpTip = LABELS.helpTips.targetInput[uiLang];
         targetInput.onChanging = updatePreview;
 
         var shiftGroup = inputGroup.add("group");
-        shiftGroup.add("statictext", undefined, LABELS.shiftAmountLabel[lang]);
+        shiftGroup.add("statictext", undefined, LABELS.shiftAmountLabel[uiLang]);
         var shiftInput = shiftGroup.add("edittext", undefined, "0");
         var unitLabel = shiftGroup.add("statictext", undefined, getCurrentUnitLabel());
         shiftInput.characters = 6;
@@ -471,40 +471,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
         shiftInput.active = true;
         shiftGroup.margins = [0, 0, 0, 10];
-        shiftInput.helpTip = LABELS.helpTips.shiftInput[lang];
+        shiftInput.helpTip = LABELS.helpTips.shiftInput[uiLang];
 
-        var autoPanel = inputGroup.add("panel", undefined, LABELS.autoPanelTitle[lang]);
+        var autoPanel = inputGroup.add("panel", undefined, LABELS.autoPanelTitle[uiLang]);
         autoPanel.orientation = "column";
         autoPanel.alignChildren = "left";
         autoPanel.margins = [15, 20, 15, 5];
 
         var refGroup = autoPanel.add("group");
-        refGroup.add("statictext", undefined, LABELS.baseCharLabel[lang]);
+        refGroup.add("statictext", undefined, LABELS.baseCharLabel[uiLang]);
         var refInput = refGroup.add("edittext", undefined, "0");
         refInput.characters = 3;
-        refInput.helpTip = LABELS.helpTips.refInput[lang];
-        var calBtn = refGroup.add("button", [0, 0, 60, 25], LABELS.adjustBtnLabel[lang]);
-        calBtn.helpTip = LABELS.helpTips.calBtn[lang];
+        refInput.helpTip = LABELS.helpTips.refInput[uiLang];
+        var calBtn = refGroup.add("button", [0, 0, 60, 25], LABELS.adjustBtnLabel[uiLang]);
+        calBtn.helpTip = LABELS.helpTips.calBtn[uiLang];
 
         var buttonGroup = mainGroup.add("group");
         buttonGroup.orientation = "column";
         buttonGroup.alignChildren = "fill";
 
-        var finalOkBtn = buttonGroup.add("button", undefined, LABELS.okBtnLabel[lang], {
+        var finalOkBtn = buttonGroup.add("button", undefined, LABELS.okBtnLabel[uiLang], {
             name: "ok"
         });
-        finalOkBtn.helpTip = LABELS.helpTips.finalOkBtn[lang];
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[lang], {
+        finalOkBtn.helpTip = LABELS.helpTips.finalOkBtn[uiLang];
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[uiLang], {
             name: "cancel"
         });
 
         buttonGroup.add("statictext", [0, 0, 0, 30], " "); // Spacer
-        var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtnLabel[lang]);
-        resetBtn.helpTip = LABELS.helpTips.resetBtn[lang];
+        var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtnLabel[uiLang]);
+        resetBtn.helpTip = LABELS.helpTips.resetBtn[uiLang];
 
         resetBtn.onClick = function () {
             if (!textFrames || textFrames.length == 0) {
-                alert(LABELS.selectFrameMsg[lang]);
+                alert(LABELS.selectFrameMsg[uiLang]);
                 return;
             }
 
@@ -524,19 +524,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         /* 自動調整ボタンのクリック処理 / Auto adjust button click */
         calBtn.onClick = function () {
             if (targetInput.text.length == 0) {
-                alert(LABELS.invalidCharMsg[lang]);
+                alert(LABELS.invalidCharMsg[uiLang]);
                 return;
             }
             if (refInput.text.length != 1) {
-                alert(LABELS.invalidCharMsg[lang]);
+                alert(LABELS.invalidCharMsg[uiLang]);
                 return;
             }
             if (!app.documents.length) {
-                alert(LABELS.docOpenMsg[lang]);
+                alert(LABELS.docOpenMsg[uiLang]);
                 return;
             }
             if (!textFrames || textFrames.length == 0) {
-                alert(LABELS.selectFrameMsg[lang]);
+                alert(LABELS.selectFrameMsg[uiLang]);
                 return;
             }
             /* 最初の該当文字で基準文字とのY座標差分を計算し、シフト量を設定 / Calculate offset for first valid character */
@@ -563,12 +563,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         /* OKボタンのクリック処理 / Final OK button click */
         finalOkBtn.onClick = function () {
             if (targetInput.text.length == 0) {
-                alert(LABELS.invalidCharMsg[lang]);
+                alert(LABELS.invalidCharMsg[uiLang]);
                 return;
             }
             var shiftValue = Number(shiftInput.text);
             if (isNaN(shiftValue)) {
-                alert(LABELS.numericErrorMsg[lang]);
+                alert(LABELS.numericErrorMsg[uiLang]);
                 return;
             }
             // 3️⃣ OKボタン押下時にプレビュー無効化 / Disable preview on OK
@@ -617,7 +617,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
     function main() {
         try {
             if (app.documents.length == 0) {
-                alert(LABELS.docOpenMsg[lang]);
+                alert(LABELS.docOpenMsg[uiLang]);
                 return;
             }
 
@@ -636,13 +636,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
             var selection = app.activeDocument.selection;
             if (!selection || selection.length == 0) {
-                alert(LABELS.selectFrameMsg[lang]);
+                alert(LABELS.selectFrameMsg[uiLang]);
                 return;
             }
 
             var textFrames = getAllTextFrames(selection);
             if (textFrames.length == 0) {
-                alert(LABELS.selectFrameMsg[lang]);
+                alert(LABELS.selectFrameMsg[uiLang]);
                 return;
             }
 
@@ -665,7 +665,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
             });
 
         } catch (e) {
-            alert(LABELS.errorMsg[lang] + e);
+            alert(LABELS.errorMsg[uiLang] + e);
         }
     }
 

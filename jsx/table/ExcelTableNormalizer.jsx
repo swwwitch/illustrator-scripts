@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var PATH_LAYER_NAME = "_cell_rectangle";
     var USER_CANCELLED_COLUMN_ALIGNMENT = "USER_CANCELLED_COLUMN_ALIGNMENT";
 
-    var lang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     var PANEL_MARGINS = [15, 20, 15, 10];
 
@@ -137,13 +137,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects selected." }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return L(key) + (lang === 'ja' ? '：' : ':');
+        return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
     }
 
     function safeCall(callback) {
@@ -248,7 +248,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* メイン処理：UIを構築し実行する / Main entry: build UI and execute */
     function main() {
         safeCall(function () { app.executeMenuCommand('Colors8'); });
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dlg.orientation = "column";
         dlg.alignChildren = "fill";
         dlg.spacing = 10;
@@ -269,34 +269,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightColumn.alignChildren = "fill";
         rightColumn.spacing = 10;
 
-        var optionsPanel = leftColumn.add("panel", undefined, L('optionsPanelTitle'));
+        var optionsPanel = leftColumn.add("panel", undefined, getLabel('optionsPanelTitle'));
         setupPanel(optionsPanel);
 
-        var releaseMaskCheckbox = optionsPanel.add("checkbox", undefined, L('releaseMask'));
+        var releaseMaskCheckbox = optionsPanel.add("checkbox", undefined, getLabel('releaseMask'));
         releaseMaskCheckbox.value = true;
 
-        var removeSmallCheckbox = optionsPanel.add("checkbox", undefined, L('removeSmallObjects'));
+        var removeSmallCheckbox = optionsPanel.add("checkbox", undefined, getLabel('removeSmallObjects'));
         removeSmallCheckbox.value = true;
 
-        var textPanel = leftColumn.add("panel", undefined, L('textPanelTitle'));
+        var textPanel = leftColumn.add("panel", undefined, getLabel('textPanelTitle'));
         setupPanel(textPanel);
 
-        var moveTextCheckbox = textPanel.add("checkbox", undefined, L('moveTextToLayer'));
+        var moveTextCheckbox = textPanel.add("checkbox", undefined, getLabel('moveTextToLayer'));
         moveTextCheckbox.value = true;
 
-        var setK100Checkbox = textPanel.add("checkbox", undefined, L('setTextK100'));
+        var setK100Checkbox = textPanel.add("checkbox", undefined, getLabel('setTextK100'));
         setK100Checkbox.value = true;
 
-        var removeDuplicateCheckbox = textPanel.add("checkbox", undefined, L('removeDuplicateTexts'));
+        var removeDuplicateCheckbox = textPanel.add("checkbox", undefined, getLabel('removeDuplicateTexts'));
         removeDuplicateCheckbox.value = true;
 
-        var cellBgPanel = leftColumn.add("panel", undefined, L('cellBgPanelTitle'));
+        var cellBgPanel = leftColumn.add("panel", undefined, getLabel('cellBgPanelTitle'));
         setupPanel(cellBgPanel);
 
-        var adjustCellBgCheckbox = cellBgPanel.add("checkbox", undefined, L('adjustCellBackground'));
+        var adjustCellBgCheckbox = cellBgPanel.add("checkbox", undefined, getLabel('adjustCellBackground'));
         adjustCellBgCheckbox.value = true;
 
-        var equalizeHeightsCheckbox = cellBgPanel.add("checkbox", undefined, L('equalizeHeights'));
+        var equalizeHeightsCheckbox = cellBgPanel.add("checkbox", undefined, getLabel('equalizeHeights'));
         equalizeHeightsCheckbox.value = true;
         equalizeHeightsCheckbox.enabled = adjustCellBgCheckbox.value;
 
@@ -304,23 +304,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             equalizeHeightsCheckbox.enabled = adjustCellBgCheckbox.value;
         };
 
-        var rulesPanel = rightColumn.add("panel", undefined, L('rulesPanelTitle'));
+        var rulesPanel = rightColumn.add("panel", undefined, getLabel('rulesPanelTitle'));
         setupPanel(rulesPanel);
 
-        var centerlineCheckbox = rulesPanel.add("checkbox", undefined, L('centerline'));
+        var centerlineCheckbox = rulesPanel.add("checkbox", undefined, getLabel('centerline'));
         centerlineCheckbox.value = true;
 
-        var outerToRectCheckbox = rulesPanel.add("checkbox", undefined, L('outerToRect'));
+        var outerToRectCheckbox = rulesPanel.add("checkbox", undefined, getLabel('outerToRect'));
         outerToRectCheckbox.value = true;
 
-        var placementPanel = rulesPanel.add("panel", undefined, L('placementMode'));
+        var placementPanel = rulesPanel.add("panel", undefined, getLabel('placementMode'));
         setupPanel(placementPanel, 6);
-        var placementUniformForcedRadio = placementPanel.add("radiobutton", undefined, L('placementUniformForced'));
-        var placementUniformMergedRadio = placementPanel.add("radiobutton", undefined, L('placementUniformMerged'));
-        var placementMamaIkiRadio = placementPanel.add("radiobutton", undefined, L('placementMamaIki'));
+        var placementUniformForcedRadio = placementPanel.add("radiobutton", undefined, getLabel('placementUniformForced'));
+        var placementUniformMergedRadio = placementPanel.add("radiobutton", undefined, getLabel('placementUniformMerged'));
+        var placementMamaIkiRadio = placementPanel.add("radiobutton", undefined, getLabel('placementMamaIki'));
         placementMamaIkiRadio.value = true;
 
-        var stylePanel = rulesPanel.add("panel", undefined, L('stylePanelTitle'));
+        var stylePanel = rulesPanel.add("panel", undefined, getLabel('stylePanelTitle'));
         setupPanel(stylePanel);
         stylePanel.alignChildren = "fill";
 
@@ -333,7 +333,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         changeValueByArrowKey(strokeWidthInput);
         strokeWidthGroup.add("statictext", undefined, strokeUnitLabel);
 
-        var rulesK100Checkbox = stylePanel.add("checkbox", undefined, L('rulesK100'));
+        var rulesK100Checkbox = stylePanel.add("checkbox", undefined, getLabel('rulesK100'));
         rulesK100Checkbox.value = true;
 
         var btnGroup = dlg.add("group");
@@ -341,8 +341,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnGroup.alignment = "center";
         btnGroup.margins = [0, 10, 0, 0];
 
-        var btnCancel = btnGroup.add("button", undefined, L('cancel'), { name: "cancel" });
-        var btnOk = btnGroup.add("button", undefined, L('ok'), { name: "ok" });
+        var btnCancel = btnGroup.add("button", undefined, getLabel('cancel'), { name: "cancel" });
+        var btnOk = btnGroup.add("button", undefined, getLabel('ok'), { name: "ok" });
 
         btnOk.onClick = function () {
             var releaseMask = releaseMaskCheckbox.value;
@@ -389,7 +389,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 実処理：選択オブジェクトに対して整形処理を実行 / Core processing pipeline */
     function executeRelease(releaseMask, moveText, setK100, removeDuplicate, removeSmall, adjustCellBg, equalizeHeights, centerline, placementMode, outerToRect, strokeWidthPt, rulesK100) {
         if (!app.documents.length || !app.activeDocument.selection.length) {
-            alert(L('noSelection'));
+            alert(getLabel('noSelection'));
             return;
         }
 
@@ -681,7 +681,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                 } catch (e) { }
             }
-            samples.push(sample || L('columnAlignmentSampleEmpty'));
+            samples.push(sample || getLabel('columnAlignmentSampleEmpty'));
         }
         return samples;
     }
@@ -734,13 +734,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 列ごとの配置ダイアログ / Column alignment dialog */
     function showColumnAlignmentDialog(columnSamples, initialAlignments) {
-        var dlg = new Window('dialog', L('columnAlignmentDialogTitle'));
+        var dlg = new Window('dialog', getLabel('columnAlignmentDialogTitle'));
         dlg.orientation = "column";
         dlg.alignChildren = "fill";
         dlg.spacing = 10;
         dlg.margins = 20;
 
-        var rowsPanel = dlg.add("panel", undefined, L('columnAlignmentDialogTitle'));
+        var rowsPanel = dlg.add("panel", undefined, getLabel('columnAlignmentDialogTitle'));
         setupPanel(rowsPanel, 6);
         rowsPanel.alignChildren = "fill";
 
@@ -767,9 +767,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var columnLabel = row.add("statictext", undefined, columnLabelTexts[columnIndex]);
             columnLabel.characters = columnLabelCharCount;
 
-            var leftRadio = row.add("radiobutton", undefined, L('columnAlignmentLeft'));
-            var centerRadio = row.add("radiobutton", undefined, L('columnAlignmentCenter'));
-            var rightRadio = row.add("radiobutton", undefined, L('columnAlignmentRight'));
+            var leftRadio = row.add("radiobutton", undefined, getLabel('columnAlignmentLeft'));
+            var centerRadio = row.add("radiobutton", undefined, getLabel('columnAlignmentCenter'));
+            var rightRadio = row.add("radiobutton", undefined, getLabel('columnAlignmentRight'));
 
             var sampleLabel = row.add("statictext", undefined, sampleLabelTexts[columnIndex]);
             sampleLabel.characters = SAMPLE_LABEL_CHARS;
@@ -788,7 +788,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var leftGroup = footer.add("group");
         leftGroup.orientation = "row";
         leftGroup.alignment = ["left", "center"];
-        var autoButton = leftGroup.add("button", undefined, L('columnAlignmentAuto'));
+        var autoButton = leftGroup.add("button", undefined, getLabel('columnAlignmentAuto'));
 
         // 中央：スペーサー / Center: spacer
         var spacer = footer.add("group");
@@ -799,8 +799,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rightGroup = footer.add("group");
         rightGroup.orientation = "row";
         rightGroup.alignment = ["right", "center"];
-        var cancelButton = rightGroup.add("button", undefined, L('cancel'), { name: "cancel" });
-        var okButton = rightGroup.add("button", undefined, L('ok'), { name: "ok" });
+        var cancelButton = rightGroup.add("button", undefined, getLabel('cancel'), { name: "cancel" });
+        var okButton = rightGroup.add("button", undefined, getLabel('ok'), { name: "ok" });
 
         autoButton.onClick = function () {
             for (var i = 0; i < radioRows.length; i++) {
@@ -827,18 +827,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 列行ラベル / Column row label */
     function getColumnAlignmentRowLabel(columnIndex, sampleText) {
-        if (lang === "ja") {
-            return String(columnIndex + 1) + L('columnAlignmentColumn') + "（" + sampleText + "）";
+        if (uiLang === "ja") {
+            return String(columnIndex + 1) + getLabel('columnAlignmentColumn') + "（" + sampleText + "）";
         }
-        return L('columnAlignmentColumn') + " " + String(columnIndex + 1) + " (" + sampleText + ")";
+        return getLabel('columnAlignmentColumn') + " " + String(columnIndex + 1) + " (" + sampleText + ")";
     }
 
     /* 列番号ラベル / Column number label */
     function getColumnAlignmentColumnLabel(columnIndex) {
-        if (lang === "ja") {
-            return String(columnIndex + 1) + L('columnAlignmentColumn');
+        if (uiLang === "ja") {
+            return String(columnIndex + 1) + getLabel('columnAlignmentColumn');
         }
-        return L('columnAlignmentColumn') + " " + String(columnIndex + 1);
+        return getLabel('columnAlignmentColumn') + " " + String(columnIndex + 1);
     }
 
     /* 配置ラジオを設定 / Set alignment radio value */

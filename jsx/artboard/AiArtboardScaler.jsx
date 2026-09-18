@@ -132,7 +132,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} path 例 "panel.target"
      * @returns {string} ローカライズ済み文字列（見つからなければ path）
      */
-    function getLocalizedText(path) {
+    function getLabel(path) {
         var parts = path.split(".");
         var node = LABELS;
         /* 各階層を安全に辿る（途中で欠落したら path を返す） / Walk each level safely; return path if anything is missing */
@@ -152,7 +152,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(path) {
-        return getLocalizedText(path) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -300,26 +300,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} defaultSelection 指定入力欄の初期値（例: "1-6"）
      */
     function addTargetPanel(dialog, defaultSelection) {
-        var panel = dialog.add("panel", undefined, getLocalizedText("panel.target"));
+        var panel = dialog.add("panel", undefined, getLabel("panel.target"));
         setupPanel(panel, 6);
 
         /* 「現在のアートボード」ラジオ / "Current artboard" radio */
         var currentRow = panel.add("group");
         currentRow.orientation = "row";
         currentRow.alignment = "left";
-        var currentRadio = currentRow.add("radiobutton", undefined, getLocalizedText("radio.current"));
+        var currentRadio = currentRow.add("radiobutton", undefined, getLabel("radio.current"));
 
         /* 「すべてのアートボード」ラジオ / "All artboards" radio */
         var allRow = panel.add("group");
         allRow.orientation = "row";
         allRow.alignment = "left";
-        var allRadio = allRow.add("radiobutton", undefined, getLocalizedText("radio.all"));
+        var allRadio = allRow.add("radiobutton", undefined, getLabel("radio.all"));
 
         /* 「指定」ラジオ＋範囲入力 / "Specify" radio with range input */
         var specifyRow = panel.add("group");
         specifyRow.orientation = "row";
         specifyRow.alignment = "left";
-        var specifyRadio = specifyRow.add("radiobutton", undefined, getLocalizedText("radio.specify"));
+        var specifyRadio = specifyRow.add("radiobutton", undefined, getLabel("radio.specify"));
         var selectInput = specifyRow.add("edittext", undefined, defaultSelection);
         selectInput.characters = 8; /* 通常のフィールドの2倍幅 / Twice the usual field width */
 
@@ -460,7 +460,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         column.orientation = "column";
         column.alignChildren = ["center", "top"];
         column.spacing = 4;
-        column.add("statictext", undefined, getLocalizedText("label.anchor"));
+        column.add("statictext", undefined, getLabel("label.anchor"));
 
         var widget = column.add("button", undefined, "");
         widget.preferredSize = [66, 66];
@@ -504,7 +504,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {number} baseHeight 高さの基準値：アクティブアートボードの現在高さを現在の定規単位へ変換済み（ptではない） / active artboard current height, converted to the current ruler unit (not pt)
      */
     function addScalePanel(dialog, unitLabel, baseWidth, baseHeight) {
-        var panel = dialog.add("panel", undefined, getLocalizedText("panel.scale"));
+        var panel = dialog.add("panel", undefined, getLabel("panel.scale"));
         setupPanel(panel, 6);
 
         /* 2列レイアウト：左=スケール/幅/高さの3行、右=基準点グリッド / Two columns: left has scale/width/height rows, right holds the anchor grid */
@@ -531,11 +531,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         checkboxGroup.margins = [0, 10, 0, 0];
 
         /* オブジェクトも一緒に拡大・縮小するか / Whether to scale the objects along with the artboard */
-        var scaleObjectsCheckbox = checkboxGroup.add("checkbox", undefined, getLocalizedText("checkbox.scaleObjects"));
+        var scaleObjectsCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.scaleObjects"));
         scaleObjectsCheckbox.value = true;
 
         /* アートボードのX/Y/W/Hを整数化してピクセルグリッドに合わせる / Round artboard X/Y/W/H to integers for the pixel grid */
-        var pixelGridCheckbox = checkboxGroup.add("checkbox", undefined, getLocalizedText("checkbox.pixelGrid"));
+        var pixelGridCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.pixelGrid"));
         pixelGridCheckbox.value = false;
 
         /* スケール%から幅・高さ(現在サイズ×%)を再計算する / Recalc width/height (current size × %) from the scale */
@@ -622,7 +622,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         initAnchorColors();
 
         /* タイトルバーにバージョンを表示 / Show version in the title bar */
-        var dialog = new Window("dialog", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialog);
 
         /* 対象パネル / Target panel */
@@ -640,8 +640,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnGroup = dialog.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = "right";
-        btnGroup.add("button", undefined, getLocalizedText("button.cancel"), {name: "cancel"});
-        btnGroup.add("button", undefined, getLocalizedText("button.apply"), {name: "ok"});
+        btnGroup.add("button", undefined, getLabel("button.cancel"), {name: "cancel"});
+        btnGroup.add("button", undefined, getLabel("button.apply"), {name: "ok"});
 
         return dialog;
     }
@@ -1047,7 +1047,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* エントリポイント：ダイアログを出し、アートボードサイズをプレビューしつつ確定でオブジェクトも拡縮する / Entry point: show dialog, preview artboard size, scale objects on commit */
     function resizeArtboards() {
         if (app.documents.length === 0) {
-            alert(getLocalizedText("alert.noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
@@ -1079,7 +1079,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var cancelRestore = controller.restore();
             controller.restoreSelectionAndActive();
             app.redraw();
-            if (!cancelRestore.success) { alert(getLocalizedText("alert.restoreError")); }
+            if (!cancelRestore.success) { alert(getLabel("alert.restoreError")); }
             return;
         }
 
@@ -1088,7 +1088,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             controller.restore();
             controller.restoreSelectionAndActive();
             app.redraw();
-            alert(resolveTargetIndices(dialog, count) ? getLocalizedText("alert.invalidNumber") : getLocalizedText("alert.invalidSelection"));
+            alert(resolveTargetIndices(dialog, count) ? getLabel("alert.invalidNumber") : getLabel("alert.invalidSelection"));
             return;
         }
 
@@ -1099,7 +1099,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             controller.restore();
             controller.restoreSelectionAndActive();
             app.redraw();
-            alert(getLocalizedText("alert.transformError"));
+            alert(getLabel("alert.transformError"));
             return;
         }
 

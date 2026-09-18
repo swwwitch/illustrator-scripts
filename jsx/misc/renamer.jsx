@@ -42,7 +42,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle:         { ja: "名前の検索置換", en: "Find and Replace Names" },
@@ -89,14 +89,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ローカライズ文字列を取得 / Get localized string */
-    function L(key) {
+    function getLabel(key) {
         var entry = LABELS[key];
         if (!entry) return key;
-        return entry[lang] || entry.en || entry.ja || key;
+        return entry[uiLang] || entry.en || entry.ja || key;
     }
 
         if (app.documents.length === 0) {
-            alert(L("noDoc"));
+            alert(getLabel("noDoc"));
             return;
         }
 
@@ -227,22 +227,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ダイアログ / Dialog
         // =========================================
 
-        var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         win.orientation = "column";
         win.alignChildren = ["fill", "top"];
 
         // 対象選択 (2カラムを貫通) / Target selection (spans both columns)
-        var targetPanel = win.add("panel", undefined, L("target"));
+        var targetPanel = win.add("panel", undefined, getLabel("target"));
         targetPanel.orientation = "row";
         targetPanel.alignChildren = ["left", "center"];
         targetPanel.alignment = "fill";
         targetPanel.margins = PANEL_MARGINS;
         targetPanel.spacing = 10;
 
-        var rbArtboard = targetPanel.add("radiobutton", undefined, L("artboard"));
-        var rbLayer = targetPanel.add("radiobutton", undefined, L("layer"));
-        var rbSymbol = targetPanel.add("radiobutton", undefined, L("symbol"));
-        var rbGraphicStyle = targetPanel.add("radiobutton", undefined, L("graphicStyle"));
+        var rbArtboard = targetPanel.add("radiobutton", undefined, getLabel("artboard"));
+        var rbLayer = targetPanel.add("radiobutton", undefined, getLabel("layer"));
+        var rbSymbol = targetPanel.add("radiobutton", undefined, getLabel("symbol"));
+        var rbGraphicStyle = targetPanel.add("radiobutton", undefined, getLabel("graphicStyle"));
 
         rbSymbol.value = true;
 
@@ -257,23 +257,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         leftColumn.alignChildren = ["fill", "top"];
 
         // 検索・置換パネル / Find & Replace panel
-        var findReplacePanel = leftColumn.add("panel", undefined, L("findReplace"));
+        var findReplacePanel = leftColumn.add("panel", undefined, getLabel("findReplace"));
         setupPanel(findReplacePanel, 6);
 
-        var findReplaceCheckbox = findReplacePanel.add("checkbox", undefined, L("findReplaceEnable"));
+        var findReplaceCheckbox = findReplacePanel.add("checkbox", undefined, getLabel("findReplaceEnable"));
         findReplaceCheckbox.value = true;
 
         var findGroup = findReplacePanel.add("group");
         findGroup.orientation = "row";
         findGroup.alignChildren = ["left", "center"];
-        findGroup.add("statictext", undefined, L("find"));
+        findGroup.add("statictext", undefined, getLabel("find"));
         var findInput = findGroup.add("edittext", undefined, "");
         findInput.characters = 15;
 
         var replaceGroup = findReplacePanel.add("group");
         replaceGroup.orientation = "row";
         replaceGroup.alignChildren = ["left", "center"];
-        replaceGroup.add("statictext", undefined, L("replace"));
+        replaceGroup.add("statictext", undefined, getLabel("replace"));
         var replaceInput = replaceGroup.add("edittext", undefined, "");
         replaceInput.characters = 15;
 
@@ -281,18 +281,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         regexGroup.orientation = "row";
         regexGroup.alignChildren = ["right", "center"];
         regexGroup.alignment = "fill";
-        var regexCheckbox = regexGroup.add("checkbox", undefined, L("regex"));
+        var regexCheckbox = regexGroup.add("checkbox", undefined, getLabel("regex"));
 
         // 接頭辞パネル / Prefix panel
-        var prefixPanel = leftColumn.add("panel", undefined, L("prefix"));
+        var prefixPanel = leftColumn.add("panel", undefined, getLabel("prefix"));
         setupPanel(prefixPanel, 6);
 
-        var prefixCheckbox = prefixPanel.add("checkbox", undefined, L("numberingEnable"));
+        var prefixCheckbox = prefixPanel.add("checkbox", undefined, getLabel("numberingEnable"));
 
         var prefixSepGroup = prefixPanel.add("group");
         prefixSepGroup.orientation = "row";
         prefixSepGroup.alignChildren = ["left", "center"];
-        prefixSepGroup.add("statictext", undefined, L("separator"));
+        prefixSepGroup.add("statictext", undefined, getLabel("separator"));
         var rbPrefixSepDash = prefixSepGroup.add("radiobutton", undefined, "-");
         var rbPrefixSepUnderscore = prefixSepGroup.add("radiobutton", undefined, "_");
         rbPrefixSepDash.value = true;
@@ -300,20 +300,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var prefixStartGroup = prefixPanel.add("group");
         prefixStartGroup.orientation = "row";
         prefixStartGroup.alignChildren = ["left", "center"];
-        prefixStartGroup.add("statictext", undefined, L("startNumber"));
+        prefixStartGroup.add("statictext", undefined, getLabel("startNumber"));
         var prefixStartInput = prefixStartGroup.add("edittext", undefined, "1");
         prefixStartInput.characters = 4;
 
         // 接尾辞パネル / Suffix panel
-        var suffixPanel = leftColumn.add("panel", undefined, L("suffix"));
+        var suffixPanel = leftColumn.add("panel", undefined, getLabel("suffix"));
         setupPanel(suffixPanel, 6);
 
-        var suffixCheckbox = suffixPanel.add("checkbox", undefined, L("numberingEnable"));
+        var suffixCheckbox = suffixPanel.add("checkbox", undefined, getLabel("numberingEnable"));
 
         var suffixSepGroup = suffixPanel.add("group");
         suffixSepGroup.orientation = "row";
         suffixSepGroup.alignChildren = ["left", "center"];
-        suffixSepGroup.add("statictext", undefined, L("separator"));
+        suffixSepGroup.add("statictext", undefined, getLabel("separator"));
         var rbSuffixSepDash = suffixSepGroup.add("radiobutton", undefined, "-");
         var rbSuffixSepUnderscore = suffixSepGroup.add("radiobutton", undefined, "_");
         rbSuffixSepDash.value = true;
@@ -321,7 +321,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var suffixStartGroup = suffixPanel.add("group");
         suffixStartGroup.orientation = "row";
         suffixStartGroup.alignChildren = ["left", "center"];
-        suffixStartGroup.add("statictext", undefined, L("startNumber"));
+        suffixStartGroup.add("statictext", undefined, getLabel("startNumber"));
         var suffixStartInput = suffixStartGroup.add("edittext", undefined, "1");
         suffixStartInput.characters = 4;
 
@@ -333,19 +333,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sortGroup = rightColumn.add("group");
         sortGroup.orientation = "row";
         sortGroup.alignChildren = ["left", "center"];
-        sortGroup.add("statictext", undefined, L("sort"));
+        sortGroup.add("statictext", undefined, getLabel("sort"));
         var sortDropdown = sortGroup.add("dropdownlist", undefined, [
-            L("sortOriginal"),
-            L("sortNameAsc"),
-            L("sortNameDesc"),
-            L("sortChanged")
+            getLabel("sortOriginal"),
+            getLabel("sortNameAsc"),
+            getLabel("sortNameDesc"),
+            getLabel("sortChanged")
         ]);
         sortDropdown.selection = 0;
 
-        var moveTopBtn = sortGroup.add("button", undefined, L("moveTop"));
-        var moveUpBtn = sortGroup.add("button", undefined, L("moveUp"));
-        var moveDownBtn = sortGroup.add("button", undefined, L("moveDown"));
-        var moveBottomBtn = sortGroup.add("button", undefined, L("moveBottom"));
+        var moveTopBtn = sortGroup.add("button", undefined, getLabel("moveTop"));
+        var moveUpBtn = sortGroup.add("button", undefined, getLabel("moveUp"));
+        var moveDownBtn = sortGroup.add("button", undefined, getLabel("moveDown"));
+        var moveBottomBtn = sortGroup.add("button", undefined, getLabel("moveBottom"));
         moveTopBtn.preferredSize.width = 36;
         moveUpBtn.preferredSize.width = 32;
         moveDownBtn.preferredSize.width = 32;
@@ -359,7 +359,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonGroup = win.add("group");
         buttonGroup.alignment = "right";
 
-        buttonGroup.add("button", undefined, L("cancel"), { name: "cancel" });
+        buttonGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
         var okBtn = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         okBtn.enabled = false;
@@ -520,9 +520,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 選択行を上下に動かす / Move selected row up or down */
         function moveSelected(direction) {
-            var sel = previewList.selection;
-            if (!sel) return;
-            var idx = sel.index;
+            var currentSelection = previewList.selection;
+            if (!currentSelection) return;
+            var idx = currentSelection.index;
             var newIdx = idx + direction;
             if (newIdx < 0 || newIdx >= lastItems.length) return;
 
@@ -588,7 +588,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var enableSuffix = suffixCheckbox.value;
 
         if (findText === "" && !enablePrefix && !enableSuffix) {
-            alert(L("needInput"));
+            alert(getLabel("needInput"));
             return;
         }
 
@@ -622,7 +622,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* アートボード名をリネーム / Rename artboards */
         function renameArtboards() {
             if (renamePlan.length === 0) {
-                alert(L("noMatchArtboard"));
+                alert(getLabel("noMatchArtboard"));
                 return;
             }
 
@@ -639,10 +639,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             alert(
-                L("done") + "\n\n" +
-                L("targetArtboards") + "\n" +
-                L("renamed") + count + L("countSuffix") + "\n" +
-                L("errorsLabel") + errors + L("countSuffix")
+                getLabel("done") + "\n\n" +
+                getLabel("targetArtboards") + "\n" +
+                getLabel("renamed") + count + getLabel("countSuffix") + "\n" +
+                getLabel("errorsLabel") + errors + getLabel("countSuffix")
             );
         }
 
@@ -653,7 +653,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* レイヤー名をリネーム / Rename layers */
         function renameLayers() {
             if (renamePlan.length === 0) {
-                alert(L("noMatchLayer"));
+                alert(getLabel("noMatchLayer"));
                 return;
             }
 
@@ -670,10 +670,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             alert(
-                L("done") + "\n\n" +
-                L("targetLayers") + "\n" +
-                L("renamed") + count + L("countSuffix") + "\n" +
-                L("errorsLabel") + errors + L("countSuffix")
+                getLabel("done") + "\n\n" +
+                getLabel("targetLayers") + "\n" +
+                getLabel("renamed") + count + getLabel("countSuffix") + "\n" +
+                getLabel("errorsLabel") + errors + getLabel("countSuffix")
             );
         }
 
@@ -688,7 +688,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* シンボル名をリネーム / Rename symbols */
         function renameSymbols() {
             if (renamePlan.length === 0) {
-                alert(L("noMatchSymbol"));
+                alert(getLabel("noMatchSymbol"));
                 return;
             }
 
@@ -739,11 +739,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             alert(
-                L("done") + "\n\n" +
-                L("targetSymbols") + "\n" +
-                L("renamed") + count + L("countSuffix") + "\n" +
-                L("suffixed") + suffixed + L("countSuffix") + "\n" +
-                L("errorsLabel") + errors + L("countSuffix")
+                getLabel("done") + "\n\n" +
+                getLabel("targetSymbols") + "\n" +
+                getLabel("renamed") + count + getLabel("countSuffix") + "\n" +
+                getLabel("suffixed") + suffixed + getLabel("countSuffix") + "\n" +
+                getLabel("errorsLabel") + errors + getLabel("countSuffix")
             );
         }
 
@@ -759,7 +759,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* グラフィックスタイル名をリネーム / Rename graphic styles */
         function renameGraphicStyles() {
             if (renamePlan.length === 0) {
-                alert(L("noMatchGraphicStyle"));
+                alert(getLabel("noMatchGraphicStyle"));
                 return;
             }
 
@@ -811,11 +811,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             alert(
-                L("done") + "\n\n" +
-                L("targetGraphicStyles") + "\n" +
-                L("renamed") + count + L("countSuffix") + "\n" +
-                L("suffixed") + suffixed + L("countSuffix") + "\n" +
-                L("errorsLabel") + errors + L("countSuffix")
+                getLabel("done") + "\n\n" +
+                getLabel("targetGraphicStyles") + "\n" +
+                getLabel("renamed") + count + getLabel("countSuffix") + "\n" +
+                getLabel("suffixed") + suffixed + getLabel("countSuffix") + "\n" +
+                getLabel("errorsLabel") + errors + getLabel("countSuffix")
             );
         }
 

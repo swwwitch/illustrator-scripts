@@ -39,9 +39,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    function L(key) {
-      var lang = getCurrentLang();
-      try { return LABELS[key][lang]; } catch(e) { return key; }
+    function getLabel(key) {
+      var uiLang = getCurrentLang();
+      try { return LABELS[key][uiLang]; } catch(e) { return key; }
     }
 
     /* 日英ラベル定義 / Japanese-English label definitions */
@@ -326,33 +326,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var _cancel = false;
         (function createSpacingDialog() {
             /* ダイアログボックス / Dialog Window */
-            var dlg = new Window('dialog', L('dialogTitle'));
+            var dialog = new Window('dialog', getLabel('dialogTitle'));
             // Position & Opacity
             var offsetX = 300;
             var dialogOpacity = 0.98;
 
-            function shiftDialogPosition(dlg, offsetX, offsetY) {
-                dlg.onShow = function() {
-                    var currentX = dlg.location[0];
-                    var currentY = dlg.location[1];
-                    dlg.location = [currentX + offsetX, currentY + offsetY];
+            function shiftDialogPosition(dialog, offsetX, offsetY) {
+                dialog.onShow = function() {
+                    var currentX = dialog.location[0];
+                    var currentY = dialog.location[1];
+                    dialog.location = [currentX + offsetX, currentY + offsetY];
                 };
             }
 
-            function setDialogOpacity(dlg, opacityValue) {
-                dlg.opacity = opacityValue;
+            function setDialogOpacity(dialog, opacityValue) {
+                dialog.opacity = opacityValue;
             }
 
-            setDialogOpacity(dlg, dialogOpacity);
-            shiftDialogPosition(dlg, offsetX, 0);
-            dlg.alignChildren = 'fill';
+            setDialogOpacity(dialog, dialogOpacity);
+            shiftDialogPosition(dialog, offsetX, 0);
+            dialog.alignChildren = 'fill';
 
             var unitLabel = TG.getCurrentUnitLabel();
             // Common label width & right align for rows
             var labelWidth = 60; // px
 
             // --- Basis panel: X / Y text fields (UI only for now) ---
-            var pnlBasis = dlg.add('panel', undefined, '基準');
+            var pnlBasis = dialog.add('panel', undefined, '基準');
             pnlBasis.alignment = ['fill', 'top'];
             pnlBasis.alignChildren = ['left', 'center'];
             var grpBasis = pnlBasis.add('group');
@@ -365,7 +365,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             baseYEdit.characters = 4;
 
             // Spacing row (panel removed; controls kept)
-            var rowS = dlg.add('group');
+            var rowS = dialog.add('group');
             rowS.alignment = ['fill', 'top'];
             rowS.alignChildren = ['left', 'center'];
             var lblS = rowS.add('statictext', undefined, '間隔');
@@ -455,7 +455,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updatePreviewFromFields();
 
             // Margin row (panel removed; controls kept)
-            var rowM = dlg.add('group');
+            var rowM = dialog.add('group');
             rowM.alignment = ['fill', 'top'];
             rowM.alignChildren = ['left', 'center'];
             var lblM = rowM.add('statictext', undefined, 'マージン');
@@ -471,7 +471,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             changeValueByArrowKey(marginEdit, true); // マージンは負OK
 
             // Brick layout toggle (grouped & horizontally centered)
-            var rowBWrap = dlg.add('group');
+            var rowBWrap = dialog.add('group');
             rowBWrap.alignment = ['fill', 'top'];
             rowBWrap.alignChildren = ['center', 'center'];
 
@@ -489,12 +489,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var symChk = rowSym.add('checkbox', undefined, 'シンボル化');
             symChk.value = true;
 
-            var btns = dlg.add('group');
+            var btns = dialog.add('group');
             btns.alignment = 'right';
             btns.add('button', undefined, 'Cancel', { name: 'cancel' });
             btns.add('button', undefined, 'OK', { name: 'ok' });
 
-            var res = dlg.show();
+            var res = dialog.show();
             if (res !== 1) {
                 clearPreview();
                 _cancel = true;

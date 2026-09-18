@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -115,31 +115,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     /* メイン処理 / Main process */
     (function () {
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
 
         if (app.selection.length !== 1) {
-            alert(L("selectOneText"));
+            alert(getLabel("selectOneText"));
             return;
         }
 
         var item = app.selection[0];
         if (!(item.typename === "TextFrame")) {
-            alert(L("selectText"));
+            alert(getLabel("selectText"));
             return;
         }
 
         var originalText = item.contents;
         if (!originalText || originalText === "") {
-            alert(L("emptyText"));
+            alert(getLabel("emptyText"));
             return;
         }
 
@@ -152,17 +152,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var lines = normalized.split("\r");
 
         if (lines.length <= 1) {
-            alert(L("needMultipleLines"));
+            alert(getLabel("needMultipleLines"));
             return;
         }
 
-        var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         win.orientation = "column";
         win.alignChildren = ["fill", "top"];
         win.spacing = 10;
         win.margins = 16;
 
-        win.add("statictext", undefined, L("instruction"));
+        win.add("statictext", undefined, getLabel("instruction"));
 
         var mainGroup = win.add("group");
         mainGroup.orientation = "row";
@@ -206,17 +206,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnGroup.alignChildren = ["center", "top"];
         btnGroup.spacing = 8;
 
-        var upBtn = btnGroup.add("button", undefined, L("up"));
-        var downBtn = btnGroup.add("button", undefined, L("down"));
+        var upBtn = btnGroup.add("button", undefined, getLabel("up"));
+        var downBtn = btnGroup.add("button", undefined, getLabel("down"));
 
         /* スペーサー（上下操作と編集操作を分離） / Spacer to separate move operations from edit operations */
         var spacer = btnGroup.add("group");
         spacer.minimumSize.height = 10;
 
-        var addBtn = btnGroup.add("button", undefined, L("add"));
-        var editBtn = btnGroup.add("button", undefined, L("edit"));
-        var deleteBtn = btnGroup.add("button", undefined, L("deleteLabel"));
-        var removeEmptyBtn = btnGroup.add("button", undefined, L("removeEmpty"));
+        var addBtn = btnGroup.add("button", undefined, getLabel("add"));
+        var editBtn = btnGroup.add("button", undefined, getLabel("edit"));
+        var deleteBtn = btnGroup.add("button", undefined, getLabel("deleteLabel"));
+        var removeEmptyBtn = btnGroup.add("button", undefined, getLabel("removeEmpty"));
 
         /* 下部ボタンエリア / Bottom button area */
         var bottomGroup = win.add("group");
@@ -224,8 +224,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         bottomGroup.alignment = ["center", "fill"];
         bottomGroup.margins = [0, 10, 0, 0];
 
-        var cancelBtn = bottomGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-        var okBtn = bottomGroup.add("button", undefined, L("ok"), { name: "ok" });
+        var cancelBtn = bottomGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+        var okBtn = bottomGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
         /* ボタンの有効 / 無効を更新 / Update button enabled states */
         function updateButtonState() {
@@ -292,7 +292,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 行を追加 / Add a line */
         function addLine() {
-            var result = prompt(L("promptAdd"), "");
+            var result = prompt(getLabel("promptAdd"), "");
             if (result === null) return;
             lines.push(result);
             refreshList(lines.length - 1);
@@ -302,7 +302,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function editLine() {
             if (!listBox.selection) return;
             var idx = listBox.selection.index;
-            var result = prompt(L("promptEdit"), lines[idx]);
+            var result = prompt(getLabel("promptEdit"), lines[idx]);
             if (result === null) return;
             lines[idx] = result;
             refreshList(idx);
@@ -313,7 +313,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!listBox.selection) return;
             if (lines.length <= 1) return;
             var idx = listBox.selection.index;
-            if (!confirm(L("confirmDelete"))) return;
+            if (!confirm(getLabel("confirmDelete"))) return;
             lines.splice(idx, 1);
             refreshList(idx);
         }

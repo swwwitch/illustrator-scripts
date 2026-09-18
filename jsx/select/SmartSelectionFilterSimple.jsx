@@ -70,7 +70,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         main();
 
         function main() {
-            var activeDocument = null;
+            var documentRef = null;
             var originalSelectionItems = [];
             var shouldRestoreOriginalSelection = true;
 
@@ -107,8 +107,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     return;
                 }
 
-                activeDocument = app.activeDocument;
-                originalSelectionItems = getOriginalSelectionItems(activeDocument);
+                documentRef = app.activeDocument;
+                originalSelectionItems = getOriginalSelectionItems(documentRef);
                 var expandedGroupTargetItemsCache = null;
 
                 function applySelectionSafely(targetDocument, targetItems) {
@@ -471,7 +471,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     var candidateItemsForScope = getCandidateItemsForScope(options.includeGroupItems);
                     var matchedSelectableItems = getMatchedSelectableItems(candidateItemsForScope, options);
 
-                    if (!applySelectionSafely(activeDocument, matchedSelectableItems)) {
+                    if (!applySelectionSafely(documentRef, matchedSelectableItems)) {
                         alert(getLabel('errApply'));
                         return false;
                     }
@@ -509,8 +509,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 alert(message);
             } finally {
-                if (shouldRestoreOriginalSelection && activeDocument && originalSelectionItems.length > 0) {
-                    restoreOriginalSelection(activeDocument, originalSelectionItems);
+                if (shouldRestoreOriginalSelection && documentRef && originalSelectionItems.length > 0) {
+                    restoreOriginalSelection(documentRef, originalSelectionItems);
                 }
             }
         }

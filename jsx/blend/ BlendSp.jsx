@@ -346,10 +346,10 @@ var SCRIPT_TITLE = {
         // 選択状態を退避（この関数内で選択を変更するため）
         var originalSelection = [];
         try {
-            var sel = doc.selection;
-            if (sel && sel.length) {
-                for (var i = 0; i < sel.length; i++) {
-                    originalSelection.push(sel[i]);
+            var currentSelection = doc.selection;
+            if (currentSelection && currentSelection.length) {
+                for (var i = 0; i < currentSelection.length; i++) {
+                    originalSelection.push(currentSelection[i]);
                 }
             }
         } catch (e0) {}
@@ -685,9 +685,7 @@ var SCRIPT_TITLE = {
                 setBlendOption(values.step, values.orientation);
                 previewUndoDepth++;
                 lastBlendPreviewApplied = true; // informational only
-                try {
-                    app.redraw();
-                } catch (e2) {}
+                app.redraw();
             } catch (e3) {}
         }
 
@@ -976,9 +974,7 @@ var SCRIPT_TITLE = {
                 }
             } catch (e2) {}
 
-            try {
-                app.redraw();
-            } catch (e3) {}
+            app.redraw();
         }
 
         // Initial state
@@ -1057,9 +1053,7 @@ var SCRIPT_TITLE = {
                     app.executeMenuCommand('undo');
                     previewUndoDepth--;
                 }
-                try {
-                    app.redraw();
-                } catch (e2) {}
+                app.redraw();
             } catch (e) {}
             // 取り消し時も、ダイアログ開始時の選択に戻す
             restoreOriginalSelectionForDialog();

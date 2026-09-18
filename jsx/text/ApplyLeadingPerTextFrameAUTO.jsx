@@ -52,7 +52,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         alertOpenDocument: {
@@ -81,8 +81,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     applyLeadingPerTextFrame(DEFAULT_LEADING_RATIO);
@@ -133,14 +133,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             doc = app.activeDocument;
         } catch (e) {
-            alert(L("alertOpenDocument"));
+            alert(getLabel("alertOpenDocument"));
             return;
         }
 
         var selectedItems = doc.selection;
 
         if (!selectedItems || selectedItems.length === 0) {
-            alert(L("alertSelectTextObject"));
+            alert(getLabel("alertSelectTextObject"));
             return;
         }
 
@@ -182,19 +182,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             } catch (e) {
                 if (!hasShownLeadingError) {
-                    alert(L(SHOULD_USE_AUTO_LEADING ? "alertAutoLeadingApplyError" : "alertLeadingApplyError") + " : " + e.message);
+                    alert(getLabel(SHOULD_USE_AUTO_LEADING ? "alertAutoLeadingApplyError" : "alertLeadingApplyError") + " : " + e.message);
                     hasShownLeadingError = true;
                 }
             }
         }
 
         if (!hasValidTextFrame) {
-            alert(L("alertNoProcessableTextFrame"));
+            alert(getLabel("alertNoProcessableTextFrame"));
             return;
         }
 
         if (!hasProcessableLine) {
-            alert(L("alertNoProcessableLine"));
+            alert(getLabel("alertNoProcessableLine"));
             return;
         }
 

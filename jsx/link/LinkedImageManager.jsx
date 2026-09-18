@@ -267,7 +267,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     };
 
     // ドット区切りキー（例 'panel.sort'）で LABELS を辿る。見つからなければキー文字列を返す
-    function L(key) {
+    function getLabel(key) {
         var node = LABELS;
         var parts = key.split(".");
         for (var i = 0; i < parts.length; i++) {
@@ -281,29 +281,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     }
 
     function labelText(key) {
-        return L(key) + (currentLanguage === 'ja' ? '：' : ':');
+        return getLabel(key) + (currentLanguage === 'ja' ? '：' : ':');
     }
 
     // 数値＋単位をローカライズ付きで整形
     function withUnit(value, unitKey) {
         return (currentLanguage === 'ja')
-            ? (value + L(unitKey))
-            : (value + " " + L(unitKey));
+            ? (value + getLabel(unitKey))
+            : (value + " " + getLabel(unitKey));
     }
 
     // alert / status 用に「ラベル：値+単位」を 1 行で組み立てる
     function kvLine(labelKey, value, unitKey) {
         var sep = (currentLanguage === 'ja' ? '：' : ': ');
         var valueText = unitKey ? withUnit(value, unitKey) : String(value);
-        return L(labelKey) + sep + valueText;
+        return getLabel(labelKey) + sep + valueText;
     }
 
     // ステータスコードから表示用ラベル・アイコン・正常判定を返す（worker はコードのみ返す）
     function statusDisplay(statusCode) {
-        if (statusCode === "broken") return { status: L('label.statusBroken'), statusIcon: "⚠", isLinkOk: false };
-        if (statusCode === "update") return { status: L('label.statusUpdate'), statusIcon: "⟳", isLinkOk: false };
-        if (statusCode === "embedded") return { status: L('label.statusEmbedded'), statusIcon: "▣", isLinkOk: true };
-        return { status: L('label.statusOk'), statusIcon: "✓", isLinkOk: true };
+        if (statusCode === "broken") return { status: getLabel('label.statusBroken'), statusIcon: "⚠", isLinkOk: false };
+        if (statusCode === "update") return { status: getLabel('label.statusUpdate'), statusIcon: "⟳", isLinkOk: false };
+        if (statusCode === "embedded") return { status: getLabel('label.statusEmbedded'), statusIcon: "▣", isLinkOk: true };
+        return { status: getLabel('label.statusOk'), statusIcon: "✓", isLinkOk: true };
     }
 
     // =========================================
@@ -565,8 +565,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         var ext = parts.ext;
         var base = parts.base;
 
-        var msg = message || L('message.promptNewFileName')
-            .replace("{ext}", ext || L('label.noExt'))
+        var msg = message || getLabel('message.promptNewFileName')
+            .replace("{ext}", ext || getLabel('label.noExt'))
             .replace("{name}", originalName);
         var input = prompt(msg, base);
         if (input === null) return null;
@@ -608,10 +608,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     function prepareRenameOverwrite(oldFile, newFile) {
         if (!newFile.exists) return true;
         if (newFile.fsName.toLowerCase() === oldFile.fsName.toLowerCase()) return true;
-        if (!confirm(L('message.confirmOverwrite') + newFile.fsName)) return false;
+        if (!confirm(getLabel('message.confirmOverwrite') + newFile.fsName)) return false;
         var removed = tryGet(function () { return newFile.remove(); }, false);
         if (!removed) {
-            setStatus(L('message.renameFailed'));
+            setStatus(getLabel('message.renameFailed'));
             return false;
         }
         return true;
@@ -2518,7 +2518,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         e.status = disp.status;
         if (e.statusIcon === undefined || e.statusIcon === null || e.statusIcon === "") e.statusIcon = disp.statusIcon;
         e.isLinkOk = disp.isLinkOk;
-        if (e.fileName === UNKNOWN_NAME) e.fileName = L('label.fileNameUnknown');
+        if (e.fileName === UNKNOWN_NAME) e.fileName = getLabel('label.fileNameUnknown');
     }
 
     // 保持しているデータ状態をすべて初期化（読み込み失敗時に古い内容を残さない）
@@ -2537,18 +2537,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             var parsed = parseWorkerResult(delegate("$.global.__LIM.analyze()"));
             if (parsed.marker === "NODOC") {
                 clearLoadedData();
-                setStatus(L('status.noDocument'));
+                setStatus(getLabel('status.noDocument'));
                 return false;
             }
             if (parsed.marker !== "OK") {
                 clearLoadedData();
-                setStatus(L('status.loadFailed') + "（" + parsed.body + "）");
+                setStatus(getLabel('status.loadFailed') + "（" + parsed.body + "）");
                 return false;
             }
             var data = tryGet(function () { return eval("(" + parsed.body + ")"); }, null);
             if (!data) {
                 clearLoadedData();
-                setStatus(L('status.loadFailed'));
+                setStatus(getLabel('status.loadFailed'));
                 return false;
             }
             allPlacementEntries = data.entries || [];
@@ -2557,8 +2557,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             preIndex = (typeof data.preIndex === "number") ? data.preIndex : -1;
             for (var i = 0; i < allPlacementEntries.length; i++) localizeEntry(allPlacementEntries[i]);
             for (var j = 0; j < uniqueFileEntries.length; j++) localizeEntry(uniqueFileEntries[j]);
-            if (allPlacementEntries.length === 0) setStatus(L('status.noPlaced'));
-            else setStatus(L('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
+            if (allPlacementEntries.length === 0) setStatus(getLabel('status.noPlaced'));
+            else setStatus(getLabel('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
             return true;
         } finally {
             isBusy = false;
@@ -2646,34 +2646,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     // worker が返す失敗理由コードを表示用テキストへ（未知のコードはそのまま返す）
     function unembedReasonText(code) {
         var key = 'reason.' + code;
-        var text = L(key);
+        var text = getLabel(key);
         return (text === key) ? String(code) : text;
     }
 
     // 拡張子変更ダイアログ（参照フォルダー＋拡張子を選ぶモーダル）
     // 戻り値: { referenceFolder, primaryExt, fallbackExt } or null
     function showChangeExtensionDialog() {
-        var extdialog = new Window("dialog", L('dialog.changeExt'));
+        var extdialog = new Window("dialog", getLabel('dialog.changeExt'));
         setupWindow(extdialog);
 
-        var folderPanel = extdialog.add("panel", undefined, L('panel.destFolder'));
+        var folderPanel = extdialog.add("panel", undefined, getLabel('panel.destFolder'));
         setupPanel(folderPanel);
 
-        var chooseFolderBtn = folderPanel.add("button", undefined, L('button.chooseFolder'));
+        var chooseFolderBtn = folderPanel.add("button", undefined, getLabel('button.chooseFolder'));
         chooseFolderBtn.alignment = ["left", "top"];
 
-        var folderLabel = folderPanel.add("statictext", undefined, L('label.extensionReferenceFolderPlaceholder'));
+        var folderLabel = folderPanel.add("statictext", undefined, getLabel('label.extensionReferenceFolderPlaceholder'));
         folderLabel.alignment = ["fill", "top"];
         folderLabel.preferredSize = [300, 20];
 
-        var extPanel = extdialog.add("panel", undefined, L('panel.extension'));
+        var extPanel = extdialog.add("panel", undefined, getLabel('panel.extension'));
         setupPanel(extPanel);
 
         var referenceFolder = null;
         var okBtn = null;
 
         chooseFolderBtn.onClick = function () {
-            var selectedFolder = Folder.selectDialog(L('label.selectExtensionReferenceFolder'));
+            var selectedFolder = Folder.selectDialog(getLabel('label.selectExtensionReferenceFolder'));
             if (!selectedFolder) return;
             referenceFolder = selectedFolder;
             folderLabel.text = selectedFolder.fsName;
@@ -2743,7 +2743,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
         var btnRow = extdialog.add("group");
         setupRow(btnRow, ["right", "top"]);
-        var cancelBtn = btnRow.add("button", undefined, L('button.cancel'), { name: "cancel" });
+        var cancelBtn = btnRow.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
         okBtn = btnRow.add("button", undefined, "OK", { name: "ok" });
         okBtn.enabled = false;
         cancelBtn.onClick = function () { extdialog.close(0); };
@@ -2757,20 +2757,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
     // クリップグループ内削除の確認＋モード選択。戻り値: 'image' / 'group' / null
     function askDeleteModeWithConfirm(targetCount) {
-        var deleteDialog = new Window("dialog", L('dialog.clipGroupDelete'));
+        var deleteDialog = new Window("dialog", getLabel('dialog.clipGroupDelete'));
         setupWindow(deleteDialog);
 
-        var msgText = L('message.confirmDeleteLinks') + "\n" +
+        var msgText = getLabel('message.confirmDeleteLinks') + "\n" +
             kvLine('label.target', targetCount, 'label.items') + "\n\n" +
-            L('message.clipGroupDelete');
+            getLabel('message.clipGroupDelete');
         var msg = deleteDialog.add("statictext", undefined, msgText, { multiline: true });
         msg.preferredSize.width = 360;
 
         var btnRow = deleteDialog.add("group");
         setupRow(btnRow, ["right", "center"]);
-        var cancelBtn = btnRow.add("button", undefined, L('button.cancel'), { name: "cancel" });
-        var imageOnlyBtn = btnRow.add("button", undefined, L('button.deleteImageOnly'));
-        var withGroupBtn = btnRow.add("button", undefined, L('button.deleteWithClipGroup'), { name: "ok" });
+        var cancelBtn = btnRow.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+        var imageOnlyBtn = btnRow.add("button", undefined, getLabel('button.deleteImageOnly'));
+        var withGroupBtn = btnRow.add("button", undefined, getLabel('button.deleteWithClipGroup'), { name: "ok" });
 
         cancelBtn.onClick = function () { deleteDialog.close(0); };
         imageOnlyBtn.onClick = function () { deleteDialog.close(1); };
@@ -2790,7 +2790,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         var MAIN_LISTBOX_SIZE = [450, 190];
         var FOLDER_LISTBOX_SIZE = [450, 120];
 
-        var palette = new Window("palette", L('dialog.main') + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+        var palette = new Window("palette", getLabel('dialog.main') + " " + SCRIPT_VERSION, undefined, { resizeable: false });
         setupWindow(palette);
         palette.preferredSize.width = 450;
 
@@ -2835,7 +2835,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         var currentVisibleSpecs = [];
 
         function createSortPanel(parent) {
-            var sortPanel = parent.add("panel", undefined, L('panel.sort'));
+            var sortPanel = parent.add("panel", undefined, getLabel('panel.sort'));
             setupPanel(sortPanel, 6);
             var sortKeyRow = sortPanel.add("group");
             sortKeyRow.orientation = "row";
@@ -2845,20 +2845,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             var orderRow = sortPanel.add("group");
             orderRow.orientation = "row";
             orderRow.alignChildren = ["left", "center"];
-            ascRadio = orderRow.add("radiobutton", undefined, L('sort.asc'));
-            descRadio = orderRow.add("radiobutton", undefined, L('sort.desc'));
+            ascRadio = orderRow.add("radiobutton", undefined, getLabel('sort.asc'));
+            descRadio = orderRow.add("radiobutton", undefined, getLabel('sort.desc'));
             descRadio.value = true;
         }
         createSortPanel(leftCol);
 
-        var optPanel = leftCol.add("panel", undefined, L('panel.sameFile'));
+        var optPanel = leftCol.add("panel", undefined, getLabel('panel.sameFile'));
         setupPanel(optPanel, 6);
-        var dedupCheck = optPanel.add("checkbox", undefined, L('checkbox.dedup'));
+        var dedupCheck = optPanel.add("checkbox", undefined, getLabel('checkbox.dedup'));
         dedupCheck.value = true;
         dedupCheck.helpTip = (currentLanguage === 'ja')
             ? "ON：同じリンクファイルを1行にまとめます。\nOFF：配置ごとに個別表示します。"
             : "ON: Group same linked files into one row.\nOFF: Each placement is listed separately.";
-        var countColCheck = optPanel.add("checkbox", undefined, L('checkbox.displayFileCount'));
+        var countColCheck = optPanel.add("checkbox", undefined, getLabel('checkbox.displayFileCount'));
         countColCheck.value = true;
 
         // 選択時にズーム表示：「同一ファイル」パネルの直下にグループで配置（左右中央揃え）
@@ -2866,7 +2866,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         showOnCanvasGroup.orientation = "row";
         showOnCanvasGroup.alignChildren = ["center", "center"];
         showOnCanvasGroup.alignment = ["fill", "top"];
-        var showOnCanvasCheck = showOnCanvasGroup.add("checkbox", undefined, L('checkbox.showOnCanvas'));
+        var showOnCanvasCheck = showOnCanvasGroup.add("checkbox", undefined, getLabel('checkbox.showOnCanvas'));
         showOnCanvasCheck.value = true;
 
         var otherPanel = topRow.add("group");
@@ -2880,15 +2880,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         var sizeColCheck, unitCheck, dimScalePpiCheck, colorSpaceColCheck;
 
         function createDisplayOptionsPanel(parent) {
-            var optionPanel = parent.add("panel", undefined, L('panel.displayColumn'));
+            var optionPanel = parent.add("panel", undefined, getLabel('panel.displayColumn'));
             setupPanel(optionPanel, 6);
             var sizeRow = optionPanel.add("group");
             sizeRow.orientation = "row";
             sizeRow.alignChildren = ["left", "center"];
-            sizeColCheck = sizeRow.add("checkbox", undefined, L('checkbox.displaySize'));
-            unitCheck = optionPanel.add("checkbox", undefined, L('checkbox.unit'));
-            dimScalePpiCheck = optionPanel.add("checkbox", undefined, L('checkbox.displayDimScalePpi'));
-            colorSpaceColCheck = optionPanel.add("checkbox", undefined, L('checkbox.displayColorSpace'));
+            sizeColCheck = sizeRow.add("checkbox", undefined, getLabel('checkbox.displaySize'));
+            unitCheck = optionPanel.add("checkbox", undefined, getLabel('checkbox.unit'));
+            dimScalePpiCheck = optionPanel.add("checkbox", undefined, getLabel('checkbox.displayDimScalePpi'));
+            colorSpaceColCheck = optionPanel.add("checkbox", undefined, getLabel('checkbox.displayColorSpace'));
             sizeColCheck.value = false;
             unitCheck.value = true;
             unitCheck.enabled = sizeColCheck.value;
@@ -2900,16 +2900,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         var okCheck, brokenCheck, updateCheck, embeddedCheck;
 
         function createStatusFilterPanel(parent) {
-            var filterPanel = parent.add("panel", undefined, L('panel.status'));
+            var filterPanel = parent.add("panel", undefined, getLabel('panel.status'));
             setupPanel(filterPanel, 6);
             var statusGroup = filterPanel.add("group");
             statusGroup.orientation = "column";
             statusGroup.alignChildren = ["left", "top"];
             statusGroup.spacing = 6;
-            okCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterOk'));
-            brokenCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterBroken'));
-            updateCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterUpdate'));
-            embeddedCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterEmbedded'));
+            okCheck = statusGroup.add("checkbox", undefined, getLabel('checkbox.filterOk'));
+            brokenCheck = statusGroup.add("checkbox", undefined, getLabel('checkbox.filterBroken'));
+            updateCheck = statusGroup.add("checkbox", undefined, getLabel('checkbox.filterUpdate'));
+            embeddedCheck = statusGroup.add("checkbox", undefined, getLabel('checkbox.filterEmbedded'));
             okCheck.value = true;
             brokenCheck.value = true;
             updateCheck.value = true;
@@ -2935,10 +2935,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             suppressArtboardChange = true;
             try {
                 abFilterDropdown.removeAll();
-                abFilterDropdown.add("item", L('label.artboardAll'));
+                abFilterDropdown.add("item", getLabel('label.artboardAll'));
                 for (var artboardIndex = 0; artboardIndex < artboardNames.length; artboardIndex++) {
                     var artboardName = artboardNames[artboardIndex] || "";
-                    abFilterDropdown.add("item", (artboardIndex + 1) + artboardSep + (artboardName || L('label.artboardFallback') + (artboardIndex + 1)));
+                    abFilterDropdown.add("item", (artboardIndex + 1) + artboardSep + (artboardName || getLabel('label.artboardFallback') + (artboardIndex + 1)));
                 }
 
                 var enabledCount = 0;
@@ -2958,7 +2958,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         }
 
         function createArtboardFilterPanel(parent) {
-            var abPanel = parent.add("panel", undefined, L('panel.artboard'));
+            var abPanel = parent.add("panel", undefined, getLabel('panel.artboard'));
             abPanel.orientation = "row";
             abPanel.alignChildren = ["left", "center"];
             abPanel.alignment = ["fill", "top"];
@@ -2969,11 +2969,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
 
             abPrevBtn = abPanel.add("button", undefined, "");
             abPrevBtn.preferredSize = [22, 22];
-            abPrevBtn.helpTip = L('label.prevArtboardTip');
+            abPrevBtn.helpTip = getLabel('label.prevArtboardTip');
             attachArrowDraw(abPrevBtn, -1);
             abNextBtn = abPanel.add("button", undefined, "");
             abNextBtn.preferredSize = [22, 22];
-            abNextBtn.helpTip = L('label.nextArtboardTip');
+            abNextBtn.helpTip = getLabel('label.nextArtboardTip');
             attachArrowDraw(abNextBtn, 1);
 
             populateArtboardDropdown();
@@ -2992,25 +2992,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         function getColumnSpec() {
             var cols = [];
             cols.push({ key: "statusIcon", title: "", width: 30 });
-            cols.push({ key: "fileName", title: L('column.fileName'), width: 210 });
+            cols.push({ key: "fileName", title: getLabel('column.fileName'), width: 210 });
             if (sizeColCheck.value) {
-                cols.push({ key: "fileSize", title: unitCheck.value ? L('column.fileSizeMb') : L('column.fileSize'), width: 65 });
+                cols.push({ key: "fileSize", title: unitCheck.value ? getLabel('column.fileSizeMb') : getLabel('column.fileSize'), width: 65 });
             }
             if (countColCheck.value) {
-                cols.push({ key: "fileCount", title: L('column.fileCount'), width: 45 });
+                cols.push({ key: "fileCount", title: getLabel('column.fileCount'), width: 45 });
             }
             if (dimScalePpiCheck.value) {
-                cols.push({ key: "widthText", title: L('column.widthMm'), width: 60 });
-                cols.push({ key: "heightText", title: L('column.heightMm'), width: 60 });
-                cols.push({ key: "scaleText", title: L('column.scale'), width: 60 });
-                cols.push({ key: "ppiText", title: L('column.ppi'), width: 50 });
+                cols.push({ key: "widthText", title: getLabel('column.widthMm'), width: 60 });
+                cols.push({ key: "heightText", title: getLabel('column.heightMm'), width: 60 });
+                cols.push({ key: "scaleText", title: getLabel('column.scale'), width: 60 });
+                cols.push({ key: "ppiText", title: getLabel('column.ppi'), width: 50 });
             }
             if (colorSpaceColCheck.value) {
-                cols.push({ key: "colorSpace", title: L('column.colorSpace'), width: 160 });
+                cols.push({ key: "colorSpace", title: getLabel('column.colorSpace'), width: 160 });
             }
             var shouldShowArtboardColumn = !abFilterDropdown.selection || abFilterDropdown.selection.index === 0;
             if (shouldShowArtboardColumn) {
-                cols.push({ key: "artboards", title: L('column.artboards'), width: 70 });
+                cols.push({ key: "artboards", title: getLabel('column.artboards'), width: 70 });
             }
             return cols;
         }
@@ -3069,7 +3069,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             sortDropdown.removeAll();
             var nextIdx = 0;
             for (var vi = 0; vi < currentVisibleSpecs.length; vi++) {
-                sortDropdown.add("item", L(currentVisibleSpecs[vi].labelKey));
+                sortDropdown.add("item", getLabel(currentVisibleSpecs[vi].labelKey));
                 if (prevKey && currentVisibleSpecs[vi].key === prevKey) nextIdx = vi;
             }
             if (currentVisibleSpecs.length > 0) sortDropdown.selection = nextIdx;
@@ -3230,17 +3230,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         var pathPanel, pathStaticText, fullPathCheck, dropboxCheck, fileNameCheck;
 
         function createPathPanel(parent) {
-            pathPanel = parent.add("panel", undefined, L('panel.path'));
+            pathPanel = parent.add("panel", undefined, getLabel('panel.path'));
             setupPanel(pathPanel);
 
             var pathRow = pathPanel.add("group");
             pathRow.orientation = "row";
             pathRow.alignChildren = ["fill", "center"];
 
-            pathStaticText = pathRow.add("statictext", undefined, L('label.pathPlaceholder'), { multiline: true });
+            pathStaticText = pathRow.add("statictext", undefined, getLabel('label.pathPlaceholder'), { multiline: true });
             pathStaticText.alignment = ["fill", "fill"];
             pathStaticText.preferredSize = [450, 20];
-            pathStaticText.helpTip = L('label.pathHelpTip');
+            pathStaticText.helpTip = getLabel('label.pathHelpTip');
 
             var pathOptRow = pathPanel.add("group");
             pathOptRow.orientation = "row";
@@ -3251,14 +3251,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             pathOptLeft.orientation = "row";
             pathOptLeft.alignChildren = ["left", "center"];
             pathOptLeft.alignment = ["left", "center"];
-            fullPathCheck = pathOptLeft.add("checkbox", undefined, L('checkbox.fullPath'));
+            fullPathCheck = pathOptLeft.add("checkbox", undefined, getLabel('checkbox.fullPath'));
             if (DROPBOX_PREFIX) {
-                dropboxCheck = pathOptLeft.add("checkbox", undefined, L('checkbox.dropbox'));
+                dropboxCheck = pathOptLeft.add("checkbox", undefined, getLabel('checkbox.dropbox'));
                 dropboxCheck.value = true;
             } else {
                 dropboxCheck = { value: false, enabled: false };
             }
-            fileNameCheck = pathOptLeft.add("checkbox", undefined, L('checkbox.fileName'));
+            fileNameCheck = pathOptLeft.add("checkbox", undefined, getLabel('checkbox.fileName'));
             fullPathCheck.value = false;
             fileNameCheck.value = false;
 
@@ -3275,7 +3275,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         function requireSelectedEntry(handler) {
             return function () {
                 if (!selectedEntry) {
-                    setStatus(L('message.selectItem'));
+                    setStatus(getLabel('message.selectItem'));
                     return;
                 }
                 return handler.apply(this, arguments);
@@ -3422,28 +3422,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         actionBtnRight.alignChildren = ["right", "center"];
         actionBtnRight.alignment = ["right", "center"];
 
-        var openFileBtn = actionBtnRight.add("button", undefined, L('button.open'));
+        var openFileBtn = actionBtnRight.add("button", undefined, getLabel('button.open'));
         openFileBtn.preferredSize = [50, 24];
         openFileBtn.onClick = requireSelectedEntry(function () {
             var absPath = selectedEntry.filePath;
-            if (!absPath || absPath === "---") { setStatus(L('message.noValidPath')); return; }
+            if (!absPath || absPath === "---") { setStatus(getLabel('message.noValidPath')); return; }
             var fileToOpen = new File(absPath);
-            if (!fileToOpen.exists) { setStatus(L('message.linkFileNotFound') + absPath); return; }
+            if (!fileToOpen.exists) { setStatus(getLabel('message.linkFileNotFound') + absPath); return; }
             fileToOpen.execute();
         });
 
-        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('button.delete'));
+        var deleteLinkBtn = actionBtnRight.add("button", undefined, getLabel('button.delete'));
         deleteLinkBtn.preferredSize = [50, 24];
         deleteLinkBtn.onClick = requireSelectedEntry(guardAction(handleDeleteSelected));
 
-        var renameLinkBtn = actionBtnRight.add("button", undefined, L('button.rename'));
+        var renameLinkBtn = actionBtnRight.add("button", undefined, getLabel('button.rename'));
         renameLinkBtn.preferredSize = [70, 24];
         renameLinkBtn.onClick = requireSelectedEntry(guardAction(handleRenameSelected));
 
-        var copyFileNameBtn = actionBtnLeft.add("button", undefined, L('button.copyFileName'));
+        var copyFileNameBtn = actionBtnLeft.add("button", undefined, getLabel('button.copyFileName'));
         copyFileNameBtn.onClick = requireSelectedEntry(guardAction(handleCopyFileName));
 
-        var reloadOneBtn = actionBtnRight.add("button", undefined, L('button.relinkSelected'));
+        var reloadOneBtn = actionBtnRight.add("button", undefined, getLabel('button.relinkSelected'));
         reloadOneBtn.preferredSize = [94, 24];
         reloadOneBtn.onClick = requireSelectedEntry(guardAction(handleRelinkSelected));
 
@@ -3453,19 +3453,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         embedRow.alignment = "fill";
         embedRow.alignChildren = ["left", "center"];
 
-        var embedBtn = embedRow.add("button", undefined, L('button.embed'));
+        var embedBtn = embedRow.add("button", undefined, getLabel('button.embed'));
         embedBtn.helpTip = (currentLanguage === 'ja')
             ? "選択中のリンクを埋め込み画像に変換します。\nPSD はクリップグループ外のときグループ解除します。"
             : "Embed the selected link.\nPSD files are ungrouped unless they are inside a clip group.";
         embedBtn.onClick = requireSelectedEntry(guardAction(handleEmbedSelected));
 
-        var unembedBtn = embedRow.add("button", undefined, L('button.unembed'));
+        var unembedBtn = embedRow.add("button", undefined, getLabel('button.unembed'));
         unembedBtn.helpTip = (currentLanguage === 'ja')
             ? "選択中の埋め込み画像をリンク画像に戻します。\n元ファイルが不明な場合は「Links」フォルダーへ PSD を書き出してリンクします。"
             : "Turn the selected embedded image back into a link.\nWhen the original file is unknown, a PSD is exported into the \"Links\" folder.";
         unembedBtn.onClick = requireSelectedEntry(guardAction(handleUnembedSelected));
 
-        var collectAfterRelinkCheck = embedRow.add("checkbox", undefined, L('checkbox.collectAfterRelink'));
+        var collectAfterRelinkCheck = embedRow.add("checkbox", undefined, getLabel('checkbox.collectAfterRelink'));
         collectAfterRelinkCheck.value = true;
         collectAfterRelinkCheck.helpTip = (currentLanguage === 'ja')
             ? "埋め込み解除後、リンク先をドキュメントと同階層の「Links」フォルダーへコピーします。"
@@ -3474,7 +3474,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         function updateRelinkButtonLabel() {
             var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
             var useBatchLabel = dedupCheck.value && placementCount > 1;
-            var nextLabel = useBatchLabel ? L('button.relinkAll') : L('button.relinkSelected');
+            var nextLabel = useBatchLabel ? getLabel('button.relinkAll') : getLabel('button.relinkSelected');
             var nextWidth = 94, nextHeight = 24;
             reloadOneBtn.text = nextLabel;
             reloadOneBtn.preferredSize = [nextWidth, nextHeight];
@@ -3522,7 +3522,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         }
         rebuildFolderList();
 
-        var folderCountLabel = pathPanel.add("statictext", undefined, L('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")");
+        var folderCountLabel = pathPanel.add("statictext", undefined, getLabel('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")");
         var foldersListBox = pathPanel.add("listbox", undefined, [], { multiselect: false });
         foldersListBox.preferredSize = FOLDER_LISTBOX_SIZE;
         foldersListBox.alignment = ["fill", "fill"];
@@ -3547,9 +3547,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
                 if (listBox) listBox.removeAll();
                 selectedEntry = null;
                 selectedFilePath = "";
-                pathStaticText.text = L('label.pathPlaceholder');
+                pathStaticText.text = getLabel('label.pathPlaceholder');
                 rebuildFolderList();
-                folderCountLabel.text = L('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")";
+                folderCountLabel.text = getLabel('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")";
                 populateFoldersList();
                 updateActionButtonStates();
                 return;
@@ -3570,12 +3570,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
                 }
                 selectedEntry = rematched;
                 selectedFilePath = rematched ? rematched.filePath : "";
-                pathStaticText.text = selectedFilePath ? buildDisplayedPath(selectedFilePath) : L('label.pathPlaceholder');
+                pathStaticText.text = selectedFilePath ? buildDisplayedPath(selectedFilePath) : getLabel('label.pathPlaceholder');
                 updateActionButtonStates();
             }
 
             rebuildFolderList();
-            folderCountLabel.text = L('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")";
+            folderCountLabel.text = getLabel('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")";
             populateFoldersList();
             /* アートボード絞り込みが解除されると列構成が変わるためリストごと作り直す */
             recreateListBoxAndRebuildList();
@@ -3590,7 +3590,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
                 var ff = new Folder(folderPath);
                 if (ff.exists) ff.execute();
             } catch (e) {
-                setStatus(L('message.openFolderFailed') + e.message);
+                setStatus(getLabel('message.openFolderFailed') + e.message);
             }
         };
 
@@ -3605,15 +3605,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         folderActionLeft.alignChildren = ["left", "center"];
         folderActionLeft.alignment = ["left", "center"];
 
-        var openFolderBtn = folderActionLeft.add("button", undefined, L('button.openFolder'));
+        var openFolderBtn = folderActionLeft.add("button", undefined, getLabel('button.openFolder'));
         openFolderBtn.onClick = function () {
-            if (foldersListBox.selection === null) { setStatus(L('message.selectLinkedFolder')); return; }
+            if (foldersListBox.selection === null) { setStatus(getLabel('message.selectLinkedFolder')); return; }
             try {
                 var folderPath = linkedFolderPaths[foldersListBox.selection.index];
                 var folderToOpen = new Folder(folderPath);
                 if (folderToOpen.exists) folderToOpen.execute();
             } catch (e) {
-                setStatus(L('message.openFolderFailed') + e.message);
+                setStatus(getLabel('message.openFolderFailed') + e.message);
             }
         };
 
@@ -3625,15 +3625,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         folderActionRight.alignChildren = ["right", "center"];
         folderActionRight.alignment = ["right", "center"];
 
-        var reloadFolderBtn = folderActionLeft.add("button", undefined, L('button.relinkFolder'));
+        var reloadFolderBtn = folderActionLeft.add("button", undefined, getLabel('button.relinkFolder'));
         reloadFolderBtn.onClick = guardAction(handleRelinkFolder);
         reloadFolderBtn.enabled = false;
 
-        var changeExtensionBtn = folderActionLeft.add("button", undefined, L('button.changeExtension'));
+        var changeExtensionBtn = folderActionLeft.add("button", undefined, getLabel('button.changeExtension'));
         changeExtensionBtn.onClick = guardAction(handleChangeExtension);
         changeExtensionBtn.enabled = false;
 
-        var collectLinksBtn = folderActionRight.add("button", undefined, L('button.collectLinks'));
+        var collectLinksBtn = folderActionRight.add("button", undefined, getLabel('button.collectLinks'));
         collectLinksBtn.onClick = guardAction(handleCollectLinks);
 
         foldersListBox.onChange = function () {
@@ -3672,14 +3672,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             var indices = selectedEntry.itemIndices || [];
             if (indices.length === 0) return;
             var probe = parseWorkerResult(delegate("$.global.__LIM.probeDelete(" + jsIntArray(indices) + ")"));
-            if (probe.marker === "NODOC") { setStatus(L('status.noDocument')); return; }
-            if (probe.marker !== "CLIP" && probe.marker !== "PLAIN") { setStatus(L('status.loadFailed')); return; }
+            if (probe.marker === "NODOC") { setStatus(getLabel('status.noDocument')); return; }
+            if (probe.marker !== "CLIP" && probe.marker !== "PLAIN") { setStatus(getLabel('status.loadFailed')); return; }
             var clipMode = 'image';
             if (probe.marker === "CLIP") {
                 clipMode = askDeleteModeWithConfirm(indices.length);
                 if (clipMode === null) return;
             } else {
-                var confirmMessage = L('message.confirmDeleteLinks') + "\n" + kvLine('label.target', indices.length, 'label.items');
+                var confirmMessage = getLabel('message.confirmDeleteLinks') + "\n" + kvLine('label.target', indices.length, 'label.items');
                 if (!confirm(confirmMessage)) return;
             }
             var res = parseWorkerResult(delegate("$.global.__LIM.del(" + jsIntArray(indices) + "," + jsString(clipMode) + ")"));
@@ -3688,83 +3688,83 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             selectedFilePath = "";
             refreshFromDoc();
             updateActionButtonStates();
-            setStatus(L('message.deleteDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
+            setStatus(getLabel('message.deleteDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
         }
 
         function handleRenameSelected() {
             var absPath = selectedEntry.filePath;
-            if (!absPath || absPath === "---") { setStatus(L('message.noValidPath')); return; }
+            if (!absPath || absPath === "---") { setStatus(getLabel('message.noValidPath')); return; }
             var oldFile = new File(absPath);
-            if (!oldFile.exists) { setStatus(L('message.linkFileNotFound') + absPath); return; }
+            if (!oldFile.exists) { setStatus(getLabel('message.linkFileNotFound') + absPath); return; }
             var oldName = getRealFileName(oldFile);
             var oldFolder = oldFile.parent;
             var newName = promptNewFileName(oldName);
             if (newName === null) return;
-            if (newName === oldName) { setStatus(L('message.nameUnchanged')); return; }
-            if (/[\/\\]/.test(newName)) { setStatus(L('message.invalidFileName')); return; }
+            if (newName === oldName) { setStatus(getLabel('message.nameUnchanged')); return; }
+            if (/[\/\\]/.test(newName)) { setStatus(getLabel('message.invalidFileName')); return; }
             var newFile = new File(oldFolder.fsName + "/" + newName);
             if (!prepareRenameOverwrite(oldFile, newFile)) return;
             var renamed = tryGet(function () { return oldFile.rename(newName); }, false);
-            if (!renamed) { setStatus(L('message.renameFailed')); return; }
+            if (!renamed) { setStatus(getLabel('message.renameFailed')); return; }
             var pairs = [];
             var idxs = selectedEntry.itemIndices || [];
             for (var i = 0; i < idxs.length; i++) pairs.push([idxs[i], newFile.fsName]);
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             refreshFromDoc();
-            setStatus(L('message.renameDone') + "：" + oldName + " → " + newName + "／" + kvLine('label.success', counts.success, 'label.items'));
+            setStatus(getLabel('message.renameDone') + "：" + oldName + " → " + newName + "／" + kvLine('label.success', counts.success, 'label.items'));
         }
 
         function handleCopyFileName() {
             var name = selectedEntry.fileName || "";
             var res = parseWorkerResult(delegate("$.global.__LIM.copyText(" + jsString(name) + ")"));
-            if (res.marker === "OK") setStatus(L('message.copyFileNameDone') + "：" + name);
-            else setStatus(L('message.copyFileNameFailed'));
+            if (res.marker === "OK") setStatus(getLabel('message.copyFileNameDone') + "：" + name);
+            else setStatus(getLabel('message.copyFileNameFailed'));
         }
 
         function handleRelinkSelected() {
             var idxs = selectedEntry.itemIndices || [];
             if (idxs.length > 1) {
-                var confirmMessage = L('message.confirmBatchRelink') + "\n" + kvLine('label.target', idxs.length, 'label.items');
+                var confirmMessage = getLabel('message.confirmBatchRelink') + "\n" + kvLine('label.target', idxs.length, 'label.items');
                 if (!confirm(confirmMessage)) return;
             }
-            var picked = File.openDialog(L('label.selectNewLinkFile'));
+            var picked = File.openDialog(getLabel('label.selectNewLinkFile'));
             if (!picked) return;
             var pairs = [];
             for (var i = 0; i < idxs.length; i++) pairs.push([idxs[i], picked.fsName]);
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             refreshFromDoc();
-            setStatus(L('message.relinkDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
+            setStatus(getLabel('message.relinkDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
         }
 
         function handleEmbedSelected() {
             if (isEmbeddedEntry(selectedEntry)) return; /* 既に埋め込み済み */
             var idxs = selectedEntry.itemIndices || [];
-            if (idxs.length === 0) { setStatus(L('message.selectItem')); return; }
+            if (idxs.length === 0) { setStatus(getLabel('message.selectItem')); return; }
             if (idxs.length > 1) {
-                var confirmMessage = L('message.confirmBatchEmbed') + "\n" + kvLine('label.target', idxs.length, 'label.items');
+                var confirmMessage = getLabel('message.confirmBatchEmbed') + "\n" + kvLine('label.target', idxs.length, 'label.items');
                 if (!confirm(confirmMessage)) return;
             }
             var counts = delegateEmbed(idxs) || { success: 0, failed: 0 };
             refreshFromDoc();
-            setStatus(L('message.embedDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
+            setStatus(getLabel('message.embedDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
         }
 
         function handleUnembedSelected() {
             if (!isEmbeddedEntry(selectedEntry)) return; /* 対象は埋め込み画像のみ */
             var idxs = selectedEntry.itemIndices || [];
-            if (idxs.length === 0) { setStatus(L('message.selectItem')); return; }
+            if (idxs.length === 0) { setStatus(getLabel('message.selectItem')); return; }
             var counts = delegateUnembed(idxs, collectAfterRelinkCheck.value);
-            if (!counts) { setStatus(L('status.loadFailed')); return; }
+            if (!counts) { setStatus(getLabel('status.loadFailed')); return; }
             selectedEntry = null;
             selectedFilePath = "";
             refreshFromDoc();
-            setStatus(L('message.unembedDone')
+            setStatus(getLabel('message.unembedDone')
                 + "／" + kvLine('label.success', counts.success, 'label.items')
                 + "／" + kvLine('label.skipped', counts.skipped, 'label.items')
                 + "／" + kvLine('label.failed', counts.failed, 'label.items'));
             var details = counts.details || [];
             if (details.length > 0) {
-                var lines = [L('message.unembedFailedDetail'), ""];
+                var lines = [getLabel('message.unembedFailedDetail'), ""];
                 for (var i = 0; i < details.length; i++) {
                     lines.push(details[i].name + "：" + unembedReasonText(details[i].code));
                 }
@@ -3773,9 +3773,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         }
 
         function handleRelinkFolder() {
-            if (foldersListBox.selection === null) { setStatus(L('message.selectLinkedFolder')); return; }
+            if (foldersListBox.selection === null) { setStatus(getLabel('message.selectLinkedFolder')); return; }
             var oldFolder = linkedFolderPaths[foldersListBox.selection.index];
-            var newFolder = Folder.selectDialog(L('label.selectAltFolder'));
+            var newFolder = Folder.selectDialog(getLabel('label.selectAltFolder'));
             if (!newFolder) return;
             var pairs = [], total = 0, missing = 0;
             for (var k = 0; k < allPlacementEntries.length; k++) {
@@ -3790,11 +3790,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             }
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             refreshFromDoc();
-            setStatus(L('message.relinkDone') + "／" + kvLine('label.target', total, 'label.items') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', (counts.failed + missing), 'label.items'));
+            setStatus(getLabel('message.relinkDone') + "／" + kvLine('label.target', total, 'label.items') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', (counts.failed + missing), 'label.items'));
         }
 
         function handleChangeExtension() {
-            if (foldersListBox.selection === null) { setStatus(L('message.selectLinkedFolder')); return; }
+            if (foldersListBox.selection === null) { setStatus(getLabel('message.selectLinkedFolder')); return; }
             var sourceFolderPath = normalizeFolderPathForCompare(linkedFolderPaths[foldersListBox.selection.index]);
             var extPrefs = showChangeExtensionDialog();
             if (!extPrefs) return;
@@ -3816,15 +3816,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             failed += counts.failed;
             refreshFromDoc();
-            setStatus(L('message.changeExtDone') + "／" + kvLine('label.target', total, 'label.items') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.skipped', skipped, 'label.items') + "／" + kvLine('label.failed', failed, 'label.items'));
+            setStatus(getLabel('message.changeExtDone') + "／" + kvLine('label.target', total, 'label.items') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.skipped', skipped, 'label.items') + "／" + kvLine('label.failed', failed, 'label.items'));
         }
 
         function handleCollectLinks() {
             var df = parseWorkerResult(delegate("$.global.__LIM.docFolder()"));
-            if (df.marker === "NODOC") { setStatus(L('status.noDocument')); return; }
-            if (df.marker !== "OK" || !df.body) { setStatus(L('message.docNotSaved')); return; }
+            if (df.marker === "NODOC") { setStatus(getLabel('status.noDocument')); return; }
+            if (df.marker !== "OK" || !df.body) { setStatus(getLabel('message.docNotSaved')); return; }
             var linksFolder = new Folder(df.body + "/Links");
-            if (!linksFolder.exists && !linksFolder.create()) { setStatus(L('message.createLinksFolderFailed')); return; }
+            if (!linksFolder.exists && !linksFolder.create()) { setStatus(getLabel('message.createLinksFolderFailed')); return; }
             var pairs = [], total = 0, copied = 0, skipped = 0, failed = 0;
             for (var k = 0; k < allPlacementEntries.length; k++) {
                 var ent = allPlacementEntries[k];
@@ -3845,7 +3845,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             failed += counts.failed;
             refreshFromDoc();
-            setStatus(L('message.collectLinksDone') + "／" + kvLine('label.target', total, 'label.items') + "／" + kvLine('label.copied', copied, 'label.items') + "／" + kvLine('label.skipped', skipped, 'label.items') + "／" + kvLine('label.failed', failed, 'label.items'));
+            setStatus(getLabel('message.collectLinksDone') + "／" + kvLine('label.target', total, 'label.items') + "／" + kvLine('label.copied', copied, 'label.items') + "／" + kvLine('label.skipped', skipped, 'label.items') + "／" + kvLine('label.failed', failed, 'label.items'));
         }
 
         openFolderBtn.enabled = false;
@@ -3856,14 +3856,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         btnGroup.alignment = "fill";
         btnGroup.alignChildren = ["fill", "center"];
 
-        var openLinksPanelBtn = btnGroup.add("button", undefined, L('button.openLinksPanel'));
+        var openLinksPanelBtn = btnGroup.add("button", undefined, getLabel('button.openLinksPanel'));
         openLinksPanelBtn.alignment = ["left", "center"];
         openLinksPanelBtn.onClick = function () { delegateOpenLinksPanel(); };
 
         var spacer = btnGroup.add("group");
         spacer.alignment = ["fill", "fill"];
 
-        var reloadBtn = btnGroup.add("button", undefined, L('button.reload'));
+        var reloadBtn = btnGroup.add("button", undefined, getLabel('button.reload'));
         reloadBtn.alignment = ["right", "center"];
         reloadBtn.helpTip = (currentLanguage === 'ja') ? "ドキュメントから再読み込み" : "Reload from document";
         reloadBtn.onClick = guardAction(function () { refreshFromDoc(); });
@@ -3872,8 +3872,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
         statusText.alignment = ["fill", "bottom"];
         // loadData が出した理由（未オープン／読み込み失敗）を優先し、無い場合だけ件数表示にフォールバック
         if (lastStatusMessage) statusText.text = lastStatusMessage;
-        else if (allPlacementEntries.length === 0) setStatus(L('status.noPlaced'));
-        else setStatus(L('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
+        else if (allPlacementEntries.length === 0) setStatus(getLabel('status.noPlaced'));
+        else setStatus(getLabel('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
 
         // 実行前に選択していた PlacedItem があれば対応行を初期選択（カンバスは触らない）
         function applyInitialSelection() {

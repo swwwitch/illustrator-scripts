@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: {
@@ -95,18 +95,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         if (!LABELS[key]) {
             return key;
         }
-        return LABELS[key][lang] || LABELS[key].ja || LABELS[key].en || key;
+        return LABELS[key][uiLang] || LABELS[key].ja || LABELS[key].en || key;
     }
 
     main();
 
     function main() {
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("noDocument"));
             return;
         }
 
@@ -161,7 +161,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function createTempCopyLayer() {
-            var prefix = L("tempLayerPrefix");
+            var prefix = getLabel("tempLayerPrefix");
             var layer = doc.layers.add();
             layer.name = prefix + new Date().getTime() + "_" + Math.floor(Math.random() * 100000);
             layer.visible = true;
@@ -233,7 +233,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         function copyAllText(text) {
             if (isEmptyText(text)) {
-                alert(L("noTextToCopy"));
+                alert(getLabel("noTextToCopy"));
                 return;
             }
 
@@ -252,9 +252,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 doc.selection = null;
                 tempFrame.selected = true;
                 app.executeMenuCommand("copy");
-                alert(L("copyDone"));
+                alert(getLabel("copyDone"));
             } catch (e) {
-                alert(L("copyError") + "\n" + e);
+                alert(getLabel("copyError") + "\n" + e);
             } finally {
                 try {
                     if (tempLayer) {
@@ -303,11 +303,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ui.dlg.show();
 
         function buildDialogUI() {
-            var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-            dlg.orientation = "column";
-            dlg.alignChildren = ["fill", "top"];
+            var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
+            dialog.orientation = "column";
+            dialog.alignChildren = ["fill", "top"];
 
-            var grpScopeWrap = dlg.add("group");
+            var grpScopeWrap = dialog.add("group");
             grpScopeWrap.orientation = "row";
             grpScopeWrap.alignment = ["center", "top"];
             grpScopeWrap.alignChildren = ["center", "center"];
@@ -317,33 +317,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpScope.alignChildren = ["left", "center"];
             grpScope.alignment = ["center", "center"];
 
-            var rbArtboard = grpScope.add("radiobutton", undefined, L("scopeArtboard"));
-            var rbAll = grpScope.add("radiobutton", undefined, L("scopeAll"));
+            var rbArtboard = grpScope.add("radiobutton", undefined, getLabel("scopeArtboard"));
+            var rbAll = grpScope.add("radiobutton", undefined, getLabel("scopeAll"));
             rbArtboard.value = true;
 
-            var pnlDedupe = dlg.add("panel", undefined, L("dedupeGroup"));
+            var pnlDedupe = dialog.add("panel", undefined, getLabel("dedupeGroup"));
             pnlDedupe.orientation = "column";
             pnlDedupe.alignChildren = ["left", "top"];
             pnlDedupe.margins = [15, 20, 15, 10];
-            var chkDedupe = pnlDedupe.add("checkbox", undefined, L("dedupeText"));
+            var chkDedupe = pnlDedupe.add("checkbox", undefined, getLabel("dedupeText"));
             chkDedupe.value = true;
 
-            var chkIgnoreOutside = pnlDedupe.add("checkbox", undefined, L("ignoreOutside"));
+            var chkIgnoreOutside = pnlDedupe.add("checkbox", undefined, getLabel("ignoreOutside"));
             chkIgnoreOutside.value = false;
 
-            var editBox = dlg.add("edittext", [0, 0, 400, 300], "", { multiline: true, scrolling: true });
+            var editBox = dialog.add("edittext", [0, 0, 400, 300], "", { multiline: true, scrolling: true });
             editBox.active = true;
 
-            var btnGroup = dlg.add("group");
+            var btnGroup = dialog.add("group");
             btnGroup.alignment = ["fill", "top"];
-            var copyBtn = btnGroup.add("button", undefined, L("copyAll"));
+            var copyBtn = btnGroup.add("button", undefined, getLabel("copyAll"));
             copyBtn.alignment = ["left", "center"];
 
-            var closeBtn = btnGroup.add("button", undefined, L("close"), { name: "cancel" });
+            var closeBtn = btnGroup.add("button", undefined, getLabel("close"), { name: "cancel" });
             closeBtn.alignment = ["right", "center"];
 
             return {
-                dlg: dlg,
+                dlg: dialog,
                 rbArtboard: rbArtboard,
                 rbAll: rbAll,
                 chkDedupe: chkDedupe,

@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -507,38 +507,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function main() {
         // ダイアログ作成 / Create dialog for target selection
-        var dlg = new Window('dialog', LABELS.mainTitle[lang]);
+        var dlg = new Window('dialog', LABELS.mainTitle[uiLang]);
         setDialogOpacity(dlg, DIALOG_OPACITY);
         shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
-        var panel = dlg.add('panel', undefined, LABELS.panelTarget[lang]);
+        var panel = dlg.add('panel', undefined, LABELS.panelTarget[uiLang]);
         panel.orientation = 'column';
         panel.alignChildren = 'left';
         panel.margins = [15, 20, 15, 10];
 
-        var rbSelection = panel.add('radiobutton', undefined, LABELS.rbSelection[lang]);
-        var rbDocument = panel.add('radiobutton', undefined, LABELS.rbDocument[lang]);
+        var rbSelection = panel.add('radiobutton', undefined, LABELS.rbSelection[uiLang]);
+        var rbDocument = panel.add('radiobutton', undefined, LABELS.rbDocument[uiLang]);
         rbSelection.value = true;
 
         // 新規パネル追加：除外オプション
-        var excludePanel = dlg.add('panel', undefined, LABELS.panelExclude[lang]);
+        var excludePanel = dlg.add('panel', undefined, LABELS.panelExclude[uiLang]);
         excludePanel.orientation = 'column';
         excludePanel.alignChildren = 'left';
         excludePanel.margins = [15, 20, 15, 10];
 
-        var cbExcludeYears = excludePanel.add('checkbox', undefined, LABELS.exYears[lang]);
+        var cbExcludeYears = excludePanel.add('checkbox', undefined, LABELS.exYears[uiLang]);
         cbExcludeYears.value = true;
-        var cbExcludePostalCodes = excludePanel.add('checkbox', undefined, LABELS.exPostal[lang]);
+        var cbExcludePostalCodes = excludePanel.add('checkbox', undefined, LABELS.exPostal[uiLang]);
         cbExcludePostalCodes.value = true;
-        var cbExcludeSlashAny = excludePanel.add('checkbox', undefined, LABELS.exSlash[lang]);
+        var cbExcludeSlashAny = excludePanel.add('checkbox', undefined, LABELS.exSlash[uiLang]);
         cbExcludeSlashAny.value = true;
-        var cbExcludePhone = excludePanel.add('checkbox', undefined, LABELS.exPhone[lang]);
+        var cbExcludePhone = excludePanel.add('checkbox', undefined, LABELS.exPhone[uiLang]);
         cbExcludePhone.value = true;
-        var cbExcludeCC = excludePanel.add('checkbox', undefined, LABELS.exCC[lang]);
+        var cbExcludeCC = excludePanel.add('checkbox', undefined, LABELS.exCC[uiLang]);
         cbExcludeCC.value = true;
-        var cbExcludeMAC = excludePanel.add('checkbox', undefined, LABELS.exMAC[lang]);
+        var cbExcludeMAC = excludePanel.add('checkbox', undefined, LABELS.exMAC[uiLang]);
         cbExcludeMAC.value = true;
-        var cbExcludeVehicle = excludePanel.add('checkbox', undefined, LABELS.exVehicle[lang]);
+        var cbExcludeVehicle = excludePanel.add('checkbox', undefined, LABELS.exVehicle[uiLang]);
         cbExcludeVehicle.value = true;
 
         dlg.alignChildren = 'fill';
@@ -547,10 +547,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = 'row';
         buttonGroup.alignment = 'center';
         // Add Cancel button first (left), then OK button (right)
-        var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[lang], {
+        var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[uiLang], {
             name: 'cancel'
         });
-        var okBtn = buttonGroup.add('button', undefined, LABELS.ok[lang], {
+        var okBtn = buttonGroup.add('button', undefined, LABELS.ok[uiLang], {
             name: 'ok'
         });
 
@@ -714,13 +714,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var selectedOffsetsByFrame = {};
         if (previewEntries.length > 0) {
-            var dlg2 = new Window('dialog', LABELS.dlg2Title[lang]);
+            var dlg2 = new Window('dialog', LABELS.dlg2Title[uiLang]);
             setDialogOpacity(dlg2, DIALOG_OPACITY);
             shiftDialogPosition(dlg2, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
             dlg2.orientation = 'column';
             dlg2.alignChildren = 'fill';
 
-            var note = dlg2.add('statictext', undefined, LABELS.dlg2Note[lang]);
+            var note = dlg2.add('statictext', undefined, LABELS.dlg2Note[uiLang]);
             note.alignment = 'fill';
 
             // Sort previewEntries by rank (visual order) ascending before populating the listbox
@@ -747,7 +747,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 multiselect: true,
                 numberOfColumns: 3,
                 showHeaders: true,
-                columnTitles: [LABELS.colSelect[lang], LABELS.colFrame[lang], LABELS.colValue[lang]]
+                columnTitles: [LABELS.colSelect[uiLang], LABELS.colFrame[uiLang], LABELS.colValue[uiLang]]
             });
             list.preferredSize = [PREVIEW_LIST_WIDTH, calcListHeightByCount(entriesWithRank.length)];
             list.columnWidths = PREVIEW_COL_WIDTHS;
@@ -773,7 +773,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grp2.alignment = 'center';
             grp2.orientation = 'row';
             // Select All button (left of Cancel)
-            var btnAll = grp2.add('button', undefined, LABELS.selectAll[lang]);
+            var btnAll = grp2.add('button', undefined, LABELS.selectAll[uiLang]);
             btnAll.preferredSize = [24, 24]; // width, height
             btnAll.onClick = function(){
                 for (var i = 0; i < list.items.length; i++) {
@@ -782,8 +782,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             };
             // Cancel and OK buttons
-            var cancel2 = grp2.add('button', undefined, LABELS.cancel[lang], { name: 'cancel' });
-            var ok2 = grp2.add('button', undefined, LABELS.ok[lang], { name: 'ok' });
+            var cancel2 = grp2.add('button', undefined, LABELS.cancel[uiLang], { name: 'cancel' });
+            var ok2 = grp2.add('button', undefined, LABELS.ok[uiLang], { name: 'ok' });
             if (dlg2.show() != 1) {
                 // User cancelled preview, abort processing
                 frames = [];

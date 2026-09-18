@@ -241,7 +241,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
        現在言語が無ければ 英語 → 日本語 → path の順にフォールバックする。
        / Resolve a localized string from a dotted "category.key" path.
        Falls back current language → English → Japanese → the path itself. */
-    function getLocalizedText(path) {
+    function getLabel(path) {
         var parts = path.split('.');
         var category = LABELS[parts[0]];
         var entry = category ? category[parts[1]] : null;
@@ -255,7 +255,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(path) {
-        return getLocalizedText(path) + (currentLanguage === 'ja' ? '：' : ':');
+        return getLabel(path) + (currentLanguage === 'ja' ? '：' : ':');
     }
 
     // =========================================
@@ -518,7 +518,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         var newDoc = ctx.newDoc;
         var pastedItems = newDoc.selection;
         if (pastedItems.length === 0) {
-            alert(getLocalizedText('alert.pasteFail') + "：" + labelName);
+            alert(getLabel('alert.pasteFail') + "：" + labelName);
             return false;
         }
 
@@ -705,22 +705,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         var folderFiles = [];        // 種別＋名前フィルタ後のファイル / Files after the type + name filter
         var folderFilesTotal = 0;    // 種別フィルタに一致する総数（名前フィルタ前）/ Total matching the type filter (before the name filter)
 
-        var dialog = new Window("dialog", getLocalizedText('dialog.title') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = ["left", "top"];
 
         // --- 読み込み対象パネル / Source panel ---
-        var sourcePanel = dialog.add("panel", undefined, getLocalizedText('panel.source'));
+        var sourcePanel = dialog.add("panel", undefined, getLabel('panel.source'));
         setupPanel(sourcePanel);
-        var openDocsRadio = sourcePanel.add("radiobutton", undefined, getLocalizedText('radio.openFiles'));
-        openDocsRadio.helpTip = getLocalizedText('tooltip.openFiles');
+        var openDocsRadio = sourcePanel.add("radiobutton", undefined, getLabel('radio.openFiles'));
+        openDocsRadio.helpTip = getLabel('tooltip.openFiles');
 
         var folderRow = sourcePanel.add("group");
         setupGroup(folderRow, "row");
-        var folderRadio = folderRow.add("radiobutton", undefined, getLocalizedText('radio.specifyFolder'));
-        folderRadio.helpTip = getLocalizedText('tooltip.specifyFolder');
-        var selectFolderBtn = folderRow.add("button", undefined, getLocalizedText('button.specify'));
-        selectFolderBtn.helpTip = getLocalizedText('tooltip.specify');
+        var folderRadio = folderRow.add("radiobutton", undefined, getLabel('radio.specifyFolder'));
+        folderRadio.helpTip = getLabel('tooltip.specifyFolder');
+        var selectFolderBtn = folderRow.add("button", undefined, getLabel('button.specify'));
+        selectFolderBtn.helpTip = getLabel('tooltip.specify');
 
         // 選択したフォルダ名は別行に表示 / Show the chosen folder name on its own row
         var folderNameRow = sourcePanel.add("group");
@@ -730,7 +730,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         folderNameText.minimumSize = [360, 20];
 
         // --- フィルターパネル（読み込み対象パネル内。種別＋ファイル名の正規表現で絞り込み）/ Filter panel (nested in the source panel) ---
-        var filterPanel = sourcePanel.add("panel", undefined, getLocalizedText('panel.filter'));
+        var filterPanel = sourcePanel.add("panel", undefined, getLabel('panel.filter'));
         setupPanel(filterPanel);
 
         // 種別（読み込むファイル形式、チェックボックスは横並び）/ File types (checkboxes laid out horizontally)
@@ -739,11 +739,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         var typeLabel = typeRow.add("statictext", undefined, labelText('field.fileType'));
         typeLabel.preferredSize = [100, 20];
         var aiCheckbox = typeRow.add("checkbox", undefined, "AI");
-        aiCheckbox.helpTip = getLocalizedText('tooltip.fileType');
+        aiCheckbox.helpTip = getLabel('tooltip.fileType');
         var svgCheckbox = typeRow.add("checkbox", undefined, "SVG");
-        svgCheckbox.helpTip = getLocalizedText('tooltip.fileType');
+        svgCheckbox.helpTip = getLabel('tooltip.fileType');
         var epsCheckbox = typeRow.add("checkbox", undefined, "EPS");
-        epsCheckbox.helpTip = getLocalizedText('tooltip.fileType');
+        epsCheckbox.helpTip = getLabel('tooltip.fileType');
         aiCheckbox.value = true;   // 既定は AI のみ ON / Default: AI only
         svgCheckbox.value = false;
         epsCheckbox.value = false;
@@ -754,8 +754,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         filterLabel.preferredSize = [100, 20];
         var filterInput = filterRow.add("edittext", undefined, "");
         filterInput.characters = 20;
-        filterInput.helpTip = getLocalizedText('hint.filter');
-        filterLabel.helpTip = getLocalizedText('hint.filter');
+        filterInput.helpTip = getLabel('hint.filter');
+        filterLabel.helpTip = getLabel('hint.filter');
 
         // ファイル数はパネルのタイトルに表示する。フィルター使用時は「読み込み対象（3/5）」（絞り込み後/総数）、
         // 未使用時は「読み込み対象（5）」のように表示する。
@@ -771,7 +771,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
                 filtered = getFilteredOpenDocs().length;
             }
             var countText = filterActive ? (filtered + '/' + total) : String(total);
-            sourcePanel.text = getLocalizedText('panel.source') + (currentLanguage === 'ja' ? '（' + countText + '）' : ' (' + countText + ')');
+            sourcePanel.text = getLabel('panel.source') + (currentLanguage === 'ja' ? '（' + countText + '）' : ' (' + countText + ')');
         }
 
         // 「読み込み後の動作」は開いているファイルを選んだときのみ有効（フォルダ指定ではディム）
@@ -896,7 +896,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         };
 
         selectFolderBtn.onClick = function () {
-            var folder = Folder.selectDialog(getLocalizedText('prompt.selectFolder'));
+            var folder = Folder.selectDialog(getLabel('prompt.selectFolder'));
             if (!folder) return;
             selectedFolder = folder;
             folderRadio.value = true;
@@ -914,7 +914,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         updateTypeRowState();
 
         // --- 読み込み先パネル（読み込み先の選択＋新規ドキュメント設定）/ Destination panel (target choice + new-document settings) ---
-        var destinationPanel = dialog.add("panel", undefined, getLocalizedText('panel.destination'));
+        var destinationPanel = dialog.add("panel", undefined, getLabel('panel.destination'));
         setupPanel(destinationPanel);
 
         // 読み込み先：現在のドキュメント／新規ドキュメント / Destination: current document or a new one
@@ -922,10 +922,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         setupGroup(destRow, "row");
         destRow.alignment = ["center", "top"]; // 左右中央 / Center horizontally
         destRow.margins = [0, 0, 0, 10];        // 下に10pxの余白 / 10px margin below
-        var currentDocRadio = destRow.add("radiobutton", undefined, getLocalizedText('radio.currentDoc'));
-        currentDocRadio.helpTip = getLocalizedText('tooltip.currentDoc');
-        var newDocRadio = destRow.add("radiobutton", undefined, getLocalizedText('radio.newDoc'));
-        newDocRadio.helpTip = getLocalizedText('tooltip.newDoc');
+        var currentDocRadio = destRow.add("radiobutton", undefined, getLabel('radio.currentDoc'));
+        currentDocRadio.helpTip = getLabel('tooltip.currentDoc');
+        var newDocRadio = destRow.add("radiobutton", undefined, getLabel('radio.newDoc'));
+        newDocRadio.helpTip = getLabel('tooltip.newDoc');
         newDocRadio.value = true; // 既定は新規ドキュメント / Default: new document
 
         // カラーモード＋解像度とサイズを横2カラムで並べる / Lay out color mode + resolution and size in two columns
@@ -948,28 +948,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         colorAndResolutionColumn.alignChildren = ["fill", "top"];
 
         // カラーモード（ラジオは縦並び）/ Color mode (radios stacked vertically)
-        var colorModePanel = colorAndResolutionColumn.add("panel", undefined, getLocalizedText('panel.colorMode'));
+        var colorModePanel = colorAndResolutionColumn.add("panel", undefined, getLabel('panel.colorMode'));
         setupPanel(colorModePanel);
-        var rgbRadio = colorModePanel.add("radiobutton", undefined, getLocalizedText('radio.rgb'));
-        rgbRadio.helpTip = getLocalizedText('tooltip.colorMode');
-        var cmykRadio = colorModePanel.add("radiobutton", undefined, getLocalizedText('radio.cmyk'));
-        cmykRadio.helpTip = getLocalizedText('tooltip.colorMode');
+        var rgbRadio = colorModePanel.add("radiobutton", undefined, getLabel('radio.rgb'));
+        rgbRadio.helpTip = getLabel('tooltip.colorMode');
+        var cmykRadio = colorModePanel.add("radiobutton", undefined, getLabel('radio.cmyk'));
+        cmykRadio.helpTip = getLabel('tooltip.colorMode');
         rgbRadio.value = true;
 
         // 解像度（ラスタライズ効果設定の ppi）/ Resolution (raster effects ppi)
-        var resolutionPanel = colorAndResolutionColumn.add("panel", undefined, getLocalizedText('panel.resolution'));
+        var resolutionPanel = colorAndResolutionColumn.add("panel", undefined, getLabel('panel.resolution'));
         setupPanel(resolutionPanel);
         var resolutionDropdown = resolutionPanel.add("dropdownlist", undefined, ["72", "150", "300"]);
         resolutionDropdown.selection = 2; // デフォルトは300 / Default 300
 
-        var sizePanel = newDocSettingsRow.add("panel", undefined, getLocalizedText('panel.docSize'));
+        var sizePanel = newDocSettingsRow.add("panel", undefined, getLabel('panel.docSize'));
         setupPanel(sizePanel);
 
         var presetDropdown = sizePanel.add("dropdownlist", undefined, [
-            getLocalizedText('preset.custom'),
-            getLocalizedText('preset.a4'),
-            getLocalizedText('preset.fullHD'),
-            getLocalizedText('preset.largeCanvas')
+            getLabel('preset.custom'),
+            getLabel('preset.a4'),
+            getLabel('preset.fullHD'),
+            getLabel('preset.largeCanvas')
         ]);
         presetDropdown.selection = 0;
 
@@ -983,7 +983,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         widthLabel.preferredSize = [40, 20];
         var widthInput = widthRow.add("edittext", undefined, "1000");
         widthInput.characters = 5;
-        widthInput.helpTip = getLocalizedText('tooltip.size');
+        widthInput.helpTip = getLabel('tooltip.size');
 
         var heightRow = sizePanel.add("group");
         setupGroup(heightRow, "row");
@@ -991,7 +991,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         heightLabel.preferredSize = [40, 20];
         var heightInput = heightRow.add("edittext", undefined, "1000");
         heightInput.characters = 5;
-        heightInput.helpTip = getLocalizedText('tooltip.size');
+        heightInput.helpTip = getLabel('tooltip.size');
 
         // 単位（mm / px）。A4 は mm、それ以外は px を既定にし、手動切替で値を換算する。
         // Unit (mm / px). Default mm for A4, px otherwise; switching converts the values.
@@ -1053,7 +1053,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         };
 
         // --- 読み込みオプションパネル / Import options panel ---
-        var optionsPanel = dialog.add("panel", undefined, getLocalizedText('panel.options'));
+        var optionsPanel = dialog.add("panel", undefined, getLabel('panel.options'));
         setupPanel(optionsPanel);
         // オプションを2カラムで並べる（左：アートボード単位／ファイル名ラベル／ガイド／拡大・縮小、右：対象アートボード）
         // Lay out options in two columns (left: per-artboard / file-name label / guides / scale, right: target artboards)
@@ -1065,26 +1065,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         // 左カラム：アートボード単位／ファイル名ラベル／ガイド／拡大・縮小 / Left column
         var optionsLeftColumn = optionsColumns.add("group");
         setupGroup(optionsLeftColumn, "column");
-        var byArtboardCheckbox = optionsLeftColumn.add("checkbox", undefined, getLocalizedText('checkbox.byArtboard'));
+        var byArtboardCheckbox = optionsLeftColumn.add("checkbox", undefined, getLabel('checkbox.byArtboard'));
         byArtboardCheckbox.value = true;
-        byArtboardCheckbox.helpTip = getLocalizedText('tooltip.byArtboard');
+        byArtboardCheckbox.helpTip = getLabel('tooltip.byArtboard');
 
-        var showLabelCheckbox = optionsLeftColumn.add("checkbox", undefined, getLocalizedText('checkbox.attachLabel'));
+        var showLabelCheckbox = optionsLeftColumn.add("checkbox", undefined, getLabel('checkbox.attachLabel'));
         showLabelCheckbox.value = openDocsRadio.value; // フォルダー指定では既定OFF / Default off in folder mode
-        showLabelCheckbox.helpTip = getLocalizedText('tooltip.attachLabel');
+        showLabelCheckbox.helpTip = getLabel('tooltip.attachLabel');
 
-        var includeGuidesCheckbox = optionsLeftColumn.add("checkbox", undefined, getLocalizedText('checkbox.includeGuides'));
+        var includeGuidesCheckbox = optionsLeftColumn.add("checkbox", undefined, getLabel('checkbox.includeGuides'));
         includeGuidesCheckbox.value = false;
-        includeGuidesCheckbox.helpTip = getLocalizedText('tooltip.includeGuides');
+        includeGuidesCheckbox.helpTip = getLabel('tooltip.includeGuides');
 
         // スケール（チェックON時に％で拡大縮小）/ Scale (resize by percent when checked)
         var scaleRow = optionsLeftColumn.add("group");
         setupGroup(scaleRow, "row");
-        var scaleCheckbox = scaleRow.add("checkbox", undefined, getLocalizedText('checkbox.scale'));
+        var scaleCheckbox = scaleRow.add("checkbox", undefined, getLabel('checkbox.scale'));
         scaleCheckbox.value = false;
-        scaleCheckbox.helpTip = getLocalizedText('tooltip.scale');
+        scaleCheckbox.helpTip = getLabel('tooltip.scale');
         var scaleInput = scaleRow.add("edittext", undefined, "100");
-        scaleInput.helpTip = getLocalizedText('tooltip.scale');
+        scaleInput.helpTip = getLabel('tooltip.scale');
         scaleInput.characters = 4;
         scaleInput.enabled = scaleCheckbox.value;
         scaleRow.add("statictext", undefined, "%");
@@ -1093,19 +1093,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         };
 
         // 右カラム：対象アートボード（1のみ／すべて／指定）をパネルに / Right column: target artboards in a panel
-        var targetArtboardPanel = optionsColumns.add("panel", undefined, getLocalizedText('field.artboardTarget'));
+        var targetArtboardPanel = optionsColumns.add("panel", undefined, getLabel('field.artboardTarget'));
         setupPanel(targetArtboardPanel);
-        var artboardOneRadio = targetArtboardPanel.add("radiobutton", undefined, getLocalizedText('radio.artboardOne'));
-        artboardOneRadio.helpTip = getLocalizedText('tooltip.artboardTarget');
-        var artboardAllRadio = targetArtboardPanel.add("radiobutton", undefined, getLocalizedText('radio.artboardAll'));
-        artboardAllRadio.helpTip = getLocalizedText('tooltip.artboardTarget');
+        var artboardOneRadio = targetArtboardPanel.add("radiobutton", undefined, getLabel('radio.artboardOne'));
+        artboardOneRadio.helpTip = getLabel('tooltip.artboardTarget');
+        var artboardAllRadio = targetArtboardPanel.add("radiobutton", undefined, getLabel('radio.artboardAll'));
+        artboardAllRadio.helpTip = getLabel('tooltip.artboardTarget');
         var artboardSpecRow = targetArtboardPanel.add("group");
         setupGroup(artboardSpecRow, "row");
-        var artboardSpecRadio = artboardSpecRow.add("radiobutton", undefined, getLocalizedText('radio.artboardSpecify'));
-        artboardSpecRadio.helpTip = getLocalizedText('tooltip.artboardSpecify');
+        var artboardSpecRadio = artboardSpecRow.add("radiobutton", undefined, getLabel('radio.artboardSpecify'));
+        artboardSpecRadio.helpTip = getLabel('tooltip.artboardSpecify');
         var artboardSpecInput = artboardSpecRow.add("edittext", undefined, "");
         artboardSpecInput.characters = 7;
-        artboardSpecInput.helpTip = getLocalizedText('tooltip.artboardSpecify');
+        artboardSpecInput.helpTip = getLabel('tooltip.artboardSpecify');
 
         // 3つのラジオは別コンテナにまたがるため、排他選択を手動で制御する
         // The three radios span different containers, so enforce mutual exclusivity manually
@@ -1133,10 +1133,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         var afterImportRow = optionsPanel.add("group");
         setupGroup(afterImportRow, "row");
         var afterImportLabel = afterImportRow.add("statictext", undefined, labelText('panel.afterImport'));
-        var closeRadio = afterImportRow.add("radiobutton", undefined, getLocalizedText('radio.closeDoc'));
-        closeRadio.helpTip = getLocalizedText('tooltip.closeDoc');
-        var keepOpenRadio = afterImportRow.add("radiobutton", undefined, getLocalizedText('radio.keepOpen'));
-        keepOpenRadio.helpTip = getLocalizedText('tooltip.keepOpen');
+        var closeRadio = afterImportRow.add("radiobutton", undefined, getLabel('radio.closeDoc'));
+        closeRadio.helpTip = getLabel('tooltip.closeDoc');
+        var keepOpenRadio = afterImportRow.add("radiobutton", undefined, getLabel('radio.keepOpen'));
+        keepOpenRadio.helpTip = getLabel('tooltip.keepOpen');
         closeRadio.value = true;
 
         updateAfterImportState(); // 初期状態を反映 / Apply the initial enabled/dimmed state
@@ -1145,8 +1145,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         buttonGroup.alignment = "right";
         // name を "cancel"/"ok" にすると、クリックでダイアログが閉じる（Esc/Enter にも対応）
         // Naming them "cancel"/"ok" makes clicks dismiss the dialog (and binds Esc/Enter)
-        var cancelBtn = buttonGroup.add("button", undefined, getLocalizedText('button.cancel'), { name: "cancel" });
-        var okBtn = buttonGroup.add("button", undefined, getLocalizedText('button.ok'), { name: "ok" });
+        var cancelBtn = buttonGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+        var okBtn = buttonGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
 
         if (dialog.show() !== 1) return;
 
@@ -1158,7 +1158,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
             try {
                 new RegExp(filterInput.text);
             } catch (eFilterPattern) {
-                alert(getLocalizedText('alert.invalidFilter'));
+                alert(getLabel('alert.invalidFilter'));
                 return;
             }
         }
@@ -1177,7 +1177,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         var targetDoc = null;
         if (useCurrentDoc) {
             if (app.documents.length === 0) {
-                alert(getLocalizedText('alert.noCurrentDoc'));
+                alert(getLabel('alert.noCurrentDoc'));
                 return;
             }
             targetDoc = app.activeDocument;
@@ -1209,7 +1209,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         }
 
         if (originalDocs.length < 1) {
-            alert(getLocalizedText('alert.noValidFile'));
+            alert(getLabel('alert.noValidFile'));
             return;
         }
         var originalDocsLength = originalDocs.length;
@@ -1217,7 +1217,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         // 「指定」モードでアートボード番号が一つも解釈できない場合は中断（無言終了を防ぐ）
         // Abort if "Specify" mode yields no parseable artboard numbers (avoids silently finishing)
         if (importByArtboard && artboardTargetMode === "specify" && parseArtboardNumbers(artboardSpecText).length === 0) {
-            alert(getLocalizedText('alert.invalidArtboardSpec'));
+            alert(getLabel('alert.invalidArtboardSpec'));
             return;
         }
 
@@ -1227,7 +1227,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         if (scaleCheckbox.value) {
             var scaleValue = parseFloat(scaleInput.text);
             if (isNaN(scaleValue) || scaleValue <= 0) {
-                alert(getLocalizedText('alert.invalidScale'));
+                alert(getLabel('alert.invalidScale'));
                 return;
             }
             scalePercent = scaleValue;
@@ -1240,7 +1240,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
             docWidthValue = parseFloat(widthInput.text);
             docHeightValue = parseFloat(heightInput.text);
             if (isNaN(docWidthValue) || isNaN(docHeightValue)) {
-                alert(getLocalizedText('alert.invalidNumber'));
+                alert(getLabel('alert.invalidNumber'));
                 return;
             }
         }
@@ -1259,13 +1259,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
                     break;
                 }
             }
-            if (hasUnsavedChanges && !confirm(getLocalizedText('confirm.discardUnsaved'))) {
+            if (hasUnsavedChanges && !confirm(getLabel('confirm.discardUnsaved'))) {
                 return;
             }
         }
 
         // プログレスバーのダイアログを表示
-        var progressWin = new Window("palette", getLocalizedText('progress.title'));
+        var progressWin = new Window("palette", getLabel('progress.title'));
         progressWin.orientation = "column";
         progressWin.alignChildren = ["fill", "top"];
         progressWin.margins = 20;
@@ -1279,7 +1279,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
 
         var cancelGroup = progressWin.add("group");
         cancelGroup.alignment = "right";
-        var progressCancelBtn = cancelGroup.add("button", undefined, getLocalizedText('button.cancel'));
+        var progressCancelBtn = cancelGroup.add("button", undefined, getLabel('button.cancel'));
 
         var userCancelled = false;
 
@@ -1502,11 +1502,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8180588e5630"; /* 紹�
         // キャンセルされた場合はエラーではなく通常のメッセージで知らせる
         // If cancelled, inform the user with a normal message (not an error)
         if (userCancelled) {
-            alert(getLocalizedText('alert.cancelled'));
+            alert(getLabel('alert.cancelled'));
         } else if (placementContext.placedCount === 0) {
             // 1件も配置できなかった場合（対象アートボード番号が存在しない・内容が空など）も無言で終わらせない
             // Don't finish silently when nothing was placed (e.g. target artboard numbers don't exist, or empty content)
-            alert(getLocalizedText('alert.noArtboardImported'));
+            alert(getLabel('alert.noArtboardImported'));
         }
     })();
 

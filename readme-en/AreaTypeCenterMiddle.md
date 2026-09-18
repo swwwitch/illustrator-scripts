@@ -19,11 +19,12 @@ Selected closed paths are converted to Area Type first and then treated the same
 - Center the selected Area Type frames both vertically and horizontally
 - Convert closed paths (rectangles and the like) to Area Type filled with sample text
 - With one rectangle and one text object selected, pour that text into the shape
+- Pour the text of a group made of one rectangle and one text object into that same group's shape
 - Process any number of objects at once
 
 ### Usage
 
-1. Select Area Type frames or closed paths.
+1. Select Area Type frames, closed paths, or groups made of one closed path and one text object.
 2. Run the script.
 
 There is no dialog. The resulting Area Type frames are left selected.
@@ -42,6 +43,10 @@ Converts them to Area Type, pours in the sample text (“Typography”, or 「�
 
 Pours the contents of the selected text instead of the sample text. Font, size and fill color are carried over from the original, and the original text is removed once poured. Point Type and Type on a Path both work as the source.
 
+**A group of one closed path plus one text object**
+
+Pours the text held by the group into the path held by the same group. With several groups selected, each group is handled on its own. The group is released once the text has been poured, leaving the Area Type frame on its own.
+
 ### User settings
 
 The sample text and its formatting can be changed in the "User settings" block at the top of the script.
@@ -55,8 +60,11 @@ The sample text and its formatting can be changed in the "User settings" block a
 - Vertical alignment has no DOM API, so a temporary .aia action is generated, loaded and played internally, then unloaded.
 - For a compound path only the first path becomes the Area Type frame; the emptied compound path is removed.
 - The "one closed path plus one text" case is detected only when the selection holds exactly two objects. With three or more selected, the paths get the sample text.
+- A group qualifies only when it holds exactly one closed path and one text object. Any other group is searched for nested groups instead.
+- Clipping groups are skipped.
 - Only font, size and fill color are carried over; other character attributes fall back to the defaults.
 
 ### Update History
 
+- v1.0.1 (2026-09-19): Support groups made of one closed path and one text object (each group handled on its own, released after the text is poured)
 - v1.0.0 (2026-08-28): Initial release

@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: {
@@ -136,8 +136,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
@@ -154,45 +154,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
 
         /* ダイアログ / Dialog */
-        var dlg = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dlg.alignChildren = "fill";
+        var dialog = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
+        dialog.alignChildren = "fill";
 
-        var modePanel = dlg.add("panel", undefined, L('panelTarget'));
+        var modePanel = dialog.add("panel", undefined, getLabel('panelTarget'));
         modePanel.orientation = "column";
         modePanel.alignChildren = "left";
         modePanel.margins = [15, 20, 15, 10];
-        var rbSelection = modePanel.add("radiobutton", undefined, L('modeSelectionOnly'));
-        var rbAll = modePanel.add("radiobutton", undefined, L('modeAll'));
+        var rbSelection = modePanel.add("radiobutton", undefined, getLabel('modeSelectionOnly'));
+        var rbAll = modePanel.add("radiobutton", undefined, getLabel('modeAll'));
         rbAll.value = true;
 
-        var evenPanel = dlg.add("panel", undefined, L('panelEvenPage'));
+        var evenPanel = dialog.add("panel", undefined, getLabel('panelEvenPage'));
         evenPanel.orientation = "row";
         evenPanel.alignChildren = "left";
         evenPanel.margins = [15, 20, 15, 10];
-        var rbEvenRight = evenPanel.add("radiobutton", undefined, L('sideRight'));
-        var rbEvenLeft = evenPanel.add("radiobutton", undefined, L('sideLeft'));
+        var rbEvenRight = evenPanel.add("radiobutton", undefined, getLabel('sideRight'));
+        var rbEvenLeft = evenPanel.add("radiobutton", undefined, getLabel('sideLeft'));
         rbEvenLeft.value = true;
 
-        var optionPanel = dlg.add("panel", undefined, L('panelPostProcess'));
+        var optionPanel = dialog.add("panel", undefined, getLabel('panelPostProcess'));
         optionPanel.orientation = "column";
         optionPanel.alignChildren = "left";
         optionPanel.margins = [15, 20, 15, 10];
 
-        var cbRenameArtboards = optionPanel.add("checkbox", undefined, L('renameArtboards'));
+        var cbRenameArtboards = optionPanel.add("checkbox", undefined, getLabel('renameArtboards'));
         cbRenameArtboards.value = true;
 
-        var cbRearrangeArtboards = optionPanel.add("checkbox", undefined, L('rearrangeArtboards'));
+        var cbRearrangeArtboards = optionPanel.add("checkbox", undefined, getLabel('rearrangeArtboards'));
         cbRearrangeArtboards.value = true;
 
         var spacingGroup = optionPanel.add("group");
         spacingGroup.orientation = "row";
         spacingGroup.alignChildren = ["left", "center"];
 
-        var stSpacingHorizontal = spacingGroup.add("statictext", undefined, L('spacingHorizontal'));
+        var stSpacingHorizontal = spacingGroup.add("statictext", undefined, getLabel('spacingHorizontal'));
         var etSpacingHorizontal = spacingGroup.add("edittext", undefined, "20");
         etSpacingHorizontal.characters = 5;
 
-        var stSpacingVertical = spacingGroup.add("statictext", undefined, L('spacingVertical'));
+        var stSpacingVertical = spacingGroup.add("statictext", undefined, getLabel('spacingVertical'));
         var etSpacingVertical = spacingGroup.add("edittext", undefined, "20");
         etSpacingVertical.characters = 5;
 
@@ -207,12 +207,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbRearrangeArtboards.onClick = updateRearrangeUiEnabled;
         updateRearrangeUiEnabled();
 
-        var btnGroup = dlg.add("group");
+        var btnGroup = dialog.add("group");
         btnGroup.alignment = "center";
-        btnGroup.add("button", undefined, L('cancel'), { name: "cancel" });
-        btnGroup.add("button", undefined, L('ok'), { name: "ok" });
+        btnGroup.add("button", undefined, getLabel('cancel'), { name: "cancel" });
+        btnGroup.add("button", undefined, getLabel('ok'), { name: "ok" });
 
-        if (dlg.show() !== 1) return;
+        if (dialog.show() !== 1) return;
 
         var processAll = rbAll.value;
         var evenOnRight = rbEvenRight.value;
@@ -222,7 +222,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var spacingVertical = parseFloat(etSpacingVertical.text);
 
         if (rearrangeArtboards && (isNaN(spacingHorizontal) || isNaN(spacingVertical))) {
-            alert(L('alertInvalidSpacing'));
+            alert(getLabel('alertInvalidSpacing'));
             return;
         }
 
@@ -251,13 +251,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             if (items.length === 0) {
-                alert(L('alertNoSpreadFoundAll'));
+                alert(getLabel('alertNoSpreadFoundAll'));
                 rearrangeArtboards = false;
                 return;
             }
         } else {
             if (doc.selection.length < 1) {
-                alert(L('alertSelectSpreadObject'));
+                alert(getLabel('alertSelectSpreadObject'));
                 return;
             }
 
@@ -266,15 +266,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var otherCount = 0;
 
             for (var s = 0; s < doc.selection.length; s++) {
-                var sel = doc.selection[s];
-                if (isTargetItem(sel)) {
-                    var selectedPageType = getPageTypeInfo(doc, sel);
+                var currentSelection = doc.selection[s];
+                if (isTargetItem(currentSelection)) {
+                    var selectedPageType = getPageTypeInfo(doc, currentSelection);
                     if (selectedPageType.artboardIndex < 0) {
                         otherCount++;
                         continue;
                     }
                     if (selectedPageType.artboardType === "spread" && selectedPageType.pageType === "spread") {
-                        items.push(sel);
+                        items.push(currentSelection);
                         spreadCount++;
                     } else if (selectedPageType.pageType === "single") {
                         singleCount++;
@@ -288,9 +288,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             if (items.length === 0) {
                 if (singleCount > 0 && otherCount === 0) {
-                    alert(L('alertSelectionIsSingle'));
+                    alert(getLabel('alertSelectionIsSingle'));
                 } else {
-                    alert(L('alertSelectValidSpread'));
+                    alert(getLabel('alertSelectValidSpread'));
                 }
                 rearrangeArtboards = false;
                 return;
@@ -341,7 +341,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         workList.sort(function (a, b) { return b.abIndex - a.abIndex; });
 
         if (workList.length === 0) {
-            alert(L('alertNoTargetArtboard'));
+            alert(getLabel('alertNoTargetArtboard'));
             return;
         }
 
@@ -379,10 +379,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             /* クリップ後の各グループは左右半分の矩形を基準位置とする / Use the clipped half rects as base positions for each group */
 
             /* 元オブジェクト(A) → 左半分 / Original object to left half */
-            var groupA = makeClip(item, leftClipLeft, leftClipTop, leftClipRight, leftClipBottom, L('groupNameLeftHalf'));
+            var groupA = makeClip(item, leftClipLeft, leftClipTop, leftClipRight, leftClipBottom, getLabel('groupNameLeftHalf'));
 
             /* 複製(B) → 右半分 / Duplicate object to right half */
-            var groupB = makeClip(dup, rightClipLeft, rightClipTop, rightClipRight, rightClipBottom, L('groupNameRightHalf'));
+            var groupB = makeClip(dup, rightClipLeft, rightClipTop, rightClipRight, rightClipBottom, getLabel('groupNameRightHalf'));
 
             /* アートボード処理 / Artboard processing */
             if (abIndex >= 0) {
@@ -438,7 +438,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* アートボード名をリネーム（オプション） / Rename artboards (optional) */
         if (renameArtboards) {
             for (var k = 0; k < doc.artboards.length; k++) {
-                doc.artboards[k].name = L('artboardNamePrefix') + (k + 1);
+                doc.artboards[k].name = getLabel('artboardNamePrefix') + (k + 1);
             }
         }
 
@@ -521,7 +521,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             for (var i = 0; i < numArtboards; i++) {
                 var ab = artboards[i];
-                var sel = artboardItemMap[i] || [];
+                var currentSelection = artboardItemMap[i] || [];
                 var oldRect = ab.artboardRect;
                 var w = oldRect[2] - oldRect[0];
                 var h = oldRect[1] - oldRect[3];
@@ -553,8 +553,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ab.artboardRect = [newLeft, newTop, newRight, newBottom];
 
                 if (deltaX !== 0 || deltaY !== 0) {
-                    for (var k = 0; k < sel.length; k++) {
-                        sel[k].translate(deltaX, deltaY, true, true, true, true);
+                    for (var k = 0; k < currentSelection.length; k++) {
+                        currentSelection[k].translate(deltaX, deltaY, true, true, true, true);
                     }
                 }
             }

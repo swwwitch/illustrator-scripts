@@ -398,9 +398,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /* アクティブアートボード幅の1/8を初期間隔として取得する / Get 1/8 of the active artboard width as the default gap */
-    function getDefaultSpacingFromActiveArtboard(activeDocument) {
-        var activeArtboardIndex = activeDocument.artboards.getActiveArtboardIndex();
-        var activeArtboardRect = activeDocument.artboards[activeArtboardIndex].artboardRect;
+    function getDefaultSpacingFromActiveArtboard(documentRef) {
+        var activeArtboardIndex = documentRef.artboards.getActiveArtboardIndex();
+        var activeArtboardRect = documentRef.artboards[activeArtboardIndex].artboardRect;
         var activeArtboardWidth = activeArtboardRect[2] - activeArtboardRect[0];
         return Math.round(activeArtboardWidth / 8);
     }
@@ -417,9 +417,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        var activeDocument = app.activeDocument;
-        var artboards = activeDocument.artboards;
-        var defaultSpacing = getDefaultSpacingFromActiveArtboard(activeDocument);
+        var documentRef = app.activeDocument;
+        var artboards = documentRef.artboards;
+        var defaultSpacing = getDefaultSpacingFromActiveArtboard(documentRef);
 
         var settings = showSettingsDialog({
             spacingX: defaultSpacing,
@@ -641,7 +641,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
            オブジェクトの中心が元のアートボード矩形内にあるものを対象にする
            Items whose geometric center is within the original artboard rect are translated. */
         var itemTranslations = collectItemTranslations(
-            activeDocument.layers,
+            documentRef.layers,
             placementItems,
             excludeLockedHiddenLayers,
             excludeLockedHiddenItems
@@ -668,7 +668,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 第8パス: アートボードパネル上の順番を、行→列の順に並べ替える
            Eighth pass: reorder artboards in the Artboards panel as row-then-column. */
         if (changeArtboardOrder) {
-            reorderArtboardsByGridOrder(activeDocument, placementItems);
+            reorderArtboardsByGridOrder(documentRef, placementItems);
         }
 
         /* 画面を全体表示に更新 / Fit all in view */
@@ -804,14 +804,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        一時名にリネームしてから新規作成→旧アートボードを削除することで名称重複を回避する
        Rename originals to temp names, add new artboards in the desired order, then remove the originals
        to avoid name collisions. */
-    function reorderArtboardsByGridOrder(activeDocument, placementItems) {
+    function reorderArtboardsByGridOrder(documentRef, placementItems) {
         var sortedPlacements = placementItems.slice();
         sortedPlacements.sort(function (a, b) {
             if (a.assignedRow !== b.assignedRow) return a.assignedRow - b.assignedRow;
             return a.assignedColumn - b.assignedColumn;
         });
 
-        var artboards = activeDocument.artboards;
+        var artboards = documentRef.artboards;
         var originalCount = artboards.length;
 
         var targetData = [];
@@ -837,7 +837,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             artboards[removeIndex].remove();
         }
 
-        activeDocument.artboards.setActiveArtboardIndex(0);
+        documentRef.artboards.setActiveArtboardIndex(0);
     }
 
     /* 各番号（列または行）の累積オフセットを計算する / Compute cumulative offset for each number (column or row).

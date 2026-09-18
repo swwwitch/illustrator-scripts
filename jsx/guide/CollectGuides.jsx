@@ -165,9 +165,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (USE_PREVIEW_TOGGLE_WRAPPER) _safeTogglePreview(); // 2回目で元の表示状態へ戻す
 
         // 最後に1回だけ再描画 / Single final redraw
-        try {
-            app.redraw();
-        } catch (eRedraw) {}
+        app.redraw();
     }
 
     main();

@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 */
     var LABELS = {
@@ -359,15 +359,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
     };
 
-    function L(key) {
+    function getLabel(key) {
         var entry = LABELS[key];
         if (!entry) return key;
-        return entry[lang] || entry.ja || entry.en || key;
+        return entry[uiLang] || entry.ja || entry.en || key;
     }
 
     /* エラー表示補助 */
     function showError(err) {
-        var msg = L("errProcessFailed");
+        var msg = getLabel("errProcessFailed");
         if (err && err.message) {
             msg += err.message;
         } else {
@@ -469,7 +469,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     (function () {
         // ドキュメントが開かれていない場合は処理を終了
         if (app.documents.length === 0) {
-            alert(L("msgNoDocument"));
+            alert(getLabel("msgNoDocument"));
             return;
         }
 
@@ -479,12 +479,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 選択オブジェクトがない場合は処理を終了
         try {
             if (!selectedObjects || (typeof selectedObjects.length === "number" && selectedObjects.length === 0)) {
-                alert(L("msgNoSelection"));
+                alert(getLabel("msgNoSelection"));
                 return;
             }
         } catch (e) {
             if (!selectedObjects) {
-                alert(L("msgNoSelection"));
+                alert(getLabel("msgNoSelection"));
                 return;
             }
         }
@@ -492,7 +492,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 初期選択からテキストフレームを解決
         selectedObjects = getTextFrames(selectedObjects);
         if (selectedObjects.length === 0) {
-            alert(L("msgNoTextFrames"));
+            alert(getLabel("msgNoTextFrames"));
             return;
         }
 
@@ -1978,7 +1978,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ダイアログボックスを作成・表示する関数 */
         function showDialog(selectedObjects) {
-            var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+            var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
 
             /* 現在の処理対象を取得 */
             function getCurrentTargets() {
@@ -2020,7 +2020,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                     app.redraw();
                 } catch (err) {
-                    try { app.redraw(); } catch (redrawErr) { }
+                    app.redraw();
                     showError(err);
                 }
             }
@@ -2030,7 +2030,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var breakCounts = countBreakTypes(selectedObjects);
 
             /* ステータスパネル */
-            var panelStatus = dialog.add("panel", undefined, L("panelStatus"));
+            var panelStatus = dialog.add("panel", undefined, getLabel("panelStatus"));
             panelStatus.margins = [20, 20, 30, 10];
             panelStatus.alignment = ["fill", "top"];
             panelStatus.alignChildren = ["left", "top"];
@@ -2055,19 +2055,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var rowTargetCount = statusLeft.add("group");
             rowTargetCount.orientation = "row";
             rowTargetCount.alignChildren = ["left", "center"];
-            var lblTargetCount = rowTargetCount.add("statictext", undefined, L("infoTargetCount"));
+            var lblTargetCount = rowTargetCount.add("statictext", undefined, getLabel("infoTargetCount"));
             var valTargetCount = rowTargetCount.add("statictext", undefined, String(textFrameCounts.total));
 
             var rowPointCount = statusLeft.add("group");
             rowPointCount.orientation = "row";
             rowPointCount.alignChildren = ["left", "center"];
-            var lblPointCount = rowPointCount.add("statictext", undefined, L("infoPointAreaCount"));
+            var lblPointCount = rowPointCount.add("statictext", undefined, getLabel("infoPointAreaCount"));
             var valPointCount = rowPointCount.add("statictext", undefined, String(textFrameCounts.point));
 
             var rowAreaCount = statusLeft.add("group");
             rowAreaCount.orientation = "row";
             rowAreaCount.alignChildren = ["left", "center"];
-            var lblAreaCount = rowAreaCount.add("statictext", undefined, L("infoAreaSeparator"));
+            var lblAreaCount = rowAreaCount.add("statictext", undefined, getLabel("infoAreaSeparator"));
             var valAreaCount = rowAreaCount.add("statictext", undefined, String(textFrameCounts.area));
 
             var rowParagraphBreakCount = statusCenter.add("group");
@@ -2075,21 +2075,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rowParagraphBreakCount.alignChildren = ["left", "center"];
             var statusCenterLabelWidth = 70;
 
-            var lblParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, L("infoParagraphBreakCount"));
+            var lblParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, getLabel("infoParagraphBreakCount"));
             lblParagraphBreakCount.preferredSize.width = statusCenterLabelWidth;
             var valParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, String(breakCounts.paragraph));
 
             var rowForcedBreakCount = statusCenter.add("group");
             rowForcedBreakCount.orientation = "row";
             rowForcedBreakCount.alignChildren = ["left", "center"];
-            var lblForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, L("infoForcedBreakCount"));
+            var lblForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, getLabel("infoForcedBreakCount"));
             lblForcedBreakCount.preferredSize.width = statusCenterLabelWidth;
             var valForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, String(breakCounts.forced));
 
             var rowTabCount = statusCenter.add("group");
             rowTabCount.orientation = "row";
             rowTabCount.alignChildren = ["left", "center"];
-            var lblTabCount = rowTabCount.add("statictext", undefined, L("infoTabCount"));
+            var lblTabCount = rowTabCount.add("statictext", undefined, getLabel("infoTabCount"));
             lblTabCount.preferredSize.width = statusCenterLabelWidth;
             var valTabCount = rowTabCount.add("statictext", undefined, String(breakCounts.tab));
 
@@ -2178,7 +2178,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             /* 制御文字の状態管理 */
             var hiddenCharOn = false;
-            var hiddenCharLabel = L("chkShowHiddenChar");
+            var hiddenCharLabel = getLabel("chkShowHiddenChar");
 
             /* タブパネル（メイン） */
             var tabbedPanel = dialog.add("tabbedpanel");
@@ -2187,7 +2187,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tabbedPanel.alignChildren = ["fill", "top"];
 
             /* === タブ1: 基本 === */
-            var tabBasic = tabbedPanel.add("tab", undefined, L("tabBasic"));
+            var tabBasic = tabbedPanel.add("tab", undefined, getLabel("tabBasic"));
             tabBasic.margins = [10, 20, 0, -10];
             tabBasic.spacing = 15;
             tabBasic.orientation = "row";
@@ -2201,7 +2201,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             colLeft.alignChildren = ["fill", "top"];
 
             /* 改行グループパネル */
-            var panelBreakGroup = colLeft.add("panel", undefined, L("panelBreakGroup"));
+            var panelBreakGroup = colLeft.add("panel", undefined, getLabel("panelBreakGroup"));
             panelBreakGroup.margins = [15, 20, 15, 10];
             panelBreakGroup.alignment = ["fill", "top"];
             panelBreakGroup.alignChildren = ["fill", "top"];
@@ -2212,7 +2212,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpFlatten.alignChildren = ["fill", "center"];
             grpFlatten.margins = [15, 0, 15, 10];
 
-            var btnFlattenToOneLine = grpFlatten.add("button", undefined, L("btnFlattenToOneLine"));
+            var btnFlattenToOneLine = grpFlatten.add("button", undefined, getLabel("btnFlattenToOneLine"));
             btnFlattenToOneLine.onClick = function () {
                 executeAction(function (objects) {
                     var result = flattenToOneLine(objects);
@@ -2225,13 +2225,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
 
             /* 改行削除パネル */
-            var panelRemoveBreak = panelBreakGroup.add("panel", undefined, L("panelRemoveBreak"));
+            var panelRemoveBreak = panelBreakGroup.add("panel", undefined, getLabel("panelRemoveBreak"));
             panelRemoveBreak.margins = [15, 20, 15, 10];
             panelRemoveBreak.alignment = ["fill", "top"];
             panelRemoveBreak.alignChildren = ["fill", "center"];
 
             /* 改行削除ボタン */
-            var btnRemoveLineBreaks = panelRemoveBreak.add("button", undefined, L("btnRemoveLineBreaks"));
+            var btnRemoveLineBreaks = panelRemoveBreak.add("button", undefined, getLabel("btnRemoveLineBreaks"));
             btnRemoveLineBreaks.onClick = function () {
                 if (chkIncludeForcedBreaks.value) {
                     executeAction(removeAllBreaks);
@@ -2241,22 +2241,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
 
             /* 強制改行を含むチェックボックス */
-            var chkIncludeForcedBreaks = panelRemoveBreak.add("checkbox", undefined, L("btnRemoveAllBreaks"));
+            var chkIncludeForcedBreaks = panelRemoveBreak.add("checkbox", undefined, getLabel("btnRemoveAllBreaks"));
 
             /* 改行パネル */
-            var panelLineBreak = panelBreakGroup.add("panel", undefined, L("panelLineBreak"));
+            var panelLineBreak = panelBreakGroup.add("panel", undefined, getLabel("panelLineBreak"));
             panelLineBreak.margins = [15, 20, 15, 10];
             panelLineBreak.alignment = ["fill", "top"];
             panelLineBreak.alignChildren = ["fill", "center"];
 
             /* 1文字ごとに改行ボタン */
-            var btnAddLineBreaks = panelLineBreak.add("button", undefined, L("btnAddLineBreaks"));
+            var btnAddLineBreaks = panelLineBreak.add("button", undefined, getLabel("btnAddLineBreaks"));
             btnAddLineBreaks.onClick = function () {
                 executeAction(addLineBreakPerChar);
             };
 
             /* 句読点で改行ボタン */
-            var btnPunctuation = panelLineBreak.add("button", undefined, L("btnPunctuation"));
+            var btnPunctuation = panelLineBreak.add("button", undefined, getLabel("btnPunctuation"));
             btnPunctuation.onClick = function () {
                 executeAction(function (objects) {
                     return addLineBreakAtPunctuation(objects, txtPunctuation.text);
@@ -2268,7 +2268,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             txtPunctuation.alignment = ["fill", "center"];
 
             /* 指定文字数で改行ボタン */
-            var btnBreakAtCount = panelLineBreak.add("button", undefined, L("btnBreakAtCount"));
+            var btnBreakAtCount = panelLineBreak.add("button", undefined, getLabel("btnBreakAtCount"));
             btnBreakAtCount.onClick = function () {
                 executeAction(function (objects) {
                     return addLineBreakAtCount(objects, txtBreakCount.text, chkForcedBreakAtCount.value);
@@ -2282,22 +2282,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             breakCountRow.alignChildren = ["left", "center"];
             var txtBreakCount = breakCountRow.add("edittext", undefined, "35");
             txtBreakCount.characters = 3;
-            var chkForcedBreakAtCount = breakCountRow.add("checkbox", undefined, lang === "ja" ? "強制改行" : "Forced Break");
+            var chkForcedBreakAtCount = breakCountRow.add("checkbox", undefined, uiLang === "ja" ? "強制改行" : "Forced Break");
 
             /* その他の改行パネル */
-            var panelOtherBreak = panelBreakGroup.add("panel", undefined, L("panelOtherBreak"));
+            var panelOtherBreak = panelBreakGroup.add("panel", undefined, getLabel("panelOtherBreak"));
             panelOtherBreak.margins = [15, 20, 15, 10];
             panelOtherBreak.alignment = ["fill", "top"];
             panelOtherBreak.alignChildren = ["fill", "center"];
 
             /* 強制改行→改行ボタン */
-            var btnConvertBreaks = panelOtherBreak.add("button", undefined, L("btnConvertBreaks"));
+            var btnConvertBreaks = panelOtherBreak.add("button", undefined, getLabel("btnConvertBreaks"));
             btnConvertBreaks.onClick = function () {
                 executeAction(convertForcedLineBreaks);
             };
 
             /* 改行→強制改行ボタン */
-            var btnConvertToForcedBreaks = panelOtherBreak.add("button", undefined, L("btnConvertToForcedBreaks"));
+            var btnConvertToForcedBreaks = panelOtherBreak.add("button", undefined, getLabel("btnConvertToForcedBreaks"));
             btnConvertToForcedBreaks.onClick = function () {
                 executeAction(convertToForcedBreaks);
             };
@@ -2309,55 +2309,55 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             colRight.alignChildren = ["fill", "top"];
 
             /* 分割グループパネル */
-            var panelSplitGroup = colRight.add("panel", undefined, L("panelSplitGroup"));
+            var panelSplitGroup = colRight.add("panel", undefined, getLabel("panelSplitGroup"));
             panelSplitGroup.margins = [15, 20, 15, 10];
             panelSplitGroup.alignment = ["fill", "top"];
             panelSplitGroup.alignChildren = ["fill", "top"];
 
             /* 分割パネル */
-            var panelSplit = panelSplitGroup.add("panel", undefined, L("panelSplit"));
+            var panelSplit = panelSplitGroup.add("panel", undefined, getLabel("panelSplit"));
             panelSplit.margins = [15, 20, 15, 10];
             panelSplit.alignment = ["fill", "top"];
             panelSplit.alignChildren = ["fill", "center"];
 
             /* 改行で分割ボタン */
-            var btnSplitByLine = panelSplit.add("button", undefined, L("btnSplitByLine"));
+            var btnSplitByLine = panelSplit.add("button", undefined, getLabel("btnSplitByLine"));
             btnSplitByLine.onClick = function () {
                 executeAction(splitByLineBreak);
             };
 
             /* 改行で分割（書式保持）ボタン */
-            var btnSplitByLineKeepStyle = panelSplit.add("button", undefined, L("btnSplitByLineKeepStyle"));
+            var btnSplitByLineKeepStyle = panelSplit.add("button", undefined, getLabel("btnSplitByLineKeepStyle"));
             btnSplitByLineKeepStyle.onClick = function () {
                 executeAction(splitByLineBreakKeepStyle);
             };
 
             /* タブで分解ボタン */
-            var btnSplitByTab = panelSplit.add("button", undefined, L("btnSplitByTab"));
+            var btnSplitByTab = panelSplit.add("button", undefined, getLabel("btnSplitByTab"));
             btnSplitByTab.onClick = function () {
                 executeAction(splitByTab);
             };
 
             /* 分割（文字）パネル */
-            var panelSplitChar = panelSplitGroup.add("panel", undefined, L("panelSplitChar"));
+            var panelSplitChar = panelSplitGroup.add("panel", undefined, getLabel("panelSplitChar"));
             panelSplitChar.margins = [15, 20, 15, 10];
             panelSplitChar.alignment = ["fill", "top"];
             panelSplitChar.alignChildren = ["fill", "center"];
 
             /* 書式を保持ボタン */
-            var btnSplitKeepStyle = panelSplitChar.add("button", undefined, L("btnSplitKeepStyle"));
+            var btnSplitKeepStyle = panelSplitChar.add("button", undefined, getLabel("btnSplitKeepStyle"));
             btnSplitKeepStyle.onClick = function () {
                 executeAction(splitByCharKeepStyle);
             };
 
             /* 書式を無視ボタン */
-            var btnSplitIgnoreStyle = panelSplitChar.add("button", undefined, L("btnSplitIgnoreStyle"));
+            var btnSplitIgnoreStyle = panelSplitChar.add("button", undefined, getLabel("btnSplitIgnoreStyle"));
             btnSplitIgnoreStyle.onClick = function () {
                 executeAction(splitByCharIgnoreStyle);
             };
 
             /* 連結パネル */
-            var panelConcat = colRight.add("panel", undefined, L("panelConcat"));
+            var panelConcat = colRight.add("panel", undefined, getLabel("panelConcat"));
             panelConcat.margins = [15, 20, 15, 10];
             panelConcat.alignment = ["fill", "top"];
             panelConcat.alignChildren = ["center", "center"];
@@ -2369,22 +2369,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             concatInner.alignChildren = ["fill", "center"];
 
             /* 連結（縦）ボタン */
-            var btnConcatV = concatInner.add("button", undefined, L("btnConcatV"));
-            btnConcatV.helpTip = L("tipConcatV");
+            var btnConcatV = concatInner.add("button", undefined, getLabel("btnConcatV"));
+            btnConcatV.helpTip = getLabel("tipConcatV");
             btnConcatV.onClick = function () {
                 executeAction(concatVertical);
             };
 
             /* 横連結（行維持）ボタン */
-            var btnConcatHOnly = concatInner.add("button", undefined, L("btnConcatHOnly"));
-            btnConcatHOnly.helpTip = L("tipConcatHOnly");
+            var btnConcatHOnly = concatInner.add("button", undefined, getLabel("btnConcatHOnly"));
+            btnConcatHOnly.helpTip = getLabel("tipConcatHOnly");
             btnConcatHOnly.onClick = function () {
                 executeAction(concatHorizontalOnly);
             };
 
             /* 横連結ボタン */
-            var btnConcatH = concatInner.add("button", undefined, L("btnConcatH"));
-            btnConcatH.helpTip = L("tipConcatH");
+            var btnConcatH = concatInner.add("button", undefined, getLabel("btnConcatH"));
+            btnConcatH.helpTip = getLabel("tipConcatH");
             btnConcatH.onClick = function () {
                 executeAction(function (objects) {
                     return concatHorizontal(objects, detectTextFrameType(objects));
@@ -2392,8 +2392,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
 
             /* PDFテキスト整形ボタン */
-            var btnConcatToArea = concatInner.add("button", undefined, L("btnConcatToArea"));
-            btnConcatToArea.helpTip = L("tipConcatToArea");
+            var btnConcatToArea = concatInner.add("button", undefined, getLabel("btnConcatToArea"));
+            btnConcatToArea.helpTip = getLabel("tipConcatToArea");
             btnConcatToArea.onClick = function () {
                 executeAction(function (objects) {
                     return concatHorizontal(objects, "area");
@@ -2402,7 +2402,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
 
             /* === タブ2: クリーンアップ === */
-            var tabCleanup = tabbedPanel.add("tab", undefined, L("tabCleanup"));
+            var tabCleanup = tabbedPanel.add("tab", undefined, getLabel("tabCleanup"));
             tabCleanup.margins = [10, 20, 0, -10];
             tabCleanup.spacing = 15;
             tabCleanup.orientation = "row";
@@ -2416,49 +2416,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cleanupColLeft.alignChildren = ["fill", "top"];
 
             /* タブパネル */
-            var panelTab = cleanupColLeft.add("panel", undefined, L("panelTab"));
+            var panelTab = cleanupColLeft.add("panel", undefined, getLabel("panelTab"));
             panelTab.margins = [15, 20, 15, 10];
             panelTab.alignment = ["fill", "top"];
             panelTab.alignChildren = ["fill", "center"];
 
             /* タブを削除ボタン */
-            var btnRemoveTabs = panelTab.add("button", undefined, L("btnRemoveTabs"));
+            var btnRemoveTabs = panelTab.add("button", undefined, getLabel("btnRemoveTabs"));
             btnRemoveTabs.onClick = function () {
                 executeAction(removeTabs);
             };
 
             /* タブをスペースにボタン */
-            var btnTabsToSpaces = panelTab.add("button", undefined, L("btnTabsToSpaces"));
+            var btnTabsToSpaces = panelTab.add("button", undefined, getLabel("btnTabsToSpaces"));
             btnTabsToSpaces.onClick = function () {
                 executeAction(tabsToSpaces);
             };
 
             /* スペースパネル（タブパネルの下） */
-            var panelSpace = cleanupColLeft.add("panel", undefined, L("panelSpace"));
+            var panelSpace = cleanupColLeft.add("panel", undefined, getLabel("panelSpace"));
             panelSpace.margins = [15, 20, 15, 10];
             panelSpace.alignment = ["fill", "top"];
             panelSpace.alignChildren = ["fill", "center"];
 
             /* 行頭行末のスペースボタン */
-            var btnTrimSpaces = panelSpace.add("button", undefined, L("btnTrimSpaces"));
+            var btnTrimSpaces = panelSpace.add("button", undefined, getLabel("btnTrimSpaces"));
             btnTrimSpaces.onClick = function () {
                 executeAction(trimSpaces);
             };
 
             /* 和欧間のスペースボタン */
-            var btnCjkLatinSpaces = panelSpace.add("button", undefined, L("btnCjkLatinSpaces"));
+            var btnCjkLatinSpaces = panelSpace.add("button", undefined, getLabel("btnCjkLatinSpaces"));
             btnCjkLatinSpaces.onClick = function () {
                 executeAction(removeCjkLatinSpaces);
             };
 
             /* 連続スペースボタン */
-            var btnCollapseSpaces = panelSpace.add("button", undefined, L("btnCollapseSpaces"));
+            var btnCollapseSpaces = panelSpace.add("button", undefined, getLabel("btnCollapseSpaces"));
             btnCollapseSpaces.onClick = function () {
                 executeAction(collapseSpaces);
             };
 
             /* スペース削除（一括）ボタン */
-            var btnCleanupSpaces = panelSpace.add("button", undefined, L("btnCleanupSpaces"));
+            var btnCleanupSpaces = panelSpace.add("button", undefined, getLabel("btnCleanupSpaces"));
             btnCleanupSpaces.onClick = function () {
                 executeAction(function (objects) {
                     trimSpaces(objects);
@@ -2475,43 +2475,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cleanupColRight.alignChildren = ["fill", "top"];
 
             /* 変換パネル */
-            var panelConvert = cleanupColRight.add("panel", undefined, L("panelConvert"));
+            var panelConvert = cleanupColRight.add("panel", undefined, getLabel("panelConvert"));
             panelConvert.margins = [15, 20, 15, 10];
             panelConvert.alignment = ["fill", "top"];
             panelConvert.alignChildren = ["fill", "center"];
 
             /* 全角英数字→半角ボタン */
-            var btnFullToHalfAlnum = panelConvert.add("button", undefined, L("btnFullToHalfAlnum"));
+            var btnFullToHalfAlnum = panelConvert.add("button", undefined, getLabel("btnFullToHalfAlnum"));
             btnFullToHalfAlnum.onClick = function () {
                 executeAction(fullToHalfAlnum);
             };
 
             /* 半角カナ→全角ボタン */
-            var btnHalfToFullKana = panelConvert.add("button", undefined, L("btnHalfToFullKana"));
+            var btnHalfToFullKana = panelConvert.add("button", undefined, getLabel("btnHalfToFullKana"));
             btnHalfToFullKana.onClick = function () {
                 executeAction(halfToFullKana);
             };
 
             /* リストパネル */
-            var panelList = cleanupColRight.add("panel", undefined, L("panelList"));
+            var panelList = cleanupColRight.add("panel", undefined, getLabel("panelList"));
             panelList.margins = [15, 20, 15, 10];
             panelList.alignment = ["fill", "top"];
             panelList.alignChildren = ["fill", "center"];
 
             /* 箇条書きボタン */
-            var btnBulletList = panelList.add("button", undefined, L("btnBulletList"));
+            var btnBulletList = panelList.add("button", undefined, getLabel("btnBulletList"));
             btnBulletList.onClick = function () {
                 executeAction(toggleBulletList);
             };
 
             /* 番号リストボタン */
-            var btnNumberList = panelList.add("button", undefined, L("btnNumberList"));
+            var btnNumberList = panelList.add("button", undefined, getLabel("btnNumberList"));
             btnNumberList.onClick = function () {
                 executeAction(toggleNumberList);
             };
 
             /* === タブ3: 行の整理 === */
-            var tabLineArrange = tabbedPanel.add("tab", undefined, L("tabLineArrange"));
+            var tabLineArrange = tabbedPanel.add("tab", undefined, getLabel("tabLineArrange"));
             tabLineArrange.margins = [10, 20, 0, -10];
             tabLineArrange.spacing = 15;
             tabLineArrange.orientation = "row";
@@ -2582,7 +2582,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             lineListBox.onDoubleClick = function () {
                 if (!lineListBox.selection) return;
                 var idx = lineListBox.selection.index;
-                var result = prompt(L("promptEditLine"), lineArrangeLines[idx]);
+                var result = prompt(getLabel("promptEditLine"), lineArrangeLines[idx]);
                 if (result === null) return;
                 lineArrangeLines[idx] = result;
                 refreshLineList(idx);
@@ -2599,13 +2599,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             lineArrangeRight.alignChildren = ["fill", "top"];
 
             /* 編集パネル */
-            var panelLineEdit = lineArrangeRight.add("panel", undefined, L("panelLineEdit"));
+            var panelLineEdit = lineArrangeRight.add("panel", undefined, getLabel("panelLineEdit"));
             panelLineEdit.margins = [15, 20, 15, 10];
             panelLineEdit.alignment = ["fill", "top"];
             panelLineEdit.alignChildren = ["fill", "center"];
 
             /* 上へボタン */
-            var btnLineUp = panelLineEdit.add("button", undefined, L("btnLineUp"));
+            var btnLineUp = panelLineEdit.add("button", undefined, getLabel("btnLineUp"));
             btnLineUp.onClick = function () {
                 if (!lineListBox.selection) return;
                 var idx = lineListBox.selection.index;
@@ -2617,7 +2617,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
 
             /* 下へボタン */
-            var btnLineDown = panelLineEdit.add("button", undefined, L("btnLineDown"));
+            var btnLineDown = panelLineEdit.add("button", undefined, getLabel("btnLineDown"));
             btnLineDown.onClick = function () {
                 if (!lineListBox.selection) return;
                 var idx = lineListBox.selection.index;
@@ -2629,77 +2629,77 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
 
             /* 追加ボタン */
-            var btnLineAdd = panelLineEdit.add("button", undefined, L("btnLineAdd"));
+            var btnLineAdd = panelLineEdit.add("button", undefined, getLabel("btnLineAdd"));
             btnLineAdd.onClick = function () {
-                var result = prompt(L("promptAddLine"), "");
+                var result = prompt(getLabel("promptAddLine"), "");
                 if (result === null) return;
                 lineArrangeLines.push(result);
                 refreshLineList(lineArrangeLines.length - 1);
             };
 
             /* 編集ボタン */
-            var btnLineEdit = panelLineEdit.add("button", undefined, L("btnLineEdit"));
+            var btnLineEdit = panelLineEdit.add("button", undefined, getLabel("btnLineEdit"));
             btnLineEdit.onClick = function () {
                 if (!lineListBox.selection) return;
                 var idx = lineListBox.selection.index;
-                var result = prompt(L("promptEditLine"), lineArrangeLines[idx]);
+                var result = prompt(getLabel("promptEditLine"), lineArrangeLines[idx]);
                 if (result === null) return;
                 lineArrangeLines[idx] = result;
                 refreshLineList(idx);
             };
 
             /* 削除ボタン */
-            var btnLineDelete = panelLineEdit.add("button", undefined, L("btnLineDelete"));
+            var btnLineDelete = panelLineEdit.add("button", undefined, getLabel("btnLineDelete"));
             btnLineDelete.onClick = function () {
                 if (!lineListBox.selection) return;
                 var idx = lineListBox.selection.index;
-                if (!confirm(L("confirmDeleteLine"))) return;
+                if (!confirm(getLabel("confirmDeleteLine"))) return;
                 lineArrangeLines.splice(idx, 1);
                 refreshLineList(idx);
             };
 
             /* ソートパネル */
-            var panelSort = lineArrangeRight.add("panel", undefined, L("panelSort"));
+            var panelSort = lineArrangeRight.add("panel", undefined, getLabel("panelSort"));
             panelSort.margins = [15, 20, 15, 10];
             panelSort.alignment = ["fill", "top"];
             panelSort.alignChildren = ["fill", "center"];
 
             /* ソート（文字コード）ボタン */
-            var btnSortByCharCode = panelSort.add("button", undefined, L("btnSortByCharCode"));
+            var btnSortByCharCode = panelSort.add("button", undefined, getLabel("btnSortByCharCode"));
             btnSortByCharCode.onClick = function () {
                 executeAction(sortByCharCode);
                 loadLinesToList();
             };
 
             /* ソート（文字数）ボタン */
-            var btnSortByLength = panelSort.add("button", undefined, L("btnSortByLength"));
+            var btnSortByLength = panelSort.add("button", undefined, getLabel("btnSortByLength"));
             btnSortByLength.onClick = function () {
                 executeAction(sortByLength);
                 loadLinesToList();
             };
 
             /* 順序を反転ボタン */
-            var btnReverseOrder = panelSort.add("button", undefined, L("btnReverseOrder"));
+            var btnReverseOrder = panelSort.add("button", undefined, getLabel("btnReverseOrder"));
             btnReverseOrder.onClick = function () {
                 executeAction(reverseOrder);
                 loadLinesToList();
             };
 
             /* 行削除パネル */
-            var panelLineDelete = lineArrangeRight.add("panel", undefined, L("panelLineDelete"));
+            var panelLineDelete = lineArrangeRight.add("panel", undefined, getLabel("panelLineDelete"));
             panelLineDelete.margins = [15, 20, 15, 10];
             panelLineDelete.alignment = ["fill", "top"];
             panelLineDelete.alignChildren = ["fill", "center"];
 
             /* 重複行の削除ボタン */
-            var btnRemoveDuplicateLines = panelLineDelete.add("button", undefined, L("btnRemoveDuplicateLines"));
+            var btnRemoveDuplicateLines = panelLineDelete.add("button", undefined, getLabel("btnRemoveDuplicateLines"));
             btnRemoveDuplicateLines.onClick = function () {
                 executeAction(removeDuplicateLines);
                 loadLinesToList();
             };
 
             /* 空行削除ボタン */
-            var btnRemoveEmptyLines = panelLineDelete.add("button", undefined, L("btnRemoveEmptyLines"));
+            var btnRemoveEmptyLines = panelLineDelete.add("button", undefined, getLabel("btnRemoveEmptyLines"));
             btnRemoveEmptyLines.onClick = function () {
                 executeAction(removeEmptyLines);
                 loadLinesToList();
@@ -2759,7 +2759,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var btnGroupRight = btnGroup.add("group");
             btnGroupRight.alignment = ["right", "center"];
 
-            var btnUndo = btnGroupRight.add("button", undefined, L("btnUndo"));
+            var btnUndo = btnGroupRight.add("button", undefined, getLabel("btnUndo"));
             btnUndo.onClick = function () {
                 try {
                     app.executeMenuCommand('undo');
@@ -2778,7 +2778,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             };
 
-            var btnClose = btnGroupRight.add("button", undefined, L("btnClose"), { name: "ok" });
+            var btnClose = btnGroupRight.add("button", undefined, getLabel("btnClose"), { name: "ok" });
             btnClose.onClick = function () {
                 /* 1要素だけのグループは解除して選択を整える */
                 try {

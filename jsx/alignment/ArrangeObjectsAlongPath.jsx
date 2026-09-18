@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -203,10 +203,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       }
     };
 
-    function L(key) {
+    function getLabel(key) {
       var entry = LABELS[key];
       if (!entry) return key;
-      return entry[lang] || entry.en || key;
+      return entry[uiLang] || entry.en || key;
     }
 
     /* ダイアログ外観設定 / Dialog appearance settings */
@@ -300,10 +300,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       }
 
       var doc = app.activeDocument;
-      var sel = doc.selection;
+      var currentSelection = doc.selection;
 
       // Exit early when selection is insufficient (0 or 1) / 選択が0または1の場合はダイアログを出さず終了
-      if (!sel || sel.length < 2) {
+      if (!currentSelection || currentSelection.length < 2) {
         safeAlertKey('alertNeedSelection');
         return;
       }
@@ -385,7 +385,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         _alertLastSigByKey[labelKey] = sig;
 
         _alertLock = true;
-        try { alert(L(labelKey)); } catch (_) { }
+        try { alert(getLabel(labelKey)); } catch (_) { }
         _alertLock = false;
       }
 
@@ -446,7 +446,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
           }
         } catch (_) { }
 
-        try { app.redraw(); } catch (_) { }
+        app.redraw();
       }
 
       function buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost, showAlerts) {
@@ -590,13 +590,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // Restore selection / 選択を復元
         try { doc.selection = keepSelArr; } catch (_) { }
-        try { app.redraw(); } catch (_) { }
+        app.redraw();
 
         return true;
       }
 
       /* ダイアログ / Dialog */
-      var dlg = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
+      var dlg = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
       dlg.orientation = "column";
       dlg.alignChildren = "fill";
 
@@ -621,42 +621,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       colR.alignment = "top";
 
       // Target path / 対象パス
-      var targetPathPanel = colL.add("panel", undefined, L('panelTargetPath'));
+      var targetPathPanel = colL.add("panel", undefined, getLabel('panelTargetPath'));
       targetPathPanel.orientation = "column";
       targetPathPanel.alignChildren = "left";
       targetPathPanel.margins = [15, 20, 15, 15];
 
       // 対象 / Target
-      var orderPanel = targetPathPanel.add("panel", undefined, L('panelPathOrder'));
+      var orderPanel = targetPathPanel.add("panel", undefined, getLabel('panelPathOrder'));
       orderPanel.orientation = "column";
       orderPanel.alignChildren = "left";
       orderPanel.margins = [15, 20, 15, 10];
 
-      var rbAutoLargest = orderPanel.add("radiobutton", undefined, L('autoLargest'));
-      var rbFrontmost = orderPanel.add("radiobutton", undefined, L('frontmost'));
-      var rbBackmost = orderPanel.add("radiobutton", undefined, L('backmost'));
+      var rbAutoLargest = orderPanel.add("radiobutton", undefined, getLabel('autoLargest'));
+      var rbFrontmost = orderPanel.add("radiobutton", undefined, getLabel('frontmost'));
+      var rbBackmost = orderPanel.add("radiobutton", undefined, getLabel('backmost'));
       rbAutoLargest.value = true; // default: Auto (largest-area)
 
       // 処理 / Handling
-      var optPanel = targetPathPanel.add("panel", undefined, L('panelBasePath'));
+      var optPanel = targetPathPanel.add("panel", undefined, getLabel('panelBasePath'));
       optPanel.orientation = "column";
       optPanel.alignChildren = "left";
       optPanel.margins = [15, 20, 15, 10];
 
       /* 基準パスの扱い（排他） / Base path handling (exclusive) */
-      var rbNone = optPanel.add("radiobutton", undefined, L('basePathModeNone'));
-      var rbHide = optPanel.add("radiobutton", undefined, L('basePathModeHide'));
-      var rbDelete = optPanel.add("radiobutton", undefined, L('basePathModeDelete'));
+      var rbNone = optPanel.add("radiobutton", undefined, getLabel('basePathModeNone'));
+      var rbHide = optPanel.add("radiobutton", undefined, getLabel('basePathModeHide'));
+      var rbDelete = optPanel.add("radiobutton", undefined, getLabel('basePathModeDelete'));
       rbHide.value = true; // default（旧「塗り/線をなしに」ON相当）
 
       // Objects to arrange / 配置するオブジェクト
-      var placeObjPanel = colR.add("panel", undefined, L('panelPlaceObjects'));
+      var placeObjPanel = colR.add("panel", undefined, getLabel('panelPlaceObjects'));
       placeObjPanel.orientation = "column";
       placeObjPanel.alignChildren = "fill";
       placeObjPanel.margins = [15, 20, 15, 10];
 
       // Duplicate / 複製
-      var dupPanel = placeObjPanel.add("panel", undefined, L('panelDuplicate'));
+      var dupPanel = placeObjPanel.add("panel", undefined, getLabel('panelDuplicate'));
       dupPanel.orientation = "column";
       dupPanel.alignChildren = "fill";
       dupPanel.margins = [15, 20, 15, 10];
@@ -668,11 +668,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
       var cbDupEnable = gDupTop.add("checkbox", undefined, "");
       // Default behavior based on initial selection count
-      var initialSelCount = (sel && sel.length) ? sel.length : 0;
+      var initialSelCount = (currentSelection && currentSelection.length) ? currentSelection.length : 0;
       cbDupEnable.value = (initialSelCount === 2); // ON only when exactly 2 selected
       cbDupEnable.preferredSize.width = 18;
 
-      var stDup = gDupTop.add("statictext", undefined, L('duplicateCount'));
+      var stDup = gDupTop.add("statictext", undefined, getLabel('duplicateCount'));
       var etDupCount = gDupTop.add("edittext", undefined, "2");
       etDupCount.characters = 4;
       changeValueByArrowKey(etDupCount, false);
@@ -742,7 +742,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       updateDupUI();
 
       // Put all rotation radios under ONE parent group (for grouping & order) / 回転ラジオを同一groupに
-      var rotPanel = placeObjPanel.add("panel", undefined, L('panelRotation'));
+      var rotPanel = placeObjPanel.add("panel", undefined, getLabel('panelRotation'));
       rotPanel.orientation = "column";
       rotPanel.alignChildren = "left";
       rotPanel.margins = [15, 20, 15, 10];
@@ -753,10 +753,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       gRotRadios.alignChildren = "left";
 
       // Rotation modes / 回転モード（順番：何もしない → それぞれ垂直 → それぞれ垂直（逆） → パスに対して垂直 → ランダム → 角度指定）
-      var rbRotNone = gRotRadios.add("radiobutton", undefined, L('rotationNone'));
-      var rbRotPerp = gRotRadios.add("radiobutton", undefined, L('rotationPerpendicular'));
-      var rbRotPathPerp = gRotRadios.add("radiobutton", undefined, L('rotationPathPerpendicular'));
-      var rbRotRandom = gRotRadios.add("radiobutton", undefined, L('rotationRandom'));
+      var rbRotNone = gRotRadios.add("radiobutton", undefined, getLabel('rotationNone'));
+      var rbRotPerp = gRotRadios.add("radiobutton", undefined, getLabel('rotationPerpendicular'));
+      var rbRotPathPerp = gRotRadios.add("radiobutton", undefined, getLabel('rotationPathPerpendicular'));
+      var rbRotRandom = gRotRadios.add("radiobutton", undefined, getLabel('rotationRandom'));
       rbRotNone.value = true; // default
 
       // Angle (single line) / 角度指定（1行）
@@ -765,31 +765,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       gRotAngleRow.alignChildren = ["left", "center"];
       gRotAngleRow.spacing = 6;
 
-      var rbRotAngle = gRotAngleRow.add("radiobutton", undefined, L('rotationAngle'));
+      var rbRotAngle = gRotAngleRow.add("radiobutton", undefined, getLabel('rotationAngle'));
       var etRotAngle = gRotAngleRow.add("edittext", undefined, "0");
       etRotAngle.characters = 3;
       changeValueByArrowKey(etRotAngle, true);
       var stRotDeg = gRotAngleRow.add("statictext", undefined, "°");
 
       // 180° rotation checkbox
-      var cbRotFlip180 = rotPanel.add("checkbox", undefined, L('rotationFlip180'));
+      var cbRotFlip180 = rotPanel.add("checkbox", undefined, getLabel('rotationFlip180'));
       cbRotFlip180.value = false;
       cbRotFlip180.onClick = function () { rebuildPreviewIfNeeded(); };
 
       // Order / 順番
-      var orderModePanel = placeObjPanel.add("panel", undefined, L('panelOrder'));
+      var orderModePanel = placeObjPanel.add("panel", undefined, getLabel('panelOrder'));
       orderModePanel.orientation = "row";
       orderModePanel.alignChildren = ["left", "center"];
       orderModePanel.margins = [15, 20, 15, 10];
       orderModePanel.spacing = 12;
 
-      var rbOrderCurrent = orderModePanel.add("radiobutton", undefined, L('orderCurrent'));
-      var rbOrderReverse = orderModePanel.add("radiobutton", undefined, L('orderReverse'));
-      var rbOrderRandom = orderModePanel.add("radiobutton", undefined, L('orderRandom'));
+      var rbOrderCurrent = orderModePanel.add("radiobutton", undefined, getLabel('orderCurrent'));
+      var rbOrderReverse = orderModePanel.add("radiobutton", undefined, getLabel('orderReverse'));
+      var rbOrderRandom = orderModePanel.add("radiobutton", undefined, getLabel('orderRandom'));
       rbOrderCurrent.value = true; // default
 
       // Spacing / 間隔
-      var spacingPanel = placeObjPanel.add("panel", undefined, L('panelSpacing'));
+      var spacingPanel = placeObjPanel.add("panel", undefined, getLabel('panelSpacing'));
       spacingPanel.orientation = "column";
       spacingPanel.alignChildren = "fill";
       spacingPanel.margins = [15, 20, 15, 10];
@@ -800,8 +800,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       gSpacingRadios.alignChildren = ["left", "center"];
       gSpacingRadios.spacing = 12;
 
-      var rbSpacingEven = gSpacingRadios.add("radiobutton", undefined, L('spacingEven'));
-      var rbSpacingRandom = gSpacingRadios.add("radiobutton", undefined, L('spacingRandom'));
+      var rbSpacingEven = gSpacingRadios.add("radiobutton", undefined, getLabel('spacingEven'));
+      var rbSpacingRandom = gSpacingRadios.add("radiobutton", undefined, getLabel('spacingRandom'));
       rbSpacingEven.value = true; // default
 
       // Slider (enabled only when Random) / スライダー（ランダム選択時のみ有効）
@@ -844,10 +844,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       gGrpChecks.alignChildren = ["center", "center"];
       gGrpChecks.spacing = 12;
 
-      var cbGroupPlaced = gGrpChecks.add("checkbox", undefined, L('groupPlaced'));
+      var cbGroupPlaced = gGrpChecks.add("checkbox", undefined, getLabel('groupPlaced'));
       cbGroupPlaced.value = true; // default ON
 
-      var cbAllRandom = gGrpChecks.add("checkbox", undefined, L('allRandom'));
+      var cbAllRandom = gGrpChecks.add("checkbox", undefined, getLabel('allRandom'));
       cbAllRandom.value = false;
 
       // right spacer
@@ -866,7 +866,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       var gBottomL = bottomBar.add("group");
       gBottomL.orientation = "row";
       gBottomL.alignChildren = ["left", "center"];
-      var cbPreview = gBottomL.add("checkbox", undefined, L('preview'));
+      var cbPreview = gBottomL.add("checkbox", undefined, getLabel('preview'));
       cbPreview.value = false;
       gBottomL.margins = [0, 0, 0, 0];
 
@@ -882,8 +882,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       btns.alignment = "right";
       btns.alignChildren = ["right", "center"];
 
-      var btnCancel = btns.add("button", undefined, L('btnCancel'), { name: "cancel" });
-      var btnOK = btns.add("button", undefined, L('btnOK'), { name: "ok" });
+      var btnCancel = btns.add("button", undefined, getLabel('btnCancel'), { name: "cancel" });
+      var btnOK = btns.add("button", undefined, getLabel('btnOK'), { name: "ok" });
 
       // Ensure Cancel always closes / キャンセルで必ず閉じる
       btnCancel.onClick = function () {
@@ -1271,24 +1271,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       }
 
       // Re-fetch selection at OK time / OK時に選択を取り直す
-      sel = doc.selection;
+      currentSelection = doc.selection;
 
-      if (!sel || sel.length < 2) {
+      if (!currentSelection || currentSelection.length < 2) {
         // Fallback to snapshot if selection was dropped during preview
         if (previewSelSnapshot && previewSelSnapshot.length >= 2) {
           try { doc.selection = previewSelSnapshot; } catch (_) { }
-          try { sel = doc.selection; } catch (_) { }
+          try { currentSelection = doc.selection; } catch (_) { }
         }
       }
 
-      if (!sel || sel.length < 2) {
+      if (!currentSelection || currentSelection.length < 2) {
         safeAlertKey('alertNeedSelection');
         previewSelSnapshot = null;
         return;
       }
 
       /* B = 選択範囲の中で選択されたルールに従うパス / B = base path by selected rule */
-      var pathItem = rbAutoLargest.value ? getLargestPathItem(sel) : (rbFrontmost.value ? getFrontmostPathItem(sel) : getBackmostPathItem(sel));
+      var pathItem = rbAutoLargest.value ? getLargestPathItem(currentSelection) : (rbFrontmost.value ? getFrontmostPathItem(currentSelection) : getBackmostPathItem(currentSelection));
       if (!pathItem) {
         safeAlertKey('alertNoBasePath');
         return;
@@ -1306,9 +1306,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
       /* A = 選択範囲のうち、基準パス（B）以外で配置可能なもの / A = placeable items excluding base path (B) */
       var items = [];
-      for (var i2 = 0; i2 < sel.length; i2++) {
-        if (sel[i2] === pathItem) continue;
-        if (isPlaceableItem(sel[i2])) items.push(sel[i2]);
+      for (var i2 = 0; i2 < currentSelection.length; i2++) {
+        if (currentSelection[i2] === pathItem) continue;
+        if (isPlaceableItem(currentSelection[i2])) items.push(currentSelection[i2]);
       }
 
       if (items.length === 0) {

@@ -58,7 +58,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
     /* 一時アクションのアクション名 / Temporary action name */
     var ACTION_NAME = "Expand-gradient";
 
-
     (function () {
 
         // =========================================
@@ -127,12 +126,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
             }
         };
 
-        function L(key) {
+        function getLabel(key) {
             return (LABELS[key] && LABELS[key][currentLanguage]) ? LABELS[key][currentLanguage] : key;
         }
 
         function labelText(key) {
-            return L(key) + (currentLanguage === "ja" ? "：" : ":");
+            return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
         }
 
         // =========================================
@@ -140,13 +139,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
         // =========================================
 
         if (app.documents.length === 0) {
-            alert(L("alertNoDocument"));
+            alert(getLabel("alertNoDocument"));
             return;
         }
 
         var activeDoc = app.activeDocument;
         if (activeDoc.selection.length === 0) {
-            alert(L("alertNoSelection"));
+            alert(getLabel("alertNoSelection"));
             return;
         }
 
@@ -168,12 +167,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
 
         if (postProcessMode === "simple") {
             if (!furtherExpandSelection(activeDoc)) {
-                alert(L("alertMergeTargetNotFound"));
+                alert(getLabel("alertMergeTargetNotFound"));
                 return;
             }
         } else if (postProcessMode === "blend") {
             if (!convertToBlend(activeDoc)) {
-                alert(L("alertBlendTargetNotFound"));
+                alert(getLabel("alertBlendTargetNotFound"));
                 return;
             }
         }
@@ -360,7 +359,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
      */
     function showStepsDialog(scriptVersion, defaultSteps, defaultPostProcessMode, L, labelText) {
 
-        var stepsDialog = new Window("dialog", L("dialogTitle") + " " + scriptVersion);
+        var stepsDialog = new Window("dialog", getLabel("dialogTitle") + " " + scriptVersion);
         stepsDialog.orientation = "column";
         stepsDialog.alignChildren = ["fill", "top"];
         stepsDialog.margins = 16;
@@ -374,14 +373,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
         stepsInput.active = true;
         changeValueByArrowKey(stepsInput);
 
-        var postProcessPanel = stepsDialog.add("panel", undefined, L("postProcessPanel"));
+        var postProcessPanel = stepsDialog.add("panel", undefined, getLabel("postProcessPanel"));
         postProcessPanel.orientation = "column";
         postProcessPanel.alignChildren = ["left", "top"];
         postProcessPanel.margins = [15, 20, 15, 10];
 
-        var postProcessNoneRb = postProcessPanel.add("radiobutton", undefined, L("postProcessNone"));
-        var postProcessSimpleRb = postProcessPanel.add("radiobutton", undefined, L("postProcessSimple"));
-        var postProcessBlendRb = postProcessPanel.add("radiobutton", undefined, L("postProcessBlend"));
+        var postProcessNoneRb = postProcessPanel.add("radiobutton", undefined, getLabel("postProcessNone"));
+        var postProcessSimpleRb = postProcessPanel.add("radiobutton", undefined, getLabel("postProcessSimple"));
+        var postProcessBlendRb = postProcessPanel.add("radiobutton", undefined, getLabel("postProcessBlend"));
 
         postProcessSimpleRb.value = (defaultPostProcessMode === "simple");
         postProcessBlendRb.value = (defaultPostProcessMode === "blend");
@@ -407,14 +406,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
 
         var okCancelGroup = stepsDialog.add("group");
         okCancelGroup.alignment = ["right", "center"];
-        okCancelGroup.add("button", undefined, L("cancel"), { name: "cancel" });
+        okCancelGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
         okCancelGroup.add("button", undefined, "OK", { name: "ok" });
 
         if (stepsDialog.show() !== 1) return null;
 
         var parsedSteps = parseInt(stepsInput.text, 10);
         if (isNaN(parsedSteps) || parsedSteps < 2) {
-            alert(L("alertInvalidSteps"));
+            alert(getLabel("alertInvalidSteps"));
             return null;
         }
 

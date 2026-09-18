@@ -53,7 +53,7 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: { ja: "ぼかし（スタイライズ）", en: "Feather" },
@@ -64,12 +64,12 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
         invalid:     { ja: "半径には正の数値を入力してください。", en: "Please enter a positive number for the radius." }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     function labelText(key) {
-        return L(key) + (lang === "ja" ? "：" : ":");
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
     // ================================================================================
@@ -114,7 +114,7 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
     // ================================================================================
 
     function promptRadius(rulerUnit, defaultValueInUnit) {
-        var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 16;
@@ -130,7 +130,7 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
 
         var buttonRow = dialog.add("group");
         buttonRow.alignment = "right";
-        buttonRow.add("button", undefined, L("cancel"), { name: "cancel" });
+        buttonRow.add("button", undefined, getLabel("cancel"), { name: "cancel" });
         buttonRow.add("button", undefined, "OK", { name: "ok" });
 
         radiusInput.active = true;
@@ -139,7 +139,7 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
 
         var value = parsePositive(radiusInput.text);
         if (value === null) {
-            alert(L("invalid"));
+            alert(getLabel("invalid"));
             return null;
         }
         return value;
@@ -150,12 +150,12 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
     // ================================================================================
 
     if (app.documents.length === 0) {
-        alert(L("noDoc"));
+        alert(getLabel("noDoc"));
         return;
     }
 
     if (app.selection.length === 0) {
-        alert(L("noSel"));
+        alert(getLabel("noSel"));
         return;
     }
 

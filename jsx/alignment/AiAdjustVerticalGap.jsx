@@ -146,7 +146,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     };
 
     /* ドット区切りパスでラベルを取得（途中欠落・null にも耐える）/ Look up a label by dotted path (tolerates missing or null nodes) */
-    function L(path) {
+    function getLabel(path) {
         var parts = path.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -163,7 +163,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(path) {
-        return L(path) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -315,14 +315,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* 対象2点を選択から解決（2個選択 or 2点入りグループ1個）。解決不可は null /
        Resolve the two target items (two selected, or a single non-clip group of two). Null if unresolved */
-    function resolveTargetPair(sel) {
-        if (sel.length === 2) {
-            return [sel[0], sel[1]];
+    function resolveTargetPair(currentSelection) {
+        if (currentSelection.length === 2) {
+            return [currentSelection[0], currentSelection[1]];
         }
         /* 2点を含む通常グループ1つ（クリップグループは1オブジェクト扱いなので除外）/
            One regular group of exactly two items (clip groups count as a single object, so excluded) */
-        if (sel.length === 1 && sel[0].constructor.name === "GroupItem" && sel[0].clipped !== true) {
-            var children = sel[0].pageItems;
+        if (currentSelection.length === 1 && currentSelection[0].constructor.name === "GroupItem" && currentSelection[0].clipped !== true) {
+            var children = currentSelection[0].pageItems;
             if (children.length === 2) {
                 return [children[0], children[1]];
             }
@@ -467,16 +467,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* 選択から一括適用の対象ペア群を集める（各グループの2点／グループ無しなら2点選択を1組）/
        Collect target pairs for batch apply (each group's two children; or two loose items as one pair) */
-    function collectTargetPairs(sel) {
+    function collectTargetPairs(currentSelection) {
         var pairs = [];
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].constructor.name === "GroupItem" && sel[i].clipped !== true && sel[i].pageItems.length === 2) {
-                pairs.push([sel[i].pageItems[0], sel[i].pageItems[1]]);
+        for (var i = 0; i < currentSelection.length; i++) {
+            if (currentSelection[i].constructor.name === "GroupItem" && currentSelection[i].clipped !== true && currentSelection[i].pageItems.length === 2) {
+                pairs.push([currentSelection[i].pageItems[0], currentSelection[i].pageItems[1]]);
             }
         }
         /* グループが1つも無く、ちょうど2点選択なら単一ペア / no qualifying groups but exactly two loose items */
-        if (pairs.length === 0 && sel.length === 2) {
-            pairs.push([sel[0], sel[1]]);
+        if (pairs.length === 0 && currentSelection.length === 2) {
+            pairs.push([currentSelection[0], currentSelection[1]]);
         }
         return pairs;
     }
@@ -636,19 +636,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         if (app.documents.length === 0) {
             return "NODOC";
         }
-        var sel = app.activeDocument.selection;
+        var currentSelection = app.activeDocument.selection;
         /* 整列コマンドは選択に対して働くため、2点選択のときだけ判定する /
            Align commands act on the selection, so only exactly two selected items qualify */
-        if (!sel || sel.length !== 2) {
+        if (!currentSelection || currentSelection.length !== 2) {
             return "NOSEL";
         }
-        var keyItem = findKeyObject(sel);
+        var keyItem = findKeyObject(currentSelection);
         app.redraw();
         if (keyItem === null) {
             return "NONE";
         }
         var keyBounds = getItemBounds(keyItem, options.usePreviewBounds);
-        var otherBounds = getItemBounds((sel[0] === keyItem) ? sel[1] : sel[0], options.usePreviewBounds);
+        var otherBounds = getItemBounds((currentSelection[0] === keyItem) ? currentSelection[1] : currentSelection[0], options.usePreviewBounds);
         /* top が大きい方が上 / The item with the larger top is the upper one */
         return (keyBounds[1] >= otherBounds[1]) ? "TOP" : "BOTTOM";
     }
@@ -847,20 +847,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* 固定するオブジェクトパネル / Fixed-object panel */
     function buildAnchorPanel(parent, onPreview, onAutoDetect) {
-        var panel = parent.add("panel", undefined, L("anchor.title"));
+        var panel = parent.add("panel", undefined, getLabel("anchor.title"));
         setupPanel(panel);
-        panel.helpTip = L("tooltip.anchorTop") + " / " + L("tooltip.anchorBottom") + " / " + L("tooltip.anchorAuto");
+        panel.helpTip = getLabel("tooltip.anchorTop") + " / " + getLabel("tooltip.anchorBottom") + " / " + getLabel("tooltip.anchorAuto");
 
         /* 上・下・自動判定は横並び（ショートカット T/B/K はラベル非表示）/ Top, bottom and auto in a row (T/B/K shortcuts are not shown) */
         var row = panel.add("group");
         setupGroup(row, "row");
-        var anchorTopRadio = row.add("radiobutton", undefined, L("anchor.top"));
-        var anchorBottomRadio = row.add("radiobutton", undefined, L("anchor.bottom"));
-        var anchorAutoRadio = row.add("radiobutton", undefined, L("anchor.auto"));
+        var anchorTopRadio = row.add("radiobutton", undefined, getLabel("anchor.top"));
+        var anchorBottomRadio = row.add("radiobutton", undefined, getLabel("anchor.bottom"));
+        var anchorAutoRadio = row.add("radiobutton", undefined, getLabel("anchor.auto"));
         anchorAutoRadio.value = true; /* 既定は自動判定 / Auto by default */
-        anchorTopRadio.helpTip = L("tooltip.anchorTop");
-        anchorBottomRadio.helpTip = L("tooltip.anchorBottom");
-        anchorAutoRadio.helpTip = L("tooltip.anchorAuto");
+        anchorTopRadio.helpTip = getLabel("tooltip.anchorTop");
+        anchorBottomRadio.helpTip = getLabel("tooltip.anchorBottom");
+        anchorAutoRadio.helpTip = getLabel("tooltip.anchorAuto");
         anchorTopRadio.onClick = onPreview;
         anchorBottomRadio.onClick = onPreview;
         anchorAutoRadio.onClick = onAutoDetect;
@@ -875,22 +875,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* 間隔値＋プレビュー境界パネル / Gap + preview-bounds panel */
     function buildGapPanel(parent, rulerUnit, onPreview) {
-        var panel = parent.add("panel", undefined, L("gap.title"));
+        var panel = parent.add("panel", undefined, getLabel("gap.title"));
         setupPanel(panel);
-        panel.helpTip = L("tooltip.gap");
+        panel.helpTip = getLabel("tooltip.gap");
 
         var row = panel.add("group");
         setupGroup(row, "row");
         var gapValueInput = row.add("edittext", undefined, DEFAULT_GAP_VALUE);
         gapValueInput.characters = 5;
-        gapValueInput.helpTip = L("tooltip.gap");
+        gapValueInput.helpTip = getLabel("tooltip.gap");
         changeValueByArrowKey(gapValueInput, onPreview);
         gapValueInput.onChange = onPreview;
         row.add("statictext", undefined, rulerUnit.label);
 
-        var previewBoundsCheckbox = panel.add("checkbox", undefined, L("checkbox.previewBounds"));
+        var previewBoundsCheckbox = panel.add("checkbox", undefined, getLabel("checkbox.previewBounds"));
         previewBoundsCheckbox.value = true;
-        previewBoundsCheckbox.helpTip = L("tooltip.previewBounds");
+        previewBoundsCheckbox.helpTip = getLabel("tooltip.previewBounds");
         previewBoundsCheckbox.onClick = onPreview;
 
         return {
@@ -901,27 +901,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* 左右の整列パネル / Horizontal-alignment panel */
     function buildAlignPanel(parent, rulerUnit, onPreview) {
-        var panel = parent.add("panel", undefined, L("align.title"));
+        var panel = parent.add("panel", undefined, getLabel("align.title"));
         setupPanel(panel);
-        panel.helpTip = L("tooltip.align");
+        panel.helpTip = getLabel("tooltip.align");
 
         /* ラジオは横並び / Radios in a row */
         var row = panel.add("group");
         setupGroup(row, "row");
         var radios = {
-            none: row.add("radiobutton", undefined, L("align.none")),
-            left: row.add("radiobutton", undefined, L("align.left")),
-            center: row.add("radiobutton", undefined, L("align.center")),
-            right: row.add("radiobutton", undefined, L("align.right"))
+            none: row.add("radiobutton", undefined, getLabel("align.none")),
+            left: row.add("radiobutton", undefined, getLabel("align.left")),
+            center: row.add("radiobutton", undefined, getLabel("align.center")),
+            right: row.add("radiobutton", undefined, getLabel("align.right"))
         };
         radios.none.value = true;
         radios.none.onClick = onPreview;
         radios.left.onClick = onPreview;
         radios.right.onClick = onPreview;
-        radios.none.helpTip = L("tooltip.align");
-        radios.left.helpTip = L("tooltip.align");
-        radios.center.helpTip = L("tooltip.align");
-        radios.right.helpTip = L("tooltip.align");
+        radios.none.helpTip = getLabel("tooltip.align");
+        radios.left.helpTip = getLabel("tooltip.align");
+        radios.center.helpTip = getLabel("tooltip.align");
+        radios.right.helpTip = getLabel("tooltip.align");
 
         /* 整列後の左右ずらし量（正＝右／負＝左）/ Extra horizontal offset (positive = right, negative = left) */
         var adjustRow = panel.add("group");
@@ -929,7 +929,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         adjustRow.add("statictext", undefined, labelText("align.adjust"));
         var adjustInput = adjustRow.add("edittext", undefined, "0");
         adjustInput.characters = 5;
-        adjustInput.helpTip = L("tooltip.alignAdjust");
+        adjustInput.helpTip = getLabel("tooltip.alignAdjust");
         changeValueByArrowKey(adjustInput, onPreview);
         adjustInput.onChange = onPreview;
         adjustRow.add("statictext", undefined, rulerUnit.label);
@@ -950,19 +950,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
     /* テキストの行揃えパネル / Paragraph-justification panel */
     function buildJustifyPanel(parent, onPreview) {
-        var panel = parent.add("panel", undefined, L("justify.title"));
+        var panel = parent.add("panel", undefined, getLabel("justify.title"));
         setupPanel(panel);
-        panel.helpTip = L("tooltip.justify");
+        panel.helpTip = getLabel("tooltip.justify");
 
         var radios = {
-            none: panel.add("radiobutton", undefined, L("justify.none")),
-            link: panel.add("radiobutton", undefined, L("justify.link")),
-            full: panel.add("radiobutton", undefined, L("justify.full"))
+            none: panel.add("radiobutton", undefined, getLabel("justify.none")),
+            link: panel.add("radiobutton", undefined, getLabel("justify.link")),
+            full: panel.add("radiobutton", undefined, getLabel("justify.full"))
         };
         radios.link.value = true;
-        radios.none.helpTip = L("tooltip.justify");
-        radios.link.helpTip = L("tooltip.justify");
-        radios.full.helpTip = L("tooltip.justifyFull"); /* （最終行左）はツールチップに / "(last line left)" lives in the tooltip */
+        radios.none.helpTip = getLabel("tooltip.justify");
+        radios.link.helpTip = getLabel("tooltip.justify");
+        radios.full.helpTip = getLabel("tooltip.justifyFull"); /* （最終行左）はツールチップに / "(last line left)" lives in the tooltip */
         radios.none.onClick = onPreview;
         radios.link.onClick = onPreview;
         radios.full.onClick = onPreview;
@@ -1030,7 +1030,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
         var rulerUnit = getRulerUnitInfo();
 
-        var win = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+        var win = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
         win.orientation = "column";
         win.alignChildren = "fill";
 
@@ -1135,8 +1135,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         function setLocked(isLocked) {
             locked = isLocked;
             settingsColumn.enabled = !isLocked;
-            recordBtn.text = isLocked ? L("button.edit") : L("button.record");
-            recordBtn.helpTip = isLocked ? L("tooltip.edit") : L("tooltip.record");
+            recordBtn.text = isLocked ? getLabel("button.edit") : getLabel("button.record");
+            recordBtn.helpTip = isLocked ? getLabel("tooltip.edit") : getLabel("tooltip.record");
         }
 
         /* 「記録」⇔「編集」トグル：記録時は設定を保存しパネルをディム、編集時はロック解除（プレビューは戻さない）/
@@ -1181,11 +1181,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
         /* ボタン：記録／適用 / Buttons: Record / Apply */
         var btnGroup = win.add("group");
         btnGroup.alignment = "right";
-        var recordBtn = btnGroup.add("button", undefined, L("button.record"));
-        recordBtn.helpTip = L("tooltip.record");
+        var recordBtn = btnGroup.add("button", undefined, getLabel("button.record"));
+        recordBtn.helpTip = getLabel("tooltip.record");
         recordBtn.onClick = toggleRecord;
-        var applyBtn = btnGroup.add("button", undefined, L("button.apply"));
-        applyBtn.helpTip = L("tooltip.apply");
+        var applyBtn = btnGroup.add("button", undefined, getLabel("button.apply"));
+        applyBtn.helpTip = getLabel("tooltip.apply");
         applyBtn.onClick = applyBatch;
 
         /* 閉じる時：未確定のプレビューは取り消す（×・Esc 共通）/ On close: revert an uncommitted preview (X and Esc) */

@@ -61,7 +61,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
         { id: "optical", ja: "オプティカル", en: "Optical" }
     ];
 
-    function getLocalizedText(entry) {
+    function getLabel(entry) {
         return entry[currentLanguage] || entry.ja || entry.en || "";
     }
 
@@ -200,11 +200,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
             /* ドキュメントなしは異常ではないので黙って無視 / No document is a normal state, not a failure */
             if (payload === "ERR:nodoc") return;
             /* 失敗は握りつぶさず可視化 / Surface failures instead of swallowing them */
-            alert("⚠ " + getLocalizedText(LABELS.applyError) + " [" + actionId + "]: " + payload);
+            alert("⚠ " + getLabel(LABELS.applyError) + " [" + actionId + "]: " + payload);
         };
         bridge.onError = function (response) {
             workerBusy = false;
-            alert("⚠ " + getLocalizedText(LABELS.applyError) + " [" + actionId + "]: " + (response && response.body ? response.body : "BridgeTalk error"));
+            alert("⚠ " + getLabel(LABELS.applyError) + " [" + actionId + "]: " + (response && response.body ? response.body : "BridgeTalk error"));
         };
         bridge.send();
     }
@@ -257,26 +257,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
     // =========================================
 
     function createPalette() {
-        var palette = new Window("palette", getLocalizedText(LABELS.title) + " " + SCRIPT_VERSION);
+        var palette = new Window("palette", getLabel(LABELS.title) + " " + SCRIPT_VERSION);
         palette.alignChildren = "fill";
         palette.margins = 15;
         palette.spacing = 10;
 
-        var autoKernPanel = palette.add("panel", undefined, getLocalizedText(LABELS.autoKern));
+        var autoKernPanel = palette.add("panel", undefined, getLabel(LABELS.autoKern));
         autoKernPanel.orientation = "column";
         autoKernPanel.alignChildren = ["left", "top"];
         autoKernPanel.margins = [10, 15, 10, 10];
         autoKernPanel.spacing = 6;
-        autoKernPanel.helpTip = getLocalizedText(LABELS.tipAutoKern);
+        autoKernPanel.helpTip = getLabel(LABELS.tipAutoKern);
 
-        var proportionalCheck = palette.add("checkbox", undefined, getLocalizedText(LABELS.proportionalMetrics));
+        var proportionalCheck = palette.add("checkbox", undefined, getLabel(LABELS.proportionalMetrics));
         proportionalCheck.value = false;
         proportionalCheck.alignment = "left";
-        proportionalCheck.helpTip = getLocalizedText(LABELS.tipProportional);
+        proportionalCheck.helpTip = getLabel(LABELS.tipProportional);
 
         var kernRadios = [];
         for (var i = 0; i < AUTO_KERN_OPTIONS.length; i++) {
-            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLocalizedText(AUTO_KERN_OPTIONS[i]));
+            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLabel(AUTO_KERN_OPTIONS[i]));
             kernRadio.value = false;
             kernRadio.index = i;
             /* 表示も適用と同じ連動にする / Keep the checkbox in step with what is applied */

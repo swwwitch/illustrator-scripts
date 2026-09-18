@@ -128,7 +128,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebc832e574f7"; /* 紹�
      * @param {string} keyPath - LABELS 内のキーをドットで連結したパス（例 "dialog.title"）。
      * @returns {string} ローカライズ済み文字列。未定義時は keyPath を返す。
      */
-    function getLocalizedText(keyPath) {
+    function getLabel(keyPath) {
         var keyParts = keyPath.split(".");
         var labelNode = LABELS;
         for (var i = 0; i < keyParts.length; i++) {
@@ -332,20 +332,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebc832e574f7"; /* 紹�
      */
     function main() {
         if (!app.documents.length) {
-            alert(getLocalizedText("alert.noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
         var doc = app.activeDocument;
         var selectionItems = getSelectionItems(doc);
         if (!selectionItems.length) {
-            alert(getLocalizedText("alert.noSelection"));
+            alert(getLabel("alert.noSelection"));
             return;
         }
 
         var clippingGroups = collectClippingGroups(selectionItems);
         if (!clippingGroups.length) {
-            alert(getLocalizedText("alert.noClippingMask"));
+            alert(getLabel("alert.noClippingMask"));
             return;
         }
 
@@ -368,20 +368,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebc832e574f7"; /* 紹�
      * @returns {ReleaseSettings|null} OK 時は設定オブジェクト、キャンセル・クローズ時は null。
      */
     function showReleaseDialog(clippingGroups) {
-        var dialog = new Window("dialog", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialog);
 
         /* 解除方法パネル / Release mode panel */
-        var releaseModePanel = dialog.add("panel", undefined, getLocalizedText("dialog.releaseMode"));
+        var releaseModePanel = dialog.add("panel", undefined, getLabel("dialog.releaseMode"));
         setupPanel(releaseModePanel, 6);
 
-        var radioSimpleRelease = releaseModePanel.add("radiobutton", undefined, getLocalizedText("radio.simpleRelease"));
-        var radioRemoveMaskPath = releaseModePanel.add("radiobutton", undefined, getLocalizedText("radio.removeMaskPath"));
-        var radioRemoveContent = releaseModePanel.add("radiobutton", undefined, getLocalizedText("radio.removeContent"));
+        var radioSimpleRelease = releaseModePanel.add("radiobutton", undefined, getLabel("radio.simpleRelease"));
+        var radioRemoveMaskPath = releaseModePanel.add("radiobutton", undefined, getLabel("radio.removeMaskPath"));
+        var radioRemoveContent = releaseModePanel.add("radiobutton", undefined, getLabel("radio.removeContent"));
 
-        radioSimpleRelease.helpTip = getLocalizedText("tooltip.simpleRelease");
-        radioRemoveMaskPath.helpTip = getLocalizedText("tooltip.removeMaskPath");
-        radioRemoveContent.helpTip = getLocalizedText("tooltip.removeContent");
+        radioSimpleRelease.helpTip = getLabel("tooltip.simpleRelease");
+        radioRemoveMaskPath.helpTip = getLabel("tooltip.removeMaskPath");
+        radioRemoveContent.helpTip = getLabel("tooltip.removeContent");
 
         /* デフォルトの解除方法を選択 / Select default release mode */
         if (USER_DEFAULTS.releaseMode === "simple") {
@@ -405,8 +405,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebc832e574f7"; /* 紹�
         fillOptionGroup.orientation = "column";
         fillOptionGroup.alignChildren = "left";
         fillOptionGroup.margins = [20, 5, 0, 10];
-        var applyFillCheckbox = fillOptionGroup.add("checkbox", undefined, getLocalizedText("checkbox.applyFill"));
-        applyFillCheckbox.helpTip = getLocalizedText("tooltip.applyFill");
+        var applyFillCheckbox = fillOptionGroup.add("checkbox", undefined, getLabel("checkbox.applyFill"));
+        applyFillCheckbox.helpTip = getLabel("tooltip.applyFill");
         applyFillCheckbox.value = USER_DEFAULTS.applyFill;
 
         /* パス削除モードでは塗りチェックボックスを無効化 / Disable fill checkbox in remove-path mode */
@@ -423,7 +423,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebc832e574f7"; /* 紹�
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "center";
 
-        buttonGroup.add("button", undefined, getLocalizedText("button.cancel"), { name: "cancel" });
+        buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         /* OK以外（キャンセル・クローズ）は null / Return null unless OK was pressed */
@@ -473,7 +473,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebc832e574f7"; /* 紹�
             }
         }
         if (failureReasons.length > 0) {
-            var failureMessage = getLocalizedText("alert.releaseFailed").replace("{count}", failureReasons.length);
+            var failureMessage = getLabel("alert.releaseFailed").replace("{count}", failureReasons.length);
             alert(failureMessage + "\n" + failureReasons.join("\n"));
         }
     }

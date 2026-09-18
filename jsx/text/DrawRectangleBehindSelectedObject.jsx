@@ -159,7 +159,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ラベル定義 / Label definitions (UI order) */
     var LABELS = {
@@ -964,11 +964,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     })($.global);
 
-    function __buildSelectionSignature(sel) {
-        var parts = [sel && sel.length ? sel.length : 0];
+    function __buildSelectionSignature(currentSelection) {
+        var parts = [currentSelection && currentSelection.length ? currentSelection.length : 0];
         try {
-            for (var i = 0; i < (sel ? sel.length : 0); i++) {
-                var it = sel[i];
+            for (var i = 0; i < (currentSelection ? currentSelection.length : 0); i++) {
+                var it = currentSelection[i];
                 var nm = "";
                 try {
                     nm = String(it.name || "");
@@ -1006,14 +1006,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return b;
     }
 
-    function getCombinedFinalBoundsCached(doc, sel, usePreview) {
+    function getCombinedFinalBoundsCached(doc, currentSelection, usePreview) {
         var oc = $.global.__outlineCache || {
             sig: "",
             group: null,
             byIndex: {}
         };
         if (oc.group) return oc.group;
-        var b = getCombinedFinalBounds(doc, sel, usePreview);
+        var b = getCombinedFinalBounds(doc, currentSelection, usePreview);
         try {
             oc.group = b;
         } catch (e) {}
@@ -1063,7 +1063,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function clearPreview(removeLayer) {
         try {
             var doc = app.activeDocument;
-            var names = [LABELS.previewLayer[lang], "プレビュー", "Preview", "_preview"]; // legacy names
+            var names = [LABELS.previewLayer[uiLang], "プレビュー", "Preview", "_preview"]; // legacy names
             for (var i = doc.layers.length - 1; i >= 0; i--) {
                 var layer = doc.layers[i];
                 var nm = layer.name;
@@ -1095,7 +1095,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function getOrCreatePreviewLayer(doc, refLayer) {
-        var name = LABELS.previewLayer[lang];
+        var name = LABELS.previewLayer[uiLang];
         var layer = null;
         for (var i = 0; i < doc.layers.length; i++) {
             if (doc.layers[i].name === name) {
@@ -1140,7 +1140,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * - parsePreviewIndex(name): ベース名に続く "#<idx>" を解析して数値を返す
      */
     function makePreviewName(idx) {
-        var base = LABELS.previewRect[lang];
+        var base = LABELS.previewRect[uiLang];
         return String(base) + "#" + String(idx | 0);
     }
 
@@ -1148,7 +1148,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var s = String(name || '');
         var bases = [];
         try {
-            bases.push(LABELS.previewRect[lang]);
+            bases.push(LABELS.previewRect[uiLang]);
         } catch (e) {}
         try {
             if (LABELS.previewRect.ja && bases.indexOf(LABELS.previewRect.ja) < 0) bases.push(LABELS.previewRect.ja);
@@ -1199,7 +1199,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function findPreviewLayer(doc) {
         try {
-            var names = [LABELS.previewLayer[lang], 'プレビュー', 'Preview', '_preview'];
+            var names = [LABELS.previewLayer[uiLang], 'プレビュー', 'Preview', '_preview'];
             for (var i = 0; i < doc.layers.length; i++) {
                 var layer = doc.layers[i];
                 for (var j = 0; j < names.length; j++) {
@@ -1210,20 +1210,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return null;
     }
 
-    function getRepresentativeTargetLayerFromSelection(doc, sel) {
+    function getRepresentativeTargetLayerFromSelection(doc, currentSelection) {
         var first = null;
         try {
-            first = (sel && sel.length && sel[0] && sel[0].layer) ? sel[0].layer : null;
+            first = (currentSelection && currentSelection.length && currentSelection[0] && currentSelection[0].layer) ? currentSelection[0].layer : null;
         } catch (e) {
             first = null;
         }
-        if (!sel || !sel.length) return first || doc.activeLayer;
+        if (!currentSelection || !currentSelection.length) return first || doc.activeLayer;
         var common = first;
         try {
-            for (var i = 1; i < sel.length; i++) {
+            for (var i = 1; i < currentSelection.length; i++) {
                 var li = null;
                 try {
-                    li = sel[i].layer;
+                    li = currentSelection[i].layer;
                 } catch (_) {
                     li = null;
                 }
@@ -1248,14 +1248,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // Helper to collect unique layers from selection
-    function getUniqueLayersFromSelection(sel) {
+    function getUniqueLayersFromSelection(currentSelection) {
         var out = [],
             seen = {};
         try {
-            for (var i = 0; i < sel.length; i++) {
+            for (var i = 0; i < currentSelection.length; i++) {
                 var lyr = null;
                 try {
-                    lyr = sel[i].layer;
+                    lyr = currentSelection[i].layer;
                 } catch (e) {
                     lyr = null;
                 }
@@ -1286,7 +1286,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!opts || !opts.doc) return;
         var doc = opts.doc;
         var layers = opts.layers || [];
-        var sel = opts.selection || [];
+        var currentSelection = opts.selection || [];
 
         function sendToLayerBack(it, layer) {
             try {
@@ -1312,7 +1312,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     r.hidden = false;
                 } catch (e) {}
                 try {
-                    r.name = (LABELS.rectName && LABELS.rectName[lang]) ? LABELS.rectName[lang] : 'BG_Rect';
+                    r.name = (LABELS.rectName && LABELS.rectName[uiLang]) ? LABELS.rectName[uiLang] : 'BG_Rect';
                 } catch (e) {}
                 sendToLayerBack(r, L);
             }
@@ -1320,13 +1320,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // 全て同一レイヤーの場合のみグループ化 / Group only when all items already on one layer
             var singleLayer = (layers.length === 1);
             if (singleLayer && opts.groupWithText) {
-                var repLayer = layers[0] || getRepresentativeTargetLayerFromSelection(doc, sel);
+                var repLayer = layers[0] || getRepresentativeTargetLayerFromSelection(doc, currentSelection);
                 try {
                     var g = repLayer.groupItems.add();
                     // move selection first
-                    for (var si = 0; si < sel.length; si++) {
+                    for (var si = 0; si < currentSelection.length; si++) {
                         try {
-                            sel[si].move(g, ElementPlacement.PLACEATEND);
+                            currentSelection[si].move(g, ElementPlacement.PLACEATEND);
                         } catch (_) {}
                     }
                     // move one of the rects into the group and send back
@@ -1343,8 +1343,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         if (opts.mode === 'individual') {
             var rects = opts.rectsForItems || [];
-            for (var k = 0; k < sel.length; k++) {
-                var it = sel[k];
+            for (var k = 0; k < currentSelection.length; k++) {
+                var it = currentSelection[k];
                 var rct = rects[k];
                 if (!it || !rct) continue;
                 var tgtLayer = null;
@@ -1359,7 +1359,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     rct.hidden = false;
                 } catch (e) {}
                 try {
-                    rct.name = (LABELS.rectName && LABELS.rectName[lang]) ? LABELS.rectName[lang] : 'BG_Rect';
+                    rct.name = (LABELS.rectName && LABELS.rectName[uiLang]) ? LABELS.rectName[uiLang] : 'BG_Rect';
                 } catch (e) {}
                 sendToLayerBack(rct, tgtLayer);
                 if (opts.groupWithText) {
@@ -1381,7 +1381,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    function convertPreviewToFinal(doc, sel, choice) {
+    function convertPreviewToFinal(doc, currentSelection, choice) {
         if (!doc || !choice) return;
         var prevLayer = findPreviewLayer(doc);
         if (!prevLayer) return;
@@ -1430,21 +1430,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             applyFinalStyle(rect);
 
             // Unique layers for selection (fallback to representative layer)
-            var layers = getUniqueLayersFromSelection(sel);
-            if (!layers || !layers.length) layers = [getRepresentativeTargetLayerFromSelection(doc, sel)];
+            var layers = getUniqueLayersFromSelection(currentSelection);
+            if (!layers || !layers.length) layers = [getRepresentativeTargetLayerFromSelection(doc, currentSelection)];
 
             opts = {
                 mode: 'group',
                 doc: doc,
                 layers: layers,
-                selection: sel,
+                selection: currentSelection,
                 groupWithText: !!choice.groupWithText,
                 rectForGroup: rect
             };
         } else {
             // individual: prepare rect array aligned to selection indexes
             var rects = [];
-            for (var k = 0; k < sel.length; k++) {
+            for (var k = 0; k < currentSelection.length; k++) {
                 var srcRect = mapByIdx[k];
                 if (srcRect) {
                     try {
@@ -1458,7 +1458,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 mode: 'individual',
                 doc: doc,
                 layers: [], // not needed here
-                selection: sel,
+                selection: currentSelection,
                 groupWithText: !!choice.groupWithText,
                 rectsForItems: rects
             };
@@ -1614,9 +1614,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 return useOutline ? getFinalItemBounds(doc, it, usePreview) :
                     getItemBounds(it, usePreview);
             },
-            group: function(sel) {
-                return useOutline ? getCombinedFinalBounds(doc, sel, usePreview) :
-                    getCombinedGeometricBounds(sel, usePreview);
+            group: function(currentSelection) {
+                return useOutline ? getCombinedFinalBounds(doc, currentSelection, usePreview) :
+                    getCombinedGeometricBounds(currentSelection, usePreview);
             }
         };
     }
@@ -1626,14 +1626,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * - Calls visitor({ kind: 'group'|'item', rectSpec, item, index })
      * - Resolves bounds once via makeBoundsGetter based on choice flags
      */
-    function iterateSelection(doc, sel, choice, visitor) {
+    function iterateSelection(doc, currentSelection, choice, visitor) {
         try {
             if (!doc || !choice || typeof visitor !== 'function') return;
             var useOutline = !!choice.usePreviewOutline;
             var usePreview = !!choice.usePreviewBounds;
             if (choice.target === 'group') {
-                var gb = useOutline ? getCombinedFinalBoundsCached(doc, sel, usePreview) :
-                    getCombinedGeometricBounds(sel, usePreview);
+                var gb = useOutline ? getCombinedFinalBoundsCached(doc, currentSelection, usePreview) :
+                    getCombinedGeometricBounds(currentSelection, usePreview);
                 var rs = boundsToRectSpec(gb);
                 if (rs) visitor({
                     kind: 'group',
@@ -1642,8 +1642,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     index: 0
                 });
             } else {
-                for (var i = 0; i < sel.length; i++) {
-                    var it = sel[i];
+                for (var i = 0; i < currentSelection.length; i++) {
+                    var it = currentSelection[i];
                     if (!it) continue;
                     var ib = useOutline ? getFinalItemBoundsCached(doc, it, i, usePreview) :
                         getItemBounds(it, usePreview);
@@ -1661,8 +1661,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    function withTargetBounds(doc, sel, choice, groupFn, itemFn) {
-        iterateSelection(doc, sel, choice, function(info) {
+    function withTargetBounds(doc, currentSelection, choice, groupFn, itemFn) {
+        iterateSelection(doc, currentSelection, choice, function(info) {
             try {
                 if (info.kind === 'group' && typeof groupFn === 'function') groupFn(info.rectSpec);
                 if (info.kind === 'item' && typeof itemFn === 'function') itemFn(info.item, info.rectSpec, info.index);
@@ -1687,27 +1687,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
         } catch (e) {}
 
-    var sel = [];
+    var currentSelection = [];
     try {
         // 固定しておいた “今回セッションの選択” を最優先
-        sel = ($.global.__sessionSelection && $.global.__sessionSelection.length)
+        currentSelection = ($.global.__sessionSelection && $.global.__sessionSelection.length)
             ? $.global.__sessionSelection
             : (doc.selection || []);
 
-        // アウトラインキャッシュのシグネチャもこの sel ベースで
-        var __sig = __buildSelectionSignature(sel);
+        // アウトラインキャッシュのシグネチャもこの currentSelection ベースで
+        var __sig = __buildSelectionSignature(currentSelection);
         if (!$.global.__outlineCache || $.global.__outlineCache.sig !== __sig) {
             __resetOutlineCache(__sig);
         }
     } catch (e) {
-        sel = [];
+        currentSelection = [];
     }
         // Place _preview right under the representative layer of current selection
-        var repLayer = getRepresentativeTargetLayerFromSelection(doc, sel);
+        var repLayer = getRepresentativeTargetLayerFromSelection(doc, currentSelection);
         var previewLayer = getOrCreatePreviewLayer(doc, repLayer);
 
         try {
-            iterateSelection(doc, sel, choice, function(info) {
+            iterateSelection(doc, currentSelection, choice, function(info) {
                 if (info.kind === 'group') {
                     buildPreviewRect(previewLayer, 0, info.rectSpec, choice, doc);
                 } else {
@@ -1724,7 +1724,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showDialog() {
-        var dlg = new Window('dialog', LABELS.dialogTitle[lang]);
+        var dlg = new Window('dialog', LABELS.dialogTitle[uiLang]);
         DialogPersist.setOpacity(dlg, DIALOG_OPACITY);
         var __DLG_KEY = "__SmartDrawABRect_Dialog"; // unique key per dialog
         if ($.global[__DLG_KEY] === undefined) $.global[__DLG_KEY] = null; // ensure slot
@@ -1750,7 +1750,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * マージンパネル（構成調整）/ Margin panel (layout adjusted)
          */
         // PANEL1 (offsetPanel)
-        var offsetPanel = leftCol.add('panel', undefined, LABELS.offsetTitle[lang]);
+        var offsetPanel = leftCol.add('panel', undefined, LABELS.offsetTitle[uiLang]);
         offsetPanel.orientation = 'row';
         offsetPanel.alignChildren = ['left', 'top'];
         offsetPanel.spacing = 10;
@@ -1777,7 +1777,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupV.spacing = 10;
         groupV.margins = 0;
 
-        var offsetVInputLabel = groupV.add('statictext', undefined, LABELS.offsetV[lang]);
+        var offsetVInputLabel = groupV.add('statictext', undefined, LABELS.offsetV[uiLang]);
         var offsetVInput = groupV.add('edittext', undefined, '2');
         offsetVInput.preferredSize = {
             width: 35,
@@ -1810,7 +1810,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupH.spacing = 10;
         groupH.margins = 0;
 
-        var offsetHInputLabel = groupH.add('statictext', undefined, LABELS.offsetH[lang]);
+        var offsetHInputLabel = groupH.add('statictext', undefined, LABELS.offsetH[uiLang]);
         var offsetHInput = groupH.add('edittext', undefined, '2');
         offsetHInput.preferredSize = {
             width: 35,
@@ -1843,7 +1843,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupLink.margins = 0;
         groupLink.alignment = ['left', 'center'];
 
-        var cbLinkMargins = groupLink.add('checkbox', undefined, LABELS.linkMargins[lang]);
+        var cbLinkMargins = groupLink.add('checkbox', undefined, LABELS.linkMargins[uiLang]);
         cbLinkMargins.value = true; // default ON
 
         function __updateLinkDim() {
@@ -1866,7 +1866,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
         cbLinkMargins.onChanging = cbLinkMargins.onClick;
 
-        var roundPanel = leftCol.add('panel', undefined, LABELS.roundTitle[lang]);
+        var roundPanel = leftCol.add('panel', undefined, LABELS.roundTitle[uiLang]);
         roundPanel.orientation = 'column';
         roundPanel.alignChildren = ['left', 'top'];
         roundPanel.margins = [15, 20, 15, 10];
@@ -1936,8 +1936,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!cbPill || !cbPill.value) return; // only when pill mode
                 var doc = app.activeDocument;
                 if (!doc) return;
-                var sel = doc.selection || [];
-                if (!sel.length) return;
+                var currentSelection = doc.selection || [];
+                if (!currentSelection.length) return;
 
                 var usePreview = true; // always ON (UI label only for now)
                 var unitCode = getCurrentUnitCode();
@@ -1946,9 +1946,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // Determine bounds according to target mode
                 var gb = null;
                 if (allRadio.value) {
-                    gb = getCombinedFinalBounds(doc, sel, usePreview);
+                    gb = getCombinedFinalBounds(doc, currentSelection, usePreview);
                 } else {
-                    gb = getFinalItemBounds(doc, sel[0], usePreview);
+                    gb = getFinalItemBounds(doc, currentSelection[0], usePreview);
                 }
                 if (!gb) return;
 
@@ -2001,7 +2001,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pillRow = roundPanel.add('group');
         pillRow.orientation = 'row';
         pillRow.alignChildren = ['left', 'center'];
-        var cbPill = pillRow.add('checkbox', undefined, LABELS.pillShape[lang]);
+        var cbPill = pillRow.add('checkbox', undefined, LABELS.pillShape[uiLang]);
         cbPill.value = false; // default OFF
         cbPill.onClick = function() {
             try {
@@ -2073,14 +2073,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /*
          * カラーパネル / Color panel
          */
-        var colorPanel = rightCol.add('panel', undefined, LABELS.colorTitle[lang]);
+        var colorPanel = rightCol.add('panel', undefined, LABELS.colorTitle[uiLang]);
         colorPanel.orientation = 'column';
         colorPanel.alignChildren = 'left';
         colorPanel.margins = [15, 20, 15, 10];
         colorPanel.spacing = 10; // increase vertical gap between rows
 
-        var k100Radio = colorPanel.add('radiobutton', undefined, LABELS.colorK100[lang]);
-        var whiteRadio = colorPanel.add('radiobutton', undefined, LABELS.colorWhite[lang]);
+        var k100Radio = colorPanel.add('radiobutton', undefined, LABELS.colorK100[uiLang]);
+        var whiteRadio = colorPanel.add('radiobutton', undefined, LABELS.colorWhite[uiLang]);
 
         // HEX radio + input on the same row
         var hexRow = colorPanel.add('group');
@@ -2088,7 +2088,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         hexRow.alignment = 'left';
         hexRow.alignChildren = ['left', 'center'];
         hexRow.spacing = 6;
-        var specifiedRadio = hexRow.add('radiobutton', undefined, LABELS.colorSpecified[lang]);
+        var specifiedRadio = hexRow.add('radiobutton', undefined, LABELS.colorSpecified[uiLang]);
         var customInput = hexRow.add('edittext', undefined, '#');
         customInput.characters = 14; // narrower to avoid column growth
 
@@ -2101,7 +2101,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pen = g.newPen(g.PenType.SOLID_COLOR, warn ? [1, 0, 0] : [0, 0, 0], 1);
                 g.foregroundColor = pen; // text color fallback for border
                 if (warn) {
-                    et.helpTip = (lang === 'ja') ? (msg || '正しい #RRGGBB を入力してください') : (msg || 'Enter a valid #RRGGBB value');
+                    et.helpTip = (uiLang === 'ja') ? (msg || '正しい #RRGGBB を入力してください') : (msg || 'Enter a valid #RRGGBB value');
                 } else {
                     et.helpTip = '';
                 }
@@ -2125,7 +2125,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (s === "#") return {
                 valid: false,
                 text: s,
-                message: (lang === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)'
+                message: (uiLang === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)'
             };
             if (/^#([0-9a-fA-F]{6})$/.test(s)) {
                 var hexPart = RegExp.$1;
@@ -2149,7 +2149,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return {
                 valid: false,
                 text: s,
-                message: (lang === 'ja') ? '正しい #RRGGBB を入力してください' : 'Enter a valid #RRGGBB value'
+                message: (uiLang === 'ja') ? '正しい #RRGGBB を入力してください' : 'Enter a valid #RRGGBB value'
             };
         }
 
@@ -2182,7 +2182,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /*
          * CMYK モード選択 / CMYK mode radio
          */
-        var cmykRadio = colorPanel.add('radiobutton', undefined, LABELS.colorCustomCMYK[lang]);
+        var cmykRadio = colorPanel.add('radiobutton', undefined, LABELS.colorCustomCMYK[uiLang]);
 
         /*
          * CMYK 入力フィールド（2行グリッド：上にラベル、下に入力）/ Custom CMYK input fields
@@ -2486,14 +2486,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // Add new panel for target (moved back to left column)
-        var targetPanel = leftCol.add('panel', undefined, LABELS.targetTitle[lang]);
+        var targetPanel = leftCol.add('panel', undefined, LABELS.targetTitle[uiLang]);
         targetPanel.orientation = 'row';
         targetPanel.alignChildren = ['left', 'center'];
         targetPanel.margins = [15, 20, 15, 10];
         targetPanel.spacing = 20;
 
-        var currentRadio = targetPanel.add('radiobutton', undefined, LABELS.currentAB[lang]);
-        var allRadio = targetPanel.add('radiobutton', undefined, LABELS.allAB[lang]);
+        var currentRadio = targetPanel.add('radiobutton', undefined, LABELS.currentAB[uiLang]);
+        var allRadio = targetPanel.add('radiobutton', undefined, LABELS.allAB[uiLang]);
 
         // 自動選択: アートボード数で切り替え
         var abCount = (app.documents.length ? app.activeDocument.artboards.length : 0);
@@ -2832,14 +2832,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         addColorHotkeys(dlg);
 
-        var opacityPanel = rightCol.add('panel', undefined, LABELS.opacityTitle[lang]);
+        var opacityPanel = rightCol.add('panel', undefined, LABELS.opacityTitle[uiLang]);
         opacityPanel.orientation = 'row';
         opacityPanel.alignChildren = ['left', 'center'];
         opacityPanel.margins = [15, 20, 15, 10];
         opacityPanel.spacing = 10;
 
         // New: enable checkbox (ON=apply entered value, OFF=dim to "60" and ignore in preview)
-        var opacityEnable = opacityPanel.add('checkbox', undefined, LABELS.opacityEnable[lang]);
+        var opacityEnable = opacityPanel.add('checkbox', undefined, LABELS.opacityEnable[uiLang]);
         opacityEnable.value = true; // default ON
 
         var opacityInput = opacityPanel.add('edittext', undefined, '100');
@@ -2928,14 +2928,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /*
          * 種別（塗り/線）パネル / Type (Fill/Stroke) panel
          */
-        var typePanel = rightCol.add('panel', undefined, LABELS.typeTitle[lang]);
+        var typePanel = rightCol.add('panel', undefined, LABELS.typeTitle[uiLang]);
         typePanel.orientation = 'row';
         typePanel.alignChildren = ['left', 'center'];
         typePanel.margins = [15, 20, 15, 10];
         typePanel.spacing = 20;
 
-        var typeFillRadio = typePanel.add('radiobutton', undefined, LABELS.typeFill[lang]);
-        var typeStrokeRadio = typePanel.add('radiobutton', undefined, LABELS.typeStroke[lang]);
+        var typeFillRadio = typePanel.add('radiobutton', undefined, LABELS.typeFill[uiLang]);
+        var typeStrokeRadio = typePanel.add('radiobutton', undefined, LABELS.typeStroke[uiLang]);
 
         /*
          * 線幅行（タイプのラジオの下）/ Stroke width row (under type radios)
@@ -2945,7 +2945,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         strokeWidthRow.alignChildren = ['left', 'center'];
         strokeWidthRow.spacing = 6;
 
-        var strokeWidthLabel = strokeWidthRow.add('statictext', undefined, LABELS.strokeWidth[lang]);
+        var strokeWidthLabel = strokeWidthRow.add('statictext', undefined, LABELS.strokeWidth[uiLang]);
         var strokeWidthInput = strokeWidthRow.add('edittext', undefined, '1');
         strokeWidthInput.preferredSize = {
             width: 35,
@@ -3053,7 +3053,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupRow.alignment = 'center';
         groupRow.alignChildren = ['left', 'center'];
 
-        var cbGroupWithText = groupRow.add('checkbox', undefined, LABELS.previewBounds[lang]);
+        var cbGroupWithText = groupRow.add('checkbox', undefined, LABELS.previewBounds[uiLang]);
         cbGroupWithText.value = true; // default ON
         cbGroupWithText.onClick = updatePreviewCommit;
         cbGroupWithText.onChanging = updatePreviewCommit;
@@ -3062,8 +3062,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var btnGroup = dlg.add('group');
         btnGroup.alignment = 'center';
-        var cancelBtn = btnGroup.add('button', undefined, LABELS.cancel[lang]);
-        var okBtn = btnGroup.add('button', undefined, LABELS.ok[lang]);
+        var cancelBtn = btnGroup.add('button', undefined, LABELS.cancel[uiLang]);
+        var okBtn = btnGroup.add('button', undefined, LABELS.ok[uiLang]);
 
         okBtn.onClick = function() {
             DialogPersist.savePosition(dlg, __DLG_KEY);
@@ -3089,7 +3089,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 clearPreview(true);
             } catch (e) {}
-            try { $.global.__sessionSelection = null; } catch (e) {}
+            $.global.__sessionSelection = null;
             dlg.close(0);
         };
 
@@ -3102,7 +3102,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return __choiceFinal;
 
         // Converter: Reuse preview rectangles as final output
-        function convertPreviewToFinal(doc, sel, choice) {
+        function convertPreviewToFinal(doc, currentSelection, choice) {
             if (!doc || !choice) return;
             var prevLayer = findPreviewLayer(doc);
             if (!prevLayer) return; // fallback handled by caller if needed
@@ -3156,14 +3156,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!rect) return;
                 var repLayer = null;
 
-                var repLayer = getRepresentativeTargetLayerFromSelection(doc, sel);
+                var repLayer = getRepresentativeTargetLayerFromSelection(doc, currentSelection);
 
                 ensureLayerEditable(doc, repLayer);
                 applyFinalStyle(rect);
                 try {
                     rect.move(repLayer, ElementPlacement.PLACEATBEGINNING);
                 } catch (e) {}
-                rect.name = LABELS.rectName[lang];
+                rect.name = LABELS.rectName[uiLang];
                 try {
                     rect.zOrder(ZOrderMethod.SENDTOBACK);
                 } catch (e) {}
@@ -3172,9 +3172,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try {
                         var g = repLayer.groupItems.add();
                         // move originals
-                        for (var si = 0; si < sel.length; si++) {
+                        for (var si = 0; si < currentSelection.length; si++) {
                             try {
-                                sel[si].move(g, ElementPlacement.PLACEATEND);
+                                currentSelection[si].move(g, ElementPlacement.PLACEATEND);
                             } catch (__) {}
                         }
                         // move rect to the group and push to back
@@ -3188,10 +3188,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             } else {
                 // Individual: one rect per item index
-                for (var k = 0; k < sel.length; k++) {
+                for (var k = 0; k < currentSelection.length; k++) {
                     var srcRect = mapByIdx[k];
                     if (!srcRect) continue;
-                    var tgtItem = sel[k];
+                    var tgtItem = currentSelection[k];
                     var tgtLayer = null;
 
                     try {
@@ -3206,7 +3206,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try {
                         srcRect.move(tgtLayer, ElementPlacement.PLACEATBEGINNING);
                     } catch (e) {}
-                    srcRect.name = LABELS.rectName[lang];
+                    srcRect.name = LABELS.rectName[uiLang];
                     try {
                         srcRect.zOrder(ZOrderMethod.SENDTOBACK);
                     } catch (e) {}
@@ -3395,15 +3395,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    function getCombinedGeometricBounds(sel, usePreview) {
+    function getCombinedGeometricBounds(currentSelection, usePreview) {
         try {
-            if (!sel || !sel.length) return null;
+            if (!currentSelection || !currentSelection.length) return null;
             var left = null,
                 top = null,
                 right = null,
                 bottom = null;
-            for (var i = 0; i < sel.length; i++) {
-                var it = sel[i];
+            for (var i = 0; i < currentSelection.length; i++) {
+                var it = currentSelection[i];
                 var gb = getItemBounds(it, usePreview); // [L,T,R,B]
                 if (!gb) continue;
                 if (left === null || gb[0] < left) left = gb[0];
@@ -3419,15 +3419,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // --- Helper: Combine final bounds with outlined text support (for group mode, final drawing) ---
-    function getCombinedFinalBounds(doc, sel, usePreview) {
+    function getCombinedFinalBounds(doc, currentSelection, usePreview) {
         try {
-            if (!sel || !sel.length) return null;
+            if (!currentSelection || !currentSelection.length) return null;
             var left = null,
                 top = null,
                 right = null,
                 bottom = null;
-            for (var i = 0; i < sel.length; i++) {
-                var it = sel[i];
+            for (var i = 0; i < currentSelection.length; i++) {
+                var it = currentSelection[i];
                 var gb = getFinalItemBounds(doc, it, usePreview);
                 if (!gb) continue;
                 if (left === null || gb[0] < left) left = gb[0];
@@ -3573,7 +3573,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (e) {}
 
-        rect.name = LABELS.rectName[lang];
+        rect.name = LABELS.rectName[uiLang];
         rect.selected = true;
         try {
             rect.hidden = false;
@@ -3596,23 +3596,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (choice === null) return; // canceled
 
         // OK 前の選択から対象レイヤーを確定するために退避
-        var sel = [];
+        var currentSelection = [];
         try {
             if (doc.selection && doc.selection.length) {
-                for (var i = 0; i < doc.selection.length; i++) sel.push(doc.selection[i]);
+                for (var i = 0; i < doc.selection.length; i++) currentSelection.push(doc.selection[i]);
             }
         } catch (e) {}
         app.executeMenuCommand('deselectall');
 
         if (choice.__usePreviewAsFinal) {
             // ★ここが走ればOK：プレビュー→確定へ（グループ時はレイヤーごと複製ロジックを使用）
-            convertPreviewToFinal(doc, sel, choice);
+            convertPreviewToFinal(doc, currentSelection, choice);
             clearPreview(true);
         } else {
             // フォールバック（現状維持）
-            withTargetBounds(doc, sel, choice,
+            withTargetBounds(doc, currentSelection, choice,
                 function(rectSpec) {
-                    var repLayer = getRepresentativeTargetLayerFromSelection(doc, sel);
+                    var repLayer = getRepresentativeTargetLayerFromSelection(doc, currentSelection);
                     var rectDrawn = buildFinalRect(repLayer, rectSpec, choice, doc);
                     try {
                         rectDrawn.zOrder(ZOrderMethod.SENDTOBACK);

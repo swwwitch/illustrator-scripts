@@ -44,7 +44,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -154,9 +154,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         try {
-            if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
+            if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
             if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
         } catch (_) { }
         return key;
@@ -164,12 +164,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L('openDocument'));
+            alert(getLabel('openDocument'));
             return;
         }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
         function isSupportedItem(it) {
             return it && (
@@ -238,12 +238,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             return true;
         }
 
-        if (sel.length !== 1 || !isSupportedItem(sel[0])) {
-            alert(L('selectOneClosed'));
+        if (currentSelection.length !== 1 || !isSupportedItem(currentSelection[0])) {
+            alert(getLabel('selectOneClosed'));
             return;
         }
 
-        var originalPath = sel[0];
+        var originalPath = currentSelection[0];
         var originalSubPaths = getSubPaths(originalPath);
 
         // --- 一時ベース（②）残骸回収用タグ ---
@@ -366,7 +366,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         // Path/Compound はここで閉パス検証。Group/Text は実行時に一時パスへ変換して検証する。
         if (originalPath.typename !== "GroupItem" && originalPath.typename !== "TextFrame") {
             if (!isAllClosed(originalSubPaths)) {
-                alert(L('selectClosed'));
+                alert(getLabel('selectClosed'));
                 return;
             }
         }
@@ -382,7 +382,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             var res = { item: null, cleanup: function () { }, ok: false, message: "" };
 
             if (!groupItem || groupItem.typename !== "GroupItem") {
-                res.message = L('notGroupItem');
+                res.message = getLabel('notGroupItem');
                 return res;
             }
 
@@ -424,7 +424,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 } catch (_) { }
 
                 if (!items || items.length === 0) {
-                    res.message = L('cannotGetMergedFromGroup');
+                    res.message = getLabel('cannotGetMergedFromGroup');
                     return res;
                 }
 
@@ -464,7 +464,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 return res;
 
             } catch (e) {
-                res.message = L('groupMergeError') + e;
+                res.message = getLabel('groupMergeError') + e;
                 return res;
             }
         }
@@ -474,7 +474,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             var res = { item: null, cleanup: function () { }, ok: false, message: "" };
 
             if (!textFrame || textFrame.typename !== "TextFrame") {
-                res.message = L('notTextFrame');
+                res.message = getLabel('notTextFrame');
                 return res;
             }
 
@@ -516,7 +516,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 // createOutline() 成功時は tempDup が消えるので trash から外す必要はない（cleanup側でisValidを見て消す）
 
                 if (!outlined) {
-                    res.message = L('outlineFailed');
+                    res.message = getLabel('outlineFailed');
                     return res;
                 }
 
@@ -537,7 +537,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 return res;
 
             } catch (e) {
-                res.message = L('textMergeError') + e;
+                res.message = getLabel('textMergeError') + e;
                 return res;
             }
         }
@@ -547,7 +547,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         var __applyOffsetNow = true; // プレビュー時は false にしてオフセットを無視
 
         /* ダイアログ作成 / Build dialog */
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dlg.orientation = "column";
         dlg.alignChildren = "fill";
 
@@ -562,7 +562,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         grpPreset.orientation = "row";
         grpPreset.alignChildren = ["left", "center"];
 
-        grpPreset.add("statictext", undefined, L('preset'));
+        grpPreset.add("statictext", undefined, getLabel('preset'));
 
         var ddPreset = grpPreset.add("dropdownlist", undefined, [
             "100% /  45°",
@@ -583,13 +583,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         cols.alignment = "fill";
 
         // 左：現状（設定）
-        var mainGroup = cols.add("panel", undefined, L('settings'));
+        var mainGroup = cols.add("panel", undefined, getLabel('settings'));
         mainGroup.orientation = "column";
         mainGroup.alignChildren = "left";
         mainGroup.margins = [15, 20, 15, 10];
 
         // 右：オフセット（中身は後で実装）
-        var offsetPanel = cols.add("panel", undefined, L('offset'));
+        var offsetPanel = cols.add("panel", undefined, getLabel('offset'));
         offsetPanel.orientation = "column";
         offsetPanel.alignChildren = "left";
         offsetPanel.margins = [15, 20, 15, 10];
@@ -662,7 +662,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         var gJoinLabel = pJoin.add("group");
         gJoinLabel.orientation = "column";
         gJoinLabel.alignChildren = ["left", "top"];
-        var stJoin = gJoinLabel.add("statictext", undefined, L('shape'));
+        var stJoin = gJoinLabel.add("statictext", undefined, getLabel('shape'));
         stJoin.preferredSize.width = 60;
         stJoin.justify = "right";
 
@@ -671,9 +671,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         gJoinCol.orientation = "column";
         gJoinCol.alignChildren = ["left", "center"];
 
-        var rbMiter = gJoinCol.add("radiobutton", undefined, L('joinMiter'));
-        var rbRound = gJoinCol.add("radiobutton", undefined, L('joinRound'));
-        var rbBevel = gJoinCol.add("radiobutton", undefined, L('joinBevel'));
+        var rbMiter = gJoinCol.add("radiobutton", undefined, getLabel('joinMiter'));
+        var rbRound = gJoinCol.add("radiobutton", undefined, getLabel('joinRound'));
+        var rbBevel = gJoinCol.add("radiobutton", undefined, getLabel('joinBevel'));
         rbMiter.value = false;
         rbRound.value = true;  // default = Round
         rbBevel.value = false;
@@ -698,7 +698,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
         // 距離入力
         var grpDistance = mainGroup.add("group");
-        var lblDistance = grpDistance.add("statictext", undefined, L('distance'));
+        var lblDistance = grpDistance.add("statictext", undefined, getLabel('distance'));
         lblDistance.preferredSize.width = 60;
         lblDistance.justify = "right";
 
@@ -721,7 +721,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
         // 角度入力
         var grpAngle = mainGroup.add("group");
-        var lblAngle = grpAngle.add("statictext", undefined, L('angle'));
+        var lblAngle = grpAngle.add("statictext", undefined, getLabel('angle'));
         lblAngle.preferredSize.width = 60;
         lblAngle.justify = "right";
         var inputAngle = grpAngle.add("edittext", undefined, "45");
@@ -736,7 +736,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
         // スケール入力
         var grpScale = mainGroup.add("group");
-        var lblScale = grpScale.add("statictext", undefined, L('scale'));
+        var lblScale = grpScale.add("statictext", undefined, getLabel('scale'));
         lblScale.preferredSize.width = 60;
         lblScale.justify = "right";
         var inputScale = grpScale.add("edittext", undefined, "100"); // デフォルト 100%
@@ -756,7 +756,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         grpSimplify.alignment = "center";
         grpSimplify.margins = [0, 10, 0, 0];
 
-        var chkSimplify = grpSimplify.add("checkbox", undefined, L('simplify'));
+        var chkSimplify = grpSimplify.add("checkbox", undefined, getLabel('simplify'));
         chkSimplify.value = true;
         chkSimplify.alignment = "center";
 
@@ -794,7 +794,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         btnLeftGroup.orientation = "row";
         btnLeftGroup.alignChildren = ["left", "center"];
 
-        var chkPreview = btnLeftGroup.add("checkbox", undefined, L('preview'));
+        var chkPreview = btnLeftGroup.add("checkbox", undefined, getLabel('preview'));
         chkPreview.value = true;   // デフォルトON
         chkPreview.enabled = true; // 有効
 
@@ -809,8 +809,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         btnRightGroup.alignChildren = ["right", "center"];
         btnRightGroup.alignment = ["right", "center"];
 
-        var btnCancel = btnRightGroup.add("button", undefined, L('cancel'), { name: "cancel" });
-        var btnOk = btnRightGroup.add("button", undefined, L('ok'), { name: "ok" });
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel('cancel'), { name: "cancel" });
+        var btnOk = btnRightGroup.add("button", undefined, getLabel('ok'), { name: "ok" });
         btnOk.active = true;
 
         // --- ↑↓キーで数値を増減（Shift=±10, Option=±0.1） ---
@@ -1333,7 +1333,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             if (originalPath.typename === "GroupItem") {
                 var built = buildMergedItemFromGroup(originalPath);
                 if (!built.ok || !built.item) {
-                    alert(built.message || L('cannotBuildFromGroup'));
+                    alert(built.message || getLabel('cannotBuildFromGroup'));
                     cleanupTempBaseSafely();
                     return;
                 }
@@ -1342,7 +1342,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 baseSubPaths = getSubPaths(baseItem);
                 if (!isAllClosed(baseSubPaths)) {
                     cleanupTempBaseSafely();
-                    alert(L('selectClosedGroup'));
+                    alert(getLabel('selectClosedGroup'));
                     return;
                 }
             }
@@ -1350,7 +1350,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             if (__applyOffsetNow && originalPath.typename === "TextFrame") {
                 var builtT = buildMergedItemFromText(originalPath);
                 if (!builtT.ok || !builtT.item) {
-                    alert(builtT.message || L('selectClosed'));
+                    alert(builtT.message || getLabel('selectClosed'));
                     cleanupTempBaseSafely();
                     return;
                 }
@@ -1359,7 +1359,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 baseSubPaths = getSubPaths(baseItem);
                 if (!isAllClosed(baseSubPaths)) {
                     cleanupTempBaseSafely();
-                    alert(L('selectClosed'));
+                    alert(getLabel('selectClosed'));
                     return;
                 }
             }
@@ -1440,7 +1440,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             var shadowGroup = generateShadowBySampling(baseItem, dx, dy, scale);
             if (!shadowGroup) {
                 cleanupTempBaseSafely();
-                alert(L('selectClosed'));
+                alert(getLabel('selectClosed'));
                 return;
             }
 

@@ -43,7 +43,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5f269788086"; /* 紹�
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
     var LABELS = {
         progressTitle: { ja: "処理中...", en: "Processing..." },
         progressStart: { ja: "処理を開始しています...", en: "Starting process..." },
@@ -61,7 +61,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5f269788086"; /* 紹�
 
     function main() {
         if (app.documents.length === 0 || app.selection.length === 0) {
-            alert(LABELS.alertSelect[lang]);
+            alert(LABELS.alertSelect[uiLang]);
             return;
         }
 
@@ -69,9 +69,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5f269788086"; /* 紹�
         var originalSelection = app.selection;
 
         // プログレスバー付きダイアログの作成
-        var progressWin = new Window("palette", LABELS.progressTitle[lang]);
+        var progressWin = new Window("palette", LABELS.progressTitle[uiLang]);
         progressWin.pbar = progressWin.add("progressbar", [20, 20, 300, 10], 0, 100);
-        progressWin.st = progressWin.add("statictext", undefined, LABELS.progressStart[lang]);
+        progressWin.st = progressWin.add("statictext", undefined, LABELS.progressStart[uiLang]);
         progressWin.show();
         function updateProgress(value, text) {
             progressWin.pbar.value = value;
@@ -80,14 +80,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5f269788086"; /* 紹�
         }
 
         try {
-            updateProgress(10, LABELS.progressLayer[lang]);
+            updateProgress(10, LABELS.progressLayer[uiLang]);
             // 一時レイヤーの作成
             var tempLayer = doc.layers.add();
             tempLayer.name = "__TEMP_LAYER__";
             tempLayer.locked = false;
             tempLayer.visible = true;
 
-            updateProgress(20, LABELS.progressDuplicate[lang]);
+            updateProgress(20, LABELS.progressDuplicate[uiLang]);
             // オブジェクトを複製して一時グループに追加
             var duplicatedItems = [];
             var tempGroup = tempLayer.groupItems.add();
@@ -96,14 +96,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5f269788086"; /* 紹�
                 duplicatedItems.push(dup);
             }
 
-            updateProgress(35, LABELS.progressRect[lang]);
+            updateProgress(35, LABELS.progressRect[uiLang]);
             var bounds = tempGroup.visibleBounds;
             var rect = doc.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
             rect.stroked = false;
             rect.filled = false;
             rect.move(tempLayer, ElementPlacement.PLACEATBEGINNING);
 
-            updateProgress(50, LABELS.progressRaster[lang]);
+            updateProgress(50, LABELS.progressRaster[uiLang]);
             var resolution = 600;
             var options = new RasterizeOptions();
             options.resolution = resolution;
@@ -113,17 +113,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5f269788086"; /* 紹�
 
             var rasterized = doc.rasterize(tempGroup, rect.geometricBounds, options);
 
-            updateProgress(70, LABELS.progressResize[lang]);
+            updateProgress(70, LABELS.progressResize[uiLang]);
             // 拡大倍率を「72ppi相当」を基準に偶数の整数に調整
             var baseRatio = (resolution / 72) * 100;
             var resizeRatio = Math.ceil(baseRatio / 2) * 2; // 偶数の整数倍に切り上げ
             rasterized.resize(resizeRatio, resizeRatio);
 
-            updateProgress(85, LABELS.progressCopy[lang]);
+            updateProgress(85, LABELS.progressCopy[uiLang]);
             app.selection = [rasterized];
             app.executeMenuCommand("copy");
 
-            updateProgress(95, LABELS.progressClean[lang]);
+            updateProgress(95, LABELS.progressClean[uiLang]);
             try { rasterized.remove(); } catch (e) {}
             try { rect.remove(); } catch (e) {}
             for (var j = 0; j < duplicatedItems.length; j++) {
@@ -134,10 +134,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf5f269788086"; /* 紹�
 
             app.selection = originalSelection;
 
-            updateProgress(100, LABELS.progressDone[lang]);
+            updateProgress(100, LABELS.progressDone[uiLang]);
         } catch (err) {
             progressWin.close();
-            alert(LABELS.error[lang] + err.message);
+            alert(LABELS.error[uiLang] + err.message);
             return;
         }
 

@@ -37,7 +37,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -107,9 +107,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         prefixAlpha: { ja: "英字", en: "Alpha" }
     };
 
-    function L(key) {
+    function getLabel(key) {
         try {
-            if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
+            if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
             if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
         } catch (_) { }
         return String(key);
@@ -118,31 +118,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function makeTargetLabel(kind, idx1based) {
         if (kind === "date_ymd") {
             // idx1based: 1..3
-            if (idx1based === 1) return L("labelYear");
-            if (idx1based === 2) return L("labelMonth");
-            return L("labelDay");
+            if (idx1based === 1) return getLabel("labelYear");
+            if (idx1based === 2) return getLabel("labelMonth");
+            return getLabel("labelDay");
         }
         if (kind === "time_hm") {
-            if (idx1based === 1) return L("labelHour");
-            return L("labelMinute");
+            if (idx1based === 1) return getLabel("labelHour");
+            return getLabel("labelMinute");
         }
-        if (kind === "alpha1") return L("prefixAlpha") + idx1based;
-        return L("prefixNum") + idx1based;
+        if (kind === "alpha1") return getLabel("prefixAlpha") + idx1based;
+        return getLabel("prefixNum") + idx1based;
     }
 
     /* 事前チェック / Pre-check */
     if (app.documents.length === 0) {
-        alert(L("alertNoDoc"));
+        alert(getLabel("alertNoDoc"));
         return;
     }
 
-    var sel = app.activeDocument.selection;
-    if (sel.length !== 1 || sel[0].typename !== "TextFrame") {
-        alert(L("alertSelectOneTextFrame"));
+    var currentSelection = app.activeDocument.selection;
+    if (currentSelection.length !== 1 || currentSelection[0].typename !== "TextFrame") {
+        alert(getLabel("alertSelectOneTextFrame"));
         return;
     }
 
-    var originalObj = sel[0];
+    var originalObj = currentSelection[0];
     var originalText = originalObj.contents;
     var __originalTextSnapshot = originalText; // 復帰用 / For restore
 
@@ -196,7 +196,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     segments.push(originalText.substring(lastIdx));
 
     if (tokensRaw.length === 0) {
-        alert(L("alertNoToken"));
+        alert(getLabel("alertNoToken"));
         return;
     }
 
@@ -263,7 +263,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // 一般で増分対象がない場合（例: "AB" だけ等）
     if (patternType === "generic" && targetIndices.length === 0) {
-        alert(L("alertNoTarget"));
+        alert(getLabel("alertNoTarget"));
         return;
     }
 
@@ -419,7 +419,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     })();
 
     /* ダイアログ作成 / Build dialog */
-    var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+    var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
 
     /* ダイアログ位置の記憶 / Remember dialog position */
     var __WINPOS_KEY = "dupTextWithIncrementNumbers_v2_dialog_pos";
@@ -464,7 +464,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // 複製数 / Copies
     var group1 = mainGroup.add("group");
-    var stCount = group1.add("statictext", undefined, L("labelCount"));
+    var stCount = group1.add("statictext", undefined, getLabel("labelCount"));
     stCount.preferredSize.width = 60;
     stCount.justify = "right";
     var countInput = group1.add("edittext", undefined, "5");
@@ -472,7 +472,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // 増分 / Step
     var groupStep = mainGroup.add("group");
-    var stStep = groupStep.add("statictext", undefined, L("labelStep"));
+    var stStep = groupStep.add("statictext", undefined, getLabel("labelStep"));
     stStep.preferredSize.width = 60;
     stStep.justify = "right";
     var stepInput = groupStep.add("edittext", undefined, "1");
@@ -480,7 +480,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // 間隔 / Spacing
     var group2 = mainGroup.add("group");
-    var stInterval = group2.add("statictext", undefined, L("labelInterval"));
+    var stInterval = group2.add("statictext", undefined, getLabel("labelInterval"));
     stInterval.preferredSize.width = 60;
     stInterval.justify = "right";
 
@@ -505,7 +505,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupTarget.orientation = "row";
     groupTarget.alignChildren = ["left", "center"];
 
-    var stTarget = groupTarget.add("statictext", undefined, L("labelTarget"));
+    var stTarget = groupTarget.add("statictext", undefined, getLabel("labelTarget"));
     stTarget.preferredSize.width = 60;
     stTarget.justify = "right";
 
@@ -528,7 +528,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupStart.orientation = "row";
     groupStart.alignChildren = ["left", "center"];
 
-    var chkStartOverride = groupStart.add("checkbox", undefined, L("labelStartOverride"));
+    var chkStartOverride = groupStart.add("checkbox", undefined, getLabel("labelStartOverride"));
     var startInput = groupStart.add("edittext", undefined, __baseTokensSnapshot[targetIndex]);
     startInput.characters = 6;
     startInput.enabled = false;
@@ -564,7 +564,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupZeroPad.orientation = "row";
     groupZeroPad.alignChildren = ["left", "center"];
 
-    var chkZeroPad = groupZeroPad.add("checkbox", undefined, L("labelZeroPad"));
+    var chkZeroPad = groupZeroPad.add("checkbox", undefined, getLabel("labelZeroPad"));
     chkZeroPad.value = true;
     chkZeroPad.onClick = function () {
         applyStartNumberToOriginal();
@@ -576,7 +576,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupMergeText.orientation = "row";
     groupMergeText.alignChildren = ["left", "center"];
 
-    var chkMergeTextOnOK = groupMergeText.add("checkbox", undefined, L("labelMergeOnOK"));
+    var chkMergeTextOnOK = groupMergeText.add("checkbox", undefined, getLabel("labelMergeOnOK"));
     chkMergeTextOnOK.value = false;
 
     /* ボタンエリア（OKを右寄せ） / Buttons (OK aligned right) */
@@ -584,8 +584,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     btnGroup.orientation = "row";
     btnGroup.alignment = "right";
 
-    var cancelBtn = btnGroup.add("button", undefined, L("btnCancel"), { name: "cancel" });
-    var okBtn = btnGroup.add("button", undefined, L("btnOK"), { name: "ok" });
+    var cancelBtn = btnGroup.add("button", undefined, getLabel("btnCancel"), { name: "cancel" });
+    var okBtn = btnGroup.add("button", undefined, getLabel("btnOK"), { name: "ok" });
 
     // ↑↓ / Shift+↑↓ / Option+↑↓ で値を増減 / Change value by arrow keys
     function changeValueByArrowKey(editText, allowNegative, onChanged, forceInteger) {

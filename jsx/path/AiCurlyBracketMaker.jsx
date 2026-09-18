@@ -715,7 +715,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd6b3e36ff79d"; /* ç´¹ä
         var upperPoints = buildHalfPoints(endRadius, centerRadius, upperStraightLength, extension, centerX, beakY);
         var lowerPoints = buildHalfPoints(endRadius, centerRadius, lowerStraightLength, extension, centerX, beakY);
 
-
         var bracketPoints = upperPoints.slice();
         var lowerCount = lowerPoints.length;
         var i;

@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialogTitle: { ja: "カラージェネレーター", en: "Color Generator" },
@@ -60,11 +60,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         alertNoDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." }
     };
 
-    function L(key) {
+    function getLabel(key) {
         try {
             var o = LABELS[key];
             if (!o) return key;
-            return o[lang] || o.ja || o.en || key;
+            return o[uiLang] || o.ja || o.en || key;
         } catch (_) {
             return key;
         }
@@ -237,11 +237,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function main() {
         if (app.documents.length === 0) {
-            alert(L("alertNoDoc"));
+            alert(getLabel("alertNoDoc"));
             return;
         }
 
-        var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         win.orientation = "column";
         win.alignChildren = ["fill", "top"];
         win.spacing = 15;
@@ -259,7 +259,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         leftCol.alignment = "fill";
 
         // --- 1. 入力エリア ---
-        var inputPanel = leftCol.add("panel", undefined, L("panelSettings"));
+        var inputPanel = leftCol.add("panel", undefined, getLabel("panelSettings"));
         inputPanel.margins = [15, 20, 15, 10];
         inputPanel.orientation = "column";
         inputPanel.alignChildren = ["left", "top"];
@@ -271,28 +271,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.alignment = "fill";
 
         // 右カラム：スウォッチ / Right column: Swatch
-        var swatchPanel = rightCol.add("panel", undefined, L("panelSwatch"));
+        var swatchPanel = rightCol.add("panel", undefined, getLabel("panelSwatch"));
         swatchPanel.margins = [15, 20, 15, 10];
         swatchPanel.orientation = "column";
         swatchPanel.alignChildren = ["left", "top"];
         // まだロジック未接続のためディム表示 / Disabled until wired
         swatchPanel.enabled = false;
 
-        var chkRegisterSwatchGroup = swatchPanel.add("checkbox", undefined, L("chkRegisterSwatchGroup"));
+        var chkRegisterSwatchGroup = swatchPanel.add("checkbox", undefined, getLabel("chkRegisterSwatchGroup"));
         chkRegisterSwatchGroup.value = true;
-        var chkConvertToGlobal = swatchPanel.add("checkbox", undefined, L("chkConvertToGlobal"));
+        var chkConvertToGlobal = swatchPanel.add("checkbox", undefined, getLabel("chkConvertToGlobal"));
         chkConvertToGlobal.value = false;
 
         // 右カラム：出力 / Right column: Output
-        var outputPanel = rightCol.add("panel", undefined, L("panelOutput"));
+        var outputPanel = rightCol.add("panel", undefined, getLabel("panelOutput"));
         outputPanel.margins = [15, 20, 15, 10];
         outputPanel.orientation = "column";
         outputPanel.alignChildren = ["left", "top"];
 
-        var chkOutputHex = outputPanel.add("checkbox", undefined, L("chkOutputHex"));
+        var chkOutputHex = outputPanel.add("checkbox", undefined, getLabel("chkOutputHex"));
         chkOutputHex.value = true;
 
-        var chkOutputRgb = outputPanel.add("checkbox", undefined, L("chkOutputRgb"));
+        var chkOutputRgb = outputPanel.add("checkbox", undefined, getLabel("chkOutputRgb"));
         chkOutputRgb.value = false;
 
         var g1 = inputPanel.add("group");
@@ -304,7 +304,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { colorSwatch.margins = 0; } catch (_) { }
         colorSwatch.preferredSize = [46, 46];
 
-        g1.add("statictext", undefined, L("labelHex"));
+        g1.add("statictext", undefined, getLabel("labelHex"));
 
         var __initHex = tryGetSelectionFillHex() || "#3b82f6";
         var inputHex = g1.add("edittext", undefined, __initHex);
@@ -356,7 +356,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         updateColorSwatch();
 
         // ステップ数パネル / Steps panel
-        var stepsPanel = leftCol.add("panel", undefined, L("labelSteps"));
+        var stepsPanel = leftCol.add("panel", undefined, getLabel("labelSteps"));
         stepsPanel.margins = [15, 20, 15, 10];
         stepsPanel.orientation = "column";
         stepsPanel.alignChildren = ["left", "top"];
@@ -367,7 +367,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gStepsTop.alignChildren = ["left", "center"];
         gStepsTop.alignment = "left";
 
-        // gStepsTop.add("statictext", undefined, L("labelSteps"));
+        // gStepsTop.add("statictext", undefined, getLabel("labelSteps"));
         var inputCount = gStepsTop.add("edittext", undefined, "5");
         inputCount.characters = 3;
         // 矢印キーで増減（整数のみ） / Change by arrow keys (integers)
@@ -433,7 +433,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // --- 2. アルゴリズム選択 (ラジオボタン) ---
-        var algoPanel = win.add("panel", undefined, L("panelAlgorithm"));
+        var algoPanel = win.add("panel", undefined, getLabel("panelAlgorithm"));
         algoPanel.margins = [15, 20, 15, 10];
         algoPanel.orientation = "column";
         algoPanel.alignChildren = ["left", "top"];
@@ -448,7 +448,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbAll.value = true; // デフォルト
 
         // --- 3. プレビューエリア ---
-        var previewPanel = win.add("panel", undefined, L("panelPreview"));
+        var previewPanel = win.add("panel", undefined, getLabel("panelPreview"));
         previewPanel.margins = [15, 20, 15, 10];
         previewPanel.size = [420, 70];
 
@@ -625,7 +625,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gBtnLeft.alignChildren = ["left", "center"];
         gBtnLeft.alignment = "left";
 
-        var btnRedraw = gBtnLeft.add("button", undefined, L("btnRedraw"));
+        var btnRedraw = gBtnLeft.add("button", undefined, getLabel("btnRedraw"));
 
         // 中央：スペーサー / Center: spacer
         var spacer = btnRow.add("group");
@@ -638,8 +638,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gBtnRight.alignChildren = ["right", "center"];
         gBtnRight.alignment = "right";
 
-        var btnCancel = gBtnRight.add("button", undefined, L("btnCancel"));
-        var btnOk = gBtnRight.add("button", undefined, L("btnGenerate"), { name: "ok" });
+        var btnCancel = gBtnRight.add("button", undefined, getLabel("btnCancel"));
+        var btnOk = gBtnRight.add("button", undefined, getLabel("btnGenerate"), { name: "ok" });
 
         // 再描画 / Redraw (preview refresh)
         btnRedraw.onClick = function () {
@@ -658,7 +658,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { win.update(); } catch (_) { }
 
             // Illustrator画面の再描画 / Force Illustrator UI redraw
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         };
 
         // キャンセル / Cancel

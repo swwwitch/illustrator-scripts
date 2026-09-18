@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* UIラベル定義 / UI Label Definitions */
     var LABELS = {
@@ -318,7 +318,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var pref = app.preferences;
 
         var dialog = new Window('dialog');
-        dialog.text = LABELS.dialogTitle[lang];
+        dialog.text = LABELS.dialogTitle[uiLang];
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
 
@@ -335,9 +335,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         modeGroup.alignment = ['center', 'top']; // グループ自体を中央に配置
         modeGroup.margins = [15, 10, 15, 10];
 
-        var radioPrintPt = modeGroup.add('radiobutton', undefined, LABELS.modePrintPt[lang]);
-        var radioPrintQ = modeGroup.add('radiobutton', undefined, LABELS.modePrintQ[lang]);
-        var radioOnscreen = modeGroup.add('radiobutton', undefined, LABELS.modeOnscreen[lang]);
+        var radioPrintPt = modeGroup.add('radiobutton', undefined, LABELS.modePrintPt[uiLang]);
+        var radioPrintQ = modeGroup.add('radiobutton', undefined, LABELS.modePrintQ[uiLang]);
+        var radioOnscreen = modeGroup.add('radiobutton', undefined, LABELS.modeOnscreen[uiLang]);
         // radioPrintPt.value = true; // デフォルト選択を無効化
         // None selected by default; set all to false on dialog show
         dialog.onShow = function() {
@@ -357,13 +357,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         leftColumn.alignChildren = ['fill', 'top'];
 
         /* 単位パネルを追加 / Add "Units" panel */
-        var unitsPanel = leftColumn.add('panel', undefined, LABELS.unitsTitle[lang]);
+        var unitsPanel = leftColumn.add('panel', undefined, LABELS.unitsTitle[uiLang]);
         unitsPanel.orientation = 'column';
         unitsPanel.alignChildren = ['left', 'top'];
         unitsPanel.margins = [8, 20, 8, 15];
 
         /* 一般パネルを追加 / Add "General" panel */
-        var generalPanel = leftColumn.add('panel', undefined, LABELS.generalTitle[lang]);
+        var generalPanel = leftColumn.add('panel', undefined, LABELS.generalTitle[uiLang]);
         generalPanel.orientation = 'column';
         generalPanel.alignChildren = ['left', 'top'];
         generalPanel.margins = [8, 20, 8, 15];
@@ -377,7 +377,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // キー増加
         var groupKeyInput = generalPanel.add('group');
         groupKeyInput.orientation = 'row';
-        var labelKey = groupKeyInput.add('statictext', undefined, LABELS.keyInputLabel[lang]);
+        var labelKey = groupKeyInput.add('statictext', undefined, LABELS.keyInputLabel[uiLang]);
         labelKey.characters = 12;
         labelKey.justify = 'right';
         var unitCodeKey = app.preferences.getIntegerPreference("rulerType");
@@ -401,7 +401,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 角丸の半径
         var groupCornerRadius = generalPanel.add('group');
         groupCornerRadius.orientation = 'row';
-        var labelCorner = groupCornerRadius.add('statictext', undefined, LABELS.cornerRadiusLabel[lang]);
+        var labelCorner = groupCornerRadius.add('statictext', undefined, LABELS.cornerRadiusLabel[uiLang]);
         labelCorner.characters = 12;
         labelCorner.justify = 'right';
         var cornerUnitCode = app.preferences.getIntegerPreference("rulerType");
@@ -433,7 +433,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var code = app.preferences.getIntegerPreference("text/asianunits");
             return getUnitLabel(code, "text/asianunits");
         }
-        var textDetailPanel = leftColumn.add('panel', undefined, LABELS.textDetailTitle[lang]);
+        var textDetailPanel = leftColumn.add('panel', undefined, LABELS.textDetailTitle[uiLang]);
         textDetailPanel.orientation = 'column';
         textDetailPanel.alignChildren = ['left', 'top'];
         textDetailPanel.margins = [8, 20, 8, 15];
@@ -441,7 +441,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // サイズ行送り
         var groupLeading = textDetailPanel.add('group');
         groupLeading.orientation = 'row';
-        var labelLeading = groupLeading.add('statictext', undefined, LABELS.leadingLabel[lang]);
+        var labelLeading = groupLeading.add('statictext', undefined, LABELS.leadingLabel[uiLang]);
         labelLeading.characters = 12;
         labelLeading.justify = 'right';
         var sizeUnitCode = app.preferences.getIntegerPreference("text/units");
@@ -465,7 +465,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ベースラインシフト
         var groupBaseline = textDetailPanel.add('group');
         groupBaseline.orientation = 'row';
-        var labelBaseline = groupBaseline.add('statictext', undefined, LABELS.baselineLabel[lang]);
+        var labelBaseline = groupBaseline.add('statictext', undefined, LABELS.baselineLabel[uiLang]);
         labelBaseline.characters = 12;
         labelBaseline.justify = 'right';
         var baselineUnitCode = app.preferences.getIntegerPreference("text/asianunits");
@@ -520,10 +520,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 各プルダウンを作成 */
-        createUnitDropdown(unitsPanel, LABELS.generalUnit[lang], "rulerType");
-        createUnitDropdown(unitsPanel, LABELS.strokeUnit[lang], "strokeUnits");
-        createUnitDropdown(unitsPanel, LABELS.textUnit[lang], "text/units");
-        createUnitDropdown(unitsPanel, LABELS.asianUnit[lang], "text/asianunits");
+        createUnitDropdown(unitsPanel, LABELS.generalUnit[uiLang], "rulerType");
+        createUnitDropdown(unitsPanel, LABELS.strokeUnit[uiLang], "strokeUnits");
+        createUnitDropdown(unitsPanel, LABELS.textUnit[uiLang], "text/units");
+        createUnitDropdown(unitsPanel, LABELS.asianUnit[uiLang], "text/asianunits");
 
         function setUnitsForMode(mode) {
             if (mode === "printPt") {
@@ -624,12 +624,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightColumn.alignChildren = ['fill', 'top'];
 
         /* テキストパネルを追加 / Add "Text" panel */
-        var textPanel = rightColumn.add('panel', undefined, LABELS.textTitle[lang]);
+        var textPanel = rightColumn.add('panel', undefined, LABELS.textTitle[uiLang]);
         textPanel.orientation = 'column';
         textPanel.alignChildren = ['left', 'top'];
         textPanel.margins = [8, 20, 8, 15];
 
-        var checkboxFontEnglish = textPanel.add('checkbox', undefined, LABELS.fontEnglish[lang]);
+        var checkboxFontEnglish = textPanel.add('checkbox', undefined, LABELS.fontEnglish[uiLang]);
         checkboxFontEnglish.value = app.preferences.getBooleanPreference("text/useEnglishFontNames");
         checkboxFontEnglish.onClick = function() {
             app.preferences.setBooleanPreference("text/useEnglishFontNames", checkboxFontEnglish.value === true);
@@ -640,7 +640,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var groupRecentFonts = textPanel.add('group');
         groupRecentFonts.orientation = 'row';
 
-        var checkboxRecentFonts = groupRecentFonts.add('checkbox', undefined, LABELS.recentFonts[lang]);
+        var checkboxRecentFonts = groupRecentFonts.add('checkbox', undefined, LABELS.recentFonts[uiLang]);
         checkboxRecentFonts.value = (currentRecentCount > 0);
 
         var inputRecentFonts = groupRecentFonts.add('edittext', undefined, currentRecentCount.toString());
@@ -670,15 +670,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         };
 
-        var glyphPanel = rightColumn.add('panel', undefined, LABELS.glyphBounds[lang]);
+        var glyphPanel = rightColumn.add('panel', undefined, LABELS.glyphBounds[uiLang]);
         glyphPanel.orientation = 'column';
         glyphPanel.alignChildren = ['left', 'top'];
         glyphPanel.margins = [8, 20, 8, 15];
 
-        var checkboxPoint = glyphPanel.add('checkbox', undefined, LABELS.pointText[lang]);
+        var checkboxPoint = glyphPanel.add('checkbox', undefined, LABELS.pointText[uiLang]);
         checkboxPoint.value = app.preferences.getBooleanPreference('EnableActualPointTextSpaceAlign');
 
-        var checkboxArea = glyphPanel.add('checkbox', undefined, LABELS.areaText[lang]);
+        var checkboxArea = glyphPanel.add('checkbox', undefined, LABELS.areaText[uiLang]);
         checkboxArea.value = app.preferences.getBooleanPreference('EnableActualAreaTextSpaceAlign');
 
         bindCheckboxes([{
@@ -692,27 +692,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ]);
 
         /* その他パネルを追加 / Add "Transform & Align" panel */
-        var otherPanel = rightColumn.add('panel', undefined, LABELS.transformTitle[lang]);
+        var otherPanel = rightColumn.add('panel', undefined, LABELS.transformTitle[uiLang]);
         otherPanel.orientation = 'column';
         otherPanel.alignChildren = ['left', 'top'];
         otherPanel.margins = [8, 20, 8, 15];
 
         //　プレビュー境界
-        var checkboxPreview = otherPanel.add('checkbox', undefined, LABELS.previewBounds[lang]);
+        var checkboxPreview = otherPanel.add('checkbox', undefined, LABELS.previewBounds[uiLang]);
         checkboxPreview.value = app.preferences.getBooleanPreference("includeStrokeInBounds");
         checkboxPreview.onClick = function() {
             app.preferences.setBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
         };
 
         // パターンを変形
-        var checkboxPattern = otherPanel.add('checkbox', undefined, LABELS.transformPattern[lang]);
+        var checkboxPattern = otherPanel.add('checkbox', undefined, LABELS.transformPattern[uiLang]);
         checkboxPattern.value = app.preferences.getBooleanPreference("transformPatterns");
         checkboxPattern.onClick = function() {
             app.preferences.setBooleanPreference("transformPatterns", checkboxPattern.value === true);
         };
 
         // 角を拡大・縮小
-        var checkboxCorner = otherPanel.add('checkbox', undefined, LABELS.scaleCorners[lang]);
+        var checkboxCorner = otherPanel.add('checkbox', undefined, LABELS.scaleCorners[uiLang]);
         // 初期値を取得（1=ON, 2=OFF）
         checkboxCorner.value = (app.preferences.getIntegerPreference("policyForPreservingCorners") === 1);
         checkboxCorner.onClick = function() {
@@ -723,14 +723,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         /* 線幅と効果も拡大・縮小 */
-        var checkboxStroke = otherPanel.add('checkbox', undefined, LABELS.scaleStroke[lang]);
+        var checkboxStroke = otherPanel.add('checkbox', undefined, LABELS.scaleStroke[uiLang]);
         checkboxStroke.value = app.preferences.getBooleanPreference("scaleLineWeight");
         checkboxStroke.onClick = function() {
             app.preferences.setBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
         };
 
         /* リアルタイムの描画と編集 */
-        var checkboxRealtime = otherPanel.add('checkbox', undefined, LABELS.realtimeDrawing[lang]);
+        var checkboxRealtime = otherPanel.add('checkbox', undefined, LABELS.realtimeDrawing[uiLang]);
         checkboxRealtime.value = app.preferences.getBooleanPreference("LiveEdit_State_Machine");
         checkboxRealtime.onClick = function() {
             app.preferences.setBooleanPreference("LiveEdit_State_Machine", checkboxRealtime.value === true);
@@ -743,12 +743,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         group2.alignChildren = ['center', 'center']; /* 中央揃え */
         group2.alignment = ['center', 'bottom']; /* ダイアログ内で中央に配置 */
 
-        var cancelBtn = group2.add('button', undefined, LABELS.cancel[lang], {
+        var cancelBtn = group2.add('button', undefined, LABELS.cancel[uiLang], {
             name: 'cancel'
         });
         cancelBtn.preferredSize.width = 90;
 
-        var okBtn = group2.add('button', undefined, LABELS.ok[lang], {
+        var okBtn = group2.add('button', undefined, LABELS.ok[uiLang], {
             name: 'ok'
         });
         okBtn.preferredSize.width = 90;

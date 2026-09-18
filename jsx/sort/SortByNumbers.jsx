@@ -67,20 +67,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        var sel = app.activeDocument.selection;
-        if (sel.length === 0) {
+        var currentSelection = app.activeDocument.selection;
+        if (currentSelection.length === 0) {
             alert("グループオブジェクトを選択してください。");
             return;
         }
 
         var validGroups = [];
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "GroupItem") {
+        for (var i = 0; i < currentSelection.length; i++) {
+            if (currentSelection[i].typename === "GroupItem") {
                 var dummyMap = {};
                 var firstValue = { value: undefined };
-                collectTextWithFontInfoPerGroup(sel[i], dummyMap, sel[i], firstValue);
+                collectTextWithFontInfoPerGroup(currentSelection[i], dummyMap, currentSelection[i], firstValue);
                 if (!isNaN(firstValue.value)) {
-                    validGroups.push(sel[i]);
+                    validGroups.push(currentSelection[i]);
                 }
             }
         }
@@ -292,12 +292,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     main();
 
     function showFontChoiceDialog(fontMap, originalPositions) {
-        var lang = getCurrentLang();
-        var dialog = new Window("dialog", LABELS[lang].title);
+        var uiLang = getCurrentLang();
+        var dialog = new Window("dialog", LABELS[uiLang].title);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
-        var radioGroup = dialog.add("panel", undefined, LABELS[lang].sortGroup);
+        var radioGroup = dialog.add("panel", undefined, LABELS[uiLang].sortGroup);
         radioGroup.orientation = "column";
         radioGroup.alignChildren = "left";
         radioGroup.margins = [10, 20, 10, 10];
@@ -338,18 +338,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sortPanel.alignChildren = "left";
         sortPanel.margins = [10, 20, 10, 10];
 
-        var ascRadio = sortPanel.add("radiobutton", undefined, LABELS[lang].asc);
-        var descRadio = sortPanel.add("radiobutton", undefined, LABELS[lang].desc);
+        var ascRadio = sortPanel.add("radiobutton", undefined, LABELS[uiLang].asc);
+        var descRadio = sortPanel.add("radiobutton", undefined, LABELS[uiLang].desc);
         var randomRadio = sortPanel.add("radiobutton", undefined, "ランダム");
         ascRadio.value = true;
 
-        var spacingPanel = dialog.add("panel", undefined, LABELS[lang].custom === "指定" || LABELS[lang].custom === "Custom" ? LABELS[lang].custom : "間隔");
+        var spacingPanel = dialog.add("panel", undefined, LABELS[uiLang].custom === "指定" || LABELS[uiLang].custom === "Custom" ? LABELS[uiLang].custom : "間隔");
         spacingPanel.orientation = "row";
         spacingPanel.alignChildren = "left";
         spacingPanel.margins = [10, 20, 10, 10];
 
-        var fitRadio = spacingPanel.add("radiobutton", undefined, LABELS[lang].fit);
-        var customRadio = spacingPanel.add("radiobutton", undefined, LABELS[lang].custom);
+        var fitRadio = spacingPanel.add("radiobutton", undefined, LABELS[uiLang].fit);
+        var customRadio = spacingPanel.add("radiobutton", undefined, LABELS[uiLang].custom);
         var defaultSpacing = (unitLabel === "mm") ? "1" : "20";
         var spacingInput = spacingPanel.add("edittext", undefined, defaultSpacing);
         spacingInput.characters = 5;
@@ -367,7 +367,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "center";
         var cancelBtn = buttonGroup.add("button", undefined, "キャンセル");
-        var okBtn = buttonGroup.add("button", undefined, LABELS[lang].ok, {
+        var okBtn = buttonGroup.add("button", undefined, LABELS[uiLang].ok, {
             name: "ok"
         });
         cancelBtn.alignment = "left";

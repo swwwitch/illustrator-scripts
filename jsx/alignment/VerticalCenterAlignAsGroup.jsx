@@ -185,8 +185,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * 選択オブジェクト全体を囲む矩形を求める
-     * @param {Array} selectedItems - 選択中のオブジェクト
-     * @returns {Array} [左, 上, 右, 下] の座標
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
+     * @returns {number[]} [左, 上, 右, 下] の座標
      */
     function getSelectionBounds(selectedItems) {
         var bounds = selectedItems[0].visibleBounds;
@@ -206,8 +206,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
 
     /**
      * 2つの矩形が重なっている面積を求める
-     * @param {Array} boundsA - [左, 上, 右, 下] の座標
-     * @param {Array} boundsB - [左, 上, 右, 下] の座標
+     * @param {number[]} boundsA - [左, 上, 右, 下] の座標
+     * @param {number[]} boundsB - [左, 上, 右, 下] の座標
      * @returns {number} 重なっている面積（重ならない場合は 0）
      */
     function getOverlapArea(boundsA, boundsB) {
@@ -222,7 +222,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 選択範囲と最も広く重なるアートボードを探す
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} selectionBounds - [左, 上, 右, 下] の座標
+     * @param {number[]} selectionBounds - [左, 上, 右, 下] の座標
      * @param {number} currentIndex - 重なりが同じときに優先するアートボード番号
      * @returns {number} アートボード番号（どこにも重ならない場合は -1）
      */
@@ -234,22 +234,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
                 searchOrder.push(i);
             }
         }
-        var bestIndex = -1;
-        var bestArea = 0;
+        var largestOverlapIndex = -1;
+        var largestOverlapArea = 0;
         for (var j = 0; j < searchOrder.length; j++) {
-            var area = getOverlapArea(selectionBounds, doc.artboards[searchOrder[j]].artboardRect);
-            if (area > bestArea) {
-                bestArea = area;
-                bestIndex = searchOrder[j];
+            var overlapArea = getOverlapArea(selectionBounds, doc.artboards[searchOrder[j]].artboardRect);
+            if (overlapArea > largestOverlapArea) {
+                largestOverlapArea = overlapArea;
+                largestOverlapIndex = searchOrder[j];
             }
         }
-        return bestIndex;
+        return largestOverlapIndex;
     }
 
     /**
      * 選択範囲の中心に最も近いアートボードを探す
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} selectionBounds - [左, 上, 右, 下] の座標
+     * @param {number[]} selectionBounds - [左, 上, 右, 下] の座標
      * @returns {number} アートボード番号
      */
     function findNearestArtboardIndex(doc, selectionBounds) {
@@ -273,7 +273,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 選択が現在のアートボード上にないとき、選択を含むアートボードを現在のアートボードにする
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array} selectedItems - 選択中のオブジェクト
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
      * @returns {void}
      */
     function activateArtboardForSelection(doc, selectedItems) {
@@ -299,7 +299,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     /**
      * 文字を部分選択している場合に、その文字を含むテキストオブジェクトを選択し直す
      * @param {Document} doc - 対象ドキュメント
-     * @returns {Array} 選択し直したあとの選択内容
+     * @returns {PageItem[]} 選択し直したあとの選択内容
      */
     function selectTextFrameFromTextRange(doc) {
         var storyFrames = doc.selection.story.textFrames;
@@ -322,17 +322,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
      */
     function getLayerKey(layer) {
         var keyParts = [];
-        var node = layer;
-        while (node && node.typename === "Layer") {
-            keyParts.push(node.zOrderPosition + ":" + node.name);
-            node = node.parent;
+        var layerNode = layer;
+        while (layerNode && layerNode.typename === "Layer") {
+            keyParts.push(layerNode.zOrderPosition + ":" + layerNode.name);
+            layerNode = layerNode.parent;
         }
         return keyParts.join("/");
     }
 
     /**
      * 選択が複数のレイヤーにまたがっているか判定する
-     * @param {Array} selectedItems - 選択中のオブジェクト
+     * @param {PageItem[]} selectedItems - 選択中のオブジェクト
      * @returns {boolean} またがっていれば true
      */
     function spansMultipleLayers(selectedItems) {

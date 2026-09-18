@@ -44,7 +44,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     var LABELS = {
         dialog: {
@@ -78,7 +78,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} path - "panel.leading" のようなドット区切りキー
      * @returns {string} 該当言語の文字列。無ければ英語、さらに無ければ path をそのまま返す
      */
-    function L(path) {
+    function getLabel(path) {
         var parts = String(path).split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -86,7 +86,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             node = node[parts[i]];
         }
         if (node == null) return path;
-        if (typeof node[lang] === "string") return node[lang];
+        if (typeof node[uiLang] === "string") return node[uiLang];
         if (typeof node.en === "string") return node.en;
         return path;
     }
@@ -152,7 +152,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { label: "110%", ratio: 1.1, token: "110", other: false },
         { label: "125%", ratio: 1.25, token: "125", other: false },
         { label: "150%", ratio: 1.5, token: "150", other: false },
-        { label: L("choice.other"), ratio: undefined, token: "OTHER", other: true }
+        { label: getLabel("choice.other"), ratio: undefined, token: "OTHER", other: true }
     ];
 
     function getLeadingChoiceIndexByToken(token) {
@@ -164,8 +164,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function getLeadingTypeChoices() {
         return [
-            { label: L("type.topToTop"), token: "TOPTOTOP" },
-            { label: L("type.bottomToBottom"), token: "BOTTOMTOBOTTOM" }
+            { label: getLabel("type.topToTop"), token: "TOPTOTOP" },
+            { label: getLabel("type.bottomToBottom"), token: "BOTTOMTOBOTTOM" }
         ];
     }
 
@@ -565,14 +565,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             initData.choiceToken = fields[5] || "110";
         }
 
-        var win = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+        var win = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
         win.orientation = "column";
         win.alignChildren = "fill";
         win.margins = 16;
         win.spacing = 12;
 
         // ---- 行送りパネル / Leading panel ----
-        var leadingPanel = win.add("panel", undefined, L("panel.leading"));
+        var leadingPanel = win.add("panel", undefined, getLabel("panel.leading"));
         leadingPanel.orientation = "column";
         leadingPanel.alignChildren = "left";
         leadingPanel.margins = PANEL_MARGINS;
@@ -592,7 +592,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var leadingGroup = leftColumnGroup.add("group");
         var leadingInput = leadingGroup.add("edittext", undefined, formatByUnit(initData.leadingPt, unit));
         leadingInput.characters = 3;
-        leadingInput.helpTip = L("tip.leading");
+        leadingInput.helpTip = getLabel("tip.leading");
         leadingGroup.add("statictext", undefined, unit.label);
 
         // 右カラム：自動行送り量（％）＋プリセット / Right column: auto amount (%) and presets
@@ -607,7 +607,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         autoAmountGroup.spacing = 6;
         var autoInput = autoAmountGroup.add("edittext", undefined, String(Math.round(initData.autoAmount)));
         autoInput.characters = 3;
-        autoInput.helpTip = L("tip.amount");
+        autoInput.helpTip = getLabel("tip.amount");
         autoAmountGroup.add("statictext", undefined, "%");
 
         var radioButtonsGroup = rightColumnGroup.add("group");
@@ -626,8 +626,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ---- 行送りの基準パネル / Leading type panel ----
         var typeChoices = getLeadingTypeChoices();
         var typeContainer;
-        if (lang === "ja") {
-            typeContainer = win.add("panel", undefined, L("panel.type"));
+        if (uiLang === "ja") {
+            typeContainer = win.add("panel", undefined, getLabel("panel.type"));
             typeContainer.margins = PANEL_MARGINS;
         } else {
             typeContainer = win.add("group");
@@ -646,24 +646,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         typeRadios[initialTypeIndex].value = true;
 
         // ---- 段落前後のアキパネル / Space panel ----
-        var spacePanel = win.add("panel", undefined, L("panel.space"));
+        var spacePanel = win.add("panel", undefined, getLabel("panel.space"));
         spacePanel.orientation = "column";
         spacePanel.alignChildren = "left";
         spacePanel.margins = PANEL_MARGINS;
         spacePanel.spacing = 8;
 
         var beforeGroup = spacePanel.add("group");
-        beforeGroup.add("statictext", undefined, L("label.spaceBefore"));
+        beforeGroup.add("statictext", undefined, getLabel("label.spaceBefore"));
         var spaceBeforeInput = beforeGroup.add("edittext", undefined, formatByUnit(initData.spaceBefore, unit));
         spaceBeforeInput.characters = 4;
-        spaceBeforeInput.helpTip = L("tip.space");
+        spaceBeforeInput.helpTip = getLabel("tip.space");
         beforeGroup.add("statictext", undefined, unit.label);
 
         var afterGroup = spacePanel.add("group");
-        afterGroup.add("statictext", undefined, L("label.spaceAfter"));
+        afterGroup.add("statictext", undefined, getLabel("label.spaceAfter"));
         var spaceAfterInput = afterGroup.add("edittext", undefined, formatByUnit(initData.spaceAfter, unit));
         spaceAfterInput.characters = 4;
-        spaceAfterInput.helpTip = L("tip.space");
+        spaceAfterInput.helpTip = getLabel("tip.space");
         afterGroup.add("statictext", undefined, unit.label);
 
         // ---- 状態 / State ----

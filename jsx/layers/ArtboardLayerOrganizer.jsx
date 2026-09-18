@@ -245,8 +245,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         return;
     }
 
-    var activeDocument = app.activeDocument;
-    var documentArtboards = activeDocument.artboards;
+    var documentRef = app.activeDocument;
+    var documentArtboards = documentRef.artboards;
     var guideLayer = null; // _guide レイヤー参照（必要時に取得・作成） / _guide layer reference, resolved on demand
 
     // =========================================
@@ -632,7 +632,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      * @returns {Layer} 見つかったレイヤー。無ければ null
      */
     function findTopLevelLayerByName(layerName) {
-        var topLevelLayers = activeDocument.layers;
+        var topLevelLayers = documentRef.layers;
         for (var i = 0; i < topLevelLayers.length; i++) {
             if (topLevelLayers[i].name === layerName) return topLevelLayers[i];
         }
@@ -647,7 +647,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
     function getOrCreateTopLevelLayer(layerName) {
         var foundLayer = findTopLevelLayerByName(layerName);
         if (foundLayer) return foundLayer;
-        var createdLayer = activeDocument.layers.add();
+        var createdLayer = documentRef.layers.add();
         createdLayer.name = layerName;
         return createdLayer;
     }
@@ -670,8 +670,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function getTopLevelLayerSnapshot() {
         var topLevelLayers = [];
-        for (var i = 0; i < activeDocument.layers.length; i++) {
-            topLevelLayers.push(activeDocument.layers[i]);
+        for (var i = 0; i < documentRef.layers.length; i++) {
+            topLevelLayers.push(documentRef.layers[i]);
         }
         return topLevelLayers;
     }
@@ -762,7 +762,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         var unlockLayers = !organizeOptions.ignoreLockedLayers;
         var showLayers = !organizeOptions.ignoreHiddenLayers;
         if (unlockLayers || showLayers) {
-            suspendLayerLockAndHidden(activeDocument, unlockLayers, showLayers, suspendedEntries);
+            suspendLayerLockAndHidden(documentRef, unlockLayers, showLayers, suspendedEntries);
         }
         var unlockItems = !organizeOptions.ignoreLockedObjects;
         var showItems = !organizeOptions.ignoreHiddenObjects;
@@ -1048,7 +1048,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
      */
     function collectMovableItems(organizeOptions) {
         var movableItems = [];
-        var allPageItems = activeDocument.pageItems;
+        var allPageItems = documentRef.pageItems;
         var pageItemCount = allPageItems.length;
         for (var i = 0; i < pageItemCount; i++) {
             var pageItem = allPageItems[i];
@@ -1148,7 +1148,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
         var failedMoves = withWritableLayer(legacyLayer, function () {
             return moveEntriesToLayer(collectedEntries, targetLayer, null);
         });
-        if (isLayerEmpty(legacyLayer) && activeDocument.layers.length > 1) {
+        if (isLayerEmpty(legacyLayer) && documentRef.layers.length > 1) {
             removeLayerSafely(legacyLayer);
         }
         return failedMoves;
@@ -1186,7 +1186,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nadb8b8ba49fe"; /* 紹�
             if (isLayerExcluded(topLevelLayer, organizeOptions)) continue;
             removeEmptySubLayers(topLevelLayer, organizeOptions);
             if (isProtectedSystemLayer(topLevelLayer)) continue;
-            if (isLayerEmpty(topLevelLayer) && activeDocument.layers.length > 1) {
+            if (isLayerEmpty(topLevelLayer) && documentRef.layers.length > 1) {
                 removeLayerSafely(topLevelLayer);
             }
         }

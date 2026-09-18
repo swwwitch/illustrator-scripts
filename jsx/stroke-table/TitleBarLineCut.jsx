@@ -55,7 +55,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -101,11 +101,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         capRound: { ja: "丸型", en: "Round" }
     };
 
-    function L(key) {
+    function getLabel(key) {
         try {
             var v = LABELS[key];
             if (!v) return key;
-            return v[lang] || v.en || v.ja || key;
+            return v[uiLang] || v.en || v.ja || key;
         } catch (e) {
             return key;
         }
@@ -113,16 +113,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function LF(key, unitLabel) {
         // %u を単位ラベルで置換
-        var s = L(key);
+        var s = getLabel(key);
         return s.replace(/%u/g, String(unitLabel));
     }
 
     (function () {
-        if (app.documents.length === 0) { alert(L('alertOpenDoc')); return; }
+        if (app.documents.length === 0) { alert(getLabel('alertOpenDoc')); return; }
         var doc = app.activeDocument;
 
         if (!doc.selection || doc.selection.length !== 2) {
-            alert(L('alertSelectTwo'));
+            alert(getLabel('alertSelectTwo'));
             return;
         }
 
@@ -250,10 +250,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Accept either a strict rectangle, or an already-cut path (open) / non-4pt path or group and normalize it.
         if (isTextItem(a) && isStrokeCandidate(b)) { tf = a; rectA = b; }
         else if (isTextItem(b) && isStrokeCandidate(a)) { tf = b; rectA = a; }
-        else { alert(L('alertSelectTypes')); return; }
+        else { alert(getLabel('alertSelectTypes')); return; }
 
         rectA = normalizeRectCandidate(rectA);
-        if (!rectA) { alert(L('alertSelectTypes')); return; }
+        if (!rectA) { alert(getLabel('alertSelectTypes')); return; }
 
         // rulerType を参照して単位ラベルと pt 変換を決める
         var unitLabelMap = {
@@ -1078,7 +1078,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // ---- ダイアログ / Dialog ----
-        var dlg = new Window("dialog", L('dialogTitle') + " " + SCRIPT_VERSION);
+        var dlg = new Window("dialog", getLabel('dialogTitle') + " " + SCRIPT_VERSION);
         dlg.orientation = "column";
         dlg.alignChildren = ["fill", "top"];
 
@@ -1104,7 +1104,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var row = dlg.add("group");
         row.alignChildren = ["left", "center"];
 
-        var stMarginLabel = row.add("statictext", undefined, L('margin'));
+        var stMarginLabel = row.add("statictext", undefined, getLabel('margin'));
         stMarginLabel.preferredSize.width = 60;
         stMarginLabel.justify = "right";
 
@@ -1122,7 +1122,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rowR = dlg.add("group");
         rowR.alignChildren = ["left", "center"];
 
-        var cbRound = rowR.add("checkbox", undefined, L('roundCorners'));
+        var cbRound = rowR.add("checkbox", undefined, getLabel('roundCorners'));
         cbRound.value = false;
         try { cbRound.value = !!$.global.__tblc_state.roundOn; } catch (e) { }
 
@@ -1138,7 +1138,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         etRound.enabled = false;
 
         // 塗り
-        var fillPanel = dlg.add("panel", undefined, L('panelFill'));
+        var fillPanel = dlg.add("panel", undefined, getLabel('panelFill'));
         fillPanel.orientation = "column";
         fillPanel.alignChildren = ["fill", "top"];
         fillPanel.margins = [15, 20, 15, 10];
@@ -1146,19 +1146,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rowF = fillPanel.add("group");
         rowF.alignChildren = ["left", "center"];
 
-        var cbFillOn = rowF.add("checkbox", undefined, L('fillOn'));
+        var cbFillOn = rowF.add("checkbox", undefined, getLabel('fillOn'));
         cbFillOn.value = true;
         try { cbFillOn.value = !!$.global.__tblc_state.fillOn; } catch (e) { }
 
         var rowN = fillPanel.add("group");
         rowN.alignChildren = ["left", "center"];
 
-        var cbNotch = rowN.add("checkbox", undefined, L('notch'));
+        var cbNotch = rowN.add("checkbox", undefined, getLabel('notch'));
         cbNotch.value = false;
         try { cbNotch.value = !!$.global.__tblc_state.notchOn; } catch (e) { }
 
         // 線（線幅・線端）
-        var linePanel = dlg.add("panel", undefined, L('panelStroke'));
+        var linePanel = dlg.add("panel", undefined, getLabel('panelStroke'));
         linePanel.orientation = "column";
         linePanel.alignChildren = ["fill", "top"];
         linePanel.margins = [15, 20, 15, 10];
@@ -1171,7 +1171,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbStrokeOn.value = true;
         try { cbStrokeOn.value = !!$.global.__tblc_state.strokeOn; } catch (e) { }
 
-        var stWidthLabel = rowW.add("statictext", undefined, L('strokeWidth'));
+        var stWidthLabel = rowW.add("statictext", undefined, getLabel('strokeWidth'));
 
         var etWidth = rowW.add("edittext", undefined, __defaultStrokeWidthText);
         etWidth.characters = 3;
@@ -1188,15 +1188,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         capRow.orientation = "row";
         capRow.alignChildren = ["left", "center"];
 
-        var stCapLabel = capRow.add("statictext", undefined, L('lineCap'));
+        var stCapLabel = capRow.add("statictext", undefined, getLabel('lineCap'));
 
         var capBtns = capRow.add("group");
         capBtns.alignment = ["left", "center"];
         capBtns.orientation = "row";
         capBtns.alignChildren = ["left", "center"];
 
-        var rbCapNone = capBtns.add("radiobutton", undefined, L('capNone'));
-        var rbCapRound = capBtns.add("radiobutton", undefined, L('capRound'));
+        var rbCapNone = capBtns.add("radiobutton", undefined, getLabel('capNone'));
+        var rbCapRound = capBtns.add("radiobutton", undefined, getLabel('capRound'));
 
         // セッション復元（線端）
         var __capIdx = 0;
@@ -1313,8 +1313,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var btns = dlg.add("group");
         btns.alignment = "right";
-        var btCancel = btns.add("button", undefined, L('cancel'), { name: "cancel" });
-        var btOK = btns.add("button", undefined, L('ok'), { name: "ok" });
+        var btCancel = btns.add("button", undefined, getLabel('cancel'), { name: "cancel" });
+        var btOK = btns.add("button", undefined, getLabel('ok'), { name: "ok" });
 
         function parseMargin() {
             var v = parseFloat(et.text);

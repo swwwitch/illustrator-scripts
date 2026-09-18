@@ -672,15 +672,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             alert(getLabel(LABELS.alert.noDocument));
             return;
         }
-        var activeDocument = app.activeDocument;
-        var targetItems = activeDocument.selection;
+        var documentRef = app.activeDocument;
+        var targetItems = documentRef.selection;
         /* 文字ツールでの文字選択（TextRange）は対象外 / a type-tool selection is not a page-item array */
         if (!(targetItems instanceof Array) || targetItems.length === 0) {
             alert(getLabel(LABELS.alert.noSelection));
             return;
         }
 
-        showStrokeDialog(targetItems, getBlackColor(activeDocument));
+        showStrokeDialog(targetItems, getBlackColor(documentRef));
     }
 
     main();

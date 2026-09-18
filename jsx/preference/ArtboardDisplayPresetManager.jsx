@@ -180,7 +180,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @param {string} labelPath - "panel.options" のようなドット区切りキー
      * @returns {string} 現在言語の文言（見つからない場合はキーをそのまま返す）
      */
-    function L(labelPath) {
+    function getLabel(labelPath) {
         var parts = labelPath.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -198,7 +198,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @returns {string} コロンを付けた文言
      */
     function labelWithColon(labelPath) {
-        return L(labelPath) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(labelPath) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -353,7 +353,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     function buildBorderColorNames() {
         var names = [];
         for (var i = 0; i < BORDER_COLOR_PRESETS.length; i++) {
-            names.push(L(BORDER_COLOR_PRESETS[i].labelKey));
+            names.push(getLabel(BORDER_COLOR_PRESETS[i].labelKey));
         }
         return names;
     }
@@ -487,7 +487,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @returns {object} パネル内のコントロール
      */
     function buildCurrentArtboardPanel(parentWindow) {
-        var currentArtboardPanel = parentWindow.add("panel", undefined, L("panel.currentArtboard"));
+        var currentArtboardPanel = parentWindow.add("panel", undefined, getLabel("panel.currentArtboard"));
         setupPanel(currentArtboardPanel, 8);
 
         /* 番号・名前（左右中央）/ Number and name (centered) */
@@ -508,9 +508,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         /* ボタン行（パネル幅いっぱいには広げない）/ Button row (do not stretch to the panel width) */
         var actionRow = currentArtboardPanel.add("group");
         setupRow(actionRow, "left");
-        var optimizeButton = actionRow.add("button", undefined, L("button.optimizePixelGrid"));
+        var optimizeButton = actionRow.add("button", undefined, getLabel("button.optimizePixelGrid"));
         optimizeButton.alignment = "left";
-        var reloadButton = actionRow.add("button", undefined, L("button.reload"));
+        var reloadButton = actionRow.add("button", undefined, getLabel("button.reload"));
         reloadButton.alignment = "left";
 
         return {
@@ -530,13 +530,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @returns {object} パネル内のコントロール
      */
     function buildArtboardDisplayPanel(parentWindow) {
-        var displayPanel = parentWindow.add("panel", undefined, L("panel.artboardDisplay"));
+        var displayPanel = parentWindow.add("panel", undefined, getLabel("panel.artboardDisplay"));
         setupPanel(displayPanel);
 
-        var showNameCheckbox = displayPanel.add("checkbox", undefined, L("checkbox.showArtboardName"));
+        var showNameCheckbox = displayPanel.add("checkbox", undefined, getLabel("checkbox.showArtboardName"));
 
         /* 枠線サブパネル / Border sub-panel */
-        var borderPanel = displayPanel.add("panel", undefined, L("panel.artboardBorder"));
+        var borderPanel = displayPanel.add("panel", undefined, getLabel("panel.artboardBorder"));
         setupPanel(borderPanel, 8);
 
         var colorRow = borderPanel.add("group");
@@ -557,7 +557,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         setupRow(presetRow, "center");
         var presetRadios = [];
         for (var j = 0; j < PRESET_KEYS.length; j++) {
-            presetRadios.push(presetRow.add("radiobutton", undefined, L("preset." + PRESET_KEYS[j])));
+            presetRadios.push(presetRow.add("radiobutton", undefined, getLabel("preset." + PRESET_KEYS[j])));
         }
 
         return {
@@ -574,12 +574,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @returns {object} パネル内のコントロール
      */
     function buildOptionsPanel(parentWindow) {
-        var optionsPanel = parentWindow.add("panel", undefined, L("panel.options"));
+        var optionsPanel = parentWindow.add("panel", undefined, getLabel("panel.options"));
         setupPanel(optionsPanel, 8);
         return {
             /* PRINT_BLEED_WIDGET を参照 / See the PRINT_BLEED_WIDGET note */
-            // printBleedCheckbox: optionsPanel.add("checkbox", undefined, L("checkbox.showPrintBleedAI")),
-            moveLockedHiddenCheckbox: optionsPanel.add("checkbox", undefined, L("checkbox.moveLockedHidden"))
+            // printBleedCheckbox: optionsPanel.add("checkbox", undefined, getLabel("checkbox.showPrintBleedAI")),
+            moveLockedHiddenCheckbox: optionsPanel.add("checkbox", undefined, getLabel("checkbox.moveLockedHidden"))
         };
     }
 
@@ -592,13 +592,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         var footerRow = parentWindow.add("group");
         setupRow(footerRow, "fill");
 
-        var canvasColorButton = footerRow.add("button", undefined, L("button.canvasColor"));
+        var canvasColorButton = footerRow.add("button", undefined, getLabel("button.canvasColor"));
         canvasColorButton.alignment = ["left", "center"];
 
         var footerSpacer = footerRow.add("group");
         footerSpacer.alignment = ["fill", "fill"];
 
-        var videoRulerButton = footerRow.add("button", undefined, L("button.videoRuler"));
+        var videoRulerButton = footerRow.add("button", undefined, getLabel("button.videoRuler"));
         videoRulerButton.alignment = ["right", "center"];
 
         return { canvasColorButton: canvasColorButton, videoRulerButton: videoRulerButton };
@@ -609,7 +609,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
      * @returns {object} ウィンドウと全コントロールをまとめたオブジェクト
      */
     function buildPalette() {
-        var paletteWindow = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION);
+        var paletteWindow = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(paletteWindow);
 
         var ui = { paletteWindow: paletteWindow };
@@ -789,7 +789,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
             ui.artboardInfoText.text = "—";
             ui.widthInput.text = "";
             ui.heightInput.text = "";
-            if (alertOnEmpty) alert(L("alert.noDocument"));
+            if (alertOnEmpty) alert(getLabel("alert.noDocument"));
             return;
         }
         var separator = (currentLanguage === "ja") ? "：" : ": ";

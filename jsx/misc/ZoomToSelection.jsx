@@ -58,15 +58,15 @@ var FRAME_DELAY_MS = 3;            // 各フレームの待機ミリ秒（redraw
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var lang = getCurrentLang();
+var uiLang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     alertNoDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
 };
 
-function L(key) {
-    if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
+function getLabel(key) {
+    if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
     if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
     return key;
 }
@@ -202,7 +202,7 @@ function animateView(activeView, targetCenterX, targetCenterY, targetZoom) {
 // エントリポイント / Entry point
 // ============================================================
 if (app.documents.length < 1) {
-    alert(L("alertNoDocument"));
+    alert(getLabel("alertNoDocument"));
 } else {
     var doc = app.activeDocument;
     var selectedItems = doc.selection;

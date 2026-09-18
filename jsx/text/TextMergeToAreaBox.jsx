@@ -368,12 +368,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
             }
 
             /* 長方形を作成してエリア内文字に変換 / Create a rectangle and convert it to area text */
-            var areaRect = activeDocument.pathItems.rectangle(boundsTop, boundsLeft, areaWidth, areaHeight);
+            var areaRect = app.activeDocument.pathItems.rectangle(boundsTop, boundsLeft, areaWidth, areaHeight);
             areaRect.stroked = false;
             areaRect.filled = false;
 
             var leading = computeLeading(mergedLineFrames, fontSize);
-            var areaTextFrame = activeDocument.textFrames.areaText(areaRect);
+            var areaTextFrame = app.activeDocument.textFrames.areaText(areaRect);
             areaTextFrame.contents = joinedText;
             applyAreaTextFormatting(areaTextFrame, mergedLineFrames[0], fontSize, leading);
 
@@ -393,7 +393,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
                 return;
             }
 
-            var lineGroups = groupTextFramesByLine(activeDocument.selection);
+            var lineGroups = groupTextFramesByLine(app.activeDocument.selection);
             if (lineGroups.length === 0) {
                 /* エラーメッセージの表示 / Show error message */
                 alert(getLabel("alert.noText"));

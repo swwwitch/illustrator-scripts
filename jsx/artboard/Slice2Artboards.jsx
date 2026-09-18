@@ -140,7 +140,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ラベルをドット区切りのキーで引く / Look a label up by a dot-separated key */
-    function L(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var entry = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -152,7 +152,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
-        return L(key) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -330,7 +330,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             item = (selection.length > 1) ? symbolizeSelection(doc, selection) : selection[0];
         } catch (e) {
-            alert(L("message.symbolizeGroupError") + e);
+            alert(getLabel("message.symbolizeGroupError") + e);
             return result;
         }
 
@@ -353,7 +353,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 item = replaceWithSymbol(doc, item);
             } catch (e) {
-                alert(L("message.symbolizeItemError") + e);
+                alert(getLabel("message.symbolizeItemError") + e);
                 return result;
             }
         }
@@ -505,7 +505,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * Build the settings dialog. The returned read() collects the entered values.
      */
     function buildDialog(sourceSize) {
-        var dialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(dialog);
 
         var mainGroup = dialog.add("group");
@@ -521,7 +521,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightColumn.alignChildren = ["fill", "top"];
 
         /* アスペクト比パネル（プリセット表からラジオボタンを生成）/ Aspect-ratio panel, built from the preset table */
-        var shapePanel = leftColumn.add("panel", undefined, L("panel.shape"));
+        var shapePanel = leftColumn.add("panel", undefined, getLabel("panel.shape"));
         setupPanel(shapePanel, 6);
         shapePanel.alignChildren = ["left", "top"];
 
@@ -530,7 +530,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var preset = SHAPE_PRESETS[i];
             if (preset.englishOnly && currentLanguage === "ja") continue;
 
-            var radio = shapePanel.add("radiobutton", undefined, L("shape." + preset.key));
+            var radio = shapePanel.add("radiobutton", undefined, getLabel("shape." + preset.key));
             radio.alignment = "left";
             shapeRadios.push({ radio: radio, ratio: preset.ratio });
         }
@@ -552,22 +552,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var offsetRow = leftColumn.add("group");
         setupRow(offsetRow, "left", 6);
 
-        var offsetCheckbox = offsetRow.add("checkbox", undefined, L("field.offset"));
+        var offsetCheckbox = offsetRow.add("checkbox", undefined, getLabel("field.offset"));
         offsetCheckbox.value = true;
         var offsetInput = offsetRow.add("edittext", undefined, String(CONFIG.defaultOffset));
         offsetInput.characters = 4;
         var offsetUnitLabel = offsetRow.add("statictext", undefined, getCurrentUnitLabel());
 
         /* アートボード変換 / Convert to artboards */
-        var artboardCheckbox = rightColumn.add("checkbox", undefined, L("checkbox.convertArtboard"));
+        var artboardCheckbox = rightColumn.add("checkbox", undefined, getLabel("checkbox.convertArtboard"));
         artboardCheckbox.value = true;
         artboardCheckbox.alignment = "left";
 
-        var artboardPanel = rightColumn.add("panel", undefined, L("panel.artboard"));
+        var artboardPanel = rightColumn.add("panel", undefined, getLabel("panel.artboard"));
         setupPanel(artboardPanel, 6);
         artboardPanel.alignChildren = ["left", "top"];
 
-        var useFileNameCheckbox = artboardPanel.add("checkbox", undefined, L("checkbox.useFileName"));
+        var useFileNameCheckbox = artboardPanel.add("checkbox", undefined, getLabel("checkbox.useFileName"));
 
         var prefixRow = artboardPanel.add("group");
         setupRow(prefixRow, "left", 6);
@@ -578,9 +578,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var separatorRow = artboardPanel.add("group");
         setupRow(separatorRow, "left", 6);
         separatorRow.add("statictext", undefined, labelText("field.separator"));
-        var dashRadio = separatorRow.add("radiobutton", undefined, L("separator.dash"));
-        var underscoreRadio = separatorRow.add("radiobutton", undefined, L("separator.underscore"));
-        var withoutRadio = separatorRow.add("radiobutton", undefined, L("separator.without"));
+        var dashRadio = separatorRow.add("radiobutton", undefined, getLabel("separator.dash"));
+        var underscoreRadio = separatorRow.add("radiobutton", undefined, getLabel("separator.underscore"));
+        var withoutRadio = separatorRow.add("radiobutton", undefined, getLabel("separator.without"));
         dashRadio.value = true;
 
         var numberRow = artboardPanel.add("group");
@@ -588,7 +588,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         numberRow.add("statictext", undefined, labelText("field.startNumber"));
         var startNumberInput = numberRow.add("edittext", undefined, String(CONFIG.defaultStartNumber));
         startNumberInput.characters = 3;
-        var zeroPadCheckbox = numberRow.add("checkbox", undefined, L("checkbox.zeroPad"));
+        var zeroPadCheckbox = numberRow.add("checkbox", undefined, getLabel("checkbox.zeroPad"));
         zeroPadCheckbox.value = true;
 
         var marginRow = rightColumn.add("group");
@@ -601,8 +601,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ボタン列 / Button row */
         var buttonRow = dialog.add("group");
         setupRow(buttonRow, "right", 10);
-        var cancelButton = buttonRow.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var runButton = buttonRow.add("button", undefined, L("button.run"), { name: "ok" });
+        var cancelButton = buttonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var runButton = buttonRow.add("button", undefined, getLabel("button.run"), { name: "ok" });
         runButton.active = true;
 
         // -----------------------------------------
@@ -807,7 +807,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ドキュメントを変更する前に検証する / Validate before touching the document */
         if (!hasUsableCounts(settings)) {
-            alert(L("message.invalidCount"));
+            alert(getLabel("message.invalidCount"));
             return;
         }
 
@@ -816,14 +816,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!source.symbolItem) return;
             runDistribution(doc, settings, source);
         } catch (e) {
-            alert(L("message.runError") + e);
+            alert(getLabel("message.runError") + e);
         }
     }
 
     if (app.documents.length === 0) {
-        alert(L("message.noDocument"));
+        alert(getLabel("message.noDocument"));
     } else if (!app.activeDocument.selection || app.activeDocument.selection.length === 0) {
-        alert(L("message.noSelection"));
+        alert(getLabel("message.noSelection"));
     } else {
         main();
     }

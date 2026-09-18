@@ -74,7 +74,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* ラベルをドット区切りのキーで引く / Look a label up by a dot-separated key */
-    function L(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var entry = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -178,7 +178,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             app.executeMenuCommand(command);
             return true;
         } catch (e) {
-            alert(L("message.commandFailed") + command + "\n\n" + e);
+            alert(getLabel("message.commandFailed") + command + "\n\n" + e);
             return false;
         }
     }
@@ -219,9 +219,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     if (app.documents.length === 0) {
-        alert(L("message.noDocument"));
+        alert(getLabel("message.noDocument"));
     } else if (!app.activeDocument.selection || app.activeDocument.selection.length === 0) {
-        alert(L("message.noSelection"));
+        alert(getLabel("message.noSelection"));
     } else {
         main();
     }

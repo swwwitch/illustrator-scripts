@@ -51,7 +51,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ別に構造化）/ Japanese-English label definitions (grouped by category) */
     var LABELS = {
@@ -209,7 +209,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     };
 
     /* ドット区切りキー（例 "panel.base"）でラベルを引く / Look up a label by dot-separated key (e.g. "panel.base") */
-    function L(key) {
+    function getLabel(key) {
         try {
             var parts = String(key).split(".");
             var o = LABELS;
@@ -218,7 +218,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 o = o[parts[i]];
             }
             if (!o) return key;
-            return o[lang] || o.en || o.ja || key;
+            return o[uiLang] || o.en || o.ja || key;
         } catch (_) {
             return key;
         }
@@ -381,7 +381,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L("alert.noDoc"));
+            alert(getLabel("alert.noDoc"));
             return;
         }
 
@@ -651,7 +651,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         // ===== ダイアログ =====
         var today = new Date();
 
-        var dlg = new Window("dialog", L("dialog.title"));
+        var dlg = new Window("dialog", getLabel("dialog.title"));
         /* ダイアログ表示位置をずらし初回プレビューを起動 / Offset the dialog and trigger the first preview */
         function shiftDialogPosition(dlg, offsetX, offsetY) {
             dlg.onShow = function () {
@@ -683,16 +683,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         tabs.alignChildren = "fill";
         // tabs.margins = [15, 20, 15, 10]; // 上に余白を追加
 
-        var tabGeneral = tabs.add("tab", undefined, L("panel.base"));
+        var tabGeneral = tabs.add("tab", undefined, getLabel("panel.base"));
         setupTab(tabGeneral);
 
-        var tabCell = tabs.add("tab", undefined, L("panel.unit"));
+        var tabCell = tabs.add("tab", undefined, getLabel("panel.unit"));
         setupTab(tabCell);
 
-        var tabText = tabs.add("tab", undefined, L("panel.formatTab"));
+        var tabText = tabs.add("tab", undefined, getLabel("panel.formatTab"));
         setupTab(tabText, 10);
 
-        var tabLabel = tabs.add("tab", undefined, L("panel.option"));
+        var tabLabel = tabs.add("tab", undefined, getLabel("panel.option"));
         setupTab(tabLabel);
 
         // 既定は「基本設定」タブ
@@ -712,7 +712,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gColR.alignChildren = "fill";
 
         // ===== プリセット（「基本設定」タブ最下部・全幅）/ Preset (bottom of Basics tab, full width) =====
-        var pnlPresetTop = tabGeneral.add("panel", undefined, L("panel.preset"));
+        var pnlPresetTop = tabGeneral.add("panel", undefined, getLabel("panel.preset"));
         pnlPresetTop.orientation = "column";
         pnlPresetTop.alignChildren = ["fill", "top"];
         pnlPresetTop.alignment = "fill";
@@ -722,8 +722,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gPresetBtns.orientation = "row";
         gPresetBtns.alignChildren = ["left", "center"];
 
-        var presetLoadBtn = gPresetBtns.add("button", undefined, L("preset.load"));
-        var presetSaveBtn = gPresetBtns.add("button", undefined, L("preset.save"));
+        var presetLoadBtn = gPresetBtns.add("button", undefined, getLabel("preset.load"));
+        var presetSaveBtn = gPresetBtns.add("button", undefined, getLabel("preset.save"));
         // ボタンはパネル幅いっぱいに広げず左寄せ / Keep buttons at natural width, left-aligned
         presetLoadBtn.alignment = "left";
         presetSaveBtn.alignment = "left";
@@ -953,21 +953,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gOption.alignChildren = "fill";
 
         // ===== 基本設定パネル =====
-        var pnlBaseDate = gColL.add("panel", undefined, L("panel.base"));
+        var pnlBaseDate = gColL.add("panel", undefined, getLabel("panel.base"));
         pnlBaseDate.orientation = "column";
         pnlBaseDate.alignChildren = "left";
         pnlBaseDate.margins = PANEL_MARGINS;
 
         var gBaseDateRow = pnlBaseDate.add("group");
-        gBaseDateRow.add("statictext", undefined, L("field.year"));
+        gBaseDateRow.add("statictext", undefined, getLabel("field.year"));
         var inputY = gBaseDateRow.add("edittext", undefined, String(today.getFullYear()));
         inputY.characters = 4;
 
-        gBaseDateRow.add("statictext", undefined, L("field.month"));
+        gBaseDateRow.add("statictext", undefined, getLabel("field.month"));
         var inputM = gBaseDateRow.add("edittext", undefined, String(today.getMonth() + 1));
         inputM.characters = 2;
 
-        gBaseDateRow.add("statictext", undefined, L("field.day"));
+        gBaseDateRow.add("statictext", undefined, getLabel("field.day"));
         var inputD = gBaseDateRow.add("edittext", undefined, String(today.getDate()));
         inputD.characters = 2;
 
@@ -976,10 +976,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthPreset.orientation = "row";
         gMonthPreset.alignChildren = ["left", "center"];
 
-        gMonthPreset.add("statictext", undefined, L("base.monthCount"));
-        var rbPreset1 = gMonthPreset.add("radiobutton", undefined, L("base.preset1"));
-        var rbPreset3 = gMonthPreset.add("radiobutton", undefined, L("base.preset3"));
-        var rbPreset12 = gMonthPreset.add("radiobutton", undefined, L("base.preset12"));
+        gMonthPreset.add("statictext", undefined, getLabel("base.monthCount"));
+        var rbPreset1 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset1"));
+        var rbPreset3 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset3"));
+        var rbPreset12 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset12"));
 
         /* 月数プリセット(1/3/12)に合わせUIを一括設定 / Apply a month-count preset (1/3/12) across the UI */
         function applyMonthPreset(months, cols) {
@@ -1034,23 +1034,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthStart.orientation = "row";
         gMonthStart.alignChildren = ["left", "center"];
 
-        gMonthStart.add("statictext", undefined, L("base.label"));
-        var rbStartCurrent = gMonthStart.add("radiobutton", undefined, L("base.current"));
-        var rbStartJan = gMonthStart.add("radiobutton", undefined, L("base.jan"));
+        gMonthStart.add("statictext", undefined, getLabel("base.label"));
+        var rbStartCurrent = gMonthStart.add("radiobutton", undefined, getLabel("base.current"));
+        var rbStartJan = gMonthStart.add("radiobutton", undefined, getLabel("base.jan"));
 
         rbStartCurrent.value = true; // デフォルト
         rbStartCurrent.onClick = schedulePreviewRefresh;
         rbStartJan.onClick = schedulePreviewRefresh;
 
         // ゴースト（ロジックは後で追加）
-        var chkGhost = pnlBaseDate.add("checkbox", undefined, L("base.ghost"));
+        var chkGhost = pnlBaseDate.add("checkbox", undefined, getLabel("base.ghost"));
         chkGhost.value = false;
         chkGhost.onClick = schedulePreviewRefresh;
 
         chkGhost.enabled = true; // 初期値（refreshPreviewで正しく同期される）
 
         // ===== 日付（panel） =====
-        var pnlDate = tabCell.add("panel", undefined, L("panel.date"));
+        var pnlDate = tabCell.add("panel", undefined, getLabel("panel.date"));
         pnlDate.orientation = "column";
         pnlDate.alignChildren = "left";
         pnlDate.margins = PANEL_MARGINS;
@@ -1060,11 +1060,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gAlign.orientation = "row";
         gAlign.alignChildren = ["left", "center"];
 
-        gAlign.add("statictext", undefined, L("common.align"));
+        gAlign.add("statictext", undefined, getLabel("common.align"));
 
-        var rbLeft = gAlign.add("radiobutton", undefined, L("common.left"));
-        var rbCenter = gAlign.add("radiobutton", undefined, L("common.center"));
-        var rbRight = gAlign.add("radiobutton", undefined, L("common.right"));
+        var rbLeft = gAlign.add("radiobutton", undefined, getLabel("common.left"));
+        var rbCenter = gAlign.add("radiobutton", undefined, getLabel("common.center"));
+        var rbRight = gAlign.add("radiobutton", undefined, getLabel("common.right"));
         rbCenter.value = true; // デフォルト中央
         rbLeft.onClick = schedulePreviewRefresh;
         rbCenter.onClick = schedulePreviewRefresh;
@@ -1075,16 +1075,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gHoliday.orientation = "row";
         gHoliday.alignChildren = ["left", "center"];
 
-        var chkSundayRed = gHoliday.add("checkbox", undefined, L("format.sunday"));
+        var chkSundayRed = gHoliday.add("checkbox", undefined, getLabel("format.sunday"));
         chkSundayRed.value = true;
         chkSundayRed.onClick = schedulePreviewRefresh;
 
-        var chkHolidayRed = gHoliday.add("checkbox", undefined, L("format.holiday"));
+        var chkHolidayRed = gHoliday.add("checkbox", undefined, getLabel("format.holiday"));
         chkHolidayRed.value = true;
         chkHolidayRed.onClick = schedulePreviewRefresh;
 
         // ===== 曜日表記（panel） =====
-        var pnlWeekdayLabel = gOption.add("panel", undefined, L("panel.weekday"));
+        var pnlWeekdayLabel = gOption.add("panel", undefined, getLabel("panel.weekday"));
         pnlWeekdayLabel.orientation = "column";
         pnlWeekdayLabel.alignChildren = "left";
         pnlWeekdayLabel.margins = PANEL_MARGINS;
@@ -1094,9 +1094,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gWeekStart.orientation = "row";
         gWeekStart.alignChildren = ["left", "center"];
 
-        gWeekStart.add("statictext", undefined, L("weekday.start"));
-        var rbWeekMon = gWeekStart.add("radiobutton", undefined, L("weekday.monday"));
-        var rbWeekSun = gWeekStart.add("radiobutton", undefined, L("weekday.sunday"));
+        gWeekStart.add("statictext", undefined, getLabel("weekday.start"));
+        var rbWeekMon = gWeekStart.add("radiobutton", undefined, getLabel("weekday.monday"));
+        var rbWeekSun = gWeekStart.add("radiobutton", undefined, getLabel("weekday.sunday"));
 
         rbWeekMon.value = true; // デフォルト
         rbWeekMon.onClick = schedulePreviewRefresh;
@@ -1107,7 +1107,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gWeekdayLabel.orientation = "row";
         gWeekdayLabel.alignChildren = ["left", "center"];
 
-        gWeekdayLabel.add("statictext", undefined, L("weekday.notation"));
+        gWeekdayLabel.add("statictext", undefined, getLabel("weekday.notation"));
         var rbWdJP = gWeekdayLabel.add("radiobutton", undefined, "月");
         var rbWdMTW = gWeekdayLabel.add("radiobutton", undefined, "M");
         var rbWdMon = gWeekdayLabel.add("radiobutton", undefined, "Mon");
@@ -1116,7 +1116,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gWeekdayBottomMargin = pnlWeekdayLabel.add("group");
         gWeekdayBottomMargin.orientation = "row";
         gWeekdayBottomMargin.alignChildren = ["left", "center"];
-        gWeekdayBottomMargin.add("statictext", undefined, L("weekday.margin"));
+        gWeekdayBottomMargin.add("statictext", undefined, getLabel("weekday.margin"));
         var inputWeekdayBottomMargin = gWeekdayBottomMargin.add("edittext", undefined, "2");
         inputWeekdayBottomMargin.characters = 4;
         gWeekdayBottomMargin.add("statictext", undefined, unitLabel);
@@ -1131,7 +1131,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         rbWdMon.onClick = schedulePreviewRefresh;
 
         // ===== 月パネル =====
-        var pnlMonth = gOption.add("panel", undefined, L("panel.month"));
+        var pnlMonth = gOption.add("panel", undefined, getLabel("panel.month"));
         pnlMonth.orientation = "column";
         pnlMonth.alignChildren = "left";
         pnlMonth.margins = PANEL_MARGINS;
@@ -1145,7 +1145,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonth.orientation = "row";
         gMonth.alignChildren = ["left", "center"];
 
-        var chkMonthYear = gMonth.add("checkbox", undefined, L("month.includeYear"));
+        var chkMonthYear = gMonth.add("checkbox", undefined, getLabel("month.includeYear"));
         chkMonthYear.value = true;
         chkMonthYear.onClick = schedulePreviewRefresh;
 
@@ -1153,17 +1153,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gMonthAlign = pnlMonth.add("group");
         gMonthAlign.orientation = "row";
         gMonthAlign.alignChildren = ["left", "center"];
-        gMonthAlign.add("statictext", undefined, L("common.align"));
-        var rbMonthAlignL = gMonthAlign.add("radiobutton", undefined, L("common.left"));
-        var rbMonthAlignC = gMonthAlign.add("radiobutton", undefined, L("common.center"));
-        var rbMonthAlignR = gMonthAlign.add("radiobutton", undefined, L("common.right"));
+        gMonthAlign.add("statictext", undefined, getLabel("common.align"));
+        var rbMonthAlignL = gMonthAlign.add("radiobutton", undefined, getLabel("common.left"));
+        var rbMonthAlignC = gMonthAlign.add("radiobutton", undefined, getLabel("common.center"));
+        var rbMonthAlignR = gMonthAlign.add("radiobutton", undefined, getLabel("common.right"));
         rbMonthAlignC.value = true; // default
         rbMonthAlignL.onClick = schedulePreviewRefresh;
         rbMonthAlignC.onClick = schedulePreviewRefresh;
         rbMonthAlignR.onClick = schedulePreviewRefresh;
 
         // 月タイトルの表記
-        var pnlMonthFmt = pnlMonth.add("panel", undefined, L("panel.notation"));
+        var pnlMonthFmt = pnlMonth.add("panel", undefined, getLabel("panel.notation"));
         pnlMonthFmt.orientation = "column";
         pnlMonthFmt.alignChildren = "left";
         pnlMonthFmt.margins = PANEL_MARGINS;
@@ -1172,10 +1172,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthFmt.orientation = "column";
         gMonthFmt.alignChildren = ["left", "top"];
 
-        var rbMonthNum = gMonthFmt.add("radiobutton", undefined, L("month.num"));
-        var rbMonthPad = gMonthFmt.add("radiobutton", undefined, L("month.pad"));
-        var rbMonthEn = gMonthFmt.add("radiobutton", undefined, L("month.en"));
-        var rbMonthEnS = gMonthFmt.add("radiobutton", undefined, L("month.ens"));
+        var rbMonthNum = gMonthFmt.add("radiobutton", undefined, getLabel("month.num"));
+        var rbMonthPad = gMonthFmt.add("radiobutton", undefined, getLabel("month.pad"));
+        var rbMonthEn = gMonthFmt.add("radiobutton", undefined, getLabel("month.en"));
+        var rbMonthEnS = gMonthFmt.add("radiobutton", undefined, getLabel("month.ens"));
 
         // デフォルトは 0埋め
         rbMonthPad.value = true;
@@ -1189,19 +1189,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gMonthMargin = pnlMonth.add("group");
         gMonthMargin.orientation = "row";
         gMonthMargin.alignChildren = ["left", "center"];
-        gMonthMargin.add("statictext", undefined, L("common.bottomMargin"));
+        gMonthMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
         var inputMonthBottomMargin = gMonthMargin.add("edittext", undefined, "3");
         inputMonthBottomMargin.characters = 4;
         gMonthMargin.add("statictext", undefined, unitLabel);
         inputMonthBottomMargin.onChanging = schedulePreviewRefresh;
 
         // 月タイトル行の下ボーダー
-        var chkMonthBottomBorder = pnlMonth.add("checkbox", undefined, L("month.bottomBorder"));
+        var chkMonthBottomBorder = pnlMonth.add("checkbox", undefined, getLabel("month.bottomBorder"));
         chkMonthBottomBorder.value = true; // デフォルトON
         chkMonthBottomBorder.onClick = schedulePreviewRefresh;
 
         // ===== 年パネル =====
-        var pnlYear = gOption.add("panel", undefined, L("panel.year"));
+        var pnlYear = gOption.add("panel", undefined, getLabel("panel.year"));
         pnlYear.orientation = "column";
         pnlYear.alignChildren = "left";
         pnlYear.margins = PANEL_MARGINS;
@@ -1210,7 +1210,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gYear.orientation = "row";
         gYear.alignChildren = ["left", "center"];
 
-        var chkTopYear = gYear.add("checkbox", undefined, L("year.show"));
+        var chkTopYear = gYear.add("checkbox", undefined, getLabel("year.show"));
         chkTopYear.value = false;      // 12ヶ月のときだけONにする
         chkTopYear.enabled = false;    // 12ヶ月以外は触れない
         chkTopYear.onClick = function () {
@@ -1222,7 +1222,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gYearMargin = pnlYear.add("group");
         gYearMargin.orientation = "row";
         gYearMargin.alignChildren = ["left", "center"];
-        gYearMargin.add("statictext", undefined, L("common.bottomMargin"));
+        gYearMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
         var inputTopYearBottomMargin = gYearMargin.add("edittext", undefined, "3");
         inputTopYearBottomMargin.characters = 4;
         gYearMargin.add("statictext", undefined, unitLabel);
@@ -1266,7 +1266,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         }
 
         // ===== レイアウトパネル =====
-        var pnlLayout = gColL.add("panel", undefined, L("panel.layout"));
+        var pnlLayout = gColL.add("panel", undefined, getLabel("panel.layout"));
         pnlLayout.orientation = "column";
         pnlLayout.alignChildren = "left";
         pnlLayout.margins = PANEL_MARGINS;
@@ -1275,11 +1275,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gCount = pnlLayout.add("group");
         gCount.orientation = "row";
         gCount.alignChildren = ["left", "center"];
-        gCount.add("statictext", undefined, L("layout.months"));
+        gCount.add("statictext", undefined, getLabel("layout.months"));
         var inputMonths = gCount.add("edittext", undefined, "1");
         inputMonths.characters = 3;
         try { rbPreset1.value = true; } catch (_) { }
-        gCount.add("statictext", undefined, L("layout.cols"));
+        gCount.add("statictext", undefined, getLabel("layout.cols"));
         var inputCols = gCount.add("edittext", undefined, "1");
         inputCols.characters = 3;
 
@@ -1290,7 +1290,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellMonth.alignment = "fill";
 
         // 月（ユニット間マージン）panel
-        var pnlMonthOuter = gCellMonth.add("panel", undefined, L("panel.month") + "（" + unitLabel + "）");
+        var pnlMonthOuter = gCellMonth.add("panel", undefined, getLabel("panel.month") + "（" + unitLabel + "）");
         pnlMonthOuter.orientation = "column";
         pnlMonthOuter.alignChildren = "left";
         pnlMonthOuter.margins = PANEL_MARGINS;
@@ -1304,7 +1304,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gOuterH = gOuterRow.add("group");
         gOuterH.orientation = "row";
         gOuterH.alignChildren = ["left", "center"];
-        gOuterH.add("statictext", undefined, L("common.lr"));
+        gOuterH.add("statictext", undefined, getLabel("common.lr"));
         var inputOuterMarginX = gOuterH.add("edittext", undefined, "10");
         inputOuterMarginX.characters = 3;
         inputOuterMarginX.onChanging = schedulePreviewRefresh;
@@ -1312,7 +1312,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gOuterV = gOuterRow.add("group");
         gOuterV.orientation = "row";
         gOuterV.alignChildren = ["left", "center"];
-        gOuterV.add("statictext", undefined, L("common.ud"));
+        gOuterV.add("statictext", undefined, getLabel("common.ud"));
         var inputOuterMarginY = gOuterV.add("edittext", undefined, "3");
         inputOuterMarginY.characters = 3;
         inputOuterMarginY.onChanging = schedulePreviewRefresh;
@@ -1353,7 +1353,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         }
 
         // ===== 画面表示（ズーム） =====
-        var pnlView = gColL.add("panel", undefined, L("panel.view"));
+        var pnlView = gColL.add("panel", undefined, getLabel("panel.view"));
         pnlView.orientation = "column";
         pnlView.alignChildren = "left";
         pnlView.margins = PANEL_MARGINS;
@@ -1362,7 +1362,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gZoom.orientation = "row";
         gZoom.alignChildren = ["left", "center"];
 
-        var stZoom = gZoom.add("statictext", undefined, L("common.zoom"));
+        var stZoom = gZoom.add("statictext", undefined, getLabel("common.zoom"));
         try { stZoom.preferredSize.width = 58; } catch (_) { }
 
         var __initZoomPct = 100;
@@ -1384,7 +1384,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gPanX.orientation = "row";
         gPanX.alignChildren = ["left", "center"];
 
-        var stPanX = gPanX.add("statictext", undefined, L("common.lr"));
+        var stPanX = gPanX.add("statictext", undefined, getLabel("common.lr"));
         try { stPanX.preferredSize.width = 58; } catch (_) { }
 
         var __panRange = __SCM_getPanRangePt();
@@ -1403,7 +1403,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gPanY.orientation = "row";
         gPanY.alignChildren = ["left", "center"];
 
-        var stPanY = gPanY.add("statictext", undefined, L("common.ud"));
+        var stPanY = gPanY.add("statictext", undefined, getLabel("common.ud"));
         try { stPanY.preferredSize.width = 58; } catch (_) { }
 
         var sldPanY = gPanY.add("slider", undefined, 0, -__panRange.yMax, __panRange.yMax);
@@ -1418,7 +1418,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ===== セル（panel）をレイアウトから移動してフォントパネルの直前に配置 =====
         // セル（panel）
-        var pnlCell = tabCell.add("panel", undefined, L("panel.cell"));
+        var pnlCell = tabCell.add("panel", undefined, getLabel("panel.cell"));
         pnlCell.orientation = "column";
         pnlCell.alignChildren = "left";
         pnlCell.margins = PANEL_MARGINS;
@@ -1436,7 +1436,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         pnlCellSize.margins = PANEL_MARGINS;
 
         var gCellW = pnlCellSize.add("group");
-        var stCellW = gCellW.add("statictext", undefined, L("layout.width"));
+        var stCellW = gCellW.add("statictext", undefined, getLabel("layout.width"));
         stCellW.justification = "right";
         stCellW.preferredSize.width = 30;
         var __fs0 = 12;
@@ -1453,7 +1453,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellW.add("statictext", undefined, unitLabel);
 
         var gCellH = pnlCellSize.add("group");
-        var stCellH = gCellH.add("statictext", undefined, L("layout.height"));
+        var stCellH = gCellH.add("statictext", undefined, getLabel("layout.height"));
         stCellH.justification = "right";
         stCellH.preferredSize.width = 30;
         var __defaultCellH_pt = Math.round(__fs0 * 1.3);
@@ -1477,14 +1477,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gCellGapX = gCellGapRow.add("group");
         gCellGapX.orientation = "row";
         gCellGapX.alignChildren = ["left", "center"];
-        gCellGapX.add("statictext", undefined, L("common.lr"));
+        gCellGapX.add("statictext", undefined, getLabel("common.lr"));
         var inputCellGapX = gCellGapX.add("edittext", undefined, "0");
         inputCellGapX.characters = 3;
 
         var gCellGapY = gCellGapRow.add("group");
         gCellGapY.orientation = "row";
         gCellGapY.alignChildren = ["left", "center"];
-        gCellGapY.add("statictext", undefined, L("common.ud"));
+        gCellGapY.add("statictext", undefined, getLabel("common.ud"));
         var inputCellGapY = gCellGapY.add("edittext", undefined, "0");
         inputCellGapY.characters = 3;
 
@@ -1507,7 +1507,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         changeValueByArrowKey(inputCellPosAdjY, { integer: false, min: -2000, max: 2000, allowNegative: true }, schedulePreviewRefresh);
 
         // セル背景の塗り
-        var chkCellFill = pnlCell.add("checkbox", undefined, L("layout.cellFill"));
+        var chkCellFill = pnlCell.add("checkbox", undefined, getLabel("layout.cellFill"));
         chkCellFill.value = false; // 既定：OFF
         chkCellFill.onClick = schedulePreviewRefresh;
 
@@ -1596,7 +1596,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         changeValueByArrowKey(inputCellH, { integer: false, min: 1, max: 2000 }, schedulePreviewRefresh);
 
         // ===== 書式パネル =====
-        var pnlFormat = tabText.add("panel", undefined, L("panel.font"));
+        var pnlFormat = tabText.add("panel", undefined, getLabel("panel.font"));
         pnlFormat.orientation = "column";
         pnlFormat.alignChildren = "left";
         pnlFormat.margins = PANEL_MARGINS;
@@ -1608,7 +1608,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var stFSYear;
 
         // フォントサイズ（2行4列）
-        var pnlFontSize = tabText.add("panel", undefined, L("panel.fontSize") + "（" + textUnitLabel + "）");
+        var pnlFontSize = tabText.add("panel", undefined, getLabel("panel.fontSize") + "（" + textUnitLabel + "）");
         pnlFontSize.orientation = "column";
         pnlFontSize.alignChildren = "left";
         pnlFontSize.margins = PANEL_MARGINS;
@@ -1663,7 +1663,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // フォント（インストール済み）選択
         var gFontName = pnlFormat.add("group");
-        var stFontLbl = gFontName.add("statictext", undefined, L("format.font"));
+        var stFontLbl = gFontName.add("statictext", undefined, getLabel("format.font"));
         var ddFont = gFontName.add("dropdownlist", undefined, []);
         gFontName.alignChildren = ["left", "center"];
         ddFont.minimumSize = [80, 22];
@@ -1674,7 +1674,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gFontFav = pnlFormat.add("group");
         gFontFav.orientation = "row";
         gFontFav.alignChildren = ["left", "left"];
-        var stFavLbl = gFontFav.add("statictext", undefined, L("format.favorites"));
+        var stFavLbl = gFontFav.add("statictext", undefined, getLabel("format.favorites"));
         var ddFavFont = gFontFav.add("dropdownlist", undefined, [
             "-",
             "Automate OT Light",
@@ -1831,12 +1831,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         if (!fontNames || !fontNames.length) {
             // ===== 準備中プログレス（重い処理向け）=====
             function __createLoadingPalette(title, initialText, maxValue) {
-                var w = new Window("palette", title || L("loading.title"));
+                var w = new Window("palette", title || getLabel("loading.title"));
                 w.orientation = "column";
                 w.alignChildren = "fill";
                 w.margins = 12;
 
-                var msg = w.add("statictext", undefined, initialText || L("loading.text"));
+                var msg = w.add("statictext", undefined, initialText || getLabel("loading.text"));
                 var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
                 bar.preferredSize = [260, 14];
 
@@ -1853,7 +1853,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 };
             }
 
-            var __loading = __createLoadingPalette(L("loading.title"), L("loading.fontsRead"), 100);
+            var __loading = __createLoadingPalette(getLabel("loading.title"), getLabel("loading.fontsRead"), 100);
 
             // フォント一覧を作成（名前でソート）
             fontNames = [];
@@ -1866,7 +1866,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                         try {
                             __loading.setMax(__len);
                             __loading.setValue(fi);
-                            __loading.setText(L("loading.fontsRead") + " (" + fi + "/" + __len + ")");
+                            __loading.setText(getLabel("loading.fontsRead") + " (" + fi + "/" + __len + ")");
                         } catch (_) { }
                     }
                 }
@@ -1882,7 +1882,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             try {
                 __loading.setMax((fontNames && fontNames.length) ? fontNames.length : 100);
                 __loading.setValue((fontNames && fontNames.length) ? fontNames.length : 100);
-                __loading.setText(L("loading.ready"));
+                __loading.setText(getLabel("loading.ready"));
             } catch (_) { }
             __loading.close();
         }
@@ -1895,11 +1895,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 // 既存の列挙用ヘルパーが未定義の可能性があるため、ここでも最小版を用意
                 if (typeof __createLoadingPalette !== "function") {
                     var __createLoadingPalette = function (title, initialText, maxValue) {
-                        var w = new Window("palette", title || L("loading.title"));
+                        var w = new Window("palette", title || getLabel("loading.title"));
                         w.orientation = "column";
                         w.alignChildren = "fill";
                         w.margins = 12;
-                        var msg = w.add("statictext", undefined, initialText || L("loading.text"));
+                        var msg = w.add("statictext", undefined, initialText || getLabel("loading.text"));
                         var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
                         bar.preferredSize = [260, 14];
                         try { w.show(); } catch (_) { }
@@ -1914,7 +1914,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                         };
                     };
                 }
-                __ddLoading = __createLoadingPalette(L("loading.title"), L("loading.fontsSet"), fontNames.length);
+                __ddLoading = __createLoadingPalette(getLabel("loading.title"), getLabel("loading.fontsSet"), fontNames.length);
             }
         } catch (_) { }
 
@@ -1923,7 +1923,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             if (__ddLoading && (iFont % 50) === 0) {
                 try {
                     __ddLoading.setValue(iFont);
-                    __ddLoading.setText(L("loading.fontsSet") + " (" + iFont + "/" + fontNames.length + ")");
+                    __ddLoading.setText(getLabel("loading.fontsSet") + " (" + iFont + "/" + fontNames.length + ")");
                 } catch (_) { }
             }
         }
@@ -1931,7 +1931,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         if (__ddLoading) {
             try {
                 __ddLoading.setValue(fontNames.length);
-                __ddLoading.setText(L("loading.ready"));
+                __ddLoading.setText(getLabel("loading.ready"));
             } catch (_) { }
             __ddLoading.close();
         }
@@ -1955,7 +1955,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         // 左側：プレビュー
         var gBottomLeft = gBottom.add("group");
         gBottomLeft.alignment = ["left", "center"];
-        var previewChk = gBottomLeft.add("checkbox", undefined, L("button.preview"));
+        var previewChk = gBottomLeft.add("checkbox", undefined, getLabel("button.preview"));
         previewChk.value = true;
 
         // スペーサー（左右を分離）
@@ -1966,8 +1966,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gBottomRight = gBottom.add("group");
         gBottomRight.alignment = ["right", "center"];
 
-        var cancelBtn = gBottomRight.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var okBtn = gBottomRight.add("button", undefined, L("button.create"), { name: "ok" });
+        var cancelBtn = gBottomRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okBtn = gBottomRight.add("button", undefined, getLabel("button.create"), { name: "ok" });
 
         // ===== キー操作（↑↓で数値増減）=====
         changeValueByArrowKey(inputY, { integer: true, min: 1, max: 9999 }, schedulePreviewRefresh);
@@ -2234,7 +2234,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 var obj = __SCM_serializePreset();
                 var txt = __SCM_toJsLiteral(obj);
 
-                var f = File.saveDialog(L("preset.saveDialog") + " " + L("preset.saveHint"), "*.jsxpreset;*.json");
+                var f = File.saveDialog(getLabel("preset.saveDialog") + " " + getLabel("preset.saveHint"), "*.jsxpreset;*.json");
                 if (!f) return;
 
                 var nameLower = String(f.name || "").toLowerCase();
@@ -2247,7 +2247,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 // If user explicitly chose .json, save JSON (only if available)
                 if (/\.json$/i.test(nameLower)) {
                     if (typeof JSON === "undefined" || !JSON || typeof JSON.stringify !== "function") {
-                        alert(L("preset.err") + "\n\n" + "JSON.stringify が利用できないため .json では保存できません。\n拡張子 .jsxpreset を選んでください。\n");
+                        alert(getLabel("preset.err") + "\n\n" + "JSON.stringify が利用できないため .json では保存できません。\n拡張子 .jsxpreset を選んでください。\n");
                         return;
                     }
                     txt = JSON.stringify(obj, null, 2);
@@ -2257,17 +2257,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (f.open("w")) {
                     f.write(txt);
                     f.close();
-                    alert(L("preset.saved"));
+                    alert(getLabel("preset.saved"));
                 }
             } catch (e) {
-                alert(L("preset.err") + "\n\n" + e);
+                alert(getLabel("preset.err") + "\n\n" + e);
             }
         }
 
         /* プリセットをファイルから読み込む / Load a preset from a file */
         function __SCM_loadPresetFromFile() {
             try {
-                var f = File.openDialog(L("preset.loadDialog"), "*.json;*.jsxpreset");
+                var f = File.openDialog(getLabel("preset.loadDialog"), "*.json;*.jsxpreset");
                 if (!f) return;
                 f.encoding = "UTF-8";
                 if (!f.open("r")) return;
@@ -2288,9 +2288,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 } catch (_) { }
 
                 __SCM_applyPreset(obj);
-                alert(L("preset.loaded"));
+                alert(getLabel("preset.loaded"));
             } catch (e) {
-                alert(L("preset.err") + "\n\n" + e);
+                alert(getLabel("preset.err") + "\n\n" + e);
             }
         }
 
@@ -2504,7 +2504,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 alert("Preview error:\n\n" + e);
                 return;
             }
-            try { app.redraw(); } catch (_) { }
+            app.redraw();
         }
 
         // ===== buildCalendar: options object wrapper =====
@@ -2609,7 +2609,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         okBtn.onClick = function () {
             var baseDate = parseYMDFields(inputY.text, inputM.text, inputD.text);
             if (!baseDate) {
-                alert(L("error.badDate"));
+                alert(getLabel("error.badDate"));
                 return;
             }
             var monthCount = Math.round(Number(inputMonths.text));
@@ -2623,7 +2623,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
             var fontSize = Number(inputFontSize.text);
             if (!fontSize || fontSize <= 0) {
-                alert(L("error.badFontSize"));
+                alert(getLabel("error.badFontSize"));
                 return;
             }
 
@@ -2636,7 +2636,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             try {
                 if (previewChk && previewChk.value && __existingPreview && __existingPreview.pageItems && __existingPreview.pageItems.length > 0) {
                     __existingPreview.name = __finalName;
-                    try { app.redraw(); } catch (_) { }
+                    app.redraw();
                     dlg.close(1);
                     return;
                 }
@@ -2667,8 +2667,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
             var cellW = toPtFromUI(inputCellW);
             var cellH = toPtFromUI(inputCellH);
-            if (!cellW || isNaN(cellW) || cellW <= 0) return alert(L("error.badCellW"));
-            if (!cellH || isNaN(cellH) || cellH <= 0) return alert(L("error.badCellH"));
+            if (!cellW || isNaN(cellW) || cellW <= 0) return alert(getLabel("error.badCellW"));
+            if (!cellH || isNaN(cellH) || cellH <= 0) return alert(getLabel("error.badCellH"));
 
             var cellGapX = toPtFromUI(inputCellGapX);
             var cellGapY = toPtFromUI(inputCellGapY);

@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -75,8 +75,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         alertNotThreaded: { ja: "選択されたテキストフレームはスレッドテキストではありません。", en: "The selected text frame is not threaded text." }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     /*
@@ -294,14 +294,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L('alertNoDoc'));
+            alert(getLabel('alertNoDoc'));
             return;
         }
         var doc = app.activeDocument;
         var selection = doc.selection;
 
         if (!selection || selection.length < 1) {
-            alert(L('alertNoSelection'));
+            alert(getLabel('alertNoSelection'));
             return;
         }
 
@@ -314,7 +314,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
         if (!hasTextFrame) {
-            alert(L('alertNoText'));
+            alert(getLabel('alertNoText'));
             return;
         }
 
@@ -324,7 +324,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { if (selection[0].nextFrame) isThreaded = true; } catch (e) { }
             try { if (selection[0].previousFrame) isThreaded = true; } catch (e) { }
             if (!isThreaded) {
-                alert(L('alertNotThreaded'));
+                alert(getLabel('alertNotThreaded'));
                 return;
             }
         }
@@ -335,8 +335,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var rulerToPoint = getPtFactorFromUnitCode(rulerCode);
 
         /* ダイアログボックス / Dialog box */
-        var dlg = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
-        var mainGroup = dlg.add("group");
+        var dialog = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var mainGroup = dialog.add("group");
         mainGroup.orientation = "row";
         mainGroup.alignChildren = ["fill", "top"];
 
@@ -345,14 +345,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         colLeft.orientation = "column";
         colLeft.alignChildren = ["fill", "top"];
 
-        var panel = colLeft.add("panel", undefined, L('panelOption'));
+        var panel = colLeft.add("panel", undefined, getLabel('panelOption'));
         panel.orientation = "column";
         panel.alignment = ["fill", "top"];
         panel.alignChildren = ["left", "center"];
         panel.margins = [15, 20, 15, 10];
-        var rbMerge = panel.add("radiobutton", undefined, L('rbMerge'));
-        var rbThread = panel.add("radiobutton", undefined, L('rbThread'));
-        var rbSwap = panel.add("radiobutton", undefined, L('rbSwap'));
+        var rbMerge = panel.add("radiobutton", undefined, getLabel('rbMerge'));
+        var rbThread = panel.add("radiobutton", undefined, getLabel('rbThread'));
+        var rbSwap = panel.add("radiobutton", undefined, getLabel('rbSwap'));
         var isSingle = (selection.length === 1);
         if (isSingle) {
             rbMerge.value = false;
@@ -361,25 +361,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rbMerge.value = true;
         }
 
-        var panelOrder = colLeft.add("panel", undefined, L('panelOrder'));
+        var panelOrder = colLeft.add("panel", undefined, getLabel('panelOrder'));
         panelOrder.orientation = "column";
         panelOrder.alignment = ["fill", "top"];
         panelOrder.alignChildren = ["left", "center"];
         panelOrder.margins = [15, 20, 15, 10];
-        var rbTopToBottom = panelOrder.add("radiobutton", undefined, L('rbTopToBottom'));
-        var rbLeftToRight = panelOrder.add("radiobutton", undefined, L('rbLeftToRight'));
+        var rbTopToBottom = panelOrder.add("radiobutton", undefined, getLabel('rbTopToBottom'));
+        var rbLeftToRight = panelOrder.add("radiobutton", undefined, getLabel('rbLeftToRight'));
         rbTopToBottom.value = true;
 
-        var panelThread = colLeft.add("panel", undefined, L('panelThreadText'));
+        var panelThread = colLeft.add("panel", undefined, getLabel('panelThreadText'));
         panelThread.orientation = "column";
         panelThread.alignment = ["fill", "top"];
         panelThread.alignChildren = ["left", "center"];
         panelThread.margins = [15, 20, 15, 10];
-        var rbThreadLink = panelThread.add("radiobutton", undefined, L('rbThreadLink'));
-        var rbThreadUnlink = panelThread.add("radiobutton", undefined, L('rbThreadUnlink'));
-        var rbThreadAdd = panelThread.add("radiobutton", undefined, L('rbThreadAdd'));
-        var rbThreadRelease = panelThread.add("radiobutton", undefined, L('rbThreadRelease'));
-        var rbThreadRelease2 = panelThread.add("radiobutton", undefined, L('rbThreadRelease2'));
+        var rbThreadLink = panelThread.add("radiobutton", undefined, getLabel('rbThreadLink'));
+        var rbThreadUnlink = panelThread.add("radiobutton", undefined, getLabel('rbThreadUnlink'));
+        var rbThreadAdd = panelThread.add("radiobutton", undefined, getLabel('rbThreadAdd'));
+        var rbThreadRelease = panelThread.add("radiobutton", undefined, getLabel('rbThreadRelease'));
+        var rbThreadRelease2 = panelThread.add("radiobutton", undefined, getLabel('rbThreadRelease2'));
         if (isSingle) {
             rbThreadRelease.value = true;
         } else {
@@ -391,39 +391,39 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         colRight.orientation = "column";
         colRight.alignChildren = ["fill", "top"];
 
-        var panel2 = colRight.add("panel", undefined, L('panelStyle'));
+        var panel2 = colRight.add("panel", undefined, getLabel('panelStyle'));
         panel2.orientation = "column";
         panel2.alignment = ["fill", "top"];
         panel2.alignChildren = ["left", "center"];
         panel2.margins = [15, 20, 15, 10];
-        var cbRemoveCR = panel2.add("checkbox", undefined, L('cbRemoveCR'));
+        var cbRemoveCR = panel2.add("checkbox", undefined, getLabel('cbRemoveCR'));
         cbRemoveCR.value = false;
-        var cbPreserve = panel2.add("checkbox", undefined, L('cbPreserve'));
+        var cbPreserve = panel2.add("checkbox", undefined, getLabel('cbPreserve'));
         cbPreserve.helpTip = "段落ごとに文字属性を復元します（段落設定は完全ではありません）";
         cbPreserve.value = true;
         cbRemoveCR.enabled = !cbPreserve.value;
         cbPreserve.onClick = function () { cbRemoveCR.enabled = !cbPreserve.value; };
         var grpSpacing = panel2.add("group");
-        var cbSpacing = grpSpacing.add("checkbox", undefined, L('cbSpacing'));
+        var cbSpacing = grpSpacing.add("checkbox", undefined, getLabel('cbSpacing'));
         cbSpacing.value = false;
         var txtSpacing = grpSpacing.add("edittext", undefined, "1");
         txtSpacing.characters = 4;
         txtSpacing.enabled = cbSpacing.value;
         grpSpacing.add("statictext", undefined, rulerLabel);
         cbSpacing.onClick = function () { txtSpacing.enabled = cbSpacing.value; };
-        var cbJustify = panel2.add("checkbox", undefined, L('cbJustify'));
+        var cbJustify = panel2.add("checkbox", undefined, getLabel('cbJustify'));
         cbJustify.value = true;
-        var cbAppearance = panel2.add("checkbox", undefined, L('cbAppearance'));
+        var cbAppearance = panel2.add("checkbox", undefined, getLabel('cbAppearance'));
         cbAppearance.value = false;
 
-        var panel3 = colRight.add("panel", undefined, L('panelHeight'));
+        var panel3 = colRight.add("panel", undefined, getLabel('panelHeight'));
         panel3.orientation = "column";
         panel3.alignment = ["fill", "top"];
         panel3.alignChildren = ["left", "center"];
         panel3.margins = [15, 20, 15, 10];
-        var rbNone = panel3.add("radiobutton", undefined, L('rbNone'));
-        var rbFit = panel3.add("radiobutton", undefined, L('rbFit'));
-        var rbAuto = panel3.add("radiobutton", undefined, L('rbAuto'));
+        var rbNone = panel3.add("radiobutton", undefined, getLabel('rbNone'));
+        var rbFit = panel3.add("radiobutton", undefined, getLabel('rbFit'));
+        var rbAuto = panel3.add("radiobutton", undefined, getLabel('rbAuto'));
         rbFit.value = true;
 
         /* ポイント文字/パステキストが含まれているか / Check for non-area text */
@@ -473,12 +473,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbThread.onClick = updatePanels;
         rbSwap.onClick = updatePanels;
 
-        var btnGroup = dlg.add("group");
+        var btnGroup = dialog.add("group");
         btnGroup.alignment = ["right", "center"];
-        btnGroup.add("button", undefined, L('btnCancel'), { name: "cancel" });
-        btnGroup.add("button", undefined, L('btnOK'), { name: "ok" });
+        btnGroup.add("button", undefined, getLabel('btnCancel'), { name: "cancel" });
+        btnGroup.add("button", undefined, getLabel('btnOK'), { name: "ok" });
 
-        if (dlg.show() !== 1) return;
+        if (dialog.show() !== 1) return;
 
         /* フレームの高さを適用（エリア内文字のみ） / Apply frame height (area text only) */
         function applyFrameHeight(frames) {
@@ -718,7 +718,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 交換 / Swap */
         if (rbSwap.value) {
             if (selection.length !== 2) {
-                alert(L('alertNeedTwo'));
+                alert(getLabel('alertNeedTwo'));
                 return;
             }
             var temp = selection[0].contents;
@@ -737,7 +737,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (textFrames.length < 2) {
-            alert(L('alertNeedTwo'));
+            alert(getLabel('alertNeedTwo'));
             return;
         }
 

@@ -105,7 +105,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* キーからローカライズ文字列を取得 / Get a localized string by key */
-    function L(key) {
+    function getLabel(key) {
         var entry = getLabelEntry(key);
         if (entry) {
             if (entry[currentLanguage]) return entry[currentLanguage];
@@ -179,16 +179,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (u = 0; u < undoCount; u++) { app.undo(); }
         if (undoCount > 0) { app.redraw(); }
         var doc = app.activeDocument;
-        var sel = doc.selection;
-        if (!sel || sel.length === 0) { return "NOSEL"; }
+        var currentSelection = doc.selection;
+        if (!currentSelection || currentSelection.length === 0) { return "NOSEL"; }
         var xml = fxBuildShapeXML(shapeNum, displayString, absolute, width, height);
         var pfXml = pathfinderEffect ? fxBuildPathfinderXML(pathfinderEffect) : "";
         var steps = 0;
         var i = 0;
-        for (i = 0; i < sel.length; i++) {
-            try { sel[i].applyEffect(xml); steps = steps + 1; } catch (e) { }
+        for (i = 0; i < currentSelection.length; i++) {
+            try { currentSelection[i].applyEffect(xml); steps = steps + 1; } catch (e) { }
             if (pfXml) {
-                try { sel[i].applyEffect(pfXml); steps = steps + 1; } catch (e2) { }
+                try { currentSelection[i].applyEffect(pfXml); steps = steps + 1; } catch (e2) { }
             }
         }
         if (!pfXml && pathfinderCommand) {
@@ -290,16 +290,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (isNaN(applied)) applied = 0;
             previewActive = applied > 0;
             previewCount = applied;
-            setStatus(L("status.applied") + " (" + applied + ")");
+            setStatus(getLabel("status.applied") + " (" + applied + ")");
         } else if (result === "NODOC") {
             previewActive = false; previewCount = 0;
-            setStatus(L("status.noDocument"));
+            setStatus(getLabel("status.noDocument"));
         } else if (result.indexOf("NOSEL") === 0) {
             previewActive = false; previewCount = 0;
-            setStatus(L("status.noSelection"));
+            setStatus(getLabel("status.noSelection"));
         } else {
             previewActive = false; previewCount = 0;
-            setStatus(L("status.error") + " " + result);
+            setStatus(getLabel("status.error") + " " + result);
         }
     }
 
@@ -472,13 +472,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             $.global[PALETTE_GLOBAL_KEY] = null;
         }
 
-        var win = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
+        var win = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
         win.orientation = "column";
         win.alignChildren = "fill";
         win.margins = 15;
 
         // 「形状に変換」パネルにすべてまとめる / Wrap everything in the "Convert to Shape" panel
-        var mainPanel = win.add("panel", undefined, L("panel.main"));
+        var mainPanel = win.add("panel", undefined, getLabel("panel.main"));
         mainPanel.orientation = "column";
         mainPanel.alignChildren = "fill";
         mainPanel.margins = [16, 20, 16, 12];
@@ -488,9 +488,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var shapeGroup = mainPanel.add("group");
         shapeGroup.orientation = "row";
         shapeGroup.spacing = 12;
-        shapeGroup.add("statictext", undefined, L("panel.shape"));
-        var rectangleRadio = shapeGroup.add("radiobutton", undefined, L("shape.rectangle"));
-        var ellipseRadio = shapeGroup.add("radiobutton", undefined, L("shape.ellipse"));
+        shapeGroup.add("statictext", undefined, getLabel("panel.shape"));
+        var rectangleRadio = shapeGroup.add("radiobutton", undefined, getLabel("shape.rectangle"));
+        var ellipseRadio = shapeGroup.add("radiobutton", undefined, getLabel("shape.ellipse"));
         rectangleRadio.value = true; // 既定は長方形 / Default: rectangle
 
         // オプション：値を指定／値を追加＋幅・高さ（パネルは使わずグループ）/ Options: Absolute / Relative + width / height (group, no panel)
@@ -501,9 +501,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sizeRadioGroup = sizePanel.add("group");
         sizeRadioGroup.orientation = "row";
         sizeRadioGroup.spacing = 12;
-        sizeRadioGroup.add("statictext", undefined, L("option.size"));
-        var absoluteRadio = sizeRadioGroup.add("radiobutton", undefined, L("option.absolute"));
-        var relativeRadio = sizeRadioGroup.add("radiobutton", undefined, L("option.relative"));
+        sizeRadioGroup.add("statictext", undefined, getLabel("option.size"));
+        var absoluteRadio = sizeRadioGroup.add("radiobutton", undefined, getLabel("option.absolute"));
+        var relativeRadio = sizeRadioGroup.add("radiobutton", undefined, getLabel("option.relative"));
         relativeRadio.value = true; // 既定は値を追加 / Default: relative
 
         // 定規の単位を取得（ラベル表示＋pt換算係数）/ Get the ruler unit (label + pt factor)
@@ -513,13 +513,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var LABEL_WIDTH = 40; // 幅・高さラベルの固定幅 / Fixed width for the width/height labels
 
         var widthGroup = sizePanel.add("group");
-        var widthLabel = widthGroup.add("statictext", undefined, L("option.width"), { justify: "right" });
+        var widthLabel = widthGroup.add("statictext", undefined, getLabel("option.width"), { justify: "right" });
         widthLabel.preferredSize.width = LABEL_WIDTH;
         var widthInput = widthGroup.add("edittext", undefined, "0");
         widthInput.characters = 3;
         widthGroup.add("statictext", undefined, unitInfo.label);
         var heightGroup = sizePanel.add("group");
-        var heightLabel = heightGroup.add("statictext", undefined, L("option.height"), { justify: "right" });
+        var heightLabel = heightGroup.add("statictext", undefined, getLabel("option.height"), { justify: "right" });
         heightLabel.preferredSize.width = LABEL_WIDTH;
         var heightInput = heightGroup.add("edittext", undefined, "0");
         heightInput.characters = 3;
@@ -530,7 +530,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         changeValueByArrowKey(heightInput);
 
         // パスファインダー（パネル＋2カラムのラジオ）/ Pathfinder (panel + two columns of radios)
-        var pathfinderPanel = mainPanel.add("panel", undefined, L("pathfinder.label"));
+        var pathfinderPanel = mainPanel.add("panel", undefined, getLabel("pathfinder.label"));
         pathfinderPanel.orientation = "row";
         pathfinderPanel.alignChildren = ["left", "top"];
         pathfinderPanel.margins = [16, 20, 16, 12];
@@ -549,7 +549,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var p = 0; p < PATHFINDER_KEYS.length; p++) {
             var pfKey = PATHFINDER_KEYS[p];
             var pfColumn = (p < pfHalf) ? pfColumnLeft : pfColumnRight;
-            var pfRadio = pfColumn.add("radiobutton", undefined, L("pathfinder." + pfKey));
+            var pfRadio = pfColumn.add("radiobutton", undefined, getLabel("pathfinder." + pfKey));
             pfRadio.pfKey = pfKey;
             pfRadio.onClick = runPreview;
             controls.pathfinderRadios.push(pfRadio);
@@ -559,11 +559,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ［適用］（閉じるは × / Esc）/ Apply button (close via × / Esc)
         var buttonGroup = mainPanel.add("group");
         buttonGroup.alignment = "center";
-        var applyButton = buttonGroup.add("button", undefined, L("button.apply"), { name: "ok" });
-        applyButton.helpTip = L("tip.apply");
+        var applyButton = buttonGroup.add("button", undefined, getLabel("button.apply"), { name: "ok" });
+        applyButton.helpTip = getLabel("tip.apply");
 
         // 状況表示（下部）/ Status line (bottom)
-        var status = win.add("statictext", undefined, L("status.ready"));
+        var status = win.add("statictext", undefined, getLabel("status.ready"));
         status.alignment = "fill";
 
         // 参照を保持 / Keep references

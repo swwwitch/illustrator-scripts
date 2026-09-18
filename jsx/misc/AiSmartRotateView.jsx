@@ -74,7 +74,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -129,15 +129,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var i = 0; i < parts.length; i++) {
             node = node[parts[i]];
         }
-        return node[currentLanguage];
-    }
-    function L(path) {
-        return getLabel(path);
+        return node[uiLang];
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(path) {
-        return getLabel(path) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(path) + (uiLang === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -159,10 +156,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function statusFromResult(result) {
         for (var code in RESULT_ERROR_LABELS) {
             if (RESULT_ERROR_LABELS.hasOwnProperty(code) && result.indexOf(code) !== -1) {
-                return L(RESULT_ERROR_LABELS[code]);
+                return getLabel(RESULT_ERROR_LABELS[code]);
             }
         }
-        return L("alert.error") + " " + result;
+        return getLabel("alert.error") + " " + result;
     }
 
     // =========================================
@@ -296,13 +293,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* worker 断片：ドキュメント有無を確認し doc を確保 / Worker fragment: guard the open document, bind `doc` */
     var W_DOC = "if(app.documents.length===0){return 'ERR:NODOC';}var doc=app.activeDocument;";
 
-    /* worker 断片：選択を確認し sel を確保（W_DOC の後に置く）/ Worker fragment: guard the selection, bind `sel` (place after W_DOC) */
-    var W_SEL = "var sel=doc.selection;if(!sel||sel.length===0){return 'ERR:NOSEL';}";
+    /* worker 断片：選択を確認し currentSelection を確保（W_DOC の後に置く）/ Worker fragment: guard the selection, bind `currentSelection` (place after W_DOC) */
+    var W_SEL = "var currentSelection=doc.selection;if(!currentSelection||currentSelection.length===0){return 'ERR:NOSEL';}";
 
-    /* worker 断片：sel[0] が2点以上のパスか確認し、最初の2点を結ぶ線の傾き deg を算出（W_SEL の後）
-       / Worker fragment: verify sel[0] is a path with >=2 points and compute the slope `deg` of its first two anchors (place after W_SEL) */
+    /* worker 断片：currentSelection[0] が2点以上のパスか確認し、最初の2点を結ぶ線の傾き deg を算出（W_SEL の後）
+       / Worker fragment: verify currentSelection[0] is a path with >=2 points and compute the slope `deg` of its first two anchors (place after W_SEL) */
     var W_PATH_DEG =
-        "var item=sel[0];" +
+        "var item=currentSelection[0];" +
         "if(item.typename!=='PathItem'||item.pathPoints.length<2){return 'ERR:NOANGLE';}" +
         "var a=item.pathPoints[0].anchor,b=item.pathPoints[1].anchor;" +
         "var deg=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;";
@@ -337,8 +334,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             "var r=doc.activeView.rotateAngle;" +
             W_CONSTRAIN_GET +
             "var s='';" +
-            "var sel=doc.selection;" +
-            "if(sel&&sel.length>0){var item=sel[0];" +
+            "var currentSelection=doc.selection;" +
+            "if(currentSelection&&currentSelection.length>0){var item=currentSelection[0];" +
             "if(item.typename==='PathItem'&&item.pathPoints.length>=2){" +
             "var a=item.pathPoints[0].anchor,b=item.pathPoints[1].anchor;" +
             "s=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI;}}" +
@@ -398,15 +395,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             "var pv=app.preferences.getBooleanPreference('includeStrokeInBounds');" +
             "function bb(it){return pv?it.visibleBounds:it.geometricBounds;}" +
             /* 選択全体の外接矩形（[左,上,右,下]、上下はY軸が上向き）/ Combined bounds of the selection ([l,t,r,b] with Y pointing up) */
-            "var u=bb(sel[0]).slice(0);" +
-            "for(var i=1;i<sel.length;i++){var g=bb(sel[i]);" +
+            "var u=bb(currentSelection[0]).slice(0);" +
+            "for(var i=1;i<currentSelection.length;i++){var g=bb(currentSelection[i]);" +
             "if(g[0]<u[0]){u[0]=g[0];}if(g[1]>u[1]){u[1]=g[1];}" +
             "if(g[2]>u[2]){u[2]=g[2];}if(g[3]<u[3]){u[3]=g[3];}}" +
             "var px=(u[0]+u[2])/2,py=(u[1]+u[3])/2;" +
             "var rad=ang*Math.PI/180,cs=Math.cos(rad),sn=Math.sin(rad);" +
             /* 各オブジェクトを自身の中心で回し、その中心が共通の軸まわりに動くぶんだけ平行移動して補正
                / Rotate each object about its own center, then translate it by however far that center moves around the shared pivot */
-            "for(var j=0;j<sel.length;j++){var it=sel[j];var b=bb(it);" +
+            "for(var j=0;j<currentSelection.length;j++){var it=currentSelection[j];var b=bb(it);" +
             "var cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2;" +
             "it.rotate(ang,true,true,true,true,Transformation.CENTER);" +
             "var dx=cx-px,dy=cy-py;" +
@@ -432,7 +429,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function resetSelectionRotation(onResult) {
         runInMainEngine(workerBody(
             W_DOC + W_SEL +
-            "var item=sel[0];" +
+            "var item=currentSelection[0];" +
             "if(item.tags.length>0&&item.tags[0].name==='BBAccumRotation'){" +
             "var deg=180*parseFloat(item.tags[0].value)/Math.PI;" +
             "item.rotate(deg);" +
@@ -455,14 +452,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             $.global[PALETTE_KEY] = null;
         }
 
-        var palette = new Window("palette", L("dialog.title") + " " + SCRIPT_VERSION);
+        var palette = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         palette.orientation = "column";
         palette.alignChildren = "fill";
         palette.margins = 16;
         palette.spacing = 12;
 
         /* ビューの回転角度を表示するパネル / Panel showing the view rotation angle */
-        var infoPanel = palette.add("panel", undefined, L("panel.info"));
+        var infoPanel = palette.add("panel", undefined, getLabel("panel.info"));
         setupPanel(infoPanel, 6);
 
         /* アクティブビューの回転角度（パネルタイトルと重複するため内側ラベルは省略）/ Active view rotation angle (inner label omitted; the panel title already states it) */
@@ -476,11 +473,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rotationSlider.alignment = "fill";
 
         /* ビューの回転だけ0°に戻す / Reset only the view rotation to 0° */
-        var resetRotationButton = infoPanel.add("button", undefined, L("button.resetRotation"));
+        var resetRotationButton = infoPanel.add("button", undefined, getLabel("button.resetRotation"));
         resetRotationButton.alignment = "right";
 
         /* 角度の制限を変更するパネル / Panel for changing the constrain angle */
-        var constrainPanel = palette.add("panel", undefined, L("panel.constrain"));
+        var constrainPanel = palette.add("panel", undefined, getLabel("panel.constrain"));
         setupPanel(constrainPanel, 6);
 
         /* 角度の制限（編集可。入力の確定・↑↓キー・スライダー・プリセットのいずれでもその場で環境設定へ適用）
@@ -523,13 +520,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* ビューの回転に連動するかどうか（ONで回転角度と同じ値、OFFでは現在の制限角度のまま）
            / Whether to follow the view rotation (on: the same value as the rotation; off: leaves the current constrain angle alone) */
-        var linkRotationCheck = constrainPanel.add("checkbox", undefined, L("label.linkRotation"));
+        var linkRotationCheck = constrainPanel.add("checkbox", undefined, getLabel("label.linkRotation"));
         linkRotationCheck.alignment = "left";
         /* 前回の状態を復元（Illustrator のセッション中のみ）/ Restore the previous state (only within the Illustrator session) */
         linkRotationCheck.value = sessionState.linkRotation;
 
         /* 選択したオブジェクトのパネル / Selected-object panel */
-        var selectionPanel = palette.add("panel", undefined, L("panel.selection"));
+        var selectionPanel = palette.add("panel", undefined, getLabel("panel.selection"));
         setupPanel(selectionPanel, 6);
 
         /* 選択したオブジェクトの角度（表示）/ Selected object angle (display) */
@@ -540,31 +537,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         selectionValue.preferredSize.width = 50;
 
         /* 選択に合わせてビューを回転 / Rotate the view to match the selection */
-        var rotateViewButton = selectionPanel.add("button", undefined, L("button.rotateToSelection"));
+        var rotateViewButton = selectionPanel.add("button", undefined, getLabel("button.rotateToSelection"));
         rotateViewButton.alignment = "left";
 
         /* 選択をビューの回転に合わせて回転 / Rotate the selection to match the view rotation */
-        var rotateSelectionButton = selectionPanel.add("button", undefined, L("button.rotateSelectionToView"));
+        var rotateSelectionButton = selectionPanel.add("button", undefined, getLabel("button.rotateSelectionToView"));
         rotateSelectionButton.alignment = "left";
 
         /* 選択の回転をリセット / Reset the selection's rotation */
-        var resetSelectionButton = selectionPanel.add("button", undefined, L("button.resetSelectionRotation"));
+        var resetSelectionButton = selectionPanel.add("button", undefined, getLabel("button.resetSelectionRotation"));
         resetSelectionButton.alignment = "left";
 
         /* リセットパネル（外部スクリプトを実行）/ Reset panel (runs external scripts) */
-        var resetPanel = palette.add("panel", undefined, L("panel.reset"));
+        var resetPanel = palette.add("panel", undefined, getLabel("panel.reset"));
         setupPanel(resetPanel, 6);
 
         /* テキストの傾き（ResetTransform.jsx）/ Text tilt (ResetTransform.jsx) */
-        var resetTextButton = resetPanel.add("button", undefined, L("button.resetTextTilt"));
+        var resetTextButton = resetPanel.add("button", undefined, getLabel("button.resetTextTilt"));
         resetTextButton.alignment = "left";
 
         /* 画像の傾き（ResetRotation.jsx）/ Image tilt (ResetRotation.jsx) */
-        var resetImageButton = resetPanel.add("button", undefined, L("button.resetImageTilt"));
+        var resetImageButton = resetPanel.add("button", undefined, getLabel("button.resetImageTilt"));
         resetImageButton.alignment = "left";
 
         /* 最新の状態を手動で取得し直す / Manually re-fetch the latest state */
-        var refreshButton = palette.add("button", undefined, L("button.refresh"));
+        var refreshButton = palette.add("button", undefined, getLabel("button.refresh"));
         refreshButton.alignment = "right";
 
         /* ステータス表示 / Status line */
@@ -625,7 +622,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (result.indexOf("OK") === 0) {
                     setConstrain(angle);
                     showConstrain(angle);
-                    statusText.text = L("status.applied");
+                    statusText.text = getLabel("status.applied");
                 } else {
                     statusText.text = statusFromResult(result);
                 }
@@ -702,7 +699,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         constrainInput.onChange = function () {
             var angle = parseFloat(constrainInput.text);
             if (isNaN(angle)) {
-                statusText.text = L("alert.invalidAngle");
+                statusText.text = getLabel("alert.invalidAngle");
                 return;
             }
             commitConstrain(angle);
@@ -715,7 +712,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     var angle = parseFloat(result.substring(3));
                     selectionValue.text = formatAngle(normalizeAngle(angle));
                     setRotation(angle);
-                    statusText.text = L("status.rotatedToSelection");
+                    statusText.text = getLabel("status.rotatedToSelection");
                     applyLinkedConstrain();
                 } else {
                     statusText.text = statusFromResult(result);
@@ -727,7 +724,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rotateSelectionButton.onClick = function () {
             rotateSelectionToView(function (result) {
                 if (result.indexOf("OK") === 0) {
-                    statusText.text = L("status.rotatedSelectionToView");
+                    statusText.text = getLabel("status.rotatedSelectionToView");
                 } else {
                     statusText.text = statusFromResult(result);
                 }
@@ -738,7 +735,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         resetSelectionButton.onClick = function () {
             resetSelectionRotation(function (result) {
                 if (result.indexOf("OK") === 0) {
-                    statusText.text = L("status.resetSelectionRotation");
+                    statusText.text = getLabel("status.resetSelectionRotation");
                 } else {
                     statusText.text = statusFromResult(result);
                 }
@@ -771,7 +768,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             resetViewRotation(function (result) {
                 if (result.indexOf("OK") === 0) {
                     setRotation(0);
-                    statusText.text = L("status.resetRotation");
+                    statusText.text = getLabel("status.resetRotation");
                     applyLinkedConstrain();
                 } else {
                     statusText.text = statusFromResult(result);

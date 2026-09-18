@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -164,7 +164,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
         /* 未選択時のガード / Guard when nothing is selected */
         if (!doc || doc.selection.length === 0) {
-            alert(LABELS.alertNoSelection[lang]);
+            alert(LABELS.alertNoSelection[uiLang]);
             return;
         }
         /* オフセット入力ダイアログ / Offset input dialog */
@@ -175,7 +175,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var selWidthPt = getSelectionWidthPt(doc.selection, true); // true => visibleBounds
         var defaultOffsetInCurrentUnit = Math.max(0, Math.round(((selWidthPt / 30) / ptFactor) * 10) / 10);
 
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dlg = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dlg.alignChildren = ["left", "top"];
 
         /* ダイアログの位置と透明度 / Dialog position & opacity */
@@ -202,7 +202,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setDialogOpacity(dlg, dialogOpacity);
         shiftDialogPosition(dlg, offsetX, 0);
 
-        var offsetPanel = dlg.add("panel", undefined, LABELS.offsetPanelTitle[lang]);
+        var offsetPanel = dlg.add("panel", undefined, LABELS.offsetPanelTitle[uiLang]);
         offsetPanel.orientation = "row";
         offsetPanel.alignChildren = ["left", "center"];
         offsetPanel.margins = [15, 20, 15,10]
@@ -214,13 +214,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         et.active = true;
 
         // Join type (jntp) radio buttons
-        var joinGroup = dlg.add("panel", undefined, LABELS.joinPanelTitle[lang]);
+        var joinGroup = dlg.add("panel", undefined, LABELS.joinPanelTitle[uiLang]);
         joinGroup.orientation = "column";
         joinGroup.alignChildren = ["left", "center"];
         joinGroup.margins = [15, 20, 15,10]
-        var rbMiter = joinGroup.add("radiobutton", undefined, LABELS.joinMiter[lang]);
-        var rbRound = joinGroup.add("radiobutton", undefined, LABELS.joinRound[lang]);
-        var rbBevel = joinGroup.add("radiobutton", undefined, LABELS.joinBevel[lang]);
+        var rbMiter = joinGroup.add("radiobutton", undefined, LABELS.joinMiter[uiLang]);
+        var rbRound = joinGroup.add("radiobutton", undefined, LABELS.joinRound[uiLang]);
+        var rbBevel = joinGroup.add("radiobutton", undefined, LABELS.joinBevel[uiLang]);
         rbMiter.value = false;
         rbRound.value = true;  // default = Round
         rbBevel.value = false;
@@ -229,10 +229,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btns.orientation = "row";
         btns.alignment = ["center", "center"];
         btns.spacing = 10;
-        var btnCancel = btns.add("button", undefined, LABELS.cancel[lang], {
+        var btnCancel = btns.add("button", undefined, LABELS.cancel[uiLang], {
             name: "cancel"
         });
-        var btnOK = btns.add("button", undefined, LABELS.ok[lang], {
+        var btnOK = btns.add("button", undefined, LABELS.ok[uiLang], {
             name: "ok"
         });
         if (dlg.show() !== 1) {
@@ -240,7 +240,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         var offsetValueRaw = parseFloat(et.text);
         if (isNaN(offsetValueRaw)) {
-            alert(LABELS.alertEnterNumeric[lang]);
+            alert(LABELS.alertEnterNumeric[uiLang]);
             return;
         }
         var offsetValuePt = offsetValueRaw * ptFactor; // Convert to pt

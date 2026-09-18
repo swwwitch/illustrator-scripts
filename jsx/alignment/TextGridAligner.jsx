@@ -36,677 +36,647 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 行・列の判定に使う隙間のしきい値の初期値（pt）/ initial gap threshold used to group items */
+    var DEFAULT_GAP_THRESHOLD = 10;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var DIALOG_OFFSET_X = 300;   /* ダイアログの表示位置：右(+)／左(-) */
+    var DIALOG_OFFSET_Y = 0;     /* ダイアログの表示位置：下(+)／上(-) */
+    var DIALOG_OPACITY = 0.95;   /* ダイアログの不透明度 0.0 - 1.0 */
+    var PANEL_MARGINS = [15, 20, 15, 10];
+    var BUTTON_ROW_MARGINS = [0, 10, 0, 10];
+    var SLIDER_WIDTH = 150;
+    var THRESHOLD_LABEL_CHARS = 5;
+
+    // =========================================
+    // 方向の定義 / Direction constants
+    // =========================================
+    var DIRECTION_HORIZONTAL = "horizontal"; /* 横並び＝同じ行 / a row */
+    var DIRECTION_VERTICAL = "vertical";     /* 縦並び＝同じ列 / a column */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
+    var uiLang = getCurrentLang();
 
-    var lang = getCurrentLang();
-
-    /* 日英ラベル定義（UI表示順）/ Japanese & English label definitions (UI display order) */
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "テキスト整列・グループ化 " + SCRIPT_VERSION,
-            en: "Text Alignment & Grouping " + SCRIPT_VERSION
+        dialog: {
+            title: { ja: "テキスト整列・グループ化", en: "Text Alignment & Grouping" }
         },
-        threshold: {
-            ja: "行",
-            en: "Row"
+        panel: {
+            rows:    { ja: "行", en: "Rows" },
+            columns: { ja: "列", en: "Columns" }
         },
-        row: {
-            ja: "揃え",
-            en: "Align"
+        checkbox: {
+            alignRows:       { ja: "揃え", en: "Align" },
+            groupRows:       { ja: "行をグループ化", en: "Group rows" },
+            distributeRows:  { ja: "アキを均等に", en: "Distribute evenly" },
+            alignColumns:    { ja: "揃え", en: "Align" },
+            groupColumns:    { ja: "列をグループ化", en: "Group columns" },
+            distributeColumns: { ja: "アキを均等に", en: "Distribute evenly" }
         },
-        rowGroup: {
-            ja: "行をグループ化",
-            en: "Group Rows"
+        tooltip: {
+            alignRows: {
+                ja: "同じ行とみなしたテキストを、天地中央でそろえます。",
+                en: "Vertically centers the text objects that were grouped into the same row."
+            },
+            groupRows: {
+                ja: "同じ行とみなしたテキストを1つのグループにまとめます。行と列は同時にグループ化できません。",
+                en: "Groups each detected row into one group. Rows and columns cannot be grouped at the same time."
+            },
+            distributeRows: {
+                ja: "作成した行グループどうしの縦のアキを均等にします。",
+                en: "Evens out the vertical gaps between the row groups."
+            },
+            rowThreshold: {
+                ja: "左右の隙間がこの値以内なら、同じ行とみなします。スライダーを動かすと結果がすぐ反映されます。",
+                en: "Text objects with a horizontal gap up to this value form one row. The canvas updates as you drag."
+            },
+            alignColumns: {
+                ja: "同じ列とみなしたテキストを、左右中央でそろえます。",
+                en: "Horizontally centers the text objects that were grouped into the same column."
+            },
+            groupColumns: {
+                ja: "同じ列とみなしたテキストを1つのグループにまとめます。行と列は同時にグループ化できません。",
+                en: "Groups each detected column into one group. Rows and columns cannot be grouped at the same time."
+            },
+            distributeColumns: {
+                ja: "作成した列グループどうしの横のアキを均等にします。",
+                en: "Evens out the horizontal gaps between the column groups."
+            },
+            columnThreshold: {
+                ja: "上下の隙間がこの値以内なら、同じ列とみなします。スライダーを動かすと結果がすぐ反映されます。",
+                en: "Text objects with a vertical gap up to this value form one column. The canvas updates as you drag."
+            }
         },
-        equalSpacing: {
-            ja: "アキを均等に",
-            en: "Distribute Evenly"
+        button: {
+            run:    { ja: "実行", en: "Run" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         },
-        colThreshold: {
-            ja: "列",
-            en: "Column"
-        },
-        column: {
-            ja: "揃え",
-            en: "Align"
-        },
-        colGroup: {
-            ja: "列をグループ化",
-            en: "Group Columns"
-        },
-        colEqualSpacing: {
-            ja: "アキを均等に",
-            en: "Distribute Evenly"
-        },
-        group: {
-            ja: "実行",
-            en: "Run"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        resultMessage: {
-            ja: "○個のグループ化を行いました。",
-            en: " groups have been created."
+        alert: {
+            noDocument:   { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            noTextFrames: { ja: "テキストが選択されていません。", en: "No text object is selected." }
         }
     };
 
-    var rowOverlapThreshold, colOverlapThreshold;
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.rows" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
 
-    /* グループ間のアキを均等に配置する / Distribute spacing evenly between groups
-       direction: "horizontal" or "vertical" */
-    function distributeSpacingBetweenGroups(groups, direction) {
-        if (!groups || groups.length <= 1) return;
+    // =========================================
+    // 判定のしきい値 / Detection thresholds
+    // =========================================
 
-        if (direction === "horizontal") {
-            // 左から右にソート / Sort left to right
-            groups.sort(function(a, b) {
-                return a.geometricBounds[0] - b.geometricBounds[0];
-            });
+    /* スライダーで更新される、行・列の判定しきい値 / Updated as the sliders move */
+    var rowGapThreshold = DEFAULT_GAP_THRESHOLD;
+    var columnGapThreshold = DEFAULT_GAP_THRESHOLD;
 
-            var allBounds = getCombinedBounds(groups);
-            var totalWidth = 0;
-            for (var i = 0; i < groups.length; i++) {
-                var b = groups[i].geometricBounds;
-                totalWidth += (b[2] - b[0]);
-            }
-            var availableSpace = allBounds[2] - allBounds[0];
-            var spacing = (availableSpace - totalWidth) / (groups.length - 1);
+    // =========================================
+    // 境界の計測 / Bounds
+    // =========================================
 
-            var currentLeft = groups[0].geometricBounds[0];
-            for (var i = 0; i < groups.length; i++) {
-                var b = groups[i].geometricBounds;
-                var itemWidth = b[2] - b[0];
-                groups[i].left = currentLeft;
-                currentLeft += itemWidth + spacing;
-            }
-        } else if (direction === "vertical") {
-            // 上から下にソート / Sort top to bottom
-            groups.sort(function(a, b) {
-                return b.geometricBounds[1] - a.geometricBounds[1];
-            });
+    /**
+     * オブジェクト群の結合バウンディングボックスを返す
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @returns {number[]} [左, 上, 右, 下]
+     */
+    function getCombinedBounds(targetItems) {
+        var combinedBounds = targetItems[0].geometricBounds.slice(0);
+        for (var i = 1; i < targetItems.length; i++) {
+            var itemBounds = targetItems[i].geometricBounds;
+            if (itemBounds[0] < combinedBounds[0]) combinedBounds[0] = itemBounds[0];
+            if (itemBounds[1] > combinedBounds[1]) combinedBounds[1] = itemBounds[1];
+            if (itemBounds[2] > combinedBounds[2]) combinedBounds[2] = itemBounds[2];
+            if (itemBounds[3] < combinedBounds[3]) combinedBounds[3] = itemBounds[3];
+        }
+        return combinedBounds;
+    }
 
-            var allBounds = getCombinedBounds(groups);
-            var totalHeight = 0;
-            for (var i = 0; i < groups.length; i++) {
-                var b = groups[i].geometricBounds;
-                totalHeight += (b[1] - b[3]);
-            }
-            var availableSpace = allBounds[1] - allBounds[3];
-            var spacing = (availableSpace - totalHeight) / (groups.length - 1);
+    /**
+     * 探索方向における2つの境界の隙間を返す
+     * 直交する方向にずれている組は同じ行／列とみなさないため、非常に大きい値を返す。
+     * @param {number[]} boundsA - 一方の境界 [左, 上, 右, 下]
+     * @param {number[]} boundsB - もう一方の境界
+     * @param {string} direction - DIRECTION_HORIZONTAL または DIRECTION_VERTICAL
+     * @returns {number} 隙間（対象外なら Number.MAX_VALUE）
+     */
+    function getGapAlongDirection(boundsA, boundsB, direction) {
+        var horizontalGap = Math.max(0, Math.max(boundsB[0] - boundsA[2], boundsA[0] - boundsB[2]));
+        var verticalGap = Math.max(0, Math.max(boundsB[3] - boundsA[1], boundsA[3] - boundsB[1]));
 
-            var currentTop = groups[0].geometricBounds[1];
-            for (var i = 0; i < groups.length; i++) {
-                var b = groups[i].geometricBounds;
-                var itemHeight = b[1] - b[3];
-                groups[i].top = currentTop;
-                currentTop -= itemHeight + spacing;
+        if (direction === DIRECTION_HORIZONTAL) {
+            return (verticalGap > 0) ? Number.MAX_VALUE : horizontalGap;
+        }
+        return (horizontalGap > 0) ? Number.MAX_VALUE : verticalGap;
+    }
+
+    /**
+     * 2つの境界の重なり率（面積が大きい方に対する割合）を返す
+     * @param {number[]} boundsA - 一方の境界 [左, 上, 右, 下]
+     * @param {number[]} boundsB - もう一方の境界
+     * @returns {number} 重なり率（重ならない場合は 0）
+     */
+    function getOverlapRatio(boundsA, boundsB) {
+        var overlapWidth = Math.max(0, Math.min(boundsA[2], boundsB[2]) - Math.max(boundsA[0], boundsB[0]));
+        var overlapHeight = Math.max(0, Math.min(boundsA[1], boundsB[1]) - Math.max(boundsA[3], boundsB[3]));
+        var overlapArea = overlapWidth * overlapHeight;
+        if (overlapArea <= 0) return 0;
+
+        var areaA = (boundsA[2] - boundsA[0]) * (boundsA[1] - boundsA[3]);
+        var areaB = (boundsB[2] - boundsB[0]) * (boundsB[1] - boundsB[3]);
+        return overlapArea / Math.max(areaA, areaB);
+    }
+
+    // =========================================
+    // 行・列の抽出 / Detecting rows and columns
+    // =========================================
+
+    /**
+     * 隣接または重なっているオブジェクトをたどって1グループ分を集める
+     * @param {number} startIndex - 起点のインデックス
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {boolean[]} visited - 走査済みフラグ
+     * @param {PageItem[]} collectedItems - 集めたオブジェクトの受け皿
+     * @param {string} direction - DIRECTION_HORIZONTAL または DIRECTION_VERTICAL
+     * @param {number} gapThreshold - 同じ行／列とみなす隙間の上限
+     * @returns {void}
+     */
+    function collectConnectedItems(startIndex, targetItems, visited, collectedItems, direction, gapThreshold) {
+        visited[startIndex] = true;
+        collectedItems.push(targetItems[startIndex]);
+
+        var boundsA = targetItems[startIndex].visibleBounds;
+        for (var j = 0; j < targetItems.length; j++) {
+            if (visited[j]) continue;
+            var boundsB = targetItems[j].visibleBounds;
+            if (getOverlapRatio(boundsA, boundsB) > 0 ||
+                getGapAlongDirection(boundsA, boundsB, direction) <= gapThreshold) {
+                collectConnectedItems(j, targetItems, visited, collectedItems, direction, gapThreshold);
             }
         }
     }
 
-    /* ダイアログUIの表示とユーザー選択取得 / Show dialog UI and get user selections */
-    function showDialog(prevThreshold, prevGroupMode) {
-        /* ダイアログを開く前に元の位置を保存 / Save original positions before showing dialog */
-        var originalStates = [];
-        var selection = app.activeDocument.selection;
-        var textFrames = [];
-        if (selection && selection.length > 0) {
-            for (var i = 0; i < selection.length; i++) {
-                if (selection[i].typename === "TextFrame") {
-                    textFrames.push(selection[i]);
-                    originalStates.push({
-                        item: selection[i],
-                        bounds: selection[i].geometricBounds.slice()
-                    });
-                }
-            }
+    /**
+     * 指定方向で隣接・重なっているオブジェクトをグループにまとめる
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {string} direction - DIRECTION_HORIZONTAL または DIRECTION_VERTICAL
+     * @returns {Array} PageItem[] の配列（1グループ＝1行または1列）
+     */
+    function getConnectedGroups(targetItems, direction) {
+        var gapThreshold = (direction === DIRECTION_HORIZONTAL) ? rowGapThreshold : columnGapThreshold;
+        var itemGroups = [];
+        var visited = [];
+
+        for (var i = 0; i < targetItems.length; i++) visited[i] = false;
+
+        for (var j = 0; j < targetItems.length; j++) {
+            if (visited[j]) continue;
+            var collectedItems = [];
+            collectConnectedItems(j, targetItems, visited, collectedItems, direction, gapThreshold);
+            itemGroups.push(collectedItems);
         }
+        return itemGroups;
+    }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
+    // =========================================
+    // 整列・分配 / Aligning and distributing
+    // =========================================
 
-        /* ダイアログの位置と透明度 / Dialog position and opacity */
-        var offsetX = 300;
-        var dialogOpacity = 0.95;
+    /**
+     * 行または列ごとに、その方向と直交する軸の中央でそろえる（グループ化はしない）
+     * @param {PageItem[]} targetItems - 対象オブジェクト
+     * @param {string} direction - DIRECTION_HORIZONTAL（行＝天地中央）または DIRECTION_VERTICAL（列＝左右中央）
+     * @returns {void}
+     */
+    function alignGroupsToCenter(targetItems, direction) {
+        if (!targetItems || targetItems.length === 0) return;
 
-        /* ダイアログ用ヘルパー関数 / Helper functions for dialog */
-        function shiftDialogPosition(dlg, offsetX, offsetY) {
-            dlg.onShow = function() {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
-            };
+        var itemGroups = getConnectedGroups(targetItems, direction);
+        for (var i = 0; i < itemGroups.length; i++) {
+            if (itemGroups[i].length <= 1) continue;
+            centerItemsInGroup(itemGroups[i], direction);
         }
+    }
 
-        function setDialogOpacity(dlg, opacityValue) {
-            dlg.opacity = opacityValue;
-        }
+    /**
+     * 1グループ分のオブジェクトを、方向と直交する軸の中央にそろえる
+     * @param {PageItem[]} groupItems - 1グループ分のオブジェクト
+     * @param {string} direction - DIRECTION_HORIZONTAL または DIRECTION_VERTICAL
+     * @returns {void}
+     */
+    function centerItemsInGroup(groupItems, direction) {
+        var combinedBounds = getCombinedBounds(groupItems);
+        var isRow = (direction === DIRECTION_HORIZONTAL);
+        /* 行は天地中央、列は左右中央にそろえる / rows center vertically, columns horizontally */
+        var groupCenter = isRow ?
+            (combinedBounds[1] + combinedBounds[3]) / 2 :
+            (combinedBounds[0] + combinedBounds[2]) / 2;
 
-        /* 行しきい値パネル / Row Threshold Panel */
-        var thresholdGroup = dialog.add("panel", undefined, LABELS.threshold[lang]);
-        thresholdGroup.orientation = "column";
-        thresholdGroup.alignChildren = "left";
-        thresholdGroup.margins = [15, 20, 15, 10];
-        thresholdGroup.enabled = true;
-
-        /* 行揃えチェックボックス / Align rows checkbox */
-        var rowCheck = thresholdGroup.add("checkbox", undefined, LABELS.row[lang]);
-        rowCheck.value = true;
-
-        /* 行グループ化チェックボックス / Group rows checkbox */
-        var rowGroupCheck = thresholdGroup.add("checkbox", undefined, LABELS.rowGroup[lang]);
-        rowGroupCheck.value = false;
-
-        /* 行アキ均等チェックボックス / Equal spacing checkbox for rows */
-        var equalSpacingCheck = thresholdGroup.add("checkbox", undefined, LABELS.equalSpacing[lang]);
-        equalSpacingCheck.value = false;
-        equalSpacingCheck.enabled = false; // 初期はディム表示 / Initially dimmed
-        rowGroupCheck.onClick = function() {
-            if (rowGroupCheck.value) {
-                colGroupCheck.value = false;
-                equalSpacingCheck.enabled = true; // 有効化
+        for (var i = 0; i < groupItems.length; i++) {
+            var itemBounds = groupItems[i].geometricBounds;
+            if (isRow) {
+                groupItems[i].top += groupCenter - (itemBounds[1] + itemBounds[3]) / 2;
             } else {
-                equalSpacingCheck.enabled = false; // 無効化
-                equalSpacingCheck.value = false;
+                groupItems[i].left += groupCenter - (itemBounds[0] + itemBounds[2]) / 2;
             }
-        };
+        }
+    }
 
-        /* 選択全体の幅と高さを取得 / Get total width and height of selection */
+    /**
+     * 並んだオブジェクトのアキを均等にする（両端の位置は保つ）
+     * @param {PageItem[]} orderedItems - 対象オブジェクト（この関数内で並べ替える）
+     * @param {string} direction - DIRECTION_HORIZONTAL（横に均等）または DIRECTION_VERTICAL（縦に均等）
+     * @returns {void}
+     */
+    function distributeSpacingEvenly(orderedItems, direction) {
+        if (!orderedItems || orderedItems.length <= 1) return;
+
+        var isHorizontal = (direction === DIRECTION_HORIZONTAL);
+        orderedItems.sort(isHorizontal ?
+            function (itemA, itemB) { return itemA.geometricBounds[0] - itemB.geometricBounds[0]; } :
+            function (itemA, itemB) { return itemB.geometricBounds[1] - itemA.geometricBounds[1]; });
+
+        var totalItemSize = 0;
+        for (var i = 0; i < orderedItems.length; i++) {
+            totalItemSize += getItemSizeAlong(orderedItems[i], isHorizontal);
+        }
+
+        var combinedBounds = getCombinedBounds(orderedItems);
+        var availableSpace = isHorizontal ?
+            (combinedBounds[2] - combinedBounds[0]) :
+            (combinedBounds[1] - combinedBounds[3]);
+        var spacing = (availableSpace - totalItemSize) / (orderedItems.length - 1);
+
+        var cursor = isHorizontal ? orderedItems[0].geometricBounds[0] : orderedItems[0].geometricBounds[1];
+        for (var j = 0; j < orderedItems.length; j++) {
+            var itemSize = getItemSizeAlong(orderedItems[j], isHorizontal);
+            if (isHorizontal) {
+                orderedItems[j].left = cursor;
+                cursor += itemSize + spacing;
+            } else {
+                orderedItems[j].top = cursor;
+                cursor -= itemSize + spacing;
+            }
+        }
+    }
+
+    /**
+     * 指定軸方向のオブジェクトの寸法を返す
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @param {boolean} isHorizontal - 横方向なら true
+     * @returns {number} 幅または高さ
+     */
+    function getItemSizeAlong(pageItem, isHorizontal) {
+        var itemBounds = pageItem.geometricBounds;
+        return isHorizontal ? (itemBounds[2] - itemBounds[0]) : (itemBounds[1] - itemBounds[3]);
+    }
+
+    // =========================================
+    // グループ化 / Grouping
+    // =========================================
+
+    /**
+     * 指定方向で抽出した行または列を、それぞれ1つのグループにまとめる
+     * @param {string} direction - DIRECTION_HORIZONTAL または DIRECTION_VERTICAL
+     * @param {boolean} centerBeforeGrouping - まとめる前に中央でそろえるなら true
+     * @returns {GroupItem[]} 作成したグループ
+     */
+    function groupItemsByDirection(direction, centerBeforeGrouping) {
+        if (app.documents.length === 0) return [];
+
+        var selectedItems = app.activeDocument.selection;
+        if (!selectedItems || selectedItems.length === 0) return [];
+
+        var itemGroups = getConnectedGroups(selectedItems, direction);
+        var createdGroups = [];
+
+        for (var i = 0; i < itemGroups.length; i++) {
+            var groupItems = itemGroups[i];
+            if (groupItems.length <= 1) continue;
+
+            /* グループ化でレイヤーが移るため、元のレイヤーを控えておく
+               Grouping can move items between layers, so remember the original one */
+            var originalLayer = groupItems[0].layer;
+
+            if (centerBeforeGrouping) centerItemsInGroup(groupItems, direction);
+
+            app.executeMenuCommand('deselectall');
+            for (var j = 0; j < groupItems.length; j++) {
+                groupItems[j].selected = true;
+            }
+            app.executeMenuCommand('group');
+
+            var createdGroup = app.activeDocument.selection[0];
+            createdGroup.layer = originalLayer;
+            createdGroups.push(createdGroup);
+        }
+
+        app.redraw();
+
+        app.activeDocument.selection = null;
+        for (var k = 0; k < createdGroups.length; k++) {
+            createdGroups[k].selected = true;
+        }
+        return createdGroups;
+    }
+
+    /**
+     * グループ内のテキストだけを取り出す
+     * @param {GroupItem} groupItem - 対象グループ
+     * @returns {TextFrame[]} グループ直下のテキスト
+     */
+    function getTextFramesInGroup(groupItem) {
+        var textFrames = [];
+        var groupPageItems = groupItem.pageItems;
+        for (var i = 0; i < groupPageItems.length; i++) {
+            if (groupPageItems[i].typename === "TextFrame") textFrames.push(groupPageItems[i]);
+        }
+        return textFrames;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /* OKで確定した処理内容。ダイアログを閉じたあとに main から読む
+       Options confirmed with Run; main reads them after the dialog closes */
+    var confirmedOptions = null;
+
+    /**
+     * 整列・グループ化のダイアログを表示する
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {number} ダイアログの戻り値（実行なら 1）
+     */
+    function showDialog(textFrames) {
+        /* ダイアログを開く前の位置を控える（キャンセルで戻す）/ Snapshot positions so Cancel can restore them */
+        var originalBoundsList = [];
+        for (var i = 0; i < textFrames.length; i++) {
+            originalBoundsList.push(textFrames[i].geometricBounds.slice(0));
+        }
+
         var combinedBounds = getCombinedBounds(textFrames);
         var totalWidth = combinedBounds[2] - combinedBounds[0];
         var totalHeight = combinedBounds[1] - combinedBounds[3];
 
-        /* 行しきい値スライダー / Row threshold slider */
-        var thresholdSlider = thresholdGroup.add("slider", undefined, 10, 0, totalWidth || 100);
-        thresholdSlider.value = Math.min(prevThreshold, totalWidth || 100);
-        thresholdSlider.preferredSize.width = 150;
+        var alignDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        alignDialog.orientation = "column";
+        alignDialog.alignChildren = "fill";
+        alignDialog.opacity = DIALOG_OPACITY;
 
-        /* 行しきい値ラベル / Row threshold label */
-        var thresholdLabel = thresholdGroup.add("statictext", undefined, Math.round(thresholdSlider.value) + " pt");
-        thresholdLabel.alignment = "center";
-        thresholdLabel.characters = 5;
+        /* 行 / Rows */
+        var rowsPanel = alignDialog.add("panel", undefined, getLabel("panel.rows"));
+        rowsPanel.orientation = "column";
+        rowsPanel.alignChildren = "left";
+        rowsPanel.margins = PANEL_MARGINS;
 
-        // 行揃えチェックボックスのON/OFFでスライダーとラベルをディム/有効
-        rowCheck.onClick = function() {
-            thresholdSlider.enabled = rowCheck.value;
-            thresholdLabel.enabled = rowCheck.value;
-            rowGroupCheck.enabled = rowCheck.value; // 行揃えがOFFならグループ化もディム
-            if (!rowCheck.value) {
-                rowGroupCheck.value = false;
-                equalSpacingCheck.enabled = false;
-                equalSpacingCheck.value = false;
+        var alignRowsCheckbox = rowsPanel.add("checkbox", undefined, getLabel("checkbox.alignRows"));
+        alignRowsCheckbox.helpTip = getLabel("tooltip.alignRows");
+        alignRowsCheckbox.value = true;
+
+        var groupRowsCheckbox = rowsPanel.add("checkbox", undefined, getLabel("checkbox.groupRows"));
+        groupRowsCheckbox.helpTip = getLabel("tooltip.groupRows");
+        groupRowsCheckbox.value = false;
+
+        var distributeRowsCheckbox = rowsPanel.add("checkbox", undefined, getLabel("checkbox.distributeRows"));
+        distributeRowsCheckbox.helpTip = getLabel("tooltip.distributeRows");
+        distributeRowsCheckbox.value = false;
+        distributeRowsCheckbox.enabled = false;
+
+        var rowThresholdSlider = rowsPanel.add("slider", undefined, DEFAULT_GAP_THRESHOLD, 0, totalWidth || 100);
+        rowThresholdSlider.helpTip = getLabel("tooltip.rowThreshold");
+        rowThresholdSlider.value = Math.min(DEFAULT_GAP_THRESHOLD, totalWidth || 100);
+        rowThresholdSlider.preferredSize.width = SLIDER_WIDTH;
+
+        var rowThresholdLabel = rowsPanel.add("statictext", undefined, Math.round(rowThresholdSlider.value) + " pt");
+        rowThresholdLabel.alignment = "center";
+        rowThresholdLabel.characters = THRESHOLD_LABEL_CHARS;
+
+        /* 列 / Columns */
+        var columnsPanel = alignDialog.add("panel", undefined, getLabel("panel.columns"));
+        columnsPanel.orientation = "column";
+        columnsPanel.alignChildren = "left";
+        columnsPanel.margins = PANEL_MARGINS;
+
+        var alignColumnsCheckbox = columnsPanel.add("checkbox", undefined, getLabel("checkbox.alignColumns"));
+        alignColumnsCheckbox.helpTip = getLabel("tooltip.alignColumns");
+        alignColumnsCheckbox.value = true;
+
+        var groupColumnsCheckbox = columnsPanel.add("checkbox", undefined, getLabel("checkbox.groupColumns"));
+        groupColumnsCheckbox.helpTip = getLabel("tooltip.groupColumns");
+        groupColumnsCheckbox.value = false;
+
+        var distributeColumnsCheckbox = columnsPanel.add("checkbox", undefined, getLabel("checkbox.distributeColumns"));
+        distributeColumnsCheckbox.helpTip = getLabel("tooltip.distributeColumns");
+        distributeColumnsCheckbox.value = false;
+        distributeColumnsCheckbox.enabled = false;
+
+        var columnThresholdSlider = columnsPanel.add("slider", undefined, DEFAULT_GAP_THRESHOLD, 0, totalHeight || 100);
+        columnThresholdSlider.helpTip = getLabel("tooltip.columnThreshold");
+        columnThresholdSlider.value = Math.min(DEFAULT_GAP_THRESHOLD, totalHeight || 100);
+        columnThresholdSlider.preferredSize.width = SLIDER_WIDTH;
+
+        var columnThresholdLabel = columnsPanel.add("statictext", undefined, Math.round(columnThresholdSlider.value) + " pt");
+        columnThresholdLabel.alignment = "center";
+        columnThresholdLabel.characters = THRESHOLD_LABEL_CHARS;
+
+        /**
+         * 「揃え」のON/OFFに合わせて、その行または列の他のコントロールをディムする
+         * @param {Checkbox} alignCheckbox - 「揃え」のチェックボックス
+         * @param {Checkbox} groupCheckbox - 「グループ化」のチェックボックス
+         * @param {Checkbox} distributeCheckbox - 「アキを均等に」のチェックボックス
+         * @param {Slider} thresholdSlider - しきい値スライダー
+         * @param {StaticText} thresholdLabel - しきい値のラベル
+         * @returns {void}
+         */
+        function syncEnabledState(alignCheckbox, groupCheckbox, distributeCheckbox, thresholdSlider, thresholdLabel) {
+            thresholdSlider.enabled = alignCheckbox.value;
+            thresholdLabel.enabled = alignCheckbox.value;
+            groupCheckbox.enabled = alignCheckbox.value;
+            if (!alignCheckbox.value) {
+                groupCheckbox.value = false;
+                distributeCheckbox.enabled = false;
+                distributeCheckbox.value = false;
             }
+        }
+
+        alignRowsCheckbox.onClick = function () {
+            syncEnabledState(alignRowsCheckbox, groupRowsCheckbox, distributeRowsCheckbox,
+                rowThresholdSlider, rowThresholdLabel);
         };
-        // 初期状態
-        thresholdSlider.enabled = rowCheck.value;
-        thresholdLabel.enabled = rowCheck.value;
-        rowGroupCheck.enabled = rowCheck.value;
+        alignColumnsCheckbox.onClick = function () {
+            syncEnabledState(alignColumnsCheckbox, groupColumnsCheckbox, distributeColumnsCheckbox,
+                columnThresholdSlider, columnThresholdLabel);
+        };
 
-        /* 列しきい値パネル / Column Threshold Panel */
-        var colThresholdGroup = dialog.add("panel", undefined, LABELS.colThreshold[lang]);
-        colThresholdGroup.orientation = "column";
-        colThresholdGroup.alignChildren = "left";
-        colThresholdGroup.margins = [15, 20, 15, 10];
-        colThresholdGroup.enabled = true;
+        /* 行と列を同時にグループ化はできないので、片方をONにしたら他方を外す
+           Rows and columns cannot both be grouped, so turning one on clears the other */
+        groupRowsCheckbox.onClick = function () {
+            if (groupRowsCheckbox.value) groupColumnsCheckbox.value = false;
+            distributeRowsCheckbox.enabled = groupRowsCheckbox.value;
+            if (!groupRowsCheckbox.value) distributeRowsCheckbox.value = false;
+        };
+        groupColumnsCheckbox.onClick = function () {
+            if (groupColumnsCheckbox.value) groupRowsCheckbox.value = false;
+            distributeColumnsCheckbox.enabled = groupColumnsCheckbox.value;
+            if (!groupColumnsCheckbox.value) distributeColumnsCheckbox.value = false;
+        };
 
-        /* 列揃えチェックボックス / Align columns checkbox */
-        var colCheck = colThresholdGroup.add("checkbox", undefined, LABELS.column[lang]);
-        colCheck.value = true;
+        rowThresholdSlider.onChanging = function () {
+            rowThresholdLabel.text = Math.round(rowThresholdSlider.value) + " pt";
+            rowGapThreshold = rowThresholdSlider.value;
+            if (textFrames.length === 0 || !alignRowsCheckbox.value) return;
 
-        /* 列グループ化チェックボックス / Group columns checkbox */
-        var colGroupCheck = colThresholdGroup.add("checkbox", undefined, LABELS.colGroup[lang]);
-        colGroupCheck.value = false;
-
-        /* 列アキ均等チェックボックス / Equal spacing checkbox for columns */
-        var colEqualSpacingCheck = colThresholdGroup.add("checkbox", undefined, LABELS.colEqualSpacing[lang]);
-        colEqualSpacingCheck.value = false;
-        colEqualSpacingCheck.enabled = false; // 初期はディム表示 / Initially dimmed
-        colGroupCheck.onClick = function() {
-            if (colGroupCheck.value) {
-                rowGroupCheck.value = false;
-                colEqualSpacingCheck.enabled = true; // 有効化
+            if (groupRowsCheckbox.value) {
+                groupItemsByDirection(DIRECTION_HORIZONTAL, true);
             } else {
-                colEqualSpacingCheck.enabled = false; // 無効化
-                colEqualSpacingCheck.value = false;
+                alignGroupsToCenter(textFrames, DIRECTION_HORIZONTAL);
             }
+            app.redraw();
         };
 
-        /* 列しきい値スライダー / Column threshold slider */
-        var colThresholdSlider = colThresholdGroup.add("slider", undefined, 10, 0, totalHeight || 100);
-        colThresholdSlider.value = Math.min(prevThreshold, totalHeight || 100);
-        colThresholdSlider.preferredSize.width = 150;
-        /* 列しきい値ラベル / Column threshold label */
-        var colThresholdLabel = colThresholdGroup.add("statictext", undefined, Math.round(colThresholdSlider.value) + " pt");
-        colThresholdLabel.alignment = "center";
-        colThresholdLabel.characters = 5;
+        columnThresholdSlider.onChanging = function () {
+            columnThresholdLabel.text = Math.round(columnThresholdSlider.value) + " pt";
+            columnGapThreshold = columnThresholdSlider.value;
+            if (textFrames.length === 0 || !alignColumnsCheckbox.value) return;
 
-        // 列揃えチェックボックスのON/OFFでスライダーとラベルをディム/有効
-        colCheck.onClick = function() {
-            colThresholdSlider.enabled = colCheck.value;
-            colThresholdLabel.enabled = colCheck.value;
-            colGroupCheck.enabled = colCheck.value; // 列揃えがOFFならグループ化もディム
-            if (!colCheck.value) {
-                colGroupCheck.value = false;
-                colEqualSpacingCheck.enabled = false;
-                colEqualSpacingCheck.value = false;
-            }
-        };
-        // 初期状態
-        colThresholdSlider.enabled = colCheck.value;
-        colThresholdLabel.enabled = colCheck.value;
-        colGroupCheck.enabled = colCheck.value;
-
-        thresholdSlider.onChanging = function() {
-            thresholdLabel.text = Math.round(thresholdSlider.value) + " pt";
-            rowOverlapThreshold = thresholdSlider.value; // 即時更新
-            if (textFrames && textFrames.length > 0 && rowCheck.value) {
-                if (rowGroupCheck.value) {
-                    groupOverlappingObjectsByDirection("horizontal");
-                } else {
-                    alignHorizontallyAndCenterVertically(textFrames);
-                }
-                app.redraw();
-            }
-        };
-
-        colThresholdSlider.onChanging = function() {
-            colThresholdLabel.text = Math.round(colThresholdSlider.value) + " pt";
-            colOverlapThreshold = colThresholdSlider.value; // 即時更新
-            if (textFrames && textFrames.length > 0 && colCheck.value) {
-                if (colGroupCheck.value) {
-                    // 列をグループ化のみ。アキを均等にがONの場合のみ均等処理も行う / Only group columns; distribute spacing if enabled
-                    var newGroups = groupObjectsOnlyByDirection("vertical");
-                    if (colEqualSpacingCheck.value && newGroups && newGroups.length > 0) {
-                        // グループごとに左右のアキを均等にする / Distribute horizontal spacing evenly
-                        for (var g = 0; g < newGroups.length; g++) {
-                            var groupItems = newGroups[g].pageItems;
-                            if (!groupItems || groupItems.length <= 1) continue;
-
-                            var itemsArray = [];
-                            for (var i = 0; i < groupItems.length; i++) {
-                                if (groupItems[i].typename === "TextFrame") {
-                                    itemsArray.push(groupItems[i]);
-                                }
-                            }
-                            if (itemsArray.length <= 1) continue;
-
-                            // 左から右にソート / Sort left to right
-                            itemsArray.sort(function(a, b) {
-                                return a.geometricBounds[0] - b.geometricBounds[0];
-                            });
-
-                            var groupBounds = getCombinedBounds(itemsArray);
-                            var totalWidth = 0;
-                            for (var i = 0; i < itemsArray.length; i++) {
-                                var b = itemsArray[i].geometricBounds;
-                                totalWidth += (b[2] - b[0]);
-                            }
-                            var availableSpace = groupBounds[2] - groupBounds[0];
-                            var spacing = (availableSpace - totalWidth) / (itemsArray.length - 1);
-
-                            var currentLeft = itemsArray[0].geometricBounds[0];
-                            for (var i = 0; i < itemsArray.length; i++) {
-                                var b = itemsArray[i].geometricBounds;
-                                var itemWidth = b[2] - b[0];
-                                itemsArray[i].left = currentLeft;
-                                currentLeft += itemWidth + spacing;
-                            }
-                        }
+            if (groupColumnsCheckbox.value) {
+                var createdGroups = groupItemsByDirection(DIRECTION_VERTICAL, false);
+                if (distributeColumnsCheckbox.value) {
+                    /* 各列グループの中で、テキストの左右のアキを均等にする
+                       Even out the horizontal gaps inside each column group */
+                    for (var i = 0; i < createdGroups.length; i++) {
+                        distributeSpacingEvenly(getTextFramesInGroup(createdGroups[i]), DIRECTION_HORIZONTAL);
                     }
-                } else {
-                    alignVerticallyAndCenterHorizontally(textFrames);
                 }
-                app.redraw();
+            } else {
+                alignGroupsToCenter(textFrames, DIRECTION_VERTICAL);
             }
+            app.redraw();
         };
 
-        /* ボタングループ / Button group */
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "center";
-        buttonGroup.margins = [0, 10, 0, 10];
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.group[lang], {
-            name: "ok"
-        });
+        /* ボタンエリア / Button row */
+        var btnRowGroup = alignDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = "center";
+        btnRowGroup.margins = BUTTON_ROW_MARGINS;
 
-        /* キャンセルボタン処理 / Cancel button handler */
-        cancelBtn.onClick = function() {
-            for (var i = 0; i < originalStates.length; i++) {
-                var obj = originalStates[i];
-                var b = obj.bounds;
-                var item = obj.item;
-                item.left = b[0];
-                item.top = b[1];
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnCancel.onClick = function () {
+            /* スライダー操作で動いた分を元に戻す / Undo the moves made while dragging the sliders */
+            for (var i = 0; i < textFrames.length; i++) {
+                textFrames[i].left = originalBoundsList[i][0];
+                textFrames[i].top = originalBoundsList[i][1];
             }
-            dialog.close(0);
+            alignDialog.close(0);
         };
 
-        /* OKボタン処理 / OK button handler */
-        okBtn.onClick = function() {
-            // groupMode and threshold values are set on dialog close
-            groupMode = {
-                row: rowCheck.value,
-                rowGroup: rowGroupCheck.value,
-                equalSpacing: equalSpacingCheck.value,
-                column: colCheck.value,
-                colGroup: colGroupCheck.value,
-                colEqualSpacing: colEqualSpacingCheck.value
+        var btnRun = btnRowGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+        btnRun.onClick = function () {
+            confirmedOptions = {
+                alignRows: alignRowsCheckbox.value,
+                groupRows: groupRowsCheckbox.value,
+                distributeRows: distributeRowsCheckbox.value,
+                alignColumns: alignColumnsCheckbox.value,
+                groupColumns: groupColumnsCheckbox.value,
+                distributeColumns: distributeColumnsCheckbox.value
             };
-            dialog.close(1);
+            alignDialog.close(1);
         };
 
-        /* 値を確定するのはダイアログを閉じるとき / Commit values on dialog close */
-        dialog.onClose = function() {
-            rowOverlapThreshold = thresholdSlider.value;
-            colOverlapThreshold = colThresholdSlider.value;
+        alignDialog.onShow = function () {
+            alignDialog.location = [
+                alignDialog.location[0] + DIALOG_OFFSET_X,
+                alignDialog.location[1] + DIALOG_OFFSET_Y
+            ];
         };
 
-        /* ダイアログの不透明度と位置を設定 / Set opacity and position before showing the dialog */
-        dialog.opacity = dialogOpacity;
-        dialog.onShow = function() {
-            var currentX = dialog.location[0];
-            var currentY = dialog.location[1];
-            dialog.location = [currentX + offsetX, currentY + 0];
-        };
-
-        var result = dialog.show();
-        return result;
+        return alignDialog.show();
     }
 
-    /* 行方向のDFS探索 / DFS for horizontal grouping */
-    function dfsHorizontal(index, items, visited, group) {
-        visited[index] = true;
-        group.push(items[index]);
-        var boundsA = items[index].visibleBounds;
-        for (var j = 0; j < items.length; j++) {
-            if (visited[j]) continue;
-            var boundsB = items[j].visibleBounds;
-            var overlapRatio = getOverlapRatio(boundsA, boundsB);
-            var axisDistanceOk = getAxisDistanceHorizontal(boundsA, boundsB) <= rowOverlapThreshold;
-            if (overlapRatio > 0 || axisDistanceOk) {
-                dfsHorizontal(j, items, visited, group);
-            }
-        }
-    }
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
-    /* 列方向のDFS探索 / DFS for vertical grouping */
-    function dfsVertical(index, items, visited, group) {
-        visited[index] = true;
-        group.push(items[index]);
-        var boundsA = items[index].visibleBounds;
-        for (var j = 0; j < items.length; j++) {
-            if (visited[j]) continue;
-            var boundsB = items[j].visibleBounds;
-            var overlapRatio = getOverlapRatio(boundsA, boundsB);
-            var axisDistanceOk = getAxisDistanceVertical(boundsA, boundsB) <= colOverlapThreshold;
-            if (overlapRatio > 0 || axisDistanceOk) {
-                dfsVertical(j, items, visited, group);
-            }
-        }
-    }
-
-    /* 隣接度または重なり率に基づいてグループを抽出（方向別）/ Extract groups based on adjacency or overlap by direction */
-    function getGroupedOverlappingItems(items, direction) {
-        var groups = [];
-        var visited = [];
-        for (var i = 0; i < items.length; i++) {
-            visited[i] = false;
-        }
-        for (var i = 0; i < items.length; i++) {
-            if (visited[i]) continue;
-            var group = [];
-            if (direction === "horizontal") {
-                dfsHorizontal(i, items, visited, group);
-            } else if (direction === "vertical") {
-                dfsVertical(i, items, visited, group);
-            }
-            groups.push(group);
-        }
-        return groups;
-    }
-
-    /* 2つのバウンディングボックスの水平方向距離を返す（縦方向距離がある場合は無視）/ Return horizontal distance between two bounding boxes (ignore if vertical distance exists) */
-    function getAxisDistanceHorizontal(a, b) {
-        var ax1 = a[0],
-            ay1 = a[1],
-            ax2 = a[2],
-            ay2 = a[3];
-        var bx1 = b[0],
-            by1 = b[1],
-            bx2 = b[2],
-            by2 = b[3];
-
-        var vertGap = Math.max(0, Math.max(by2 - ay1, ay2 - by1));
-        if (vertGap > 0) return 999999; // 縦方向に離れている場合は無視
-
-        var horzGap = Math.max(0, Math.max(bx1 - ax2, ax1 - bx2));
-        return horzGap;
-    }
-
-    /* 2つのバウンディングボックスの垂直方向距離を返す（横方向距離がある場合は無視）/ Return vertical distance between two bounding boxes (ignore if horizontal distance exists) */
-    function getAxisDistanceVertical(a, b) {
-        var ax1 = a[0],
-            ay1 = a[1],
-            ax2 = a[2],
-            ay2 = a[3];
-        var bx1 = b[0],
-            by1 = b[1],
-            bx2 = b[2],
-            by2 = b[3];
-
-        var horzGap = Math.max(0, Math.max(bx1 - ax2, ax1 - bx2));
-        if (horzGap > 0) return 999999; // 横方向に離れている場合は無視
-
-        var vertGap = Math.max(0, Math.max(by2 - ay1, ay2 - by1));
-        return vertGap;
-    }
-
-    /* 2つのバウンディングボックスの重なり率（大きい方の面積に対する割合）を返す / Return overlap ratio of two bounding boxes (relative to larger area) */
-    function getOverlapRatio(a, b) {
-        var ax = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0]));
-        var ay = Math.max(0, Math.min(a[1], b[1]) - Math.max(a[3], b[3]));
-        var overlapArea = ax * ay;
-        if (overlapArea <= 0) return 0;
-        var areaA = (a[2] - a[0]) * (a[1] - a[3]);
-        var areaB = (b[2] - b[0]) * (b[1] - b[3]);
-        var maxArea = Math.max(areaA, areaB);
-        return overlapArea / maxArea;
-    }
-
-    /* 共通グループ化処理（direction: "horizontal"|"vertical"）/ Common grouping process (direction: "horizontal"|"vertical") */
-    function groupOverlappingObjectsByDirection(direction) {
-        if (!app.documents.length) return;
-        var items = app.activeDocument.selection;
-        if (!items || items.length === 0) return;
-
-        var groups = getGroupedOverlappingItems(items, direction);
-
-        var doc = app.activeDocument;
-        var newGroups = [];
-        for (var i = 0; i < groups.length; i++) {
-            var group = groups[i];
-            if (group.length <= 1) continue;
-
-            /* グループ化前に元のレイヤーを保存 / Save the original layer before grouping */
-            var originalLayer = group[0].layer;
-
-            /* 垂直方向中央揃え / Align vertically centered */
-            var groupBounds = getCombinedBounds(group);
-            var centerY = (groupBounds[1] + groupBounds[3]) / 2;
-            for (var j = 0; j < group.length; j++) {
-                var itemBounds = group[j].geometricBounds;
-                var itemCenterY = (itemBounds[1] + itemBounds[3]) / 2;
-                var shiftY = centerY - itemCenterY;
-                group[j].top += shiftY;
-            }
-
-            app.executeMenuCommand('deselectall');
-            for (var j = 0; j < group.length; j++) {
-                group[j].selected = true;
-            }
-            app.executeMenuCommand('group');
-            var newGroup = app.activeDocument.selection[0];
-            /* 新規グループのレイヤーを元に戻す / Restore the new group's layer to the original layer */
-            newGroup.layer = originalLayer;
-            newGroups.push(newGroup);
-        }
-        app.redraw();
-        /* 新規グループを選択状態に設定 / Set new groups as selected */
-        app.activeDocument.selection = null;
-        for (var i = 0; i < newGroups.length; i++) {
-            newGroups[i].selected = true;
-        }
-        return newGroups;
-    }
-
-    /* 横方向ごとに天地中央に整列（グループ化は行わない）/ Align to vertical center by horizontal group (no grouping) */
-    function alignHorizontallyAndCenterVertically(items) {
-        if (!items || items.length === 0) return;
-        var groups = getGroupedOverlappingItems(items, "horizontal");
-        for (var i = 0; i < groups.length; i++) {
-            var group = groups[i];
-            if (group.length <= 1) continue;
-            var combinedBounds = getCombinedBounds(group);
-            var centerY = (combinedBounds[1] + combinedBounds[3]) / 2;
-            for (var j = 0; j < group.length; j++) {
-                var itemBounds = group[j].geometricBounds;
-                var itemCenterY = (itemBounds[1] + itemBounds[3]) / 2;
-                var shiftY = centerY - itemCenterY;
-                group[j].top += shiftY;
-            }
-        }
-    }
-
-    /* 縦方向ごとに中央揃え（左右中央揃え）/ Align to horizontal center by vertical group */
-    function alignVerticallyAndCenterHorizontally(items) {
-        if (!items || items.length === 0) return;
-        var groups = getGroupedOverlappingItems(items, "vertical");
-        for (var i = 0; i < groups.length; i++) {
-            var group = groups[i];
-            if (group.length <= 1) continue;
-            var combinedBounds = getCombinedBounds(group);
-            var centerX = (combinedBounds[0] + combinedBounds[2]) / 2;
-            for (var j = 0; j < group.length; j++) {
-                var itemBounds = group[j].geometricBounds;
-                var itemCenterX = (itemBounds[0] + itemBounds[2]) / 2;
-                var shiftX = centerX - itemCenterX;
-                group[j].left += shiftX;
-            }
-        }
-    }
-
-    /* メイン処理 / Main process */
+    /**
+     * 選択したテキストを行・列で整列し、必要ならグループ化する
+     * @returns {void}
+     */
     function main() {
-        rowOverlapThreshold = 10;
-        if (!app.documents.length) return;
-        var selection = app.activeDocument.selection;
-        if (!selection || selection.length === 0) return;
-
-        /* テキストフレームのみを対象にする / Only target text frames */
-        var textFrames = [];
-        for (var i = 0; i < selection.length; i++) {
-            if (selection[i].typename === "TextFrame") {
-                textFrames.push(selection[i]);
-            }
-        }
-        if (textFrames.length === 0) {
-            /* テキストが選択されていない場合の警告 / Alert if no text frames selected */
-            alert((lang === "ja") ? "テキストが選択されていません。" : "No text frames selected.");
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.noDocument"));
             return;
         }
 
-        var result = showDialog(rowOverlapThreshold, undefined);
-        if (result !== 1) return;
-
-        // rowOverlapThreshold, colOverlapThreshold は showDialog() 内で更新される / Updated inside showDialog()
-        if (groupMode.row) {
-            if (groupMode.rowGroup) {
-                /* 行をグループ化 / Group rows */
-                var newGroups = groupOverlappingObjectsByDirection("horizontal");
-
-                if (groupMode.equalSpacing && newGroups && newGroups.length > 1) {
-                    distributeSpacingBetweenGroups(newGroups, "vertical");
-                }
-            } else {
-                /* 行ごとに天地中央揃え / Align to vertical center by row */
-                alignHorizontallyAndCenterVertically(textFrames);
-            }
+        var selectedObjects = app.activeDocument.selection;
+        var textFrames = [];
+        for (var i = 0; selectedObjects && i < selectedObjects.length; i++) {
+            if (selectedObjects[i].typename === "TextFrame") textFrames.push(selectedObjects[i]);
         }
-        if (groupMode.column) {
-            if (groupMode.colGroup) {
-                /* 列をグループ化 / Group columns */
-                var newGroups = groupObjectsOnlyByDirection("vertical");
-
-                /* 各グループ内のアイテム調整は行わない / Do not adjust items inside each group */
-
-                if (groupMode.colEqualSpacing && newGroups && newGroups.length > 1) {
-                    distributeSpacingBetweenGroups(newGroups, "horizontal");
-                }
-            } else {
-                /* 列ごとに左右中央揃え / Align to horizontal center by column */
-                alignVerticallyAndCenterHorizontally(textFrames);
-            }
+        if (textFrames.length === 0) {
+            alert(getLabel("alert.noTextFrames"));
+            return;
         }
+
+        if (showDialog(textFrames) !== 1 || !confirmedOptions) return;
+
+        applyConfirmedOptions(textFrames);
     }
 
-    /* 列方向グループ化のみ（整列なし）/ Only group by column direction (no alignment) */
-    function groupObjectsOnlyByDirection(direction) {
-        if (!app.documents.length) return;
-        var items = app.activeDocument.selection;
-        if (!items || items.length === 0) return;
-
-        var groups = getGroupedOverlappingItems(items, direction);
-
-        var doc = app.activeDocument;
-        var newGroups = [];
-        for (var i = 0; i < groups.length; i++) {
-            var group = groups[i];
-            if (group.length <= 1) continue;
-
-            /* グループ化前に元のレイヤーを保存 / Save the original layer before grouping */
-            var originalLayer = group[0].layer;
-
-            app.executeMenuCommand('deselectall');
-            for (var j = 0; j < group.length; j++) {
-                group[j].selected = true;
+    /**
+     * ダイアログで確定した内容を適用する
+     * @param {TextFrame[]} textFrames - 対象のテキスト
+     * @returns {void}
+     */
+    function applyConfirmedOptions(textFrames) {
+        if (confirmedOptions.alignRows) {
+            if (confirmedOptions.groupRows) {
+                var rowGroups = groupItemsByDirection(DIRECTION_HORIZONTAL, true);
+                if (confirmedOptions.distributeRows && rowGroups.length > 1) {
+                    distributeSpacingEvenly(rowGroups, DIRECTION_VERTICAL);
+                }
+            } else {
+                alignGroupsToCenter(textFrames, DIRECTION_HORIZONTAL);
             }
-            app.executeMenuCommand('group');
-            var newGroup = app.activeDocument.selection[0];
-            /* 新規グループのレイヤーを元に戻す / Restore the new group's layer to the original layer */
-            newGroup.layer = originalLayer;
-            newGroups.push(newGroup);
         }
-        app.redraw();
-        /* 新規グループを選択状態に設定 / Set new groups as selected */
-        app.activeDocument.selection = null;
-        for (var i = 0; i < newGroups.length; i++) {
-            newGroups[i].selected = true;
+
+        if (confirmedOptions.alignColumns) {
+            if (confirmedOptions.groupColumns) {
+                var columnGroups = groupItemsByDirection(DIRECTION_VERTICAL, false);
+                if (confirmedOptions.distributeColumns && columnGroups.length > 1) {
+                    distributeSpacingEvenly(columnGroups, DIRECTION_HORIZONTAL);
+                }
+            } else {
+                alignGroupsToCenter(textFrames, DIRECTION_VERTICAL);
+            }
         }
-        return newGroups;
     }
 
     main();
-
-    /* 選択オブジェクト群の結合バウンディングボックス取得 / Get combined bounding box of selected objects */
-    function getCombinedBounds(items) {
-        var left = null,
-            top = null,
-            right = null,
-            bottom = null;
-        for (var i = 0; i < items.length; i++) {
-            var b = items[i].geometricBounds;
-            if (left === null || b[0] < left) left = b[0];
-            if (top === null || b[1] > top) top = b[1];
-            if (right === null || b[2] > right) right = b[2];
-            if (bottom === null || b[3] < bottom) bottom = b[3];
-        }
-        return [left, top, right, bottom];
-    }
 
 })();

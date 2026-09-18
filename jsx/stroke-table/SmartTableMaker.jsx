@@ -44,7 +44,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -161,10 +161,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
+    function getLabel(key) {
         var v = LABELS[key];
         if (!v) return key;
-        return (v[lang] !== undefined) ? v[lang] : (v.en !== undefined ? v.en : key);
+        return (v[uiLang] !== undefined) ? v[uiLang] : (v.en !== undefined ? v.en : key);
     }
 
     /* 単位ラベル取得ユーティリティ / Unit label utilities */
@@ -275,16 +275,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     (function () {
         // ドキュメントが開かれているか確認
         if (app.documents.length === 0) {
-            alert(L("alertOpenDoc"));
+            alert(getLabel("alertOpenDoc"));
             return;
         }
 
         var doc = app.activeDocument;
-        var sel = doc.selection;
+        var currentSelection = doc.selection;
 
         // 2つのオブジェクトが選択されているか確認
-        if (!sel || sel.length !== 2) {
-            alert(L("alertSelectTwoItems"));
+        if (!currentSelection || currentSelection.length !== 2) {
+            alert(getLabel("alertSelectTwoItems"));
             return;
         }
 
@@ -527,9 +527,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pp = it.pathPoints;
                 if (!pp || pp.length !== 4) continue;
 
-                var sel = 0;
-                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-                if (sel > 0 && sel < 4) continue; // respect partial anchor selection
+                var currentSelection = 0;
+                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) currentSelection++;
+                if (currentSelection > 0 && currentSelection < 4) continue; // respect partial anchor selection
 
                 var idx = [0, 1, 2, 3];
                 idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });
@@ -568,12 +568,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 選択オブジェクトの位置関係を整理（左側にあるものをitem1、右側をitem2とする）
         var item1, item2;
-        if (getItemLeft(sel[0]) < getItemLeft(sel[1])) {
-            item1 = sel[0];
-            item2 = sel[1];
+        if (getItemLeft(currentSelection[0]) < getItemLeft(currentSelection[1])) {
+            item1 = currentSelection[0];
+            item2 = currentSelection[1];
         } else {
-            item1 = sel[1];
-            item2 = sel[0];
+            item1 = currentSelection[1];
+            item2 = currentSelection[0];
         }
 
         // --- 背景を置くターゲットレイヤーの決定 ---
@@ -598,7 +598,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var targetLayerForBackground = getBackmostLayer(doc, item1.layer, item2.layer);
 
         function safeRedraw() {
-            try { app.redraw(); } catch (e) { }
+            app.redraw();
         }
 
         // --- プレビュー状態 ---
@@ -1008,7 +1008,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * @returns {number|null} percent (e.g. 140) or null if cancelled
          */
         function showHeightDialog(defaultPercent, previewFn, clearPreviewFn) {
-            var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
             dlg.orientation = 'column';
             dlg.alignChildren = ['fill', 'top'];
             dlg.margins = 18;
@@ -1023,7 +1023,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // 高さ行は左右中央に / Center the height row horizontally
             row.alignment = ['center', 'top'];
 
-            row.add('statictext', undefined, L('labelHeight'));
+            row.add('statictext', undefined, getLabel('labelHeight'));
 
             var et = row.add('edittext', undefined, String(defaultPercent));
             et.characters = 6;
@@ -1031,7 +1031,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // ↑↓ / Shift+↑↓ / Option+↑↓ で値を増減
             changeValueByArrowKey(et, false, applyPreview);
 
-            row.add('statictext', undefined, L('labelPercent'));
+            row.add('statictext', undefined, getLabel('labelPercent'));
 
             // --- 2カラム：左=描画 / 右=オプション ---
             var columns = dlg.add('group');
@@ -1045,16 +1045,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             drawPanel.alignChildren = ['left', 'top'];
             drawPanel.margins = [15, 20, 15, 10];
 
-            var cbFillLeft = drawPanel.add('checkbox', undefined, L('labelFillLeft'));
+            var cbFillLeft = drawPanel.add('checkbox', undefined, getLabel('labelFillLeft'));
             cbFillLeft.value = true;
 
-            var cbFillRight = drawPanel.add('checkbox', undefined, L('labelFillRight'));
+            var cbFillRight = drawPanel.add('checkbox', undefined, getLabel('labelFillRight'));
             cbFillRight.value = true;
 
-            var cbOverallFrame = drawPanel.add('checkbox', undefined, L('labelOverallFrame'));
+            var cbOverallFrame = drawPanel.add('checkbox', undefined, getLabel('labelOverallFrame'));
             cbOverallFrame.value = false;
 
-            var cbDivider = drawPanel.add('checkbox', undefined, L('labelDivider'));
+            var cbDivider = drawPanel.add('checkbox', undefined, getLabel('labelDivider'));
             cbDivider.value = false;
 
             // --- 線オプション / Stroke options (Right column) ---
@@ -1063,7 +1063,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             rightCol.alignChildren = ['fill', 'top'];
             rightCol.spacing = 12;
 
-            var linePanel = rightCol.add('panel', undefined, L('panelLine'));
+            var linePanel = rightCol.add('panel', undefined, getLabel('panelLine'));
             linePanel.orientation = 'column';
             linePanel.alignChildren = ['left', 'top'];
             linePanel.margins = [15, 20, 15, 10];
@@ -1072,7 +1072,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             lineRow.orientation = 'row';
             lineRow.alignChildren = ['left', 'center'];
 
-            lineRow.add('statictext', undefined, L('labelStrokeWidth'));
+            lineRow.add('statictext', undefined, getLabel('labelStrokeWidth'));
             var etStroke = lineRow.add('edittext', undefined, formatUnitValue(ptToUnit(1, "strokeUnits")));
             etStroke.characters = 4;
             // Allow decimals and arrow-key changes (0.1 with Option)
@@ -1084,7 +1084,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cornerRow.orientation = 'row';
             cornerRow.alignChildren = ['left', 'center'];
 
-            cornerRow.add('statictext', undefined, L('labelCornerRadius'));
+            cornerRow.add('statictext', undefined, getLabel('labelCornerRadius'));
             var etCorner = cornerRow.add('edittext', undefined, formatUnitValue(ptToUnit(0, "rulerType")));
             etCorner.characters = 4;
             cornerRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("rulerType"));
@@ -1108,7 +1108,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateCornerEnabled();
 
             // --- バランス / Balance (full-width, spanning both columns) ---
-            var pinPanel = dlg.add('panel', undefined, L('panelFixed'));
+            var pinPanel = dlg.add('panel', undefined, getLabel('panelFixed'));
             pinPanel.orientation = 'column';
             pinPanel.alignChildren = ['fill', 'top'];
             pinPanel.margins = [15, 20, 15, 10];
@@ -1118,9 +1118,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pinRadioRow.orientation = 'row';
             pinRadioRow.alignChildren = ['left', 'center'];
 
-            var rbPinNone = pinRadioRow.add('radiobutton', undefined, L('fixedNone'));
-            var rbPinLeft = pinRadioRow.add('radiobutton', undefined, L('fixedLeft'));
-            var rbPinRight = pinRadioRow.add('radiobutton', undefined, L('fixedRight'));
+            var rbPinNone = pinRadioRow.add('radiobutton', undefined, getLabel('fixedNone'));
+            var rbPinLeft = pinRadioRow.add('radiobutton', undefined, getLabel('fixedLeft'));
+            var rbPinRight = pinRadioRow.add('radiobutton', undefined, getLabel('fixedRight'));
             rbPinNone.value = true;
 
             // --- 幅 / Width (inside Balance panel) ---
@@ -1134,7 +1134,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pinWidthValueRow.orientation = 'row';
             pinWidthValueRow.alignChildren = ['left', 'center'];
 
-            pinWidthValueRow.add('statictext', undefined, L('labelWidth'));
+            pinWidthValueRow.add('statictext', undefined, getLabel('labelWidth'));
 
             var etWidth = pinWidthValueRow.add('edittext', undefined, '0');
             etWidth.characters = 6;
@@ -1274,7 +1274,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updateWidthEnabled();
 
             // プレビューは一番下 / Preview at the bottom
-            var cbPreview = dlg.add('checkbox', undefined, L('labelPreview'));
+            var cbPreview = dlg.add('checkbox', undefined, getLabel('labelPreview'));
             cbPreview.value = true;
 
             function parsePercent() {
@@ -1420,13 +1420,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             btns.orientation = 'row';
             btns.alignment = ['right', 'center'];
 
-            var cancelBtn = btns.add('button', undefined, L('labelCancel'), { name: 'cancel' });
-            var okBtn = btns.add('button', undefined, L('labelOK'), { name: 'ok' });
+            var cancelBtn = btns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
+            var okBtn = btns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
 
             okBtn.onClick = function () {
                 var v = parsePercent();
                 if (v === null) {
-                    alert(L('alertHeightInvalid'));
+                    alert(getLabel('alertHeightInvalid'));
                     return;
                 }
                 // OK：ダイアログを閉じる（確定処理はダイアログ終了後にまとめて行う）
@@ -1674,7 +1674,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     }
                 }
             }
-            activeDocument.selection = s;
+            app.activeDocument.selection = s;
             // alert(new Date() - tim);
         }
 
@@ -1922,9 +1922,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var pp = it.pathPoints;
                 if (!pp || pp.length !== 4) continue;
 
-                var sel = 0;
-                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-                if (sel > 0 && sel < 4) continue; // respect partial anchor selection
+                var currentSelection = 0;
+                for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) currentSelection++;
+                if (currentSelection > 0 && currentSelection < 4) continue; // respect partial anchor selection
 
                 var idx = [0, 1, 2, 3];
                 idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });

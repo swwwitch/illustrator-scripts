@@ -222,14 +222,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     };
 
     /* 言語に応じたラベル文字列を取得 / Resolve a label string for the current language */
-    function getLocalizedText(entry) {
+    function getLabel(entry) {
         if (!entry) return "";
         return entry[currentLanguage] || entry.ja || entry.en || "";
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(entry) {
-        return getLocalizedText(entry) + (currentLanguage === "ja" ? "：" : ":");
+        return getLabel(entry) + (currentLanguage === "ja" ? "：" : ":");
     }
 
     // =========================================
@@ -967,10 +967,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     }
 
     /* 現在のアートボードの矩形を取得（取れなければ null）/ Get the active artboard rect ([L,T,R,B]); null if unavailable */
-    function getActiveArtboardRect(activeDocument) {
+    function getActiveArtboardRect(documentRef) {
         try {
-            var activeIndex = activeDocument.artboards.getActiveArtboardIndex();
-            return activeDocument.artboards[activeIndex].artboardRect;
+            var activeIndex = documentRef.artboards.getActiveArtboardIndex();
+            return documentRef.artboards[activeIndex].artboardRect;
         } catch (e) {
             return null;
         }
@@ -1022,11 +1022,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
     /* ドキュメントを走査し、組み合わせを TAB 区切り行（LF 連結）で返す / Scan the document; return combos as TAB-joined rows (LF-joined)
        1行 = psName \t displayName \t size \t leading \t autoLeading(0/1) \t tsume \t tracking \t kernId \t proportionalMetrics(0/1) \t count */
-    function collectDocumentCombosRaw(activeDocument, currentArtboardOnly, includeHidden, includeLocked) {
+    function collectDocumentCombosRaw(documentRef, currentArtboardOnly, includeHidden, includeLocked) {
         var comboOrder = [], comboData = {}, comboRows = [];
         var TAB = String.fromCharCode(9), LF = String.fromCharCode(10);
-        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
-        var textFrames = activeDocument.textFrames;
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(documentRef) : null;
+        var textFrames = documentRef.textFrames;
         for (var f = 0; f < textFrames.length; f++) {
             if (!includeHidden && !isItemVisible(textFrames[f])) continue;
             if (!includeLocked && !isItemUnlocked(textFrames[f])) continue;
@@ -1087,11 +1087,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     }
 
     /* 組み合わせ（または matchFontOnly ならフォントのみ）に一致する文字を含むテキストフレームを選択 / Select frames whose characters match the combo (or the font only when matchFontOnly). 戻り値: 選択したフレーム数 */
-    function selectFramesMatchingCombo(activeDocument, combo, currentArtboardOnly, includeHidden, includeLocked) {
+    function selectFramesMatchingCombo(documentRef, combo, currentArtboardOnly, includeHidden, includeLocked) {
         var matchFontOnly = combo.matchFontOnly ? true : false;
         var targetKey = matchFontOnly ? combo.psName : comboKey(combo);
-        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
-        var textFrames = activeDocument.textFrames;
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(documentRef) : null;
+        var textFrames = documentRef.textFrames;
         var matchedFrames = [];
         for (var f = 0; f < textFrames.length; f++) {
             if (!includeHidden && !isItemVisible(textFrames[f])) continue;
@@ -1107,7 +1107,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         /* 一致0件のときは現在の選択を保持 / Keep the current selection when nothing matched */
         if (matchedFrames.length === 0) return 0;
         /* 配列を直接代入すれば既存選択を一括置換 / Assigning the array replaces the current selection */
-        activeDocument.selection = matchedFrames;
+        documentRef.selection = matchedFrames;
         return matchedFrames.length;
     }
 
@@ -1462,7 +1462,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     /* カーニング method id を表示ラベルへ / Kerning method id to a display label */
     function usedFontKernLabel(kernMethodId) {
         var labelEntry = LABELS.autoKern[kernMethodId];
-        return labelEntry ? getLocalizedText(labelEntry) : "—";
+        return labelEntry ? getLabel(labelEntry) : "—";
     }
 
     /* 各列のセル文字列を組み立て / Build the per-column cell strings
@@ -1471,7 +1471,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var countText = isNaN(combo.count) ? "?" : String(combo.count);
         var sizeText = formatNumber(combo.size) + "pt";
         var leadingText = combo.autoLeading
-            ? getLocalizedText(LABELS.usedFonts.autoLeading)
+            ? getLabel(LABELS.usedFonts.autoLeading)
             : formatNumber(combo.leading) + "pt";
         var tsumeText = String(Math.round(combo.tsume));
         var trackingText = isNaN(combo.tracking) ? "?" : String(Math.round(combo.tracking));
@@ -1577,7 +1577,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
     /* タブを1枚追加して共通の体裁（縦積み・上左マージン15）を適用 / Add one tab with the shared layout (column, 15px top/left margins) */
     function addTab(mainTabs, labelEntry) {
-        var tab = mainTabs.add("tab", undefined, getLocalizedText(labelEntry));
+        var tab = mainTabs.add("tab", undefined, getLabel(labelEntry));
         tab.orientation = "column";
         tab.alignChildren = ["fill", "top"];
         tab.margins.top = 15; // タブ内上部にマージン / Top margin inside the tab
@@ -1665,23 +1665,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     /* 文字組みアキ量設定の選択肢（index は mojikumiSet のインデックス、-1=なし）
        Mojikumi choices (index is the mojikumiSet index; -1 = None) */
     var MOJIKUMI_CHOICES = [
-        { index: -1, label: getLocalizedText(LABELS.mojikumi.none) },
-        { index: 0, label: getLocalizedText(LABELS.mojikumi.lineEndFullHalf) },
-        { index: 1, label: getLocalizedText(LABELS.mojikumi.punctHalf) },
-        { index: 2, label: getLocalizedText(LABELS.mojikumi.lineEndHalf) },
-        { index: 3, label: getLocalizedText(LABELS.mojikumi.lineEndFull) },
-        { index: 4, label: getLocalizedText(LABELS.mojikumi.punctFull) },
-        { index: 5, label: getLocalizedText(LABELS.mojikumi.tight) },
-        { index: 6, label: getLocalizedText(LABELS.mojikumi.solid) }
+        { index: -1, label: getLabel(LABELS.mojikumi.none) },
+        { index: 0, label: getLabel(LABELS.mojikumi.lineEndFullHalf) },
+        { index: 1, label: getLabel(LABELS.mojikumi.punctHalf) },
+        { index: 2, label: getLabel(LABELS.mojikumi.lineEndHalf) },
+        { index: 3, label: getLabel(LABELS.mojikumi.lineEndFull) },
+        { index: 4, label: getLabel(LABELS.mojikumi.punctFull) },
+        { index: 5, label: getLabel(LABELS.mojikumi.tight) },
+        { index: 6, label: getLabel(LABELS.mojikumi.solid) }
     ];
 
     /* 禁則の選択肢（id は paragraphAttributes.kinsoku に渡す値）
        Kinsoku choices (id is the value passed to paragraphAttributes.kinsoku) */
     var KINSOKU_CHOICES = [
-        { id: "None", label: getLocalizedText(LABELS.kinsoku.none) },
-        { id: "Hard", label: getLocalizedText(LABELS.kinsoku.hard) },
-        { id: "Soft", label: getLocalizedText(LABELS.kinsoku.soft) },
-        { id: "Soft_v2", label: getLocalizedText(LABELS.kinsoku.softV2) }
+        { id: "None", label: getLabel(LABELS.kinsoku.none) },
+        { id: "Hard", label: getLabel(LABELS.kinsoku.hard) },
+        { id: "Soft", label: getLabel(LABELS.kinsoku.soft) },
+        { id: "Soft_v2", label: getLabel(LABELS.kinsoku.softV2) }
     ];
 
     /* edittext を ↑↓ キーで増減（Shift=10 / Alt=0.1）/ Step an edittext value with Up/Down keys (Shift=10, Alt=0.1) */
@@ -1716,8 +1716,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
     /* 行送りの基準の選択肢 / Leading-basis choices */
     function getLeadingTypeChoices() {
         return [
-            { id: "top", label: getLocalizedText(LABELS.leading.typeTop) },
-            { id: "baseline", label: getLocalizedText(LABELS.leading.typeBaseline) }
+            { id: "top", label: getLabel(LABELS.leading.typeTop) },
+            { id: "baseline", label: getLabel(LABELS.leading.typeBaseline) }
         ];
     }
 
@@ -2098,14 +2098,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
        Build the used-fonts tab contents and return refs (ported from DocumentFontListSelector) */
     function buildUsedFontsTab(usedFontsTab) {
         var usedFontColumnTitles = [
-            getLocalizedText(LABELS.usedFonts.column.count),
-            getLocalizedText(LABELS.usedFonts.column.font),
-            getLocalizedText(LABELS.usedFonts.column.size),
-            getLocalizedText(LABELS.usedFonts.column.leading),
-            getLocalizedText(LABELS.usedFonts.column.kern),
-            getLocalizedText(LABELS.usedFonts.column.tsume),
-            getLocalizedText(LABELS.usedFonts.column.tracking),
-            getLocalizedText(LABELS.usedFonts.column.propMetrics)
+            getLabel(LABELS.usedFonts.column.count),
+            getLabel(LABELS.usedFonts.column.font),
+            getLabel(LABELS.usedFonts.column.size),
+            getLabel(LABELS.usedFonts.column.leading),
+            getLabel(LABELS.usedFonts.column.kern),
+            getLabel(LABELS.usedFonts.column.tsume),
+            getLabel(LABELS.usedFonts.column.tracking),
+            getLabel(LABELS.usedFonts.column.propMetrics)
         ];
         var usedFontColumnWidths = [30, 88, 34, 40, 48, 36, 36, 38]; // 合計350px（パレット幅を抑えるため圧縮）/ Sums to 350px (compressed to keep the palette narrow)
 
@@ -2115,8 +2115,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         viewModeRow.alignment = ["left", "top"];
         viewModeRow.spacing = 12;
         viewModeRow.margins = [0, 0, 0, 6];
-        var fontOnlyRadio = viewModeRow.add("radiobutton", undefined, getLocalizedText(LABELS.usedFonts.view.fontOnly));
-        var detailedRadio = viewModeRow.add("radiobutton", undefined, getLocalizedText(LABELS.usedFonts.view.detailed));
+        var fontOnlyRadio = viewModeRow.add("radiobutton", undefined, getLabel(LABELS.usedFonts.view.fontOnly));
+        var detailedRadio = viewModeRow.add("radiobutton", undefined, getLabel(LABELS.usedFonts.view.detailed));
         fontOnlyRadio.value = true; // 既定はフォントのみ（フォント適用を手早く）/ Default: font-only (quick font apply)
 
         // 走査オプションのチェックボックスは「フィルター」パネルとしてタブ最下部に配置（下記）
@@ -2158,15 +2158,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         usedFontButtonRow.alignment = ["fill", "top"];
         usedFontButtonRow.margins = [0, 10, 0, 10]; // リストとボタンの間隔 / Gap above the buttons
 
-        var refreshCombosButton = usedFontButtonRow.add("button", undefined, getLocalizedText(LABELS.usedFonts.button.refresh));
+        var refreshCombosButton = usedFontButtonRow.add("button", undefined, getLabel(LABELS.usedFonts.button.refresh));
         refreshCombosButton.alignment = ["right", "center"];
-        var selectMatchingButton = usedFontButtonRow.add("button", undefined, getLocalizedText(LABELS.usedFonts.button.selectMatching));
+        var selectMatchingButton = usedFontButtonRow.add("button", undefined, getLabel(LABELS.usedFonts.button.selectMatching));
         selectMatchingButton.alignment = ["right", "center"];
         // 高さは表示後に trimButtonHeight でまとめて詰める / Heights are trimmed together after show via trimButtonHeight
 
         // フィルター：走査オプションのチェックボックスをまとめてタブ最下部に配置
         // Filter: scan-option checkboxes grouped in a titled panel at the bottom of the tab
-        var filterPanel = usedFontsTab.add("panel", undefined, getLocalizedText(LABELS.field.filter));
+        var filterPanel = usedFontsTab.add("panel", undefined, getLabel(LABELS.field.filter));
         setupPanel(filterPanel, 4);
         filterPanel.alignChildren = ["left", "top"];
         filterPanel.alignment = ["fill", "top"];
@@ -2181,7 +2181,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var scanCheckboxes = {};
         for (var cbIndex = 0; cbIndex < checkboxSpecs.length; cbIndex++) {
             var cbSpec = checkboxSpecs[cbIndex];
-            var scanCheckbox = filterPanel.add("checkbox", undefined, getLocalizedText(cbSpec.label));
+            var scanCheckbox = filterPanel.add("checkbox", undefined, getLabel(cbSpec.label));
             scanCheckbox.value = cbSpec.initial;
             scanCheckboxes[cbSpec.key] = scanCheckbox;
         }
@@ -2215,8 +2215,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         presetViewRow.orientation = "row";
         presetViewRow.alignment = ["left", "top"];
         presetViewRow.spacing = 12;
-        var presetFontOnlyRadio = presetViewRow.add("radiobutton", undefined, getLocalizedText(LABELS.usedFonts.view.fontOnly));
-        var presetDetailedRadio = presetViewRow.add("radiobutton", undefined, getLocalizedText(LABELS.usedFonts.view.detailed));
+        var presetFontOnlyRadio = presetViewRow.add("radiobutton", undefined, getLabel(LABELS.usedFonts.view.fontOnly));
+        var presetDetailedRadio = presetViewRow.add("radiobutton", undefined, getLabel(LABELS.usedFonts.view.detailed));
         presetFontOnlyRadio.value = true; // 既定はフォントのみ / Default: font-only
 
         // 2つの listbox を stack で重ねる（フォントのみ＝単一列／詳細＝5列）。高さは最大値なので伸びない
@@ -2229,7 +2229,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         // フォントのみ：単一列 / Font-only: single column
         var presetFontOnlyListBox = presetListHost.add("listbox", undefined, [], { multiselect: false });
         presetFontOnlyListBox.preferredSize = [300, 350];
-        presetFontOnlyListBox.helpTip = getLocalizedText(LABELS.tip.presets);
+        presetFontOnlyListBox.helpTip = getLabel(LABELS.tip.presets);
 
         // 詳細：フォント／自動カーニング／文字ツメ／プロポーショナル／トラッキング
         // Detailed: font / auto-kerning / Tsume / proportional / tracking
@@ -2238,16 +2238,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             numberOfColumns: 5,
             showHeaders: true,
             columnTitles: [
-                getLocalizedText(LABELS.usedFonts.column.font),
-                getLocalizedText(LABELS.usedFonts.column.kern),
-                getLocalizedText(LABELS.usedFonts.column.tsume),
-                getLocalizedText(LABELS.usedFonts.column.propMetrics),
-                getLocalizedText(LABELS.usedFonts.column.tracking)
+                getLabel(LABELS.usedFonts.column.font),
+                getLabel(LABELS.usedFonts.column.kern),
+                getLabel(LABELS.usedFonts.column.tsume),
+                getLabel(LABELS.usedFonts.column.propMetrics),
+                getLabel(LABELS.usedFonts.column.tracking)
             ],
             columnWidths: [128, 66, 44, 46, 44]
         });
         presetDetailedListBox.preferredSize = [300, 350];
-        presetDetailedListBox.helpTip = getLocalizedText(LABELS.tip.presets);
+        presetDetailedListBox.helpTip = getLabel(LABELS.tip.presets);
         presetDetailedListBox.visible = false; // 既定はフォントのみ / Default: font-only
 
         fillPresetLists(presetFontOnlyListBox, presetDetailedListBox, loadPresets());
@@ -2260,26 +2260,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         presetButtonRow.margins = [0, 5, 0, 0]; // ボタン行の上に余白 / Extra top margin above the button row
 
         // 左：書き出し / Left: export
-        var exportPresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.exportPreset));
+        var exportPresetButton = presetButtonRow.add("button", undefined, getLabel(LABELS.button.exportPreset));
         exportPresetButton.alignment = ["left", "center"];
-        exportPresetButton.helpTip = getLocalizedText(LABELS.tip.exportPreset);
+        exportPresetButton.helpTip = getLabel(LABELS.tip.exportPreset);
 
         // 中央：スペーサー（余白を吸って左右に振り分ける）/ Center: spacer (absorbs slack to split left/right)
         var presetButtonSpacer = presetButtonRow.add("statictext", undefined, "");
         presetButtonSpacer.alignment = ["fill", "center"];
 
         // 右：削除・上書き・追加 / Right: delete, overwrite, add
-        var deletePresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.deletePreset));
+        var deletePresetButton = presetButtonRow.add("button", undefined, getLabel(LABELS.button.deletePreset));
         deletePresetButton.alignment = ["right", "center"];
-        deletePresetButton.helpTip = getLocalizedText(LABELS.tip.deletePreset);
+        deletePresetButton.helpTip = getLabel(LABELS.tip.deletePreset);
 
-        var overwritePresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.overwritePreset));
+        var overwritePresetButton = presetButtonRow.add("button", undefined, getLabel(LABELS.button.overwritePreset));
         overwritePresetButton.alignment = ["right", "center"];
-        overwritePresetButton.helpTip = getLocalizedText(LABELS.tip.overwritePreset);
+        overwritePresetButton.helpTip = getLabel(LABELS.tip.overwritePreset);
 
-        var addPresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.addPreset));
+        var addPresetButton = presetButtonRow.add("button", undefined, getLabel(LABELS.button.addPreset));
         addPresetButton.alignment = ["right", "center"];
-        addPresetButton.helpTip = getLocalizedText(LABELS.tip.addPreset);
+        addPresetButton.helpTip = getLabel(LABELS.tip.addPreset);
 
         // 高さは表示後に trimButtonHeight でまとめて詰める / Heights are trimmed together after show via trimButtonHeight
 
@@ -2325,7 +2325,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         ];
         var policyRadios = [];
         for (var policyIndex = 0; policyIndex < POLICY_PRESETS.length; policyIndex++) {
-            var policyRadio = policyRow.add("radiobutton", undefined, getLocalizedText(POLICY_PRESETS[policyIndex].label));
+            var policyRadio = policyRow.add("radiobutton", undefined, getLabel(POLICY_PRESETS[policyIndex].label));
             policyRadio.policyPreset = POLICY_PRESETS[policyIndex];
             policyRadios.push(policyRadio);
         }
@@ -2341,9 +2341,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         roleRow.orientation = "row";
         roleRow.spacing = 16;
         roleRow.alignment = ["center", "center"]; // 上下左右中央 / Centered
-        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.body));
-        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.heading));
-        rolePanel.helpTip = getLocalizedText(LABELS.tip.role);
+        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLabel(LABELS.role.body));
+        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLabel(LABELS.role.heading));
+        rolePanel.helpTip = getLabel(LABELS.tip.role);
         roleBodyRadio.helpTip = rolePanel.helpTip;
         roleHeadingRadio.helpTip = rolePanel.helpTip;
 
@@ -2361,17 +2361,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var footerGroup = palette.add("group");
         footerGroup.orientation = "row";
         footerGroup.alignment = "fill";
-        var hiddenCharButton = footerGroup.add("button", undefined, getLocalizedText(LABELS.button.hiddenChar));
+        var hiddenCharButton = footerGroup.add("button", undefined, getLabel(LABELS.button.hiddenChar));
         hiddenCharButton.alignment = ["left", "center"];
-        hiddenCharButton.helpTip = getLocalizedText(LABELS.tip.hiddenChar);
+        hiddenCharButton.helpTip = getLabel(LABELS.tip.hiddenChar);
         var footerSpacer = footerGroup.add("statictext", undefined, "");
         footerSpacer.alignment = ["fill", "center"];
-        var resetButton = footerGroup.add("button", undefined, getLocalizedText(LABELS.button.reset));
+        var resetButton = footerGroup.add("button", undefined, getLabel(LABELS.button.reset));
         resetButton.alignment = ["right", "center"];
-        resetButton.helpTip = getLocalizedText(LABELS.tip.reset);
-        var reloadButton = footerGroup.add("button", undefined, getLocalizedText(LABELS.button.reload));
+        resetButton.helpTip = getLabel(LABELS.tip.reset);
+        var reloadButton = footerGroup.add("button", undefined, getLabel(LABELS.button.reload));
         reloadButton.alignment = ["right", "center"];
-        reloadButton.helpTip = getLocalizedText(LABELS.tip.reload);
+        reloadButton.helpTip = getLabel(LABELS.tip.reload);
 
         return {
             hiddenCharButton: hiddenCharButton,
@@ -2390,14 +2390,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
         // フォントサイズ（サイズ）は行送りパネルへ移動 / Font size (size) has moved to the leading panel
 
-        var autoKernPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.autoKern));
+        var autoKernPanel = characterColumn.add("panel", undefined, getLabel(LABELS.field.autoKern));
         setupPanel(autoKernPanel, 6); // spacing は行送りのラジオと同じ / Same row spacing as the leading radios
         autoKernPanel.alignChildren = ["left", "top"];
-        autoKernPanel.helpTip = getLocalizedText(LABELS.tip.autoKern);
+        autoKernPanel.helpTip = getLabel(LABELS.tip.autoKern);
 
         var kernRadios = [];
         for (var i = 0; i < autoKernOptions.length; i++) {
-            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLocalizedText(autoKernOptions[i].label));
+            var kernRadio = autoKernPanel.add("radiobutton", undefined, getLabel(autoKernOptions[i].label));
             kernRadio.value = false;
             kernRadio.index = i;
             kernRadios.push(kernRadio);
@@ -2405,11 +2405,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
         // 字間調整（文字ツメ・トラッキング）：各行「ラベル：［入力］」＋スライダー
         // Letter spacing (Tsume / Tracking): each row "label: [input]" then a slider
-        var spacingPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.spacingAdjust));
+        var spacingPanel = characterColumn.add("panel", undefined, getLabel(LABELS.field.spacingAdjust));
         setupPanel(spacingPanel, 6);
 
         // 一番上：プロポーショナルメトリクス / Top: Proportional metrics checkbox
-        var proportionalMetricsCheck = spacingPanel.add("checkbox", undefined, getLocalizedText(LABELS.field.proportionalMetrics));
+        var proportionalMetricsCheck = spacingPanel.add("checkbox", undefined, getLabel(LABELS.field.proportionalMetrics));
         proportionalMetricsCheck.value = false;
 
         var tsumeRow = spacingPanel.add("group");
@@ -2417,7 +2417,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         tsumeRow.add("statictext", undefined, labelText(LABELS.field.tsume));
         var tsumeInput = tsumeRow.add("edittext", undefined, "0");
         tsumeInput.characters = 3;
-        tsumeInput.helpTip = getLocalizedText(LABELS.tip.tsume);
+        tsumeInput.helpTip = getLabel(LABELS.tip.tsume);
         tsumeRow.add("statictext", undefined, "%");
         var tsumeSlider = spacingPanel.add("slider", undefined, 0, 0, 100);
 
@@ -2430,24 +2430,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         trackingRow.add("statictext", undefined, labelText(LABELS.field.tracking));
         var trackingInput = trackingRow.add("edittext", undefined, "0");
         trackingInput.characters = 3;
-        trackingInput.helpTip = getLocalizedText(LABELS.tip.tracking);
+        trackingInput.helpTip = getLabel(LABELS.tip.tracking);
         var trackingSlider = spacingPanel.add("slider", undefined, 0, -100, 500);
 
         // 文字揃え（縦方向）：行揃えと位置を入れ替えて中央カラムの末尾に配置
         // Char alignment (vertical): swapped with justification, placed at the end of the center column
-        var alignPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
+        var alignPanel = characterColumn.add("panel", undefined, getLabel(LABELS.field.align));
         setupPanel(alignPanel, 6);
         alignPanel.alignChildren = ["left", "top"];
-        alignPanel.helpTip = getLocalizedText(LABELS.tip.align);
+        alignPanel.helpTip = getLabel(LABELS.tip.align);
 
         // 3つのラジオ：欧文ベースライン／中央／その他（その他は残りをポップアップで指定）
         // Three radios: Roman baseline / Center / Other (Other picks the rest from a popup)
         // ラジオは alignId で排他制御（親が異なるため selectAlignRadio で手動切替）
         var alignRadios = [];
-        var alignRomanRadio = alignPanel.add("radiobutton", undefined, getLocalizedText(LABELS.align.roman));
+        var alignRomanRadio = alignPanel.add("radiobutton", undefined, getLabel(LABELS.align.roman));
         alignRomanRadio.alignId = "roman";
         alignRadios.push(alignRomanRadio);
-        var alignCenterRadio = alignPanel.add("radiobutton", undefined, getLocalizedText(LABELS.align.center));
+        var alignCenterRadio = alignPanel.add("radiobutton", undefined, getLabel(LABELS.align.center));
         alignCenterRadio.alignId = "center";
         alignRadios.push(alignCenterRadio);
 
@@ -2467,7 +2467,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         ];
         var alignOtherDropdown = alignOtherRow.add("dropdownlist", undefined, []);
         for (var optionIndex = 0; optionIndex < alignOtherOptions.length; optionIndex++) {
-            alignOtherDropdown.add("item", getLocalizedText(alignOtherOptions[optionIndex].label));
+            alignOtherDropdown.add("item", getLabel(alignOtherOptions[optionIndex].label));
         }
         alignOtherDropdown.selection = 0;
         alignOtherDropdown.preferredSize.width = 124; // 少し狭く / A bit narrower
@@ -2499,10 +2499,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
         // 行送り：常に自動行送り。サイズ・実質（pt）・行送り（%）の3入力を1パネルに。右カラムの先頭に配置
         // Leading: always auto. Size, effective (pt), and leading (%) in one panel, at the top of the right column
-        var leadingPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.sizeAndLeading));
+        var leadingPanel = paragraphColumn.add("panel", undefined, getLabel(LABELS.field.sizeAndLeading));
         setupPanel(leadingPanel, 6);
         leadingPanel.alignChildren = "left";
-        leadingPanel.helpTip = getLocalizedText(LABELS.tip.leading);
+        leadingPanel.helpTip = getLabel(LABELS.tip.leading);
 
         var leadColon = currentLanguage === "ja" ? "：" : ": ";
         var leadTextUnit = getTextUnit();
@@ -2511,32 +2511,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var leadSizeRow = leadingPanel.add("group");
         leadSizeRow.orientation = "row";
         leadSizeRow.alignChildren = ["left", "center"];
-        var leadSizeLabel = leadSizeRow.add("statictext", undefined, getLocalizedText(LABELS.field.fontSize) + leadColon);
+        var leadSizeLabel = leadSizeRow.add("statictext", undefined, getLabel(LABELS.field.fontSize) + leadColon);
         var fontSizeInput = leadSizeRow.add("edittext", undefined, "");
         fontSizeInput.characters = 3;
         leadSizeRow.add("statictext", undefined, leadTextUnit.label);
-        leadSizeLabel.helpTip = getLocalizedText(LABELS.tip.fontSize); fontSizeInput.helpTip = leadSizeLabel.helpTip;
+        leadSizeLabel.helpTip = getLabel(LABELS.tip.fontSize); fontSizeInput.helpTip = leadSizeLabel.helpTip;
 
         // 実質（フォントサイズ×行送り% の結果。ここに入力すると % を逆算）/ Effective leading (size × %); entering a value back-calculates the %
         var leadEffectiveRow = leadingPanel.add("group");
         leadEffectiveRow.orientation = "row";
         leadEffectiveRow.alignChildren = ["left", "center"];
-        var leadEffectiveLabel = leadEffectiveRow.add("statictext", undefined, getLocalizedText(LABELS.field.leading) + leadColon);
+        var leadEffectiveLabel = leadEffectiveRow.add("statictext", undefined, getLabel(LABELS.field.leading) + leadColon);
         var leadingEffectiveInput = leadEffectiveRow.add("edittext", undefined, "");
         leadingEffectiveInput.characters = 3;
         // 実質は行送りなので Q/H 環境では単位「H」/ Effective is a leading value, so use "H" when the unit is Q/H
         leadEffectiveRow.add("statictext", undefined, getLeadingUnitLabel(leadTextUnit.code));
-        leadEffectiveLabel.helpTip = getLocalizedText(LABELS.tip.leadingEffective); leadingEffectiveInput.helpTip = leadEffectiveLabel.helpTip;
+        leadEffectiveLabel.helpTip = getLabel(LABELS.tip.leadingEffective); leadingEffectiveInput.helpTip = leadEffectiveLabel.helpTip;
 
         // 行送り（自動行送り量 %）/ Leading (auto-leading amount %)
         var leadPercentRow = leadingPanel.add("group");
         leadPercentRow.orientation = "row";
         leadPercentRow.alignChildren = ["left", "center"];
-        var leadPercentLabel = leadPercentRow.add("statictext", undefined, getLocalizedText(LABELS.field.leadingPercent) + leadColon);
+        var leadPercentLabel = leadPercentRow.add("statictext", undefined, getLabel(LABELS.field.leadingPercent) + leadColon);
         var leadingPercentInput = leadPercentRow.add("edittext", undefined, "");
         leadingPercentInput.characters = 3;
         leadPercentRow.add("statictext", undefined, "%");
-        leadPercentLabel.helpTip = getLocalizedText(LABELS.tip.leading); leadingPercentInput.helpTip = leadPercentLabel.helpTip;
+        leadPercentLabel.helpTip = getLabel(LABELS.tip.leading); leadingPercentInput.helpTip = leadPercentLabel.helpTip;
 
         // ラベル幅を揃える / Unify label widths
         var leadLabelWidth = 65;
@@ -2545,10 +2545,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         leadPercentLabel.preferredSize.width = leadLabelWidth;
 
         // 行送りの基準：独立したタイトル付きパネル（行送りパネルの外）/ Leading basis: its own titled panel (outside the leading panel)
-        var leadingBasisPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.leadingType));
+        var leadingBasisPanel = paragraphColumn.add("panel", undefined, getLabel(LABELS.field.leadingType));
         setupPanel(leadingBasisPanel, 6);
         leadingBasisPanel.alignChildren = "left";
-        leadingBasisPanel.helpTip = getLocalizedText(LABELS.tip.leadingType);
+        leadingBasisPanel.helpTip = getLabel(LABELS.tip.leadingType);
         var leadingBasisRadios = [];
         for (var basisIndex = 0; basisIndex < leadingBasisChoices.length; basisIndex++) {
             var leadingBasisRadio = leadingBasisPanel.add("radiobutton", undefined, leadingBasisChoices[basisIndex].label);
@@ -2558,11 +2558,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         leadingBasisRadios[0].value = true;
 
         // 行揃え：行送り・基準の下に配置 / Justification: placed below leading and its basis
-        var justifyPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
+        var justifyPanel = paragraphColumn.add("panel", undefined, getLabel(LABELS.field.justify));
         setupPanel(justifyPanel, 5);
         justifyPanel.orientation = "row";
         justifyPanel.alignChildren = ["center", "center"]; // ボタン列を左右中央に / Center the button row horizontally
-        justifyPanel.helpTip = getLocalizedText(LABELS.tip.justify);
+        justifyPanel.helpTip = getLabel(LABELS.tip.justify);
 
         // アクティブな行揃え id と UI 明暗を共有（onDraw のクロージャから参照）/ Shared active id + theme (read by onDraw closures)
         var justifyState = { activeId: "", isLight: isLightUI() };
@@ -2570,7 +2570,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         for (var buttonIndex = 0; buttonIndex < justifyOptions.length; buttonIndex++) {
             var justifyOption = justifyOptions[buttonIndex];
             var justifyButton = justifyPanel.add("button", undefined, "");
-            justifyButton.helpTip = getLocalizedText(justifyOption.label);
+            justifyButton.helpTip = getLabel(justifyOption.label);
             justifyButton.preferredSize = [26, 26];
             justifyButton.minimumSize = [26, 26];
             justifyButton.maximumSize = [26, 26];
@@ -2582,13 +2582,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
         // 日本語組版：禁則＋文字組みアキ量設定を1枚にまとめ、各見出しはラベルとして表示
         // Japanese typography: Kinsoku + Mojikumi in one panel; each sub-heading is shown as a label
-        var jpPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.jpComposition));
+        var jpPanel = paragraphColumn.add("panel", undefined, getLabel(LABELS.field.jpComposition));
         setupPanel(jpPanel, 5);
         jpPanel.alignChildren = "fill";
 
         // 禁則（ラベル＋ポップアップ）/ Kinsoku (label + popup)
         var kinsokuHeading = jpPanel.add("statictext", undefined, labelText(LABELS.field.kinsoku));
-        kinsokuHeading.helpTip = getLocalizedText(LABELS.tip.kinsoku);
+        kinsokuHeading.helpTip = getLabel(LABELS.tip.kinsoku);
         var kinsokuItems = [];
         for (var kinsokuChoiceIndex = 0; kinsokuChoiceIndex < KINSOKU_CHOICES.length; kinsokuChoiceIndex++) kinsokuItems.push(KINSOKU_CHOICES[kinsokuChoiceIndex].label);
         var kinsokuDropdown = jpPanel.add("dropdownlist", undefined, kinsokuItems);
@@ -2603,7 +2603,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
         // 文字組みアキ量設定（ラベル＋ポップアップ）/ Mojikumi spacing set (label + popup)
         var mojikumiHeading = jpPanel.add("statictext", undefined, labelText(LABELS.field.mojikumi));
-        mojikumiHeading.helpTip = getLocalizedText(LABELS.tip.mojikumi);
+        mojikumiHeading.helpTip = getLabel(LABELS.tip.mojikumi);
         var mojikumiItems = [];
         for (var mojikumiChoiceIndex = 0; mojikumiChoiceIndex < MOJIKUMI_CHOICES.length; mojikumiChoiceIndex++) mojikumiItems.push(MOJIKUMI_CHOICES[mojikumiChoiceIndex].label);
         var mojikumiDropdown = jpPanel.add("dropdownlist", undefined, mojikumiItems);
@@ -2640,7 +2640,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         fontSizeColumn.alignChildren = ["fill", "top"];
         fontSizeColumn.spacing = 8;
 
-        var fontSizePanel = fontSizeColumn.add("panel", undefined, getLocalizedText(LABELS.field.fontSizePanel));
+        var fontSizePanel = fontSizeColumn.add("panel", undefined, getLabel(LABELS.field.fontSizePanel));
         setupPanel(fontSizePanel, 6);
         fontSizePanel.alignChildren = ["left", "top"];
         fontSizePanel.alignment = ["left", "top"]; // タブ幅いっぱいに広げず、内容幅に合わせる / Size to content instead of filling the tab width
@@ -2650,7 +2650,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var fsSizeRow = fontSizePanel.add("group");
         fsSizeRow.orientation = "row";
         fsSizeRow.alignChildren = ["left", "center"];
-        var fsSizeLabel = fsSizeRow.add("statictext", undefined, getLocalizedText(LABELS.field.fontSize) + sizeColon);
+        var fsSizeLabel = fsSizeRow.add("statictext", undefined, getLabel(LABELS.field.fontSize) + sizeColon);
         var fontSizeInput = fsSizeRow.add("edittext", undefined, "");
         fontSizeInput.characters = 4;
         fsSizeRow.add("statictext", undefined, textUnit.label);
@@ -2658,7 +2658,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         var fsScaleRow = fontSizePanel.add("group");
         fsScaleRow.orientation = "row";
         fsScaleRow.alignChildren = ["left", "center"];
-        var fsScaleLabel = fsScaleRow.add("statictext", undefined, getLocalizedText(LABELS.field.scale) + sizeColon);
+        var fsScaleLabel = fsScaleRow.add("statictext", undefined, getLabel(LABELS.field.scale) + sizeColon);
         var scaleInput = fsScaleRow.add("edittext", undefined, "100");
         scaleInput.characters = 4;
         fsScaleRow.add("statictext", undefined, "%");
@@ -2667,14 +2667,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         fsApparentRow.orientation = "row";
         fsApparentRow.alignChildren = ["left", "center"];
         fsApparentRow.margins = [0, 5, 0, 0]; // 「実質」行の上に余白 / Extra top margin above the "Effective" row
-        var fsApparentLabel = fsApparentRow.add("statictext", undefined, getLocalizedText(LABELS.field.apparent) + sizeColon);
+        var fsApparentLabel = fsApparentRow.add("statictext", undefined, getLabel(LABELS.field.apparent) + sizeColon);
         var apparentValueLabel = fsApparentRow.add("statictext", undefined, "--");
         apparentValueLabel.characters = 5;
         var fsApparentUnit = fsApparentRow.add("statictext", undefined, textUnit.label);
 
-        fsSizeLabel.helpTip = getLocalizedText(LABELS.tip.fontSize); fontSizeInput.helpTip = fsSizeLabel.helpTip;
-        fsScaleLabel.helpTip = getLocalizedText(LABELS.tip.scale); scaleInput.helpTip = fsScaleLabel.helpTip;
-        fsApparentLabel.helpTip = getLocalizedText(LABELS.tip.apparent); apparentValueLabel.helpTip = fsApparentLabel.helpTip;
+        fsSizeLabel.helpTip = getLabel(LABELS.tip.fontSize); fontSizeInput.helpTip = fsSizeLabel.helpTip;
+        fsScaleLabel.helpTip = getLabel(LABELS.tip.scale); scaleInput.helpTip = fsScaleLabel.helpTip;
+        fsApparentLabel.helpTip = getLabel(LABELS.tip.apparent); apparentValueLabel.helpTip = fsApparentLabel.helpTip;
 
         // ラベル幅を揃える / Unify label widths
         var fsLabelWidth = 55;
@@ -2688,8 +2688,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
         // 実サイズ↔見かけ：サイズ×比率を実サイズへ焼き込み比率100%に／もう一度で復元
         // Actual ↔ Apparent: bake size × scale into the actual size at 100%; press again to restore
-        var apparentToggleButton = fontSizePanel.add("button", undefined, getLocalizedText(LABELS.button.toApparent));
-        apparentToggleButton.helpTip = getLocalizedText(LABELS.tip.toApparent);
+        var apparentToggleButton = fontSizePanel.add("button", undefined, getLabel(LABELS.button.toApparent));
+        apparentToggleButton.helpTip = getLabel(LABELS.tip.toApparent);
         apparentToggleButton.alignment = "right";
         apparentToggleButton.preferredSize.width = 150;
         // 高さは trimButtonHeight でレイアウト確定後に詰める / Height is trimmed after layout via trimButtonHeight
@@ -2700,27 +2700,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         typeScaleColumn.alignChildren = ["fill", "top"];
         typeScaleColumn.spacing = 8;
 
-        var typeScalePanel = typeScaleColumn.add("panel", undefined, getLocalizedText(LABELS.field.typeScale));
+        var typeScalePanel = typeScaleColumn.add("panel", undefined, getLabel(LABELS.field.typeScale));
         setupPanel(typeScalePanel, 6);
         typeScalePanel.alignChildren = ["left", "top"];
-        typeScalePanel.helpTip = getLocalizedText(LABELS.tip.typeScale);
+        typeScalePanel.helpTip = getLabel(LABELS.tip.typeScale);
 
         // 基準サイズ入力 / Base size input
         var tsBaseRow = typeScalePanel.add("group");
         tsBaseRow.orientation = "row";
         tsBaseRow.alignChildren = ["left", "center"];
-        var tsBaseLabel = tsBaseRow.add("statictext", undefined, getLocalizedText(LABELS.field.typeScaleBase) + sizeColon);
+        var tsBaseLabel = tsBaseRow.add("statictext", undefined, getLabel(LABELS.field.typeScaleBase) + sizeColon);
         var typeScaleBaseInput = tsBaseRow.add("edittext", undefined, "");
         typeScaleBaseInput.characters = 4;
         tsBaseRow.add("statictext", undefined, textUnit.label);
-        tsBaseLabel.helpTip = getLocalizedText(LABELS.tip.typeScaleBase); typeScaleBaseInput.helpTip = tsBaseLabel.helpTip;
+        tsBaseLabel.helpTip = getLabel(LABELS.tip.typeScaleBase); typeScaleBaseInput.helpTip = tsBaseLabel.helpTip;
 
         // 倍率ポップアップ / Ratio popup
         var ratioLabels = [];
         for (var ri = 0; ri < TYPE_SCALE_RATIOS.length; ri++) ratioLabels.push(TYPE_SCALE_RATIOS[ri].label);
         var typeScaleRatioPopup = typeScalePanel.add("dropdownlist", undefined, ratioLabels);
         typeScaleRatioPopup.selection = TYPE_SCALE_DEFAULT_RATIO_INDEX;
-        typeScaleRatioPopup.helpTip = getLocalizedText(LABELS.tip.typeScaleRatio);
+        typeScaleRatioPopup.helpTip = getLabel(LABELS.tip.typeScaleRatio);
         typeScaleRatioPopup.preferredSize.width = 180;
 
         // サイズ一覧（段番号＋サイズの2カラム）/ Size list (step number + size, 2 columns)
@@ -2728,7 +2728,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             multiselect: false,
             numberOfColumns: 2,
             showHeaders: true,
-            columnTitles: [getLocalizedText(LABELS.field.typeScaleStep), getLocalizedText(LABELS.field.fontSize)],
+            columnTitles: [getLabel(LABELS.field.typeScaleStep), getLabel(LABELS.field.fontSize)],
             columnWidths: [40, 130]
         });
         typeScaleList.preferredSize = [180, 160];
@@ -2765,7 +2765,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
 
     /* パレットを組み立てて参照を返す（イベント未接続）/ Build the palette and return references (events not wired yet) */
     function createPaletteUI(autoKernOptions, alignOptions, justifyOptions) {
-        var palette = new Window("palette", getLocalizedText(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var palette = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         palette.alignChildren = "fill";
 
         var textUnit = getTextUnit();
@@ -2929,7 +2929,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
            Surface an important-op failure via an alert (don't swallow it; show which action failed and why) */
         function showWorkerError(actionId, payload) {
             var detail = payload ? (": " + String(payload)) : "";
-            try { alert("⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail); } catch (e) { }
+            try { alert("⚠ " + getLabel(LABELS.msg.applyError) + " [" + actionId + "]" + detail); } catch (e) { }
         }
 
         // 委譲する共通処理（連打抑止）/ Delegate an apply action (guarded against overlap)
@@ -3041,7 +3041,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         ui.exportPresetButton.onClick = function () {
             var presets = loadPresets();
             var defaultFile = File(Folder.desktop.fsName + "/UnifiedTypePanel_presets.json");
-            var saveFile = defaultFile.saveDlg(getLocalizedText(LABELS.tip.exportPreset), "JSON:*.json");
+            var saveFile = defaultFile.saveDlg(getLabel(LABELS.tip.exportPreset), "JSON:*.json");
             if (!saveFile) return; // キャンセル / Cancelled
             try {
                 saveFile.encoding = "UTF-8";
@@ -3051,7 +3051,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
                 }
             } catch (e) {
                 try { saveFile.close(); } catch (eClose) { }
-                alert(getLocalizedText(LABELS.msg.applyError) + "\n" + e);
+                alert(getLabel(LABELS.msg.applyError) + "\n" + e);
             }
         };
 
@@ -3631,7 +3631,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             runWorker("applyCombo", comboToParams(combo), function (status, payload) {
                 comboApplyInProgress = false;
                 // 選択が無いときだけ警告 / Warn only when nothing was selected
-                if (status === "ok" && payload === "nosel") alert(getLocalizedText(LABELS.usedFonts.status.needSelection));
+                if (status === "ok" && payload === "nosel") alert(getLabel(LABELS.usedFonts.status.needSelection));
             });
         };
 
@@ -3683,10 +3683,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         ui.selectMatchingButton.onClick = function () {
             var matchingParams;
             if (isFontOnlyView()) {
-                if (!ui.fontOnlyListBox.selection || !ui.fontOnlyListBox.selection.psName) { alert(getLocalizedText(LABELS.usedFonts.status.needCondition)); return; }
+                if (!ui.fontOnlyListBox.selection || !ui.fontOnlyListBox.selection.psName) { alert(getLabel(LABELS.usedFonts.status.needCondition)); return; }
                 matchingParams = { psName: ui.fontOnlyListBox.selection.psName, matchFontOnly: true };
             } else {
-                if (!ui.comboListBox.selection) { alert(getLocalizedText(LABELS.usedFonts.status.needCondition)); return; }
+                if (!ui.comboListBox.selection) { alert(getLabel(LABELS.usedFonts.status.needCondition)); return; }
                 var combo = currentCombos[ui.comboListBox.selection.comboIndex];
                 if (!combo) return;
                 matchingParams = comboToParams(combo);
@@ -3695,7 +3695,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             matchingParams.includeHidden = ui.includeHiddenCheckbox.value;
             matchingParams.includeLocked = ui.includeLockedCheckbox.value;
             runWorker("selectMatching", matchingParams, function (status, payload) {
-                if (status === "ok" && payload === "0") alert(getLocalizedText(LABELS.usedFonts.status.noMatch));
+                if (status === "ok" && payload === "0") alert(getLabel(LABELS.usedFonts.status.noMatch));
             });
         };
 

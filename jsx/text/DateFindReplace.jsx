@@ -1166,7 +1166,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         isPreviewApplied = false;
         previewOpCount = 0;
-        try { app.redraw(); } catch (eRedraw) { }
+        app.redraw();
     }
 
     /* プレビューを適用（呼び出し前に入力が有効であることを確認しておく） */
@@ -1174,7 +1174,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var result = performReplacement();
         previewOpCount = result.operations;
         isPreviewApplied = result.operations > 0;
-        try { app.redraw(); } catch (eRedraw) { }
+        app.redraw();
     }
 
     /* 入力やチェック変更時の自動更新（プレビュー ON 時のみ巻き戻し→再適用） */

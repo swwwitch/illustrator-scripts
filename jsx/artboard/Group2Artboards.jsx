@@ -39,7 +39,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -216,7 +216,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showDialog() {
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = [15, 20, 15, 10];
@@ -230,24 +230,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         controlGroup.margins = [15, 5, 15, 10];
         controlGroup.spacing = 10;
 
-        var previewBoundsCheck = controlGroup.add("checkbox", undefined, LABELS.previewBounds[lang]);
+        var previewBoundsCheck = controlGroup.add("checkbox", undefined, LABELS.previewBounds[uiLang]);
         previewBoundsCheck.value = true;
 
         var marginGroup = controlGroup.add("group");
         marginGroup.orientation = "row";
         marginGroup.alignChildren = "center";
-        marginGroup.add("statictext", undefined, LABELS.margin[lang]);
+        marginGroup.add("statictext", undefined, LABELS.margin[uiLang]);
         var marginInput = marginGroup.add("edittext", undefined, "0");
         marginInput.characters = 5;
         marginGroup.add("statictext", undefined, rulerUnit);
         changeValueByArrowKey(marginInput);
 
-        var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, LABELS.deleteArtboards[lang]);
+        var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, LABELS.deleteArtboards[uiLang]);
         deleteArtboardsCheck.value = true;
 
         /* アートボード名パネル / Artboard name panel */
         var namePanel = dialog.add("panel");
-        namePanel.text = LABELS.namePanel[lang];
+        namePanel.text = LABELS.namePanel[uiLang];
         namePanel.orientation = "row";
         namePanel.alignChildren = "center";
         namePanel.margins = [15, 25, 15, 10];
@@ -256,33 +256,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         nameGroup.orientation = "column";
         nameGroup.alignChildren = "left";
 
-        var useFileNameCheck = nameGroup.add("checkbox", undefined, LABELS.useFileName[lang]);
+        var useFileNameCheck = nameGroup.add("checkbox", undefined, LABELS.useFileName[uiLang]);
         useFileNameCheck.value = false;
 
         var prefixRow = nameGroup.add("group");
         prefixRow.orientation = "row";
         prefixRow.alignChildren = "center";
-        prefixRow.add("statictext", undefined, LABELS.prefix[lang]);
+        prefixRow.add("statictext", undefined, LABELS.prefix[uiLang]);
         var nameInput = prefixRow.add("edittext", undefined, "");
         nameInput.characters = 15;
 
         var symbolGroup = nameGroup.add("group");
         symbolGroup.orientation = "row";
         symbolGroup.alignChildren = "center";
-        symbolGroup.add("statictext", undefined, LABELS.symbol[lang]);
-        var radioDash = symbolGroup.add("radiobutton", undefined, LABELS.dash[lang]);
-        var radioUnderscore = symbolGroup.add("radiobutton", undefined, LABELS.underscore[lang]);
-        var radioNone = symbolGroup.add("radiobutton", undefined, LABELS.none[lang]);
+        symbolGroup.add("statictext", undefined, LABELS.symbol[uiLang]);
+        var radioDash = symbolGroup.add("radiobutton", undefined, LABELS.dash[uiLang]);
+        var radioUnderscore = symbolGroup.add("radiobutton", undefined, LABELS.underscore[uiLang]);
+        var radioNone = symbolGroup.add("radiobutton", undefined, LABELS.none[uiLang]);
         radioDash.value = true;
 
         var seqRow = nameGroup.add("group");
         seqRow.orientation = "row";
         seqRow.alignChildren = "center";
-        seqRow.add("statictext", undefined, LABELS.startNumber[lang]);
+        seqRow.add("statictext", undefined, LABELS.startNumber[uiLang]);
         var seqInput = seqRow.add("edittext", undefined, "01");
         seqInput.characters = 5;
         changeValueByArrowKey(seqInput);
-        var zeroPaddingCheck = seqRow.add("checkbox", undefined, LABELS.zeroPadding[lang]);
+        var zeroPaddingCheck = seqRow.add("checkbox", undefined, LABELS.zeroPadding[uiLang]);
         zeroPaddingCheck.value = true;
 
         var previewText = nameGroup.add("statictext", undefined, "");
@@ -301,7 +301,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var lastDot = docName.lastIndexOf(".");
                 fileNameNoExt = lastDot > 0 ? docName.substring(0, lastDot) : docName;
             }
-            previewText.text = LABELS.example[lang] + buildArtboardName(prefix, symbol, seq, zeroPadding, useFileNameCheck.value, fileNameNoExt, seq.length);
+            previewText.text = LABELS.example[uiLang] + buildArtboardName(prefix, symbol, seq, zeroPadding, useFileNameCheck.value, fileNameNoExt, seq.length);
         }
 
         /* イベント登録 / Register events */
@@ -318,8 +318,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
         buttonGroup.margins = [0, 10, 0, 10];
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], {
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[uiLang]);
+        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[uiLang], {
             name: "ok"
         });
 

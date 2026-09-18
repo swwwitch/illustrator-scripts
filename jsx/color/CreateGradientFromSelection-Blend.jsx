@@ -1,3 +1,4 @@
+#targetengine "CreateGradientFromSelectionEngine"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -34,14 +35,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    // Use a script-specific engine for session-persistent values (not across restarts)
-    #targetengine "CreateGradientFromSelectionEngine"
-    app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -87,8 +84,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     };
 
-    function L(key) {
-        try { return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key; } catch (e) { return key; }
+    function getLabel(key) {
+        try { return (LABELS[key] && LABELS[key][uiLang]) ? LABELS[key][uiLang] : key; } catch (e) { return key; }
     }
 
     // 縦並び時: グラデーション角度を90度にするアクションを実行 / If vertical: run action to set gradient angle to 90 degrees
@@ -282,33 +279,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         try {
-            var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
             dlg.orientation = 'column';
             dlg.alignChildren = ['fill', 'top'];
 
-            var pColor = dlg.add('panel', undefined, L('panelColor'));
+            var pColor = dlg.add('panel', undefined, getLabel('panelColor'));
             pColor.orientation = 'column';
             pColor.alignChildren = ['fill', 'top'];
             pColor.margins = [15, 20, 15, 10];
 
-            var cbGlobal = pColor.add('checkbox', undefined, L('globalColor'));
+            var cbGlobal = pColor.add('checkbox', undefined, getLabel('globalColor'));
             cbGlobal.value = opts.makeGlobal;
 
-            var cbGradient = pColor.add('checkbox', undefined, L('createGradient'));
+            var cbGradient = pColor.add('checkbox', undefined, getLabel('createGradient'));
             cbGradient.value = opts.makeGradient;
 
-            var pRect = dlg.add('panel', undefined, L('panelRect'));
+            var pRect = dlg.add('panel', undefined, getLabel('panelRect'));
             pRect.orientation = 'column';
             pRect.alignChildren = ['fill', 'top'];
             pRect.margins = [15, 20, 15, 10];
 
-            var cbRect = pRect.add('checkbox', undefined, L('createRect'));
+            var cbRect = pRect.add('checkbox', undefined, getLabel('createRect'));
             cbRect.value = opts.makeRect;
 
-            var cbSelSize = pRect.add('checkbox', undefined, L('useSelectionSize'));
+            var cbSelSize = pRect.add('checkbox', undefined, getLabel('useSelectionSize'));
             cbSelSize.value = opts.useSelectionSize;
 
-            var cbGStyle = pRect.add('checkbox', undefined, L('registerGraphicStyle'));
+            var cbGStyle = pRect.add('checkbox', undefined, getLabel('registerGraphicStyle'));
             cbGStyle.value = opts.registerGraphicStyle;
 
             function syncEnable() {
@@ -330,8 +327,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var btns = dlg.add('group');
             btns.alignment = 'right';
-            var cancelBtn = btns.add('button', undefined, L('cancel'), { name: 'cancel' });
-            var okBtn = btns.add('button', undefined, L('ok'), { name: 'ok' });
+            var cancelBtn = btns.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+            var okBtn = btns.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
             function persistFromUI() {
                 saveBool('makeGlobal', cbGlobal.value);

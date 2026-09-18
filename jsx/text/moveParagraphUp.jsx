@@ -55,7 +55,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     moveCurrentParagraphUp(selectedTextRange);
 })();
 
-
 /**
  * カーソルのある段落をひとつ上の段落と入れ替え、カーソル位置を追従させる。
  * @param {TextRange} selectedTextRange - 選択中のテキスト範囲（キャレットのみの場合を含む）
@@ -84,7 +83,6 @@ function moveCurrentParagraphUp(selectedTextRange) {
     restoreCursorPosition(paragraphs[paragraphIndex - 1], cursorOffsetInParagraph);
 }
 
-
 /**
  * 指定した文字オフセットを含む段落のインデックスを返す。
  * @param {Paragraphs} paragraphs - ストーリーの段落コレクション
@@ -97,7 +95,6 @@ function getParagraphIndexAtOffset(paragraphs, cursorOffset) {
     }
     return paragraphs.length - 1;
 }
-
 
 /**
  * 指定した段落を、ひとつ下の段落と入れ替える。
@@ -128,7 +125,6 @@ function swapWithNextParagraph(paragraphs, paragraphIndex) {
     /* Without a redraw the offsets read next may still be the pre-swap ones  */
     app.redraw();
 }
-
 
 /**
  * 入れ替え後の段落の中にキャレットを復帰させる。
@@ -162,7 +158,6 @@ function restoreCursorPosition(paragraph, offsetInParagraph) {
     app.paste();
     app.redraw();
 }
-
 
 /**
  * 段落区切りとして扱う文字かどうかを判定する。

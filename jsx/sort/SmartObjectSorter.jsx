@@ -64,7 +64,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         return { x: cx, y: cy };
     }
 
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
     var LABELS = {
         dirRandom: {
             ja: "ランダム",
@@ -455,7 +455,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         return start + (((f - s) / len) * curr);
     };
     // ファイル未オープンまたは選択なし時のエラーメッセージ
-    alert_fail = LABELS.alert_fail[lang];
+    alert_fail = LABELS.alert_fail[uiLang];
 
     var dialog, byGroup, alongGroup, directionGroup;
 
@@ -502,7 +502,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             return;
         }
         if (dirVal === 'r' && alongVal === 'z') {
-            alert(LABELS.alert_zorder_random[lang]);
+            alert(LABELS.alert_zorder_random[uiLang]);
             return;
         }
         var sortFunc;
@@ -629,23 +629,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         var createDialog = function() {
             var result = false;
             if (!app.activeDocument) {
-                alert(LABELS.alert_fail[lang]);
+                alert(LABELS.alert_fail[uiLang]);
                 return false;
             }
-            var doc = activeDocument;
-            var sel = doc.selection;
-            if (sel.length === 0) {
-                alert(LABELS.alert_fail[lang]);
+            var doc = app.activeDocument;
+            var currentSelection = doc.selection;
+            if (currentSelection.length === 0) {
+                alert(LABELS.alert_fail[uiLang]);
                 return false;
             }
             selArr = [];
-            for (var i = 0; i < sel.length; i++) {
-                selArr.push(sel[i]);
+            for (var i = 0; i < currentSelection.length; i++) {
+                selArr.push(currentSelection[i]);
             }
 
             // Use single definition for all controls, matching the main dialog structure
 
-            var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+            var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
 
             dialog.alignChildren = "left";
             dialog.orientation = "column";
@@ -655,8 +655,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             alongGroup.orientation = "row";
             alongGroup.spacing = 5;
             alongGroup.margins = [10, 10, 10, 10];
-            var leftAlignRadio = alongGroup.add("radiobutton", undefined, LABELS.alongX[lang]);
-            var topAlignRadio = alongGroup.add("radiobutton", undefined, LABELS.alongY[lang]);
+            var leftAlignRadio = alongGroup.add("radiobutton", undefined, LABELS.alongX[uiLang]);
+            var topAlignRadio = alongGroup.add("radiobutton", undefined, LABELS.alongY[uiLang]);
             if (defaultAlong === "y") {
                 leftAlignRadio.value = false;
                 topAlignRadio.value = true;
@@ -681,44 +681,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             // rightGroup.spacing = 20;
 
             // 並べ替え基準パネル
-            byGroup = leftGroup.add("panel", undefined, LABELS.byTitle[lang]);
+            byGroup = leftGroup.add("panel", undefined, LABELS.byTitle[uiLang]);
             byGroup.orientation = "column";
             byGroup.alignChildren = "left";
             byGroup.spacing = 10;
             byGroup.margins = [15, 20, 15, 10];
-            var heightRadio = byGroup.add("radiobutton", undefined, LABELS.byHeight[lang]);
+            var heightRadio = byGroup.add("radiobutton", undefined, LABELS.byHeight[uiLang]);
             heightRadio.value = (defaultBy === "h");
             heightRadio.helpTip = "h";
-            var widthRadio = byGroup.add("radiobutton", undefined, LABELS.byWidth[lang]);
+            var widthRadio = byGroup.add("radiobutton", undefined, LABELS.byWidth[uiLang]);
             widthRadio.value = (defaultBy === "w");
             widthRadio.helpTip = "w";
-            var opacityRadio = byGroup.add("radiobutton", undefined, LABELS.byOpacity[lang]);
+            var opacityRadio = byGroup.add("radiobutton", undefined, LABELS.byOpacity[uiLang]);
             opacityRadio.value = false;
             opacityRadio.helpTip = "o";
-            var colorRadio = byGroup.add("radiobutton", undefined, LABELS.byColor[lang]);
+            var colorRadio = byGroup.add("radiobutton", undefined, LABELS.byColor[uiLang]);
             colorRadio.value = false;
             colorRadio.helpTip = "color";
-            var numberRadio = byGroup.add("radiobutton", undefined, LABELS.byNumber[lang]);
+            var numberRadio = byGroup.add("radiobutton", undefined, LABELS.byNumber[uiLang]);
             numberRadio.value = false;
             numberRadio.helpTip = "n";
-            var zOrderRadio = byGroup.add("radiobutton", undefined, LABELS.byZOrder[lang]);
+            var zOrderRadio = byGroup.add("radiobutton", undefined, LABELS.byZOrder[uiLang]);
             zOrderRadio.value = false;
             zOrderRadio.helpTip = "z";
             var byRadioButtons = [heightRadio, widthRadio, opacityRadio, colorRadio, numberRadio, zOrderRadio];
 
             // 並び順パネル
-            directionGroup = leftGroup.add("panel", undefined, LABELS.directionTitle[lang]);
+            directionGroup = leftGroup.add("panel", undefined, LABELS.directionTitle[uiLang]);
             directionGroup.orientation = "column";
             directionGroup.alignChildren = "left";
             directionGroup.spacing = 5;
             directionGroup.margins = [15, 20, 15, 10];
-            var ascendingRadio = directionGroup.add("radiobutton", undefined, LABELS.dirAsc[lang]);
+            var ascendingRadio = directionGroup.add("radiobutton", undefined, LABELS.dirAsc[uiLang]);
             ascendingRadio.value = true;
             ascendingRadio.helpTip = "s";
-            var descendingRadio = directionGroup.add("radiobutton", undefined, LABELS.dirDesc[lang]);
+            var descendingRadio = directionGroup.add("radiobutton", undefined, LABELS.dirDesc[uiLang]);
             descendingRadio.value = false;
             descendingRadio.helpTip = "l";
-            var randomRadio = directionGroup.add("radiobutton", undefined, LABELS.dirRandom[lang]);
+            var randomRadio = directionGroup.add("radiobutton", undefined, LABELS.dirRandom[uiLang]);
             randomRadio.value = false;
             randomRadio.helpTip = "r";
             var directionRadioButtons = [ascendingRadio, descendingRadio, randomRadio];
@@ -727,17 +727,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             var verticalAlignPanelContainer = mainGroup.add("panel", undefined, "");
             verticalAlignPanelContainer.alignChildren = "fill";
             verticalAlignPanelContainer.margins = [10, 20, 10, 10];
-            verticalAlignPanelContainer.text = LABELS.verticalGroupTitle[lang];
+            verticalAlignPanelContainer.text = LABELS.verticalGroupTitle[uiLang];
 
             // 縦方向：揃えパネル
-            var verticalAlignPanel = verticalAlignPanelContainer.add("panel", undefined, LABELS.panelAlignVertical[lang]);
+            var verticalAlignPanel = verticalAlignPanelContainer.add("panel", undefined, LABELS.panelAlignVertical[uiLang]);
             verticalAlignPanel.orientation = "row";
             verticalAlignPanel.alignChildren = "center";
             verticalAlignPanel.margins = [10, 20, 10, 10];
 
-            var alignLeftBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalLeft[lang]);
-            var alignCenterBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalCenter[lang]);
-            var alignRightBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalRight[lang]);
+            var alignLeftBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalLeft[uiLang]);
+            var alignCenterBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalCenter[uiLang]);
+            var alignRightBtnVerticalSmart = verticalAlignPanel.add("radiobutton", undefined, LABELS.alignVerticalRight[uiLang]);
 
             alignLeftBtnVerticalSmart.onClick = function() {
                 smartPreviewAlignGeneric(selArr, "left", false);
@@ -754,21 +754,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
 
             // 縦方向: 縦間隔パネル
             createSpacingControlGroup(verticalAlignPanelContainer, {
-                panelTitle: LABELS.panelSpacingVertical[lang],
-                none: LABELS.spacingVerticalNone[lang],
-                even: LABELS.spacingVerticalEven[lang],
-                zero: LABELS.spacingVerticalZero[lang],
-                custom: LABELS.spacingVerticalCustom[lang]
+                panelTitle: LABELS.panelSpacingVertical[uiLang],
+                none: LABELS.spacingVerticalNone[uiLang],
+                even: LABELS.spacingVerticalEven[uiLang],
+                zero: LABELS.spacingVerticalZero[uiLang],
+                custom: LABELS.spacingVerticalCustom[uiLang]
             }, selArr, false);
 
             // 幅を揃えるパネル
-            var matchWidthPanel = verticalAlignPanelContainer.add("panel", undefined, LABELS.matchWidthTitle[lang]);
+            var matchWidthPanel = verticalAlignPanelContainer.add("panel", undefined, LABELS.matchWidthTitle[uiLang]);
             matchWidthPanel.orientation = "row";
             matchWidthPanel.alignChildren = "center";
             matchWidthPanel.margins = [10, 20, 10, 10];
 
-            var matchMaxWidthRadio = matchWidthPanel.add("radiobutton", undefined, LABELS.matchMax[lang]);
-            var matchMinWidthRadio = matchWidthPanel.add("radiobutton", undefined, LABELS.matchMin[lang]);
+            var matchMaxWidthRadio = matchWidthPanel.add("radiobutton", undefined, LABELS.matchMax[uiLang]);
+            var matchMinWidthRadio = matchWidthPanel.add("radiobutton", undefined, LABELS.matchMin[uiLang]);
             matchMaxWidthRadio.value = false;
             matchMinWidthRadio.value = false;
 
@@ -805,17 +805,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             var horizontalAlignPanelContainer = mainGroup.add("panel", undefined, "");
             horizontalAlignPanelContainer.alignChildren = "fill";
             horizontalAlignPanelContainer.margins = [10, 20, 10, 10];
-            horizontalAlignPanelContainer.text = LABELS.horizontalGroupTitle[lang];
+            horizontalAlignPanelContainer.text = LABELS.horizontalGroupTitle[uiLang];
 
             // 横方向：揃えパネル
-            var horizontalAlignPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.panelAlignHorizontal[lang]);
+            var horizontalAlignPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.panelAlignHorizontal[uiLang]);
             horizontalAlignPanel.orientation = "row";
             horizontalAlignPanel.alignChildren = "center";
             horizontalAlignPanel.margins = [10, 20, 10, 10];
 
-            var alignTopBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalTop[lang]);
-            var alignMiddleBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalMiddle[lang]);
-            var alignBottomBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalBottom[lang]);
+            var alignTopBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalTop[uiLang]);
+            var alignMiddleBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalMiddle[uiLang]);
+            var alignBottomBtnHorizontalSmart = horizontalAlignPanel.add("radiobutton", undefined, LABELS.alignHorizontalBottom[uiLang]);
 
             alignTopBtnHorizontalSmart.onClick = function() {
                 smartPreviewAlignGeneric(selArr, "top", true);
@@ -831,7 +831,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             };
 
             // 横間隔パネル
-            var horizontalSpacingPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.panelSpacingHorizontal[lang]);
+            var horizontalSpacingPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.panelSpacingHorizontal[uiLang]);
             horizontalSpacingPanel.orientation = "column";
             horizontalSpacingPanel.alignChildren = "left";
             horizontalSpacingPanel.margins = [10, 20, 10, 10];
@@ -841,13 +841,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             spacingHorizontalRadioGroup.alignChildren = "left";
 
             // Remove "None" option for horizontal spacing
-            var spacingEvenBtnHorizontalSmart = spacingHorizontalRadioGroup.add("radiobutton", undefined, LABELS.spacingHorizontalEven[lang]);
-            var spacingZeroBtnHorizontalSmart = spacingHorizontalRadioGroup.add("radiobutton", undefined, LABELS.spacingHorizontalZero[lang]);
+            var spacingEvenBtnHorizontalSmart = spacingHorizontalRadioGroup.add("radiobutton", undefined, LABELS.spacingHorizontalEven[uiLang]);
+            var spacingZeroBtnHorizontalSmart = spacingHorizontalRadioGroup.add("radiobutton", undefined, LABELS.spacingHorizontalZero[uiLang]);
 
             var spacingHorizontalCustomGroup = spacingHorizontalRadioGroup.add("group");
             spacingHorizontalCustomGroup.orientation = "row";
             spacingHorizontalCustomGroup.alignChildren = "left";
-            var spacingCustomBtnHorizontalSmart = spacingHorizontalCustomGroup.add("radiobutton", undefined, LABELS.spacingHorizontalCustom[lang]);
+            var spacingCustomBtnHorizontalSmart = spacingHorizontalCustomGroup.add("radiobutton", undefined, LABELS.spacingHorizontalCustom[uiLang]);
             var spacingInputHorizontalSmart = spacingHorizontalCustomGroup.add("edittext", undefined, "20");
             spacingInputHorizontalSmart.characters = 5;
             spacingInputHorizontalSmart.enabled = false;
@@ -902,13 +902,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             };
 
             // 高さを揃えるパネル（ダイアログ下部、キャンセル／OKの直上）
-            var matchHeightPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.matchHeightTitle[lang]);
+            var matchHeightPanel = horizontalAlignPanelContainer.add("panel", undefined, LABELS.matchHeightTitle[uiLang]);
             matchHeightPanel.orientation = "row";
             matchHeightPanel.alignChildren = "center";
             matchHeightPanel.margins = [10, 20, 10, 10];
 
-            var matchMaxHeightRadio = matchHeightPanel.add("radiobutton", undefined, LABELS.matchMax[lang]);
-            var matchMinHeightRadio = matchHeightPanel.add("radiobutton", undefined, LABELS.matchMin[lang]);
+            var matchMaxHeightRadio = matchHeightPanel.add("radiobutton", undefined, LABELS.matchMax[uiLang]);
+            var matchMinHeightRadio = matchHeightPanel.add("radiobutton", undefined, LABELS.matchMin[uiLang]);
             matchMaxHeightRadio.value = false;
             matchMinHeightRadio.value = false;
 
@@ -949,7 +949,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             bottomRowGroup.margins = [10, 10, 10, 10];
 
             // プレビュー境界チェックボックスを中央ペイン下部に追加
-            var previewBoundsCheckbox = bottomRowGroup.add("checkbox", undefined, LABELS.previewBounds[lang]);
+            var previewBoundsCheckbox = bottomRowGroup.add("checkbox", undefined, LABELS.previewBounds[uiLang]);
             previewBoundsCheckbox.value = false;
 
             // Flexible spacer
@@ -959,12 +959,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             spacer.maximumSize.height = 0;
 
             // Cancel button
-            var cancelBtn = bottomRowGroup.add("button", undefined, LABELS.btnCancel[lang], {
+            var cancelBtn = bottomRowGroup.add("button", undefined, LABELS.btnCancel[uiLang], {
                 name: "cancel"
             });
 
             // OK button
-            var okBtn = bottomRowGroup.add("button", undefined, LABELS.btnOk[lang], {
+            var okBtn = bottomRowGroup.add("button", undefined, LABELS.btnOk[uiLang], {
                 name: "ok"
             });
             okBtn.active = true;
@@ -1034,14 +1034,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         if (spacingType === "custom" && spacingInput && spacingInput.text !== "") {
             spacingValue = parseFloat(spacingInput.text);
         }
-        var sel = selArr.slice();
-        sel.sort(function(a, b) {
+        var currentSelection = selArr.slice();
+        currentSelection.sort(function(a, b) {
             return isHorizontal ? a.left - b.left : b.top - a.top;
         });
 
         // Vertical "even" spacing logic
         if (!isHorizontal && spacingType === "even") {
-            var sorted = sel.slice();
+            var sorted = currentSelection.slice();
             sorted.sort(function(a, b) {
                 return b.top - a.top;
             });
@@ -1067,7 +1067,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
 
         // Horizontal "even" spacing logic
         if (isHorizontal && spacingType === "even") {
-            var sorted = sel.slice();
+            var sorted = currentSelection.slice();
             sorted.sort(function(a, b) {
                 return a.left - b.left;
             });
@@ -1092,7 +1092,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         }
 
         if (!isHorizontal && spacingType === "custom") {
-            var sorted = sel.slice();
+            var sorted = currentSelection.slice();
             sorted.sort(function(a, b) {
                 return b.top - a.top;
             });
@@ -1105,17 +1105,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             return;
         }
 
-        var currentPos = isHorizontal ? sel[0].left : sel[0].top;
-        for (var i = 0; i < sel.length; i++) {
+        var currentPos = isHorizontal ? currentSelection[0].left : currentSelection[0].top;
+        for (var i = 0; i < currentSelection.length; i++) {
             if (i !== 0) {
                 currentPos += spacingValue;
             }
             if (isHorizontal) {
-                sel[i].left = currentPos;
-                currentPos += sel[i].width;
+                currentSelection[i].left = currentPos;
+                currentPos += currentSelection[i].width;
             } else {
-                sel[i].top = currentPos;
-                currentPos -= sel[i].height;
+                currentSelection[i].top = currentPos;
+                currentPos -= currentSelection[i].height;
             }
         }
     }
@@ -1209,19 +1209,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
     }
 
     // 整列方向（横または縦）のプレビュー整列処理関数
-    function smartPreviewAlignGeneric(sel, alignType, isHorizontal) {
-        if (!sel || sel.length === 0) return;
+    function smartPreviewAlignGeneric(currentSelection, alignType, isHorizontal) {
+        if (!currentSelection || currentSelection.length === 0) return;
 
         // --- Patch: previewBoundsCheckbox affects positioning ---
         var usePreviewBounds = (typeof previewBoundsCheckbox !== "undefined" && previewBoundsCheckbox.value);
         var objBounds = [];
-        for (var i = 0; i < sel.length; i++) {
-            objBounds[i] = usePreviewBounds ? sel[i].visibleBounds : sel[i].geometricBounds;
+        for (var i = 0; i < currentSelection.length; i++) {
+            objBounds[i] = usePreviewBounds ? currentSelection[i].visibleBounds : currentSelection[i].geometricBounds;
         }
 
         // Compute alignment positions
         var positions = [];
-        for (var i = 0; i < sel.length; i++) {
+        for (var i = 0; i < currentSelection.length; i++) {
             var bounds = objBounds[i];
             var width = bounds[2] - bounds[0];
             var height = bounds[1] - bounds[3];
@@ -1259,28 +1259,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         }
 
         // --- Patch: apply offsets so previewBoundsCheckbox affects positioning ---
-        for (var k = 0; k < sel.length; k++) {
+        for (var k = 0; k < currentSelection.length; k++) {
             var bounds = objBounds[k];
             var width = bounds[2] - bounds[0];
             var height = bounds[1] - bounds[3];
-            var dx = sel[k].left - bounds[0];
-            var dy = sel[k].top - bounds[1];
+            var dx = currentSelection[k].left - bounds[0];
+            var dy = currentSelection[k].top - bounds[1];
 
             if (isHorizontal) {
                 if (alignType === "top") {
-                    sel[k].top = targetPos + dy;
+                    currentSelection[k].top = targetPos + dy;
                 } else if (alignType === "middle") {
-                    sel[k].top = targetPos + height / 2 + dy;
+                    currentSelection[k].top = targetPos + height / 2 + dy;
                 } else if (alignType === "bottom") {
-                    sel[k].top = targetPos + height + dy;
+                    currentSelection[k].top = targetPos + height + dy;
                 }
             } else {
                 if (alignType === "left") {
-                    sel[k].left = targetPos + dx;
+                    currentSelection[k].left = targetPos + dx;
                 } else if (alignType === "center") {
-                    sel[k].left = targetPos - width / 2 + dx;
+                    currentSelection[k].left = targetPos - width / 2 + dx;
                 } else if (alignType === "right") {
-                    sel[k].left = targetPos - width + dx;
+                    currentSelection[k].left = targetPos - width + dx;
                 }
             }
         }

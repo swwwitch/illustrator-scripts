@@ -41,7 +41,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -52,7 +52,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
     };
 
     function main() {
-        var textLines = groupTextFramesByLine(activeDocument.selection);
+        var textLines = groupTextFramesByLine(app.activeDocument.selection);
 
         if (textLines.length != 0) {
 
@@ -168,7 +168,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
               ① 選択範囲全体のバウンディングボックスを取得
               Get bounding box of entire selection
             */
-            var selectionBounds = getSelectionBounds(activeDocument.selection);
+            var selectionBounds = getSelectionBounds(app.activeDocument.selection);
             var selLeft = selectionBounds[0];
             var selTop = selectionBounds[1];
             var selRight = selectionBounds[2];
@@ -183,7 +183,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
               ② 長方形を作成
               Create rectangle for area text
             */
-            var rect = activeDocument.pathItems.rectangle(selTop, selLeft, selWidth, selHeight);
+            var rect = app.activeDocument.pathItems.rectangle(selTop, selLeft, selWidth, selHeight);
             rect.stroked = false;
             rect.filled = false;
 
@@ -191,7 +191,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
               ③ エリア内文字に変換
               Convert to area text
             */
-            var newTextFrame = activeDocument.textFrames.areaText(rect);
+            var newTextFrame = app.activeDocument.textFrames.areaText(rect);
             newTextFrame.contents = finalText;
             newTextFrame.textRange.characterAttributes.textFont = mergedTextFrames[0].textRange.characterAttributes.textFont;
             newTextFrame.textRange.characterAttributes.size = mergedTextFrames[0].textRange.characterAttributes.size;
@@ -228,7 +228,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹�
 
         } else {
             /* エラーメッセージの表示 / Show error message */
-            alert(LABELS.errorNoText[lang]);
+            alert(LABELS.errorNoText[uiLang]);
         }
     }
 

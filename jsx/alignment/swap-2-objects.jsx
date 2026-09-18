@@ -37,53 +37,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     /**
-     * 2つのオブジェクトの中心位置を入れ替える
-     * @param {PageItem} objA - 入れ替える一方のオブジェクト
-     * @param {PageItem} objB - 入れ替えるもう一方のオブジェクト
-     * @returns {void}
+     * オブジェクトの中心座標を返す
+     *
+     * クリップグループはマスクパスの geometricBounds、それ以外は visibleBounds を基準にする。
+     * マスクパスが見つからないクリップグループは visibleBounds にフォールバックする。
+     * @param {PageItem} targetItem - 中心を求める対象のオブジェクト
+     * @returns {number[]} 中心の [x, y] 座標
      */
-    function swapObjectsByCenter(objA, objB) {
-        /**
-         * オブジェクトの中心座標を返す
-         *
-         * クリップグループはマスクパスの geometricBounds、それ以外は visibleBounds を基準にする。
-         * マスクパスが見つからないクリップグループは visibleBounds にフォールバックする。
-         * @param {PageItem} obj - 中心を求める対象のオブジェクト
-         * @returns {Array<number>} 中心の [x, y] 座標
-         */
-        function getCenter(obj) {
-            var bounds;
-            if (obj.typename === "GroupItem" && obj.clipped) {
-                // クリップグループの場合はマスクパスを基準に
-                var mask = null;
-                for (var i = 0; i < obj.pageItems.length; i++) {
-                    if (obj.pageItems[i].clipping) {
-                        mask = obj.pageItems[i];
-                        break;
-                    }
+    function getCenterPoint(targetItem) {
+        var referenceBounds = targetItem.visibleBounds;
+
+        if (targetItem.typename === "GroupItem" && targetItem.clipped) {
+            /* クリップグループはマスクパスの範囲を基準にする / clipping groups follow the mask path */
+            for (var i = 0; i < targetItem.pageItems.length; i++) {
+                if (targetItem.pageItems[i].clipping) {
+                    referenceBounds = targetItem.pageItems[i].geometricBounds;
+                    break;
                 }
-                if (mask) {
-                    bounds = mask.geometricBounds; // マスクパスの範囲
-                } else {
-                    bounds = obj.visibleBounds; // 保険：マスクが見つからなければ全体
-                }
-            } else {
-                bounds = obj.visibleBounds;
             }
-            return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
         }
 
-        // 中心座標を取得
-        var centerA = getCenter(objA);
-        var centerB = getCenter(objB);
+        return [(referenceBounds[0] + referenceBounds[2]) / 2, (referenceBounds[1] + referenceBounds[3]) / 2];
+    }
 
-        // 移動量を計算
-        var deltaA = [centerB[0] - centerA[0], centerB[1] - centerA[1]];
-        var deltaB = [centerA[0] - centerB[0], centerA[1] - centerB[1]];
+    /**
+     * 2つのオブジェクトの中心位置を入れ替える
+     * @param {PageItem} firstObject - 入れ替える一方のオブジェクト
+     * @param {PageItem} secondObject - 入れ替えるもう一方のオブジェクト
+     * @returns {void}
+     */
+    function swapObjectsByCenter(firstObject, secondObject) {
+        var firstCenter = getCenterPoint(firstObject);
+        var secondCenter = getCenterPoint(secondObject);
 
-        // 位置を入れ替え
-        objA.translate(deltaA[0], deltaA[1]);
-        objB.translate(deltaB[0], deltaB[1]);
+        /* 片方の移動量を求め、もう片方はその逆向きに動かす / one offset, applied in both directions */
+        var dx = secondCenter[0] - firstCenter[0];
+        var dy = secondCenter[1] - firstCenter[1];
+
+        firstObject.translate(dx, dy);
+        secondObject.translate(-dx, -dy);
     }
 
     /**
@@ -91,26 +83,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {void}
      */
     function main() {
-        try {
-            if (app.documents.length === 0) {
-                alert("ドキュメントが開かれていません。");
-                return;
-            }
-
-            var sel = app.activeDocument.selection;
-            if (!sel || sel.length !== 2) {
-                alert("2つのオブジェクトを選択してください。");
-                return;
-            }
-
-            var objA = sel[0];
-            var objB = sel[1];
-
-            swapObjectsByCenter(objA, objB);
-
-        } catch (e) {
-            alert("エラーが発生しました: " + e);
+        if (app.documents.length === 0) {
+            alert("ドキュメントが開かれていません。");
+            return;
         }
+
+        var selectedObjects = app.activeDocument.selection;
+        if (!selectedObjects || selectedObjects.length !== 2) {
+            alert("2つのオブジェクトを選択してください。");
+            return;
+        }
+
+        swapObjectsByCenter(selectedObjects[0], selectedObjects[1]);
     }
 
     main();

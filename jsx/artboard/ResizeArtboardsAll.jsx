@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese–English label definitions */
 
@@ -191,7 +191,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     ダイアログ表示 / Show dialog with live preview
     */
     function showMarginDialog(defaultValue, unit) {
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+        var dlg = new Window("dialog", LABELS.dialogTitle[uiLang]);
         // スクリプト名＋バージョンでキーをネームスペース化 / Namespace the key by script name + version
         var dlgPositionKey = "__ResizeArtboardsAll_" + SCRIPT_VERSION + "__Dialog";
         if ($.global[dlgPositionKey] === undefined) $.global[dlgPositionKey] = null; // ensure slot
@@ -267,7 +267,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.alignChildren = "fill";
         rightCol.spacing = 10;
 
-        var sizePanel = leftCol.add("panel", undefined, LABELS.sizePanelTitle[lang] + "（" + unit + "）");
+        var sizePanel = leftCol.add("panel", undefined, LABELS.sizePanelTitle[uiLang] + "（" + unit + "）");
         sizePanel.orientation = "row";
         sizePanel.alignChildren = ["left", "center"];
         sizePanel.margins = [15, 20, 15, 10];
@@ -280,7 +280,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Width row
         var wRow = sizeGroup.add("group");
         wRow.orientation = "row";
-        var wLabel = wRow.add("statictext", undefined, LABELS.widthLabel[lang] + "：");
+        var wLabel = wRow.add("statictext", undefined, LABELS.widthLabel[uiLang] + "：");
         var wValue = wRow.add("edittext", undefined, "-");
         wValue.characters = 5;
         // var wUnitLabel = wRow.add("statictext", undefined, unit);
@@ -288,7 +288,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Height row
         var hRow = sizeGroup.add("group");
         hRow.orientation = "row";
-        var hLabel = hRow.add("statictext", undefined, LABELS.heightLabel[lang] + "：");
+        var hLabel = hRow.add("statictext", undefined, LABELS.heightLabel[uiLang] + "：");
         var hValue = hRow.add("edittext", undefined, "-");
         hValue.characters = 5;
         // var hUnitLabel = hRow.add("statictext", undefined, unit);
@@ -366,7 +366,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* 基準パネル / Anchor selection panel */
-        var anchorPanel = leftCol.add("panel", undefined, LABELS.anchorPanelTitle[lang]);
+        var anchorPanel = leftCol.add("panel", undefined, LABELS.anchorPanelTitle[uiLang]);
         anchorPanel.orientation = "row";
         anchorPanel.alignChildren = ["left", "top"];
         anchorPanel.margins = [15, 20, 15, 10];
@@ -376,8 +376,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         anchorGroup.alignChildren = ["left", "center"];
         anchorGroup.spacing = 12;
 
-        var radioAnchorTopLeft = anchorGroup.add("radiobutton", undefined, LABELS.anchorTopLeft[lang]);
-        var radioAnchorCenter = anchorGroup.add("radiobutton", undefined, LABELS.anchorCenter[lang]);
+        var radioAnchorTopLeft = anchorGroup.add("radiobutton", undefined, LABELS.anchorTopLeft[uiLang]);
+        var radioAnchorCenter = anchorGroup.add("radiobutton", undefined, LABELS.anchorCenter[uiLang]);
         radioAnchorTopLeft.alignment = "left";
         radioAnchorCenter.alignment = "left";
 
@@ -388,7 +388,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         radioAnchorCenter.onClick = applyResizePreview;
 
         /* 対象パネル / Target selection panel */
-        var targetPanel = rightCol.add("panel", undefined, LABELS.targetPanelTitle[lang]);
+        var targetPanel = rightCol.add("panel", undefined, LABELS.targetPanelTitle[uiLang]);
         targetPanel.orientation = "row";
         targetPanel.alignChildren = ["left", "top"];
         targetPanel.margins = [15, 20, 15, 10];
@@ -397,18 +397,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetGroup.orientation = "column";
         targetGroup.alignChildren = ["left", "top"];
 
-        var radioActive = targetGroup.add("radiobutton", undefined, LABELS.targetActiveArtboard[lang]);
-        var radioAll = targetGroup.add("radiobutton", undefined, LABELS.targetAllArtboards[lang]);
+        var radioActive = targetGroup.add("radiobutton", undefined, LABELS.targetActiveArtboard[uiLang]);
+        var radioAll = targetGroup.add("radiobutton", undefined, LABELS.targetAllArtboards[uiLang]);
 
         // 指定（縦配置：下に入力） / Specify (vertical: input below)
-        var radioSpecify = targetGroup.add("radiobutton", undefined, LABELS.targetSpecify[lang]);
+        var radioSpecify = targetGroup.add("radiobutton", undefined, LABELS.targetSpecify[uiLang]);
         radioSpecify.alignment = "left";
 
         // 入力フィールド（ロジックは後で） / Input field (logic to be added later)
         var inputSpecify = targetGroup.add("edittext", undefined, "");
         inputSpecify.characters = 12; // visible width
         inputSpecify.alignment = "left";
-        inputSpecify.helpTip = (lang === "ja") ? "例: 1-3 / 1,3 / 2-4,7（1始まり）" : "e.g., 1-3 / 1,3 / 2-4,7 (1-based)";
+        inputSpecify.helpTip = (uiLang === "ja") ? "例: 1-3 / 1,3 / 2-4,7（1始まり）" : "e.g., 1-3 / 1,3 / 2-4,7 (1-based)";
 
         // 指定入力はデフォルト無効（Active/All選択時）
         inputSpecify.enabled = false;
@@ -491,7 +491,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function throttledRedraw() {
             var now = (new Date()).getTime();
             if (now - __redrawLast >= __redrawInterval) {
-                try { app.redraw(); } catch (e) {}
+                app.redraw();
                 __redrawLast = now;
             }
         }
@@ -580,10 +580,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnGroup = dlg.add("group");
         btnGroup.alignment = "center";
         btnGroup.margins = [0, 5, 0, 0];
-        var cancelBtn = btnGroup.add("button", undefined, LABELS.cancelBtn[lang], {
+        var cancelBtn = btnGroup.add("button", undefined, LABELS.cancelBtn[uiLang], {
             name: "cancel"
         });
-        var okBtn = btnGroup.add("button", undefined, LABELS.okBtn[lang], {
+        var okBtn = btnGroup.add("button", undefined, LABELS.okBtn[uiLang], {
             name: "ok"
         });
 
@@ -638,7 +638,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* メイン処理 / Main process */
     function main() {
         if (app.documents.length === 0) {
-            alert(LABELS.alertNoDoc[lang]);
+            alert(LABELS.alertNoDoc[uiLang]);
             return;
         }
         var userInput = showMarginDialog(null, _detectUnitString());
@@ -754,7 +754,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             $.writeln("[FitArtboardWithMargin] ERROR: " + formatError(e));
         } catch (_) {}
-        alert(LABELS.errorOccurred[lang] + formatError(e));
+        alert(LABELS.errorOccurred[uiLang] + formatError(e));
     }
 
     app.selectTool("Adobe Select Tool");

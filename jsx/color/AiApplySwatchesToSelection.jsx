@@ -117,7 +117,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
     };
 
     /* ドット区切りキーでローカライズ文字列を取得 / Get a localized string by dotted key path */
-    function L(path) {
+    function getLabel(path) {
         var parts = path.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -200,13 +200,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
        Live preview: workerApply reverts the previous preview via snapshot and reapplies.
        OK commits; Cancel / Esc / close reverts */
     function showDialog() {
-        if (app.documents.length === 0) { alert(L("alert.noDoc")); return; }
+        if (app.documents.length === 0) { alert(getLabel("alert.noDoc")); return; }
 
         /* 選択情報を取得（初期単位・チップ・スウォッチ名）/ Read selection info (default unit, chips, swatch names) */
         var info = readSelectionInfo();
-        if (!info.ok || (!info.isText && info.itemCount === 0)) { alert(L("alert.noSel")); return; }
+        if (!info.ok || (!info.isText && info.itemCount === 0)) { alert(getLabel("alert.noSel")); return; }
 
-        var win = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var win = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         setupWindow(win);
 
         /* ドキュメントのスウォッチグループ（未分類は除外）/ Document swatch groups (uncategorized excluded) */
@@ -217,9 +217,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         var loadedSwatchNames = info.swatchNames;
 
         /* 適用するカラー（配色チップ＋カラーソース選択）/ Color chips + color source */
-        var colorPanel = win.add("panel", undefined, L("panel.colors"));
+        var colorPanel = win.add("panel", undefined, getLabel("panel.colors"));
         setupPanel(colorPanel);
-        colorPanel.helpTip = L("tooltip.colors");
+        colorPanel.helpTip = getLabel("tooltip.colors");
         var chipHost = colorPanel.add("group");
         chipHost.orientation = "column";
         chipHost.alignChildren = ["left", "top"];
@@ -232,9 +232,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         sourceGroup.orientation = "column";
         sourceGroup.alignChildren = ["left", "top"];
         sourceGroup.margins = [0, 10, 0, 0];
-        var selectedRadio = sourceGroup.add("radiobutton", undefined, L("source.selected"));
+        var selectedRadio = sourceGroup.add("radiobutton", undefined, getLabel("source.selected"));
         selectedRadio.value = true;
-        var groupRadio = sourceGroup.add("radiobutton", undefined, L("source.group"));
+        var groupRadio = sourceGroup.add("radiobutton", undefined, getLabel("source.group"));
         var groupNames = [];
         for (var gi = 0; gi < swatchGroups.length; gi++) { groupNames.push(swatchGroups[gi].name); }
         /* ポップアップは次の行に置き、グループラジオの下へ少しインデントする
@@ -242,7 +242,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         var groupDropdownRow = sourceGroup.add("group");
         setupRow(groupDropdownRow, "left");
         groupDropdownRow.margins = [16, 0, 0, 0];
-        var groupDropdown = groupDropdownRow.add("dropdownlist", undefined, groupNames.length > 0 ? groupNames : [L("source.noGroup")]);
+        var groupDropdown = groupDropdownRow.add("dropdownlist", undefined, groupNames.length > 0 ? groupNames : [getLabel("source.noGroup")]);
         groupDropdown.selection = 0;
         if (swatchGroups.length === 0) {
             /* グループが無ければグループ選択は無効 / disable the group option when there are none */
@@ -289,23 +289,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         unitsRow.alignChildren = ["fill", "top"];
 
         /* 配色単位 / Coloring unit */
-        var unitRadioButtons = addRadioPanel(unitsRow, L("panel.unit"), buildUnitOptions(), info.defaultUnit, onOptionChange);
+        var unitRadioButtons = addRadioPanel(unitsRow, getLabel("panel.unit"), buildUnitOptions(), info.defaultUnit, onOptionChange);
         setOptionTooltips(unitRadioButtons, {
-            object: L("tooltip.unitObject"),
-            character: L("tooltip.unitCharacter"),
-            word: L("tooltip.unitWord"),
-            line: L("tooltip.unitLine"),
-            paragraph: L("tooltip.unitParagraph")
+            object: getLabel("tooltip.unitObject"),
+            character: getLabel("tooltip.unitCharacter"),
+            word: getLabel("tooltip.unitWord"),
+            line: getLabel("tooltip.unitLine"),
+            paragraph: getLabel("tooltip.unitParagraph")
         });
         updateUnitAvailability(unitRadioButtons, info);
 
         /* 配色順（カラム内は縦並び）/ Coloring order (vertical within its column) */
-        var orderRadioButtons = addRadioPanel(unitsRow, L("panel.option"), buildOptionList("order", ["asis", "reverse", "random", "fullrandom"]), "asis", onOptionChange);
+        var orderRadioButtons = addRadioPanel(unitsRow, getLabel("panel.option"), buildOptionList("order", ["asis", "reverse", "random", "fullrandom"]), "asis", onOptionChange);
         setOptionTooltips(orderRadioButtons, {
-            asis: L("tooltip.orderAsis"),
-            reverse: L("tooltip.orderReverse"),
-            random: L("tooltip.orderRandom"),
-            fullrandom: L("tooltip.orderFullRandom")
+            asis: getLabel("tooltip.orderAsis"),
+            reverse: getLabel("tooltip.orderReverse"),
+            random: getLabel("tooltip.orderRandom"),
+            fullrandom: getLabel("tooltip.orderFullRandom")
         });
 
         /* OK / キャンセル / OK and Cancel */
@@ -313,8 +313,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         buttonRow.orientation = "row";
         buttonRow.alignment = "right";
         buttonRow.spacing = PANEL_SPACING;
-        var cancelButton = buttonRow.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var okButton = buttonRow.add("button", undefined, L("button.ok"), { name: "ok" });
+        var cancelButton = buttonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = buttonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         /* 現在の設定を取得 / Read current settings */
         function currentOptions() {
@@ -445,7 +445,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
     function buildOptionList(category, keys) {
         var options = [];
         for (var i = 0; i < keys.length; i++) {
-            options.push({ key: keys[i], label: L(category + "." + keys[i]) });
+            options.push({ key: keys[i], label: getLabel(category + "." + keys[i]) });
         }
         return options;
     }
@@ -463,7 +463,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
     /* 選択スウォッチを■で並べる（未選択時は注記）/ Lay out chips (note if none) */
     function buildColorChips(container, chips) {
         if (!chips || chips.length === 0) {
-            container.add("statictext", undefined, L("note.autoColor"));
+            container.add("statictext", undefined, getLabel("note.autoColor"));
             return;
         }
         /* 1行を1つの描画キャンバスにまとめて描く（要素ごとのレイアウトずれを避ける）
@@ -586,7 +586,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         var textRange = selection ? getSingleSelectedTextRangeW(selection) : null;
         var heavy = (baselineCharTotalW(items, textRange) > 1000) || (items.length > 300);
         if (!heavy) { workerApply(options, swatchNames); return; }
-        var progress = createProgressW(L("progress.title"));
+        var progress = createProgressW(getLabel("progress.title"));
         try {
             workerApply(options, swatchNames, false, progress);
         } finally {
@@ -612,21 +612,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
         /* オブジェクト選択は適用後に選択フォーカスを戻すため控える（テキスト編集中は戻さない）
            Save the object selection to restore focus after applying (skip while editing text) */
         var savedSelection = textRange ? null : selection;
-        if (progress) { progress.set(0.1, L("progress.analyze")); }
+        if (progress) { progress.set(0.1, getLabel("progress.analyze")); }
         /* 同一単位のプレビューでは対象集合をキャッシュ再利用（順序変更だけなら作り直さない）
            Reuse the cached target set across previews of the same unit (order-only changes skip the rebuild) */
         var targets = collectTargetsCachedW(items, textRange, options.unit);
         if (targets.length === 0) { restoreBaselineW(); app.redraw(); return "NOSEL"; }
         /* 元状態は初回だけ取得（重い文字読み取りは1回きり）。進捗はここが主コスト
            Snapshot originals only once (the heavy per-char read happens once); this is the main progress cost */
-        if (progress) { progress.set(0.2, L("progress.snapshot")); }
-        ensureBaselineW(items, textRange, progress ? function (frac) { progress.set(0.2 + frac * 0.6, L("progress.snapshot")); } : null);
+        if (progress) { progress.set(0.2, getLabel("progress.snapshot")); }
+        ensureBaselineW(items, textRange, progress ? function (frac) { progress.set(0.2 + frac * 0.6, getLabel("progress.snapshot")); } : null);
 
         /* 着色前の準備（間引きの要否と着色件数を決める）/ Prepare before coloring (decide decimation and count) */
         var prep = prepareApplyW(items, textRange, options.unit, targets.length, finalApply);
         if (!finalApply) { $.global.__aiApplyWasDecimated = prep.decimated; }
 
-        if (progress) { progress.set(0.85, L("progress.apply")); }
+        if (progress) { progress.set(0.85, getLabel("progress.apply")); }
         /* ランダム系（並びシャッフル・完全ランダム抽選・自動CMYK生成）はプレビューと確定で結果が変わらないよう、
            プレビュー時に生成した配色と抽選結果を保存し、確定（finalApply）時はそれを再利用する
            Keep random results stable between preview and commit: generate & store the colors and the
@@ -642,7 +642,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5602f3084d2b"; /* 紹�
             $.global.__aiApplyGroupIndex = groupIndexCache;
         }
         applyColorsToTargetsW(targets, prep.limit, colors, options.order === "fullrandom", prep.decimated, groupIndexCache);
-        if (progress) { progress.set(1, L("progress.apply")); }
+        if (progress) { progress.set(1, getLabel("progress.apply")); }
 
         /* 適用で変わった選択（フォーカス）を元に戻す / Restore the selection changed by applying */
         if (savedSelection) { try { app.selection = savedSelection; } catch (e) {} }

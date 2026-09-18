@@ -94,7 +94,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* 指定キーのローカライズ文字列を取得（ドット区切りパス対応）/ Resolve localized string by dotted key path */
-    function L(key) {
+    function getLabel(key) {
         var parts = key.split(".");
         var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
@@ -185,7 +185,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* スタイル用 AI ファイルを選ばせる（キャンセルで空文字）/ Let the user pick a style AI file */
     function pickStyleFile() {
-        var picked = File.openDialog(L("dialog.pickFile"), function (candidate) {
+        var picked = File.openDialog(getLabel("dialog.pickFile"), function (candidate) {
             return (candidate instanceof Folder) || /\.ai$/i.test(candidate.name);
         });
         return picked ? picked.fsName : "";
@@ -202,7 +202,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function importStylesFrom(destinationDoc, filePath) {
         var styleFile = new File(filePath);
         if (!styleFile.exists) {
-            alert(L("message.fileNotFoundTitle") + "\n" + L("message.fileNotFoundBody") + getDisplayFileName(filePath));
+            alert(getLabel("message.fileNotFoundTitle") + "\n" + getLabel("message.fileNotFoundBody") + getDisplayFileName(filePath));
             return null;
         }
         var styleSourceDoc = app.open(styleFile);
@@ -249,12 +249,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             styleNames: initialStyleNames || []
         };
 
-        var styleDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        var styleDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         styleDialog.orientation = "column";
         styleDialog.alignChildren = ["fill", "top"];
 
         // スタイル選択パネル / Style panel
-        var stylePanel = styleDialog.add("panel", undefined, L("style.panelTitle"));
+        var stylePanel = styleDialog.add("panel", undefined, getLabel("style.panelTitle"));
         stylePanel.orientation = "column";
         stylePanel.alignChildren = ["left", "top"];
         stylePanel.margins = [16, 20, 16, 12];
@@ -268,12 +268,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var styleRadios = [];
 
         // スタイルの読み込みパネル（ボタンの下にファイルパスを表示）/ Load-styles panel (path shown below the button)
-        var loadPanel = styleDialog.add("panel", undefined, L("load.panelTitle"));
+        var loadPanel = styleDialog.add("panel", undefined, getLabel("load.panelTitle"));
         loadPanel.orientation = "column";
         loadPanel.alignChildren = ["left", "top"];
         loadPanel.margins = [16, 20, 16, 12];
         loadPanel.spacing = 8;
-        var loadFileButton = loadPanel.add("button", undefined, L("button.loadFile"));
+        var loadFileButton = loadPanel.add("button", undefined, getLabel("button.loadFile"));
         var fileNameText = loadPanel.add("statictext", undefined, "", { truncate: "middle" });
         fileNameText.preferredSize.width = 240;
 
@@ -281,12 +281,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var dialogButtonGroup = styleDialog.add("group");
         dialogButtonGroup.alignment = ["right", "bottom"];
         dialogButtonGroup.alignChildren = ["right", "center"];
-        dialogButtonGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var applyButton = dialogButtonGroup.add("button", undefined, L("button.apply"), { name: "ok" });
+        dialogButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var applyButton = dialogButtonGroup.add("button", undefined, getLabel("button.apply"), { name: "ok" });
 
         /* 選択中のファイル名表示を更新 / Update the file-name label */
         function refreshFileLabel() {
-            fileNameText.text = state.filePath ? getDisplayFileName(state.filePath) : L("message.noFileSelected");
+            fileNameText.text = state.filePath ? getDisplayFileName(state.filePath) : getLabel("message.noFileSelected");
         }
 
         /* ラジオを現在のスタイル名で組み直す / Rebuild radios from the current style names */
@@ -294,7 +294,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var i = radioGroup.children.length - 1; i >= 0; i--) radioGroup.remove(radioGroup.children[i]);
             styleRadios = [];
             if (state.styleNames.length === 0) {
-                radioGroup.add("statictext", undefined, L("message.noStylesHint"));
+                radioGroup.add("statictext", undefined, getLabel("message.noStylesHint"));
                 applyButton.enabled = false;
             } else {
                 for (var j = 0; j < state.styleNames.length; j++) {
@@ -338,7 +338,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function main() {
         // ドキュメントの存在を確認 / Check for an open document
         if (app.documents.length === 0) {
-            alert(L("message.openDocFirst"));
+            alert(getLabel("message.openDocFirst"));
             return;
         }
         var destinationDoc = app.activeDocument;
@@ -346,7 +346,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 選択オブジェクトを確保 / Capture current selection
         var currentSelection = destinationDoc.selection;
         if (!currentSelection || currentSelection.length === 0) {
-            alert(L("message.selectObjectFirst"));
+            alert(getLabel("message.selectObjectFirst"));
             return;
         }
         var selectedItems = [];
@@ -373,7 +373,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // スタイルを取得 / Get the style
         var graphicStyle = findGraphicStyle(destinationDoc, styleName);
         if (!graphicStyle) {
-            alert(L("message.styleNotFound") + styleName);
+            alert(getLabel("message.styleNotFound") + styleName);
             return;
         }
 
