@@ -195,6 +195,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             convertToForcedBreaks: { ja: "改行→強制改行", en: "Paragraph Breaks to Forced Breaks" },
             splitByLine: { ja: "テキストばらし", en: "Split by Line Breaks" },
             splitByLineKeepStyle: { ja: "〃（書式保持）", en: "Split by Line Breaks (Keep Style)" },
+            splitByVisualLine: { ja: "見かけの改行で分割", en: "Split by Visual Lines" },
             splitByTab: { ja: "タブで分割", en: "Split by Tabs" },
             splitKeepStyle: { ja: "書式を保持", en: "Keep Style" },
             splitIgnoreStyle: { ja: "書式を無視", en: "Ignore Style" },
@@ -266,6 +267,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             splitByLine: {
                 ja: "改行ごとに別々のテキストフレームへ分割します",
                 en: "Split into separate text frames at each line break"
+            },
+            splitByVisualLine: {
+                ja: "エリア内文字の折り返し位置（見かけの改行）で分割します",
+                en: "Split area text at each wrapped line (visual line break)"
             },
             splitByTab: {
                 ja: "タブ位置で分割します",
@@ -1645,6 +1650,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             });
         }
 
+        /* 見かけの改行（折り返し位置）で分割する関数。
+           lines は組まれた状態の行を返すので、エリア内文字の自動折り返しも1行として扱える。
+           複製したフレームを行送り分ずつ送って置くことで、元の行位置へ揃える */
+        function splitByVisualLine(objects) {
+            var targetLayer = app.activeDocument.activeLayer;
+            var sourceFrames = getTextFrames(objects);
+            var resultFrames = [];
+
+            for (var i = 0; i < sourceFrames.length; i++) {
+                var sourceFrame = sourceFrames[i];
+                var isHorizontal = (sourceFrame.orientation === TextOrientation.HORIZONTAL);
+                var originX = sourceFrame.position[0];
+                var originY = sourceFrame.position[1];
+
+                var lineCount = 0;
+                try { lineCount = sourceFrame.lines.length; } catch (e) { debugLog("splitByVisualLine: read lines", e); }
+
+                for (var j = 0; j < lineCount; j++) {
+                    var line = sourceFrame.lines[j];
+                    var metrics = getParagraphMetrics(line, sourceFrame);
+
+                    /* 2行目以降は、その行の行送り分だけ次の行の位置へ送る（縦組みは左方向）*/
+                    if (j > 0) {
+                        if (isHorizontal) originY -= metrics.leading;
+                        else originX -= metrics.leading;
+                    }
+
+                    var lineText = stripTrailingBreaks(line.contents);
+                    if (lineText === "") continue;
+
+                    var lineFrame = sourceFrame.duplicate(targetLayer);
+                    lineFrame.contents = lineText;
+                    lineFrame.position = [originX, originY];
+                    resultFrames.push(lineFrame);
+                }
+                sourceFrame.remove();
+            }
+
+            return resultFrames;
+        }
+
         /* フレーム末尾の改行文字（\r \n 強制改行）を除去し、除去数を返す。
            除去後に中身が空になったらフレームごと削除し Infinity を返す（呼び出し側で index を打ち切る）*/
         function trimTrailingBreaks(frame) {
@@ -2423,7 +2469,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             reverseOrder, removeDuplicateLines, sortByCharCode, sortByLength, removeCjkLatinSpaces,
             addLineBreakPerChar, addLineBreakAtCount, convertForcedLineBreaks, convertToForcedBreaks,
             addLineBreakAtPunctuation, splitFramesByParagraph, getParagraphMetrics,
-            collectTabOffsetsByParagraph, splitByTab, splitByLineBreak,
+            collectTabOffsetsByParagraph, splitByTab, splitByLineBreak, splitByVisualLine,
             trimTrailingBreaks, getTailAxis, splitFrameKeepStyle, splitByLineBreakKeepStyle,
             splitByCharKeepStyle, splitByCharIgnoreStyle, splitByChar, stripStyleKeepFirstFont, splitCharHighPrecision,
             buildOutlineCharBounds, sortOutlineItems, estimateCharRowThreshold, copyCharacterAttributes,
@@ -2518,6 +2564,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 }
                 case "splitByLineBreak": return applySplitGrouping(splitByLineBreak(targets), params.group);
                 case "splitByLineBreakKeepStyle": return applySplitGrouping(splitByLineBreakKeepStyle(targets), params.group);
+                case "splitByVisualLine": return applySplitGrouping(splitByVisualLine(targets), params.group);
                 case "splitByTab": return applySplitGrouping(splitByTab(targets), params.group);
                 case "splitByCharKeepStyle": return applySplitGrouping(splitByCharKeepStyle(targets), params.group);
                 case "splitByCharIgnoreStyle": return applySplitGrouping(splitByCharIgnoreStyle(targets), params.group);
@@ -2894,6 +2941,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
                 btnSplitByLine.enabled = state.multiLines;
                 btnSplitByLineKeepStyle.enabled = state.multiLines;
 
+                /* 見かけの改行：折り返しが起きるエリア内文字のときだけ */
+                btnSplitByVisualLine.enabled = state.area > 0;
+
                 /* 改行の削除・変換 */
                 btnRemoveLineBreaks.enabled = hasAnyBreaks;
                 chkIncludeForcedBreaks.enabled = hasForced;
@@ -3016,6 +3066,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹�
             btnSplitByLineKeepStyle.helpTip = getSplitTooltip(LABELS.tooltip.splitByLineKeepStyle);
             btnSplitByLineKeepStyle.onClick = function () {
                 executeAction("splitByLineBreakKeepStyle", { group: isAltPressed() });
+            };
+
+            var btnSplitByVisualLine = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByVisualLine));
+            btnSplitByVisualLine.helpTip = getSplitTooltip(LABELS.tooltip.splitByVisualLine);
+            btnSplitByVisualLine.onClick = function () {
+                executeAction("splitByVisualLine", { group: isAltPressed() });
             };
 
             var btnSplitByTab = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByTab));
