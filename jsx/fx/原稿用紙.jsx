@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択した縦組みテキストの文字送りをそろえ、1文字分の間隔で横罫線を引き、全体の左右に縦罫線を添えます。
-縦罫の伸張、横罫の線種、太くする間隔、十字線の有無はダイアログで指定します。
+縦罫の伸張、横罫の線種、太くする間隔、十字線の有無をダイアログで指定し、結果はその場でプレビューされます。
 
 詳細は README を参照してください。
 
@@ -15,7 +15,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Normalizes the character advance of the selected vertical text, draws horizontal rules
 at one-character intervals, and adds vertical rules along both sides of the grid.
 A dialog sets the vertical rule extension, the horizontal rule style, the emphasis interval
-and whether to add crosshairs.
+and whether to add crosshairs, and previews the result live.
 
 See the README for details.
 
@@ -28,10 +28,10 @@ var SCRIPT_NAME     = "原稿用紙";                      /* スクリプト名
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "20260919";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA   = ""; /* README（日本語） */
-var SCRIPT_README_EN   = ""; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/原稿用紙.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/原稿用紙.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
 // Released under the MIT license
@@ -69,7 +69,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             emphasisSuffix: { ja: "文字ごとに太く", en: "characters" }
         },
         checkbox: {
-            cross: { ja: "各文字に十字線を追加", en: "Add a crosshair to every cell" }
+            cross: { ja: "各文字に十字線を追加", en: "Add a crosshair to every cell" },
+            preview: { ja: "プレビュー", en: "Preview" }
         },
         radio: {
             solid: { ja: "実線", en: "Solid" },
@@ -118,6 +119,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     var CONFIG = {
         horizontalScale: 90,    /* 水平比率（%）/ horizontal scale (%) */
         verticalScale: 90,      /* 垂直比率（%）/ vertical scale (%) */
+        tracking: 120,          /* トラッキング（1/1000em）。比率を下げた分の文字送りを戻す / tracking (1/1000 em), gives back the advance lost to the scaling */
         forceVertical: true     /* 横組みなら縦組みへ変換する / convert horizontal text to vertical */
     };
 
@@ -143,13 +145,17 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         dashedHorizontal: false, /* 横罫を破線にするか / draw the horizontal rules dashed */
         emphasisEnabled: true,   /* 一定間隔の横罫を太くするか / thicken the horizontal rules at a fixed interval */
         emphasisEvery: 5,        /* 太くする間隔（文字数）/ interval of the thickened rules (characters) */
-        showCross: true          /* 各マスに十字線を引くか / draw a crosshair in every cell */
+        showCross: true,         /* 各マスに十字線を引くか / draw a crosshair in every cell */
+        preview: true            /* プレビューを表示するか / show the live preview */
     };
 
     /* ダイアログの寸法 / Dialog metrics */
     var UI = {
         labelWidth: (uiLang === "ja") ? 120 : 150 /* 項目名の幅（px）/ width of the row labels (px) */
     };
+
+    /* プレビュー用レイヤー名（一時的に作って消す）/ Name of the temporary preview layer */
+    var PREVIEW_LAYER_NAME = "__ManuscriptGrid_Preview";
 
     // =========================================
     // 文字属性 / Character attributes
@@ -181,7 +187,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         var failed = [];
 
         var settings = [
-            ["tracking", 0],
+            ["tracking", CONFIG.tracking],
             ["Tsume", 0],
             ["proportionalMetrics", false],
             ["akiLeft", 0],
@@ -202,6 +208,77 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         }
 
         return failed;
+    }
+
+    /**
+     * テキストを原稿用紙のマス目に合わせた状態にする
+     * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @return {array} 設定できなかった属性名の配列
+     */
+    function normalizeTextFrame(textFrame) {
+        if (CONFIG.forceVertical && textFrame.orientation !== TextOrientation.VERTICAL) {
+            textFrame.orientation = TextOrientation.VERTICAL;
+        }
+
+        return normalizeCharacterAttributes(textFrame);
+    }
+
+    // =========================================
+    // 実測 / Measuring
+    // =========================================
+
+    /**
+     * 縦組み1列あたりの最大文字数を返す
+     * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @return {number} 最大文字数（取得できないときは0）
+     */
+    function getMaxCharactersPerLine(textFrame) {
+        var maxCount = 0;
+
+        try {
+            var lines = textFrame.lines;
+
+            for (var i = 0; i < lines.length; i++) {
+                var count = lines[i].characters.length;
+
+                if (count > maxCount) {
+                    maxCount = count;
+                }
+            }
+        } catch (lineError) {
+            return 0;
+        }
+
+        return maxCount;
+    }
+
+    /**
+     * 罫線を引くのに必要な寸法を実測する（属性をそろえたあとに呼ぶ）
+     * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @return {object|null} { bounds, cellHeight, cellCount }。文字サイズを取得できないときは null
+     */
+    function measureGrid(textFrame) {
+        /* 先頭文字の文字サイズを基準にする（比率を変えても size は元の値のまま） */
+        var fontSize = textFrame.textRange.characters[0].characterAttributes.size;
+
+        if (!fontSize || fontSize <= 0) {
+            return null;
+        }
+
+        var bounds = textFrame.geometricBounds;
+
+        /* 最後の文字の下にも罫線を引くため、マス数は列の文字数から求める */
+        var cellCount = getMaxCharactersPerLine(textFrame);
+
+        if (cellCount <= 0) {
+            cellCount = Math.ceil((bounds[1] - bounds[3]) / fontSize);
+        }
+
+        return {
+            bounds: bounds,
+            cellHeight: fontSize, /* 罫線の間隔は文字サイズそのもの。垂直比率は反映しない */
+            cellCount: cellCount
+        };
     }
 
     // =========================================
@@ -286,52 +363,25 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     }
 
     /**
-     * 縦組み1列あたりの最大文字数を返す
-     * @param {TextFrame} textFrame 対象のテキストフレーム
-     * @return {number} 最大文字数（取得できないときは0）
-     */
-    function getMaxCharactersPerLine(textFrame) {
-        var maxCount = 0;
-
-        try {
-            var lines = textFrame.lines;
-
-            for (var i = 0; i < lines.length; i++) {
-                var count = lines[i].characters.length;
-
-                if (count > maxCount) {
-                    maxCount = count;
-                }
-            }
-        } catch (lineError) {
-            return 0;
-        }
-
-        return maxCount;
-    }
-
-    /**
      * 各マスの中央に十字線を引く
      * @param {GroupItem} group 罫線を入れるグループ
-     * @param {array} bounds テキストの境界 [left, top, right, bottom]
-     * @param {number} cellHeight 1文字分の送り（pt）
-     * @param {number} cellCount マスの数
+     * @param {object} metrics 実測した寸法 { bounds, cellHeight, cellCount }
      * @param {object} color 十字線の色
      * @return {void}
      */
-    function drawCrosshairs(group, bounds, cellHeight, cellCount, color) {
-        var left = bounds[0];
-        var top = bounds[1] + LAYOUT.gridTopOffset;
-        var right = bounds[2];
+    function drawCrosshairs(group, metrics, color) {
+        var left = metrics.bounds[0];
+        var top = metrics.bounds[1] + LAYOUT.gridTopOffset;
+        var right = metrics.bounds[2];
 
         var strokeWidth = mmToPt(LAYOUT.crossStrokeMM);
         var dashes = [mmToPt(LAYOUT.crossDashMM[0]), mmToPt(LAYOUT.crossDashMM[1])];
         var centerX = (left + right) / 2;
 
-        for (var i = 0; i < cellCount; i++) {
-            var cellTop = top - cellHeight * i;
-            var cellBottom = cellTop - cellHeight;
-            var centerY = cellTop - cellHeight / 2;
+        for (var i = 0; i < metrics.cellCount; i++) {
+            var cellTop = top - metrics.cellHeight * i;
+            var cellBottom = cellTop - metrics.cellHeight;
+            var centerY = cellTop - metrics.cellHeight / 2;
 
             drawRule(group, [centerX, cellTop], [centerX, cellBottom], strokeWidth, dashes, color);
             drawRule(group, [left, centerY], [right, centerY], strokeWidth, dashes, color);
@@ -341,17 +391,18 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     /**
      * 1文字分の間隔で横罫線を引き、全体の左右に縦罫線を添える
      * @param {GroupItem} group 罫線を入れるグループ
-     * @param {array} bounds テキストの境界 [left, top, right, bottom]
-     * @param {number} cellHeight 1文字分の送り（pt）
-     * @param {number} cellCount マスの数
+     * @param {object} metrics 実測した寸法 { bounds, cellHeight, cellCount }
      * @param {object} settings ダイアログで決めた設定
      * @param {object} colors 罫線と十字線の色 { rule, cross }
      * @return {void}
      */
-    function drawGrid(group, bounds, cellHeight, cellCount, settings, colors) {
-        var left = bounds[0];
-        var top = bounds[1] + LAYOUT.gridTopOffset;
-        var right = bounds[2];
+    function drawGrid(group, metrics, settings, colors) {
+        var cellHeight = metrics.cellHeight;
+        var cellCount = metrics.cellCount;
+
+        var left = metrics.bounds[0];
+        var top = metrics.bounds[1] + LAYOUT.gridTopOffset;
+        var right = metrics.bounds[2];
 
         /* 誤差を溜めないよう、都度 top から引いた位置を使う */
         var gridBottom = top - cellHeight * cellCount;
@@ -365,7 +416,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
         /* 十字線は罫線より先に引いて背面へ回す */
         if (settings.showCross) {
-            drawCrosshairs(group, bounds, cellHeight, cellCount, colors.cross);
+            drawCrosshairs(group, metrics, colors.cross);
         }
 
         /* 横罫線：先頭文字の上から最後の文字の下まで引く */
@@ -398,6 +449,141 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     }
 
     // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /**
+     * 前回引いた罫線グループを集める（プレビュー中は隠して重ねないため）
+     * @param {Document} doc 対象のドキュメント
+     * @param {string} layerName レイヤー名
+     * @param {string} groupName グループ名
+     * @return {array} 表示中の罫線グループの配列
+     */
+    function findExistingGroups(doc, layerName, groupName) {
+        var existingGroups = [];
+
+        for (var i = 0; i < doc.layers.length; i++) {
+            var layer = doc.layers[i];
+
+            if (layer.name !== layerName || layer.locked) {
+                continue;
+            }
+
+            for (var j = 0; j < layer.groupItems.length; j++) {
+                var group = layer.groupItems[j];
+
+                if (group.name === groupName && !group.hidden) {
+                    existingGroups.push(group);
+                }
+            }
+        }
+
+        return existingGroups;
+    }
+
+    /**
+     * プレビュー用のレイヤーが残っていれば消す
+     * @param {Document} doc 対象のドキュメント
+     * @return {void}
+     */
+    function removePreviewLayer(doc) {
+        for (var i = doc.layers.length - 1; i >= 0; i--) {
+            if (doc.layers[i].name === PREVIEW_LAYER_NAME) {
+                doc.layers[i].remove();
+            }
+        }
+    }
+
+    /**
+     * 原本と複製の表示を入れ替える（プレビュー中は前回の罫線も隠す）
+     * @param {object} state beginPreview が返した状態
+     * @param {boolean} visible プレビューを見せるかどうか
+     * @return {void}
+     */
+    function togglePreviewItems(state, visible) {
+        state.textFrame.hidden = visible;
+        state.previewFrame.hidden = !visible;
+
+        for (var i = 0; i < state.existingGroups.length; i++) {
+            state.existingGroups[i].hidden = visible;
+        }
+    }
+
+    /**
+     * プレビューの下ごしらえ（原本は隠し、確定後と同じ状態にした複製を代わりに見せる）
+     * @param {Document} doc 対象のドキュメント
+     * @param {TextFrame} textFrame 原本のテキストフレーム
+     * @return {object} 片付けに使う状態
+     */
+    function beginPreview(doc, textFrame) {
+        var state = {
+            doc: doc,
+            textFrame: textFrame,
+            activeLayer: doc.activeLayer,
+            existingGroups: findExistingGroups(doc, getLabel(LABELS.item.layerName), getLabel(LABELS.item.groupName)),
+            previewFrame: textFrame.duplicate()
+        };
+
+        normalizeTextFrame(state.previewFrame);
+        togglePreviewItems(state, true);
+
+        /* 属性変更後の再組版を反映させてから境界を読む */
+        app.redraw();
+
+        return state;
+    }
+
+    /**
+     * プレビューを片付けて元の状態に戻す（画面の更新はスクリプト終了時に任せる）
+     * @param {object} state beginPreview が返した状態
+     * @return {void}
+     */
+    function endPreview(state) {
+        removePreviewLayer(state.doc);
+        togglePreviewItems(state, false);
+        state.previewFrame.remove();
+
+        /* プレビューでレイヤーと選択が変わるので、控えておいた状態に戻す */
+        state.doc.activeLayer = state.activeLayer;
+        state.doc.selection = [state.textFrame];
+    }
+
+    /**
+     * 現在の設定で罫線をプレビューする
+     * @param {object} preview プレビューに使う { state, metrics, colors }
+     * @param {object} settings ダイアログで決めた設定
+     * @return {void}
+     */
+    function drawPreviewGrid(preview, settings) {
+        var doc = preview.state.doc;
+
+        removePreviewLayer(doc);
+        togglePreviewItems(preview.state, true);
+
+        var previewLayer = doc.layers.add();
+        previewLayer.name = PREVIEW_LAYER_NAME;
+
+        drawGrid(previewLayer.groupItems.add(), preview.metrics, settings, preview.colors);
+
+        /* 本処理と同じく、テキストの下に回す */
+        sendLayerToBack(previewLayer);
+
+        app.redraw();
+    }
+
+    /**
+     * プレビューを消して、実行前の見た目に戻す
+     * @param {object} preview プレビューに使う { state, metrics, colors }
+     * @return {void}
+     */
+    function clearPreviewGrid(preview) {
+        removePreviewLayer(preview.state.doc);
+        togglePreviewItems(preview.state, false);
+
+        app.redraw();
+    }
+
+    // =========================================
     // ダイアログ / Dialog
     // =========================================
 
@@ -405,9 +591,10 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
      * 数値入力欄を↑↓キーで増減できるようにする（Shiftで10の倍数にスナップ）
      * @param {object} editText 対象の edittext
      * @param {number} minimum 下限値
+     * @param {function} onUpdate 値を変えたあとに呼ぶ処理
      * @return {void}
      */
-    function changeValueByArrowKey(editText, minimum) {
+    function changeValueByArrowKey(editText, minimum, onUpdate) {
         editText.addEventListener("keydown", function (event) {
             var fieldValue = Number(editText.text);
             if (isNaN(fieldValue)) return;
@@ -428,6 +615,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
                 event.preventDefault();
                 editText.text = fieldValue;
+
+                /* 値の代入では onChanging が呼ばれないため、ここでプレビューを更新する */
+                onUpdate();
             }
         });
     }
@@ -460,9 +650,10 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
     /**
      * 設定ダイアログを表示する
+     * @param {object} preview プレビューに使う { state, metrics, colors }
      * @return {object|null} 設定値。キャンセルしたときは null
      */
-    function showSettingsDialog() {
+    function showSettingsDialog(preview) {
         var dialog = new Window("dialog", getLabel(LABELS.dialog.title));
         dialog.orientation = "column";
         dialog.alignChildren = ["fill", "top"];
@@ -475,7 +666,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
         var extensionInput = extensionRow.add("edittext", undefined, String(DEFAULTS.extensionMM));
         extensionInput.characters = 5;
-        changeValueByArrowKey(extensionInput, 0);
 
         extensionRow.add("statictext", undefined, getLabel(LABELS.unit.mm));
 
@@ -509,13 +699,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         var emphasisInput = emphasisRow.add("edittext", undefined, String(DEFAULTS.emphasisEvery));
         emphasisInput.characters = 3;
         emphasisInput.enabled = emphasisCheckbox.value;
-        changeValueByArrowKey(emphasisInput, 1);
 
         emphasisRow.add("statictext", undefined, getLabel(LABELS.label.emphasisSuffix));
-
-        emphasisCheckbox.onClick = function () {
-            emphasisInput.enabled = emphasisCheckbox.value;
-        };
 
         /* 各文字に十字線 */
         var crossRow = addRow(dialog);
@@ -530,6 +715,12 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         btnRowGroup.alignChildren = ["left", "center"];
         btnRowGroup.alignment = ["fill", "center"];
 
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+
+        var previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.preview));
+        previewCheckbox.value = DEFAULTS.preview;
+
         /* スペーサー（右側のボタンを押し出す） */
         var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
@@ -540,28 +731,82 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        if (dialog.show() !== 1) {
-            return null;
+        /**
+         * ダイアログの入力内容を設定にまとめる
+         * @return {object} 罫線を引くための設定
+         */
+        function readSettings() {
+            var extensionMM = Number(extensionInput.text);
+
+            if (isNaN(extensionMM) || extensionMM < 0) {
+                extensionMM = 0;
+            }
+
+            var emphasisEvery = Math.round(Number(emphasisInput.text));
+
+            if (isNaN(emphasisEvery) || emphasisEvery < 1) {
+                emphasisEvery = 0;
+            }
+
+            return {
+                extension: mmToPt(extensionMM),
+                dashedHorizontal: dashedRadio.value,
+                emphasisEvery: emphasisCheckbox.value ? emphasisEvery : 0,
+                showCross: crossCheckbox.value
+            };
         }
 
-        var extensionMM = Number(extensionInput.text);
+        /**
+         * 現在の設定でプレビューを描き直す
+         * @return {void}
+         */
+        function refreshPreview() {
+            if (!previewCheckbox.value) {
+                return;
+            }
 
-        if (isNaN(extensionMM) || extensionMM < 0) {
-            extensionMM = 0;
+            drawPreviewGrid(preview, readSettings());
         }
 
-        var emphasisEvery = Math.round(Number(emphasisInput.text));
-
-        if (isNaN(emphasisEvery) || emphasisEvery < 1) {
-            emphasisEvery = 0;
+        /**
+         * プレビューを消す
+         * @return {void}
+         */
+        function clearPreview() {
+            clearPreviewGrid(preview);
         }
 
-        return {
-            extension: mmToPt(extensionMM),
-            dashedHorizontal: dashedRadio.value,
-            emphasisEvery: emphasisCheckbox.value ? emphasisEvery : 0,
-            showCross: crossCheckbox.value
+        /* 設定を変えるたびにプレビューを描き直す */
+        extensionInput.onChanging = refreshPreview;
+        changeValueByArrowKey(extensionInput, 0, refreshPreview);
+
+        solidRadio.onClick = refreshPreview;
+        dashedRadio.onClick = refreshPreview;
+
+        emphasisInput.onChanging = refreshPreview;
+        changeValueByArrowKey(emphasisInput, 1, refreshPreview);
+
+        emphasisCheckbox.onClick = function () {
+            emphasisInput.enabled = emphasisCheckbox.value;
+            refreshPreview();
         };
+
+        crossCheckbox.onClick = refreshPreview;
+
+        previewCheckbox.onClick = function () {
+            if (previewCheckbox.value) {
+                refreshPreview();
+            } else {
+                clearPreview();
+            }
+        };
+
+        /* 既定でONなので、ダイアログを開く前に描いておく */
+        refreshPreview();
+
+        var dialogResult = dialog.show();
+
+        return (dialogResult === 1) ? readSettings() : null;
     }
 
     // =========================================
@@ -593,34 +838,41 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             return;
         }
 
-        /* ドキュメントを触る前に設定を決める / Settle the settings before touching the document */
-        var settings = showSettingsDialog();
+        var colors = {
+            rule: createRuleColor(doc, LAYOUT.strokeGray),
+            cross: createRuleColor(doc, LAYOUT.crossGray)
+        };
+
+        /* 原本は触らず、確定後と同じ状態にした複製でプレビューする / Preview on a copy, leaving the original untouched */
+        var previewState = beginPreview(doc, textFrame);
+        var metrics = measureGrid(previewState.previewFrame);
+
+        if (!metrics) {
+            endPreview(previewState);
+            alert(getLabel(LABELS.alert.noFontSize));
+            return;
+        }
+
+        var settings = showSettingsDialog({ state: previewState, metrics: metrics, colors: colors });
+
+        endPreview(previewState);
 
         if (!settings) {
             return;
         }
 
-        if (CONFIG.forceVertical && textFrame.orientation !== TextOrientation.VERTICAL) {
-            textFrame.orientation = TextOrientation.VERTICAL;
-        }
-
-        var failedAttributes = normalizeCharacterAttributes(textFrame);
-
-        /* 先頭文字の文字サイズを基準にする（比率を変えても size は元の値のまま） */
-        var fontSize = textFrame.textRange.characters[0].characterAttributes.size;
-
-        if (!fontSize || fontSize <= 0) {
-            alert(getLabel(LABELS.alert.noFontSize));
-            return;
-        }
-
-        /* 罫線の間隔は文字サイズそのもの。垂直比率は反映しない */
-        var cellHeight = fontSize;
+        /* ここから原本に反映する */
+        var failedAttributes = normalizeTextFrame(textFrame);
 
         /* 属性変更後の再組版を反映させてから境界を読む */
         app.redraw();
 
-        var bounds = textFrame.geometricBounds;
+        metrics = measureGrid(textFrame);
+
+        if (!metrics) {
+            alert(getLabel(LABELS.alert.noFontSize));
+            return;
+        }
 
         var layerName = getLabel(LABELS.item.layerName);
         var groupName = getLabel(LABELS.item.groupName);
@@ -631,19 +883,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         var group = ruleLayer.groupItems.add();
         group.name = groupName;
 
-        /* 最後の文字の下にも罫線を引くため、マス数は列の文字数から求める */
-        var cellCount = getMaxCharactersPerLine(textFrame);
-
-        if (cellCount <= 0) {
-            cellCount = Math.ceil((bounds[1] - bounds[3]) / cellHeight);
-        }
-
-        var colors = {
-            rule: createRuleColor(doc, LAYOUT.strokeGray),
-            cross: createRuleColor(doc, LAYOUT.crossGray)
-        };
-
-        drawGrid(group, bounds, cellHeight, cellCount, settings, colors);
+        drawGrid(group, metrics, settings, colors);
 
         /* グループの zOrder だけではテキストの下に回らないため、レイヤーごと最背面へ送る */
         sendLayerToBack(ruleLayer);
