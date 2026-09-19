@@ -276,13 +276,11 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 ## Preferences
 
-- [Quick preferences](readme-en/AiQuickPrefsPalette.md)
-- [Quick preferences (SuperSimple)](readme-en/AiQuickPrefsPalette-SuperSimple.md)
+- [Toggle the preferences you use most from a persistent palette](readme-en/AiQuickPrefsPalette.md)
 - [Artboard-related preferences](readme-en/ArtboardDisplayPresetManager.md)
 - [Change preferences from a single dialog](readme-en/PresetManager.md)
-- [A persistent-palette utility for batch-toggling variou…](readme-en/AiQuickPrefsPalette-simple.md)
 - [Lets you change a range of Illustrator preferences fro…](readme-en/PreferenceManager-unit.md)
-- [Writes the same set of values as [Preset 1] in PresetM…](readme-en/PresetManagerPreset1.md)
+- [Change preferences in one pass, without a dialog](readme-en/PresetManagerNoDialog.md)
 
 
 ## Others

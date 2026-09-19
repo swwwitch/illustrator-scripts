@@ -14,19 +14,24 @@ Switches the artboard-name and artboard-border display preferences from a dialog
 
 ### Features
 
-- Preset switching
+- Preset switching (Default / Emphasis / Light)
 - Artboard name display
 - Highlight color and stroke width
+- A Video Ruler button as a shortcut
 
 ### Usage
 
 1. Run the script.
-2. Set the options and click OK.
+2. Changing any control applies it right away.
+3. Click Close to dismiss the dialog.
 
 ### Notes
 
-- Use PresetManager-artboards.jsx if you prefer a persistent palette.
+- Every control writes to the preferences the moment you change it; there is no undo.
+- On launch, if the current settings match one of the presets, that radio button is selected.
+- The highlight color is picked from nine presets; the closest one to the current value is selected initially.
 
 ### Update History
 
+- v1.0.1 (2026-09-19) Merged the palette variant PresetManager-artboards.jsx
 - v1.0.0 (2026-03-23)

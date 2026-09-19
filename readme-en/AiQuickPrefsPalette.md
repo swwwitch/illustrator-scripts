@@ -1,55 +1,56 @@
-# Quick Preferences
+# Toggle the preferences you use most from a persistent palette
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiQuickPrefsPalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/AiQuickPrefsPalette.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 
-You want to turn "Scale Strokes & Effects" on. Or switch to "Preview Bounds" for a moment. Or set the arrow-key increment to 1 mm.
+### Overview
 
-All of these come up over and over while you work, and every time it means opening the Preferences dialog, finding the right category, ticking a box, and clicking OK. Worse, the items are scattered across General, Units, and Selection & Anchor Display — **the handful you actually touch are the ones furthest away**.
+You want to flip "Scale Strokes & Effects". You want Preview Bounds on for a moment. You want the arrow keys to move things by 1mm.
 
-So this script collects just those items into a single palette where a click takes effect immediately. It is meant to be left open.
+All of these come up constantly, and each time it means opening the Preferences dialog, finding the right category, ticking a box and clicking OK. Worse, the settings are scattered across General, Units and Selection & Anchor Display, so **the handful you actually touch are the ones furthest away**.
+
+This palette collects just those settings onto one panel and applies them the instant you click. It is meant to be left open.
 
 <img alt="" src="" width="50%" />
 
-## How to use
+### Features
 
-Run the script to open the palette. From there, operating a checkbox or button **applies the change at that instant**.
-
-**There is no OK or Apply button.** The moment you click is the moment it takes effect. The palette also closes with `Esc` (while it is active).
-
-Running the script again while the palette is already open brings the existing palette to the front instead of reopening it.
-
-## Available controls
-
-| Panel | Items | Notes |
+| Panel | Item | What it does |
 | --- | --- | --- |
-| Key Input | value + unit | Arrow-key increment (Preferences > General > Keyboard Increment). The unit popup switches the ruler unit |
-| Align Options | Preview Bounds | Use bounds including stroke & effects for align/distribute |
-| Align to Glyph Bounds | Point Type / Area Type | Align type to glyph bounds |
-| Transform Options | Pattern / Corners / Strokes & Effects | Transform patterns; scale corner (live corner) radius and strokes & effects when scaling |
-| Transform | Flip Horizontal / Flip Vertical / Rotate 45° | Acts on the selection (see below) |
-| Artboard | Show Artboard Name / Show Video Ruler | The video ruler is a toggle button |
-| Artboard border | Highlight color / stroke width | Nine colors, widths 1–4 |
+| Key Input | Value + unit | Keyboard increment (Preferences > General). The unit popup switches the ruler unit |
+| Align Options | Preview Bounds | Use bounds including strokes and effects for align/distribute |
+| | Align to Glyph Bounds | Align point type and area type to glyph bounds (both toggled together) |
+| Transform Options | Pattern Tiles / Corners / Strokes & Effects | Transform patterns along with the object; scale live-corner radii, strokes and effects when scaling |
 | Copy / Paste | Paste without Formatting / Paste Remembers Layers | |
 | Drawing | Real-time Drawing & Editing / Refresh Preview | Refresh Preview redraws the GPU preview |
+| View | Edges / Artboards / Video Ruler / Canvas Color | All toggle buttons; Edges switches edges and the bounding box together |
 
-Every control has a tooltip, so hover to see which preference it maps to.
+Every item has a tooltip, so hovering tells you which preference it maps to.
 
-## Option+click to toggle a whole panel
+### Usage
 
-The **Align to Glyph Bounds** and **Transform Options** checkboxes respond to **Option+click by setting every item in that panel to the same state**.
+Run the script and the palette opens. From there, every checkbox and button **applies the moment you touch it**.
 
-- Align to Glyph Bounds: point type / area type (2 items)
-- Transform Options: pattern / corners / strokes & effects (3 items)
+**There is no OK and no Apply.** The click is the commit. The palette also closes with `Esc` while it is active.
 
-A plain click still toggles a single item as before. Transform Options is often turned on or off as a set, so adding Option is all it takes.
+Running the script again while the palette is open brings the existing palette forward instead of opening a second one.
 
-## Numeric input for Key Input
+### Options
 
-The value field responds to the `↑` `↓` keys.
+#### Option-click to toggle a whole group
+
+The three Transform Options checkboxes (Pattern Tiles / Corners / Strokes & Effects) **all take the same state on Option-click**. A plain click toggles just the one you clicked. Since these three usually go on or off together, holding Option is enough.
+
+Align to Glyph Bounds is a single checkbox that always toggles point type and area type together.
+
+#### Typing into Key Input
+
+The value field steps with the `↑` and `↓` keys.
 
 | Key | Step |
 | --- | --- |
@@ -57,52 +58,31 @@ The value field responds to the `↑` `↓` keys.
 | `Shift` + `↑` `↓` | ±10 (snaps to the next multiple of 10) |
 | `Option` + `↑` `↓` | ±0.1 |
 
-The value never goes negative — it clamps at 0.
+Values never go negative; they clamp at 0.
 
-The unit popup does more than change the displayed unit: it **switches the ruler unit (rulerType) itself**. This is the slightly confusing part. Switching units does not change the stored increment in points; only the display is recomputed in the new unit.
+The unit popup does more than change how the number is displayed — it **switches the ruler unit (`rulerType`) itself**. This part is easy to miss. Switching units does not change the stored increment in points; only the displayed value is recomputed in the new unit.
 
-The popup lists seven units: in / mm / pt / pica / cm / Q/H / px.
+The popup lists seven units: in / mm / pt / pica / cm / Q / px.
 
-## Transform panel
+### Notes
 
-"Flip Horizontal", "Flip Vertical", and "Rotate 45°" all pivot about **the center of the visible bounds of the whole selection**. Individual objects do not spin around their own centers; the selection flips or rotates as a single block.
+If you change a setting outside the palette, for example in the Preferences dialog, **clicking the palette (re-activating it) syncs the display**. The one exception is while the Key Input field has focus, where syncing is skipped so your in-progress value is not overwritten.
 
-The rotation direction is set with the radio buttons on the right (clockwise / counterclockwise). The default is counterclockwise.
+A persistent Illustrator palette loses its DOM connection while it is on screen, so every preference **write** is delegated to the main engine over BridgeTalk. **Reads** are safe across engines, so the palette fetches them directly and synchronously.
 
-Items whose bounds cannot be read or that cannot be transformed (locked, hidden, guides, and so on) are skipped.
+Corners is the one item that is an integer preference rather than a boolean (`policyForPreservingCorners`, 1 = on / 2 = off), which the write path handles.
 
-## Following external changes
+The Refresh Preview button toggles the `View using GPU` menu command twice to force a redraw. The Canvas Color button likewise rewrites `uiCanvasIsWhite` and then repaints the canvas with `zoomout` → `zoomin`.
 
-If you change a setting outside the palette — in the Preferences dialog, for example — **clicking the palette (re-activating it) syncs the display**.
+Flipping and rotating the selection lives in [QuickTransformPalette](QuickTransformPalette.md); artboard names and borders live in [PresetManagerArtboard](PresetManagerArtboard.md).
 
-The one exception: while the Key Input value field has focus, syncing is skipped so that what you are typing is not overwritten.
+### Article (note)
 
-## Artboard border color
+https://note.com/dtp_tranist/n/n41d8dc1961be
 
-The dropdown offers nine presets (light blue / salmon pink / green / medium blue / magenta / cyan / light gray / black / yellow).
+### Update History
 
-If the current setting does not match a preset, **the preset with the closest RGB value is shown as selected**. This is not a way to specify an arbitrary color — it is a dropdown for picking a frequently used one quickly.
-
-## Notes
-
-A persistent Illustrator palette loses its DOM connection while it is shown, so all preference **writes** and object transforms are delegated to the main engine via BridgeTalk. **Reads** are safe across engines and are fetched directly and synchronously in the palette.
-
-Flips and rotations combine the three steps "translate → flip/rotate → translate" into a single composite matrix, reducing `transform` to one call per object. The cos / sin values are computed numerically in the palette and embedded into the delegated code.
-
-"Corners" alone is an integer preference (`policyForPreservingCorners`, 1=ON / 2=OFF) rather than a boolean, so the shared group-toggle logic takes a per-item apply function to absorb the difference.
-
-The "Refresh Preview" button toggles the `View using GPU` menu command twice to force a redraw. Changing the artboard border also redraws the canvas via `zoomout` → `zoomin`. Because that toggle snaps the view to the nearest zoom step, the original zoom and center point are saved and restored around it.
-
-## Change log
-
-- v1.8.2 (2026-08-01) Fixed a bug where re-running the script with the palette open silently stopped arrow-key edits to Key Input from being saved. Fixed click-to-sync not working right after launch (while the Key Input field held focus). Display decimals now follow the unit (3 for inches, and so on); the artboard-border redraw restores the original zoom and center point, and the write plus redraw are skipped when nothing changed. Unified the checkbox write path. Cleaned up the header comment (the overview now points to the README) and moved the basic-info block to the standard format.
-- v1.8.1 (2026-06-29) Option+click now toggles the whole group for the Align to Glyph Bounds (2 items) and Transform Options (3 items) checkboxes. The linked behavior was unified into linkCheckboxGroup (corners, an integer preference, is absorbed by an apply function).
-- v1.8.0 (2026-06-28) Added a "Rotate 45°" button (direction via radios, default counterclockwise, pivoting on the selection center). Flip buttons placed side by side and renamed "Flip Horizontal / Flip Vertical"; panel renamed "Transform". Added an "Align Options" title to the align panel and shortened the artboard panel name. Column spacing adjusted with COLUMN_SPACING.
-- v1.7.1 (2026-06-27) Renamed "Other" to "Copy / Paste" and added a "Drawing" panel (Real-time Drawing & Editing moved there). Added a Refresh Preview button to the Drawing panel.
-- v1.7.0 (2026-06-27) Added the transform (flip) panel (pivots on the selection center, skips locked/guide items, sped up with a composite matrix). Reworked the layout (left = Key Input / Align / Glyph Bounds, right = Transform Options / Transform). Removed the text/unit panels and canvas color, added "Paste Remembers Layers". Closes with Esc, and skips syncing while editing. Naming cleanup, shared checkbox creation and button-height adjustment.
-- v1.6.0 (2026-06-27) Reorganized to the standard format (IIFE, localization structure, block comments). Turned into a palette with BridgeTalk delegation, added the key-input unit popup, click-to-sync, guide/artboard panels, and a two-column layout.
+- v2.2.1 (2026-09-19) Merged AiQuickPrefsPalette-simple.jsx and AiQuickPrefsPalette-SuperSimple.jsx into this script. Flip/rotate moved to QuickTransformPalette.jsx; artboard name and border moved to PresetManagerArtboard.jsx.
+- v2.0.4 (2026-07-23) Added the "Open File Handling" button.
+- v2.0.3 Narrowed to preference toggling (Key Input / Align Options / Transform Options / Copy & Paste / Drawing). Writes delegated over BridgeTalk, reads fetched synchronously. Added Option-click group toggling and click-to-sync with external changes.
 - v1.0 (2025-08-04) Initial version.
-
-### note
-
-- https://note.com/dtp_tranist/n/n41d8dc1961be

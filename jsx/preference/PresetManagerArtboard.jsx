@@ -132,9 +132,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
     };
 
+    /**
+     * ラベルを現在のUI言語で取得 / Return a label in the current UI language
+     * @param {string} key - LABELS のキー
+     * @returns {string} ラベル文字列。見つからないときはキー名を返す
+     */
     function getLabel(key) {
-        return LABELS[key][uiLang];
+        var entry = LABELS[key];
+        if (!entry) return key;
+        if (entry[uiLang]) return entry[uiLang];
+        /* ja -> en -> キー名の順でフォールバック / Fall back ja -> en -> key name */
+        if (entry.ja) return entry.ja;
+        if (entry.en) return entry.en;
+        return key;
     }
+
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）/ Append a colon; full-width in Japanese, half-width in English
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロン付きのラベル文字列
+     */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    }
+
+    // =========================================
+    // UIレイアウトの共通設定 / Shared UI layout
+    // =========================================
+
+    var PANEL_MARGINS = [15, 20, 15, 10]; /* パネル余白 [左,上,右,下] / panel margins */
+    var PRESET_ROW_BOTTOM_MARGIN = 5;     /* プリセット行の下余白 / preset row bottom margin */
+    var BUTTON_ROW_TOP_MARGIN = 10;       /* ボタン行の上余白 / button row top margin */
+    var BUTTON_SPACING = 10;              /* ボタン同士の間隔 / spacing between buttons */
 
     function main() {
 
@@ -219,8 +248,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             prefs.setRealPreference("ArtboardBBColorGreen", scPreset.g);
             prefs.setRealPreference("ArtboardBBColorBlue", scPreset.b);
             prefs.setRealPreference("ArtboardBBWidth", getSelectedStrokeWidth());
-            // Force canvas refresh after preference changes.
-            // redraw() alone may not update the artboard highlight immediately.
+            forceScreenRefresh();
+        }
+
+        /**
+         * 環境設定の変更後に画面を強制再描画（redraw だけではハイライトが更新されないため）
+         * Force a redraw after preference changes (redraw alone leaves the highlight stale)
+         * ドキュメントが開いていないときは何もしない / Does nothing when no document is open
+         * @returns {void}
+         */
+        function forceScreenRefresh() {
+            if (app.documents.length === 0) return;
             app.executeMenuCommand('zoomout');
             app.executeMenuCommand('zoomin');
         }
@@ -254,6 +292,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var presetRow = mainGroup.add("group");
         presetRow.orientation = "row";
         presetRow.alignment = "center";
+        presetRow.margins = [0, 0, 0, PRESET_ROW_BOTTOM_MARGIN];
         var rbPresetDefault = presetRow.add("radiobutton", undefined, getLabel("presetDefault"));
         var rbPresetEmphasis = presetRow.add("radiobutton", undefined, getLabel("presetEmphasis"));
         var rbPresetLight = presetRow.add("radiobutton", undefined, getLabel("presetLight"));
@@ -265,24 +304,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panelArtboard.orientation = "column";
         panelArtboard.alignChildren = ["fill", "top"];
         panelArtboard.alignment = ["fill", "top"];
-        panelArtboard.margins = [15, 20, 15, 10];
+        panelArtboard.margins = PANEL_MARGINS;
 
         var cbShowArtboardName = panelArtboard.add("checkbox", undefined, getLabel("cbShowArtboardName"));
         cbShowArtboardName.helpTip = LABELS.cbShowArtboardName.ja + " / " + LABELS.cbShowArtboardName.en;
-        cbShowArtboardName.value = !!getBool("showArtboardLabelOnCanvas", false);
 
         // Artboard border panel / アートボードの枠線パネル
         var panelArtboardBorder = panelArtboard.add("panel", undefined, getLabel("panelArtboardBorderTitle"));
         panelArtboardBorder.orientation = "column";
         panelArtboardBorder.alignChildren = ["fill", "top"];
         panelArtboardBorder.alignment = ["fill", "top"];
-        panelArtboardBorder.margins = [15, 20, 15, 10];
+        panelArtboardBorder.margins = PANEL_MARGINS;
 
         // Stroke color (dropdown) / ストロークのカラー（ドロップダウン）
         var strokeColorRow = panelArtboardBorder.add("group");
         strokeColorRow.orientation = "row";
         strokeColorRow.alignChildren = ["left", "center"];
-        strokeColorRow.add("statictext", undefined, getLabel("artboardStrokeColor") + "：");
+        strokeColorRow.add("statictext", undefined, labelText("artboardStrokeColor"));
 
         var ddStrokeColor = strokeColorRow.add("dropdownlist", undefined, buildStrokeColorNames());
 
@@ -290,39 +328,39 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var strokeWidthRow = panelArtboardBorder.add("group");
         strokeWidthRow.orientation = "row";
         strokeWidthRow.alignChildren = ["left", "center"];
-        strokeWidthRow.add("statictext", undefined, getLabel("artboardStrokeWidth") + "：");
+        strokeWidthRow.add("statictext", undefined, labelText("artboardStrokeWidth"));
         var rbStrokeWidth1 = strokeWidthRow.add("radiobutton", undefined, "1");
         var rbStrokeWidth2 = strokeWidthRow.add("radiobutton", undefined, "2");
         var rbStrokeWidth3 = strokeWidthRow.add("radiobutton", undefined, "3");
         var rbStrokeWidth4 = strokeWidthRow.add("radiobutton", undefined, "4");
         var rbStrokeWidths = [rbStrokeWidth1, rbStrokeWidth2, rbStrokeWidth3, rbStrokeWidth4];
 
-        /* Bottom button row (Cancel / OK) / 下部ボタン行 */
-        var outerGroup = mainGroup.add("group");
-        outerGroup.orientation = "row";
-        outerGroup.alignChildren = ["fill", "center"];
-        outerGroup.alignment = ["fill", "bottom"];
+        /* 下部ボタン行（左：ビデオ定規／右：閉じる）/ Bottom button row (left: Video Ruler, right: Close) */
+        var btnRowGroup = mainGroup.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var leftGroup = outerGroup.add("group");
-        leftGroup.orientation = "row";
-        leftGroup.alignChildren = ["left", "center"];
-        var btnVideoRuler = leftGroup.add("button", undefined, getLabel("VideoRuler"));
+        /* 左側グループ / Left-side button group */
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnVideoRuler = btnLeftGroup.add("button", undefined, getLabel("VideoRuler"));
 
-        var spacer = outerGroup.add("group");
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
         spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        var rightGroup = outerGroup.add("group");
-        rightGroup.orientation = "row";
-        rightGroup.alignChildren = ["right", "center"];
-        rightGroup.spacing = 10;
-        var btnOK = rightGroup.add("button", undefined, getLabel("OK"), {
-            name: "ok"
-        });
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_SPACING;
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("OK"), { name: "ok" });
 
         // =========================================
         // Reflect current values / 値反映
         // =========================================
-
+        cbShowArtboardName.value = !!getBool("showArtboardLabelOnCanvas", false);
         var curSCR = getReal("ArtboardBBColorRed", 0.0);
         var curSCG = getReal("ArtboardBBColorGreen", 0.0);
         var curSCB = getReal("ArtboardBBColorBlue", 0.0);
@@ -335,6 +373,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var curStrokeWidth = Math.round(getReal("ArtboardBBWidth", 1.0));
         var swIdx = clamp(curStrokeWidth, 1, 4) - 1;
         rbStrokeWidths[swIdx].value = true;
+
+        /* 現在値がいずれかのプリセットと一致していればそのラジオを選ぶ / Select the preset radio that matches the current values */
+        if (cbShowArtboardName.value === true && closestIdx === STROKE_COLOR_INDEX.BLACK && curStrokeWidth === 1) {
+            rbPresetDefault.value = true;
+        } else if (cbShowArtboardName.value === false && closestIdx === STROKE_COLOR_INDEX.RED && curStrokeWidth === 3) {
+            rbPresetEmphasis.value = true;
+        } else if (cbShowArtboardName.value === false && closestIdx === STROKE_COLOR_INDEX.GREY && curStrokeWidth === 1) {
+            rbPresetLight.value = true;
+        }
 
         // =========================================
         // Event wiring / イベント設定
@@ -383,6 +430,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dlg.close();
         };
 
+        dlg.center();
         dlg.show();
     }
 
