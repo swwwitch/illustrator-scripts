@@ -225,7 +225,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Draws the same-sized rectangle on all artboards and ma…](readme-en/ArtboardMaskAndRelease.md)
 - [Collects the text frames on every artboard and places…](readme-en/CollectArtboardTexts.md)
 - [A script for Illustrator that automatically adds new a…](readme-en/Group2Artboards.md)
-- [Remove all non-active artboards](readme-en/RemoveOtherArtboards.md)
+- [Keep only the active artboard, or remove the empty ones](readme-en/KeepActiveArtboardOnly.md)
 - [Resize artboards to the specified width/height with li…](readme-en/ResizeArtboardsAll.md)
 - [Draws rectangles that match the active or all artboard…](readme-en/SmartDrawArtboardRectangle.md)
 

@@ -236,7 +236,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [すべてのアートボードに同じサイズの矩形を描画し、アートボード内のオブジェクトをマスクします](readme-ja/ArtboardMaskAndRelease.md)
 - [全アートボード上にあるテキストフレームを収集し、最後のアートボードの右側に縦に並べて配置する](readme-ja/CollectArtboardTexts.md)
 - [選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして自動追加するIllu…](readme-ja/Group2Artboards.md)
-- [アクティブなアートボード以外を削除](readme-ja/RemoveOtherArtboards.md)
+- [アクティブなアートボードだけを残す、または空のアートボードを削除](readme-ja/KeepActiveArtboardOnly.md)
 - [ダイアログで指定した「幅」「高さ」に、アートボードをライブプレビューしながら変形します](readme-ja/ResizeArtboardsAll.md)
 - [アクティブまたは全アートボードと同サイズの長方形を、オフセットを考慮して描画します](readme-ja/SmartDrawArtboardRectangle.md)
 
