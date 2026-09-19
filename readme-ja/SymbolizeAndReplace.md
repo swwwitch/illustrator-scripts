@@ -12,23 +12,19 @@
 
 - 選択オブジェクトをシンボルとして登録し、ドキュメント内の一致するオブジェクトをそのインスタンスに置き換え
 
+### 主な機能
+
+- シンボル名と 3×3 の基準点をダイアログで指定（既存シンボルと同じ名前は指定できません）
+- テキストを選択した場合は、その文字列からシンボル名の初期値を作り、フォント・スタイル・文字列が一致するテキストフレームを対象にします（［フォントサイズ違いも対象にする］を ON にすると、サイズの違いを無視します）
+- それ以外は、SmartEdit の一括選択で類似したオブジェクトを対象にします
+- 複数のグループを選択した場合は、選択したすべてのグループを 1 つのシンボルに置き換えます（グループ以外を含む選択では実行できません）
+- 指定した基準点で元オブジェクトの位置に揃えて、シンボルインスタンスに置き換えます
+- 置換後は、新しいシンボルインスタンスを選択した状態のままにします
+- ロック／非表示などで置換できなかった件数を報告します
+
 ### 紹介記事（note)
 
 https://note.com/dtp_tranist/n/n650a4b91329d
-
-Overview
-
-Illustrator JSX script that converts the selected object into a symbol and
-replaces matching items in the document with instances of that symbol.
-
-- Registers the symbol via a dialog for its name and a 3×3 registration point (existing names are rejected)
-- For a TextFrame, seeds the symbol name from its text and targets frames with the same font, style, and contents
-  (enable "Include different font sizes" to ignore size)
-- Otherwise targets similar objects via SmartEdit bulk selection
-- With multiple groups selected, replaces every selected group with one symbol (a multi-selection containing non-groups is rejected)
-- Replaces each target with a symbol instance, aligned by the chosen registration point
-- Leaves the new symbol instances selected after replacement
-- Reports how many items could not be replaced (locked/hidden, etc.)
 
 ### スクリプト情報
 

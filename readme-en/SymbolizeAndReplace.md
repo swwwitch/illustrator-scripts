@@ -12,6 +12,8 @@
 
 Converts the selected object into a symbol and replaces matching items in the document with instances of that symbol.
 
+### Features
+
 - Registers the symbol via a dialog for its name and a 3×3 registration point (existing names are rejected)
 - For a TextFrame, seeds the symbol name from its text and targets frames with the same font, style, and contents
   (enable "Include different font sizes" to ignore size)
