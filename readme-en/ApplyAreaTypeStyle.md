@@ -1,8 +1,8 @@
-# Pick and import a graphic style
+# Apply an area-type graphic style
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ImportGraphicStyles--v2.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ImportGraphicStyles-v2.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyAreaTypeStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ApplyAreaTypeStyle.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportGraphicStyles-v2.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyAreaTypeStyle.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -14,6 +14,18 @@
 - If the chosen style is not in the document, it is imported from a predefined AI file (`TARGET_FILE_PATH`)
 - The chosen graphic style is applied to the selected objects
 
+### Settings
+
+**This script will not work as shipped.** Edit the "User Settings" block at the top of the script to match your own environment before running it.
+
+| Variable | Default | What it is |
+| --- | --- | --- |
+| `TARGET_FILE_PATH` | `/Users/takano/sw Dropbox/.../StyleForAreaType.ai` | **Absolute path** to the AI file the graphic styles are imported from. This is the author's own path, so you must replace it with the path to your own file |
+| `STYLE_NAME_WHITE_TEXT` | `文字白抜き` | Name of the graphic style applied by the "White text" radio button |
+| `STYLE_NAME_FRAME_ONLY` | `枠のみ` | Name of the graphic style applied by the "Frame only" radio button |
+
+The style names have to match the names registered in the source AI file.
+
 ### Process Flow
 
 1. Select the target objects and run the script
@@ -24,7 +36,7 @@
 ### Notes
 
 - During import the content is pasted onto a temporary `// _imported` layer, which is deleted together with its contents once the asset is registered (nothing changes visually)
-- The source file is set by `TARGET_FILE_PATH`, and the style names by `STYLE_NAME_WHITE_TEXT` / `STYLE_NAME_FRAME_ONLY`
+- If the AI file at `TARGET_FILE_PATH` cannot be found, the style cannot be imported (see Settings)
 
 ### Update History
 

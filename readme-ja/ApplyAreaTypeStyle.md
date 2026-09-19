@@ -1,8 +1,8 @@
-# グラフィックスタイルを選んで読み込む
+# エリア内文字用のグラフィックスタイルを適用
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ImportGraphicStyles--v2.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ImportGraphicStyles-v2.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyAreaTypeStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ApplyAreaTypeStyle.jsx)
 
-[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportGraphicStyles-v2.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyAreaTypeStyle.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
@@ -14,6 +14,18 @@
 - 選択したスタイルがドキュメントに無ければ、定義済みの AI ファイル（TARGET_FILE_PATH）から取り込む
 - 選択中のオブジェクトへ、選んだグラフィックスタイルを適用する
 
+### ユーザー設定
+
+**このスクリプトは、そのままでは動きません。** スクリプト冒頭の「ユーザー設定」ブロックを、自分の環境に合わせて書き換えてから使ってください。
+
+| 変数 | 既定値 | 内容 |
+| --- | --- | --- |
+| `TARGET_FILE_PATH` | `/Users/takano/sw Dropbox/.../StyleForAreaType.ai` | グラフィックスタイルの取り込み元 AI ファイルの**絶対パス**。作者の環境のパスが入っているので、必ず自分のファイルのパスに書き換えてください |
+| `STYLE_NAME_WHITE_TEXT` | `文字白抜き` | ラジオ「文字白抜き」で適用するグラフィックスタイル名 |
+| `STYLE_NAME_FRAME_ONLY` | `枠のみ` | ラジオ「枠のみ」で適用するグラフィックスタイル名 |
+
+スタイル名は、取り込み元の AI ファイルに登録されている名前と一致させる必要があります。
+
 ### 処理の流れ
 
 1. 対象オブジェクトを選択した状態でスクリプトを実行
@@ -24,7 +36,7 @@
 ### 注意点
 
 - 取り込み時は「// _imported」レイヤーへ一時的に貼り付け、アセット登録後にレイヤーごと削除します（見た目は変わりません）
-- 読み込むファイルは TARGET_FILE_PATH、スタイル名は STYLE_NAME_WHITE_TEXT / STYLE_NAME_FRAME_ONLY で切り替えられます
+- `TARGET_FILE_PATH` の AI ファイルが見つからない場合、スタイルの取り込みはできません（「ユーザー設定」を参照）
 
 ### 更新履歴
 

@@ -99,7 +99,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Sets the tsume of the selected text to 30%](readme-en/Tsume30simple.md)
 - [A docked palette that sets only the basic text-composi…](readme-en/TypeBasicsPanel.md)
 - [Generates a type scale from a base font size and a ratio](readme-en/TypeScaler.md)
-- [A docked palette that sets text-composition attributes…](readme-en/UnifiedTypePanel-v3.md)
 - [Automatically add thousand separators to numbers in Il…](readme-en/formatNumberWithCommas.md)
 - [Inserts a line break right after the specified charact…](readme-en/titlemaker.md)
 
@@ -287,7 +286,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [A palette for changing the "constrain angle" preferenc…](readme-en/DirectPrefs.md)
 - [Re-selects each selected object in turn and expands it…](readme-en/ExpandAppearanceEachObject.md)
 - [The Load Styles button picks an AI file and imports th…](readme-en/ImportGraphicStyles.md)
-- [Pick a graphic style with the dialog's radio buttons (…](readme-en/ImportGraphicStyles-v2.md)
+- [Apply a fixed area-type graphic style (white text or frame only)](readme-en/ApplyAreaTypeStyle.md)
 - [Create an area text filled with sample text at the center of the view](readme-en/InsertNewAreaText.md)
 - [Create a black square at the center of the view, then convert to shape and make pixel perfect](readme-en/InsertNewRectangle.md)
 - [Create five black squares near the center of the view without overlapping](readme-en/InsertNewRectangle5Times.md)
