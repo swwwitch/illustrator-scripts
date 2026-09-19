@@ -224,7 +224,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Rearrange artboards into a grid based on their names](readme-en/GridArrangeArtboards.md)
 - [Draws the same-sized rectangle on all artboards and ma…](readme-en/ArtboardMaskAndRelease.md)
 - [Collects the text frames on every artboard and places…](readme-en/CollectArtboardTexts.md)
-- [Creates a rectangle exactly the size of the current ar…](readme-en/DrawArtboardRectangle.md)
 - [A script for Illustrator that automatically adds new a…](readme-en/Group2Artboards.md)
 - [Remove all non-active artboards](readme-en/RemoveOtherArtboards.md)
 - [Resize artboards to the specified width/height with li…](readme-en/ResizeArtboardsAll.md)
