@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResetTransform";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetTransform.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetTransform.md"; /* README (English) */
@@ -111,6 +111,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
             textFrame: { ja: "テキスト", en: "Text" },
             rectanglePath: { ja: "長方形（パス）", en: "Rectangle (Path)" },
             straightLine: { ja: "パス（直線）", en: "Path (Line)" }
+        },
+        tooltip: {
+            rotate:      { ja: "掛かっている回転を元に戻します。", en: "Clears the rotation." },
+            shear:       { ja: "掛かっているシアー（傾き）を元に戻します。", en: "Clears the shear." },
+            aspectRatio: { ja: "変形でくずれた縦横比を元に戻します。", en: "Restores the original aspect ratio." },
+            flip:        { ja: "反転を元に戻します。", en: "Clears the flip." },
+            scale:       { ja: "拡大・縮小率を、下の欄の値にそろえます。", en: "Sets the scale to the value in the field below." },
+            scalePercent:{ ja: "そろえる拡大・縮小率（％）です。", en: "The scale, in percent, every object is set to." }
         },
         checkbox: {
             rotate: { ja: "回転", en: "Rotate" },
@@ -232,11 +240,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
      * @param {object} targetPanel - 追加先のパネル
      * @param {object} labelEntry - ラベル定義
      * @param {boolean} initialValue - 初期のオン／オフ
+     * @param {object} [tooltipEntry] - ツールチップのラベル定義
      * @returns {object} 追加したチェックボックス
      */
-    function addCheckbox(targetPanel, labelEntry, initialValue) {
+    function addCheckbox(targetPanel, labelEntry, initialValue, tooltipEntry) {
         var checkbox = targetPanel.add('checkbox', undefined, getLabel(labelEntry));
         checkbox.value = initialValue;
+        if (tooltipEntry) checkbox.helpTip = getLabel(tooltipEntry);
         return checkbox;
     }
 
@@ -466,11 +476,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         var pnlPlacedImage = parentGroup.add('panel', undefined, getLabel(LABELS.panel.placedImage));
         applyPanelLayout(pnlPlacedImage, PANEL_SPACING_COMPACT);
 
-        var cbRotate = addCheckbox(pnlPlacedImage, LABELS.checkbox.rotate, true);
-        var cbShear = addCheckbox(pnlPlacedImage, LABELS.checkbox.shear, true);
-        var cbAspectRatio = addCheckbox(pnlPlacedImage, LABELS.checkbox.aspectRatio, true);
-        var cbFlip = addCheckbox(pnlPlacedImage, LABELS.checkbox.flip, true);
-        var cbScale = addCheckbox(pnlPlacedImage, LABELS.checkbox.scale, false);
+        var cbRotate = addCheckbox(pnlPlacedImage, LABELS.checkbox.rotate, true, LABELS.tooltip.rotate);
+        var cbShear = addCheckbox(pnlPlacedImage, LABELS.checkbox.shear, true, LABELS.tooltip.shear);
+        var cbAspectRatio = addCheckbox(pnlPlacedImage, LABELS.checkbox.aspectRatio, true, LABELS.tooltip.aspectRatio);
+        var cbFlip = addCheckbox(pnlPlacedImage, LABELS.checkbox.flip, true, LABELS.tooltip.flip);
+        var cbScale = addCheckbox(pnlPlacedImage, LABELS.checkbox.scale, false, LABELS.tooltip.scale);
 
         var scaleInputGroup = pnlPlacedImage.add('group');
         scaleInputGroup.orientation = 'row';
@@ -478,6 +488,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         scaleInputGroup.alignment = 'left'; /* 入力欄はパネル幅いっぱいに広げない / keep the scale input compact */
 
         var etScalePercent = scaleInputGroup.add('edittext', undefined, '100');
+        etScalePercent.helpTip = getLabel(LABELS.tooltip.scalePercent);
         etScalePercent.characters = 5;
         var stPercentUnit = scaleInputGroup.add('statictext', undefined, '%');
         changeValueByArrowKey(etScalePercent, SCALE_MIN_PERCENT);
@@ -524,9 +535,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         applyPanelLayout(pnlClippedGroup, PANEL_SPACING_COMPACT);
 
         var controls = {
-            rotate: addCheckbox(pnlClippedGroup, LABELS.checkbox.rotate, true),
-            aspectRatio: addCheckbox(pnlClippedGroup, LABELS.checkbox.aspectRatio, true),
-            flip: addCheckbox(pnlClippedGroup, LABELS.checkbox.flip, true)
+            rotate: addCheckbox(pnlClippedGroup, LABELS.checkbox.rotate, true, LABELS.tooltip.rotate),
+            aspectRatio: addCheckbox(pnlClippedGroup, LABELS.checkbox.aspectRatio, true, LABELS.tooltip.aspectRatio),
+            flip: addCheckbox(pnlClippedGroup, LABELS.checkbox.flip, true, LABELS.tooltip.flip)
         };
         pnlClippedGroup.enabled = isEnabled;
         return controls;
@@ -543,8 +554,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         applyPanelLayout(pnlTextFrame, PANEL_SPACING_COMPACT);
 
         var controls = {
-            rotate: addCheckbox(pnlTextFrame, LABELS.checkbox.rotate, true),
-            shear: addCheckbox(pnlTextFrame, LABELS.checkbox.shear, true),
+            rotate: addCheckbox(pnlTextFrame, LABELS.checkbox.rotate, true, LABELS.tooltip.rotate),
+            shear: addCheckbox(pnlTextFrame, LABELS.checkbox.shear, true, LABELS.tooltip.shear),
             scaleRatio: addCheckbox(pnlTextFrame, LABELS.checkbox.textScaleRatio, true),
             tracking: addCheckbox(pnlTextFrame, LABELS.checkbox.tracking, true)
         };
@@ -563,7 +574,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n52f6b645bc70"; /* 紹�
         var rotateOnlyPanel = parentGroup.add('panel', undefined, getLabel(titleEntry));
         applyPanelLayout(rotateOnlyPanel, PANEL_SPACING_COMPACT);
 
-        var cbRotate = addCheckbox(rotateOnlyPanel, LABELS.checkbox.rotate, true);
+        var cbRotate = addCheckbox(rotateOnlyPanel, LABELS.checkbox.rotate, true, LABELS.tooltip.rotate);
         rotateOnlyPanel.enabled = isEnabled;
         return cbRotate;
     }

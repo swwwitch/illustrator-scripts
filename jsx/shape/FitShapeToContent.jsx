@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FitShapeToContent";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitShapeToContent.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitShapeToContent.md"; /* README (English) */
@@ -133,6 +133,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
             link:          { ja: "連動", en: "Link" },
             pill:          { ja: "ピル形状", en: "Pill Shape" }
         },
+        tooltip: {
+            adjustEnabled: {
+                ja: "オフにすると、座布団の大きさと角丸はそのままで位置だけを合わせます。",
+                en: "When off, only the position is matched; the shape keeps its current size and corners."
+            },
+            paddingWidth: {
+                ja: "コンテンツの左右に加えるアキです。",
+                en: "Space added to the left and right of the content."
+            },
+            paddingHeight: {
+                ja: "コンテンツの上下に加えるアキです。",
+                en: "Space added above and below the content."
+            },
+            link: {
+                ja: "幅と高さのパディングを同じ値にします。",
+                en: "Keeps the width and height padding the same."
+            },
+            radiusEnabled: {
+                ja: "角を丸めます。オフにすると角のままにします。",
+                en: "Rounds the corners. When off, the corners are left square."
+            },
+            radius: {
+                ja: "角丸の半径です。",
+                en: "Radius of the rounded corners."
+            },
+            pill: {
+                ja: "短い辺の半分を半径にして、両端が半円のピル形にします。",
+                en: "Uses half of the shorter side as the radius, making a pill shape."
+            }
+        },
         button: {
             ok:     { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
@@ -195,25 +225,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
 
     /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
     var UNITS = [
-        { label: "in",    factor: 72.0 },
-        { label: "mm",    factor: 72.0 / 25.4 },
-        { label: "pt",    factor: 1.0 },
-        { label: "pica",  factor: 12.0 },
-        { label: "cm",    factor: 72.0 / 2.54 },
-        { label: "H",     factor: 72.0 / 25.4 * 0.25 },
-        { label: "px",    factor: 1.0 },
-        { label: "ft/in", factor: 72.0 * 12.0 },
-        { label: "m",     factor: 72.0 / 25.4 * 1000.0 },
-        { label: "yd",    factor: 72.0 * 36.0 },
-        { label: "ft",    factor: 72.0 * 12.0 }
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
+    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
-     * 定規の単位（表示ラベルと pt 換算係数）を取得する
-     * @returns {{label: string, factor: number}} 単位情報（不明なら pt）
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報（不明なら pt）
      */
-    function getRulerUnit() {
-        return UNITS[app.preferences.getIntegerPreference("rulerType")] || UNITS[2];
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -975,7 +1013,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
      * ダイアログのウィジェットを組み立てる
      * @param {Window} targetWindow - 追加先のウィンドウ
      * @param {object} sessionState - 前回の設定
-     * @param {{label: string, factor: number}} rulerUnit - 定規の単位
+     * @param {{code: number, label: string, pointsPerUnit: number}} rulerUnit - 定規の単位
      * @param {boolean} shapeIsAutoCreated - 長方形を自動作成したかどうか
      * @returns {PreviewWidgets} 生成したウィジェット一式
      */
@@ -983,6 +1021,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         var adjustRow = targetWindow.add("group");
         setupRow(adjustRow, "center");
         var chkAdjustEnabled = adjustRow.add("checkbox", undefined, getLabel("checkbox", "adjustEnabled"));
+        chkAdjustEnabled.helpTip = getLabel("tooltip", "adjustEnabled");
         chkAdjustEnabled.value = !!shapeIsAutoCreated;
 
         /* パディング / Padding */
@@ -995,11 +1034,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         paddingFields.alignChildren = ["left", "center"];
         var inputW = addNumericFieldRow(paddingFields, labelText("fieldLabel", "width"), sessionState.addW, rulerUnit.label);
         var inputH = addNumericFieldRow(paddingFields, labelText("fieldLabel", "height"), sessionState.addH, rulerUnit.label);
+        inputW.helpTip = getLabel("tooltip", "paddingWidth");
+        inputH.helpTip = getLabel("tooltip", "paddingHeight");
 
         var linkColumn = paddingRow.add("group");
         linkColumn.orientation = "column";
         linkColumn.alignChildren = ["left", "center"];
         var chkLink = linkColumn.add("checkbox", undefined, getLabel("checkbox", "link"));
+        chkLink.helpTip = getLabel("tooltip", "link");
         chkLink.value = sessionState.link;
 
         /* 角丸 / Rounded corners */
@@ -1007,14 +1049,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
         var radiusRow = cornerPanel.add("group");
         setupRow(radiusRow);
         var chkRadiusEnabled = radiusRow.add("checkbox", undefined, labelText("fieldLabel", "radius"));
+        chkRadiusEnabled.helpTip = getLabel("tooltip", "radiusEnabled");
         chkRadiusEnabled.value = (sessionState.radiusEnabled !== false);
         var inputR = radiusRow.add("edittext", undefined, sessionState.radius);
         inputR.characters = FIELD_CHARS;
+        inputR.helpTip = getLabel("tooltip", "radius");
         radiusRow.add("statictext", undefined, rulerUnit.label);
 
         var pillRow = cornerPanel.add("group");
         setupRow(pillRow);
         var chkPill = pillRow.add("checkbox", undefined, getLabel("checkbox", "pill"));
+        chkPill.helpTip = getLabel("tooltip", "pill");
         chkPill.value = !!sessionState.pill;
 
         return {
@@ -1151,8 +1196,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
      * @returns {{shouldRunPathfinder: boolean, previewItem: PageItem}|null} 確定結果、キャンセル時は null
      */
     function showDialog(dialogContext) {
-        var rulerUnit = getRulerUnit();
-        var sessionState = getSessionState(rulerUnit.factor);
+        var rulerUnit = getUnitInfo("rulerType");
+        var sessionState = getSessionState(rulerUnit.pointsPerUnit);
         var previewState = { isUndo: false };
         var confirmedValues = null;
         var finalPreviewItem = null;
@@ -1169,7 +1214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6e4a6a2b175f"; /* 紹�
                 previewBaseShapeItem: dialogContext.previewBaseShapeItem
             },
             previewState,
-            rulerUnit.factor
+            rulerUnit.pointsPerUnit
         );
         bindDialogEvents(widgets, ctrl);
 

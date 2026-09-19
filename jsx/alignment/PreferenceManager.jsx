@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManager";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-08-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2024-08-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager.md"; /* README (English) */
@@ -52,20 +52,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位の定義 / Unit tables
     // =========================================
 
-    /* 単位コードとラベルの対応 / Unit code to label */
-    var UNIT_LABEL_BY_CODE = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     /* 単位を設定する環境設定キーと、対応するラベル / Unit preference keys with their labels */
     var UNIT_PREF_KEYS = [
@@ -75,8 +92,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         { prefKey: "text/asianunits",  labelPath: "fieldLabel.asianUnit",   tooltipPath: "tooltip.asianUnit" }
     ];
 
-    /* モードごとの単位プリセット。値は UNIT_LABEL_BY_CODE のラベル
-       Unit presets per mode; values are labels from UNIT_LABEL_BY_CODE */
+    /* モードごとの単位プリセット。値は UNITS のラベル
+       Unit presets per mode; values are labels from UNITS */
     var UNIT_PRESETS = {
         printPt: {
             "rulerType": "mm",
@@ -87,8 +104,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         printQ: {
             "rulerType": "mm",
             "strokeUnits": "mm",
-            "text/units": "Q/H",
-            "text/asianunits": "Q/H"
+            "text/units": "Q",
+            "text/asianunits": "Q"
         },
         onscreen: {
             "rulerType": "px",
@@ -150,7 +167,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         tooltip: {
             modePrintPt:  { ja: "一般=mm、線=pt、文字=pt、東アジア言語のオプション=pt にまとめて切り替えます。", en: "Sets General=mm, Stroke=pt, Text=pt, East Asian=pt." },
-            modePrintQ:   { ja: "一般=mm、線=mm、文字=Q/H、東アジア言語のオプション=Q/H にまとめて切り替えます。", en: "Sets General=mm, Stroke=mm, Text=Q/H, East Asian=Q/H." },
+            modePrintQ:   { ja: "一般=mm、線=mm、文字=Q、東アジア言語のオプション=Q にまとめて切り替えます。", en: "Sets General=mm, Stroke=mm, Text=Q, East Asian=Q." },
             modeOnscreen: { ja: "一般・線・文字・東アジア言語のオプションをすべて px に切り替えます。", en: "Sets General, Stroke, Text and East Asian all to px." },
             generalUnit:  { ja: "定規やパネルに表示される、既定の長さの単位です。", en: "Default unit shown on rulers and panels." },
             strokeUnit:   { ja: "線幅の入力・表示に使う単位です。", en: "Unit used for stroke weights." },
@@ -263,12 +280,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var unitDropdown = unitRowGroup.add('dropdownlist', undefined, []);
         unitDropdown.helpTip = getLabel(unitPrefEntry.tooltipPath);
-        for (var unitCode in UNIT_LABEL_BY_CODE) {
-            unitDropdown.add('item', UNIT_LABEL_BY_CODE[unitCode]);
+        for (var unitCode = 0; unitCode < UNITS.length; unitCode++) {
+            unitDropdown.add('item', UNITS[unitCode].label);
         }
 
         var currentCode = app.preferences.getIntegerPreference(unitPrefEntry.prefKey);
-        unitDropdown.selection = unitDropdown.find(UNIT_LABEL_BY_CODE[currentCode]) || unitDropdown.find("pt");
+        unitDropdown.selection = unitDropdown.find(UNITS[currentCode] ? UNITS[currentCode].label : "pt") || unitDropdown.find("pt");
 
         unitDropdown.onChange = function () {
             var unitCodeForLabel = findUnitCodeByLabel(unitDropdown.selection.text);
@@ -286,8 +303,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @returns {number|null} 単位コード。対応するものがなければ null
      */
     function findUnitCodeByLabel(unitLabel) {
-        for (var unitCode in UNIT_LABEL_BY_CODE) {
-            if (UNIT_LABEL_BY_CODE[unitCode] === unitLabel) return parseInt(unitCode, 10);
+        for (var unitCode = 0; unitCode < UNITS.length; unitCode++) {
+            if (UNITS[unitCode].label === unitLabel) return unitCode;
         }
         return null;
     }

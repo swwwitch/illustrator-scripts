@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-15";                  /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                  /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocumentCleaner.md"; /* README (English) */
@@ -395,7 +395,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
             done: { ja: "削除が完了しました。", en: "Deletion complete." },
             noTarget: { ja: "削除対象はありませんでした。", en: "No items to delete." },
             actionFailed: {
-                ja: "次の項目は「未使用をすべて選択」アクションを実行できず、削除をスキップしました:",
+                ja: "次の項目は「未使用をすべて選択」アクションを実行できず、削除をスキップしました：",
                 en: "The following items were skipped because the \"Select All Unused\" action could not be played:"
             },
             folderNotChosen: {
@@ -416,7 +416,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
                 en: "Processed {0} document(s) (not saved)."
             },
             batchFailed: {
-                ja: "次のファイル／ドキュメントは処理できませんでした:",
+                ja: "次のファイル／ドキュメントは処理できませんでした：",
                 en: "The following files/documents could not be processed:"
             }
         },

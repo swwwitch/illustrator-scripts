@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SortItemsByPosition";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-07";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortItemsByPosition.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortItemsByPosition.md"; /* README (English) */
@@ -40,7 +40,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var uiLang = getCurrentLang();
     var LABELS = {
-        dialogTitle: { ja: "重ね順の変更 v1.0", en: "Reorder Objects v1.0" },
+        dialogTitle: { ja: "重ね順の変更", en: "Reorder Objects" },
         sortPanel:   { ja: "ソート基準", en: "Sort Criteria" },
         xLeft:       { ja: "X座標（左右）", en: "X (Horizontal)" },
         yTop:        { ja: "Y座標（上下）", en: "Y (Vertical)" },
@@ -51,7 +51,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         moveLayer:   { ja: "レイヤーを移動", en: "Move to Top Layer" },
         ok:          { ja: "OK", en: "OK" },
         reverse:     { ja: "反転", en: "Reverse" },
-        cancel:      { ja: "キャンセル", en: "Cancel" }
+        cancel:      { ja: "キャンセル", en: "Cancel" },
+        tipXLeft:     { ja: "左にあるものほど背面になるよう、X座標で重ね順を組み直します。", en: "Restacks by X, putting objects further left further back." },
+        tipYTop:      { ja: "上にあるものほど背面になるよう、Y座標で重ね順を組み直します。", en: "Restacks by Y, putting objects further up further back." },
+        tipRandom:    { ja: "重ね順をランダムに組み直します。", en: "Restacks the objects in random order." },
+        tipSelection: { ja: "選択しているオブジェクトだけを対象にします。", en: "Works on the selected objects only." },
+        tipArtboard:  { ja: "現在のアートボードに載っているオブジェクトを対象にします。", en: "Works on the objects on the current artboard." },
+        tipMoveLayer: { ja: "対象オブジェクトを最前面のレイヤーへまとめて移します。", en: "Moves the objects onto the topmost layer." },
+        tipReverse:   { ja: "いまの重ね順をそのまま逆にします。", en: "Simply reverses the current stacking order." }
     };
 
     function main() {
@@ -171,7 +178,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var items = collectItems(doc, hasSelection, !hasSelection);
 
         /* ダイアログ構築開始 */
-        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
+        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang] + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "left";
 
@@ -192,8 +199,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         radioPanel.margins = [15, 20, 15, 10];
 
         var sortRadioXLeft = radioPanel.add("radiobutton", undefined, LABELS.xLeft[uiLang]);
+        sortRadioXLeft.helpTip = LABELS.tipXLeft[uiLang];
         var sortRadioYTop = radioPanel.add("radiobutton", undefined, LABELS.yTop[uiLang]);
+        sortRadioYTop.helpTip = LABELS.tipYTop[uiLang];
         var sortRadioRandom = radioPanel.add("radiobutton", undefined, LABELS.random[uiLang]);
+        sortRadioRandom.helpTip = LABELS.tipRandom[uiLang];
         if (autoMode === "y") {
             sortRadioYTop.value = true;
         } else {
@@ -206,7 +216,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetPanel.alignChildren = "left";
         targetPanel.margins = [15, 20, 15, 10];
         var selectionRadio = targetPanel.add("radiobutton", undefined, LABELS.selection[uiLang]);
+        selectionRadio.helpTip = LABELS.tipSelection[uiLang];
         var artboardRadio = targetPanel.add("radiobutton", undefined, LABELS.artboard[uiLang]);
+        artboardRadio.helpTip = LABELS.tipArtboard[uiLang];
         selectionRadio.value = hasSelection;
         artboardRadio.value = !hasSelection;
 
@@ -221,6 +233,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         moveLayerGroup.alignChildren = "center";
         moveLayerGroup.preferredSize.width = uniformPanelWidth;
         var moveTopLayerCheckbox = moveLayerGroup.add("checkbox", undefined, LABELS.moveLayer[uiLang]);
+        moveTopLayerCheckbox.helpTip = LABELS.tipMoveLayer[uiLang];
         moveTopLayerCheckbox.value = false;
 
         // 選択オブジェクトが単一レイヤーの場合、レイヤー移動チェックボックスを無効化
@@ -245,6 +258,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         okBtn.preferredSize.width = buttonWidth;
 
         var reverseBtn = rightGroup.add("button", undefined, LABELS.reverse[uiLang]);
+        reverseBtn.helpTip = LABELS.tipReverse[uiLang];
         reverseBtn.preferredSize.width = buttonWidth;
 
         var spacer = rightGroup.add("statictext", undefined, "");

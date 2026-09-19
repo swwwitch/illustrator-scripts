@@ -23,11 +23,11 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddArtboardPlus";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Takeshi Umeda (noellabo)";     /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-04-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-14";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddArtboardPlus.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddArtboardPlus.md"; /* README (English) */
@@ -164,20 +164,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
     // Tolerance (pt) for treating coordinates as equal; snapped edges still differ by ~1e-12
     var COORDINATE_TOLERANCE_PT = 0.001;
 
-    // 現在の定規単位の pt 換算係数とラベルを取得
-    // Get the pt conversion factor and label for the current ruler unit
-    function getRulerUnitInfo() {
-        var rulerType = app.preferences.getIntegerPreference('rulerType');
-        switch (rulerType) {
-            case 0: return { ptPerUnit: 72.0, unitLabel: 'in' };              // インチ / inch
-            case 1: return { ptPerUnit: 72.0 / 25.4, unitLabel: 'mm' };       // ミリ / mm
-            case 2: return { ptPerUnit: 1.0, unitLabel: 'pt' };               // ポイント / point
-            case 3: return { ptPerUnit: 12.0, unitLabel: 'pica' };            // パイカ / pica
-            case 4: return { ptPerUnit: 72.0 / 2.54, unitLabel: 'cm' };       // センチ / cm
-            case 5: return { ptPerUnit: 72.0 / 25.4 * 0.25, unitLabel: 'Q' }; // 歯 / Q
-            case 6: return { ptPerUnit: 1.0, unitLabel: 'px' };               // ピクセル / pixel
-            default: return { ptPerUnit: 1.0, unitLabel: 'pt' };
-        }
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // 表示用に小数第2位までに丸める / Round to 2 decimals for display
@@ -403,10 +419,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         // 定規単位に変換して初期表示し、編集可能にする
         // For 2+ artboards use the spacing inferred from the existing layout, otherwise the
         // Rearrange Artboards spacing (pt); shown in the ruler unit and editable
-        var rulerUnitInfo = getRulerUnitInfo();
+        var rulerUnitInfo = getUnitInfo();
         var spacingPreferencePt = app.preferences.getRealPreference('plugin/ArtboardRearrange/ArtboardSpacing');
         var estimatedSpacingPt = estimateArtboardSpacingPt(spacingPreferencePt);
-        var initialSpacingText = formatSpacingForDisplay(estimatedSpacingPt / rulerUnitInfo.ptPerUnit);
+        var initialSpacingText = formatSpacingForDisplay(estimatedSpacingPt / rulerUnitInfo.pointsPerUnit);
 
         // 項目名はパネル名「間隔」と重なるので付けない / No field label; the panel title already says Spacing
         var spacingGroup = spacingPanel.add('group');
@@ -415,7 +431,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
         spacingInput.characters = 4;
         spacingInput.helpTip = getLabel(LABELS.tooltip.spacing);
         changeValueByArrowKey(spacingInput);
-        spacingGroup.add('statictext', undefined, rulerUnitInfo.unitLabel);
+        spacingGroup.add('statictext', undefined, rulerUnitInfo.label);
 
         addRadioShortcutKeyHandler(dialog, blankArtboardRadio, duplicateArtboardRadio, insertAfterCurrentRadio, insertAtEndRadio, syncUIWithAddMethod);
 
@@ -445,7 +461,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/naf239a44b8ff"; /* 紹�
             addCount: addCount,
             // 追加方向：0=右（横並び）/ 1=下（縦並び）/ Add direction: 0 = right (horizontal), 1 = down (vertical)
             directionAxisIndex: directionDownRadio.value ? 1 : 0,
-            spacingPt: useManualSpacing ? Math.max(0, spacingInputValue * rulerUnitInfo.ptPerUnit) : estimatedSpacingPt,
+            spacingPt: useManualSpacing ? Math.max(0, spacingInputValue * rulerUnitInfo.pointsPerUnit) : estimatedSpacingPt,
             estimatedSpacingPt: estimatedSpacingPt,
             useManualSpacing: useManualSpacing,
             // 間隔の適用範囲：true=すべてのアートボード / false=追加分のみ

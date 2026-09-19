@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RegridObjects";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegridObjects.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObjects.md"; /* README (English) */
@@ -103,8 +103,8 @@ var LABELS = {
         options: { ja: "オプション", en: "Options" }
     },
     field: {
-        horizontal: { ja: "左右:", en: "H:" },
-        vertical: { ja: "上下:", en: "V:" }
+        horizontal: { ja: "左右", en: "H" },
+        vertical: { ja: "上下", en: "V" }
     },
     checkbox: {
         link: { ja: "連動", en: "Link" },
@@ -173,60 +173,49 @@ function getLabel(path) {
     return String(text).replace(/\{slash\}/g, '/');
 }
 
+/**
+ * コロン付きの項目名を返す（日本語は全角、英語は半角）
+ * @param {string} path - ドット区切りのラベルキー
+ * @returns {string} コロンを添えたラベル
+ */
+function labelText(path) {
+    return getLabel(path) + (currentLanguage === 'ja' ? '：' : ': ');
+}
+
 // =========================================
 // 単位 / Units
 // =========================================
 
-/* 単位コードとラベルのマップ / Unit code → label map */
-var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-};
+// =========================================
+// 単位 / Units
+// =========================================
+
+/* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+   Unit code -> display label and points per unit */
+var UNITS = [
+    { label: "in",    pointsPerUnit: 72 },                /* 0 */
+    { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+    { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+    { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+    { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+    { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+    { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+    { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+    { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+    { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+    { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+];
 
 /**
- * 現在の定規単位に対応するラベル文字列を取得します。
- *
- * @returns {string} 単位ラベル（例: "mm", "pt", "px"）。未知の単位コードは "pt"。
+ * 環境設定キーの単位を返す
+ * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+ * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
  */
-function getCurrentUnitLabel() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    return unitLabelMap[unitCode] || "pt";
-}
-
-/* 単位コード → 1単位あたりの pt 数 / Unit code → points per unit */
-var unitToPointFactor = {
-    0: 72.0,                  // in
-    1: 72.0 / 25.4,           // mm
-    2: 1.0,                   // pt
-    3: 12.0,                  // pica
-    4: 72.0 / 2.54,           // cm
-    5: 72.0 / 25.4 * 0.25,    // Q/H（1Q = 0.25mm）
-    6: 1.0,                   // px（72dpi）
-    7: 72.0,                  // ft/in（inch 基準で近似）
-    8: 72.0 / 25.4 * 1000.0,  // m
-    9: 72.0 * 36.0,           // yd
-    10: 72.0 * 12.0           // ft
-};
-
-/**
- * 現在の定規単位における「1単位 = 何 pt か」を返します。
- * geometricBounds / translate() は pt 基準なので、表示単位↔pt の換算に使います。
- *
- * @returns {number} 1単位あたりの pt 数（未知単位や不正値は 1.0）。
- */
-function getUnitToPointFactor() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    var factor = unitToPointFactor[unitCode];
-    return (typeof factor === "number" && factor > 0) ? factor : 1.0;
+function getUnitInfo(prefKey) {
+    var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+    /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+    var unit = UNITS[unitCode] || UNITS[2];
+    return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
 }
 
 // =========================================
@@ -373,7 +362,7 @@ function changeValueByArrowKey(editText) {
  * @param {number} initialGapX - 左右間隔の初期値。
  * @returns {void}
  *
- * 注: getCurrentUnitLabel / getUnitToPointFactor / changeValueByArrowKey は
+ * 注: getUnitInfo / changeValueByArrowKey は
  *     トップレベル関数のため引数で受け取らず、内部で直接呼び出す。
  */
 function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexagon, runTransposeIfNeeded, restoreInitialPositions, resetBaselineToCurrent, initialGapX) {
@@ -391,10 +380,10 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
 
     // 表示単位↔pt の換算係数（入力値は表示単位、内部処理は pt）
     // Points per display unit (inputs are in display units; internal geometry is in pt)
-    var unitFactor = getUnitToPointFactor();
+    var unitFactor = getUnitInfo().pointsPerUnit;
 
     // パネル名に単位を出す / show unit in panel title
-    var spacingPanel = dialog.add('panel', undefined, getLabel('panel.spacing') + ' (' + getCurrentUnitLabel() + ')');
+    var spacingPanel = dialog.add('panel', undefined, getLabel('panel.spacing') + ' (' + getUnitInfo().label + ')');
     // 2カラム構成なので row のまま余白のみ共通化 / two-column panel: keep row, share margins
     spacingPanel.orientation = 'row';
     spacingPanel.alignChildren = 'top';
@@ -408,7 +397,7 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
     gapInputColumn.alignChildren = 'left';
 
     var horizontalGapGroup = gapInputColumn.add('group');
-    horizontalGapGroup.add('statictext', undefined, getLabel('field.horizontal'));
+    horizontalGapGroup.add('statictext', undefined, labelText('field.horizontal'));
     // 初期値は pt を表示単位に換算して表示 / show initial value converted from pt to the display unit
     var horizontalGapInput = horizontalGapGroup.add('edittext', undefined, (initialGapX / unitFactor).toFixed(1));
     horizontalGapInput.helpTip = getLabel('tooltip.horizontal');
@@ -416,7 +405,7 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
     changeValueByArrowKey(horizontalGapInput);
 
     var verticalGapGroup = gapInputColumn.add('group');
-    verticalGapGroup.add('statictext', undefined, getLabel('field.vertical'));
+    verticalGapGroup.add('statictext', undefined, labelText('field.vertical'));
     // 初期表示では負の値を使わない
     var verticalGapInput = verticalGapGroup.add('edittext', undefined, '0');
     verticalGapInput.helpTip = getLabel('tooltip.vertical');
@@ -851,7 +840,6 @@ function main() {
         });
     }
 
-
     /**
      * 選択オブジェクトの外接境界一覧と、最小の幅・高さを収集する。
      * buildLayoutInfo / buildLayoutInfoForceGrid の共通前処理。
@@ -1268,7 +1256,6 @@ function main() {
         restoreFrom(initialPositions);
     }
 
-
     /**
      * boundsList の要素の元座標（左上）を originalPositions から引く。
      * 見つからなければ現在の bbox（currentEntry.bounds）を使う。
@@ -1284,8 +1271,6 @@ function main() {
         }
         return { left: currentEntry.bounds[0], top: currentEntry.bounds[1] };
     }
-
-
 
     /**
      * グリッド配置を適用する共通処理。通常／レンガ／ハニカムを引数で切り替える。

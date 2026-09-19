@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DrawRectangleBehindSelectedObject"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-11-09";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawRectangleBehindSelectedObject.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawRectangleBehindSelectedObject.md"; /* README (English) */
@@ -551,11 +551,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    function _toInt(x) {
-        var n = parseFloat(x);
-        return isNaN(n) ? NaN : n;
-    }
-
     /*
      * customValue の解釈と RGBColor/CMYKColor へのマッピング / Parse customValue and map to RGBColor/CMYKColor
      * 受け入れ形式 / Accepts:
@@ -661,64 +656,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return null;
     }
 
-    // 単位コードとラベルのマップ / Map rulerType codes to labels
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    // 現在の単位ラベルを取得 / Get current unit label from prefs
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    // 現在の単位コードを取得 / Get current rulerType code
-    function getCurrentUnitCode() {
-        try {
-            return app.preferences.getIntegerPreference("rulerType");
-        } catch (e) {
-            return 2; // fallback to pt
-        }
-    }
-
-    // 単位コード→pt係数 / Convert unit code to points factor
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0:
-                return 72.0; // in
-            case 1:
-                return 72.0 / 25.4; // mm
-            case 2:
-                return 1.0; // pt
-            case 3:
-                return 12.0; // pica
-            case 4:
-                return 72.0 / 2.54; // cm
-            case 5:
-                return 72.0 / 25.4 * 0.25; // Q or H
-            case 6:
-                return 1.0; // px (Illustrator=1px=1pt)
-            case 7:
-                return 72.0 * 12.0; // ft/in
-            case 8:
-                return 72.0 / 25.4 * 1000.0; // m
-            case 9:
-                return 72.0 * 36.0; // yd
-            case 10:
-                return 72.0 * 12.0; // ft
-            default:
-                return 1.0;
-        }
+    /* 単位コードから pt 換算係数を取得 / Get the pt conversion factor from a unit code */
+    function getPtFactorFromUnitCode(unitCode) {
+        return (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
     }
 
     /*
@@ -1801,7 +1773,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         });
 
-        groupV.add('statictext', undefined, getCurrentUnitLabel());
+        groupV.add('statictext', undefined, getUnitInfo("rulerType").label);
 
         // GROUP3 (row: 左右)
         var groupH = marginGroup1.add('group');
@@ -1833,7 +1805,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         });
 
-        groupH.add('statictext', undefined, getCurrentUnitLabel());
+        groupH.add('statictext', undefined, getUnitInfo("rulerType").label);
 
         // GROUP4 (right column in the same row: checkbox "連動")
         var groupLink = marginLeftCol.add('group');
@@ -1940,7 +1912,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (!currentSelection.length) return;
 
                 var usePreview = true; // always ON (UI label only for now)
-                var unitCode = getCurrentUnitCode();
+                var unitCode = getUnitInfo("rulerType").code;
                 var oVpt = resolveOffsetToPt(offsetVInput.text, unitCode).pt;
 
                 // Determine bounds according to target mode
@@ -1994,7 +1966,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         });
 
-        var unitLabel2 = getCurrentUnitLabel();
+        var unitLabel2 = getUnitInfo("rulerType").label;
         var roundUnitLabel = roundRow.add('statictext', undefined, unitLabel2);
 
         // --- Pill shape option: now on its own row ---
@@ -2514,7 +2486,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (cmykRadio.value) return ColorMode.CMYK;
                 return ColorMode.K100;
             })();
-            var unitCode = getCurrentUnitCode();
+            var unitCode = getUnitInfo("rulerType").code;
             var resolvedV = resolveOffsetToPt(offsetVInput.text, unitCode);
             var resolvedH = resolveOffsetToPt(offsetHInput.text, unitCode);
             var offsetVPt = resolvedV.pt;
@@ -2573,7 +2545,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 })(),
                 strokeWidth: (function() {
                     try {
-                        var uc = getCurrentUnitCode();
+                        var uc = getUnitInfo("rulerType").code;
                         return resolveOffsetToPt(strokeWidthInput.text, uc).pt;
                     } catch (e) {
                         return 1;
@@ -2706,16 +2678,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // Margins (pt → current unit display)
             try {
-                offsetVInput.text = String(Math.round(c.offsetV / getPtFactorFromUnitCode(getCurrentUnitCode())));
+                offsetVInput.text = String(Math.round(c.offsetV / getUnitInfo("rulerType").pointsPerUnit));
             } catch (e) {}
             try {
-                offsetHInput.text = String(Math.round(c.offsetH / getPtFactorFromUnitCode(getCurrentUnitCode())));
+                offsetHInput.text = String(Math.round(c.offsetH / getUnitInfo("rulerType").pointsPerUnit));
             } catch (e) {}
 
             // Corner radius & pill
             try {
                 cbRoundEnable.value = (c.roundPt > 0 || c.isPill);
-                roundInput.text = String(Math.round(c.roundPt / getPtFactorFromUnitCode(getCurrentUnitCode())));
+                roundInput.text = String(Math.round(c.roundPt / getUnitInfo("rulerType").pointsPerUnit));
                 cbPill.value = !!c.isPill;
                 setCornerUIEnabled(cbRoundEnable.value);
             } catch (e) {}
@@ -2728,7 +2700,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // Stroke width
             try {
-                strokeWidthInput.text = String(Math.round((c.strokeWidth || 1) / getPtFactorFromUnitCode(getCurrentUnitCode())));
+                strokeWidthInput.text = String(Math.round((c.strokeWidth || 1) / getUnitInfo("rulerType").pointsPerUnit));
             } catch (e) {}
 
             // Target
@@ -2775,12 +2747,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e) {}
             try {
                 renderPreview(app.activeDocument, buildChoiceFromUI());
-            } catch (e) {}
-        }
-
-        function updatePreview() {
-            try {
-                requestPreview(buildChoiceFromUI(), false);
             } catch (e) {}
         }
 
@@ -2974,7 +2940,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             updatePreviewTyping();
         });
 
-        var strokeWidthUnit = strokeWidthRow.add('statictext', undefined, getCurrentUnitLabel());
+        var strokeWidthUnit = strokeWidthRow.add('statictext', undefined, getUnitInfo("rulerType").label);
 
         /*
          * 種別（塗り/線）に応じて線幅の有効/無効を切替 / Enable or disable stroke width depending on type selection
@@ -3239,34 +3205,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 「bg」レイヤーの取得/作成 / Get or create the "bg" layer
      */
 
-    function getOrCreateBgLayer(doc) {
-        var name = 'bg';
-        var layer = null;
-        // 検索
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === name) {
-                layer = doc.layers[i];
-                break;
-            }
-        }
-        // 作成
-        if (!layer) {
-            layer = doc.layers.add();
-            layer.name = name;
-        }
-        // 見える＆編集可能に / Ensure editable
-        layer.visible = true;
-        layer.locked = false;
-        try {
-            layer.printable = true;
-        } catch (e) {}
-        // 最背面へ / Send to back of layer stack
-        try {
-            layer.move(doc, ElementPlacement.PLACEATEND);
-        } catch (e) {}
-        return layer;
-    }
-
     // --- Helper: Get or create a temporary outline layer (visible & editable for correct bounds) ---
     function getOrCreateTempOutlineLayer(doc) {
         var name = '__tmp_outline_bounds__';
@@ -3468,123 +3406,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             doc.activeLayer = layer;
         } catch (e) {}
-    }
-
-    function drawRectangleForItem(doc, itemOrRect, choice) {
-        // Accept either a legacy item with .geometricBounds or a rectSpec {left, top, width, height}
-        var left, top, right, bottom, w, h, targetLayer = null;
-        if (itemOrRect && typeof itemOrRect.left === 'number' && typeof itemOrRect.top === 'number') {
-            // New rectSpec path
-            left = itemOrRect.left;
-            top = itemOrRect.top;
-            w = itemOrRect.width;
-            h = itemOrRect.height;
-            right = left + w;
-            bottom = top - h;
-            try {
-                targetLayer = itemOrRect.layer || null;
-            } catch (e) {
-                targetLayer = null;
-            }
-        } else {
-            // Legacy path: expects .geometricBounds on the object
-            var gb = itemOrRect.geometricBounds; // [left, top, right, bottom]
-            left = gb[0];
-            top = gb[1];
-            right = gb[2];
-            bottom = gb[3];
-            w = right - left;
-            h = top - bottom;
-            try {
-                targetLayer = itemOrRect.layer || null;
-            } catch (e) {
-                targetLayer = null;
-            }
-        }
-        var oV = (choice && typeof choice.offsetV === 'number') ? choice.offsetV : 0;
-        var oH = (choice && typeof choice.offsetH === 'number') ? choice.offsetH : 0;
-        // ターゲットレイヤーは選択オブジェクトの属するレイヤー（なければアクティブレイヤー）
-        if (!targetLayer) {
-            try {
-                targetLayer = doc.activeLayer;
-            } catch (e) {}
-        }
-        ensureLayerEditable(doc, targetLayer);
-
-        var rect = null;
-        try {
-            rect = targetLayer.pathItems.rectangle(
-                top + oV,
-                left - oH,
-                w + oH * 2,
-                h + oV * 2
-            );
-        } catch (e) {
-            // Fallback: create on activeLayer, then move into targetLayer
-            try {
-                var tmpLayer = doc.activeLayer;
-                rect = tmpLayer.pathItems.rectangle(
-                    top + oV,
-                    left - oH,
-                    w + oH * 2,
-                    h + oV * 2
-                );
-                try {
-                    rect.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
-                } catch (e) {}
-            } catch (e) {
-                throw e; // rethrow original if fallback also fails
-            }
-        }
-        try {
-            rect.selected = true;
-        } catch (e) {}
-        try {
-            app.executeMenuCommand('Convert to Shape');
-        } catch (e) {}
-
-        var __finalColor = resolveFillColor(doc, choice.colorMode, {
-            customValue: choice.customValue,
-            customCMYK: choice.customCMYK
-        });
-        if (choice && choice.type === 'stroke') {
-            // Preview as stroke-only in chosen color
-            try {
-                rect.filled = false;
-            } catch (e) {}
-            try {
-                rect.stroked = !!col;
-                if (col) rect.strokeColor = col;
-                rect.strokeWidth = (choice && typeof choice.strokeWidth === 'number' && choice.strokeWidth > 0) ? choice.strokeWidth : 1;
-            } catch (e) {}
-
-        } else {
-            // 塗りモード（White / Black / HEX / CMYK など）
-            applyFill(rect, col, true);
-        }
-        // 角丸をライブエフェクトで適用（非展開）
-        try {
-            var r = (choice && typeof choice.roundPt === 'number') ? choice.roundPt : 0;
-            if (choice && choice.isPill) {
-                r = (h + oV * 2) / 2; // pill: 高さの1/2（上下マージン込み）
-            }
-            if (r > 0) {
-                applyLiveEffect(rect, "Adobe Round Corners", "R radius " + r + " ");
-            }
-        } catch (e) {}
-
-        rect.name = LABELS.rectName[uiLang];
-        rect.selected = true;
-        try {
-            rect.hidden = false;
-        } catch (e) {}
-        try {
-            targetLayer.visible = true;
-            targetLayer.locked = false;
-        } catch (e) {}
-
-        rect.zOrder(ZOrderMethod.SENDTOBACK); // 常に最背面
-        return rect;
     }
 
     function main() {

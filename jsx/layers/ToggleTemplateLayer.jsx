@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ToggleTemplateLayer";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-07-21";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ToggleTemplateLayer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ToggleTemplateLayer.md"; /* README (English) */
@@ -76,6 +76,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     記録済みの .aia から採取した internalName / key を使い、オプションから組み立てる
     Build the action from recorded internalName / keys, driven by the options preset
   */
+  // =========================================
+  // ローカライズ / Localization
+  // =========================================
+
+  /**
+   * 現在のUI言語を判定する
+   * @returns {string} "ja" または "en"
+   */
+  function getCurrentLang() {
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+  }
+  var uiLang = getCurrentLang();
+
+  /* 日英ラベル定義 / Japanese-English label definitions */
+  var LABELS = {
+    dialogTitle: { ja: "レイヤーテンプレート", en: "Layer Template" },
+    description: {
+      ja: "アクティブレイヤーのテンプレート属性を切り替えます。",
+      en: "Toggles the template attribute of the active layer."
+    },
+    buttonOn:  { ja: "ON（テンプレート化）", en: "ON (make template)" },
+    buttonOff: { ja: "OFF（解除）", en: "OFF (release)" },
+    cancel:    { ja: "キャンセル", en: "Cancel" },
+    tipOn: {
+      ja: "アクティブレイヤーをテンプレートレイヤーにします。印刷・書き出しの対象から外れ、ロックされます。",
+      en: "Makes the active layer a template layer: it is locked and left out of printing and export."
+    },
+    tipOff: {
+      ja: "テンプレート属性を外して、通常のレイヤーに戻します。",
+      en: "Clears the template attribute and returns the layer to a normal one."
+    }
+  };
+
+  /**
+   * ラベルを取得する
+   * @param {string} key - LABELS のキー
+   * @returns {string} 現在のUI言語のラベル
+   */
+  function getLabel(key) {
+    return LABELS[key] ? LABELS[key][uiLang] : key;
+  }
+
   function buildActionSource(setName, actionName, layerName, options) {
     var parameterLines = buildLayerParameterLines(layerName, options);
 
@@ -221,20 +263,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     Small dialog to choose ON / OFF; returns "on" / "off" / null (cancel)
   */
   function chooseTemplateMode() {
-    var dialog = new Window("dialog", "レイヤーテンプレート " + SCRIPT_VERSION);
+    var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
     dialog.margins = 16;
     dialog.spacing = 12;
 
-    dialog.add("statictext", undefined, "アクティブレイヤーのテンプレート属性を切り替えます。");
+    dialog.add("statictext", undefined, getLabel("description"));
 
     var buttonGroup = dialog.add("group");
     buttonGroup.alignment = "right";
 
-    var cancelButton = buttonGroup.add("button", undefined, "キャンセル", { name: "cancel" });
-    var offButton = buttonGroup.add("button", undefined, "OFF（解除）");
-    var onButton = buttonGroup.add("button", undefined, "ON（テンプレート化）", { name: "ok" });
+    var cancelButton = buttonGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+    var offButton = buttonGroup.add("button", undefined, getLabel("buttonOff"));
+    offButton.helpTip = getLabel("tipOff");
+    var onButton = buttonGroup.add("button", undefined, getLabel("buttonOn"), { name: "ok" });
+    onButton.helpTip = getLabel("tipOn");
 
     var chosenMode = null;
     onButton.onClick = function () { chosenMode = "on"; dialog.close(); };

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiArtboardScaler";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-15";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiArtboardScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiArtboardScaler.md"; /* README (English) */
@@ -104,6 +104,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         label: {
             anchor: { ja: "基準点", en: "Anchor" }
         },
+        tooltip: {
+            current: { ja: "いま選ばれているアートボードだけを変更します。", en: "Changes only the artboard that is currently active." },
+            all:     { ja: "ドキュメント内のすべてのアートボードを変更します。", en: "Changes every artboard in the document." },
+            specify: { ja: "番号で対象を指定します（例: 3, 4 または 3-5）。", en: "Picks the artboards by number (for example 3, 4 or 3-5)." },
+            scale:   { ja: "現在のサイズに対する倍率（％）です。幅・高さと連動します。", en: "Percentage of the current size. It is linked to the width and height." },
+            size:    { ja: "変更後のサイズです。入力するとスケールが連動して変わります。", en: "The size after resizing. Typing here updates the scale." },
+            anchor:  { ja: "サイズを変えるときに動かさない位置です。3×3のマスで選びます。", en: "The point that stays put while the artboard is resized. Pick it on the 3x3 grid." },
+            scaleObjects: {
+                ja: "アートボードの拡大・縮小に合わせて、載っているオブジェクトも一緒に変形します。",
+                en: "Scales the objects on the artboard along with the artboard itself."
+            },
+            pixelGrid: {
+                ja: "アートボードの位置とサイズを整数ピクセルにそろえます。",
+                en: "Snaps the artboard position and size to whole pixels."
+            }
+        },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
             apply:  { ja: "適用", en: "Apply" }
@@ -159,28 +175,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位 / Unit
     // =========================================
 
-    /* rulerType(0..10) → 単位ラベルと1単位あたりのpt数 / rulerType(0..10) → unit label and pt-per-unit */
-    var RULER_UNITS = [
-        { label: "inch",  factor: 72.0 },              /* 0 */
-        { label: "mm",    factor: 72.0 / 25.4 },       /* 1 */
-        { label: "pt",    factor: 1.0 },               /* 2 */
-        { label: "pica",  factor: 12.0 },              /* 3 */
-        { label: "cm",    factor: 72.0 / 2.54 },       /* 4 */
-        { label: "Q",     factor: 72.0 / 25.4 * 0.25 },/* 5 */
-        { label: "px",    factor: 1.0 },               /* 6 */
-        { label: "ft/in", factor: 72.0 * 12.0 },       /* 7  ※内部換算はフィート扱い / treated as feet internally */
-        { label: "m",     factor: 72.0 / 0.0254 },     /* 8 */
-        { label: "yd",    factor: 72.0 * 36.0 },       /* 9 */
-        { label: "ft",    factor: 72.0 * 12.0 }        /* 10 */
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
     /**
-     * 現在の定規単位（rulerType）からラベルとpt換算係数を取得する / Get the current ruler unit's label and pt factor
-     * 未知の値は pt にフォールバックする。 / Unknown values fall back to pt.
-     * @returns {object} { label: string, factor: number } factor はその単位1つあたりのpt数
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getRulerUnit() {
-        return RULER_UNITS[app.preferences.getIntegerPreference("rulerType")] || { label: "pt", factor: 1.0 };
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* 数値を小数2桁に丸めて文字列で返す / Round a number to 2 decimals and return as string */
@@ -201,15 +225,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * @param {string} labelText ラベル文字列
      * @param {string} defaultValue 入力欄の初期値
      * @param {string} unitLabel 入力欄の後ろに表示する単位
+     * @param {string} [tooltipText] 入力欄に付けるツールチップ
      * @returns {EditText} 生成した入力欄
      */
-    function addSizeField(parent, labelText, defaultValue, unitLabel) {
+    function addSizeField(parent, labelText, defaultValue, unitLabel, tooltipText) {
         var row = parent.add("group");
         row.orientation = "row";
         var label = row.add("statictext", undefined, labelText);
         label.preferredSize.width = FIELD_LABEL_WIDTH; /* ラベル幅を固定して揃える / Fix width to align labels */
         label.justify = "right";                       /* 右揃え / Right-align the label */
         var input = row.add("edittext", undefined, defaultValue);
+        if (tooltipText) input.helpTip = tooltipText;
         input.characters = 4;
         row.add("statictext", undefined, unitLabel); /* 入力欄の後ろに単位 / Unit after the input */
         return input;
@@ -308,19 +334,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         currentRow.orientation = "row";
         currentRow.alignment = "left";
         var currentRadio = currentRow.add("radiobutton", undefined, getLabel("radio.current"));
+        currentRadio.helpTip = getLabel("tooltip.current");
 
         /* 「すべてのアートボード」ラジオ / "All artboards" radio */
         var allRow = panel.add("group");
         allRow.orientation = "row";
         allRow.alignment = "left";
         var allRadio = allRow.add("radiobutton", undefined, getLabel("radio.all"));
+        allRadio.helpTip = getLabel("tooltip.all");
 
         /* 「指定」ラジオ＋範囲入力 / "Specify" radio with range input */
         var specifyRow = panel.add("group");
         specifyRow.orientation = "row";
         specifyRow.alignment = "left";
         var specifyRadio = specifyRow.add("radiobutton", undefined, getLabel("radio.specify"));
+        specifyRadio.helpTip = getLabel("tooltip.specify");
         var selectInput = specifyRow.add("edittext", undefined, defaultSelection);
+        selectInput.helpTip = getLabel("tooltip.specify");
         selectInput.characters = 8; /* 通常のフィールドの2倍幅 / Twice the usual field width */
 
         var radios = [currentRadio, allRadio, specifyRadio];
@@ -463,6 +493,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         column.add("statictext", undefined, getLabel("label.anchor"));
 
         var widget = column.add("button", undefined, "");
+        widget.helpTip = getLabel("tooltip.anchor");
         widget.preferredSize = [66, 66];
         widget.minimumSize = [66, 66];
         widget.maximumSize = [66, 66];
@@ -517,9 +548,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         fieldColumn.orientation = "column";
         fieldColumn.alignChildren = ["left", "top"];
         fieldColumn.spacing = 6;
-        var scaleInput = addSizeField(fieldColumn, labelText("field.scale"), "100", "%");
-        var widthInput = addSizeField(fieldColumn, labelText("field.width"), formatNumber(baseWidth), unitLabel);
-        var heightInput = addSizeField(fieldColumn, labelText("field.height"), formatNumber(baseHeight), unitLabel);
+        var scaleInput = addSizeField(fieldColumn, labelText("field.scale"), "100", "%", getLabel("tooltip.scale"));
+        var widthInput = addSizeField(fieldColumn, labelText("field.width"), formatNumber(baseWidth), unitLabel, getLabel("tooltip.size"));
+        var heightInput = addSizeField(fieldColumn, labelText("field.height"), formatNumber(baseHeight), unitLabel, getLabel("tooltip.size"));
 
         /* 基準点グリッド（2列目） / Anchor reference-point grid (second column) */
         addAnchorGrid(dialog, gridRow);
@@ -532,10 +563,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* オブジェクトも一緒に拡大・縮小するか / Whether to scale the objects along with the artboard */
         var scaleObjectsCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.scaleObjects"));
+        scaleObjectsCheckbox.helpTip = getLabel("tooltip.scaleObjects");
         scaleObjectsCheckbox.value = true;
 
         /* アートボードのX/Y/W/Hを整数化してピクセルグリッドに合わせる / Round artboard X/Y/W/H to integers for the pixel grid */
         var pixelGridCheckbox = checkboxGroup.add("checkbox", undefined, getLabel("checkbox.pixelGrid"));
+        pixelGridCheckbox.helpTip = getLabel("tooltip.pixelGrid");
         pixelGridCheckbox.value = false;
 
         /* スケール%から幅・高さ(現在サイズ×%)を再計算する / Recalc width/height (current size × %) from the scale */
@@ -1052,13 +1085,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var doc = app.activeDocument;
-        var unit = getRulerUnit();
+        var unit = getUnitInfo();
         var count = doc.artboards.length;
 
         /* アクティブアートボードの現在サイズを初期値にする / Use the active artboard's current size as defaults */
         var activeRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-        var defaultWidth = formatNumber((activeRect[2] - activeRect[0]) / unit.factor);
-        var defaultHeight = formatNumber((activeRect[1] - activeRect[3]) / unit.factor);
+        var defaultWidth = formatNumber((activeRect[2] - activeRect[0]) / unit.pointsPerUnit);
+        var defaultHeight = formatNumber((activeRect[1] - activeRect[3]) / unit.pointsPerUnit);
 
         var dialog = createResizeDialog(unit.label, defaultWidth, defaultHeight, count);
         /* 「現在のアートボード」対象用に起動時のアクティブ索引を保持 / Remember the launch-time active index for the "Current artboard" target */

@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArcTextGenerator";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArcTextGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArcTextGenerator.md"; /* README (English) */
@@ -376,7 +376,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/gautt/n/n92f6faeda048"; /* 紹介記�
         try {
             var v = Math.max(-100, Math.min(500, Math.round(parseNumber(etTracking.text, 0))));
             etTracking.text = String(v);
-            try { slTracking.value = v; } catch (e) { }
+            slTracking.value = v;
         } catch (e) { }
         trackingSyncLock = false;
     }

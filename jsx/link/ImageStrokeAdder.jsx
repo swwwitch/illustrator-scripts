@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImageStrokeAdder";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageStrokeAdder.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageStrokeAdder.md"; /* README (English) */
@@ -33,6 +33,66 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "配置画像へのケイ線追加", en: "Add Stroke to Placed Images" }
+        },
+        panel: {
+            appearance: { ja: "アピアランス", en: "Appearance" }
+        },
+        radio: {
+            addStrokeOnly: { ja: "ケイ線のみを追加", en: "Add stroke only" },
+            clipGroupThen: { ja: "クリップグループ", en: "Clipping group" }
+        },
+        checkbox: {
+            roundCorners: { ja: "角丸", en: "Rounded corners" }
+        },
+        tooltip: {
+            addStrokeOnly: {
+                ja: "配置画像にそのまま線を追加します。画像の形は変わりません。",
+                en: "Adds a stroke straight to the placed image, leaving its shape alone."
+            },
+            clipGroupThen: {
+                ja: "配置画像を長方形でクリップしてから、その長方形に線を追加します。角丸にできます。",
+                en: "Clips the placed image with a rectangle and strokes that rectangle, so the corners can be rounded."
+            },
+            roundCorners: {
+                ja: "クリップした長方形の角を丸めます。半径は右の欄で指定します。",
+                en: "Rounds the corners of the clipping rectangle. The field on the right sets the radius."
+            },
+            roundRadius: { ja: "角丸の半径（pt）です。", en: "Radius of the rounded corners, in points." }
+        }
+    };
+
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.appearance" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
 
     function main() {
         if (app.documents.length === 0) {
@@ -43,18 +103,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var doc = app.activeDocument;
 
         // --- UI ---
-        var dialog = new Window('dialog', '配置画像へのケイ線追加');
+        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
         dialog.margins = 15;
 
-        var appearancePanel = dialog.add('panel', undefined, 'アピアランス');
+        var appearancePanel = dialog.add('panel', undefined, getLabel('panel.appearance'));
         appearancePanel.orientation = 'column';
         appearancePanel.alignChildren = ['left', 'top'];
         appearancePanel.margins = [15, 20, 15, 10];
 
-        var rbAddStrokeOnly = appearancePanel.add('radiobutton', undefined, 'ケイ線のみを追加');
-        var rbClipGroupThen = appearancePanel.add('radiobutton', undefined, 'クリップグループ');
+        var rbAddStrokeOnly = appearancePanel.add('radiobutton', undefined, getLabel('radio.addStrokeOnly'));
+        rbAddStrokeOnly.helpTip = getLabel('tooltip.addStrokeOnly');
+        var rbClipGroupThen = appearancePanel.add('radiobutton', undefined, getLabel('radio.clipGroupThen'));
+        rbClipGroupThen.helpTip = getLabel('tooltip.clipGroupThen');
 
         // 選択オブジェクト全体の外接矩形から角丸のデフォルト値を算出
         // A = 高さ + 幅
@@ -95,10 +157,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         roundRow.alignChildren = ['left', 'center'];
         roundRow.margins = [20, 0, 0, 0]; // インデントして「クリップグループ」の下に見せる
 
-        var cbRoundCorners = roundRow.add('checkbox', undefined, '角丸');
+        var cbRoundCorners = roundRow.add('checkbox', undefined, getLabel('checkbox.roundCorners'));
+        cbRoundCorners.helpTip = getLabel('tooltip.roundCorners');
         cbRoundCorners.value = true;
 
         var editRoundRadius = roundRow.add('edittext', undefined, String(defaultRoundRadius));
+        editRoundRadius.helpTip = getLabel('tooltip.roundRadius');
         editRoundRadius.characters = 6;
         var roundUnit = roundRow.add('statictext', undefined, 'pt');
 
@@ -355,25 +419,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             }
 
-            return null;
-        }
-
-        // クリップグループ内の「クリッピングパス」を取得（見つからなければ null）
-        function getClippingPathFromGroup(groupItem) {
-            try {
-                if (!groupItem || groupItem.typename !== 'GroupItem') return null;
-
-                // groupItem.pathItems はグループ内のパスを横断して取れることが多い
-                // その中で clipping=true のものを探す
-                var paths = groupItem.pathItems;
-                if (paths && paths.length) {
-                    for (var i = 0; i < paths.length; i++) {
-                        if (paths[i] && paths[i].typename === 'PathItem' && paths[i].clipping) {
-                            return paths[i];
-                        }
-                    }
-                }
-            } catch (e) { }
             return null;
         }
 

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSelectionFilter";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilter.md"; /* README (English) */
@@ -68,6 +68,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "行揃え",
             en: "Alignment"
         },
+        tipNonSelectedNone: { ja: "絞り込みから外れたオブジェクトは、そのまま表示しておきます。", en: "Leaves the objects that fall outside the filter as they are." },
+        tipNonSelectedHide: { ja: "絞り込みから外れたオブジェクトを一時的に隠します。OKで確定、キャンセルで元に戻ります。", en: "Temporarily hides the objects outside the filter. OK keeps it, Cancel restores them." },
+        tipNonSelectedOpacity: { ja: "絞り込みから外れたオブジェクトの不透明度を下げて、対象を見分けやすくします。", en: "Dims the objects outside the filter so the matches stand out." },
+        tipNonSelectedSlider: { ja: "外れたオブジェクトに使う不透明度（％）です。", en: "Opacity used for the objects outside the filter." },
+        tipSimpleText: { ja: "テキストをまとめて選びます（ポイント文字・エリア内文字・パス上文字のすべて）。", en: "Selects all text at once: point, area and path text." },
+        tipSimpleStrokeOnly: { ja: "線だけが設定されたパスを選びます（塗りなし）。", en: "Selects paths that have a stroke but no fill." },
+        tipSimpleFillOnlyPath: { ja: "塗りだけが設定されたパスを選びます（線なし）。", en: "Selects paths that have a fill but no stroke." },
+        tipPreviewButton: { ja: "いまの絞り込み結果を画面で確認します。もう一度押すと元の表示に戻ります。", en: "Shows the current filter result on the canvas. Press again to restore the view." },
         fontPanel: {
             ja: "フォント",
             en: "Font"
@@ -680,8 +688,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         nonSelectedRadioGroup.spacing = 12;
 
         var rbNonSelNone = nonSelectedRadioGroup.add("radiobutton", undefined, getLabel("nonSelectedNone"));
+        rbNonSelNone.helpTip = getLabel("tipNonSelectedNone");
         var rbNonSelHide = nonSelectedRadioGroup.add("radiobutton", undefined, getLabel("nonSelectedHide"));
+        rbNonSelHide.helpTip = getLabel("tipNonSelectedHide");
         var rbNonSelOpacity = nonSelectedRadioGroup.add("radiobutton", undefined, labelWithValue("nonSelectedOpacity", DEFAULT_NON_SELECTED_OPACITY + "%"));
+        rbNonSelOpacity.helpTip = getLabel("tipNonSelectedOpacity");
 
         var nonSelectedOpacitySliderGroup = nonSelectedPanel.add("group");
         nonSelectedOpacitySliderGroup.orientation = "row";
@@ -689,6 +700,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         nonSelectedOpacitySliderGroup.alignment = ["fill", "center"];
 
         var nonSelectedOpacitySlider = nonSelectedOpacitySliderGroup.add("slider", undefined, DEFAULT_NON_SELECTED_OPACITY, 0, 100);
+        nonSelectedOpacitySlider.helpTip = getLabel("tipNonSelectedSlider");
         nonSelectedOpacitySlider.preferredSize.width = 220;
         rbNonSelNone.value = true;
 
@@ -717,8 +729,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         simplePanel.margins = PANEL_MARGINS;
         simplePanel.spacing = 12;
         var cbSimpleText = simplePanel.add("checkbox", undefined, getLabel("simpleText"));
+        cbSimpleText.helpTip = getLabel("tipSimpleText");
         var cbSimpleStrokeOnly = simplePanel.add("checkbox", undefined, getLabel("simpleStrokeOnly"));
+        cbSimpleStrokeOnly.helpTip = getLabel("tipSimpleStrokeOnly");
         var cbSimpleFillOnlyPath = simplePanel.add("checkbox", undefined, getLabel("simpleFillOnlyPath"));
+        cbSimpleFillOnlyPath.helpTip = getLabel("tipSimpleFillOnlyPath");
 
         var columnGroup = dialog.add("group");
         columnGroup.orientation = "row";
@@ -894,6 +909,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var isOutlineMode = false;
         var previewButton = leftButtonGroup.add("button", undefined, getLabel("btnOutlineOn"));
+        previewButton.helpTip = getLabel("tipPreviewButton");
         previewButton.onClick = function () {
             try {
                 app.executeMenuCommand("preview");

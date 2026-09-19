@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextExport";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.14";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.15";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextExport.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextExport.md"; /* README (English) */
@@ -60,10 +60,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
         exportFailed: { ja: "テキストを書き出せませんでした", en: "Failed to export text" },
         noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open" },
         textListLabel: { ja: "テキスト一覧", en: "Text List" },
+        tipTextList: { ja: "集めたテキストの一覧です。ここで編集した内容が書き出し・コピーの対象になります。", en: "The collected text. What you edit here is what gets exported or copied." },
+        tipCurrentArtboard: { ja: "いま表示しているアートボードの中のテキストだけを集めます。", en: "Collects only the text on the artboard currently in view." },
+        tipAllArtboards: { ja: "すべてのアートボードの中のテキストを集めます。", en: "Collects the text on every artboard." },
+        tipOutside: { ja: "アートボードの外に置かれたテキストも含めます。", en: "Also includes text placed outside the artboards." },
+        tipSkipComment: { ja: "レイヤー名が // ではじまるレイヤーのテキストも集めます。", en: "Also collects text on layers whose name starts with //." },
+        tipIncludeLocked: { ja: "ロックされたテキストも集めます。", en: "Also collects locked text." },
+        tipIncludeHidden: { ja: "非表示のテキストも集めます。", en: "Also collects hidden text." },
+        tipRemoveDuplicates: { ja: "同じ内容のテキストを1つにまとめます。", en: "Keeps only one copy of identical text." },
+        tipExport: { ja: "一覧の内容をテキストファイルとして保存します。", en: "Saves the list as a text file." },
+        tipCopy: { ja: "一覧の内容をクリップボードへコピーします。", en: "Copies the list to the clipboard." }
     };
 
     function getLabel(key) {
-        return LABELS[key][uiLang];
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.en || key;
     }
 
     function main() {
@@ -592,6 +604,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
                 leftCol.add("statictext", undefined, getLabel("textListLabel"));
                 var listBox = leftCol.add("edittext", [0, 0, 250, 284], "", { multiline: true, scrolling: true, readonly: true });
+                listBox.helpTip = getLabel("tipTextList");
 
                 /* 右カラム / Right column */
                 var rightCol = mainGroup.add("group");
@@ -608,12 +621,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 rbGroup.orientation = "column";
                 rbGroup.alignChildren = ["left", "top"];
                 var rbArtboard = rbGroup.add("radiobutton", undefined, getLabel("rbCurrentArtboard"));
+                rbArtboard.helpTip = getLabel("tipCurrentArtboard");
                 var rbAll = rbGroup.add("radiobutton", undefined, getLabel("rbAllArtboards"));
+                rbAll.helpTip = getLabel("tipAllArtboards");
                 rbArtboard.value = true;
 
                 var cbRow = targetPanel.add("group");
                 cbRow.orientation = "row";
                 var cbOutside = cbRow.add("checkbox", undefined, getLabel("cbOutside"));
+                cbOutside.helpTip = getLabel("tipOutside");
                 cbOutside.value = false;
                 cbOutside.enabled = false;
 
@@ -623,11 +639,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 layerPanel.margins = [15, 20, 15, 10];
 
                 var cbSkipComment = layerPanel.add("checkbox", undefined, getLabel("cbSkipComment"));
+                cbSkipComment.helpTip = getLabel("tipSkipComment");
                 cbSkipComment.value = false;
 
                 var cbIncludeLocked = layerPanel.add("checkbox", undefined, getLabel("cbIncludeLocked"));
+                cbIncludeLocked.helpTip = getLabel("tipIncludeLocked");
                 cbIncludeLocked.value = false;
                 var cbIncludeHidden = layerPanel.add("checkbox", undefined, getLabel("cbIncludeHidden"));
+                cbIncludeHidden.helpTip = getLabel("tipIncludeHidden");
                 cbIncludeHidden.value = false;
 
                 var dupGroup = rightCol.add("group");
@@ -635,6 +654,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
                 dupGroup.alignChildren = ["center", "center"];
                 dupGroup.alignment = ["center", "top"];
                 var cbRemoveDuplicates = dupGroup.add("checkbox", undefined, getLabel("cbRemoveDuplicates"));
+                cbRemoveDuplicates.helpTip = getLabel("tipRemoveDuplicates");
                 cbRemoveDuplicates.value = false;
 
                 var buttonRow = dlg.add("group");

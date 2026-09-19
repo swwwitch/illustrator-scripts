@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AutoLeadingCalc";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoLeadingCalc.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoLeadingCalc.md"; /* README (English) */
@@ -38,7 +38,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var isJa = ($.locale.indexOf("ja") === 0);
     /* 言語に応じた文字列 / Pick a string for the current UI language */
-    function t(ja, en) { return isJa ? ja : en; }
+    function getLabel(ja, en) { return isJa ? ja : en; }
 
     /* 型名を安全に取得 / Safely resolve a type name */
     function getTypeName(obj) {
@@ -95,7 +95,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function main() {
         if (app.documents.length === 0) {
-            alert(t("ドキュメントを開いてください。", "Please open a document."));
+            alert(getLabel("ドキュメントを開いてください。", "Please open a document."));
             return;
         }
 
@@ -122,7 +122,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (paragraphTargets.length === 0) {
-            alert(t("テキストが選択されていません。", "No text is selected."));
+            alert(getLabel("テキストが選択されていません。", "No text is selected."));
             return;
         }
 

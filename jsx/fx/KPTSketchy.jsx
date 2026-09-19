@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "KPTSketchy";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KPTSketchy.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KPTSketchy.md"; /* README (English) */
@@ -598,40 +598,41 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
         // 単位 / Units
         // =========================================
 
-        /* 単位コード → 表示名とポイント換算係数 / Unit code -> label and point factor */
-        var RULER_UNIT_TABLE = {
-            0: { label: "in", pointFactor: 72.0 },
-            1: { label: "mm", pointFactor: 72.0 / 25.4 },
-            2: { label: "pt", pointFactor: 1.0 },
-            3: { label: "pica", pointFactor: 12.0 },
-            4: { label: "cm", pointFactor: 72.0 / 2.54 },
-            5: { label: "Q/H", pointFactor: 72.0 / 25.4 * 0.25 },
-            6: { label: "px", pointFactor: 1.0 },
-            7: { label: "ft/in", pointFactor: 72.0 * 12.0 },
-            8: { label: "m", pointFactor: 72.0 / 25.4 * 1000.0 },
-            9: { label: "yd", pointFactor: 72.0 * 36.0 },
-            10: { label: "ft", pointFactor: 72.0 * 12.0 }
-        };
+        /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+        var UNITS = [
+            { label: "in",    pointsPerUnit: 72 },                /* 0 */
+            { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+            { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+            { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+            { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+            { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+            { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+            { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+            { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+            { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+            { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+        ];
+
+        /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+           Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+        var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+        /**
+         * 設定キーごとの単位情報を取得する
+         * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+         */
+        function getUnitInfo(prefKey) {
+            var unitKey = prefKey || "rulerType";
+            var unitCode = app.preferences.getIntegerPreference(unitKey);
+            var unit = UNITS[unitCode] || UNITS[2];
+            var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+            return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+        }
 
         /* 振れ幅であることを示す接頭辞 / Prefix marking a value as a plus-minus range */
         var RANGE_PREFIX = "\u00b1";
 
-        /* 定規の単位コードを取得 / Get the current ruler unit code */
-        function getRulerUnitCode() {
-            return app.preferences.getIntegerPreference("rulerType");
-        }
-
-        /* 定規の単位表示名を取得 / Get the current ruler unit label */
-        function getRulerUnitLabel() {
-            var unitEntry = RULER_UNIT_TABLE[getRulerUnitCode()];
-            return unitEntry ? unitEntry.label : "pt";
-        }
-
-        /* 現在の単位の値をポイントに変換 / Convert a value in the current unit to points */
-        function convertToPoint(value, unitCode) {
-            var unitEntry = RULER_UNIT_TABLE[unitCode];
-            return value * (unitEntry ? unitEntry.pointFactor : 1.0);
-        }
 
         // =========================================
         // BridgeTalk 委譲 / BridgeTalk delegation
@@ -921,15 +922,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
                 return null;
             }
 
-            var unitCode = getRulerUnitCode();
+            var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
 
             return {
                 usesTransform: (scaleRow.checkbox.value || moveRow.checkbox.value || rotateRow.checkbox.value),
                 scaleRange: fieldValues.scaleRange,
                 rotateRange: fieldValues.rotateRange,
-                movePoint: convertToPoint(fieldValues.moveValue, unitCode),
-                radiusPoint: convertToPoint(fieldValues.radiusValue, unitCode),
-                offsetPoint: convertToPoint(fieldValues.offsetValue, unitCode),
+                movePoint: fieldValues.moveValue * pointsPerUnit,
+                radiusPoint: fieldValues.radiusValue * pointsPerUnit,
+                offsetPoint: fieldValues.offsetValue * pointsPerUnit,
                 usesJagged: jaggedControls.checkbox.value,
                 jaggedSize: fieldValues.jaggedSize,
                 jaggedDetail: normalizeDetailValue(fieldValues.jaggedDetail),
@@ -1221,7 +1222,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
             var transformPanel = parentGroup.add("panel", undefined, getLabel("panel.transform"));
             applyPanelLayout(transformPanel, PANEL_ROW_SPACING);
 
-            var rulerUnitLabel = getRulerUnitLabel();
+            var rulerUnitLabel = getUnitInfo("rulerType").label;
 
             /*
             ここの3つは ±値 の振れ幅なので、単位表示に ± を添えて絶対値と区別する
@@ -1262,7 +1263,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na808bac430d9"; /* 紹�
             var cornerPanel = parentGroup.add("panel", undefined, getLabel("panel.corner"));
             applyPanelLayout(cornerPanel, PANEL_ROW_SPACING);
 
-            var rulerUnitLabel = getRulerUnitLabel();
+            var rulerUnitLabel = getUnitInfo("rulerType").label;
 
             radiusRow = addCheckboxFieldRow(cornerPanel, "checkbox.radius", "helpTip.radius",
                 DEFAULT_FIELD_VALUES.radius, rulerUnitLabel, INITIAL_CHECKBOX_STATES.radius, CORNER_CHECKBOX_WIDTH);

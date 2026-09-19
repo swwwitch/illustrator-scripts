@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FlattenLayers";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-15";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenLayers.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenLayers.md"; /* README (English) */
@@ -139,6 +139,50 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: '除外レイヤーのガイドも対象にする',
             en: 'Include guides from excluded layers'
         },
+        tipPromoteSublayers: {
+            ja: 'サブレイヤーを親から出して、トップレベルのレイヤーに並べ直します。',
+            en: 'Pulls sublayers out of their parents and lists them as top-level layers.'
+        },
+        tipIntegrateGuides: {
+            ja: 'ガイドもまとめ先のレイヤーへ移します。',
+            en: 'Moves the guides into the destination layer too.'
+        },
+        tipKeepGuidesInCurrentLayer: {
+            ja: 'ガイドは元のレイヤーに残します。',
+            en: 'Leaves the guides on their original layers.'
+        },
+        tipSeparateGuides: {
+            ja: 'ガイドだけを別のレイヤーにまとめます。名前は右の欄で決めます。',
+            en: 'Collects the guides onto a layer of their own. The field on the right names it.'
+        },
+        tipIncludeGuidesFromExcludedLayers: {
+            ja: 'ロックや非表示などで除外したレイヤーにあるガイドも、まとめる対象にします。',
+            en: 'Also collects guides from layers excluded as locked or hidden.'
+        },
+        tipMergedLayerName: {
+            ja: 'まとめ先のレイヤー名です。',
+            en: 'Name of the destination layer.'
+        },
+        tipReuseExistingMergedLayer: {
+            ja: '同じ名前のレイヤーがあれば作り直さず、そこへまとめます。',
+            en: 'Reuses a layer of that name instead of creating a new one.'
+        },
+        tipLayerColor: {
+            ja: 'まとめ先レイヤーの色をRGBで指定します（例: 79,127,255）。',
+            en: 'Color of the destination layer, as RGB (for example 79,127,255).'
+        },
+        tipSkipLocked: {
+            ja: 'ロックされたレイヤーはまとめません。',
+            en: 'Leaves locked layers out of the merge.'
+        },
+        tipSkipHidden: {
+            ja: '非表示のレイヤーはまとめません。',
+            en: 'Leaves hidden layers out of the merge.'
+        },
+        tipSkipSlashSlash: {
+            ja: '名前が「//」で始まるレイヤーはまとめません。作業用レイヤーを残すのに使います。',
+            en: 'Leaves layers whose name starts with "//" out of the merge, so scratch layers survive.'
+        },
         deleteEmptyLayers: {
             ja: '空のレイヤー／サブレイヤーを削除',
             en: 'Delete empty layers / sublayers'
@@ -183,6 +227,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         processPanel.margins = [15, 20, 15, 10];
 
         var cbPromoteSublayers = processPanel.add('checkbox', undefined, getLabel('promoteSublayers'));
+        cbPromoteSublayers.helpTip = getLabel('tipPromoteSublayers');
         cbPromoteSublayers.value = true;
 
         function documentHasAnyLockedLayers(container) {
@@ -357,9 +402,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         guidesPanel.enabled = hasAnyGuides;
 
         var rbIntegrateGuides = guidesPanel.add('radiobutton', undefined, getLabel('integrateGuides'));
+        rbIntegrateGuides.helpTip = getLabel('tipIntegrateGuides');
         rbIntegrateGuides.value = false;
 
         var rbKeepGuidesInCurrentLayer = guidesPanel.add('radiobutton', undefined, getLabel('keepGuidesInCurrentLayer'));
+        rbKeepGuidesInCurrentLayer.helpTip = getLabel('tipKeepGuidesInCurrentLayer');
         rbKeepGuidesInCurrentLayer.value = false;
 
         var separateGuidesGroup = guidesPanel.add('group');
@@ -367,9 +414,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         separateGuidesGroup.alignChildren = ['left', 'center'];
 
         var rbSeparateGuides = separateGuidesGroup.add('radiobutton', undefined, getLabel('separateGuides'));
+        rbSeparateGuides.helpTip = getLabel('tipSeparateGuides');
         rbSeparateGuides.value = true;
 
         var etGuideLayerName = separateGuidesGroup.add('edittext', undefined, '_guide');
+        etGuideLayerName.helpTip = getLabel('tipSeparateGuides');
         etGuideLayerName.characters = 12;
 
         function documentHasAnyGuidesInExcludedLayers(container) {
@@ -385,6 +434,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var hasGuidesInExcludedLayers = documentHasAnyGuidesInExcludedLayers(documentRef);
 
         var cbIncludeGuidesFromExcludedLayers = guidesPanel.add('checkbox', undefined, getLabel('includeGuidesFromExcludedLayers'));
+        cbIncludeGuidesFromExcludedLayers.helpTip = getLabel('tipIncludeGuidesFromExcludedLayers');
         cbIncludeGuidesFromExcludedLayers.value = hasGuidesInExcludedLayers;
         cbIncludeGuidesFromExcludedLayers.enabled = hasGuidesInExcludedLayers && rbSeparateGuides.value;
 
@@ -439,9 +489,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         nameGroup.alignChildren = ['left', 'center'];
         var nameLabel = nameGroup.add('statictext', undefined, getLabel('layerName'));
         var etLayerName = nameGroup.add('edittext', undefined, '_mergedLayer');
+        etLayerName.helpTip = getLabel('tipMergedLayerName');
         etLayerName.characters = 19;
 
         var cbReuseExistingMergedLayer = destPanel.add('checkbox', undefined, getLabel('reuseExistingMergedLayer'));
+        cbReuseExistingMergedLayer.helpTip = getLabel('tipReuseExistingMergedLayer');
         cbReuseExistingMergedLayer.value = hasExistingMergedLayer;
         cbReuseExistingMergedLayer.enabled = hasExistingMergedLayer;
 
@@ -472,6 +524,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         colorSwatch.preferredSize = [14, 14];
         colorSwatch.minimumSize = [14, 14];
         var etLayerColor = colorGroup.add('edittext', undefined, '79,127,255');
+        etLayerColor.helpTip = getLabel('tipLayerColor');
         etLayerColor.characters = 12;
 
         function updateColorSwatch() {
@@ -514,16 +567,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         layerExcludePanel.margins = [15, 20, 15, 10];
 
         var cbSkipLocked = layerExcludePanel.add('checkbox', undefined, getLabel('lockedPanelTitle'));
+        cbSkipLocked.helpTip = getLabel('tipSkipLocked');
         cbSkipLocked.value = false;
         cbSkipLocked.enabled = hasAnyLockedLayers;
         if (!hasAnyLockedLayers) cbSkipLocked.value = false;
 
         var cbSkipHidden = layerExcludePanel.add('checkbox', undefined, getLabel('hiddenPanelTitle'));
+        cbSkipHidden.helpTip = getLabel('tipSkipHidden');
         cbSkipHidden.value = false;
         cbSkipHidden.enabled = hasAnyHiddenLayers;
         if (!hasAnyHiddenLayers) cbSkipHidden.value = false;
 
         var cbSkipSlashSlashLayers = layerExcludePanel.add('checkbox', undefined, getLabel('slashSlashLayer'));
+        cbSkipSlashSlashLayers.helpTip = getLabel('tipSkipSlashSlash');
         cbSkipSlashSlashLayers.value = false;
         cbSkipSlashSlashLayers.enabled = hasAnySlashSlashLayers;
         if (!hasAnySlashSlashLayers) cbSkipSlashSlashLayers.value = false;

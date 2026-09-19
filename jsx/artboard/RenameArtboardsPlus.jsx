@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RenameArtboardsPlus";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RenameArtboardsPlus.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameArtboardsPlus.md"; /* README (English) */
@@ -51,6 +51,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     var uiLang = getUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
+    /**
+     * ［ファイル名を参照］のラジオボタンを追加する
+     * @param {Group} parentGroup - 追加先のグループ
+     * @param {string} radioLabel - ラジオのラベル
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addUseFileRadio(parentGroup, radioLabel) {
+        var radioButton = parentGroup.add("radiobutton", undefined, radioLabel);
+        radioButton.helpTip = getLabel("tooltip", "useFile");
+        return radioButton;
+    }
+
     var LABELS = {
         dialog: {
             title: { ja: "アートボード名の一括設定", en: "Batch Rename Artboards" }
@@ -87,6 +99,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
             numeric:    { ja: "数字", en: "Number" },
             alphaUpper: { ja: "アルファベット（大文字）", en: "Alphabet (Upper)" },
             alphaLower: { ja: "アルファベット（小文字）", en: "Alphabet (Lower)" }
+        },
+        tooltip: {
+            useFile:     { ja: "接頭辞にドキュメントのファイル名（拡張子なし）を使います。", en: "Uses the document file name, without its extension, as the prefix." },
+            separator:   { ja: "接頭辞・名前・接尾辞のあいだに入れる文字です。", en: "Character placed between the prefix, the name and the suffix." },
+            string:      { ja: "接頭辞／接尾辞として入れる文字列です。", en: "Text used as the prefix or the suffix." },
+            nameStyle:   { ja: "アートボード名の本体を、番号・名称・その組み合わせのどれにするかを選びます。", en: "Chooses whether the main part of the name is the number, the name, or a combination." },
+            format:      { ja: "連番に使う文字種です。数字のほか、大文字・小文字のアルファベットを選べます。", en: "Which characters the sequence uses: digits, or upper- or lower-case letters." },
+            startNumber: { ja: "連番の開始値です。", en: "The number the sequence starts from." },
+            increment:   { ja: "連番を1つ進めるときの増分です。", en: "How much the sequence advances each time." },
+            preset:      { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
+            exportPreset: { ja: "いまの設定に名前を付けて保存します。", en: "Saves the current settings under a name." }
         },
         preset: {
             none: { ja: "(未選択)", en: "(None)" },
@@ -562,6 +585,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
             var separatorValue = SEPARATOR_VALUES[i];
             var radioLabel = (separatorValue === "") ? getLabel("radio", "separatorNone") : separatorValue;
             var radio = separatorGroup.add("radiobutton", undefined, radioLabel);
+            radio.helpTip = getLabel("tooltip", "separator");
             /* ラジオ配列の順序に依存せず値を引けるよう、ラジオ自身に持たせる / Keep the value on the radio so callers don't depend on order */
             radio._separator = separatorValue;
             separatorRadios.push(radio);
@@ -583,6 +607,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
         setupRow(inputRowGroup);
         inputRowGroup.add("statictext", undefined, getFieldLabel(labelKey));
         var textInput = inputRowGroup.add("edittext", undefined, initialText);
+        textInput.helpTip = getLabel("tooltip", "string");
         textInput.characters = charWidth;
         return textInput;
     }
@@ -599,8 +624,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
         setupRow(useFilenameGroup);
         useFilenameGroup.add("statictext", undefined, getFieldLabel("fileName"));
         var useFilenameRadios = [
-            useFilenameGroup.add("radiobutton", undefined, getLabel("radio", "useFileNo")),
-            useFilenameGroup.add("radiobutton", undefined, getLabel("radio", "useFileYes"))
+            addUseFileRadio(useFilenameGroup, getLabel("radio", "useFileNo")),
+            addUseFileRadio(useFilenameGroup, getLabel("radio", "useFileYes"))
         ];
         useFilenameRadios[0].value = true;
 
@@ -622,6 +647,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     function buildNameStylePanel(parentGroup) {
         var nameStylePanel = addPanel(parentGroup, getLabel("panel", "name"), FIELD_SPACING);
         var nameStyleDropdown = nameStylePanel.add("dropdownlist", undefined, toLabelList("nameStyle", ARTBOARD_NAME_STYLE_KEYS));
+        nameStyleDropdown.helpTip = getLabel("tooltip", "nameStyle");
         nameStyleDropdown.selection = findKeyIndex(ARTBOARD_NAME_STYLE_KEYS, "none");
         /* ドロップダウンはパネル幅いっぱいに広げない / Keep the dropdown at its natural width */
         nameStyleDropdown.alignment = "left";
@@ -642,6 +668,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
         setupRow(numberingFormatGroup);
         numberingFormatGroup.add("statictext", undefined, getFieldLabel("format"));
         var numberingFormatDropdown = numberingFormatGroup.add("dropdownlist", undefined, toLabelList("numberingFormat", NUMBERING_FORMAT_KEYS));
+        numberingFormatDropdown.helpTip = getLabel("tooltip", "format");
         numberingFormatDropdown.selection = findKeyIndex(NUMBERING_FORMAT_KEYS, "numeric");
 
         var startValueInput = buildLabeledInput(suffixPanel, "startNumber", DEFAULT_START_VALUES.numeric, 5);
@@ -674,10 +701,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
         }
 
         var presetDropdown = presetRowGroup.add("dropdownlist", undefined, presetItemLabels);
+        presetDropdown.helpTip = getLabel("tooltip", "preset");
         presetDropdown.selection = 0;
 
         /* ボタンは行幅いっぱいに広げない / Keep the button at its natural width */
         var exportPresetButton = presetRowGroup.add("button", undefined, getLabel("button", "exportPreset"));
+        exportPresetButton.helpTip = getLabel("tooltip", "exportPreset");
         exportPresetButton.alignment = "left";
 
         return {

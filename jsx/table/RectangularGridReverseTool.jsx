@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RectangularGridReverseTool";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool.md"; /* README (English) */
@@ -59,6 +59,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "前処理",
             en: "Pre-processing"
         },
+        tipSplitFrame: { ja: "外枠の長方形を、上下左右4本の線に分割します。", en: "Splits the outer rectangle into four separate lines." },
+        tipDistributionNone: { ja: "行・列の間隔は変えません。", en: "Leaves the row and column spacing alone." },
+        tipDistributionEven: { ja: "行・列の間隔を均等にそろえます。", en: "Evens out the row and column spacing." },
+        tipDistributionEvenMergedCell: { ja: "結合セルを考慮しながら、行・列の間隔を均等にそろえます。", en: "Evens out the spacing while respecting merged cells." },
+        tipEqualizeVertical: { ja: "列の幅をそろえます。", en: "Gives the columns the same width." },
+        tipLockFirstColumn: { ja: "1列目の幅は変えずに、残りをそろえます。", en: "Keeps the first column as it is and evens out the rest." },
+        tipEqualizeHorizontal: { ja: "行の高さをそろえます。", en: "Gives the rows the same height." },
+        tipLockFirstRow: { ja: "1行目の高さは変えずに、残りをそろえます。", en: "Keeps the first row as it is and evens out the rest." },
+        tipProjectingCap: { ja: "線の端を太さの半分だけ延ばして、角の隙間をなくします。", en: "Extends the line ends by half the weight so the corners close up." },
+        tipConvertDashedToSolid: { ja: "点線・破線を実線に変えます。", en: "Turns dashed lines into solid ones." },
+        tipStrokeWidthMax: { ja: "いちばん太い線に合わせます。", en: "Matches the thickest line." },
+        tipStrokeWidthMin: { ja: "いちばん細い線に合わせます。", en: "Matches the thinnest line." },
+        tipStrokeWidthAverage: { ja: "線幅の平均に合わせます。", en: "Matches the average line weight." },
+        tipStrokeWidthSpecified: { ja: "線幅を数値で指定します。", en: "Sets the line weight to a value you type." },
+        tipFrameToRect: { ja: "外周の4本の線を1つの長方形にまとめます。", en: "Merges the four outer lines back into a single rectangle." },
+        tipCenterPointText: { ja: "ポイント文字をセルの天地中央に置き直します。", en: "Re-centers point text vertically within its cell." },
+        tipGrouping: { ja: "できあがった表を1つのグループにまとめます。", en: "Groups the finished table together." },
+        tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original layout." },
         optionSplitFrameToFourSides: {
             ja: "外枠を四辺に分割",
             en: "Split outer frame into four sides"
@@ -186,69 +204,41 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * - "text/asianunits"   ：東アジア言語のオプション / East Asian text unit
      */
 
-    // 単位コードとラベルのマップ / Unit code and label map
-    var unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    // 単位コードと設定キーから適切な単位ラベルを返す / Return the appropriate unit label from a unit code and preference key
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return unitMap[code] || "pt";
-    }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    // 単位コードから pt 換算係数を返す / Return the point conversion factor from a unit code
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
-
-    // 設定キーから単位情報を取得 / Get unit information from a preference key
-    function getUnitInfoFromPreference(prefKey) {
-        var unitCode = 2;
-        try {
-            unitCode = app.preferences.getIntegerPreference(prefKey);
-        } catch (unitError) {
-            unitCode = 2;
-        }
-        return {
-            code: unitCode,
-            label: getUnitLabel(unitCode, prefKey),
-            factor: getPtFactorFromUnitCode(unitCode)
-        };
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // 指定単位の値をpt値に変換 / Convert unit value to point value
     function unitValueToPoints(unitValue, unitInfo) {
-        return unitValue * unitInfo.factor;
+        return unitValue * unitInfo.pointsPerUnit;
     }
 
     if (app.documents.length === 0) return;
@@ -279,7 +269,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var gridBounds = getGridBounds(classified.horizontalLines, classified.verticalLines);
     var originalLineStates = captureLineStates(classified.horizontalLines, classified.verticalLines);
-    var strokeUnitInfo = getUnitInfoFromPreference("strokeUnits");
+    var strokeUnitInfo = getUnitInfo("strokeUnits");
 
     var hasExpandedRectangles = rectangleExpansions.length > 0;
     var dialogOptions = showOptionDialog(classified, gridBounds, originalLineStates, strokeUnitInfo, hasExpandedRectangles);
@@ -1155,6 +1145,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         preprocessingPanel.margins = [10, 20, 10, 10];
 
         var splitOuterFrameCheckbox = preprocessingPanel.add("checkbox", undefined, getLabel("optionSplitFrameToFourSides"));
+        splitOuterFrameCheckbox.helpTip = getLabel("tipSplitFrame");
         splitOuterFrameCheckbox.value = !!hasExpandedRectangles;
 
         // 配置ラジオボタン / Distribution options
@@ -1164,8 +1155,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         distributionPanel.margins = [10, 20, 10, 10];
 
         var distributionNoneRadio = distributionPanel.add("radiobutton", undefined, getLabel("optionDistributionNone"));
+        distributionNoneRadio.helpTip = getLabel("tipDistributionNone");
         var distributionEvenRadio = distributionPanel.add("radiobutton", undefined, getLabel("optionEven"));
+        distributionEvenRadio.helpTip = getLabel("tipDistributionEven");
         var distributionEvenMergedCellRadio = distributionPanel.add("radiobutton", undefined, getLabel("optionEvenMergedCell"));
+        distributionEvenMergedCellRadio.helpTip = getLabel("tipDistributionEvenMergedCell");
 
         // デフォルトは均等＋結合セル対応 / Default is Evenly + merged cells
         distributionEvenMergedCellRadio.value = true;
@@ -1180,13 +1174,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         equalizeVerticalRow.orientation = "row";
         equalizeVerticalRow.alignChildren = ["left", "center"];
         var equalizeVerticalCheckbox = equalizeVerticalRow.add("checkbox", undefined, getLabel("optionEqualizeVertical"));
+        equalizeVerticalCheckbox.helpTip = getLabel("tipEqualizeVertical");
         var lockFirstColumnCheckbox = equalizeVerticalRow.add("checkbox", undefined, getLabel("optionLockFirstColumn"));
+        lockFirstColumnCheckbox.helpTip = getLabel("tipLockFirstColumn");
 
         var equalizeHorizontalRow = equalizePanel.add("group");
         equalizeHorizontalRow.orientation = "row";
         equalizeHorizontalRow.alignChildren = ["left", "center"];
         var equalizeHorizontalCheckbox = equalizeHorizontalRow.add("checkbox", undefined, getLabel("optionEqualizeHorizontal"));
+        equalizeHorizontalCheckbox.helpTip = getLabel("tipEqualizeHorizontal");
         var lockFirstRowCheckbox = equalizeHorizontalRow.add("checkbox", undefined, getLabel("optionLockFirstRow"));
+        lockFirstRowCheckbox.helpTip = getLabel("tipLockFirstRow");
 
         // デフォルトは両方 OFF / Default both to OFF
         equalizeVerticalCheckbox.value = false;
@@ -1199,9 +1197,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         linePanel.margins = [10, 20, 10, 10];
 
         var projectingCapCheckbox = linePanel.add("checkbox", undefined, getLabel("optionProjectingCap"));
+        projectingCapCheckbox.helpTip = getLabel("tipProjectingCap");
         projectingCapCheckbox.value = true;
 
         var convertDashedToSolidCheckbox = linePanel.add("checkbox", undefined, getLabel("optionConvertDashedToSolid"));
+        convertDashedToSolidCheckbox.helpTip = getLabel("tipConvertDashedToSolid");
         convertDashedToSolidCheckbox.value = false;
 
         // 線幅パネル / Stroke width panel
@@ -1211,14 +1211,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         strokeWidthPanel.margins = [10, 20, 10, 10];
 
         var strokeWidthMaxRadio = strokeWidthPanel.add("radiobutton", undefined, getLabel("optionStrokeWidthMax"));
+        strokeWidthMaxRadio.helpTip = getLabel("tipStrokeWidthMax");
         var strokeWidthMinRadio = strokeWidthPanel.add("radiobutton", undefined, getLabel("optionStrokeWidthMin"));
+        strokeWidthMinRadio.helpTip = getLabel("tipStrokeWidthMin");
         var strokeWidthAverageRadio = strokeWidthPanel.add("radiobutton", undefined, getLabel("optionStrokeWidthAverage"));
+        strokeWidthAverageRadio.helpTip = getLabel("tipStrokeWidthAverage");
         var strokeWidthSpecifiedRadio = strokeWidthPanel.add("radiobutton", undefined, getLabel("optionStrokeWidthSpecified"));
+        strokeWidthSpecifiedRadio.helpTip = getLabel("tipStrokeWidthSpecified");
 
         var strokeWidthSpecifiedInputGroup = strokeWidthPanel.add("group");
         strokeWidthSpecifiedInputGroup.orientation = "row";
         strokeWidthSpecifiedInputGroup.alignChildren = ["left", "center"];
         var strokeWidthInput = strokeWidthSpecifiedInputGroup.add("edittext", undefined, "0.25");
+        strokeWidthInput.helpTip = getLabel("tipStrokeWidthSpecified");
         strokeWidthInput.characters = 4;
         strokeWidthSpecifiedInputGroup.add("statictext", undefined, strokeUnitInfo.label);
 
@@ -1233,12 +1238,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         postProcessingPanel.margins = [10, 20, 10, 10];
 
         var frameToRectangleCheckbox = postProcessingPanel.add("checkbox", undefined, getLabel("optionFrameToRect"));
+        frameToRectangleCheckbox.helpTip = getLabel("tipFrameToRect");
         frameToRectangleCheckbox.value = !!hasExpandedRectangles;
 
         var centerPointTextVerticallyCheckbox = postProcessingPanel.add("checkbox", undefined, getLabel("optionCenterPointTextVertically"));
+        centerPointTextVerticallyCheckbox.helpTip = getLabel("tipCenterPointText");
         centerPointTextVerticallyCheckbox.value = false;
 
         var groupingCheckbox = postProcessingPanel.add("checkbox", undefined, getLabel("optionGroup"));
+        groupingCheckbox.helpTip = getLabel("tipGrouping");
         groupingCheckbox.value = false;
 
         var buttonAreaGroup = optionDialog.add("group");
@@ -1250,6 +1258,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         previewButtonGroup.orientation = "row";
         previewButtonGroup.alignChildren = ["left", "center"];
         var previewCheckbox = previewButtonGroup.add("checkbox", undefined, getLabel("optionPreview"));
+        previewCheckbox.helpTip = getLabel("tipPreview");
 
         var buttonSpacerGroup = buttonAreaGroup.add("group");
         buttonSpacerGroup.alignment = ["fill", "center"];

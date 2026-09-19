@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AspectRatioScaler";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-10-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AspectRatioScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRatioScaler.md"; /* README (English) */
@@ -121,6 +121,52 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             en: "Convert to Artboard"
         },
 
+        // Tooltips / ツールチップ
+        tipRatioPreset: {
+            ja: "よく使う比率です。選ぶとカスタム欄は使いません。",
+            en: "Common ratios. Selecting one disables the custom fields."
+        },
+        tipRatioCustom: {
+            ja: "下の欄に好きな比率を入力します。",
+            en: "Enter any ratio in the fields below."
+        },
+        tipCustomWidth: {
+            ja: "カスタム比の左側（横）の値です。",
+            en: "The left (horizontal) value of the custom ratio."
+        },
+        tipCustomHeight: {
+            ja: "カスタム比の右側（縦）の値です。",
+            en: "The right (vertical) value of the custom ratio."
+        },
+        tipBaseWidth: {
+            ja: "長い辺を横にします。",
+            en: "Puts the longer side horizontally."
+        },
+        tipBaseHeight: {
+            ja: "長い辺を縦にします。",
+            en: "Puts the longer side vertically."
+        },
+        tipBasisHorizontal: {
+            ja: "横幅を保ったまま高さを比率に合わせます。",
+            en: "Keeps the width and fits the height to the ratio."
+        },
+        tipBasisVertical: {
+            ja: "高さを保ったまま横幅を比率に合わせます。",
+            en: "Keeps the height and fits the width to the ratio."
+        },
+        tipSizeValue: {
+            ja: "基準にする辺の長さです。空欄なら選択範囲の大きさを使います。",
+            en: "Length of the side used as the basis. Leave blank to use the size of the selection."
+        },
+        tipAlignToPixelGrid: {
+            ja: "結果の座標と大きさを整数ピクセルに丸めます。",
+            en: "Rounds the resulting position and size to whole pixels."
+        },
+        tipConvertToArtboard: {
+            ja: "作った矩形をアートボードに変換します。",
+            en: "Converts the resulting rectangle into an artboard."
+        },
+
         // Buttons / ボタン
         run: {
             ja: "実行",
@@ -146,66 +192,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
     var __origH = [];
 
     // 単位コードとラベルのマップ / Unit code to label map
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    // 現在の単位ラベルを取得 / Get current unit label
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
-    }
+    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    // ルーラー設定に基づく pt 係数を取得 / Get pt factor for current ruler unit
-    function getPtFactorFromRuler() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        switch (unitCode) {
-            case 0:
-                /* in   */
-                return 72.0;
-            case 1:
-                /* mm   */
-                return 72.0 / 25.4;
-            case 2:
-                /* pt   */
-                return 1.0;
-            case 3:
-                /* pica */
-                return 12.0; // 1pc = 12pt
-            case 4:
-                /* cm   */
-                return 72.0 / 2.54;
-            case 5:
-                /* Q/H  */
-                return (72.0 / 25.4) * 0.25; // Q=0.25mm 相当
-            case 6:
-                /* px   */
-                return 1.0; // 72ppi前提
-            case 7:
-                /* ft/in*/
-                return 72.0; // in と同等扱い
-            case 8:
-                /* m    */
-                return 72.0 / 0.0254;
-            case 9:
-                /* yd   */
-                return 72.0 * 36.0;
-            case 10:
-                /* ft   */
-                return 72.0 * 12.0;
-            default:
-                return 1.0;
-        }
+    /**
+     * 設定キーごとの単位情報を取得する。
+     * @param {string} prefKey - 環境設定キー
+     * @returns {object} code / label / pointsPerUnit を持つオブジェクト
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // 単位に応じた丸め（px=整数、mm=0.1mm刻み、その他=0.01pt刻み） / Unit-aware rounding
@@ -292,7 +306,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         basisGroup.orientation = "row";
         basisGroup.alignChildren = "left";
         basisHorizontalRadio = basisGroup.add("radiobutton", undefined, LABELS.basisHorizontal[uiLang]);
+        basisHorizontalRadio.helpTip = LABELS.tipBasisHorizontal[uiLang];
         basisVerticalRadio = basisGroup.add("radiobutton", undefined, LABELS.basisVertical[uiLang]);
+        basisVerticalRadio.helpTip = LABELS.tipBasisVertical[uiLang];
         basisHorizontalRadio.value = true;
         basisVerticalRadio.value = false;
 
@@ -306,19 +322,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         aspectGroup.orientation = "column";
         aspectGroup.alignChildren = "left";
         ratio169 = aspectGroup.add("radiobutton", undefined, LABELS.ratio169[uiLang]);
+        ratio169.helpTip = LABELS.tipRatioPreset[uiLang];
         ratio11 = aspectGroup.add("radiobutton", undefined, LABELS.ratio11[uiLang]);
+        ratio11.helpTip = LABELS.tipRatioPreset[uiLang];
         ratioA4 = aspectGroup.add("radiobutton", undefined, LABELS.ratioA4[uiLang]);
+        ratioA4.helpTip = LABELS.tipRatioPreset[uiLang];
         ratioCustom = aspectGroup.add("radiobutton", undefined, LABELS.ratioCustom[uiLang]);
+        ratioCustom.helpTip = LABELS.tipRatioCustom[uiLang];
 
         var customRatioGroup = aspectPanel.add("group");
         customRatioGroup.orientation = "row";
         customRatioGroup.alignChildren = "left";
 
         editTextWidth = customRatioGroup.add("edittext", undefined, "3");
+        editTextWidth.helpTip = LABELS.tipCustomWidth[uiLang];
         editTextWidth.characters = 5;
 
         customRatioGroup.add("statictext", undefined, ":");
         editTextHeight = customRatioGroup.add("edittext", undefined, "2");
+        editTextHeight.helpTip = LABELS.tipCustomHeight[uiLang];
         editTextHeight.characters = 5;
 
         editTextWidth.enabled = false;
@@ -339,7 +361,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         baseGroup.orientation = "column";
         baseGroup.alignChildren = "left";
         baseWidthRadio = baseGroup.add("radiobutton", undefined, LABELS.baseWidth[uiLang]);
+        baseWidthRadio.helpTip = LABELS.tipBaseWidth[uiLang];
         baseHeightRadio = baseGroup.add("radiobutton", undefined, LABELS.baseHeight[uiLang]);
+        baseHeightRadio.helpTip = LABELS.tipBaseHeight[uiLang];
         baseWidthRadio.value = true; // default Landscape
         baseHeightRadio.value = false;
 
@@ -356,8 +380,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
 
         var stWidthLabel = sizeRow.add("statictext", undefined, LABELS.labelWidth[uiLang]);
         var etWidthValue = sizeRow.add("edittext", undefined, "");
+        etWidthValue.helpTip = LABELS.tipSizeValue[uiLang];
         etWidthValue.characters = 5; // 少し広め / slightly wider
-        var stUnitLabel = sizeRow.add("statictext", undefined, getCurrentUnitLabel());
+        var stUnitLabel = sizeRow.add("statictext", undefined, getUnitInfo("rulerType").label);
 
         // 追加: 基準（横/縦）ラジオに応じてラベルを切替
         function updateSizeLabel() {
@@ -374,13 +399,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
         pixelGroup.orientation = "column";
         pixelGroup.alignChildren = "left";
         var alignToPixel = pixelGroup.add("checkbox", undefined, LABELS.alignToPixelGrid[uiLang]);
-        var __isPxRuler = false;
+        alignToPixel.helpTip = LABELS.tipAlignToPixelGrid[uiLang];
+        var isPixelRuler = false;
         try {
-            __isPxRuler = (app.preferences.getIntegerPreference("rulerType") === 6);
+            isPixelRuler = (app.preferences.getIntegerPreference("rulerType") === 6);
         } catch (e) {}
-        alignToPixel.value = __isPxRuler; // px時のみON、その他はOFF
+        alignToPixel.value = isPixelRuler; // px時のみON、その他はOFF
 
         var convertToArtboard = pixelGroup.add("checkbox", undefined, LABELS.convertToArtboard[uiLang]);
+        convertToArtboard.helpTip = LABELS.tipConvertToArtboard[uiLang];
         convertToArtboard.value = false;
 
         var buttonGroup = dialog.add("group");
@@ -456,7 +483,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4a212e6eacf1"; /* 紹�
             if (!txt) return null;
             var v = parseFloat(txt);
             if (isNaN(v) || v <= 0) return null;
-            return v * getPtFactorFromRuler();
+            return v * getUnitInfo("rulerType").pointsPerUnit;
         }
 
         // サイズパネル「横幅」入力のライブプレビュー / Live preview for width field

@@ -26,10 +26,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustPairGap";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md"; /* README (English) */
@@ -202,12 +202,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc8fab19d8164"; /* 紹�
     // =========================================
     // 単位 / Units
     // =========================================
-    // ルーラー単位を取得し、1単位あたりの pt 係数を求める / Resolve ruler unit and pt factor
-    var UNIT_LABELS = ["in", "mm", "pt", "pc", "cm", "Q", "px"];
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
     var UNIT_FACTORS = [72, 72 / 25.4, 1, 12, 72 / 2.54, 72 / 25.4 * 0.25, 1];
     var rulerType = app.preferences.getIntegerPreference("rulerType");
     if (rulerType < 0 || rulerType > 6) { rulerType = 2; } // 不明時は pt / Fallback to pt
-    var rulerUnitLabel = UNIT_LABELS[rulerType];
+    var rulerUnitLabel = getUnitInfo().label;
     var pointsPerUnit = UNIT_FACTORS[rulerType]; // 1単位 = pointsPerUnit pt
 
     // =========================================

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FlattenOpacityPro";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenOpacityPro.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenOpacityPro.md"; /* README (English) */
@@ -55,12 +55,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function toTick(v, step) {
         if (!step || step <= 0) return v;
         return Math.round(v / step);
-    }
-
-    // (Optional) Convert a tick back to a value. Useful for debugging.
-    function tickToValue(tick, step) {
-        if (!step || step <= 0) return tick;
-        return tick * step;
     }
 
     function main() {
@@ -244,6 +238,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         alert("処理が完了しました。");
     }
+    /**
+     * オブジェクトの不透明度を 0〜1 の比率で返す
+     * 種類によっては opacity を持たず例外になるため、その場合は 1（不透明）として扱う。
+     * @param {PageItem} item - 対象のオブジェクト
+     * @returns {number} 不透明度の比率（0〜1）
+     */
+    function getItemOpacityRatio(item) {
+        try {
+            return item.opacity / 100;
+        } catch (e) {
+            return 1;
+        }
+    }
+
+    /**
+     * オブジェクトの不透明度を 100% に戻す（設定できない種類は何もしない）
+     * @param {PageItem} item - 対象のオブジェクト
+     * @returns {void}
+     */
+    function resetItemOpacity(item) {
+        try {
+            item.opacity = 100;
+        } catch (e) {}
+    }
+
     // Bake opacity into fills recursively for a single selection (no overlap case).
     // This avoids menu operations (Divide/Expand) that can collapse transparency and lose opacity values.
     function bakeOpacityIntoFillRecursive(item, parentAlpha, doc) {
@@ -253,47 +272,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var t = item.typename;
 
         if (t === 'GroupItem') {
-            var a = parentAlpha;
-            try { a = a * (item.opacity / 100); } catch (e) { }
+            var groupAlpha = parentAlpha * getItemOpacityRatio(item);
 
             // Recurse into children
             try {
                 for (var i = 0; i < item.pageItems.length; i++) {
-                    bakeOpacityIntoFillRecursive(item.pageItems[i], a, doc);
+                    bakeOpacityIntoFillRecursive(item.pageItems[i], groupAlpha, doc);
                 }
             } catch (e) { }
 
-            // Normalize group opacity
-            try { item.opacity = 100; } catch (e) { }
+            resetItemOpacity(item);
             return;
         }
 
         if (t === 'CompoundPathItem') {
             // CompoundPathItem contains pathItems
-            var a2 = parentAlpha;
-            try { a2 = a2 * (item.opacity / 100); } catch (e) { }
+            var compoundAlpha = parentAlpha * getItemOpacityRatio(item);
             try {
                 for (var j = 0; j < item.pathItems.length; j++) {
-                    bakeOpacityIntoFillRecursive(item.pathItems[j], a2, doc);
+                    bakeOpacityIntoFillRecursive(item.pathItems[j], compoundAlpha, doc);
                 }
             } catch (e) { }
-            try { item.opacity = 100; } catch (e) { }
+            resetItemOpacity(item);
             return;
         }
 
         if (t === 'PathItem') {
-            var a3 = parentAlpha;
-            try { a3 = a3 * (item.opacity / 100); } catch (e) { }
+            var pathAlpha = parentAlpha * getItemOpacityRatio(item);
 
             // Only bake fill; keep stroke as-is (this script focuses on fill flattening)
             try {
                 if (item.filled && item.fillColor) {
-                    item.fillColor = blendWithWhite(item.fillColor, a3, doc);
+                    item.fillColor = blendWithWhite(item.fillColor, pathAlpha, doc);
                 }
             } catch (e) { }
 
-            // Normalize opacity
-            try { item.opacity = 100; } catch (e) { }
+            resetItemOpacity(item);
             return;
         }
 

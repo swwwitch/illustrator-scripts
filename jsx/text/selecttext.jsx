@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "selecttext";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/selecttext.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/selecttext.md"; /* README (English) */
@@ -64,6 +64,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ignoreOutside: {
             ja: "アートボード外を無視",
             en: "Ignore outside artboards"
+        },
+        tipScopeArtboard: {
+            ja: "現在のアートボードに重なるテキストだけを集めます。",
+            en: "Collects only the text that overlaps the current artboard."
+        },
+        tipScopeAll: {
+            ja: "ドキュメント内のすべてのテキストを集めます。",
+            en: "Collects every text object in the document."
+        },
+        tipDedupe: {
+            ja: "同じ内容のテキストを1行にまとめます。",
+            en: "Merges identical text into a single line."
+        },
+        tipIgnoreOutside: {
+            ja: "アートボードの外に置かれたテキストを対象から外します。",
+            en: "Leaves out text placed outside the artboards."
+        },
+        tipTextList: {
+            ja: "集めたテキストの一覧です。ここで選択した行のオブジェクトがアートボード上でも選択されます。",
+            en: "The collected text. Selecting a line here also selects the matching object on the artboard."
         },
         copyAll: {
             ja: "一覧をコピー",
@@ -318,7 +338,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpScope.alignment = ["center", "center"];
 
             var rbArtboard = grpScope.add("radiobutton", undefined, getLabel("scopeArtboard"));
+            rbArtboard.helpTip = getLabel("tipScopeArtboard");
             var rbAll = grpScope.add("radiobutton", undefined, getLabel("scopeAll"));
+            rbAll.helpTip = getLabel("tipScopeAll");
             rbArtboard.value = true;
 
             var pnlDedupe = dialog.add("panel", undefined, getLabel("dedupeGroup"));
@@ -326,12 +348,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pnlDedupe.alignChildren = ["left", "top"];
             pnlDedupe.margins = [15, 20, 15, 10];
             var chkDedupe = pnlDedupe.add("checkbox", undefined, getLabel("dedupeText"));
+            chkDedupe.helpTip = getLabel("tipDedupe");
             chkDedupe.value = true;
 
             var chkIgnoreOutside = pnlDedupe.add("checkbox", undefined, getLabel("ignoreOutside"));
+            chkIgnoreOutside.helpTip = getLabel("tipIgnoreOutside");
             chkIgnoreOutside.value = false;
 
             var editBox = dialog.add("edittext", [0, 0, 400, 300], "", { multiline: true, scrolling: true });
+            editBox.helpTip = getLabel("tipTextList");
             editBox.active = true;
 
             var btnGroup = dialog.add("group");

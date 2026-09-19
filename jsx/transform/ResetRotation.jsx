@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResetRotation";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-15";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetRotation.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetRotation.md"; /* README (English) */
@@ -59,6 +59,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "テキスト",
             en: "Text"
         },
+        tipText: { ja: "テキストオブジェクトの回転を元に戻します。", en: "Clears the rotation on text objects." },
+        tipImage: { ja: "配置画像の回転を元に戻します。", en: "Clears the rotation on placed images." },
+        tipRect: { ja: "長方形の回転を元に戻します。", en: "Clears the rotation on rectangles." },
+        tipClipGroup: { ja: "クリップグループの回転を元に戻します。", en: "Clears the rotation on clipping groups." },
+        tipKeepRatio: { ja: "回転を戻すときに、縦横比を保ちます。", en: "Keeps the aspect ratio while the rotation is cleared." },
+        tipEps: { ja: "これ以下の角度は0とみなします。わずかな傾きを無視するための値です。", en: "Angles below this count as zero, so tiny tilts are ignored." },
         keepRatio: {
             ja: "縦横比を正す",
             en: "Keep aspect ratio"
@@ -215,8 +221,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         pTargets.alignment = "left";
 
         var cbText = pTargets.add("checkbox", undefined, LABELS.text[uiLang]);
+        cbText.helpTip = LABELS.tipText[uiLang];
         var cbImage = pTargets.add("checkbox", undefined, LABELS.image[uiLang]);
+        cbImage.helpTip = LABELS.tipImage[uiLang];
         var cbRect = pTargets.add("checkbox", undefined, LABELS.rect[uiLang]);
+        cbRect.helpTip = LABELS.tipRect[uiLang];
 
         cbText.value = !!defaults.text;
         cbImage.value = !!defaults.image;
@@ -224,6 +233,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 対象パネル内にクリップグループのチェックボックスを配置
         var cbClip = pTargets.add("checkbox", undefined, LABELS.clipGroup[uiLang]);
+        cbClip.helpTip = LABELS.tipClipGroup[uiLang];
         cbClip.value = !!(typeof defaults.clipGroup !== 'undefined' ? defaults.clipGroup : CONFIG.clipGroup);
 
         /* クリップ範囲 UI は廃止（常に Topmost） / Clip scope UI removed (always Topmost) */
@@ -235,6 +245,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         pText.margins = [15, 20, 15, 10];
         pText.alignment = "left";
         var cbKeepRatio = pText.add("checkbox", undefined, LABELS.keepRatio[uiLang]);
+        cbKeepRatio.helpTip = LABELS.tipKeepRatio[uiLang];
         cbKeepRatio.value = (typeof defaults.textKeepRatio !== 'undefined') ? !!defaults.textKeepRatio : CONFIG.textKeepRatio;
 
         // オプション：しきい値
@@ -248,6 +259,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gEps.alignChildren = "left";
         gEps.add("statictext", undefined, LABELS.epsilon[uiLang]);
         var etEps = gEps.add("edittext", undefined, String((typeof defaults.epsilonDeg !== 'undefined') ? defaults.epsilonDeg : CONFIG.epsilonDeg));
+        etEps.helpTip = LABELS.tipEps[uiLang];
         etEps.characters = 6;
         changeValueByArrowKey(etEps);
 
@@ -311,22 +323,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!obj.closed) return false;
         if (obj.pathPoints.length !== 4) return false;
         return true;
-    }
-
-    /* =============================
-       クリップグループ関連 / Clipping Group Utilities
-       ============================= */
-    function getImageTransformHost(item) {
-        // 画像がクリッピンググループ内にある場合、回転はグループ側に乗っていることが多い
-        var host = item;
-        try {
-            var p = item.parent;
-            while (p && p.typename === 'GroupItem' && p.clipped) {
-                host = p; // 直近のクリップグループに回転が載る
-                p = p.parent;
-            }
-        } catch (e) {}
-        return host;
     }
 
     function getNearestClippingGroupHost(item) {

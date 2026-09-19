@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextCountStats";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStats.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStats.md"; /* README (English) */
@@ -371,7 +371,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         statusText.alignment = ["fill", "bottom"];
 
         function setStatus(msg) {
-            try { statusText.text = msg; } catch (e) {}
+            statusText.text = msg;
         }
 
         /* 再集計 / Recount */

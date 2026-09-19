@@ -27,7 +27,7 @@ var SCRIPT_NAME     = "AiSmartPathfinder";            /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPathfinder.md"; /* README (English) */
@@ -2240,7 +2240,7 @@ function showPalette() {
      * @returns {void}
      */
     function setStatus(message) {
-        try { statusText.text = message; } catch (statusWriteError) { }
+        statusText.text = message;
     }
 
     /* isBusy ガード付きで委譲を実行する / guarded delegate */

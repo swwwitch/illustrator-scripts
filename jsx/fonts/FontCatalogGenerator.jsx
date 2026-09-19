@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontCatalogGenerator";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-01-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontCatalogGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalogGenerator.md"; /* README (English) */
@@ -53,12 +53,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         en: "FontCatalogGenerator"
       },
       labelSampleText: {
-        ja: "表示する文字:",
-        en: "Sample text:"
+        ja: "表示する文字",
+        en: "Sample text"
+      },
+      tipSampleText: {
+        ja: "各フォントの見本として並べる文字です。",
+        en: "The text shown as the specimen for each font."
+      },
+      tipFontSize: {
+        ja: "見本の文字サイズです。",
+        en: "Size of the specimen text."
       },
       labelFontSize: {
-        ja: "フォントサイズ:",
-        en: "Font size:"
+        ja: "フォントサイズ",
+        en: "Font size"
       },
       panelSampleSettings: {
         ja: "見本の設定",
@@ -176,11 +184,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
      * @returns {string} ロケールに対応する文言。見つからない場合はキーをそのまま返す
      */
     function getLabel(key) {
-      try {
-        return (LABELS[key] && LABELS[key][uiLang]) ? LABELS[key][uiLang] : key;
-      } catch (e) {
-        return key;
-      }
+      return (LABELS[key] && LABELS[key][uiLang]) ? LABELS[key][uiLang] : key;
+    }
+
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(key) {
+      return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
     }
 
     /* --------------------------------------------------
@@ -215,26 +228,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
       }
     }
 
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
     /**
-     * 単位コードから pt への換算係数を返す
-     * @param {number} code - 環境設定の単位コード
-     * @returns {number} pt への換算係数
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getPtFactorFromUnitCode(code) {
-      switch (code) {
-        case 0: return 72.0;                        // in
-        case 1: return 72.0 / 25.4;                 // mm
-        case 2: return 1.0;                         // pt
-        case 3: return 12.0;                        // pica
-        case 4: return 72.0 / 2.54;                 // cm
-        case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-        case 6: return 1.0;                         // px
-        case 7: return 72.0 * 12.0;                 // ft/in
-        case 8: return 72.0 / 25.4 * 1000.0;        // m
-        case 9: return 72.0 * 36.0;                 // yd
-        case 10:return 72.0 * 12.0;                 // ft
-        default:return 1.0;
-      }
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -243,13 +266,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
      * @returns {number} 現在の文字単位での値
      */
     function ptToCurrentTextUnit(ptValue) {
-      try {
-        var code = app.preferences.getIntegerPreference("text/units");
-        var factor = getPtFactorFromUnitCode(code);
-        return ptValue / factor;
-      } catch (e) {
-        return ptValue;
-      }
+      return ptValue / getUnitInfo("text/units").pointsPerUnit;
     }
 
     /**
@@ -258,13 +275,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
      * @returns {number} pt の値
      */
     function currentTextUnitToPt(unitValue) {
-      try {
-        var code = app.preferences.getIntegerPreference("text/units");
-        var factor = getPtFactorFromUnitCode(code);
-        return unitValue * factor;
-      } catch (e) {
-        return unitValue;
-      }
+      return unitValue * getUnitInfo("text/units").pointsPerUnit;
     }
 
     /**
@@ -460,7 +471,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var textInputGroup = displayPanel.add("group");
         textInputGroup.orientation = "column";
         textInputGroup.alignChildren = ["fill", "top"];
+        textInputGroup.add("statictext", undefined, labelText("labelSampleText"));
         var sampleTextInput = textInputGroup.add("edittext", undefined, defaultText);
+        sampleTextInput.helpTip = getLabel("tipSampleText");
         sampleTextInput.characters = 20;
 
         var fontSizeGroup = displayPanel.add("group");
@@ -469,11 +482,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         var textUnitLabel = getCurrentTextUnitLabel();
 
         // ラベル末尾の「:」を除去（ja/en両対応） / Remove trailing colon from label
-        var fontSizeLabelText = String(getLabel("labelFontSize")).replace(/[:：]\s*$/, "");
-        fontSizeGroup.add("statictext", undefined, fontSizeLabelText);
+        fontSizeGroup.add("statictext", undefined, labelText("labelFontSize"));
 
         var defaultFontSizeDisplay = ptToCurrentTextUnit(defaultFontSizePt);
         var fontSizeInput = fontSizeGroup.add("edittext", undefined, formatNumberForDisplay(defaultFontSizeDisplay));
+        fontSizeInput.helpTip = getLabel("tipFontSize");
         fontSizeInput.characters = 3;
         changeValueByArrowKey(fontSizeInput);
 
@@ -952,19 +965,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/studio_tofu/n/n7b0cf367ec88"; /* 紹�
         function isKeywordInList(keyword, list) {
             for (var ii = 0; ii < list.length; ii++) {
                 if (list[ii] === keyword) return true;
-            }
-            return false;
-        }
-
-        /**
-         * リスト内のいずれかのキーワードが文字列に含まれるかを判定する
-         * @param {string} text - 検索対象の文字列
-         * @param {Array<string>} list - キーワードの配列
-         * @returns {boolean} いずれかが含まれていれば true
-         */
-        function containsAnyKeyword(text, list) {
-            for (var kk = 0; kk < list.length; kk++) {
-                if (text.indexOf(list[kk]) !== -1) return true;
             }
             return false;
         }

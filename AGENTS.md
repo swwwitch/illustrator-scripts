@@ -73,7 +73,61 @@ Version numbers are tied to the READMEs and published articles.
 
 - On a feature change, update `SCRIPT_UPDATED` only
 - If a bump seems warranted, propose it and wait
-- `jsx/link/LinkedImageManager.jsx` is fixed at v1.5.0
+
+## Units
+
+Unit handling goes through one table and one accessor. Do not add per-script label maps or
+`getPtFactorFromUnitCode()`-style helpers.
+
+```js
+// =========================================
+// 単位 / Units
+// =========================================
+
+/* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+   Unit code -> display label and points per unit */
+var UNITS = [
+    { label: "in",    pointsPerUnit: 72 },                /* 0 */
+    { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+    { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+    { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+    { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+    { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+    { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+    { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+    { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+    { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+    { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+];
+
+/* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+   Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+/**
+ * 環境設定キーの単位を返す
+ * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+ * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+ */
+function getUnitInfo(prefKey) {
+    var unitKey = prefKey || "rulerType";
+    var unitCode = app.preferences.getIntegerPreference(unitKey);
+    /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+    var unit = UNITS[unitCode] || UNITS[2];
+    /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+    var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+    return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+}
+```
+
+- Display label: `getUnitInfo().label`
+- Points per unit: `getUnitInfo().pointsPerUnit`
+- Another preference: `getUnitInfo("strokeUnits")`, `getUnitInfo("text/units")`
+- Include only `UNITS` and `getUnitInfo()` when the script never shows a Q/H label;
+  keep `HA_UNIT_PREF_KEYS` whenever a label reaches the UI.
+- **Exception:** `jsx/preference/PreferenceManager-print-pt.jsx` keeps its own `["pt","pc",…,"Q/H","px"]`
+  list. One dropdown serves four preference keys there, so unit code 5 needs the neutral `Q/H` label,
+  and the file does no pt conversion at all. Leave it as it is.
 
 ## Comments
 

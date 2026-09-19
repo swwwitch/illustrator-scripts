@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CopyTextAttributesToClipboard"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2021-04-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyTextAttributesToClipboard.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyTextAttributesToClipboard.md"; /* README (English) */
@@ -167,19 +167,44 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位ユーティリティ / Unit utilities
     // =========================================
 
-    /* 単位コードとラベルのマップ / Unit code to label map */
-    var preferenceUnitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     /* 単位コードとpt換算係数のマップ / Unit code to point conversion factor map */
     /* 1単位あたりのpt値を定義 / Defines point value per unit */
@@ -197,28 +222,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         10: 72 * 12            // ft
     };
 
-    /* 単位コードと設定キーから適切な単位ラベルを返す / Return the proper unit label from unit code and preference key */
-    function getPreferenceUnitLabel(unitCode, prefKey) {
-        if (unitCode === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return preferenceUnitLabelMap[unitCode] || "pt";
-    }
-
-    /* 環境設定から単位コードを取得 / Get unit code from preferences */
-    function getPreferenceUnitCode(prefKey, fallbackCode) {
-        try {
-            return app.preferences.getIntegerPreference(prefKey);
-        } catch (e) {
-            return fallbackCode;
-        }
-    }
-
     /* pt値を指定単位へ変換 / Convert point value to the specified unit */
     function convertPointsToPreferenceUnit(pointValue, unitCode) {
         var pointFactor = preferenceUnitPointFactorMap[unitCode] || 1;
@@ -234,8 +237,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* pt値を現在の文字単位で表示 / Format point value using current text unit */
     function formatPointValueForDisplay(pointValue) {
-        var unitCode = getPreferenceUnitCode("text/units", 2);
-        var textUnitLabel = getPreferenceUnitLabel(unitCode, "text/units");
+        var textUnit = getUnitInfo("text/units");
+        var unitCode = textUnit.code;
+        var textUnitLabel = textUnit.label;
         var displayValue = convertPointsToPreferenceUnit(pointValue, unitCode);
         return formatNumberForDisplay(displayValue, 3) + " " + textUnitLabel;
     }

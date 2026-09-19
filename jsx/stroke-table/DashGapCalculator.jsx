@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DashGapCalculator";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashGapCalculator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashGapCalculator.md"; /* README (English) */
@@ -186,10 +186,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
             cap:        { ja: "線端", en: "Cap" }
         },
         fieldLabel: {
-            pathLength: { ja: "パスの長さ:", en: "Path length:" },
-            segments:   { ja: "分割数:", en: "Segments:" },
-            gap:        { ja: "間隔:", en: "Gap:" },
-            dash:       { ja: "線分:", en: "Dash:" }
+            pathLength: { ja: "パスの長さ", en: "Path length" },
+            segments:   { ja: "分割数", en: "Segments" },
+            gap:        { ja: "間隔", en: "Gap" },
+            dash:       { ja: "線分", en: "Dash" }
         },
         radio: {
             gapToDash:  { ja: "間隔→線分", en: "Gap→Dash" },
@@ -298,6 +298,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     }
 
     /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {Object} labelNode - LABELS 内の { ja, en } ノード
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(labelNode) {
+        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ": ");
+    }
+
+    /**
      * ラベル内の {0} {1} … を引数で置き換える
      * @param {Object} labelNode - LABELS 内の { ja, en } ノード
      * @param {Array<string>} args - 差し込む文字列の配列
@@ -316,84 +325,56 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     // 単位ユーティリティ / Unit utilities
     // =========================================
 
-    /* 環境設定の単位コードと表記の対応 / Unit code to label */
-    var UNIT_LABELS = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 単位コードから pt 換算係数（1単位あたりのpt数）を返す
-     * @param {number} unitCode - 環境設定の単位コード
-     * @returns {number} pt 換算係数
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function unitCodeToPtFactor(unitCode) {
-        switch (unitCode) {
-            case 0: return 72;                 /* in */
-            case 1: return 72 / 25.4;          /* mm */
-            case 2: return 1;                  /* pt */
-            case 3: return 12;                 /* pica */
-            case 4: return 72 / 2.54;          /* cm */
-            case 5: return (72 / 25.4) * 0.25; /* Q/H（1Q=1H=0.25mm） */
-            case 6: return 1;                  /* px（Illustratorでは 1px=1pt） */
-            case 7: return 72;                 /* ft/in（複合表記は扱わず in 相当） */
-            case 8: return 72 / 0.0254;        /* m */
-            case 9: return 72 * 36;            /* yd */
-            case 10: return 72 * 12;           /* ft */
-            default: return 1;
-        }
-    }
-
-    /**
-     * 線の単位（strokeUnits）の情報を取得する
-     * @returns {Object} { code:number, label:string, factor:number }
-     */
-    function getStrokeUnitInfo() {
-        var unitCode = 2; /* 取得できない場合は pt */
-        var asianUnits = 0;
-        try {
-            unitCode = app.preferences.getIntegerPreference("strokeUnits");
-            /* Q/H は環境設定（東アジア言語）に合わせて表記を切り替える */
-            if (unitCode === 5) asianUnits = app.preferences.getIntegerPreference("text/asianunits");
-        } catch (e) { }
-
-        var unitLabel = UNIT_LABELS[unitCode] || "pt";
-        if (unitCode === 5) unitLabel = (asianUnits === 1) ? "H" : "Q";
-
-        return {
-            code: unitCode,
-            label: unitLabel,
-            factor: unitCodeToPtFactor(unitCode)
-        };
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
      * 単位値を pt に変換する
      * @param {number} value - 単位値
-     * @param {Object} unitInfo - getStrokeUnitInfo() の戻り値
+     * @param {Object} unitInfo - getUnitInfo() の戻り値
      * @returns {number} pt 値
      */
     function unitToPt(value, unitInfo) {
-        return value * unitInfo.factor;
+        return value * unitInfo.pointsPerUnit;
     }
 
     /**
      * pt 値を単位値に変換する
      * @param {number} ptValue - pt 値
-     * @param {Object} unitInfo - getStrokeUnitInfo() の戻り値
+     * @param {Object} unitInfo - getUnitInfo() の戻り値
      * @returns {number} 単位値
      */
     function ptToUnit(ptValue, unitInfo) {
-        return ptValue / unitInfo.factor;
+        return ptValue / unitInfo.pointsPerUnit;
     }
 
     /**
@@ -624,7 +605,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         /* 先頭のパスをUI表示・計算の代表として扱う */
         var primaryPath = targetPaths[0];
         var primaryPathLength = primaryPath.length;
-        var strokeUnit = getStrokeUnitInfo();
+        var strokeUnit = getUnitInfo("strokeUnits");
 
         /* ダイアログを開く前の状態（キャンセル時に復元）*/
         var originalStates = [];
@@ -702,7 +683,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         /* 選択中のパス情報（全幅）*/
         var panelPathInfo = addPanel(win, getLabel(LABELS.panel.pathInfo));
-        var pathInfoText = getLabel(LABELS.fieldLabel.pathLength) + " " +
+        var pathInfoText = labelText(LABELS.fieldLabel.pathLength) + " " +
             ptToUnit(primaryPathLength, strokeUnit).toFixed(3) + " " + strokeUnit.label;
         if (targetPaths.length > 1) pathInfoText += "  (" + targetPaths.length + ")";
         var lblPathInfo = panelPathInfo.add("statictext", undefined, pathInfoText);
@@ -723,7 +704,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         /* 分割数 */
         var segmentsRow = addRow(dashInputColumn);
-        var lblSegments = segmentsRow.add("statictext", undefined, getLabel(LABELS.fieldLabel.segments));
+        var lblSegments = segmentsRow.add("statictext", undefined, labelText(LABELS.fieldLabel.segments));
         lblSegments.preferredSize.width = FIELD_LABEL_WIDTH;
         lblSegments.justify = "right";
         var txtSegments = segmentsRow.add("edittext", undefined, String(initialSegments));
@@ -733,7 +714,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         /* 間隔（入力欄と結果表示を重ねる）*/
         var gapRow = addRow(dashInputColumn);
-        var lblGap = gapRow.add("statictext", undefined, getLabel(LABELS.fieldLabel.gap));
+        var lblGap = gapRow.add("statictext", undefined, labelText(LABELS.fieldLabel.gap));
         lblGap.preferredSize.width = FIELD_LABEL_WIDTH;
         lblGap.justify = "right";
 
@@ -754,7 +735,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         /* 線分（入力欄と結果表示を重ねる）*/
         var dashRow = addRow(dashInputColumn);
-        var lblDash = dashRow.add("statictext", undefined, getLabel(LABELS.fieldLabel.dash));
+        var lblDash = dashRow.add("statictext", undefined, labelText(LABELS.fieldLabel.dash));
         lblDash.preferredSize.width = FIELD_LABEL_WIDTH;
         lblDash.justify = "right";
 

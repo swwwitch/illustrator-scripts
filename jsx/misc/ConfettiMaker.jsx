@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConfettiMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConfettiMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMaker.md"; /* README (English) */
@@ -268,6 +268,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         dropdown: {
             symbolNone: { ja: "（なし）", en: "(None)" }
         },
+        tooltip: {
+            baseSize:     { ja: "紙吹雪1枚あたりの大きさの基準です。", en: "Reference size of a single confetti piece." },
+            count:        { ja: "生成する紙吹雪の数です。", en: "How many confetti pieces to generate." },
+            mask:         { ja: "選択した図形の形でクリッピングマスクを作り、はみ出した紙吹雪を隠します。", en: "Clips the confetti to the selected shape so nothing spills outside." },
+            margin:       { ja: "生成範囲を外側へ広げます。マスクの端で切れた紙吹雪が増えて自然になります。", en: "Extends the generation area outward, so more pieces are cut off at the edge." },
+            distEven:     { ja: "範囲全体に同じ密度で散らします。", en: "Scatters at an even density across the whole area." },
+            distGrad:     { ja: "上から下へ密度を変えて散らします。", en: "Varies the density from top to bottom." },
+            distHollow:   { ja: "中心から外へ向かって散らします。", en: "Scatters outward from the centre." },
+            strength:     { ja: "分布の偏りの強さです。", en: "How strongly the distribution is biased." },
+            shape:        { ja: "使う形をオン・オフします。複数選ぶと混ぜて生成します。", en: "Turns a shape on or off. Several shapes are mixed together." },
+            symbol:       { ja: "右で選んだシンボルを紙吹雪として使います。", en: "Uses the symbol chosen on the right as a confetti piece." },
+            symbolList:   { ja: "ドキュメントに登録済みのシンボルから選びます。", en: "Picks from the symbols registered in the document." },
+            randomSize:   { ja: "1枚ごとに大きさをばらつかせます。スライダーはばらつきの幅です。", en: "Varies the size piece by piece. The slider sets the spread." },
+            opacity:      { ja: "1枚ごとに不透明度をばらつかせます。スライダーは一番薄い値です。", en: "Varies the opacity piece by piece. The slider sets the faintest value." },
+            skew:         { ja: "1枚ごとに斜めに歪ませます。スライダーは歪みの最大角度です。", en: "Skews each piece. The slider sets the maximum angle." },
+            rotate:       { ja: "1枚ごとに回転させます。スライダーは回転の最大角度です。", en: "Rotates each piece. The slider sets the maximum angle." },
+            zoom:         { ja: "作業中の画面表示倍率を変えます。結果には影響しません。", en: "Changes the view zoom while you work. It does not affect the result." }
+        },
         button: {
             ok:     { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
@@ -399,6 +417,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         if (!initialZoom || isNaN(initialZoom)) initialZoom = 1;
 
         var zoomSlider = addSlider(zoomGroup, initialZoom, minZoom, maxZoom, zoomOptions.sliderWidth);
+        zoomSlider.helpTip = getLabel("tooltip", "zoom");
 
         /**
          * 指定倍率をビューへ適用する
@@ -471,10 +490,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     addRowLabel(baseSizeRow, labelText("fieldLabel", "baseSize"));
     /* スライダーの 0 が DEFAULT_BASE_SIZE_PT に対応する相対指定 / Slider 0 maps to DEFAULT_BASE_SIZE_PT */
     var baseSizeSlider = addSlider(baseSizeRow, 0, -5, 45);
+    baseSizeSlider.helpTip = getLabel("tooltip", "baseSize");
 
     var countRow = addRow(basicPanel);
     addRowLabel(countRow, labelText("fieldLabel", "count"));
     var countSlider = addSlider(countRow, DEFAULT_COUNT, 10, 500);
+    countSlider.helpTip = getLabel("tooltip", "count");
     var confettiCount = DEFAULT_COUNT;
 
     /* マスク処理・マージン / Mask & margin */
@@ -485,6 +506,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
 
     var maskRow = addRow(maskMarginGroup);
     var maskCheckbox = maskRow.add("checkbox", undefined, getLabel("checkbox", "mask"));
+    maskCheckbox.helpTip = getLabel("tooltip", "mask");
     maskCheckbox.value = true;
     if (isTextSelection || useArtboardBounds) {
         maskCheckbox.value = false;
@@ -495,6 +517,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var marginCheckbox = marginRow.add("checkbox", undefined, getLabel("checkbox", "margin"));
     marginCheckbox.value = false;
     var marginSlider = addSlider(marginRow, 0, 0, 50);
+    marginCheckbox.helpTip = getLabel("tooltip", "margin");
+    marginSlider.helpTip = getLabel("tooltip", "margin");
     marginSlider.enabled = marginCheckbox.value;
     var generationMarginPt = 0;
 
@@ -506,13 +530,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var distributionRow = addRow(distributionGroup);
     addRowLabel(distributionRow, labelText("fieldLabel", "distribution"));
     var evenRadio = distributionRow.add("radiobutton", undefined, getLabel("radio", "distEven"));
+    evenRadio.helpTip = getLabel("tooltip", "distEven");
     var verticalRadio = distributionRow.add("radiobutton", undefined, getLabel("radio", "distGrad"));
+    verticalRadio.helpTip = getLabel("tooltip", "distGrad");
     var radialRadio = distributionRow.add("radiobutton", undefined, getLabel("radio", "distHollow"));
+    radialRadio.helpTip = getLabel("tooltip", "distHollow");
     evenRadio.value = true;
 
     var strengthRow = addRow(distributionGroup);
     addRowLabel(strengthRow, labelText("fieldLabel", "strength"));
     var strengthSlider = addSlider(strengthRow, DEFAULT_STRENGTH, 1.0, 6.0, NARROW_SLIDER_WIDTH);
+    strengthSlider.helpTip = getLabel("tooltip", "strength");
     var distributionStrength = DEFAULT_STRENGTH;
     strengthRow.enabled = false;
 
@@ -561,16 +589,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
         var shapeItem = SHAPE_DEFS[i];
         shapeItem.checkbox = shapeColumns[shapeItem.column].add("checkbox", undefined, getLabel("checkbox", shapeItem.key));
         shapeItem.checkbox.value = shapeItem.defaultOn;
+        shapeItem.checkbox.helpTip = getLabel("tooltip", "shape");
         shapeToggles.push(shapeItem);
     }
 
     /* シンボル行（チェック + ドロップダウン）/ Symbol row */
     var symbolRow = addRow(shapePanel);
     var symbolCheckbox = symbolRow.add("checkbox", undefined, getLabel("checkbox", "symbol"));
+    symbolCheckbox.helpTip = getLabel("tooltip", "symbol");
     symbolCheckbox.value = false;
     symbolCheckbox.enabled = false; /* シンボル未選択のうちはディム / Dimmed until a symbol is picked */
     var symbolDropdown = symbolRow.add("dropdownlist", undefined, [getLabel("dropdown", "symbolNone")]);
     symbolDropdown.selection = 0;
+    symbolDropdown.helpTip = getLabel("tooltip", "symbolList");
     symbolDropdown.preferredSize.width = SYMBOL_DROPDOWN_WIDTH;
 
     var symbolToggle = { key: "symbol", checkbox: symbolCheckbox, soloPreset: "" };
@@ -589,6 +620,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var randomSizeCheckbox = randomSizeRow.add("checkbox", undefined, getLabel("checkbox", "randomSize"));
     randomSizeCheckbox.value = true;
     var randomSizeSlider = addSlider(randomSizeRow, 100, 100, 300);
+    randomSizeCheckbox.helpTip = getLabel("tooltip", "randomSize");
+    randomSizeSlider.helpTip = getLabel("tooltip", "randomSize");
     randomSizeSlider.enabled = randomSizeCheckbox.value;
     var randomSizeStrength = 100;
 
@@ -597,6 +630,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     opacityCheckbox.value = true;
     /* スライダーは反転指定（値 = 100 − 不透明度の下限）/ Reversed slider: value = 100 − minimum opacity */
     var opacitySlider = addSlider(opacityRow, 100 - DEFAULT_OPACITY_MIN, 0, 100);
+    opacityCheckbox.helpTip = getLabel("tooltip", "opacity");
+    opacitySlider.helpTip = getLabel("tooltip", "opacity");
     opacitySlider.enabled = opacityCheckbox.value;
     var opacityMin = DEFAULT_OPACITY_MIN;
 
@@ -604,6 +639,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var skewCheckbox = skewRow.add("checkbox", undefined, getLabel("checkbox", "skew"));
     skewCheckbox.value = false;
     var skewSlider = addSlider(skewRow, 0, 0, SKEW_MAX_DEG);
+    skewCheckbox.helpTip = getLabel("tooltip", "skew");
+    skewSlider.helpTip = getLabel("tooltip", "skew");
     skewSlider.enabled = skewCheckbox.value;
     var skewMaxDeg = 0;
 
@@ -611,6 +648,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5a41fb524a5a"; /* 紹�
     var rotateCheckbox = rotateRow.add("checkbox", undefined, getLabel("checkbox", "rotate"));
     rotateCheckbox.value = true;
     var rotateSlider = addSlider(rotateRow, DEFAULT_ROTATE_MAX, 0, 360);
+    rotateCheckbox.helpTip = getLabel("tooltip", "rotate");
+    rotateSlider.helpTip = getLabel("tooltip", "rotate");
     rotateSlider.enabled = rotateCheckbox.value;
     var rotateMaxDeg = DEFAULT_ROTATE_MAX;
     var previousRotateMaxDeg = DEFAULT_ROTATE_MAX; /* 回転を一時OFFにしたときの復元値 / Value restored when rotation is turned back on */

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartClipAndGroup";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.0.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v0.0.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2024-06-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartClipAndGroup.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartClipAndGroup.md"; /* README (English) */
@@ -91,6 +91,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
             ja: "しきい値（px）",
             en: "Threshold (px)"
         },
+        tipClipFront: { ja: "最前面のオブジェクトを型にして、その下のものをクリップします。", en: "Uses the frontmost object as the mask and clips what sits below it." },
+        tipClip: { ja: "最背面のオブジェクトを型にして、その上のものをクリップします。", en: "Uses the backmost object as the mask and clips what sits above it." },
+        tipClipPlacedOnly: { ja: "選択の中の配置画像だけをクリップします。ほかのオブジェクトはそのまま残ります。", en: "Clips only the placed images in the selection, leaving other objects alone." },
+        tipOverlap: { ja: "実際に重なっているオブジェクトだけをグループにします。", en: "Groups only the objects that actually overlap." },
+        tipGroup: { ja: "しきい値以内の距離にあるオブジェクトを、向きを問わずグループにします。", en: "Groups objects that sit within the threshold distance, in any direction." },
+        tipVertical: { ja: "上下に並んでいるオブジェクトを、縦の列ごとにグループにします。", en: "Groups objects that line up vertically, column by column." },
+        tipHorizontal: { ja: "左右に並んでいるオブジェクトを、横の行ごとにグループにします。", en: "Groups objects that line up horizontally, row by row." },
+        tipThreshold: { ja: "同じグループとみなす距離です。大きくするとまとまりが粗くなります。", en: "How close objects must be to land in the same group. Larger values group more loosely." },
         ok: {
             ja: "OK",
             en: "OK"
@@ -160,19 +168,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         // ラジオボタン定義
         var radioButtons = {};
         radioButtons.clipFront = clipPanel.add("radiobutton", undefined, LABELS.clipFront[uiLang]);
+        radioButtons.clipFront.helpTip = LABELS.tipClipFront[uiLang];
         radioButtons.clip = clipPanel.add("radiobutton", undefined, LABELS.clip[uiLang]);
+        radioButtons.clip.helpTip = LABELS.tipClip[uiLang];
         radioButtons.clipPlacedOnly = clipPanel.add("radiobutton", undefined, LABELS.clipPlacedOnly[uiLang]);
+        radioButtons.clipPlacedOnly.helpTip = LABELS.tipClipPlacedOnly[uiLang];
         radioButtons.overlap = groupPanel.add("radiobutton", undefined, LABELS.overlap[uiLang]);
+        radioButtons.overlap.helpTip = LABELS.tipOverlap[uiLang];
         radioButtons.group = groupPanel.add("radiobutton", undefined, LABELS.group[uiLang]);
+        radioButtons.group.helpTip = LABELS.tipGroup[uiLang];
         // 追加: 上下方向・左右方向ラジオボタン
         radioButtons.vertical = groupPanel.add("radiobutton", undefined, LABELS.vertical[uiLang]);
+        radioButtons.vertical.helpTip = LABELS.tipVertical[uiLang];
         radioButtons.horizontal = groupPanel.add("radiobutton", undefined, LABELS.horizontal[uiLang]);
+        radioButtons.horizontal.helpTip = LABELS.tipHorizontal[uiLang];
 
         // 初期選択ラジオボタン設定
         radioButtons[defaultKey].value = true;
 
         // しきい値スライダー
         var thresholdSlider = groupPanel.add("slider", undefined, 10, 0, 100);
+        thresholdSlider.helpTip = LABELS.tipThreshold[uiLang];
         thresholdSlider.value = (typeof initialThreshold === "number") ? initialThreshold : 10;
         thresholdSlider.preferredSize.width = 150;
         var thresholdLabel = groupPanel.add("statictext", undefined, LABELS.threshold[uiLang]);
@@ -390,69 +406,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
         processPlacedItemsByType("rect");
     }
 
-    // クリッピングマスクを解除
-    function releaseClippingMask(groupItem) {
-        var clippingPath = null;
-        for (var i = 0; i < groupItem.pageItems.length; i++) {
-            if (groupItem.pageItems[i].clipping) {
-                clippingPath = groupItem.pageItems[i];
-                break;
-            }
-        }
-        if (clippingPath) {
-            groupItem.clipped = false;
-            clippingPath.remove();
-        }
-        ungroupGroupItem(groupItem);
-    }
-
-    // 配置画像を矩形でマスク
-    function createClippingMask(imageItem) {
-        var layer = imageItem.layer;
-        var wasLocked = layer.locked;
-        var wasVisible = layer.visible;
-        var wasTemplate = layer.isTemplate;
-
-        if (wasLocked) layer.locked = false;
-        if (!wasVisible) layer.visible = true;
-        if (wasTemplate) layer.isTemplate = false;
-
-        var rect = layer.pathItems.rectangle(
-            imageItem.top,
-            imageItem.left,
-            imageItem.width,
-            imageItem.height
-        );
-        rect.stroked = false;
-        rect.filled = false;
-
-        var group = layer.groupItems.add();
-        imageItem.moveToBeginning(group);
-        rect.moveToBeginning(group);
-        group.clipped = true;
-
-        if (wasLocked) layer.locked = true;
-        if (!wasVisible) layer.visible = false;
-        if (wasTemplate) layer.isTemplate = true;
-
-        return rect;
-    }
-
-    // 配置画像とパスでマスク
-    function createMaskWithPath(imageItem, pathItem) {
-        var layer = imageItem.layer;
-        if (pathItem.layer != layer) {
-            pathItem.move(layer, ElementPlacement.PLACEATBEGINNING);
-        }
-
-        var group = layer.groupItems.add();
-        imageItem.moveToBeginning(group);
-        pathItem.moveToBeginning(group);
-        group.clipped = true;
-
-        return pathItem;
-    }
-
     // グループ解除
     function ungroupGroupItem(groupItem) {
         var parent = groupItem.parent;
@@ -460,36 +413,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
             groupItem.pageItems[0].moveToBeginning(parent);
         }
         groupItem.remove();
-    }
-
-    // 選択を更新
-    function updateSelection(clippingMasks) {
-        var doc = app.activeDocument;
-        doc.selection = null;
-        for (var i = 0; i < clippingMasks.length; i++) {
-            clippingMasks[i].parent.selected = true;
-        }
-    }
-
-    // 配列が全てPathItemか判定
-    function isAllPathItems(arr) {
-        for (var i = 0; i < arr.length; i++) {
-            if (!arr[i] || arr[i].typename !== "PathItem") return false;
-        }
-        return true;
-    }
-
-    // 最前面のPathItemを取得
-    function getFrontmostPath(paths) {
-        var topPath = null;
-        var maxZ = -1;
-        for (var i = 0; i < paths.length; i++) {
-            if (paths[i].typename === "PathItem" && paths[i].zOrderPosition > maxZ) {
-                topPath = paths[i];
-                maxZ = paths[i].zOrderPosition;
-            }
-        }
-        return topPath;
     }
 
     // 配列が全て配置画像か判定
@@ -529,11 +452,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
                 groupOverlappingObjectsByThreshold("overlap");
                 break;
         }
-    }
-
-    // 配置画像のみ（正方形）でマスク
-    function clipPlacedOnlySquareMask() {
-        processPlacedItemsByType("square");
     }
 
     // 配置画像のみ・矩形/正方形マスク処理
@@ -656,16 +574,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
             return a.index - b.index;
         });
     }
-    // 指定アイテムがグループ化済みか判定
-    function isItemGrouped(item, groups) {
-        for (var i = 0; i < groups.length; i++) {
-            for (var j = 0; j < groups[i].length; j++) {
-                if (groups[i][j] === item) return true;
-            }
-        }
-        return false;
-    }
-
     // メイン処理
     function main(prevThreshold) {
         var userChoice = showDialog(prevThreshold);

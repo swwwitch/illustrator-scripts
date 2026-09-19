@@ -26,10 +26,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LeaderLineBuilder";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LeaderLineBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LeaderLineBuilder.md"; /* README (English) */
@@ -335,77 +335,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     // =========================================
 
     /* 単位コードと単位ラベルの対応 / Unit code to label */
-    var UNIT_LABELS = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 単位コードと設定キーから単位ラベルを返す
-     * @param {number} code - 単位コード
-     * @param {string} prefKey - 環境設定のキー
-     * @returns {string} 単位ラベル
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            /* 級数と歯は設定キーで使い分ける / Q for size, H for distance */
-            var heightUnitKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return heightUnitKeys[prefKey] ? "H" : "Q";
-        }
-        return UNIT_LABELS[code] || "pt";
-    }
-
-    /**
-     * 設定キーから現在の単位ラベルを取得する
-     * @param {string} prefKey - 環境設定のキー
-     * @returns {string} 単位ラベル
-     */
-    function getCurrentUnitLabel(prefKey) {
-        var unitCode = app.preferences.getIntegerPreference(prefKey);
-        return getUnitLabel(unitCode, prefKey);
-    }
-
-    /**
-     * 単位コードからpt換算係数を取得する
-     * @param {number} code - 単位コード
-     * @returns {number} pt換算係数
-     */
-    function getUnitToPtFactor(code) {
-        switch (code) {
-            case 0: return 72;          /* in */
-            case 1: return 72 / 25.4;   /* mm */
-            case 2: return 1;           /* pt */
-            case 3: return 12;          /* pica */
-            case 4: return 72 / 2.54;   /* cm */
-            case 5: return 0.25;        /* Q/H */
-            case 6: return 1;           /* px */
-            case 7: return 72;          /* ft/in（数値入力はinch扱い） */
-            case 8: return 72 / 0.0254; /* m */
-            case 9: return 72 * 36;     /* yd */
-            case 10: return 72 * 12;    /* ft */
-            default: return 1;
-        }
-    }
-
-    /**
-     * 設定キーから現在のpt換算係数を取得する
-     * @param {string} prefKey - 環境設定のキー
-     * @returns {number} pt換算係数
-     */
-    function getCurrentUnitToPtFactor(prefKey) {
-        return getUnitToPtFactor(app.preferences.getIntegerPreference(prefKey));
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -417,7 +376,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     function unitValueToPt(value, prefKey) {
         var parsed = parseFloat(value);
         if (isNaN(parsed)) return NaN;
-        return parsed * getCurrentUnitToPtFactor(prefKey);
+        return parsed * getUnitInfo(prefKey).pointsPerUnit;
     }
 
     /**
@@ -429,7 +388,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
     function ptValueToUnit(valuePt, prefKey) {
         var parsed = parseFloat(valuePt);
         if (isNaN(parsed)) return NaN;
-        return parsed / getCurrentUnitToPtFactor(prefKey);
+        return parsed / getUnitInfo(prefKey).pointsPerUnit;
     }
 
     /**
@@ -2105,7 +2064,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n506df641d5c5"; /* 紹�
      */
     function buildDialogUI() {
         var ui = {};
-        var strokeUnitLabel = getCurrentUnitLabel("strokeUnits");
+        var strokeUnitLabel = getUnitInfo("strokeUnits").label;
 
         ui.dialogWindow = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
         setupWindow(ui.dialogWindow);

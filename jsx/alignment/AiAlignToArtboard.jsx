@@ -26,10 +26,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAlignToArtboard";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboard.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToArtboard.md"; /* README (English) */
@@ -79,19 +79,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
            どちらも換算値ではなく、その単位で扱いやすい丸めた数にする
            defaultMargin and defaultExtension are the initial margin and extension: round numbers that
            read well in that unit, not conversions */
-        var UNIT_INFO = {
-            "0":  { label: "in",    points: 72.0,                      defaultMargin: 0.25,  defaultExtension: 0.5 },
-            "1":  { label: "mm",    points: 72.0 / 25.4,               defaultMargin: 5,     defaultExtension: 10 },
-            "2":  { label: "pt",    points: 1.0,                       defaultMargin: 20,    defaultExtension: 20 },
-            "3":  { label: "pica",  points: 12.0,                      defaultMargin: 1.5,   defaultExtension: 2 },
-            "4":  { label: "cm",    points: 72.0 / 2.54,               defaultMargin: 0.5,   defaultExtension: 1 },
-            "5":  { label: "Q/H",   points: (72.0 / 25.4) * 0.25,      defaultMargin: 20,    defaultExtension: 40 },
-            "6":  { label: "px",    points: 1.0,                       defaultMargin: 20,    defaultExtension: 20 },
-            "7":  { label: "ft/in", points: 864.0,                     defaultMargin: 0.02,  defaultExtension: 0.04 },
-            "8":  { label: "m",     points: (72.0 / 25.4) * 1000.0,    defaultMargin: 0.005, defaultExtension: 0.01 },
-            "9":  { label: "yd",    points: 2592.0,                    defaultMargin: 0.006, defaultExtension: 0.012 },
-            "10": { label: "ft",    points: 864.0,                     defaultMargin: 0.02,  defaultExtension: 0.04 }
-        };
+        /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+           Unit code -> display label and points per unit */
+        var UNITS = [
+            { label: "in",    pointsPerUnit: 72 },                /* 0 */
+            { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+            { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+            { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+            { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+            { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+            { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+            { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+            { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+            { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+            { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+        ];
+
+        /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+           Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+        var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+        /**
+         * 環境設定キーの単位を返す
+         * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+         */
+        function getUnitInfo(prefKey) {
+            var unitKey = prefKey || "rulerType";
+            var unitCode = app.preferences.getIntegerPreference(unitKey);
+            /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+            var unit = UNITS[unitCode] || UNITS[2];
+            /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+            var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+            return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+        }
+
+        /* 単位ごとのマージン欄・伸張欄の初期値。換算値ではなく、その単位で扱いやすい丸めた数
+           Initial margin and extension per unit: round numbers that read well in that unit */
+        var UNIT_DEFAULTS = [
+            { defaultMargin: 0.25,  defaultExtension: 0.5 },   /* 0 in */
+            { defaultMargin: 5,     defaultExtension: 10 },    /* 1 mm */
+            { defaultMargin: 20,    defaultExtension: 20 },    /* 2 pt */
+            { defaultMargin: 1.5,   defaultExtension: 2 },     /* 3 pica */
+            { defaultMargin: 0.5,   defaultExtension: 1 },     /* 4 cm */
+            { defaultMargin: 20,    defaultExtension: 40 },    /* 5 Q/H */
+            { defaultMargin: 20,    defaultExtension: 20 },    /* 6 px */
+            { defaultMargin: 0.02,  defaultExtension: 0.04 },  /* 7 ft/in */
+            { defaultMargin: 0.005, defaultExtension: 0.01 },  /* 8 m */
+            { defaultMargin: 0.006, defaultExtension: 0.012 }, /* 9 yd */
+            { defaultMargin: 0.02,  defaultExtension: 0.04 }   /* 10 ft */
+        ];
+
+        /**
+         * 表示用の単位情報に、その単位の初期値を足して返す
+         * @returns {{label: string, points: number, defaultMargin: number, defaultExtension: number}} 単位の情報
+         */
+        function getUnitInfoWithDefaults() {
+            var unit = getUnitInfo();
+            var defaults = UNIT_DEFAULTS[unit.code] || UNIT_DEFAULTS[2];
+            return {
+                label: unit.label,
+                points: unit.pointsPerUnit,
+                defaultMargin: defaults.defaultMargin,
+                defaultExtension: defaults.defaultExtension
+            };
+        }
         /* 単位が取れないときの既定 / Fallback when the ruler unit cannot be read */
         var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0, defaultMargin: 20, defaultExtension: 20 };
 
@@ -123,7 +175,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
            the gutters and the extension are in ruler units, the extension reaching outside the artboard */
         var DEFAULT_DIVIDE_MODE          = "none";
         var DEFAULT_ARTBOARD_EDGE        = false; /* アートボードのエッジにガイドを引く / draw guides on the artboard edges */
-        /* 伸張の初期値は単位ごとに決まるので、ここには持たない（UNIT_INFO の defaultExtension を使う）
+        /* 伸張の初期値は単位ごとに決まるので、ここには持たない（UNIT_DEFAULTS の defaultExtension を使う）
            The extension's default comes from the unit, so it is not listed here */
         var DEFAULT_DIVIDE_VALUES        = { rows: 1, columns: 2, rowGutter: 0, columnGutter: 0 };
         /* ［十字］の行数・列数（縦横とも2等分＝中央に十字のガイドが1本ずつ）
@@ -3511,7 +3563,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42952a7adcb6"; /* 紹�
                 if (alignPerArtboardCheckbox !== null) {
                     alignPerArtboardCheckbox.enabled = (Number(parts[3]) > 1);
                 }
-                currentUnitInfo = UNIT_INFO[parts[1]] || FALLBACK_UNIT_INFO;
+                currentUnitInfo = getUnitInfoWithDefaults();
                 if (marginPanel !== null) { marginPanel.text = panelTitleWithUnit("guide"); }
                 if (dividePanel !== null) { dividePanel.text = panelTitleWithUnit("divide"); }
                 fillDefaultExtension();

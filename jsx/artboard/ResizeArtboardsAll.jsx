@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResizeArtboardsAll";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeArtboardsAll.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeArtboardsAll.md"; /* README (English) */
@@ -280,18 +280,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // Width row
         var wRow = sizeGroup.add("group");
         wRow.orientation = "row";
-        var wLabel = wRow.add("statictext", undefined, LABELS.widthLabel[uiLang] + "：");
+        var wLabel = wRow.add("statictext", undefined, LABELS.widthLabel[uiLang] + (uiLang === "ja" ? "：" : ": "));
         var wValue = wRow.add("edittext", undefined, "-");
         wValue.characters = 5;
-        // var wUnitLabel = wRow.add("statictext", undefined, unit);
 
         // Height row
         var hRow = sizeGroup.add("group");
         hRow.orientation = "row";
-        var hLabel = hRow.add("statictext", undefined, LABELS.heightLabel[uiLang] + "：");
+        var hLabel = hRow.add("statictext", undefined, LABELS.heightLabel[uiLang] + (uiLang === "ja" ? "：" : ": "));
         var hValue = hRow.add("edittext", undefined, "-");
         hValue.characters = 5;
-        // var hUnitLabel = hRow.add("statictext", undefined, unit);
 
         // --- Align label widths and right-justify ---
         try {
@@ -676,13 +674,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) {
             return NaN;
         }
-    }
-
-    /* オブジェクトのバウンディングボックスを取得 / Get bounding box of a single object
-       usePreviewBounds=true なら visibleBounds（プレビュー境界: 塗り/線を含む）
-       usePreviewBounds=false なら geometricBounds（幾何境界: パス外形のみ） */
-    function getBounds(item, usePreviewBounds) {
-        return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
     }
 
     /* edittextに矢印キーで値を増減する機能を追加 / Add arrow key increment/decrement to edittext */

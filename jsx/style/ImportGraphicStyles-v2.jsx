@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImportGraphicStyles-v2";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportGraphicStyles-v2.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportGraphicStyles-v2.md"; /* README (English) */
@@ -67,6 +67,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             panelTitle: { ja: "スタイル", en: "Style" },
             whiteText: { ja: "文字白抜き", en: "White text" },
             frameOnly: { ja: "枠のみ", en: "Frame only" }
+        },
+        tooltip: {
+            whiteText: { ja: "背景を塗りつぶし、文字を白抜きにするスタイルを適用します。", en: "Applies the style that fills the background and knocks the text out in white." },
+            frameOnly: { ja: "塗りは付けず、枠線だけのスタイルを適用します。", en: "Applies the style that draws only a frame, with no fill." }
         },
         /* ボタン / Buttons */
         button: {
@@ -160,7 +164,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         stylePanel.margins = [16, 20, 16, 12];
         stylePanel.spacing = 8;
         var whiteTextRadio = stylePanel.add("radiobutton", undefined, getLabel("style.whiteText"));
+        whiteTextRadio.helpTip = getLabel("tooltip.whiteText");
         var frameOnlyRadio = stylePanel.add("radiobutton", undefined, getLabel("style.frameOnly"));
+        frameOnlyRadio.helpTip = getLabel("tooltip.frameOnly");
         whiteTextRadio.value = true; // 既定 / Default
 
         // ボタン行（Mac 規約: キャンセル → 適用）/ Buttons (Mac order: Cancel → Apply)

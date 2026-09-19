@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CreateGuidesFromSelection";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-24";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuidesFromSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuidesFromSelection.md"; /* README (English) */
@@ -285,38 +285,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd1359cf41a2c"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* rulerType の単位コード→ラベルと pt 換算係数 / Unit code to label and points-per-unit */
-    var UNIT_INFO = {
-        0:  { label: "in",    points: 72.0 },
-        1:  { label: "mm",    points: 72.0 / 25.4 },
-        2:  { label: "pt",    points: 1.0 },
-        3:  { label: "pica",  points: 12.0 },
-        4:  { label: "cm",    points: 72.0 / 2.54 },
-        5:  { label: "H",     points: 72.0 / 25.4 * 0.25 },
-        6:  { label: "px",    points: 1.0 },
-        7:  { label: "ft/in", points: 72.0 * 12.0 },
-        8:  { label: "m",     points: 72.0 / 25.4 * 1000.0 },
-        9:  { label: "yd",    points: 72.0 * 36.0 },
-        10: { label: "ft",    points: 72.0 * 12.0 }
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 単位が取れないときの既定 / Fallback when the ruler unit cannot be read */
-    var FALLBACK_UNIT_INFO = { label: "pt", points: 1.0 };
-
-    /**
-     * 現在の定規単位の情報を取得
-     * @returns {object} { label: string, points: number }（不明な場合は pt 扱い）
-     */
-    function getRulerUnitInfo() {
-        return UNIT_INFO[app.preferences.getIntegerPreference("rulerType")] || FALLBACK_UNIT_INFO;
-    }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 現在の定規単位ラベルを取得
-     * @returns {string} 単位ラベル（不明な場合は "pt"）
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getRulerUnitLabel() {
-        return getRulerUnitInfo().label;
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -327,7 +325,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd1359cf41a2c"; /* 紹�
     function rulerTextToPoints(inputText) {
         var inputValue = parseFloat(inputText);
         if (isNaN(inputValue)) inputValue = 0;
-        return inputValue * getRulerUnitInfo().points;
+        return inputValue * getUnitInfo("rulerType").pointsPerUnit;
     }
 
     // =========================================
@@ -803,7 +801,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd1359cf41a2c"; /* 紹�
         var valueInput = inputRow.add("edittext", undefined, initialValue);
         valueInput.characters = 3;
         valueInput.helpTip = tooltipText;
-        var unitLabel = inputRow.add("statictext", undefined, getRulerUnitLabel());
+        var unitLabel = inputRow.add("statictext", undefined, getUnitInfo("rulerType").label);
         unitLabel.helpTip = tooltipText;
         changeValueByArrowKey(valueInput);
 

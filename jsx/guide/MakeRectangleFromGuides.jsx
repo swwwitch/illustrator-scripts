@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MakeRectangleFromGuides";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeRectangleFromGuides.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeRectangleFromGuides.md"; /* README (English) */
@@ -232,31 +232,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; array index equals the rulerType code (0=in, 1=mm, 2=pt …) */
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
     var UNITS = [
-        { label: "in",    factor: 72.0 },                /* 0 */
-        { label: "mm",    factor: 72.0 / 25.4 },         /* 1 */
-        { label: "pt",    factor: 1.0 },                 /* 2 */
-        { label: "pica",  factor: 12.0 },                /* 3 */
-        { label: "cm",    factor: 72.0 / 2.54 },         /* 4 */
-        { label: "Q/H",   factor: 72.0 / 25.4 * 0.25 },  /* 5 */
-        { label: "px",    factor: 1.0 },                 /* 6 */
-        { label: "ft/in", factor: 72.0 * 12.0 },         /* 7 */
-        { label: "m",     factor: 72.0 / 25.4 * 1000.0 },/* 8 */
-        { label: "yd",    factor: 72.0 * 36.0 },         /* 9 */
-        { label: "ft",    factor: 72.0 * 12.0 }          /* 10 */
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* pt の添字（単位が特定できないときのフォールバック）/ Index of pt, used as the fallback unit */
-    var POINT_UNIT_INDEX = 2;
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * ルーラー環境設定の単位を取得する
-     * @returns {{label: string, factor: number}} 単位ラベルと pt 換算係数
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getRulerUnit() {
-        var rulerTypeCode = app.preferences.getIntegerPreference("rulerType");
-        return (rulerTypeCode >= 0 && rulerTypeCode < UNITS.length) ? UNITS[rulerTypeCode] : UNITS[POINT_UNIT_INDEX];
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -890,7 +895,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
         var rectangleOptionPanel = addPanel(rectanglePanel, getLabel('rectangleOption', 'panelTitle'));
 
         /* オフセット：チェックボックス＋数値欄＋ルーラー単位 / Offset: checkbox, value field, and the ruler unit */
-        var rulerUnit = getRulerUnit();
+        var rulerUnit = getUnitInfo("rulerType");
         var offsetRow = rectangleOptionPanel.add("group");
         setupRow(offsetRow, "left", FIELD_ROW_SPACING);
         var offsetCheckbox = offsetRow.add("checkbox", undefined, getLabel('rectangleOption', 'offset'));
@@ -934,7 +939,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4907511336ad"; /* 紹�
                 includeLocked: includeLockedCheckbox.value,
                 useOutputLayer: outputLayerRadio.value,
                 outputLayerName: normalizeLayerName(outputLayerNameInput.text),
-                offsetPt: offsetCheckbox.value ? convertToPt(offsetInput.text, rulerUnit.factor) : 0,
+                offsetPt: offsetCheckbox.value ? convertToPt(offsetInput.text, rulerUnit.pointsPerUnit) : 0,
                 mergeAdjacent: mergeAdjacentCheckbox.value,
                 convertToShape: convertToShapeCheckbox.value
             };

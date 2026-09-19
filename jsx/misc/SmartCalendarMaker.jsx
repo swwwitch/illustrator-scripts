@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartCalendarMaker";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-15";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartCalendarMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalendarMaker.md"; /* README (English) */
@@ -68,6 +68,61 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             }
         },
 
+        /* 罫線の指定 / Stroke options */
+        stroke: {
+            none:   { ja: "なし", en: "None" },
+            all:    { ja: "すべて", en: "All" },
+            custom: { ja: "個別", en: "Custom" },
+            top:    { ja: "上", en: "Top" },
+            bottom: { ja: "下", en: "Bottom" },
+            left:   { ja: "左", en: "Left" },
+            right:  { ja: "右", en: "Right" }
+        },
+
+        /* ツールチップ / Tooltips */
+        tooltip: {
+            presetList:   { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
+            baseDate:     { ja: "カレンダーの起点になる年・月・日です。", en: "The year, month and day the calendar starts from." },
+            preset1:      { ja: "1か月分だけ作ります。", en: "Builds a single month." },
+            preset3:      { ja: "3か月分を作ります。", en: "Builds three months." },
+            preset12:     { ja: "12か月分を作ります。", en: "Builds twelve months." },
+            startCurrent: { ja: "指定した月から並べ始めます。", en: "Starts from the month you specified." },
+            startJan:     { ja: "その年の1月から並べ始めます。", en: "Starts from January of that year." },
+            ghost:        { ja: "前後の月からはみ出す日付も、薄い色で表示します。", en: "Shows the spill-over days from the neighbouring months in a lighter color." },
+            sundayRed:    { ja: "日曜日の日付を赤にします。", en: "Colors Sundays red." },
+            holidayRed:   { ja: "祝日の日付を赤にします。", en: "Colors public holidays red." },
+            weekMonday:   { ja: "週の始まりを月曜にします。", en: "Starts each week on Monday." },
+            weekSunday:   { ja: "週の始まりを日曜にします。", en: "Starts each week on Sunday." },
+            weekdayLabel: { ja: "曜日の表記を選びます。", en: "How the weekday names are written." },
+            weekdayBottomMargin: { ja: "曜日の行と日付の行のあいだにあける余白です。", en: "Space left between the weekday row and the dates." },
+            monthIncludeYear: { ja: "月の見出しに年も入れます。", en: "Includes the year in the month heading." },
+            monthFormat:  { ja: "月の見出しの表記を選びます。", en: "How the month heading is written." },
+            monthBottomMargin: { ja: "月の見出しの下にあける余白です。", en: "Space left below the month heading." },
+            monthBottomBorder: { ja: "月の見出しの下にケイ線を引きます。", en: "Draws a rule below the month heading." },
+            topYear:      { ja: "カレンダー全体の上に年を表示します。", en: "Shows the year above the whole calendar." },
+            topYearBottomMargin: { ja: "年の見出しの下にあける余白です。", en: "Space left below the year heading." },
+            months:       { ja: "作る月数です。", en: "How many months to build." },
+            columns:      { ja: "月を横に何個並べるかです。", en: "How many months to place across." },
+            outerMarginX: { ja: "月どうしの横方向の間隔です。", en: "Horizontal spacing between months." },
+            outerMarginY: { ja: "月どうしの縦方向の間隔です。", en: "Vertical spacing between months." },
+            zoom:         { ja: "プレビューの表示倍率です。書き出す内容は変わりません。", en: "Zoom of the preview only; it does not change the output." },
+            pan:          { ja: "プレビューの表示位置をずらします。書き出す内容は変わりません。", en: "Pans the preview only; it does not change the output." },
+            cellWidth:    { ja: "日付1マスの幅です。", en: "Width of one date cell." },
+            cellHeight:   { ja: "日付1マスの高さです。", en: "Height of one date cell." },
+            cellGapX:     { ja: "マスどうしの横の隙間です。", en: "Horizontal gap between cells." },
+            cellGapY:     { ja: "マスどうしの縦の隙間です。", en: "Vertical gap between cells." },
+            cellPosAdjY:  { ja: "マスの中で日付を上下に動かす量です。", en: "Nudges the date up or down inside its cell." },
+            cellFill:     { ja: "マスに背景色を敷きます。", en: "Fills each cell with a background color." },
+            strokeNone:   { ja: "マスにケイ線を引きません。", en: "Draws no rules around the cells." },
+            strokeAll:    { ja: "マスの四辺すべてにケイ線を引きます。", en: "Draws rules on all four sides of each cell." },
+            strokeCustom: { ja: "ケイ線を引く辺を個別に選びます。", en: "Picks which sides get a rule." },
+            strokeSide:   { ja: "この辺にケイ線を引きます。", en: "Draws a rule on this side." },
+            fontSize:     { ja: "文字サイズです。", en: "Type size." },
+            fontName:     { ja: "使用するフォントです。", en: "The font used." },
+            favFont:      { ja: "よく使うフォントから選びます。", en: "Picks from the fonts you use often." },
+            preview:      { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." }
+        },
+
         /* パネル・タブ見出し / Panel & tab titles */
         panel: {
             base: { ja: "全般", en: "General" },
@@ -89,9 +144,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         /* 基準日フィールド / Base date fields */
         field: {
-            year: { ja: "年:", en: "Year:" },
-            month: { ja: "月:", en: "Month:" },
-            day: { ja: "日:", en: "Day:" }
+            year: { ja: "年", en: "Year" },
+            month: { ja: "月", en: "Month" },
+            day: { ja: "日", en: "Day" }
         },
 
         /* 月数プリセット・起点 / Month-count presets & base */
@@ -145,8 +200,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         /* レイアウト / Layout */
         layout: {
-            months: { ja: "月数:", en: "Months: " },
-            cols: { ja: "列数:", en: "Columns: " },
+            months: { ja: "月数", en: "Months" },
+            cols: { ja: "列数", en: "Columns" },
             width: { ja: "幅：", en: "W:" },
             height: { ja: "高さ：", en: "H:" },
             cellFill: { ja: "塗り", en: "Fill" }
@@ -224,90 +279,62 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         }
     }
 
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    }
+
     // =========================================
     // 単位 / Units
-    // =========================================
-    // ===== 単位ユーティリティ（Preferences 参照 / Q・H 切替対応）=====
-    // ▼ 各設定キーの意味：
+    // 設定キーの意味：
     // - "rulerType"       ：一般（定規の単位）
     // - "strokeUnits"     ：線
     // - "text/units"      ：文字
     // - "text/asianunits" ：東アジア言語のオプション（日本語・中国語など）
+    // =========================================
 
-    // 単位コード → ラベル（Q/H は getUnitLabel() で分岐）
-    var __SCM_unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 単位コードを表示ラベルに変換（Q/H対応）/ Convert a unit code to a display label (Q/H aware) */
-    function __SCM_getUnitLabel(code, prefKey) {
-        // code===5 は Q/H
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return __SCM_unitMap[code] || "pt";
-    }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    /* 環境設定の単位コードからラベルを取得 / Get a unit label from a preference's unit code */
-    function __SCM_getPrefUnitLabel(prefKey, fallback) {
-        var fb = fallback || "pt";
-        try {
-            var code = app.preferences.getIntegerPreference(prefKey);
-            return __SCM_getUnitLabel(code, prefKey) || fb;
-        } catch (e) {
-            return fb;
-        }
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // 画面上の寸法系はドキュメントの rulerUnits ではなく、Illustrator の一般単位（rulerType）に合わせる
-    var unitLabel = __SCM_getPrefUnitLabel("rulerType", "pt");
+    var unitLabel = getUnitInfo("rulerType").label;
     // 文字系（フォントサイズ等）の単位は text/units を参照
-    var textUnitLabel = __SCM_getPrefUnitLabel("text/units", "pt");
-
-    // --- Unit conversion helpers (rulerType-based) ---
-    // 寸法系の換算は Illustrator の一般単位（rulerType）に統一する。
-    /* 単位コード→ポイント換算係数 / Unit code to points conversion factor */
-    function __SCM_getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H（1Q=0.25mm）
-            case 6: return 1.0;                         // px（環境依存のため 1px=1pt 扱い）
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
+    var textUnitLabel = getUnitInfo("text/units").label;
 
     /* 現在の定規単位の値をポイントへ換算 / Convert a value in the current ruler unit to points */
     function unitValueToPt(v) {
         v = Number(v);
         if (isNaN(v)) return NaN;
-        try {
-            var code = app.preferences.getIntegerPreference("rulerType");
-            var f = __SCM_getPtFactorFromUnitCode(code);
-            return v * f;
-        } catch (e) { }
-        return v;
+        return v * getUnitInfo("rulerType").pointsPerUnit;
     }
 
     /* 入力欄の値をポイントへ換算 / Convert an edit field's value to points */
@@ -319,13 +346,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     function ptToUnitValue(pt) {
         pt = Number(pt);
         if (isNaN(pt)) return NaN;
-        try {
-            var code = app.preferences.getIntegerPreference("rulerType");
-            var f = __SCM_getPtFactorFromUnitCode(code);
-            if (!f) f = 1.0;
-            return pt / f;
-        } catch (e) { }
-        return pt;
+        return pt / getUnitInfo("rulerType").pointsPerUnit;
     }
 
     // =========================================
@@ -340,43 +361,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
     var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
-    /* ウィンドウの共通設定 / Apply shared window layout */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-    }
-
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
     /* タブの共通設定 / Apply shared tab layout */
     function setupTab(tab, spacing) {
         tab.orientation = "column";
         tab.alignChildren = "fill";
         tab.margins = TAB_MARGINS;
         if (typeof spacing === "number") tab.spacing = spacing;
-    }
-
-    /* 行グループの共通設定（ボタン列など）/ Apply a horizontal row group */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) {}
     }
 
     (function () {
@@ -429,20 +419,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 // Keep current pan offsets when zoom changes
                 __SCM_applyViewCenterWithPan();
                 app.redraw();
-            } catch (e) { }
-        }
-
-        /* ズームUI（スライダー/入力）を同期し必要なら適用 / Sync zoom UI and optionally apply */
-        function __SCM_syncZoomUI(inputZoomPct, sldZoom, valPct, apply) {
-            try {
-                var v = Number(valPct);
-                if (isNaN(v)) v = Number(sldZoom.value);
-                v = Math.round(v);
-                if (v < 10) v = 10;
-                if (v > 1600) v = 1600;
-                try { sldZoom.value = v; } catch (e) { }
-                try { inputZoomPct.text = String(v); } catch (e) { }
-                if (apply !== false) __SCM_applyZoomPct(v);
             } catch (e) { }
         }
 
@@ -737,6 +713,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         // プリセット一覧（読み込んだプリセットを追加）
         var stPresetList = gPresetListRow.add("statictext", undefined, " ");
         var ddPresetList = gPresetListRow.add("dropdownlist", undefined, ["-"]);
+        ddPresetList.helpTip = getLabel("tooltip.presetList");
         ddPresetList.preferredSize = [220, 22];
         ddPresetList.alignment = "fill";
         try { ddPresetList.selection = 0; } catch (e) { }
@@ -959,16 +936,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         pnlBaseDate.margins = PANEL_MARGINS;
 
         var gBaseDateRow = pnlBaseDate.add("group");
-        gBaseDateRow.add("statictext", undefined, getLabel("field.year"));
+        gBaseDateRow.add("statictext", undefined, labelText("field.year"));
         var inputY = gBaseDateRow.add("edittext", undefined, String(today.getFullYear()));
+        inputY.helpTip = getLabel("tooltip.baseDate");
         inputY.characters = 4;
 
-        gBaseDateRow.add("statictext", undefined, getLabel("field.month"));
+        gBaseDateRow.add("statictext", undefined, labelText("field.month"));
         var inputM = gBaseDateRow.add("edittext", undefined, String(today.getMonth() + 1));
+        inputM.helpTip = getLabel("tooltip.baseDate");
         inputM.characters = 2;
 
-        gBaseDateRow.add("statictext", undefined, getLabel("field.day"));
+        gBaseDateRow.add("statictext", undefined, labelText("field.day"));
         var inputD = gBaseDateRow.add("edittext", undefined, String(today.getDate()));
+        inputD.helpTip = getLabel("tooltip.baseDate");
         inputD.characters = 2;
 
         // 月数プリセット（ラジオ）
@@ -978,12 +958,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         gMonthPreset.add("statictext", undefined, getLabel("base.monthCount"));
         var rbPreset1 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset1"));
+        rbPreset1.helpTip = getLabel("tooltip.preset1");
         var rbPreset3 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset3"));
+        rbPreset3.helpTip = getLabel("tooltip.preset3");
         var rbPreset12 = gMonthPreset.add("radiobutton", undefined, getLabel("base.preset12"));
+        rbPreset12.helpTip = getLabel("tooltip.preset12");
 
         /* 月数プリセット(1/3/12)に合わせUIを一括設定 / Apply a month-count preset (1/3/12) across the UI */
         function applyMonthPreset(months, cols) {
-            try { inputMonths.text = String(months); } catch (e) { }
+            inputMonths.text = String(months);
             try {
                 if (typeof cols === "number" && cols > 0) inputCols.text = String(cols);
             } catch (e) { }
@@ -994,7 +977,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 __SCM_syncYearPanelDimToFontSize();
             } catch (e) { }
 
-            try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
+            gYearMargin.enabled = chkTopYear.value;
 
             // 12ヶ月のときは月タイトルの「年を併記」をOFF
             try {
@@ -1009,7 +992,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 }
             } catch (e) { }
             // レイアウトの月数/列数は 1ヶ月 のときディム
-            try { gCount.enabled = (months !== 1); } catch (e) { }
+            gCount.enabled = (months !== 1);
             try {
                 chkGhost.enabled = (months === 1);
                 if (months !== 1) chkGhost.value = false;
@@ -1036,7 +1019,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         gMonthStart.add("statictext", undefined, getLabel("base.label"));
         var rbStartCurrent = gMonthStart.add("radiobutton", undefined, getLabel("base.current"));
+        rbStartCurrent.helpTip = getLabel("tooltip.startCurrent");
         var rbStartJan = gMonthStart.add("radiobutton", undefined, getLabel("base.jan"));
+        rbStartJan.helpTip = getLabel("tooltip.startJan");
 
         rbStartCurrent.value = true; // デフォルト
         rbStartCurrent.onClick = schedulePreviewRefresh;
@@ -1044,6 +1029,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // ゴースト（ロジックは後で追加）
         var chkGhost = pnlBaseDate.add("checkbox", undefined, getLabel("base.ghost"));
+        chkGhost.helpTip = getLabel("tooltip.ghost");
         chkGhost.value = false;
         chkGhost.onClick = schedulePreviewRefresh;
 
@@ -1076,10 +1062,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gHoliday.alignChildren = ["left", "center"];
 
         var chkSundayRed = gHoliday.add("checkbox", undefined, getLabel("format.sunday"));
+        chkSundayRed.helpTip = getLabel("tooltip.sundayRed");
         chkSundayRed.value = true;
         chkSundayRed.onClick = schedulePreviewRefresh;
 
         var chkHolidayRed = gHoliday.add("checkbox", undefined, getLabel("format.holiday"));
+        chkHolidayRed.helpTip = getLabel("tooltip.holidayRed");
         chkHolidayRed.value = true;
         chkHolidayRed.onClick = schedulePreviewRefresh;
 
@@ -1096,7 +1084,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         gWeekStart.add("statictext", undefined, getLabel("weekday.start"));
         var rbWeekMon = gWeekStart.add("radiobutton", undefined, getLabel("weekday.monday"));
+        rbWeekMon.helpTip = getLabel("tooltip.weekMonday");
         var rbWeekSun = gWeekStart.add("radiobutton", undefined, getLabel("weekday.sunday"));
+        rbWeekSun.helpTip = getLabel("tooltip.weekSunday");
 
         rbWeekMon.value = true; // デフォルト
         rbWeekMon.onClick = schedulePreviewRefresh;
@@ -1109,8 +1099,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         gWeekdayLabel.add("statictext", undefined, getLabel("weekday.notation"));
         var rbWdJP = gWeekdayLabel.add("radiobutton", undefined, "月");
+        rbWdJP.helpTip = getLabel("tooltip.weekdayLabel");
         var rbWdMTW = gWeekdayLabel.add("radiobutton", undefined, "M");
+        rbWdMTW.helpTip = getLabel("tooltip.weekdayLabel");
         var rbWdMon = gWeekdayLabel.add("radiobutton", undefined, "Mon");
+        rbWdMon.helpTip = getLabel("tooltip.weekdayLabel");
 
         // 曜日ヘッダ下のマージン（pt）
         var gWeekdayBottomMargin = pnlWeekdayLabel.add("group");
@@ -1118,6 +1111,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gWeekdayBottomMargin.alignChildren = ["left", "center"];
         gWeekdayBottomMargin.add("statictext", undefined, getLabel("weekday.margin"));
         var inputWeekdayBottomMargin = gWeekdayBottomMargin.add("edittext", undefined, "2");
+        inputWeekdayBottomMargin.helpTip = getLabel("tooltip.weekdayBottomMargin");
         inputWeekdayBottomMargin.characters = 4;
         gWeekdayBottomMargin.add("statictext", undefined, unitLabel);
         inputWeekdayBottomMargin.onChanging = schedulePreviewRefresh;
@@ -1146,6 +1140,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonth.alignChildren = ["left", "center"];
 
         var chkMonthYear = gMonth.add("checkbox", undefined, getLabel("month.includeYear"));
+        chkMonthYear.helpTip = getLabel("tooltip.monthIncludeYear");
         chkMonthYear.value = true;
         chkMonthYear.onClick = schedulePreviewRefresh;
 
@@ -1173,9 +1168,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthFmt.alignChildren = ["left", "top"];
 
         var rbMonthNum = gMonthFmt.add("radiobutton", undefined, getLabel("month.num"));
+        rbMonthNum.helpTip = getLabel("tooltip.monthFormat");
         var rbMonthPad = gMonthFmt.add("radiobutton", undefined, getLabel("month.pad"));
+        rbMonthPad.helpTip = getLabel("tooltip.monthFormat");
         var rbMonthEn = gMonthFmt.add("radiobutton", undefined, getLabel("month.en"));
+        rbMonthEn.helpTip = getLabel("tooltip.monthFormat");
         var rbMonthEnS = gMonthFmt.add("radiobutton", undefined, getLabel("month.ens"));
+        rbMonthEnS.helpTip = getLabel("tooltip.monthFormat");
 
         // デフォルトは 0埋め
         rbMonthPad.value = true;
@@ -1191,12 +1190,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gMonthMargin.alignChildren = ["left", "center"];
         gMonthMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
         var inputMonthBottomMargin = gMonthMargin.add("edittext", undefined, "3");
+        inputMonthBottomMargin.helpTip = getLabel("tooltip.monthBottomMargin");
         inputMonthBottomMargin.characters = 4;
         gMonthMargin.add("statictext", undefined, unitLabel);
         inputMonthBottomMargin.onChanging = schedulePreviewRefresh;
 
         // 月タイトル行の下ボーダー
         var chkMonthBottomBorder = pnlMonth.add("checkbox", undefined, getLabel("month.bottomBorder"));
+        chkMonthBottomBorder.helpTip = getLabel("tooltip.monthBottomBorder");
         chkMonthBottomBorder.value = true; // デフォルトON
         chkMonthBottomBorder.onClick = schedulePreviewRefresh;
 
@@ -1211,10 +1212,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gYear.alignChildren = ["left", "center"];
 
         var chkTopYear = gYear.add("checkbox", undefined, getLabel("year.show"));
+        chkTopYear.helpTip = getLabel("tooltip.topYear");
         chkTopYear.value = false;      // 12ヶ月のときだけONにする
         chkTopYear.enabled = false;    // 12ヶ月以外は触れない
         chkTopYear.onClick = function () {
-            try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
+            gYearMargin.enabled = chkTopYear.value;
             schedulePreviewRefresh(true);
         };
 
@@ -1224,11 +1226,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gYearMargin.alignChildren = ["left", "center"];
         gYearMargin.add("statictext", undefined, getLabel("common.bottomMargin"));
         var inputTopYearBottomMargin = gYearMargin.add("edittext", undefined, "3");
+        inputTopYearBottomMargin.helpTip = getLabel("tooltip.topYearBottomMargin");
         inputTopYearBottomMargin.characters = 4;
         gYearMargin.add("statictext", undefined, unitLabel);
         inputTopYearBottomMargin.onChanging = schedulePreviewRefresh;
 
-        try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
+        gYearMargin.enabled = chkTopYear.value;
         /* 選択中の曜日表記モードを返す / Return the selected weekday-label mode */
         function getWeekdayLabelMode() {
             // "jp" | "mtw" | "mon"
@@ -1275,12 +1278,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gCount = pnlLayout.add("group");
         gCount.orientation = "row";
         gCount.alignChildren = ["left", "center"];
-        gCount.add("statictext", undefined, getLabel("layout.months"));
+        gCount.add("statictext", undefined, labelText("layout.months"));
         var inputMonths = gCount.add("edittext", undefined, "1");
+        inputMonths.helpTip = getLabel("tooltip.months");
         inputMonths.characters = 3;
-        try { rbPreset1.value = true; } catch (e) { }
-        gCount.add("statictext", undefined, getLabel("layout.cols"));
+        rbPreset1.value = true;
+        gCount.add("statictext", undefined, labelText("layout.cols"));
         var inputCols = gCount.add("edittext", undefined, "1");
+        inputCols.helpTip = getLabel("tooltip.columns");
         inputCols.characters = 3;
 
         // セル＋月（縦並びコンテナ）
@@ -1306,6 +1311,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gOuterH.alignChildren = ["left", "center"];
         gOuterH.add("statictext", undefined, getLabel("common.lr"));
         var inputOuterMarginX = gOuterH.add("edittext", undefined, "10");
+        inputOuterMarginX.helpTip = getLabel("tooltip.outerMarginX");
         inputOuterMarginX.characters = 3;
         inputOuterMarginX.onChanging = schedulePreviewRefresh;
 
@@ -1314,6 +1320,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gOuterV.alignChildren = ["left", "center"];
         gOuterV.add("statictext", undefined, getLabel("common.ud"));
         var inputOuterMarginY = gOuterV.add("edittext", undefined, "3");
+        inputOuterMarginY.helpTip = getLabel("tooltip.outerMarginY");
         inputOuterMarginY.characters = 3;
         inputOuterMarginY.onChanging = schedulePreviewRefresh;
 
@@ -1342,7 +1349,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                     var eff = Number(st.eff) + d * 0.1;
                     st.raw = raw;
                     st.eff = eff;
-                    try { slider.value = eff; } catch (e) { }
+                    slider.value = eff;
                     applyFn(eff);
                 } else {
                     st.raw = raw;
@@ -1370,6 +1377,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         if (!__initZoomPct || __initZoomPct < 10) __initZoomPct = 100;
 
         var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
+        sldZoom.helpTip = getLabel("tooltip.zoom");
         try { sldZoom.preferredSize.width = 180; } catch (e) { }
 
         var __stZoom = { raw: null, eff: null };
@@ -1389,6 +1397,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         var __panRange = __SCM_getPanRangePt();
         var sldPanX = gPanX.add("slider", undefined, 0, -__panRange.xMax, __panRange.xMax);
+        sldPanX.helpTip = getLabel("tooltip.pan");
         try { sldPanX.preferredSize.width = 180; } catch (e) { }
 
         var __stPanX = { raw: null, eff: null };
@@ -1407,6 +1416,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         try { stPanY.preferredSize.width = 58; } catch (e) { }
 
         var sldPanY = gPanY.add("slider", undefined, 0, -__panRange.yMax, __panRange.yMax);
+        sldPanY.helpTip = getLabel("tooltip.pan");
         try { sldPanY.preferredSize.width = 180; } catch (e) { }
 
         var __stPanY = { raw: null, eff: null };
@@ -1449,6 +1459,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var __defaultCellW_pt = Math.round(__fs0 * 1.5);
         var __defaultCellW = Math.round(ptToUnitValue(__defaultCellW_pt));
         var inputCellW = gCellW.add("edittext", undefined, String(__defaultCellW));
+        inputCellW.helpTip = getLabel("tooltip.cellWidth");
         inputCellW.characters = 3;
         gCellW.add("statictext", undefined, unitLabel);
 
@@ -1459,6 +1470,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var __defaultCellH_pt = Math.round(__fs0 * 1.3);
         var __defaultCellH = Math.round(ptToUnitValue(__defaultCellH_pt));
         var inputCellH = gCellH.add("edittext", undefined, String(__defaultCellH));
+        inputCellH.helpTip = getLabel("tooltip.cellHeight");
         inputCellH.characters = 3;
         gCellH.add("statictext", undefined, unitLabel);
 
@@ -1479,6 +1491,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellGapX.alignChildren = ["left", "center"];
         gCellGapX.add("statictext", undefined, getLabel("common.lr"));
         var inputCellGapX = gCellGapX.add("edittext", undefined, "0");
+        inputCellGapX.helpTip = getLabel("tooltip.cellGapX");
         inputCellGapX.characters = 3;
 
         var gCellGapY = gCellGapRow.add("group");
@@ -1486,6 +1499,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellGapY.alignChildren = ["left", "center"];
         gCellGapY.add("statictext", undefined, getLabel("common.ud"));
         var inputCellGapY = gCellGapY.add("edittext", undefined, "0");
+        inputCellGapY.helpTip = getLabel("tooltip.cellGapY");
         inputCellGapY.characters = 3;
 
         inputCellGapX.onChanging = schedulePreviewRefresh;
@@ -1500,6 +1514,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gCellPosAdj.alignChildren = ["left", "center"];
         gCellPosAdj.add("statictext", undefined, "セル位置調整：");
         var inputCellPosAdjY = gCellPosAdj.add("edittext", undefined, "0");
+        inputCellPosAdjY.helpTip = getLabel("tooltip.cellPosAdjY");
         inputCellPosAdjY.characters = 4;
         gCellPosAdj.add("statictext", undefined, unitLabel);
 
@@ -1508,6 +1523,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
 
         // セル背景の塗り
         var chkCellFill = pnlCell.add("checkbox", undefined, getLabel("layout.cellFill"));
+        chkCellFill.helpTip = getLabel("tooltip.cellFill");
         chkCellFill.value = false; // 既定：OFF
         chkCellFill.onClick = schedulePreviewRefresh;
 
@@ -1522,9 +1538,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gStrokeMode.orientation = "row";
         gStrokeMode.alignChildren = ["left", "center"];
 
-        var rbStrokeNone = gStrokeMode.add("radiobutton", undefined, "なし");
-        var rbStrokeAll = gStrokeMode.add("radiobutton", undefined, "すべて");
-        var rbStrokeCustom = gStrokeMode.add("radiobutton", undefined, "個別");
+        var rbStrokeNone = gStrokeMode.add("radiobutton", undefined, getLabel("stroke.none"));
+        rbStrokeNone.helpTip = getLabel("tooltip.strokeNone");
+        var rbStrokeAll = gStrokeMode.add("radiobutton", undefined, getLabel("stroke.all"));
+        rbStrokeAll.helpTip = getLabel("tooltip.strokeAll");
+        var rbStrokeCustom = gStrokeMode.add("radiobutton", undefined, getLabel("stroke.custom"));
+        rbStrokeCustom.helpTip = getLabel("tooltip.strokeCustom");
 
         rbStrokeNone.value = true; // default
 
@@ -1532,10 +1551,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gStrokeAll.orientation = "row";
         gStrokeAll.alignChildren = ["left", "center"];
 
-        var chkStrokeTop = gStrokeAll.add("checkbox", undefined, "上");
-        var chkStrokeBottom = gStrokeAll.add("checkbox", undefined, "下");
-        var chkStrokeLeft = gStrokeAll.add("checkbox", undefined, "左");
-        var chkStrokeRight = gStrokeAll.add("checkbox", undefined, "右");
+        var chkStrokeTop = gStrokeAll.add("checkbox", undefined, getLabel("stroke.top"));
+        chkStrokeTop.helpTip = getLabel("tooltip.strokeSide");
+        var chkStrokeBottom = gStrokeAll.add("checkbox", undefined, getLabel("stroke.bottom"));
+        chkStrokeBottom.helpTip = getLabel("tooltip.strokeSide");
+        var chkStrokeLeft = gStrokeAll.add("checkbox", undefined, getLabel("stroke.left"));
+        chkStrokeLeft.helpTip = getLabel("tooltip.strokeSide");
+        var chkStrokeRight = gStrokeAll.add("checkbox", undefined, getLabel("stroke.right"));
+        chkStrokeRight.helpTip = getLabel("tooltip.strokeSide");
 
         // デフォルトはすべてON
         chkStrokeTop.value = true;
@@ -1641,20 +1664,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         gFSInputs.alignment = ["left", "top"];
 
         inputFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputFontSize.helpTip = getLabel("tooltip.fontSize");
         inputFontSize.characters = 3;
         inputFontSize.onChanging = schedulePreviewRefresh;
 
         inputWeekdayFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputWeekdayFontSize.helpTip = getLabel("tooltip.fontSize");
         inputWeekdayFontSize.characters = 3;
         inputWeekdayFontSize.onChanging = schedulePreviewRefresh;
         changeValueByArrowKey(inputWeekdayFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
 
         inputMonthFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputMonthFontSize.helpTip = getLabel("tooltip.fontSize");
         inputMonthFontSize.characters = 3;
         inputMonthFontSize.onChanging = schedulePreviewRefresh;
         changeValueByArrowKey(inputMonthFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
 
         inputYearFontSize = gFSInputs.add("edittext", undefined, "12");
+        inputYearFontSize.helpTip = getLabel("tooltip.fontSize");
         inputYearFontSize.characters = 3;
         inputYearFontSize.onChanging = schedulePreviewRefresh;
         changeValueByArrowKey(inputYearFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
@@ -1665,6 +1692,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gFontName = pnlFormat.add("group");
         var stFontLbl = gFontName.add("statictext", undefined, getLabel("format.font"));
         var ddFont = gFontName.add("dropdownlist", undefined, []);
+        ddFont.helpTip = getLabel("tooltip.fontName");
         gFontName.alignChildren = ["left", "center"];
         ddFont.minimumSize = [80, 22];
         ddFont.preferredSize = [180, 22];
@@ -1684,6 +1712,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             "Caflisch Script Pro Light",
             "AgencyFB Regular"
         ]);
+        ddFavFont.helpTip = getLabel("tooltip.favFont");
         ddFavFont.minimumSize = [80, 22];
         ddFavFont.preferredSize = [180, 22];
         ddFavFont.maximumSize = [180, 22];
@@ -1956,6 +1985,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
         var gBottomLeft = gBottom.add("group");
         gBottomLeft.alignment = ["left", "center"];
         var previewChk = gBottomLeft.add("checkbox", undefined, getLabel("button.preview"));
+        previewChk.helpTip = getLabel("tooltip.preview");
         previewChk.value = true;
 
         // スペーサー（左右を分離）
@@ -2126,7 +2156,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
             // year
             setCheckSafe(chkTopYear, obj.showTopYear);
             setTextSafe(inputTopYearBottomMargin, obj.topYearBottomMargin);
-            try { gYearMargin.enabled = !!(chkTopYear && chkTopYear.value); } catch (e) { }
+            gYearMargin.enabled = !!(chkTopYear && chkTopYear.value);
 
             // month
             setCheckSafe(chkMonthYear, obj.includeYearInMonthTitle);
@@ -2307,7 +2337,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 if (__mc > 24) __mc = 24;
                 pnlMonthOuter.enabled = (__mc !== 1);
                 // レイアウトの月数/列数は 1ヶ月 のときディム
-                try { gCount.enabled = (__mc !== 1); } catch (e) { }
+                gCount.enabled = (__mc !== 1);
                 // ゴーストは 1ヶ月 のときだけ有効
                 try {
                     chkGhost.enabled = (__mc === 1);
@@ -2352,14 +2382,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc54c315c5dc3"; /* 紹�
                 chkTopYear.enabled = isP12;
                 __SCM_syncYearPanelDimToFontSize();
 
-                try { gYearMargin.enabled = chkTopYear.value; } catch (e) { }
+                gYearMargin.enabled = chkTopYear.value;
 
                 // 12ヶ月 プリセット時は「1月から」を強制
                 if (isP12) {
                     rbStartJan.value = true;
                     rbStartCurrent.value = false;
                     // 12ヶ月のときは月タイトルの「年を併記」をOFF
-                    try { chkMonthYear.value = false; } catch (e) { }
+                    chkMonthYear.value = false;
                 }
             } catch (e) { }
 

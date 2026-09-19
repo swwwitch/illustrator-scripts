@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "BoundsToRectangle";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BoundsToRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BoundsToRectangle.md"; /* README (English) */

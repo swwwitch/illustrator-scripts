@@ -26,8 +26,8 @@ See the README for details.
 var SCRIPT_NAME     = "LEConvertToShape";             /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-09-19";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LEConvertToShape.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEConvertToShape.md"; /* README (English) */
@@ -61,8 +61,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             size: { ja: "サイズ", en: "Size" },
             absolute: { ja: "値を指定", en: "Absolute" },
             relative: { ja: "値を追加", en: "Relative" },
-            width: { ja: "幅:", en: "Width:" },
-            height: { ja: "高さ:", en: "Height:" }
+            width: { ja: "幅", en: "Width" },
+            height: { ja: "高さ", en: "Height" }
         },
         pathfinder: {
             label: { ja: "パスファインダー", en: "Pathfinder" },
@@ -112,6 +112,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (entry.en) return entry.en;
         }
         return key;
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} key - ドット区切りのラベルキー
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(key) {
+        return getLabel(key) + (currentLanguage === "ja" ? "：" : ": ");
     }
 
     // =========================================
@@ -349,47 +358,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位 / Units
     // =========================================
 
-    /* 定規の単位からラベルと pt 換算係数を求める / Resolve ruler unit label and pt factor */
-    function getRulerUnitInfo() {
-        var rulerUnit = app.preferences.getIntegerPreference("rulerType");
-        var unitLabel = "pt";
-        var unitFactor = 1.0;
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-        switch (rulerUnit) {
-            case 0: // inch
-                unitLabel = "inch";
-                unitFactor = 72.0;
-                break;
-            case 1: // mm
-                unitLabel = "mm";
-                unitFactor = 72.0 / 25.4;
-                break;
-            case 2: // pt
-                unitLabel = "pt";
-                unitFactor = 1.0;
-                break;
-            case 3: // pica
-                unitLabel = "pica";
-                unitFactor = 12.0;
-                break;
-            case 4: // cm
-                unitLabel = "cm";
-                unitFactor = 72.0 / 2.54;
-                break;
-            case 5: // Q
-                unitLabel = "Q";
-                unitFactor = 72.0 / 25.4 * 0.25;
-                break;
-            case 6: // px
-                unitLabel = "px";
-                unitFactor = 1.0;
-                break;
-            default:
-                unitLabel = "pt";
-                unitFactor = 1.0;
-        }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-        return { label: unitLabel, factor: unitFactor };
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -507,19 +505,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         relativeRadio.value = true; // 既定は値を追加 / Default: relative
 
         // 定規の単位を取得（ラベル表示＋pt換算係数）/ Get the ruler unit (label + pt factor)
-        var unitInfo = getRulerUnitInfo();
-        controls.unitFactor = unitInfo.factor;
+        var unitInfo = getUnitInfo("rulerType");
+        controls.unitFactor = unitInfo.pointsPerUnit;
 
         var LABEL_WIDTH = 40; // 幅・高さラベルの固定幅 / Fixed width for the width/height labels
 
         var widthGroup = sizePanel.add("group");
-        var widthLabel = widthGroup.add("statictext", undefined, getLabel("option.width"), { justify: "right" });
+        var widthLabel = widthGroup.add("statictext", undefined, labelText("option.width"), { justify: "right" });
         widthLabel.preferredSize.width = LABEL_WIDTH;
         var widthInput = widthGroup.add("edittext", undefined, "0");
         widthInput.characters = 3;
         widthGroup.add("statictext", undefined, unitInfo.label);
         var heightGroup = sizePanel.add("group");
-        var heightLabel = heightGroup.add("statictext", undefined, getLabel("option.height"), { justify: "right" });
+        var heightLabel = heightGroup.add("statictext", undefined, labelText("option.height"), { justify: "right" });
         heightLabel.preferredSize.width = LABEL_WIDTH;
         var heightInput = heightGroup.add("edittext", undefined, "0");
         heightInput.characters = 3;

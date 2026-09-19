@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathTextToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathTextToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathTextToolkit.md"; /* README (English) */
@@ -104,6 +104,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         preview: { ja: "プレビュー", en: "Preview" },
         ok: { ja: "OK", en: "OK" },
         cancel: { ja: "キャンセル", en: "Cancel" },
+
+        /* Tooltips / ツールチップ */
+        tipTextEdit: { ja: "選択したテキストの内容を、別ダイアログで書き換えます。", en: "Opens a separate dialog for rewriting the selected text." },
+        tipToPathText: { ja: "選択したテキストを、一緒に選んだパスの上に流し込みます。", en: "Flows the selected text onto the path selected with it." },
+        tipGenArcPath: { ja: "テキストの幅に合わせたアーチ状のパスを作り、その上に流し込みます。", en: "Builds an arc sized to the text and flows the text onto it." },
+        tipGenCircle: { ja: "テキストの幅を円周とする正円を作り、その上に流し込みます。", en: "Builds a circle whose circumference matches the text width and flows the text onto it." },
+        tipTextEdit: { ja: "選択したテキストの内容を、別ダイアログで書き換えます。", en: "Opens a separate dialog for rewriting the selected text." },
+        tipSplitKeepFormat: { ja: "パス上文字を、書式を保ったままテキストとパスに分けます。", en: "Splits path text into text and path, keeping the formatting." },
+        tipSplitNoFormat: { ja: "パス上文字を、書式を落としてテキストとパスに分けます。", en: "Splits path text into text and path, dropping the formatting." },
+        tipSplitDeletePath: { ja: "分離したあと、元のパスを削除します。", en: "Deletes the original path after the split." },
+        tipReverse: { ja: "文字をパスの反対側（内側）に配置します。", en: "Places the characters on the other side of the path." },
+        tipArcUp: { ja: "上に膨らんだアーチにします。", en: "Bulges the arc upward." },
+        tipArcDown: { ja: "下に膨らんだアーチにします。", en: "Bulges the arc downward." },
+        tipArcRoundness: { ja: "アーチの曲がり具合です。0で直線に近づきます。", en: "How strongly the arc curves. 0 is nearly straight." },
+        tipFitWidthNone: { ja: "文字の大きさも字間もそのままにします。", en: "Leaves both the size and the spacing as they are." },
+        tipFitWidthFontSize: { ja: "文字サイズを変えて、パスの長さいっぱいに収めます。", en: "Changes the font size so the text fills the path." },
+        tipFitWidthTracking: { ja: "字間を変えて、パスの長さいっぱいに収めます。", en: "Changes the tracking so the text fills the path." },
+        tipEffectRainbow: { ja: "1文字ずつ色を変えて虹色にします。", en: "Colours each character to make a rainbow." },
+        tipEffectDistort: { ja: "1文字ずつ斜めに傾けます。", en: "Skews each character." },
+        tipEffectRibbon: { ja: "奥行きのあるリボンのように、1文字ずつ変形します。", en: "Transforms each character like a ribbon with depth." },
+        tipEffectStep: { ja: "1文字ずつ高さをずらして階段状にします。", en: "Offsets each character vertically, like stairs." },
+        tipEffectGravity: { ja: "中央へ引き寄せられたように、1文字ずつ大きさと位置を変えます。", en: "Varies each character as if pulled toward the centre." },
+        tipStartPosEnabled: { ja: "開始位置を指定します。オフのときはパスの先頭から始めます。", en: "Sets the start position. When off, the text starts at the beginning of the path." },
+        tipStartPos: { ja: "文字の流し込みを始める位置です。", en: "Where the text begins along the path." },
+        tipEndPosEnabled: { ja: "終了位置を指定します。オフのときはパスの終端まで使います。", en: "Sets the end position. When off, the text runs to the end of the path." },
+        tipEndPos: { ja: "文字の流し込みを終える位置です。", en: "Where the text ends along the path." },
+        tipAlign: { ja: "開始位置と終了位置の間での文字の揃え方です。", en: "How the characters are aligned between the start and end positions." },
+        tipBaseShift: { ja: "パスから文字を浮かせる量です。負の値で沈みます。", en: "How far the characters sit above the path. Negative values sink below it." },
+        tipTracking: { ja: "文字と文字の間隔です。単位は1/1000em。", en: "Spacing between characters, in 1/1000 em." },
+        tipFontSize: { ja: "元の文字サイズからの増減です。", en: "Change applied to the original font size." },
+        tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." },
 
         /* Alerts / アラート */
         alertNoDoc: { ja: "ドキュメントが開かれていません", en: "No document is open." },
@@ -236,11 +267,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
 
-        try { rbToPathText.enabled = canToPathText; } catch (e) { }
-        try { rbSplitTextAndPath.enabled = canSplit; } catch (e) { }
-        try { cbSplitDeletePath.enabled = canSplit; } catch (e) { }
-        try { rbSplitTextAndPathNoFormat.enabled = canSplit; } catch (e) { }
-        try { rbGenCircle.enabled = true; } catch (e) { }
+        rbToPathText.enabled = canToPathText;
+        rbSplitTextAndPath.enabled = canSplit;
+        cbSplitDeletePath.enabled = canSplit;
+        rbSplitTextAndPathNoFormat.enabled = canSplit;
+        rbGenCircle.enabled = true;
 
         // Auto-switch only if the currently selected mode is not available
         try {
@@ -307,12 +338,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     setupPanel(pnlProcess);
 
     var rbToPathText = pnlProcess.add('radiobutton', undefined, getLabel('toPathText'));
+    rbToPathText.helpTip = getLabel('tipToPathText');
     var rbGenArcPath = pnlProcess.add('radiobutton', undefined, getLabel('genArcPath'));
+    rbGenArcPath.helpTip = getLabel('tipGenArcPath');
     var rbGenCircle = pnlProcess.add('radiobutton', undefined, getLabel('genCircle'));
+    rbGenCircle.helpTip = getLabel('tipGenCircle');
     rbToPathText.value = true;
 
     // Text edit button (logic improved)
     var btnTextEdit = pnlProcess.add('button', undefined, getLabel('btnTextEdit'));
+    btnTextEdit.helpTip = getLabel('tipTextEdit');
     btnTextEdit.alignment = ['left', 'center'];
     btnTextEdit.onClick = function () {
         // --- Edit dialog logic ---
@@ -322,8 +357,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         editDlg.margins = [15, 20, 15, 15];
 
         // Hint
-        var st = editDlg.add('statictext', undefined, getLabel('dlgTextEditHint'), { multiline: true });
-        try { st.preferredSize.width = 360; } catch (e) { }
+        var hintLabel = editDlg.add('statictext', undefined, getLabel('dlgTextEditHint'), { multiline: true });
+        hintLabel.preferredSize.width = 360;
 
         // Resolve targets at click-time (do not rely on stale snapshot)
         var __editTargets = [];
@@ -342,20 +377,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (e) { initText = ''; }
 
-        var et = editDlg.add('edittext', undefined, initText, { multiline: true });
-        et.preferredSize = [320, 80];
+        var textEditInput = editDlg.add('edittext', undefined, initText, { multiline: true });
+        textEditInput.preferredSize = [320, 80];
 
         var btnRow = editDlg.add('group');
         btnRow.orientation = 'row';
         btnRow.alignChildren = ['center', 'center'];
-        var btnCancel2 = btnRow.add('button', undefined, getLabel('cancel'));
-        var btnOk2 = btnRow.add('button', undefined, getLabel('ok'), { name: 'ok' });
+        var btnEditCancel = btnRow.add('button', undefined, getLabel('cancel'));
+        var btnEditOk = btnRow.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
-        btnCancel2.onClick = function () {
+        btnEditCancel.onClick = function () {
             editDlg.close(0);
         };
-        btnOk2.onClick = function () {
-            var newText = et.text;
+        btnEditOk.onClick = function () {
+            var newText = textEditInput.text;
             // Apply to all current targets at click-time
             for (var i = 0; i < __editTargets.length; i++) {
                 var textFrame = __editTargets[i];
@@ -377,25 +412,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     setupPanel(pnlSplit);
 
     var rbSplitTextAndPath = pnlSplit.add('radiobutton', undefined, getLabel('splitTextAndPath'));
+    rbSplitTextAndPath.helpTip = getLabel('tipSplitKeepFormat');
     var rbSplitTextAndPathNoFormat = pnlSplit.add('radiobutton', undefined, getLabel('splitTextAndPathNoFormat'));
+    rbSplitTextAndPathNoFormat.helpTip = getLabel('tipSplitNoFormat');
     rbSplitTextAndPath.value = false;
     rbSplitTextAndPathNoFormat.value = false;
 
     var cbSplitDeletePath = pnlSplit.add('checkbox', undefined, getLabel('splitDeletePath'));
+    cbSplitDeletePath.helpTip = getLabel('tipSplitDeletePath');
     cbSplitDeletePath.value = false; // デフォルトOFF
 
     // --- Mutually exclusive helpers for Process/Split radios ---
     /* 「処理」ラジオをすべて OFF（排他制御用）/ Turn off all "Process" radios (mutual-exclusion helper) */
     function __clearProcessRadios() {
-        try { rbToPathText.value = false; } catch (e) { }
-        try { rbGenArcPath.value = false; } catch (e) { }
-        try { rbGenCircle.value = false; } catch (e) { }
+        rbToPathText.value = false;
+        rbGenArcPath.value = false;
+        rbGenCircle.value = false;
     }
 
     /* 「分離」ラジオをすべて OFF（排他制御用）/ Turn off all "Split" radios (mutual-exclusion helper) */
     function __clearSplitRadios() {
-        try { rbSplitTextAndPath.value = false; } catch (e) { }
-        try { rbSplitTextAndPathNoFormat.value = false; } catch (e) { }
+        rbSplitTextAndPath.value = false;
+        rbSplitTextAndPathNoFormat.value = false;
     }
 
     // Auto-enable/disable based on selection (selected path OR PathText can provide a path)
@@ -418,11 +456,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var canToPathText = hasSelectedPath || hasPathTextTarget;
     var canSplit = hasPathTextTarget;
 
-    try { rbToPathText.enabled = canToPathText; } catch (e) { }
-    try { rbSplitTextAndPath.enabled = canSplit; } catch (e) { }
-    try { rbSplitTextAndPathNoFormat.enabled = canSplit; } catch (e) { }
-    try { cbSplitDeletePath.enabled = canSplit; } catch (e) { }
-    try { rbGenCircle.enabled = true; } catch (e) { }
+    rbToPathText.enabled = canToPathText;
+    rbSplitTextAndPath.enabled = canSplit;
+    rbSplitTextAndPathNoFormat.enabled = canSplit;
+    cbSplitDeletePath.enabled = canSplit;
+    rbGenCircle.enabled = true;
 
     if (!canToPathText && rbToPathText.value) {
         rbToPathText.value = false;
@@ -441,6 +479,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     setupPanel(pnlOption);
 
     var cbReverse = pnlOption.add('checkbox', undefined, getLabel('optReverse'));
+    cbReverse.helpTip = getLabel('tipReverse');
     cbReverse.value = false;
 
     // Arc direction UI
@@ -452,7 +491,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     stArcDir.preferredSize.width = 70;
 
     var rbArcUp = grpArcDir.add('radiobutton', undefined, getLabel('arcUp'));
+    rbArcUp.helpTip = getLabel('tipArcUp');
     var rbArcDown = grpArcDir.add('radiobutton', undefined, getLabel('arcDown'));
+    rbArcDown.helpTip = getLabel('tipArcDown');
     rbArcUp.value = true;
 
     // Arc roundness UI (controls how round/curved the generated arch is)
@@ -464,6 +505,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // Slider: 0 = flat, 50 = default arch, 100 = roundest
     var slArcRoundness = grpArcRoundness.add('slider', undefined, 50, 0, 100);
+    slArcRoundness.helpTip = getLabel('tipArcRoundness');
     slArcRoundness.preferredSize.width = 130;
 
     // パス幅パネルの上に余白（10px）/ Spacer (10px) above the Fit-to-path-width panel
@@ -475,8 +517,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     setupPanel(pnlFitWidth);
 
     var rbFitWidthNone = pnlFitWidth.add('radiobutton', undefined, getLabel('fitWidthNone'));
+    rbFitWidthNone.helpTip = getLabel('tipFitWidthNone');
     var rbFitWidthFontSize = pnlFitWidth.add('radiobutton', undefined, getLabel('fitWidthFontSize'));
+    rbFitWidthFontSize.helpTip = getLabel('tipFitWidthFontSize');
     var rbFitWidthTracking = pnlFitWidth.add('radiobutton', undefined, getLabel('fitWidthTracking'));
+    rbFitWidthTracking.helpTip = getLabel('tipFitWidthTracking');
 
     // Default: しない / Default: None
     rbFitWidthNone.value = true;
@@ -511,10 +556,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     pnlEffect.spacing = PANEL_SPACING;
 
     var rbEffectRainbow = pnlEffect.add('radiobutton', undefined, getLabel('effectRainbow'));
+    rbEffectRainbow.helpTip = getLabel('tipEffectRainbow');
     var rbEffectDistort = pnlEffect.add('radiobutton', undefined, getLabel('effectDistort'));
+    rbEffectDistort.helpTip = getLabel('tipEffectDistort');
     var rbEffectRibbon = pnlEffect.add('radiobutton', undefined, getLabel('effectRibbon'));
+    rbEffectRibbon.helpTip = getLabel('tipEffectRibbon');
     var rbEffectStep = pnlEffect.add('radiobutton', undefined, getLabel('effectStep'));
+    rbEffectStep.helpTip = getLabel('tipEffectStep');
     var rbEffectGravity = pnlEffect.add('radiobutton', undefined, getLabel('effectGravity'));
+    rbEffectGravity.helpTip = getLabel('tipEffectGravity');
 
     // No effect selected by default
     rbEffectRainbow.value = false;
@@ -525,7 +575,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // Apply default rainbow AFTER effect UI exists
     if (__defaultRainbow) {
-        try { rbEffectRainbow.value = true; } catch (e) { }
+        rbEffectRainbow.value = true;
     }
 
     // Position (start/end) panel  (moved to FULL WIDTH)
@@ -536,13 +586,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     rowStart.orientation = 'row';
     rowStart.alignChildren = ['left', 'center'];
     var cbStartT = rowStart.add('checkbox', undefined, '');
+    cbStartT.helpTip = getLabel('tipStartPosEnabled');
     cbStartT.value = false;
     var stStart = rowStart.add('statictext', undefined, getLabel('startPos'));
     stStart.preferredSize.width = 60;
     var etStartT = rowStart.add('edittext', undefined, '0.0');
     etStartT.characters = 5;
+    etStartT.helpTip = getLabel('tipStartPos');
     var slStartT = rowStart.add('slider', undefined, 0, 0, 400); // 0.0 - 4.0
     slStartT.preferredSize.width = 180;
+    slStartT.helpTip = getLabel('tipStartPos');
     // Arrow-key support for startT
     changeValueByArrowKey(etStartT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
 
@@ -550,13 +603,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     rowEnd.orientation = 'row';
     rowEnd.alignChildren = ['left', 'center'];
     var cbEndT = rowEnd.add('checkbox', undefined, '');
+    cbEndT.helpTip = getLabel('tipEndPosEnabled');
     cbEndT.value = false;
     var stEnd = rowEnd.add('statictext', undefined, getLabel('endPos'));
     stEnd.preferredSize.width = 60;
     var etEndT = rowEnd.add('edittext', undefined, '1.0');
     etEndT.characters = 5;
+    etEndT.helpTip = getLabel('tipEndPos');
     var slEndT = rowEnd.add('slider', undefined, 100, 0, 500); // 0.0 - 5.0
     slEndT.preferredSize.width = 180;
+    slEndT.helpTip = getLabel('tipEndPos');
     // Arrow-key support for endT
     changeValueByArrowKey(etEndT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
 
@@ -573,9 +629,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     stAlign.preferredSize.width = 95;
 
     var rbAlignLeft = rowAlign.add('radiobutton', undefined, getLabel('alignLeft'));
+    rbAlignLeft.helpTip = getLabel('tipAlign');
     var rbAlignCenter = rowAlign.add('radiobutton', undefined, getLabel('alignCenter'));
+    rbAlignCenter.helpTip = getLabel('tipAlign');
     var rbAlignRight = rowAlign.add('radiobutton', undefined, getLabel('alignRight'));
+    rbAlignRight.helpTip = getLabel('tipAlign');
     var rbAlignFullJustify = rowAlign.add('radiobutton', undefined, getLabel('alignFullJustify'));
+    rbAlignFullJustify.helpTip = getLabel('tipAlign');
 
     // Default: 中央
     rbAlignCenter.value = true;
@@ -588,9 +648,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     stBaseShift.preferredSize.width = 95;
 
     var etBaseShift = rowBaseShift.add('edittext', undefined, '0.0');
+    etBaseShift.helpTip = getLabel('tipBaseShift');
     etBaseShift.characters = 6;
     // Slider uses 0.1pt steps, range will be updated dynamically to ±fontSize (in 0.1pt units)
     var slBaseShift = rowBaseShift.add('slider', undefined, 0, -1000, 1000);
+    slBaseShift.helpTip = getLabel('tipBaseShift');
     slBaseShift.preferredSize.width = 180;
     // Arrow-key support for baseline shift
     changeValueByArrowKey(etBaseShift, true, function () { __syncBSFromEdit(); refreshPreviewIfNeeded(); });
@@ -604,8 +666,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     stTracking.preferredSize.width = 95;
 
     var etTracking = rowTracking.add('edittext', undefined, '0');
+    etTracking.helpTip = getLabel('tipTracking');
     etTracking.characters = 6;
     var slTracking = rowTracking.add('slider', undefined, 0, -100, 500);
+    slTracking.helpTip = getLabel('tipTracking');
     slTracking.preferredSize.width = 180;
     // Arrow-key support for tracking
     changeValueByArrowKey(etTracking, true, function () { __syncTrkFromEdit(); refreshPreviewIfNeeded(); });
@@ -619,9 +683,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     stFontSize.preferredSize.width = 95;
 
     var etFontSize = rowFontSize.add('edittext', undefined, '0.0');
+    etFontSize.helpTip = getLabel('tipFontSize');
     etFontSize.characters = 6;
     // Slider uses 0.1pt steps, range will be updated dynamically to ±fontSize (in 0.1pt units)
     var slFontSize = rowFontSize.add('slider', undefined, 0, -1000, 1000);
+    slFontSize.helpTip = getLabel('tipFontSize');
     slFontSize.preferredSize.width = 180;
     // Arrow-key support for font size
     changeValueByArrowKey(etFontSize, true, function () { __syncFSFromEdit(); refreshPreviewIfNeeded(); });
@@ -638,6 +704,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     leftFooter.alignment = ['left', 'center'];
 
     var cbPreview = leftFooter.add('checkbox', undefined, getLabel('preview'));
+    cbPreview.helpTip = getLabel('tipPreview');
     cbPreview.value = true;
 
     var rightFooter = footer.add('group');
@@ -832,13 +899,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     rbToPathText.onClick = function () {
         __clearSplitRadios();
-        try { rbFitWidthNone.value = true; } catch (e) { }
+        rbFitWidthNone.value = true;
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbGenCircle.onClick = function () {
         __clearSplitRadios();
-        try { rbFitWidthNone.value = true; } catch (e) { }
+        rbFitWidthNone.value = true;
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
@@ -850,13 +917,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
     rbSplitTextAndPath.onClick = function () {
         __clearProcessRadios();
-        try { rbFitWidthNone.value = true; } catch (e) { }
+        rbFitWidthNone.value = true;
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbSplitTextAndPathNoFormat.onClick = function () {
         __clearProcessRadios();
-        try { rbFitWidthNone.value = true; } catch (e) { }
+        rbFitWidthNone.value = true;
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
@@ -964,7 +1031,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             v = __clamp(v, minPt, maxPt);
 
             etBaseShift.text = formatOneDecimal(v);
-            try { slBaseShift.value = Math.round(v * 10); } catch (e) { }
+            slBaseShift.value = Math.round(v * 10);
         } catch (e) { }
         __bsSyncLock = false;
     }
@@ -998,7 +1065,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (v > 500) v = 500;
             if (v < -100) v = -100;
             etTracking.text = String(v);
-            try { slTracking.value = v; } catch (e) { }
+            slTracking.value = v;
         } catch (e) { }
         __trkSyncLock = false;
     }
@@ -1039,7 +1106,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             v = __clamp(v, minPt, maxPt);
 
             etFontSize.text = formatOneDecimal(v);
-            try { slFontSize.value = Math.round(v * 10); } catch (e) { }
+            slFontSize.value = Math.round(v * 10);
         } catch (e) { }
         __fsSyncLock = false;
     }
@@ -1098,8 +1165,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             etStartT.text = formatOneDecimal(s);
             etEndT.text = formatOneDecimal(e);
 
-            try { slStartT.value = Math.round(s * 100); } catch (e) { }
-            try { slEndT.value = Math.round(e * 100); } catch (e) { }
+            slStartT.value = Math.round(s * 100);
+            slEndT.value = Math.round(e * 100);
         } catch (e) { }
         __tSyncLock = false;
     }

@@ -25,10 +25,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddBackdrop";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBackdrop.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdrop.md"; /* README (English) */
@@ -157,6 +157,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ja: "角丸",
                 en: "Round"
             }
+        },
+        tooltip: {
+            perfectCircle: { ja: "背景を正円にします。", en: "Makes the backdrop a circle." },
+            superEllipse:  { ja: "背景をスーパー楕円（角の丸い四角に近い形）にします。", en: "Makes the backdrop a superellipse, between a circle and a rounded square." },
+            rectangle:     { ja: "背景を長方形にします。", en: "Makes the backdrop a rectangle." },
+            scale:         { ja: "文字に対する背景の大きさ（％）です。", en: "Size of the backdrop relative to the text, in percent." },
+            oneChar:       { ja: "1文字ずつに背景を付けます。", en: "Draws a backdrop behind each character." },
+            marginV:       { ja: "文字の上下に足す余白です。", en: "Space added above and below the text." },
+            marginH:       { ja: "文字の左右に足す余白です。", en: "Space added left and right of the text." },
+            marginLink:    { ja: "上下と左右の余白を同じ値にそろえます。", en: "Uses the same value for the vertical and horizontal margins." },
+            marginSquare:  { ja: "背景を正方形にします。", en: "Makes the backdrop a square." },
+            round:         { ja: "背景の角を丸めます。半径は右の欄で指定します。", en: "Rounds the corners of the backdrop. The field on the right sets the radius." },
+            pillShape:     { ja: "左右の端を半円にして、丸いピル型にします。", en: "Rounds both ends into a pill shape." },
+            groupWithText: { ja: "背景と文字を1つのグループにまとめます。", en: "Groups the backdrop with the text." },
+            exclude:       { ja: "背景と文字を「中マド」にして、文字部分を抜きます。", en: "Knocks the text out of the backdrop using Exclude." },
+            offset:        { ja: "背景の位置を、この値だけずらします。", en: "Nudges the backdrop by this amount." },
+            fill:          { ja: "背景に塗りを付けます。", en: "Fills the backdrop." },
+            stroke:        { ja: "背景に線を付けます。太さは右の欄で指定します。", en: "Strokes the backdrop. The field on the right sets the weight." },
+            opacity:       { ja: "背景の不透明度（％）です。", en: "Opacity of the backdrop, in percent." },
+            textColorRef:  { ja: "文字の色をそのまま背景の色に使います。", en: "Uses the text color for the backdrop." },
+            black:         { ja: "背景を黒にします。", en: "Makes the backdrop black." },
+            white:         { ja: "背景を白にします。", en: "Makes the backdrop white." },
+            cmyk:          { ja: "背景の色をCMYKで指定します。", en: "Sets the backdrop color in CMYK." },
+            cmykValue:     { ja: "この版の濃度（％）です。", en: "Ink percentage for this plate." }
         },
         option: {
             perfectCircle: {
@@ -376,39 +400,40 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    // --- Illustrator 単位ユーティリティ関数群 ---
-    // ▼ 各設定キーの意味：
-    // - "rulerType"       ：一般（定規の単位）
-    // - "strokeUnits"     ：線
-    // - "text/units"      ：文字
-    // - "text/asianunits" ：東アジア言語のオプション
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    // 単位コード → ラベル
-    var unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H", // 後段で Q/H に分岐
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    // 単位コードと設定キーから適切な単位ラベルを返す（Q/H分岐含む）
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return unitMap[code] || "?";
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // --- Dialog visual adjustments (opacity & initial shift) ---
@@ -633,8 +658,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpShapeTop.alignment = 'center';
 
         var rbPerfectCircle = grpShapeTop.add('radiobutton', undefined, getLabel('option.perfectCircle'));
+        rbPerfectCircle.helpTip = getLabel('tooltip.perfectCircle');
         var rbSuperEllipse = grpShapeTop.add('radiobutton', undefined, getLabel('option.superEllipse'));
+        rbSuperEllipse.helpTip = getLabel('tooltip.superEllipse');
         var rbRectangle = grpShapeTop.add('radiobutton', undefined, getLabel('option.rectangle'));
+        rbRectangle.helpTip = getLabel('tooltip.rectangle');
 
         rbPerfectCircle.value = true; // デフォルトは正円
 
@@ -657,10 +685,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         addShapeKeyHandler(dlg, rbPerfectCircle, rbSuperEllipse, rbRectangle, _onOptionChanged);
 
         // 現在のアプリ環境の単位ラベルを取得
-        var __rulerCode = app.preferences.getIntegerPreference('rulerType');
-        var __strokeCode = app.preferences.getIntegerPreference('strokeUnits');
-        var __rulerLabel = getUnitLabel(__rulerCode, 'rulerType');
-        var __strokeLabel = getUnitLabel(__strokeCode, 'strokeUnits');
+        var rulerUnitLabel = getUnitInfo('rulerType').label;
+        var strokeUnitLabel = getUnitInfo('strokeUnits').label;
         // 2カラムコンテナ
 
         // --- マージン正方形チェックボックスを先に宣言してスコープを広げる ---
@@ -689,6 +715,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var grpScale = pnlScale.add('group');
         grpScale.add('statictext', undefined, getLabel('ui.magnification'));
         var scaleInput = grpScale.add('edittext', undefined, '90');
+        scaleInput.helpTip = getLabel('tooltip.scale');
         scaleInput.characters = 4;
         grpScale.add('statictext', undefined, '%');
 
@@ -697,6 +724,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpOneChar.orientation = 'row';
         grpOneChar.alignChildren = ['left', 'center'];
         var cbOneChar = grpOneChar.add('checkbox', undefined, getLabel('option.oneChar'));
+        cbOneChar.helpTip = getLabel('tooltip.oneChar');
         cbOneChar.value = false;
 
         // スケールパネルは「長方形」選択時は 100% 固定 + ディム表示（ただし正方形ON時は例外で有効）
@@ -710,7 +738,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     // 強制 100%
                     scaleInput.text = '100';
                     // ついでに 1文字は意味が薄いのでOFF（パネル全体がディムなので安全側）
-                    try { cbOneChar.value = false; } catch (e) { }
+                    cbOneChar.value = false;
 
                     pnlScale.enabled = false;
                 } else {
@@ -749,8 +777,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         groupMV.add('statictext', undefined, getLabel('option.marginV'));
         var marginVInput = groupMV.add('edittext', undefined, '0');
+        marginVInput.helpTip = getLabel('tooltip.marginV');
         marginVInput.characters = 4;
-        groupMV.add('statictext', undefined, __rulerLabel);
+        groupMV.add('statictext', undefined, rulerUnitLabel);
 
         // GROUP3 (row: 左右)
         var groupMH = marginGroup1.add('group');
@@ -761,8 +790,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         groupMH.add('statictext', undefined, getLabel('option.marginH'));
         var marginHInput = groupMH.add('edittext', undefined, '0');
+        marginHInput.helpTip = getLabel('tooltip.marginH');
         marginHInput.characters = 4;
-        groupMH.add('statictext', undefined, __rulerLabel);
+        groupMH.add('statictext', undefined, rulerUnitLabel);
 
         // RIGHT side: Link checkbox (center-ish)
         var marginRightCol = marginLeftCol.add('group');
@@ -775,10 +805,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try { marginRightCol.add('statictext', undefined, ''); } catch (e) { }
 
         var cbMarginLink = marginRightCol.add('checkbox', undefined, getLabel('option.link'));
+        cbMarginLink.helpTip = getLabel('tooltip.marginLink');
         cbMarginLink.value = true; // デフォルトは連動
 
         // マージン：正方形
         cbMarginSquare = marginPanel.add('checkbox', undefined, getLabel('option.square'));
+        cbMarginSquare.helpTip = getLabel('tooltip.marginSquare');
         cbMarginSquare.value = false; // デフォルトOFF
 
         cbMarginSquare.onClick = function () {
@@ -859,18 +891,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         roundRow.alignChildren = ['left', 'center'];
         // Checkbox before the numeric field (UI only for now)
         var cbRoundEnable = roundRow.add('checkbox', undefined, '');
+        cbRoundEnable.helpTip = getLabel('tooltip.round');
         var __lastRoundValue = '2'; // will be updated after roundInput is created
 
         var roundInput = roundRow.add('edittext', undefined, '2');
+        roundInput.helpTip = getLabel('tooltip.round');
         roundInput.characters = 4;
         __lastRoundValue = String(roundInput.text);
-        roundRow.add('statictext', undefined, __rulerLabel);
+        roundRow.add('statictext', undefined, rulerUnitLabel);
 
         // --- Pill shape option: now on its own row ---
         var pillRow = roundPanel.add('group');
         pillRow.orientation = 'row';
         pillRow.alignChildren = ['left', 'center'];
         var cbPill = pillRow.add('checkbox', undefined, getLabel('option.pillShape'));
+        cbPill.helpTip = getLabel('tooltip.pillShape');
         cbPill.value = false;
 
         // 角丸パネルは「長方形」選択時のみ有効（正円/スーパー楕円ではディム表示）
@@ -895,7 +930,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (roundOn) {
                     // OFF→ON で値を復元
                     if (!roundInput.enabled) {
-                        try { roundInput.text = String(__lastRoundValue || roundInput.text || '0'); } catch (e) { }
+                        roundInput.text = String(__lastRoundValue || roundInput.text || '0');
                     }
                     roundInput.enabled = true;
                 } else {
@@ -941,9 +976,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         pnlGroup.alignChildren = ['fill', 'top'];
         pnlGroup.margins = [15, 20, 15, 10];
         var cbGroup = pnlGroup.add('checkbox', undefined, getLabel('option.groupWithText'));
+        cbGroup.helpTip = getLabel('tooltip.groupWithText');
         cbGroup.value = true;
 
         var cbExclude = pnlGroup.add('checkbox', undefined, getLabel('option.exclude'));
+        cbExclude.helpTip = getLabel('tooltip.exclude');
         cbExclude.value = false;
 
         // ロジック：中マド=ONなら自動でグループ化し、カラーを「テキストカラー」に強制
@@ -971,7 +1008,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbGroup.onChanging = cbGroup.onClick;
 
         // パネル：座標調整（右カラムへ移動）
-        var pnlOffset = rightCol.add('panel', undefined, getLabel('ui.axisPanel') + '（' + __rulerLabel + '）');
+        var pnlOffset = rightCol.add('panel', undefined, getLabel('ui.axisPanel') + '（' + rulerUnitLabel + '）');
         pnlOffset.orientation = 'column';
         pnlOffset.alignChildren = ['fill', 'top'];
         pnlOffset.margins = [15, 20, 15, 10];
@@ -983,10 +1020,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         grpOffset.add('statictext', undefined, 'X');
         var offsetXInput = grpOffset.add('edittext', undefined, '0');
+        offsetXInput.helpTip = getLabel('tooltip.offset');
         offsetXInput.characters = 4;
 
         grpOffset.add('statictext', undefined, 'Y');
         var offsetYInput = grpOffset.add('edittext', undefined, '0');
+        offsetYInput.helpTip = getLabel('tooltip.offset');
         offsetYInput.characters = 4;
 
         // パネル：種別（塗り / 線 / 線幅を1行に） — 右カラム最下部へ移動
@@ -1002,12 +1041,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpKind.spacing = 10;
 
         var rbFill = grpKind.add('radiobutton', undefined, getLabel('option.fill'));
+        rbFill.helpTip = getLabel('tooltip.fill');
         var rbStroke = grpKind.add('radiobutton', undefined, getLabel('option.stroke'));
+        rbStroke.helpTip = getLabel('tooltip.stroke');
         rbFill.value = true; // デフォルトは塗り
 
         var strokeWInput = grpKind.add('edittext', undefined, '1');
+        strokeWInput.helpTip = getLabel('tooltip.stroke');
         strokeWInput.characters = 4;
-        grpKind.add('statictext', undefined, __strokeLabel);
+        grpKind.add('statictext', undefined, strokeUnitLabel);
 
         // 線幅は負の値を許容しない
         // bindPreview() が onChanging をラップするので、ここではクランプだけ行う
@@ -1056,9 +1098,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var grpOpacity = pnlOpacity.add('group');
         grpOpacity.orientation = 'row';
         var cbOpacityApply = grpOpacity.add('checkbox', undefined, '');
+        cbOpacityApply.helpTip = getLabel('tooltip.opacity');
         cbOpacityApply.value = false;
 
         var opacityInput = grpOpacity.add('edittext', undefined, '60');
+        opacityInput.helpTip = getLabel('tooltip.opacity');
         opacityInput.characters = 3; // 0-100
         opacityInput.enabled = cbOpacityApply.value;
         grpOpacity.add('statictext', undefined, '%');
@@ -1069,10 +1113,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpMode.alignChildren = ['left', 'top'];
 
         var rbTextColor = grpMode.add('radiobutton', undefined, getLabel('option.textColorRef'));
+        rbTextColor.helpTip = getLabel('tooltip.textColorRef');
 
         var rbBlack = grpMode.add('radiobutton', undefined, getLabel('option.black'));
+        rbBlack.helpTip = getLabel('tooltip.black');
         var rbWhite = grpMode.add('radiobutton', undefined, getLabel('option.white'));
+        rbWhite.helpTip = getLabel('tooltip.white');
         var rbCMYK = grpMode.add('radiobutton', undefined, getLabel('option.cmyk'));
+        rbCMYK.helpTip = getLabel('tooltip.cmyk');
 
         // デフォルトはブラック
         rbBlack.value = true;
@@ -1092,6 +1140,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var st = col.add('statictext', undefined, label);
             st.justify = 'center';
             var et = col.add('edittext', undefined, '0');
+            et.helpTip = getLabel('tooltip.cmykValue');
             et.characters = 4;
             return et;
         }
@@ -1196,34 +1245,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             } catch (e) { }
 
             // Scale
-            try { scaleInput.text = String(__STATE.scale); } catch (e) { }
-            try { cbOneChar.value = !!__STATE.oneChar; } catch (e) { }
+            scaleInput.text = String(__STATE.scale);
+            cbOneChar.value = !!__STATE.oneChar;
 
             // Margin
-            try { marginVInput.text = String(__STATE.marginV); } catch (e) { }
-            try { marginHInput.text = String(__STATE.marginH); } catch (e) { }
-            try { cbMarginLink.value = !!__STATE.marginLink; } catch (e) { }
+            marginVInput.text = String(__STATE.marginV);
+            marginHInput.text = String(__STATE.marginH);
+            cbMarginLink.value = !!__STATE.marginLink;
             try { if (cbMarginSquare) cbMarginSquare.value = !!__STATE.marginSquare; } catch (e) { }
 
             // Round / Pill
-            try { cbRoundEnable.value = !!__STATE.roundEnable; } catch (e) { }
-            try { roundInput.text = String(__STATE.roundValue); } catch (e) { }
-            try { cbPill.value = !!__STATE.pill; } catch (e) { }
+            cbRoundEnable.value = !!__STATE.roundEnable;
+            roundInput.text = String(__STATE.roundValue);
+            cbPill.value = !!__STATE.pill;
 
             // Group
-            try { cbGroup.value = !!__STATE.groupWithText; } catch (e) { }
-            try { cbExclude.value = !!__STATE.exclude; } catch (e) { }
+            cbGroup.value = !!__STATE.groupWithText;
+            cbExclude.value = !!__STATE.exclude;
 
             // Axis
-            try { offsetXInput.text = String(__STATE.offsetX); } catch (e) { }
-            try { offsetYInput.text = String(__STATE.offsetY); } catch (e) { }
+            offsetXInput.text = String(__STATE.offsetX);
+            offsetYInput.text = String(__STATE.offsetY);
 
             // Kind
             try {
                 rbFill.value = (__STATE.kind !== 'stroke');
                 rbStroke.value = (__STATE.kind === 'stroke');
             } catch (e) { }
-            try { strokeWInput.text = String(__STATE.strokeWidth); } catch (e) { }
+            strokeWInput.text = String(__STATE.strokeWidth);
 
             // Color
             try {
@@ -1232,15 +1281,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 rbWhite.value = (__STATE.colorMode === 'white');
                 rbCMYK.value = (__STATE.colorMode === 'cmyk');
             } catch (e) { }
-            try { fillC.text = String(__STATE.cmykC); } catch (e) { }
-            try { fillM.text = String(__STATE.cmykM); } catch (e) { }
-            try { fillY.text = String(__STATE.cmykY); } catch (e) { }
-            try { fillK.text = String(__STATE.cmykK); } catch (e) { }
+            fillC.text = String(__STATE.cmykC);
+            fillM.text = String(__STATE.cmykM);
+            fillY.text = String(__STATE.cmykY);
+            fillK.text = String(__STATE.cmykK);
 
             // Opacity
-            try { cbOpacityApply.value = !!__STATE.opacityApply; } catch (e) { }
-            try { opacityInput.text = String(__STATE.opacity); } catch (e) { }
-            try { opacityInput.enabled = cbOpacityApply.value; } catch (e) { }
+            cbOpacityApply.value = !!__STATE.opacityApply;
+            opacityInput.text = String(__STATE.opacity);
+            opacityInput.enabled = cbOpacityApply.value;
 
             // Sync dependent UIs
             try { syncColorUI(); } catch (e) { }

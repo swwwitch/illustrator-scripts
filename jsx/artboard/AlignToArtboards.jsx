@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AlignToArtboards";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignToArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArtboards.md"; /* README (English) */
@@ -79,20 +79,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     /* 中央アンカー（マージンを持たない） / Center anchor (no margin) */
     var CENTER_ANCHOR_CODE = "C";
 
-    /* ルーラー単位コード → 単位ラベル / Ruler unit code to unit label */
-    var RULER_UNIT_LABELS = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     /* 単位ラベル → UnitValue に渡す単位名 / Ruler unit label to the unit name passed to UnitValue */
     var UNIT_VALUE_NAMES = {
@@ -264,15 +281,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
     // =========================================
     // 単位（rulerType） / Units (rulerType)
     // =========================================
-
-    /**
-     * 現在のルーラー単位ラベルを取得する
-     * @returns {string} 単位ラベル（mm, pt, px など）
-     */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return RULER_UNIT_LABELS[unitCode] || "pt";
-    }
 
     /**
      * 入力値（現在のルーラー単位）を pt に変換する
@@ -1143,7 +1151,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n50aacdeb4908"; /* 紹�
         dialog.orientation = "column";
         dialog.alignChildren = ["fill", "top"];
 
-        var unitLabel = getCurrentUnitLabel();
+        var unitLabel = getUnitInfo().label;
         var previewState = createPreviewState(doc.selection);
         initAnchorColors();
 

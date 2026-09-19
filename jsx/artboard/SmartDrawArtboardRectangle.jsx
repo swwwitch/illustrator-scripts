@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md"; /* README (English) */
@@ -362,51 +362,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位コード→ラベルとpt係数のテーブル（rulerType基準）
-       Map rulerType codes to label & points-per-unit factor */
-    var UNIT_TABLE = {
-        0: { label: "in", factor: 72.0 },                 /* inch */
-        1: { label: "mm", factor: 72.0 / 25.4 },          /* mm */
-        2: { label: "pt", factor: 1.0 },                  /* pt */
-        3: { label: "pica", factor: 12.0 },               /* pica */
-        4: { label: "cm", factor: 72.0 / 2.54 },          /* cm */
-        5: { label: "Q/H", factor: 72.0 / 25.4 * 0.25 },  /* Q or H */
-        6: { label: "px", factor: 1.0 },                  /* px（Illustratorでは 1px=1pt）*/
-        7: { label: "ft/in", factor: 72.0 * 12.0 },       /* ft/in */
-        8: { label: "m", factor: 72.0 / 25.4 * 1000.0 },  /* m */
-        9: { label: "yd", factor: 72.0 * 36.0 },          /* yd */
-        10: { label: "ft", factor: 72.0 * 12.0 }          /* ft */
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
     /**
-     * 現在の単位コード（rulerType）を取得する
-     * @returns {number} 単位コード（取得できない場合は 2 = pt）
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getCurrentUnitCode() {
-        try {
-            return app.preferences.getIntegerPreference("rulerType");
-        } catch (e) {
-            return 2;
-        }
-    }
-
-    /**
-     * 現在の単位ラベルを取得する
-     * @returns {string} "mm" などの単位ラベル
-     */
-    function getCurrentUnitLabel() {
-        var unitEntry = UNIT_TABLE[getCurrentUnitCode()];
-        return unitEntry ? unitEntry.label : "pt";
-    }
-
-    /**
-     * 単位コードからpt換算係数を取得する
-     * @param {number} unitCode - rulerType の単位コード
-     * @returns {number} 1単位あたりのpt数
-     */
-    function getPtFactorFromUnitCode(unitCode) {
-        var unitEntry = UNIT_TABLE[unitCode];
-        return unitEntry ? unitEntry.factor : 1.0;
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -436,12 +421,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             } else {
                 /* mm・Q/H・pt 以外は 3mm 相当を現在の単位へ換算して表示
                    For other units, convert the 3mm equivalent into the current unit */
-                bleedAmount = 3 * getPtFactorFromUnitCode(1) / getPtFactorFromUnitCode(unitCode);
+                bleedAmount = 3 * UNITS[1].pointsPerUnit / (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1);
                 bleedAmount = Math.round(bleedAmount * 1000) / 1000;
                 bleedUnitCode = unitCode;
             }
             return {
-                pt: bleedAmount * getPtFactorFromUnitCode(bleedUnitCode),
+                pt: bleedAmount * (UNITS[bleedUnitCode] ? UNITS[bleedUnitCode].pointsPerUnit : 1),
                 displayText: String(bleedAmount),
                 disabled: true
             };
@@ -451,7 +436,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         var offsetValue = parseFloat(displayText);
         if (isNaN(offsetValue)) offsetValue = 0;
         return {
-            pt: offsetValue * getPtFactorFromUnitCode(unitCode),
+            pt: offsetValue * (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1),
             displayText: displayText,
             disabled: false
         };
@@ -1027,7 +1012,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         var offsetInput = offsetRow.add('edittext', undefined, '0');
         offsetInput.characters = 4;
         offsetInput.helpTip = getLabel('helpTip.offsetInput');
-        offsetRow.add('statictext', undefined, getCurrentUnitLabel());
+        offsetRow.add('statictext', undefined, getUnitInfo().label);
 
         var bleedRow = offsetPanel.add('group');
         setupGroup(bleedRow, 'row');
@@ -1046,7 +1031,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
         /* 裁ち落としの状態を入力欄へ反映 / Reflect the current Bleed state in the field */
         function applyBleedState(refreshPreview) {
             if (bleedCheckbox.value) {
-                var resolvedOffset = resolveOffsetToPt(offsetInput.text, getCurrentUnitCode(), true);
+                var resolvedOffset = resolveOffsetToPt(offsetInput.text, getUnitInfo().code, true);
                 offsetInput.text = resolvedOffset.displayText;
                 offsetInput.enabled = !resolvedOffset.disabled;
             } else {
@@ -1339,7 +1324,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1ba88513a9c8"; /* 紹�
             (placementControls.bgLayerRadio.value ? 'bg' : 'back');
 
         /* オフセット計算は resolveOffsetToPt に一元化 / All offset math lives in resolveOffsetToPt */
-        var resolvedOffset = resolveOffsetToPt(offsetControls.offsetInput.text, getCurrentUnitCode(), !!offsetControls.bleedCheckbox.value);
+        var resolvedOffset = resolveOffsetToPt(offsetControls.offsetInput.text, getUnitInfo().code, !!offsetControls.bleedCheckbox.value);
 
         /* 各欄を0–100にクランプ（空欄・不正は0）/ Clamp each field to 0-100 (empty or invalid becomes 0) */
         var cmykChannelKeys = ['c', 'm', 'y', 'k'];

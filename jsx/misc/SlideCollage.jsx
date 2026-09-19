@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md"; /* README (English) */
@@ -147,69 +147,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // Unit utilities (rulerType)
     // =========================================
 
-    // --- 外部定義：共通単位マップ ---
-    var __SC_unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 単位コードと設定キーから適切な単位ラベルを返す（Q/H分岐含む）
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function __SC_getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return __SC_unitMap[code] || "pt";
-    }
-
-    /**
-     * 単位コードから pt 換算係数を返す
-     */
-    function __SC_getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
-
-    /**
-     * rulerType から {code,label,factor} を返す
-     */
-
-    function __SC_getRulerUnitInfo() {
-        var code = 2;
-        try {
-            code = app.preferences.getIntegerPreference("rulerType");
-        } catch (e) {
-            code = 2;
-        }
-        var label = __SC_getUnitLabel(code, "rulerType");
-        var factor = __SC_getPtFactorFromUnitCode(code);
-        return { code: code, label: label, factor: factor };
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     function __SC_round(n, digits) {
@@ -882,7 +849,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // 現在の定規単位（rulerType）
-        var rulerUnit = __SC_getRulerUnitInfo();
+        var rulerUnit = getUnitInfo("rulerType");
 
         // 既定値は pt ベースで保持し、表示時に定規単位へ変換
         var DEFAULT_SPACING_PT = 20;
@@ -1100,10 +1067,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         function setResultText(last) {
             if (!last) {
-                try { etRange.text = ''; } catch (e) { }
-                try { etTotal.text = ''; } catch (__) { }
+                etRange.text = '';
+                etTotal.text = '';
             } else {
-                try { etRange.text = '1-' + last; } catch (e) { }
+                etRange.text = '1-' + last;
                 try { __SC_sourceCount = parseInt(last, 10) || 0; } catch (e) { __SC_sourceCount = 0; }
                 // Do not override user's manual Total. Only auto-sync when we are already in auto mode,
                 // or when Total is empty (fresh state).
@@ -1369,7 +1336,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var groupSpacing = panelLayout.add("group");
         var stSpacing = groupSpacing.add("statictext", undefined, getLabel("spacing"));
         stSpacing.preferredSize.width = LABEL_W;
-        var editSpacing = groupSpacing.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.factor), 2)));
+        var editSpacing = groupSpacing.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.pointsPerUnit), 2)));
         editSpacing.characters = 4;
         var stSpacingUnit = groupSpacing.add("statictext", undefined, rulerUnit.label);
         stSpacingUnit.preferredSize.width = UNIT_W;
@@ -1616,7 +1583,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 外側余白
         var groupMargin = panelArtboard.add("group");
         var stMargin = groupMargin.add("statictext", undefined, getLabel("margin"));
-        var editMargin = groupMargin.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.factor), 2)));
+        var editMargin = groupMargin.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.pointsPerUnit), 2)));
         editMargin.characters = 5;
         groupMargin.add("statictext", undefined, rulerUnit.label);
 
@@ -1797,8 +1764,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var r = ab.artboardRect; // [left, top, right, bottom]
                 var wPt = Math.abs(r[2] - r[0]);
                 var hPt = Math.abs(r[1] - r[3]);
-                var wU = __SC_ptToUnit(wPt, rulerUnit.factor);
-                var hU = __SC_ptToUnit(hPt, rulerUnit.factor);
+                var wU = __SC_ptToUnit(wPt, rulerUnit.pointsPerUnit);
+                var hU = __SC_ptToUnit(hPt, rulerUnit.pointsPerUnit);
                 if (!isFinite(wU) || wU <= 0) wU = 200;
                 if (!isFinite(hU) || hU <= 0) hU = 200;
                 return { x: wU, y: hU };
@@ -1959,8 +1926,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var marginUnit = parseFloat(editMargin.text);
             if (isNaN(marginUnit) || marginUnit < 0) marginUnit = 0;
 
-            var spacingPt = __SC_unitToPt(spacingUnit, rulerUnit.factor);
-            var marginPt = __SC_unitToPt(marginUnit, rulerUnit.factor);
+            var spacingPt = __SC_unitToPt(spacingUnit, rulerUnit.pointsPerUnit);
+            var marginPt = __SC_unitToPt(marginUnit, rulerUnit.pointsPerUnit);
 
             var rot = parseFloat(editRotate.text);
             if (isNaN(rot)) rot = 0;
@@ -2008,7 +1975,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         try {
             if (fileA) {
                 var defShiftPt = calcDefaultColShiftPt();
-                var defShiftUnit = __SC_ptToUnit(defShiftPt, rulerUnit.factor);
+                var defShiftUnit = __SC_ptToUnit(defShiftPt, rulerUnit.pointsPerUnit);
                 editColShift.text = String(__SC_round(defShiftUnit, 2));
             }
         } catch (e) {
@@ -2085,7 +2052,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 editCols.text = "4";
                 syncColsFromEdit();
 
-                editSpacing.text = String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.factor), 2));
+                editSpacing.text = String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.pointsPerUnit), 2));
                 syncSpacingFromEdit();
 
                 // Even columns
@@ -2132,8 +2099,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     var marginU = parseFloat(editMargin.text);
                     if (isNaN(marginU) || marginU < 0) marginU = 0;
 
-                    var spacingPt = __SC_unitToPt(spacingU, rulerUnit.factor);
-                    var marginPt = __SC_unitToPt(marginU, rulerUnit.factor);
+                    var spacingPt = __SC_unitToPt(spacingU, rulerUnit.pointsPerUnit);
+                    var marginPt = __SC_unitToPt(marginU, rulerUnit.pointsPerUnit);
 
                     var cropMode = getCropModeFromUI();
 
@@ -2185,12 +2152,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                         var oxPt = (innerW - gridW) / 2;
                         // Convert to unit for slider value
-                        var oxU = __SC_ptToUnit(oxPt, rulerUnit.factor);
+                        var oxU = __SC_ptToUnit(oxPt, rulerUnit.pointsPerUnit);
 
                         if (isFinite(oxU)) {
                             cbOffsetX.value = true;
                             sldOffsetX.enabled = true;
-                            try { sldOffsetX.value = oxU; } catch (e) { }
+                            sldOffsetX.value = oxU;
                         }
                     }
                 } catch (eCenter) { }
@@ -2202,7 +2169,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 cbMask.value = true;
                 // margin back to default
-                editMargin.text = String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.factor), 2));
+                editMargin.text = String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.pointsPerUnit), 2));
                 // update mask UI states
                 updateMaskUI();
 
@@ -2288,7 +2255,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var marginUnit = parseFloat(editMargin.text);
             if (isNaN(marginUnit) || marginUnit < 0) marginUnit = 0;
-            var marginPt = __SC_unitToPt(marginUnit, rulerUnit.factor);
+            var marginPt = __SC_unitToPt(marginUnit, rulerUnit.pointsPerUnit);
 
             startX += marginPt;
             startY -= marginPt;
@@ -2302,12 +2269,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var spacingUnit = parseFloat(editSpacing.text);
             if (isNaN(spacingUnit) || spacingUnit < 0) spacingUnit = 0;
-            var gapPt = __SC_unitToPt(spacingUnit, rulerUnit.factor);
+            var gapPt = __SC_unitToPt(spacingUnit, rulerUnit.pointsPerUnit);
 
             var doColShift = !!cbColShift.value;
             var colShiftUnit = parseFloat(editColShift.text);
             if (isNaN(colShiftUnit)) colShiftUnit = 0;
-            var colShiftPt = __SC_unitToPt(colShiftUnit, rulerUnit.factor);
+            var colShiftPt = __SC_unitToPt(colShiftUnit, rulerUnit.pointsPerUnit);
 
             var flowMode = getFlowMode();
             // Random mode: prepare a persistent shuffle order
@@ -2430,7 +2397,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (isHeavyPreview && cbRound.value) {
                     var roundUnit = parseFloat(editRound.text);
                     if (isNaN(roundUnit) || roundUnit < 0) roundUnit = 0;
-                    var roundPt = __SC_unitToPt(roundUnit, rulerUnit.factor);
+                    var roundPt = __SC_unitToPt(roundUnit, rulerUnit.pointsPerUnit);
 
                     if (roundPt > 0) {
                         // Ensure every item is a clip GroupItem (retry per-item; do NOT rely on one-shot flag)
@@ -2483,8 +2450,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     __SC_moveItemCenterToArtboardCenter(doc, __previewCache.group);
 
                     // Apply offsets after centering
-                    var oxPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.factor) : 0;
-                    var oyPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.factor) : 0;
+                    var oxPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.pointsPerUnit) : 0;
+                    var oyPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.pointsPerUnit) : 0;
                     if (oxPt !== 0 || oyPt !== 0) {
                         __previewCache.group.translate(oxPt, -oyPt);
                     }
@@ -2784,21 +2751,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             grp.clipped = true;
             return grp;
-        }
-
-        // グリッド配置を行うメイン関数
-        function __SC_makeBlackColor(doc) {
-            try {
-                if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
-                    var c = new CMYKColor();
-                    c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
-                    return c;
-                }
-            } catch (e) { }
-
-            var r = new RGBColor();
-            r.red = 0; r.green = 0; r.blue = 0;
-            return r;
         }
 
         function __SC_drawArtboardBackground(doc, fillColor) {
@@ -3383,28 +3335,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var finalMarginUnit = parseFloat(editMargin.text);
             if (isNaN(finalMarginUnit) || finalMarginUnit < 0) finalMarginUnit = 0;
 
-            var finalSpacing = __SC_unitToPt(finalSpacingUnit, rulerUnit.factor);
-            var finalMargin = __SC_unitToPt(finalMarginUnit, rulerUnit.factor);
+            var finalSpacing = __SC_unitToPt(finalSpacingUnit, rulerUnit.pointsPerUnit);
+            var finalMargin = __SC_unitToPt(finalMarginUnit, rulerUnit.pointsPerUnit);
 
             var finalScalePct = parseFloat(editScale.text);
             if (isNaN(finalScalePct) || finalScalePct <= 0) finalScalePct = 100;
 
             var finalColShiftUnit = parseFloat(editColShift.text);
             if (isNaN(finalColShiftUnit)) finalColShiftUnit = 0;
-            var finalColShiftPt = __SC_unitToPt(finalColShiftUnit, rulerUnit.factor);
+            var finalColShiftPt = __SC_unitToPt(finalColShiftUnit, rulerUnit.pointsPerUnit);
 
             var finalRot = parseFloat(editRotate.text);
             if (isNaN(finalRot)) finalRot = 0;
 
             // 全体位置（スライダー値は定規単位とみなし pt に変換）
-            var finalOffsetXPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.factor) : 0;
-            var finalOffsetYPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.factor) : 0;
+            var finalOffsetXPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.pointsPerUnit) : 0;
+            var finalOffsetYPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.pointsPerUnit) : 0;
 
             // 角丸設定
             var finalRoundEnabled = cbRound.value;
             var finalRoundUnit = parseFloat(editRound.text);
             if (isNaN(finalRoundUnit) || finalRoundUnit < 0) finalRoundUnit = 0;
-            var finalRoundPt = __SC_unitToPt(finalRoundUnit, rulerUnit.factor);
+            var finalRoundPt = __SC_unitToPt(finalRoundUnit, rulerUnit.pointsPerUnit);
 
             var cropMode = getCropModeFromUI();
             var bgFillColor = getBgRGBColorOrDefault();
@@ -3418,7 +3370,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (maskGrp && cbMaskRound.value) {
                     var mrUnit = parseFloat(editMaskRound.text);
                     if (isNaN(mrUnit) || mrUnit < 0) mrUnit = 0;
-                    var mrPt = __SC_unitToPt(mrUnit, rulerUnit.factor);
+                    var mrPt = __SC_unitToPt(mrUnit, rulerUnit.pointsPerUnit);
                     if (mrPt > 0) {
                         try { __SC_applyRoundCorners([maskGrp], mrPt); } catch (eMR) { }
                     }

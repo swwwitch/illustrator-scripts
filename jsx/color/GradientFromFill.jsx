@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GradientFromFill";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GradientFromFill.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GradientFromFill.md"; /* README (English) */
@@ -47,6 +47,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "グラデーション作成",
             en: "Create Gradient"
         },
+        tipEndBlack:        { ja: "終点を黒にします。", en: "Ends the gradient in black." },
+        tipEndWhite:        { ja: "終点を白にします。", en: "Ends the gradient in white." },
+        tipEndTransparent:  { ja: "終点の不透明度を0にして、透明へ抜けるグラデーションにします。", en: "Fades the gradient out to fully transparent." },
+        tipEndComplementary:{ ja: "始点カラーの補色を終点にします。", en: "Uses the complement of the source color as the end color." },
+        tipEndTint:         { ja: "始点カラーを薄くした色を終点にします。濃度はスライダーで決めます。", en: "Ends in a lighter tint of the source color. The slider sets how light." },
+        tipTintSlider:      { ja: "終点に使う濃度（％）です。小さいほど薄くなります。", en: "Tint percentage used for the end color. Lower is lighter." },
+        tipAngle:           { ja: "グラデーションの角度です。", en: "Angle of the gradient." },
+        tipSourceDropdown:  { ja: "始点に使うカラーを選びます。「自動（先頭）」は選択の先頭オブジェクトの塗りを使います。", en: "Color used as the gradient start. Auto (First) takes the fill of the first selected object." },
+        tipSeparate:        { ja: "選択したオブジェクトごとに、それぞれの塗りからグラデーションを作ります。", en: "Builds a separate gradient for each selected object from its own fill." },
+        tipReverse:         { ja: "始点と終点を入れ替えます。", en: "Swaps the start and end colors." },
+        tipPreview:         { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original fills." },
         selectObjectAlert: {
             ja: "オブジェクトを選択してください。",
             en: "Please select an object."
@@ -417,19 +428,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panel.margins = [15, 20, 15, 10];
 
         var radioBlack = panel.add("radiobutton", undefined, getLabel("black"));
+        radioBlack.helpTip = getLabel("tipEndBlack");
         var radioWhite = panel.add("radiobutton", undefined, getLabel("white"));
+        radioWhite.helpTip = getLabel("tipEndWhite");
         var radioTransparent = panel.add("radiobutton", undefined, getLabel("transparent"));
+        radioTransparent.helpTip = getLabel("tipEndTransparent");
         var radioComplementary = panel.add("radiobutton", undefined, getLabel("complementary"));
+        radioComplementary.helpTip = getLabel("tipEndComplementary");
         /* 淡色ラジオ＋スライダー / Tint radio + slider */
         var tintLabelGroup = panel.add("group");
         tintLabelGroup.orientation = "row";
         tintLabelGroup.alignChildren = ["left", "center"];
         tintLabelGroup.spacing = 4;
         var radioTint = tintLabelGroup.add("radiobutton", undefined, getLabel("tint"));
+        radioTint.helpTip = getLabel("tipEndTint");
         var tintValue = tintLabelGroup.add("statictext", undefined, "50%");
         tintValue.characters = 5;
 
         var tintSlider = panel.add("slider", undefined, 50, 0, 100);
+        tintSlider.helpTip = getLabel("tipTintSlider");
         tintSlider.alignment = ["fill", "top"];
         tintSlider.enabled = false;
 
@@ -441,10 +458,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         anglePanel.margins = [15, 20, 15, 10];
 
         var angle0 = anglePanel.add("radiobutton", undefined, "0");
+        angle0.helpTip = getLabel("tipAngle");
         var angle30 = anglePanel.add("radiobutton", undefined, "30");
+        angle30.helpTip = getLabel("tipAngle");
         var angle45 = anglePanel.add("radiobutton", undefined, "45");
+        angle45.helpTip = getLabel("tipAngle");
         var angle60 = anglePanel.add("radiobutton", undefined, "60");
+        angle60.helpTip = getLabel("tipAngle");
         var angle90 = anglePanel.add("radiobutton", undefined, "90");
+        angle90.helpTip = getLabel("tipAngle");
         angle0.value = true; // デフォルト / Default
 
         var sourcePanel = dlg.add("panel", undefined, getLabel("sourceColorPanel"));
@@ -453,6 +475,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sourcePanel.margins = [15, 20, 15, 10];
 
         var sourceDropdown = sourcePanel.add("dropdownlist", undefined, [getLabel("auto")]);
+        sourceDropdown.helpTip = getLabel("tipSourceDropdown");
         sourceDropdown.selection = 0; // デフォルト / Default
 
         /* オプションの設定 / Set options */
@@ -462,8 +485,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         optPanel.margins = [15, 20, 15, 10];
 
         var chkSeparate = optPanel.add("checkbox", undefined, getLabel("separateGradient"));
+        chkSeparate.helpTip = getLabel("tipSeparate");
         var chkReverse = optPanel.add("checkbox", undefined, getLabel("reverse"));
+        chkReverse.helpTip = getLabel("tipReverse");
         var chkPreview = optPanel.add("checkbox", undefined, getLabel("preview"));
+        chkPreview.helpTip = getLabel("tipPreview");
 
         /* ボタンの設定 / Set button layout */
         var btnGroup = dlg.add("group");

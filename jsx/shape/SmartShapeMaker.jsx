@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartShapeMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md"; /* README (English) */

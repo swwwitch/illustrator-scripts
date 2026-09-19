@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "GridArrangeArtboards";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GridArrangeArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridArrangeArtboards.md"; /* README (English) */
@@ -51,6 +51,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialogTitle: {
             ja: "アートボードを再配置（行列）",
             en: "Rearrange Artboards (Grid)"
+        },
+        tipSpacingX: { ja: "左右に隣り合うアートボードのあいだにあける間隔です。", en: "Gap left between horizontally adjacent artboards." },
+        tipSpacingY: { ja: "上下に隣り合うアートボードのあいだにあける間隔です。", en: "Gap left between vertically adjacent artboards." },
+        tipLinkSpacing: { ja: "列間と同じ値を行間にも使います。", en: "Uses the column gap for the row gap too." },
+        tipExcludeLayers: {
+            ja: "ロックまたは非表示のレイヤーに載っているオブジェクトは動かしません。",
+            en: "Leaves objects on locked or hidden layers where they are."
+        },
+        tipExcludeItems: {
+            ja: "ロックまたは非表示のオブジェクトは動かしません。",
+            en: "Leaves locked or hidden objects where they are."
+        },
+        tipExceptionRowEnd: {
+            ja: "アートボード名から行列を読み取れなかったものを、それぞれの行の末尾に置きます。",
+            en: "Puts artboards with no readable row-column at the end of each row."
+        },
+        tipExceptionLastRow: {
+            ja: "アートボード名から行列を読み取れなかったものを、最終行の次の行にまとめます。",
+            en: "Collects artboards with no readable row-column into a row after the last one."
+        },
+        tipChangeArtboardOrder: {
+            ja: "アートボードパネルの並び順も、配置後の順序に合わせて入れ替えます。",
+            en: "Also reorders the Artboards panel to match the new layout."
         },
         spacingPanel: {
             ja: "間隔",
@@ -142,60 +165,46 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位変換と数値入力 / Unit conversion and numeric input
     // =========================================
 
-    /* 環境設定の定規単位を取得する / Get the ruler unit from preferences */
-    function getRulerUnitInfo() {
-        var rulerUnit = app.preferences.getIntegerPreference("rulerType");
-        var unitLabel = "pt";
-        var unitFactor = 1.0;
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-        switch (rulerUnit) {
-            case 0: // inch
-                unitLabel = "inch";
-                unitFactor = 72.0;
-                break;
-            case 1: // mm
-                unitLabel = "mm";
-                unitFactor = 72.0 / 25.4;
-                break;
-            case 2: // pt
-                unitLabel = "pt";
-                unitFactor = 1.0;
-                break;
-            case 3: // pica
-                unitLabel = "pica";
-                unitFactor = 12.0;
-                break;
-            case 4: // cm
-                unitLabel = "cm";
-                unitFactor = 72.0 / 2.54;
-                break;
-            case 5: // Q
-                unitLabel = "Q";
-                unitFactor = 72.0 / 25.4 * 0.25;
-                break;
-            case 6: // px
-                unitLabel = "px";
-                unitFactor = 1.0;
-                break;
-            default:
-                unitLabel = "pt";
-                unitFactor = 1.0;
-        }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-        return {
-            label: unitLabel,
-            factor: unitFactor
-        };
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* pt値を表示単位に変換する / Convert points to display units */
     function pointsToDisplayUnit(points, unitInfo) {
-        return points / unitInfo.factor;
+        return points / unitInfo.pointsPerUnit;
     }
 
     /* 表示単位をpt値に変換する / Convert display units to points */
     function displayUnitToPoints(value, unitInfo) {
-        return value * unitInfo.factor;
+        return value * unitInfo.pointsPerUnit;
     }
 
     /* 表示用の数値を整える / Format a number for display */
@@ -278,7 +287,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialog.alignChildren = 'fill';
         dialog.margins = 16;
 
-        var rulerUnitInfo = getRulerUnitInfo();
+        var rulerUnitInfo = getUnitInfo();
         var displaySpacingX = pointsToDisplayUnit(defaultSettings.spacingX, rulerUnitInfo);
         var displaySpacingY = pointsToDisplayUnit(defaultSettings.spacingY, rulerUnitInfo);
 
@@ -299,12 +308,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var spacingXGroup = spacingInputColumn.add('group');
         spacingXGroup.add('statictext', undefined, getLabel('spacingX') + (currentLanguage === 'ja' ? '：' : ':'));
         var spacingXInput = spacingXGroup.add('edittext', undefined, formatDisplayNumber(displaySpacingX));
+        spacingXInput.helpTip = getLabel('tipSpacingX');
         spacingXInput.characters = 5;
         spacingXInput.active = true;
 
         var spacingYGroup = spacingInputColumn.add('group');
         spacingYGroup.add('statictext', undefined, getLabel('spacingY') + (currentLanguage === 'ja' ? '：' : ':'));
         var spacingYInput = spacingYGroup.add('edittext', undefined, formatDisplayNumber(displaySpacingY));
+        spacingYInput.helpTip = getLabel('tipSpacingY');
         spacingYInput.characters = 5;
 
         var linkColumn = spacingContentGroup.add('group');
@@ -312,6 +323,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         linkColumn.alignChildren = ['left', 'center'];
         linkColumn.alignment = ['left', 'center'];
         var linkCheckbox = linkColumn.add('checkbox', undefined, getLabel('linkSpacing'));
+        linkCheckbox.helpTip = getLabel('tipLinkSpacing');
         linkCheckbox.value = !!defaultSettings.linkSpacing;
 
         function syncLinkedSpacingInputState() {
@@ -339,16 +351,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var optionPanel = dialog.add('panel', undefined, getLabel('optionPanel'));
         setupPanel(optionPanel, 6);
         var excludeLockedHiddenLayersCheckbox = optionPanel.add('checkbox', undefined, getLabel('excludeLockedHiddenLayers'));
+        excludeLockedHiddenLayersCheckbox.helpTip = getLabel('tipExcludeLayers');
         excludeLockedHiddenLayersCheckbox.value = !!defaultSettings.excludeLockedHiddenLayers;
 
         var excludeLockedHiddenItemsCheckbox = optionPanel.add('checkbox', undefined, getLabel('excludeLockedHiddenItems'));
+        excludeLockedHiddenItemsCheckbox.helpTip = getLabel('tipExcludeItems');
         excludeLockedHiddenItemsCheckbox.value = !!defaultSettings.excludeLockedHiddenItems;
 
         /* 例外処理パネル / Exception handling panel */
         var exceptionPanel = dialog.add('panel', undefined, getLabel('exceptionPanel'));
         setupPanel(exceptionPanel, 6);
         var rowEndRadio = exceptionPanel.add('radiobutton', undefined, getLabel('exceptionRowEnd'));
+        rowEndRadio.helpTip = getLabel('tipExceptionRowEnd');
         var lastRowRadio = exceptionPanel.add('radiobutton', undefined, getLabel('exceptionLastRow'));
+        lastRowRadio.helpTip = getLabel('tipExceptionLastRow');
         if (defaultSettings.exceptionMode === 'lastRow') {
             lastRowRadio.value = true;
         } else {
@@ -359,6 +375,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var optionsPanel = dialog.add('panel', undefined, getLabel('optionsPanel'));
         setupPanel(optionsPanel, 6);
         var changeArtboardOrderCheckbox = optionsPanel.add('checkbox', undefined, getLabel('changeArtboardOrder'));
+        changeArtboardOrderCheckbox.helpTip = getLabel('tipChangeArtboardOrder');
         changeArtboardOrderCheckbox.value = !!defaultSettings.changeArtboardOrder;
 
         /* OK / キャンセルボタン / OK and Cancel buttons */

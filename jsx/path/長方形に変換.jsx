@@ -83,11 +83,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return labelEntry[uiLang] || labelEntry.en || labelKey;
     }
 
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(labelKey) {
-        return getLabel(labelKey) + (uiLang === 'ja' ? '：' : ':');
-    }
-
     // ==============================
     // 塗り・線プリセット / Fill & stroke presets
     // ==============================

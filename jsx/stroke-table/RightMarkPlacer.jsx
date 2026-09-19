@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RightMarkPlacer";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RightMarkPlacer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkPlacer.md"; /* README (English) */
@@ -224,79 +224,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位コードと単位ラベルの対応 / Mapping from unit code to unit label */
-    var UNIT_LABELS = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 単位コードから単位ラベルを求めます。
-     *
-     * @param {number} unitCode - 環境設定の単位コード。
-     * @param {string} preferenceKey - 環境設定のキー（Q と H の判別に使用）。
-     * @returns {string} 単位ラベル。
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getUnitLabel(unitCode, preferenceKey) {
-        if (unitCode === 5) {
-            /* 級（Q）は文字サイズ、歯（H）は送りや罫線に使う / Q is for font size, H for spacing and rules */
-            var usesHaLabel = {
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return usesHaLabel[preferenceKey] ? "H" : "Q";
-        }
-        return UNIT_LABELS[unitCode] || "pt";
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /**
-     * 単位コードから pt への換算係数を求めます。
-     *
-     * @param {number} unitCode - 環境設定の単位コード。
-     * @returns {number} 1単位あたりの pt 数。
-     */
-    function getPtFactorFromUnitCode(unitCode) {
-        switch (unitCode) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
-
-    /**
-     * 環境設定から単位情報（コード・ラベル・換算係数）を取得します。
-     *
-     * @param {string} preferenceKey - 環境設定のキー（"rulerType" など）。
-     * @returns {object} code / label / factor を持つオブジェクト。
-     */
-    function getPreferenceUnitInfo(preferenceKey) {
-        var unitCode = app.preferences.getIntegerPreference(preferenceKey);
-        return {
-            code: unitCode,
-            label: getUnitLabel(unitCode, preferenceKey),
-            factor: getPtFactorFromUnitCode(unitCode)
-        };
-    }
-
-    var rulerUnitInfo = getPreferenceUnitInfo("rulerType");
-    var strokeUnitInfo = getPreferenceUnitInfo("strokeUnits");
+    var rulerUnitInfo = getUnitInfo("rulerType");
+    var strokeUnitInfo = getUnitInfo("strokeUnits");
 
     /**
      * 単位の数値を pt に換算します。
@@ -306,7 +267,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {number} pt 値。
      */
     function convertValueToPt(value, unitInfo) {
-        return value * unitInfo.factor;
+        return value * unitInfo.pointsPerUnit;
     }
 
     /**
@@ -317,7 +278,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {number} 単位付きの数値。
      */
     function convertPtToUnitValue(valuePt, unitInfo) {
-        return valuePt / unitInfo.factor;
+        return valuePt / unitInfo.pointsPerUnit;
     }
 
     /* 表示桁数 / Decimal places used for display */
@@ -343,8 +304,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {number} 小数点以下の桁数。
      */
     function getDisplayDecimals(unitInfo) {
-        if (!unitInfo || !(unitInfo.factor > DISPLAY_DECIMALS_PT_FACTOR)) return DISPLAY_DECIMALS;
-        var extraDigits = Math.ceil(Math.log(unitInfo.factor) / Math.LN10);
+        if (!unitInfo || !(unitInfo.pointsPerUnit > DISPLAY_DECIMALS_PT_FACTOR)) return DISPLAY_DECIMALS;
+        var extraDigits = Math.ceil(Math.log(unitInfo.pointsPerUnit) / Math.LN10);
         return Math.min(DISPLAY_DECIMALS + extraDigits, DISPLAY_DECIMALS_MAX);
     }
 
@@ -368,8 +329,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nebac730ec187"; /* 紹�
      * @returns {number} 増減量。
      */
     function getArrowKeyStep(unitInfo) {
-        if (!unitInfo || !(unitInfo.factor > 0)) return 1;
-        var exponent = Math.max(0, Math.round(Math.log(unitInfo.factor) / Math.LN10));
+        if (!unitInfo || !(unitInfo.pointsPerUnit > 0)) return 1;
+        var exponent = Math.max(0, Math.round(Math.log(unitInfo.pointsPerUnit) / Math.LN10));
         return Math.pow(10, -exponent);
     }
 

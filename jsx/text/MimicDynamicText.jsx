@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "MimicDynamicText";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-06-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MimicDynamicText.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MimicDynamicText.md"; /* README (English) */
@@ -45,23 +45,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         alertSelectAreaText: { ja: "エリア内文字を選択してください。", en: "Please select area text." },
         alertSortError: { ja: "ソート中にエラーが発生しました: ", en: "An error occurred during sorting: " }
     };
-
-    /* エリア内文字をポイント文字に変換し、変換後のTextFrameを取得 / Convert area text to point text and get the resulting TextFrame */
-    function convertAreaTextToPointText(areaTextFrame, originalContents, originalPosition) {
-        areaTextFrame.convertAreaObjectToPointObject();
-
-        var allTextFrames = app.activeDocument.textFrames;
-        for (var i = 0; i < allTextFrames.length; i++) {
-            var tf = allTextFrames[i];
-            var dx = Math.abs(tf.position[0] - originalPosition[0]);
-            var dy = Math.abs(tf.position[1] - originalPosition[1]);
-
-            if (dx < 1 && dy < 1) {
-                return tf;
-            }
-        }
-        return null;
-    }
 
     /* エリア内文字を行単位に分割し、ポイント文字のTextFrameとして再配置 / Split area text by lines and reposition as point text frames */
     function splitTextFrameIntoLines(textFrame) {
@@ -107,12 +90,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             textFrame.remove();
             mergedFrame.convertPointObjectToAreaObject();
         }
-    }
-
-    /* 垂直比率を水平比率に合わせて統一 / Match vertical scale to horizontal scale */
-    function matchVerticalScaleToHorizontal(item) {
-        var currentHorizontalScale = item.textRange.characterAttributes.horizontalScale;
-        item.textRange.characterAttributes.verticalScale = currentHorizontalScale;
     }
 
     /* テキストフレームのみをリストに追加 / Add only text frames to list */

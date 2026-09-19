@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypefaceSampler";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypefaceSampler.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypefaceSampler.md"; /* README (English) */
@@ -237,6 +237,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n103ac6622657"; /* 紹�
             showWeightCount: { ja: "ウェイト数", en: "Weight Count" },
             showWeightList:  { ja: "ウェイト一覧", en: "Weight List" },
             showScore:       { ja: "スコア（検証用）", en: "Debug Score" },
+            tipKeyword:        { ja: "フォント名に含まれる文字で絞り込みます。空欄ならすべて表示します。", en: "Filters the list by text in the font name. Leave it empty to show everything." },
+            tipDisplayFontName:{ ja: "各行に「フォント名＋ウェイト／スタイル」を表示します。", en: "Shows the font name with its weight and style on each line." },
+            tipDisplayPostScript:{ ja: "各行に PostScript 名を表示します。", en: "Shows the PostScript name on each line." },
+            tipDisplaySample:  { ja: "各行にこのサンプル文字を表示します。", en: "Shows this sample text on each line." },
+            tipDisplayCustom:  { ja: "各行に、下の欄に入れた文字を表示します。", en: "Shows the text you type below on each line." },
+            tipCustomText:     { ja: "「カスタム」で表示する文字です。", en: "The text shown when Custom is selected." },
+            tipShowWeightCount:{ ja: "フォントファミリーごとのウェイト数を添えます。", en: "Adds the number of weights in each family." },
             weightVeryThin:  { ja: "超極細・極細", en: "Hairline / Thin" },
             weightLight:     { ja: "細め", en: "Light" },
             weightRegular:   { ja: "標準", en: "Regular" },
@@ -315,6 +322,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n103ac6622657"; /* 紹�
 
         dialogWindow.add("statictext", undefined, labelText(LABELS.fieldLabel.keyword));
         var keywordField = dialogWindow.add("edittext", undefined, "");
+        keywordField.helpTip = getLabel(LABELS.checkbox.tipKeyword);
         keywordField.characters = KEYWORD_FIELD_CHARS;
         keywordField.active = true;
 
@@ -324,13 +332,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n103ac6622657"; /* 紹�
 
         var displayModeRadios = [];
         displayModeRadios[0] = displayModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.fontNameWeightStyle));
+        displayModeRadios[0].helpTip = getLabel(LABELS.checkbox.tipDisplayFontName);
         displayModeRadios[1] = displayModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.postscriptName));
+        displayModeRadios[1].helpTip = getLabel(LABELS.checkbox.tipDisplayPostScript);
         displayModeRadios[2] = displayModeColumn.add("radiobutton", undefined, SAMPLE_ALPHABET_TEXT);
+        displayModeRadios[2].helpTip = getLabel(LABELS.checkbox.tipDisplaySample);
         displayModeRadios[3] = displayModeColumn.add("radiobutton", undefined, SAMPLE_NUMBERS_TEXT);
+        displayModeRadios[3].helpTip = getLabel(LABELS.checkbox.tipDisplaySample);
         displayModeRadios[4] = displayModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.custom));
+        displayModeRadios[4].helpTip = getLabel(LABELS.checkbox.tipDisplayCustom);
         displayModeRadios[0].value = true;
 
         var customTextField = outputPanel.add("edittext", undefined, getLabel(LABELS.sampleText));
+        customTextField.helpTip = getLabel(LABELS.checkbox.tipCustomText);
         customTextField.characters = KEYWORD_FIELD_CHARS;
         customTextField.enabled = false;
 
@@ -342,6 +356,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n103ac6622657"; /* 紹�
         var weightOptionRow = optionPanel.add("group");
         setupRow(weightOptionRow);
         var showWeightCountCheckbox = weightOptionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.showWeightCount));
+        showWeightCountCheckbox.helpTip = getLabel(LABELS.checkbox.tipShowWeightCount);
         var showWeightListCheckbox = weightOptionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.showWeightList));
         showWeightListCheckbox.value = true;
 

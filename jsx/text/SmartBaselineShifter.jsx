@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartBaselineShifter";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBaselineShifter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBaselineShifter.md"; /* README (English) */
@@ -46,12 +46,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
             en: "Adjust Baseline " + SCRIPT_VERSION
         },
         targetCharLabel: {
-            ja: "対象文字:",
-            en: "Target Character:"
+            ja: "対象文字",
+            en: "Target Character"
         },
         baseCharLabel: {
-            ja: "基準文字:",
-            en: "Reference Character:"
+            ja: "基準文字",
+            en: "Reference Character"
         },
         okBtnLabel: {
             ja: "調整",
@@ -90,8 +90,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
             en: "Reset"
         },
         shiftAmountLabel: {
-            ja: "シフト量:",
-            en: "Shift Amount:"
+            ja: "シフト量",
+            en: "Shift Amount"
         },
         autoPanelTitle: {
             ja: "自動調整（天地）",
@@ -128,6 +128,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
             }
         }
     };
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(key) {
+        return LABELS[key][uiLang] + (uiLang === "ja" ? "：" : ": ");
+    }
 
     /* =========================================
      * PreviewManager util
@@ -198,25 +207,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         return textFrames;
     }
 
-    /* 単位コードとラベルのマップ / Unit code to label map */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 現在の単位ラベルを取得 / Get current unit label */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("text/asianunits");
-        return unitLabelMap[unitCode] || "pt";
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* EditTextで上下キーによる値の増減を実装 / Enable arrow key increment/decrement on EditText */
@@ -446,7 +466,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         inputGroup.margins = [15, 5, 15, 5];
 
         var targetGroup = inputGroup.add("group");
-        targetGroup.add("statictext", undefined, LABELS.targetCharLabel[uiLang]);
+        targetGroup.add("statictext", undefined, labelText("targetCharLabel"));
         var targetInput = targetGroup.add("edittext", undefined, defaultTarget);
         targetInput.characters = 6;
         targetInput.active = true;
@@ -454,9 +474,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         targetInput.onChanging = updatePreview;
 
         var shiftGroup = inputGroup.add("group");
-        shiftGroup.add("statictext", undefined, LABELS.shiftAmountLabel[uiLang]);
+        shiftGroup.add("statictext", undefined, labelText("shiftAmountLabel"));
         var shiftInput = shiftGroup.add("edittext", undefined, "0");
-        var unitLabel = shiftGroup.add("statictext", undefined, getCurrentUnitLabel());
+        var unitLabel = shiftGroup.add("statictext", undefined, getUnitInfo("text/asianunits").label);
         shiftInput.characters = 6;
         changeValueByArrowKey(shiftInput, true, targetInput, textFrames, previewMgr);
         // 2️⃣ プレビュー制御フラグを用いたonChanging / Use preview control flag in onChanging
@@ -479,7 +499,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
         autoPanel.margins = [15, 20, 15, 5];
 
         var refGroup = autoPanel.add("group");
-        refGroup.add("statictext", undefined, LABELS.baseCharLabel[uiLang]);
+        refGroup.add("statictext", undefined, labelText("baseCharLabel"));
         var refInput = refGroup.add("edittext", undefined, "0");
         refInput.characters = 3;
         refInput.helpTip = LABELS.helpTips.refInput[uiLang];

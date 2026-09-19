@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ShuffleObjectColors";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShuffleObjectColors.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShuffleObjectColors.md"; /* README (English) */
@@ -377,6 +377,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return shuffled;
     }
 
+    /**
+     * 色オブジェクトのプロパティを写す
+     * 種類によっては持っていないプロパティがあり、代入で例外になるため1つずつ受け流す。
+     * @param {object} targetColor - 写し先の色
+     * @param {object} sourceColor - 写し元の色
+     * @param {string[]} propertyNames - 写すプロパティ名
+     * @returns {void}
+     */
+    function copyColorProperties(targetColor, sourceColor, propertyNames) {
+        for (var i = 0; i < propertyNames.length; i++) {
+            try {
+                targetColor[propertyNames[i]] = sourceColor[propertyNames[i]];
+            } catch (e) {}
+        }
+    }
+
     function getColorKey(color) {
         if (color.typename === "RGBColor") {
             return "rgb:" + color.red + "," + color.green + "," + color.blue;
@@ -433,26 +449,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (color.typename === "GradientColor") {
             var gc = new GradientColor();
             gc.gradient = color.gradient;
-            try { gc.angle = color.angle; } catch (e) { }
-            try { gc.length = color.length; } catch (e) { }
-            try { gc.origin = color.origin; } catch (e) { }
-            try { gc.hiliteAngle = color.hiliteAngle; } catch (e) { }
-            try { gc.hiliteLength = color.hiliteLength; } catch (e) { }
-            try { gc.matrix = color.matrix; } catch (e) { }
+            copyColorProperties(gc, color, ["angle", "length", "origin", "hiliteAngle", "hiliteLength", "matrix"]);
             return gc;
         }
         if (color.typename === "PatternColor") {
             var pc = new PatternColor();
             pc.pattern = color.pattern;
-            try { pc.matrix = color.matrix; } catch (e) { }
-            try { pc.shiftAngle = color.shiftAngle; } catch (e) { }
-            try { pc.shiftDistance = color.shiftDistance; } catch (e) { }
-            try { pc.reflect = color.reflect; } catch (e) { }
-            try { pc.reflectAngle = color.reflectAngle; } catch (e) { }
-            try { pc.rotation = color.rotation; } catch (e) { }
-            try { pc.scaleFactor = color.scaleFactor; } catch (e) { }
-            try { pc.shearAngle = color.shearAngle; } catch (e) { }
-            try { pc.shearAxis = color.shearAxis; } catch (e) { }
+            copyColorProperties(pc, color, ["matrix", "shiftAngle", "shiftDistance", "reflect",
+                "reflectAngle", "rotation", "scaleFactor", "shearAngle", "shearAxis"]);
             return pc;
         }
         return null;

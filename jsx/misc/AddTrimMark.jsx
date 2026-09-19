@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddTrimMark";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMark.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMark.md"; /* README (English) */
@@ -136,11 +136,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n40e3e39cf9f2"; /* 紹�
         alertNoDocument: {
             ja: "ドキュメントが開かれていません。",
             en: "No document is open."
+        },
+        tipRadioSelection: {
+            ja: "選択した長方形のまわりにトンボを作ります。水平・垂直な長方形のときだけ選べます。",
+            en: "Draws trim marks around the selected rectangle. Available only for an axis-aligned rectangle."
+        },
+        tipRadioCurrentArtboard: {
+            ja: "現在のアートボードのまわりにトンボを作ります。",
+            en: "Draws trim marks around the current artboard."
+        },
+        tipRadioAllArtboards: {
+            ja: "すべてのアートボードのまわりにトンボを作ります。",
+            en: "Draws trim marks around every artboard."
+        },
+        tipChkGuide: {
+            ja: "トンボの位置にガイドを残します。",
+            en: "Leaves guides at the trim mark positions."
+        },
+        tipChkJapaneseTrim: {
+            ja: "内トンボと外トンボが対になった日本式のトンボにします。オフだと欧文式になります。",
+            en: "Uses Japanese-style trim marks with paired inner and outer marks. When off, Western-style marks are drawn."
         }
     };
 
     function getLabel(key) {
-        return LABELS[key][uiLang];
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.en || key;
     }
 
     // =========================================
@@ -224,11 +246,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n40e3e39cf9f2"; /* 紹�
         var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         var targetPanel = dialog.add('panel', undefined, getLabel('panelTarget'));
         var selectionRadio = targetPanel.add('radiobutton', undefined, getLabel('radioSelection'));
+        selectionRadio.helpTip = getLabel('tipRadioSelection');
         var currentArtboardRadio = targetPanel.add('radiobutton', undefined, getLabel('radioCurrentArtboard'));
+        currentArtboardRadio.helpTip = getLabel('tipRadioCurrentArtboard');
         var allArtboardsRadio = targetPanel.add('radiobutton', undefined, getLabel('radioAllArtboards'));
+        allArtboardsRadio.helpTip = getLabel('tipRadioAllArtboards');
         var optionsPanel = dialog.add('panel', undefined, getLabel('panelOptions'));
         var keepGuidesCheckbox = optionsPanel.add('checkbox', undefined, getLabel('chkGuide'));
+        keepGuidesCheckbox.helpTip = getLabel('tipChkGuide');
         var japaneseStyleCheckbox = optionsPanel.add('checkbox', undefined, getLabel('chkJapaneseTrim'));
+        japaneseStyleCheckbox.helpTip = getLabel('tipChkJapaneseTrim');
         var btnRowGroup = dialog.add('group');
         var btnCancel = btnRowGroup.add('button', undefined, getLabel('btnCancel'), { name: 'cancel' });
         var btnOK = btnRowGroup.add('button', undefined, getLabel('btnOk'), { name: 'ok' });

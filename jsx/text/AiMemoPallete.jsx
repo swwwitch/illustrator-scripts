@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiMemoPallete";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPallete.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPallete.md"; /* README (English) */
@@ -88,7 +88,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
             title: { ja: "テキスト一時保管", en: "Text Stash" }
         },
         fieldLabel: {
-            mode: { ja: "モード:", en: "Mode:" }
+            mode: { ja: "モード", en: "Mode" }
         },
         radio: {
             replace: { ja: "置き換え", en: "Replace" },
@@ -164,6 +164,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
         if (!labelNode) return "";
         var labelText = labelNode[uiLang] || labelNode.en || "";
         return labelText.replace(/\{slash\}/g, "/");
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {Object} labelNode - LABELS 内の { ja, en } ノード
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelTextWithColon(labelNode) {
+        return getLabel(labelNode) + (uiLang === "ja" ? "：" : ": ");
     }
 
     // =========================================
@@ -465,7 +474,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41e91e4b1a09"; /* 紹�
     modeSelectGroup.orientation = 'row';
     modeSelectGroup.alignment = ['center', 'top'];      // 左右中央 / horizontally centered
     modeSelectGroup.alignChildren = ['left', 'center']; // 天地中央 / vertically centered
-    modeSelectGroup.add('statictext', undefined, getLabel(LABELS.fieldLabel.mode));
+    modeSelectGroup.add('statictext', undefined, labelTextWithColon(LABELS.fieldLabel.mode));
     var appendModeRadio = modeSelectGroup.add('radiobutton', undefined, getLabel(LABELS.radio.append));
     var replaceModeRadio = modeSelectGroup.add('radiobutton', undefined, getLabel(LABELS.radio.replace));
     appendModeRadio.value = true; // デフォルトは追加 / Append by default

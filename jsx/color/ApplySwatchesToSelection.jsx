@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplySwatchesToSelection";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplySwatchesToSelection.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatchesToSelection.md"; /* README (English) */
@@ -249,24 +249,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return 1;
     }
 
-    // 指定ドキュメントから使用可能なプロセススウォッチを取得
-    function getAvailableProcessSwatches(doc) {
-        var result = [];
-        var swatches = doc.swatches;
-        for (var i = 0; i < swatches.length; i++) {
-            var col = swatches[i].color;
-            // スポットカラー、グラデーション、パターン、グレースケール以外で、登録色でなく、白色でないもの
-            if (
-                !(col.typename === "SpotColor" || col.typename === "GradientColor" || col.typename === "PatternColor" || col.typename === "GrayColor")
-                && swatches[i].name !== "[Registration]"
-                && !isWhiteColor(col)
-            ) {
-                result.push(swatches[i]);
-            }
-        }
-        return result;
-    }
-
     // 色が白かどうか判定（CMYK=0,0,0,0 または RGB=255,255,255）
     function isWhiteColor(color) {
         if (color.typename === "CMYKColor") {
@@ -333,41 +315,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         }
         return true;
-    }
-
-    // CMYKドキュメント用：CM/CY/MY の2チャンネルのみ（K=0）で、合計が maxTotal を超えない範囲の色を生成
-    function generateRandomCMYPalette(count, maxTotal) {
-        var result = [];
-        var pairs = ["CM", "CY", "MY"];
-
-        for (var i = 0; i < count; i++) {
-            var pair = pairs[i % pairs.length];
-            var c = 0, m = 0, y = 0;
-
-            // Generate two non-zero channels with a+b <= maxTotal
-            var guard = 0;
-            while (guard++ < 200) {
-                // Keep values in 1..100, but enforce total <= maxTotal
-                var a = randInt(1, Math.min(100, maxTotal - 1));
-                var bMax = Math.min(100, maxTotal - a);
-                if (bMax < 1) continue;
-                var b = randInt(1, bMax);
-
-                if (pair === "CM") { c = a; m = b; y = 0; }
-                else if (pair === "CY") { c = a; y = b; m = 0; }
-                else { m = a; y = b; c = 0; }
-                break;
-            }
-
-            var col = new CMYKColor();
-            col.cyan = c;
-            col.magenta = m;
-            col.yellow = y;
-            col.black = 0;
-            result.push(col);
-        }
-
-        return result;
     }
 
     // CMYKドキュメント用：CM/CY/MY の2チャンネルのみ（K=0）で、可能な限り重複しない色を生成

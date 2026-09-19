@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypeScaler";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeScaler.md"; /* README (English) */
@@ -55,12 +55,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Type Scale " + SCRIPT_VERSION
         },
         baseLabel: {
-            ja: "基準：",
-            en: "Base:"
+            ja: "基準",
+            en: "Base"
         },
-        unitLabel: {
-            ja: "（単位）",
-            en: "(Unit)"
+        baseLabelSuffix: {
+            ja: "（{unit}）",
+            en: " ({unit})"
         },
         ratioDropdown: {
             ja: "倍率",
@@ -90,6 +90,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "OK",
             en: "OK"
         },
+        tipBaseSize: {
+            ja: "タイプスケールの基準になるフォントサイズです。",
+            en: "Font size the type scale is built from."
+        },
+        tipRatio: {
+            ja: "1段ごとに掛ける倍率です。大きいほどサイズの差が開きます。",
+            en: "Multiplier applied at each step. A larger ratio spreads the sizes further apart."
+        },
+        tipSizeList: {
+            ja: "計算したサイズの一覧です。選んで OK すると、選択中のテキストに適用します。",
+            en: "The calculated sizes. Pick one and press OK to apply it to the selected text."
+        },
+        tipSampleText: {
+            ja: "見本に使う文字列です。",
+            en: "Text used for the sample."
+        },
+        tipShowSize: {
+            ja: "見本の各行にサイズの数値を添えます。",
+            en: "Adds the size value to each line of the sample."
+        },
+        tipSampleBtn: {
+            ja: "一覧のすべてのサイズで見本を作り、ドキュメントに配置します。",
+            en: "Creates a sample in every size on the list and places it in the document."
+        },
         alertSelectSize: {
             ja: "リストからサイズを選択してください。",
             en: "Please select a size from the list."
@@ -113,31 +137,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     /* 単位ラベル取得関数とマップ / Get unit label and mapping */
-    function getUnitLabel(code, prefKey) {
-      if (code === 5 && prefKey === "text/asianunits") {
-        return "H";
-      }
-      return unitLabelMap[code] || "不明";
-    }
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+      { label: "in",    pointsPerUnit: 72 },                /* 0 */
+      { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+      { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+      { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+      { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+      { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+      { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+      { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+      { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+      { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+      { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    var unitLabelMap = {
-     0: "in",
-     1: "mm",
-     2: "pt",
-     3: "pica",
-     4: "cm",
-     5: "Q/H",
-     6: "px"
-    };
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    /* 番号付きラベル生成関数 / Generate numbered labels */
-    function createNumberedLabels(items, offset, unitLabel) {
-      var labels = [];
-      for (var i = 0; i < items.length; i++) {
-        var label = (offset + i) + " - " + items[i] + (unitLabel ? " " + unitLabel : "");
-        labels.push(label);
-      }
-      return labels;
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+      var unitKey = prefKey || "rulerType";
+      var unitCode = app.preferences.getIntegerPreference(unitKey);
+      var unit = UNITS[unitCode] || UNITS[2];
+      var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+      return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     function getSelectedTextFrames() {
@@ -210,20 +239,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       dialog.orientation = "column";
       dialog.alignChildren = "left";
 
-      var textUnitCode = app.preferences.getIntegerPreference("text/units");
-      var textUnitLabel = getUnitLabel(textUnitCode, "text/units");
+      var textUnitLabel = getUnitInfo("text/units").label;
       var sizeGroup = dialog.add("group");
       sizeGroup.orientation = "row";
       sizeGroup.margins = [0, 0, 0, 15];
       sizeGroup.spacing = 5;
-      sizeGroup.add("statictext", undefined, LABELS.baseLabel[uiLang]);
+      sizeGroup.add("statictext", undefined, LABELS.baseLabel[uiLang] + (uiLang === "ja" ? "：" : ": "));
       var sizeInput = sizeGroup.add("edittext", undefined, $.global.__sizeValue);
       sizeInput.characters = 4;
-      sizeGroup.add("statictext", undefined, LABELS.unitLabel[uiLang].replace("単位", textUnitLabel));
+      sizeInput.helpTip = LABELS.tipBaseSize[uiLang];
+      sizeGroup.add("statictext", undefined, LABELS.baseLabelSuffix[uiLang].replace("{unit}", textUnitLabel));
       changeValueByArrowKey(sizeInput);
 
       var ratioPopup = sizeGroup.add("dropdownlist", undefined, ratioLabels);
       ratioPopup.selection = $.global.__ratioIndex;
+      ratioPopup.helpTip = LABELS.tipRatio[uiLang];
 
       sizeGroup.alignment = "center";
 
@@ -237,6 +267,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
       var sizeList = leftPanel.add("listbox", undefined, [], { multiselect: false });
       sizeList.preferredSize = [85, 136];
+      sizeList.helpTip = LABELS.tipSizeList[uiLang];
 
       // 右カラム
       var rightPanel = mainGroup.add("group");
@@ -251,10 +282,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
       var sampleInput = samplePanel.add("edittext", undefined, LABELS.sampleText[uiLang]);
       sampleInput.characters = 20;
+      sampleInput.helpTip = LABELS.tipSampleText[uiLang];
       var showSizeCheckbox = samplePanel.add("checkbox", undefined, LABELS.showSizeCheckbox[uiLang]);
       showSizeCheckbox.value = true;
+      showSizeCheckbox.helpTip = LABELS.tipShowSize[uiLang];
       var sampleBtn = samplePanel.add("button", undefined, LABELS.sampleBtn[uiLang]);
       sampleBtn.alignment = "right";
+      sampleBtn.helpTip = LABELS.tipSampleBtn[uiLang];
 
       // ボタングループをダイアログ下部に追加
       var buttonGroup = dialog.add("group");

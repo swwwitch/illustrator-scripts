@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TypeBasicsPanel";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeBasicsPanel.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeBasicsPanel.md"; /* README (English) */
@@ -874,11 +874,6 @@ var SCRIPT_PRO_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 上位�
             var percent = currentLeadingPercent();
             if (isNaN(size) || isNaN(percent)) { ui.leadingEffectiveInput.text = ""; return; }
             ui.leadingEffectiveInput.text = String(Math.round(size * percent / 100 * 10) / 10);
-        }
-        /* 行送り（%）欄へ値を反映し、実質表示も更新 / Set the leading (%) field and refresh the effective display */
-        function reflectLeadingPercent(percent) {
-            ui.leadingPercentInput.text = isNaN(percent) ? "" : String(Math.round(percent * 10) / 10);
-            updateLeadingEffective();
         }
         /* 行送りを適用（自動行送り量%。行送りの基準は変更しない）/ Apply leading (auto-leading amount %; the basis is left as is) */
         function applyLeading() {

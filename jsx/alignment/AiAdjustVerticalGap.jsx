@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiAdjustVerticalGap";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGap.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVerticalGap.md"; /* README (English) */
@@ -170,47 +170,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 定規の単位からラベルと pt 換算係数を求める / Resolve ruler unit label and pt factor */
-    function getRulerUnitInfo() {
-        var rulerUnit = app.preferences.getIntegerPreference("rulerType");
-        var unitLabel = "pt";
-        var unitFactor = 1.0;
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-        switch (rulerUnit) {
-            case 0: // inch
-                unitLabel = "inch";
-                unitFactor = 72.0;
-                break;
-            case 1: // mm
-                unitLabel = "mm";
-                unitFactor = 72.0 / 25.4;
-                break;
-            case 2: // pt
-                unitLabel = "pt";
-                unitFactor = 1.0;
-                break;
-            case 3: // pica
-                unitLabel = "pica";
-                unitFactor = 12.0;
-                break;
-            case 4: // cm
-                unitLabel = "cm";
-                unitFactor = 72.0 / 2.54;
-                break;
-            case 5: // Q
-                unitLabel = "Q";
-                unitFactor = 72.0 / 25.4 * 0.25;
-                break;
-            case 6: // px
-                unitLabel = "px";
-                unitFactor = 1.0;
-                break;
-            default:
-                unitLabel = "pt";
-                unitFactor = 1.0;
-        }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-        return { label: unitLabel, factor: unitFactor };
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -1010,9 +999,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
 
         return {
             anchorTop: resolveAnchorTop(controls.anchor),
-            gapPoints: gapValue * rulerUnit.factor,
+            gapPoints: gapValue * rulerUnit.pointsPerUnit,
             align: selectedRadioKey(controls.align, ["none", "left", "center", "right"]),
-            adjustPoints: adjustValue * rulerUnit.factor,
+            adjustPoints: adjustValue * rulerUnit.pointsPerUnit,
             justify: selectedRadioKey(controls.justify, ["none", "link", "full"]),
             usePreviewBounds: controls.gap.previewBoundsCheckbox.value
         };
@@ -1028,7 +1017,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             paletteWindow = null;
         }
 
-        var rulerUnit = getRulerUnitInfo();
+        var rulerUnit = getUnitInfo();
 
         var win = new Window("palette", getLabel("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
         win.orientation = "column";
@@ -1092,7 +1081,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8201294835f9"; /* 紹�
             }
             /* 重なり（負の間隔）もそのまま取り込む / Keep negative gaps (overlap) as-is */
             /* pt → 定規単位、0.1単位（小数1桁）に丸め / pt → ruler unit, rounded to 0.1 (1 decimal) */
-            var gapValue = Math.round((gapPoints / rulerUnit.factor) * 10) / 10;
+            var gapValue = Math.round((gapPoints / rulerUnit.pointsPerUnit) * 10) / 10;
             controls.gap.gapValueInput.text = String(gapValue);
             return true;
         }

@@ -104,7 +104,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
 
         fieldLabel: {
             pageRange: { ja: "指定", en: "Range" },
-            evenPage: { ja: "偶数ページ:", en: "Even Pages:" },
+            evenPage: { ja: "偶数ページ", en: "Even Pages" },
             colorMode: { ja: "カラーモード", en: "Color Mode" },
             notSelected: { ja: "未指定", en: "Not selected" }
         },
@@ -155,7 +155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5514d9f2c5f8"; /* 紹�
             linkUnknown: { ja: "画像のリンク先が不明でした。", en: "Image link not found." },
             pageCountFailed: { ja: "リンクされたPDF/AIファイルのページ数を取得できませんでした。", en: "Could not determine the page count of the linked PDF/AI file." },
             placeFailed: { ja: "配置中にエラーが発生しました。", en: "An error occurred while placing the pages." },
-            errorDetails: { ja: "詳細:", en: "Details:" }
+            errorDetails: { ja: "詳細：", en: "Details:" }
         }
     };
 

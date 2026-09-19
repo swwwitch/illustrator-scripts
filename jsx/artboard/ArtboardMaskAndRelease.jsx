@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardMaskAndRelease";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardMaskAndRelease.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardMaskAndRelease.md"; /* README (English) */
@@ -78,6 +78,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "グループ解除",
             en: "Ungroup"
         },
+        tipMask:          { ja: "各アートボードの範囲でクリッピングマスクを作り、はみ出した部分を隠します。", en: "Creates a clipping mask at each artboard and hides whatever sticks out." },
+        tipRelease:       { ja: "アートボードで作ったクリッピングマスクを外します。", en: "Releases the clipping masks made from the artboards." },
+        tipMargin:        { ja: "マスクの範囲をアートボードより広げる量です。0 でアートボードぴったりになります。", en: "How far the mask extends past the artboard. 0 matches the artboard exactly." },
+        tipRemoveOutside: { ja: "マスクからはみ出したオブジェクトを、隠すのではなく削除します。", en: "Deletes the objects outside the mask instead of hiding them." },
+        tipIncludeLocked: { ja: "ロックされたオブジェクトも処理の対象にします。", en: "Includes locked objects." },
+        tipIncludeHidden: { ja: "非表示のオブジェクトも処理の対象にします。", en: "Includes hidden objects." },
+        tipUngroup:       { ja: "マスクを外したあと、残ったグループも解除します。", en: "Ungroups what is left once the mask is released." },
         cancel: {
             ja: "キャンセル",
             en: "Cancel"
@@ -129,7 +136,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panel.margins = [15, 20, 15, 10];
 
         var rbMask = panel.add("radiobutton", undefined, LABELS.mask[uiLang]);
+        rbMask.helpTip = LABELS.tipMask[uiLang];
         var rbRelease = panel.add("radiobutton", undefined, LABELS.maskRelease[uiLang]);
+        rbRelease.helpTip = LABELS.tipRelease[uiLang];
         rbMask.value = true;
 
         // ラジオボタン切り替え時のパネル有効/無効制御 / Enable/disable panels on radio button toggle
@@ -150,24 +159,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         marginRow.orientation = "row";
         marginRow.alignChildren = "left";
         marginRow.add("statictext", undefined, LABELS.margin[uiLang] + ":");
-        // --- 単位ラベル追加 / Add unit label ---
-        var unitLabelMap = {
-            0: "in",
-            1: "mm",
-            2: "pt",
-            3: "pica",
-            4: "cm",
-            5: "Q/H",
-            6: "px",
-            7: "ft/in",
-            8: "m",
-            9: "yd",
-            10: "ft"
-        };
+        // =========================================
+        // 単位 / Units
+        // =========================================
 
-        function getCurrentUnitLabel() {
-            var unitCode = app.preferences.getIntegerPreference("rulerType");
-            return unitLabelMap[unitCode] || "pt";
+        /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+           Unit code -> display label and points per unit */
+        var UNITS = [
+            { label: "in",    pointsPerUnit: 72 },                /* 0 */
+            { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+            { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+            { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+            { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+            { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+            { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+            { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+            { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+            { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+            { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+        ];
+
+        /**
+         * 環境設定キーの単位を返す
+         * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+         */
+        function getUnitInfo(prefKey) {
+            var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+            /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+            var unit = UNITS[unitCode] || UNITS[2];
+            return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
         }
 
         // Enable up/down arrow key increment/decrement on edittext inputs / EditTextの上下矢印キーで値を増減
@@ -200,20 +221,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var marginInput = marginRow.add("edittext", undefined, "0");
+        marginInput.helpTip = LABELS.tipMargin[uiLang];
         marginInput.characters = 5;
         marginInput.active = true;
         changeValueByArrowKey(marginInput, true);
-        var unitLabel = getCurrentUnitLabel();
+        var unitLabel = getUnitInfo().label;
         marginRow.add("statictext", undefined, "(" + unitLabel + ")");
 
         var cbRemoveOutside = marginGroup.add("checkbox", undefined, LABELS.removeOutside[uiLang]);
+        cbRemoveOutside.helpTip = LABELS.tipRemoveOutside[uiLang];
         cbRemoveOutside.alignment = "left";
 
         var cbIncludeLocked = marginGroup.add("checkbox", undefined, LABELS.includeLocked[uiLang]);
+        cbIncludeLocked.helpTip = LABELS.tipIncludeLocked[uiLang];
         cbIncludeLocked.value = true; /* デフォルトをONに設定 / Default ON */
 
         // チェックボックス追加 / Add checkbox
         var cbIncludeHidden = marginGroup.add("checkbox", undefined, LABELS.includeHidden[uiLang]);
+        cbIncludeHidden.helpTip = LABELS.tipIncludeHidden[uiLang];
         cbIncludeHidden.value = true; /* デフォルトをONに設定 / Default ON */
 
         var releasePanel = dialog.add("panel", undefined, LABELS.releaseOption[uiLang]);
@@ -222,6 +247,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         releasePanel.margins = [15, 20, 15, 10];
 
         var cbUngroup = releasePanel.add("checkbox", undefined, LABELS.ungroupLabel[uiLang]);
+        cbUngroup.helpTip = LABELS.tipUngroup[uiLang];
         cbUngroup.value = true;
         releasePanel.enabled = false;
 

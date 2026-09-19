@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathCleanupTool-v2";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool-v2.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool-v2.md"; /* README (English) */
@@ -125,6 +125,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Add anchor points"
         },
         rbSplitAtAnchors: {
+        tipSameAnchors: { ja: "同じ位置に重なっているアンカーポイントを1つにまとめます。", en: "Merges anchor points that sit on top of each other." },
+        tipRemoveAnchors: { ja: "直線上に並んでいて、形に影響しないアンカーポイントを削除します。", en: "Deletes anchor points that lie on a straight run and do not change the shape." },
+        tipTolAnchor: { ja: "直線とみなす許容値です。大きいほど多く削除されます。", en: "How far from straight still counts as straight. Larger values delete more." },
+        tipRemoveHandles: { ja: "曲線の形に影響していない方向線（ハンドル）を削除します。", en: "Removes direction handles that are not shaping the curve." },
+        tipTolHandle: { ja: "方向線を不要とみなす許容値です。大きいほど多く削除されます。", en: "How close to collinear a handle must be before it is removed. Larger values remove more." },
+        tipConvertSmooth: { ja: "アンカーポイントをスムーズポイントに変えます。", en: "Converts the anchor points to smooth points." },
+        tipConvertCorner: { ja: "アンカーポイントをコーナーポイントに変えます。", en: "Converts the anchor points to corner points." },
+        tipAddAnchors: { ja: "各セグメントの中間にアンカーポイントを追加します。", en: "Adds an anchor point in the middle of every segment." },
+        tipSplitAtAnchors: { ja: "各アンカーポイントでパスを分割します。", en: "Splits the path at every anchor point." },
             ja: "アンカーポイントで分割",
             en: "Split at anchor points"
         }
@@ -205,16 +214,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             return removed;
-        }
-
-        /**
-         * 同一座標のアンカーポイント（重複点）を削除（UI/外部呼び出し用）
-         */
-        function removeDuplicateAnchors() {
-            var selection = getSelectionOrAlert();
-            if (!selection) return 0;
-            var targets = getTargetPathItemsFromSelection(selection);
-            return removeDuplicateAnchorsOnTargets(targets);
         }
 
         function getLabel(key) {
@@ -391,37 +390,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return out;
         }
 
-        /* 現在の情報（数）を取得 / Get current info counts */
-        function getCurrentInfoCounts() {
-            var info = { paths: 0, anchors: 0, handles: 0 };
-
-            if (!hasDocument()) return info;
-
-            var doc = app.activeDocument;
-            var currentSelection = doc.selection;
-            if (!(currentSelection instanceof Array) || currentSelection.length === 0) return info;
-
-            var targets = getTargetPathItemsFromSelection(currentSelection);
-
-            for (var i = 0; i < targets.length; i++) {
-                var item = targets[i];
-                if (!item || isSkippableItem(item)) continue;
-                info.paths++;
-
-                var pts = item.pathPoints;
-                var n = pts.length;
-                info.anchors += n;
-
-                for (var k = 0; k < n; k++) {
-                    var pt = pts[k];
-                    if (!samePoint(pt.leftDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
-                    if (!samePoint(pt.rightDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
-                }
-            }
-
-            return info;
-        }
-
         /* 指定targetsから情報（数）を取得 / Get info counts from given targets */
         function getInfoCountsFromTargets(targets) {
             var info = { paths: 0, anchors: 0, handles: 0 };
@@ -503,16 +471,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /**
-         * 不要なアンカーポイント（直線上の冗長点）を削除（UI/外部呼び出し用）
-         */
-        function removeRedundantAnchors() {
-            var selection = getSelectionOrAlert();
-            if (!selection) return 0;
-            var targets = getTargetPathItemsFromSelection(selection);
-            return removeRedundantAnchorsOnTargets(targets);
-        }
-
-        /**
          * 不要なハンドルを削除（直線になっているベジェ区間のハンドルをアンカーに戻す）（内部：targets 指定）
          * 戻り値：リセットしたハンドル数（左右それぞれ1カウント）
          */
@@ -574,16 +532,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
 
             return changed;
-        }
-
-        /**
-         * 不要なハンドルを削除（直線になっているベジェ区間のハンドルをアンカーに戻す）（UI/外部呼び出し用）
-         */
-        function removeRedundantHandles() {
-            var selection = getSelectionOrAlert();
-            if (!selection) return 0;
-            var targets = getTargetPathItemsFromSelection(selection);
-            return removeRedundantHandlesOnTargets(targets);
         }
 
         // 予測情報を取得（処理前後のアンカー数とハンドル数）
@@ -790,20 +738,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
         }
 
-        // 互換用：現在の選択を対象に予測 / Backward-compatible wrapper using current selection
-        function getPredictedInfoCounts(doSameAnchors, doAnchors, doHandles) {
-            if (!hasDocument()) {
-                return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
-            }
-            var doc = app.activeDocument;
-            var currentSelection = doc.selection;
-            if (!(currentSelection instanceof Array) || currentSelection.length === 0) {
-                return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
-            }
-            var targets = getTargetPathItemsFromSelection(currentSelection);
-            return getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles);
-        }
-
         // 変換・分割の予測情報を取得
         function getPredictedInfoForConvert(targets, mode) {
             var infoNow = getInfoCountsFromTargets(targets);
@@ -939,6 +873,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tabProcess.margins = [15, 15, 15, 10];
 
             var cbSameAnchors = tabProcess.add('checkbox', undefined, getLabel('cbRemoveSameAnchors'));
+            cbSameAnchors.helpTip = getLabel('tipSameAnchors');
             cbSameAnchors.value = false;
 
             // Tolerance for collinear anchor detection (0.01 - 3.00)
@@ -949,6 +884,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             grpAnchors.margins = [0, 15, 0, 15];
 
             var cbAnchors = grpAnchors.add('checkbox', undefined, getLabel('cbRemoveAnchors'));
+            cbAnchors.helpTip = getLabel('tipRemoveAnchors');
             cbAnchors.value = true;
 
             var grpTolAnchor = grpAnchors.add('group');
@@ -960,9 +896,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             stTolAnchor.characters = 6;
 
             var etTolAnchor = grpTolAnchor.add('edittext', undefined, TOL_ANCHOR_COLLINEAR.toFixed(2));
+            etTolAnchor.helpTip = getLabel('tipTolAnchor');
             etTolAnchor.characters = 6;
 
             var slTolAnchor = grpAnchors.add('slider', undefined, Math.round(TOL_ANCHOR_COLLINEAR * 100), 1, 300);
+            slTolAnchor.helpTip = getLabel('tipTolAnchor');
             slTolAnchor.preferredSize.width = 160;
             slTolAnchor.indent = 20;
 
@@ -1001,6 +939,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // grpHandle.margins = [0, 0, 0, 8];
 
             var cbHandle = grpHandle.add('checkbox', undefined, getLabel('cbRemoveHandles'));
+            cbHandle.helpTip = getLabel('tipRemoveHandles');
             cbHandle.value = true;
 
             // Tolerance for straight-segment handle detection (0.01 - 3.00)
@@ -1013,9 +952,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             stTol.characters = 6;
 
             var etTol = grpTol.add('edittext', undefined, TOL_HANDLE_COLLINEAR.toFixed(2));
+            etTol.helpTip = getLabel('tipTolHandle');
             etTol.characters = 6;
 
             var slTol = grpHandle.add('slider', undefined, Math.round(TOL_HANDLE_COLLINEAR * 100), 1, 300);
+            slTol.helpTip = getLabel('tipTolHandle');
             slTol.preferredSize.width = 160;
             slTol.indent = 20;
 
@@ -1081,9 +1022,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tabOther.margins = [15, 15, 15, 10];
 
             var rbSmooth = tabOther.add('radiobutton', undefined, getLabel('rbConvertSmooth'));
+            rbSmooth.helpTip = getLabel('tipConvertSmooth');
             var rbCorner = tabOther.add('radiobutton', undefined, getLabel('rbConvertCorner'));
+            rbCorner.helpTip = getLabel('tipConvertCorner');
             var rbAdd = tabOther.add('radiobutton', undefined, getLabel('rbAddAnchors'));
+            rbAdd.helpTip = getLabel('tipAddAnchors');
             var rbSplit = tabOther.add('radiobutton', undefined, getLabel('rbSplitAtAnchors'));
+            rbSplit.helpTip = getLabel('tipSplitAtAnchors');
             rbSmooth.value = true;
 
             rbSmooth.onClick = rbCorner.onClick = rbAdd.onClick = rbSplit.onClick = function () {

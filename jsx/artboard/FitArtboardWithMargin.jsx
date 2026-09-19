@@ -25,10 +25,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FitArtboardWithMargin";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitArtboardWithMargin.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboardWithMargin.md"; /* README (English) */
@@ -43,8 +43,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
     // ユーザー設定 / User settings
     // =========================================
     var CONFIG = {
-        // rulerType → 単位。未対応の rulerType は pt にフォールバック / rulerType to unit; unknown falls back to pt
-        rulerTypeToUnit: { 0: 'inch', 1: 'mm', 2: 'pt', 3: 'pica', 4: 'cm', 5: 'H', 6: 'px' },
         defaultMarginByUnit: {
             mm: '5',
             px: '20',
@@ -199,9 +197,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
         }
     }
 
-    /* rulerType から単位文字列を得る（未対応は pt） / Map rulerType to a unit string, fallback to pt */
-    function rulerUnitFromType(rulerType) {
-        return CONFIG.rulerTypeToUnit.hasOwnProperty(rulerType) ? CONFIG.rulerTypeToUnit[rulerType] : 'pt';
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /* 現在の定規単位を UnitValue に渡せる文字列で返す（UnitValue が扱えない単位は pt に寄せる）
+       Current ruler unit as a string UnitValue accepts; units it cannot take fall back to pt */
+    function getRulerUnitString() {
+        var unit = getUnitInfo();
+        return (unit.code >= 0 && unit.code <= 6) ? unit.label : 'pt';
     }
 
     // =========================================
@@ -1161,8 +1200,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_transit/n/n15d3c6c5a1e5"; /* 紹�
             hasSelection = selectionItems.length > 0; // 計測可能な選択があるか / measurable selection?
 
             var artboards = doc.artboards;
-            var rulerType = app.preferences.getIntegerPreference("rulerType");
-            var rulerUnit = rulerUnitFromType(rulerType);
+            var rulerUnit = getRulerUnitString();
 
             /* 単位ごとの初期マージン値（保存済み設定があればそちらが優先される） / default margin for the unit (stored settings win) */
             var defaultMarginValue = getDefaultMargin(rulerUnit);

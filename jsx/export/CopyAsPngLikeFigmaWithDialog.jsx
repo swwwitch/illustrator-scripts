@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CopyAsPngLikeFigmaWithDialog"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-06-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyAsPngLikeFigmaWithDialog.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyAsPngLikeFigmaWithDialog.md"; /* README (English) */
@@ -45,7 +45,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialogTitle: { ja: "ビットマップとしてコピー", en: "Copy as PNG" },
         dpi: { ja: "解像度", en: "Resolution" },
         dpiUnit: { ja: "（dpi）", en: "(dpi)" },
-        background: { ja: "背景：", en: "Background:" },
+        background: { ja: "背景", en: "Background" },
         transparent: { ja: "透明", en: "Transparent" },
         white: { ja: "白", en: "White" },
         black: { ja: "黒", en: "Black" },
@@ -64,7 +64,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         step5: { ja: "拡大中...", en: "Resizing..." },
         step6: { ja: "コピー中...", en: "Copying..." },
         step7: { ja: "一時オブジェクト削除中...", en: "Deleting temporary objects..." },
-        margin: { ja: "余白", en: "Margin" }
+        margin: { ja: "余白", en: "Margin" },
+        tipDpi: { ja: "コピーするビットマップの解像度です。数値が大きいほど精細になり、処理時間も伸びます。", en: "Resolution of the copied bitmap. Higher values are sharper but take longer." },
+        tipBackground: { ja: "ビットマップの背景です。「透明」はアルファ付きでコピーします。", en: "Background of the bitmap. Transparent copies it with an alpha channel." },
+        tipMargin: { ja: "選択範囲の外側に足す余白です。", en: "Extra space added around the selection." },
+        tipAntialias: { ja: "輪郭をなめらかにします。オフにするとドットのままコピーします。", en: "Smooths the edges. Off copies the pixels as they are." }
     };
 
     function createDialog() {
@@ -76,26 +80,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dpiGroup.orientation = "row";
         dpiGroup.add("statictext", undefined, LABELS.dpi[uiLang] + ":");
         var dpiDropdown = dpiGroup.add("dropdownlist", undefined, ["72", "150", "300", "600", "1200"]);
+        dpiDropdown.helpTip = LABELS.tipDpi[uiLang];
         dpiGroup.add("statictext", undefined, LABELS.dpiUnit[uiLang]);
         dpiDropdown.selection = 3;
 
         var bgGroup = dlg.add("group");
         bgGroup.orientation = "row";
         bgGroup.alignChildren = "left";
-        bgGroup.add("statictext", undefined, LABELS.background[uiLang]);
+        bgGroup.add("statictext", undefined, LABELS.background[uiLang] + (uiLang === "ja" ? "：" : ": "));
         var bgTransparent = bgGroup.add("radiobutton", undefined, LABELS.transparent[uiLang]);
+        bgTransparent.helpTip = LABELS.tipBackground[uiLang];
         var bgWhite = bgGroup.add("radiobutton", undefined, LABELS.white[uiLang]);
+        bgWhite.helpTip = LABELS.tipBackground[uiLang];
         var bgBlack = bgGroup.add("radiobutton", undefined, LABELS.black[uiLang]);
+        bgBlack.helpTip = LABELS.tipBackground[uiLang];
         bgWhite.value = true;
 
         var marginGroup = dlg.add("group");
         marginGroup.orientation = "row";
         marginGroup.add("statictext", undefined, LABELS.margin[uiLang] + ":");
         var marginInput = marginGroup.add("edittext", undefined, "0");
+        marginInput.helpTip = LABELS.tipMargin[uiLang];
         marginInput.characters = 4;
 
         var aaGroup = dlg.add("group");
         var aaCheckbox = aaGroup.add("checkbox", undefined, LABELS.antialias[uiLang]);
+        aaCheckbox.helpTip = LABELS.tipAntialias[uiLang];
         aaCheckbox.value = true;
 
         var btnGroup = dlg.add("group");

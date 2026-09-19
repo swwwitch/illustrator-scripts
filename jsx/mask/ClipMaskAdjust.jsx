@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClipMaskAdjust";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v3";                           /* バージョン / version */
+var SCRIPT_VERSION  = "v3.0.1";                           /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-01-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskAdjust.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskAdjust.md"; /* README (English) */
@@ -70,6 +70,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cancel: 'キャンセル',
             ok: 'OK',
             tweak: '微調整',
+            tipAnchor: 'サイズを変えるときに動かさない位置です。3×3のマスで選びます。',
+            tipTweak: 'この値だけ位置をずらします。↑↓キーで増減できます。',
+            tipCover: '縦横比を保ったまま、マスクを埋めるように内容を拡大します。はみ出た部分は切り取られます。',
+            tipContain: '縦横比を保ったまま、内容全体がマスクに収まるように縮小します。',
+            tipNone: '内容の大きさは変えません。',
+            tipManual: '倍率を数値で指定します。',
+            tipMaskNone: 'マスクパスの形はそのままにします。',
+            tipFitFrame: 'マスクパスを内容の外接範囲に合わせます。',
+            tipSquare: 'マスクパスを正方形にします。',
+            tipRound: 'マスクパスの角を丸めます。右の欄で半径を指定します。',
+            tipCircle: 'マスクパスを正円にします。',
             x: 'X',
             y: 'Y'
         },
@@ -104,41 +115,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return;
     }
 
-    // --- Units (follow rulerType) ---
-    // 単位コードとラベルのマップ
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    // 現在の単位ラベルを取得
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+
+    /**
+     * UnitValue に渡せる単位名を返す（UnitValue が扱えない単位は pt に寄せる）
+     * @returns {string} "mm" などの単位名
+     */
+    function getUnitValueUnit() {
+        var unitCode = getUnitInfo().code;
+        /* UnitValue は ft/in・m・yd・ft を扱えないため pt に寄せる / UnitValue does not take those */
+        return (unitCode >= 0 && unitCode <= 6) ? UNITS[unitCode].label : "pt";
     }
 
-    // UnitValue に渡す単位（対応範囲のみ）
-    function getUnitValueUnit() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        switch (unitCode) {
-            case 0: return "in";
-            case 1: return "mm";
-            case 2: return "pt";
-            case 3: return "pica";
-            case 4: return "cm";
-            case 5: return "Q";   // 表示は Q/H だが UnitValue は Q
-            case 6: return "px";
-            default: return "pt";
-        }
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     function valueInCurrentUnitToPt(n) {
@@ -159,7 +183,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    var CURRENT_UNIT_LABEL = getCurrentUnitLabel();
+    var CURRENT_UNIT_LABEL = getUnitInfo().label;
 
     // --- アピアランス消去（クリップグループ対象） ---
     // executeMenuCommand("clearAppearance") では環境差が出ることがあるため、アクションを一時生成して実行
@@ -499,6 +523,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var row = matrixGroup.add("group");
         for (var j = 0; j < 3; j++) {
             var r = row.add("radiobutton", undefined, "");
+            r.helpTip = L.tipAnchor;
             r.size = [15, 15];
             anchorRadios.push(r);
         }
@@ -516,6 +541,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     tweakXGroup.spacing = 5;
     tweakXGroup.add("statictext", undefined, L.x);
     var tweakXInput = tweakXGroup.add("edittext", undefined, "0");
+    tweakXInput.helpTip = L.tipTweak;
     tweakXInput.characters = 4;
     tweakXGroup.add("statictext", undefined, CURRENT_UNIT_LABEL);
 
@@ -524,6 +550,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     tweakYGroup.spacing = 5;
     tweakYGroup.add("statictext", undefined, L.y);
     var tweakYInput = tweakYGroup.add("edittext", undefined, "0");
+    tweakYInput.helpTip = L.tipTweak;
     tweakYInput.characters = 4;
     tweakYGroup.add("statictext", undefined, CURRENT_UNIT_LABEL);
 
@@ -539,14 +566,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     fitPanel.spacing = 8;
 
     var radioCover = fitPanel.add("radiobutton", undefined, L.cover);
+    radioCover.helpTip = L.tipCover;
     var radioContain = fitPanel.add("radiobutton", undefined, L.contain);
+    radioContain.helpTip = L.tipContain;
     var radioNone = fitPanel.add("radiobutton", undefined, L.none);
+    radioNone.helpTip = L.tipNone;
 
     var manualScaleGroup = fitPanel.add("group");
     manualScaleGroup.orientation = "row";
     manualScaleGroup.spacing = 5;
     var radioManual = manualScaleGroup.add("radiobutton", undefined, L.manual);
+    radioManual.helpTip = L.tipManual;
     var scaleInput = manualScaleGroup.add("edittext", undefined, initialScale);
+    scaleInput.helpTip = L.tipManual;
     scaleInput.characters = 6;
     manualScaleGroup.add("statictext", undefined, "%");
 
@@ -566,8 +598,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     maskPanel.spacing = 8;
 
     var maskNone = maskPanel.add("radiobutton", undefined, L.maskNone);
+    maskNone.helpTip = L.tipMaskNone;
     var radioFitFrame = maskPanel.add("radiobutton", undefined, L.fitFrame);
+    radioFitFrame.helpTip = L.tipFitFrame;
     var radioSquare = maskPanel.add("radiobutton", undefined, L.square);
+    radioSquare.helpTip = L.tipSquare;
 
     // --- 3.1 角丸 ---
     var roundPanel = rightCol.add("panel", undefined, L.roundPanel);
@@ -580,13 +615,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     roundGroup.orientation = "row";
     roundGroup.spacing = 5;
     var checkRound = roundGroup.add("checkbox", undefined, L.round);
+    checkRound.helpTip = L.tipRound;
     var defaultRound = getDefaultRoundRadiusFromMask(currentSelection[0]);
     var roundInput = roundGroup.add("edittext", undefined, (defaultRound != null ? String(defaultRound) : "10"));
+    roundInput.helpTip = L.tipRound;
     roundInput.characters = 4;
     roundGroup.add("statictext", undefined, CURRENT_UNIT_LABEL);
 
     // ［正円］（ロジックは後で追加）
     var checkCircle = roundPanel.add("checkbox", undefined, L.circle);
+    checkCircle.helpTip = L.tipCircle;
     checkCircle.value = false;
     updateCircleAvailability();
 

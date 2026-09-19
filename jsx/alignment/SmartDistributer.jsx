@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartDistributer";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDistributer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistributer.md"; /* README (English) */
@@ -198,7 +198,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var PREF_FILE = new File(Folder.userData + "/SmartDistributer/palette-position.txt");
     var SETTINGS_FILE = new File(Folder.userData + "/SmartDistributer/settings.txt");
 
-    var textUnit = app.preferences.getIntegerPreference("text/units");
     var savedSettings = loadSettings();
     var initialMode = savedSettings.mode !== undefined ? savedSettings.mode : "leading";
     var initialCustom = savedSettings.custom !== undefined ? savedSettings.custom : "0.1";
@@ -438,7 +437,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return value;  // カスタムは pt 指定
         }
         // 既定：環境設定のテキスト/行送り（表示単位込みで pt 換算）
-        return app.preferences.getRealPreference("text/sizeIncrement") * getUnitInfo(textUnit).pt;
+        return app.preferences.getRealPreference("text/sizeIncrement") * getUnitInfo("text/units").pointsPerUnit;
     }
 
     /* 矢印1回ぶんをメインエンジンへ送って適用（Shift で 10 倍） / Apply one step via the main engine (Shift = x10) */
@@ -700,30 +699,56 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ラジオラベルに環境設定の現在値を反映（表示単位込み） / Reflect current preference values in the radio labels */
     function refreshSourceLabels() {
-        textUnit = app.preferences.getIntegerPreference("text/units");
         // 行送りはテキスト単位（text/units）、キー増加は一般単位（rulerType）を参照
         var rulerType = app.preferences.getIntegerPreference("rulerType");
 
         // 行送り：値は text/units 単位そのまま
         var leadingValue = app.preferences.getRealPreference("text/sizeIncrement");
-        sourceTextLeadingRadio.text = getLabel("radio.sourceTextLeading") + "：" + leadingValue + getUnitInfo(textUnit).label;
+        sourceTextLeadingRadio.text = getLabel("radio.sourceTextLeading") + "：" + leadingValue + getUnitInfo("text/units").label;
 
         // キー増加：cursorKeyLength は pt で返るので一般単位へ換算して表示
-        var keyValue = app.preferences.getRealPreference("cursorKeyLength") / getUnitInfo(rulerType).pt;
+        var keyValue = app.preferences.getRealPreference("cursorKeyLength") / getUnitInfo("rulerType").pointsPerUnit;
         keyValue = Math.round(keyValue * 1000) / 1000;
-        sourceKeyInputRadio.text = getLabel("radio.sourceKeyInput") + "：" + keyValue + getUnitInfo(rulerType).label;
+        sourceKeyInputRadio.text = getLabel("radio.sourceKeyInput") + "：" + keyValue + getUnitInfo("rulerType").label;
     }
 
-    /* 単位コード（text/units・ruler 共通）→ ラベルと pt 換算係数 / Unit code to label and points-per-unit
-       0=inch, 1=mm, 2=pt, 3=pica, 4=cm, 5=Q, 6=px */
-    function getUnitInfo(unitType) {
-        if (unitType === 0) return { label: "inch", pt: 72 };
-        if (unitType === 1) return { label: "mm", pt: 72 / 25.4 };
-        if (unitType === 3) return { label: "pica", pt: 12 };
-        if (unitType === 4) return { label: "cm", pt: 72 / 2.54 };
-        if (unitType === 5) return { label: "Q", pt: 72 / 25.4 * 0.25 };  // 1Q = 0.25mm
-        if (unitType === 6) return { label: "px", pt: 1 };
-        return { label: "pt", pt: 1 };                                    // pt / 既定
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================================

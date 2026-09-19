@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RemoveEmptyArtboards";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveEmptyArtboards.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveEmptyArtboards.md"; /* README (English) */
@@ -43,22 +43,45 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: { ja: "空アートボードの削除", en: "Remove Empty Artboards" },
-        ignoreHidden: { ja: "非表示レイヤー、非表示オブジェクトは無視", en: "Ignore hidden layers and hidden objects" },
-        removalTarget: { ja: "削除対象アートボード数", en: "Artboards to remove" },
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        onlyOneArtboard: { ja: "アートボードが1枚しかないため削除できません。", en: "Only one artboard exists; cannot remove." }
+        dialog: {
+            title: { ja: "空アートボードの削除", en: "Remove Empty Artboards" }
+        },
+        fieldLabel: {
+            removalTarget: { ja: "削除対象アートボード数", en: "Artboards to remove" }
+        },
+        checkbox: {
+            ignoreHidden: { ja: "非表示レイヤー、非表示オブジェクトは無視", en: "Ignore hidden layers and hidden objects" }
+        },
+        tooltip: {
+            ignoreHidden: {
+                ja: "非表示のレイヤーやオブジェクトしか載っていないアートボードも「空」とみなします。オフにすると、見えていなくても中身があれば残します。",
+                en: "Treats an artboard holding only hidden layers or objects as empty. Off keeps it as long as anything is on it."
+            }
+        },
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument:      { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            onlyOneArtboard: { ja: "アートボードが1枚しかないため削除できません。", en: "Only one artboard exists; cannot remove." }
+        }
     };
 
     /* ラベル取得 / Get localized label by key */
-    function getLabel(key) {
-        return LABELS[key][uiLang];
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split('.');
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
     }
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === 'ja' ? '：' : ': ');
     }
 
     // =========================================
@@ -153,30 +176,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        countIgnore: 非表示を無視した場合の対象数 / count when ignoring hidden
        countAll:    非表示も占有とみなした場合の対象数 / count when hidden counts as occupant */
     function showOptionsDialog(countIgnore, countAll) {
-        var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.orientation = 'column';
         dialog.alignChildren = 'fill';
         dialog.margins = 16;
         dialog.spacing = 12;
 
         /* 削除対象数の表示 / Count summary */
-        var countText = dialog.add('statictext', undefined, labelText('removalTarget') + countIgnore);
+        var countText = dialog.add('statictext', undefined, labelText('fieldLabel.removalTarget') + countIgnore);
 
         /* オプション: 非表示要素を無視 / Option: ignore hidden elements */
-        var hiddenCheckbox = dialog.add('checkbox', undefined, getLabel('ignoreHidden'));
+        var hiddenCheckbox = dialog.add('checkbox', undefined, getLabel('checkbox.ignoreHidden'));
+        hiddenCheckbox.helpTip = getLabel('tooltip.ignoreHidden');
         hiddenCheckbox.value = true;
 
         /* ボタン行 (Mac 規約: Cancel → OK) / Button row (Mac convention) */
         var buttonGroup = dialog.add('group');
         buttonGroup.alignment = 'right';
-        buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-        var okButton = buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
+        buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        var okButton = buttonGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
         okButton.enabled = (countIgnore > 0);
 
         /* チェックボックス連動で件数と OK 活性を更新 / Sync count and OK state on toggle */
         hiddenCheckbox.onClick = function () {
             var c = hiddenCheckbox.value ? countIgnore : countAll;
-            countText.text = labelText('removalTarget') + c;
+            countText.text = labelText('fieldLabel.removalTarget') + c;
             okButton.enabled = (c > 0);
         };
 
@@ -190,13 +214,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function main() {
         if (app.documents.length === 0) {
-            alert(getLabel('noDocument'));
+            alert(getLabel('alert.noDocument'));
             return;
         }
 
         var doc = app.activeDocument;
         if (doc.artboards.length <= 1) {
-            alert(getLabel('onlyOneArtboard'));
+            alert(getLabel('alert.onlyOneArtboard'));
             return;
         }
 

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClearAppearance";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClearAppearance.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClearAppearance.md"; /* README (English) */
@@ -53,7 +53,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na4c70c5acd60"; /* 紹�
             textFailures: { ja: "テキスト処理の失敗", en: "Text processing failures" },
             actionFailures: { ja: "アクション実行の失敗", en: "Action execution failures" },
             selectionRestoreFailures: { ja: "選択の復元失敗", en: "Selection restoration failures" },
-            details: { ja: "詳細:", en: "Details:" }
+            details: { ja: "詳細：", en: "Details:" }
         },
         detailCategory: {
             path: { ja: "パス", en: "Path" },

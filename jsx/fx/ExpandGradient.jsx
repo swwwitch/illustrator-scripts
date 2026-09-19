@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExpandGradient";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExpandGradient.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExpandGradient.md"; /* README (English) */
@@ -99,6 +99,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
                 en: "Simple expand"
             },
             postProcessBlend: {
+            tipSteps: { ja: "グラデーションを何段階に分けるかです。多いほどなめらかになります。", en: "How many bands the gradient is split into. More bands look smoother." },
+            tipPostProcessNone: { ja: "分割したまま、後処理は行いません。", en: "Leaves the expanded bands as they are." },
+            tipPostProcessSimple: { ja: "隣り合う同色の帯をまとめて、パスの数を減らします。", en: "Merges neighbouring bands of the same color to cut down the number of paths." },
+            tipPostProcessBlend: { ja: "両端の帯からブレンドを作り直して、中間をなめらかにします。", en: "Rebuilds a blend from the end bands so the middle stays smooth." },
                 ja: "ブレンドに変換",
                 en: "Convert to blend"
             },
@@ -369,6 +373,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
         stepsRow.alignChildren = ["left", "center"];
         stepsRow.add("statictext", undefined, labelText("steps"));
         var stepsInput = stepsRow.add("edittext", undefined, String(defaultSteps));
+        stepsInput.helpTip = getLabel("tipSteps");
         stepsInput.characters = 5;
         stepsInput.active = true;
         changeValueByArrowKey(stepsInput);
@@ -379,8 +384,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbe084e691ba5"; /* 紹�
         postProcessPanel.margins = [15, 20, 15, 10];
 
         var postProcessNoneRb = postProcessPanel.add("radiobutton", undefined, getLabel("postProcessNone"));
+        postProcessNoneRb.helpTip = getLabel("tipPostProcessNone");
         var postProcessSimpleRb = postProcessPanel.add("radiobutton", undefined, getLabel("postProcessSimple"));
+        postProcessSimpleRb.helpTip = getLabel("tipPostProcessSimple");
         var postProcessBlendRb = postProcessPanel.add("radiobutton", undefined, getLabel("postProcessBlend"));
+        postProcessBlendRb.helpTip = getLabel("tipPostProcessBlend");
 
         postProcessSimpleRb.value = (defaultPostProcessMode === "simple");
         postProcessBlendRb.value = (defaultPostProcessMode === "blend");

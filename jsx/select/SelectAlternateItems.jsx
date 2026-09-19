@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectAlternateItems";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectAlternateItems.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlternateItems.md"; /* README (English) */
@@ -61,6 +61,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ja: "方向",
         en: "Direction"
       },
+      tipOdd: { ja: "並びの1番目から1つおきに選びます。", en: "Selects every other object starting from the first." },
+      tipEven: { ja: "並びの2番目から1つおきに選びます。", en: "Selects every other object starting from the second." },
+      tipVertical: { ja: "上から下の並び順で数えます。", en: "Counts the objects from top to bottom." },
+      tipHorizontal: { ja: "左から右の並び順で数えます。", en: "Counts the objects from left to right." },
+      tipZOrder: { ja: "重ね順（背面から前面）で数えます。位置ではなく前後関係で選びます。", en: "Counts the objects by stacking order, from back to front, rather than by position." },
       vertical: {
         ja: "垂直",
         en: "Vertical"
@@ -134,15 +139,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function showError(key, detail) {
       alert(getErrorMessage(key, detail));
-    }
-
-    function throwLocalizedError(key, detail) {
-      throw new Error(getErrorMessage(key, detail));
-    }
-
-    function debugLog(key, detail) {
-      if (typeof $.writeln !== "function") return;
-      $.writeln(getErrorLabel("debugPrefix") + getErrorMessage(key, detail));
     }
 
     /* プレビュー管理 / Preview manager
@@ -432,7 +428,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       selectGroup.alignChildren = "left";
 
       var oddRadio = selectGroup.add("radiobutton", undefined, getUILabel("odd"));
+      oddRadio.helpTip = getUILabel("tipOdd");
       var evenRadio = selectGroup.add("radiobutton", undefined, getUILabel("even"));
+      evenRadio.helpTip = getUILabel("tipEven");
       oddRadio.value = true; // デフォルトは奇数 / Default is odd
 
       function setAlternateSelectionMode(selectionMode) {
@@ -452,8 +450,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       dirGroup.alignChildren = "left";
 
       var verticalRadio = dirGroup.add("radiobutton", undefined, getUILabel("vertical"));
+      verticalRadio.helpTip = getUILabel("tipVertical");
       var horizontalRadio = dirGroup.add("radiobutton", undefined, getUILabel("horizontal"));
+      horizontalRadio.helpTip = getUILabel("tipHorizontal");
       var zOrderRadio = dirGroup.add("radiobutton", undefined, getUILabel("zOrder"));
+      zOrderRadio.helpTip = getUILabel("tipZOrder");
 
       function setDirectionMode(directionMode) {
         verticalRadio.value = (directionMode === "vertical");

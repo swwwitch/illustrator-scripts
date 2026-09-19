@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "QuickTransformPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/QuickTransformPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/QuickTransformPalette.md"; /* README (English) */
@@ -150,29 +150,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     		return getLabel(labelPath) + (currentLanguage === 'ja' ? '：' : ':');
     	}
 
-    	// =========================================
-    	// 単位 / Units
-    	// =========================================
-    	/* 定規の単位ID（rulerType）順に、表示ラベルと pt 換算係数を並べる / Label and pt factor per ruler unit id (rulerType) */
-    	var RULER_UNITS = [
-    		{ label: "inch", factor: 72.0 },                /* 0 */
-    		{ label: "mm",   factor: 72.0 / 25.4 },         /* 1 */
-    		{ label: "pt",   factor: 1.0 },                 /* 2 */
-    		{ label: "pica", factor: 12.0 },                /* 3 */
-    		{ label: "cm",   factor: 72.0 / 2.54 },         /* 4 */
-    		{ label: "Q",    factor: 72.0 / 25.4 * 0.25 },  /* 5 */
-    		{ label: "px",   factor: 1.0 }                  /* 6 */
-    	];
-    	var FALLBACK_RULER_UNIT_INDEX = 2; /* 判別できないときは pt 扱い / Fall back to pt */
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    	/**
-    	 * 定規の単位からラベルと pt 換算係数を求める
-    	 * @returns {{label: string, factor: number}} 単位ラベルと pt 換算係数
-    	 */
-    	function getRulerUnitInfo() {
-    		var rulerType = app.preferences.getIntegerPreference("rulerType");
-    		return RULER_UNITS[rulerType] || RULER_UNITS[FALLBACK_RULER_UNIT_INDEX];
-    	}
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    	var FALLBACK_RULER_UNIT_INDEX = 2; /* 判別できないときは pt 扱い / Fall back to pt */
 
     	// =========================================
     	// 状態 / State
@@ -1368,7 +1378,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     		marginGroup.add('statictext', undefined, getLabelWithColon('fieldLabel.margin'));
     		var marginInput = marginGroup.add('edittext', undefined, String(DEFAULT_MARGIN));
     		marginInput.characters = FIELD_CHARS;
-    		var unitLabel = marginGroup.add('statictext', undefined, getRulerUnitInfo().label);
+    		var unitLabel = marginGroup.add('statictext', undefined, getUnitInfo().label);
     		changeValueByArrowKey(marginInput, true); /* 負値を許可（マイナスで重なり方向へ）/ allow negatives (moves toward overlap) */
 
     		var previewBoundsCheck = optionsPanel.add('checkbox', undefined, getLabel('checkbox.previewBounds'));
@@ -1380,13 +1390,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n277bd0865986"; /* 紹�
     		 * @returns {{marginPt: number, usePreviewBounds: boolean}} 変形に使う設定
     		 */
     		function readSettings() {
-    			var unitInfo = getRulerUnitInfo();
+    			var unitInfo = getUnitInfo();
     			unitLabel.text = unitInfo.label; /* 単位表示を更新 / refresh the unit label */
     			var marginValue = parseFloat(marginInput.text);
     			if (isNaN(marginValue)) { marginValue = 0; } /* 負値は許容（マイナスで重なり方向へ）/ Negatives allowed (moves toward overlap) */
     			marginInput.text = String(marginValue);
     			return {
-    				marginPt: marginValue * unitInfo.factor,
+    				marginPt: marginValue * unitInfo.pointsPerUnit,
     				usePreviewBounds: previewBoundsCheck.value
     			};
     		}

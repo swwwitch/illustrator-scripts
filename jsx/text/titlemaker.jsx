@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "titlemaker";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/titlemaker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/titlemaker.md"; /* README (English) */
@@ -78,6 +78,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
+        tooltip: {
+            targetChar: { ja: "この文字の後ろで改行します。", en: "Inserts a line break after this character." },
+            caseParticle: { ja: "「が」「を」「に」などの格助詞を小さくします。", en: "Shrinks case particles such as \u0022\u304c\u0022, \u0022\u3092\u0022, and \u0022\u306b\u0022." },
+            hiragana: { ja: "ひらがなをまとめて小さくします。", en: "Shrinks all hiragana." },
+            size: { ja: "小さくするときの大きさです。元のフォントサイズに対する割合で指定します。", en: "Size applied when shrinking, as a percentage of the original font size." }
+        },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noSelection: { ja: "テキストを選択してください。", en: "Please select text." },
@@ -105,14 +111,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(keyPath) {
         return getLabel(keyPath) + (currentLanguage === "ja" ? "：" : ":");
-    }
-
-    /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
-    function labelWithCount(keyPath, count) {
-        if (currentLanguage === "ja") {
-            return getLabel(keyPath) + "（" + count + "）";
-        }
-        return getLabel(keyPath) + " (" + count + ")";
     }
 
     // =========================================
@@ -194,6 +192,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var targetCheckboxes = [];
         for (var i = 0; i < TARGET_CHARS.length; i++) {
             var targetCheckbox = targetPanel.add("checkbox", undefined, TARGET_CHARS[i].mark);
+            targetCheckbox.helpTip = getLabel("tooltip.targetChar");
             targetCheckbox.value = TARGET_CHARS[i].on;
             targetCheckboxes.push(targetCheckbox);
         }
@@ -203,7 +202,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(sizePanel, 6);
 
         var caseParticleCheckbox = sizePanel.add("checkbox", undefined, getLabel("checkbox.caseParticle"));
+        caseParticleCheckbox.helpTip = getLabel("tooltip.caseParticle");
         var hiraganaCheckbox = sizePanel.add("checkbox", undefined, getLabel("checkbox.hiragana"));
+        hiraganaCheckbox.helpTip = getLabel("tooltip.hiragana");
 
         /* サイズ：［　］% の入力行 / Size: [ ] % input row */
         var sizeGroup = sizePanel.add("group");
@@ -211,6 +212,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sizeGroup.add("statictext", undefined, labelText("field.size"));
         var sizeField = sizeGroup.add("edittext", undefined, String(DEFAULT_SIZE_PERCENT));
         sizeField.characters = 4;
+        sizeField.helpTip = getLabel("tooltip.size");
         sizeGroup.add("statictext", undefined, "%");
 
         /* ボタン（Mac 規約: キャンセル → OK、OK は右）/ Buttons (Mac convention: Cancel → OK, OK on the right) */

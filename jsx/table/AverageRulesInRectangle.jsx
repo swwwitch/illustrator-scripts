@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AverageRulesInRectangle";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AverageRulesInRectangle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRulesInRectangle.md"; /* README (English) */
@@ -62,6 +62,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         matchRuleLengths: {
             ja: "長さを揃える",
             en: "Match rule lengths"
+        },
+        tipAverageHorizontal: {
+            ja: "長方形の中にある横罫の間隔を均等にします。",
+            en: "Evens out the spacing of the horizontal rules inside the rectangle."
+        },
+        tipAverageVertical: {
+            ja: "長方形の中にある縦罫の間隔を均等にします。",
+            en: "Evens out the spacing of the vertical rules inside the rectangle."
+        },
+        tipMatchRuleLengths: {
+            ja: "罫の長さを長方形の辺にそろえます。",
+            en: "Matches the length of the rules to the sides of the rectangle."
+        },
+        tipPreview: {
+            ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+            en: "Shows the result on the canvas. Cancel restores the original layout."
         },
         preview: {
             ja: "プレビュー",
@@ -202,14 +218,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             setupPanel(targetPanel, 6);
 
             var horizontalRulesCheckbox = targetPanel.add("checkbox", undefined, getLabel("averageHorizontal"));
+            horizontalRulesCheckbox.helpTip = getLabel("tipAverageHorizontal");
             horizontalRulesCheckbox.value = false;
             horizontalRulesCheckbox.enabled = horizontalLineCount > 0;
 
             var verticalRulesCheckbox = targetPanel.add("checkbox", undefined, getLabel("averageVertical"));
+            verticalRulesCheckbox.helpTip = getLabel("tipAverageVertical");
             verticalRulesCheckbox.value = false;
             verticalRulesCheckbox.enabled = verticalLineCount > 0;
 
             var matchRuleLengthsCheckbox = targetPanel.add("checkbox", undefined, getLabel("matchRuleLengths"));
+            matchRuleLengthsCheckbox.helpTip = getLabel("tipMatchRuleLengths");
             matchRuleLengthsCheckbox.value = false;
             matchRuleLengthsCheckbox.enabled = horizontalLineCount > 0 || verticalLineCount > 0;
 
@@ -218,6 +237,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             previewGroup.alignment = "center";
 
             var previewCheckbox = previewGroup.add("checkbox", undefined, getLabel("preview"));
+            previewCheckbox.helpTip = getLabel("tipPreview");
             previewCheckbox.value = true;
 
             var buttonGroup = dialog.add("group");

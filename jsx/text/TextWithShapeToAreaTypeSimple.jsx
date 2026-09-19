@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextWithShapeToAreaTypeSimple"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextWithShapeToAreaTypeSimple.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextWithShapeToAreaTypeSimple.md"; /* README (English) */
@@ -67,9 +67,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             sizeAdjustPanel: { ja: "大きさ調整", en: "Size adjustment" },
             doAdjust: { ja: "する", en: "On" },
             dontAdjust: { ja: "しない", en: "Off" },
-            widthRatio: { ja: "幅：", en: "Width:" },
-            heightRatio: { ja: "高さ：", en: "Height:" },
+            widthRatio: { ja: "幅", en: "Width" },
+            heightRatio: { ja: "高さ", en: "Height" },
             cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        /* ツールチップ / Tooltips */
+        tooltip: {
+            doAdjust: { ja: "テキストの大きさに対する割合で、エリアの大きさを決めます。", en: "Sizes the area as a percentage of the text." },
+            dontAdjust: { ja: "選択した図形の大きさをそのまま使います。", en: "Uses the size of the selected shape as it is." },
+            widthRatio: { ja: "テキストの幅に対する割合です。", en: "Percentage of the text width." },
+            heightRatio: { ja: "テキストの高さに対する割合です。", en: "Percentage of the text height." }
         }
     };
 
@@ -82,6 +89,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             else { return null; }
         }
         return node;
+    }
+
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(key) {
+        return getLabel(key) + (currentLanguage === "ja" ? "：" : ": ");
     }
 
     /* キーからローカライズ文字列を取得 / Get a localized string by key */
@@ -678,22 +690,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 大きさ調整 する / しない / Size adjustment on / off
         var adjustModeGroup = sizeAdjustPanel.add("group");
         var adjustOnRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("ui.doAdjust"));
+        adjustOnRadio.helpTip = getLabel("tooltip.doAdjust");
         var adjustOffRadio = adjustModeGroup.add("radiobutton", undefined, getLabel("ui.dontAdjust"));
+        adjustOffRadio.helpTip = getLabel("tooltip.dontAdjust");
         adjustOffRadio.value = true; // 既定は「しない」/ Default: off
 
         // 幅・高さの倍率（別々の行、百分率 % で入力）/ Width and height ratios (separate rows, entered as %)
         var widthRow = sizeAdjustPanel.add("group");
-        var widthLabel = widthRow.add("statictext", undefined, getLabel("ui.widthRatio"));
+        var widthLabel = widthRow.add("statictext", undefined, labelText("ui.widthRatio"));
         widthLabel.preferredSize.width = 44;
         var widthInput = widthRow.add("edittext", undefined, String(Math.round(BUTTON_WIDTH_RATIO * 100)));
         widthInput.characters = 5;
+        widthInput.helpTip = getLabel("tooltip.widthRatio");
         widthRow.add("statictext", undefined, "%");
 
         var heightRow = sizeAdjustPanel.add("group");
-        var heightLabel = heightRow.add("statictext", undefined, getLabel("ui.heightRatio"));
+        var heightLabel = heightRow.add("statictext", undefined, labelText("ui.heightRatio"));
         heightLabel.preferredSize.width = 44;
         var heightInput = heightRow.add("edittext", undefined, String(Math.round(BUTTON_HEIGHT_RATIO * 100)));
         heightInput.characters = 5;
+        heightInput.helpTip = getLabel("tooltip.heightRatio");
         heightRow.add("statictext", undefined, "%");
 
         function updateRatioInputsEnabled() {

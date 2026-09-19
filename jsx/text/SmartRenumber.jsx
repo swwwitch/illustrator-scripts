@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartRenumber";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-01-09";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenumber.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenumber.md"; /* README (English) */
@@ -68,7 +68,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     var LABELS = {
         dialogTitle: { ja: "連番振り直し", en: "Smart Renumber" },
-        startNum: { ja: "開始番号:", en: "Start Number:" },
+        startNum: { ja: "開始番号", en: "Start Number" },
         sortOrder: { ja: "並び順", en: "Sort Order" },
         textAdd: { ja: "テキスト追加", en: "Text Addition" },
         prefix: { ja: "接頭辞", en: "Prefix" },
@@ -85,10 +85,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cancel: { ja: "キャンセル", en: "Cancel" },
         errNoDoc: { ja: "ドキュメントが開かれていません。", en: "No document open." },
         errNoSelection: { ja: "テキストオブジェクトを選択してください。", en: "Please select text objects." },
-        errNoNumeric: { ja: "数字が入力されたテキストオブジェクトが見つかりませんでした。", en: "No numeric text objects found." }
+        errNoNumeric: { ja: "数字が入力されたテキストオブジェクトが見つかりませんでした。", en: "No numeric text objects found." },
+        tipStartNum: { ja: "振り直しの最初の数字です。", en: "First number of the new sequence." },
+        tipCurrentVal: { ja: "いま入っている数字の小さい順に振り直します。", en: "Renumbers in ascending order of the current values." },
+        tipVertical: { ja: "上にあるものから順に振り直します。", en: "Renumbers from the topmost object down." },
+        tipHorizontal: { ja: "左にあるものから順に振り直します。", en: "Renumbers from the leftmost object to the right." },
+        tipZPattern: { ja: "行ごとに左から右へ、行を上から下へ進みます。", en: "Moves left to right within a row, then down to the next row." },
+        tipNPattern: { ja: "列ごとに上から下へ、列を左から右へ進みます。", en: "Moves top to bottom within a column, then right to the next column." },
+        tipStackTop: { ja: "重ね順の前面にあるものから順に振り直します。", en: "Renumbers from the frontmost object backward." },
+        tipReverse: { ja: "並び順を逆さにして振り直します。", en: "Reverses the order before renumbering." },
+        tipZeroPad: { ja: "いちばん大きい番号の桁数に合わせて、頭に0を足します。", en: "Pads with leading zeros to match the widest number." },
+        tipPrefix: { ja: "番号の前に付ける文字列です。", en: "Text placed before the number." },
+        tipSuffix: { ja: "番号の後ろに付ける文字列です。", en: "Text placed after the number." }
     };
 
-    function getLabel(key) { return LABELS[key][uiLang] || LABELS[key]["en"]; }
+    function getLabel(key) {
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.en || key;
+    }
+
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    }
 
     main();
 
@@ -143,11 +163,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 開始番号
         var groupStart = leftCol.add("group");
-        groupStart.add("statictext", undefined, getLabel('startNum'));
+        groupStart.add("statictext", undefined, labelText('startNum'));
         var inputNumber = groupStart.add("edittext", undefined, "");
         var initialMin = textObjects.slice().sort(function (a, b) { return a.value - b.value; })[0].value;
         inputNumber.text = initialMin;
         inputNumber.characters = 8;
+        inputNumber.helpTip = getLabel('tipStartNum');
         inputNumber.active = true;
 
         // 並び順パネル
@@ -158,11 +179,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sortPanel.spacing = 4;
 
         var rbIgnore = sortPanel.add("radiobutton", undefined, getLabel('currentVal'));
+        rbIgnore.helpTip = getLabel('tipCurrentVal');
         var rbVertical = sortPanel.add("radiobutton", undefined, getLabel('vertical'));
+        rbVertical.helpTip = getLabel('tipVertical');
         var rbHorizontal = sortPanel.add("radiobutton", undefined, getLabel('horizontal'));
+        rbHorizontal.helpTip = getLabel('tipHorizontal');
         var rbZ = sortPanel.add("radiobutton", undefined, getLabel('zPattern'));
+        rbZ.helpTip = getLabel('tipZPattern');
         var rbN = sortPanel.add("radiobutton", undefined, getLabel('nPattern'));
+        rbN.helpTip = getLabel('tipNPattern');
         var rbStackTop = sortPanel.add("radiobutton", undefined, getLabel('stackTop'));
+        rbStackTop.helpTip = getLabel('tipStackTop');
         rbIgnore.value = true;
 
         // オプション（横並び）
@@ -170,7 +197,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         optionsGroup.orientation = "row";
         optionsGroup.spacing = 20;
         var chkReverse = optionsGroup.add("checkbox", undefined, getLabel('reverse'));
+        chkReverse.helpTip = getLabel('tipReverse');
         var chkZeroPad = optionsGroup.add("checkbox", undefined, getLabel('zeroPad'));
+        chkZeroPad.helpTip = getLabel('tipZeroPad');
 
         // テキスト追加パネル
         var textAddPanel = leftCol.add("panel", undefined, getLabel('textAdd'));
@@ -180,14 +209,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         textAddPanel.spacing = 8;
 
         var groupPrefix = textAddPanel.add("group");
-        groupPrefix.add("statictext", undefined, getLabel('prefix'));
+        groupPrefix.add("statictext", undefined, labelText('prefix'));
         var inputPrefix = groupPrefix.add("edittext", undefined, "");
         inputPrefix.characters = 12;
+        inputPrefix.helpTip = getLabel('tipPrefix');
 
         var groupSuffix = textAddPanel.add("group");
-        groupSuffix.add("statictext", undefined, getLabel('suffix'));
+        groupSuffix.add("statictext", undefined, labelText('suffix'));
         var inputSuffix = groupSuffix.add("edittext", undefined, "");
         inputSuffix.characters = 12;
+        inputSuffix.helpTip = getLabel('tipSuffix');
 
         /* 右カラム */
         var rightCol = win.add("group");

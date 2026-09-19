@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManager-unit";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-unit.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager-unit.md"; /* README (English) */
@@ -48,6 +48,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "まとめて環境設定 " + SCRIPT_VERSION,
             en: "Preferences " + SCRIPT_VERSION
         },
+        tipModePrintPt: { ja: "一般=mm、線=pt、文字=pt にまとめて切り替えます。", en: "Sets General=mm, Stroke=pt, Text=pt." },
+        tipModePrintQ: { ja: "一般=mm、線=mm、文字=Q にまとめて切り替えます。", en: "Sets General=mm, Stroke=mm, Text=Q." },
+        tipModeOnscreen: { ja: "すべての単位を px に切り替えます。", en: "Sets every unit to px." },
+        tipUnitGeneral: { ja: "定規やパネルに表示される、既定の長さの単位です。", en: "Default unit shown on rulers and panels." },
+        tipUnitStroke: { ja: "線幅の入力・表示に使う単位です。", en: "Unit used for stroke weights." },
+        tipUnitType: { ja: "フォントサイズや行送りに使う単位です。", en: "Unit used for font size and leading." },
+        tipUnitAsian: { ja: "東アジア言語のオプションで使う単位です。", en: "Unit used for East Asian typography options." },
+        tipKeyValue: { ja: "矢印キー1回で動く距離です。", en: "How far one arrow key press moves things." },
+        tipCornerRadius: { ja: "角丸ツールの既定の半径です。", en: "Default radius used by the rounded rectangle tool." },
+        tipSizeValue: { ja: "文字サイズ・行送りを増減する1回ぶんの量です。", en: "How much one step changes the type size or leading." },
+        tipBaselineValue: { ja: "ベースラインシフトを増減する1回ぶんの量です。", en: "How much one step changes the baseline shift." },
+        tipFontEnglish: { ja: "フォント名を英語表記で表示します。", en: "Shows font names in English." },
+        tipRecentFonts: { ja: "フォントメニューの先頭に並ぶ「最近使用したフォント」の表示件数です。0 で非表示になります。", en: "How many recently used fonts appear at the top of the font menu. 0 hides the list." },
+        tipGlyphBounds: { ja: "整列の基準を、仮想ボディではなく字形の実際の輪郭にします。", en: "Aligns text by the actual glyph outlines instead of the em box." },
         modePrintPt: {
             ja: "プリント（pt）",
             en: "Print (pt)"
@@ -216,68 +230,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         });
     }
 
-    /* 単位コードとラベルのマップ / Unit Code to Label Map */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H", // Use a neutral value for code 5
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * Get the unit label for a given code and preference key.
-     * @param {number} code - The unit code.
-     * @param {string} [prefKey] - The preference key (e.g., "text/units", "text/asianunits").
-     * @returns {string} The appropriate label.
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getUnitLabel(code, prefKey) {
-        // If code is not 5, just return mapping
-        if (code !== 5) return unitLabelMap[code] || "pt";
-        // For code 5, determine by prefKey context
-        if (prefKey === "text/units") {
-            return "Q";
-        } else if (prefKey === "text/asianunits") {
-            return "H";
-        }
-        // Otherwise, use neutral or fallback
-        return "Q/H";
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
+
+    /**
+     * 単位コードと環境設定キーから表示ラベルを返す
+     * @param {number} unitCode - 単位コード
+     * @param {string} [prefKey] - 環境設定キー（単位コード5の Q／H を分けるために使う）
+     * @returns {string} 表示ラベル
+     */
+    function getUnitLabel(unitCode, prefKey) {
+        var unit = UNITS[unitCode] || UNITS[2];
+        return (unitCode === 5 && HA_UNIT_PREF_KEYS[prefKey || "rulerType"]) ? "H" : unit.label;
     }
 
     /* 単位換算ユーティリティ / Unit conversion utilities */
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0:
-                return 72.0; // in
-            case 1:
-                return 72.0 / 25.4; // mm
-            case 2:
-                return 1.0; // pt
-            case 3:
-                return 12.0; // pica
-            case 4:
-                return 72.0 / 2.54; // cm
-            case 5:
-                return 72.0 / 25.4 * 0.25; // Q or H
-            case 6:
-                return 1.0; // px
-            case 7:
-                return 72.0 * 12.0; // ft/in
-            case 8:
-                return 72.0 / 25.4 * 1000.0; // m
-            case 9:
-                return 72.0 * 36.0; // yd
-            case 10:
-                return 72.0 * 12.0; // ft
-            default:
-                return 1.0;
-        }
+    function getPtFactorFromUnitCode(unitCode) {
+        return (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
     }
 
     function convertFromPt(valuePt, unitCode) {
@@ -336,8 +334,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         modeGroup.margins = [15, 10, 15, 10];
 
         var radioPrintPt = modeGroup.add('radiobutton', undefined, LABELS.modePrintPt[uiLang]);
+        radioPrintPt.helpTip = LABELS.tipModePrintPt[uiLang];
         var radioPrintQ = modeGroup.add('radiobutton', undefined, LABELS.modePrintQ[uiLang]);
+        radioPrintQ.helpTip = LABELS.tipModePrintQ[uiLang];
         var radioOnscreen = modeGroup.add('radiobutton', undefined, LABELS.modeOnscreen[uiLang]);
+        radioOnscreen.helpTip = LABELS.tipModeOnscreen[uiLang];
         // radioPrintPt.value = true; // デフォルト選択を無効化
         // None selected by default; set all to false on dialog show
         dialog.onShow = function() {
@@ -384,6 +385,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var keyValuePt = pref.getRealPreference("cursorKeyLength");
         var keyValue = convertFromPt(keyValuePt, unitCodeKey);
         var inputKey = groupKeyInput.add('edittext', undefined, keyValue.toFixed(1));
+        inputKey.helpTip = LABELS.tipKeyValue[uiLang];
         inputKey.characters = 4;
         var unitLabelKey = groupKeyInput.add('statictext', undefined, getGeneralUnitLabel());
         unitLabelKey.characters = 4; // 幅を広げる
@@ -408,6 +410,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var cornerValuePt = pref.getRealPreference("ovalRadius");
         var cornerValue = convertFromPt(cornerValuePt, cornerUnitCode);
         var inputCornerRadius = groupCornerRadius.add('edittext', undefined, cornerValue.toFixed(1));
+        inputCornerRadius.helpTip = LABELS.tipCornerRadius[uiLang];
         inputCornerRadius.characters = 4;
         var unitLabelCorner = groupCornerRadius.add('statictext', undefined, getGeneralUnitLabel());
         unitLabelCorner.characters = 4; // 幅を広げる
@@ -448,6 +451,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sizeValuePt = pref.getRealPreference("text/sizeIncrement");
         var sizeValue = convertFromPt(sizeValuePt, sizeUnitCode);
         var inputLeading = groupLeading.add('edittext', undefined, sizeValue.toFixed(1));
+        inputLeading.helpTip = LABELS.tipSizeValue[uiLang];
         inputLeading.characters = 4;
         var unitLabelLeading = groupLeading.add('statictext', undefined, getTextUnitLabel());
         unitLabelLeading.characters = 4; // 幅を広げる
@@ -472,6 +476,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var baselineValuePt = pref.getRealPreference("text/riseIncrement");
         var baselineValue = convertFromPt(baselineValuePt, baselineUnitCode);
         var inputBaseline = groupBaseline.add('edittext', undefined, baselineValue.toFixed(1));
+        inputBaseline.helpTip = LABELS.tipBaselineValue[uiLang];
         inputBaseline.characters = 4;
         var unitLabelBaseline = groupBaseline.add('statictext', undefined, getAsianUnitLabel());
         unitLabelBaseline.characters = 4; // 幅を広げる
@@ -497,10 +502,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var dropdown = group.add('dropdownlist', undefined, []);
             dropdown.characters = 9; // ← 幅を6文字分に指定
-            /* ラベルを追加 */
-            for (var code in unitLabelMap) {
-                var labelText = getUnitLabel(Number(code), prefKey);
-                dropdown.add('item', labelText);
+            /* ラベルを追加（添字が単位コード）/ Add the labels (the index is the unit code) */
+            for (var code = 0; code < UNITS.length; code++) {
+                dropdown.add('item', getUnitLabel(code, prefKey));
             }
 
             var currentCode = app.preferences.getIntegerPreference(prefKey);
@@ -508,9 +512,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             dropdown.onChange = function() {
                 var selectedLabel = dropdown.selection.text;
-                for (var c in unitLabelMap) {
-                    if (getUnitLabel(Number(c), prefKey) === selectedLabel) {
-                        app.preferences.setIntegerPreference(prefKey, parseInt(c, 10));
+                for (var c = 0; c < UNITS.length; c++) {
+                    if (getUnitLabel(c, prefKey) === selectedLabel) {
+                        app.preferences.setIntegerPreference(prefKey, c);
                         break;
                     }
                 }
@@ -630,6 +634,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         textPanel.margins = [8, 20, 8, 15];
 
         var checkboxFontEnglish = textPanel.add('checkbox', undefined, LABELS.fontEnglish[uiLang]);
+        checkboxFontEnglish.helpTip = LABELS.tipFontEnglish[uiLang];
         checkboxFontEnglish.value = app.preferences.getBooleanPreference("text/useEnglishFontNames");
         checkboxFontEnglish.onClick = function() {
             app.preferences.setBooleanPreference("text/useEnglishFontNames", checkboxFontEnglish.value === true);
@@ -641,9 +646,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         groupRecentFonts.orientation = 'row';
 
         var checkboxRecentFonts = groupRecentFonts.add('checkbox', undefined, LABELS.recentFonts[uiLang]);
+        checkboxRecentFonts.helpTip = LABELS.tipRecentFonts[uiLang];
         checkboxRecentFonts.value = (currentRecentCount > 0);
 
         var inputRecentFonts = groupRecentFonts.add('edittext', undefined, currentRecentCount.toString());
+        inputRecentFonts.helpTip = LABELS.tipRecentFonts[uiLang];
         inputRecentFonts.characters = 3;
         inputRecentFonts.enabled = checkboxRecentFonts.value;
 
@@ -676,6 +683,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         glyphPanel.margins = [8, 20, 8, 15];
 
         var checkboxPoint = glyphPanel.add('checkbox', undefined, LABELS.pointText[uiLang]);
+        checkboxPoint.helpTip = LABELS.tipGlyphBounds[uiLang];
         checkboxPoint.value = app.preferences.getBooleanPreference('EnableActualPointTextSpaceAlign');
 
         var checkboxArea = glyphPanel.add('checkbox', undefined, LABELS.areaText[uiLang]);

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartSliceWithPuzzlify";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSliceWithPuzzlify.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSliceWithPuzzlify.md"; /* README (English) */
@@ -57,6 +57,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     ruleCheck: { ja: "ケイ（1ptの罫線を追加）", en: "Add Stroke (1pt)" },
     roundCheck: { ja: "角丸", en: "Apply Round Corners" },
     shapeLabel: { ja: "形状：", en: "Shape:" },
+    tipModeGrid: { ja: "画像を格子状に切り分けます。", en: "Cuts the image into a plain grid." },
+    tipModePuzzle: { ja: "画像をジグソーパズルのピース状に切り分けます。", en: "Cuts the image into jigsaw puzzle pieces." },
+    tipTotalPieces: { ja: "作るピースの総数です。行数・列数はここから決まります。", en: "Total number of pieces. The rows and columns follow from it." },
+    tipColumns: { ja: "横に並べるピースの数です。", en: "How many pieces to place across." },
+    tipRows: { ja: "縦に並べるピースの数です。", en: "How many pieces to place down." },
+    tipShapeTraditional: { ja: "はめ込みの突起を規則的に並べた、よくあるパズル形状にします。", en: "Uses the familiar puzzle shape with regularly placed tabs." },
+    tipShapeRandom: { ja: "突起の向きや大きさをランダムにします。", en: "Randomizes the direction and size of the tabs." },
+    tipOffset: { ja: "ピースの輪郭を内側／外側へずらします。マイナスで内側に細くなります。", en: "Offsets the outline of each piece. A negative value shrinks it inward." },
+    tipOverlap: { ja: "隣り合うピースを重ねる幅です。継ぎ目を目立たせたくないときに使います。", en: "How far neighbouring pieces overlap. Use it to hide the seams." },
+    tipScatter: { ja: "切り分けたピースを少しずつずらして散らします。", en: "Nudges the finished pieces apart so they scatter." },
+    tipScatterStrength: { ja: "散らす強さです。大きいほど大きくずれます。", en: "How far the pieces scatter. Larger values spread them further." },
+    tipRule: { ja: "各ピースに1ptのケイ線を追加します。", en: "Adds a 1pt stroke to each piece." },
+    tipRound: { ja: "ピースの角を丸めます。右の欄で半径を指定します。", en: "Rounds the corners of each piece. The field on the right sets the radius." },
     alertMaskNotPath: {
       ja: "マスク用オブジェクトが PathItem ではないため、マスクをスキップします。",
       en: "The mask object is not a PathItem, so the mask step will be skipped."
@@ -107,44 +120,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     return LABELS[key][uiLang];
   }
 
-  // 単位コードとラベルのマップ
-  var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-  };
+  // =========================================
+  // 単位 / Units
+  // =========================================
 
-  // 現在の単位ラベルを取得
-  function getCurrentUnitLabel() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    return unitLabelMap[unitCode] || "pt";
-  }
+  /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+     Unit code -> display label and points per unit */
+  var UNITS = [
+      { label: "in",    pointsPerUnit: 72 },                /* 0 */
+      { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+      { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+      { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+      { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+      { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+      { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+      { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+      { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+      { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+      { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+  ];
 
-  // 現在の単位→pt 変換係数 / Unit-to-pt conversion factor
-  function getUnitToPtFactor() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    switch (unitCode) {
-      case 0: return 72;               /* in */
-      case 1: return 72 / 25.4;        /* mm */
-      case 2: return 1;                /* pt */
-      case 3: return 12;               /* pica */
-      case 4: return 72 / 2.54;        /* cm */
-      case 5: return 72 / 25.4 * 0.25; /* Q */
-      case 6: return 1;                /* px */
-      case 7: return 72;               /* ft/in */
-      case 8: return 72 / 0.0254;      /* m */
-      case 9: return 72 * 36;          /* yd */
-      case 10: return 72 * 12;         /* ft */
-      default: return 1;
-    }
+  /**
+   * 環境設定キーの単位を返す
+   * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+   * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+   */
+  function getUnitInfo(prefKey) {
+      var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+      /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+      var unit = UNITS[unitCode] || UNITS[2];
+      return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
   }
 
   // 画像サイズに基づく初期グリッドサイズを計算
@@ -229,7 +234,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     modeGroup.orientation = "row";
     modeGroup.alignChildren = "left";
     var modeRadioGrid = modeGroup.add("radiobutton", undefined, LABELS.modeGridSplit[uiLang]);
+    modeRadioGrid.helpTip = LABELS.tipModeGrid[uiLang];
     var modeRadioPuzzle = modeGroup.add("radiobutton", undefined, LABELS.modePuzzle[uiLang]);
+    modeRadioPuzzle.helpTip = LABELS.tipModePuzzle[uiLang];
     modeRadioGrid.value = true;
 
     /* 縦積みのパネル群 / Vertically stacked panels */
@@ -249,6 +256,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     totalPiecesGroup.alignment = "left";
     var totalPiecesLabel = totalPiecesGroup.add("statictext", undefined, LABELS.totalPieces[uiLang]);
     var totalPiecesInput = totalPiecesGroup.add("edittext", undefined, "25");
+    totalPiecesInput.helpTip = LABELS.tipTotalPieces[uiLang];
     totalPiecesInput.characters = 4;
 
     /* 列数・行数 */
@@ -259,11 +267,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     colGroup.orientation = 'row';
     colGroup.add('statictext', undefined, LABELS.columns[uiLang]);
     var columnsInput = colGroup.add('edittext', undefined, "6");
+    columnsInput.helpTip = LABELS.tipColumns[uiLang];
     columnsInput.characters = 3;
     var rowGroup = rowColGroup.add('group');
     rowGroup.orientation = 'row';
     rowGroup.add('statictext', undefined, LABELS.rows[uiLang]);
     var rowsInput = rowGroup.add('edittext', undefined, "4");
+    rowsInput.helpTip = LABELS.tipRows[uiLang];
     rowsInput.characters = 3;
 
     function getSelectedArtworkSize() {
@@ -322,7 +332,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     shapeOptions.alignChildren = "left";
 
     var shapeRadioTraditional = shapeOptions.add("radiobutton", undefined, LABELS.shapeTraditional[uiLang]);
+    shapeRadioTraditional.helpTip = LABELS.tipShapeTraditional[uiLang];
     var shapeRadioRandom = shapeOptions.add("radiobutton", undefined, LABELS.shapeRandom[uiLang]);
+    shapeRadioRandom.helpTip = LABELS.tipShapeRandom[uiLang];
     shapeRadioTraditional.value = true;
 
     /* オフセット */
@@ -330,10 +342,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     offsetGroup.orientation = "row";
     offsetGroup.alignChildren = "left";
     var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[uiLang]);
+    offsetCheckbox.helpTip = LABELS.tipOffset[uiLang];
     offsetCheckbox.value = false;
     var offsetValueInput = offsetGroup.add("edittext", undefined, "-2");
+    offsetValueInput.helpTip = LABELS.tipOffset[uiLang];
     offsetValueInput.characters = 4;
-    var offsetUnitLabel = offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
+    var offsetUnitLabel = offsetGroup.add("statictext", undefined, getUnitInfo().label);
     offsetValueInput.enabled = offsetCheckbox.value;
     offsetUnitLabel.enabled = offsetCheckbox.value;
     offsetCheckbox.onClick = function () {
@@ -347,10 +361,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     overlapGroup.orientation = "row";
     overlapGroup.alignChildren = "left";
     var overlapCheckbox = overlapGroup.add('checkbox', undefined, LABELS.overlap[uiLang]);
+    overlapCheckbox.helpTip = LABELS.tipOverlap[uiLang];
     overlapCheckbox.value = false;
     var overlapInput = overlapGroup.add("edittext", undefined, "10");
+    overlapInput.helpTip = LABELS.tipOverlap[uiLang];
     overlapInput.characters = 4;
-    var overlapUnitLabel = overlapGroup.add("statictext", undefined, getCurrentUnitLabel());
+    var overlapUnitLabel = overlapGroup.add("statictext", undefined, getUnitInfo().label);
     overlapInput.enabled = overlapCheckbox.value;
     overlapUnitLabel.enabled = overlapCheckbox.value;
     overlapCheckbox.onClick = function () {
@@ -370,10 +386,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     scatterGroup.orientation = "row";
     scatterGroup.alignChildren = "left";
     var scatterCheckbox = scatterGroup.add('checkbox', undefined, LABELS.explode[uiLang]);
+    scatterCheckbox.helpTip = LABELS.tipScatter[uiLang];
     scatterCheckbox.value = false;
     var scatterStrengthInput = scatterGroup.add("edittext", undefined, "30");
+    scatterStrengthInput.helpTip = LABELS.tipScatterStrength[uiLang];
     scatterStrengthInput.characters = 4;
-    var scatterUnitLabel = scatterGroup.add("statictext", undefined, getCurrentUnitLabel());
+    var scatterUnitLabel = scatterGroup.add("statictext", undefined, getUnitInfo().label);
     scatterStrengthInput.enabled = scatterCheckbox.value;
     scatterUnitLabel.enabled = scatterCheckbox.value;
     scatterCheckbox.onClick = function () {
@@ -386,6 +404,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     ruleGroup.orientation = "row";
     ruleGroup.alignChildren = "left";
     var ruleCheckbox = ruleGroup.add('checkbox', undefined, LABELS.ruleCheck[uiLang]);
+    ruleCheckbox.helpTip = LABELS.tipRule[uiLang];
     ruleCheckbox.value = false;
 
     /* 角丸 */
@@ -393,10 +412,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     roundCornerGroup.orientation = "row";
     roundCornerGroup.alignChildren = "left";
     var roundCornerCheckbox = roundCornerGroup.add('checkbox', undefined, LABELS.roundCheck[uiLang]);
+    roundCornerCheckbox.helpTip = LABELS.tipRound[uiLang];
     roundCornerCheckbox.value = false;
     var roundRadiusInput = roundCornerGroup.add("edittext", undefined, "3");
+    roundRadiusInput.helpTip = LABELS.tipRound[uiLang];
     roundRadiusInput.characters = 5;
-    var roundCornerUnitLabel = roundCornerGroup.add("statictext", undefined, getCurrentUnitLabel());
+    var roundCornerUnitLabel = roundCornerGroup.add("statictext", undefined, getUnitInfo().label);
     roundRadiusInput.enabled = roundCornerCheckbox.value;
     roundCornerUnitLabel.enabled = roundCornerCheckbox.value;
     roundCornerCheckbox.onClick = function () {
@@ -601,21 +622,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n89f63325c0bc"; /* 紹�
     var shouldAddStroke = ruleCheckbox.value;
     var shouldApplyRoundCorners = roundCornerCheckbox.value;
     var roundRadiusInputValue = parseFloat(roundRadiusInput.text);
-    var roundRadiusInPoints = (isNaN(roundRadiusInputValue) ? 0 : roundRadiusInputValue) * getUnitToPtFactor();
+    var roundRadiusInPoints = (isNaN(roundRadiusInputValue) ? 0 : roundRadiusInputValue) * getUnitInfo().pointsPerUnit;
 
     var overlapInPoints = 0;
     if (overlapCheckbox.value) {
       var overlapInputValue = parseFloat(overlapInput.text);
-      overlapInPoints = (isNaN(overlapInputValue) ? 0 : overlapInputValue) * getUnitToPtFactor();
+      overlapInPoints = (isNaN(overlapInputValue) ? 0 : overlapInputValue) * getUnitInfo().pointsPerUnit;
     }
 
     var shouldScatter = scatterCheckbox.value;
     var scatterStrengthInputValue = parseFloat(scatterStrengthInput.text);
-    var scatterStrength = (isNaN(scatterStrengthInputValue) ? 0 : scatterStrengthInputValue) * getUnitToPtFactor();
+    var scatterStrength = (isNaN(scatterStrengthInputValue) ? 0 : scatterStrengthInputValue) * getUnitInfo().pointsPerUnit;
 
     var shouldApplyOffset = offsetCheckbox.value;
     var offsetInputValue = parseFloat(offsetValueInput.text);
-    var offsetInPoints = (isNaN(offsetInputValue) ? 0 : offsetInputValue) * getUnitToPtFactor();
+    var offsetInPoints = (isNaN(offsetInputValue) ? 0 : offsetInputValue) * getUnitInfo().pointsPerUnit;
 
     var columnCount = Math.round(Number(columnsInput.text));
     var rowCount = Math.round(Number(rowsInput.text));

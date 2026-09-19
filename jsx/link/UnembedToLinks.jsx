@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UnembedToLinks";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnembedToLinks.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedToLinks.md"; /* README (English) */
@@ -59,6 +59,79 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹�
      * @param {string} sourceText - デコードする文字列
      * @returns {string} デコード結果。不正なエスケープを含む場合は元の文字列
      */
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "埋め込み画像をリンクに変換", en: "Unembed Images to Links" }
+        },
+        panel: {
+            scope: { ja: "対象", en: "Target" },
+            list:  { ja: "対象ファイル", en: "Files" }
+        },
+        column: {
+            fileName: { ja: "ファイル名", en: "File name" },
+            path:     { ja: "パス", en: "Path" }
+        },
+        radio: {
+            selection: { ja: "選択している画像のみ", en: "Selected images only" },
+            artboard:  { ja: "現在のアートボード上の埋め込み画像", en: "Embedded images on the current artboard" },
+            all:       { ja: "すべての埋め込み画像", en: "All embedded images" }
+        },
+        checkbox: {
+            fullPath: { ja: "フルパス", en: "Full path" },
+            dropbox:  { ja: "Dropboxパスを短縮", en: "Shorten Dropbox paths" },
+            collect:  { ja: "再リンク後に収集（同階層の「{folder}」フォルダーへコピー）",
+                        en: "Collect after relinking (copy into a \"{folder}\" folder beside the document)" }
+        },
+        tooltip: {
+            selection: { ja: "いま選択している埋め込み画像だけを変換します。", en: "Converts only the embedded images that are selected." },
+            artboard:  { ja: "現在のアートボードに載っている埋め込み画像を変換します。", en: "Converts the embedded images on the current artboard." },
+            all:       { ja: "ドキュメント内のすべての埋め込み画像を変換します。", en: "Converts every embedded image in the document." },
+            fullPath:  { ja: "一覧にファイルの絶対パスを表示します。オフだとファイル名だけになります。", en: "Shows the full path in the list. Off shows just the file name." },
+            dropbox:   { ja: "Dropbox のパスを短い表記に置き換えて表示します。", en: "Shows Dropbox paths in a shortened form." },
+            collect:   { ja: "書き出したリンク画像を、ドキュメントと同じ階層のフォルダーへコピーしてまとめます。", en: "Copies the unembedded images into a folder beside the document." }
+        },
+        count: { ja: "（{n} 件）", en: " ({n})" }
+    };
+
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.scope" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
+    /**
+     * 件数付きのラベルを作る
+     * @param {string} labelPath - ラベルのドット区切りキー
+     * @param {number} itemCount - 表示する件数
+     * @returns {string} 件数を添えたラベル
+     */
+    function labelWithCount(labelPath, itemCount) {
+        return getLabel(labelPath) + getLabel("count").replace("{n}", itemCount);
+    }
+
     function safeDecodeURI(sourceText) {
         try {
             return decodeURI(sourceText);
@@ -873,24 +946,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹�
     function showOptionDialog(selectedItems, artboardItems, allItems, exportNameMap) {
         var hasSelectedRaster = (selectedItems.length > 0);
 
-        var dialog = new Window("dialog", "埋め込み画像をリンクに変換");
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 16;
         dialog.spacing = 12;
 
-        var scopePanel = dialog.add("panel", undefined, "対象");
+        var scopePanel = dialog.add("panel", undefined, getLabel("panel.scope"));
         scopePanel.orientation = "column";
         scopePanel.alignChildren = "left";
         scopePanel.margins = [12, 16, 12, 12];
         scopePanel.spacing = 8;
 
         var selectionRadio = scopePanel.add("radiobutton", undefined,
-            "選択している画像のみ（" + selectedItems.length + " 件）");
+            labelWithCount("radio.selection", selectedItems.length));
+        selectionRadio.helpTip = getLabel("tooltip.selection");
         var artboardRadio  = scopePanel.add("radiobutton", undefined,
-            "現在のアートボード上の埋め込み画像（" + artboardItems.length + " 件）");
+            labelWithCount("radio.artboard", artboardItems.length));
+        artboardRadio.helpTip = getLabel("tooltip.artboard");
         var allRadio       = scopePanel.add("radiobutton", undefined,
-            "すべての埋め込み画像（" + allItems.length + " 件）");
+            labelWithCount("radio.all", allItems.length));
+        allRadio.helpTip = getLabel("tooltip.all");
 
         /* 選択がなければ「すべて」を既定にする / Fall back to "all" when nothing is selected */
         selectionRadio.enabled = hasSelectedRaster;
@@ -898,7 +974,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹�
         artboardRadio.enabled  = (artboardItems.length > 0);
         allRadio.value         = !hasSelectedRaster;
 
-        var listPanel = dialog.add("panel", undefined, "対象ファイル");
+        var listPanel = dialog.add("panel", undefined, getLabel("panel.list"));
         listPanel.orientation = "column";
         listPanel.alignChildren = "fill";
         listPanel.margins = [12, 16, 12, 12];
@@ -906,7 +982,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹�
         var fileList = listPanel.add("listbox", undefined, [], {
             numberOfColumns: 2,
             showHeaders: true,
-            columnTitles: ["ファイル名", "パス"],
+            columnTitles: [getLabel("column.fileName"), getLabel("column.path")],
             columnWidths: [200, 340]
         });
         fileList.preferredSize = [560, 220];
@@ -915,15 +991,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹�
         pathOptionGroup.alignment = "left";
         pathOptionGroup.spacing = 16;
 
-        var fullPathCheck = pathOptionGroup.add("checkbox", undefined, "フルパス");
-        var dropboxCheck  = pathOptionGroup.add("checkbox", undefined, "Dropboxパスを短縮");
+        var fullPathCheck = pathOptionGroup.add("checkbox", undefined, getLabel("checkbox.fullPath"));
+        fullPathCheck.helpTip = getLabel("tooltip.fullPath");
+        var dropboxCheck  = pathOptionGroup.add("checkbox", undefined, getLabel("checkbox.dropbox"));
+        dropboxCheck.helpTip = getLabel("tooltip.dropbox");
 
         fullPathCheck.value  = false;
         dropboxCheck.value   = (DROPBOX_PREFIX !== "");
         dropboxCheck.enabled = (DROPBOX_PREFIX !== "");
 
         var collectCheck = dialog.add("checkbox", undefined,
-            "再リンク後に収集（同階層の「" + LINKS_FOLDER_NAME + "」フォルダーへコピー）");
+            getLabel("checkbox.collect").replace("{folder}", LINKS_FOLDER_NAME));
+        collectCheck.helpTip = getLabel("tooltip.collect");
         collectCheck.value = true;
 
         /* 選択中の対象に対応する画像を返す / Return the items for the current scope */

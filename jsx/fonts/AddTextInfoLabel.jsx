@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddTextInfoLabel";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-04-24";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTextInfoLabel.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTextInfoLabel.md"; /* README (English) */
@@ -38,6 +38,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
 (function () {
 
     main();
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "テキスト情報を追加", en: "Add Text Info Label" }
+        },
+        panel: {
+            position: { ja: "位置", en: "Position" },
+            mode:     { ja: "表示形式", en: "Format" },
+            info:     { ja: "表示項目（詳細表示時のみ有効）", en: "Items (used by the detailed format only)" }
+        },
+        radio: {
+            posBottom:   { ja: "下", en: "Below" },
+            posRight:    { ja: "右", en: "Right" },
+            modeCompact: { ja: "簡易版", en: "Compact" },
+            modeFull:    { ja: "詳細", en: "Detailed" }
+        },
+        checkbox: {
+            fontName:       { ja: "フォント名", en: "Font name" },
+            postScript:     { ja: "PSフォント名", en: "PostScript name" },
+            fontStyle:      { ja: "スタイル（ウェイト）", en: "Style (weight)" },
+            fontSize:       { ja: "フォントサイズ", en: "Font size" },
+            leading:        { ja: "行送り", en: "Leading" },
+            kerning:        { ja: "カーニング", en: "Kerning" },
+            proportional:   { ja: "プロポーショナルメトリクス", en: "Proportional metrics" },
+            tracking:       { ja: "トラッキング", en: "Tracking" },
+            tsume:          { ja: "文字ツメ", en: "Tsume" },
+            leadingPercent: { ja: "行送り（%）", en: "Leading (%)" }
+        },
+        tooltip: {
+            posBottom:   { ja: "テキストの下に情報ラベルを置きます。", en: "Places the info label below the text." },
+            posRight:    { ja: "テキストの右に情報ラベルを置きます。", en: "Places the info label to the right of the text." },
+            modeCompact: { ja: "フォント名とサイズだけの短い表記にします。", en: "Writes a short label with just the font name and size." },
+            modeFull:    { ja: "下の［表示項目］で選んだ内容をすべて書き出します。", en: "Writes every item ticked under Items below." },
+            info:        { ja: "詳細表示のときに、ラベルへ書き出す項目を選びます。", en: "Picks which items go into the label when the detailed format is used." }
+        }
+    };
+
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.position" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
 
     function getFontSizeUnitLabel() {
         var textUnit = app.preferences.getIntegerPreference("text/units");
@@ -272,28 +337,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
     }
 
     function showOptionDialog() {
-        var dialog = new Window("dialog", "テキスト情報を追加");
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         dialog.alignChildren = "left";
 
         var topGroup = dialog.add("group");
         topGroup.orientation = "row";
         topGroup.alignChildren = "top";
 
-        var posGroup = topGroup.add("panel", undefined, "位置");
+        var posGroup = topGroup.add("panel", undefined, getLabel("panel.position"));
         posGroup.orientation = "row";
         posGroup.margins = [15, 20, 15, 15];
-        var posBottom = posGroup.add("radiobutton", undefined, "下");
-        var posRight = posGroup.add("radiobutton", undefined, "右");
+        var posBottom = posGroup.add("radiobutton", undefined, getLabel("radio.posBottom"));
+        posBottom.helpTip = getLabel("tooltip.posBottom");
+        var posRight = posGroup.add("radiobutton", undefined, getLabel("radio.posRight"));
+        posRight.helpTip = getLabel("tooltip.posRight");
         posRight.value = true;
 
-        var modeGroup = topGroup.add("panel", undefined, "表示形式");
+        var modeGroup = topGroup.add("panel", undefined, getLabel("panel.mode"));
         modeGroup.orientation = "row";
         modeGroup.margins = [15, 20, 15, 15];
-        var modeCompact = modeGroup.add("radiobutton", undefined, "簡易版");
-        var modeFull = modeGroup.add("radiobutton", undefined, "詳細");
+        var modeCompact = modeGroup.add("radiobutton", undefined, getLabel("radio.modeCompact"));
+        modeCompact.helpTip = getLabel("tooltip.modeCompact");
+        var modeFull = modeGroup.add("radiobutton", undefined, getLabel("radio.modeFull"));
+        modeFull.helpTip = getLabel("tooltip.modeFull");
         modeCompact.value = true;
 
-        var infoGroup = dialog.add("panel", undefined, "表示項目（詳細表示時のみ有効）");
+        var infoGroup = dialog.add("panel", undefined, getLabel("panel.info"));
+        infoGroup.helpTip = getLabel("tooltip.info");
         infoGroup.orientation = "column";
         infoGroup.alignChildren = "left";
         infoGroup.margins = [15, 20, 15, 15];
@@ -310,16 +380,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n607ef418877f"; /* 紹�
         column2.orientation = "column";
         column2.alignChildren = "left";
 
-        var chkFontName     = column1.add("checkbox", undefined, "フォント名");
-        var chkPostScript   = column1.add("checkbox", undefined, "PSフォント名");
-        var chkFontStyle    = column1.add("checkbox", undefined, "スタイル（ウェイト）");
-        var chkFontSize     = column1.add("checkbox", undefined, "フォントサイズ");
-        var chkLeading      = column1.add("checkbox", undefined, "行送り");
-        var chkKerning      = column2.add("checkbox", undefined, "カーニング");
-        var chkProportional = column2.add("checkbox", undefined, "プロポーショナルメトリクス");
-        var chkTracking     = column2.add("checkbox", undefined, "トラッキング");
-        var chkTsume        = column2.add("checkbox", undefined, "文字ツメ");
-        var chkLeadingPercent = column2.add("checkbox", undefined, "行送り（%）");
+        var chkFontName     = column1.add("checkbox", undefined, getLabel("checkbox.fontName"));
+        var chkPostScript   = column1.add("checkbox", undefined, getLabel("checkbox.postScript"));
+        var chkFontStyle    = column1.add("checkbox", undefined, getLabel("checkbox.fontStyle"));
+        var chkFontSize     = column1.add("checkbox", undefined, getLabel("checkbox.fontSize"));
+        var chkLeading      = column1.add("checkbox", undefined, getLabel("checkbox.leading"));
+        var chkKerning      = column2.add("checkbox", undefined, getLabel("checkbox.kerning"));
+        var chkProportional = column2.add("checkbox", undefined, getLabel("checkbox.proportional"));
+        var chkTracking     = column2.add("checkbox", undefined, getLabel("checkbox.tracking"));
+        var chkTsume        = column2.add("checkbox", undefined, getLabel("checkbox.tsume"));
+        var chkLeadingPercent = column2.add("checkbox", undefined, getLabel("checkbox.leadingPercent"));
 
         var allToggles = [
             chkFontName, chkPostScript, chkFontStyle, chkFontSize, chkLeading,

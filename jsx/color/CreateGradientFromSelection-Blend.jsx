@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CreateGradientFromSelection-Blend"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGradientFromSelection-Blend.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGradientFromSelection-Blend.md"; /* README (English) */
@@ -65,6 +65,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         registerGraphicStyle: {
             ja: "グラフィックスタイルに登録",
             en: "Save as Graphic Style"
+        },
+        tipGlobalColor: {
+            ja: "選択オブジェクトの塗りをグローバルカラーとしてスウォッチに登録します。",
+            en: "Registers the fills of the selection as global color swatches."
+        },
+        tipCreateGradient: {
+            ja: "選択オブジェクトの塗りを順に並べたグラデーションを作ります。",
+            en: "Builds a gradient from the fills of the selection, in order."
+        },
+        tipCreateRect: {
+            ja: "作ったグラデーションを適用した長方形を描きます。",
+            en: "Draws a rectangle filled with the new gradient."
+        },
+        tipUseSelectionSize: {
+            ja: "長方形のサイズを選択範囲に合わせます。オフのときは既定のサイズで描きます。",
+            en: "Matches the rectangle to the size of the selection. Off uses the default size."
+        },
+        tipRegisterGraphicStyle: {
+            ja: "作ったグラデーションをグラフィックスタイルとして登録します。",
+            en: "Saves the new gradient as a graphic style."
         },
         ok: {
             ja: "OK",
@@ -283,29 +303,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dlg.orientation = 'column';
             dlg.alignChildren = ['fill', 'top'];
 
-            var pColor = dlg.add('panel', undefined, getLabel('panelColor'));
-            pColor.orientation = 'column';
-            pColor.alignChildren = ['fill', 'top'];
-            pColor.margins = [15, 20, 15, 10];
+            var colorPanel = dlg.add('panel', undefined, getLabel('panelColor'));
+            colorPanel.orientation = 'column';
+            colorPanel.alignChildren = ['fill', 'top'];
+            colorPanel.margins = [15, 20, 15, 10];
 
-            var cbGlobal = pColor.add('checkbox', undefined, getLabel('globalColor'));
+            var cbGlobal = colorPanel.add('checkbox', undefined, getLabel('globalColor'));
+            cbGlobal.helpTip = getLabel('tipGlobalColor');
             cbGlobal.value = opts.makeGlobal;
 
-            var cbGradient = pColor.add('checkbox', undefined, getLabel('createGradient'));
+            var cbGradient = colorPanel.add('checkbox', undefined, getLabel('createGradient'));
+            cbGradient.helpTip = getLabel('tipCreateGradient');
             cbGradient.value = opts.makeGradient;
 
-            var pRect = dlg.add('panel', undefined, getLabel('panelRect'));
-            pRect.orientation = 'column';
-            pRect.alignChildren = ['fill', 'top'];
-            pRect.margins = [15, 20, 15, 10];
+            var rectPanel = dlg.add('panel', undefined, getLabel('panelRect'));
+            rectPanel.orientation = 'column';
+            rectPanel.alignChildren = ['fill', 'top'];
+            rectPanel.margins = [15, 20, 15, 10];
 
-            var cbRect = pRect.add('checkbox', undefined, getLabel('createRect'));
+            var cbRect = rectPanel.add('checkbox', undefined, getLabel('createRect'));
+            cbRect.helpTip = getLabel('tipCreateRect');
             cbRect.value = opts.makeRect;
 
-            var cbSelSize = pRect.add('checkbox', undefined, getLabel('useSelectionSize'));
+            var cbSelSize = rectPanel.add('checkbox', undefined, getLabel('useSelectionSize'));
+            cbSelSize.helpTip = getLabel('tipUseSelectionSize');
             cbSelSize.value = opts.useSelectionSize;
 
-            var cbGStyle = pRect.add('checkbox', undefined, getLabel('registerGraphicStyle'));
+            var cbGStyle = rectPanel.add('checkbox', undefined, getLabel('registerGraphicStyle'));
+            cbGStyle.helpTip = getLabel('tipRegisterGraphicStyle');
             cbGStyle.value = opts.registerGraphicStyle;
 
             function syncEnable() {
@@ -325,10 +350,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cbRect.onClick = syncEnable;
             syncEnable();
 
-            var btns = dlg.add('group');
-            btns.alignment = 'right';
-            var cancelBtn = btns.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-            var okBtn = btns.add('button', undefined, getLabel('ok'), { name: 'ok' });
+            var btnRowGroup = dlg.add('group');
+            btnRowGroup.alignment = 'right';
+            var cancelBtn = btnRowGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+            var okBtn = btnRowGroup.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
             function persistFromUI() {
                 saveBool('makeGlobal', cbGlobal.value);
@@ -397,14 +422,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             } catch (e) { }
             return "Other:" + t;
-        }
-
-        function pushUniqueColor(list, seenMap, c) {
-            if (isNoColor(c)) return;
-            var k = colorKey(c);
-            if (seenMap[k]) return;
-            seenMap[k] = true;
-            list.push(c);
         }
 
         // 位置情報（左上）を取得 / Get top-left position

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SetStrokeAndArrowheads";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-22";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SetStrokeAndArrowheads.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetStrokeAndArrowheads.md"; /* README (English) */
@@ -102,6 +102,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             scale: { ja: "倍率：", en: "Scale:" },
             unitPt: { ja: "pt", en: "pt" },
             unitPercent: { ja: "%", en: "%" }
+        },
+        tooltip: {
+            strokeWidth: { ja: "線の太さです。", en: "Weight of the stroke." },
+            linkEnds:    { ja: "始点と終点の矢印を同じ設定にします。", en: "Uses the same arrowhead settings at both ends." },
+            shape:       { ja: "この端に付ける矢印の形です。", en: "The arrowhead shape used at this end." },
+            scale:       { ja: "矢印の大きさ（％）です。", en: "Size of the arrowhead, in percent." },
+            align:       { ja: "矢印をパスの端にどう合わせるかです。", en: "How the arrowhead lines up with the end of the path." },
+            preview:     { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." }
         },
         checkbox: {
             linkEnds: { ja: "始点と終点を連動", en: "Link start and end" },
@@ -199,26 +207,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    /* タブの共通設定 / Apply shared tab layout */
-    function setupTab(tab, spacing) {
-        tab.orientation = "column";
-        tab.alignChildren = "fill";
-        tab.margins = TAB_MARGINS;
-        if (typeof spacing === "number") tab.spacing = spacing;
-    }
-
     /* 行グループの共通設定（ボタン列など） / Apply a horizontal row group */
     function setupRow(group, alignment, spacing) {
         group.orientation = "row";
         group.alignment = alignment || "left";
         group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-    function trimButtonHeight(button, px) {
-        try {
-            button.size = [button.size.width, button.size.height - px];
-        } catch (e) {}
     }
 
     // =========================================
@@ -427,6 +420,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupRow(strokeRow);
         strokeRow.add("statictext", undefined, getLabel("field.strokeWidth"));
         var strokeWidthInput = strokeRow.add("edittext", undefined, String(DEFAULT_STROKE_WIDTH));
+        strokeWidthInput.helpTip = getLabel("tooltip.strokeWidth");
         strokeWidthInput.characters = FIELD_CHARACTERS;
         strokeRow.add("statictext", undefined, getLabel("field.unitPt"));
 
@@ -435,6 +429,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(arrowPanel);
 
         var linkCheckbox = arrowPanel.add("checkbox", undefined, getLabel("checkbox.linkEnds"));
+        linkCheckbox.helpTip = getLabel("tooltip.linkEnds");
         linkCheckbox.value = false;
         linkCheckbox.alignment = "left";
 
@@ -454,6 +449,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var shapeLabel = shapeRow.add("statictext", undefined, getLabel("field.shape"));
             shapeLabel.preferredSize.width = LABEL_WIDTH;
             var shapeList = shapeRow.add("dropdownlist", undefined, arrowNames);
+            shapeList.helpTip = getLabel("tooltip.shape");
             shapeList.selection = 0;
             shapeList.preferredSize.width = SHAPE_LIST_WIDTH;
 
@@ -462,6 +458,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var scaleLabel = scaleRow.add("statictext", undefined, getLabel("field.scale"));
             scaleLabel.preferredSize.width = LABEL_WIDTH;
             var scaleInput = scaleRow.add("edittext", undefined, String(DEFAULT_ARROW_SCALE));
+            scaleInput.helpTip = getLabel("tooltip.scale");
             scaleInput.characters = FIELD_CHARACTERS;
             scaleRow.add("statictext", undefined, getLabel("field.unitPercent"));
 
@@ -483,6 +480,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var alignRadios = [];
         for (var a = 0; a < ARROW_ALIGN_OPTIONS.length; a++) {
             var radio = alignPanel.add("radiobutton", undefined, ARROW_ALIGN_OPTIONS[a].label);
+            radio.helpTip = getLabel("tooltip.align");
             /* ボタン類はパネル幅いっぱいに広げない / Keep buttons at their natural width */
             radio.alignment = "left";
             alignRadios.push(radio);
@@ -498,6 +496,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var buttonLeft = buttonGroup.add("group");
         buttonLeft.alignment = ["left", "center"];
         var previewCheckbox = buttonLeft.add("checkbox", undefined, getLabel("checkbox.preview"));
+        previewCheckbox.helpTip = getLabel("tooltip.preview");
         previewCheckbox.value = false;
 
         var buttonCenter = buttonGroup.add("group");

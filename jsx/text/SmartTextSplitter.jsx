@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartTextSplitter";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextSplitter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextSplitter.md"; /* README (English) */
@@ -93,6 +93,34 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnCancel: {
             ja: "キャンセル",
             en: "Cancel"
+        },
+        tipKeepStyle: {
+            ja: "分割前の文字の書式を、分けたあとのテキストにも引き継ぎます。",
+            en: "Carries the character formatting over to the split text."
+        },
+        tipKeepSpaces: {
+            ja: "区切りに使ったスペースを、分けたテキストに残します。",
+            en: "Keeps the separating spaces in the split text."
+        },
+        tipConvertToAreaText: {
+            ja: "分けたテキストをポイント文字ではなくエリア内文字にします。",
+            en: "Makes the split text area type instead of point type."
+        },
+        tipMergeAreaText: {
+            ja: "エリア内文字どうしを1つのテキストにつなげます。",
+            en: "Joins area text frames into a single text object."
+        },
+        tipGroupNone: {
+            ja: "分けたテキストをそのまま並べます。",
+            en: "Leaves the split text ungrouped."
+        },
+        tipGroupLine: {
+            ja: "同じ行から分けたテキストを、行ごとにグループにします。",
+            en: "Groups the pieces from each line together."
+        },
+        tipGroupAll: {
+            ja: "分けたテキストをすべて1つのグループにします。",
+            en: "Puts all the split text into one group."
         }
     };
 
@@ -126,12 +154,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     pnlOpt.margins = [15, 20, 15, 10];
 
     var chkKeepStyle = pnlOpt.add('checkbox', undefined, getLabel('chkKeepStyle'));
+    chkKeepStyle.helpTip = getLabel('tipKeepStyle');
     chkKeepStyle.value = true;
     var chkKeepSpaces = pnlOpt.add('checkbox', undefined, getLabel('chkKeepSpaces'));
+    chkKeepSpaces.helpTip = getLabel('tipKeepSpaces');
     chkKeepSpaces.value = false;
     var chkConvertToAreaText = pnlOpt.add('checkbox', undefined, getLabel('chkConvertToAreaText'));
+    chkConvertToAreaText.helpTip = getLabel('tipConvertToAreaText');
     chkConvertToAreaText.value = false;
     var chkMergeAreaText = pnlOpt.add('checkbox', undefined, getLabel('chkMergeAreaText'));
+    chkMergeAreaText.helpTip = getLabel('tipMergeAreaText');
     chkMergeAreaText.value = false;
 
     // エリア系オプションの同期: 連結は「変換がON」のときだけ有効
@@ -155,8 +187,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     pnlGroup.margins = [15, 20, 15, 10];
 
     var rbGroupNone = pnlGroup.add('radiobutton', undefined, getLabel('rbGroupNone'));
+    rbGroupNone.helpTip = getLabel('tipGroupNone');
     var rbGroupLine = pnlGroup.add('radiobutton', undefined, getLabel('rbGroupLine'));
+    rbGroupLine.helpTip = getLabel('tipGroupLine');
     var rbGroupAll = pnlGroup.add('radiobutton', undefined, getLabel('rbGroupAll'));
+    rbGroupAll.helpTip = getLabel('tipGroupAll');
     rbGroupAll.value = true; // default
 
     var gBtns = dialog.add('group');

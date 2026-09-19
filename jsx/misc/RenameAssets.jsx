@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RenameAssets";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RenameAssets.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameAssets.md"; /* README (English) */
@@ -67,12 +67,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Symbols"
         },
         find: {
-            ja: "検索文字列:",
-            en: "Find:"
+            ja: "検索文字列",
+            en: "Find"
         },
         replace: {
-            ja: "置換文字列:",
-            en: "Replace:"
+            ja: "置換文字列",
+            en: "Replace"
+        },
+        tipFind: {
+            ja: "アセット名の中から探す文字列です。",
+            en: "Text to look for in the asset names."
+        },
+        tipReplace: {
+            ja: "置き換える文字列です。空欄にすると検索文字列を削除します。",
+            en: "Replacement text. Leave blank to delete the found text."
+        },
+        tipRegex: {
+            ja: "検索文字列を正規表現として扱います（$1 などの後方参照も使えます）。",
+            en: "Treats the search text as a regular expression, including back-references such as $1."
+        },
+        tipIgnoreCase: {
+            ja: "大文字と小文字を区別せずに探します。",
+            en: "Matches without regard to letter case."
+        },
+        tipTarget: {
+            ja: "リネームするアセットの種類です。",
+            en: "Which kind of asset to rename."
         },
         regex: {
             ja: "正規表現",
@@ -129,9 +149,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     // Localize helpers
-    function t(key) {
-        var m = LABELS[key];
-        return m ? (uiLang === 'ja' ? m.ja : m.en) : key;
+    function getLabel(key) {
+        var entry = LABELS[key];
+        return entry ? (uiLang === 'ja' ? entry.ja : entry.en) : key;
+    }
+
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === 'ja' ? '：' : ': ');
     }
 
     function tf(key) {
@@ -143,7 +168,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function main() {
         if (app.documents.length === 0) {
-            alert(t('alertNoDoc'));
+            alert(getLabel('alertNoDoc'));
             return;
         }
         var doc = app.activeDocument;
@@ -153,7 +178,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             (doc.swatches && doc.swatches.length) ||
             (doc.symbols && doc.symbols.length);
         if (!hasAny) {
-            alert(t('alertNoAny'));
+            alert(getLabel('alertNoAny'));
             return;
         }
 
@@ -167,7 +192,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var target = params.target;
 
         if (!findStr) {
-            alert(t('alertNoFind'));
+            alert(getLabel('alertNoFind'));
             return;
         }
 
@@ -187,7 +212,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         if (!collection || totalCount === 0) {
-            alert(t('alertNoTarget'));
+            alert(getLabel('alertNoTarget'));
             return;
         }
 
@@ -331,22 +356,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return g;
     }
 
-    // ラベル＋テキスト入力 / Labeled edit (新ヘルパー)
-    function addLabeledEdit2(parent, labelText, labelWidth, editChars) {
+    // ラベル＋テキスト入力 / Labeled edit
+    function addLabeledEdit(parent, fieldLabelText, labelWidth, editChars) {
         var row = addRow(parent, ["fill", "center"]);
-        var lbl = row.add("statictext", undefined, labelText);
-        lbl.preferredSize.width = labelWidth;
-        lbl.justify = "right";
-        var et = row.add("edittext", undefined, "");
-        et.characters = editChars || 30;
-        return et;
+        var fieldLabel = row.add("statictext", undefined, fieldLabelText);
+        fieldLabel.preferredSize.width = labelWidth;
+        fieldLabel.justify = "right";
+        var inputField = row.add("edittext", undefined, "");
+        inputField.characters = editChars || 30;
+        return inputField;
     }
 
     // チェックボックス / Checkbox
     function addCheckbox(parent, label, defaultValue) {
-        var cb = parent.add("checkbox", undefined, label);
-        cb.value = !!defaultValue;
-        return cb;
+        var checkboxControl = parent.add("checkbox", undefined, label);
+        checkboxControl.value = !!defaultValue;
+        return checkboxControl;
     }
 
     // ラジオボタングループ / Radio group
@@ -435,7 +460,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * ダイアログ生成 / Build dialog
      */
     function showDialog() {
-        var dlg = new Window("dialog", t('dialogTitle'));
+        var dlg = new Window("dialog", getLabel('dialogTitle'));
         // Adjust dialog position and opacity
         var offsetX = 300;
         var offsetY = 0;
@@ -463,23 +488,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dlg.spacing = 12;
 
         // Target radio group (top)
-        var panelTarget = addPanel(dlg, t('panelTarget'), 'row', [15, 20, 15, 10], 16);
-        var radios = addRadioGroup(panelTarget, [t('radioStyle'), t('radioBrush'), t('radioSwatch'), t('radioSymbol')], 'row');
+        var panelTarget = addPanel(dlg, getLabel('panelTarget'), 'row', [15, 20, 15, 10], 16);
+        var radios = addRadioGroup(panelTarget, [getLabel('radioStyle'), getLabel('radioBrush'), getLabel('radioSwatch'), getLabel('radioSymbol')], 'row');
         var rbStyles = radios.buttons[0];
         var rbBrushes = radios.buttons[1];
         var rbSwatch = radios.buttons[2];
         var rbSymbol = radios.buttons[3];
+        for (var r = 0; r < radios.buttons.length; r++) {
+            radios.buttons[r].helpTip = getLabel('tipTarget');
+        }
         radios.select(0);
 
         var labelWidth = 120; // ラベル幅を揃える
 
-        var inputFind = addLabeledEdit2(dlg, t('find'), labelWidth, 30);
-        var inputRepl = addLabeledEdit2(dlg, t('replace'), labelWidth, 30);
+        var inputFind = addLabeledEdit(dlg, labelText('find'), labelWidth, 30);
+        inputFind.helpTip = getLabel('tipFind');
+        var inputRepl = addLabeledEdit(dlg, labelText('replace'), labelWidth, 30);
+        inputRepl.helpTip = getLabel('tipReplace');
 
         // Regex + Case-insensitive options (side by side, centered)
         var rowOpts = addRow(dlg, ["center", "center"], "center");
-        var cbRegex = addCheckbox(rowOpts, t('regex'), false);
-        var cbCase = addCheckbox(rowOpts, t('ignoreCase'), false);
+        var cbRegex = addCheckbox(rowOpts, getLabel('regex'), false);
+        cbRegex.helpTip = getLabel('tipRegex');
+        var cbCase = addCheckbox(rowOpts, getLabel('ignoreCase'), false);
+        cbCase.helpTip = getLabel('tipIgnoreCase');
 
         // Preview status (button-driven preview only)
         var stStatus = addCenteredStatic(dlg, 30);
@@ -543,7 +575,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var useRe = cbRegex.value === true;
             var ic = cbCase.value === true;
             if (!findTxt) {
-                stStatus.text = t('statusNoFind');
+                stStatus.text = getLabel('statusNoFind');
                 return;
             }
 
@@ -553,7 +585,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 applyNames(restoredCol, lastPlan.names);
             });
             if (!col) {
-                stStatus.text = t('statusNone');
+                stStatus.text = getLabel('statusNone');
                 return;
             }
             stStatus.text = tf('statusPreview')(lastPlan.changed, col.length);
@@ -570,13 +602,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // Buttons layout (main row with left/right groups and stretch spacer)
         var btns = addButtonRow(dlg);
-        var btnCancel = btns.left.add("button", undefined, t('btnCancel'), {
+        var btnCancel = btns.left.add("button", undefined, getLabel('btnCancel'), {
             name: "cancel"
         });
-        var btnPreview = btns.right.add("button", undefined, t('btnPreview'), {
+        var btnPreview = btns.right.add("button", undefined, getLabel('btnPreview'), {
             name: "preview"
         });
-        var btnOK = btns.right.add("button", undefined, t('btnOK'), {
+        var btnOK = btns.right.add("button", undefined, getLabel('btnOK'), {
             name: "ok"
         });
 

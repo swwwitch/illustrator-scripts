@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md"; /* README (English) */
@@ -151,15 +151,49 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         joinBevel: {
             ja: "ベベル",
             en: "Bevel"
+        },
+        tipPreset: {
+            ja: "スケールと角度の組み合わせをまとめて設定します。",
+            en: "Sets the scale and angle together."
+        },
+        tipOffsetEnabled: {
+            ja: "影を作る前に、元の形を太らせます。",
+            en: "Grows the original shape before the shadow is built."
+        },
+        tipOffsetValue: {
+            ja: "太らせる量です。",
+            en: "How much to grow the shape."
+        },
+        tipJoin: {
+            ja: "太らせたときの角の処理です。",
+            en: "How corners are treated when the shape is grown."
+        },
+        tipDistance: {
+            ja: "影を伸ばす長さです。",
+            en: "Length of the shadow."
+        },
+        tipAngle: {
+            ja: "影が伸びる向きです。",
+            en: "Direction the shadow extends."
+        },
+        tipScale: {
+            ja: "影の先端の大きさです。100%で元の形と同じ大きさになります。",
+            en: "Size of the far end of the shadow. 100% matches the original shape."
+        },
+        tipSimplify: {
+            ja: "影のアンカーポイントを減らして、軽いパスにします。",
+            en: "Reduces the number of anchor points in the shadow."
+        },
+        tipPreview: {
+            ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+            en: "Shows the result on the canvas. Cancel restores the original state."
         }
     };
 
     function getLabel(key) {
-        try {
-            if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
-            if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
-        } catch (e) { }
-        return key;
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.en || key;
     }
 
     (function () {
@@ -277,7 +311,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                             if (nm === TEMP_BASE_NAME) {
                                 // unlock/visible before remove
                                 try { lyr.locked = false; } catch (e) { }
-                                try { lyr.visible = true; } catch (e) { }
+                                try {
+                                    lyr.visible = true;
+                                } catch (e) {}
                                 try { lyr.remove(); } catch (e) { }
                             }
                         } catch (e) { }
@@ -298,7 +334,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                         try {
                             if (p.typename === 'Layer') {
                                 try { p.locked = false; } catch (e) { }
-                                try { p.visible = true; } catch (e) { }
+                                try {
+                                    p.visible = true;
+                                } catch (e) {}
                                 break;
                             }
                             if (p.typename === 'GroupItem') {
@@ -578,6 +616,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
         // --- 1カラム（プリセットは貫通） ---
         var cols = dlg.add("group");
+        ddPreset.helpTip = getLabel('tipPreset');
         cols.orientation = "column";
         cols.alignChildren = ["fill", "top"];
         cols.alignment = "fill";
@@ -611,6 +650,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         gOff.alignChildren = ["left", "center"];
 
         var cbOffsetRow = gOff.add("checkbox", undefined, "");
+        cbOffsetRow.helpTip = getLabel('tipOffsetEnabled');
         cbOffsetRow.value = false;
 
         // オフセット初期値を選択オブジェクト（originalPath）のサイズから計算（pt）
@@ -644,6 +684,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
         var etOff = gOff.add("edittext", undefined, String(initialOffset));
         etOff.characters = 4;
+        etOff.helpTip = getLabel('tipOffsetValue');
         changeValueByArrowKey(etOff, false, false);
         var stOffUnit = gOff.add("statictext", undefined, "pt");
 
@@ -672,8 +713,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         gJoinCol.alignChildren = ["left", "center"];
 
         var rbMiter = gJoinCol.add("radiobutton", undefined, getLabel('joinMiter'));
+        rbMiter.helpTip = getLabel('tipJoin');
         var rbRound = gJoinCol.add("radiobutton", undefined, getLabel('joinRound'));
+        rbRound.helpTip = getLabel('tipJoin');
         var rbBevel = gJoinCol.add("radiobutton", undefined, getLabel('joinBevel'));
+        rbBevel.helpTip = getLabel('tipJoin');
         rbMiter.value = false;
         rbRound.value = true;  // default = Round
         rbBevel.value = false;
@@ -681,12 +725,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         // オフセットUIの有効/無効（ディム表示）
         function updateOffsetEnabled() {
             var on = !!cbOffsetRow.value;
-            try { etOff.enabled = on; } catch (e) { }
-            try { rbMiter.enabled = on; } catch (e) { }
-            try { rbRound.enabled = on; } catch (e) { }
-            try { rbBevel.enabled = on; } catch (e) { }
-            try { stOffUnit.enabled = on; } catch (e) { }
-            try { pJoin.enabled = on; } catch (e) { }
+            etOff.enabled = on;
+            rbMiter.enabled = on;
+            rbRound.enabled = on;
+            rbBevel.enabled = on;
+            stOffUnit.enabled = on;
+            pJoin.enabled = on;
         }
 
         cbOffsetRow.onClick = function () {
@@ -709,6 +753,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         var defaultDistance = (w + h);
 
         var inputDistance = grpDistance.add("edittext", undefined, Math.round(defaultDistance).toString());
+        inputDistance.helpTip = getLabel('tipDistance');
         changeValueByArrowKey(inputDistance, false, true);
         inputDistance.characters = 4;
         var stDistUnit = grpDistance.add("statictext", undefined, "pt");
@@ -717,6 +762,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         // スライダー（距離）※右側に配置
         var maxDist = Math.max(500, Math.round(defaultDistance * 3));
         var slDistance = grpDistance.add("slider", undefined, Math.round(defaultDistance), 0, maxDist);
+        slDistance.helpTip = getLabel('tipDistance');
         slDistance.preferredSize.width = 170;
 
         // 角度入力
@@ -725,6 +771,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         lblAngle.preferredSize.width = 60;
         lblAngle.justify = "right";
         var inputAngle = grpAngle.add("edittext", undefined, "45");
+        inputAngle.helpTip = getLabel('tipAngle');
         changeValueByArrowKey(inputAngle, true, true);
         inputAngle.characters = 4;
         var stAngleUnit = grpAngle.add("statictext", undefined, "°");
@@ -732,6 +779,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
         // スライダー（角度）※右側に配置
         var slAngle = grpAngle.add("slider", undefined, 45, -180, 180);
+        slAngle.helpTip = getLabel('tipAngle');
         slAngle.preferredSize.width = 170;
 
         // スケール入力
@@ -741,12 +789,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         lblScale.justify = "right";
         var inputScale = grpScale.add("edittext", undefined, "100"); // デフォルト 100%
         changeValueByArrowKey(inputScale, false, true);
+        inputScale.helpTip = getLabel('tipScale');
         inputScale.characters = 4;
         var stScaleUnit = grpScale.add("statictext", undefined, "%");
         stScaleUnit.preferredSize.width = 24;
 
         // スライダー（スケール）※右側に配置
         var slScale = grpScale.add("slider", undefined, 100, 1, 300);
+        slScale.helpTip = getLabel('tipScale');
         slScale.preferredSize.width = 170;
 
         // パスの単純化（スケールの下）
@@ -757,6 +807,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         grpSimplify.margins = [0, 10, 0, 0];
 
         var chkSimplify = grpSimplify.add("checkbox", undefined, getLabel('simplify'));
+        chkSimplify.helpTip = getLabel('tipSimplify');
         chkSimplify.value = true;
         chkSimplify.alignment = "center";
 
@@ -795,6 +846,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
         btnLeftGroup.alignChildren = ["left", "center"];
 
         var chkPreview = btnLeftGroup.add("checkbox", undefined, getLabel('preview'));
+        chkPreview.helpTip = getLabel('tipPreview');
         chkPreview.value = true;   // デフォルトON
         chkPreview.enabled = true; // 有効
 

@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "tabularize";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-11";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/tabularize.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/tabularize.md"; /* README (English) */
@@ -40,6 +40,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     $.global.__tabularizeState = $.global.__tabularizeState || {
         presetIndex: 0,
         // Options
+        tipPreset: { ja: "保存した組み方を読み込みます。", en: "Loads a saved table style." },
+        tipUseGutter: { ja: "列のあいだにアキを入れます。幅は右の欄で指定します。", en: "Adds a gutter between columns. The field on the right sets its width." },
+        tipGutter: { ja: "列のあいだのアキの幅です。", en: "Width of the gutter between columns." },
+        tipHeaderRow: { ja: "1行目を見出し行として扱います。", en: "Treats the first row as a header." },
+        tipFill: { ja: "セルに背景色を敷きます。", en: "Fills the cells with a background color." },
+        tipFillJoinRow: { ja: "行内のセルをつなげて、1本の帯として塗ります。", en: "Merges the cells in a row and fills them as one band." },
+        tipZebra: { ja: "1行おきに色を変えて縞模様にします。", en: "Alternates the fill row by row." },
+        tipFillHeaderOnly: { ja: "見出し行だけを塗ります。", en: "Fills the header row only." },
+        tipRule: { ja: "セルの境にケイ線を引きます。", en: "Draws rules between the cells." },
+        tipVruleNone: { ja: "縦のケイ線は引きません。", en: "Draws no vertical rules." },
+        tipVruleGapsOnly: { ja: "アキのある位置だけに縦のケイ線を引きます。", en: "Draws vertical rules only where there is a gutter." },
+        tipVruleAll: { ja: "すべての列の境に縦のケイ線を引きます。", en: "Draws a vertical rule between every column." },
+        tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." },
+        previewLabel: { ja: "プレビュー", en: "Preview" },
         useGutter: true,
         gutterText: "",
         headerRow: true,
@@ -176,59 +190,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 単位ユーティリティ / Unit utilities */
 
         // --- 外部定義：共通単位マップ ---
-        var unitMap = {
-            0: "in",
-            1: "mm",
-            2: "pt",
-            3: "pica",
-            4: "cm",
-            6: "px",
-            7: "ft/in",
-            8: "m",
-            9: "yd",
-            10: "ft"
-        };
+        /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+        var UNITS = [
+            { label: "in",    pointsPerUnit: 72 },                /* 0 */
+            { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+            { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+            { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+            { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+            { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+            { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+            { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+            { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+            { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+            { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+        ];
+
+        /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+           Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+        var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
         /**
-         * 単位コードと設定キーから適切な単位ラベルを返す（Q/H分岐含む） / Get unit label (with Q/H)
+         * 設定キーごとの単位情報を取得する
+         * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
          */
-        function getUnitLabel(code, prefKey) {
-            if (code === 5) {
-                var hKeys = {
-                    "text/asianunits": true,
-                    "rulerType": true,
-                    "strokeUnits": true
-                };
-                return hKeys[prefKey] ? "H" : "Q";
-            }
-            return unitMap[code] || "pt";
-        }
-
-        /**
-         * 単位コードから pt 換算係数を返す / Get pt factor from unit code
-         */
-        function getPtFactorFromUnitCode(code) {
-            switch (code) {
-                case 0: return 72.0;                        // in
-                case 1: return 72.0 / 25.4;                 // mm
-                case 2: return 1.0;                         // pt
-                case 3: return 12.0;                        // pica
-                case 4: return 72.0 / 2.54;                 // cm
-                case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-                case 6: return 1.0;                         // px
-                case 7: return 72.0 * 12.0;                 // ft/in
-                case 8: return 72.0 / 25.4 * 1000.0;        // m
-                case 9: return 72.0 * 36.0;                 // yd
-                case 10: return 72.0 * 12.0;                // ft
-                default: return 1.0;
-            }
-        }
-
-        /**
-         * rulerType の単位コードを取得 / Get rulerType unit code
-         */
-        function getRulerUnitCode() {
-            return app.preferences.getIntegerPreference("rulerType");
+        function getUnitInfo(prefKey) {
+            var unitKey = prefKey || "rulerType";
+            var unitCode = app.preferences.getIntegerPreference(unitKey);
+            var unit = UNITS[unitCode] || UNITS[2];
+            var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+            return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
         }
 
         /* 設定項目 / Settings */
@@ -426,6 +417,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             (uiLang === 'ja') ? '線C-1' : 'Stroke C-1',
             (uiLang === 'ja') ? '線C-2' : 'Stroke C-2'
         ]);
+        ddPreset.helpTip = getLabel('tipPreset');
         ddPreset.selection = 0;
         // 初期状態は手動（＝何もしない）
 
@@ -477,11 +469,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // チェックOFF時はガター=0＆ディム表示 / When OFF, set gutter=0 and dim
         var cbUseGutter = gGutter.add('checkbox', undefined, getLabel('useGutter'));
+        cbUseGutter.helpTip = getLabel('tipUseGutter');
         cbUseGutter.value = true;
 
-        var rulerUnitCode = getRulerUnitCode();
-        var rulerFactorPt = getPtFactorFromUnitCode(rulerUnitCode);
-        var rulerUnitLabel = getUnitLabel(rulerUnitCode, 'rulerType');
+        var rulerUnit = getUnitInfo('rulerType');
+        var rulerFactorPt = rulerUnit.pointsPerUnit;
+        var rulerUnitLabel = rulerUnit.label;
         // デフォルトガター：1mm 相当を rulerType に変換 / Default gutter ≈ 1mm in rulerType
         var defaultGutterMm = 1;
         var defaultGutterPt = defaultGutterMm * MM_TO_PT;
@@ -496,6 +489,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var etHGutter = gGutter.add('edittext', undefined, String(defaultGutterVal)); // rulerType
         etHGutter.characters = 3;
+        etHGutter.helpTip = getLabel('tipGutter');
         changeValueByArrowKey(etHGutter);
 
         var stGutterUnit = gGutter.add('statictext', undefined, rulerUnitLabel);
@@ -534,6 +528,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 1行目をヘッダー行にする / Treat first row as header */
         var cbHeader = pOpt.add('checkbox', undefined, getLabel('headerRow'));
+        cbHeader.helpTip = getLabel('tipHeaderRow');
         cbHeader.value = true;
 
         /* 2カラムレイアウト / Two-column layout */
@@ -560,6 +555,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gFill.alignChildren = ['left', 'center'];
 
         var cbFill = gFill.add('checkbox', undefined, getLabel('fillCheck'));
+        cbFill.helpTip = getLabel('tipFill');
 
         // デフォルト：塗りOFF
         cbFill.value = false;
@@ -572,14 +568,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 行方向に連結（UI）
         var cbFillJoinRow = pFillOpt.add('checkbox', undefined, getLabel('fillJoinRow'));
+        cbFillJoinRow.helpTip = getLabel('tipFillJoinRow');
         cbFillJoinRow.value = false;
 
         // ゼブラ（UI）
         var cbZebra = pFillOpt.add('checkbox', undefined, getLabel('zebra'));
+        cbZebra.helpTip = getLabel('tipZebra');
         cbZebra.value = false;
 
         // ヘッダー行のみ（UI）
         var cbFillHeaderOnly = pFillOpt.add('checkbox', undefined, getLabel('fillHeaderOnly'));
+        cbFillHeaderOnly.helpTip = getLabel('tipFillHeaderOnly');
         cbFillHeaderOnly.value = false;
 
         // 塗りOFFならゼブラ/行方向に連結/ヘッダー行のみ はディム表示
@@ -654,6 +653,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 線（横ケイ＋縦ケイの有効/無効）
         var cbRule = pVrule.add('checkbox', undefined, getLabel('ruleCheck'));
+        cbRule.helpTip = getLabel('tipRule');
         cbRule.value = true;
 
         // 縦ケイ
@@ -667,8 +667,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gVrule.alignChildren = ['left', 'top'];
 
         var rbVruleNone = gVrule.add('radiobutton', undefined, getLabel('none'));
+        rbVruleNone.helpTip = getLabel('tipVruleNone');
         var rbVruleGapsOnly = gVrule.add('radiobutton', undefined, getLabel('gapsOnly'));
+        rbVruleGapsOnly.helpTip = getLabel('tipVruleGapsOnly');
         var rbVruleAll = gVrule.add('radiobutton', undefined, getLabel('all'));
+        rbVruleAll.helpTip = getLabel('tipVruleAll');
 
         // デフォルト：列間のみ
         rbVruleGapsOnly.value = true;
@@ -991,7 +994,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnGroup.alignChildren = ['left', 'center'];
 
         // Preview toggle (left)
-        cbPreview = btnGroup.add('checkbox', undefined, (uiLang === 'ja') ? 'プレビュー' : 'Preview');
+        cbPreview = btnGroup.add('checkbox', undefined, getLabel('previewLabel'));
+        cbPreview.helpTip = getLabel('tipPreview');
         cbPreview.value = true;
 
         // Spacer
@@ -1219,7 +1223,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { calcLayer = doc.layers.getByName(calcLayerName); }
             catch (e) { calcLayer = doc.layers.add(); calcLayer.name = calcLayerName; }
             try { calcLayer.zOrder(ZOrderMethod.SENDTOFRONT); } catch (e) { }
-            try { calcLayer.visible = true; } catch (e) { }
+            try {
+                calcLayer.visible = true;
+            } catch (e) {}
             try { calcLayer.locked = false; } catch (e) { }
 
             // 2) proxies
@@ -1768,14 +1774,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 p = p.parent;
             }
             return found;
-        }
-
-        // 参照でユニーク追加（同じオブジェクトを重複追加しない）
-        function pushUniqueRef(arr, obj) {
-            for (var i = 0; i < arr.length; i++) {
-                if (arr[i] === obj) return;
-            }
-            arr.push(obj);
         }
 
         // ExtendScript互換：参照配列にobjが含まれるか（indexOfが無い環境向け）

@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiTextOutlineRestorePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-07-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette.md"; /* README (English) */

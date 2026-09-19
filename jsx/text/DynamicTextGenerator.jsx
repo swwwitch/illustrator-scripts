@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DynamicTextGenerator";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGenerator.md"; /* README (English) */
@@ -1489,7 +1489,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹�
         try {
             var trackingValue = Math.max(-100, Math.min(500, Math.round(parseNumber(etTracking.text, 0))));
             etTracking.text = String(trackingValue);
-            try { slTracking.value = trackingValue; } catch (e) { }
+            slTracking.value = trackingValue;
         } catch (e) { }
         trackingSyncLock = false;
     }

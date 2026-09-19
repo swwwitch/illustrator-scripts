@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImageLinkManager";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-12-21";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-12-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageLinkManager.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageLinkManager.md"; /* README (English) */
@@ -54,6 +54,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       modeKeisen: { ja: "ケイ", en: "Stroke" },
       modeReset: { ja: "リセット", en: "Reset" },
       modeLink: { ja: "リンク", en: "Link" },
+
+      // ===== Tooltips =====
+      tipModeEmbed: { ja: "配置画像をドキュメントに埋め込みます。", en: "Embeds the placed images into the document." },
+      tipModeRelease: { ja: "埋め込み画像をファイルへ書き出し、リンクに戻します。", en: "Writes embedded images out to files and links to them instead." },
+      tipModeKeisen: { ja: "配置画像にケイ線を追加します。", en: "Adds a rule around the placed images." },
+      tipModeReset: { ja: "配置画像に掛かっている変形（回転・シアーなど）を元に戻します。", en: "Undoes the transforms applied to placed images, such as rotation and shear." },
+      tipModeLink: { ja: "リンクの更新やさしかえを行います。", en: "Updates or replaces the links." },
+      tipEmbedSelection: { ja: "選択している配置画像だけを埋め込みます。", en: "Embeds only the selected placed images." },
+      tipEmbedAll: { ja: "ドキュメント内のすべての配置画像を埋め込みます。", en: "Embeds every placed image in the document." },
+      tipReleaseSelection: { ja: "選択している埋め込み画像だけをリンクに戻します。", en: "Unembeds only the selected images." },
+      tipReleaseAll: { ja: "ドキュメント内のすべての埋め込み画像をリンクに戻します。", en: "Unembeds every embedded image in the document." },
+      tipKeisenStrokeOnly: { ja: "配置画像にそのまま線を追加します。画像の形は変わりません。", en: "Adds a stroke straight to the placed image, leaving its shape alone." },
+      tipKeisenClipGroup: { ja: "配置画像を長方形でクリップしてから、その長方形に線を追加します。角丸にできます。", en: "Clips the image with a rectangle and strokes that rectangle, so the corners can be rounded." },
+      tipKeisenRoundCorners: { ja: "クリップした長方形の角を丸めます。半径は右の欄で指定します。", en: "Rounds the corners of the clipping rectangle. The field on the right sets the radius." },
+      tipLinkUpdate: { ja: "リンク切れや更新のある画像を、いまのリンク先で読み直します。", en: "Reloads the images from their current link paths." },
+      tipLinkRelinkAll: { ja: "すべてのリンクを、選んだファイルへ張り替えます。", en: "Relinks every image to a file you choose." },
+      tipResetReplace: { ja: "画像を同じ位置に置き直して、変形を落とします。", en: "Re-places the image at the same spot, dropping its transforms." },
+      tipResetRotate: { ja: "回転を元に戻します。", en: "Clears the rotation." },
+      tipResetSkew: { ja: "シアー（傾き）を元に戻します。", en: "Clears the shear." },
+      tipResetRatio: { ja: "縦横比を元に戻します。", en: "Restores the original aspect ratio." },
+      tipResetFlip: { ja: "反転を元に戻します。", en: "Clears the flip." },
+      tipResetScale: { ja: "拡大・縮小率を右の欄の値にそろえます。", en: "Sets the scale to the value in the field on the right." },
+      tipScale: { ja: "そろえる拡大・縮小率（％）です。", en: "The scale, in percent, every image is set to." },
 
       // ===== Panels =====
       panelEmbed: { ja: "埋め込み", en: "Embed" },
@@ -131,7 +154,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * Localized string getter
      * @param {String} key - LABELS key
      */
-    function t(key) {
+    function getLabel(key) {
       var o = LABELS[key];
       if (!o) return key;
       return (o[uiLang] != null) ? o[uiLang] : (o.en != null ? o.en : key);
@@ -140,29 +163,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * ===== Units (from rulerType) =====
      */
-    // 単位コードとラベルのマップ
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    // 現在の単位ラベルを取得
-    function getCurrentUnitLabel() {
-        try {
-            var unitCode = app.preferences.getIntegerPreference("rulerType");
-            return unitLabelMap[unitCode] || "pt";
-        } catch (e) {
-            return "pt";
-        }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     function showDialog() {
@@ -180,11 +210,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         modeGroup.orientation = 'row';
         modeGroup.alignChildren = ['left', 'center'];
 
-        var rbModeEmbed = modeGroup.add('radiobutton', undefined, t('modeEmbed'));
-        var rbModeRelease = modeGroup.add('radiobutton', undefined, t('modeRelease'));
-        var rbModeKeisen = modeGroup.add('radiobutton', undefined, t('modeKeisen'));
-        var rbModeReset = modeGroup.add('radiobutton', undefined, t('modeReset'));
-        var rbModeLink = modeGroup.add('radiobutton', undefined, t('modeLink'));
+        var rbModeEmbed = modeGroup.add('radiobutton', undefined, getLabel('modeEmbed'));
+        rbModeEmbed.helpTip = getLabel('tipModeEmbed');
+        var rbModeRelease = modeGroup.add('radiobutton', undefined, getLabel('modeRelease'));
+        rbModeRelease.helpTip = getLabel('tipModeRelease');
+        var rbModeKeisen = modeGroup.add('radiobutton', undefined, getLabel('modeKeisen'));
+        rbModeKeisen.helpTip = getLabel('tipModeKeisen');
+        var rbModeReset = modeGroup.add('radiobutton', undefined, getLabel('modeReset'));
+        rbModeReset.helpTip = getLabel('tipModeReset');
+        var rbModeLink = modeGroup.add('radiobutton', undefined, getLabel('modeLink'));
+        rbModeLink.helpTip = getLabel('tipModeLink');
 
         rbModeEmbed.value = true; // デフォルト
 
@@ -254,13 +289,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.alignChildren = ['fill', 'top'];
 
         // ===== 埋め込み / Embed =====
-        var panelEmbed = leftCol.add('panel', undefined, t('panelEmbed'));
+        var panelEmbed = leftCol.add('panel', undefined, getLabel('panelEmbed'));
         panelEmbed.orientation = 'column';
         panelEmbed.alignChildren = 'left';
         panelEmbed.margins = [15, 20, 15, 10];
 
-        var rbEmbedSelection = panelEmbed.add('radiobutton', undefined, t('embedSelection'));
-        var rbEmbedAll = panelEmbed.add('radiobutton', undefined, t('embedAll'));
+        var rbEmbedSelection = panelEmbed.add('radiobutton', undefined, getLabel('embedSelection'));
+        rbEmbedSelection.helpTip = getLabel('tipEmbedSelection');
+        var rbEmbedAll = panelEmbed.add('radiobutton', undefined, getLabel('embedAll'));
+        rbEmbedAll.helpTip = getLabel('tipEmbedAll');
         rbEmbedSelection.value = true; // デフォルト
 
         // 選択がない場合は「すべての配置画像」を自動選択
@@ -276,13 +313,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // ===== 解除 / Release =====
-        var panelRelease = leftCol.add('panel', undefined, t('panelRelease'));
+        var panelRelease = leftCol.add('panel', undefined, getLabel('panelRelease'));
         panelRelease.orientation = 'column';
         panelRelease.alignChildren = 'left';
         panelRelease.margins = [15, 20, 15, 10];
 
-        var rbReleaseSelection = panelRelease.add('radiobutton', undefined, t('releaseSelection'));
-        var rbReleaseAll = panelRelease.add('radiobutton', undefined, t('releaseAll'));
+        var rbReleaseSelection = panelRelease.add('radiobutton', undefined, getLabel('releaseSelection'));
+        rbReleaseSelection.helpTip = getLabel('tipReleaseSelection');
+        var rbReleaseAll = panelRelease.add('radiobutton', undefined, getLabel('releaseAll'));
+        rbReleaseAll.helpTip = getLabel('tipReleaseAll');
         rbReleaseSelection.value = true; // デフォルト
 
         // 選択がない場合は「すべての画像」を自動選択（解除）
@@ -292,13 +331,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         // ===== ケイ線 / Rules =====
-        var panelKeisen = leftCol.add('panel', undefined, t('panelKeisen'));
+        var panelKeisen = leftCol.add('panel', undefined, getLabel('panelKeisen'));
         panelKeisen.orientation = 'column';
         panelKeisen.alignChildren = ['left', 'top'];
         panelKeisen.margins = [15, 20, 15, 10];
 
-        var rbKeisenStrokeOnly = panelKeisen.add('radiobutton', undefined, t('keisenStrokeOnly'));
-        var rbKeisenClipGroup = panelKeisen.add('radiobutton', undefined, t('keisenClipGroup'));
+        var rbKeisenStrokeOnly = panelKeisen.add('radiobutton', undefined, getLabel('keisenStrokeOnly'));
+        rbKeisenStrokeOnly.helpTip = getLabel('tipKeisenStrokeOnly');
+        var rbKeisenClipGroup = panelKeisen.add('radiobutton', undefined, getLabel('keisenClipGroup'));
+        rbKeisenClipGroup.helpTip = getLabel('tipKeisenClipGroup');
 
         // 選択オブジェクト全体の外接矩形から角丸のデフォルト値を算出
         function calcDefaultRoundRadiusFromSelection(currentSelection) {
@@ -344,12 +385,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         roundRow.alignChildren = ['left', 'center'];
         roundRow.margins = [20, 0, 0, 0]; // インデント
 
-        var cbKeisenRoundCorners = roundRow.add('checkbox', undefined, t('keisenRoundCorners'));
+        var cbKeisenRoundCorners = roundRow.add('checkbox', undefined, getLabel('keisenRoundCorners'));
+        cbKeisenRoundCorners.helpTip = getLabel('tipKeisenRoundCorners');
         cbKeisenRoundCorners.value = true;
 
         var etKeisenRoundRadius = roundRow.add('edittext', undefined, String(defaultRoundRadius));
+        etKeisenRoundRadius.helpTip = getLabel('tipKeisenRoundCorners');
         etKeisenRoundRadius.characters = 6;
-        var stKeisenRoundUnit = roundRow.add('statictext', undefined, getCurrentUnitLabel());
+        var stKeisenRoundUnit = roundRow.add('statictext', undefined, getUnitInfo().label);
 
         // 初期状態
         cbKeisenRoundCorners.enabled = false;
@@ -372,7 +415,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbKeisenRoundCorners.onClick = updateKeisenRoundUI;
         updateKeisenRoundUI();
         try {
-            stKeisenRoundUnit.text = getCurrentUnitLabel();
+            stKeisenRoundUnit.text = getUnitInfo().label;
         } catch (e) { }
 
         etKeisenRoundRadius.onChange = function () {
@@ -382,13 +425,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         };
 
         // ===== リセット / Reset (right column) =====
-        var panelReset = rightCol.add('panel', undefined, t('panelReset'));
+        var panelReset = rightCol.add('panel', undefined, getLabel('panelReset'));
         panelReset.orientation = 'column';
         panelReset.alignChildren = ['left', 'top'];
         panelReset.margins = [15, 20, 15, 10];
 
         // ===== リンク / Link (right column) =====
-        var panelLink = rightCol.add('panel', undefined, t('panelLink'));
+        var panelLink = rightCol.add('panel', undefined, getLabel('panelLink'));
         panelLink.orientation = 'column';
         panelLink.alignChildren = ['left', 'top'];
         panelLink.margins = [15, 20, 15, 10];
@@ -398,21 +441,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gLinkMode.orientation = 'column';
         gLinkMode.alignChildren = ['left', 'center'];
 
-        var rbLinkUpdate = gLinkMode.add('radiobutton', undefined, t('linkUpdate'));
-        var rbLinkRelinkAll = gLinkMode.add('radiobutton', undefined, t('linkRelinkAll'));
+        var rbLinkUpdate = gLinkMode.add('radiobutton', undefined, getLabel('linkUpdate'));
+        rbLinkUpdate.helpTip = getLabel('tipLinkUpdate');
+        var rbLinkRelinkAll = gLinkMode.add('radiobutton', undefined, getLabel('linkRelinkAll'));
+        rbLinkRelinkAll.helpTip = getLabel('tipLinkRelinkAll');
 
         // デフォルト：リンクを更新
         rbLinkUpdate.value = true;
 
         // （ResetTransform のUIを右カラムに移植：ロジックは後で接続）
-        var cbReplaceReset = panelReset.add('checkbox', undefined, t('resetReplace'));
+        var cbReplaceReset = panelReset.add('checkbox', undefined, getLabel('resetReplace'));
+        cbReplaceReset.helpTip = getLabel('tipResetReplace');
         cbReplaceReset.value = false;
 
-        var cbRotate = panelReset.add('checkbox', undefined, t('resetRotate'));
-        var cbSkew = panelReset.add('checkbox', undefined, t('resetSkew'));
-        var cbRatio = panelReset.add('checkbox', undefined, t('resetRatio'));
-        var cbFlip = panelReset.add('checkbox', undefined, t('resetFlip'));
-        var cbScale = panelReset.add('checkbox', undefined, t('resetScale'));
+        var cbRotate = panelReset.add('checkbox', undefined, getLabel('resetRotate'));
+        cbRotate.helpTip = getLabel('tipResetRotate');
+        var cbSkew = panelReset.add('checkbox', undefined, getLabel('resetSkew'));
+        cbSkew.helpTip = getLabel('tipResetSkew');
+        var cbRatio = panelReset.add('checkbox', undefined, getLabel('resetRatio'));
+        cbRatio.helpTip = getLabel('tipResetRatio');
+        var cbFlip = panelReset.add('checkbox', undefined, getLabel('resetFlip'));
+        cbFlip.helpTip = getLabel('tipResetFlip');
+        var cbScale = panelReset.add('checkbox', undefined, getLabel('resetScale'));
+        cbScale.helpTip = getLabel('tipResetScale');
 
         cbRotate.value = true;
         cbSkew.value = true;
@@ -426,6 +477,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         gScale.alignChildren = 'center';
 
         var etScale = gScale.add('edittext', undefined, '100');
+        etScale.helpTip = getLabel('tipScale');
         etScale.characters = 5;
         var stPercent = gScale.add('statictext', undefined, '%');
 
@@ -544,8 +596,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnGroup.alignment = 'center';
         btnGroup.alignChildren = ['center', 'center'];
 
-        var cancelBtn = btnGroup.add('button', undefined, t('cancel'), { name: 'cancel' });
-        var okBtn = btnGroup.add('button', undefined, t('ok'), { name: 'ok' });
+        var cancelBtn = btnGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+        var okBtn = btnGroup.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
         okBtn.onClick = function () {
             dlg.close(1);
@@ -726,12 +778,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var results = [];
         function walk(item) {
             if (!item) return;
-            var t = item.typename;
-            if (t === 'PlacedItem' || t === 'RasterItem') {
+            var itemTypeName = item.typename;
+            if (itemTypeName === 'PlacedItem' || itemTypeName === 'RasterItem') {
                 results.push(item);
                 return;
             }
-            if (t === 'GroupItem') {
+            if (itemTypeName === 'GroupItem') {
                 for (var i = 0; i < item.pageItems.length; i++) {
                     walk(item.pageItems[i]);
                 }
@@ -991,7 +1043,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         if (doRound) {
             if (isNaN(roundRadius) || roundRadius < 0) {
-                throw new Error(t('errInvalidRoundRadius'));
+                throw new Error(getLabel('errInvalidRoundRadius'));
             }
         }
 
@@ -999,7 +1051,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (doClipGroup) {
             var g = makeClippingFromSelection(doc);
             if (!g) {
-                alert(t('alertClipCannot'));
+                alert(getLabel('alertClipCannot'));
                 return;
             }
         }
@@ -1623,14 +1675,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var currentSelection = doc.selection;
                 if (!currentSelection || currentSelection.length === 0) {
                     doc.selection = null;
-                    alert(t('alertSelectPlacedItem'));
+                    alert(getLabel('alertSelectPlacedItem'));
                     return;
                 }
 
                 var selectedItem = currentSelection[0];
                 if (!selectedItem || selectedItem.typename !== 'PlacedItem') {
                     doc.selection = null;
-                    alert(t('alertSelectedNotPlacedItem'));
+                    alert(getLabel('alertSelectedNotPlacedItem'));
                     return;
                 }
 
@@ -1644,7 +1696,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 if (!fileName) {
                     doc.selection = null;
-                    alert(t('alertSelectPlacedItem'));
+                    alert(getLabel('alertSelectPlacedItem'));
                     return;
                 }
 
@@ -1670,10 +1722,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
 
                 // 置換先ファイルを選択
-                var fileToReplace = File.openDialog(t('dialogSelectReplaceFile'));
+                var fileToReplace = File.openDialog(getLabel('dialogSelectReplaceFile'));
                 if (!fileToReplace) {
                     doc.selection = null;
-                    alert(t('alertFileSelectionCanceled'));
+                    alert(getLabel('alertFileSelectionCanceled'));
                     return;
                 }
 
@@ -1704,7 +1756,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ケイ線
         if (dialogResult.mode === 'keisen') {
             if (!doc.selection || doc.selection.length === 0) {
-                alert(t('alertSelectObject'));
+                alert(getLabel('alertSelectObject'));
                 doc.selection = null;
                 return;
             }
@@ -1712,7 +1764,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try {
                 applyKeisenToSelection(doc, dialogResult.keisenOptions || {});
             } catch (eKeisen) {
-                alert(t('alertKeisenError') + eKeisen);
+                alert(getLabel('alertKeisenError') + eKeisen);
             }
 
             doc.selection = null;
@@ -1740,7 +1792,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var embeddedCount = embedPlacedItems(placedItems);
             if (embeddedCount > 0) {
-                alert(embeddedCount + t('alertEmbeddedDoneSuffix'));
+                alert(embeddedCount + getLabel('alertEmbeddedDoneSuffix'));
             }
 
             doc.selection = null;
@@ -1750,7 +1802,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ドキュメント未保存の場合は埋め込み解除を禁止
         try {
             if (!doc.saved) {
-                alert(t('alertDocNotSaved'));
+                alert(getLabel('alertDocNotSaved'));
                 doc.selection = null;
                 return;
             }
@@ -1766,7 +1818,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
             // 選択に「リンク」画像（PlacedItem）が含まれている場合は解除できないため通知
             if (selectionHasLinkedPlacedItem(doc.selection)) {
-                alert(t('alertLinkedCannotUnembed'));
+                alert(getLabel('alertLinkedCannotUnembed'));
                 doc.selection = null;
                 return;
             }
@@ -1783,11 +1835,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var result = releaseRasterItemsToLinks(doc, rasterItems);
         if (result) {
             if (result.count > 0) {
-                var msg = result.count + t('alertReleasedDoneSuffix');
+                var msg = result.count + getLabel('alertReleasedDoneSuffix');
                 if (typeof result.linkedCount === 'number') {
-                    msg += '\n' + t('alertLinkedCreatedPrefix') + result.linkedCount + t('alertLinkedCreatedSuffix');
+                    msg += '\n' + getLabel('alertLinkedCreatedPrefix') + result.linkedCount + getLabel('alertLinkedCreatedSuffix');
                     if (result.linkedCount === 0) {
-                        msg += t('alertLinkedCreateZeroNote');
+                        msg += getLabel('alertLinkedCreateZeroNote');
                     }
                 }
                 if (result.errors && result.errors.length > 0) {
@@ -1795,7 +1847,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
                 alert(msg);
             } else if (result.errors && result.errors.length > 0) {
-                alert(t('alertUnembedFailed') + result.errors.join('\n'));
+                alert(getLabel('alertUnembedFailed') + result.errors.join('\n'));
             }
         }
 

@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "bg-template";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-29";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-template.md"; /* README (English) */
@@ -50,12 +50,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Color Settings"
         },
         marginLabel: {
-            ja: "マージン:",
-            en: "Margin:"
+            ja: "マージン",
+            en: "Margin"
         },
         templateCheckbox: {
             ja: "「テンプレート」レイヤーに",
             en: "Set as Template Layer"
+        },
+        tipHex: {
+            ja: "背景色を16進数で指定します（例: 999999）。RGB欄と連動します。",
+            en: "Background color as a hex value, for example 999999. It is linked to the RGB fields."
+        },
+        tipMargin: {
+            ja: "アートボードの外側へ背景を広げる量です。",
+            en: "How far the background extends past the artboard."
+        },
+        tipTemplate: {
+            ja: "作った背景をテンプレートレイヤーに置きます。印刷・書き出しの対象から外れ、ロックされます。",
+            en: "Puts the background on a template layer: it is locked and left out of printing and export."
         },
         okButton: {
             ja: "OK",
@@ -66,6 +78,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Cancel"
         }
     };
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(key) {
+        return LABELS[key][uiLang] + (uiLang === "ja" ? "：" : ": ");
+    }
 
     // RGB → HEX 更新 / Update HEX from RGB
     function updateHexFromRGB(rInput, gInput, bInput, hexInput) {
@@ -248,47 +269,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
-    // 塗り色を設定する関数 / Function to set fill color
-    function setFillColor(doc, rectItem, useCMYK) {
-        if (useCMYK) {
-            // CMYKドキュメント：K45 / CMYK document: K45
-            var fillColor = new CMYKColor();
-            fillColor.cyan = 0;
-            fillColor.magenta = 0;
-            fillColor.yellow = 0;
-            fillColor.black = 45;
-            rectItem.fillColor = fillColor;
-        } else {
-            // RGBドキュメント：#999999 / RGB document: #999999
-            var rgbColor = new RGBColor();
-            rgbColor.red = 153;
-            rgbColor.green = 153;
-            rgbColor.blue = 153;
-            rectItem.fillColor = rgbColor;
-        }
-        rectItem.filled = true;
-        rectItem.stroked = false; // 線なし / No stroke
-    }
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    // 単位コードとラベルのマップ / Map of unit codes to labels
-    var unitLabelMap = {
-      0: "in",
-      1: "mm",
-      2: "pt",
-      3: "pica",
-      4: "cm",
-      5: "Q/H",
-      6: "px",
-      7: "ft/in",
-      8: "m",
-      9: "yd",
-      10: "ft"
-    };
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    // 現在の単位ラベルを取得 / Get current unit label
-    function getCurrentUnitLabel() {
-      var unitCode = app.preferences.getIntegerPreference("rulerType");
-      return unitLabelMap[unitCode] || "pt";
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // CMYK入力欄を作成する共通関数 / Common function to create CMYK input
@@ -361,6 +371,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var hexLabel = hexGroup.add("statictext", undefined, "#");
             hexLabel.preferredSize.width = 20;
             var hexInput = hexGroup.add("edittext", undefined, "999999");
+            hexInput.helpTip = LABELS.tipHex[uiLang];
             hexInput.characters = 7;
 
             // RGBとHEXの連動 / Link RGB and HEX
@@ -397,14 +408,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var marginGroup = dlg.add("group");
             marginGroup.orientation = "row";
 
-            marginGroup.add("statictext", undefined, LABELS.marginLabel[uiLang]);
+            marginGroup.add("statictext", undefined, labelText("marginLabel"));
             var marginInput = marginGroup.add("edittext", undefined, "0");
+            marginInput.helpTip = LABELS.tipMargin[uiLang];
             marginInput.characters = 4;
-            var unitLabel = marginGroup.add("statictext", undefined, getCurrentUnitLabel());
+            var unitLabel = marginGroup.add("statictext", undefined, getUnitInfo().label);
 
             changeValueByArrowKey(marginInput);
 
             var templateCheckbox = dlg.add("checkbox", undefined, LABELS.templateCheckbox[uiLang]);
+            templateCheckbox.helpTip = LABELS.tipTemplate[uiLang];
             templateCheckbox.value = true; // デフォルトでON
 
             var btnGroup = dlg.add("group");

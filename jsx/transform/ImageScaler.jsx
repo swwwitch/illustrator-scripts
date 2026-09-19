@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImageScaler";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageScaler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageScaler.md"; /* README (English) */
@@ -50,6 +50,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         scale: { ja: "スケール", en: "Scale" },
         // 単位 / Unit
         percent: { ja: "%", en: "%" },
+        // ツールチップ / Tooltips
+        tipScale: {
+            ja: "配置画像の拡大・縮小率です。100 で原寸。↑↓キーで増減できます。",
+            en: "Scale of the placed image. 100 is the original size. The arrow keys step the value."
+        },
         // ボタン / Buttons
         ok: { ja: "OK", en: "OK" },
         cancel: { ja: "キャンセル", en: "Cancel" }
@@ -146,6 +151,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         inputGroup.add('statictext', undefined, LABELS.scale[uiLang]);
 
         var scaleInput = inputGroup.add('edittext', undefined, defaultScaleText);
+        scaleInput.helpTip = LABELS.tipScale[uiLang];
         scaleInput.characters = 4;
         changeValueByArrowKey(scaleInput);
         scaleInput.active = true;

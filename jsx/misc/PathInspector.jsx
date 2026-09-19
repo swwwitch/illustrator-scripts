@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathInspector";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-31";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathInspector.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathInspector.md"; /* README (English) */
@@ -51,8 +51,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         },
         report: {
             title: { ja: "Path Inspector Report", en: "Path Inspector Report" },
-            document: { ja: "ドキュメント:", en: "Document:" },
-            date: { ja: "日付:", en: "Date:" },
+            document: { ja: "ドキュメント：", en: "Document:" },
+            date: { ja: "日付：", en: "Date:" },
             valueNote: {
                 ja: "※ 値は『選択 / 全体』の形式です",
                 en: "Note: values are formatted as 'Selection / All'"
@@ -372,7 +372,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
              * @param {string} msg 表示メッセージ
              * @returns {void}
              */
-            function setStatus(msg) { try { statusText.text = msg; } catch (e) {} }
+            function setStatus(msg) { statusText.text = msg; }
 
             /**
              * 集計値をパネルへ反映する

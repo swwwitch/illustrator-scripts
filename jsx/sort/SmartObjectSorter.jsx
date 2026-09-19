@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectSorter";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v0.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2024-06-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectSorter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectSorter.md"; /* README (English) */
@@ -531,51 +531,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
         }
     }
 
-    // 並び方向自動判定用関数群
-    function calculateAutoTolerance(objects) {
-        if (objects.length < 3) return 0;
-        var bounds1 = objects[0].visibleBounds;
-        var bounds2 = objects[1].visibleBounds;
-        var bounds3 = objects[2].visibleBounds;
-        var c1 = getBoundsCenter(bounds1);
-        var c2 = getBoundsCenter(bounds2);
-        var c3 = getBoundsCenter(bounds3);
-        var dx1 = Math.abs(c1.x - c2.x);
-        var dx2 = Math.abs(c2.x - c3.x);
-        var dy1 = Math.abs(c1.y - c2.y);
-        var dy2 = Math.abs(c2.y - c3.y);
-        var avgDx = (dx1 + dx2) / 2;
-        var avgDy = (dy1 + dy2) / 2;
-        return Math.max(avgDx, avgDy) * 1.5;
-    }
-
-    function isTightlyAligned(values, tolerance) {
-        var min = values[0];
-        var max = values[0];
-        for (var i = 1; i < values.length; i++) {
-            if (values[i] < min) min = values[i];
-            if (values[i] > max) max = values[i];
-        }
-        return (max - min) <= tolerance;
-    }
-
-    function detectAutoAlignment(objects, tolerance) {
-        var xVals = [],
-            yVals = [];
-        for (var i = 0; i < objects.length; i++) {
-            var bounds = objects[i].visibleBounds;
-            var centerX = (bounds[0] + bounds[2]) / 2;
-            var centerY = (bounds[1] + bounds[3]) / 2;
-            xVals.push(centerX);
-            yVals.push(centerY);
-        }
-        var isVertical = isTightlyAligned(xVals, tolerance);
-        var isHorizontal = isTightlyAligned(yVals, tolerance);
-        if (isVertical && !isHorizontal) return "vertical";
-        if (isHorizontal && !isVertical) return "horizontal";
-        return "none";
-    }
-
     // 並べ替え・整列ダイアログ作成
 
     // メイン処理
@@ -678,7 +633,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             var rightGroup = mainGroup.add("group");
             rightGroup.orientation = "column";
             rightGroup.alignChildren = "fill";
-            // rightGroup.spacing = 20;
 
             // 並べ替え基準パネル
             byGroup = leftGroup.add("panel", undefined, LABELS.byTitle[uiLang]);
@@ -852,8 +806,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n663264db75ff"; /* 紹�
             spacingInputHorizontalSmart.characters = 5;
             spacingInputHorizontalSmart.enabled = false;
 
-            // Set "even" as default selection
-            // spacingEvenBtnHorizontalSmart.value = true;
             spacingEvenBtnHorizontalSmart.value = false;
             spacingZeroBtnHorizontalSmart.value = false;
             spacingCustomBtnHorizontalSmart.value = false;

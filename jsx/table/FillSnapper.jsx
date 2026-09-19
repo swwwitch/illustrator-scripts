@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FillSnapper";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillSnapper.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillSnapper.md"; /* README (English) */
@@ -46,6 +46,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ui: {
             dialogTitle: { ja: "塗りを線にスナップ", en: "Snap Fill to Lines" },
             panelTarget: { ja: "動かす対象", en: "Items to move" },
+            tipFilled: { ja: "塗りのあるオブジェクトを対象にします。", en: "Targets objects that have a fill." },
+            tipGroup: { ja: "グループも対象にします。", en: "Targets groups as well." },
+            tipClipGroup: { ja: "クリップグループも対象にします。", en: "Targets clipping groups as well." },
+            tipStrokedOnly: { ja: "線だけのオブジェクトを、吸着先の基準として使います。", en: "Uses stroke-only objects as the edges to snap to." },
+            tipBlank: { ja: "塗りも線もないオブジェクトも基準に含めます。", en: "Includes objects with neither fill nor stroke as edges." },
+            tipIncludeGuides: { ja: "ガイドも吸着先の基準に含めます。", en: "Includes guides as edges to snap to." },
+            tipIncludeArtboard: { ja: "アートボードの端も吸着先の基準に含めます。", en: "Includes the artboard edges as edges to snap to." },
+            tipUnrotate: { ja: "回転しているオブジェクトを、いったん角度0に戻してから合わせます。", en: "Straightens rotated objects before snapping them." },
+            tipTolerance: { ja: "同じ位置とみなす許容差です。", en: "How far apart two edges can be and still count as aligned." },
+            tipMaxDistance: { ja: "この距離までの基準にだけ吸着します。", en: "Only snaps to edges within this distance." },
+            tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original layout." },
             cbFilled: { ja: "塗りのあるクローズパス", en: "Filled closed paths" },
             panelSnapBasis: { ja: "スナップ基準", en: "Snap references" },
             cbStrokedOnly: { ja: "線だけのパス", en: "Stroke-only paths" },
@@ -78,7 +89,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
         return key;
     }
-    var L = getLabel;
 
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(key) {
@@ -92,19 +102,44 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var PANEL_MARGINS = [15, 20, 15, 10];
     var OPTION_LABEL_WIDTH = 120;
 
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     var pointsPerUnitMap = {
         0: 72, // in
@@ -120,33 +155,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         10: 864 // ft
     };
 
-    /* 現在の定規単位コードを取得 / Get current ruler unit code */
-    function getCurrentRulerUnitCode() {
-        try {
-            return app.preferences.getIntegerPreference("rulerType");
-        } catch (e) {
-            return 2;
-        }
-    }
-
-    /* 単位コードからラベルを取得 / Get ruler unit label from unit code */
-    function getUnitLabel(unitCode) {
-        return unitLabelMap[unitCode] || "pt";
-    }
-
-    /* 単位コードから pt 換算係数を取得 / Get points-per-unit factor from unit code */
-    function getPointsPerUnit(unitCode) {
-        return pointsPerUnitMap[unitCode] || 1;
-    }
-
     /* pt を指定単位へ変換 / Convert points to the specified ruler unit */
     function pointsToUnit(valuePt, unitCode) {
-        return valuePt / getPointsPerUnit(unitCode);
+        return valuePt / (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1);
     }
 
     /* 指定単位を pt へ変換 / Convert the specified ruler unit to points */
     function unitToPoints(value, unitCode) {
-        return value * getPointsPerUnit(unitCode);
+        return value * (UNITS[unitCode] ? UNITS[unitCode].pointsPerUnit : 1);
     }
 
     /* 入力欄用に数値を整形 / Format numeric value for edit fields */
@@ -529,45 +545,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     function showSnapDialog(defaults, onPreview) {
-        var dialog = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 16;
-        var currentUnitCode = getCurrentRulerUnitCode();
-        var currentUnitLabel = getUnitLabel(currentUnitCode);
+        var currentUnitCode = getUnitInfo().code;
+        var currentUnitLabel = getUnitInfo().label;
 
         /* 「変形するもの」パネル：動かされる側 / Targets panel: items being moved */
-        var targetPanel = dialog.add("panel", undefined, L('panelTarget'));
+        var targetPanel = dialog.add("panel", undefined, getLabel('panelTarget'));
         setupPanel(targetPanel, 6);
-        var checkboxFilled = targetPanel.add("checkbox", undefined, L('cbFilled'));
+        var checkboxFilled = targetPanel.add("checkbox", undefined, getLabel('cbFilled'));
+        checkboxFilled.helpTip = getLabel('tipFilled');
         checkboxFilled.value = defaults.filled;
-        var checkboxGroup = targetPanel.add("checkbox", undefined, L('cbGroup'));
+        var checkboxGroup = targetPanel.add("checkbox", undefined, getLabel('cbGroup'));
+        checkboxGroup.helpTip = getLabel('tipGroup');
         checkboxGroup.value = defaults.group;
-        var checkboxClipGroup = targetPanel.add("checkbox", undefined, L('cbClipGroup'));
+        var checkboxClipGroup = targetPanel.add("checkbox", undefined, getLabel('cbClipGroup'));
+        checkboxClipGroup.helpTip = getLabel('tipClipGroup');
         checkboxClipGroup.value = defaults.clipGroup;
 
         /* 「スナップ基準」パネル：基準として扱うパス・追加基準 / Snap references panel: paths and extra references */
-        var basisPanel = dialog.add("panel", undefined, L('panelSnapBasis'));
+        var basisPanel = dialog.add("panel", undefined, getLabel('panelSnapBasis'));
         setupPanel(basisPanel, 6);
-        var checkboxStrokedOnly = basisPanel.add("checkbox", undefined, L('cbStrokedOnly'));
+        var checkboxStrokedOnly = basisPanel.add("checkbox", undefined, getLabel('cbStrokedOnly'));
+        checkboxStrokedOnly.helpTip = getLabel('tipStrokedOnly');
         checkboxStrokedOnly.value = defaults.strokedOnly;
-        var checkboxBlank = basisPanel.add("checkbox", undefined, L('cbBlank'));
+        var checkboxBlank = basisPanel.add("checkbox", undefined, getLabel('cbBlank'));
+        checkboxBlank.helpTip = getLabel('tipBlank');
         checkboxBlank.value = defaults.blank;
-        var checkboxIncludeGuides = basisPanel.add("checkbox", undefined, L('cbIncludeGuides'));
+        var checkboxIncludeGuides = basisPanel.add("checkbox", undefined, getLabel('cbIncludeGuides'));
+        checkboxIncludeGuides.helpTip = getLabel('tipIncludeGuides');
         checkboxIncludeGuides.value = defaults.includeGuides;
-        var checkboxIncludeArtboard = basisPanel.add("checkbox", undefined, L('cbIncludeArtboard'));
+        var checkboxIncludeArtboard = basisPanel.add("checkbox", undefined, getLabel('cbIncludeArtboard'));
+        checkboxIncludeArtboard.helpTip = getLabel('tipIncludeArtboard');
         checkboxIncludeArtboard.value = defaults.includeArtboard;
 
         /* 「オプション」パネル / Options panel */
-        var optionPanel = dialog.add("panel", undefined, L('panelOption'));
+        var optionPanel = dialog.add("panel", undefined, getLabel('panelOption'));
         setupPanel(optionPanel, 6);
-        var checkboxUnrotate = optionPanel.add("checkbox", undefined, L('cbUnrotate'));
+        var checkboxUnrotate = optionPanel.add("checkbox", undefined, getLabel('cbUnrotate'));
+        checkboxUnrotate.helpTip = getLabel('tipUnrotate');
         checkboxUnrotate.value = defaults.unrotate;
 
         var toleranceGroup = optionPanel.add("group");
         var toleranceLabel = toleranceGroup.add("statictext", undefined, labelText('tolerance'));
         toleranceLabel.preferredSize = [OPTION_LABEL_WIDTH, -1];
         var toleranceInput = toleranceGroup.add("edittext", undefined, formatUnitValue(pointsToUnit(defaults.tolerance, currentUnitCode)));
+        toleranceInput.helpTip = getLabel('tipTolerance');
         toleranceInput.characters = 3;
         toleranceGroup.add("statictext", undefined, currentUnitLabel);
 
@@ -575,6 +600,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var maxDistanceLabel = maxDistanceGroup.add("statictext", undefined, labelText('maxDistance'));
         maxDistanceLabel.preferredSize = [OPTION_LABEL_WIDTH, -1];
         var maxDistanceInput = maxDistanceGroup.add("edittext", undefined, formatUnitValue(pointsToUnit(defaults.maxDistance, currentUnitCode))); maxDistanceInput.characters = 3;
+        maxDistanceInput.helpTip = getLabel('tipMaxDistance');
         maxDistanceGroup.add("statictext", undefined, currentUnitLabel);
 
         /* 下段：左＝プレビュー、中央＝余白、右＝ボタン / Bottom row: left=preview, center=spacer, right=buttons */
@@ -584,7 +610,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var previewGroup = bottomGroup.add("group");
         previewGroup.alignment = ["left", "center"];
-        var checkboxPreview = previewGroup.add("checkbox", undefined, L('cbPreview'));
+        var checkboxPreview = previewGroup.add("checkbox", undefined, getLabel('cbPreview'));
+        checkboxPreview.helpTip = getLabel('tipPreview');
         checkboxPreview.value = defaults.preview;
 
         var spacer = bottomGroup.add("group");
@@ -592,8 +619,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var buttonGroup = bottomGroup.add("group");
         buttonGroup.alignment = ["right", "center"];
-        buttonGroup.add("button", undefined, L('btnCancel'), { name: "cancel" });
-        buttonGroup.add("button", undefined, L('btnOK'), { name: "ok" });
+        buttonGroup.add("button", undefined, getLabel('btnCancel'), { name: "cancel" });
+        buttonGroup.add("button", undefined, getLabel('btnOK'), { name: "ok" });
 
         /* 現在の入力値を取得 / Collect current input values */
         function collectOptions() {
@@ -645,12 +672,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     (function () {
         if (app.documents.length === 0) {
-            alert(L('errNoDoc'));
+            alert(getLabel('errNoDoc'));
             return;
         }
         var selectedPageItems = app.activeDocument.selection;
         if (selectedPageItems.length < 1) {
-            alert(L('errSelect'));
+            alert(getLabel('errSelect'));
             return;
         }
 
@@ -706,11 +733,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var snapApplyResult = applySnapToTargets(collectItemsForCurrentOptions(confirmedDialogOptions), confirmedDialogOptions.tolerance, confirmedDialogOptions);
 
             if (snapApplyResult.targets === 0) {
-                alert(L('errNoTarget'));
+                alert(getLabel('errNoTarget'));
                 return;
             }
             if (snapApplyResult.horizontalLines === 0 && snapApplyResult.verticalLines === 0) {
-                alert(L('errNoLines'));
+                alert(getLabel('errNoLines'));
                 return;
             }
 

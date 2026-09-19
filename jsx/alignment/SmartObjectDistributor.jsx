@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md"; /* README (English) */
@@ -210,25 +210,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
     // =========================================
     // 単位 / Units
     // =========================================
-    // rulerType の並びに対応（0:inch, 1:mm, 2:pt, 3:pica, 4:cm, 5:Q, 6:px）
-    var UNIT_TABLE = [
-        { label: "inch", factor: 72.0 },
-        { label: "mm", factor: 72.0 / 25.4 },
-        { label: "pt", factor: 1.0 },
-        { label: "pica", factor: 12.0 },
-        { label: "cm", factor: 72.0 / 2.54 },
-        { label: "Q", factor: 72.0 / 25.4 * 0.25 },
-        { label: "px", factor: 1.0 }
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
     /**
-     * 現在の定規単位を取得します。/ Return the current ruler unit.
-     *
-     * @returns {{label: string, factor: number}} 単位のラベルと pt 換算係数。
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getCurrentRulerUnit() {
-        var rulerType = app.preferences.getIntegerPreference("rulerType");
-        return UNIT_TABLE[rulerType] ? UNIT_TABLE[rulerType] : { label: "pt", factor: 1.0 };
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -905,7 +913,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
         // 「_target」レイヤーの矩形は対象として選ばれている間は非表示にする
         if (targetRectItem) setItemHidden(targetRectItem, true);
 
-        var rulerUnit = getCurrentRulerUnit();
+        var rulerUnit = getUnitInfo();
         var defaultDivision = computeDefaultDivision(placeableItems.length, initialTargetRect);
         var transparencyGridToggleCount = 0;
 
@@ -932,7 +940,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹�
          */
         function readLength(inputField) {
             var value = parseFloat(inputField.text);
-            return isFinite(value) ? value * rulerUnit.factor : 0;
+            return isFinite(value) ? value * rulerUnit.pointsPerUnit : 0;
         }
 
         /**

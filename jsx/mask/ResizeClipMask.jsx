@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ResizeClipMask";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeClipMask.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeClipMask.md"; /* README (English) */
@@ -51,33 +51,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "マスクパスのサイズ変更 " + SCRIPT_VERSION,
             en: "Resize Mask Path " + SCRIPT_VERSION
         },
+        tipMargin: {
+            ja: "マスクパスを外側に広げる量です。マイナスを入れると内側に縮みます。",
+            en: "How far the mask path grows outward. A negative value shrinks it instead."
+        },
         margin: { ja: "マージン", en: "Margin" }
     };
 
-    /* 単位コードとラベルのマッピング / Unit code to label mapping */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    /* 現在の単位ラベル取得 / Get current unit label */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
-    }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 2点が等しいか判定 / Check if two points are equal */
-    function pointsEqual(p1, p2) {
-        return p1[0] == p2[0] && p1[1] == p2[1];
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* プラスボタン処理 / Handle plus button */
@@ -127,6 +137,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         inputSubGroup.orientation = "row";
 
         var input = inputSubGroup.add("edittext", undefined, defaultValue);
+        input.helpTip = getLabel("tipMargin");
         input.characters = 4;
         changeValueByArrowKey(input);
         input.onChangeValue = previewCallback;
@@ -198,16 +209,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return masks;
     }
 
-    /* マスク矩形の座標情報取得 / Get rectangle info from mask */
-    function getRectInfo(mask) {
-        return {
-            left: mask.left,
-            top: mask.top,
-            width: mask.width,
-            height: mask.height
-        };
-    }
-
     /* 元のマスク矩形情報保存用 / Store original mask rectangles */
     var originalRects = [];
 
@@ -257,7 +258,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
         var newSelection = collectMaskPaths(currentSelection);
-        var marginUnit = getCurrentUnitLabel();
+        var marginUnit = getUnitInfo().label;
         var defaultMarginValue = '0';
         var margin = showMarginDialog(defaultMarginValue, marginUnit, function(previewMargin) {
             applyTemporaryMarginToMasks(newSelection, previewMargin);

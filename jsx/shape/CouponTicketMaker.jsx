@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CouponTicketMaker";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CouponTicketMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CouponTicketMaker.md"; /* README (English) */
@@ -202,6 +202,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             corner:          { ja: "コーナー", en: "Corner" },
             hole:            { ja: "スリット／ホール", en: "Slit / Hole" }
         },
+        tooltip: {
+            preset:        { ja: "保存したチケットの形を読み込みます。", en: "Loads a saved ticket shape." },
+            cornerNone:    { ja: "角は加工しません。", en: "Leaves the corners square." },
+            cornerRound:   { ja: "角を丸めます。", en: "Rounds the corners." },
+            cornerInverse: { ja: "角を内側にえぐった形にします。", en: "Scoops the corners inward." },
+            cornerChamfer: { ja: "角を面取りします。", en: "Chamfers the corners." },
+            zigzagNone:    { ja: "辺はまっすぐのままにします。", en: "Leaves the edges straight." },
+            zigzagLeftRight: { ja: "左右の辺をギザギザにします。", en: "Makes the left and right edges jagged." },
+            zigzagTopBottom: { ja: "上下の辺をギザギザにします。", en: "Makes the top and bottom edges jagged." },
+            sidePerforation: { ja: "左右の辺にミシン目を入れます。", en: "Adds a perforation along the left and right edges." },
+            linkToCenter:  { ja: "ミシン目の設定を中央の切り取り線と連動させます。", en: "Links the perforation settings to the centre tear line." },
+            holeNone:      { ja: "穴は開けません。", en: "Punches no hole." },
+            holeCircle:    { ja: "丸い穴を開けます。", en: "Punches a round hole." },
+            holeTriangle:  { ja: "三角の穴を開けます。", en: "Punches a triangular hole." },
+            holeSide:      { ja: "この側に穴を開けます。", en: "Punches the hole on this side." },
+            centerSplit:   { ja: "中央に切り取り線を入れて、券面を分けます。", en: "Adds a tear line down the middle to split the ticket." },
+            centerOffset:  { ja: "切り取り線の位置を中央からずらす量です。", en: "How far the tear line sits from the centre." },
+            dividerDot:    { ja: "切り取り線を点線にします。", en: "Draws the tear line as dots." },
+            dividerDash:   { ja: "切り取り線を破線にします。", en: "Draws the tear line as dashes." },
+            edgeNone:      { ja: "端の飾りを付けません。", en: "Adds no edge notches." },
+            edgeCircle:    { ja: "端に半円の切り欠きを入れます。", en: "Cuts semicircular notches into the edge." },
+            edgeTriangle:  { ja: "端に三角の切り欠きを入れます。", en: "Cuts triangular notches into the edge." },
+            edgeDoubleRound: { ja: "切り欠きを二重の円にします。", en: "Uses a double circle for the notch." },
+            edgesOnly:     { ja: "切り欠きだけを作り、券面の枠は描きません。", en: "Creates only the notches, without the ticket outline." },
+            preview:       { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." },
+            expandAppearance: { ja: "作った形のアピアランスを分割・拡張して、実体のあるパスにします。", en: "Expands the appearance so the shape becomes real paths." }
+        },
         radio: {
             none:      { ja: "なし", en: "None" },
             dot:       { ja: "ドット", en: "Dot" },
@@ -225,12 +252,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             expandAppearance: { ja: "アピアランスを分割", en: "Expand Appearance" }
         },
         fieldLabel: {
-            lineWidth:    { ja: "線幅:", en: "Weight:" },
-            gap:          { ja: "間隔:", en: "Gap:" },
-            inset:        { ja: "長さ:", en: "Inset Length:" },
-            size:         { ja: "サイズ:", en: "Size:" },
-            zigzagSize:   { ja: "大きさ:", en: "Size:" },
-            zigzagRepeat: { ja: "繰り返し:", en: "Repeat:" }
+            lineWidth:    { ja: "線幅", en: "Weight" },
+            gap:          { ja: "間隔", en: "Gap" },
+            inset:        { ja: "長さ", en: "Inset Length" },
+            size:         { ja: "サイズ", en: "Size" },
+            zigzagSize:   { ja: "大きさ", en: "Size" },
+            zigzagRepeat: { ja: "繰り返し", en: "Repeat" }
         },
         button: {
             save:       { ja: "保存", en: "Save" },
@@ -279,62 +306,46 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
         return labelNode[uiLang] || labelNode.ja || labelNode.en || '';
     }
 
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(labelNode) {
+        return getLabel(labelNode) + (uiLang === 'ja' ? '：' : ': ');
+    }
+
     // =========================================
     // 単位ユーティリティ / Unit utilities
     // =========================================
 
     /* 環境設定の単位コードと表記の対応 / Unit code to label */
-    var UNIT_LABELS = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* コード5（歯／級）でH表記になる環境設定キー / Preference keys that use "H" for unit code 5 */
-    var HA_UNIT_PREF_KEYS = {
-        "text/asianunits": true,
-        "rulerType": true,
-        "strokeUnits": true
-    };
-
-    /**
-     * 単位コードから表記文字列を返す
-     * @param {number} unitCode - 環境設定の単位コード
-     * @param {string} prefKey - 参照した環境設定キー
-     * @returns {string} 単位表記
-     */
-    function getUnitLabel(unitCode, prefKey) {
-        if (unitCode === 5) return HA_UNIT_PREF_KEYS[prefKey] ? 'H' : 'Q';
-        return UNIT_LABELS[unitCode] || 'pt';
-    }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 単位コードからポイント換算の係数を返す
-     * @param {number} unitCode - 環境設定の単位コード
-     * @returns {number} 1単位あたりのポイント数
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getPtFactorFromUnitCode(unitCode) {
-        switch (unitCode) {
-            case 0: return 72.0;
-            case 1: return 72.0 / 25.4;
-            case 2: return 1.0;
-            case 3: return 12.0;
-            case 4: return 72.0 / 2.54;
-            case 5: return 72.0 / 25.4 * 0.25;
-            case 6: return 1.0;
-            case 7: return 72.0 * 12.0;
-            case 8: return 72.0 / 25.4 * 1000.0;
-            case 9: return 72.0 * 36.0;
-            case 10: return 72.0 * 12.0;
-            default: return 1.0;
-        }
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -357,14 +368,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
         return value / factor;
     }
 
-    var rulerUnitCode = app.preferences.getIntegerPreference('rulerType');
-    var rulerUnitLabel = getUnitLabel(rulerUnitCode, 'rulerType');
-    var rulerPtFactor = getPtFactorFromUnitCode(rulerUnitCode);
+    var rulerUnit = getUnitInfo('rulerType');
+    var rulerUnitLabel = rulerUnit.label;
+    var rulerPtFactor = rulerUnit.pointsPerUnit;
 
     /* 分割線の線幅だけは線の単位に従う / Stroke units apply to the divider line weight only */
-    var strokeUnitCode = app.preferences.getIntegerPreference('strokeUnits');
-    var strokeUnitLabel = getUnitLabel(strokeUnitCode, 'strokeUnits');
-    var strokePtFactor = getPtFactorFromUnitCode(strokeUnitCode);
+    var strokeUnit = getUnitInfo('strokeUnits');
+    var strokeUnitLabel = strokeUnit.label;
+    var strokePtFactor = strokeUnit.pointsPerUnit;
 
     // =========================================
     // 一時アクション / Temporary action
@@ -1582,6 +1593,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             presetRow.spacing = PRESET_ROW_SPACING;
 
             var ddPreset = presetRow.add('dropdownlist', undefined, []);
+            ddPreset.helpTip = getLabel(LABELS.tooltip.preset);
             ddPreset.alignment = ['fill', 'center'];
 
             var btnSavePreset = presetRow.add('button', undefined, getLabel(LABELS.button.save));
@@ -1597,13 +1609,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
             var panelCorner = addPanel(leftColumn, getLabel(LABELS.panel.corner), ['left', 'top']);
             var rdCornerNone = panelCorner.add('radiobutton', undefined, getLabel(LABELS.radio.none));
+            rdCornerNone.helpTip = getLabel(LABELS.tooltip.cornerNone);
             var rdCornerRound = panelCorner.add('radiobutton', undefined, getLabel(LABELS.radio.round));
+            rdCornerRound.helpTip = getLabel(LABELS.tooltip.cornerRound);
             var rdCornerInverse = panelCorner.add('radiobutton', undefined, getLabel(LABELS.radio.inverse));
+            rdCornerInverse.helpTip = getLabel(LABELS.tooltip.cornerInverse);
             var rdCornerChamfer = panelCorner.add('radiobutton', undefined, getLabel(LABELS.radio.chamfer));
+            rdCornerChamfer.helpTip = getLabel(LABELS.tooltip.cornerChamfer);
             rdCornerNone.value = true;
 
             var cornerSizeField = addNumberField(panelCorner, {
-                label: getLabel(LABELS.fieldLabel.size),
+                label: labelText(LABELS.fieldLabel.size),
                 value: '5',
                 unit: rulerUnitLabel,
                 onChange: function () { updatePreview(); }
@@ -1614,14 +1630,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
             var zigzagModeRow = addRow(panelZigzag);
             var rdZigzagNone = zigzagModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.none));
+            rdZigzagNone.helpTip = getLabel(LABELS.tooltip.zigzagNone);
             var rdZigzagLeftRight = zigzagModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.leftRight));
+            rdZigzagLeftRight.helpTip = getLabel(LABELS.tooltip.zigzagLeftRight);
             var rdZigzagTopBottom = zigzagModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.topBottom));
+            rdZigzagTopBottom.helpTip = getLabel(LABELS.tooltip.zigzagTopBottom);
             rdZigzagNone.value = true;
 
             var zigzagLabelWidth = ZIGZAG_LABEL_WIDTH[uiLang];
 
             var zigzagSizeField = addNumberField(panelZigzag, {
-                label: getLabel(LABELS.fieldLabel.zigzagSize),
+                label: labelText(LABELS.fieldLabel.zigzagSize),
                 value: '10',
                 unit: rulerUnitLabel,
                 labelWidth: zigzagLabelWidth,
@@ -1630,7 +1649,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var txtZigzagSize = zigzagSizeField.input;
 
             var zigzagRepeatField = addNumberField(panelZigzag, {
-                label: getLabel(LABELS.fieldLabel.zigzagRepeat),
+                label: labelText(LABELS.fieldLabel.zigzagRepeat),
                 value: '3',
                 labelWidth: zigzagLabelWidth,
                 onChange: function () { updateZigzagState(); updatePreview(); }
@@ -1638,7 +1657,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var txtZigzagRepeat = zigzagRepeatField.input;
 
             var zigzagGapField = addNumberField(panelZigzag, {
-                label: getLabel(LABELS.fieldLabel.gap),
+                label: labelText(LABELS.fieldLabel.gap),
                 value: '0',
                 unit: rulerUnitLabel,
                 labelWidth: zigzagLabelWidth,
@@ -1654,11 +1673,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
             var sideEnableRow = addRow(panelSidePerforation);
             var chkSidePerforation = sideEnableRow.add('checkbox', undefined, getLabel(LABELS.checkbox.enable));
+            chkSidePerforation.helpTip = getLabel(LABELS.tooltip.sidePerforation);
             var chkLinkToCenter = sideEnableRow.add('checkbox', undefined, getLabel(LABELS.checkbox.linkToCenter));
+            chkLinkToCenter.helpTip = getLabel(LABELS.tooltip.linkToCenter);
             chkLinkToCenter.value = true;
 
             var sideWidthField = addNumberField(panelSidePerforation, {
-                label: getLabel(LABELS.fieldLabel.lineWidth),
+                label: labelText(LABELS.fieldLabel.lineWidth),
                 value: '3',
                 unit: rulerUnitLabel,
                 onChange: function () { updatePreview(); }
@@ -1666,7 +1687,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var txtSideWidth = sideWidthField.input;
 
             var sideGapField = addNumberField(panelSidePerforation, {
-                label: getLabel(LABELS.fieldLabel.gap),
+                label: labelText(LABELS.fieldLabel.gap),
                 value: '6',
                 unit: rulerUnitLabel,
                 onChange: function () { updatePreview(); }
@@ -1674,7 +1695,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var txtSideGap = sideGapField.input;
 
             var sideInsetField = addNumberField(panelSidePerforation, {
-                label: getLabel(LABELS.fieldLabel.inset),
+                label: labelText(LABELS.fieldLabel.inset),
                 value: '0',
                 unit: rulerUnitLabel,
                 characters: INSET_FIELD_CHARS,
@@ -1688,18 +1709,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
             var holeModeRow = addRow(panelHole);
             var rdHoleNone = holeModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.none));
+            rdHoleNone.helpTip = getLabel(LABELS.tooltip.holeNone);
             var rdHoleCircle = holeModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.circle));
+            rdHoleCircle.helpTip = getLabel(LABELS.tooltip.holeCircle);
             var rdHoleTriangle = holeModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.triangle));
+            rdHoleTriangle.helpTip = getLabel(LABELS.tooltip.holeTriangle);
             rdHoleNone.value = true;
 
             var holeSideRow = addRow(panelHole);
             var chkHoleLeft = holeSideRow.add('checkbox', undefined, getLabel(LABELS.checkbox.left));
+            chkHoleLeft.helpTip = getLabel(LABELS.tooltip.holeSide);
             var chkHoleRight = holeSideRow.add('checkbox', undefined, getLabel(LABELS.checkbox.right));
+            chkHoleRight.helpTip = getLabel(LABELS.tooltip.holeSide);
             chkHoleLeft.value = true;
             chkHoleRight.value = true;
 
             var holeSizeField = addNumberField(panelHole, {
-                label: getLabel(LABELS.fieldLabel.size),
+                label: labelText(LABELS.fieldLabel.size),
                 value: '10',
                 unit: rulerUnitLabel,
                 onChange: function () { updatePreview(); }
@@ -1713,8 +1739,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             centerTopRow.alignChildren = ['center', 'center'];
 
             var chkCenterSplit = centerTopRow.add('checkbox', undefined, getLabel(LABELS.checkbox.enable));
+            chkCenterSplit.helpTip = getLabel(LABELS.tooltip.centerSplit);
             chkCenterSplit.value = true;
             var txtCenterOffset = centerTopRow.add('edittext', undefined, '0');
+            txtCenterOffset.helpTip = getLabel(LABELS.tooltip.centerOffset);
             txtCenterOffset.characters = OFFSET_FIELD_CHARS;
             var lblCenterOffsetUnit = centerTopRow.add('statictext', undefined, rulerUnitLabel);
 
@@ -1727,6 +1755,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var maxOffset = Math.round(fromPt(minHalfWidthPt || 0, rulerPtFactor) * 10) / 10;
 
             var sliderCenterOffset = centerTopRow.add('slider', undefined, 0, -maxOffset, maxOffset);
+            sliderCenterOffset.helpTip = getLabel(LABELS.tooltip.centerOffset);
             sliderCenterOffset.preferredSize.width = OFFSET_SLIDER_WIDTH;
 
             var centerBodyRow = addRow(panelCenter);
@@ -1736,11 +1765,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
             var dividerModeRow = addRow(panelDivider);
             var rdDividerDot = dividerModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.dot));
+            rdDividerDot.helpTip = getLabel(LABELS.tooltip.dividerDot);
             var rdDividerDash = dividerModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.dash));
+            rdDividerDash.helpTip = getLabel(LABELS.tooltip.dividerDash);
             rdDividerDot.value = true;
 
             var dividerWidthField = addNumberField(panelDivider, {
-                label: getLabel(LABELS.fieldLabel.lineWidth),
+                label: labelText(LABELS.fieldLabel.lineWidth),
                 value: '3',
                 unit: strokeUnitLabel,
                 onChange: function () { syncSideFromCenter(); updatePreview(); }
@@ -1748,7 +1779,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var txtDividerWidth = dividerWidthField.input;
 
             var dividerGapField = addNumberField(panelDivider, {
-                label: getLabel(LABELS.fieldLabel.gap),
+                label: labelText(LABELS.fieldLabel.gap),
                 value: '6',
                 unit: rulerUnitLabel,
                 onChange: function () { syncSideFromCenter(); updatePreview(); }
@@ -1756,7 +1787,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var txtDividerGap = dividerGapField.input;
 
             var dividerInsetField = addNumberField(panelDivider, {
-                label: getLabel(LABELS.fieldLabel.inset),
+                label: labelText(LABELS.fieldLabel.inset),
                 value: '0',
                 unit: rulerUnitLabel,
                 characters: INSET_FIELD_CHARS,
@@ -1770,14 +1801,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
 
             var edgeModeRow = addRow(panelEdge);
             var rdEdgeNone = edgeModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.none));
+            rdEdgeNone.helpTip = getLabel(LABELS.tooltip.edgeNone);
             var rdEdgeCircle = edgeModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.circle));
+            rdEdgeCircle.helpTip = getLabel(LABELS.tooltip.edgeCircle);
             var rdEdgeTriangle = edgeModeRow.add('radiobutton', undefined, getLabel(LABELS.radio.triangle));
+            rdEdgeTriangle.helpTip = getLabel(LABELS.tooltip.edgeTriangle);
             rdEdgeNone.value = true;
 
             var chkEdgeDoubleRound = panelEdge.add('checkbox', undefined, getLabel(LABELS.checkbox.doubleRound));
+            chkEdgeDoubleRound.helpTip = getLabel(LABELS.tooltip.edgeDoubleRound);
 
             var edgeSizeField = addNumberField(panelEdge, {
-                label: getLabel(LABELS.fieldLabel.size),
+                label: labelText(LABELS.fieldLabel.size),
                 value: '10',
                 unit: rulerUnitLabel,
                 onChange: function () { syncDividerInsetFromEdgeSize(); updatePreview(); }
@@ -1785,15 +1820,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2e949946228a"; /* 紹�
             var txtEdgeSize = edgeSizeField.input;
 
             var chkEdgeOnly = panelEdge.add('checkbox', undefined, getLabel(LABELS.checkbox.edgesOnly));
+            chkEdgeOnly.helpTip = getLabel(LABELS.tooltip.edgesOnly);
 
             /* プレビュー行 / Preview row */
             var previewRow = addRow(dialog);
             previewRow.alignment = ['center', 'top'];
 
             var chkPreview = previewRow.add('checkbox', undefined, getLabel(LABELS.checkbox.preview));
+            chkPreview.helpTip = getLabel(LABELS.tooltip.preview);
             chkPreview.value = true;
 
             var chkExpandAppearance = previewRow.add('checkbox', undefined, getLabel(LABELS.checkbox.expandAppearance));
+            chkExpandAppearance.helpTip = getLabel(LABELS.tooltip.expandAppearance);
             chkExpandAppearance.value = false;
 
             /* ボタン行 / Button row */

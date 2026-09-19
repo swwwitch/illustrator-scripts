@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "fillinger-pattern";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-10-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/fillinger-pattern.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/fillinger-pattern.md"; /* README (English) */
@@ -39,9 +39,35 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
+    var uiLang = getCurrentLang();
+
+    /**
+     * 表示言語のラベルを取得する
+     * @param {string} key - LABELS のキー
+     * @returns {string} 表示言語のテキスト（未定義ならキーをそのまま返す）
+     */
     function getLabel(key) {
-      var uiLang = getCurrentLang();
-      try { return LABELS[key][uiLang]; } catch(e) { return key; }
+      var entry = LABELS[key];
+      if (!entry) return key;
+      return entry[uiLang] || entry.en || key;
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(key) {
+      return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    }
+
+    /**
+     * 単位を括弧でくくった表記を返す（日本語は全角括弧）
+     * @param {string} unitLabel - 単位ラベル
+     * @returns {string} 括弧付きの単位
+     */
+    function unitSuffix(unitLabel) {
+      return (uiLang === "ja") ? ("（" + unitLabel + "）") : (" (" + unitLabel + ")");
     }
 
     /* 日英ラベル定義 / Japanese-English label definitions */
@@ -50,8 +76,56 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // タイトル末尾にバージョンを表示
         ja: "敷き詰め設定 " + SCRIPT_VERSION,
         en: "Tile Fill Settings " + SCRIPT_VERSION
-      }
+      },
+      panelBasis:   { ja: "基準", en: "Origin" },
+      labelGap:     { ja: "間隔", en: "Gap" },
+      labelMargin:  { ja: "マージン", en: "Margin" },
+      checkBrick:   { ja: "レンガ状", en: "Brick Layout" },
+      checkSymbol:  { ja: "シンボル化", en: "Make Symbol" },
+      cancel:       { ja: "キャンセル", en: "Cancel" },
+      ok:           { ja: "OK", en: "OK" },
+      tipBasisX:    { ja: "敷き詰めの開始位置を横方向にずらす量です。", en: "Horizontal offset of the tiling start position." },
+      tipBasisY:    { ja: "敷き詰めの開始位置を縦方向にずらす量です。", en: "Vertical offset of the tiling start position." },
+      tipGap:       { ja: "隣り合うタイルのアキです。縦横とも同じ値になります。", en: "Space between neighbouring tiles, applied both horizontally and vertically." },
+      tipMargin:    { ja: "容器の内側に空ける余白です。負の値も入力できます。", en: "Inset kept inside the container. Negative values are allowed." },
+      tipBrick:     { ja: "1行おきに半個分ずらして、レンガのように並べます。", en: "Offsets every other row by half a tile, like brickwork." },
+      tipSymbol:    { ja: "タイルをシンボルとして複製します。あとからまとめて差し替えられます。", en: "Duplicates the tile as a symbol, so every copy can be swapped later at once." }
     };
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     /* タイルグリッド共通ユーティリティ / Tile Grid Common Utilities */
     // ---- Namespace: TG (Tile Grid) common utilities ----
@@ -69,60 +143,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 height: h,
                 area: Math.abs(w * h)
             };
-        },
-        unitLabelMap: {
-            0: 'in',
-            1: 'mm',
-            2: 'pt',
-            3: 'pica',
-            4: 'cm',
-            5: 'Q/H',
-            6: 'px',
-            7: 'ft/in',
-            8: 'm',
-            9: 'yd',
-            10: 'ft'
-        },
-        getRulerType: function() {
-            return app.preferences.getIntegerPreference('rulerType');
-        },
-        getCurrentUnitLabel: function() {
-            var unitCode = TG.getRulerType();
-            return TG.unitLabelMap[unitCode] || 'pt';
-        },
-        toPoints: function(val, unitCode) {
-            if (val === 0) return 0;
-            switch (unitCode) {
-                case 0:
-                    return val * 72.0; // in
-                case 1:
-                    return val * (72.0 / 25.4); // mm
-                case 2:
-                    return val; // pt
-                case 3:
-                    return val * 12.0; // pica
-                case 4:
-                    return val * (72.0 / 2.54); // cm
-                case 5:
-                    return val * (72.0 / 25.4) * 0.25; // Q/H (1Q=0.25mm)
-                case 6:
-                    return val * 1.0; // px ≈ pt (Illustrator geometry)
-                case 7:
-                    return val * 72.0; // ft/in -> treat as inch
-                case 8:
-                    return val * (72.0 / 0.0254); // m
-                case 9:
-                    return val * (72.0 * 36.0); // yd
-                case 10:
-                    return val * (72.0 * 12.0); // ft
-                default:
-                    return val;
-            }
-        },
-        pointsToUnits: function(valPt, unitCode) {
-            var perUnit = TG.toPoints(1, unitCode);
-            if (!perUnit || perUnit === 0) return valPt; // fallback
-            return valPt / perUnit;
         },
         isRectanglePath: function(p) {
             if (p.typename !== 'PathItem' || !p.closed || p.pathPoints.length !== 4) return false;
@@ -323,7 +343,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             useSymbolDup = false, // シンボル化（複製をシンボルアイテムで行う）
             basisXVal = 0, // 基準X（未使用：UIのみ）
             basisYVal = 0; // 基準Y（未使用：UIのみ）
-        var _cancel = false;
+        var isCancelled = false;
         (function createSpacingDialog() {
             /* ダイアログボックス / Dialog Window */
             var dialog = new Window('dialog', getLabel('dialogTitle'));
@@ -347,12 +367,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             shiftDialogPosition(dialog, offsetX, 0);
             dialog.alignChildren = 'fill';
 
-            var unitLabel = TG.getCurrentUnitLabel();
+            var rulerUnit = getUnitInfo("rulerType");
+            var unitLabel = rulerUnit.label;
             // Common label width & right align for rows
             var labelWidth = 60; // px
 
             // --- Basis panel: X / Y text fields (UI only for now) ---
-            var pnlBasis = dialog.add('panel', undefined, '基準');
+            var pnlBasis = dialog.add('panel', undefined, getLabel('panelBasis'));
             pnlBasis.alignment = ['fill', 'top'];
             pnlBasis.alignChildren = ['left', 'center'];
             var grpBasis = pnlBasis.add('group');
@@ -360,25 +381,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var baseXLabel = grpBasis.add('statictext', undefined, 'X');
             var baseXEdit = grpBasis.add('edittext', undefined, '0');
             baseXEdit.characters = 4;
+            baseXEdit.helpTip = getLabel('tipBasisX');
             var baseYLabel = grpBasis.add('statictext', undefined, 'Y');
             var baseYEdit = grpBasis.add('edittext', undefined, '0');
             baseYEdit.characters = 4;
+            baseYEdit.helpTip = getLabel('tipBasisY');
 
             // Spacing row (panel removed; controls kept)
             var rowS = dialog.add('group');
             rowS.alignment = ['fill', 'top'];
             rowS.alignChildren = ['left', 'center'];
-            var lblS = rowS.add('statictext', undefined, '間隔');
-            try {
-                lblS.justify = 'right';
-            } catch (e) {}
+            var lblS = rowS.add('statictext', undefined, labelText('labelGap'));
+            lblS.justify = 'right';
             lblS.preferredSize.width = labelWidth;
-            var unitCodeNowForDefault = TG.getRulerType();
-            var tileWidthInUnits = TG.pointsToUnits(tInfo.width, unitCodeNowForDefault);
+            var tileWidthInUnits = tInfo.width / rulerUnit.pointsPerUnit;
             var defaultGapVal = Math.round(tileWidthInUnits * 0.2); // 20% and round to integer
             var gapEdit = rowS.add('edittext', undefined, String(defaultGapVal));
             gapEdit.characters = 4;
-            rowS.add('statictext', undefined, '（' + unitLabel + '）');
+            gapEdit.helpTip = getLabel('tipGap');
+            rowS.add('statictext', undefined, unitSuffix(unitLabel));
             gapEdit.active = true;
 
             // 変更後（allowNegative フラグを追加）
@@ -436,15 +457,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             changeValueByArrowKey(gapEdit);
 
             function updatePreviewFromFields() {
-                var unitCodeNow = TG.getRulerType();
+                var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
                 var s = Math.max(0, parseFloat(gapEdit.text) || 0);
                 var m = 0;
                 if (typeof marginEdit !== 'undefined') {
                     m = parseFloat(marginEdit.text);
                     if (isNaN(m)) m = 0;
                 }
-                s = TG.toPoints(s, unitCodeNow);
-                m = TG.toPoints(m, unitCodeNow);
+                s *= pointsPerUnit;
+                m *= pointsPerUnit;
                 var b = false;
                 try { b = !!(brickChk && brickChk.value); } catch (e) {}
                 renderPreview(s, s, m, b);
@@ -458,14 +479,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var rowM = dialog.add('group');
             rowM.alignment = ['fill', 'top'];
             rowM.alignChildren = ['left', 'center'];
-            var lblM = rowM.add('statictext', undefined, 'マージン');
-            try {
-                lblM.justify = 'right';
-            } catch (e) {}
+            var lblM = rowM.add('statictext', undefined, labelText('labelMargin'));
+            lblM.justify = 'right';
             lblM.preferredSize.width = labelWidth;
             var marginEdit = rowM.add('edittext', undefined, '0');
             marginEdit.characters = 4;
-            rowM.add('statictext', undefined, '（' + unitLabel + '）');
+            marginEdit.helpTip = getLabel('tipMargin');
+            rowM.add('statictext', undefined, unitSuffix(unitLabel));
 
             // Arrow-key increments for margin as well
             changeValueByArrowKey(marginEdit, true); // マージンは負OK
@@ -477,7 +497,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             var rowB = rowBWrap.add('group');
             rowB.alignChildren = ['left', 'center'];
-            var brickChk = rowB.add('checkbox', undefined, 'レンガ状');
+            var brickChk = rowB.add('checkbox', undefined, getLabel('checkBrick'));
+            brickChk.helpTip = getLabel('tipBrick');
             brickChk.value = false;
             brickChk.onClick = function() {
                 updatePreviewFromFields();
@@ -486,22 +507,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // Symbolize option（ラベル短縮＋デフォルトON）
             var rowSym = rowBWrap.add('group');
             rowSym.alignChildren = ['left', 'center'];
-            var symChk = rowSym.add('checkbox', undefined, 'シンボル化');
+            var symChk = rowSym.add('checkbox', undefined, getLabel('checkSymbol'));
+            symChk.helpTip = getLabel('tipSymbol');
             symChk.value = true;
 
             var btns = dialog.add('group');
             btns.alignment = 'right';
-            btns.add('button', undefined, 'Cancel', { name: 'cancel' });
-            btns.add('button', undefined, 'OK', { name: 'ok' });
+            btns.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+            btns.add('button', undefined, getLabel('ok'), { name: 'ok' });
 
-            var res = dialog.show();
-            if (res !== 1) {
+            var dialogResult = dialog.show();
+            if (dialogResult !== 1) {
                 clearPreview();
-                _cancel = true;
+                isCancelled = true;
                 return;
             }
 
-            var unitCode = TG.getRulerType();
+            var pointsPerUnit = getUnitInfo("rulerType").pointsPerUnit;
             var sVal = Math.max(0, parseFloat(gapEdit.text) || 0);
             brickMode = !!(brickChk && brickChk.value);
             useSymbolDup = !!(symChk && symChk.value);
@@ -515,13 +537,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             marginVal = parseFloat(marginEdit.text);
             if (isNaN(marginVal)) marginVal = 0;
             // Convert from current units to points for geometry
-            sVal = TG.toPoints(sVal, unitCode);
+            sVal *= pointsPerUnit;
             gapX = sVal;
             gapY = sVal;
-            marginVal = TG.toPoints(marginVal, unitCode);
+            marginVal *= pointsPerUnit;
 
         })();
-        if (_cancel) {
+        if (isCancelled) {
             app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
             return;
         }

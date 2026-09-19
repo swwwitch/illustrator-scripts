@@ -172,62 +172,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
     // 単位 / Unit
     // =========================================
 
-    // 単位コードとラベルのマップ / Map of unit codes to labels
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
     /**
-     * 定規単位コードを pt 換算係数へ変換する
-     * @param {number} code - 定規単位コード
-     * @returns {number} pt 換算係数
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
-
-    /**
-     * 現在の定規単位コードを取得する
-     * @returns {number} 定規単位コード。取得に失敗した場合は 2（pt）
-     */
-    function getCurrentRulerUnitCode() {
-        try {
-            return app.preferences.getIntegerPreference("rulerType");
-        } catch (e) {
-            return 2;
-        }
-    }
-
-    /**
-     * 現在の定規単位ラベルを取得する
-     * @returns {string} 単位ラベル
-     */
-    function getCurrentUnitLabel() {
-        var unitCode = getCurrentRulerUnitCode();
-        return unitLabelMap[unitCode] || "pt";
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -1095,7 +1069,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
         var cbRoundCorner = roundCornerGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.roundCorner));
         var etRoundCorner = roundCornerGroup.add("edittext", undefined, "3");
         etRoundCorner.characters = 5;
-        var stRoundCornerUnit = roundCornerGroup.add("statictext", undefined, getCurrentUnitLabel());
+        var stRoundCornerUnit = roundCornerGroup.add("statictext", undefined, getUnitInfo().label);
         cbRoundCorner.value = false;
         etRoundCorner.enabled = false;
         cbRoundCorner.helpTip = getLabel(LABELS.tooltip.roundCorner);
@@ -1400,7 +1374,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             return {
                 mode: 'clipGroup',
                 roundCorners: cbRoundCorner.value,
-                roundRadius: radius * getPtFactorFromUnitCode(getCurrentRulerUnitCode())
+                roundRadius: radius * getUnitInfo().pointsPerUnit
             };
         }
 
@@ -1684,7 +1658,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n42595650216f"; /* 紹�
             updateGapHelpTip();
             updateRowsInfo();
 
-            stRoundCornerUnit.text = getCurrentUnitLabel();
+            stRoundCornerUnit.text = getUnitInfo().label;
             changeValueByArrowKey(etCols);
             changeValueByArrowKey(etArtboardGap);
             changeValueByArrowKey(etScale);

@@ -34,6 +34,51 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
+/* 表示言語を判定 / Detect the UI language */
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+
+var uiLang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
+var LABELS = {
+    dialogTitle:       { ja: "段落スタイルの登録", en: "Register Paragraph Style" },
+    panelMode:         { ja: "モード", en: "Mode" },
+    radioNew:          { ja: "新規", en: "New" },
+    radioOverwrite:    { ja: "上書き", en: "Overwrite" },
+    panelNewName:      { ja: "新規スタイル名", en: "New Style Name" },
+    panelOverwrite:    { ja: "上書きするスタイル", en: "Style to Overwrite" },
+    cancel:            { ja: "キャンセル", en: "Cancel" },
+    ok:                { ja: "OK", en: "OK" },
+    defaultStyleName:  { ja: "新規段落スタイル", en: "New Paragraph Style" },
+    tipModeNew:        { ja: "選択した段落の書式で、新しい段落スタイルを作ります。", en: "Creates a new paragraph style from the formatting of the selected paragraph." },
+    tipModeOverwrite:  { ja: "選択した段落の書式で、既存の段落スタイルを上書きします。", en: "Overwrites an existing paragraph style with the formatting of the selected paragraph." },
+    tipNewName:        { ja: "作る段落スタイルの名前です。", en: "Name of the paragraph style to create." },
+    tipStyleList:      { ja: "上書きする段落スタイルを選びます。", en: "Choose the paragraph style to overwrite." },
+    alertNoDocument:   { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+    alertSelectText:   { ja: "テキスト（またはテキストオブジェクト）を選択してから実行してください。", en: "Select text (or a text object) before running the script." },
+    alertEnterName:    { ja: "スタイル名を入力してください。", en: "Enter a style name." },
+    alertSelectStyle:  { ja: "上書きするスタイルを選択してください。", en: "Select the style to overwrite." },
+    confirmOverwrite:  { ja: "同名のスタイル「{name}」が既に存在します。上書きしますか？", en: "A style named \u0022{name}\u0022 already exists. Overwrite it?" },
+    doneCreated:       { ja: "新規段落スタイル「{name}」を作成し、適用しました。", en: "Created the paragraph style \u0022{name}\u0022 and applied it." },
+    doneOverwritten:   { ja: "既存の段落スタイル「{name}」を現在の書式で上書き更新しました。", en: "Updated the existing paragraph style \u0022{name}\u0022 with the current formatting." },
+    alertError:        { ja: "エラーが発生しました：\n", en: "An error occurred:\n" }
+};
+
+/**
+ * 表示言語のラベルを取得する
+ * @param {string} key - LABELS のキー
+ * @param {string} [name] - ラベル内の {name} に差し込む文字列
+ * @returns {string} 表示言語のテキスト
+ */
+function getLabel(key, name) {
+    var entry = LABELS[key];
+    if (!entry) return key;
+    var text = entry[uiLang] || entry.en || key;
+    return (name == null) ? text : text.replace("{name}", name);
+}
+
 // ドキュメント内の段落スタイル名を取得（既定スタイル = index 0 は除外）
 function collectParagraphStyleNames(doc) {
     var names = [];
@@ -65,31 +110,35 @@ function getAppliedParagraphStyleName(doc, paragraph) {
 // 新規／上書きを選ぶダイアログを表示
 // 戻り値: { mode: "new"|"overwrite", styleName: String } または null（キャンセル）
 function showStyleDialog(styleNames, defaultName, currentStyleName) {
-    var dialog = new Window("dialog", "段落スタイルの登録");
+    var dialog = new Window("dialog", getLabel("dialogTitle"));
     dialog.alignChildren = "fill";
     dialog.margins = 15;
 
     // モード選択
-    var modePanel = dialog.add("panel", undefined, "モード");
+    var modePanel = dialog.add("panel", undefined, getLabel("panelMode"));
     modePanel.orientation = "row";
     modePanel.alignChildren = "left";
     modePanel.margins = [15, 20, 15, 15];
-    var rbNew = modePanel.add("radiobutton", undefined, "新規");
-    var rbOverwrite = modePanel.add("radiobutton", undefined, "上書き");
+    var rbNew = modePanel.add("radiobutton", undefined, getLabel("radioNew"));
+    rbNew.helpTip = getLabel("tipModeNew");
+    var rbOverwrite = modePanel.add("radiobutton", undefined, getLabel("radioOverwrite"));
+    rbOverwrite.helpTip = getLabel("tipModeOverwrite");
 
     // 新規スタイル名
-    var newPanel = dialog.add("panel", undefined, "新規スタイル名");
+    var newPanel = dialog.add("panel", undefined, getLabel("panelNewName"));
     newPanel.alignChildren = "fill";
     newPanel.margins = [15, 20, 15, 15];
     var nameField = newPanel.add("edittext", undefined, defaultName);
     nameField.characters = 30;
+    nameField.helpTip = getLabel("tipNewName");
 
     // 上書きするスタイル
-    var overwritePanel = dialog.add("panel", undefined, "上書きするスタイル");
+    var overwritePanel = dialog.add("panel", undefined, getLabel("panelOverwrite"));
     overwritePanel.alignChildren = "fill";
     overwritePanel.margins = [15, 20, 15, 15];
     var styleList = overwritePanel.add("listbox", undefined, styleNames);
     styleList.preferredSize.height = 140;
+    styleList.helpTip = getLabel("tipStyleList");
 
     // 状態切り替え
     function updateState() {
@@ -132,21 +181,21 @@ function showStyleDialog(styleNames, defaultName, currentStyleName) {
     // ボタン（Mac 規約：Cancel → OK）
     var btnGroup = dialog.add("group");
     btnGroup.alignment = "right";
-    var cancelBtn = btnGroup.add("button", undefined, "キャンセル", { name: "cancel" });
-    var okBtn = btnGroup.add("button", undefined, "OK", { name: "ok" });
+    var cancelBtn = btnGroup.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+    var okBtn = btnGroup.add("button", undefined, getLabel("ok"), { name: "ok" });
 
     var result = null;
     okBtn.onClick = function () {
         if (rbNew.value) {
             var name = nameField.text;
             if (!name || name.replace(/^\s+|\s+$/g, "") === "") {
-                alert("スタイル名を入力してください。");
+                alert(getLabel("alertEnterName"));
                 return;
             }
             result = { mode: "new", styleName: name };
         } else {
             if (!styleList.selection) {
-                alert("上書きするスタイルを選択してください。");
+                alert(getLabel("alertSelectStyle"));
                 return;
             }
             result = { mode: "overwrite", styleName: styleList.selection.text };
@@ -164,7 +213,7 @@ function showStyleDialog(styleNames, defaultName, currentStyleName) {
 function updateOrCreateParagraphStyle() {
     // ドキュメントが開かれているか確認
     if (app.documents.length === 0) {
-        alert("ドキュメントが開かれていません。");
+        alert(getLabel("alertNoDocument"));
         return;
     }
 
@@ -182,7 +231,7 @@ function updateOrCreateParagraphStyle() {
     }
 
     if (!targetParagraph) {
-        alert("テキスト（またはテキストオブジェクト）を選択してから実行してください。");
+        alert(getLabel("alertSelectText"));
         return;
     }
 
@@ -191,7 +240,7 @@ function updateOrCreateParagraphStyle() {
 
     // ダイアログで新規／上書きを選択
     var styleNames = collectParagraphStyleNames(doc);
-    var choice = showStyleDialog(styleNames, "新規段落スタイル", currentStyleName);
+    var choice = showStyleDialog(styleNames, getLabel("defaultStyleName"), currentStyleName);
     if (!choice) {
         return;
     }
@@ -203,7 +252,7 @@ function updateOrCreateParagraphStyle() {
         // 同名のスタイルが既に存在するか確認
         try {
             targetStyle = doc.paragraphStyles.getByName(choice.styleName);
-            var overwrite = confirm("同名のスタイル「" + choice.styleName + "」が既に存在します。上書きしますか？");
+            var overwrite = confirm(getLabel("confirmOverwrite", choice.styleName));
             if (!overwrite) {
                 return;
             }
@@ -242,13 +291,13 @@ function updateOrCreateParagraphStyle() {
         targetStyle.applyTo(targetParagraph, true);
 
         if (isNewStyle) {
-            alert("新規段落スタイル「" + targetStyle.name + "」を作成し、適用しました。");
+            alert(getLabel("doneCreated", targetStyle.name));
         } else {
-            alert("既存の段落スタイル「" + targetStyle.name + "」を現在の書式で上書き更新しました。");
+            alert(getLabel("doneOverwritten", targetStyle.name));
         }
 
     } catch (err) {
-        alert("エラーが発生しました:\n" + err.message);
+        alert(getLabel("alertError") + err.message);
     }
 }
 

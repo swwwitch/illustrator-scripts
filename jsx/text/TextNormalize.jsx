@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextNormalize";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextNormalize.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextNormalize.md"; /* README (English) */
@@ -35,7 +35,106 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
-    if (app.documents.length === 0) { alert("ドキュメントが開かれていません。"); return; }
+    /* 表示言語を判定 / Detect the UI language */
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var uiLang = getCurrentLang();
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialogTitle:        { ja: "テキストのクリーンアップと変換", en: "Clean Up and Convert Text" },
+
+        /* タブ / Tabs */
+        tabDelete:          { ja: "削除", en: "Remove" },
+        tabNumbering:       { ja: "ナンバリング", en: "Numbering" },
+        tabLines:           { ja: "行", en: "Lines" },
+        tabAlphabet:        { ja: "アルファベット", en: "Letter Case" },
+        tabOther:           { ja: "その他", en: "Other" },
+
+        /* 削除 / Remove */
+        chkLeadingSpace:    { ja: "行頭のスペース", en: "Leading spaces" },
+        chkTrailingSpace:   { ja: "行末のスペース", en: "Trailing spaces" },
+        chkMultipleSpace:   { ja: "連続するスペース", en: "Repeated spaces" },
+
+        /* ナンバリング / Numbering */
+        btnRemoveMarker:    { ja: "行頭マーカー削除", en: "Remove line markers" },
+        btnRenumber:        { ja: "ナンバリングの振り直し", en: "Renumber" },
+        btnReset:           { ja: "リセット", en: "Reset" },
+        panelNumberStyle:   { ja: "形式", en: "Format" },
+        styleNumDot:        { ja: "1. いちご", en: "1. Apple" },
+        styleAlphaDot:      { ja: "A. いちご", en: "A. Apple" },
+        styleCircled:       { ja: "\u2460 いちご", en: "\u2460 Apple" },
+        styleDot:           { ja: "・いちご", en: "\u2022 Apple" },
+        styleHyphen:        { ja: "- いちご", en: "- Apple" },
+
+        /* 行 / Lines */
+        btnForcedToPara:    { ja: "強制改行を改行に", en: "Line breaks to paragraph breaks" },
+        btnParaToForced:    { ja: "改行を強制改行に", en: "Paragraph breaks to line breaks" },
+        btnCompressBlank:   { ja: "空行の整理（連続改行の圧縮）", en: "Collapse blank lines" },
+        panelSort:          { ja: "ソート", en: "Sort" },
+        radioSortAsc:       { ja: "ソート", en: "Sort ascending" },
+        radioReverse:       { ja: "行を逆順に", en: "Reverse line order" },
+        radioUniqueAdjacent:{ ja: "隣接する重複行を削除", en: "Remove adjacent duplicates" },
+
+        /* アルファベット / Letter case */
+        btnCaseUpper:       { ja: "すべて大文字に", en: "UPPERCASE" },
+        btnCaseLower:       { ja: "すべて小文字に", en: "lowercase" },
+        btnCaseWord:        { ja: "単語の先頭のみ大文字", en: "Capitalize Each Word" },
+        btnCaseSentence:    { ja: "文頭のみ大文字", en: "Sentence case" },
+        btnCaseTitle:       { ja: "英語タイトル形式", en: "Title Case" },
+
+        /* その他 / Other */
+        chkTabToSpace:      { ja: "タブ→半角スペースに", en: "Tabs to spaces" },
+        chkZenkakuToHankaku:{ ja: "全角英数字を半角に", en: "Full-width alphanumerics to half-width" },
+        chkHyphenToUnder:   { ja: "ハイフンをアンダースコアに", en: "Hyphens to underscores" },
+        chkUnderToHyphen:   { ja: "アンダースコアをハイフンに", en: "Underscores to hyphens" },
+
+        /* フッター / Footer */
+        preview:            { ja: "プレビュー", en: "Preview" },
+        ok:                 { ja: "OK", en: "OK" },
+        cancel:             { ja: "キャンセル", en: "Cancel" },
+
+        /* アラート / Alerts */
+        alertNoDocument:    { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+        alertNoOption:      { ja: "実行する処理を1つ以上チェックしてください。", en: "Select at least one operation to run." },
+
+        /* ツールチップ / Tooltips */
+        tipLeadingSpace:    { ja: "各行の先頭にある半角・全角スペースを削除します。", en: "Removes spaces at the start of each line." },
+        tipTrailingSpace:   { ja: "各行の末尾にある半角・全角スペースを削除します。", en: "Removes spaces at the end of each line." },
+        tipMultipleSpace:   { ja: "2つ以上続くスペースを1つにまとめます。", en: "Collapses runs of spaces into a single space." },
+        tipRemoveMarker:    { ja: "「1.」「・」などの行頭マーカーを削除します。", en: "Removes line markers such as \u00221.\u0022 or \u0022\u2022\u0022." },
+        tipRenumber:        { ja: "行頭マーカーを、右で選んだ形式の連番に付け替えます。", en: "Replaces the line markers with a sequence in the format chosen on the right." },
+        tipResetNumbering:  { ja: "ナンバリングの設定を解除し、テキストを開いた時点に戻します。", en: "Clears the numbering settings and restores the text as it was when the dialog opened." },
+        tipNumberStyle:     { ja: "振り直したときの連番の形式です。", en: "Format used when renumbering." },
+        tipForcedToPara:    { ja: "Shift+Returnの改行を、段落の改行に変えます。", en: "Converts Shift+Return line breaks into paragraph breaks." },
+        tipParaToForced:    { ja: "段落の改行を、Shift+Returnの改行に変えます。", en: "Converts paragraph breaks into Shift+Return line breaks." },
+        tipCompressBlank:   { ja: "2行以上続く空行を1行にまとめます。", en: "Collapses runs of blank lines into one." },
+        tipSortAsc:         { ja: "行を昇順に並べ替えます。", en: "Sorts the lines in ascending order." },
+        tipReverse:         { ja: "行の並びを逆さにします。", en: "Reverses the order of the lines." },
+        tipUniqueAdjacent:  { ja: "同じ内容が続く行を1行にまとめます。離れた重複は残ります。", en: "Merges consecutive identical lines. Duplicates further apart are kept." },
+        tipCase:            { ja: "右に変換後の例を表示します。", en: "The result is previewed on the right." },
+        tipResetCase:       { ja: "すべての設定を解除し、テキストを開いた時点に戻します。", en: "Clears every setting and restores the text as it was when the dialog opened." },
+        tipTabToSpace:      { ja: "タブ文字を半角スペース1つに置き換えます。", en: "Replaces each tab with a single space." },
+        tipZenkakuToHankaku:{ ja: "全角の英数字を半角に変えます。", en: "Converts full-width alphanumerics to half-width." },
+        tipHyphenToUnder:   { ja: "ハイフンをアンダースコアに置き換えます。", en: "Replaces hyphens with underscores." },
+        tipUnderToHyphen:   { ja: "アンダースコアをハイフンに置き換えます。", en: "Replaces underscores with hyphens." },
+        tipPreview:         { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." }
+    };
+
+    /**
+     * 表示言語のラベルを取得する
+     * @param {string} key - LABELS のキー
+     * @returns {string} 表示言語のテキスト（未定義ならキーをそのまま返す）
+     */
+    function getLabel(key) {
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.en || key;
+    }
+
+    if (app.documents.length === 0) { alert(getLabel("alertNoDocument")); return; }
     var currentSelection = app.selection;
 
     // 選択がない場合は、ドキュメント内すべてのテキストを対象にする
@@ -133,7 +232,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     // --- Dialog ---
-    var w = new Window("dialog", "テキストのクリーンアップと変換");
+    var w = new Window("dialog", getLabel("dialogTitle"));
     w.orientation = "column";
     w.alignChildren = ["fill", "top"];
     w.preferredSize.width = 500;
@@ -147,23 +246,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var panelMargins = [15, 20, 15, 10];
 
     // --- 削除（Tab） ---
-    var delPanel = tabs.add("tab", undefined, "削除");
+    var delPanel = tabs.add("tab", undefined, getLabel("tabDelete"));
     delPanel.orientation = "column";
     delPanel.alignChildren = ["left", "top"];
     try { delPanel.margins = panelMargins; } catch (e) { }
 
     // 行頭/行末
-    var cbLead = delPanel.add("checkbox", undefined, "行頭のスペース");
+    var cbLead = delPanel.add("checkbox", undefined, getLabel("chkLeadingSpace"));
     cbLead.value = true;
-    var cbTrail = delPanel.add("checkbox", undefined, "行末のスペース");
+    cbLead.helpTip = getLabel("tipLeadingSpace");
+    var cbTrail = delPanel.add("checkbox", undefined, getLabel("chkTrailingSpace"));
     cbTrail.value = true;
+    cbTrail.helpTip = getLabel("tipTrailingSpace");
 
     // 連続スペース
-    var cbMulti = delPanel.add("checkbox", undefined, "連続するスペース");
+    var cbMulti = delPanel.add("checkbox", undefined, getLabel("chkMultipleSpace"));
     cbMulti.value = true;
+    cbMulti.helpTip = getLabel("tipMultipleSpace");
 
     // --- ナンバリング（Tab） ---
-    var numPanel = tabs.add("tab", undefined, "ナンバリング");
+    var numPanel = tabs.add("tab", undefined, getLabel("tabNumbering"));
     numPanel.orientation = "column";
     numPanel.alignChildren = ["left", "top"];
     try { numPanel.margins = panelMargins; } catch (e) { }
@@ -189,8 +291,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     numBtnGroup.orientation = "column";
     numBtnGroup.alignChildren = ["left", "top"];
 
-    function makeSmallActionButton(parent, label, onRun) {
+    function makeSmallActionButton(parent, label, tooltip, onRun) {
         var b = parent.add("button", undefined, label);
+        b.helpTip = tooltip;
         b.preferredSize.height = 22; // 少し小さめ
         b.onClick = function () {
             try { onRun(); } catch (e) { }
@@ -199,23 +302,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return b;
     }
 
-    makeSmallActionButton(numBtnGroup, "行頭マーカー削除", function () {
+    makeSmallActionButton(numBtnGroup, getLabel("btnRemoveMarker"), getLabel("tipRemoveMarker"), function () {
         cbNumEnd.value = true;
         cbRenumber.value = false;
     });
 
-    makeSmallActionButton(numBtnGroup, "ナンバリングの振り直し", function () {
+    makeSmallActionButton(numBtnGroup, getLabel("btnRenumber"), getLabel("tipRenumber"), function () {
         cbRenumber.value = true;
         cbNumEnd.value = false;
     });
 
-    var btnResetNumbering = numBtnGroup.add("button", undefined, "リセット");
+    var btnResetNumbering = numBtnGroup.add("button", undefined, getLabel("btnReset"));
     btnResetNumbering.preferredSize.height = 22;
+    btnResetNumbering.helpTip = getLabel("tipResetNumbering");
     btnResetNumbering.onClick = function () {
         cbNumEnd.value = false;
         cbRenumber.value = false;
         __renumberStyle = "num";
-        try { rbNumDot.value = true; } catch (e) { }
+        rbNumDot.value = true;
 
         // プレビューON時：ナンバリング処理で失われた元の行頭マーカー等を戻すため、
         // ダイアログ表示時点（初回プレビュー適用後）のベースラインへ復元してから再適用する。
@@ -228,16 +332,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     // 出力形式（振り直し）
-    var numStylePanel = numColRight.add("panel", undefined, "形式");
+    var numStylePanel = numColRight.add("panel", undefined, getLabel("panelNumberStyle"));
     numStylePanel.orientation = "column";
     numStylePanel.alignChildren = ["left", "top"];
     try { numStylePanel.margins = panelMargins; } catch (e) { }
 
-    var rbNumDot = numStylePanel.add("radiobutton", undefined, "1. いちご");
-    var rbAlphaDot = numStylePanel.add("radiobutton", undefined, "A. いちご");
-    var rbCircled = numStylePanel.add("radiobutton", undefined, "① いちご");
-    var rbDot = numStylePanel.add("radiobutton", undefined, "・いちご");
-    var rbHyphen = numStylePanel.add("radiobutton", undefined, "- いちご");
+    var rbNumDot = numStylePanel.add("radiobutton", undefined, getLabel("styleNumDot"));
+    var rbAlphaDot = numStylePanel.add("radiobutton", undefined, getLabel("styleAlphaDot"));
+    var rbCircled = numStylePanel.add("radiobutton", undefined, getLabel("styleCircled"));
+    var rbDot = numStylePanel.add("radiobutton", undefined, getLabel("styleDot"));
+    var rbHyphen = numStylePanel.add("radiobutton", undefined, getLabel("styleHyphen"));
 
     // デフォルト: 1. 形式
     rbNumDot.value = true;
@@ -249,13 +353,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     rbNumDot.onClick = function () { __setRenumberStyle("num"); };
+    rbNumDot.helpTip = getLabel("tipNumberStyle");
+    rbAlphaDot.helpTip = getLabel("tipNumberStyle");
+    rbCircled.helpTip = getLabel("tipNumberStyle");
+    rbDot.helpTip = getLabel("tipNumberStyle");
+    rbHyphen.helpTip = getLabel("tipNumberStyle");
     rbAlphaDot.onClick = function () { __setRenumberStyle("alpha"); };
     rbCircled.onClick = function () { __setRenumberStyle("circled"); };
     rbDot.onClick = function () { __setRenumberStyle("dot"); };
     rbHyphen.onClick = function () { __setRenumberStyle("hyphen"); };
 
     // --- 行（Tab） ---
-    var optPanel = tabs.add("tab", undefined, "行");
+    var optPanel = tabs.add("tab", undefined, getLabel("tabLines"));
     optPanel.orientation = "column";
     optPanel.alignChildren = ["left", "top"];
     try { optPanel.margins = panelMargins; } catch (e) { }
@@ -268,8 +377,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     brBtnGroup.orientation = "column";
     brBtnGroup.alignChildren = ["left", "top"];
 
-    function makeSmallBrButton(parent, label, onRun) {
+    function makeSmallBrButton(parent, label, tooltip, onRun) {
         var b = parent.add("button", undefined, label);
+        b.helpTip = tooltip;
         b.preferredSize.height = 22; // 少し小さめ
         b.onClick = function () {
             try { onRun(); } catch (e) { }
@@ -278,12 +388,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return b;
     }
 
-    makeSmallBrButton(brBtnGroup, "強制改行を改行に", function () {
+    makeSmallBrButton(brBtnGroup, getLabel("btnForcedToPara"), getLabel("tipForcedToPara"), function () {
         rbForcedToPara.value = true;
         rbParaToForced.value = false;
     });
 
-    makeSmallBrButton(brBtnGroup, "改行を強制改行に", function () {
+    makeSmallBrButton(brBtnGroup, getLabel("btnParaToForced"), getLabel("tipParaToForced"), function () {
         rbParaToForced.value = true;
         rbForcedToPara.value = false;
     });
@@ -291,15 +401,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 空行整理（状態フラグ）
     var cbCompressBlank = { value: false };
 
-    var btnCompressBlank = optPanel.add("button", undefined, "空行の整理（連続改行の圧縮）");
+    var btnCompressBlank = optPanel.add("button", undefined, getLabel("btnCompressBlank"));
     btnCompressBlank.preferredSize.height = 22; // 少し小さめ
+    btnCompressBlank.helpTip = getLabel("tipCompressBlank");
     btnCompressBlank.onClick = function () {
         cbCompressBlank.value = true;
         requestPreview();
     };
     
     // --- ソート（Panel） ---
-    var sortPanel = optPanel.add("panel", undefined, "ソート");
+    var sortPanel = optPanel.add("panel", undefined, getLabel("panelSort"));
     sortPanel.orientation = "column";
     sortPanel.alignChildren = ["left", "top"];
     try { sortPanel.margins = panelMargins; } catch (e) { }
@@ -308,16 +419,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     sortGroup.orientation = "column";
     sortGroup.alignChildren = ["left", "top"];
 
-    var rbSortAsc = sortGroup.add("radiobutton", undefined, "ソート");
-    var rbReverse = sortGroup.add("radiobutton", undefined, "行を逆順に");
-    var rbUniqueAdjacent = sortGroup.add("radiobutton", undefined, "隣接する重複行を削除");
+    var rbSortAsc = sortGroup.add("radiobutton", undefined, getLabel("radioSortAsc"));
+    var rbReverse = sortGroup.add("radiobutton", undefined, getLabel("radioReverse"));
+    var rbUniqueAdjacent = sortGroup.add("radiobutton", undefined, getLabel("radioUniqueAdjacent"));
+
+    rbSortAsc.helpTip = getLabel("tipSortAsc");
+    rbReverse.helpTip = getLabel("tipReverse");
+    rbUniqueAdjacent.helpTip = getLabel("tipUniqueAdjacent");
 
     rbSortAsc.value = false;
     rbReverse.value = false;
     rbUniqueAdjacent.value = false;
 
     // --- アルファベット（Tab） ---
-    var alnumPanel = tabs.add("tab", undefined, "アルファベット");
+    var alnumPanel = tabs.add("tab", undefined, getLabel("tabAlphabet"));
     alnumPanel.orientation = "column";
     alnumPanel.alignChildren = ["left", "top"];
     try { alnumPanel.margins = panelMargins; } catch (e) { }
@@ -335,6 +450,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         row.alignChildren = ["left", "center"];
 
         var b = row.add("button", undefined, label);
+        b.helpTip = getLabel("tipCase");
         b.preferredSize.height = 22; // 少し小さめ
         b.preferredSize.width = 220;
         b.onClick = function () {
@@ -362,14 +478,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { }
     }
 
-    makeSmallButton(caseGroup, "すべて大文字に", "upper");
-    makeSmallButton(caseGroup, "すべて小文字に", "lower");
-    makeSmallButton(caseGroup, "単語の先頭のみ大文字", "word");
-    makeSmallButton(caseGroup, "文頭のみ大文字", "sentence");
-    makeSmallButton(caseGroup, "英語タイトル形式", "title");
+    makeSmallButton(caseGroup, getLabel("btnCaseUpper"), "upper");
+    makeSmallButton(caseGroup, getLabel("btnCaseLower"), "lower");
+    makeSmallButton(caseGroup, getLabel("btnCaseWord"), "word");
+    makeSmallButton(caseGroup, getLabel("btnCaseSentence"), "sentence");
+    makeSmallButton(caseGroup, getLabel("btnCaseTitle"), "title");
 
-    var btnResetCase = caseGroup.add("button", undefined, "リセット");
+    var btnResetCase = caseGroup.add("button", undefined, getLabel("btnReset"));
     btnResetCase.preferredSize.height = 22; // 少し小さめ
+    btnResetCase.helpTip = getLabel("tipResetCase");
     btnResetCase.onClick = function () {
         // テキストを「ダイアログを開いた時点」に戻す
         __restoreBaseline();
@@ -383,16 +500,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cbNumEnd.value = false;
             cbRenumber.value = false;
             __renumberStyle = "num";
-            try { rbNumDot.value = true; } catch (e) { }
+            rbNumDot.value = true;
 
             rbForcedToPara.value = false;
             rbParaToForced.value = false;
             cbCompressBlank.value = false;
 
             cbTabToSpace.value = false;
+    cbTabToSpace.helpTip = getLabel("tipTabToSpace");
             cbZenkakuAlnumToHankaku.value = false;
+    cbZenkakuAlnumToHankaku.helpTip = getLabel("tipZenkakuToHankaku");
             cbHyphenToUnderscore.value = false;
+    cbHyphenToUnderscore.helpTip = getLabel("tipHyphenToUnder");
             cbUnderscoreToHyphen.value = false;
+    cbUnderscoreToHyphen.helpTip = getLabel("tipUnderToHyphen");
 
             rbSortAsc.value = false;
             rbReverse.value = false;
@@ -409,21 +530,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     // --- その他（Tab） ---
-    var otherPanel = tabs.add("tab", undefined, "その他");
+    var otherPanel = tabs.add("tab", undefined, getLabel("tabOther"));
     otherPanel.orientation = "column";
     otherPanel.alignChildren = ["left", "top"];
     try { otherPanel.margins = panelMargins; } catch (e) { }
 
-    var cbTabToSpace = otherPanel.add("checkbox", undefined, "タブ→半角スペースに");
+    var cbTabToSpace = otherPanel.add("checkbox", undefined, getLabel("chkTabToSpace"));
     cbTabToSpace.value = false;
 
-    var cbZenkakuAlnumToHankaku = otherPanel.add("checkbox", undefined, "全角英数字を半角に");
+    var cbZenkakuAlnumToHankaku = otherPanel.add("checkbox", undefined, getLabel("chkZenkakuToHankaku"));
     cbZenkakuAlnumToHankaku.value = false;
 
-    var cbHyphenToUnderscore = otherPanel.add("checkbox", undefined, "ハイフンをアンダースコアに");
+    var cbHyphenToUnderscore = otherPanel.add("checkbox", undefined, getLabel("chkHyphenToUnder"));
     cbHyphenToUnderscore.value = false;
 
-    var cbUnderscoreToHyphen = otherPanel.add("checkbox", undefined, "アンダースコアをハイフンに");
+    var cbUnderscoreToHyphen = otherPanel.add("checkbox", undefined, getLabel("chkUnderToHyphen"));
     cbUnderscoreToHyphen.value = false;
 
     rbSortAsc.value = false;
@@ -440,16 +561,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gLeft.alignChildren = ["left", "center"];
     gLeft.alignment = ["left", "center"];
 
-    var chkPreview = gLeft.add("checkbox", undefined, "プレビュー");
+    var chkPreview = gLeft.add("checkbox", undefined, getLabel("preview"));
     chkPreview.value = true;
+    chkPreview.helpTip = getLabel("tipPreview");
 
     var gRight = footer.add("group");
     gRight.orientation = "row";
     gRight.alignChildren = ["right", "center"];
     gRight.alignment = ["right", "center"];
 
-    var cancel = gRight.add("button", undefined, "キャンセル", { name: "cancel" });
-    var ok = gRight.add("button", undefined, "OK", { name: "ok" });
+    var cancel = gRight.add("button", undefined, getLabel("cancel"), { name: "cancel" });
+    var ok = gRight.add("button", undefined, getLabel("ok"), { name: "ok" });
 
     function isAnyOptionSelected() {
         return (
@@ -465,7 +587,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     ok.onClick = function () {
         if (!isAnyOptionSelected()) {
-            alert("実行する処理を1つ以上チェックしてください。");
+            alert(getLabel("alertNoOption"));
             return;
         }
         // 簡易プレビュー方式：

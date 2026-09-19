@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiFontConverter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFontConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFontConverter.md"; /* README (English) */
@@ -323,14 +323,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹�
     /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
     function labelText(labelPath) {
         return getLabel(labelPath) + (currentLanguage === "ja" ? "：" : ":");
-    }
-
-    /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
-    function labelWithCount(labelPath, count) {
-        if (currentLanguage === "ja") {
-            return getLabel(labelPath) + "（" + count + "）";
-        }
-        return getLabel(labelPath) + " (" + count + ")";
     }
 
     // =========================================

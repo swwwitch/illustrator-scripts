@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitSpreadToSingle";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-21";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitSpreadToSingle.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitSpreadToSingle.md"; /* README (English) */
@@ -79,6 +79,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Rename Artboards Sequentially"
         },
         rearrangeArtboards: {
+        tipModeSelection: { ja: "選択しているアートボードだけを分割します。", en: "Splits only the selected artboards." },
+        tipModeAll: { ja: "ドキュメント内のすべてのアートボードを分割します。", en: "Splits every artboard in the document." },
+        tipSideRight: { ja: "偶数ページを見開きの右側として扱います。左綴じ（横書き）向けです。", en: "Treats even pages as the right-hand side of the spread, for left-bound documents." },
+        tipSideLeft: { ja: "偶数ページを見開きの左側として扱います。右綴じ（縦書き）向けです。", en: "Treats even pages as the left-hand side of the spread, for right-bound documents." },
+        tipRename: { ja: "分割後のアートボードに、ページ番号で名前を付け直します。", en: "Renames the resulting artboards with their page numbers." },
+        tipRearrange: { ja: "分割後のアートボードを並べ直します。間隔は下の欄で指定します。", en: "Lays the resulting artboards out again. The fields below set the spacing." },
+        tipSpacingH: { ja: "並べ直すときの横方向の間隔です。", en: "Horizontal spacing used when the artboards are laid out." },
+        tipSpacingV: { ja: "並べ直すときの縦方向の間隔です。", en: "Vertical spacing used when the artboards are laid out." },
             ja: "アートボードの再配置",
             en: "Rearrange Artboards"
         },
@@ -162,7 +170,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         modePanel.alignChildren = "left";
         modePanel.margins = [15, 20, 15, 10];
         var rbSelection = modePanel.add("radiobutton", undefined, getLabel('modeSelectionOnly'));
+        rbSelection.helpTip = getLabel('tipModeSelection');
         var rbAll = modePanel.add("radiobutton", undefined, getLabel('modeAll'));
+        rbAll.helpTip = getLabel('tipModeAll');
         rbAll.value = true;
 
         var evenPanel = dialog.add("panel", undefined, getLabel('panelEvenPage'));
@@ -170,7 +180,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         evenPanel.alignChildren = "left";
         evenPanel.margins = [15, 20, 15, 10];
         var rbEvenRight = evenPanel.add("radiobutton", undefined, getLabel('sideRight'));
+        rbEvenRight.helpTip = getLabel('tipSideRight');
         var rbEvenLeft = evenPanel.add("radiobutton", undefined, getLabel('sideLeft'));
+        rbEvenLeft.helpTip = getLabel('tipSideLeft');
         rbEvenLeft.value = true;
 
         var optionPanel = dialog.add("panel", undefined, getLabel('panelPostProcess'));
@@ -179,9 +191,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         optionPanel.margins = [15, 20, 15, 10];
 
         var cbRenameArtboards = optionPanel.add("checkbox", undefined, getLabel('renameArtboards'));
+        cbRenameArtboards.helpTip = getLabel('tipRename');
         cbRenameArtboards.value = true;
 
         var cbRearrangeArtboards = optionPanel.add("checkbox", undefined, getLabel('rearrangeArtboards'));
+        cbRearrangeArtboards.helpTip = getLabel('tipRearrange');
         cbRearrangeArtboards.value = true;
 
         var spacingGroup = optionPanel.add("group");
@@ -190,10 +204,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var stSpacingHorizontal = spacingGroup.add("statictext", undefined, getLabel('spacingHorizontal'));
         var etSpacingHorizontal = spacingGroup.add("edittext", undefined, "20");
+        etSpacingHorizontal.helpTip = getLabel('tipSpacingH');
         etSpacingHorizontal.characters = 5;
 
         var stSpacingVertical = spacingGroup.add("statictext", undefined, getLabel('spacingVertical'));
         var etSpacingVertical = spacingGroup.add("edittext", undefined, "20");
+        etSpacingVertical.helpTip = getLabel('tipSpacingV');
         etSpacingVertical.characters = 5;
 
         function updateRearrangeUiEnabled() {

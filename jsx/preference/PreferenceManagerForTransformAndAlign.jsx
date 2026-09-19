@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManagerForTransformAndAlign"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManagerForTransformAndAlign.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManagerForTransformAndAlign.md"; /* README (English) */
@@ -66,6 +66,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             artboard: { ja: "アートボード名と枠線", en: "Artboard Name & Border" },
             artboardBorder: { ja: "アートボードの枠線", en: "Artboard Border" },
             etc: { ja: "その他", en: "Other" }
+        },
+        tooltip: {
+            keyValue:      { ja: "環境設定［一般］の「キー入力」の値です。矢印キー1回で動く距離になります。", en: "The Keyboard Increment from the General preferences: how far one arrow key press moves things." },
+            keyUnit:       { ja: "「キー入力」の値を入力する単位です。", en: "The unit the Keyboard Increment is entered in." },
+            previewBounds: { ja: "線幅や効果を含めた見た目の端を、オブジェクトの境界として扱います。", en: "Treats the visible edges including strokes and effects as the object bounds." },
+            transformPattern: { ja: "オブジェクトを変形したとき、パターン塗りも一緒に変形します。", en: "Transforms pattern fills along with the object." },
+            scaleCorners:  { ja: "拡大・縮小したとき、ライブコーナーの角丸も一緒に変わります。", en: "Scales live corner radii along with the object." },
+            scaleStroke:   { ja: "拡大・縮小したとき、線幅と効果も一緒に変わります。", en: "Scales stroke weights and effects along with the object." },
+            glyphBounds:   { ja: "整列の基準を、仮想ボディではなく字形の実際の輪郭にします。", en: "Aligns text by the actual glyph outlines instead of the em box." },
+            guideShow:     { ja: "ガイドの表示・非表示を切り替えます。", en: "Shows or hides the guides." },
+            guideLock:     { ja: "ガイドをロックして、選択・移動できないようにします。", en: "Locks the guides so they cannot be selected or moved." },
+            showArtboardName: { ja: "カンバス上にアートボード名を表示します。", en: "Shows the artboard names on the canvas." },
+            canvasWhite:   { ja: "アートボードの外の背景を白にします。", en: "Makes the canvas outside the artboards white." }
         },
         checkbox: {
             pointText: { ja: "ポイント文字", en: "Point Type" },
@@ -119,59 +132,68 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         return getLabel(key) + (uiLang === "ja" ? "：" : ":");
     }
 
-    /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
-    function labelWithCount(key, count) {
-        if (uiLang === "ja") {
-            return getLabel(key) + "（" + count + "）";
-        }
-        return getLabel(key) + " (" + count + ")";
-    }
-
     // =========================================
     // 単位 / Unit
     // =========================================
 
-    /* 単位の定義を1か所に集約（コード／ラベル／pt換算係数／ポップアップ表示）*/
-    /* Single source of unit definitions (code, label, pt factor, popup visibility) */
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）
+       decimals：1pt 未満に潰れないように、大きい単位ほど桁数を増やす（in で 1mm ≒ 0.039）
+       popup：単位ポップアップに並べるかどうか
+       Unit table; the array index equals the rulerType code.
+       decimals: larger units need more digits so small values do not collapse to 0 (1mm is 0.039in).
+       popup: whether the unit appears in the unit popup. */
     var UNITS = [
-        { code: 0,  label: "in",    factor: 72.0,                 popup: true },
-        { code: 1,  label: "mm",    factor: 72.0 / 25.4,          popup: true },
-        { code: 2,  label: "pt",    factor: 1.0,                  popup: true },
-        { code: 3,  label: "pica",  factor: 12.0,                 popup: true },
-        { code: 4,  label: "cm",    factor: 72.0 / 2.54,          popup: true },
-        { code: 5,  label: "Q/H",   factor: 72.0 / 25.4 * 0.25,   popup: true },
-        { code: 6,  label: "px",    factor: 1.0,                  popup: true },
-        { code: 7,  label: "ft/in", factor: 72.0 * 12.0,          popup: false },
-        { code: 8,  label: "m",     factor: 72.0 / 25.4 * 1000.0, popup: false },
-        { code: 9,  label: "yd",    factor: 72.0 * 36.0,          popup: false },
-        { code: 10, label: "ft",    factor: 72.0 * 12.0,          popup: false }
+        { label: "in",    pointsPerUnit: 72,               popup: true },   /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4,        popup: true },   /* 1 */
+        { label: "pt",    pointsPerUnit: 1,                popup: true },   /* 2 */
+        { label: "pica",  pointsPerUnit: 12,               popup: true },   /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54,        popup: true },   /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25, popup: true },   /* 5 */
+        { label: "px",    pointsPerUnit: 1,                popup: true },   /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12,          popup: false },  /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000, popup: false },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36,          popup: false },  /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12,          popup: false }   /* 10 */
     ];
 
-    /* コードから単位定義を取得 / Find a unit definition by code */
-    function getUnitByCode(code) {
-        for (var i = 0; i < UNITS.length; i++) {
-            if (UNITS[i].code === code) return UNITS[i];
-        }
-        return null;
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* 単位ラベルを取得 / Get the unit label */
-    function getUnitLabel(code) {
-        var unit = getUnitByCode(code);
-        return unit ? unit.label : "pt";
+    /* コードから単位定義を取得（未対応コードは pt 相当）/ Find a unit definition by code (unsupported codes fall back to pt) */
+    function getUnitByCode(unitCode) {
+        return UNITS[unitCode] || UNITS[2];
+    }
+
+    /* 単位ラベルを取得（定規単位なので歯は H 表示）/ Get the unit label (ruler unit, so unit code 5 shows as H) */
+    function getUnitLabel(unitCode) {
+        var unit = getUnitByCode(unitCode);
+        return (unitCode === 5) ? "H" : unit.label;
     }
 
     /* 単位コードから pt への換算係数を取得 / Get the pt conversion factor from a unit code */
-    function getPtFactorFromUnitCode(code) {
-        var unit = getUnitByCode(code);
-        return unit ? unit.factor : 1.0;
+    function getPtFactorFromUnitCode(unitCode) {
+        return getUnitByCode(unitCode).pointsPerUnit;
     }
 
     /* ポップアップに表示する単位コード（表示順、UNITS から派生）/ Unit codes shown in the popup (in order, derived from UNITS) */
     var UNIT_POPUP_CODES = (function () {
         var codes = [];
         for (var i = 0; i < UNITS.length; i++) {
-            if (UNITS[i].popup) codes.push(UNITS[i].code);
+            if (UNITS[i].popup) codes.push(i);
         }
         return codes;
     })();
@@ -524,10 +546,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         keyInputPanel.margins = [8, 20, 8, 15];
 
         var keyField = keyInputPanel.add('edittext', undefined, "1.0");
+        keyField.helpTip = getLabel('tooltip.keyValue');
         keyField.characters = 4;
 
         var suppressUnitChange = false;
         var unitDropdown = keyInputPanel.add('dropdownlist', undefined, []);
+        unitDropdown.helpTip = getLabel('tooltip.keyUnit');
         for (var u = 0; u < UNIT_POPUP_CODES.length; u++) {
             unitDropdown.add('item', getUnitLabel(UNIT_POPUP_CODES[u]));
         }
@@ -551,24 +575,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
 
         /* プレビュー境界 / Preview bounds */
         var checkboxPreview = transformPanel.add('checkbox', undefined, getLabel('checkbox.previewBounds'));
+        checkboxPreview.helpTip = getLabel('tooltip.previewBounds');
         checkboxPreview.onClick = function () {
             btSetBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
         };
 
         /* パターンを変形 / Transform patterns */
         var checkboxPattern = transformPanel.add('checkbox', undefined, getLabel('checkbox.transformPattern'));
+        checkboxPattern.helpTip = getLabel('tooltip.transformPattern');
         checkboxPattern.onClick = function () {
             btSetBooleanPreference("transformPatterns", checkboxPattern.value === true);
         };
 
         /* 角を拡大・縮小（1=ON, 2=OFF）/ Scale corners (1=ON, 2=OFF) */
         var checkboxCorner = transformPanel.add('checkbox', undefined, getLabel('checkbox.scaleCorners'));
+        checkboxCorner.helpTip = getLabel('tooltip.scaleCorners');
         checkboxCorner.onClick = function () {
             btSetIntegerPreference("policyForPreservingCorners", checkboxCorner.value ? 1 : 2);
         };
 
         /* 線幅と効果も拡大・縮小 / Scale strokes and effects */
         var checkboxStroke = transformPanel.add('checkbox', undefined, getLabel('checkbox.scaleStroke'));
+        checkboxStroke.helpTip = getLabel('tooltip.scaleStroke');
         checkboxStroke.onClick = function () {
             btSetBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
         };
@@ -580,7 +608,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         setupPanel(glyphPanel);
 
         var checkboxPoint = glyphPanel.add('checkbox', undefined, getLabel('checkbox.pointText'));
+        checkboxPoint.helpTip = getLabel('tooltip.glyphBounds');
         var checkboxArea = glyphPanel.add('checkbox', undefined, getLabel('checkbox.areaText'));
+        checkboxArea.helpTip = getLabel('tooltip.glyphBounds');
 
         bindCheckboxes([
             { checkbox: checkboxPoint, prefKey: 'EnableActualPointTextSpaceAlign' },
@@ -593,12 +623,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
 
         /* ガイドを表示 / Show guides */
         var checkboxGuideShow = guidePanel.add('checkbox', undefined, getLabel('checkbox.guideShow'));
+        checkboxGuideShow.helpTip = getLabel('tooltip.guideShow');
         checkboxGuideShow.onClick = function () {
             btSetBooleanPreference("showGuides", checkboxGuideShow.value === true);
         };
 
         /* ガイドをロック / Lock guides */
         var checkboxGuideLock = guidePanel.add('checkbox', undefined, getLabel('checkbox.guideLock'));
+        checkboxGuideLock.helpTip = getLabel('tooltip.guideLock');
         checkboxGuideLock.onClick = function () {
             btSetBooleanPreference("lockGuides", checkboxGuideLock.value === true);
         };
@@ -622,12 +654,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
 
         /* アートボード名を表示 / Show artboard name */
         var cbShowArtboardName = artboardPanel.add('checkbox', undefined, getLabel('checkbox.showArtboardName'));
+        cbShowArtboardName.helpTip = getLabel('tooltip.showArtboardName');
         cbShowArtboardName.onClick = function () {
             applyArtboard();
         };
 
         /* カンバスカラーをホワイトに（ON=1, OFF=0）/ Canvas color white (ON=1, OFF=0) */
         var checkboxCanvasWhite = artboardPanel.add('checkbox', undefined, getLabel('checkbox.canvasWhite'));
+        checkboxCanvasWhite.helpTip = getLabel('tooltip.canvasWhite');
         checkboxCanvasWhite.onClick = function () {
             btSetIntegerPreference("uiCanvasIsWhite", checkboxCanvasWhite.value ? 1 : 0);
         };

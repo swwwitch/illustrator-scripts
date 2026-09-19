@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectionInspector";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionInspector.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionInspector.md"; /* README (English) */
@@ -50,8 +50,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
         },
         report: {
             title: { ja: "Selection Inspector Report", en: "Selection Inspector Report" },
-            document: { ja: "ドキュメント:", en: "Document:" },
-            date: { ja: "日付:", en: "Date:" },
+            document: { ja: "ドキュメント：", en: "Document:" },
+            date: { ja: "日付：", en: "Date:" },
             valueNote: {
                 ja: "※ 値は『選択 / 全体』の形式です（アートボードのみ全体）",
                 en: "Note: values are formatted as 'Selection / All' (Artboards is All only)"
@@ -731,7 +731,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
             var statusText = win.add("statictext", undefined, getLabel('status.ready'));
             statusText.alignment = ["fill", "bottom"];
 
-            function setStatus(msg) { try { statusText.text = msg; } catch (e) {} }
+            function setStatus(msg) { statusText.text = msg; }
 
             function relayout() {
                 try { if (stackWrap.layout) { stackWrap.layout.layout(true); } } catch (e) {}
@@ -787,7 +787,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹�
                     if (memoList[i] && memoList[i] !== "") { nonEmpty.push(memoList[i]); }
                 }
                 var text = (nonEmpty.length === 1) ? nonEmpty[0] : (nonEmpty.length > 1 ? getLabel('memo.multiple') : "");
-                try { memoReadOnly.text = text; } catch (e) {}
+                memoReadOnly.text = text;
             }
 
             /* メモタブを再構築 / Rebuild the Notes tab */

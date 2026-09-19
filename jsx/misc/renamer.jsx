@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "renamer";                      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/renamer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/renamer.md"; /* README (English) */
@@ -60,9 +60,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         prefix:              { ja: "接頭辞", en: "Prefix" },
         suffix:              { ja: "接尾辞", en: "Suffix" },
         numberingEnable:     { ja: "ナンバリング", en: "Numbering" },
-        separator:           { ja: "区切り:", en: "Separator:" },
-        startNumber:         { ja: "開始番号:", en: "Start:" },
-        sort:                { ja: "並び替え:", en: "Sort:" },
+        separator:           { ja: "区切り", en: "Separator" },
+        startNumber:         { ja: "開始番号", en: "Start" },
+        sort:                { ja: "並び替え", en: "Sort" },
         sortOriginal:        { ja: "元の順", en: "Original" },
         sortNameAsc:         { ja: "名前 ↑", en: "Name ↑" },
         sortNameDesc:        { ja: "名前 ↓", en: "Name ↓" },
@@ -78,14 +78,32 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         noMatchSymbol:       { ja: "該当するシンボル名はありませんでした。", en: "No symbol names matched." },
         noMatchGraphicStyle: { ja: "該当するグラフィックスタイル名はありませんでした。", en: "No graphic style names matched." },
         done:                { ja: "完了しました。", en: "Done." },
-        targetArtboards:     { ja: "対象: アートボード名", en: "Target: Artboards" },
-        targetLayers:        { ja: "対象: レイヤー名", en: "Target: Layers" },
-        targetSymbols:       { ja: "対象: シンボル名", en: "Target: Symbols" },
-        targetGraphicStyles: { ja: "対象: グラフィックスタイル名", en: "Target: Graphic Styles" },
-        renamed:             { ja: "変更数: ", en: "Renamed: " },
-        suffixed:            { ja: "同名回避で連番追加: ", en: "Suffixed to avoid duplicates: " },
-        errorsLabel:         { ja: "エラー: ", en: "Errors: " },
-        countSuffix:         { ja: " 件", en: "" }
+        targetArtboards:     { ja: "対象：アートボード名", en: "Target: Artboards" },
+        targetLayers:        { ja: "対象：レイヤー名", en: "Target: Layers" },
+        targetSymbols:       { ja: "対象：シンボル名", en: "Target: Symbols" },
+        targetGraphicStyles: { ja: "対象：グラフィックスタイル名", en: "Target: Graphic Styles" },
+        renamed:             { ja: "変更数：", en: "Renamed: " },
+        suffixed:            { ja: "同名回避で連番追加：", en: "Suffixed to avoid duplicates: " },
+        errorsLabel:         { ja: "エラー：", en: "Errors: " },
+        countSuffix:         { ja: " 件", en: "" },
+        tipArtboard:         { ja: "アートボード名を対象にします。", en: "Renames artboard names." },
+        tipLayer:            { ja: "レイヤー名を対象にします。", en: "Renames layer names." },
+        tipSymbol:           { ja: "シンボル名を対象にします。", en: "Renames symbol names." },
+        tipGraphicStyle:     { ja: "グラフィックスタイル名を対象にします。", en: "Renames graphic style names." },
+        tipFindReplaceEnable:{ ja: "オフにすると、接頭辞・接尾辞のナンバリングだけを行います。", en: "When off, only the prefix/suffix numbering is applied." },
+        tipFind:             { ja: "名前の中から探す文字列です。空欄だとすべてが対象になります。", en: "Text to look for in the name. Leave blank to target everything." },
+        tipReplace:          { ja: "置き換える文字列です。空欄にすると検索文字列を削除します。", en: "Replacement text. Leave blank to delete the found text." },
+        tipRegex:            { ja: "検索文字列を正規表現として扱います（$1 などの後方参照も使えます）。", en: "Treats the search text as a regular expression, including back-references such as $1." },
+        tipPrefixEnable:     { ja: "名前の先頭に連番を付けます。", en: "Adds a sequential number to the start of the name." },
+        tipSuffixEnable:     { ja: "名前の末尾に連番を付けます。", en: "Adds a sequential number to the end of the name." },
+        tipSeparator:        { ja: "連番と名前の間に入れる文字です。", en: "Character placed between the number and the name." },
+        tipStartNumber:      { ja: "連番の最初の数字です。", en: "First number of the sequence." },
+        tipSort:             { ja: "プレビューと連番を振る順序です。", en: "Order used for the preview and for numbering." },
+        tipMoveTop:          { ja: "選んだ項目を先頭へ移動します。", en: "Moves the selected item to the top." },
+        tipMoveUp:           { ja: "選んだ項目を1つ上へ移動します。", en: "Moves the selected item up one position." },
+        tipMoveDown:         { ja: "選んだ項目を1つ下へ移動します。", en: "Moves the selected item down one position." },
+        tipMoveBottom:       { ja: "選んだ項目を末尾へ移動します。", en: "Moves the selected item to the bottom." },
+        tipPreview:          { ja: "変更前と変更後の名前の一覧です。並べ替えたい項目はここで選びます。", en: "List of the names before and after the change. Select an item here to reorder it." }
     };
 
     /* ローカライズ文字列を取得 / Get localized string */
@@ -93,6 +111,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var entry = LABELS[key];
         if (!entry) return key;
         return entry[uiLang] || entry.en || entry.ja || key;
+    }
+
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
     }
 
         if (app.documents.length === 0) {
@@ -240,9 +263,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetPanel.spacing = 10;
 
         var rbArtboard = targetPanel.add("radiobutton", undefined, getLabel("artboard"));
+        rbArtboard.helpTip = getLabel("tipArtboard");
         var rbLayer = targetPanel.add("radiobutton", undefined, getLabel("layer"));
+        rbLayer.helpTip = getLabel("tipLayer");
         var rbSymbol = targetPanel.add("radiobutton", undefined, getLabel("symbol"));
+        rbSymbol.helpTip = getLabel("tipSymbol");
         var rbGraphicStyle = targetPanel.add("radiobutton", undefined, getLabel("graphicStyle"));
+        rbGraphicStyle.helpTip = getLabel("tipGraphicStyle");
 
         rbSymbol.value = true;
 
@@ -261,20 +288,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(findReplacePanel, 6);
 
         var findReplaceCheckbox = findReplacePanel.add("checkbox", undefined, getLabel("findReplaceEnable"));
+        findReplaceCheckbox.helpTip = getLabel("tipFindReplaceEnable");
         findReplaceCheckbox.value = true;
 
         var findGroup = findReplacePanel.add("group");
         findGroup.orientation = "row";
         findGroup.alignChildren = ["left", "center"];
-        findGroup.add("statictext", undefined, getLabel("find"));
+        findGroup.add("statictext", undefined, labelText("find"));
         var findInput = findGroup.add("edittext", undefined, "");
+        findInput.helpTip = getLabel("tipFind");
         findInput.characters = 15;
 
         var replaceGroup = findReplacePanel.add("group");
         replaceGroup.orientation = "row";
         replaceGroup.alignChildren = ["left", "center"];
-        replaceGroup.add("statictext", undefined, getLabel("replace"));
+        replaceGroup.add("statictext", undefined, labelText("replace"));
         var replaceInput = replaceGroup.add("edittext", undefined, "");
+        replaceInput.helpTip = getLabel("tipReplace");
         replaceInput.characters = 15;
 
         var regexGroup = findReplacePanel.add("group");
@@ -282,26 +312,31 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         regexGroup.alignChildren = ["right", "center"];
         regexGroup.alignment = "fill";
         var regexCheckbox = regexGroup.add("checkbox", undefined, getLabel("regex"));
+        regexCheckbox.helpTip = getLabel("tipRegex");
 
         // 接頭辞パネル / Prefix panel
         var prefixPanel = leftColumn.add("panel", undefined, getLabel("prefix"));
         setupPanel(prefixPanel, 6);
 
         var prefixCheckbox = prefixPanel.add("checkbox", undefined, getLabel("numberingEnable"));
+        prefixCheckbox.helpTip = getLabel("tipPrefixEnable");
 
         var prefixSepGroup = prefixPanel.add("group");
         prefixSepGroup.orientation = "row";
         prefixSepGroup.alignChildren = ["left", "center"];
-        prefixSepGroup.add("statictext", undefined, getLabel("separator"));
+        prefixSepGroup.add("statictext", undefined, labelText("separator"));
         var rbPrefixSepDash = prefixSepGroup.add("radiobutton", undefined, "-");
+        rbPrefixSepDash.helpTip = getLabel("tipSeparator");
         var rbPrefixSepUnderscore = prefixSepGroup.add("radiobutton", undefined, "_");
+        rbPrefixSepUnderscore.helpTip = getLabel("tipSeparator");
         rbPrefixSepDash.value = true;
 
         var prefixStartGroup = prefixPanel.add("group");
         prefixStartGroup.orientation = "row";
         prefixStartGroup.alignChildren = ["left", "center"];
-        prefixStartGroup.add("statictext", undefined, getLabel("startNumber"));
+        prefixStartGroup.add("statictext", undefined, labelText("startNumber"));
         var prefixStartInput = prefixStartGroup.add("edittext", undefined, "1");
+        prefixStartInput.helpTip = getLabel("tipStartNumber");
         prefixStartInput.characters = 4;
 
         // 接尾辞パネル / Suffix panel
@@ -309,20 +344,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(suffixPanel, 6);
 
         var suffixCheckbox = suffixPanel.add("checkbox", undefined, getLabel("numberingEnable"));
+        suffixCheckbox.helpTip = getLabel("tipSuffixEnable");
 
         var suffixSepGroup = suffixPanel.add("group");
         suffixSepGroup.orientation = "row";
         suffixSepGroup.alignChildren = ["left", "center"];
-        suffixSepGroup.add("statictext", undefined, getLabel("separator"));
+        suffixSepGroup.add("statictext", undefined, labelText("separator"));
         var rbSuffixSepDash = suffixSepGroup.add("radiobutton", undefined, "-");
+        rbSuffixSepDash.helpTip = getLabel("tipSeparator");
         var rbSuffixSepUnderscore = suffixSepGroup.add("radiobutton", undefined, "_");
+        rbSuffixSepUnderscore.helpTip = getLabel("tipSeparator");
         rbSuffixSepDash.value = true;
 
         var suffixStartGroup = suffixPanel.add("group");
         suffixStartGroup.orientation = "row";
         suffixStartGroup.alignChildren = ["left", "center"];
-        suffixStartGroup.add("statictext", undefined, getLabel("startNumber"));
+        suffixStartGroup.add("statictext", undefined, labelText("startNumber"));
         var suffixStartInput = suffixStartGroup.add("edittext", undefined, "1");
+        suffixStartInput.helpTip = getLabel("tipStartNumber");
         suffixStartInput.characters = 4;
 
         // 右カラム: 並び替え + プレビュー / Right column: sort + preview
@@ -333,7 +372,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var sortGroup = rightColumn.add("group");
         sortGroup.orientation = "row";
         sortGroup.alignChildren = ["left", "center"];
-        sortGroup.add("statictext", undefined, getLabel("sort"));
+        sortGroup.add("statictext", undefined, labelText("sort"));
         var sortDropdown = sortGroup.add("dropdownlist", undefined, [
             getLabel("sortOriginal"),
             getLabel("sortNameAsc"),
@@ -341,17 +380,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             getLabel("sortChanged")
         ]);
         sortDropdown.selection = 0;
+        sortDropdown.helpTip = getLabel("tipSort");
 
         var moveTopBtn = sortGroup.add("button", undefined, getLabel("moveTop"));
+        moveTopBtn.helpTip = getLabel("tipMoveTop");
         var moveUpBtn = sortGroup.add("button", undefined, getLabel("moveUp"));
+        moveUpBtn.helpTip = getLabel("tipMoveUp");
         var moveDownBtn = sortGroup.add("button", undefined, getLabel("moveDown"));
+        moveDownBtn.helpTip = getLabel("tipMoveDown");
         var moveBottomBtn = sortGroup.add("button", undefined, getLabel("moveBottom"));
+        moveBottomBtn.helpTip = getLabel("tipMoveBottom");
         moveTopBtn.preferredSize.width = 36;
         moveUpBtn.preferredSize.width = 32;
         moveDownBtn.preferredSize.width = 32;
         moveBottomBtn.preferredSize.width = 36;
 
         var previewList = rightColumn.add("listbox", undefined, []);
+        previewList.helpTip = getLabel("tipPreview");
         previewList.preferredSize.width = 340;
         previewList.preferredSize.height = PREVIEW_VISIBLE_LINES * PREVIEW_LINE_HEIGHT;
 
@@ -488,14 +533,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             recomputeNewNames();
             var selIdx = previewList.selection ? previewList.selection.index : -1;
             renderPreview(selIdx);
-        }
-
-        /* 検索置換 UI の有効/無効を切替 / Toggle find & replace UI */
-        function updateFindReplaceEnabled() {
-            var on = findReplaceCheckbox.value;
-            findInput.enabled = on;
-            replaceInput.enabled = on;
-            regexCheckbox.enabled = on;
         }
 
         /* 接頭辞/接尾辞 UI の有効/無効を切替 / Toggle prefix/suffix UI */

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExportFontInfoFromXMP";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExportFontInfoFromXMP.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExportFontInfoFromXMP.md"; /* README (English) */
@@ -132,6 +132,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
             desktop: { ja: "デスクトップ", en: "Desktop" },
             sameFolder: { ja: "ファイルと同じ階層", en: "Same folder as the file" },
             openFolder: { ja: "書き出し後にフォルダーを開く", en: "Open the folder after exporting" }
+        },
+        tooltip: {
+            formatText:     { ja: "タブ区切りのテキストファイルとして書き出します。", en: "Writes a tab-separated text file." },
+            formatCsv:      { ja: "カンマ区切りのCSVとして書き出します。表計算ソフトで開けます。", en: "Writes a CSV file that opens in a spreadsheet." },
+            formatMarkdown: { ja: "Markdown の表として書き出します。", en: "Writes a Markdown table." },
+            formatAll:      { ja: "上の3つの形式をすべて書き出します。", en: "Writes all three formats." },
+            destDesktop:    { ja: "デスクトップに保存します。", en: "Saves to the desktop." },
+            destSameFolder: { ja: "ドキュメントと同じフォルダーに保存します。未保存のドキュメントでは使えません。", en: "Saves next to the document. Unavailable for unsaved documents." },
+            openFolder:     { ja: "書き出したあと、保存先のフォルダーを開きます。", en: "Opens the destination folder once the files are written." },
+            missingOnly:    { ja: "この環境に入っていないフォントだけを書き出します。", en: "Writes only the fonts that are missing from this machine." }
         },
         exportOptions: {
             title: { ja: "オプション", en: "Options" },
@@ -341,9 +351,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         setupPanel(formatPanel, 6);
 
         var radioText = formatPanel.add("radiobutton", undefined, getLabel("format.text"));
+        radioText.helpTip = getLabel("tooltip.formatText");
         var radioCsv = formatPanel.add("radiobutton", undefined, getLabel("format.csv"));
+        radioCsv.helpTip = getLabel("tooltip.formatCsv");
         var radioMarkdown = formatPanel.add("radiobutton", undefined, getLabel("format.markdown"));
+        radioMarkdown.helpTip = getLabel("tooltip.formatMarkdown");
         var radioAll = formatPanel.add("radiobutton", undefined, getLabel("format.all"));
+        radioAll.helpTip = getLabel("tooltip.formatAll");
         radioText.value = true;
         radioText.active = true;
         enableArrowKeyNavigation([radioText, radioCsv, radioMarkdown, radioAll]);
@@ -353,7 +367,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         setupPanel(destinationPanel, 6);
 
         var radioDesktop = destinationPanel.add("radiobutton", undefined, getLabel("destination.desktop"));
+        radioDesktop.helpTip = getLabel("tooltip.destDesktop");
         var radioSameFolder = destinationPanel.add("radiobutton", undefined, getLabel("destination.sameFolder"));
+        radioSameFolder.helpTip = getLabel("tooltip.destSameFolder");
         radioDesktop.value = true;
         /* 未保存のドキュメントには同じ階層が無いのでデスクトップだけにする / A never-saved document has no folder of its own, so leave only Desktop */
         radioSameFolder.enabled = !!getDocumentFolder(app.activeDocument);
@@ -365,6 +381,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         openFolderGroup.margins = [0, 4, 0, 0];
 
         var openFolderCheckbox = openFolderGroup.add("checkbox", undefined, getLabel("destination.openFolder"));
+        openFolderCheckbox.helpTip = getLabel("tooltip.openFolder");
         openFolderCheckbox.value = OPEN_FOLDER_DEFAULT;
 
         /* オプションパネル / Options panel */
@@ -372,6 +389,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n16e7e95652b6"; /* 紹�
         setupPanel(exportOptionsPanel, 6);
 
         var missingOnlyCheckbox = exportOptionsPanel.add("checkbox", undefined, getLabel("exportOptions.missingOnly"));
+        missingOnlyCheckbox.helpTip = getLabel("tooltip.missingOnly");
         missingOnlyCheckbox.value = MISSING_ONLY_DEFAULT;
 
         var buttonGroup = dialog.add("group");

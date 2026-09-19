@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SortByNumbers";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-06-16";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortByNumbers.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortByNumbers.md"; /* README (English) */
@@ -37,25 +37,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 (function () {
 
     var LABELS = {
-        ja: {
-            title: "グループの数値で整列",
-            sortGroup: "数値グループ",
-            asc: "昇順",
-            desc: "降順",
-            ok: "ソート",
-            fit: "ぴったり",
-            custom: "指定"
+        dialog: {
+            title: { ja: "グループの数値で整列", en: "Align Groups by Number" }
         },
-        en: {
-            title: "Align Groups by Number",
-            sortGroup: "Number Group",
-            asc: "Ascending",
-            desc: "Descending",
-            ok: "Sort",
-            fit: "Fit",
-            custom: "Custom"
+        panel: {
+            sortGroup: { ja: "数値グループ", en: "Number Group" },
+            spacing:   { ja: "間隔", en: "Spacing" }
+        },
+        radio: {
+            asc:    { ja: "昇順", en: "Ascending" },
+            desc:   { ja: "降順", en: "Descending" },
+            random: { ja: "ランダム", en: "Random" },
+            fit:    { ja: "ぴったり", en: "Fit" },
+            custom: { ja: "指定", en: "Custom" }
+        },
+        tooltip: {
+            sortGroup: { ja: "並べ替えの基準に使う数値のまとまりを選びます。", en: "Which set of numbers to sort by." },
+            asc:       { ja: "数値の小さい順に並べます。", en: "Sorts from the smallest number up." },
+            desc:      { ja: "数値の大きい順に並べます。", en: "Sorts from the largest number down." },
+            random:    { ja: "数値と関係なく、順序をシャッフルします。", en: "Shuffles the order regardless of the numbers." },
+            fit:       { ja: "現在の並びの間隔を保ったまま詰め直します。", en: "Keeps the current spacing and repacks the objects." },
+            custom:    { ja: "間隔を数値で指定します。", en: "Sets the spacing to a value you type." },
+            spacingInput: { ja: "オブジェクト間にあける間隔です。「指定」を選んだときだけ使われます。", en: "Gap left between objects. Used only when Custom is selected." }
+        },
+        button: {
+            ok:     { ja: "ソート", en: "Sort" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         }
     };
+
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.spacing" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
 
     function getCurrentLang() {
         return ($.locale === "ja" || $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -232,15 +256,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         app.redraw();
     }
 
-    function restoreGroupPositions(positionMap) {
-        for (var id in positionMap) {
-            var g = positionMap[id].group;
-            var bounds = g.visibleBounds;
-            var orig = positionMap[id].bounds;
-            g.translate(orig[0] - bounds[0], orig[1] - bounds[1]);
-        }
-    }
-
     /**
      * 再帰的にテキストフレームから数値を抽出し配列に収集
      * @param {PageItem} obj - 対象オブジェクト
@@ -293,11 +308,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function showFontChoiceDialog(fontMap, originalPositions) {
         var uiLang = getCurrentLang();
-        var dialog = new Window("dialog", LABELS[uiLang].title);
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
-        var radioGroup = dialog.add("panel", undefined, LABELS[uiLang].sortGroup);
+        var radioGroup = dialog.add("panel", undefined, getLabel("panel.sortGroup"));
         radioGroup.orientation = "column";
         radioGroup.alignChildren = "left";
         radioGroup.margins = [10, 20, 10, 10];
@@ -324,6 +339,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 (values.length > 3 ? values.slice(0, 3).join(", ") + "…" : values.join(", ")) :
                 "";
             var rb = radioGroup.add("radiobutton", undefined, label);
+            rb.helpTip = getLabel("tooltip.sortGroup");
             radioButtons.push({
                 button: rb,
                 key: name
@@ -338,20 +354,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sortPanel.alignChildren = "left";
         sortPanel.margins = [10, 20, 10, 10];
 
-        var ascRadio = sortPanel.add("radiobutton", undefined, LABELS[uiLang].asc);
-        var descRadio = sortPanel.add("radiobutton", undefined, LABELS[uiLang].desc);
-        var randomRadio = sortPanel.add("radiobutton", undefined, "ランダム");
+        var ascRadio = sortPanel.add("radiobutton", undefined, getLabel("radio.asc"));
+        ascRadio.helpTip = getLabel("tooltip.asc");
+        var descRadio = sortPanel.add("radiobutton", undefined, getLabel("radio.desc"));
+        descRadio.helpTip = getLabel("tooltip.desc");
+        var randomRadio = sortPanel.add("radiobutton", undefined, getLabel("radio.random"));
+        randomRadio.helpTip = getLabel("tooltip.random");
         ascRadio.value = true;
 
-        var spacingPanel = dialog.add("panel", undefined, LABELS[uiLang].custom === "指定" || LABELS[uiLang].custom === "Custom" ? LABELS[uiLang].custom : "間隔");
+        var spacingPanel = dialog.add("panel", undefined, getLabel("panel.spacing"));
         spacingPanel.orientation = "row";
         spacingPanel.alignChildren = "left";
         spacingPanel.margins = [10, 20, 10, 10];
 
-        var fitRadio = spacingPanel.add("radiobutton", undefined, LABELS[uiLang].fit);
-        var customRadio = spacingPanel.add("radiobutton", undefined, LABELS[uiLang].custom);
+        var fitRadio = spacingPanel.add("radiobutton", undefined, getLabel("radio.fit"));
+        fitRadio.helpTip = getLabel("tooltip.fit");
+        var customRadio = spacingPanel.add("radiobutton", undefined, getLabel("radio.custom"));
+        customRadio.helpTip = getLabel("tooltip.custom");
         var defaultSpacing = (unitLabel === "mm") ? "1" : "20";
         var spacingInput = spacingPanel.add("edittext", undefined, defaultSpacing);
+        spacingInput.helpTip = getLabel("tooltip.spacingInput");
         spacingInput.characters = 5;
         spacingInput.enabled = false;
         var spacingUnit = spacingPanel.add("statictext", undefined, unitLabel);
@@ -366,8 +388,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "center";
-        var cancelBtn = buttonGroup.add("button", undefined, "キャンセル");
-        var okBtn = buttonGroup.add("button", undefined, LABELS[uiLang].ok, {
+        var cancelBtn = buttonGroup.add("button", undefined, getLabel("button.cancel"));
+        var okBtn = buttonGroup.add("button", undefined, getLabel("button.ok"), {
             name: "ok"
         });
         cancelBtn.alignment = "left";

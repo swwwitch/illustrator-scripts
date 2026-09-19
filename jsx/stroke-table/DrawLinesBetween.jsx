@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DrawLinesBetween";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawLinesBetween.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawLinesBetween.md"; /* README (English) */
@@ -89,6 +89,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "線端",
             en: "Line Cap"
         },
+        tipLineWidth: { ja: "ケイ線の太さです。", en: "Weight of the rules." },
+        tipMargin: { ja: "オブジェクトの端からケイ線を離す距離です。", en: "How far the rules sit from the edge of the objects." },
+        tipCapButt: { ja: "線の端を切りっぱなしにします。", en: "Leaves the line ends flat." },
+        tipCapRound: { ja: "線の端を丸くします。", en: "Rounds the line ends." },
+        tipCapProjecting: { ja: "線の端を太さの半分だけ延ばします。", en: "Extends the line ends by half the weight." },
+        tipLengthObject: { ja: "ケイ線の長さを、上下のオブジェクトの幅に合わせます。", en: "Matches each rule to the width of the objects it sits between." },
+        tipLengthCommon: { ja: "すべてのケイ線を同じ長さにそろえます。", en: "Gives every rule the same length." },
         capButt: {
             ja: "なし",
             en: "Butt"
@@ -193,76 +200,46 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位（strokeUnits）ユーティリティ / Units (strokeUnits) utilities
 
     // 単位コード → ラベル（Q/H分岐あり）
-    var unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            // Q/H は設定キーによってラベルが変わる（ここでは strokeUnits は H 扱い）
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return unitMap[code] || "pt";
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    function getStrokeUnitsCode() {
-        try {
-            return app.preferences.getIntegerPreference("strokeUnits");
-        } catch (e) {
-            // 取得できない環境向けフォールバック
-            return 2; // pt
-        }
+    /* 指定単位の値を pt に変換 / Convert a value in the given unit to points */
+    function toPt(value, unitCode) {
+        return value * (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
     }
 
-    function getCurrentStrokeUnitLabel() {
-        var code = getStrokeUnitsCode();
-        return getUnitLabel(code, "strokeUnits");
-    }
-
-    // 単位コード → pt換算係数（value * factor = pt）
-    function getUnitToPtFactor(code, prefKey) {
-        // 基本単位
-        if (code === 2) return 1; // pt
-        if (code === 0) return 72; // in
-        if (code === 1) return 72 / 25.4; // mm
-        if (code === 4) return 72 / 2.54; // cm
-        if (code === 3) return 12; // pica (1pica = 12pt)
-        if (code === 6) return 1; // px（Illustratorでは概ねpt相当として扱う）
-        if (code === 10) return 72 * 12; // ft
-        if (code === 9) return 72 * 36; // yd
-        if (code === 8) return (72 / 2.54) * 100; // m
-        if (code === 5) {
-            // Q/H：1Q=0.25mm、1H=0.25mm（扱いは同じ）
-            return (72 / 25.4) * 0.25;
-        }
-
-        // ft/in は入力形式が複合になり得るため、ここではpt扱いにフォールバック
-        return 1;
-    }
-
-    function toPt(value, code, prefKey) {
-        return value * getUnitToPtFactor(code, prefKey);
-    }
-
-    function fromPt(ptValue, code, prefKey) {
-        var f = getUnitToPtFactor(code, prefKey);
-        if (!f) return ptValue;
-        return ptValue / f;
+    /* pt を指定単位の値に変換 / Convert points to a value in the given unit */
+    function fromPt(ptValue, unitCode) {
+        return ptValue / (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
     }
 
     // ダイアログ外観ユーティリティ / Dialog appearance utilities
@@ -351,22 +328,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         dialog.orientation = 'column';
         dialog.alignChildren = ['fill', 'top'];
         var saved = loadSettings();
-        var strokeUnitCodeForUI = getStrokeUnitsCode();
-        var strokeUnitLabel = getUnitLabel(strokeUnitCodeForUI, "strokeUnits");
+        var strokeUnitForUI = getUnitInfo("strokeUnits");
+        var strokeUnitCodeForUI = strokeUnitForUI.code;
+        var strokeUnitLabel = strokeUnitForUI.label;
 
         // 既定値（pt）→ 現在の strokeUnits 表示値へ変換
-        var defaultLineWeightUI = fromPt(DEFAULT_LINE_WEIGHT, strokeUnitCodeForUI, "strokeUnits");
-        var defaultMarginUI = fromPt(DEFAULT_MARGIN, strokeUnitCodeForUI, "strokeUnits");
+        var defaultLineWeightUI = fromPt(DEFAULT_LINE_WEIGHT, strokeUnitCodeForUI);
+        var defaultMarginUI = fromPt(DEFAULT_MARGIN, strokeUnitCodeForUI);
 
         // 保存済みがあればそれを優先
         if (saved) {
-            if (typeof saved.lineWeightPt === "number") defaultLineWeightUI = fromPt(saved.lineWeightPt, strokeUnitCodeForUI, "strokeUnits");
-            if (typeof saved.marginPt === "number") defaultMarginUI = fromPt(saved.marginPt, strokeUnitCodeForUI, "strokeUnits");
+            if (typeof saved.lineWeightPt === "number") defaultLineWeightUI = fromPt(saved.lineWeightPt, strokeUnitCodeForUI);
+            if (typeof saved.marginPt === "number") defaultMarginUI = fromPt(saved.marginPt, strokeUnitCodeForUI);
         }
 
         var lineGroup = dialog.add('group');
         lineGroup.add('statictext', undefined, getLabel('lineWidth'));
         var lineWidthInput = lineGroup.add('edittext', undefined, formatNumberForUI(defaultLineWeightUI));
+        lineWidthInput.helpTip = getLabel('tipLineWidth');
         lineWidthInput.characters = 6;
         changeValueByArrowKey(lineWidthInput);
         lineGroup.add('statictext', undefined, '(' + strokeUnitLabel + ')');
@@ -374,6 +353,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var marginGroup = dialog.add('group');
         marginGroup.add('statictext', undefined, getLabel('extension'));
         var marginInput = marginGroup.add('edittext', undefined, formatNumberForUI(defaultMarginUI));
+        marginInput.helpTip = getLabel('tipMargin');
         marginInput.characters = 6;
         changeValueByArrowKey(marginInput);
         marginGroup.add('statictext', undefined, '(' + strokeUnitLabel + ')');
@@ -388,8 +368,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         capGroup.alignChildren = ['left', 'center'];
 
         var capNoneRadio = capGroup.add('radiobutton', undefined, getLabel('capButt'));
+        capNoneRadio.helpTip = getLabel('tipCapButt');
         var capRoundRadio = capGroup.add('radiobutton', undefined, getLabel('capRound'));
+        capRoundRadio.helpTip = getLabel('tipCapRound');
         var capProjectingRadio = capGroup.add('radiobutton', undefined, getLabel('capProjecting'));
+        capProjectingRadio.helpTip = getLabel('tipCapProjecting');
 
         // デフォルト：なし（BUTT）/ Default: Butt
         capNoneRadio.value = true;
@@ -415,7 +398,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lengthGroup.alignChildren = ['left', 'center'];
 
         var lengthObjectRadio = lengthGroup.add('radiobutton', undefined, getLabel('ruleLengthObject'));
+        lengthObjectRadio.helpTip = getLabel('tipLengthObject');
         var lengthCommonRadio = lengthGroup.add('radiobutton', undefined, getLabel('ruleLengthCommon'));
+        lengthCommonRadio.helpTip = getLabel('tipLengthCommon');
 
         // デフォルト：共通
         lengthCommonRadio.value = true;
@@ -444,8 +429,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return null;
         }
         var strokeUnitCode = strokeUnitCodeForUI;
-        var lineWeightPt = toPt(lineWeightVal, strokeUnitCode, "strokeUnits");
-        var marginPt = toPt(marginVal, strokeUnitCode, "strokeUnits");
+        var lineWeightPt = toPt(lineWeightVal, strokeUnitCode);
+        var marginPt = toPt(marginVal, strokeUnitCode);
 
         var lineCap = StrokeCap.BUTTENDCAP;
         if (capRoundRadio.value) {

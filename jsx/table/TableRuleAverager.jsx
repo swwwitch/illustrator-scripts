@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TableRuleAverager";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableRuleAverager.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableRuleAverager.md"; /* README (English) */
@@ -63,6 +63,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "横罫",
             en: "Horizontal"
         },
+        tipVertical: { ja: "縦罫の間隔を均等にします。", en: "Evens out the spacing of the vertical rules." },
+        tipHorizontal: { ja: "横罫の間隔を均等にします。", en: "Evens out the spacing of the horizontal rules." },
+        tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original layout." },
         checkboxPreview: {
             ja: "プレビュー",
             en: "Preview"
@@ -113,11 +116,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         averagingPanel.alignment = ["fill", "top"];
         averagingPanel.margins = [15, 20, 15, 10];
         var verticalCheckbox = averagingPanel.add("checkbox", undefined, getLabel('checkboxVertical'));
+        verticalCheckbox.helpTip = getLabel('tipVertical');
         var horizontalCheckbox = averagingPanel.add("checkbox", undefined, getLabel('checkboxHorizontal'));
+        horizontalCheckbox.helpTip = getLabel('tipHorizontal');
 
         var previewGroup = dialog.add("group");
         previewGroup.alignment = "center";
         var previewCheckbox = previewGroup.add("checkbox", undefined, getLabel('checkboxPreview'));
+        previewCheckbox.helpTip = getLabel('tipPreview');
 
         /* 初期状態：見つかった罫線のチェックをON / Initial state: enable checkboxes for found rules */
         verticalCheckbox.value = (verticalLines.length > 0);

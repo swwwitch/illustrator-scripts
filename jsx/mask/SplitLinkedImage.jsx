@@ -1,16 +1,41 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-(function () {
-    // =========================================
-    // バージョンとローカライズ / Version and Localization
-    // =========================================
-    var SCRIPT_VERSION = "v1.0";
+/*
 
+### 概要
+
+選択したリンク画像を、指定した列数・行数のグリッドに分割します。
+分割後の各画像はクリッピングマスクで切り出され、元の配置を保ったまま並びます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Splits the selected linked image into a grid of the given number of columns and rows.
+Each piece is cut out with a clipping mask and keeps the original placement.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SplitLinkedImage";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-09-19";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+(function () {
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -34,6 +59,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "グループ化",
             en: "Create Group"
         },
+        tipColumns: { ja: "横に何枚へ分割するかです。", en: "How many pieces to cut the image into across." },
+        tipRows: { ja: "縦に何枚へ分割するかです。", en: "How many pieces to cut the image into down." },
+        tipOverlap: { ja: "隣り合う分割片を重ねる幅です。継ぎ目を目立たせたくないときに使います。", en: "How far neighbouring pieces overlap. Use it to hide the seams." },
+        tipGroupCheck: { ja: "分割してできた画像を1つのグループにまとめます。", en: "Groups the resulting pieces into a single group." },
+        tipRuleCheck: { ja: "分割した境目にケイ線を引きます。", en: "Draws a rule along each cut." },
+        tipRoundCheck: { ja: "分割片の角を丸めます。半径は右の欄で指定します。", en: "Rounds the corners of each piece. The field on the right sets the radius." },
+        tipRoundRadius: { ja: "角丸の半径です。", en: "Radius of the rounded corners." },
         optionsPanel: {
             ja: "オプション",
             en: "Options"
@@ -96,55 +128,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
     };
 
-    function L(key) {
-        return LABELS[key][lang];
+    function getLabel(key) {
+        return LABELS[key][uiLang];
     }
 
     function labelText(key) {
-        return L(key) + (lang === 'ja' ? '：' : ':');
+        return getLabel(key) + (uiLang === 'ja' ? '：' : ':');
     }
 
     // =========================================
     // 単位 / Units
     // =========================================
-    /* 単位コードとラベルのマップ / Unit code to label map */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
 
-    /* 現在の単位ラベルを取得 / Get current ruler unit label */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
-    }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 現在の単位→pt 変換係数 / Get unit-to-pt conversion factor */
-    function getUnitToPtFactor() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        switch (unitCode) {
-            case 0: return 72;                  /* in */
-            case 1: return 72 / 25.4;           /* mm */
-            case 2: return 1;                   /* pt */
-            case 3: return 12;                  /* pica */
-            case 4: return 72 / 2.54;           /* cm */
-            case 5: return 72 / 25.4 * 0.25;    /* Q (0.25mm) */
-            case 6: return 1;                   /* px */
-            case 7: return 72;                  /* ft/in */
-            case 8: return 72 / 0.0254;         /* m */
-            case 9: return 72 * 36;             /* yd */
-            case 10: return 72 * 12;            /* ft */
-            default: return 1;
-        }
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -207,25 +228,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // 事前チェック / Pre-check
     // =========================================
     if (app.documents.length === 0) {
-        alert(L('errNoDoc'));
+        alert(getLabel('errNoDoc'));
         return;
     }
 
     var doc = app.activeDocument;
 
     if (doc.selection.length === 0) {
-        alert(L('errNoSelection'));
+        alert(getLabel('errNoSelection'));
         return;
     }
 
     // =========================================
     // ダイアログ / Dialog
     // =========================================
-    var dlg = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    var dlg = new Window("dialog", getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
 
-    var splitPanel = dlg.add("panel", undefined, L('splitPanel'));
+    var splitPanel = dlg.add("panel", undefined, getLabel('splitPanel'));
     splitPanel.orientation = "column";
     splitPanel.alignChildren = "left";
     splitPanel.margins = [15, 20, 15, 10];
@@ -234,6 +255,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     countLRGroup.orientation = "row";
     countLRGroup.add("statictext", undefined, labelText('countLR'));
     var columnsInput = countLRGroup.add("edittext", undefined, "2");
+    columnsInput.helpTip = getLabel('tipColumns');
     columnsInput.characters = 4;
     changeValueByArrowKey(columnsInput);
 
@@ -241,10 +263,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     countTBGroup.orientation = "row";
     countTBGroup.add("statictext", undefined, labelText('countTB'));
     var rowsInput = countTBGroup.add("edittext", undefined, "1");
+    rowsInput.helpTip = getLabel('tipRows');
     rowsInput.characters = 4;
     changeValueByArrowKey(rowsInput);
 
-    var optionsPanel = dlg.add("panel", undefined, L('optionsPanel'));
+    var optionsPanel = dlg.add("panel", undefined, getLabel('optionsPanel'));
     optionsPanel.orientation = "column";
     optionsPanel.alignChildren = "left";
     optionsPanel.margins = [15, 20, 15, 10];
@@ -253,29 +276,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     overlapGroup.orientation = "row";
     overlapGroup.add("statictext", undefined, labelText('overlap'));
     var overlapInput = overlapGroup.add("edittext", undefined, "0");
+    overlapInput.helpTip = getLabel('tipOverlap');
     overlapInput.characters = 4;
     changeValueByArrowKey(overlapInput);
-    overlapGroup.add("statictext", undefined, getCurrentUnitLabel());
+    overlapGroup.add("statictext", undefined, getUnitInfo().label);
 
-    var groupCheck = optionsPanel.add("checkbox", undefined, L('groupCheck'));
+    var groupCheck = optionsPanel.add("checkbox", undefined, getLabel('groupCheck'));
+    groupCheck.helpTip = getLabel('tipGroupCheck');
     groupCheck.value = false;
 
-    var ruleCheck = optionsPanel.add("checkbox", undefined, L('ruleCheck'));
+    var ruleCheck = optionsPanel.add("checkbox", undefined, getLabel('ruleCheck'));
+    ruleCheck.helpTip = getLabel('tipRuleCheck');
     ruleCheck.value = false;
 
     var roundGroup = optionsPanel.add("group");
     roundGroup.orientation = "row";
-    var roundCheck = roundGroup.add("checkbox", undefined, L('roundCheck'));
+    var roundCheck = roundGroup.add("checkbox", undefined, getLabel('roundCheck'));
+    roundCheck.helpTip = getLabel('tipRoundCheck');
     roundCheck.value = false;
     var roundRadiusInput = roundGroup.add("edittext", undefined, "3");
+    roundRadiusInput.helpTip = getLabel('tipRoundRadius');
     roundRadiusInput.characters = 5;
     changeValueByArrowKey(roundRadiusInput);
-    roundGroup.add("statictext", undefined, getCurrentUnitLabel());
+    roundGroup.add("statictext", undefined, getUnitInfo().label);
 
     var btnGroup = dlg.add("group");
     btnGroup.alignment = "center";
-    btnGroup.add("button", undefined, L('cancel'), { name: "cancel" });
-    btnGroup.add("button", undefined, L('ok'), { name: "ok" });
+    btnGroup.add("button", undefined, getLabel('cancel'), { name: "cancel" });
+    btnGroup.add("button", undefined, getLabel('ok'), { name: "ok" });
 
     if (dlg.show() != 1) {
         return;
@@ -285,31 +313,31 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var rowCount = parseInt(rowsInput.text, 10);
     /* オーバーラップは rulerType 入力、内部では pt 換算 / Overlap input in ruler unit, used in pt */
     var overlapInputValue = parseFloat(overlapInput.text);
-    var overlapInPoints = (isNaN(overlapInputValue) ? NaN : overlapInputValue * getUnitToPtFactor());
+    var overlapInPoints = (isNaN(overlapInputValue) ? NaN : overlapInputValue * getUnitInfo().pointsPerUnit);
     var shouldCreateGroup = groupCheck.value;
     var shouldAddStroke = ruleCheck.value;
     var shouldApplyRoundCorners = roundCheck.value;
     var roundRadiusInputValue = parseFloat(roundRadiusInput.text);
     /* rulerType → pt 変換 / Convert ruler unit to pt */
-    var roundRadiusInPoints = (isNaN(roundRadiusInputValue) ? 0 : roundRadiusInputValue) * getUnitToPtFactor();
+    var roundRadiusInPoints = (isNaN(roundRadiusInputValue) ? 0 : roundRadiusInputValue) * getUnitInfo().pointsPerUnit;
 
     if (isNaN(columnCount) || columnCount < 1) {
-        alert(L('errLR'));
+        alert(getLabel('errLR'));
         return;
     }
 
     if (isNaN(rowCount) || rowCount < 1) {
-        alert(L('errTB'));
+        alert(getLabel('errTB'));
         return;
     }
 
     if (columnCount < 2 && rowCount < 2) {
-        alert(L('errBoth'));
+        alert(getLabel('errBoth'));
         return;
     }
 
     if (isNaN(overlapInPoints) || overlapInPoints < 0) {
-        alert(L('errOverlap'));
+        alert(getLabel('errOverlap'));
         return;
     }
 
@@ -431,15 +459,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* スキップがある場合のみ通知 / Notify only when some items were skipped */
     if (skippedCount > 0) {
-        if (lang === 'ja') {
+        if (uiLang === 'ja') {
             alert(
-                labelText('processed') + processedCount + L('unit') + "\n" +
-                labelText('skipped') + skippedCount + L('unit')
+                labelText('processed') + processedCount + getLabel('unit') + "\n" +
+                labelText('skipped') + skippedCount + getLabel('unit')
             );
         } else {
             alert(
-                L('processed') + ': ' + processedCount + L('unit') + "\n" +
-                L('skipped') + ': ' + skippedCount + L('unit')
+                getLabel('processed') + ': ' + processedCount + getLabel('unit') + "\n" +
+                getLabel('skipped') + ': ' + skippedCount + getLabel('unit')
             );
         }
     }

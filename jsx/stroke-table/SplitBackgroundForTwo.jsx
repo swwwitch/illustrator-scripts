@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitBackgroundForTwo";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.9";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v2.9.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitBackgroundForTwo.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitBackgroundForTwo.md"; /* README (English) */
@@ -98,6 +98,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "プレビュー",
             en: "Preview"
         },
+        tipPercent: { ja: "分割の割合（％）です。", en: "Split ratio, in percent." },
+        tipFillSide: { ja: "この側に塗りを付けます。", en: "Fills this side." },
+        tipOverallFrame: { ja: "分割した全体を1つの枠線で囲みます。", en: "Draws a single frame around the whole split shape." },
+        tipDivider: { ja: "分割の境目にケイ線を引きます。", en: "Draws a rule along the split." },
+        tipStroke: { ja: "ケイ線の太さです。", en: "Weight of the rules." },
+        tipCorner: { ja: "角丸の半径です。0 で角のままになります。", en: "Corner radius. 0 leaves the corners square." },
+        tipPinNone: { ja: "どちらの幅も固定せず、割合だけで分けます。", en: "Pins neither side; the ratio alone decides the split." },
+        tipPinLeft: { ja: "左側の幅を固定し、残りを右側にします。", en: "Pins the width of the left side and gives the rest to the right." },
+        tipPinRight: { ja: "右側の幅を固定し、残りを左側にします。", en: "Pins the width of the right side and gives the rest to the left." },
+        tipWidth: { ja: "固定する側の幅です。", en: "Width of the pinned side." },
+        tipWidthSlider: { ja: "固定する側の幅をドラッグで決めます。", en: "Drag to set the width of the pinned side." },
+        tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original state." },
         labelOverallFrame: {
             ja: "全体の枠",
             en: "Overall frame"
@@ -203,76 +215,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 単位ラベル取得ユーティリティ / Unit label utilities */
     // 設定キー: rulerType / strokeUnits / text/units / text/asianunits
-    var UNIT_LABEL_MAP = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    function getUnitLabel(code, prefKey) {
-        // code=5 は Q/H（環境設定キーにより表示が変わる）
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return UNIT_LABEL_MAP[code] || "pt";
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    function getPrefUnitCode(prefKey, fallback) {
-        try {
-            return app.preferences.getIntegerPreference(prefKey);
-        } catch (e) {
-            return (fallback !== undefined) ? fallback : 2; // default pt
-        }
-    }
-
+    /* 設定キーの単位ラベルを取得 / Get the unit label for a preference key */
     function getCurrentUnitLabelByPrefKey(prefKey) {
-        var code = getPrefUnitCode(prefKey, 2);
-        return getUnitLabel(code, prefKey);
+        return getUnitInfo(prefKey).label;
     }
 
     /* pt換算ユーティリティ / Unit conversion (to/from pt) */
-    var UNIT_FACTOR_TO_PT = {
-        0: 72,                 // in
-        1: 72 / 25.4,          // mm
-        2: 1,                  // pt
-        3: 12,                 // pica
-        4: 72 / 2.54,          // cm
-        5: (72 / 25.4) * 0.25, // Q/H : 0.25mm
-        6: 1,                  // px (Illustrator: 1px = 1pt @72ppi)
-        7: 72,                 // ft/in (use inch as base)
-        8: 72 / 0.0254,        // m
-        9: 72 * 36,            // yd
-        10: 72 * 12            // ft
-    };
-
     function unitToPt(value, prefKey) {
         var v = Number(value);
         if (isNaN(v)) return NaN;
-        var code = getPrefUnitCode(prefKey, 2);
-        var f = UNIT_FACTOR_TO_PT[code];
-        if (!f) f = 1;
-        return v * f;
+        return v * getUnitInfo(prefKey).pointsPerUnit;
     }
 
     function ptToUnit(ptValue, prefKey) {
         var v = Number(ptValue);
         if (isNaN(v)) return NaN;
-        var code = getPrefUnitCode(prefKey, 2);
-        var f = UNIT_FACTOR_TO_PT[code];
-        if (!f) f = 1;
-        return v / f;
+        return v / getUnitInfo(prefKey).pointsPerUnit;
     }
 
     function formatUnitValue(v) {
@@ -451,7 +441,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try { lyr.move(backmost, ElementPlacement.PLACEAFTER); } catch (eMv) { }
                 }
 
-                try { lyr.visible = true; } catch (eV) { }
+                try {
+                    lyr.visible = true;
+                } catch (e) {}
                 try { lyr.locked = false; } catch (eL) { }
                 try { lyr.printable = true; } catch (eP) { }
                 try { lyr.template = false; } catch (eT) { }
@@ -462,7 +454,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function clearLayerItems(layer) {
             if (!layer) return;
             try { layer.locked = false; } catch (e0) { }
-            try { layer.visible = true; } catch (e1) { }
+            try {
+                layer.visible = true;
+            } catch (e) {}
             try {
                 for (var i = layer.pageItems.length - 1; i >= 0; i--) {
                     var it = layer.pageItems[i];
@@ -535,7 +529,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!item) return;
             try { item.locked = false; } catch (e1) { }
             try { item.hidden = false; } catch (e2) { }
-            try { item.visible = true; } catch (e3) { }
+            try {
+                item.visible = true;
+            } catch (e) {}
             try { item.template = false; } catch (e4) { }
             try { item.printable = true; } catch (e5) { }
         }
@@ -585,22 +581,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             } catch (eLoop) { }
             return false;
-        }
-
-        // Roll back preview safely even if a single preview refresh created multiple undo steps.
-        // We undo repeatedly until preview-marked items are gone (with a hard cap), then reset the counter.
-        function rollbackPreviewSafely(doc) {
-            var max = 30;
-            try {
-                while (max-- > 0) {
-                    if (!hasMarkedPreviewItems(doc)) break;
-                    try { app.executeMenuCommand('undo'); } catch (eU) { break; }
-                }
-            } catch (e) { }
-            // Reset counter because we can no longer trust the exact undo-step count.
-            try { PreviewHistory.start(); } catch (ePH) { }
-            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
-            try { removeMarkedTempItems(doc); } catch (eTmp) { }
         }
 
         function markTemp(item) {
@@ -772,17 +752,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 outline: null,
                 duplicateItem: null
             };
-        }
-
-        /* 左位置を取得 / Get left position */
-        function getItemLeft(item) {
-            try {
-                if (item && item.geometricBounds && item.geometricBounds.length >= 4) {
-                    return item.geometricBounds[0];
-                }
-            } catch (e) { }
-            try { return item.left; } catch (e2) { }
-            return 0;
         }
 
         // 色の定義 (RGB)
@@ -1401,6 +1370,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var stMainSizeLabel = row.add('statictext', undefined, getLabel('labelHeight'));
 
             var et = row.add('edittext', undefined, String((ss && ss.percent !== undefined) ? ss.percent : defaultPercent));
+            et.helpTip = getLabel('tipPercent');
             et.characters = 6;
             et.active = true;
             changeValueByArrowKey(et, false, applyPreview);
@@ -1426,15 +1396,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // Keep variable names; label text will be swapped for vertical mode
             var cbFillLeft = drawPanel.add('checkbox', undefined, getLabel('labelFillLeft'));
+            cbFillLeft.helpTip = getLabel('tipFillSide');
             cbFillLeft.value = (ss.fillLeft !== undefined) ? !!ss.fillLeft : true;
 
             var cbFillRight = drawPanel.add('checkbox', undefined, getLabel('labelFillRight'));
+            cbFillRight.helpTip = getLabel('tipFillSide');
             cbFillRight.value = (ss.fillRight !== undefined) ? !!ss.fillRight : true;
 
             var cbOverallFrame = drawPanel.add('checkbox', undefined, getLabel('labelOverallFrame'));
+            cbOverallFrame.helpTip = getLabel('tipOverallFrame');
             cbOverallFrame.value = (ss.overallFrame !== undefined) ? !!ss.overallFrame : false;
 
             var cbDivider = drawPanel.add('checkbox', undefined, getLabel('labelDivider'));
+            cbDivider.helpTip = getLabel('tipDivider');
             cbDivider.value = (ss.divider !== undefined) ? !!ss.divider : false;
 
             // --- 線オプション / Stroke options (Right column) ---
@@ -1454,6 +1428,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             lineRow.add('statictext', undefined, getLabel('labelStrokeWidth'));
             var etStroke = lineRow.add('edittext', undefined, (ss && ss.strokeUnit !== undefined) ? String(ss.strokeUnit) : formatUnitValue(ptToUnit(1, "strokeUnits")));
+            etStroke.helpTip = getLabel('tipStroke');
             etStroke.characters = 4;
             changeValueByArrowKey(etStroke, false, applyPreview);
             lineRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("strokeUnits"));
@@ -1464,18 +1439,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             cornerRow.add('statictext', undefined, getLabel('labelCornerRadius'));
             var etCorner = cornerRow.add('edittext', undefined, (ss && ss.cornerUnit !== undefined) ? String(ss.cornerUnit) : formatUnitValue(ptToUnit(0, "rulerType")));
+            etCorner.helpTip = getLabel('tipCorner');
             etCorner.characters = 4;
             cornerRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("rulerType"));
             changeValueByArrowKey(etCorner, false, applyPreview);
 
             function updateStrokeWidthEnabled() {
                 var on = !!(cbOverallFrame.value || cbDivider.value);
-                try { lineRow.enabled = on; } catch (eEn1) { }
+                lineRow.enabled = on;
             }
 
             function updateCornerEnabled() {
                 var on = !!((cbFillLeft.value || cbFillRight.value) || cbOverallFrame.value);
-                try { cornerRow.enabled = on; } catch (eEn2) { }
+                cornerRow.enabled = on;
             }
 
             updateStrokeWidthEnabled();
@@ -1494,8 +1470,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             // Keep variable names; text will be swapped for vertical mode
             var rbPinNone = pinRadioRow.add('radiobutton', undefined, getLabel('fixedNone'));
+            rbPinNone.helpTip = getLabel('tipPinNone');
             var rbPinLeft = pinRadioRow.add('radiobutton', undefined, getLabel('fixedLeft'));
+            rbPinLeft.helpTip = getLabel('tipPinLeft');
             var rbPinRight = pinRadioRow.add('radiobutton', undefined, getLabel('fixedRight'));
+            rbPinRight.helpTip = getLabel('tipPinRight');
             rbPinNone.value = (ss.balanceMode === 'none');
             rbPinLeft.value = (ss.balanceMode === 'left');
             rbPinRight.value = (ss.balanceMode === 'right');
@@ -1517,6 +1496,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 ? ss.widthUnit
                 : ((AUTO_DIRECTION_MODE === 'vertical') ? 130 : 0);
             var etWidth = pinWidthValueRow.add('edittext', undefined, String(defaultWidthUnit));
+            etWidth.helpTip = getLabel('tipWidth');
             etWidth.characters = 6;
             changeValueByArrowKey(etWidth, false, applyPreview);
 
@@ -1527,6 +1507,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pinWidthSliderRow.alignChildren = ['fill', 'center'];
 
             var slWidth = pinWidthSliderRow.add('slider', undefined, 0, 0, 0);
+            slWidth.helpTip = getLabel('tipWidthSlider');
             slWidth.preferredSize = [220, 20];
 
             function clampWidthValue(v, forceInteger) {
@@ -1643,7 +1624,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             });
 
             function updateWidthEnabled() {
-                try { pinWidthCol.enabled = !rbPinNone.value; } catch (e) { }
+                pinWidthCol.enabled = !rbPinNone.value;
             }
 
             rbPinNone.onClick = function () { updateWidthEnabled(); applyPreview(); };
@@ -1655,18 +1636,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             function updateDirectionUILabels() {
                 var isV = (AUTO_DIRECTION_MODE === 'vertical');
 
-                try { stMainSizeLabel.text = isV ? getLabel('labelWidthMain') : getLabel('labelHeight'); } catch (e0) { }
+                stMainSizeLabel.text = isV ? getLabel('labelWidthMain') : getLabel('labelHeight');
 
-                try { cbFillLeft.text = isV ? getLabel('labelFillTop') : getLabel('labelFillLeft'); } catch (e1) { }
-                try { cbFillRight.text = isV ? getLabel('labelFillBottom') : getLabel('labelFillRight'); } catch (e2) { }
+                cbFillLeft.text = isV ? getLabel('labelFillTop') : getLabel('labelFillLeft');
+                cbFillRight.text = isV ? getLabel('labelFillBottom') : getLabel('labelFillRight');
 
-                try { rbPinLeft.text = isV ? getLabel('fixedTop') : getLabel('fixedLeft'); } catch (e3) { }
-                try { rbPinRight.text = isV ? getLabel('fixedBottom') : getLabel('fixedRight'); } catch (e4) { }
+                rbPinLeft.text = isV ? getLabel('fixedTop') : getLabel('fixedLeft');
+                rbPinRight.text = isV ? getLabel('fixedBottom') : getLabel('fixedRight');
             }
 
             updateDirectionUILabels();
 
             var cbPreview = dlg.add('checkbox', undefined, getLabel('labelPreview'));
+            cbPreview.helpTip = getLabel('tipPreview');
             cbPreview.value = (ss.preview !== undefined) ? !!ss.preview : true;
 
             function parsePercent() {
@@ -1706,8 +1688,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 if (isNaN(vUnit) || vUnit < 0) vUnit = 0;
                 vUnit = Math.round(vUnit * 10) / 10;
 
-                try { slWidth.value = vUnit; } catch (e0) { }
-                try { etWidth.text = String(vUnit); } catch (e1) { }
+                slWidth.value = vUnit;
+                etWidth.text = String(vUnit);
 
                 var vPt = unitToPt(vUnit, "rulerType");
                 if (isNaN(vPt) || vPt < 0) vPt = 0;

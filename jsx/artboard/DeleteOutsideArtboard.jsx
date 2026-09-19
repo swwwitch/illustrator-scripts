@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DeleteOutsideArtboard";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DeleteOutsideArtboard.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DeleteOutsideArtboard.md"; /* README (English) */
@@ -35,6 +35,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    /**
+     * ラジオボタンを1つ追加し、ツールチップを設定する
+     * @param {Group|Panel} parentContainer - 追加先のコンテナ
+     * @param {object} labelEntry - ja / en を持つラベル定義
+     * @param {object} [tooltipEntry] - ja / en を持つツールチップ定義
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addRadio(parentContainer, labelEntry, tooltipEntry) {
+        var radioButton = parentContainer.add("radiobutton", undefined, labelEntry[uiLang]);
+        if (tooltipEntry) radioButton.helpTip = tooltipEntry[uiLang];
+        return radioButton;
+    }
 
     function getCurrentLang() {
       return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -61,6 +74,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             includeLocked: { ja: "ロックされたオブジェクトを含む", en: "Include Locked Objects" },
             moveToBackup: { ja: "保管用レイヤーに移す", en: "Move to Backup Layer" }
         },
+        tooltip: {
+            excludeSelected: {
+                ja: "アートボード内にあるオブジェクトのうち、選択しているものだけを残して他を削除します。",
+                en: "Inside the artboard, keeps only the selected objects and deletes the rest."
+            },
+            allObjects: {
+                ja: "アートボード内のオブジェクトはすべて残します。",
+                en: "Keeps every object inside the artboard."
+            },
+            remove: { ja: "アートボードの外にはみ出したオブジェクトを削除します。", en: "Deletes the objects that sit outside the artboard." },
+            ignore: { ja: "アートボードの外のオブジェクトはそのまま残します。", en: "Leaves the objects outside the artboard untouched." },
+            includeLocked: {
+                ja: "ロックされたオブジェクトも処理の対象にします。オフのときは触りません。",
+                en: "Includes locked objects. They are left alone when this is off."
+            },
+            moveToBackup: {
+                ja: "削除せずに保管用のレイヤーへ移します。あとから戻せます。",
+                en: "Moves the objects to a backup layer instead of deleting them, so they can be brought back."
+            }
+        },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
             ok: { ja: "削除", en: "Delete" }
@@ -85,8 +118,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         scopeGroup.margins = [15, 20, 15, 10];
 
         var scopeRadios = {
-            excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.radio.excludeSelected[uiLang]),
-            allObjects: scopeGroup.add("radiobutton", undefined, LABELS.radio.allObjects[uiLang])
+            excludeSelected: addRadio(scopeGroup, LABELS.radio.excludeSelected, LABELS.tooltip.excludeSelected),
+            allObjects: addRadio(scopeGroup, LABELS.radio.allObjects, LABELS.tooltip.allObjects)
         };
 
         /* Set radio default based on selection */
@@ -108,8 +141,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         abGroup.alignChildren = "left";
         abGroup.margins = [15, 20, 15, 10];
 
-        var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.radio.remove[uiLang]);
-        var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.radio.ignore[uiLang]);
+        var deleteRadio = addRadio(abGroup, LABELS.radio.remove, LABELS.tooltip.remove);
+        var ignoreRadio = addRadio(abGroup, LABELS.radio.ignore, LABELS.tooltip.ignore);
         ignoreRadio.value = true;
 
         /* オプション（保管用レイヤー、ロック含む） / Option (backup layer, include locked) */
@@ -119,9 +152,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         optionGroup.margins = [15, 0, 15, 10];
 
         var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.includeLocked[uiLang]);
+        ignoreLockedCheckbox.helpTip = LABELS.tooltip.includeLocked[uiLang];
         ignoreLockedCheckbox.value = true;
 
         var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.checkbox.moveToBackup[uiLang]);
+        backupCheckbox.helpTip = LABELS.tooltip.moveToBackup[uiLang];
         backupCheckbox.value = false;
 
         /* ボタン / Buttons */

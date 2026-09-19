@@ -53,7 +53,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n036c34760079"; /* 紹�
             noTextFrame: { ja: "テキストオブジェクトを1つ選択してください。", en: "Please select a single text object." },
             noCharacter: { ja: "テキストに文字が入力されていません。", en: "The selected text is empty." },
             noFontSize: { ja: "文字サイズを取得できませんでした。", en: "Could not read the font size." },
-            skipped: { ja: "設定できなかった属性:", en: "Attributes that could not be set:" },
+            skipped: { ja: "設定できなかった属性：", en: "Attributes that could not be set:" },
             presetName: { ja: "プリセット名を入力してください。", en: "Enter a preset name." },
             presetSaved: {
                 ja: "プリセットを追加しました（このセッションのみ）。\n\nPRESETS に貼り付けると残せます:\n",

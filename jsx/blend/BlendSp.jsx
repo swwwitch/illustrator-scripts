@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "BlendSp";                      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-01-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendSp.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendSp.md"; /* README (English) */
@@ -68,6 +68,42 @@ var SCRIPT_TITLE = {
         cancel: {
             ja: 'キャンセル',
             en: 'Cancel'
+        },
+        tipStep: {
+            ja: 'ブレンドの中間オブジェクト数です。0 で中間なし。スライダーでも変えられます。',
+            en: 'How many intermediate objects the blend creates. 0 means none. The slider changes it too.'
+        },
+        tipAlignToPage: {
+            ja: '中間オブジェクトの向きを、ページの垂直方向に固定します。',
+            en: 'Keeps the intermediate objects upright with respect to the page.'
+        },
+        tipAlignToPath: {
+            ja: '中間オブジェクトの向きを、スパイン（軸のパス）の傾きに合わせます。',
+            en: 'Rotates the intermediate objects to follow the spine.'
+        },
+        tipAdjustNone: {
+            ja: 'ブレンドをそのまま残します。',
+            en: 'Leaves the blend as a live blend.'
+        },
+        tipAdjustRelease: {
+            ja: 'ブレンドを解除して、元のオブジェクトとスパインに戻します。',
+            en: 'Releases the blend back into the original objects and the spine.'
+        },
+        tipAdjustExpand: {
+            ja: 'ブレンドを分割・拡張して、中間オブジェクトを実体のあるパスにします。',
+            en: 'Expands the blend so the intermediate steps become real paths.'
+        },
+        tipAdjustReplace: {
+            ja: 'スパインを、選択しておいた別のパスに置き換えます。',
+            en: 'Replaces the spine with another path you selected.'
+        },
+        tipReverseSpine: {
+            ja: 'スパインの向きを反転し、始点と終点を入れ替えます。',
+            en: 'Reverses the spine so the start and the end swap places.'
+        },
+        tipReverseStack: {
+            ja: 'ブレンド内の重ね順を逆にします。',
+            en: 'Reverses the stacking order inside the blend.'
         },
         invalidStep: {
             ja: 'ステップ数は 0〜1000 の整数で入力してください。',
@@ -226,33 +262,6 @@ var SCRIPT_TITLE = {
 
         // Apply option only (no new blend creation)
         setBlendOption(blendStep, orientationValue);
-    }
-
-    /**
-     * 選択がすべて PluginItem または BlendItem か（＝すでにブレンド相当か）を判定する
-     * @param {Array<PageItem>} selection - 判定する選択オブジェクト
-     * @returns {boolean} すべてブレンド相当なら true、空選択や他の型が混ざる場合は false
-     */
-    function isAllPluginItems(selection) {
-        // Backward-compatible name: treat PluginItem and BlendItem as "already blend-like"
-        try {
-            if (!selection || selection.length <= 0) {
-                return false;
-            }
-            for (var i = 0; i < selection.length; i++) {
-                var it = selection[i];
-                if (!it) {
-                    return false;
-                }
-                var t = it.typename;
-                if (t !== 'PluginItem' && t !== 'BlendItem') {
-                    return false;
-                }
-            }
-            return true;
-        } catch (e) {
-            return false;
-        }
     }
 
     /**
@@ -478,10 +487,12 @@ var SCRIPT_TITLE = {
         }
 
         var edtStep = stepRow.add('edittext', undefined, String(_defaultStep));
+        edtStep.helpTip = localize(LABELS.tipStep);
         edtStep.characters = 4;
 
         // --- Slider (under Steps) ---
         var sldStep = stepArea.add('slider', undefined, _defaultStep, 0, 32);
+        sldStep.helpTip = localize(LABELS.tipStep);
         sldStep.alignment = ['fill', 'center'];
 
         // Keep the slider thumb position stable when switching range (32 <-> 128 <-> 1000)
@@ -521,7 +532,7 @@ var SCRIPT_TITLE = {
                     if (nextVal < 0) nextVal = 0;
                     if (nextVal > nextMax) nextVal = nextMax;
 
-                    try { sldStep.value = nextVal; } catch (e1) {}
+                    sldStep.value = nextVal;
                     // Keep edit text consistent with the new value
                     edtStep.text = String(nextVal);
 
@@ -557,7 +568,7 @@ var SCRIPT_TITLE = {
             var v = parseInt(edtStep.text, 10);
             if (isNaN(v)) return;
             v = clampStepValue(v);
-            try { sldStep.value = v; } catch (e) {}
+            sldStep.value = v;
         }
 
         /**
@@ -619,7 +630,9 @@ var SCRIPT_TITLE = {
         orientGroup.spacing = 4;
 
         var rbVertical = orientGroup.add('radiobutton', undefined, localize(LABELS.alignToPage));
+        rbVertical.helpTip = localize(LABELS.tipAlignToPage);
         var rbAlign = orientGroup.add('radiobutton', undefined, localize(LABELS.alignToPath));
+        rbAlign.helpTip = localize(LABELS.tipAlignToPath);
         rbVertical.value = true;
 
         // --- Live Preview (best-effort) ---
@@ -698,18 +711,6 @@ var SCRIPT_TITLE = {
             applyPreview(v);
         }
 
-        /**
-         * 調整系オプションのプレビューを実行する
-         *
-         * 解除／拡張／ブレンド軸の置き換えは安全のためプレビューせず、［OK］確定時にのみ実行するため、この関数は何もしない。
-         * @returns {void}
-         */
-        function applyAdjustPreviewFromUI() {
-            // NOTE: 安全重視のため、解除/拡張/ブレンド軸置き換えはプレビューでは実行しない。
-            // 実行は OK 押下時（main側）で初めて行う。
-            return;
-        }
-
         // Step: preview on manual edits as well
         edtStep.onChanging = function() {
             // Avoid spamming undo/apply too aggressively by only previewing when the value parses
@@ -754,9 +755,13 @@ var SCRIPT_TITLE = {
         adjustGroup.spacing = 4;
 
         var rbAdjustNone = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustNone));
+        rbAdjustNone.helpTip = localize(LABELS.tipAdjustNone);
         var rbAdjustRelease = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustRelease));
+        rbAdjustRelease.helpTip = localize(LABELS.tipAdjustRelease);
         var rbAdjustExpand = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustExpand));
+        rbAdjustExpand.helpTip = localize(LABELS.tipAdjustExpand);
         var rbAdjustReplace = adjustGroup.add('radiobutton', undefined, localize(LABELS.adjustReplace));
+        rbAdjustReplace.helpTip = localize(LABELS.tipAdjustReplace);
         rbAdjustNone.value = true;
 
         // --- Reverse panel ---
@@ -772,7 +777,9 @@ var SCRIPT_TITLE = {
         reverseGroup.spacing = 4;
 
         var cbReverseSpine = reverseGroup.add('checkbox', undefined, localize(LABELS.reverseSpine));
+        cbReverseSpine.helpTip = localize(LABELS.tipReverseSpine);
         var cbReverseStack = reverseGroup.add('checkbox', undefined, localize(LABELS.reverseStack));
+        cbReverseStack.helpTip = localize(LABELS.tipReverseStack);
         cbReverseSpine.value = false;
         cbReverseStack.value = false;
 
@@ -983,13 +990,13 @@ var SCRIPT_TITLE = {
         syncReversePanelEnabled();
         syncAdjustOptionDimming();
 
-        var btns = dlg.add('group');
-        btns.orientation = 'row';
-        btns.alignment = 'center';
-        var btnCancel = btns.add('button', undefined, localize(LABELS.cancel), {
+        var btnRowGroup = dlg.add('group');
+        btnRowGroup.orientation = 'row';
+        btnRowGroup.alignment = 'center';
+        var btnCancel = btnRowGroup.add('button', undefined, localize(LABELS.cancel), {
             name: 'cancel'
         });
-        var btnOk = btns.add('button', undefined, localize(LABELS.ok), {
+        var btnOk = btnRowGroup.add('button', undefined, localize(LABELS.ok), {
             name: 'ok'
         });
 

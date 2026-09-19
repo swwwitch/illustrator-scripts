@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TableMaker";                   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-01-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-01-24";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableMaker.md"; /* README (English) */
@@ -55,6 +55,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "形状",
             en: "Shape"
         },
+        tipWidth: { ja: "表の幅です。", en: "Width of the table." },
+        tipShapeRect: { ja: "表全体を1つの長方形で囲みます。", en: "Frames the whole table with a single rectangle." },
+        tipShapeTopBottom: { ja: "上下のケイ線だけを引きます。", en: "Draws only the top and bottom rules." },
+        tipShapeRowRect: { ja: "行ごとに長方形を作ります。", en: "Creates a rectangle for each row." },
+        tipVerticalLines: { ja: "列の境に縦のケイ線を引きます。", en: "Draws a vertical rule between the columns." },
+        tipHeading: { ja: "1行目を見出し行として扱います。", en: "Treats the first row as a header." },
         shapeRect: {
             ja: "外枠は長方形",
             en: "Rectangle border"
@@ -123,31 +129,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dlg.opacity = opacityValue;
         } catch (e) {
             // opacity をサポートしない環境では無視
-        }
-    }
-
-    function createRowRectangles(textBounds, textWidth, halfGap, leading, paragraphCount, targetLayer, strokeWidthPt) {
-        var leftX = textBounds[0] - halfGap;
-        var width = textWidth + (halfGap * 2);
-
-        var row;
-        for (row = 0; row < paragraphCount; row++) {
-            var topY = textBounds[1] + halfGap - (leading * row);
-            var rect = targetLayer.pathItems.rectangle(topY, leftX, width, leading);
-
-            // 線は使わず、塗りのみ
-            rect.stroked = false;
-            rect.filled = true;
-
-            // row は 0始まりなので、row=0 が1行目（奇数行）
-            var k = (row % 2 === 0) ? 10 : 30;
-            rect.fillColor = createCmykColor(0, 0, 0, k);
-
-            // 生成物は選択状態にしておく（元コード互換）
-            try { rect.selected = true; } catch (e) { }
-
-            // 生成順を末尾へ
-            try { rect.move(rect.layer, ElementPlacement.PLACEATEND); } catch (e) { }
         }
     }
 
@@ -334,6 +315,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         widthGroup.add('statictext', undefined, getLabel('strokeWidth'));
         var editText = widthGroup.add('edittext', undefined, String(defaultValue));
+        editText.helpTip = getLabel('tipWidth');
         editText.characters = 5;
 
         // ↑↓キーで値を増減 / Change value by arrow keys
@@ -347,8 +329,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         shapePanel.margins = [15, 20, 15, 10];
 
         var rbRect = shapePanel.add('radiobutton', undefined, getLabel('shapeRect'));
+        rbRect.helpTip = getLabel('tipShapeRect');
         var rbTopBottom = shapePanel.add('radiobutton', undefined, getLabel('shapeTopBottom'));
+        rbTopBottom.helpTip = getLabel('tipShapeTopBottom');
         var rbRowRect = shapePanel.add('radiobutton', undefined, getLabel('shapeRowRect'));
+        rbRowRect.helpTip = getLabel('tipShapeRowRect');
         rbTopBottom.value = true;
 
         /* オプション / Options */
@@ -360,9 +345,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         optionGroup.alignChildren = ['center', 'center'];
 
         var cbVerticalLines = optionGroup.add('checkbox', undefined, getLabel('verticalLines'));
+        cbVerticalLines.helpTip = getLabel('tipVerticalLines');
         cbVerticalLines.value = false;
 
         var cbHeading = optionGroup.add('checkbox', undefined, getLabel('heading'));
+        cbHeading.helpTip = getLabel('tipHeading');
         cbHeading.value = true;
 
         function updateLineWidthEnabled() {
@@ -613,17 +600,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return col;
     }
 
-    /**
-     * アウトラインの子孫 PathItem を再帰的に取得し平坦化して配列で返す
-     * @param {PageItem} parent
-     * @returns {Array} PathItem の配列
-     */
-    function collectOutlineItemsFlat(parent) {
-        var items = [];
-        collectOutlineItemsFlatRecursive(parent, items);
-        return items;
-    }
-
     function collectOutlineItemsFlatRecursive(parent, outItems) {
         if (!parent) return;
 
@@ -639,26 +615,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 collectOutlineItemsFlatRecursive(parent.pageItems[i], outItems);
             }
         }
-    }
-
-    /**
-     * 読み順（左から右、上から下）でアウトラインアイテムをソート
-     * @param {Array} items PathItem 配列
-     * @returns {Array} ソート済み配列
-     */
-    function sortOutlineItemsReadingOrder(items) {
-        var copied = items.slice(0);
-
-        copied.sort(function (a, b) {
-            var aBounds = a.geometricBounds; // [left, top, right, bottom]
-            var bBounds = b.geometricBounds;
-
-            // 上→下（topの降順）、同一行は左→右（leftの昇順）
-            if (aBounds[1] !== bBounds[1]) return bBounds[1] - aBounds[1];
-            return aBounds[0] - bBounds[0];
-        });
-
-        return copied;
     }
 
     /**
@@ -708,75 +664,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         if (out.length === 0) return null;
         return out;
-    }
-
-    /**
-     * アウトラインと本文の文字列（タブ/改行）を突き合わせてタブ位置（累積幅）を推定
-     * ※テキストには一切手を加えない
-     * @param {Array} textBounds テキストフレームのジオメトリックバウンズ [left, top, right, bottom]
-     * @param {Object} paragraphs textFrame.paragraphs
-     * @param {Array} outlineItems 読み順ソート済みのアウトライン PathItem 配列
-     * @param {Number} halfGap 行の上下余白の半分
-     * @returns {Array} タブ位置（左端からの累積幅）配列
-     */
-    function calculateTabPositions(textBounds, paragraphs, outlineItems, halfGap) {
-        var result = [];
-        var outlineIndex = 0;
-
-        var paragraphIndex;
-        for (paragraphIndex = 0; paragraphIndex < paragraphs.length; paragraphIndex++) {
-            var characters = paragraphs[paragraphIndex].characters;
-            if (!characters || characters.length < 1) continue;
-
-            var segmentStartX = textBounds[0];
-            var tabIndex = 0;
-            var accumulated = 0;
-
-            var charIndex;
-            for (charIndex = 0; charIndex < characters.length; charIndex++) {
-                var ch = characters[charIndex].contents;
-
-                // 改行はアウトラインが生成されない
-                if (ch === "\r" || ch === "\n") {
-                    continue;
-                }
-
-                // タブはアウトラインが生成されない：直前文字のアウトライン右端で列幅を確定
-                if (ch === "\t") {
-                    if (outlineIndex - 1 >= 0 && outlineIndex - 1 < outlineItems.length) {
-                        var rightX = outlineItems[outlineIndex - 1].geometricBounds[2];
-                        accumulated += (rightX - segmentStartX) + (halfGap * 2);
-
-                        if (paragraphIndex === 0) {
-                            // 1行目：そのまま登録
-                            result.push(accumulated);
-                        } else {
-                            // 2行目以降：同列の最大値に更新
-                            if (tabIndex < result.length) {
-                                if (accumulated > result[tabIndex]) result[tabIndex] = accumulated;
-                            }
-                        }
-
-                        // 次セグメント開始位置：タブ直後の最初のアウトライン左端
-                        if (outlineIndex >= 0 && outlineIndex < outlineItems.length) {
-                            segmentStartX = outlineItems[outlineIndex].geometricBounds[0];
-                        }
-                    }
-
-                    tabIndex++;
-                    continue;
-                }
-
-                // 通常文字：アウトラインを1個消費
-                if (outlineIndex >= outlineItems.length) {
-                    break;
-                }
-
-                outlineIndex++;
-            }
-        }
-
-        return result;
     }
 
     /**

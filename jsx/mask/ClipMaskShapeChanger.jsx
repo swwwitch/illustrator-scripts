@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ClipMaskShapeChanger";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskShapeChanger.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskShapeChanger.md"; /* README (English) */
@@ -51,6 +51,79 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     - centerX/centerY を中心に、半径 r の外接円上に6点を配置
     - rotationDeg で回転（0=フラットトップ寄り、30=ポイントトップ寄り）
     */
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "クリップグループの形状変更", en: "Change Clipping Group Shape" }
+        },
+        panel: {
+            shape:      { ja: "形状", en: "Shape" },
+            appearance: { ja: "アピアランス", en: "Appearance" },
+            option:     { ja: "複数オブジェクト", en: "Multiple Objects" }
+        },
+        radio: {
+            noChange:    { ja: "変更なし", en: "No change" },
+            square:      { ja: "正方形", en: "Square" },
+            circle:      { ja: "正円", en: "Circle" },
+            hexA:        { ja: "六角形A", en: "Hexagon A" },
+            hexB:        { ja: "六角形B", en: "Hexagon B" },
+            octagon:     { ja: "八角形", en: "Octagon" },
+            sameSizeMax: { ja: "最大", en: "Largest" },
+            sameSizeMin: { ja: "最小", en: "Smallest" }
+        },
+        checkbox: {
+            sameSize:      { ja: "大きさを揃える", en: "Match sizes" },
+            addStrokeOnly: { ja: "ケイ線を追加", en: "Add stroke" },
+            roundCorners:  { ja: "角丸", en: "Rounded corners" }
+        },
+        tooltip: {
+            noChange:      { ja: "マスクの形はそのままにして、アピアランスや大きさだけを変えます。", en: "Keeps the mask shape and only changes the appearance or the size." },
+            square:        { ja: "マスクを正方形にします。", en: "Makes the mask a square." },
+            circle:        { ja: "マスクを正円にします。", en: "Makes the mask a circle." },
+            hexA:          { ja: "マスクを六角形（頂点が上下）にします。", en: "Makes the mask a hexagon with points at the top and bottom." },
+            hexB:          { ja: "マスクを六角形（辺が上下）にします。", en: "Makes the mask a hexagon with flat top and bottom." },
+            octagon:       { ja: "マスクを八角形にします。", en: "Makes the mask an octagon." },
+            sameSize:      { ja: "複数のクリップグループの大きさをそろえます。", en: "Gives every clipping group the same size." },
+            sameSizeMax:   { ja: "いちばん大きいものに合わせます。", en: "Matches the largest one." },
+            sameSizeMin:   { ja: "いちばん小さいものに合わせます。", en: "Matches the smallest one." },
+            addStrokeOnly: { ja: "マスクパスに線を追加します。塗りは変えません。", en: "Adds a stroke to the mask path, leaving the fill alone." },
+            roundCorners:  { ja: "マスクの角を丸めます。右の欄で半径を指定します。", en: "Rounds the corners of the mask. The field on the right sets the radius." },
+            roundRadius:   { ja: "角丸の半径（pt）です。", en: "Radius of the rounded corners, in points." }
+        },
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        }
+    };
+
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.shape" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
     function createHexagonPath(targetLayer, centerX, centerY, r, rotationDeg) {
         var pts = [];
         var base = rotationDeg * Math.PI / 180;
@@ -178,18 +251,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         g.clipped = true;
         g.selected = true;
         return g;
-    }
-
-    // bounds utilities / バウンディング取得ユーティリティ
-    function __getItemBounds(item) {
-        // Prefer geometric bounds to ignore stroke widths / 線幅の影響を避けるため geometricBounds を優先
-        try {
-            if (item && item.geometricBounds) return item.geometricBounds; // [L, T, R, B]
-        } catch (e) { }
-        try {
-            if (item && item.visibleBounds) return item.visibleBounds;   // [L, T, R, B]
-        } catch (e2) { }
-        return null;
     }
 
     function __getBoundsSize(b) {
@@ -453,7 +514,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* ダイアログボックス / Dialog */
     function showDialog() {
-        var dialog = new Window('dialog', 'クリップグループの形状変更 ' + SCRIPT_VERSION);
+        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
         dialog.alignChildren = 'fill';
 
         // 2カラム / Two columns
@@ -463,19 +524,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cols.spacing = 10;
 
         // 左：形状 / Left: Shape
-        var shapePanel = cols.add('panel', undefined, '形状');
+        var shapePanel = cols.add('panel', undefined, getLabel('panel.shape'));
         shapePanel.orientation = 'column';
         shapePanel.alignChildren = 'left';
         shapePanel.margins = [15, 20, 15, 10];
 
-        var rbNoChange = shapePanel.add('radiobutton', undefined, '変更なし');
+        var rbNoChange = shapePanel.add('radiobutton', undefined, getLabel('radio.noChange'));
+        rbNoChange.helpTip = getLabel('tooltip.noChange');
         rbNoChange.value = true;
 
-        var rbSquare = shapePanel.add('radiobutton', undefined, '正方形');
-        var rbCircle = shapePanel.add('radiobutton', undefined, '正円');
-        var rbHexA = shapePanel.add('radiobutton', undefined, '六角形A');
-        var rbHexB = shapePanel.add('radiobutton', undefined, '六角形B');
-        var rbOctagon = shapePanel.add('radiobutton', undefined, '八角形');
+        var rbSquare = shapePanel.add('radiobutton', undefined, getLabel('radio.square'));
+        rbSquare.helpTip = getLabel('tooltip.square');
+        var rbCircle = shapePanel.add('radiobutton', undefined, getLabel('radio.circle'));
+        rbCircle.helpTip = getLabel('tooltip.circle');
+        var rbHexA = shapePanel.add('radiobutton', undefined, getLabel('radio.hexA'));
+        rbHexA.helpTip = getLabel('tooltip.hexA');
+        var rbHexB = shapePanel.add('radiobutton', undefined, getLabel('radio.hexB'));
+        rbHexB.helpTip = getLabel('tooltip.hexB');
+        var rbOctagon = shapePanel.add('radiobutton', undefined, getLabel('radio.octagon'));
+        rbOctagon.helpTip = getLabel('tooltip.octagon');
 
         // 右カラム / Right column
         var rightCol = cols.add('group');
@@ -484,13 +551,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rightCol.spacing = 10;
 
         // 右：アピアランス / Right: Appearance
-        var appearancePanel = rightCol.add('panel', undefined, 'アピアランス');
+        var appearancePanel = rightCol.add('panel', undefined, getLabel('panel.appearance'));
         appearancePanel.orientation = 'column';
         appearancePanel.alignChildren = ['left', 'top'];
         appearancePanel.margins = [15, 20, 15, 10];
 
         // オプションパネル / Options panel（アピアランスの外）
-        var optionPanel = rightCol.add('panel', undefined, '複数オブジェクト');
+        var optionPanel = rightCol.add('panel', undefined, getLabel('panel.option'));
         optionPanel.orientation = 'column';
         optionPanel.alignChildren = ['left', 'top'];
         optionPanel.margins = [15, 20, 15, 10];
@@ -504,7 +571,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { selCount = 0; }
         optionPanel.enabled = (selCount > 1);
 
-        var cbSameSize = optionPanel.add('checkbox', undefined, '大きさを揃える');
+        var cbSameSize = optionPanel.add('checkbox', undefined, getLabel('checkbox.sameSize'));
+        cbSameSize.helpTip = getLabel('tooltip.sameSize');
         cbSameSize.value = false;
 
         var sameSizeModeGroup = optionPanel.add('group');
@@ -512,8 +580,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sameSizeModeGroup.alignChildren = 'left';
         sameSizeModeGroup.margins = [20, 0, 0, 0];
 
-        var rbSameSizeMax = sameSizeModeGroup.add('radiobutton', undefined, '最大');
-        var rbSameSizeMin = sameSizeModeGroup.add('radiobutton', undefined, '最小');
+        var rbSameSizeMax = sameSizeModeGroup.add('radiobutton', undefined, getLabel('radio.sameSizeMax'));
+        rbSameSizeMax.helpTip = getLabel('tooltip.sameSizeMax');
+        var rbSameSizeMin = sameSizeModeGroup.add('radiobutton', undefined, getLabel('radio.sameSizeMin'));
+        rbSameSizeMin.helpTip = getLabel('tooltip.sameSizeMin');
         rbSameSizeMax.value = true;
 
         function updateSameSizeModeUI() {
@@ -522,7 +592,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         cbSameSize.onClick = updateSameSizeModeUI;
         updateSameSizeModeUI();
 
-        var cbAddStrokeOnly = appearancePanel.add('checkbox', undefined, 'ケイ線を追加');
+        var cbAddStrokeOnly = appearancePanel.add('checkbox', undefined, getLabel('checkbox.addStrokeOnly'));
+        cbAddStrokeOnly.helpTip = getLabel('tooltip.addStrokeOnly');
 
         // 選択オブジェクト全体の外接矩形から角丸のデフォルト値を算出（PlacedImageStroke.jsx）
         function calcDefaultRoundRadiusFromSelection(sel) {
@@ -566,10 +637,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         roundRow.alignChildren = ['left', 'center'];
         roundRow.margins = [0, 0, 0, 0];
 
-        var cbRoundCorners = roundRow.add('checkbox', undefined, '角丸');
+        var cbRoundCorners = roundRow.add('checkbox', undefined, getLabel('checkbox.roundCorners'));
+        cbRoundCorners.helpTip = getLabel('tooltip.roundCorners');
         cbRoundCorners.value = false;
 
         var editRoundRadius = roundRow.add('edittext', undefined, String(defaultRoundRadius));
+        editRoundRadius.helpTip = getLabel('tooltip.roundRadius');
         editRoundRadius.characters = 6;
         var roundUnit = roundRow.add('statictext', undefined, 'pt');
 
@@ -673,8 +746,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ボタン / Buttons
         var btnGroup = dialog.add('group');
         btnGroup.alignment = 'right';
-        var btnCancel = btnGroup.add('button', undefined, 'キャンセル', { name: 'cancel' });
-        var btnOk = btnGroup.add('button', undefined, 'OK', { name: 'ok' });
+        var btnCancel = btnGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+        var btnOk = btnGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
         btnOk.onClick = function () {
             if (rbNoChange.value) {

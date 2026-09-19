@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SelectSameLinks";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameLinks.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameLinks.md"; /* README (English) */
@@ -84,6 +84,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             actionSelect: { ja: "同一リンクを選択", en: "Select same links" },
             actionDeleteImage: { ja: "リンク画像のみを削除", en: "Delete linked image only" },
             actionDeleteClipGroup: { ja: "クリップグループごと削除", en: "Delete with clip group" }
+        },
+        tooltip: {
+            matchByPath: { ja: "リンク先のフルパスが同じ画像を探します。", en: "Finds images whose full link path is the same." },
+            matchByName: { ja: "フォルダーが違っても、ファイル名が同じ画像を探します。", en: "Finds images with the same file name, even in a different folder." },
+            actionSelect: { ja: "見つかった画像を選択するだけで、削除はしません。", en: "Only selects the images it finds; nothing is deleted." },
+            actionDeleteImage: { ja: "見つかったリンク画像を削除します。クリップグループは残ります。", en: "Deletes the linked images it finds, leaving any clipping group behind." },
+            actionDeleteClipGroup: { ja: "見つかったリンク画像を、それを包むクリップグループごと削除します。", en: "Deletes the linked images together with the clipping group around them." }
         },
         /* ボタン / Buttons */
         button: {
@@ -210,13 +217,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * ラジオボタンを追加する（パネルのfillを打ち消して左揃えにする）
      * @param {Panel} parentPanel - ラジオボタンを追加するパネル
      * @param {string} labelString - 表示する文言
+     * @param {boolean} isSelected - 既定で選択状態にするか
+     * @param {string} [tooltipPath] - ツールチップのドット区切りキー
+     * @param {boolean} isSelected - 既定で選択状態にするか
+     * @param {string} [tooltipPath] - ツールチップのドット区切りキー
      * @param {boolean} isSelected - 初期状態で選択するかどうか
      * @returns {RadioButton} 追加したラジオボタン
      */
-    function addRadio(parentPanel, labelString, isSelected) {
+    function addRadio(parentPanel, labelString, isSelected, tooltipPath) {
         var radio = parentPanel.add("radiobutton", undefined, labelString);
         radio.alignment = "left";
         radio.value = isSelected;
+        if (tooltipPath) radio.helpTip = getLabel(tooltipPath);
         return radio;
     }
 
@@ -331,17 +343,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 判定方法 / Match mode */
         var matchModePanel = addPanel(dialog, getLabel("panel.matchMode"));
-        addRadio(matchModePanel, getLabel("radio.matchByPath"), initialMatchMode !== MATCH_BY_NAME);
-        var matchByNameRadio = addRadio(matchModePanel, getLabel("radio.matchByName"), initialMatchMode === MATCH_BY_NAME);
+        addRadio(matchModePanel, getLabel("radio.matchByPath"), initialMatchMode !== MATCH_BY_NAME, "tooltip.matchByPath");
+        var matchByNameRadio = addRadio(matchModePanel, getLabel("radio.matchByName"), initialMatchMode === MATCH_BY_NAME, "tooltip.matchByName");
 
         /* 動作 / Action */
         var actionPanel = addPanel(dialog, getLabel("panel.action"));
         addRadio(actionPanel, getLabel("radio.actionSelect"),
-            initialAction !== ACTION_DELETE_IMAGE && initialAction !== ACTION_DELETE_CLIP_GROUP);
+            initialAction !== ACTION_DELETE_IMAGE && initialAction !== ACTION_DELETE_CLIP_GROUP,
+            "tooltip.actionSelect");
         var deleteImageRadio = addRadio(actionPanel, getLabel("radio.actionDeleteImage"),
-            initialAction === ACTION_DELETE_IMAGE);
+            initialAction === ACTION_DELETE_IMAGE, "tooltip.actionDeleteImage");
         var deleteClipGroupRadio = addRadio(actionPanel, getLabel("radio.actionDeleteClipGroup"),
-            initialAction === ACTION_DELETE_CLIP_GROUP);
+            initialAction === ACTION_DELETE_CLIP_GROUP, "tooltip.actionDeleteClipGroup");
 
         /* ボタン / Buttons（Mac 規約：Cancel → OK） */
         var buttonRow = dialog.add("group");

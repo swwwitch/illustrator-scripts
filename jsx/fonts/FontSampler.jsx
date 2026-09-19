@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "FontSampler";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontSampler.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontSampler.md"; /* README (English) */
@@ -35,6 +35,65 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        fieldLabel: {
+            sampleText: { ja: "テキスト", en: "Text" }
+        },
+        panel: {
+            fontCount: { ja: "フォント数の設定", en: "How many fonts" }
+        },
+        radio: {
+            limit30: { ja: "30個まで", en: "Up to 30" },
+            fitBoard: { ja: "アートボードいっぱい", en: "Fill the artboard" },
+            all: { ja: "すべて", en: "All" }
+        },
+        tooltip: {
+            sampleText: { ja: "各フォントの見本として並べる文字です。", en: "The text shown as the specimen for each font." },
+            limit30: { ja: "先頭から30書体までを並べます。", en: "Lays out the first 30 typefaces." },
+            fitBoard: { ja: "アートボードに収まる数だけ並べます。", en: "Lays out as many as fit on the artboard." },
+            all: { ja: "環境にあるすべての書体を並べます。数が多いと時間がかかります。", en: "Lays out every typeface on the machine. This can take a while." }
+        },
+        defaultSampleText: { ja: "山路を登りながら", en: "Handgloves" }
+    };
+
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.fontCount" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのドット区切りキー
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ": ");
+    }
 
     function main() {
         try {
@@ -51,20 +110,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dlg.alignChildren = ["fill", "top"];
 
             var inputGroup = dlg.add("group");
-            inputGroup.add("statictext", undefined, "テキスト：");
-            var inputText = inputGroup.add("edittext", undefined, "山路を登りながら", {
+            inputGroup.add("statictext", undefined, labelText("fieldLabel.sampleText"));
+            var inputText = inputGroup.add("edittext", undefined, getLabel("defaultSampleText"), {
                 multiline: false
             });
+            inputText.helpTip = getLabel("tooltip.sampleText");
             inputText.characters = 30;
 
             // 新しいパネルにラジオボタンを追加 / Add radio buttons in new panel
-            var optionPanel = dlg.add("panel", undefined, "フォント数の設定");
+            var optionPanel = dlg.add("panel", undefined, getLabel("panel.fontCount"));
             optionPanel.orientation = "column";
             optionPanel.alignChildren = ["left", "top"];
             optionPanel.margins = [15, 20, 15, 10];
-            var rb30 = optionPanel.add("radiobutton", undefined, "30個まで");
-            var rbBoard = optionPanel.add("radiobutton", undefined, "アートボードいっぱい");
-            var rbAll = optionPanel.add("radiobutton", undefined, "すべて");
+            var rb30 = optionPanel.add("radiobutton", undefined, getLabel("radio.limit30"));
+            rb30.helpTip = getLabel("tooltip.limit30");
+            var rbBoard = optionPanel.add("radiobutton", undefined, getLabel("radio.fitBoard"));
+            rbBoard.helpTip = getLabel("tooltip.fitBoard");
+            var rbAll = optionPanel.add("radiobutton", undefined, getLabel("radio.all"));
+            rbAll.helpTip = getLabel("tooltip.all");
             rb30.value = true; // デフォルト / Default
 
             dlg.onShow = function() {

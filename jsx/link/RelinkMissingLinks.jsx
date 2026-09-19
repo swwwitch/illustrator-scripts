@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "RelinkMissingLinks";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkMissingLinks.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkMissingLinks.md"; /* README (English) */
@@ -46,8 +46,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Relink Missing Links " + SCRIPT_VERSION
         },
         folderLabel: {
-            ja: "再リンク用フォルダー:",
-            en: "Relink Folder:"
+            ja: "再リンク用フォルダー",
+            en: "Relink Folder"
         },
         chooseButton: {
             ja: "指定",
@@ -78,6 +78,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Cancel"
         }
         ,
+        tipFolder: {
+            ja: "リンクし直す画像を探すフォルダーです。",
+            en: "The folder searched for the images to relink."
+        },
+        tipMissing: {
+            ja: "リンク切れになっている画像だけを対象にします。",
+            en: "Targets only the images whose link is broken."
+        },
+        tipAll: {
+            ja: "リンク切れでない画像も、同名のファイルが見つかれば張り替えます。",
+            en: "Also relinks images that are not broken, when a file of the same name is found."
+        },
+        tipMatch: {
+            ja: "フォルダー内のどのファイルを同じ画像とみなすかの決め方です。",
+            en: "How a file in the folder is matched to the linked image."
+        },
         options: {
             ja: [
                 { label: "完全一致", value: "exact" },
@@ -107,6 +123,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         folderGroup.margins = [5, 20, 5, 10];
 
         var folderPath = folderGroup.add("edittext", undefined, "");
+        folderPath.helpTip = LABELS.tipFolder[uiLang];
         folderPath.characters = 30;
 
         var chooseBtn = folderGroup.add("button", undefined, LABELS.chooseButton[uiLang]);
@@ -132,10 +149,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         targetGroup.margins = [15, 20, 15, 10];
 
         var chkMissingOnly = targetGroup.add("checkbox", undefined, LABELS.chkMissing[uiLang]);
+        chkMissingOnly.helpTip = LABELS.tipMissing[uiLang];
         chkMissingOnly.alignment = "left";
         chkMissingOnly.value = true; // デフォルト
 
         var chkAll = targetGroup.add("checkbox", undefined, LABELS.chkAll[uiLang]);
+        chkAll.helpTip = LABELS.tipAll[uiLang];
         chkAll.alignment = "left";
 
         // --- 追加: リンク切れ/有効リンクの有無をチェック ---
@@ -169,6 +188,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var radioButtons = [];
         for (var i = 0; i < options.length; i++) {
             radioButtons[i] = matchGroup.add("radiobutton", undefined, options[i].label);
+            radioButtons[i].helpTip = LABELS.tipMatch[uiLang];
             radioButtons[i].alignment = "left";
         }
         radioButtons[0].value = true;
@@ -393,12 +413,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 拡張子を除去 / Remove extension
     function stripExt(filename) {
         return filename.replace(/\.[^\.]+$/, "");
-    }
-
-    // 拡張子を取得 / Get extension
-    function getExt(filename) {
-        var match = filename.match(/\.([^\.]+)$/);
-        return match ? match[1].toLowerCase() : "";
     }
 
 })();

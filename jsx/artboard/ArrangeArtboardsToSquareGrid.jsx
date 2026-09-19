@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArrangeArtboardsToSquareGrid"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeArtboardsToSquareGrid.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeArtboardsToSquareGrid.md"; /* README (English) */
@@ -36,19 +36,23 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
 (function () {
 
-    var L = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    var uiLang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     var LABELS = {
-        dialogTitle: { ja: "アートボードを正方形に整列 " + SCRIPT_VERSION, en: "Arrange Artboards to Square " + SCRIPT_VERSION },
+        dialogTitle: { ja: "アートボードを正方形に整列", en: "Arrange Artboards to Square" },
         abCount: { ja: "アートボード数", en: "Artboards" },
         settings: { ja: "整列設定", en: "Layout settings" },
-        gap: { ja: "間隔：", en: "Gap: " },
-        columns: { ja: "列数：", en: "Columns: " },
+        gap: { ja: "間隔", en: "Gap" },
+        columns: { ja: "列数", en: "Columns" },
         autoBtn: { ja: "自動", en: "Auto" },
         recommend: { ja: "推奨", en: "Recommended" },
         colWord: { ja: "列", en: "col" },
         rowWord: { ja: "行", en: "row" },
+        okBtn: { ja: "OK", en: "OK" },
         cancelBtn: { ja: "キャンセル", en: "Cancel" },
+        tipGap: { ja: "アートボードどうしのあいだにあける間隔です。", en: "Space left between neighbouring artboards." },
+        tipColumns: { ja: "横に並べるアートボードの数です。行数はこの値から決まります。", en: "How many artboards to place in a row. The row count follows from this." },
+        tipAuto: { ja: "アートボード数から、できるだけ正方形に近くなる列数を入れ直します。", en: "Fills in the column count that comes closest to a square arrangement." },
         noDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
         needTwo: { ja: "アートボードが 2 つ以上必要です。", en: "At least two artboards are required." },
         badColumns: { ja: "列数は 1 以上の整数で入力してください。", en: "Enter the column count as an integer of 1 or more." },
@@ -57,8 +61,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         moveFailed: { ja: " 個のオブジェクトは移動できませんでした（ロック等）。", en: " object(s) could not be moved (locked, etc.)." }
     };
 
+    function getLabel(key) {
+        return LABELS[key][uiLang];
+    }
+
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロン付きの項目名
+     */
     function labelText(key) {
-        return LABELS[key][L];
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
     }
 
     // ============================================================
@@ -108,22 +121,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // ユーティリティ / Utilities
     // ============================================================
 
-    /* 現在の定規単位の情報を返す（表示名と pt 換算係数）/ Ruler unit info: display label + points-per-unit */
-    function getRulerUnitInfo() {
-        var unitCode = 2;
-        try { unitCode = app.preferences.getIntegerPreference("rulerType"); } catch (e) { }
-        // 0:inch 1:mm 2:pt 3:pica 4:cm 5:Q/H 6:px
-        var unitTable = [
-            { label: "inch", pointsPerUnit: 72.0 },
-            { label: "mm", pointsPerUnit: 72.0 / 25.4 },
-            { label: "pt", pointsPerUnit: 1.0 },
-            { label: "pica", pointsPerUnit: 12.0 },
-            { label: "cm", pointsPerUnit: 72.0 / 2.54 },
-            { label: "Q", pointsPerUnit: (72.0 / 25.4) * 0.25 },
-            { label: "px", pointsPerUnit: 1.0 }
-        ];
-        if (unitCode < 0 || unitCode > 6) unitCode = 2;
-        return unitTable[unitCode];
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /*
@@ -214,15 +241,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function showDialog(artboardCount, cellWidth, cellHeight, rulerUnit) {
         var dialogResult = null;
 
-        var dialog = new Window("dialog", labelText("dialogTitle"));
+        var dialog = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 16;
         dialog.spacing = 12;
 
-        dialog.add("statictext", undefined, labelText("abCount") + ": " + artboardCount);
+        dialog.add("statictext", undefined, getLabel("abCount") + ": " + artboardCount);
 
-        var panel = dialog.add("panel", undefined, labelText("settings"));
+        var panel = dialog.add("panel", undefined, getLabel("settings"));
         panel.orientation = "column";
         panel.alignChildren = "left";
         panel.margins = 16;
@@ -233,6 +260,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var gapGroup = panel.add("group");
         gapGroup.add("statictext", undefined, labelText("gap"));
         var gapInput = gapGroup.add("edittext", undefined, formatNumber(defaultGapInPoints / rulerUnit.pointsPerUnit));
+        gapInput.helpTip = getLabel("tipGap");
         gapInput.characters = 4;
         gapGroup.add("statictext", undefined, rulerUnit.label);
 
@@ -241,8 +269,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var columnGroup = panel.add("group");
         columnGroup.add("statictext", undefined, labelText("columns"));
         var columnInput = columnGroup.add("edittext", undefined, String(recommendedColumns));
+        columnInput.helpTip = getLabel("tipColumns");
         columnInput.characters = 4;
-        var autoButton = columnGroup.add("button", undefined, labelText("autoBtn"));
+        var autoButton = columnGroup.add("button", undefined, getLabel("autoBtn"));
+        autoButton.helpTip = getLabel("tipAuto");
         autoButton.preferredSize.height = 22;
 
         /* プレビュー / Preview */
@@ -252,18 +282,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function updatePreview() {
             var columns = parseInt(columnInput.text, 10);
             var gapInRulerUnit = parseFloat(gapInput.text);
-            if (isNaN(columns) || columns < 1) { preview.text = labelText("badColumns"); return; }
-            if (isNaN(gapInRulerUnit) || gapInRulerUnit < 0) { preview.text = labelText("badGap"); return; }
+            if (isNaN(columns) || columns < 1) { preview.text = getLabel("badColumns"); return; }
+            if (isNaN(gapInRulerUnit) || gapInRulerUnit < 0) { preview.text = getLabel("badGap"); return; }
             var gapInPoints = gapInRulerUnit * rulerUnit.pointsPerUnit;
             var rows = Math.ceil(artboardCount / columns);
             var occupiedColumns = (columns < artboardCount) ? columns : artboardCount;
             var gridWidth = occupiedColumns * cellWidth + (occupiedColumns - 1) * gapInPoints;
             var gridHeight = rows * cellHeight + (rows - 1) * gapInPoints;
             var bestColumns = chooseBestColumnCount(artboardCount, cellWidth, cellHeight, gapInPoints);
-            preview.text = columns + " " + labelText("colWord") + " x " + rows + " " + labelText("rowWord")
+            preview.text = columns + " " + getLabel("colWord") + " x " + rows + " " + getLabel("rowWord")
                 + "  /  " + formatNumber(gridWidth / rulerUnit.pointsPerUnit)
                 + " x " + formatNumber(gridHeight / rulerUnit.pointsPerUnit) + " " + rulerUnit.label
-                + "\n" + labelText("recommend") + ": " + bestColumns + " " + labelText("colWord");
+                + "\n" + getLabel("recommend") + ": " + bestColumns + " " + getLabel("colWord");
         }
 
         gapInput.onChanging = updatePreview;
@@ -280,16 +310,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ボタン / Buttons (Mac 規約: Cancel -> OK) */
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "right";
-        var cancelButton = buttonGroup.add("button", undefined, labelText("cancelBtn"), { name: "cancel" });
-        var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
+        var cancelButton = buttonGroup.add("button", undefined, getLabel("cancelBtn"), { name: "cancel" });
+        var okButton = buttonGroup.add("button", undefined, getLabel("okBtn"), { name: "ok" });
         dialog.cancelElement = cancelButton;
         dialog.defaultElement = okButton;
 
         okButton.onClick = function () {
             var columns = parseInt(columnInput.text, 10);
             var gapInRulerUnit = parseFloat(gapInput.text);
-            if (isNaN(columns) || columns < 1) { alert(labelText("badColumns")); return; }
-            if (isNaN(gapInRulerUnit) || gapInRulerUnit < 0) { alert(labelText("badGap")); return; }
+            if (isNaN(columns) || columns < 1) { alert(getLabel("badColumns")); return; }
+            if (isNaN(gapInRulerUnit) || gapInRulerUnit < 0) { alert(getLabel("badGap")); return; }
             dialogResult = { columns: columns, gapInPoints: gapInRulerUnit * rulerUnit.pointsPerUnit };
             dialog.close();
         };
@@ -308,10 +338,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function main() {
-        if (app.documents.length === 0) { alert(labelText("noDoc")); return; }
+        if (app.documents.length === 0) { alert(getLabel("noDoc")); return; }
         var document = app.activeDocument;
         var artboardCount = document.artboards.length;
-        if (artboardCount < 2) { alert(labelText("needTwo")); return; }
+        if (artboardCount < 2) { alert(getLabel("needTwo")); return; }
 
         /* artboardRect と geometricBounds を同じ座標系に揃える / unify the coordinate space */
         var savedCoordinateSystem = null;
@@ -331,7 +361,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (artboardHeight > cellHeight) cellHeight = artboardHeight;
         }
 
-        var rulerUnit = getRulerUnitInfo();
+        var rulerUnit = getUnitInfo();
 
         var layoutSettings = showDialog(artboardCount, cellWidth, cellHeight, rulerUnit);
         if (!layoutSettings) { restoreCoordinateSystem(savedCoordinateSystem); return; }
@@ -392,10 +422,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         app.redraw();
 
-        var message = labelText("done") + "\n"
-            + labelText("abCount") + ": " + artboardCount + "  /  "
-            + columnCount + " " + labelText("colWord") + " x " + gridOrigin.rows + " " + labelText("rowWord");
-        if (failedMoveCount > 0) message += "\n" + failedMoveCount + labelText("moveFailed");
+        var message = getLabel("done") + "\n"
+            + getLabel("abCount") + ": " + artboardCount + "  /  "
+            + columnCount + " " + getLabel("colWord") + " x " + gridOrigin.rows + " " + getLabel("rowWord");
+        if (failedMoveCount > 0) message += "\n" + failedMoveCount + getLabel("moveFailed");
         alert(message);
     }
 

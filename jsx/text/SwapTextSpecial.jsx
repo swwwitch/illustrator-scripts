@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SwapTextSpecial";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapTextSpecial.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapTextSpecial.md"; /* README (English) */
@@ -55,7 +55,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         cancel: { ja: "キャンセル", en: "Cancel" },
         noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
         needTwo: { ja: "テキストオブジェクトを2つ選択してください。", en: "Please select two text objects." },
-        needText: { ja: "選択した2つは両方ともテキストオブジェクトである必要があります。", en: "Both selected objects must be text objects." }
+        needText: { ja: "選択した2つは両方ともテキストオブジェクトである必要があります。", en: "Both selected objects must be text objects." },
+        tipModeContents: { ja: "2つのテキストの文字列だけを入れ替えます。書式と位置はそのままです。", en: "Swaps only the strings. The formatting and positions stay put." },
+        tipModeFormat: { ja: "フォント・サイズ・色などの書式だけを入れ替えます。文字列と位置はそのままです。", en: "Swaps only the formatting, such as font, size, and colour. The strings and positions stay put." },
+        tipModePosition: { ja: "2つのテキストの位置だけを入れ替えます。中身はそのままです。", en: "Swaps only the positions. The contents stay put." }
     };
 
     // =============================================================
@@ -72,8 +75,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n071e09af28a7"; /* 紹�
         targetPanel.margins = [15, 20, 15, 15];
 
         var radioContents = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modeContents));
+        radioContents.helpTip = getLabel(LABELS.tipModeContents);
         var radioFormat = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modeFormat));
+        radioFormat.helpTip = getLabel(LABELS.tipModeFormat);
         var radioPosition = targetPanel.add("radiobutton", undefined, getLabel(LABELS.modePosition));
+        radioPosition.helpTip = getLabel(LABELS.tipModePosition);
         radioContents.value = true;
 
         var buttonGroup = dialog.add("group");

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "Group2Artboards";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-22";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Group2Artboards.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Group2Artboards.md"; /* README (English) */
@@ -44,101 +44,111 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* 日英ラベル定義 / Japanese-English label definitions */
 
     var LABELS = {
-        artboardPanel: {
-            ja: "グループをアートボードに",
-            en: "Convert Groups to Artboards"
+        dialog: {
+            title: { ja: "アートボード化", en: "Artboard" }
         },
-        previewBounds: {
-            ja: "プレビュー境界",
-            en: "Preview bounds"
+        panel: {
+            artboard: { ja: "グループをアートボードに", en: "Convert Groups to Artboards" },
+            name:     { ja: "アートボード名", en: "Artboard Name" }
         },
-        margin: {
-            ja: "マージン",
-            en: "Margin"
+        fieldLabel: {
+            margin:      { ja: "マージン", en: "Margin" },
+            prefix:      { ja: "接頭辞", en: "Prefix" },
+            symbol:      { ja: "記号", en: "Symbol" },
+            startNumber: { ja: "開始番号", en: "Start Number" },
+            example:     { ja: "例", en: "Example" }
         },
-        deleteArtboards: {
-            ja: "既存のアートボードを削除",
-            en: "Delete existing artboards"
+        checkbox: {
+            previewBounds:   { ja: "プレビュー境界", en: "Preview bounds" },
+            deleteArtboards: { ja: "既存のアートボードを削除", en: "Delete existing artboards" },
+            useFileName:     { ja: "ファイル名を参照", en: "Use file name" },
+            zeroPadding:     { ja: "ゼロ埋め", en: "Zero Padding" }
         },
-        namePanel: {
-            ja: "アートボード名",
-            en: "Artboard Name"
+        radio: {
+            dash:       { ja: "-", en: "-" },
+            underscore: { ja: "_", en: "_" },
+            none:       { ja: "なし", en: "None" }
         },
-        useFileName: {
-            ja: "ファイル名を参照",
-            en: "Use file name"
+        tooltip: {
+            previewBounds: {
+                ja: "線幅や効果を含めた見た目の端に合わせてアートボードを作ります。オフにするとパスの端が基準になります。",
+                en: "Sizes each artboard to the visible edges including strokes and effects. Off uses the path edges."
+            },
+            margin:          { ja: "グループの外側に足す余白です。", en: "Extra space added around the group." },
+            deleteArtboards: { ja: "作成する前に、いま開いているアートボードをすべて削除します。", en: "Removes every existing artboard before creating the new ones." },
+            useFileName:     { ja: "接頭辞にドキュメントのファイル名（拡張子なし）を使います。", en: "Uses the document file name, without its extension, as the prefix." },
+            prefix:          { ja: "アートボード名の先頭に付ける文字列です。", en: "Text placed at the start of each artboard name." },
+            symbol:          { ja: "接頭辞と連番のあいだに入れる記号です。", en: "Character placed between the prefix and the number." },
+            startNumber:     { ja: "連番の開始値です。", en: "The number the sequence starts from." },
+            zeroPadding:     { ja: "開始番号の桁数にそろえて 0 を補います（01, 02, ...）。", en: "Pads the numbers with zeros to the width of the start number (01, 02, ...)." }
         },
-        prefix: {
-            ja: "接頭辞",
-            en: "Prefix"
-        },
-        symbol: {
-            ja: "記号",
-            en: "Symbol"
-        },
-        dash: {
-            ja: "-",
-            en: "-"
-        },
-        underscore: {
-            ja: "_",
-            en: "_"
-        },
-        none: {
-            ja: "なし",
-            en: "None"
-        },
-        startNumber: {
-            ja: "開始番号",
-            en: "Start Number"
-        },
-        zeroPadding: {
-            ja: "ゼロ埋め",
-            en: "Zero Padding"
-        },
-        example: {
-            ja: "例：",
-            en: "Example: "
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        dialogTitle: {
-            ja: "アートボード化 " + SCRIPT_VERSION,
-            en: "Artboard " + SCRIPT_VERSION
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         }
     };
 
-    /* 単位コードから単位ラベルを取得 / Get unit label from unit code */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
-
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.name" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
         }
-        return unitLabelMap[code] || "不明";
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのドット区切りキー
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ": ");
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* アートボード名を生成する共通関数 / Common function to build artboard name */
@@ -216,13 +226,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     function showDialog() {
-        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
+        var dialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = [15, 20, 15, 10];
         dialog.spacing = 10;
 
-        var rulerUnit = getUnitLabel(app.preferences.getIntegerPreference("rulerType"), "rulerType");
+        var rulerUnit = getUnitInfo("rulerType").label;
 
         var controlGroup = dialog.add("group");
         controlGroup.orientation = "column";
@@ -230,24 +240,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         controlGroup.margins = [15, 5, 15, 10];
         controlGroup.spacing = 10;
 
-        var previewBoundsCheck = controlGroup.add("checkbox", undefined, LABELS.previewBounds[uiLang]);
+        var previewBoundsCheck = controlGroup.add("checkbox", undefined, getLabel('checkbox.previewBounds'));
+        previewBoundsCheck.helpTip = getLabel('tooltip.previewBounds');
         previewBoundsCheck.value = true;
 
         var marginGroup = controlGroup.add("group");
         marginGroup.orientation = "row";
         marginGroup.alignChildren = "center";
-        marginGroup.add("statictext", undefined, LABELS.margin[uiLang]);
+        marginGroup.add("statictext", undefined, labelText('fieldLabel.margin'));
         var marginInput = marginGroup.add("edittext", undefined, "0");
+        marginInput.helpTip = getLabel('tooltip.margin');
         marginInput.characters = 5;
         marginGroup.add("statictext", undefined, rulerUnit);
         changeValueByArrowKey(marginInput);
 
-        var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, LABELS.deleteArtboards[uiLang]);
+        var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, getLabel('checkbox.deleteArtboards'));
+        deleteArtboardsCheck.helpTip = getLabel('tooltip.deleteArtboards');
         deleteArtboardsCheck.value = true;
 
         /* アートボード名パネル / Artboard name panel */
         var namePanel = dialog.add("panel");
-        namePanel.text = LABELS.namePanel[uiLang];
+        namePanel.text = getLabel('panel.name');
         namePanel.orientation = "row";
         namePanel.alignChildren = "center";
         namePanel.margins = [15, 25, 15, 10];
@@ -256,33 +269,40 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         nameGroup.orientation = "column";
         nameGroup.alignChildren = "left";
 
-        var useFileNameCheck = nameGroup.add("checkbox", undefined, LABELS.useFileName[uiLang]);
+        var useFileNameCheck = nameGroup.add("checkbox", undefined, getLabel('checkbox.useFileName'));
+        useFileNameCheck.helpTip = getLabel('tooltip.useFileName');
         useFileNameCheck.value = false;
 
         var prefixRow = nameGroup.add("group");
         prefixRow.orientation = "row";
         prefixRow.alignChildren = "center";
-        prefixRow.add("statictext", undefined, LABELS.prefix[uiLang]);
+        prefixRow.add("statictext", undefined, labelText('fieldLabel.prefix'));
         var nameInput = prefixRow.add("edittext", undefined, "");
+        nameInput.helpTip = getLabel('tooltip.prefix');
         nameInput.characters = 15;
 
         var symbolGroup = nameGroup.add("group");
         symbolGroup.orientation = "row";
         symbolGroup.alignChildren = "center";
-        symbolGroup.add("statictext", undefined, LABELS.symbol[uiLang]);
-        var radioDash = symbolGroup.add("radiobutton", undefined, LABELS.dash[uiLang]);
-        var radioUnderscore = symbolGroup.add("radiobutton", undefined, LABELS.underscore[uiLang]);
-        var radioNone = symbolGroup.add("radiobutton", undefined, LABELS.none[uiLang]);
+        symbolGroup.add("statictext", undefined, labelText('fieldLabel.symbol'));
+        var radioDash = symbolGroup.add("radiobutton", undefined, getLabel('radio.dash'));
+        radioDash.helpTip = getLabel('tooltip.symbol');
+        var radioUnderscore = symbolGroup.add("radiobutton", undefined, getLabel('radio.underscore'));
+        radioUnderscore.helpTip = getLabel('tooltip.symbol');
+        var radioNone = symbolGroup.add("radiobutton", undefined, getLabel('radio.none'));
+        radioNone.helpTip = getLabel('tooltip.symbol');
         radioDash.value = true;
 
         var seqRow = nameGroup.add("group");
         seqRow.orientation = "row";
         seqRow.alignChildren = "center";
-        seqRow.add("statictext", undefined, LABELS.startNumber[uiLang]);
+        seqRow.add("statictext", undefined, labelText('fieldLabel.startNumber'));
         var seqInput = seqRow.add("edittext", undefined, "01");
+        seqInput.helpTip = getLabel('tooltip.startNumber');
         seqInput.characters = 5;
         changeValueByArrowKey(seqInput);
-        var zeroPaddingCheck = seqRow.add("checkbox", undefined, LABELS.zeroPadding[uiLang]);
+        var zeroPaddingCheck = seqRow.add("checkbox", undefined, getLabel('checkbox.zeroPadding'));
+        zeroPaddingCheck.helpTip = getLabel('tooltip.zeroPadding');
         zeroPaddingCheck.value = true;
 
         var previewText = nameGroup.add("statictext", undefined, "");
@@ -301,7 +321,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var lastDot = docName.lastIndexOf(".");
                 fileNameNoExt = lastDot > 0 ? docName.substring(0, lastDot) : docName;
             }
-            previewText.text = LABELS.example[uiLang] + buildArtboardName(prefix, symbol, seq, zeroPadding, useFileNameCheck.value, fileNameNoExt, seq.length);
+            previewText.text = getLabel('fieldLabel.example') + buildArtboardName(prefix, symbol, seq, zeroPadding, useFileNameCheck.value, fileNameNoExt, seq.length);
         }
 
         /* イベント登録 / Register events */
@@ -318,8 +338,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
         buttonGroup.margins = [0, 10, 0, 10];
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[uiLang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[uiLang], {
+        var cancelBtn = buttonGroup.add("button", undefined, getLabel('button.cancel'));
+        var okBtn = buttonGroup.add("button", undefined, getLabel('button.ok'), {
             name: "ok"
         });
 

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AutoTouchType";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.7";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.8";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoTouchType.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoTouchType.md"; /* README (English) */
@@ -49,10 +49,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         alertSelectTextRange: { ja: "TextFrame または TextRange を選択してください。", en: "Please select a TextFrame or TextRange." },
         alertEnterNumber: { ja: "数値を入力してください。", en: "Please enter a number." },
         alertNoJPFonts: { ja: "対象の和文フォント（Pr6 / Pr6N）が見つかりません。", en: "No target JP fonts (Pr6 / Pr6N) were found." },
-        labelBaseline: { ja: "ベースライン:", en: "Baseline:" },
-        labelScale: { ja: "水平/垂直比率:", en: "Scale:" },
-        labelRotation: { ja: "文字回転:", en: "Rotation:" },
-        labelKerning: { ja: "カーニング:", en: "Kerning:" },
+        labelBaseline: { ja: "ベースライン", en: "Baseline" },
+        labelScale: { ja: "水平／垂直比率", en: "Scale" },
+        labelRotation: { ja: "文字回転", en: "Rotation" },
+        labelKerning: { ja: "カーニング", en: "Kerning" },
         panelTouch: { ja: "文字タッチ", en: "Touch" },
         panelFont: { ja: "フォント", en: "Font" },
         chkFontRandom: { ja: "ランダム", en: "Random" },
@@ -67,62 +67,75 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnAllOff: { ja: "すべてOFF", en: "All OFF" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
         btnOK: { ja: "OK", en: "OK" },
-        labelZoom: { ja: "ズーム：", en: "Zoom:" },
+        labelZoom: { ja: "ズーム", en: "Zoom" },
         chkZoomLight: { ja: "軽量モード", en: "Light mode" },
-        chkRotTrackComp: { ja: "文字回転によるトラッキング補正", en: "Tracking compensation for rotation" }
+        chkRotTrackComp: { ja: "文字回転によるトラッキング補正", en: "Tracking compensation for rotation" },
+        tipFontRandom: { ja: "1文字ずつフォントを入れ替えます。", en: "Swaps the font of each character." },
+        tipFontJPOnly: { ja: "入れ替え先を和文フォント（Pr6／Pr6N）だけに絞ります。", en: "Limits the replacement fonts to Japanese fonts (Pr6 / Pr6N)." },
+        tipRansomEnable: { ja: "1文字ずつ大きさと書体をばらつかせ、切り貼りしたような見た目にします。", en: "Varies the size and typeface of each character, like letters cut from a magazine." },
+        tipRansomTrack: { ja: "ばらついた文字幅に合わせて字間を詰めます。", en: "Tightens the spacing to match the varied character widths." },
+        tipRansomTrackValue: { ja: "詰める量です。単位は1/1000em。", en: "How much to tighten, in 1/1000 em." },
+        tipBaselineEnabled: { ja: "ベースラインシフトをかけるかどうかです。", en: "Whether to apply a baseline shift." },
+        tipBaseline: { ja: "1文字ずつ上下にずらす最大量です。", en: "Maximum amount each character is shifted up or down." },
+        tipScaleEnabled: { ja: "文字を長体・平体にするかどうかです。", en: "Whether to condense or extend the characters." },
+        tipScale: { ja: "1文字ずつ変える水平／垂直比率の最大量です。", en: "Maximum change applied to each character\u0027s horizontal and vertical scale." },
+        tipKerningEnabled: { ja: "字間をばらつかせるかどうかです。", en: "Whether to vary the spacing between characters." },
+        tipKerning: { ja: "1文字ずつ変える字間の最大量です。単位は1/1000em。", en: "Maximum spacing change per character, in 1/1000 em." },
+        tipRotationEnabled: { ja: "文字を回転させるかどうかです。", en: "Whether to rotate the characters." },
+        tipRotation: { ja: "1文字ずつ回転させる最大角度です。", en: "Maximum rotation applied to each character." },
+        tipRotTrackComp: { ja: "回転で広がった見た目の幅を、字間で打ち消します。", en: "Offsets the apparent width added by the rotation with the letter spacing." },
+        tipAllOn: { ja: "文字タッチの4項目をすべてオンにします。", en: "Turns on all four touch settings." },
+        tipAllOff: { ja: "文字タッチの4項目をすべてオフにします。", en: "Turns off all four touch settings." },
+        tipZoom: { ja: "作業中の画面表示倍率を変えます。結果には影響しません。", en: "Changes the view zoom while you work. It does not affect the result." },
+        tipZoomLight: { ja: "プレビューを簡易表示にして、文字数が多くても操作を軽くします。", en: "Simplifies the preview so long text stays responsive." },
+        tipRerun: { ja: "同じ設定のまま、乱数だけ振り直します。", en: "Re-rolls the randomness while keeping the same settings." },
+        tipReset: { ja: "すべての設定を初期値に戻します。", en: "Restores every setting to its default." }
     };
 
     function getLabel(key) {
-        try {
-            var o = LABELS[key];
-            if (!o) return key;
-            return o[uiLang] || o.ja || o.en || key;
-        } catch (e) {
-            return key;
-        }
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.ja || entry.en || key;
     }
 
-    // --- unit utilities (baseline label follows "text/asianunits") ---
-    var __unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
-
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = { "text/asianunits": true, "rulerType": true, "strokeUnits": true };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return __unitMap[code] || "pt";
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
     }
 
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    function getPrefIntSafe(key, fallback) {
-        try { return app.preferences.getIntegerPreference(key); } catch (e) { return fallback; }
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     if (app.documents.length === 0) { alert(getLabel("alertNoDoc")); return; }
@@ -890,7 +903,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     pnlFont.alignment = ["fill", "top"];
 
     var chkFontRandom = pnlFont.add("checkbox", undefined, getLabel("chkFontRandom"));
+    chkFontRandom.helpTip = getLabel("tipFontRandom");
     var chkFontJPOnly = pnlFont.add("checkbox", undefined, getLabel("chkFontJPOnly"));
+    chkFontJPOnly.helpTip = getLabel("tipFontJPOnly");
 
     function updateFontOptionEnabled() {
         // 「ランダム」がOFFのときは「和文フォントに限定」をディム
@@ -911,6 +926,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     pnlRansom.alignment = ["fill", "top"];
 
     var chkFontRansom = pnlRansom.add("checkbox", undefined, getLabel("chkRansomEnable"));
+    chkFontRansom.helpTip = getLabel("tipRansomEnable");
 
     // tracking row: checkbox + value field
     var gRansomTrk = pnlRansom.add("group");
@@ -918,7 +934,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gRansomTrk.alignChildren = ["left", "center"];
 
     var chkRansomTrack = gRansomTrk.add("checkbox", undefined, getLabel("chkRansomTrack"));
+    chkRansomTrack.helpTip = getLabel("tipRansomTrack");
     var edtRansomTrk = gRansomTrk.add("edittext", undefined, "200");
+    edtRansomTrk.helpTip = getLabel("tipRansomTrackValue");
     edtRansomTrk.characters = 5;
 
     // defaults: OFF
@@ -945,13 +963,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var gBase = pnlTouch.add("group");
     var chkBase = gBase.add("checkbox", undefined, "");
+    chkBase.helpTip = getLabel("tipBaselineEnabled");
     chkBase.value = true;
     chkBase.preferredSize.width = 15;
-    var stBase = gBase.add("statictext", undefined, getLabel("labelBaseline"));
-    // baseline unit follows "text/asianunits" (label + pt conversion)
-    var __baseUnitCode = getPrefIntSafe("text/asianunits", 2); // 2=pt
-    var __baseUnitLabel = getUnitLabel(__baseUnitCode, "text/asianunits");
-    var __baseUnitFactorPt = getPtFactorFromUnitCode(__baseUnitCode); // unit -> pt
+    var stBase = gBase.add("statictext", undefined, labelText("labelBaseline"));
+    /* ベースラインの単位は環境設定の「文字」の単位に従う / The baseline unit follows the "text/asianunits" preference */
+    var baseUnit = getUnitInfo("text/asianunits");
+    var __baseUnitLabel = baseUnit.label;
+    var __baseUnitFactorPt = baseUnit.pointsPerUnit;
 
     var defaultBasePt = 0;
     try {
@@ -983,42 +1002,53 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     var edtBase = gBase.add("edittext", undefined, String(defaultBase));
     edtBase.characters = 4;
+    edtBase.helpTip = getLabel("tipBaseline");
     var stUnitBase = gBase.add("statictext", undefined, __baseUnitLabel);
     var sldBase = gBase.add("slider", undefined, defaultBase, 0, __baseMax);
     sldBase.preferredSize.width = 180;
+    sldBase.helpTip = getLabel("tipBaseline");
 
     var gH = pnlTouch.add("group");
     var chkScale = gH.add("checkbox", undefined, "");
+    chkScale.helpTip = getLabel("tipScaleEnabled");
     chkScale.value = true;
     chkScale.preferredSize.width = 15;
-    var stH = gH.add("statictext", undefined, getLabel("labelScale"));
+    var stH = gH.add("statictext", undefined, labelText("labelScale"));
     var edtH = gH.add("edittext", undefined, "10");
     edtH.characters = 4;
+    edtH.helpTip = getLabel("tipScale");
     var stUnitH = gH.add("statictext", undefined, "%");
     var sldH = gH.add("slider", undefined, 10, 0, 200);
     sldH.preferredSize.width = 180;
+    sldH.helpTip = getLabel("tipScale");
 
     var gKern = pnlTouch.add("group");
     var chkKern = gKern.add("checkbox", undefined, "");
+    chkKern.helpTip = getLabel("tipKerningEnabled");
     chkKern.value = true;
     chkKern.preferredSize.width = 15;
-    var stKern = gKern.add("statictext", undefined, getLabel("labelKerning"));
+    var stKern = gKern.add("statictext", undefined, labelText("labelKerning"));
     var edtKern = gKern.add("edittext", undefined, "50");
     edtKern.characters = 4;
+    edtKern.helpTip = getLabel("tipKerning");
     var stUnitKern = gKern.add("statictext", undefined, "/1000em");
     var sldKern = gKern.add("slider", undefined, 50, -200, 200);
     sldKern.preferredSize.width = 180;
+    sldKern.helpTip = getLabel("tipKerning");
 
     var gRot = pnlTouch.add("group");
     var chkRot = gRot.add("checkbox", undefined, "");
+    chkRot.helpTip = getLabel("tipRotationEnabled");
     chkRot.value = true;
     chkRot.preferredSize.width = 15;
-    var stRot = gRot.add("statictext", undefined, getLabel("labelRotation"));
+    var stRot = gRot.add("statictext", undefined, labelText("labelRotation"));
     var edtRot = gRot.add("edittext", undefined, "5");
     edtRot.characters = 4;
+    edtRot.helpTip = getLabel("tipRotation");
     var stUnitRot = gRot.add("statictext", undefined, "°");
     var sldRot = gRot.add("slider", undefined, 5, 0, 30);
     sldRot.preferredSize.width = 180;
+    sldRot.helpTip = getLabel("tipRotation");
 
     // --- buttons inside 文字タッチ panel (bottom) ---
     // 2 columns: left = All ON/OFF, right = rotation tracking compensation toggle
@@ -1033,7 +1063,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gTouchLeft.alignChildren = ["left", "center"];
 
     var btnAllOn = gTouchLeft.add("button", undefined, getLabel("btnAllOn"));
+    btnAllOn.helpTip = getLabel("tipAllOn");
     var btnAllOff = gTouchLeft.add("button", undefined, getLabel("btnAllOff"));
+    btnAllOff.helpTip = getLabel("tipAllOff");
 
     var gTouchSpacer = gTouchButtons.add("group");
     gTouchSpacer.orientation = "row";
@@ -1045,6 +1077,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gTouchRight.alignChildren = ["right", "center"];
 
     var chkRotTrackComp = gTouchRight.add("checkbox", undefined, getLabel("chkRotTrackComp"));
+    chkRotTrackComp.helpTip = getLabel("tipRotTrackComp");
     chkRotTrackComp.value = true; // default ON
 
     // Make these utility buttons slightly smaller
@@ -1160,15 +1193,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gZoom.alignChildren = ["center", "center"];
     gZoom.margins = [0, 0, 0, 0];
 
-    var stZoom = gZoom.add("statictext", undefined, getLabel("labelZoom"));
+    var stZoom = gZoom.add("statictext", undefined, labelText("labelZoom"));
     var __initZoomPct = 100;
     try { if (__originalZoom != null) __initZoomPct = Math.round(__originalZoom * 100); } catch (e) { }
     if (__initZoomPct < 10) __initZoomPct = 10;
     if (__initZoomPct > 1600) __initZoomPct = 1600;
     var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
+    sldZoom.helpTip = getLabel("tipZoom");
     sldZoom.preferredSize.width = 270;
 
     var chkZoomLight = gZoom.add("checkbox", undefined, getLabel("chkZoomLight"));
+    chkZoomLight.helpTip = getLabel("tipZoomLight");
     chkZoomLight.value = false;
 
     // NOTE: applying zoom on every `onChanging` can be heavy.
@@ -1224,7 +1259,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     btnLeft.alignChildren = ["left", "center"];
 
     var btnRerun = btnLeft.add("button", undefined, getLabel("btnRerun"));
+    btnRerun.helpTip = getLabel("tipRerun");
     var btnReset = btnLeft.add("button", undefined, getLabel("btnReset"));
+    btnReset.helpTip = getLabel("tipReset");
 
     function isTouchAllOff() {
         try {

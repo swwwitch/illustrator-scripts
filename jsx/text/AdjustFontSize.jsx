@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustFontSize";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustFontSize.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFontSize.md"; /* README (English) */
@@ -128,58 +128,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
     // 単位 / Units
     // =========================================
 
-    /**
-     * 単位コードとプリファレンスキーに応じて単位ラベルを返す
-     * @param {number} code - Illustratorの単位コード
-     * @param {string} prefKey - 単位を取得したプリファレンスキー
-     * @returns {string} 単位ラベル（"mm" / "pt" / "Q" / "H" など）
-     */
-    function getUnitLabel(code, prefKey) {
-        var unitMap = {
-            0: "in",
-            1: "mm",
-            2: "pt",
-            3: "pica",
-            4: "cm",
-            5: "Q/H",
-            6: "px",
-            7: "ft/in",
-            8: "m",
-            9: "yd",
-            10: "ft"
-        };
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return unitMap[code] || "pt";
-    }
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 単位コード1つ分のポイント数（pt換算係数）を返す
-     * @param {number} code - Illustratorの単位コード
-     * @returns {number} 単位1に相当するポイント数
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getPointsPerUnit(code) {
-        var MM = 72 / 25.4; /* 1mm = 72/25.4 pt */
-        var ptPerUnit = {
-            0: 72,        /* in */
-            1: MM,        /* mm */
-            2: 1,         /* pt */
-            3: 12,        /* pica */
-            4: MM * 10,   /* cm */
-            5: MM * 0.25, /* Q/H（0.25mm）/ Q/H (0.25mm) */
-            6: 1,         /* px（72ppi）/ px (72ppi) */
-            7: 72,        /* ft/in */
-            8: MM * 1000, /* m */
-            9: 72 * 36,   /* yd */
-            10: 72 * 12   /* ft */
-        };
-        return ptPerUnit[code] || 1;
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -524,9 +502,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/xxxxxxxx"; /* 紹介記
         }
 
         var previewManager = new PreviewManager();
-        var unitCode = app.preferences.getIntegerPreference("text/units");
-        var unitLabel = getUnitLabel(unitCode, "text/units");
-        var unitFactor = getPointsPerUnit(unitCode);
+        var textUnit = getUnitInfo("text/units");
+        var unitLabel = textUnit.label;
+        var unitFactor = textUnit.pointsPerUnit;
 
         var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         dialog.alignChildren = "fill";

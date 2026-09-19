@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TitleBarLineCut";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TitleBarLineCut.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TitleBarLineCut.md"; /* README (English) */
@@ -92,6 +92,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // Labels / Controls
         margin: { ja: "マージン", en: "Margin" },
+        tipMargin: { ja: "文字の外側に足す余白です。", en: "Space added around the text." },
+        tipRound: { ja: "背景の角を丸めます。半径は右の欄で指定します。", en: "Rounds the corners of the backing shape. The field on the right sets the radius." },
+        tipFillOn: { ja: "背景に塗りを付けます。", en: "Fills the backing shape." },
+        tipNotch: { ja: "背景の端に切り欠きを入れます。", en: "Cuts a notch into the edge of the backing shape." },
+        tipStrokeOn: { ja: "背景に線を付けます。太さは右の欄で指定します。", en: "Strokes the backing shape. The field on the right sets the weight." },
+        tipCapNone: { ja: "線の端に飾りを付けません。", en: "Leaves the line ends plain." },
+        tipCapRound: { ja: "線の端を丸くします。", en: "Rounds the line ends." },
         roundCorners: { ja: "角丸", en: "Round" },
         fillOn: { ja: "塗り", en: "Fill" },
         notch: { ja: "ノッチ", en: "Notch" },
@@ -256,99 +263,51 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!rectA) { alert(getLabel('alertSelectTypes')); return; }
 
         // rulerType を参照して単位ラベルと pt 変換を決める
-        var unitLabelMap = {
-            0: "in",
-            1: "mm",
-            2: "pt",
-            3: "pica",
-            4: "cm",
-            5: "Q/H",
-            6: "px",
-            7: "ft/in",
-            8: "m",
-            9: "yd",
-            10: "ft"
-        };
+        /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+        var UNITS = [
+            { label: "in",    pointsPerUnit: 72 },                /* 0 */
+            { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+            { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+            { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+            { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+            { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+            { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+            { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+            { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+            { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+            { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+        ];
 
-        function getCurrentRulerType() {
-            try {
-                return app.preferences.getIntegerPreference("rulerType");
-            } catch (e) {
-                return 2; // pt fallback
-            }
+        /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+           Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+        var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+        /**
+         * 設定キーごとの単位情報を取得する
+         * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+         */
+        function getUnitInfo(prefKey) {
+            var unitKey = prefKey || "rulerType";
+            var unitCode = app.preferences.getIntegerPreference(unitKey);
+            var unit = UNITS[unitCode] || UNITS[2];
+            var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+            return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
         }
 
-        function getUnitInfo() {
-            var rt = getCurrentRulerType();
-            var label = unitLabelMap.hasOwnProperty(rt) ? unitLabelMap[rt] : "pt";
-
-            // value * factor = points
-            var factor;
-            switch (rt) {
-                case 0: factor = 72; break;                     // in
-                case 1: factor = 72 / 25.4; break;              // mm
-                case 2: factor = 1; break;                      // pt
-                case 3: factor = 12; break;                     // pica
-                case 4: factor = 72 / 2.54; break;              // cm
-                case 5: factor = (72 / 25.4) * 0.25; break;     // Q (0.25mm) / H (0.25mm)
-                case 6: factor = 1; break;                      // px (Illustratorは基本72ppi扱い)
-                case 7: factor = 72 * 12; break;                // ft/in（ここではftを想定）
-                case 8: factor = (72 / 25.4) * 1000; break;     // m
-                case 9: factor = 72 * 36; break;                // yd
-                case 10: factor = 72 * 12; break;                // ft
-                default: factor = 1; label = "pt"; break;
-            }
-
-            return { rulerType: rt, label: label, factorToPt: factor };
-        }
-
-        var __unitInfo = getUnitInfo();
+        var rulerUnitInfo = getUnitInfo("rulerType");
+        var strokeUnitInfo = getUnitInfo("strokeUnits");
 
         function unitToPt(v) {
-            return v * __unitInfo.factorToPt;
+            return v * rulerUnitInfo.pointsPerUnit;
         }
-
-        // strokeUnits を参照して線幅の単位ラベルと pt 変換を決める
-        function getCurrentStrokeUnits() {
-            try {
-                return app.preferences.getIntegerPreference("strokeUnits");
-            } catch (e) {
-                return 2; // pt fallback
-            }
-        }
-
-        function getStrokeUnitInfo() {
-            var su = getCurrentStrokeUnits();
-            var label = unitLabelMap.hasOwnProperty(su) ? unitLabelMap[su] : "pt";
-
-            // value * factor = points
-            var factor;
-            switch (su) {
-                case 0: factor = 72; break;                     // in
-                case 1: factor = 72 / 25.4; break;              // mm
-                case 2: factor = 1; break;                      // pt
-                case 3: factor = 12; break;                     // pica
-                case 4: factor = 72 / 2.54; break;              // cm
-                case 5: factor = (72 / 25.4) * 0.25; break;     // Q/H (0.25mm)
-                case 6: factor = 1; break;                      // px
-                case 7: factor = 72 * 12; break;                // ft/in（ここではftを想定）
-                case 8: factor = (72 / 25.4) * 1000; break;     // m
-                case 9: factor = 72 * 36; break;                // yd
-                case 10: factor = 72 * 12; break;                // ft
-                default: factor = 1; label = "pt"; break;
-            }
-
-            return { strokeUnits: su, label: label, factorToPt: factor };
-        }
-
-        var __strokeUnitInfo = getStrokeUnitInfo();
 
         function strokeUnitToPt(v) {
-            return v * __strokeUnitInfo.factorToPt;
+            return v * strokeUnitInfo.pointsPerUnit;
         }
 
         function ptToStrokeUnit(vPt) {
-            return vPt / __strokeUnitInfo.factorToPt;
+            return vPt / strokeUnitInfo.pointsPerUnit;
         }
 
         // ---- 状態保持（プレビュー用）----
@@ -514,7 +473,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var tb = __textBoundsForCalc || tf.visibleBounds; // [L,T,R,B]
                 var hPt = Math.abs(tb[1] - tb[3]);
                 var halfPt = hPt / 2;
-                var v = halfPt / __unitInfo.factorToPt; // pt -> current unit
+                var v = halfPt / rulerUnitInfo.pointsPerUnit; // pt -> current unit
                 if (isNaN(v) || !isFinite(v)) return 2;
                 return Math.round(v);
             } catch (e) {
@@ -531,7 +490,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var tb = __textBoundsForCalc || tf.visibleBounds; // [L,T,R,B]
                 var hPt = Math.abs(tb[1] - tb[3]);
                 var qPt = hPt / 4;
-                var v = qPt / __unitInfo.factorToPt; // pt -> current unit
+                var v = qPt / rulerUnitInfo.pointsPerUnit; // pt -> current unit
                 if (isNaN(v) || !isFinite(v)) return 2;
                 return Math.round(v);
             } catch (e) {
@@ -1109,6 +1068,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         stMarginLabel.justify = "right";
 
         var et = row.add("edittext", undefined, String(__defaultMarginInt));
+        et.helpTip = getLabel('tipMargin');
         et.characters = 3;
         try {
             if ($.global.__tblc_state.marginText !== null && $.global.__tblc_state.marginText !== undefined) {
@@ -1116,17 +1076,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (e) { }
 
-        var stUnitMargin = row.add("statictext", undefined, __unitInfo.label);
+        var stUnitMargin = row.add("statictext", undefined, rulerUnitInfo.label);
 
         // 角丸（マージンの直下）
         var rowR = dlg.add("group");
         rowR.alignChildren = ["left", "center"];
 
         var cbRound = rowR.add("checkbox", undefined, getLabel('roundCorners'));
+        cbRound.helpTip = getLabel('tipRound');
         cbRound.value = false;
-        try { cbRound.value = !!$.global.__tblc_state.roundOn; } catch (e) { }
+        cbRound.value = !!$.global.__tblc_state.roundOn;
 
         var etRound = rowR.add("edittext", undefined, String(__defaultRoundInt));
+        etRound.helpTip = getLabel('tipRound');
         try {
             if ($.global.__tblc_state.roundText !== null && $.global.__tblc_state.roundText !== undefined) {
                 etRound.text = String($.global.__tblc_state.roundText);
@@ -1134,7 +1096,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         } catch (e) { }
         etRound.characters = 3;
 
-        var stUnitRound = rowR.add("statictext", undefined, __unitInfo.label);
+        var stUnitRound = rowR.add("statictext", undefined, rulerUnitInfo.label);
         etRound.enabled = false;
 
         // 塗り
@@ -1147,15 +1109,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rowF.alignChildren = ["left", "center"];
 
         var cbFillOn = rowF.add("checkbox", undefined, getLabel('fillOn'));
+        cbFillOn.helpTip = getLabel('tipFillOn');
         cbFillOn.value = true;
-        try { cbFillOn.value = !!$.global.__tblc_state.fillOn; } catch (e) { }
+        cbFillOn.value = !!$.global.__tblc_state.fillOn;
 
         var rowN = fillPanel.add("group");
         rowN.alignChildren = ["left", "center"];
 
         var cbNotch = rowN.add("checkbox", undefined, getLabel('notch'));
+        cbNotch.helpTip = getLabel('tipNotch');
         cbNotch.value = false;
-        try { cbNotch.value = !!$.global.__tblc_state.notchOn; } catch (e) { }
+        cbNotch.value = !!$.global.__tblc_state.notchOn;
 
         // 線（線幅・線端）
         var linePanel = dlg.add("panel", undefined, getLabel('panelStroke'));
@@ -1168,12 +1132,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rowW.alignChildren = ["left", "center"];
 
         var cbStrokeOn = rowW.add("checkbox", undefined, "");
+        cbStrokeOn.helpTip = getLabel('tipStrokeOn');
         cbStrokeOn.value = true;
-        try { cbStrokeOn.value = !!$.global.__tblc_state.strokeOn; } catch (e) { }
+        cbStrokeOn.value = !!$.global.__tblc_state.strokeOn;
 
         var stWidthLabel = rowW.add("statictext", undefined, getLabel('strokeWidth'));
 
         var etWidth = rowW.add("edittext", undefined, __defaultStrokeWidthText);
+        etWidth.helpTip = getLabel('tipStrokeOn');
         etWidth.characters = 3;
         try {
             if ($.global.__tblc_state.widthText !== null && $.global.__tblc_state.widthText !== undefined) {
@@ -1181,7 +1147,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             }
         } catch (e) { }
 
-        var stUnitWidth = rowW.add("statictext", undefined, __strokeUnitInfo.label);
+        var stUnitWidth = rowW.add("statictext", undefined, strokeUnitInfo.label);
 
         // 線端
         var capRow = linePanel.add("group");
@@ -1196,7 +1162,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         capBtns.alignChildren = ["left", "center"];
 
         var rbCapNone = capBtns.add("radiobutton", undefined, getLabel('capNone'));
+        rbCapNone.helpTip = getLabel('tipCapNone');
         var rbCapRound = capBtns.add("radiobutton", undefined, getLabel('capRound'));
+        rbCapRound.helpTip = getLabel('tipCapRound');
 
         // セッション復元（線端）
         var __capIdx = 0;
@@ -1267,7 +1235,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         function syncFillUI() {
-            try { cbNotch.enabled = !!cbFillOn.value; } catch (e) { }
+            cbNotch.enabled = !!cbFillOn.value;
         }
 
         function syncStrokeUIAndObjects() {
@@ -1275,8 +1243,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             try { on = !!cbStrokeOn.value; } catch (e) { on = true; }
 
             // UI enable/disable
-            try { etWidth.enabled = on; } catch (e) { }
-            try { capRow.enabled = on; } catch (e) { }
+            etWidth.enabled = on;
+            capRow.enabled = on;
 
             // Object create/remove
             if (!on) {
@@ -1433,7 +1401,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             syncRoundUI();
             // 角丸ONのときは線端を「丸型」に寄せる
             if (cbRound.value) {
-                try { rbCapRound.value = true; } catch (e) { }
+                rbCapRound.value = true;
             }
             updatePreview();
         };
@@ -1480,7 +1448,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var marginMM = parseMargin();
         if (marginMM === null) {
             clearPreview();
-            alert(LF('alertMarginNonNegative', __unitInfo.label));
+            alert(LF('alertMarginNonNegative', rulerUnitInfo.label));
             return;
         }
 

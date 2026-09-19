@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExtendLines";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExtendLines.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExtendLines.md"; /* README (English) */
@@ -113,45 +113,40 @@ var SCRIPT_MARKER = "__ExtendLines__";
         }
     }
 
-    // --- Stroke unit utilities ---
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    function getStrokeUnitCode() {
-        return app.preferences.getIntegerPreference("strokeUnits");
-    }
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    function getStrokeUnitLabel() {
-        var code = getStrokeUnitCode();
-        if (code === 5) return "H";
-        var map = {
-            0: "in",
-            1: "mm",
-            2: "pt",
-            3: "pica",
-            4: "cm",
-            6: "px",
-            7: "ft/in",
-            8: "m",
-            9: "yd",
-            10: "ft"
-        };
-        return map[code] || "pt";
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // ↑↓キーによる値増減ヘルパー
@@ -545,25 +540,23 @@ var SCRIPT_MARKER = "__ExtendLines__";
 
         strokeRow.add("statictext", undefined, getLabel("strokeWidth"));
 
-        var strokeUnitCode = getStrokeUnitCode();
-        var strokeUnitFactor = getPtFactorFromUnitCode(strokeUnitCode);
+        var strokeUnit = getUnitInfo("strokeUnits");
 
         // デフォルトは 0.1mm を現在単位に変換
         var defaultPt = 0.1 * 72.0 / 25.4;
-        var defaultUnitValue = defaultPt / strokeUnitFactor;
+        var defaultUnitValue = defaultPt / strokeUnit.pointsPerUnit;
 
         var etStrokeWidth = strokeRow.add("edittext", undefined, defaultUnitValue.toFixed(3));
         etStrokeWidth.characters = 6;
 
-        strokeRow.add("statictext", undefined, getStrokeUnitLabel());
+        strokeRow.add("statictext", undefined, strokeUnit.label);
 
         // 線幅の値を安定して pt に変換（入力途中でも破綻しにくくする）
         var _defaultStrokePt = 0.1 * 72.0 / 25.4;
         var _lastStrokeWidthPt = _defaultStrokePt;
 
         function readStrokeWidthPt() {
-            var code = getStrokeUnitCode();
-            var factor = getPtFactorFromUnitCode(code);
+            var factor = getUnitInfo("strokeUnits").pointsPerUnit;
 
             var s = String(etStrokeWidth.text);
             // 余計な空白、全角小数点、カンマを吸収

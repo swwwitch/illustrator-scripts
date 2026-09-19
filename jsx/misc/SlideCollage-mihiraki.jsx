@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SlideCollage-mihiraki";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md"; /* README (English) */
@@ -474,7 +474,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             fileA = f || null;
 
             // Update crop dropdown availability (crop is meaningful only for PDF)
-            try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (e) { }
+            ddCrop.enabled = __SC_isPdfFile(fileA);
 
             // 綴じ方向を自動検出
             try { __SC_autoDetectBinding(f); } catch (e) { }
@@ -500,15 +500,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         function setResultText(last) {
             if (!last) {
-                try { etRange.text = ''; } catch (e) { }
+                etRange.text = '';
             } else {
-                try { etRange.text = '1-' + last; } catch (e) { }
+                etRange.text = '1-' + last;
             }
         }
 
         // Initial: try selection
         __TMKPageCount_updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
-        try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (e) { }
+        ddCrop.enabled = __SC_isPdfFile(fileA);
 
         btnBrowse.onClick = function () {
             var f = File.openDialog(getLabel('dlgPickFile'), getLabel('filterPick'));

@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplyTextAttributesFromClipboard"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2021-04-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-21";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyTextAttributesFromClipboard.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyTextAttributesFromClipboard.md"; /* README (English) */
@@ -52,6 +52,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         previewCheckbox: {
             ja: "プレビュー",
             en: "Preview"
+        },
+        tipFillGraphicStyleNone: {
+            ja: "塗りもグラフィックスタイルも適用しません。文字の属性だけを反映します。",
+            en: "Applies neither the fill nor the graphic style. Only the character attributes are copied."
+        },
+        tipFill: {
+            ja: "コピー元の塗りカラーを適用します。",
+            en: "Applies the fill color taken from the source."
+        },
+        tipGraphicStyle: {
+            ja: "コピー元に付いていたグラフィックスタイルを適用します。ドキュメントに同名のスタイルが無いと適用できません。",
+            en: "Applies the graphic style the source carried. It needs a style of the same name in this document."
+        },
+        tipPreview: {
+            ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+            en: "Shows the result on the canvas. Cancel restores the original state."
         },
         errorNoDocument: {
             ja: "ドキュメントを開いてください。",
@@ -205,19 +221,44 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位ユーティリティ / Unit utilities
     // =========================================
 
-    /* 単位コードとラベルのマップ / Unit code to label map */
-    var preferenceUnitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     /* 単位コードとpt換算係数のマップ / Unit code to point conversion factor map */
     /* 1単位あたりのpt値を定義 / Defines point value per unit */
@@ -235,28 +276,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         10: 72 * 12            // ft
     };
 
-    /* 単位コードと設定キーから適切な単位ラベルを返す / Return the proper unit label from unit code and preference key */
-    function getPreferenceUnitLabel(unitCode, prefKey) {
-        if (unitCode === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return preferenceUnitLabelMap[unitCode] || "pt";
-    }
-
-    /* 環境設定から単位コードを取得 / Get unit code from preferences */
-    function getPreferenceUnitCode(prefKey, fallbackCode) {
-        try {
-            return app.preferences.getIntegerPreference(prefKey);
-        } catch (e) {
-            return fallbackCode;
-        }
-    }
-
     /* pt値を指定単位へ変換 / Convert point value to the specified unit */
     function convertPointsToPreferenceUnit(pointValue, unitCode) {
         var pointFactor = preferenceUnitPointFactorMap[unitCode] || 1;
@@ -272,8 +291,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* pt値を現在の文字単位で表示 / Format point value using current text unit */
     function formatPointValueForDialog(pointValue) {
-        var unitCode = getPreferenceUnitCode("text/units", 2);
-        var textUnitLabel = getPreferenceUnitLabel(unitCode, "text/units");
+        var textUnit = getUnitInfo("text/units");
+        var unitCode = textUnit.code;
+        var textUnitLabel = textUnit.label;
         var displayValue = convertPointsToPreferenceUnit(pointValue, unitCode);
         return formatNumberForDisplay(displayValue, 3) + " " + textUnitLabel;
     }
@@ -441,40 +461,47 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     function captureTextFrameAppearance(textFrame) {
         if (!textFrame) return null;
         var captured = {};
-        try { captured.fillColor = cloneColor(textFrame.fillColor); } catch (e) { }
-        try { captured.strokeColor = cloneColor(textFrame.strokeColor); } catch (e) { }
-        try { captured.filled = textFrame.filled; } catch (e) { }
-        try { captured.stroked = textFrame.stroked; } catch (e) { }
-        try { captured.strokeWidth = textFrame.strokeWidth; } catch (e) { }
-        try { captured.opacity = textFrame.opacity; } catch (e) { }
-        try { captured.blendingMode = textFrame.blendingMode; } catch (e) { }
+        for (var i = 0; i < APPEARANCE_PROPERTIES.length; i++) {
+            copyAppearanceProperty(captured, textFrame, APPEARANCE_PROPERTIES[i]);
+        }
         return captured;
     }
+
+    /* 退避・復元する TextFrame の外観プロパティ / TextFrame appearance properties that are saved and restored */
+    var APPEARANCE_PROPERTIES = [
+        { name: "fillColor", isColor: true },
+        { name: "strokeColor", isColor: true },
+        { name: "filled", isColor: false },
+        { name: "stroked", isColor: false },
+        { name: "strokeWidth", isColor: false },
+        { name: "opacity", isColor: false },
+        { name: "blendingMode", isColor: false }
+    ];
 
     /* 退避した TextFrame 外観属性を復元 / Restore captured TextFrame appearance */
     function restoreTextFrameAppearance(textFrame, captured) {
         if (!textFrame || !captured) return;
-        if (captured.fillColor) {
-            try { textFrame.fillColor = cloneColor(captured.fillColor); } catch (e) { }
+        for (var i = 0; i < APPEARANCE_PROPERTIES.length; i++) {
+            var property = APPEARANCE_PROPERTIES[i];
+            if (typeof captured[property.name] === "undefined" || captured[property.name] === null) continue;
+            copyAppearanceProperty(textFrame, captured, property);
         }
-        if (captured.strokeColor) {
-            try { textFrame.strokeColor = cloneColor(captured.strokeColor); } catch (e) { }
-        }
-        if (typeof captured.filled !== "undefined") {
-            try { textFrame.filled = captured.filled; } catch (e) { }
-        }
-        if (typeof captured.stroked !== "undefined") {
-            try { textFrame.stroked = captured.stroked; } catch (e) { }
-        }
-        if (typeof captured.strokeWidth !== "undefined") {
-            try { textFrame.strokeWidth = captured.strokeWidth; } catch (e) { }
-        }
-        if (typeof captured.opacity !== "undefined") {
-            try { textFrame.opacity = captured.opacity; } catch (e) { }
-        }
-        if (typeof captured.blendingMode !== "undefined") {
-            try { textFrame.blendingMode = captured.blendingMode; } catch (e) { }
-        }
+    }
+
+    /**
+     * 外観プロパティを1つ写す
+     * 種類によっては持っていないプロパティがあり、読み書きで例外になるため1つずつ受け流す。
+     * @param {object} targetObject - 写し先
+     * @param {object} sourceObject - 写し元
+     * @param {object} property - APPEARANCE_PROPERTIES の1項目
+     * @returns {void}
+     */
+    function copyAppearanceProperty(targetObject, sourceObject, property) {
+        try {
+            targetObject[property.name] = property.isColor ?
+                cloneColor(sourceObject[property.name]) :
+                sourceObject[property.name];
+        } catch (e) {}
     }
 
     // =========================================
@@ -1406,6 +1433,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         fgsNoneRow.alignChildren = ["left", "center"];
         fgsNoneRow.spacing = 6;
         var rbFillGraphicStyleNone = fgsNoneRow.add("radiobutton", undefined, getLabel("fillGraphicStyleNoneOption"));
+        rbFillGraphicStyleNone.helpTip = getLabel("tipFillGraphicStyleNone");
 
         /* 「塗り」行 / "Fill" row */
         var fgsFillRow = fillGraphicStylePanel.add("group");
@@ -1413,6 +1441,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         fgsFillRow.alignChildren = ["left", "center"];
         fgsFillRow.spacing = 6;
         var rbFill = fgsFillRow.add("radiobutton", undefined, getLabel("fillColorLabel"));
+        rbFill.helpTip = getLabel("tipFill");
         rbFill.preferredSize.width = FILL_GS_RADIO_NAME_WIDTH;
         rbFill.enabled = hasFillColor;
         fgsFillRow.add("statictext", undefined, hasFillColor ? fillColorDisplay : getLabel("notStored"));
@@ -1423,6 +1452,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         fgsGSRow.alignChildren = ["left", "center"];
         fgsGSRow.spacing = 6;
         var rbGraphicStyle = fgsGSRow.add("radiobutton", undefined, getLabel("graphicStyleLabel"));
+        rbGraphicStyle.helpTip = getLabel("tipGraphicStyle");
         rbGraphicStyle.preferredSize.width = FILL_GS_RADIO_NAME_WIDTH;
         rbGraphicStyle.enabled = graphicStyleExistsInDoc && canApplyOrientation;
         fgsGSRow.add("statictext", undefined, graphicStyleRowText);
@@ -1475,6 +1505,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         previewGroup.orientation = "row";
         previewGroup.alignChildren = ["left", "center"];
         var cbPreview = previewGroup.add("checkbox", undefined, getLabel("previewCheckbox"));
+        cbPreview.helpTip = getLabel("tipPreview");
         cbPreview.value = false;
 
         var spacer = buttonArea.add("group");

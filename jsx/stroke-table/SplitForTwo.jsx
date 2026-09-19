@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitForTwo";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.9.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.9.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-14";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md"; /* README (English) */
@@ -105,7 +105,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Save Preset"
         },
         presetNamePrompt: {
-            ja: "プリセット名を入力:",
+            ja: "プリセット名を入力：",
             en: "Enter preset name:"
         },
         panelSplitDirection: {
@@ -145,7 +145,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Bottom"
         },
         alertExportedSettings: {
-            ja: "現在の設定を書き出しました:",
+            ja: "現在の設定を書き出しました：",
             en: "Exported current settings:"
         },
         alertExportFailed: {
@@ -249,6 +249,26 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "BR"
         },
         labelGroupItems: {
+        tipColorType: { ja: "塗りに使う色の決め方です。「カスタム」を選ぶと下の欄で指定できます。", en: "How the fill color is chosen. Custom lets you set it in the fields below." },
+        tipHex: { ja: "塗りの色を16進数で指定します（例: DCDCDC）。", en: "Fill color as a hex value, for example DCDCDC." },
+        tipGray: { ja: "CMYKのK版だけで色を作ります（グレースケール）。", en: "Builds the color from the K plate only, giving a grayscale." },
+        tipPreset: { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
+        tipPresetName: { ja: "保存する設定の名前です。", en: "Name the settings are saved under." },
+        tipFillSide: { ja: "この側に塗りを付けます。色は右の欄で指定します。", en: "Fills this side. The field on the right sets the color." },
+        tipOverallFrame: { ja: "分割した全体を1つの枠線で囲みます。", en: "Draws a single frame around the whole split shape." },
+        tipDivider: { ja: "分割の境目にケイ線を引きます。", en: "Draws a rule along the split." },
+        tipStroke: { ja: "ケイ線の太さです。", en: "Weight of the rules." },
+        tipStrokeColor: { ja: "ケイ線の色を16進数で指定します。", en: "Color of the rules, as a hex value." },
+        tipPillShape: { ja: "左右の端を半円にして、丸いピル型にします。", en: "Rounds both ends into a pill shape." },
+        tipCornerLink: { ja: "4つの角丸の値を連動させます。", en: "Links the four corner radii together." },
+        tipCorner: { ja: "この角を丸めます。半径は右の欄で指定します。", en: "Rounds this corner. The field on the right sets the radius." },
+        tipWidth: { ja: "この側の幅です。0 なら％の指定が使われます。", en: "Width of this side. 0 means the percentage below is used instead." },
+        tipPct: { ja: "この側が占める割合（％）です。", en: "Share of the whole this side takes, in percent." },
+        tipSquare: { ja: "この側を正方形にします。", en: "Makes this side a square." },
+        tipWidthSlider: { ja: "左右の割合をドラッグで決めます。", en: "Drag to set the split ratio." },
+        tipSplitLR: { ja: "左右に分割します。", en: "Splits the shape left and right." },
+        tipSplitTB: { ja: "上下に分割します。", en: "Splits the shape top and bottom." },
+        tipGroupItems: { ja: "作ったオブジェクトを1つのグループにまとめます。", en: "Groups the resulting objects together." },
             ja: "グループ化",
             en: "Group items"
         },
@@ -262,76 +282,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 単位ラベル取得ユーティリティ / Unit label utilities */
     // 設定キー: rulerType / strokeUnits / text/units / text/asianunits
-    var UNIT_LABEL_MAP = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    function getUnitLabel(code, prefKey) {
-        // code=5 は Q/H（環境設定キーにより表示が変わる）
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return UNIT_LABEL_MAP[code] || "pt";
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    function getPrefUnitCode(prefKey, fallback) {
-        try {
-            return app.preferences.getIntegerPreference(prefKey);
-        } catch (e) {
-            return (fallback !== undefined) ? fallback : 2; // default pt
-        }
-    }
-
+    /* 設定キーの単位ラベルを取得 / Get the unit label for a preference key */
     function getCurrentUnitLabelByPrefKey(prefKey) {
-        var code = getPrefUnitCode(prefKey, 2);
-        return getUnitLabel(code, prefKey);
+        return getUnitInfo(prefKey).label;
     }
 
     /* pt換算ユーティリティ / Unit conversion (to/from pt) */
-    var UNIT_FACTOR_TO_PT = {
-        0: 72,                 // in
-        1: 72 / 25.4,          // mm
-        2: 1,                  // pt
-        3: 12,                 // pica
-        4: 72 / 2.54,          // cm
-        5: (72 / 25.4) * 0.25, // Q/H : 0.25mm
-        6: 1,                  // px (Illustrator: 1px = 1pt @72ppi)
-        7: 72,                 // ft/in (use inch as base)
-        8: 72 / 0.0254,        // m
-        9: 72 * 36,            // yd
-        10: 72 * 12            // ft
-    };
-
     function unitToPt(value, prefKey) {
         var v = Number(value);
         if (isNaN(v)) return NaN;
-        var code = getPrefUnitCode(prefKey, 2);
-        var f = UNIT_FACTOR_TO_PT[code];
-        if (!f) f = 1;
-        return v * f;
+        return v * getUnitInfo(prefKey).pointsPerUnit;
     }
 
     function ptToUnit(ptValue, prefKey) {
         var v = Number(ptValue);
         if (isNaN(v)) return NaN;
-        var code = getPrefUnitCode(prefKey, 2);
-        var f = UNIT_FACTOR_TO_PT[code];
-        if (!f) f = 1;
-        return v / f;
+        return v / getUnitInfo(prefKey).pointsPerUnit;
     }
 
     function formatUnitValue(v) {
@@ -339,22 +337,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var r = Math.round(v * 10) / 10;
         if (Math.abs(r - Math.round(r)) < 1e-9) return String(Math.round(r));
         return String(r);
-    }
-
-    /* ダイアログ位置をずらす / Shift dialog position */
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        if (!dlg) return;
-        var prev = dlg.onShow;
-        dlg.onShow = function () {
-            if (typeof prev === "function") {
-                try { prev(); } catch (ePrev) { }
-            }
-            try {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
-            } catch (e) { }
-        };
     }
 
     /* ダイアログ透明度 / Set dialog opacity */
@@ -466,7 +448,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     try { lyr.move(backmost, ElementPlacement.PLACEAFTER); } catch (eMv) { }
                 }
 
-                try { lyr.visible = true; } catch (eV) { }
+                try {
+                    lyr.visible = true;
+                } catch (e) {}
                 try { lyr.locked = false; } catch (eL) { }
                 try { lyr.printable = true; } catch (eP) { }
                 try { lyr.template = false; } catch (eT) { }
@@ -477,7 +461,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function clearLayerItems(layer) {
             if (!layer) return;
             try { layer.locked = false; } catch (e0) { }
-            try { layer.visible = true; } catch (e1) { }
+            try {
+                layer.visible = true;
+            } catch (e) {}
             try {
                 for (var i = layer.pageItems.length - 1; i >= 0; i--) {
                     var it = layer.pageItems[i];
@@ -550,7 +536,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (!item) return;
             try { item.locked = false; } catch (e1) { }
             try { item.hidden = false; } catch (e2) { }
-            try { item.visible = true; } catch (e3) { }
+            try {
+                item.visible = true;
+            } catch (e) {}
             try { item.template = false; } catch (e4) { }
             try { item.printable = true; } catch (e5) { }
         }
@@ -600,22 +588,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 }
             } catch (eLoop) { }
             return false;
-        }
-
-        // Roll back preview safely even if a single preview refresh created multiple undo steps.
-        // We undo repeatedly until preview-marked items are gone (with a hard cap), then reset the counter.
-        function rollbackPreviewSafely(doc) {
-            var max = 30;
-            try {
-                while (max-- > 0) {
-                    if (!hasMarkedPreviewItems(doc)) break;
-                    try { app.executeMenuCommand('undo'); } catch (eU) { break; }
-                }
-            } catch (e) { }
-            // Reset counter because we can no longer trust the exact undo-step count.
-            try { PreviewHistory.start(); } catch (ePH) { }
-            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
-            try { removeMarkedTempItems(doc); } catch (eTmp) { }
         }
 
         function markTemp(item) {
@@ -789,17 +761,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             };
         }
 
-        /* 左位置を取得 / Get left position */
-        function getItemLeft(item) {
-            try {
-                if (item && item.geometricBounds && item.geometricBounds.length >= 4) {
-                    return item.geometricBounds[0];
-                }
-            } catch (e) { }
-            try { return item.left; } catch (e2) { }
-            return 0;
-        }
-
         // =============================================
         // カラーシステム
         // 値の形式: "RRGGBB" (RGB HEX) または "cmyk:C,M,Y,K" (CMYK 0-100)
@@ -891,15 +852,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 (parseInt(hex.substring(2, 4), 16) || 0) / 255,
                 (parseInt(hex.substring(4, 6), 16) || 0) / 255
             ];
-        }
-
-        // カラー文字列の表示用ラベル
-        function colorDisplayLabel(s) {
-            if (isCmykString(s)) {
-                var v = parseCmykString(s);
-                return 'C' + Math.round(v.c) + ' M' + Math.round(v.m) + ' Y' + Math.round(v.y) + ' K' + Math.round(v.k);
-            }
-            return '#' + String(s).replace(/^#/, '').toUpperCase();
         }
 
         var _colorPickerLastPos = null; // ダイアログ位置記憶用
@@ -1184,8 +1136,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             colorTypeRow.alignment = ['center', 'top'];
             colorTypeRow.alignChildren = ['left', 'center'];
             var rbWhite = colorTypeRow.add('radiobutton', undefined, getLabel('labelWhite'));
+            rbWhite.helpTip = getLabel('tipColorType');
             var rbBlack = colorTypeRow.add('radiobutton', undefined, getLabel('labelBlack'));
+            rbBlack.helpTip = getLabel('tipColorType');
             var rbCustom = colorTypeRow.add('radiobutton', undefined, getLabel('labelCustom'));
+            rbCustom.helpTip = getLabel('tipColorType');
 
             previewOrig.onDraw = function () {
                 var gr = this.graphics;
@@ -1218,6 +1173,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             hexRow.alignChildren = ['left', 'center'];
             hexRow.add('statictext', undefined, '#');
             var etHex = hexRow.add('edittext', undefined, rgbToHex(state.rgb.r, state.rgb.g, state.rgb.b));
+            etHex.helpTip = getLabel('tipHex');
             etHex.characters = 6;
 
             var tabCMYK = tabPanel.add('tab', undefined, getLabel('labelCMYK'));
@@ -1226,6 +1182,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             tabCMYK.margins = [15, 20, 15, 10];
 
             var cbGray = tabCMYK.add('checkbox', undefined, getLabel('labelGray'));
+            cbGray.helpTip = getLabel('tipGray');
 
             var cmykPanel = tabCMYK.add('group');
             cmykPanel.orientation = 'column';
@@ -2212,6 +2169,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 row.add('statictext', undefined, getLabel('panelPreset'));
                 var dropdown = row.add('dropdownlist', undefined, [getLabel('presetPlaceholder')]);
+                dropdown.helpTip = getLabel('tipPreset');
                 dropdown.preferredSize = [120, -1];
                 dropdown.selection = 0;
 
@@ -2241,6 +2199,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     nameDialog.alignChildren = ['fill', 'top'];
                     nameDialog.add('statictext', undefined, getLabel('presetNamePrompt'));
                     var etName = nameDialog.add('edittext', undefined, '');
+                    etName.helpTip = getLabel('tipPresetName');
                     etName.characters = 20;
                     etName.active = true;
                     var nameBtns = nameDialog.add('group');
@@ -2277,8 +2236,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 fillLeftRow.orientation = 'row';
                 fillLeftRow.alignChildren = ['left', 'center'];
                 var cbLeft = fillLeftRow.add('checkbox', undefined, getLabel('labelFillLeft'));
+                cbLeft.helpTip = getLabel('tipFillSide');
                 cbLeft.value = (ss.fillLeft !== undefined) ? !!ss.fillLeft : true;
                 var etLeft = fillLeftRow.add('edittext', undefined, (ss.colorLeft !== undefined) ? ss.colorLeft : 'DCDCDC');
+                etLeft.helpTip = getLabel('tipFillSide');
                 etLeft.preferredSize = [0, 0];
                 etLeft.visible = false;
                 createColorSwatch(fillLeftRow, etLeft, applyPreview);
@@ -2287,8 +2248,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 fillRightRow.orientation = 'row';
                 fillRightRow.alignChildren = ['left', 'center'];
                 var cbRight = fillRightRow.add('checkbox', undefined, getLabel('labelFillRight'));
+                cbRight.helpTip = getLabel('tipFillSide');
                 cbRight.value = (ss.fillRight !== undefined) ? !!ss.fillRight : true;
                 var etRight = fillRightRow.add('edittext', undefined, (ss.colorRight !== undefined) ? ss.colorRight : '808080');
+                etRight.helpTip = getLabel('tipFillSide');
                 etRight.preferredSize = [0, 0];
                 etRight.visible = false;
                 createColorSwatch(fillRightRow, etRight, applyPreview);
@@ -2314,12 +2277,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 lineCbRow.alignChildren = ['left', 'center'];
 
                 var cbFrame = lineCbRow.add('checkbox', undefined, getLabel('labelOverallFrame'));
+                cbFrame.helpTip = getLabel('tipOverallFrame');
                 cbFrame.value = (ss.overallFrame !== undefined) ? !!ss.overallFrame : false;
 
                 var lineCbRow2 = panel.add('group');
                 lineCbRow2.orientation = 'row';
                 lineCbRow2.alignChildren = ['left', 'center'];
                 var cbDiv = lineCbRow2.add('checkbox', undefined, getLabel('labelDivider'));
+                cbDiv.helpTip = getLabel('tipDivider');
                 cbDiv.value = (ss.divider !== undefined) ? !!ss.divider : false;
 
                 var strokeRow = panel.add('group');
@@ -2328,6 +2293,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 strokeRow.add('statictext', undefined, getLabel('labelStrokeWidth'));
                 var etStrokeLocal = strokeRow.add('edittext', undefined, (ss && ss.strokeUnit !== undefined) ? String(ss.strokeUnit) : formatUnitValue(ptToUnit(1, "strokeUnits")));
+                etStrokeLocal.helpTip = getLabel('tipStroke');
                 etStrokeLocal.characters = 3;
                 changeValueByArrowKey(etStrokeLocal, false, applyPreview);
                 strokeRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("strokeUnits"));
@@ -2337,6 +2303,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 colorRow.alignChildren = ['left', 'center'];
                 colorRow.add('statictext', undefined, getLabel('labelColor'));
                 var etStrokeColorLocal = colorRow.add('edittext', undefined, (ss.strokeColor !== undefined) ? ss.strokeColor : '000000');
+                etStrokeColorLocal.helpTip = getLabel('tipStrokeColor');
                 etStrokeColorLocal.preferredSize = [0, 0];
                 etStrokeColorLocal.visible = false;
                 createColorSwatch(colorRow, etStrokeColorLocal, applyPreview);
@@ -2364,12 +2331,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 pillRow.orientation = 'row';
                 pillRow.alignChildren = ['left', 'center'];
                 var cbCornerAutoLocal = pillRow.add('checkbox', undefined, getLabel('labelPillShape'));
+                cbCornerAutoLocal.helpTip = getLabel('tipPillShape');
                 cbCornerAutoLocal.value = (ss.cornerAuto !== undefined) ? !!ss.cornerAuto : false;
 
                 var linkRow = panel.add('group');
                 linkRow.orientation = 'row';
                 linkRow.alignChildren = ['left', 'center'];
                 var cbCornerLink = linkRow.add('checkbox', undefined, getLabel('labelCornerLink'));
+                cbCornerLink.helpTip = getLabel('tipCornerLink');
                 cbCornerLink.value = (ss.cornerLink !== undefined) ? !!ss.cornerLink : false;
 
                 var perCornerRow = panel.add('group');
@@ -2386,8 +2355,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 cornerTLRow.orientation = 'row';
                 cornerTLRow.alignChildren = ['left', 'center'];
                 var cbCornerTL = cornerTLRow.add('checkbox', undefined, getLabel('labelCornerTL'));
+                cbCornerTL.helpTip = getLabel('tipCorner');
                 cbCornerTL.value = (ss.cornerTL !== undefined) ? !!ss.cornerTL : false;
                 var etCornerTL = cornerTLRow.add('edittext', undefined, (ss.cornerTLVal !== undefined) ? String(ss.cornerTLVal) : '0');
+                etCornerTL.helpTip = getLabel('tipCorner');
                 etCornerTL.characters = 4;
                 changeValueByArrowKey(etCornerTL, false, applyPreview);
 
@@ -2395,8 +2366,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 cornerBLRow.orientation = 'row';
                 cornerBLRow.alignChildren = ['left', 'center'];
                 var cbCornerBL = cornerBLRow.add('checkbox', undefined, getLabel('labelCornerBL'));
+                cbCornerBL.helpTip = getLabel('tipCorner');
                 cbCornerBL.value = (ss.cornerBL !== undefined) ? !!ss.cornerBL : false;
                 var etCornerBL = cornerBLRow.add('edittext', undefined, (ss.cornerBLVal !== undefined) ? String(ss.cornerBLVal) : '0');
+                etCornerBL.helpTip = getLabel('tipCorner');
                 etCornerBL.characters = 4;
                 changeValueByArrowKey(etCornerBL, false, applyPreview);
 
@@ -2409,8 +2382,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 cornerTRRow.orientation = 'row';
                 cornerTRRow.alignChildren = ['left', 'center'];
                 var cbCornerTR = cornerTRRow.add('checkbox', undefined, getLabel('labelCornerTR'));
+                cbCornerTR.helpTip = getLabel('tipCorner');
                 cbCornerTR.value = (ss.cornerTR !== undefined) ? !!ss.cornerTR : false;
                 var etCornerTR = cornerTRRow.add('edittext', undefined, (ss.cornerTRVal !== undefined) ? String(ss.cornerTRVal) : '0');
+                etCornerTR.helpTip = getLabel('tipCorner');
                 etCornerTR.characters = 4;
                 changeValueByArrowKey(etCornerTR, false, applyPreview);
 
@@ -2418,8 +2393,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 cornerBRRow.orientation = 'row';
                 cornerBRRow.alignChildren = ['left', 'center'];
                 var cbCornerBR = cornerBRRow.add('checkbox', undefined, getLabel('labelCornerBR'));
+                cbCornerBR.helpTip = getLabel('tipCorner');
                 cbCornerBR.value = (ss.cornerBR !== undefined) ? !!ss.cornerBR : false;
                 var etCornerBR = cornerBRRow.add('edittext', undefined, (ss.cornerBRVal !== undefined) ? String(ss.cornerBRVal) : '0');
+                etCornerBR.helpTip = getLabel('tipCorner');
                 etCornerBR.characters = 4;
                 changeValueByArrowKey(etCornerBR, false, applyPreview);
 
@@ -2453,24 +2430,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 leftRowLocal.alignChildren = ['left', 'center'];
                 var stLeftLabelLocal = leftRowLocal.add('statictext', undefined, getLabel('labelFillLeft'));
                 var etLeftWidthLocal = leftRowLocal.add('edittext', undefined, '0');
+                etLeftWidthLocal.helpTip = getLabel('tipWidth');
                 etLeftWidthLocal.characters = 5;
                 leftRowLocal.add('statictext', undefined, unitLabelLocal);
                 var etLeftPctLocal = leftRowLocal.add('edittext', undefined, '50');
+                etLeftPctLocal.helpTip = getLabel('tipPct');
                 etLeftPctLocal.characters = 3;
                 leftRowLocal.add('statictext', undefined, '%');
                 var cbSquareLeftLocal = leftRowLocal.add('checkbox', undefined, getLabel('labelSquare'));
+                cbSquareLeftLocal.helpTip = getLabel('tipSquare');
 
                 var rightRowLocal = pinWidthColLocal.add('group');
                 rightRowLocal.orientation = 'row';
                 rightRowLocal.alignChildren = ['left', 'center'];
                 var stRightLabelLocal = rightRowLocal.add('statictext', undefined, getLabel('labelFillRight'));
                 var etRightWidthLocal = rightRowLocal.add('edittext', undefined, '0');
+                etRightWidthLocal.helpTip = getLabel('tipWidth');
                 etRightWidthLocal.characters = 5;
                 rightRowLocal.add('statictext', undefined, unitLabelLocal);
                 var etRightPctLocal = rightRowLocal.add('edittext', undefined, '50');
+                etRightPctLocal.helpTip = getLabel('tipPct');
                 etRightPctLocal.characters = 3;
                 rightRowLocal.add('statictext', undefined, '%');
                 var cbSquareRightLocal = rightRowLocal.add('checkbox', undefined, getLabel('labelSquare'));
+                cbSquareRightLocal.helpTip = getLabel('tipSquare');
 
                 var sliderRowLocal = pinWidthColLocal.add('group');
                 sliderRowLocal.orientation = 'row';
@@ -2478,6 +2461,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 sliderRowLocal.margins = [0, 10, 0, 0];
 
                 var slWidthLocal = sliderRowLocal.add('slider', undefined, 0, 0, 0);
+                slWidthLocal.helpTip = getLabel('tipWidthSlider');
                 slWidthLocal.preferredSize = [180, 20];
 
                 slWidthLocal.addEventListener('keydown', function (event) {
@@ -2587,7 +2571,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             splitDirPanel.margins = [15, 20, 15, 10];
             splitDirPanel.alignment = ['fill', 'top'];
             var rbSplitLR = splitDirPanel.add('radiobutton', undefined, getLabel('labelSplitLR'));
+            rbSplitLR.helpTip = getLabel('tipSplitLR');
             var rbSplitTB = splitDirPanel.add('radiobutton', undefined, getLabel('labelSplitTB'));
+            rbSplitTB.helpTip = getLabel('tipSplitTB');
             var savedSplitDir = (ss.splitDirection !== undefined) ? ss.splitDirection : 'lr';
             rbSplitLR.value = (savedSplitDir === 'lr');
             rbSplitTB.value = (savedSplitDir === 'tb');
@@ -2649,8 +2635,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             function updateStrokeWidthEnabled() {
                 var on = !!(cbOverallFrame.value || cbDivider.value);
-                try { lineRow.enabled = on; } catch (eEn1) { }
-                try { lineColorRow.enabled = on; } catch (eEn3) { }
+                lineRow.enabled = on;
+                lineColorRow.enabled = on;
             }
 
             updateStrokeWidthEnabled();
@@ -2666,22 +2652,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 // ピル形状時は個別角丸を無効化
                 var perCornerEnabled = !cbCornerAuto.value;
                 var linked = cbCornerLink.value;
-                try { cbCornerLink.enabled = perCornerEnabled; } catch (e) { }
-                try { cbCornerTL.enabled = perCornerEnabled; } catch (e) { }
-                try { etCornerTL.enabled = perCornerEnabled && cbCornerTL.value; } catch (e) { }
+                cbCornerLink.enabled = perCornerEnabled;
+                cbCornerTL.enabled = perCornerEnabled;
+                etCornerTL.enabled = perCornerEnabled && cbCornerTL.value;
                 // 連動時: BL/TR/BR のチェックと値はディム、値は TL を参照
-                try { cbCornerBL.enabled = perCornerEnabled && !linked; } catch (e) { }
-                try { etCornerBL.enabled = perCornerEnabled && !linked && cbCornerBL.value; } catch (e) { }
-                try { cbCornerTR.enabled = perCornerEnabled && !linked; } catch (e) { }
-                try { etCornerTR.enabled = perCornerEnabled && !linked && cbCornerTR.value; } catch (e) { }
-                try { cbCornerBR.enabled = perCornerEnabled && !linked; } catch (e) { }
-                try { etCornerBR.enabled = perCornerEnabled && !linked && cbCornerBR.value; } catch (e) { }
+                cbCornerBL.enabled = perCornerEnabled && !linked;
+                etCornerBL.enabled = perCornerEnabled && !linked && cbCornerBL.value;
+                cbCornerTR.enabled = perCornerEnabled && !linked;
+                etCornerTR.enabled = perCornerEnabled && !linked && cbCornerTR.value;
+                cbCornerBR.enabled = perCornerEnabled && !linked;
+                etCornerBR.enabled = perCornerEnabled && !linked && cbCornerBR.value;
                 // 連動時: BL/TR/BR の値を TL に同期
                 if (linked) {
                     var tlVal = etCornerTL.text;
-                    try { etCornerBL.text = tlVal; } catch (e) { }
-                    try { etCornerTR.text = tlVal; } catch (e) { }
-                    try { etCornerBR.text = tlVal; } catch (e) { }
+                    etCornerBL.text = tlVal;
+                    etCornerTR.text = tlVal;
+                    etCornerBR.text = tlVal;
                 }
             }
 
@@ -2689,9 +2675,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             function syncLinkedCornerValues() {
                 if (!cbCornerLink.value) return;
                 var v = etCornerTL.text;
-                try { etCornerBL.text = v; } catch (e) { }
-                try { etCornerTR.text = v; } catch (e) { }
-                try { etCornerBR.text = v; } catch (e) { }
+                etCornerBL.text = v;
+                etCornerTR.text = v;
+                etCornerBR.text = v;
             }
 
             // 連動: TL のチェック状態を BL/TR/BR へコピー
@@ -3058,10 +3044,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             function updateBalanceLabels() {
                 var isVert = rbSplitTB.value;
-                try { stLeftLabel.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft'); } catch (e) { }
-                try { stRightLabel.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight'); } catch (e) { }
-                try { cbFillLeft.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft'); } catch (e) { }
-                try { cbFillRight.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight'); } catch (e) { }
+                stLeftLabel.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft');
+                stRightLabel.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight');
+                cbFillLeft.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft');
+                cbFillRight.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight');
             }
 
             rbSplitLR.onClick = function () { updateBalanceLabels(); try { updateWidthSliderMaxBySelection(); } catch (e) { } applyPreview(); };
@@ -3095,6 +3081,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             cbFillRight.onClick = function () { applyPreview(); };
 
             var cbGroupItems = dlg.add('checkbox', undefined, getLabel('labelGroupItems'));
+            cbGroupItems.helpTip = getLabel('tipGroupItems');
             cbGroupItems.value = true;
             cbGroupItems.alignment = ['center', 'center'];
 

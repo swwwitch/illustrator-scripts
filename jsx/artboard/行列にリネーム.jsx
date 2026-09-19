@@ -59,7 +59,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             namingFromPosition: { ja: "位置から", en: "From position" },
             namingFromExisting: { ja: "既存名を再フォーマット", en: "Reformat existing names" },
             namingSeparator: { ja: "区切り文字：", en: "Separator:" },
-            namingPadWidth: { ja: "ゼロ埋め桁数：", en: "Pad width:" }
+            namingPadWidth: { ja: "ゼロ埋め桁数：", en: "Pad width:" },
+            tipFromPosition: { ja: "カンバス上の配置から行と列を数えて、新しい名前を作ります。", en: "Counts the rows and columns on the canvas and builds the new names from them." },
+            tipFromExisting: { ja: "既存の名前に含まれる行と列を読み取り、区切り文字と桁数だけ整えます。", en: "Keeps the row and column found in the existing names and only fixes the separator and digits." },
+            tipSeparator: { ja: "行と列のあいだに入れる文字です。", en: "Character placed between the row and the column." },
+            tipPadWidth: { ja: "行・列の番号を何桁でそろえるかです。0 なら桁をそろえません。", en: "How many digits the row and column numbers are padded to. 0 leaves them unpadded." },
+            tipExecute: { ja: "上の設定でアートボード名を付け直します。ダイアログは開いたままです。", en: "Renames the artboards with the settings above. The dialog stays open." }
         };
 
         function main() {
@@ -147,7 +152,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             sourceRow.orientation = "row";
             sourceRow.alignChildren = ['left', 'center'];
             var fromPositionRadio = sourceRow.add("radiobutton", undefined, LABELS.namingFromPosition[uiLang]);
+            fromPositionRadio.helpTip = LABELS.tipFromPosition[uiLang];
             var fromExistingRadio = sourceRow.add("radiobutton", undefined, LABELS.namingFromExisting[uiLang]);
+            fromExistingRadio.helpTip = LABELS.tipFromExisting[uiLang];
             fromPositionRadio.value = true;
 
             /* 区切り文字 / Separator */
@@ -156,10 +163,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             sepRow.alignChildren = ['left', 'center'];
             var sepLabel = sepRow.add("statictext", undefined, LABELS.namingSeparator[uiLang]);
             sepLabel.preferredSize.width = 90;
-            // sepLabel.justify = 'right';
             var sepHyphen = sepRow.add("radiobutton", undefined, "-");
+            sepHyphen.helpTip = LABELS.tipSeparator[uiLang];
             var sepUnderscore = sepRow.add("radiobutton", undefined, "_");
+            sepUnderscore.helpTip = LABELS.tipSeparator[uiLang];
             var sepX = sepRow.add("radiobutton", undefined, "x");
+            sepX.helpTip = LABELS.tipSeparator[uiLang];
             sepHyphen.value = true;
 
             /* ゼロ埋め桁数 / Zero-pad width */
@@ -169,12 +178,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var padLabel = padRow.add("statictext", undefined, LABELS.namingPadWidth[uiLang]);
             padLabel.preferredSize.width = 90;
             var padW1 = padRow.add("radiobutton", undefined, "0");
+            padW1.helpTip = LABELS.tipPadWidth[uiLang];
             var padW2 = padRow.add("radiobutton", undefined, "00");
+            padW2.helpTip = LABELS.tipPadWidth[uiLang];
             var padW3 = padRow.add("radiobutton", undefined, "000");
+            padW3.helpTip = LABELS.tipPadWidth[uiLang];
             padW1.value = true;
 
             /* 実行ボタン / Execute button */
             var executeBtn = namingGroup.add("button", undefined, LABELS.namingEnable[uiLang]);
+            executeBtn.helpTip = LABELS.tipExecute[uiLang];
 
             var buttonGroup = dialog.add("group");
             buttonGroup.orientation = "row";

@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiQuickPrefsPalette-simple";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette-simple.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPrefsPalette-simple.md"; /* README (English) */
@@ -123,47 +123,64 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
     // 単位 / Unit
     // =========================================
 
-    /* 単位の定義を1か所に集約（コード／ラベル／pt換算係数／ポップアップ表示）*/
-    /* Single source of unit definitions (code, label, pt factor, popup visibility) */
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）
+       decimals：1pt 未満に潰れないように、大きい単位ほど桁数を増やす（in で 1mm ≒ 0.039）
+       popup：単位ポップアップに並べるかどうか
+       Unit table; the array index equals the rulerType code.
+       decimals: larger units need more digits so small values do not collapse to 0 (1mm is 0.039in).
+       popup: whether the unit appears in the unit popup. */
     var UNITS = [
-        { code: 0,  label: "in",    factor: 72.0,                 popup: true },
-        { code: 1,  label: "mm",    factor: 72.0 / 25.4,          popup: true },
-        { code: 2,  label: "pt",    factor: 1.0,                  popup: true },
-        { code: 3,  label: "pica",  factor: 12.0,                 popup: true },
-        { code: 4,  label: "cm",    factor: 72.0 / 2.54,          popup: true },
-        { code: 5,  label: "Q/H",   factor: 72.0 / 25.4 * 0.25,   popup: true },
-        { code: 6,  label: "px",    factor: 1.0,                  popup: true },
-        { code: 7,  label: "ft/in", factor: 72.0 * 12.0,          popup: false },
-        { code: 8,  label: "m",     factor: 72.0 / 25.4 * 1000.0, popup: false },
-        { code: 9,  label: "yd",    factor: 72.0 * 36.0,          popup: false },
-        { code: 10, label: "ft",    factor: 72.0 * 12.0,          popup: false }
+        { label: "in",    pointsPerUnit: 72,               popup: true },   /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4,        popup: true },   /* 1 */
+        { label: "pt",    pointsPerUnit: 1,                popup: true },   /* 2 */
+        { label: "pica",  pointsPerUnit: 12,               popup: true },   /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54,        popup: true },   /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25, popup: true },   /* 5 */
+        { label: "px",    pointsPerUnit: 1,                popup: true },   /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12,          popup: false },  /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000, popup: false },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36,          popup: false },  /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12,          popup: false }   /* 10 */
     ];
 
-    /* コードから単位定義を取得 / Find a unit definition by code */
-    function getUnitByCode(code) {
-        for (var i = 0; i < UNITS.length; i++) {
-            if (UNITS[i].code === code) return UNITS[i];
-        }
-        return null;
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* 単位ラベルを取得 / Get the unit label */
-    function getUnitLabel(code) {
-        var unit = getUnitByCode(code);
-        return unit ? unit.label : "pt";
+    /* コードから単位定義を取得（未対応コードは pt 相当）/ Find a unit definition by code (unsupported codes fall back to pt) */
+    function getUnitByCode(unitCode) {
+        return UNITS[unitCode] || UNITS[2];
+    }
+
+    /* 単位ラベルを取得（定規単位なので歯は H 表示）/ Get the unit label (ruler unit, so unit code 5 shows as H) */
+    function getUnitLabel(unitCode) {
+        var unit = getUnitByCode(unitCode);
+        return (unitCode === 5) ? "H" : unit.label;
     }
 
     /* 単位コードから pt への換算係数を取得 / Get the pt conversion factor from a unit code */
-    function getPtFactorFromUnitCode(code) {
-        var unit = getUnitByCode(code);
-        return unit ? unit.factor : 1.0;
+    function getPtFactorFromUnitCode(unitCode) {
+        return getUnitByCode(unitCode).pointsPerUnit;
     }
 
     /* ポップアップに表示する単位コード（表示順、UNITS から派生）/ Unit codes shown in the popup (in order, derived from UNITS) */
     var UNIT_POPUP_CODES = (function () {
         var codes = [];
         for (var i = 0; i < UNITS.length; i++) {
-            if (UNITS[i].popup) codes.push(UNITS[i].code);
+            if (UNITS[i].popup) codes.push(i);
         }
         return codes;
     })();

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddOutlineOffsetPath";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-13";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddOutlineOffsetPath.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddOutlineOffsetPath.md"; /* README (English) */
@@ -47,6 +47,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       dialogTitle: { ja: "アウトライン オフセットパス " + SCRIPT_VERSION, en: "Outline Offset Path " + SCRIPT_VERSION },
       offsetPanelTitle: { ja: "オフセット設定", en: "Offset settings" },
       joinPanelTitle: { ja: "角の形状", en: "Corner" },
+      tipOffset: { ja: "元のパスから外側（マイナスで内側）へ離す距離です。", en: "How far the new path sits outside the original. A negative value goes inside." },
+      tipJoinMiter: { ja: "角を尖らせたまま結合します。鋭角では飛び出すことがあります。", en: "Keeps the corners pointed. Sharp angles can spike out." },
+      tipJoinRound: { ja: "角を丸めて結合します。", en: "Rounds off the corners." },
+      tipJoinBevel: { ja: "角を面取りして結合します。", en: "Cuts the corners off flat." },
       joinMiter: { ja: "マイター結合", en: "Miter Join" },
       joinRound: { ja: "ラウンド結合", en: "Round Join" },
       joinBevel: { ja: "ベベル結合", en: "Bevel Join" },
@@ -56,41 +60,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       alertEnterNumeric: { ja: "数値を入力してください。", en: "Enter a numeric value." }
     };
 
-    /* 単位サポート / Unit support */
-    var unitLabelMap = {
-      0: "in",
-      1: "mm",
-      2: "pt",
-      3: "pica",
-      4: "cm",
-      5: "Q/H",
-      6: "px",
-      7: "ft/in",
-      8: "m",
-      9: "yd",
-      10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    function getCurrentUnitLabel() {
-      var unitCode = app.preferences.getIntegerPreference("rulerType");
-      return unitLabelMap[unitCode] || "pt";
-    }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px (ドキュメント設定に依存)
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     function changeValueByArrowKey(editText) {
@@ -168,9 +167,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return;
         }
         /* オフセット入力ダイアログ / Offset input dialog */
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        var unitLabel = getCurrentUnitLabel();
-        var ptFactor = getPtFactorFromUnitCode(unitCode);
+        var rulerUnit = getUnitInfo("rulerType");
+        var unitLabel = rulerUnit.label;
+        var ptFactor = rulerUnit.pointsPerUnit;
 
         var selWidthPt = getSelectionWidthPt(doc.selection, true); // true => visibleBounds
         var defaultOffsetInCurrentUnit = Math.max(0, Math.round(((selWidthPt / 30) / ptFactor) * 10) / 10);
@@ -207,6 +206,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         offsetPanel.alignChildren = ["left", "center"];
         offsetPanel.margins = [15, 20, 15,10]
         var et = offsetPanel.add("edittext", undefined, String(defaultOffsetInCurrentUnit));
+        et.helpTip = LABELS.tipOffset[uiLang];
         var editTextWidth = et;
         changeValueByArrowKey(editTextWidth);
         offsetPanel.add("statictext", undefined, unitLabel);
@@ -219,8 +219,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         joinGroup.alignChildren = ["left", "center"];
         joinGroup.margins = [15, 20, 15,10]
         var rbMiter = joinGroup.add("radiobutton", undefined, LABELS.joinMiter[uiLang]);
+        rbMiter.helpTip = LABELS.tipJoinMiter[uiLang];
         var rbRound = joinGroup.add("radiobutton", undefined, LABELS.joinRound[uiLang]);
+        rbRound.helpTip = LABELS.tipJoinRound[uiLang];
         var rbBevel = joinGroup.add("radiobutton", undefined, LABELS.joinBevel[uiLang]);
+        rbBevel.helpTip = LABELS.tipJoinBevel[uiLang];
         rbMiter.value = false;
         rbRound.value = true;  // default = Round
         rbBevel.value = false;

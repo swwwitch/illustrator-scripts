@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignAndTile-simple";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-simple.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-simple.md"; /* README (English) */
@@ -79,35 +79,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位 / Units
     // =========================================
 
-    /* 単位コードとラベルの対応 / Unit code to label */
-    var UNIT_LABEL_BY_CODE = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    /* 単位コードとポイント換算係数の対応 / Unit code to points per unit */
-    var POINTS_PER_UNIT_BY_CODE = {
-        0: 72,
-        1: 72 / 25.4,
-        2: 1,
-        3: 12,
-        4: 72 / 2.54,
-        5: 72 / 25.4 * 0.25,
-        6: 1,
-        7: 72 * 12,
-        8: 72 / 25.4 * 1000,
-        9: 72 * 36,
-        10: 72 * 12
-    };
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
+    }
 
     // =========================================
     // ローカライズ / Localization
@@ -205,23 +207,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // 単位と境界 / Units and bounds
     // =========================================
-
-    /**
-     * 定規の単位ラベルを返す
-     * @returns {string} "mm" などの単位ラベル
-     */
-    function getCurrentUnitLabel() {
-        return UNIT_LABEL_BY_CODE[app.preferences.getIntegerPreference("rulerType")] || "pt";
-    }
-
-    /**
-     * 定規の単位からポイント換算係数を返す
-     * @returns {number} 1単位あたりのポイント数
-     */
-    function getCurrentPointsPerUnit() {
-        var pointsPerUnit = POINTS_PER_UNIT_BY_CODE[app.preferences.getIntegerPreference("rulerType")];
-        return (typeof pointsPerUnit === "number") ? pointsPerUnit : 1;
-    }
 
     /**
      * オブジェクトの境界を返す
@@ -698,7 +683,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var spacingInput = spacingRowGroup.add("edittext", undefined, DEFAULT_SPACING);
         spacingInput.helpTip = getLabel("tooltip.spacing");
         spacingInput.characters = SPACING_INPUT_CHARS;
-        spacingRowGroup.add("statictext", undefined, getCurrentUnitLabel());
+        spacingRowGroup.add("statictext", undefined, getUnitInfo().label);
 
         /* 揃え / Align */
         var alignPanel = alignDialog.add("panel", undefined, "");
@@ -770,7 +755,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
             return {
                 direction: getEffectiveDirection(),
-                spacingPt: spacingValue * getCurrentPointsPerUnit(),
+                spacingPt: spacingValue * getUnitInfo().pointsPerUnit,
                 usePreviewBounds: previewBoundsCheckbox.value,
                 horizontalAlign: HORIZONTAL_ALIGN_VALUES[getSelectedRadioIndex(horizontalAlignRow)],
                 verticalAlign: VERTICAL_ALIGN_VALUES[getSelectedRadioIndex(verticalAlignRow)],

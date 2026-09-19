@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReorderArtboardsByPosition";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-11-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-07";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReorderArtboardsByPosition.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArtboardsByPosition.md"; /* README (English) */
@@ -194,6 +194,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
             columnGap: { ja: "列間：", en: "Column gap:" },
             rowGap:    { ja: "行間：", en: "Row gap:" }
         },
+        tooltip: {
+            sortByName:     { ja: "アートボードパネルの並び順を、アートボード名の昇順に整えます。", en: "Sorts the Artboards panel by artboard name." },
+            sortByPosition: { ja: "アートボードパネルの並び順を、カンバス上の配置（左上から右下）に合わせます。", en: "Sorts the Artboards panel to match the canvas layout, top-left to bottom-right." },
+            sortKeepAsIs:   { ja: "アートボードパネルの並び順は変更しません。", en: "Leaves the Artboards panel order untouched." },
+            tolerance: {
+                ja: "上下のずれがこの値以内なら同じ行とみなします。行の切れ目が合わないときに調整します。",
+                en: "Artboards within this vertical distance count as one row. Adjust it when the rows come out wrong."
+            },
+            rearrangeByColumns: { ja: "指定した列数で折り返しながら、カンバス上のアートボードを並べ直します。", en: "Rearranges the artboards on the canvas, wrapping at the given column count." },
+            rearrangeByName:    { ja: "アートボード名に含まれる「行-列」を読み取って、その位置へ並べ直します。", en: "Reads the row-column part of each artboard name and places it accordingly." },
+            gapLink:            { ja: "列間と同じ値を行間にも使います。", en: "Uses the column gap for the row gap too." },
+            duplicateAppendToRowEnd: { ja: "行列を読み取れなかったアートボードや重複したものを、それぞれの行の末尾に置きます。", en: "Puts artboards with no readable row-column, or duplicates, at the end of each row." },
+            duplicateGroupInLastRow: { ja: "行列を読み取れなかったアートボードや重複したものを、最終行の次の行にまとめます。", en: "Collects artboards with no readable row-column, or duplicates, into a row after the last one." },
+            namingEnable:       { ja: "処理のあと、アートボード名を「行-列」形式に付け直します。", en: "Renames the artboards as row-column once the rearranging is done." },
+            namingFromPosition: { ja: "並べ直したあとの位置から、新しい名前を作ります。", en: "Builds the new names from the positions after rearranging." },
+            namingFromExisting: { ja: "既存の名前に含まれる行列を読み取り、区切り文字と桁数だけ整えます。", en: "Keeps the row-column found in the existing names and only fixes the separator and digits." }
+        },
         button: {
             ok:     { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
@@ -227,30 +244,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位コードとラベルのマッピング / Mapping of unit codes to labels */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
     /**
-     * 現在の定規単位のラベルを取得する
-     * @returns {string} 単位ラベル（取得できない場合は "pt"）
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
-    var currentUnitLabel = getCurrentUnitLabel();
+
+    var currentUnitLabel = getUnitInfo().label;
 
     /**
      * 表示単位の数値をポイントに変換する
@@ -692,6 +718,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         var byNameRow = reorderPanel.add("group");
         setupRow(byNameRow);
         var sortByNameRadio = byNameRow.add("radiobutton", undefined, getLabel("radio", "sortByName"));
+        sortByNameRadio.helpTip = getLabel("tooltip", "sortByName");
 
         /* カンバス上の並び順に（ラジオ）＋ 許容差スライダーを同じ行に配置
          * Radio "Match canvas order" and tolerance slider on the same row */
@@ -699,15 +726,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         setupRow(byPositionRow);
 
         var sortByPositionRadio = byPositionRow.add("radiobutton", undefined, getLabel("radio", "sortByPosition"));
+        sortByPositionRadio.helpTip = getLabel("tooltip", "sortByPosition");
         sortByPositionRadio.value = true;
 
         var toleranceSlider = byPositionRow.add("slider", undefined, defaultTolerance, 0, sliderMax);
+        toleranceSlider.helpTip = getLabel("tooltip", "tolerance");
         toleranceSlider.preferredSize = [SLIDER_WIDTH, SLIDER_HEIGHT];
 
         /* 変更しない（ラジオ） / Radio "Keep as is" */
         var keepAsIsRow = reorderPanel.add("group");
         setupRow(keepAsIsRow);
         var sortKeepAsIsRadio = keepAsIsRow.add("radiobutton", undefined, getLabel("radio", "sortKeepAsIs"));
+        sortKeepAsIsRadio.helpTip = getLabel("tooltip", "sortKeepAsIs");
 
         var reorderList = reorderPanel.add("listbox", undefined, [], { multiselect: false });
         reorderList.preferredSize.width = PREVIEW_LIST_WIDTH;
@@ -784,7 +814,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         setupColumn(modeGroup, ["left", "top"]);
 
         var byColumnsCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox", "rearrangeByColumns"));
+        byColumnsCheckbox.helpTip = getLabel("tooltip", "rearrangeByColumns");
         var byNameCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox", "rearrangeByName"));
+        byNameCheckbox.helpTip = getLabel("tooltip", "rearrangeByName");
         byColumnsCheckbox.value = false;
         byNameCheckbox.value = false;
 
@@ -816,6 +848,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         rowGapRow.row.add("statictext", undefined, currentUnitLabel);
 
         var gapLinkCheckbox = gapsRow.add("checkbox", undefined, getLabel("checkbox", "gapLink"));
+        gapLinkCheckbox.helpTip = getLabel("tooltip", "gapLink");
         gapLinkCheckbox.value = true;
 
         bindGapLinkControls(columnGapInput, rowGapInput, rowGapRow.row, gapLinkCheckbox);
@@ -868,7 +901,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         setupPanel(duplicatePanel, DENSE_SPACING);
 
         var duplicateAppendRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio", "duplicateAppendToRowEnd"));
+        duplicateAppendRadio.helpTip = getLabel("tooltip", "duplicateAppendToRowEnd");
         var duplicateGroupRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio", "duplicateGroupInLastRow"));
+        duplicateGroupRadio.helpTip = getLabel("tooltip", "duplicateGroupInLastRow");
         duplicateAppendRadio.value = true;
 
         return {
@@ -906,6 +941,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         setupPanel(namingPanel);
 
         var namingEnableCheckbox = namingPanel.add("checkbox", undefined, getLabel("checkbox", "namingEnable"));
+        namingEnableCheckbox.helpTip = getLabel("tooltip", "namingEnable");
         namingEnableCheckbox.value = false;
 
         var namingSettingsGroup = namingPanel.add("group");
@@ -915,7 +951,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹�
         var sourceGroup = namingSettingsGroup.add("group");
         setupColumn(sourceGroup, ["left", "top"]);
         var fromPositionRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio", "namingFromPosition"));
+        fromPositionRadio.helpTip = getLabel("tooltip", "namingFromPosition");
         var fromExistingRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio", "namingFromExisting"));
+        fromExistingRadio.helpTip = getLabel("tooltip", "namingFromExisting");
         fromPositionRadio.value = true;
 
         /* 区切り文字パネルと桁数パネルを横並び / Separator and digits panels side by side */

@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeToolkit.md"; /* README (English) */
@@ -303,18 +303,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* ルーラー単位に応じたラベルと pt 変換係数を返す / Ruler unit label and pt conversion factor */
-    function getRulerUnitInfo(doc) {
-        var rulerUnit = doc.rulerUnits;
-        if (rulerUnit === RulerUnits.Millimeters) return { label: "mm", toPt: 72 / 25.4 };
-        if (rulerUnit === RulerUnits.Centimeters) return { label: "cm", toPt: 72 / 2.54 };
-        if (rulerUnit === RulerUnits.Inches) return { label: "in", toPt: 72 };
-        if (rulerUnit === RulerUnits.Points) return { label: "pt", toPt: 1 };
-        if (rulerUnit === RulerUnits.Picas) return { label: "pica", toPt: 12 };
-        if (rulerUnit === RulerUnits.Pixels) return { label: "px", toPt: 72 / 96 };
-        /* Q（歯）= 0.25mm。古いバージョンでは RulerUnits.Qs が未定義なので最後に判定 / 1Q = 0.25mm; checked last because RulerUnits.Qs is undefined on older versions */
-        if (rulerUnit === RulerUnits.Qs) return { label: "Q", toPt: (72 / 25.4) * 0.25 };
-        return { label: "pt", toPt: 1 };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -1785,7 +1803,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // 調整ダイアログ：エリア内文字 調整
     // ============================================================
     function showAdjustDialog(doc, initialFrame, targetFrames, initialAlignmentValue) {
-        var rulerInfo = getRulerUnitInfo(doc);
+        var rulerInfo = getUnitInfo("rulerType");
 
         // 変換したてのフレームかどうか。既存のエリア内文字では、DOM から読み取れない項目
         // （テキストの配置・自動サイズ調整）や未設定の項目を、触っていないのに書き換えない
@@ -2101,7 +2119,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         function getMaxSizeInRulerUnits() {
             // 上限は pt で固定（極端値を防ぐ）。表示単位に合わせて換算。
             // 100000pt は現実的に十分大きく、かつ事故りにくい上限。
-            return 100000 / rulerInfo.toPt;
+            return 100000 / rulerInfo.pointsPerUnit;
         }
 
         /* 幅・高さ欄の値を検証して返す（不正なら null）/ Validate a width/height field and return its value (null when invalid) */
@@ -2165,23 +2183,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* 幅から差し引く余白（間隔×2＋左右インデント）/ Horizontal space taken out of the width (spacing x2 + both indents) */
         function getWidthAdjustmentPt() {
-            var spacingPt = chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.toPt : 0;
-            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt;
-            var rightIndentPt = chkLinkIndents.value ? leftIndentPt : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt);
+            var spacingPt = chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.pointsPerUnit : 0;
+            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit;
+            var rightIndentPt = chkLinkIndents.value ? leftIndentPt : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.pointsPerUnit);
             return 2 * spacingPt + leftIndentPt + rightIndentPt;
         }
 
         /* 幅とフォントサイズから字詰め欄を更新する / Refresh the chars-per-line field from the width and font size */
         function updateCharsPerLineField() {
             if (currentFontSize <= 0) return;
-            var widthPt = (parseFloat(etWidth.text) || 0) * rulerInfo.toPt;
+            var widthPt = (parseFloat(etWidth.text) || 0) * rulerInfo.pointsPerUnit;
             etCharsPerLine.text = Math.round(((widthPt - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
         }
 
         /* 選択フレームの現在値をダイアログに読み込む / Load the frame's current values into the dialog */
         function loadValuesFromFrame(sourceFrame) {
-            var frameWidth = sourceFrame.textPath.width / rulerInfo.toPt;
-            var frameHeight = sourceFrame.textPath.height / rulerInfo.toPt;
+            var frameWidth = sourceFrame.textPath.width / rulerInfo.pointsPerUnit;
+            var frameHeight = sourceFrame.textPath.height / rulerInfo.pointsPerUnit;
             currentFontSize = 0;
             try { currentFontSize = sourceFrame.textRange.characterAttributes.size || 0; } catch (e) { }
             if (currentFontSize > 0) { etFontSize.text = Math.round(currentFontSize * 100) / 100; }
@@ -2197,7 +2215,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             } catch (e) { justifyState.activeId = "left"; }
             try {
                 var spacingPt = sourceFrame.spacing || 0;
-                etSpacing.text = Math.round((spacingPt / rulerInfo.toPt) * 100) / 100;
+                etSpacing.text = Math.round((spacingPt / rulerInfo.pointsPerUnit) * 100) / 100;
                 chkSpacing.value = (spacingPt !== 0);
                 updateSpacingEnabled();
             } catch (e) { }
@@ -2205,8 +2223,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 var firstParaAttrs = sourceFrame.paragraphs.length > 0 ? sourceFrame.paragraphs[0].paragraphAttributes : null;
                 var leftIndentPt = firstParaAttrs ? (firstParaAttrs.leftIndent || 0) : 0;
                 var rightIndentPt = firstParaAttrs ? (firstParaAttrs.rightIndent || 0) : 0;
-                etLeftIndent.text = Math.round((leftIndentPt / rulerInfo.toPt) * 100) / 100;
-                etRightIndent.text = Math.round((rightIndentPt / rulerInfo.toPt) * 100) / 100;
+                etLeftIndent.text = Math.round((leftIndentPt / rulerInfo.pointsPerUnit) * 100) / 100;
+                etRightIndent.text = Math.round((rightIndentPt / rulerInfo.pointsPerUnit) * 100) / 100;
                 // 左右が違うテキストは連動を外して開く（右の値を潰さないため）
                 // Open with the link off when the two differ, so the right value is not overwritten
                 if (Math.abs(leftIndentPt - rightIndentPt) > 0.01) { chkLinkIndents.value = false; }
@@ -2244,7 +2262,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* ダイアログの入力を1つの設定オブジェクトにまとめる / Collect the dialog inputs into one settings object */
         function readAdjustmentSettings() {
-            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt;
+            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit;
 
             // 幅/高さの検証はここで1回だけ行う（不正なら null にして書き込まない）
             // Width and height are validated once here; null means the value is not written back
@@ -2260,15 +2278,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 tabMode: roleState.tabMode,
                 justification: getJustificationValue(justifyState.activeId),
                 alignment: userTouched.alignment ? getAlignmentValue(alignState.activeId) : null,
-                widthPt: (widthValue !== null) ? widthValue * rulerInfo.toPt : null,
-                heightPt: (heightValue !== null && userTouched.height) ? heightValue * rulerInfo.toPt : null,
+                widthPt: (widthValue !== null) ? widthValue * rulerInfo.pointsPerUnit : null,
+                heightPt: (heightValue !== null && userTouched.height) ? heightValue * rulerInfo.pointsPerUnit : null,
                 leadingPercent: parseFloat(etLeadingPercent.text),
                 kinsoku: (userTouched.kinsoku && kinsokuDropdown.selection) ? KINSOKU_CHOICES[kinsokuDropdown.selection.index].id : null,
                 mojikumiIndex: (userTouched.mojikumi && mojikumiDropdown.selection) ? MOJIKUMI_CHOICES[mojikumiDropdown.selection.index].index : -2,
                 leftIndentPt: leftIndentPt,
                 rightIndentPt: chkLinkIndents.value ? leftIndentPt
-                    : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt),
-                spacingPt: chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.toPt : 0
+                    : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.pointsPerUnit),
+                spacingPt: chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.pointsPerUnit : 0
             };
         }
 
@@ -2451,7 +2469,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 1行の文字数から幅を逆算する / Work the width back out from the characters-per-line value */
         function onCharsPerLineChange() {
             if (currentFontSize > 0) {
-                var nextWidth = (((parseFloat(etCharsPerLine.text) || 0) * currentFontSize + getWidthAdjustmentPt()) / rulerInfo.toPt);
+                var nextWidth = (((parseFloat(etCharsPerLine.text) || 0) * currentFontSize + getWidthAdjustmentPt()) / rulerInfo.pointsPerUnit);
                 if (!isNaN(nextWidth) && isFinite(nextWidth) && nextWidth > 0) {
                     etWidth.text = Math.round(nextWidth * 100) / 100;
                     var widthValue = validateSizeField(etWidth, lastValidWidth);
@@ -2540,8 +2558,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 var frame = framesToAdjust[i];
                 if (!frame || frame.typename !== "TextFrame" || frame.kind !== TextType.AREATEXT) continue;
                 try {
-                    etWidth.text = Math.round((frame.textPath.width / rulerInfo.toPt) * 100) / 100;
-                    etHeight.text = Math.round((frame.textPath.height / rulerInfo.toPt) * 100) / 100;
+                    etWidth.text = Math.round((frame.textPath.width / rulerInfo.pointsPerUnit) * 100) / 100;
+                    etHeight.text = Math.round((frame.textPath.height / rulerInfo.pointsPerUnit) * 100) / 100;
                     lastValidWidth = parseFloat(etWidth.text);
                     lastValidHeight = parseFloat(etHeight.text);
                 } catch (e) { }

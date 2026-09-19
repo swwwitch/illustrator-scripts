@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TitleBarLineCutSp";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TitleBarLineCutSp.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TitleBarLineCutSp.md"; /* README (English) */
@@ -48,6 +48,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         strokeWidth: { ja: "線幅", en: "Stroke" },
         strokePanel: { ja: "線", en: "Stroke" }, // Stroke settings panel label
         capPanel: { ja: "線端", en: "Cap" },
+        tipOffset: { ja: "元のオブジェクトから線を離す距離です。", en: "How far the rule sits from the original object." },
+        tipStroke: { ja: "線の太さです。", en: "Weight of the rule." },
+        tipCapButt: { ja: "線の端を切りっぱなしにします。", en: "Leaves the line ends flat." },
+        tipCapRound: { ja: "線の端を丸くします。", en: "Rounds the line ends." },
+        tipJoinMiter: { ja: "角を尖らせたまま結合します。", en: "Keeps the corners pointed." },
+        tipJoinRound: { ja: "角を丸めて結合します。", en: "Rounds off the corners." },
+        tipJoinBevel: { ja: "角を面取りして結合します。", en: "Cuts the corners off flat." },
         capButt: { ja: "なし", en: "Butt" },
         capRound: { ja: "丸型線端", en: "Round" },
         joinPanel: { ja: "角の形状", en: "Join" },
@@ -161,72 +168,48 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
          * - text/units: 文字
          * - text/asianunits: 東アジア言語（Q/H 表示切替）
          */
-        var unitMap = {
-            0: "in",
-            1: "mm",
-            2: "pt",
-            3: "pica",
-            4: "cm",
-            6: "px",
-            7: "ft/in",
-            8: "m",
-            9: "yd",
-            10: "ft"
-        };
+        /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+        var UNITS = [
+            { label: "in",    pointsPerUnit: 72 },                /* 0 */
+            { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+            { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+            { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+            { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+            { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+            { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+            { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+            { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+            { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+            { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+        ];
 
-        function getUnitCode(prefKey) {
-            var v = 2; // pt
-            safeDo(function () { v = app.preferences.getIntegerPreference(prefKey); });
-            return v;
-        }
+        /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+           Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+        var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-        // 単位コードと設定キーから適切な単位ラベルを返す（Q/H分岐含む）
-        function getUnitLabel(code, prefKey) {
-            if (code === 5) {
-                var hKeys = {
-                    "text/asianunits": true,
-                    "rulerType": true,
-                    "strokeUnits": true
-                };
-                return hKeys[prefKey] ? "H" : "Q";
-            }
-            return unitMap[code] || "pt";
-        }
-
-        // 単位コードから「1単位あたり何ptか」を返す
-        function getPtFactorFromUnitCode(code) {
-            switch (code) {
-                case 0: return 72.0;                        // in
-                case 1: return 72.0 / 25.4;                 // mm
-                case 2: return 1.0;                         // pt
-                case 3: return 12.0;                        // pica
-                case 4: return 72.0 / 2.54;                 // cm
-                case 5: return 72.0 / 25.4 * 0.25;          // Q or H (0.25mm)
-                case 6: return 1.0;                         // px（内部では概ねpt扱い）
-                case 7: return 72.0 * 12.0;                 // ft
-                case 8: return 72.0 / 25.4 * 1000.0;        // m
-                case 9: return 72.0 * 36.0;                 // yd
-                case 10: return 72.0 * 12.0;                // ft
-                default: return 1.0;
-            }
+        /**
+         * 設定キーごとの単位情報を取得する
+         * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+         * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+         */
+        function getUnitInfo(prefKey) {
+            var unitKey = prefKey || "rulerType";
+            var unitCode = app.preferences.getIntegerPreference(unitKey);
+            var unit = UNITS[unitCode] || UNITS[2];
+            var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+            return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
         }
 
         function unitToPt(valueInUnit, prefKey) {
-            var code = getUnitCode(prefKey);
-            var f = getPtFactorFromUnitCode(code);
-            return valueInUnit * f;
+            return valueInUnit * getUnitInfo(prefKey).pointsPerUnit;
         }
 
         function ptToUnit(valuePt, prefKey) {
-            var code = getUnitCode(prefKey);
-            var f = getPtFactorFromUnitCode(code);
-            if (!f) return valuePt;
-            return valuePt / f;
+            return valuePt / getUnitInfo(prefKey).pointsPerUnit;
         }
 
         function getCurrentUnitLabel(prefKey) {
-            var code = getUnitCode(prefKey);
-            return getUnitLabel(code, prefKey);
+            return getUnitInfo(prefKey).label;
         }
 
         function round1(v) {
@@ -296,6 +279,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var __offsetPrefKey = "rulerType";
         // __offsetDefaultPt は「C高さ/3（pt）」で事前計算済み
         var offsetInput = grp1.add('edittext', undefined, String(round1(ptToUnit(__offsetDefaultPt, __offsetPrefKey))));
+        offsetInput.helpTip = getLabel('tipOffset');
         offsetInput.characters = 3;
         changeValueByArrowKey(offsetInput);
         grp1.add('statictext', undefined, getCurrentUnitLabel(__offsetPrefKey));
@@ -312,6 +296,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var __strokePrefKey = "strokeUnits";
         var __strokeDefaultPt = 2;
         var strokeInput = grp2.add('edittext', undefined, String(round1(ptToUnit(__strokeDefaultPt, __strokePrefKey))));
+        strokeInput.helpTip = getLabel('tipStroke');
         strokeInput.characters = 3;
         changeValueByArrowKey(strokeInput);
         grp2.add('statictext', undefined, getCurrentUnitLabel(__strokePrefKey));
@@ -323,7 +308,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panelCap.margins = [15, 20, 15, 10];
 
         var rbCapButt = panelCap.add('radiobutton', undefined, getLabel('capButt'));
+        rbCapButt.helpTip = getLabel('tipCapButt');
         var rbCapRound = panelCap.add('radiobutton', undefined, getLabel('capRound'));
+        rbCapRound.helpTip = getLabel('tipCapRound');
 
         rbCapButt.value = true; // デフォルト
 
@@ -341,8 +328,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panelJoin.margins = [15, 20, 15, 10];
 
         var rbJoinMiter = panelJoin.add('radiobutton', undefined, getLabel('joinMiter'));
+        rbJoinMiter.helpTip = getLabel('tipJoinMiter');
         var rbJoinRound = panelJoin.add('radiobutton', undefined, getLabel('joinRound'));
+        rbJoinRound.helpTip = getLabel('tipJoinRound');
         var rbJoinBevel = panelJoin.add('radiobutton', undefined, getLabel('joinBevel'));
+        rbJoinBevel.helpTip = getLabel('tipJoinBevel');
 
         rbJoinMiter.value = true; // デフォルト
 

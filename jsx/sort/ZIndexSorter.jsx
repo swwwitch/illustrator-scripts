@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ZIndexSorter";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZIndexSorter.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZIndexSorter.md"; /* README (English) */
@@ -79,6 +79,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "キャンセル",
             en: "Cancel"
         },
+        tipZOrder: { ja: "いまの重ね順をそのまま基準にします。並び順だけを変えたいときに使います。", en: "Uses the current stacking order as the basis. Pick this when only the direction should change." },
+        tipXAxis:  { ja: "X座標を基準に重ね順を組み直します。", en: "Restacks the objects by their X position." },
+        tipYAxis:  { ja: "Y座標を基準に重ね順を組み直します。", en: "Restacks the objects by their Y position." },
+        tipAsc:    { ja: "基準の値が小さいものほど背面にします。", en: "Puts objects with smaller values further back." },
+        tipDesc:   { ja: "基準の値が大きいものほど背面にします。", en: "Puts objects with larger values further back." },
+        tipRand:   { ja: "基準と関係なく、重ね順をシャッフルします。", en: "Shuffles the stacking order regardless of the basis." },
         errors: {
             selectMore: {
                 ja: "2つ以上のオブジェクトを選択してください。",
@@ -199,8 +205,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sortPanel.alignChildren = "left";
         sortPanel.margins = [15, 20, 15, 10];
         var rbZOrder = sortPanel.add("radiobutton", undefined, LABELS.zOrder[uiLang]);
+        rbZOrder.helpTip = LABELS.tipZOrder[uiLang];
         var rbXAxis  = sortPanel.add("radiobutton", undefined, LABELS.xAxis[uiLang]);
+        rbXAxis.helpTip = LABELS.tipXAxis[uiLang];
         var rbYAxis  = sortPanel.add("radiobutton", undefined, LABELS.yAxis[uiLang]);
+        rbYAxis.helpTip = LABELS.tipYAxis[uiLang];
         rbZOrder.value = true;
 
         var orderPanel = dialog.add("panel", undefined, LABELS.orderMethod[uiLang]);
@@ -208,8 +217,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         orderPanel.alignChildren = "left";
         orderPanel.margins = [15, 20, 15, 10];
         var rbAsc  = orderPanel.add("radiobutton", undefined, LABELS.asc[uiLang]);
+        rbAsc.helpTip = LABELS.tipAsc[uiLang];
         var rbDesc = orderPanel.add("radiobutton", undefined, LABELS.desc[uiLang]);
+        rbDesc.helpTip = LABELS.tipDesc[uiLang];
         var rbRand = orderPanel.add("radiobutton", undefined, LABELS.rand[uiLang]);
+        rbRand.helpTip = LABELS.tipRand[uiLang];
         rbAsc.value = true;
 
         var btnGroup = dialog.add("group");

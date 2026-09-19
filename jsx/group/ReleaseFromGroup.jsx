@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ReleaseFromGroup";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseFromGroup.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseFromGroup.md"; /* README (English) */
@@ -52,23 +52,6 @@ var LABELS = {
         noSelection: { ja: "オブジェクトを選択して実行してください。", en: "Please select objects and run the script." }
     }
 };
-
-/**
- * LABELS から現在のロケールに対応する文言を取得する
- * @param {string} key - LABELS のキー
- * @returns {string} ロケールに対応する文言。見つからない場合は英語、それも無ければキーをそのまま返す
- */
-function getLabel(path) {
-    var parts = String(path).split(".");
-    var node = LABELS;
-    for (var i = 0; i < parts.length; i++) {
-        if (node == null) return path;
-        node = node[parts[i]];
-    }
-    if (node == null) return path;
-    if (node[uiLang] != null) return node[uiLang];
-    return (node.en != null) ? node.en : path;
-}
 
 // main
 var doc = app.documents.length && app.activeDocument;

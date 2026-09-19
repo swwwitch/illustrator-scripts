@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "Slice2Artboards";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Slice2Artboards.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Slice2Artboards.md"; /* README (English) */
@@ -107,6 +107,28 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             underscore: { ja: "_", en: "_" },
             without: { ja: "なし", en: "None" }
         },
+        tooltip: {
+            shape: {
+                ja: "分割後の1枠のアスペクト比です。選んだ比率に合わせて行数・列数が決まります。",
+                en: "Aspect ratio of one slice. The row and column counts follow the ratio you pick."
+            },
+            columns: { ja: "横に並べる枠の数です。", en: "How many slices to place across." },
+            rows:    { ja: "縦に並べる枠の数です。", en: "How many slices to place down." },
+            offset: {
+                ja: "枠どうしのあいだにあけるすき間です。チェックを外すとすき間なしで分割します。",
+                en: "Gap left between slices. Unchecked slices them with no gap."
+            },
+            convertArtboard: {
+                ja: "分割した枠をアートボードにします。オフのときは長方形を描くだけです。",
+                en: "Turns each slice into an artboard. Off just draws the rectangles."
+            },
+            useFileName: { ja: "接頭辞にドキュメントのファイル名（拡張子なし）を使います。", en: "Uses the document file name, without its extension, as the prefix." },
+            prefix:      { ja: "アートボード名の先頭に付ける文字列です。", en: "Text placed at the start of each artboard name." },
+            separator:   { ja: "接頭辞と連番のあいだに入れる記号です。", en: "Character placed between the prefix and the number." },
+            startNumber: { ja: "連番の開始値です。", en: "The number the sequence starts from." },
+            zeroPad:     { ja: "開始番号の桁数にそろえて 0 を補います（01, 02, ...）。", en: "Pads the numbers with zeros to the width of the start number (01, 02, ...)." },
+            margin:      { ja: "各アートボードの外側に足す余白です。", en: "Extra space added around each artboard." }
+        },
         button: {
             run: { ja: "実行", en: "Run" },
             cancel: { ja: "キャンセル", en: "Cancel" }
@@ -159,13 +181,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位 / Units
     // =========================================
 
-    /* rulerType の並びに対応した単位ラベル / Unit labels matching the rulerType order */
-    var UNIT_LABELS = ["in", "mm", "pt", "pica", "cm", "Q/H", "px", "ft/in", "m", "yd", "ft"];
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    /* 現在の定規単位のラベルを返す / Return the label of the current ruler unit */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return UNIT_LABELS[unitCode] || "pt";
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -524,6 +569,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (preset.englishOnly && currentLanguage === "ja") continue;
 
             var radio = shapePanel.add("radiobutton", undefined, getLabel("shape." + preset.key));
+            radio.helpTip = getLabel("tooltip.shape");
             radio.alignment = "left";
             shapeRadios.push({ radio: radio, ratio: preset.ratio });
         }
@@ -535,10 +581,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         divisionRow.add("statictext", undefined, labelText("field.columns"));
         var columnInput = divisionRow.add("edittext", undefined, String(CONFIG.defaultColumnCount));
+        columnInput.helpTip = getLabel("tooltip.columns");
         columnInput.characters = 3;
 
         divisionRow.add("statictext", undefined, labelText("field.rows"));
         var rowInput = divisionRow.add("edittext", undefined, String(CONFIG.defaultRowCount));
+        rowInput.helpTip = getLabel("tooltip.rows");
         rowInput.characters = 3;
 
         /* オフセット / Offset */
@@ -546,13 +594,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupRow(offsetRow, "left", 6);
 
         var offsetCheckbox = offsetRow.add("checkbox", undefined, getLabel("field.offset"));
+        offsetCheckbox.helpTip = getLabel("tooltip.offset");
         offsetCheckbox.value = true;
         var offsetInput = offsetRow.add("edittext", undefined, String(CONFIG.defaultOffset));
+        offsetInput.helpTip = getLabel("tooltip.offset");
         offsetInput.characters = 4;
-        var offsetUnitLabel = offsetRow.add("statictext", undefined, getCurrentUnitLabel());
+        var offsetUnitLabel = offsetRow.add("statictext", undefined, getUnitInfo().label);
 
         /* アートボード変換 / Convert to artboards */
         var artboardCheckbox = rightColumn.add("checkbox", undefined, getLabel("checkbox.convertArtboard"));
+        artboardCheckbox.helpTip = getLabel("tooltip.convertArtboard");
         artboardCheckbox.value = true;
         artboardCheckbox.alignment = "left";
 
@@ -561,35 +612,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         artboardPanel.alignChildren = ["left", "top"];
 
         var useFileNameCheckbox = artboardPanel.add("checkbox", undefined, getLabel("checkbox.useFileName"));
+        useFileNameCheckbox.helpTip = getLabel("tooltip.useFileName");
 
         var prefixRow = artboardPanel.add("group");
         setupRow(prefixRow, "left", 6);
         prefixRow.add("statictext", undefined, labelText("field.prefix"));
         var prefixInput = prefixRow.add("edittext", undefined, "");
+        prefixInput.helpTip = getLabel("tooltip.prefix");
         prefixInput.characters = 14;
 
         var separatorRow = artboardPanel.add("group");
         setupRow(separatorRow, "left", 6);
         separatorRow.add("statictext", undefined, labelText("field.separator"));
         var dashRadio = separatorRow.add("radiobutton", undefined, getLabel("separator.dash"));
+        dashRadio.helpTip = getLabel("tooltip.separator");
         var underscoreRadio = separatorRow.add("radiobutton", undefined, getLabel("separator.underscore"));
+        underscoreRadio.helpTip = getLabel("tooltip.separator");
         var withoutRadio = separatorRow.add("radiobutton", undefined, getLabel("separator.without"));
+        withoutRadio.helpTip = getLabel("tooltip.separator");
         dashRadio.value = true;
 
         var numberRow = artboardPanel.add("group");
         setupRow(numberRow, "left", 6);
         numberRow.add("statictext", undefined, labelText("field.startNumber"));
         var startNumberInput = numberRow.add("edittext", undefined, String(CONFIG.defaultStartNumber));
+        startNumberInput.helpTip = getLabel("tooltip.startNumber");
         startNumberInput.characters = 3;
         var zeroPadCheckbox = numberRow.add("checkbox", undefined, getLabel("checkbox.zeroPad"));
+        zeroPadCheckbox.helpTip = getLabel("tooltip.zeroPad");
         zeroPadCheckbox.value = true;
 
         var marginRow = rightColumn.add("group");
         setupRow(marginRow, "left", 6);
         marginRow.add("statictext", undefined, labelText("field.margin"));
         var marginInput = marginRow.add("edittext", undefined, String(CONFIG.defaultMargin));
+        marginInput.helpTip = getLabel("tooltip.margin");
         marginInput.characters = 5;
-        marginRow.add("statictext", undefined, getCurrentUnitLabel());
+        marginRow.add("statictext", undefined, getUnitInfo().label);
 
         /* ボタン列 / Button row */
         var buttonRow = dialog.add("group");

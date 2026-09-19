@@ -67,10 +67,64 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 	}
 
 	// UI dialog
+	// =========================================
+	// ローカライズ / Localization
+	// =========================================
+
+	/**
+	 * 現在のUI言語を判定する
+	 * @returns {string} "ja" または "en"
+	 */
+	function getCurrentLang() {
+		return ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+	}
+	var uiLang = getCurrentLang();
+
+	/* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+	var LABELS = {
+		panel: {
+			symbol: { ja: 'シンボル', en: 'Symbol' }
+		},
+		button: {
+			ok:     { ja: '実行', en: 'Run' },
+			cancel: { ja: 'キャンセル', en: 'Cancel' }
+		},
+		tooltip: {
+			symbol: {
+				ja: '選択したオブジェクトを、このシンボルのインスタンスに置き換えます。',
+				en: 'Replaces the selected objects with an instance of this symbol.'
+			}
+		}
+	};
+
+	/**
+	 * ラベルを取得する（ドット区切りキー）
+	 * @param {string} labelPath - "panel.symbol" のようなドット区切りキー
+	 * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+	 */
+	function getLabel(labelPath) {
+		var pathKeys = String(labelPath).split('.');
+		var labelNode = LABELS;
+		for (var i = 0; i < pathKeys.length; i++) {
+			labelNode = labelNode[pathKeys[i]];
+			if (!labelNode) return labelPath;
+		}
+		return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+	}
+
+	/**
+	 * 項目名にコロンを付ける（日本語は全角、英語は半角）
+	 * @param {string} labelPath - ラベルのドット区切りキー
+	 * @returns {string} コロン付きの項目名
+	 */
+	function labelText(labelPath) {
+		return getLabel(labelPath) + (uiLang === 'ja' ? '：' : ': ');
+	}
+
 	function createDialog() {
 		var window = new Window('dialog', SCRIPT_TITLE + ' - ver.' + SCRIPT_VERSION);
 
-		var symbolPanel = window.add('panel', undefined, 'シンボル：');
+		var symbolPanel = window.add('panel', undefined, labelText('panel.symbol'));
 		symbolPanel.alignment = 'left';
 		symbolPanel.margins = [15, 20, 15, 10];
 		symbolPanel.orientation = 'column';
@@ -103,6 +157,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 			for (var i = 0; i < visibleCount; i++) {
 				var entry = symbolEntries[i];
 				var radio = radioGroup.add('radiobutton', undefined, entry.name);
+				radio.helpTip = getLabel('tooltip.symbol');
 				radio.symbolIndex = entry.index;
 				radio.value = (entry.index === settings.symbolIndex);
 				radio.onClick = onRadioClick;
@@ -135,8 +190,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 		}
 
 		function buildButtons(parent) {
-			var cancelButton = parent.add('button', undefined, 'キャンセル', { name: 'cancel' });
-			var okButton = parent.add('button', undefined, '実行', { name: 'ok' });
+			var cancelButton = parent.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+			var okButton = parent.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
 
 			okButton.onClick = function () {
 				try {

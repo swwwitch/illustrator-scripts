@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ColorPicker";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPicker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPicker.md"; /* README (English) */
@@ -61,17 +61,33 @@ var ColorPicker = (function () {
 
     var _dialogPos = null;
 
-    var L = {
+    var LABELS = {
         white:  { ja: "ホワイト", en: "White" },
         black:  { ja: "ブラック", en: "Black" },
         custom: { ja: "カスタム", en: "Custom" },
         gray:   { ja: "グレー",   en: "Gray" },
         cancel: { ja: "キャンセル", en: "Cancel" },
-        ok:     { ja: "OK",       en: "OK" }
+        ok:     { ja: "OK",       en: "OK" },
+        tipSlider: {
+            ja: "この成分の値をドラッグで決めます。右の欄に直接入力もできます。",
+            en: "Drag to set this component. You can also type into the field on the right."
+        },
+        tipPreset: {
+            ja: "よく使う色をすぐ選べます。「カスタム」で自由に指定できます。",
+            en: "Picks a common color. Custom lets you set any value."
+        },
+        tipHex: { ja: "色を16進数で指定します（例: FF0000）。", en: "Color as a hex value, for example FF0000." },
+        tipGray: { ja: "CMYKのK版だけで色を作ります（グレースケール）。", en: "Builds the color from the K plate only, giving a grayscale." }
     };
 
-    function ll(key, lng) {
-        return (L[key] && L[key][lng]) ? L[key][lng] : (L[key] ? L[key].en : key);
+    /**
+     * ラベルを取得する
+     * @param {string} key - LABELS のキー
+     * @param {string} lng - "ja" または "en"
+     * @returns {string} 該当するラベル
+     */
+    function getLabel(key, lng) {
+        return (LABELS[key] && LABELS[key][lng]) ? LABELS[key][lng] : (LABELS[key] ? LABELS[key].en : key);
     }
 
     var DEFAULT_SWATCHES = [
@@ -234,9 +250,11 @@ var ColorPicker = (function () {
         st.preferredSize = [18, -1];
 
         var slider = row.add("slider", undefined, value, 0, maxValue);
+        slider.helpTip = getLabel("tipSlider", lng);
         slider.preferredSize = [140, 20];
 
         var edit = row.add("edittext", undefined, String(Math.round(value)));
+        edit.helpTip = getLabel("tipSlider", lng);
         edit.characters = 3;
 
         slider.onChanging = function () {
@@ -292,9 +310,12 @@ var ColorPicker = (function () {
         presetRow.orientation = "row";
         presetRow.alignment = ["center", "top"];
         presetRow.alignChildren = ["left", "center"];
-        var rbWhite = presetRow.add("radiobutton", undefined, ll("white", lng));
-        var rbBlack = presetRow.add("radiobutton", undefined, ll("black", lng));
-        var rbCustom = presetRow.add("radiobutton", undefined, ll("custom", lng));
+        var rbWhite = presetRow.add("radiobutton", undefined, getLabel("white", lng));
+        rbWhite.helpTip = getLabel("tipPreset", lng);
+        var rbBlack = presetRow.add("radiobutton", undefined, getLabel("black", lng));
+        rbBlack.helpTip = getLabel("tipPreset", lng);
+        var rbCustom = presetRow.add("radiobutton", undefined, getLabel("custom", lng));
+        rbCustom.helpTip = getLabel("tipPreset", lng);
 
         var swatchPanel = dlg.add("group");
         swatchPanel.orientation = "row";
@@ -341,9 +362,11 @@ var ColorPicker = (function () {
         hexRow.orientation = "row";
         hexRow.add("statictext", undefined, "#");
         var etHex = hexRow.add("edittext", undefined, rgbToHex(state.rgb.r, state.rgb.g, state.rgb.b));
+        etHex.helpTip = getLabel("tipHex", lng);
         etHex.characters = 6;
 
-        var cbGray = tabCMYK.add("checkbox", undefined, ll("gray", lng));
+        var cbGray = tabCMYK.add("checkbox", undefined, getLabel("gray", lng));
+        cbGray.helpTip = getLabel("tipGray", lng);
         var c = createSlider(tabCMYK, "C", state.cmyk.c, 100);
         var m = createSlider(tabCMYK, "M", state.cmyk.m, 100);
         var y = createSlider(tabCMYK, "Y", state.cmyk.y, 100);
@@ -351,8 +374,8 @@ var ColorPicker = (function () {
 
         var btns = dlg.add("group");
         btns.alignment = ["center", "center"];
-        btns.add("button", undefined, ll("cancel", lng), { name: "cancel" });
-        btns.add("button", undefined, ll("ok", lng), { name: "ok" });
+        btns.add("button", undefined, getLabel("cancel", lng), { name: "cancel" });
+        btns.add("button", undefined, getLabel("ok", lng), { name: "ok" });
 
         return {
             dlg: dlg,

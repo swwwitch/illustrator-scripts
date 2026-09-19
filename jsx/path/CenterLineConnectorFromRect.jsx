@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CenterLineConnectorFromRect";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-12";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md"; /* README (English) */
@@ -71,6 +71,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblStrokePref: { ja: "線幅", en: "Stroke Width" },
         chkCommonStroke: { ja: "線幅を共通にする", en: "Make stroke widths common" },
         chkGroup: { ja: "グループ化", en: "Group result" },
+        chkReturnToOriginal: { ja: "元のレイヤーに戻す", en: "Return to the original layer" },
+        tipCenterLine: { ja: "細長い長方形を、その中心を通る1本の線に置き換えます。", en: "Replaces each long thin rectangle with a single line down its middle." },
+        tipAngleCorrect: { ja: "わずかに傾いた線を、水平・垂直にそろえ直します。", en: "Straightens lines that are only slightly off horizontal or vertical." },
+        tipMinShortSide: { ja: "短辺がこの値以下の長方形だけを線に置き換えます。", en: "Only rectangles whose short side is at most this value become lines." },
+        tipConnectNone: { ja: "線どうしはつなぎません。", en: "Leaves the lines unconnected." },
+        tipConnectAll: { ja: "交差しうる線をすべて延長してつなぎます。", en: "Extends every line that could meet another and joins them." },
+        tipConnectGrid: { ja: "格子状に並んでいる線だけをつなぎます。", en: "Joins only the lines that form a grid." },
+        tipOuterRect: { ja: "外周を囲む長方形も描きます。", en: "Also draws the rectangle that frames the whole set." },
+        tipPrintBlack: { ja: "線の色をスミ100%（K100）にします。", en: "Sets the line color to 100% black (K100)." },
+        tipStrokeMax: { ja: "元の長方形の短辺のうち、いちばん太いものに線幅をそろえます。", en: "Uses the thickest of the original short sides as the stroke weight." },
+        tipStrokeMin: { ja: "元の長方形の短辺のうち、いちばん細いものに線幅をそろえます。", en: "Uses the thinnest of the original short sides as the stroke weight." },
+        tipStrokeAvg: { ja: "元の長方形の短辺の平均を線幅にします。", en: "Uses the average of the original short sides as the stroke weight." },
+        tipStrokeCustom: { ja: "線幅を数値で指定します。", en: "Sets the stroke weight to a value you type." },
+        tipCommonStroke: { ja: "すべての線を同じ太さにそろえます。オフだと元の太さを保ちます。", en: "Gives every line the same weight. Off keeps their original weights." },
+        tipGroup: { ja: "作った線を1つのグループにまとめます。", en: "Groups the resulting lines together." },
+        tipReturnToOriginal: { ja: "作った線を、元の長方形があったレイヤーへ戻します。", en: "Moves the new lines back onto the layer the rectangles came from." },
         strokeMax: { ja: "最大", en: "Max" },
         strokeMin: { ja: "最小", en: "Min" },
         strokeAvg: { ja: "平均", en: "Average" },
@@ -130,79 +146,46 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位変換 / Unit Conversion
     // =========================================
 
-    /* 単位コードとラベルのマップ / Unit code to label map */
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 指定単位の1単位が何ptかを定義 / Point factor for one unit of each preference unit */
-    var unitToPointFactorMap = {
-        0: 72,                // in
-        1: 72 / 25.4,         // mm
-        2: 1,                 // pt
-        3: 12,                // pica
-        4: 72 / 2.54,         // cm
-        5: 72 / 25.4 / 4,     // Q/H
-        6: 1,                 // px
-        7: 72,                // ft/in
-        8: 72 / 0.0254,       // m
-        9: 72 * 36,           // yd
-        10: 72 * 12           // ft
-    };
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    /* 指定単位のpt換算係数を取得 / Get point factor for the given unit code */
-    function getUnitToPointFactor(unitCode) {
-        return unitToPointFactorMap[unitCode] || 1;
-    }
-
-    /* 線幅用の環境設定単位コードを取得 / Get current stroke unit code */
-    function getCurrentStrokeUnitCode() {
-        try {
-            return app.preferences.getIntegerPreference("strokeUnits");
-        } catch (e) {
-            return 2;
-        }
-    }
-
-    /* 線幅用の現在の単位ラベルを取得 / Get current stroke unit label */
-    function getCurrentStrokeUnitLabel() {
-        var unitCode = getCurrentStrokeUnitCode();
-        return unitLabelMap[unitCode] || "pt";
-    }
-
-    /* 長さ用の環境設定単位コードを取得 / Get current ruler unit code */
-    function getCurrentRulerUnitCode() {
-        try {
-            return app.preferences.getIntegerPreference("rulerType");
-        } catch (e) {
-            return 2;
-        }
-    }
-
-    /* 長さ用の現在の単位ラベルを取得 / Get current ruler unit label */
-    function getCurrentRulerUnitLabel() {
-        var unitCode = getCurrentRulerUnitCode();
-        return unitLabelMap[unitCode] || "pt";
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* pt値を指定単位の表示値へ変換 / Convert points to display unit value */
     function pointsToUnitValue(points, unitCode) {
-        return points / getUnitToPointFactor(unitCode);
+        return points / (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
     }
 
     /* 指定単位の入力値をptへ変換 / Convert display unit value to points */
     function unitValueToPoints(value, unitCode) {
-        return value * getUnitToPointFactor(unitCode);
+        return value * (UNITS[unitCode] || UNITS[2]).pointsPerUnit;
     }
 
     function createExclusionMarkerColor() {
@@ -412,9 +395,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var hasRectsInSelection = initialRectsForDetect.length > 0;
 
         var cbCenterLine = panel.add("checkbox", undefined, getLabel('pnlCenterLineConversion'));
+        cbCenterLine.helpTip = getLabel('tipCenterLine');
         cbCenterLine.value = hasRectsInSelection;
 
         var cbAngleCorrect = panel.add("checkbox", undefined, getLabel('chkAngleCorrect'));
+        cbAngleCorrect.helpTip = getLabel('tipAngleCorrect');
         cbAngleCorrect.value = true;
 
         var SHORT_MIN = 0;
@@ -428,15 +413,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         minShortSideGroup.spacing = 4;
 
         var cbMinShortSide = minShortSideGroup.add("checkbox", undefined, "");
+        cbMinShortSide.helpTip = getLabel('tipMinShortSide');
         cbMinShortSide.value = false;
         minShortSideGroup.add("statictext", undefined, getLabel('lblShortSideLength'));
 
         var minShortSideInput = minShortSideGroup.add("edittext", undefined, SHORT_DEFAULT.toFixed(1));
+        minShortSideInput.helpTip = getLabel('tipMinShortSide');
         minShortSideInput.characters = 5;
 
         minShortSideGroup.add("statictext", undefined, rulerUnitLabel + getLabel('lblGreaterEqual'));
 
         var minShortSideSlider = panel.add("slider", undefined, SHORT_DEFAULT, SHORT_MIN, SHORT_MAX);
+        minShortSideSlider.helpTip = getLabel('tipMinShortSide');
         minShortSideSlider.alignment = ["center", "center"];
         minShortSideSlider.preferredSize.width = 247;
 
@@ -467,10 +455,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         radioRow.spacing = 12;
 
         var rbConnectNone = radioRow.add("radiobutton", undefined, getLabel('rdoConnectNone'));
+        rbConnectNone.helpTip = getLabel('tipConnectNone');
         var rbConnectAll = radioRow.add("radiobutton", undefined, getLabel('chkConnectAll'));
+        rbConnectAll.helpTip = getLabel('tipConnectAll');
         var rbConnectGrid = radioRow.add("radiobutton", undefined, getLabel('rdoConnectGrid'));
+        rbConnectGrid.helpTip = getLabel('tipConnectGrid');
 
         var cbOuterRect = radioRow.add("checkbox", undefined, getLabel('chkOuterRect'));
+        cbOuterRect.helpTip = getLabel('tipOuterRect');
         cbOuterRect.value = false;
         rbConnectGrid.value = true;
 
@@ -493,6 +485,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         panel.spacing = 8;
 
         var cbPrintBlack = panel.add("checkbox", undefined, getLabel('chkPrintBlack'));
+        cbPrintBlack.helpTip = getLabel('tipPrintBlack');
         cbPrintBlack.value = false;
 
         var strokeWidthPanel = panel.add("panel", undefined, getLabel('lblStrokePref'));
@@ -507,18 +500,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         strokeRadioGroup.spacing = 8;
 
         var rbStrokeMax = strokeRadioGroup.add("radiobutton", undefined, getLabel('strokeMax'));
+        rbStrokeMax.helpTip = getLabel('tipStrokeMax');
         var rbStrokeMin = strokeRadioGroup.add("radiobutton", undefined, getLabel('strokeMin'));
+        rbStrokeMin.helpTip = getLabel('tipStrokeMin');
         var rbStrokeAvg = strokeRadioGroup.add("radiobutton", undefined, getLabel('strokeAvg'));
+        rbStrokeAvg.helpTip = getLabel('tipStrokeAvg');
         var rbStrokeCustom = strokeRadioGroup.add("radiobutton", undefined, getLabel('strokeCustom'));
+        rbStrokeCustom.helpTip = getLabel('tipStrokeCustom');
 
         rbStrokeCustom.value = true;
 
         var customStrokeInput = strokeRadioGroup.add("edittext", undefined, DEFAULT_STROKE_WIDTH_PT.toString());
+        customStrokeInput.helpTip = getLabel('tipStrokeCustom');
         customStrokeInput.characters = 4;
 
         strokeRadioGroup.add("statictext", undefined, strokeUnitLabel);
 
         var cbCommonStroke = strokeWidthPanel.add("checkbox", undefined, getLabel('chkCommonStroke'));
+        cbCommonStroke.helpTip = getLabel('tipCommonStroke');
         cbCommonStroke.value = true;
 
         return {
@@ -547,9 +546,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         row.spacing = 12;
 
         var cbGroup = row.add("checkbox", undefined, getLabel('chkGroup'));
+        cbGroup.helpTip = getLabel('tipGroup');
         cbGroup.value = true;
 
-        var cbReturnToOriginal = row.add("checkbox", undefined, "元のレイヤーに戻す");
+        var cbReturnToOriginal = row.add("checkbox", undefined, getLabel('chkReturnToOriginal'));
+        cbReturnToOriginal.helpTip = getLabel('tipReturnToOriginal');
         cbReturnToOriginal.value = false;
 
         return {
@@ -592,10 +593,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* ダイアログUI構築 / Build dialog UI */
     function buildOptionDialogUI(dialog) {
         var PANEL_MARGINS = [15, 20, 15, 10];
-        var strokeUnitCode = getCurrentStrokeUnitCode();
-        var strokeUnitLabel = getCurrentStrokeUnitLabel();
-        var rulerUnitCode = getCurrentRulerUnitCode();
-        var rulerUnitLabel = getCurrentRulerUnitLabel();
+        var strokeUnit = getUnitInfo("strokeUnits");
+        var strokeUnitCode = strokeUnit.code;
+        var strokeUnitLabel = strokeUnit.label;
+        var rulerUnit = getUnitInfo("rulerType");
+        var rulerUnitCode = rulerUnit.code;
+        var rulerUnitLabel = rulerUnit.label;
 
         var panelColumn = dialog.add("group");
         panelColumn.orientation = "column";

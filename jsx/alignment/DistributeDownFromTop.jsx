@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DistributeDownFromTop";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeDownFromTop.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeDownFromTop.md"; /* README (English) */
@@ -64,8 +64,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (selectedObjects.length < 1) return;
 
         /* 「サイズ／行送り」キー増加（text/sizeIncrement）を表示単位（text/units）込みで pt 換算 */
-        var textUnitType = app.preferences.getIntegerPreference("text/units");
-        var leadingStepPt = app.preferences.getRealPreference("text/sizeIncrement") * pointsPerTextUnit(textUnitType);
+        var leadingStepPt = app.preferences.getRealPreference("text/sizeIncrement") * getUnitInfo("text/units").pointsPerUnit;
 
         /* テキストを1つだけ選択 → 行送りを「サイズ／行送り」分増やす */
         if (selectedObjects.length === 1 && selectedObjects[0].typename === "TextFrame") {
@@ -94,18 +93,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
     }
 
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
     /**
-     * 環境設定［テキスト］の単位を pt へ換算する係数を返す
-     * @param {number} unitType - text/units の値（0=inch, 1=mm, 2=pt, 3=pica, 4=cm, 5=Q, 6=px）
-     * @returns {number} 1単位あたりのポイント数
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function pointsPerTextUnit(unitType) {
-        if (unitType === 0) return 72;               /* inch */
-        if (unitType === 1) return 72 / 25.4;        /* mm */
-        if (unitType === 3) return 12;               /* pica */
-        if (unitType === 4) return 72 / 2.54;        /* cm */
-        if (unitType === 5) return 72 / 25.4 * 0.25; /* Q（1Q = 0.25mm）*/
-        return 1;                                    /* pt / px / 既定 */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**

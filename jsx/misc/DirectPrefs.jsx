@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DirectPrefs";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefs.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefs.md"; /* README (English) */
@@ -114,25 +114,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
        / Single source of unit definitions (code, label, pt factor, display decimals)
        decimals: larger units need more digits so small values do not collapse to 0 (1mm is 0.039in) */
     var UNITS = [
-        { code: 0,  label: "in",    factor: 72.0,                 decimals: 3 },
-        { code: 1,  label: "mm",    factor: 72.0 / 25.4,          decimals: 1 },
-        { code: 2,  label: "pt",    factor: 1.0,                  decimals: 1 },
-        { code: 3,  label: "pica",  factor: 12.0,                 decimals: 2 },
-        { code: 4,  label: "cm",    factor: 72.0 / 2.54,          decimals: 2 },
-        { code: 5,  label: "Q/H",   factor: 72.0 / 25.4 * 0.25,   decimals: 1 },
-        { code: 6,  label: "px",    factor: 1.0,                  decimals: 1 },
-        { code: 7,  label: "ft/in", factor: 72.0 * 12.0,          decimals: 4 },
-        { code: 8,  label: "m",     factor: 72.0 / 25.4 * 1000.0, decimals: 4 },
-        { code: 9,  label: "yd",    factor: 72.0 * 36.0,          decimals: 4 },
-        { code: 10, label: "ft",    factor: 72.0 * 12.0,          decimals: 4 }
+        { label: "in",    pointsPerUnit: 72,               decimals: 3 },  /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4,        decimals: 1 },  /* 1 */
+        { label: "pt",    pointsPerUnit: 1,                decimals: 1 },  /* 2 */
+        { label: "pica",  pointsPerUnit: 12,               decimals: 2 },  /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54,        decimals: 2 },  /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25, decimals: 1 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1,                decimals: 1 },  /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12,          decimals: 4 },  /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000, decimals: 4 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36,          decimals: 4 },  /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12,          decimals: 4 }   /* 10 */
     ];
 
-    /* コードから単位定義を取得（未対応コードは pt 相当）/ Find a unit definition by code (unsupported codes fall back to pt) */
-    function getUnitByCode(code) {
-        for (var i = 0; i < UNITS.length; i++) {
-            if (UNITS[i].code === code) { return UNITS[i]; }
-        }
-        return UNITS[2];
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 単位コードから単位定義を取得する（未対応コードは pt 相当）
+     * @param {number} unitCode - 環境設定の単位コード
+     * @returns {{label: string, pointsPerUnit: number, decimals: number}} 単位定義
+     */
+    function getUnitByCode(unitCode) {
+        return UNITS[unitCode] || UNITS[2];
+    }
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -430,13 +448,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* キー増加(pt)を現在の定規単位の表示文字列に変換 / Convert the keyboard increment (pt) to a display string in the current ruler unit */
         function formatKeyIncrement(lengthPt) {
-            return (lengthPt / currentUnit.factor).toFixed(currentUnit.decimals);
+            return (lengthPt / currentUnit.pointsPerUnit).toFixed(currentUnit.decimals);
         }
 
         /* キー増加を適用して表示を更新する共通処理（値は現在の定規単位）
            / Shared routine that applies the keyboard increment and updates the display (value in the current ruler unit) */
         function commitKeyIncrement(unitValue) {
-            var lengthPt = unitValue * currentUnit.factor;
+            var lengthPt = unitValue * currentUnit.pointsPerUnit;
             applyKeyIncrement(lengthPt, function (result) {
                 if (result.indexOf("OK") === 0) {
                     keyIncrementInput.text = formatKeyIncrement(lengthPt);

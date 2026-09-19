@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LogoGridMaker";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LogoGridMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMaker.md"; /* README (English) */
@@ -253,7 +253,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95a285784495"; /* 紹�
             }
         },
         prompt: {
-            presetName: { ja: "プリセット名を入力してください:", en: "Enter preset name:" }
+            presetName: { ja: "プリセット名を入力してください：", en: "Enter preset name:" }
         },
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },

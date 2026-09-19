@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ExcelTableNormalizer";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExcelTableNormalizer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExcelTableNormalizer.md"; /* README (English) */
@@ -60,6 +60,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "Excelデータを整形",
             en: "Format Excel Data"
         },
+        tipReleaseMask: { ja: "貼り付けた表に掛かっているクリッピングマスクを外します。", en: "Releases the clipping mask that comes with the pasted table." },
+        tipRemoveSmall: { ja: "ごく小さなゴミオブジェクトを削除します。", en: "Deletes the tiny stray objects that come with the paste." },
+        tipMoveText: { ja: "テキストを専用のレイヤーへまとめて移します。", en: "Moves the text onto a layer of its own." },
+        tipSetK100: { ja: "テキストの色をスミ100%（K100）にします。", en: "Sets the text color to 100% black (K100)." },
+        tipRemoveDuplicate: { ja: "同じ位置に重なっている同じ文字列を1つにまとめます。", en: "Merges duplicated text that sits on top of itself." },
+        tipAdjustCellBg: { ja: "セルの背景を、ケイ線に合わせて引き直します。", en: "Redraws the cell backgrounds to line up with the rules." },
+        tipEqualizeHeights: { ja: "同じ行のセルの高さをそろえます。", en: "Gives the cells in a row the same height." },
+        tipCenterline: { ja: "太い長方形のケイ線を、中心を通る1本の線に置き換えます。", en: "Replaces thick rectangular rules with a single centre line." },
+        tipOuterToRect: { ja: "表の外周のケイ線を1つの長方形にまとめます。", en: "Merges the outer rules into a single rectangle." },
+        tipPlacementUniformForced: { ja: "セル幅を強制的に均等にそろえます。", en: "Forces every cell to the same width." },
+        tipPlacementUniformMerged: { ja: "結合セルを考慮しながら、セル幅を均等にそろえます。", en: "Evens out the cell widths while respecting merged cells." },
+        tipPlacementMamaIki: { ja: "元の幅をそのまま保ちます。", en: "Keeps the original widths as they are." },
+        tipStrokeWidth: { ja: "ケイ線の太さです。", en: "Weight of the rules." },
+        tipRulesK100: { ja: "ケイ線の色をスミ100%（K100）にします。", en: "Sets the rule color to 100% black (K100)." },
+        tipColumnAlignment: { ja: "この列のテキストの行揃えです。", en: "How the text in this column is aligned." },
         releaseMask: { ja: "クリッピングマスクを解除", en: "Release clipping masks" },
         optionsPanelTitle: { ja: "オプション", en: "Options" },
         textPanelTitle: { ja: "テキスト", en: "Text" },
@@ -153,25 +168,43 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return null;
     }
 
-    // 単位コードとラベルのマップ
-    var unitLabelMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        5: "Q/H",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    // 現在の線単位ラベルを取得（strokeUnits）
-    function getCurrentStrokeUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("strokeUnits");
-        return unitLabelMap[unitCode] || "pt";
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     function getDefaultStrokeWidthText(unitLabel) {
@@ -273,30 +306,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(optionsPanel);
 
         var releaseMaskCheckbox = optionsPanel.add("checkbox", undefined, getLabel('releaseMask'));
+        releaseMaskCheckbox.helpTip = getLabel('tipReleaseMask');
         releaseMaskCheckbox.value = true;
 
         var removeSmallCheckbox = optionsPanel.add("checkbox", undefined, getLabel('removeSmallObjects'));
+        removeSmallCheckbox.helpTip = getLabel('tipRemoveSmall');
         removeSmallCheckbox.value = true;
 
         var textPanel = leftColumn.add("panel", undefined, getLabel('textPanelTitle'));
         setupPanel(textPanel);
 
         var moveTextCheckbox = textPanel.add("checkbox", undefined, getLabel('moveTextToLayer'));
+        moveTextCheckbox.helpTip = getLabel('tipMoveText');
         moveTextCheckbox.value = true;
 
         var setK100Checkbox = textPanel.add("checkbox", undefined, getLabel('setTextK100'));
+        setK100Checkbox.helpTip = getLabel('tipSetK100');
         setK100Checkbox.value = true;
 
         var removeDuplicateCheckbox = textPanel.add("checkbox", undefined, getLabel('removeDuplicateTexts'));
+        removeDuplicateCheckbox.helpTip = getLabel('tipRemoveDuplicate');
         removeDuplicateCheckbox.value = true;
 
         var cellBgPanel = leftColumn.add("panel", undefined, getLabel('cellBgPanelTitle'));
         setupPanel(cellBgPanel);
 
         var adjustCellBgCheckbox = cellBgPanel.add("checkbox", undefined, getLabel('adjustCellBackground'));
+        adjustCellBgCheckbox.helpTip = getLabel('tipAdjustCellBg');
         adjustCellBgCheckbox.value = true;
 
         var equalizeHeightsCheckbox = cellBgPanel.add("checkbox", undefined, getLabel('equalizeHeights'));
+        equalizeHeightsCheckbox.helpTip = getLabel('tipEqualizeHeights');
         equalizeHeightsCheckbox.value = true;
         equalizeHeightsCheckbox.enabled = adjustCellBgCheckbox.value;
 
@@ -308,16 +348,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         setupPanel(rulesPanel);
 
         var centerlineCheckbox = rulesPanel.add("checkbox", undefined, getLabel('centerline'));
+        centerlineCheckbox.helpTip = getLabel('tipCenterline');
         centerlineCheckbox.value = true;
 
         var outerToRectCheckbox = rulesPanel.add("checkbox", undefined, getLabel('outerToRect'));
+        outerToRectCheckbox.helpTip = getLabel('tipOuterToRect');
         outerToRectCheckbox.value = true;
 
         var placementPanel = rulesPanel.add("panel", undefined, getLabel('placementMode'));
         setupPanel(placementPanel, 6);
         var placementUniformForcedRadio = placementPanel.add("radiobutton", undefined, getLabel('placementUniformForced'));
+        placementUniformForcedRadio.helpTip = getLabel('tipPlacementUniformForced');
         var placementUniformMergedRadio = placementPanel.add("radiobutton", undefined, getLabel('placementUniformMerged'));
+        placementUniformMergedRadio.helpTip = getLabel('tipPlacementUniformMerged');
         var placementMamaIkiRadio = placementPanel.add("radiobutton", undefined, getLabel('placementMamaIki'));
+        placementMamaIkiRadio.helpTip = getLabel('tipPlacementMamaIki');
         placementMamaIkiRadio.value = true;
 
         var stylePanel = rulesPanel.add("panel", undefined, getLabel('stylePanelTitle'));
@@ -327,13 +372,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var strokeWidthGroup = stylePanel.add("group");
         strokeWidthGroup.orientation = "row";
         strokeWidthGroup.add("statictext", undefined, labelText('strokeWidth'));
-        var strokeUnitLabel = getCurrentStrokeUnitLabel();
+        var strokeUnitLabel = getUnitInfo("strokeUnits").label;
         var strokeWidthInput = strokeWidthGroup.add("edittext", undefined, getDefaultStrokeWidthText(strokeUnitLabel));
+        strokeWidthInput.helpTip = getLabel('tipStrokeWidth');
         strokeWidthInput.characters = 5;
         changeValueByArrowKey(strokeWidthInput);
         strokeWidthGroup.add("statictext", undefined, strokeUnitLabel);
 
         var rulesK100Checkbox = stylePanel.add("checkbox", undefined, getLabel('rulesK100'));
+        rulesK100Checkbox.helpTip = getLabel('tipRulesK100');
         rulesK100Checkbox.value = true;
 
         var btnGroup = dlg.add("group");
@@ -357,7 +404,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 : placementUniformMergedRadio.value ? "merged"
                     : "keepColumnWidths";
             var outerToRect = outerToRectCheckbox.value;
-            var strokeUnitLabel = getCurrentStrokeUnitLabel();
+            var strokeUnitLabel = getUnitInfo("strokeUnits").label;
             var strokeWidthText = String(strokeWidthInput.text).replace(/,/g, ".");
             var strokeWidthValue = parseFloat(strokeWidthText);
             if (isNaN(strokeWidthValue) || strokeWidthValue <= 0) {
@@ -768,8 +815,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             columnLabel.characters = columnLabelCharCount;
 
             var leftRadio = row.add("radiobutton", undefined, getLabel('columnAlignmentLeft'));
+            leftRadio.helpTip = getLabel('tipColumnAlignment');
             var centerRadio = row.add("radiobutton", undefined, getLabel('columnAlignmentCenter'));
+            centerRadio.helpTip = getLabel('tipColumnAlignment');
             var rightRadio = row.add("radiobutton", undefined, getLabel('columnAlignmentRight'));
+            rightRadio.helpTip = getLabel('tipColumnAlignment');
 
             var sampleLabel = row.add("statictext", undefined, sampleLabelTexts[columnIndex]);
             sampleLabel.characters = SAMPLE_LABEL_CHARS;
@@ -823,14 +873,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         dlg.show();
         return result;
-    }
-
-    /* 列行ラベル / Column row label */
-    function getColumnAlignmentRowLabel(columnIndex, sampleText) {
-        if (uiLang === "ja") {
-            return String(columnIndex + 1) + getLabel('columnAlignmentColumn') + "（" + sampleText + "）";
-        }
-        return getLabel('columnAlignmentColumn') + " " + String(columnIndex + 1) + " (" + sampleText + ")";
     }
 
     /* 列番号ラベル / Column number label */

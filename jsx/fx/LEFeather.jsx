@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LEFeather";                    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LEFeather.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEFeather.md"; /* README (English) */
@@ -58,6 +58,7 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
     var LABELS = {
         dialogTitle: { ja: "ぼかし（スタイライズ）", en: "Feather" },
         radius:      { ja: "半径",            en: "Radius" },
+        tipRadius: { ja: "ぼかしの半径です。大きいほど広くぼけます。", en: "Radius of the feather. Larger values spread the blur further." },
         cancel:      { ja: "キャンセル",      en: "Cancel" },
         noDoc:       { ja: "ドキュメントが開かれていません。", en: "No document is open." },
         noSel:       { ja: "オブジェクトを選択してください。", en: "Please select one or more objects." },
@@ -125,6 +126,7 @@ The radius input matches the current ruler unit (rulerType) and is converted to 
         radiusRow.alignChildren = "center";
         radiusRow.add("statictext", undefined, labelText("radius"));
         var radiusInput = radiusRow.add("edittext", undefined, String(defaultValueInUnit));
+        radiusInput.helpTip = getLabel("tipRadius");
         radiusInput.characters = 8;
         radiusRow.add("statictext", undefined, rulerUnit.label);
 

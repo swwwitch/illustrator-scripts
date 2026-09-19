@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignAndTile";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-16";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile.md"; /* README (English) */
@@ -264,31 +264,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; array index equals the rulerType code */
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
-        { label: "in",    factor: 72.0 },                 /* 0 */
-        { label: "mm",    factor: 72.0 / 25.4 },          /* 1 */
-        { label: "pt",    factor: 1.0 },                  /* 2 */
-        { label: "pica",  factor: 12.0 },                 /* 3 */
-        { label: "cm",    factor: 72.0 / 2.54 },          /* 4 */
-        { label: "Q/H",   factor: 72.0 / 25.4 * 0.25 },   /* 5 */
-        { label: "px",    factor: 1.0 },                  /* 6 */
-        { label: "ft/in", factor: 72.0 * 12.0 },          /* 7 */
-        { label: "m",     factor: 72.0 / 25.4 * 1000.0 }, /* 8 */
-        { label: "yd",    factor: 72.0 * 36.0 },          /* 9 */
-        { label: "ft",    factor: 72.0 * 12.0 }           /* 10 */
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
     ];
 
-    /* pt の添字（単位が特定できないときのフォールバック）/ Index of pt, used as the fallback unit */
-    var POINT_UNIT_INDEX = 2;
-
     /**
-     * 定規の単位設定から現在の単位を取得する
-     * @returns {object} { label: string, factor: number }
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getCurrentUnit() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return UNITS[unitCode] || UNITS[POINT_UNIT_INDEX];
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -748,15 +753,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
         laneCountInput.characters = FIELD_CHAR_WIDTH;
         laneCountInput.helpTip = getLabel('tooltip', 'laneCount');
 
-
-
-
-
         var gridCheckbox = addOptionCheckbox(directionPanel, getLabel('checkbox', 'useGrid'), DEFAULT_USE_GRID);
         gridCheckbox.helpTip = getLabel('tooltip', 'useGrid');
 
         /* 間隔パネル（左＝横・縦の入力、右＝連動）/ Spacing panel: fields on the left, link on the right */
-        var spacingPanel = addPanel(dialogWindow, getLabel('panel', 'spacing') + " (" + getCurrentUnit().label + ")");
+        var spacingPanel = addPanel(dialogWindow, getLabel('panel', 'spacing') + " (" + getUnitInfo().label + ")");
         var spacingRow = spacingPanel.add("group");
         setupRow(spacingRow, "left", COLUMN_SPACING);
 
@@ -950,7 +951,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf426908d8bcd"; /* 紹�
          * @returns {object} 配置設定
          */
         function readArrangeSettings() {
-            var unitFactor = getCurrentUnit().factor;
+            var unitFactor = getUnitInfo().pointsPerUnit;
 
             var hMarginValue = parseFloat(hMarginInput.text);
             if (isNaN(hMarginValue)) hMarginValue = 0;

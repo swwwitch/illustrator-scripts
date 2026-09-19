@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DuplicateInGridPlus";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DuplicateInGridPlus.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateInGridPlus.md"; /* README (English) */
@@ -96,10 +96,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
             fill: { ja: "敷き詰め", en: "Fill" }
         },
         fieldLabel: {
-            countHorizontal: { ja: "横:", en: "Horizontal:" },
-            countVertical: { ja: "縦:", en: "Vertical:" },
-            gapHorizontal: { ja: "左右:", en: "Horizontal:" },
-            gapVertical: { ja: "上下:", en: "Vertical:" },
+            countHorizontal: { ja: "横", en: "Horizontal" },
+            countVertical: { ja: "縦", en: "Vertical" },
+            gapHorizontal: { ja: "左右", en: "Horizontal" },
+            gapVertical: { ja: "上下", en: "Vertical" },
             directionHorizontal: { ja: "横方向", en: "Horizontal" },
             directionVertical: { ja: "縦方向", en: "Vertical" },
             zoom: { ja: "画面ズーム", en: "Zoom" }
@@ -119,6 +119,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
             fillToEdge: { ja: "アートボードの端まで", en: "Fill to Artboard Edge" },
             fillFull: { ja: "アートボードいっぱいに", en: "Fill Full Artboard" },
             lightMode: { ja: "軽量モード", en: "Light mode" }
+        },
+        tooltip: {
+            countHorizontal: { ja: "横方向に並べる数です（元のオブジェクトを含む）。", en: "How many to place horizontally, including the original." },
+            countVertical: { ja: "縦方向に並べる数です（元のオブジェクトを含む）。", en: "How many to place vertically, including the original." },
+            countLink: { ja: "横と縦の数を同じにします。", en: "Keeps the horizontal and vertical counts the same." },
+            countSlider: { ja: "繰り返し数をまとめて変更します。", en: "Changes the counts together." },
+            methodGrid: { ja: "横と縦の両方に並べます。", en: "Places copies both horizontally and vertically." },
+            methodRow: { ja: "横一列に並べます。", en: "Places copies in a single row." },
+            methodColumn: { ja: "縦一列に並べます。", en: "Places copies in a single column." },
+            methodRandom: { ja: "グリッドの枠内でランダムにずらして配置します。", en: "Scatters the copies randomly within the grid area." },
+            gapHorizontal: { ja: "隣り合うオブジェクトの左右のアキです。", en: "Space between neighbouring objects horizontally." },
+            gapVertical: { ja: "隣り合うオブジェクトの上下のアキです。", en: "Space between neighbouring objects vertically." },
+            gapLink: { ja: "左右と上下の間隔を同じにします。", en: "Keeps the horizontal and vertical gaps the same." },
+            directionRight: { ja: "元のオブジェクトの右へ複製します。", en: "Duplicates to the right of the original." },
+            directionLeft: { ja: "元のオブジェクトの左へ複製します。", en: "Duplicates to the left of the original." },
+            directionUp: { ja: "元のオブジェクトの上へ複製します。", en: "Duplicates above the original." },
+            directionDown: { ja: "元のオブジェクトの下へ複製します。", en: "Duplicates below the original." },
+            fillToEdge: { ja: "アートボードの端に届くまで数を自動で増やします。", en: "Increases the count automatically until the copies reach the artboard edge." },
+            fillFull: { ja: "アートボード全面を埋めるように、元の位置に関係なく敷き詰めます。", en: "Tiles the whole artboard, ignoring the original position." },
+            lightMode: { ja: "プレビューを簡易表示にして、重いオブジェクトでも操作を軽くします。", en: "Simplifies the preview so heavy objects stay responsive." },
+            zoom: { ja: "作業中の画面表示倍率を変えます。結果には影響しません。", en: "Changes the view zoom while you work. It does not affect the result." }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
@@ -154,6 +175,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
             }
         }
         return labelText;
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} labelPath - "fieldLabel.countHorizontal" のようなドット区切りのキー
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ": ");
     }
 
     // =========================================
@@ -272,46 +302,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
     // 単位 / Units
     // =========================================
 
-    var rulerUnitLabels = { 0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 5: "Q/H", 6: "px", 7: "ft/in", 8: "m", 9: "yd", 10: "ft" };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 現在の定規単位のコードを取得する
-     * @returns {number} rulerType の値
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
      */
-    function getRulerUnitCode() {
-        return app.preferences.getIntegerPreference("rulerType");
-    }
-
-    /**
-     * 現在の定規単位の表示名を取得する
-     * @returns {string} "mm" などの単位名
-     */
-    function getRulerUnitLabel() {
-        return rulerUnitLabels[getRulerUnitCode()] || "pt";
-    }
-
-    /**
-     * 指定単位の数値をポイントに変換する
-     * @param {number} unitCode - rulerType の値
-     * @param {number} unitValue - 変換する数値
-     * @returns {number} ポイント換算値
-     */
-    function unitToPoints(unitCode, unitValue) {
-        var PT_PER_INCH = 72, PT_PER_MM = PT_PER_INCH / 25.4;
-        switch (unitCode) {
-            case 0: return unitValue * PT_PER_INCH;         // in
-            case 1: return unitValue * PT_PER_MM;           // mm
-            case 2: return unitValue;                       // pt
-            case 3: return unitValue * 12;                  // pica
-            case 4: return unitValue * (PT_PER_MM * 10);    // cm
-            case 5: return unitValue * (PT_PER_MM * 0.25);  // Q/H
-            case 6: return unitValue;                       // px ≒ pt
-            case 7: return unitValue * PT_PER_INCH;         // ft/in → in
-            case 8: return unitValue * (PT_PER_MM * 1000);  // m
-            case 9: return unitValue * (PT_PER_INCH * 36);  // yd
-            case 10: return unitValue * (PT_PER_INCH * 12); // ft
-            default: return unitValue;
-        }
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -555,11 +575,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
         if (!initialZoom || isNaN(initialZoom)) initialZoom = 1;
 
         var zoomSlider = zoomGroup.add("slider", undefined, initialZoom, minZoom, maxZoom);
+        zoomSlider.helpTip = getLabel("tooltip.zoom");
         zoomSlider.preferredSize.width = sliderWidth;
 
         var lightModeCheck = null;
         if (showLightMode) {
             lightModeCheck = zoomGroup.add("checkbox", undefined, String(lightModeLabel));
+            lightModeCheck.helpTip = getLabel("tooltip.lightMode");
             lightModeCheck.value = lightModeDefault;
         }
 
@@ -638,8 +660,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
      * @returns {object} OKなら {placementOffsets, fillFullArtboard}、キャンセルなら null
      */
     function showDuplicateDialog(doc, sourceItems, sourceWidth, sourceHeight) {
-        var rulerUnitCode = getRulerUnitCode();
-        var rulerUnitLabel = getRulerUnitLabel();
+        var rulerUnit = getUnitInfo("rulerType");
+        var rulerUnitLabel = rulerUnit.label;
 
         var duplicateDialog = createDialogWindow(getLabel("dialog.title") + " " + SCRIPT_VERSION);
 
@@ -669,36 +691,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
 
         var countFieldsColumn = addColumnGroup(repeatCountRow);
         var countHorizontalGroup = countFieldsColumn.add("group");
-        countHorizontalGroup.add("statictext", undefined, getLabel("fieldLabel.countHorizontal"));
+        countHorizontalGroup.add("statictext", undefined, labelText("fieldLabel.countHorizontal"));
         var countHorizontalInput = countHorizontalGroup.add("edittext", undefined, "2");
+        countHorizontalInput.helpTip = getLabel("tooltip.countHorizontal");
         countHorizontalInput.characters = FIELD_CHARS;
         countHorizontalInput.isInteger = true;
         changeValueByArrowKey(countHorizontalInput);
 
         var countVerticalGroup = countFieldsColumn.add("group");
-        countVerticalGroup.add("statictext", undefined, getLabel("fieldLabel.countVertical"));
+        countVerticalGroup.add("statictext", undefined, labelText("fieldLabel.countVertical"));
         var countVerticalInput = countVerticalGroup.add("edittext", undefined, "2");
+        countVerticalInput.helpTip = getLabel("tooltip.countVertical");
         countVerticalInput.characters = FIELD_CHARS;
         countVerticalInput.isInteger = true;
         changeValueByArrowKey(countVerticalInput);
 
         var countLinkGroup = addColumnGroup(repeatCountRow);
         var countLinkCheck = countLinkGroup.add("checkbox", undefined, getLabel("checkbox.link"));
+        countLinkCheck.helpTip = getLabel("tooltip.countLink");
         countLinkCheck.value = true;
 
         var countSliderGroup = repeatCountPanel.add("group");
         countSliderGroup.orientation = "row";
         countSliderGroup.alignChildren = ["fill", "center"];
         var countSlider = countSliderGroup.add("slider", undefined, 2, REPEAT_COUNT_MIN, REPEAT_COUNT_MAX);
+        countSlider.helpTip = getLabel("tooltip.countSlider");
         countSlider.alignment = ["fill", "center"];
 
         /* 繰り返し方式 / Repeat method */
         var repeatMethodPanel = addPanel(leftColumnGroup, getLabel("panel.repeatMethod"));
         repeatMethodPanel.alignChildren = ["left", "top"];
         var methodGridRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodGrid"));
+        methodGridRadio.helpTip = getLabel("tooltip.methodGrid");
         var methodRowRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodRow"));
+        methodRowRadio.helpTip = getLabel("tooltip.methodRow");
         var methodColumnRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodColumn"));
+        methodColumnRadio.helpTip = getLabel("tooltip.methodColumn");
         var methodRandomRadio = repeatMethodPanel.add("radiobutton", undefined, getLabel("radio.methodRandom"));
+        methodRandomRadio.helpTip = getLabel("tooltip.methodRandom");
         methodGridRadio.value = true;
 
         /* 間隔（現在の定規単位で入力し、内部ではptへ変換）
@@ -711,19 +741,22 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
 
         var gapFieldsColumn = addColumnGroup(gapFieldsRow);
         var gapHorizontalGroup = gapFieldsColumn.add("group");
-        gapHorizontalGroup.add("statictext", undefined, getLabel("fieldLabel.gapHorizontal"));
+        gapHorizontalGroup.add("statictext", undefined, labelText("fieldLabel.gapHorizontal"));
         var gapHorizontalInput = gapHorizontalGroup.add("edittext", undefined, "10");
+        gapHorizontalInput.helpTip = getLabel("tooltip.gapHorizontal");
         gapHorizontalInput.characters = FIELD_CHARS;
         changeValueByArrowKey(gapHorizontalInput);
 
         var gapVerticalGroup = gapFieldsColumn.add("group");
-        gapVerticalGroup.add("statictext", undefined, getLabel("fieldLabel.gapVertical"));
+        gapVerticalGroup.add("statictext", undefined, labelText("fieldLabel.gapVertical"));
         var gapVerticalInput = gapVerticalGroup.add("edittext", undefined, "10");
+        gapVerticalInput.helpTip = getLabel("tooltip.gapVertical");
         gapVerticalInput.characters = FIELD_CHARS;
         changeValueByArrowKey(gapVerticalInput);
 
         var gapLinkGroup = addColumnGroup(gapFieldsRow);
         var gapLinkCheck = gapLinkGroup.add("checkbox", undefined, getLabel("checkbox.link"));
+        gapLinkCheck.helpTip = getLabel("tooltip.gapLink");
         gapLinkCheck.value = true;
 
         /* 方向 / Direction */
@@ -734,22 +767,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
         setupRow(horizontalDirectionRow);
         horizontalDirectionRow.add("statictext", undefined, getLabel("fieldLabel.directionHorizontal"));
         var directionRightRadio = horizontalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionRight"));
+        directionRightRadio.helpTip = getLabel("tooltip.directionRight");
         var directionLeftRadio = horizontalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionLeft"));
+        directionLeftRadio.helpTip = getLabel("tooltip.directionLeft");
         directionRightRadio.value = true;
 
         var verticalDirectionRow = directionPanel.add("group");
         setupRow(verticalDirectionRow);
         verticalDirectionRow.add("statictext", undefined, getLabel("fieldLabel.directionVertical"));
         var directionUpRadio = verticalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionUp"));
+        directionUpRadio.helpTip = getLabel("tooltip.directionUp");
         var directionDownRadio = verticalDirectionRow.add("radiobutton", undefined, getLabel("radio.directionDown"));
+        directionDownRadio.helpTip = getLabel("tooltip.directionDown");
         directionDownRadio.value = true;
 
         /* 敷き詰め / Fill */
         var fillPanel = addPanel(rightColumnGroup, getLabel("panel.fill"));
         fillPanel.alignChildren = ["left", "top"];
         var fillToEdgeCheck = fillPanel.add("checkbox", undefined, getLabel("checkbox.fillToEdge"));
+        fillToEdgeCheck.helpTip = getLabel("tooltip.fillToEdge");
         fillToEdgeCheck.value = false;
         var fillFullCheck = fillPanel.add("checkbox", undefined, getLabel("checkbox.fillFull"));
+        fillFullCheck.helpTip = getLabel("tooltip.fillFull");
         fillFullCheck.value = false;
 
         /* 画面ズーム / Zoom */
@@ -808,8 +847,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n228720785a71"; /* 紹�
             var verticalGap = parseFloat(gapVerticalInput.text);
             if (isNaN(horizontalGap) || isNaN(verticalGap)) return null;
             return {
-                x: unitToPoints(rulerUnitCode, horizontalGap),
-                y: unitToPoints(rulerUnitCode, verticalGap)
+                x: horizontalGap * rulerUnit.pointsPerUnit,
+                y: verticalGap * rulerUnit.pointsPerUnit
             };
         }
 

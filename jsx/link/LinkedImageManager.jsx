@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LinkedImageManager";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManager.md"; /* README (English) */
@@ -338,13 +338,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹�
     function setupRow(group, alignment, spacing) {
         group.orientation = "row";
         group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    function setupGroup(group, orientation, spacing) {
-        group.orientation = orientation || "column";
-        group.alignChildren = (group.orientation === "row") ? ["left", "center"] : ["fill", "top"];
-        group.alignment = "fill";
         group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 

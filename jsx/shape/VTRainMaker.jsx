@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "VTRainMaker";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-03-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VTRainMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VTRainMaker.md"; /* README (English) */
@@ -185,70 +185,106 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         invalidMargin: {
             ja: "外側拡張には0以上の数値を入力してください。",
             en: "Enter a number greater than or equal to 0 for the margin expansion."
+        },
+        tipHarusame: {
+            ja: "細く短い線を降らせます。",
+            en: "Draws fine, short lines."
+        },
+        tipSamidare: {
+            ja: "中くらいの長さの線を降らせます。",
+            en: "Draws medium-length lines."
+        },
+        tipTeppouame: {
+            ja: "太く長い線を降らせます。",
+            en: "Draws thick, long lines."
+        },
+        tipAmatsubu: {
+            ja: "しずくの形を散らします。",
+            en: "Scatters droplet shapes."
+        },
+        tipMizutama: {
+            ja: "丸い粒を散らします。",
+            en: "Scatters round drops."
+        },
+        tipScale: {
+            ja: "線幅・長さ・間隔をまとめて拡大・縮小します（25〜300%）。",
+            en: "Scales stroke width, length, and spacing together (25-300%)."
+        },
+        tipStrokeWidth: {
+            ja: "1本あたりの線の太さです。",
+            en: "Thickness of each line."
+        },
+        tipAngle: {
+            ja: "雨が降る向きです。0度で垂直になります。",
+            en: "Direction of the rain. 0 degrees is vertical."
+        },
+        tipDensity: {
+            ja: "描く本数です。多いほど雨が密になります。",
+            en: "Number of lines to draw. More lines make denser rain."
+        },
+        tipSpacing: {
+            ja: "1本の親罫に寄り添う子罫をずらす距離です。0でずらしません。",
+            en: "Distance the companion line is offset from its parent line. 0 draws no offset."
+        },
+        tipMargin: {
+            ja: "対象範囲の外へ描き足す幅です。端で雨が途切れるのを防ぎます。",
+            en: "How far to draw beyond the target area, so the rain is not cut off at the edges."
+        },
+        tipRaindropFill: {
+            ja: "しずく・水玉を塗りで描きます。",
+            en: "Draws droplets and drops with a fill."
+        },
+        tipRaindropStroke: {
+            ja: "しずく・水玉を線で描きます。",
+            en: "Draws droplets and drops with a stroke."
+        },
+        tipRaindropShape: {
+            ja: "しずく・水玉の形のバリエーションです。",
+            en: "Shape variation for the droplets and drops."
+        },
+        tipPreview: {
+            ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+            en: "Shows the result on the canvas. Cancel restores the original state."
         }
     };
 
     // =========================================
     // 単位ユーティリティ / Unit utilities
     // =========================================
-    var unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 単位コードと設定キーから適切な単位ラベルを返す / Return the proper unit label from a unit code and preference key */
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return unitMap[code] || "pt";
-    }
+    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    /* 単位コードから pt 換算係数を返す / Return the pt conversion factor from a unit code */
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                 // in
-            case 1: return 72.0 / 25.4;          // mm
-            case 2: return 1.0;                  // pt
-            case 3: return 12.0;                 // pica
-            case 4: return 72.0 / 2.54;          // cm
-            case 5: return 72.0 / 25.4 * 0.25;   // Q or H
-            case 6: return 1.0;                  // px
-            case 7: return 72.0 * 12.0;          // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0; // m
-            case 9: return 72.0 * 36.0;          // yd
-            case 10: return 72.0 * 12.0;         // ft
-            default: return 1.0;
-        }
-    }
-
-    /* 設定キーごとの単位情報を取得 / Get unit info for a preference key */
+    /**
+     * 設定キーごとの単位情報を取得する。
+     * @param {string} prefKey - 環境設定キー
+     * @returns {object} code / label / pointsPerUnit を持つオブジェクト
+     */
     function getUnitInfo(prefKey) {
-        var code = app.preferences.getIntegerPreference(prefKey);
-        return {
-            code: code,
-            label: getUnitLabel(code, prefKey),
-            factor: getPtFactorFromUnitCode(code)
-        };
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* pt 値を現在の単位値へ変換 / Convert a pt value to the current display unit */
     function ptToUnitValue(ptValue, prefKey, decimals) {
         var info = getUnitInfo(prefKey);
-        var unitValue = ptValue / info.factor;
+        var unitValue = ptValue / info.pointsPerUnit;
         if (typeof decimals === "number") {
             return parseFloat(unitValue.toFixed(decimals));
         }
@@ -259,7 +295,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     function unitValueToPt(unitValue, prefKey) {
         var info = getUnitInfo(prefKey);
-        return unitValue * info.factor;
+        return unitValue * info.pointsPerUnit;
     }
 
     function parseMarginPtFromText(text) {
@@ -894,10 +930,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         radioPanel.alignment = "fill";
         radioPanel.alignChildren = "left";
         var rbHarusame = radioPanel.add("radiobutton", undefined, getLabel("rainHarusame"));
+        rbHarusame.helpTip = getLabel("tipHarusame");
         var rbSamidare = radioPanel.add("radiobutton", undefined, getLabel("rainSamidare"));
+        rbSamidare.helpTip = getLabel("tipSamidare");
         var rbTeppouame = radioPanel.add("radiobutton", undefined, getLabel("rainTeppouame"));
+        rbTeppouame.helpTip = getLabel("tipTeppouame");
         var rbAmatsubu = radioPanel.add("radiobutton", undefined, getLabel("rainAmatsubu"));
+        rbAmatsubu.helpTip = getLabel("tipAmatsubu");
         var rbMizutama = radioPanel.add("radiobutton", undefined, getLabel("rainMizutama"));
+        rbMizutama.helpTip = getLabel("tipMizutama");
         rbHarusame.value = true;
 
         var optionPanel = rightCol.add("panel", undefined, getLabel("panelOptions"));
@@ -914,12 +955,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblScale.preferredSize = [labelWidth, -1];
         lblScale.justify = "right";
         var inputScale = grpScale.add("edittext", undefined, presets.harusame.defaultScale || "100");
+        inputScale.helpTip = getLabel("tipScale");
         inputScale.characters = 4;
         var txtScaleUnit = grpScale.add("statictext", undefined, getLabel("unitPercent"));
 
         var grpScaleSlider = optionPanel.add("group");
         grpScaleSlider.alignment = ["fill", "top"];
         var sldScale = grpScaleSlider.add("slider", undefined, 100, 25, 300);
+        sldScale.helpTip = getLabel("tipScale");
         sldScale.preferredSize.width = 180;
 
         var grpStroke = optionPanel.add("group");
@@ -928,6 +971,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblStroke.preferredSize = [labelWidth, -1];
         lblStroke.justify = "right";
         var inputStrokeWidth = grpStroke.add("edittext", undefined, ptToUnitValue(parseFloat(presets.harusame.defaultStrokeWidth), "strokeUnits", 2));
+        inputStrokeWidth.helpTip = getLabel("tipStrokeWidth");
         inputStrokeWidth.characters = 6;
         var txtStrokeUnit = grpStroke.add("statictext", undefined, strokeUnitInfo.label);
         var grpAngle = optionPanel.add("group");
@@ -936,6 +980,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblAngle.preferredSize = [labelWidth, -1];
         lblAngle.justify = "right";
         var inputAngle = grpAngle.add("edittext", undefined, presets.harusame.defaultAngle || String(presets.harusame.angleDeg || 45));
+        inputAngle.helpTip = getLabel("tipAngle");
         inputAngle.characters = 6;
         var txtAngleUnit = grpAngle.add("statictext", undefined, getLabel("unitDegree"));
 
@@ -945,6 +990,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblDensity.preferredSize = [labelWidth, -1];
         lblDensity.justify = "right";
         var inputDensity = grpDensity.add("edittext", undefined, presets.harusame.defaultDensity);
+        inputDensity.helpTip = getLabel("tipDensity");
         inputDensity.characters = 6;
         grpDensity.add("statictext", undefined, getLabel("unitLines"));
 
@@ -954,6 +1000,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblSpacing.preferredSize = [labelWidth, -1];
         lblSpacing.justify = "right";
         var inputSpacing = grpSpacing.add("edittext", undefined, ptToUnitValue(parseFloat(presets.harusame.defaultSpacing || "0"), "strokeUnits", 2));
+        inputSpacing.helpTip = getLabel("tipSpacing");
         inputSpacing.characters = 6;
         var txtSpacingUnit = grpSpacing.add("statictext", undefined, strokeUnitInfo.label);
 
@@ -963,6 +1010,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblMargin.preferredSize = [labelWidth, -1];
         lblMargin.justify = "right";
         var inputMargin = grpMargin.add("edittext", undefined, ptToUnitValue(20, "rulerType", 2));
+        inputMargin.helpTip = getLabel("tipMargin");
         inputMargin.characters = 6;
         grpMargin.add("statictext", undefined, rulerUnitInfo.label);
 
@@ -977,9 +1025,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpRaindropAppearance.alignChildren = ["left", "center"];
 
         var chkRaindropFill = grpRaindropAppearance.add("checkbox", undefined, getLabel("chkRaindropFill"));
+        chkRaindropFill.helpTip = getLabel("tipRaindropFill");
         chkRaindropFill.value = true;
 
         var chkRaindropStroke = grpRaindropAppearance.add("checkbox", undefined, getLabel("chkRaindropStroke"));
+        chkRaindropStroke.helpTip = getLabel("tipRaindropStroke");
         chkRaindropStroke.value = false;
 
         var grpRaindropShapes = raindropPanel.add("group");
@@ -987,8 +1037,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpRaindropShapes.alignChildren = ["left", "center"];
 
         var rbRaindropA = grpRaindropShapes.add("radiobutton", undefined, getLabel("raindropShapeA"));
+        rbRaindropA.helpTip = getLabel("tipRaindropShape");
         var rbRaindropB = grpRaindropShapes.add("radiobutton", undefined, getLabel("raindropShapeB"));
+        rbRaindropB.helpTip = getLabel("tipRaindropShape");
         var rbRaindropC = grpRaindropShapes.add("radiobutton", undefined, getLabel("raindropShapeC"));
+        rbRaindropC.helpTip = getLabel("tipRaindropShape");
         rbRaindropB.value = true;
 
         changeValueByArrowKey(inputStrokeWidth, true, false);
@@ -1005,6 +1058,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         bottomBar.alignment = ["fill", "top"];
 
         var chkPreview = bottomBar.add("checkbox", undefined, getLabel("preview"));
+        chkPreview.helpTip = getLabel("tipPreview");
         chkPreview.value = false;
 
         var bottomSpacer = bottomBar.add("group");

@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ConvertToAreaTypeLikeButton";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButton.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButton.md"; /* README (English) */
@@ -84,6 +84,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             run: { ja: "実行", en: "Run" },
             close: { ja: "閉じる", en: "Close" }
         },
+        /* ツールチップ / Tooltips */
+        tooltip: {
+            fontSize: { ja: "エリア内文字のフォントサイズです。", en: "Font size of the area text." },
+            overset: { ja: "文字があふれないところまでフォントサイズを下げます。", en: "Lowers the font size until the text no longer overflows." },
+            width: { ja: "テキストフレームの幅です。", en: "Width of the text frame." },
+            height: { ja: "テキストフレームの高さです。", en: "Height of the text frame." },
+            indentLeft: { ja: "段落の左インデントを設定します。", en: "Sets the left indent of the paragraphs." },
+            indentRight: { ja: "段落の右インデントを設定します。", en: "Sets the right indent of the paragraphs." },
+            indentValue: { ja: "インデントの量です。", en: "Amount of the indent." },
+            sync: { ja: "左右のインデントを同じ値にします。", en: "Keeps the left and right indents the same." },
+            margin: { ja: "テキストフレームの内側に空ける余白です。", en: "Inset kept inside the text frame." }
+        },
+
         /* 警告メッセージ / Alerts */
         alert: {
             selectText: {
@@ -127,16 +140,35 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // 単位 / Units
     // =========================================
 
-    /* ルーラー単位に応じたラベルと pt 変換係数を返す / Return unit label and pt conversion factor */
-    function getRulerUnitInfo(doc) {
-        var ru = doc.rulerUnits;
-        if (ru === RulerUnits.Millimeters) return { label: "mm", toPt: 72 / 25.4 };
-        if (ru === RulerUnits.Centimeters) return { label: "cm", toPt: 72 / 2.54 };
-        if (ru === RulerUnits.Inches) return { label: "in", toPt: 72 };
-        if (ru === RulerUnits.Points) return { label: "pt", toPt: 1 };
-        if (ru === RulerUnits.Picas) return { label: "pica", toPt: 12 };
-        if (ru === RulerUnits.Pixels) return { label: "px", toPt: 72 / 96 };
-        return { label: "pt", toPt: 1 };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
+    /* Q ではなく H と表示する設定キー / Preference keys that display H instead of Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -666,7 +698,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* エリア内文字の調整ダイアログを表示 / Show the area-type adjust dialog */
     function showDialogB(doc, initialTf, targetFrames) {
-        var rulerInfo = getRulerUnitInfo(doc);
+        var rulerInfo = getUnitInfo("rulerType");
 
         // 受け取った変換結果を確実に対象にする / Make the passed frames the active target
         if (targetFrames && targetFrames.length) {
@@ -723,10 +755,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpFontSize.add("statictext", undefined, labelText("label.fontSize"));
         var etFontSize = grpFontSize.add("edittext", undefined, "");
         etFontSize.characters = 5;
+        etFontSize.helpTip = getLabel("tooltip.fontSize");
         grpFontSize.add("statictext", undefined, "pt");
         var grpAutoSizeBtns = pnlAutoSize.add("group");
         grpAutoSizeBtns.orientation = "row";
         var btnTextSize = grpAutoSizeBtns.add("button", undefined, getLabel("button.overset"));
+        btnTextSize.helpTip = getLabel("tooltip.overset");
 
         /* フレームサイズ / Frame size */
         var pnlFrameSize = grpLeft.add("panel", undefined, getLabel("panel.frameSize"));
@@ -736,12 +770,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         lblWidth.preferredSize.width = 44;
         var etWidth = grpWidth.add("edittext", undefined, "");
         etWidth.characters = 5;
+        etWidth.helpTip = getLabel("tooltip.width");
         grpWidth.add("statictext", undefined, rulerInfo.label);
         var grpHeight = pnlFrameSize.add("group");
         var lblHeight = grpHeight.add("statictext", undefined, labelText("label.height"));
         lblHeight.preferredSize.width = 44;
         var etHeight = grpHeight.add("edittext", undefined, "");
         etHeight.characters = 5;
+        etHeight.helpTip = getLabel("tooltip.height");
         grpHeight.add("statictext", undefined, rulerInfo.label);
 
         /* インデント / Indent */
@@ -754,17 +790,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpIndentLeft.orientation = "column";
         grpIndentLeft.alignChildren = "left";
         var grpLeftIndent = grpIndentLeft.add("group");
-        var chkLeftIndent = grpLeftIndent.add("checkbox", undefined, labelText("checkbox.indentLeft"));
+        var chkLeftIndent = grpLeftIndent.add("checkbox", undefined, getLabel("checkbox.indentLeft"));
         chkLeftIndent.preferredSize.width = 52;
+        chkLeftIndent.helpTip = getLabel("tooltip.indentLeft");
         var etLeftIndent = grpLeftIndent.add("edittext", undefined, "0");
         etLeftIndent.characters = 4;
+        etLeftIndent.helpTip = getLabel("tooltip.indentValue");
         grpLeftIndent.add("statictext", undefined, rulerInfo.label);
         etLeftIndent.enabled = false;
         var grpRightIndent = grpIndentLeft.add("group");
-        var chkRightIndent = grpRightIndent.add("checkbox", undefined, labelText("checkbox.indentRight"));
+        var chkRightIndent = grpRightIndent.add("checkbox", undefined, getLabel("checkbox.indentRight"));
         chkRightIndent.preferredSize.width = 52;
+        chkRightIndent.helpTip = getLabel("tooltip.indentRight");
         var etRightIndent = grpRightIndent.add("edittext", undefined, "0");
         etRightIndent.characters = 4;
+        etRightIndent.helpTip = getLabel("tooltip.indentValue");
         grpRightIndent.add("statictext", undefined, rulerInfo.label);
         etRightIndent.enabled = false;
         var grpIndentRight = pnlIndent.add("group");
@@ -772,14 +812,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpIndentRight.alignChildren = "left";
         grpIndentRight.alignment = ["left", "center"];
         var chkSync = grpIndentRight.add("checkbox", undefined, getLabel("checkbox.sync"));
+        chkSync.helpTip = getLabel("tooltip.sync");
 
         /* オプション / Options */
         var pnlOptions = grpLeft.add("panel", undefined, getLabel("panel.options"));
         setupPanel(pnlOptions);
         var grpMargin = pnlOptions.add("group");
         var chkMargin = grpMargin.add("checkbox", undefined, getLabel("checkbox.margin"));
+        chkMargin.helpTip = getLabel("tooltip.margin");
         var etMargin = grpMargin.add("edittext", undefined, "0");
         etMargin.characters = 6;
+        etMargin.helpTip = getLabel("tooltip.margin");
         var lblUnit = grpMargin.add("statictext", undefined, rulerInfo.label);
         etMargin.enabled = false;
         lblUnit.enabled = false;
@@ -805,7 +848,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 表示単位での上限値（極端値防止）/ Max size in ruler units (guards extreme values) */
         function _maxSizeInRulerUnits() {
-            return 100000 / rulerInfo.toPt;
+            return 100000 / rulerInfo.pointsPerUnit;
         }
 
         /* 幅/高さ入力を検証して有効値を返す（不正は最終正常値へ戻す）/ Validate width/height input */
@@ -835,8 +878,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* 対象フレームから現在値をUIに読み込む / Load current values from the frame into the UI */
         function loadValuesFromFrame(tf0) {
             try { hasMultiParagraph = (tf0.paragraphs && tf0.paragraphs.length >= 2); } catch (e) { hasMultiParagraph = false; }
-            var initW = tf0.textPath.width / rulerInfo.toPt;
-            var initH = tf0.textPath.height / rulerInfo.toPt;
+            var initW = tf0.textPath.width / rulerInfo.pointsPerUnit;
+            var initH = tf0.textPath.height / rulerInfo.pointsPerUnit;
             fontSize = 0;
             try { fontSize = tf0.textRange.characterAttributes.size || 0; } catch (e) { }
             if (fontSize > 0) { etFontSize.text = Math.round(fontSize * 100) / 100; }
@@ -846,7 +889,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             _lastValidHeight = parseFloat(etHeight.text);
             try {
                 var sp = tf0.spacing || 0;
-                etMargin.text = Math.round((sp / rulerInfo.toPt) * 100) / 100;
+                etMargin.text = Math.round((sp / rulerInfo.pointsPerUnit) * 100) / 100;
                 chkMargin.value = (sp !== 0);
                 etMargin.enabled = chkMargin.value;
                 lblUnit.enabled = chkMargin.value;
@@ -856,10 +899,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 var irp = tf0.paragraphs.length > 0 ? (tf0.paragraphs[0].rightIndent || 0) : 0;
                 chkLeftIndent.value = (ilp !== 0);
                 etLeftIndent.enabled = chkLeftIndent.value;
-                etLeftIndent.text = chkLeftIndent.value ? Math.round((ilp / rulerInfo.toPt) * 100) / 100 : "0";
+                etLeftIndent.text = chkLeftIndent.value ? Math.round((ilp / rulerInfo.pointsPerUnit) * 100) / 100 : "0";
                 chkRightIndent.value = (irp !== 0);
                 etRightIndent.enabled = chkRightIndent.value;
-                etRightIndent.text = chkRightIndent.value ? Math.round((irp / rulerInfo.toPt) * 100) / 100 : "0";
+                etRightIndent.text = chkRightIndent.value ? Math.round((irp / rulerInfo.pointsPerUnit) * 100) / 100 : "0";
             } catch (e) { }
             btnTextSize.enabled = !hasMultiParagraph;
         }
@@ -872,11 +915,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var alignValueInt = 1;
 
             var leftIndentPt = (chkLeftIndent.value || chkSync.value)
-                ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
+                ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.pointsPerUnit : 0;
             var rightIndentPt = chkSync.value
                 ? leftIndentPt
-                : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt : 0);
-            var marginPt = chkMargin.value ? (parseFloat(etMargin.text) || 0) * rulerInfo.toPt : 0;
+                : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.pointsPerUnit : 0);
+            var marginPt = chkMargin.value ? (parseFloat(etMargin.text) || 0) * rulerInfo.pointsPerUnit : 0;
 
             var savedSel = [];
             var origSel = app.activeDocument.selection;
@@ -893,8 +936,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                     // 幅/高さ：NaN・0以下・極端値をガード / Guard NaN, non-positive, extreme values
                     var wRu = validateSizeField(etWidth, _lastValidWidth);
                     var hRu = validateSizeField(etHeight, _lastValidHeight);
-                    if (wRu !== null) { _lastValidWidth = wRu; try { obj.textPath.width = wRu * rulerInfo.toPt; } catch (e) { } }
-                    if (hRu !== null) { _lastValidHeight = hRu; try { obj.textPath.height = hRu * rulerInfo.toPt; } catch (e) { } }
+                    if (wRu !== null) { _lastValidWidth = wRu; try { obj.textPath.width = wRu * rulerInfo.pointsPerUnit; } catch (e) { } }
+                    if (hRu !== null) { _lastValidHeight = hRu; try { obj.textPath.height = hRu * rulerInfo.pointsPerUnit; } catch (e) { } }
                     if (doTextSize) { shrinkFont(obj); }
                     try { var pa2 = obj.textRange.paragraphAttributes; pa2.justification = justValue; pa2.leftIndent = leftIndentPt; pa2.rightIndent = rightIndentPt; } catch (e) { }
                     applyAreaTextFrameAlignment(obj, alignValueInt, forPreview);

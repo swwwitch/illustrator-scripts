@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartLayerManage";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartLayerManage.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartLayerManage.md"; /* README (English) */
@@ -74,6 +74,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
             allObj: { ja: "すべて", en: "All Objects" },
             allForce: { ja: "すべて（強制）", en: "All (Force)" },
             deleteEmpty: { ja: "空レイヤーを削除", en: "Delete Empty Layers" },
+            newLayer: { ja: "新規", en: "New" },
+            tipSelectedObj: { ja: "選択しているオブジェクトだけを移動します。", en: "Moves only the selected objects." },
+            tipAllText: { ja: "ドキュメント内のテキストをすべて移動します。", en: "Moves every text object in the document." },
+            tipAllObj: { ja: "ロック・非表示を除くすべてのオブジェクトを移動します。", en: "Moves every object except locked and hidden ones." },
+            tipAllForce: { ja: "ロックや非表示のオブジェクトも解除して移動します。", en: "Unlocks and shows locked or hidden objects, then moves them too." },
+            tipDeleteEmpty: { ja: "移動したあと、中身が無くなったレイヤーを削除します。", en: "Deletes the layers left empty after the move." },
+            tipNewLayer: { ja: "新しいレイヤーを作って、そこへ移動します。名前は右の欄で決めます。", en: "Creates a new layer and moves the objects there. The field on the right names it." },
+            tipLayerRadio: { ja: "このレイヤーへ移動します。", en: "Moves the objects to this layer." },
             layerList: { ja: "移動先レイヤー", en: "Target Layer" },
             move: { ja: "移動", en: "Move" },
             close: { ja: "閉じる", en: "Close" },
@@ -98,9 +106,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
         objPanel.margins = [15, 20, 15, 10];
 
         var radioSelected = objPanel.add("radiobutton", undefined, LABELS.selectedObj[uiLang]);
+        radioSelected.helpTip = LABELS.tipSelectedObj[uiLang];
         var radioAllText = objPanel.add("radiobutton", undefined, LABELS.allText[uiLang]);
+        radioAllText.helpTip = LABELS.tipAllText[uiLang];
         var radioAll = objPanel.add("radiobutton", undefined, LABELS.allObj[uiLang]);
+        radioAll.helpTip = LABELS.tipAllObj[uiLang];
         var radioAllForce = objPanel.add("radiobutton", undefined, LABELS.allForce[uiLang]);
+        radioAllForce.helpTip = LABELS.tipAllForce[uiLang];
         var currentSelection = doc.selection;
         var hasSelection = currentSelection && currentSelection.length > 0;
 
@@ -114,6 +126,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
         deleteGroup.margins = [5, 5, 0, 0];
 
         var deleteEmptyLayersCheckbox = deleteGroup.add("checkbox", undefined, LABELS.deleteEmpty[uiLang]);
+        deleteEmptyLayersCheckbox.helpTip = LABELS.tipDeleteEmpty[uiLang];
         deleteEmptyLayersCheckbox.value = true;
 
         var rightGroup = dialog.add("group");
@@ -130,13 +143,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n95ec4929ae9d"; /* 紹�
         // 先頭に「新規」ラジオボタン＋テキストフィールドを追加
         var newLayerGroup = radioLayerGroup.add("group");
         newLayerGroup.orientation = "row";
-        var radioNewLayer = newLayerGroup.add("radiobutton", undefined, "新規");
+        var radioNewLayer = newLayerGroup.add("radiobutton", undefined, LABELS.newLayer[uiLang]);
+            radioNewLayer.helpTip = LABELS.tipNewLayer[uiLang];
         var newLayerNameField = newLayerGroup.add("edittext", undefined, "New Layer");
+        newLayerNameField.helpTip = LABELS.tipNewLayer[uiLang];
         newLayerNameField.characters = 12;
         radioButtons.push(radioNewLayer);
         // 既存レイヤーのラジオボタンを追加
         for (var i = 0; i < layerNames.length; i++) {
             var rb = radioLayerGroup.add("radiobutton", undefined, layerNames[i]);
+            rb.helpTip = LABELS.tipLayerRadio[uiLang];
             radioButtons.push(rb);
             if (layers[i].locked) {
                 rb.enabled = false;

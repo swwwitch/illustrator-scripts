@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustTextScaleBaseline";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustTextScaleBaseline.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustTextScaleBaseline.md"; /* README (English) */
@@ -56,8 +56,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "Font Size & Baseline Adjuster " + SCRIPT_VERSION
         },
         targetChar: {
-            ja: "対象文字：",
-            en: "Target Char:"
+            ja: "対象文字",
+            en: "Target Char"
         },
         adjust: {
             ja: "調整",
@@ -102,8 +102,52 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         tracking: {
             ja: "トラッキング",
             en: "Tracking"
+        },
+        tipTargetChar: {
+            ja: "ここに書いた文字だけを調整します。空欄にすると選択範囲すべてが対象です。",
+            en: "Adjusts only the characters listed here. Leave blank to affect the whole selection."
+        },
+        tipFontSize: {
+            ja: "対象文字のフォントサイズを増減します。",
+            en: "Changes the font size of the target characters."
+        },
+        tipScale: {
+            ja: "対象文字の長体・平体です。100%で変形なしになります。",
+            en: "Horizontal and vertical scale of the target characters. 100% means no distortion."
+        },
+        tipBaselineShift: {
+            ja: "対象文字を上下にずらす量です。負の値で下がります。",
+            en: "How far the target characters move up. Negative values move them down."
+        },
+        tipKerning: {
+            ja: "対象文字の前後の詰めです。単位は1/1000em。",
+            en: "Spacing around the target characters, in 1/1000 em."
+        },
+        tipTracking: {
+            ja: "選択範囲全体の字間です。単位は1/1000em。",
+            en: "Letter spacing across the whole selection, in 1/1000 em."
         }
     };
+
+    /**
+     * 表示言語のラベルを取得する
+     * @param {string} key - LABELS のキー
+     * @returns {string} 表示言語のテキスト
+     */
+    function getLabel(key) {
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.en || key;
+    }
+
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロンを添えたラベル
+     */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    }
 
     /* 文字選択状態を取得 / Get selected characters from current document */
     function isTargetChar(ch, targetChar, hasTargetChar) {
@@ -232,35 +276,36 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /* 単位コードとプリファレンスキーに応じて単位ラベルを返す関数 / Get unit label for code and pref key */
-    function getUnitLabel(code, prefKey) {
-        var unitMap = {
-            0: "in",
-            1: "mm",
-            2: "pt",
-            3: "pica",
-            4: "cm",
-            5: "Q/H",
-            6: "px",
-            7: "ft/in",
-            8: "m",
-            9: "yd",
-            10: "ft"
-        };
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return unitMap[code] || "不明";
-    }
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 現在のテキスト単位ラベルを取得 / Get current text unit label */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("text/units");
-        return getUnitLabel(unitCode, "text/units");
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
+
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /* =========================================
@@ -450,9 +495,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var targetTextGroup = leftCol.add("group");
         targetTextGroup.orientation = "row";
-        targetTextGroup.add("statictext", undefined, LABELS.targetChar[uiLang]);
+        targetTextGroup.add("statictext", undefined, labelText("targetChar"));
         var targetCharInput = targetTextGroup.add("edittext", undefined, uniqueNonAN);
         targetCharInput.characters = 10;
+        targetCharInput.helpTip = getLabel("tipTargetChar");
 
         var infoPanel = leftCol.add("panel", undefined, LABELS.adjust[uiLang]);
         infoPanel.orientation = "column";
@@ -474,9 +520,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         sizeLabel.justify = "right";
         uiElements.sizeInput = sizeGroup.add("edittext", undefined, "0");
         uiElements.sizeInput.characters = 4;
+        uiElements.sizeInput.helpTip = getLabel("tipFontSize");
         uiElements.sizeInput.enabled = true;
 
-        var unitLabel = getUnitLabel(app.preferences.getIntegerPreference("text/units"), "text/units");
+        var unitLabel = getUnitInfo("text/units").label;
         sizeGroup.add("statictext", undefined, unitLabel);
 
         var scaleGroup = radioGroup.add("group", undefined, { orientation: "row" });
@@ -485,6 +532,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         scaleLabel.justify = "right";
         uiElements.hScaleInput = scaleGroup.add("edittext", undefined, "100");
         uiElements.hScaleInput.characters = 4;
+        uiElements.hScaleInput.helpTip = getLabel("tipScale");
         scaleGroup.add("statictext", undefined, "%");
         uiElements.sizeInput.enabled = true;
         uiElements.hScaleInput.enabled = true;
@@ -514,6 +562,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         uiElements.baselineInput = baselineGroup.add("edittext", undefined, "0");
         uiElements.baselineInput.characters = 4;
+        uiElements.baselineInput.helpTip = getLabel("tipBaselineShift");
         uiElements.baselineInput.justify = "right";
         baselineGroup.add("statictext", undefined, unitLabel);
 
@@ -616,6 +665,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         uiElements.kerningInput = kerningGroup.add("edittext", undefined, "0");
         uiElements.kerningInput.characters = 4;
+        uiElements.kerningInput.helpTip = getLabel("tipKerning");
         uiElements.kerningInput.justify = "right";
         kerningGroup.add("statictext", undefined, "/1000");
 
@@ -638,6 +688,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var trackingInput = trackingGroup.add("edittext", undefined, "0");
         trackingInput.characters = 4;
+        trackingInput.helpTip = getLabel("tipTracking");
         trackingInput.justify = "right";
         trackingGroup.add("statictext", undefined, "/1000");
 

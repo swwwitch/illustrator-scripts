@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SetTemplateLayer";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SetTemplateLayer.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetTemplateLayer.md"; /* README (English) */
@@ -53,7 +53,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         radioSelected: { ja: "選択しているレイヤー", en: "Selected layer" },
         radioSpecified:{ ja: "指定", en: "Specified" },
         prefixComment: { ja: "レイヤー名に「" + COMMENT_PREFIX + "」を付ける", en: "Prefix layer name with \"" + COMMENT_PREFIX + "\"" },
-        cancel:        { ja: "キャンセル", en: "Cancel" }
+        cancel:        { ja: "キャンセル", en: "Cancel" },
+        tipSelected:   { ja: "レイヤーパネルで選択中のレイヤーをテンプレートにします。", en: "Turns the layer selected in the Layers panel into a template." },
+        tipSpecified:  { ja: "名前で指定したレイヤーをテンプレートにします。無ければ作成します。", en: "Turns the layer with the given name into a template, creating it if needed." },
+        tipPrefix:     { ja: "テンプレート化したレイヤーの名前に接頭辞を付けて、見分けやすくします。", en: "Prefixes the name of the template layer so it stands out." }
     };
 
     function getLabel(key) {
@@ -112,13 +115,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     targetLayerPanel.spacing = 8;
 
     var selectedLayerRadio = targetLayerPanel.add("radiobutton", undefined, getLabel("radioSelected"));
+    selectedLayerRadio.helpTip = getLabel("tipSelected");
 
     // 「指定 ____」を 1 行で構成 / Build "Specified ____" on one row
     var specifiedLayerRow = targetLayerPanel.add("group");
     specifiedLayerRow.orientation = "row";
     specifiedLayerRow.spacing = 2;
     var specifiedLayerRadio = specifiedLayerRow.add("radiobutton", undefined, getLabel("radioSpecified"));
+    specifiedLayerRadio.helpTip = getLabel("tipSpecified");
     var specifiedLayerInput = specifiedLayerRow.add("edittext", undefined, specifiedLayerName);
+    specifiedLayerInput.helpTip = getLabel("tipSpecified");
     specifiedLayerInput.characters = 8;
 
     // 「下絵」レイヤーがあれば「指定」、無ければ現在のレイヤーを既定に / Default to "Specified" if the layer exists, otherwise the current layer
@@ -137,6 +143,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // --- チェックボックス：レイヤー名に接頭辞を付ける / Checkbox: prefix layer name ---
     var prefixCommentCheckbox = dialog.add("checkbox", undefined, getLabel("prefixComment"));
+    prefixCommentCheckbox.helpTip = getLabel("tipPrefix");
     prefixCommentCheckbox.value = true; /* 既定でON / Default: ON */
 
     // --- ボタン / Buttons（Mac 規約：Cancel → OK） ---

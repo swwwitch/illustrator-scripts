@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiSmartRotateView";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartRotateView.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartRotateView.md"; /* README (English) */
@@ -102,6 +102,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             resetRotation: { ja: "リセット", en: "Reset" },
             refresh: { ja: "更新", en: "Refresh" },
             close: { ja: "閉じる", en: "Close" }
+        },
+        tooltip: {
+            rotationSlider: { ja: "アクティブビューの回転角度です。Shiftを押しながらドラッグすると15°単位になります。", en: "Rotation angle of the active view. Hold Shift while dragging to snap to 15°." },
+            constrainInput: { ja: "環境設定の「角度の制限」です。入力を確定すると、その場で適用します。", en: "The Constrain Angle preference. Committing the field applies it right away." },
+            constrainSlider: { ja: "角度の制限をドラッグで変えます。Shiftを押しながらで15°単位になります。", en: "Drags the constrain angle. Hold Shift to snap to 15°." },
+            constrainPreset: { ja: "この角度を「角度の制限」に適用します。", en: "Applies this angle to the Constrain Angle preference." },
+            linkRotation: { ja: "ビューを回転したとき、角度の制限も同じ値に合わせます。", en: "Keeps the constrain angle in step with the view rotation." }
         },
         status: {
             applied: { ja: "制限角度に適用しました。", en: "Applied to the constrain angle." },
@@ -470,6 +477,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 回転角度スライダー（-180〜180、Shiftで15°単位にクランプ）/ Rotation slider (-180..180, snaps to 15° with Shift) */
         var rotationSlider = infoPanel.add("slider", undefined, 0, -180, 180);
+        rotationSlider.helpTip = getLabel("tooltip.rotationSlider");
         rotationSlider.alignment = "fill";
 
         /* ビューの回転だけ0°に戻す / Reset only the view rotation to 0° */
@@ -487,12 +495,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         constrainGroup.add("statictext", undefined, labelText("label.constrain"));
         var constrainInput = constrainGroup.add("edittext", undefined, "");
         constrainInput.characters = 6;
+        constrainInput.helpTip = getLabel("tooltip.constrainInput");
         changeValueByArrowKey(constrainInput);
         constrainGroup.add("statictext", undefined, "°");
 
         /* 角度の制限スライダー（-180〜180、Shiftで15°単位にクランプ。離した時点で環境設定へ適用）
            / Constrain angle slider (-180..180, snaps to 15° with Shift; applied to the preference on release) */
         var constrainSlider = constrainPanel.add("slider", undefined, 0, -180, 180);
+        constrainSlider.helpTip = getLabel("tooltip.constrainSlider");
         constrainSlider.alignment = "fill";
 
         /* よく使う角度をワンクリックで適用するプリセットボタン（0°は従来のリセットを兼ねる）
@@ -508,6 +518,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function addConstrainPreset(angle) {
             var button = constrainPresetGroup.add("button", undefined, angle + "°");
             button.preferredSize.width = 56;
+            button.helpTip = getLabel("tooltip.constrainPreset");
             button.onClick = function () {
                 commitConstrain(angle);
             };
@@ -521,6 +532,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         /* ビューの回転に連動するかどうか（ONで回転角度と同じ値、OFFでは現在の制限角度のまま）
            / Whether to follow the view rotation (on: the same value as the rotation; off: leaves the current constrain angle alone) */
         var linkRotationCheck = constrainPanel.add("checkbox", undefined, getLabel("label.linkRotation"));
+        linkRotationCheck.helpTip = getLabel("tooltip.linkRotation");
         linkRotationCheck.alignment = "left";
         /* 前回の状態を復元（Illustrator のセッション中のみ）/ Restore the previous state (only within the Illustrator session) */
         linkRotationCheck.value = sessionState.linkRotation;

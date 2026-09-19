@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextScopeEdit";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-08";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-08";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextScopeEdit.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextScopeEdit.md"; /* README (English) */
@@ -494,36 +494,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb845889dd553"; /* 紹�
 
                 if (result.length === 0) {
                     result.push(getLabel('unknownFont'));
-                }
-                return result;
-            }
-
-            function getTextFrameFontStyles(tf) {
-                var names = {};
-                var result = [];
-                var chars;
-                var i;
-                var styleName;
-                if (!tf) return result;
-
-                try {
-                    chars = tf.characters;
-                    for (i = 0; i < chars.length; i++) {
-                        try {
-                            styleName = chars[i].characterAttributes.textFont.style;
-                        } catch (e) {
-                            styleName = '';
-                        }
-                        if (!styleName) continue;
-                        if (!names[styleName]) {
-                            names[styleName] = true;
-                            result.push(styleName);
-                        }
-                    }
-                } catch (err) { }
-
-                if (result.length === 0) {
-                    result.push('');
                 }
                 return result;
             }

@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ApplyFontWithFontsize";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-03";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontWithFontsize.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontWithFontsize.md"; /* README (English) */
@@ -99,6 +99,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
             resultTitle: {
                 ja: "適用結果",
                 en: "Apply results"
+            },
+            tipResultList: {
+                ja: "フォントを適用できなかったテキストの一覧です。選んでコピーできます。",
+                en: "The text objects the font could not be applied to. You can select and copy them."
             },
             resultHeader: {
                 ja: "フォントを適用できなかった文字列：",
@@ -799,6 +803,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n33d152e73f35"; /* 紹�
         /* 一覧（読み取り専用・複数行・スクロール可）。手動で選択もできる / Read-only scrollable list */
         var listField = dialog.add("edittext", undefined, unappliedTexts.join("\n"),
             { multiline: true, scrolling: true, readonly: true });
+        listField.helpTip = getLabel(LABELS.dialog.tipResultList);
         listField.preferredSize = RESULT_FIELD_SIZE;
 
         /* === ボタンエリア（左右分割：左=コピー／右=閉じる）=== */

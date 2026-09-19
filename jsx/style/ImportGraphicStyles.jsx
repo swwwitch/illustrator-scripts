@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ImportGraphicStyles";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportGraphicStyles.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportGraphicStyles.md"; /* README (English) */
@@ -46,6 +46,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
     var currentLanguage = getCurrentLang();
 
+    /**
+     * グラフィックスタイルのラジオボタンを追加する
+     * @param {Group|Panel} parentContainer - 追加先のコンテナ
+     * @param {string} styleName - スタイル名
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addStyleRadio(parentContainer, styleName) {
+        var radioButton = parentContainer.add("radiobutton", undefined, styleName);
+        radioButton.helpTip = getLabel("tooltip.style");
+        return radioButton;
+    }
+
     var LABELS = {
         /* ダイアログ / Dialog */
         dialog: {
@@ -61,6 +73,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             panelTitle: { ja: "スタイルの読み込み", en: "Load Styles" }
         },
         /* ボタン / Buttons */
+        tooltip: {
+            loadFile: { ja: "グラフィックスタイルを読み込む .ai ファイルを選びます。", en: "Picks the .ai file to load the graphic styles from." },
+            style: { ja: "選択オブジェクトに適用するグラフィックスタイルです。", en: "The graphic style applied to the selected objects." }
+        },
         button: {
             cancel: { ja: "キャンセル", en: "Cancel" },
             apply: { ja: "適用", en: "Apply" },
@@ -274,6 +290,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         loadPanel.margins = [16, 20, 16, 12];
         loadPanel.spacing = 8;
         var loadFileButton = loadPanel.add("button", undefined, getLabel("button.loadFile"));
+        loadFileButton.helpTip = getLabel("tooltip.loadFile");
         var fileNameText = loadPanel.add("statictext", undefined, "", { truncate: "middle" });
         fileNameText.preferredSize.width = 240;
 
@@ -298,7 +315,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 applyButton.enabled = false;
             } else {
                 for (var j = 0; j < state.styleNames.length; j++) {
-                    styleRadios.push(radioGroup.add("radiobutton", undefined, state.styleNames[j]));
+                    styleRadios.push(addStyleRadio(radioGroup, state.styleNames[j]));
                 }
                 styleRadios[0].value = true; // 既定 / Default
                 applyButton.enabled = true;

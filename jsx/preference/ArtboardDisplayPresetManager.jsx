@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ArtboardDisplayPresetManager"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardDisplayPresetManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardDisplayPresetManager.md"; /* README (English) */
@@ -119,6 +119,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
     var currentLanguage = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ分け）/ Japanese-English label definitions (categorized) */
+    /**
+     * ［ロック・非表示も移動］チェックボックスを追加する
+     * @param {Panel|Group} parentContainer - 追加先のコンテナ
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addMoveLockedHiddenCheckbox(parentContainer) {
+        var checkbox = parentContainer.add("checkbox", undefined, getLabel("checkbox.moveLockedHidden"));
+        checkbox.helpTip = getLabel("tooltip.moveLockedHidden");
+        return checkbox;
+    }
+
     var LABELS = {
         dialog: {
             title: { ja: "アートボード関連の環境設定", en: "Artboard-Related Preferences" }
@@ -134,6 +145,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
             height: { ja: "高さ", en: "Height" },
             borderColor: { ja: "ハイライトのカラー", en: "Highlight Color" },
             borderWidth: { ja: "ストロークの幅", en: "Stroke Width" }
+        },
+        tooltip: {
+            presetName:       { ja: "保存するプリセットの名前です。", en: "Name the preset is saved under." },
+            showArtboardName: { ja: "カンバス上にアートボード名を表示します。", en: "Shows the artboard names on the canvas." },
+            borderColor:      { ja: "アートボードの境界線の色です。", en: "Color of the artboard borders." },
+            borderWidth:      { ja: "アートボードの境界線の太さです。", en: "Width of the artboard borders." },
+            preset:           { ja: "まとめて切り替える表示設定の組み合わせです。", en: "A set of display settings applied together." },
+            moveLockedHidden: { ja: "ロックや非表示のオブジェクトも、アートボードと一緒に動かします。", en: "Moves locked and hidden objects along with the artboard." }
         },
         checkbox: {
             showArtboardName: { ja: "アートボード名を表示", en: "Show Artboard Name" },
@@ -476,6 +495,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         setupRow(fieldGroup, "left", 4);
         fieldGroup.add("statictext", undefined, labelWithColon(labelPath));
         var input = fieldGroup.add("edittext", undefined, "");
+        input.helpTip = getLabel("tooltip.presetName");
         input.characters = 5;
         var unitText = fieldGroup.add("statictext", undefined, unitLabel);
         return { input: input, unitText: unitText };
@@ -534,6 +554,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         setupPanel(displayPanel);
 
         var showNameCheckbox = displayPanel.add("checkbox", undefined, getLabel("checkbox.showArtboardName"));
+        showNameCheckbox.helpTip = getLabel("tooltip.showArtboardName");
 
         /* 枠線サブパネル / Border sub-panel */
         var borderPanel = displayPanel.add("panel", undefined, getLabel("panel.artboardBorder"));
@@ -543,6 +564,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         setupRow(colorRow, "left");
         colorRow.add("statictext", undefined, labelWithColon("label.borderColor"));
         var borderColorList = colorRow.add("dropdownlist", undefined, buildBorderColorNames());
+        borderColorList.helpTip = getLabel("tooltip.borderColor");
 
         var widthRow = borderPanel.add("group");
         setupRow(widthRow, "left");
@@ -550,6 +572,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         var borderWidthRadios = [];
         for (var i = 0; i < BORDER_WIDTH_CHOICES.length; i++) {
             borderWidthRadios.push(widthRow.add("radiobutton", undefined, String(BORDER_WIDTH_CHOICES[i])));
+            borderWidthRadios[borderWidthRadios.length - 1].helpTip = getLabel("tooltip.borderWidth");
         }
 
         /* プリセット（パネル最下部・左右中央）/ Presets (bottom of panel, centered) */
@@ -558,6 +581,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         var presetRadios = [];
         for (var j = 0; j < PRESET_KEYS.length; j++) {
             presetRadios.push(presetRow.add("radiobutton", undefined, getLabel("preset." + PRESET_KEYS[j])));
+            presetRadios[presetRadios.length - 1].helpTip = getLabel("tooltip.preset");
         }
 
         return {
@@ -579,7 +603,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9eba8ab03170"; /* 紹�
         return {
             /* PRINT_BLEED_WIDGET を参照 / See the PRINT_BLEED_WIDGET note */
             // printBleedCheckbox: optionsPanel.add("checkbox", undefined, getLabel("checkbox.showPrintBleedAI")),
-            moveLockedHiddenCheckbox: optionsPanel.add("checkbox", undefined, getLabel("checkbox.moveLockedHidden"))
+            moveLockedHiddenCheckbox: addMoveLockedHiddenCheckbox(optionsPanel)
         };
     }
 

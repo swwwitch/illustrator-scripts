@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartIncrementText";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartIncrementText.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md"; /* README (English) */
@@ -62,24 +62,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             en: "No digits or letters were found in the selected text.\nSelect text containing digits/letters (e.g., 01, 2025/11/21, 19:00, A1)."
         },
         labelCount: {
-            ja: "複製数:",
-            en: "Copies:"
+            ja: "複製数",
+            en: "Copies"
         },
         labelStep: {
-            ja: "増分:",
-            en: "Step:"
+            ja: "増分",
+            en: "Step"
         },
         labelInterval: {
-            ja: "間隔:",
-            en: "Spacing:"
+            ja: "間隔",
+            en: "Spacing"
         },
         labelTarget: {
-            ja: "増分対象:",
-            en: "Increment:"
+            ja: "増分対象",
+            en: "Increment"
         },
         labelStartOverride: {
-            ja: "開始番号:",
-            en: "Start:"
+            ja: "開始番号",
+            en: "Start"
         },
         labelZeroPad: {
             ja: "ゼロ埋め",
@@ -88,6 +88,38 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         labelMergeOnOK: {
             ja: "確定時にテキストを結合",
             en: "Merge text on OK"
+        },
+        tipCount: {
+            ja: "作る複製の数です。元のテキストは含みません。",
+            en: "How many copies to create, not counting the original."
+        },
+        tipStep: {
+            ja: "1つ進むごとに足す数です。負の値で減らせます。",
+            en: "Amount added at each step. Negative values count down."
+        },
+        tipInterval: {
+            ja: "複製どうしのアキです。文字サイズに加算されます。",
+            en: "Space between copies, added on top of the font size."
+        },
+        tipTarget: {
+            ja: "テキストの中で増やす箇所です。数字や英字が複数あるときに選べます。",
+            en: "Which part of the text to increment, when there is more than one number or letter."
+        },
+        tipStartOverride: {
+            ja: "元のテキストの値ではなく、指定した値から始めます。",
+            en: "Starts from the value you enter instead of the one in the original text."
+        },
+        tipStartValue: {
+            ja: "最初の複製に使う値です。",
+            en: "Value used for the first copy."
+        },
+        tipZeroPad: {
+            ja: "元の桁数に合わせて、頭に0を足します。",
+            en: "Pads with leading zeros to match the original width."
+        },
+        tipMergeOnOK: {
+            ja: "OKを押したとき、複製したテキストを1つのテキストにまとめます。",
+            en: "Merges the duplicated text into a single text object when you press OK."
         },
         btnCancel: {
             ja: "キャンセル",
@@ -108,11 +140,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     };
 
     function getLabel(key) {
-        try {
-            if (LABELS[key] && LABELS[key][uiLang]) return LABELS[key][uiLang];
-            if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
-        } catch (e) { }
-        return String(key);
+        var entry = LABELS[key];
+        if (!entry) return String(key);
+        return entry[uiLang] || entry.en || String(key);
+    }
+
+    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
     }
 
     function makeTargetLabel(kind, idx1based) {
@@ -161,19 +196,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         if (!tf || !pos) return;
         try { tf.position = [pos[0], pos[1]]; return; } catch (e) { }
         try { tf.left = pos[0]; tf.top = pos[1]; } catch (e) { }
-    }
-
-    // Undo後に参照が無効化されることがあるため、可能なら選択から再取得
-    function refreshOriginalObjRef() {
-        try {
-            if (originalObj && originalObj.typename === "TextFrame") return;
-        } catch (e) { }
-        try {
-            var s2 = app.activeDocument.selection;
-            if (s2 && s2.length === 1 && s2[0].typename === "TextFrame") {
-                originalObj = s2[0];
-            }
-        } catch (e) { }
     }
 
     // 数字/英字ラン（複数）を抽出してセグメント化 / Tokenize digits & letters
@@ -295,65 +317,44 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /* ================================
      * 単位ユーティリティ（text/units） / Unit util (text/units)
      * ================================ */
-    var __unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
+    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    function getUnitLabel(code, prefKey) {
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true,
-                "text/units": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return __unitMap[code] || "pt";
-    }
+    /* 単位コード5を「歯（H）」と表示する環境設定キー。文字サイズ（text/units）だけ「級（Q）」
+       Preference keys that show unit code 5 as H; only the type size (text/units) shows Q */
+    var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-            case 6: return 1.0;                         // px
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
-
+    /**
+     * 設定キーごとの単位情報を取得する
+     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     */
     function getUnitInfo(prefKey) {
-        var code = 2;
-        try { code = app.preferences.getIntegerPreference(prefKey); } catch (e) { code = 2; }
-        return {
-            code: code,
-            label: getUnitLabel(code, prefKey),
-            factor: getPtFactorFromUnitCode(code) // 1 unit = factor pt
-        };
+        var unitKey = prefKey || "rulerType";
+        var unitCode = app.preferences.getIntegerPreference(unitKey);
+        var unit = UNITS[unitCode] || UNITS[2];
+        var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
+        return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     function ptToUnitValue(pt, unitInfo) {
-        return pt / unitInfo.factor;
+        return pt / unitInfo.pointsPerUnit;
     }
 
     function unitValueToPt(v, unitInfo) {
-        return v * unitInfo.factor;
+        return v * unitInfo.pointsPerUnit;
     }
 
     var __textUnit = getUnitInfo("text/units");
@@ -464,23 +465,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // 複製数 / Copies
     var group1 = mainGroup.add("group");
-    var stCount = group1.add("statictext", undefined, getLabel("labelCount"));
+    var stCount = group1.add("statictext", undefined, labelText("labelCount"));
     stCount.preferredSize.width = 60;
     stCount.justify = "right";
     var countInput = group1.add("edittext", undefined, "5");
     countInput.characters = 4;
+    countInput.helpTip = getLabel("tipCount");
 
     // 増分 / Step
     var groupStep = mainGroup.add("group");
-    var stStep = groupStep.add("statictext", undefined, getLabel("labelStep"));
+    var stStep = groupStep.add("statictext", undefined, labelText("labelStep"));
     stStep.preferredSize.width = 60;
     stStep.justify = "right";
     var stepInput = groupStep.add("edittext", undefined, "1");
     stepInput.characters = 4;
+    stepInput.helpTip = getLabel("tipStep");
 
     // 間隔 / Spacing
     var group2 = mainGroup.add("group");
-    var stInterval = group2.add("statictext", undefined, getLabel("labelInterval"));
+    var stInterval = group2.add("statictext", undefined, labelText("labelInterval"));
     stInterval.preferredSize.width = 60;
     stInterval.justify = "right";
 
@@ -496,6 +499,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var defaultGapUnit = ptToUnitValue(defaultGapPt, __textUnit);
     var offsetInput = group2.add("edittext", undefined, defaultGapUnit.toFixed(1));
     offsetInput.characters = 4;
+    offsetInput.helpTip = getLabel("tipInterval");
 
     var stOffsetUnit = group2.add("statictext", undefined, __textUnit.label);
 
@@ -505,7 +509,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupTarget.orientation = "row";
     groupTarget.alignChildren = ["left", "center"];
 
-    var stTarget = groupTarget.add("statictext", undefined, getLabel("labelTarget"));
+    var stTarget = groupTarget.add("statictext", undefined, labelText("labelTarget"));
     stTarget.preferredSize.width = 60;
     stTarget.justify = "right";
 
@@ -514,10 +518,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     gTargetRadios.alignChildren = ["left", "center"];
 
     var rbTargets = [];
-    for (var _ti = 0; _ti < targetLabels.length; _ti++) {
-        var rb = gTargetRadios.add("radiobutton", undefined, targetLabels[_ti]);
-        var idxToken = (targetIndices && targetIndices.length > 0) ? targetIndices[_ti] : _ti;
+    for (var targetLabelIndex = 0; targetLabelIndex < targetLabels.length; targetLabelIndex++) {
+        var rb = gTargetRadios.add("radiobutton", undefined, targetLabels[targetLabelIndex]);
+        var idxToken = (targetIndices && targetIndices.length > 0) ? targetIndices[targetLabelIndex] : targetLabelIndex;
         rb.value = (idxToken === targetIndex);
+        rb.helpTip = getLabel("tipTarget");
         rbTargets.push(rb);
     }
 
@@ -529,8 +534,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupStart.alignChildren = ["left", "center"];
 
     var chkStartOverride = groupStart.add("checkbox", undefined, getLabel("labelStartOverride"));
+    chkStartOverride.helpTip = getLabel("tipStartOverride");
     var startInput = groupStart.add("edittext", undefined, __baseTokensSnapshot[targetIndex]);
     startInput.characters = 6;
+    startInput.helpTip = getLabel("tipStartValue");
     startInput.enabled = false;
 
     function onTargetIndexChanged(newIndex) {
@@ -546,10 +553,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         updatePreview();
     }
 
-    for (var _ri = 0; _ri < rbTargets.length; _ri++) {
+    for (var radioIndex = 0; radioIndex < rbTargets.length; radioIndex++) {
         (function (idx) {
             rbTargets[idx].onClick = function () { onTargetIndexChanged(idx); };
-        })(_ri);
+        })(radioIndex);
     }
 
     // チェックONのときだけ入力可能 / Enable only when checked
@@ -565,6 +572,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupZeroPad.alignChildren = ["left", "center"];
 
     var chkZeroPad = groupZeroPad.add("checkbox", undefined, getLabel("labelZeroPad"));
+    chkZeroPad.helpTip = getLabel("tipZeroPad");
     chkZeroPad.value = true;
     chkZeroPad.onClick = function () {
         applyStartNumberToOriginal();
@@ -577,6 +585,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     groupMergeText.alignChildren = ["left", "center"];
 
     var chkMergeTextOnOK = groupMergeText.add("checkbox", undefined, getLabel("labelMergeOnOK"));
+    chkMergeTextOnOK.helpTip = getLabel("tipMergeOnOK");
     chkMergeTextOnOK.value = false;
 
     /* ボタンエリア（OKを右寄せ） / Buttons (OK aligned right) */

@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAlignDistribute";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-02-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md"; /* README (English) */
@@ -157,33 +157,33 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
     // 単位 / Units
     // =========================================
-    var unitLabelMap = {
-        0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm",
-        5: "Q/H", 6: "px", 7: "ft/in", 8: "m", 9: "yd", 10: "ft"
-    };
 
-    /* 現在の単位ラベルを取得 / Get current unit label */
-    function getCurrentUnitLabel() {
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[unitCode] || "pt";
-    }
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
 
-    /* 単位コードからポイント換算係数を取得 / Get point factor from unit code */
-    function getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                    // in
-            case 1: return 72.0 / 25.4;             // mm
-            case 2: return 1.0;                     // pt
-            case 3: return 12.0;                    // pica
-            case 4: return 72.0 / 2.54;             // cm
-            case 5: return 72.0 / 25.4 * 0.25;      // Q / H
-            case 6: return 1.0;                     // px
-            case 7: return 72.0 * 12.0;             // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;    // m
-            case 9: return 72.0 * 36.0;             // yd
-            case 10: return 72.0 * 12.0;             // ft
-            default: return 1.0;
-        }
+    /**
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
+     */
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     // =========================================
@@ -633,7 +633,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var spacingInput = spacingRowGroup.add("edittext", undefined, "0");
         spacingInput.characters = 3;
         spacingInput.helpTip = getLabel('spacing.tip');
-        spacingRowGroup.add("statictext", undefined, getCurrentUnitLabel());
+        spacingRowGroup.add("statictext", undefined, getUnitInfo().label);
         changeValueByArrowKey(spacingInput, true, function () { requestPreviewUpdate(); });
 
         /* ---- UI: 揃え / Alignment ---- */
@@ -743,8 +743,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function getSpacingPt() {
             var spacingValue = parseFloat(spacingInput.text);
             if (isNaN(spacingValue)) spacingValue = 0;
-            var unitCode = app.preferences.getIntegerPreference("rulerType");
-            return spacingValue * getPtFactorFromUnitCode(unitCode);
+            return spacingValue * getUnitInfo().pointsPerUnit;
         }
 
         /* 現在の設定で選択にレイアウトを適用 / Apply layout to current selection with current settings */

@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DetachPathText";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DetachPathText.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DetachPathText.md"; /* README (English) */
@@ -55,12 +55,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnOk: { ja: "OK", en: "OK" },
         alertNoDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
         alertNoSel: { ja: "パス上文字を選択してください。", en: "Please select path text." },
-        alertNoPath: { ja: "選択範囲にパス上文字が含まれていません。", en: "No path text found in selection." }
+        alertNoPath: { ja: "選択範囲にパス上文字が含まれていません。", en: "No path text found in selection." },
+        tipFull: { ja: "1文字ずつ書式を写します。正確ですが、文字数が多いと時間がかかります。", en: "Copies the formatting character by character. Accurate, but slow for long text." },
+        tipFast: { ja: "テキスト全体の書式をまとめて写します。速いかわりに、文字ごとの違いは失われます。", en: "Copies the formatting for the whole text at once. Faster, but per-character differences are lost." },
+        tipNone: { ja: "書式を写さず、文字だけを取り出します。", en: "Takes only the characters, without the formatting." },
+        tipPathBlack: { ja: "残したパスに1ptの黒い線を設定します。", en: "Gives the remaining path a 1 pt black stroke." },
+        tipPathNone: { ja: "残したパスを線なしにします。", en: "Leaves the remaining path without a stroke." },
+        tipPathDelete: { ja: "パスを残さず削除します。", en: "Deletes the path instead of keeping it." }
     };
 
     /* ラベル取得ヘルパー / Label lookup helper */
     function getLabel(key) {
-        return LABELS[key][uiLang];
+        var entry = LABELS[key];
+        if (!entry) return key;
+        return entry[uiLang] || entry.en || key;
     }
 
     // ==========================================
@@ -79,8 +87,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         pnlKeep.margins = [15, 20, 15, 12];
 
         var rbFull = pnlKeep.add("radiobutton", undefined, getLabel("rbFull"));
+        rbFull.helpTip = getLabel("tipFull");
         var rbFast = pnlKeep.add("radiobutton", undefined, getLabel("rbFast"));
+        rbFast.helpTip = getLabel("tipFast");
         var rbNone = pnlKeep.add("radiobutton", undefined, getLabel("rbNone"));
+        rbNone.helpTip = getLabel("tipNone");
         rbFull.value = true;
 
         /* パスパネル / Path panel */
@@ -90,8 +101,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         pnlPath.margins = [15, 20, 15, 12];
 
         var rbPathBlack = pnlPath.add("radiobutton", undefined, getLabel("rbPathBlack"));
+        rbPathBlack.helpTip = getLabel("tipPathBlack");
         var rbPathNone = pnlPath.add("radiobutton", undefined, getLabel("rbPathNone"));
+        rbPathNone.helpTip = getLabel("tipPathNone");
         var rbPathDelete = pnlPath.add("radiobutton", undefined, getLabel("rbPathDelete"));
+        rbPathDelete.helpTip = getLabel("tipPathDelete");
         rbPathBlack.value = true; // デフォルト / Default
 
         /* ボタングループ / Button group */

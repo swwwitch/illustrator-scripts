@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectExporter";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-11";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectExporter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectExporter.md"; /* README (English) */
@@ -465,22 +465,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
     // 単位 / Units
     // =========================================
 
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
+    var UNITS = [
+        { label: "in",    pointsPerUnit: 72 },                /* 0 */
+        { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
+        { label: "pt",    pointsPerUnit: 1 },                 /* 2 */
+        { label: "pica",  pointsPerUnit: 12 },                /* 3 */
+        { label: "cm",    pointsPerUnit: 72 / 2.54 },         /* 4 */
+        { label: "Q",     pointsPerUnit: 72 / 25.4 * 0.25 },  /* 5 */
+        { label: "px",    pointsPerUnit: 1 },                 /* 6 */
+        { label: "ft/in", pointsPerUnit: 72 * 12 },           /* 7 */
+        { label: "m",     pointsPerUnit: 72 / 25.4 * 1000 },  /* 8 */
+        { label: "yd",    pointsPerUnit: 72 * 36 },           /* 9 */
+        { label: "ft",    pointsPerUnit: 72 * 12 }            /* 10 */
+    ];
+
     /**
-     * 定規の単位ラベルとpt換算係数を取得する
-     * @returns {{label: string, factor: number}} 単位ラベルと1単位あたりのpt数
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
-    function getRulerUnitInfo() {
-        var rulerType = app.preferences.getIntegerPreference("rulerType");
-        var unitTable = {
-            0: { label: "inch", factor: 72.0 },
-            1: { label: "mm", factor: 72.0 / 25.4 },
-            3: { label: "pica", factor: 12.0 },
-            4: { label: "cm", factor: 72.0 / 2.54 },
-            5: { label: "Q", factor: 72.0 / 25.4 * 0.25 },
-            6: { label: "px", factor: 1.0 }
-        };
-        /* 未対応の rulerType（2 を含む）は pt 扱い / Unknown ruler types, 2 included, fall back to pt */
-        return unitTable[rulerType] || { label: "pt", factor: 1.0 };
+    function getUnitInfo(prefKey) {
+        var unitCode = app.preferences.getIntegerPreference(prefKey || "rulerType");
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
+        var unit = UNITS[unitCode] || UNITS[2];
+        return { code: unitCode, label: unit.label, pointsPerUnit: unit.pointsPerUnit };
     }
 
     /**
@@ -1401,14 +1415,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
 
         /* 現在のマージン設定を含めた書き出し範囲 / Export rect including the current margin */
         function getExportRectFromUI() {
-            return buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), rulerUnit.factor),
-                getRoundMode(controls), rulerUnit.factor);
+            return buildExportRect(selectionBounds, resolveMarginOffsets(getMarginSpec(controls), rulerUnit.pointsPerUnit),
+                getRoundMode(controls), rulerUnit.pointsPerUnit);
         }
 
         /* 設定が変わるたびにプレビューと倍率ラベルを描き直す / Redraw the preview and the scale labels on every change */
         function refreshPreview() {
             if (controls.size) updateScaleLabels();
-            renderPreview(controls, selectionBounds, rulerUnit.factor);
+            renderPreview(controls, selectionBounds, rulerUnit.pointsPerUnit);
         }
 
         /* ファイル名プレビューを更新する / Refresh the filename preview */
@@ -2026,7 +2040,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             /* プリセットはmmで持っているので、現在の定規単位へ換算して反映する
                / Presets are stored in mm, so convert them to the current ruler unit */
             function toRulerUnit(valueMm) {
-                return fromPresetUnit(valueMm, rulerUnit.factor);
+                return fromPresetUnit(valueMm, rulerUnit.pointsPerUnit);
             }
             controls.background.select(preset.background);
             controls.margin.select(convertMarginSpec(preset.margin, toRulerUnit));
@@ -2046,7 +2060,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             if (selectedIndex > 0) applyPreset(PRESETS[selectedIndex - 1]);
         };
         btnSavePreset.onClick = function() {
-            savePresetToFile(controls, rulerUnit.factor);
+            savePresetToFile(controls, rulerUnit.pointsPerUnit);
         };
 
         // -----------------------------------------
@@ -2146,7 +2160,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             var backgroundItem = createExportBackground(settings.backgroundChoice, exportRect, settings.checkerPercent);
             var borderRect = drawBorderRectangle(
                 exportRect,
-                resolveBorderWidth(settings.borderSpec, rulerUnit.factor),
+                resolveBorderWidth(settings.borderSpec, rulerUnit.pointsPerUnit),
                 resolveBorderColor(settings.borderSpec)
             );
             if (borderRect) borderRect.zOrder(ZOrderMethod.BRINGTOFRONT);
@@ -2196,7 +2210,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
             return;
         }
 
-        var rulerUnit = getRulerUnitInfo();
+        var rulerUnit = getUnitInfo();
         var documentBaseName = doc.name.replace(/\.ai$/i, "");
         var originalArtboardIndex = doc.artboards.getActiveArtboardIndex();
         var hiddenLayers = [];
@@ -2244,8 +2258,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/necf308c39f5d"; /* 紹�
         var settings = showExportOptionsDialog(selectionBounds, rulerUnit, documentBaseName);
         if (!settings) return null;
 
-        var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(settings.marginSpec, rulerUnit.factor),
-            settings.roundMode, rulerUnit.factor);
+        var exportRect = buildExportRect(selectionBounds, resolveMarginOffsets(settings.marginSpec, rulerUnit.pointsPerUnit),
+            settings.roundMode, rulerUnit.pointsPerUnit);
         if (exportRect.width <= 0 || exportRect.height <= 0) {
             alert(getLabel(LABELS.alert.invalidSize));
             return null;

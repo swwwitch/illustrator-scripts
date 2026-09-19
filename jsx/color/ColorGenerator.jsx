@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ColorGenerator";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorGenerator.md"; /* README (English) */
@@ -41,11 +41,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
     var uiLang = getCurrentLang();
 
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    }
+
     var LABELS = {
         dialogTitle: { ja: "カラージェネレーター", en: "Color Generator" },
         panelSettings: { ja: "ベースカラー", en: "Base Color" },
-        labelHex: { ja: "HEX:", en: "HEX:" },
-        labelSteps: { ja: "ステップ数:", en: "Steps:" },
+        labelHex: { ja: "HEX", en: "HEX" },
+        labelSteps: { ja: "ステップ数", en: "Steps" },
+        panelContrast: { ja: "コントラストシフト", en: "Contrast Shift" },
+        algoAll: { ja: "すべて", en: "All" },
         panelAlgorithm: { ja: "アルゴリズム", en: "Algorithm" },
         panelPreview: { ja: "プレビュー", en: "Preview" },
         panelSwatch: { ja: "スウォッチ", en: "Swatch" },
@@ -57,7 +68,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnRedraw: { ja: "再描画", en: "Redraw" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
         btnGenerate: { ja: "生成", en: "Generate" },
-        alertNoDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." }
+        alertNoDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+        tipHex: { ja: "基準にするカラーを16進数で指定します（例: 3366CC）。", en: "The base color, given as a hex value (for example 3366CC)." },
+        tipSteps: { ja: "作る色の数です。スライダーでも変えられます。", en: "How many colors to generate. The slider changes it too." },
+        tipContrast: { ja: "明暗の開きを調整します。マイナスで中間に寄り、プラスで開きます。", en: "Adjusts how far apart the light and dark ends sit. Negative pulls them together, positive spreads them." },
+        tipAlgorithm: { ja: "色の並べ方です。「すべて」を選ぶと各方式を並べて見比べられます。", en: "How the colors are derived. All lays out every method side by side for comparison." },
+        tipRegisterSwatchGroup: { ja: "生成した色をスウォッチグループとしてまとめて登録します。", en: "Registers the generated colors together as a swatch group." },
+        tipConvertToGlobal: { ja: "登録するスウォッチをグローバルカラーにします。", en: "Registers the swatches as global colors." },
+        tipOutputHex: { ja: "各色の下に16進数の値を添えます。", en: "Writes the hex value under each color." },
+        tipOutputRgb: { ja: "各色の下にRGB値を添えます。", en: "Writes the RGB value under each color." },
+        tipRedraw: { ja: "いまの設定でプレビューを引き直します。", en: "Redraws the preview with the current settings." }
     };
 
     function getLabel(key) {
@@ -279,8 +299,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         swatchPanel.enabled = false;
 
         var chkRegisterSwatchGroup = swatchPanel.add("checkbox", undefined, getLabel("chkRegisterSwatchGroup"));
+        chkRegisterSwatchGroup.helpTip = getLabel("tipRegisterSwatchGroup");
         chkRegisterSwatchGroup.value = true;
         var chkConvertToGlobal = swatchPanel.add("checkbox", undefined, getLabel("chkConvertToGlobal"));
+        chkConvertToGlobal.helpTip = getLabel("tipConvertToGlobal");
         chkConvertToGlobal.value = false;
 
         // 右カラム：出力 / Right column: Output
@@ -290,24 +312,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         outputPanel.alignChildren = ["left", "top"];
 
         var chkOutputHex = outputPanel.add("checkbox", undefined, getLabel("chkOutputHex"));
+        chkOutputHex.helpTip = getLabel("tipOutputHex");
         chkOutputHex.value = true;
 
         var chkOutputRgb = outputPanel.add("checkbox", undefined, getLabel("chkOutputRgb"));
+        chkOutputRgb.helpTip = getLabel("tipOutputRgb");
         chkOutputRgb.value = false;
 
-        var g1 = inputPanel.add("group");
-        g1.orientation = "row";
-        g1.alignChildren = ["left", "center"];
+        var hexRow = inputPanel.add("group");
+        hexRow.orientation = "row";
+        hexRow.alignChildren = ["left", "center"];
 
         // 現在のHEXカラー表示（カラーチップ） / Current HEX color swatch
-        var colorSwatch = g1.add("panel");
+        var colorSwatch = hexRow.add("panel");
         try { colorSwatch.margins = 0; } catch (e) { }
         colorSwatch.preferredSize = [46, 46];
 
-        g1.add("statictext", undefined, getLabel("labelHex"));
+        hexRow.add("statictext", undefined, labelText("labelHex"));
 
         var __initHex = tryGetSelectionFillHex() || "#3b82f6";
-        var inputHex = g1.add("edittext", undefined, __initHex);
+        var inputHex = hexRow.add("edittext", undefined, __initHex);
+        inputHex.helpTip = getLabel("tipHex");
         inputHex.characters = 8;
 
         function getPreviewRgb() {
@@ -362,13 +387,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         stepsPanel.alignChildren = ["left", "top"];
 
         // 上段：ラベル + 入力 / Top: label + input
-        var gStepsTop = stepsPanel.add("group");
-        gStepsTop.orientation = "row";
-        gStepsTop.alignChildren = ["left", "center"];
-        gStepsTop.alignment = "left";
+        var stepsInputRow = stepsPanel.add("group");
+        stepsInputRow.orientation = "row";
+        stepsInputRow.alignChildren = ["left", "center"];
+        stepsInputRow.alignment = "left";
 
-        // gStepsTop.add("statictext", undefined, getLabel("labelSteps"));
-        var inputCount = gStepsTop.add("edittext", undefined, "5");
+        var inputCount = stepsInputRow.add("edittext", undefined, "5");
+        inputCount.helpTip = getLabel("tipSteps");
         inputCount.characters = 3;
         // 矢印キーで増減（整数のみ） / Change by arrow keys (integers)
         inputCount.__min = 1;
@@ -376,34 +401,37 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         changeValueByArrowKey(inputCount);
 
         // 下段：スライダー / Bottom: slider
-        var gStepsBottom = stepsPanel.add("group");
-        gStepsBottom.orientation = "row";
-        gStepsBottom.alignChildren = ["left", "center"];
-        gStepsBottom.alignment = "left";
+        var stepsSliderRow = stepsPanel.add("group");
+        stepsSliderRow.orientation = "row";
+        stepsSliderRow.alignChildren = ["left", "center"];
+        stepsSliderRow.alignment = "left";
 
-        var sldCount = gStepsBottom.add("slider", undefined, 5, 1, 20);
+        var sldCount = stepsSliderRow.add("slider", undefined, 5, 1, 20);
+        sldCount.helpTip = getLabel("tipSteps");
         sldCount.preferredSize.width = 200;
 
         // CONTRAST SHIFT パネル / Contrast Shift panel
-        var contrastPanel = leftCol.add("panel", undefined, "コントラストシフト");
+        var contrastPanel = leftCol.add("panel", undefined, getLabel("panelContrast"));
         contrastPanel.margins = [15, 20, 15, 10];
         contrastPanel.orientation = "column";
         contrastPanel.alignChildren = ["left", "top"];
 
-        var gCtrTop = contrastPanel.add("group");
-        gCtrTop.orientation = "row";
-        gCtrTop.alignChildren = ["left", "center"];
-        gCtrTop.alignment = "left";
+        var contrastInputRow = contrastPanel.add("group");
+        contrastInputRow.orientation = "row";
+        contrastInputRow.alignChildren = ["left", "center"];
+        contrastInputRow.alignment = "left";
 
-        var inputContrast = gCtrTop.add("edittext", undefined, "0.0");
+        var inputContrast = contrastInputRow.add("edittext", undefined, "0.0");
+        inputContrast.helpTip = getLabel("tipContrast");
         inputContrast.characters = 4;
 
-        var gCtrBottom = contrastPanel.add("group");
-        gCtrBottom.orientation = "row";
-        gCtrBottom.alignChildren = ["left", "center"];
-        gCtrBottom.alignment = "left";
+        var contrastSliderRow = contrastPanel.add("group");
+        contrastSliderRow.orientation = "row";
+        contrastSliderRow.alignChildren = ["left", "center"];
+        contrastSliderRow.alignment = "left";
 
-        var sldContrast = gCtrBottom.add("slider", undefined, 0, -1, 1);
+        var sldContrast = contrastSliderRow.add("slider", undefined, 0, -1, 1);
+        sldContrast.helpTip = getLabel("tipContrast");
         sldContrast.preferredSize.width = 200;
 
         function getContrastShiftValue() {
@@ -421,15 +449,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             v = clamp(Number(v) || 0, -1, 1);
             v = Math.round(v * 10) / 10;
             inputContrast.text = v.toFixed(1);
-            try { sldContrast.value = v; } catch (e) { }
+            sldContrast.value = v;
         }
         setContrastShiftValue(0);
 
         // CONTRAST SHIFT UI 有効/無効 / Enable/disable contrast UI
         function setContrastEnabled(v) {
-            try { contrastPanel.enabled = !!v; } catch (e) { }
-            try { inputContrast.enabled = !!v; } catch (e) { }
-            try { sldContrast.enabled = !!v; } catch (e) { }
+            contrastPanel.enabled = !!v;
+            inputContrast.enabled = !!v;
+            sldContrast.enabled = !!v;
         }
 
         // --- 2. アルゴリズム選択 (ラジオボタン) ---
@@ -439,12 +467,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         algoPanel.alignChildren = ["left", "top"];
 
         var rbTailwind = algoPanel.add("radiobutton", undefined, "Tailwind CSS");
+        rbTailwind.helpTip = getLabel("tipAlgorithm");
         var rbLight = algoPanel.add("radiobutton", undefined, "Lightness Scale");
+        rbLight.helpTip = getLabel("tipAlgorithm");
         var rbLightGeo = algoPanel.add("radiobutton", undefined, "Lightness Scale (Geometric)");
         var rbLch = algoPanel.add("radiobutton", undefined, "LCH");
+        rbLch.helpTip = getLabel("tipAlgorithm");
         var rbSatur = algoPanel.add("radiobutton", undefined, "Saturation Scale");
+        rbSatur.helpTip = getLabel("tipAlgorithm");
         var rbComple = algoPanel.add("radiobutton", undefined, "Complementary");
-        var rbAll = algoPanel.add("radiobutton", undefined, "すべて");
+        rbComple.helpTip = getLabel("tipAlgorithm");
+        var rbAll = algoPanel.add("radiobutton", undefined, getLabel("algoAll"));
         rbAll.value = true; // デフォルト
 
         // --- 3. プレビューエリア ---
@@ -486,7 +519,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // CONTRAST SHIFT のUI連動（updatePreview定義後に接続）
         inputContrast.onChanging = function () {
             var v = getContrastShiftValue();
-            try { sldContrast.value = v; } catch (e) { }
+            sldContrast.value = v;
             updatePreview();
         };
         inputContrast.onChange = function () {
@@ -544,16 +577,16 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         function setPreviewEnabled(v) {
             __previewEnabled = !!v;
             // visible は変えない（レイアウトが上下にガタつくため）
-            try { previewPanel.enabled = __previewEnabled; } catch (e) { }
+            previewPanel.enabled = __previewEnabled;
             // 見た目を即時反映
             try { previewPanel.update(); } catch (e) { }
         }
 
         // ステップUI有効/無効
         function setStepsEnabled(v) {
-            try { stepsPanel.enabled = !!v; } catch (e) { }
-            try { inputCount.enabled = !!v; } catch (e) { }
-            try { sldCount.enabled = !!v; } catch (e) { }
+            stepsPanel.enabled = !!v;
+            inputCount.enabled = !!v;
+            sldCount.enabled = !!v;
         }
 
         // 初期状態：デフォルトは「すべて」なのでプレビュー無効 / Initial: default is "All" => disable preview
@@ -564,7 +597,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbTailwind.onClick = function () {
             // Tailwind は常に11・ステップ数UIはディム / Tailwind: fixed 11, dim steps UI
             inputCount.text = "11";
-            try { sldCount.value = 11; } catch (e) { }
+            sldCount.value = 11;
             setStepsEnabled(false);
             setContrastEnabled(true);
             setPreviewEnabled(true);
@@ -597,7 +630,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbLch.onClick = function () {
             // LCH は常に11・ステップ数UIはディム / LCH: fixed 11, dim steps UI
             inputCount.text = "11";
-            try { sldCount.value = 11; } catch (e) { }
+            sldCount.value = 11;
             setStepsEnabled(false);
             setContrastEnabled(true);
             setPreviewEnabled(true);
@@ -606,7 +639,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         rbAll.onClick = function () {
             // 「すべて」はステップ数=11で計算（UIも合わせる）
             inputCount.text = "11";
-            try { sldCount.value = 11; } catch (e) { }
+            sldCount.value = 11;
             // 「すべて」選択時はプレビューを無効化（レイアウトは固定）
             setPreviewEnabled(false);
             setStepsEnabled(false);
@@ -620,12 +653,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         btnRow.alignment = "fill";
 
         // 左：再描画 / Left: Redraw
-        var gBtnLeft = btnRow.add("group");
-        gBtnLeft.orientation = "row";
-        gBtnLeft.alignChildren = ["left", "center"];
-        gBtnLeft.alignment = "left";
+        var btnLeftGroup = btnRow.add("group");
+        btnLeftGroup.orientation = "row";
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.alignment = "left";
 
-        var btnRedraw = gBtnLeft.add("button", undefined, getLabel("btnRedraw"));
+        var btnRedraw = btnLeftGroup.add("button", undefined, getLabel("btnRedraw"));
+        btnRedraw.helpTip = getLabel("tipRedraw");
 
         // 中央：スペーサー / Center: spacer
         var spacer = btnRow.add("group");
@@ -633,13 +667,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         spacer.minimumSize.width = 160;
 
         // 右：キャンセル / 生成 / Right: Cancel / Generate
-        var gBtnRight = btnRow.add("group");
-        gBtnRight.orientation = "row";
-        gBtnRight.alignChildren = ["right", "center"];
-        gBtnRight.alignment = "right";
+        var btnRightGroup = btnRow.add("group");
+        btnRightGroup.orientation = "row";
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.alignment = "right";
 
-        var btnCancel = gBtnRight.add("button", undefined, getLabel("btnCancel"));
-        var btnOk = gBtnRight.add("button", undefined, getLabel("btnGenerate"), { name: "ok" });
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("btnCancel"));
+        var btnOk = btnRightGroup.add("button", undefined, getLabel("btnGenerate"), { name: "ok" });
 
         // 再描画 / Redraw (preview refresh)
         btnRedraw.onClick = function () {
@@ -726,7 +760,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             // OK押下時に値を正規化してUIへ反映（全角/空欄対策）
             var vFixed = getStepCount();
             inputCount.text = String(vFixed);
-            try { sldCount.value = vFixed; } catch (e) { }
+            sldCount.value = vFixed;
             // 出力オプション / Output options
             var outHex = !!chkOutputHex.value;
             var outRgb = !!chkOutputRgb.value;

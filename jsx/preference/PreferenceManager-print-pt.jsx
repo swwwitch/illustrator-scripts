@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManager-print-pt";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-08-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-print-pt.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager-print-pt.md"; /* README (English) */
@@ -33,6 +33,82 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var uiLang = getCurrentLang();
+
+    /* カテゴリ分けした日英ラベル定義 / Categorized Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "単位とインクリメント設定", en: "Units and Increments" }
+        },
+        panel: {
+            units:      { ja: "単位", en: "Units" },
+            increments: { ja: "増減値", en: "Increments" }
+        },
+        radio: {
+            modePt: { ja: "プリント（pt）", en: "Print (pt)" },
+            modeQ:  { ja: "プリント（Q）", en: "Print (Q)" },
+            modePx: { ja: "オンスクリーン（px）", en: "Onscreen (px)" }
+        },
+        fieldLabel: {
+            general:  { ja: "一般", en: "General" },
+            stroke:   { ja: "線", en: "Stroke" },
+            type:     { ja: "文字", en: "Text" },
+            asian:    { ja: "東アジア言語", en: "East Asian" },
+            key:      { ja: "キー増加", en: "Keyboard increment" },
+            radius:   { ja: "角丸の半径", en: "Corner radius" },
+            size:     { ja: "フォントサイズ", en: "Font size" },
+            baseline: { ja: "ベースラインシフト", en: "Baseline shift" }
+        },
+        tooltip: {
+            modePt:   { ja: "一般=mm、線=pt、文字=pt にまとめて切り替えます。", en: "Sets General=mm, Stroke=pt, Text=pt." },
+            modeQ:    { ja: "一般=mm、線=mm、文字=Q にまとめて切り替えます。", en: "Sets General=mm, Stroke=mm, Text=Q." },
+            modePx:   { ja: "すべての単位を px に切り替えます。", en: "Sets every unit to px." },
+            general:  { ja: "定規やパネルに表示される、既定の長さの単位です。", en: "Default unit shown on rulers and panels." },
+            stroke:   { ja: "線幅の入力・表示に使う単位です。", en: "Unit used for stroke weights." },
+            type:     { ja: "フォントサイズや行送りに使う単位です。", en: "Unit used for font size and leading." },
+            asian:    { ja: "東アジア言語のオプションで使う単位です。", en: "Unit used for East Asian typography options." },
+            key:      { ja: "矢印キー1回で動く距離です。", en: "How far one arrow key press moves things." },
+            radius:   { ja: "角丸ツールの既定の半径です。", en: "Default radius used by the rounded rectangle tool." },
+            size:     { ja: "文字サイズ・行送りを増減する1回ぶんの量です。", en: "How much one step changes the type size or leading." },
+            baseline: { ja: "ベースラインシフトを増減する1回ぶんの量です。", en: "How much one step changes the baseline shift." }
+        }
+    };
+
+    /**
+     * ラベルを取得する（ドット区切りキー）
+     * @param {string} labelPath - "panel.units" のようなドット区切りキー
+     * @returns {string} 現在のUI言語のラベル（見つからなければキーそのもの）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return (labelNode[uiLang] != null) ? labelNode[uiLang] : labelPath;
+    }
+
+    /**
+     * 項目名にコロンを付ける（日本語は全角、英語は半角）
+     * @param {string} labelPath - ラベルのドット区切りキー
+     * @returns {string} コロン付きの項目名
+     */
+    function labelText(labelPath) {
+        return getLabel(labelPath) + (uiLang === "ja" ? "：" : ": ");
+    }
 
     function main() {
         // --- 単位ラベル更新関数 ---
@@ -55,6 +131,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var aiMajor = parseInt(versionParts[0], 10);
         var aiMinor = parseInt(versionParts[1] || "0", 10);
 
+        /* 4つの環境設定キーで同じドロップダウンを使うため、単位コード5は「Q/H」の中立表記にする
+           （他のスクリプトの UNITS / getUnitInfo とは用途が異なり、pt 換算は行わない）
+           The same dropdown serves four preference keys, so unit code 5 uses the neutral "Q/H" label
+           (unlike the UNITS / getUnitInfo tables elsewhere, this file does no pt conversion) */
         var unitOptions = ["pt","pc","in","mm","cm","Q/H","px"];
 
         // 現在の単位プリファレンスを取得
@@ -64,7 +144,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var currentAsian   = getUnitKey("text/asianunits");
 
         // ダイアログ作成
-        var dlg = new Window("dialog", "単位とインクリメント設定");
+        var dlg = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         dlg.alignChildren = "fill";
 
         // --- ダイアログ位置・透明度調整 ---
@@ -95,9 +175,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var modeGroup = dlg.add("group");
         modeGroup.orientation = "row";
         modeGroup.alignment = "center";
-        var rbPt = modeGroup.add("radiobutton", undefined, "プリント（pt）");
-        var rbQ  = modeGroup.add("radiobutton", undefined, "プリント（Q）");
-        var rbPx = modeGroup.add("radiobutton", undefined, "オンスクリーン（px）");
+        var rbPt = modeGroup.add("radiobutton", undefined, getLabel("radio.modePt"));
+        rbPt.helpTip = getLabel("tooltip.modePt");
+        var rbQ  = modeGroup.add("radiobutton", undefined, getLabel("radio.modeQ"));
+        rbQ.helpTip = getLabel("tooltip.modeQ");
+        var rbPx = modeGroup.add("radiobutton", undefined, getLabel("radio.modePx"));
+        rbPx.helpTip = getLabel("tooltip.modePx");
         rbPt.value = true;
 
         // プリント（pt）選択時の単位設定
@@ -134,55 +217,60 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         mainGroup.orientation = "row";
 
         // 左カラムをパネルに変更
-        var leftPanel = mainGroup.add("panel", undefined, "単位");
+        var leftPanel = mainGroup.add("panel", undefined, getLabel("panel.units"));
         leftPanel.orientation = "column";
         leftPanel.alignChildren = "left";
 
         // 右カラムをパネルに変更
-        var rightPanel = mainGroup.add("panel", undefined, "増減値");
+        var rightPanel = mainGroup.add("panel", undefined, getLabel("panel.increments"));
         rightPanel.orientation = "column";
         rightPanel.alignChildren = "left";
 
         // 左カラムに単位選択4つ
         var grpGeneral = leftPanel.add("group");
         grpGeneral.orientation = "row";
-        var lblGeneral = grpGeneral.add("statictext", undefined, "一般:");
+        var lblGeneral = grpGeneral.add("statictext", undefined, labelText("fieldLabel.general"));
         lblGeneral.preferredSize.width = labelWidthLeft;
         lblGeneral.justify = "right";
         var ddGeneral = grpGeneral.add("dropdownlist", undefined, unitOptions);
+        ddGeneral.helpTip = getLabel("tooltip.general");
         ddGeneral.selection = arrayIndexOf(unitOptions, currentGeneral);
 
         var grpStroke = leftPanel.add("group");
         grpStroke.orientation = "row";
-        var lblStroke = grpStroke.add("statictext", undefined, "線:");
+        var lblStroke = grpStroke.add("statictext", undefined, labelText("fieldLabel.stroke"));
         lblStroke.preferredSize.width = labelWidthLeft;
         lblStroke.justify = "right";
         var ddStroke = grpStroke.add("dropdownlist", undefined, unitOptions);
+        ddStroke.helpTip = getLabel("tooltip.stroke");
         ddStroke.selection = arrayIndexOf(unitOptions, currentStroke);
 
         var grpType = leftPanel.add("group");
         grpType.orientation = "row";
-        var lblType = grpType.add("statictext", undefined, "文字:");
+        var lblType = grpType.add("statictext", undefined, labelText("fieldLabel.type"));
         lblType.preferredSize.width = labelWidthLeft;
         lblType.justify = "right";
         var ddType = grpType.add("dropdownlist", undefined, unitOptions);
+        ddType.helpTip = getLabel("tooltip.type");
         ddType.selection = arrayIndexOf(unitOptions, currentType);
 
         var grpAsian = leftPanel.add("group");
         grpAsian.orientation = "row";
-        var lblAsian = grpAsian.add("statictext", undefined, "東アジア言語:");
+        var lblAsian = grpAsian.add("statictext", undefined, labelText("fieldLabel.asian"));
         lblAsian.preferredSize.width = labelWidthLeft;
         lblAsian.justify = "right";
         var ddAsian = grpAsian.add("dropdownlist", undefined, unitOptions);
+        ddAsian.helpTip = getLabel("tooltip.asian");
         ddAsian.selection = arrayIndexOf(unitOptions, currentAsian);
 
         // キー増加インクリメント
         var grpKey = rightPanel.add("group");
         grpKey.orientation = "row";
-        var lblKey = grpKey.add("statictext", undefined, "キー増加:");
+        var lblKey = grpKey.add("statictext", undefined, labelText("fieldLabel.key"));
         lblKey.preferredSize.width = labelWidthRight;
         lblKey.justify = "right";
         var etKeyValue = grpKey.add("edittext", undefined, "0.1");
+        etKeyValue.helpTip = getLabel("tooltip.key");
         etKeyValue.characters = 5;
         var lblKeyUnit = grpKey.add("statictext", undefined, currentGeneral);
         lblKeyUnit.preferredSize.width = 40;
@@ -190,10 +278,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // 角丸半径の増減値
         var grpRadius = rightPanel.add("group");
         grpRadius.orientation = "row";
-        var lblRadius = grpRadius.add("statictext", undefined, "角丸の半径:");
+        var lblRadius = grpRadius.add("statictext", undefined, labelText("fieldLabel.radius"));
         lblRadius.preferredSize.width = labelWidthRight;
         lblRadius.justify = "right";
         var etRadiusValue = grpRadius.add("edittext", undefined, "1");
+        etRadiusValue.helpTip = getLabel("tooltip.radius");
         etRadiusValue.characters = 5;
         var lblRadiusUnit = grpRadius.add("statictext", undefined, currentGeneral);
         lblRadiusUnit.preferredSize.width = 40;
@@ -201,10 +290,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // フォントサイズ増減値
         var grpSize = rightPanel.add("group");
         grpSize.orientation = "row";
-        var lblSize = grpSize.add("statictext", undefined, "フォントサイズ:");
+        var lblSize = grpSize.add("statictext", undefined, labelText("fieldLabel.size"));
         lblSize.preferredSize.width = labelWidthRight;
         lblSize.justify = "right";
         var etSizeValue = grpSize.add("edittext", undefined, "1");
+        etSizeValue.helpTip = getLabel("tooltip.size");
         etSizeValue.characters = 5;
         var lblSizeUnit = grpSize.add("statictext", undefined, currentType);
         lblSizeUnit.preferredSize.width = 40;
@@ -212,10 +302,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         // ベースラインシフト増減値
         var grpBaseline = rightPanel.add("group");
         grpBaseline.orientation = "row";
-        var lblBaseline = grpBaseline.add("statictext", undefined, "ベースラインシフト:");
+        var lblBaseline = grpBaseline.add("statictext", undefined, labelText("fieldLabel.baseline"));
         lblBaseline.preferredSize.width = labelWidthRight;
         lblBaseline.justify = "right";
         var etBaselineValue = grpBaseline.add("edittext", undefined, "0.1");
+        etBaselineValue.helpTip = getLabel("tooltip.baseline");
         etBaselineValue.characters = 5;
         var lblBaselineUnit = grpBaseline.add("statictext", undefined, currentType);
         lblBaselineUnit.preferredSize.width = 40;

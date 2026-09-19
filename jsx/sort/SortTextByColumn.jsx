@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SortTextByColumn";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-15";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-06-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortTextByColumn.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortTextByColumn.md"; /* README (English) */
@@ -196,39 +196,54 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* UIラベル（表示順：列 → 順序 → 見出し） */
     var LABELS = {
-        "SORT_COLUMN": {
-            ja: "ソート対象の列",
-            en: "Sort Target Column"
+        dialogTitle:    { ja: "列を基準に並べ替え", en: "Sort by Column" },
+        panel: {
+            sortColumn: { ja: "ソート対象の列", en: "Sort Target Column" },
+            sortOrder:  { ja: "ソート方法", en: "Sort Order" }
         },
-        "SORT_ORDER": {
-            ja: "ソート方法",
-            en: "Sort Order"
+        radio: {
+            ascending:  { ja: "昇順", en: "Ascending" },
+            descending: { ja: "降順", en: "Descending" },
+            random:     { ja: "ランダム", en: "Random" }
         },
-        "ASCENDING": {
-            ja: "昇順",
-            en: "Ascending"
+        checkbox: {
+            header:     { ja: "1行目を見出し行として扱う", en: "Treat first row as header" }
         },
-        "DESCENDING": {
-            ja: "降順",
-            en: "Descending"
+        button: {
+            ok:         { ja: "OK", en: "OK" },
+            cancel:     { ja: "キャンセル", en: "Cancel" }
         },
-        "RANDOM": {
-            ja: "ランダム",
-            en: "Random"
-        },
-        "HEADER": {
-            ja: "1行目を見出し行として扱う",
-            en: "Treat first row as header"
+        tooltip: {
+            column:     { ja: "この列の値を基準に、行を並べ替えます。", en: "The rows are sorted by the values in this column." },
+            ascending:  { ja: "値の小さい順（あいうえお順）に並べます。", en: "Sorts in ascending order." },
+            descending: { ja: "値の大きい順に並べます。", en: "Sorts in descending order." },
+            random:     { ja: "値と関係なく、行の順序をシャッフルします。", en: "Shuffles the rows regardless of their values." },
+            header:     { ja: "1行目は並べ替えず、見出しとして先頭に残します。", en: "Keeps the first row at the top instead of sorting it." }
         }
     };
 
+    /**
+     * ドット区切りのキーから表示言語のラベルを取得する
+     * @param {string} labelPath - "panel.sortOrder" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            labelNode = labelNode[pathKeys[i]];
+            if (!labelNode) return labelPath;
+        }
+        return labelNode[uiLang] || labelNode.en || labelPath;
+    }
+
     /* 並び替え対象の列、順序、見出し行の有無を選択するダイアログ表示 */
     function showSortOptionsDialog(columns, lines, uiLang, hasHeaderCandidate) {
-        var dialog = new Window("dialog", LABELS.SORT_COLUMN[uiLang]);
+        var dialog = new Window("dialog", getLabel("dialogTitle"));
         dialog.orientation = "column";
         dialog.alignChildren = "left";
 
-        var columnPanel = dialog.add("panel", undefined, LABELS.SORT_COLUMN[uiLang]);
+        var columnPanel = dialog.add("panel", undefined, getLabel("panel.sortColumn"));
         columnPanel.orientation = "column";
         columnPanel.alignChildren = "left";
         columnPanel.margins = [10, 25, 10, 10];
@@ -257,22 +272,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var previewStr = previews[i].join(", ");
             var btnLabel = (uiLang === "ja" ? "【列" : "[Row ") + (i + 1) + (uiLang === "ja" ? "】" : "] ") + previewStr + "…";
             var btn = columnGroup.add("radiobutton", undefined, btnLabel);
+            btn.helpTip = getLabel("tooltip.column");
             radioButtons.push(btn);
         }
 
-        var orderPanel = dialog.add("panel", undefined, LABELS.SORT_ORDER[uiLang]);
+        var orderPanel = dialog.add("panel", undefined, getLabel("panel.sortOrder"));
         orderPanel.orientation = "column";
         orderPanel.alignChildren = "left";
         orderPanel.margins = [10, 25, 10, 10];
 
         var orderGroup = orderPanel.add("group");
         orderGroup.orientation = "row";
-        var ascBtn = orderGroup.add("radiobutton", undefined, LABELS.ASCENDING[uiLang]);
-        var descBtn = orderGroup.add("radiobutton", undefined, LABELS.DESCENDING[uiLang]);
-        var randomBtn = orderGroup.add("radiobutton", undefined, LABELS.RANDOM[uiLang]);
+        var ascBtn = orderGroup.add("radiobutton", undefined, getLabel("radio.ascending"));
+        ascBtn.helpTip = getLabel("tooltip.ascending");
+        var descBtn = orderGroup.add("radiobutton", undefined, getLabel("radio.descending"));
+        descBtn.helpTip = getLabel("tooltip.descending");
+        var randomBtn = orderGroup.add("radiobutton", undefined, getLabel("radio.random"));
+        randomBtn.helpTip = getLabel("tooltip.random");
         ascBtn.value = true;
 
-        var headerCheckbox = dialog.add("checkbox", undefined, LABELS.HEADER[uiLang]);
+        var headerCheckbox = dialog.add("checkbox", undefined, getLabel("checkbox.header"));
+        headerCheckbox.helpTip = getLabel("tooltip.header");
         headerCheckbox.value = false;
 
         if (hasHeaderCandidate) {
@@ -319,10 +339,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var btnGroup = dialog.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = "right";
-        btnGroup.add("button", undefined, "Cancel", {
+        btnGroup.add("button", undefined, getLabel("button.cancel"), {
             name: "cancel"
         });
-        btnGroup.add("button", undefined, "OK", {
+        btnGroup.add("button", undefined, getLabel("button.ok"), {
             name: "OK"
         });
 

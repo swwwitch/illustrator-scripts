@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartAutoGroup";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-06-11";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAutoGroup.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAutoGroup.md"; /* README (English) */
@@ -45,6 +45,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var uiLang = getCurrentLang();
 
     // 日英ラベル定義（UI表示順）
+    /**
+     * グループ化モードのラジオボタンを追加する
+     * @param {Group|Panel} parentContainer - 追加先のコンテナ
+     * @param {object} labelEntry - ja / en を持つラベル定義
+     * @param {object} tooltipEntry - ja / en を持つツールチップ定義
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addModeRadio(parentContainer, labelEntry, tooltipEntry) {
+        var radioButton = parentContainer.add("radiobutton", undefined, labelEntry[uiLang]);
+        radioButton.helpTip = tooltipEntry[uiLang];
+        return radioButton;
+    }
+
     var LABELS = {
         modeGroupTitle: {
             ja: "グループ化",
@@ -62,6 +75,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "重なり（のみ）",
             en: "Overlap Only"
         },
+        tipOverlapOnly: { ja: "実際に重なっているオブジェクトだけをグループにします。", en: "Groups only the objects that actually overlap." },
+        tipVertical: { ja: "上下に並んでいるオブジェクトを、縦の列ごとにグループにします。", en: "Groups objects that line up vertically, column by column." },
+        tipHorizontal: { ja: "左右に並んでいるオブジェクトを、横の行ごとにグループにします。", en: "Groups objects that line up horizontally, row by row." },
+        tipProximity: { ja: "しきい値以内の距離にあるオブジェクトを、向きを問わずグループにします。", en: "Groups objects that sit within the threshold distance, in any direction." },
+        tipThreshold: { ja: "同じグループとみなす距離です。大きくするとまとまりが粗くなります。", en: "How close objects must be to land in the same group. Larger values group more loosely." },
         threshold: {
             ja: "しきい値（px）",
             en: "Threshold (px)"
@@ -103,10 +121,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         modeGroup.margins = [15, 10, 15, 10];
 
         var radioButtons = {
-            overlapOnly: modeGroup.add("radiobutton", undefined, LABELS.overlapOnly[uiLang]),
-            vertical: modeGroup.add("radiobutton", undefined, LABELS.vertical[uiLang]),
-            horizontal: modeGroup.add("radiobutton", undefined, LABELS.horizontal[uiLang]),
-            proximity: modeGroup.add("radiobutton", undefined, LABELS.proximity[uiLang])
+            overlapOnly: addModeRadio(modeGroup, LABELS.overlapOnly, LABELS.tipOverlapOnly),
+            vertical: addModeRadio(modeGroup, LABELS.vertical, LABELS.tipVertical),
+            horizontal: addModeRadio(modeGroup, LABELS.horizontal, LABELS.tipHorizontal),
+            proximity: addModeRadio(modeGroup, LABELS.proximity, LABELS.tipProximity)
         };
         var thresholdGroup = dialog.add("panel", undefined, LABELS.threshold[uiLang]);
         thresholdGroup.orientation = "column";
@@ -142,6 +160,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         var thresholdSlider = thresholdGroup.add("slider", undefined, 10, 0, 100);
+        thresholdSlider.helpTip = LABELS.tipThreshold[uiLang];
         thresholdSlider.value = prevThreshold;
         thresholdSlider.preferredSize.width = 150;
         var thresholdLabel = thresholdGroup.add("statictext", undefined, Math.round(thresholdSlider.value) + " pt");
@@ -287,21 +306,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var areaB = (b[2] - b[0]) * (b[1] - b[3]);
         var maxArea = Math.max(areaA, areaB);
         return overlapArea / maxArea;
-    }
-
-    // アイテムの配列を zOrderPosition に基づいて昇順ソート
-    function sortByZOrder(items) {
-        return items.slice().sort(function(a, b) {
-            var za = -1,
-                zb = -1;
-            try {
-                za = a.zOrderPosition;
-            } catch (e) {}
-            try {
-                zb = b.zOrderPosition;
-            } catch (e) {}
-            return za - zb;
-        });
     }
 
     // アイテムを zOrder でソートしてグループに移動

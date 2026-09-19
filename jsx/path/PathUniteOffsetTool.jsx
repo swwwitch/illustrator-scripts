@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathUniteOffsetTool";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-10";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-10";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUniteOffsetTool.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUniteOffsetTool.md"; /* README (English) */
@@ -71,6 +71,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "マイター",
             en: "Miter"
         },
+        tipOffset: { ja: "合体したパスから外側（マイナスで内側）へ離す距離です。", en: "How far the offset path sits outside the united shape. A negative value goes inside." },
+        tipPreview: { ja: "結果を画面で確認します。キャンセルすると元に戻ります。", en: "Shows the result on the canvas. Cancel restores the original paths." },
+        tipJoinRound: { ja: "角を丸めて結合します。", en: "Rounds off the corners." },
+        tipJoinBevel: { ja: "角を面取りして結合します。", en: "Cuts the corners off flat." },
+        tipJoinMiter: { ja: "角を尖らせたまま結合します。鋭角では飛び出すことがあります。", en: "Keeps the corners pointed. Sharp angles can spike out." },
         okButton: {
             ja: "OK",
             en: "OK"
@@ -306,6 +311,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var inputGroup = dialog.add('group');
         inputGroup.add('statictext', undefined, labelText('offsetLabel'));
         var offsetInput = inputGroup.add('edittext', undefined, '1');
+        offsetInput.helpTip = getLabel('tipOffset');
         offsetInput.characters = 3;
         inputGroup.add('statictext', undefined, rulerUnit.label);
 
@@ -313,8 +319,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var joinPanel = dialog.add('panel', undefined, getLabel('joinTypeLabel'));
         setupPanel(joinPanel, 6, 'row');
         var joinRoundRadio = joinPanel.add('radiobutton', undefined, getLabel('joinRound'));
+        joinRoundRadio.helpTip = getLabel('tipJoinRound');
         var joinBevelRadio = joinPanel.add('radiobutton', undefined, getLabel('joinBevel'));
+        joinBevelRadio.helpTip = getLabel('tipJoinBevel');
         var joinMiterRadio = joinPanel.add('radiobutton', undefined, getLabel('joinMiter'));
+        joinMiterRadio.helpTip = getLabel('tipJoinMiter');
         joinRoundRadio.value = true;
 
         function getSelectedJoinType() {
@@ -325,6 +334,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* プレビュー / Preview */
         var previewCheckbox = dialog.add('checkbox', undefined, getLabel('previewLabel'));
+        previewCheckbox.helpTip = getLabel('tipPreview');
         previewCheckbox.value = false;
 
         /* 初期選択を保持 / Preserve initial selection */

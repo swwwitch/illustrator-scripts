@@ -24,10 +24,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DocumentFontListSelector";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DocumentFontListSelector.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DocumentFontListSelector.md"; /* README (English) */
@@ -66,6 +66,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             currentArtboardOnly: { ja: "現在のアートボードに限定", en: "Current artboard only" },
             includeHidden: { ja: "非表示のテキストを含む", en: "Include hidden text" },
             includeLocked: { ja: "ロックされたテキストを含む", en: "Include locked text" }
+        },
+        tooltip: {
+            applyOnClick:        { ja: "一覧の行をクリックした時点で、そのフォントを選択中のテキストへ適用します。", en: "Applies the font to the selected text as soon as you click a row." },
+            currentArtboardOnly: { ja: "現在のアートボードに載っているテキストだけを集計します。", en: "Counts only the text on the current artboard." },
+            includeHidden:       { ja: "非表示のテキストも集計に含めます。", en: "Includes hidden text in the tally." },
+            includeLocked:       { ja: "ロックされたテキストも集計に含めます。", en: "Includes locked text in the tally." },
+            comboList:           { ja: "ドキュメントで使われているフォントの一覧です。行を選ぶと、そのフォントのテキストが選択されます。", en: "The fonts used in the document. Selecting a row selects the text that uses it." }
         },
         button: {
             refresh: { ja: "リストを更新", en: "Refresh list" },
@@ -590,12 +597,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         topRow.margins = [0, 0, 0, 5];
 
         var includeLockedCheckbox = topRow.add("checkbox", undefined, getLabel(LABELS.control.includeLocked));
+        includeLockedCheckbox.helpTip = getLabel(LABELS.tooltip.includeLocked);
         includeLockedCheckbox.value = true;
 
         var includeHiddenCheckbox = topRow.add("checkbox", undefined, getLabel(LABELS.control.includeHidden));
+        includeHiddenCheckbox.helpTip = getLabel(LABELS.tooltip.includeHidden);
         includeHiddenCheckbox.value = true;
 
         var currentArtboardCheckbox = topRow.add("checkbox", undefined, getLabel(LABELS.control.currentArtboardOnly));
+        currentArtboardCheckbox.helpTip = getLabel(LABELS.tooltip.currentArtboardOnly);
         currentArtboardCheckbox.value = false;
 
         var comboListBox = palette.add("listbox", undefined, [], {
@@ -605,6 +615,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             columnTitles: columnTitles,
             columnWidths: columnWidths
         });
+        comboListBox.helpTip = getLabel(LABELS.tooltip.comboList);
         comboListBox.preferredSize = [640, 300];
 
         // ボタンエリア：左＝クリックで適用 / 中央＝スペーサー / 右＝条件一致テキストを選択
@@ -617,6 +628,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 左：クリックで適用するか（OFF のあいだはクリックしても適用しない）/ Left: whether a click applies (no apply while OFF)
         var applyOnClickCheckbox = buttonRow.add("checkbox", undefined, getLabel(LABELS.control.applyOnClick));
+        applyOnClickCheckbox.helpTip = getLabel(LABELS.tooltip.applyOnClick);
         applyOnClickCheckbox.alignment = ["left", "center"];
         applyOnClickCheckbox.value = true;
 

@@ -21,10 +21,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IncrementDatesAndNumbers";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-18";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-11-18";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/IncrementDatesAndNumbers.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/IncrementDatesAndNumbers.md"; /* README (English) */
@@ -44,7 +44,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     // ドット区切り2要素（例：12.1）の解釈モード
     // Mode for interpreting 2-part dot patterns like 12.1 ("number" or "date")
-    var DOT2_MODE = "number";
+    var incrementMode = "number";
 
     var DAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
     var ENGLISH_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -110,6 +110,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         errorGeneric: {
             ja: "エラーが発生しました：",
             en: "An error occurred:"
+        },
+        tipStep: {
+            ja: "1回の増減で足す量です。負の値を入れると減らせます。",
+            en: "Amount added per step. Enter a negative value to count down."
+        },
+        tipModeNumber: {
+            ja: "テキストの中の数字を増減します。",
+            en: "Increments the numbers in the text."
+        },
+        tipModeDate: {
+            ja: "テキストを日付とみなして、年・月・日の単位で増減します。",
+            en: "Reads the text as a date and steps it by year, month, or day."
+        },
+        tipTarget: {
+            ja: "日付のどの部分を増減するかです。",
+            en: "Which part of the date to step."
         }
     };
 
@@ -353,6 +369,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         grpStep.spacing = 5;
         grpStep.add('statictext', undefined, getLabel('stepLabel'));
         var edtStep = grpStep.add('edittext', undefined, "1");
+        edtStep.helpTip = getLabel("tipStep");
         edtStep.characters = 5;
         changeValueByArrowKey(edtStep);
 
@@ -376,18 +393,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             pnlMode.spacing = 15;
 
             rbModeNumber = pnlMode.add('radiobutton', undefined, getLabel('modeNumber'));
+            rbModeNumber.helpTip = getLabel("tipModeNumber");
             rbModeDate = pnlMode.add('radiobutton', undefined, getLabel('modeDate'));
+            rbModeDate.helpTip = getLabel("tipModeDate");
 
             // デフォルトは「数字」
-            DOT2_MODE = "number";
+            incrementMode = "number";
             rbModeNumber.value = true;
 
             rbModeNumber.onClick = function() {
-                DOT2_MODE = "number";
+                incrementMode = "number";
                 updateResultPreview();
             };
             rbModeDate.onClick = function() {
-                DOT2_MODE = "date";
+                incrementMode = "date";
                 updateResultPreview();
             };
         }
@@ -403,6 +422,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (labelYear !== "") rbTargetYear = pnlTarget.add('radiobutton', undefined, labelYear);
             if (labelMonth !== "") rbTargetMonth = pnlTarget.add('radiobutton', undefined, labelMonth);
             if (labelDay !== "") rbTargetDay = pnlTarget.add('radiobutton', undefined, labelDay);
+
+            if (rbTargetYear) rbTargetYear.helpTip = getLabel("tipTarget");
+            if (rbTargetMonth) rbTargetMonth.helpTip = getLabel("tipTarget");
+            if (rbTargetDay) rbTargetDay.helpTip = getLabel("tipTarget");
 
             if (rbTargetDay) rbTargetDay.value = true;
             else if (rbTargetMonth) rbTargetMonth.value = true;
@@ -728,7 +751,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
                 // 「日付」モードでは a=月, b=日 として扱い、年は CURRENT_YEAR で仮置き
                 // In "date" mode, treat a=month, b=day and use CURRENT_YEAR as the base year
-                if (DOT2_MODE === "date") {
+                if (incrementMode === "date") {
                     var dateDot2 = new Date(CURRENT_YEAR, a - 1, b);
 
                     if (SHIFT_MODE === "year") {
