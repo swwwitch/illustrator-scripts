@@ -25,6 +25,10 @@
 - Clipping mask is offered only when a linked or embedded image is selected
 - Turning it into a clipping mask preserves the original stacking order
 
+### Update History
+
+- v1.1.1 (2026-09-19) Merged the overlapping `長方形に変換.jsx`; this script is a superset
+
 ### Script info
 
-- Version: v1.1.0
+- Version: v1.1.1

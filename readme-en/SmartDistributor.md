@@ -24,8 +24,8 @@ Each press of the cross buttons (↑ / ← 0 → / ↓) applies one step to what
 
 - The document work is sent to the main engine over BridgeTalk, so one click equals one undo.
 - The palette is a resident script: after editing the code, close the palette before running it again.
-- `SmartDistributer.jsx` is a near-identical file.
 
 ### Update History
 
+- v1.0.2 (2026-09-19) Merged the misspelled duplicate `SmartDistributer.jsx`
 - v1.0.1

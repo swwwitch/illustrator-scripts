@@ -17,6 +17,8 @@ With two objects selected, treats the larger as the container and the smaller as
 - Only the tiles that fit entirely inside are kept; no mask is used
 - Both original objects are left in place
 - Spacing units follow the current ruler settings
+- Set the number of columns and rows directly (0 fills the container automatically)
+- Brick layout, and duplication as a symbol
 
 ### Usage
 
@@ -26,4 +28,5 @@ With two objects selected, treats the larger as the container and the smaller as
 
 ### Update History
 
+- v1.4.2 (2026-09-19) Merged `fillinger-pattern.jsx`; added the grid count (columns and rows)
 - v1.4.0 (2025-10-30)

@@ -16,6 +16,8 @@
 ### Main Features
 
 - Set units (general, stroke, text, East Asian)
+- Keyboard increment and the default corner radius
+- Step sizes for type size, leading and baseline shift
 - Recent fonts count and font name localization
 - Various transform and align options
 - Align to glyph bounds setting
@@ -30,7 +32,8 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.0 (20250804): Initial version
 - v1.1 (20250804): Reworked the dialog into two columns; added units and font settings
 - v1.2 (20250804): Fixed the corner-scaling logic
+- v1.2.2 (2026-09-19): Merged the overlapping `PreferenceManager.jsx`; added tooltips to every item
 
 ### Script info
 
-- Version: v1.2
+- Version: v1.2.2

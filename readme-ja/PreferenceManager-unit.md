@@ -18,6 +18,8 @@
 ### 主な機能
 
 - 単位（一般・線・文字・東アジア言語）の設定 / Set units (general, stroke, text, East Asian)
+- キー入力の移動量と角丸ツールの既定半径 / Keyboard increment and the default corner radius
+- 文字サイズ・行送り・ベースラインシフトの増減量 / Step sizes for type size, leading and baseline shift
 - 最近使用したフォント数とフォント表記切替 / Recent fonts count and font name localization
 - 変形と整列の各種オプション / Various transform and align options
 - 字形の境界に整列の設定 / Align to glyph bounds setting
@@ -32,7 +34,8 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.0 (20250804): 初期バージョン / Initial version
 - v1.1 (20250804): ダイアログを2カラムに改修、単位とフォント設定を追加 / Dialog changed to two columns; added units and font settings
 - v1.2 (20250804): 角の拡大のロジックを修正 / Fixed logic for corner scaling
+- v1.2.2 (2026-09-19): 機能が重複していた `PreferenceManager.jsx` を統合。全項目にツールチップを追加 / Merged the overlapping `PreferenceManager.jsx`; added tooltips to every item
 
 ### スクリプト情報
 
-- バージョン: v1.2
+- バージョン: v1.2.2

@@ -133,7 +133,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Creates K15% rectangles behind selected text frames on…](readme-en/GridTextLayout.md)
 - [Wraps each selected object in its own group](readme-en/GroupEachSelection.md)
 - [Displays and rescales the scale percentage (%) of sele…](readme-en/ImageScaler.md)
-- [Lets you change a range of Illustrator preferences fro…](readme-en/PreferenceManager.md)
 - [A persistent palette that moves/duplicates and flips/r…](readme-en/QuickTransformPalette.md)
 - [Randomly moves, scales, rotates and changes the opacit…](readme-en/RandomizeObjects.md)
 - [Assumes the selected objects are roughly arranged in a…](readme-en/RegridObjects.md)

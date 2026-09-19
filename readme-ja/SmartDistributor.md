@@ -24,8 +24,8 @@ DistributeDownFromTop.jsx / DistributeUpFromTop.jsx を統合した常駐パレ�
 
 - 実際のドキュメント操作は BridgeTalk でメインエンジンへ送って実行するため、1クリック＝取り消し1回になります。
 - 常駐パレット型のため、スクリプトを修正したあとは**パレットを閉じてから再実行**してください。
-- `SmartDistributer.jsx` はほぼ同一内容のファイルです。
 
 ### 更新履歴
 
+- v1.0.2 (2026-09-19) 綴り違いの重複 `SmartDistributer.jsx` を統合
 - v1.0.1

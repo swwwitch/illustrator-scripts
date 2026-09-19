@@ -23,7 +23,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PreferenceManager-unit";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-04";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
@@ -48,9 +48,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             ja: "まとめて環境設定 " + SCRIPT_VERSION,
             en: "Preferences " + SCRIPT_VERSION
         },
-        tipModePrintPt: { ja: "一般=mm、線=pt、文字=pt にまとめて切り替えます。", en: "Sets General=mm, Stroke=pt, Text=pt." },
-        tipModePrintQ: { ja: "一般=mm、線=mm、文字=Q にまとめて切り替えます。", en: "Sets General=mm, Stroke=mm, Text=Q." },
-        tipModeOnscreen: { ja: "すべての単位を px に切り替えます。", en: "Sets every unit to px." },
+        tipModePrintPt: { ja: "一般=mm、線=pt、文字=pt、東アジア言語のオプション=pt にまとめて切り替えます。", en: "Sets General=mm, Stroke=pt, Text=pt, East Asian=pt." },
+        tipModePrintQ: { ja: "一般=mm、線=mm、文字=Q、東アジア言語のオプション=Q にまとめて切り替えます。", en: "Sets General=mm, Stroke=mm, Text=Q, East Asian=Q." },
+        tipModeOnscreen: { ja: "一般・線・文字・東アジア言語のオプションをすべて px に切り替えます。", en: "Sets General, Stroke, Text and East Asian all to px." },
         tipUnitGeneral: { ja: "定規やパネルに表示される、既定の長さの単位です。", en: "Default unit shown on rulers and panels." },
         tipUnitStroke: { ja: "線幅の入力・表示に使う単位です。", en: "Unit used for stroke weights." },
         tipUnitType: { ja: "フォントサイズや行送りに使う単位です。", en: "Unit used for font size and leading." },
@@ -62,6 +62,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         tipFontEnglish: { ja: "フォント名を英語表記で表示します。", en: "Shows font names in English." },
         tipRecentFonts: { ja: "フォントメニューの先頭に並ぶ「最近使用したフォント」の表示件数です。0 で非表示になります。", en: "How many recently used fonts appear at the top of the font menu. 0 hides the list." },
         tipGlyphBounds: { ja: "整列の基準を、仮想ボディではなく字形の実際の輪郭にします。", en: "Aligns text by the actual glyph outlines instead of the em box." },
+        tipPreviewBounds: { ja: "線幅や効果を含めた見た目の端を、オブジェクトの境界として扱います。", en: "Treats the visible edges including strokes and effects as the object bounds." },
+        tipTransformPattern: { ja: "オブジェクトを変形したとき、塗りのパターンも一緒に変形します。", en: "Transforms the pattern fill along with the object." },
+        tipScaleCorners: { ja: "拡大・縮小したとき、ライブコーナーの角丸も一緒に変わります。", en: "Scales live corner radii along with the object." },
+        tipScaleStroke: { ja: "拡大・縮小したとき、線幅と効果も一緒に変わります。", en: "Scales stroke weights and effects along with the object." },
+        tipRealtimeDrawing: { ja: "ドラッグ中もオブジェクトの結果を表示しながら描画・編集します。", en: "Draws and edits with a live result while dragging." },
         modePrintPt: {
             ja: "プリント（pt）",
             en: "Print (pt)"
@@ -687,6 +692,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         checkboxPoint.value = app.preferences.getBooleanPreference('EnableActualPointTextSpaceAlign');
 
         var checkboxArea = glyphPanel.add('checkbox', undefined, LABELS.areaText[uiLang]);
+        checkboxArea.helpTip = LABELS.tipGlyphBounds[uiLang];
         checkboxArea.value = app.preferences.getBooleanPreference('EnableActualAreaTextSpaceAlign');
 
         bindCheckboxes([{
@@ -707,6 +713,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         //　プレビュー境界
         var checkboxPreview = otherPanel.add('checkbox', undefined, LABELS.previewBounds[uiLang]);
+        checkboxPreview.helpTip = LABELS.tipPreviewBounds[uiLang];
         checkboxPreview.value = app.preferences.getBooleanPreference("includeStrokeInBounds");
         checkboxPreview.onClick = function() {
             app.preferences.setBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
@@ -714,6 +721,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // パターンを変形
         var checkboxPattern = otherPanel.add('checkbox', undefined, LABELS.transformPattern[uiLang]);
+        checkboxPattern.helpTip = LABELS.tipTransformPattern[uiLang];
         checkboxPattern.value = app.preferences.getBooleanPreference("transformPatterns");
         checkboxPattern.onClick = function() {
             app.preferences.setBooleanPreference("transformPatterns", checkboxPattern.value === true);
@@ -721,6 +729,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         // 角を拡大・縮小
         var checkboxCorner = otherPanel.add('checkbox', undefined, LABELS.scaleCorners[uiLang]);
+        checkboxCorner.helpTip = LABELS.tipScaleCorners[uiLang];
         // 初期値を取得（1=ON, 2=OFF）
         checkboxCorner.value = (app.preferences.getIntegerPreference("policyForPreservingCorners") === 1);
         checkboxCorner.onClick = function() {
@@ -732,6 +741,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* 線幅と効果も拡大・縮小 */
         var checkboxStroke = otherPanel.add('checkbox', undefined, LABELS.scaleStroke[uiLang]);
+        checkboxStroke.helpTip = LABELS.tipScaleStroke[uiLang];
         checkboxStroke.value = app.preferences.getBooleanPreference("scaleLineWeight");
         checkboxStroke.onClick = function() {
             app.preferences.setBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
@@ -739,6 +749,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         /* リアルタイムの描画と編集 */
         var checkboxRealtime = otherPanel.add('checkbox', undefined, LABELS.realtimeDrawing[uiLang]);
+        checkboxRealtime.helpTip = LABELS.tipRealtimeDrawing[uiLang];
         checkboxRealtime.value = app.preferences.getBooleanPreference("LiveEdit_State_Machine");
         checkboxRealtime.onClick = function() {
             app.preferences.setBooleanPreference("LiveEdit_State_Machine", checkboxRealtime.value === true);

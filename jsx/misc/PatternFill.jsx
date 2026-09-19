@@ -23,7 +23,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PatternFill";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-10-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
@@ -50,6 +50,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         ja: "敷き詰め設定",
         en: "Tile Fill Settings"
       },
+      gridCount: {
+        ja: "グリッド数",
+        en: "Grid count"
+      },
+      columns: {
+        ja: "列",
+        en: "Columns"
+      },
+      rows: {
+        ja: "行",
+        en: "Rows"
+      },
       spacing: {
         ja: "間隔",
         en: "Spacing"
@@ -73,6 +85,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
       cancel: {
         ja: "キャンセル",
         en: "Cancel"
+      },
+      tipColumns: {
+        ja: "横に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
+        en: "How many tiles to place horizontally. 0 fills the container automatically."
+      },
+      tipRows: {
+        ja: "縦に並べる数です。0 のときは容器に収まるだけ自動で並べます。",
+        en: "How many tiles to place vertically. 0 fills the container automatically."
       },
       tipSpacing: {
         ja: "隣り合うタイルのアキです。縦横とも同じ値になります。",
@@ -234,7 +254,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         }
 
         /* プレビューを描画 / Render preview */
-        function renderPreview(gapXpt, gapYpt, marginPt, brick) {
+        function renderPreview(gapXpt, gapYpt, marginPt, brick, fixedColumns, fixedRows) {
             marginPt = marginPt || 0;
             brick = !!brick;
             clearPreview();
@@ -244,8 +264,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var stepXp = tileW + gapXpt;
             var stepYp = tileH + gapYpt;
             if (stepXp <= 0 || stepYp <= 0) return;
-            var colsPrev = Math.max(1, Math.ceil((cInfo.width + (brick ? stepXp * 0.5 : 0)) / stepXp));
-            var rowsPrev = Math.max(1, Math.ceil(cInfo.height / stepYp));
+            var colsPrev = (fixedColumns > 0)
+                ? Math.round(fixedColumns)
+                : Math.max(1, Math.ceil((cInfo.width + (brick ? stepXp * 0.5 : 0)) / stepXp));
+            var rowsPrev = (fixedRows > 0)
+                ? Math.round(fixedRows)
+                : Math.max(1, Math.ceil(cInfo.height / stepYp));
 
             var targetLayer = container.layer;
             var group = targetLayer.groupItems.add();
@@ -326,7 +350,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             gapY = 0,
             marginVal = 0,
             brickMode = false,
-            useSymbolDup = false;
+            useSymbolDup = false,
+            columnCount = 0,  /* 0 = 容器に合わせて自動 / 0 = fit the container automatically */
+            rowCount = 0;
         var isCancelled = false;
 
         /* ダイアログボックス生成 / Create Dialog Box */
@@ -354,6 +380,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             var rulerUnit = getUnitInfo("rulerType");
             var unitLabel = rulerUnit.label;
             var labelWidth = 60;
+
+            /* グリッド数（0 で容器に合わせて自動）/ Grid count (0 fits the container automatically) */
+            var rowGrid = dlg.add('group');
+            rowGrid.alignment = ['fill', 'top'];
+            rowGrid.alignChildren = ['left', 'center'];
+            var lblGrid = rowGrid.add('statictext', undefined, labelText('gridCount'));
+            lblGrid.justify = 'right';
+            lblGrid.preferredSize.width = 60;
+            var columnsEdit = rowGrid.add('edittext', undefined, '0');
+            columnsEdit.characters = 4;
+            columnsEdit.helpTip = getLabel('tipColumns');
+            rowGrid.add('statictext', undefined, getLabel('columns'));
+            var rowsEdit = rowGrid.add('edittext', undefined, '0');
+            rowsEdit.characters = 4;
+            rowsEdit.helpTip = getLabel('tipRows');
+            rowGrid.add('statictext', undefined, getLabel('rows'));
 
             /* 間隔 / Spacing */
             var rowS = dlg.add('group');
@@ -445,11 +487,21 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
                 m *= pointsPerUnit;
                 var b = false;
                 try { b = !!(brickChk && brickChk.value); } catch (e) {}
-                renderPreview(s, s, m, b);
+                var cols = Math.max(0, parseInt(columnsEdit.text, 10) || 0);
+                var rows = Math.max(0, parseInt(rowsEdit.text, 10) || 0);
+                renderPreview(s, s, m, b, cols, rows);
             }
             gapEdit.onChanging = function() {
                 updatePreviewFromFields();
             };
+            columnsEdit.onChanging = function() {
+                updatePreviewFromFields();
+            };
+            rowsEdit.onChanging = function() {
+                updatePreviewFromFields();
+            };
+            changeValueByArrowKey(columnsEdit);
+            changeValueByArrowKey(rowsEdit);
             updatePreviewFromFields();
 
             /* レンガ状 / Brick pattern */
@@ -492,6 +544,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             brickMode = !!(brickChk && brickChk.value);
             useSymbolDup = !!(symChk && symChk.value);
 
+            columnCount = Math.max(0, parseInt(columnsEdit.text, 10) || 0);
+            rowCount = Math.max(0, parseInt(rowsEdit.text, 10) || 0);
+
             marginVal = parseFloat(marginEdit.text);
             if (isNaN(marginVal)) marginVal = 0;
             sVal *= pointsPerUnit;
@@ -524,8 +579,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         var tileHFinal = tInfo.height;
         var stepX = tileWFinal + gapX;
         var stepY = tileHFinal + gapY;
-        var cols = Math.max(1, Math.ceil((cInfo.width + (brickMode ? stepX * 0.5 : 0)) / stepX));
-        var rows = Math.max(1, Math.ceil(cInfo.height / stepY));
+        var cols = (columnCount > 0)
+            ? columnCount
+            : Math.max(1, Math.ceil((cInfo.width + (brickMode ? stepX * 0.5 : 0)) / stepX));
+        var rows = (rowCount > 0)
+            ? rowCount
+            : Math.max(1, Math.ceil(cInfo.height / stepY));
 
         app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
         app.redraw();

@@ -139,7 +139,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [複数選択したテキストフレームの背面に K15% の長方形を作成し、「_bg-rectangle」レイヤーに配…](readme-ja/GridTextLayout.md)
 - [選択したオブジェクトを、1 つずつ個別のグループにまとめます](readme-ja/GroupEachSelection.md)
 - [選択している配置画像（PlacedItem / RasterItem）の拡大・縮小率（%）を表示し、入力値で…](readme-ja/ImageScaler.md)
-- [Illustrator の各種環境設定をダイアログボックスから変更可能にします](readme-ja/PreferenceManager.md)
 - [選択したオブジェクトの移動・複製と反転・回転を、アイコンのクリックで即時実行する常駐パレットです（プレビュー…](readme-ja/QuickTransformPalette.md)
 - [選択したオブジェクトをランダムに移動・変形・回転・不透明度を変更するスクリプト](readme-ja/RandomizeObjects.md)
 - [選択中のオブジェクトが「だいたいグリッド状」に並んでいることを前提に、左右・上下の間隔で再配置します](readme-ja/RegridObjects.md)
