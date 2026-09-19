@@ -10,7 +10,6 @@
 
 ### Overview
 
-- Updated: 2026-05-10
 - Runs release compound path, unite, expand appearance and ungroup over the selection in one pass
 
 ### Main Features

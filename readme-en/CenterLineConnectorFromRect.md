@@ -10,7 +10,6 @@
 
 ### Overview
 
-- Updated: 2026-04-27
 - Builds rules (a grid or a frame) automatically from rectangles pasted in from Excel or similar
 - Depending on how the lines relate to each other it also grids, joins and merges them
 

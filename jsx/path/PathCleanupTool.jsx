@@ -24,7 +24,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathCleanupTool";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
@@ -190,7 +190,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
         function logProcessError(context, e) {
             try {
                 $.writeln("[PathCleanupTool] " + context + ": " + e);
-            } catch (e) {
+            } catch (ignored) {
                 // ignore logging failure
             }
         }
@@ -549,14 +549,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
         /** 2つのモデル座標 a, b がほぼ同一（TOL_SAMEPOINT 基準）なら true。 */
         function samePointModel(a, b) {
-            return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < TOL_SAMEPOINT;
+            return samePoint(a, b, TOL_SAMEPOINT);
         }
 
         /** モデル点 p にハンドルが無い（直線的：左右ともアンカーと一致）なら true。 */
         function isStraightPointModel(p) {
-            var d1 = Math.abs(p.a[0] - p.l[0]) + Math.abs(p.a[1] - p.l[1]);
-            var d2 = Math.abs(p.a[0] - p.r[0]) + Math.abs(p.a[1] - p.r[1]);
-            return d1 < TOL_SAMEPOINT && d2 < TOL_SAMEPOINT;
+            return samePointModel(p.a, p.l) && samePointModel(p.a, p.r);
         }
 
         /**
@@ -838,7 +836,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
         }
 
         /**
-         * 「その他」タブ（変換・分割）の予測情報を取得します。
+         * 「変換」タブ（変換・分割）の予測情報を取得します。
          * corner=全ハンドル削除／smooth=全アンカーに左右ハンドル付与／add=各セグメントに1点追加／
          * extreme=各曲線セグメントの極点数を実測して加算／split=各セグメントを独立パス化／
          * fillHoles=結果を事前算出できないため未確定（"-"）。
@@ -937,7 +935,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
 
             /**
              * 現在アクティブなタブに対応する実行モードを返します。
-             * @returns {string} 'other'（その他タブ）または 'process'（削除対象タブ）。
+             * @returns {string} 'other'（「変換」タブ）または 'process'（「削除対象」タブ）。
              */
             function getActiveMode() {
                 return (tabbedPanel.selection === tabOther) ? 'other' : 'process';
@@ -997,14 +995,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             }
 
             /**
-             * 「削除対象」タブの予測値で情報パネルを更新します。
-             * @param {boolean} doSameAnchors - 重複アンカー削除を含めるか。
-             * @param {boolean} doAnchors - 直線上の冗長アンカー削除を含めるか。
-             * @param {boolean} doHandles - 直線区間のハンドル削除を含めるか。
+             * 「削除対象」タブの現在のチェック状態で情報パネルの予測値を更新します。
              * @returns {void}
              */
-            function refreshInfoPreview(doSameAnchors, doAnchors, doHandles) {
-                var predictedInfo = getPredictedInfoCountsForTargets(frozenTargets, doSameAnchors, doAnchors, doHandles, frozenInfoNow);
+            function refreshInfoPreview() {
+                var predictedInfo = getPredictedInfoCountsForTargets(
+                    frozenTargets,
+                    removeSameAnchorsCheckbox.value,
+                    removeAnchorsCheckbox.value,
+                    removeHandlesCheckbox.value,
+                    frozenInfoNow);
                 pathCountValue.text = String(predictedInfo.paths);
                 anchorCountValue.text = formatArrow(predictedInfo.anchorsNow, predictedInfo.anchorsAfter);
                 handleCountValue.text = formatArrow(predictedInfo.handlesNow, predictedInfo.handlesAfter);
@@ -1012,7 +1012,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             }
 
             /**
-             * 「その他」タブの予測値で情報パネルを更新します。
+             * 「変換」タブの予測値で情報パネルを更新します。
              * @param {string} mode - 変換モード（'smooth' | 'corner' | 'add' | 'extreme' | 'split' | 'fillHoles'）。
              * @returns {void}
              */
@@ -1042,16 +1042,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             }
 
             /**
-             * 「その他」タブで選択中のラジオボタンから変換モードを返します。
+             * 「変換」タブで選択中のラジオボタンから変換モードを返します。
+             * どれも選択されていない場合は、無効化されることのない 'smooth' に倒す
+             * （'fillHoles' は選択内容によってディム表示になるためフォールバックに使わない）。
              * @returns {string} 'smooth' | 'corner' | 'add' | 'extreme' | 'split' | 'fillHoles'。
              */
             function getSelectedConvertMode() {
-                if (smoothRadio.value) return 'smooth';
                 if (cornerRadio.value) return 'corner';
                 if (addAnchorsRadio.value) return 'add';
                 if (extremePointsRadio.value) return 'extreme';
                 if (splitRadio.value) return 'split';
-                return 'fillHoles';
+                if (fillHolesRadio.value) return 'fillHoles';
+                return 'smooth';
             }
 
             /**
@@ -1062,7 +1064,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                 if (tabbedPanel.selection === tabOther) {
                     refreshInfoForConvert(getSelectedConvertMode());
                 } else {
-                    refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
+                    refreshInfoPreview();
                 }
             }
 
@@ -1079,183 +1081,177 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             removeSameAnchorsCheckbox.helpTip = getLabel('tooltip.removeSameAnchors');
             removeSameAnchorsCheckbox.value = true;
 
-            // Tolerance for collinear anchor detection (0.01 - 3.00)
+            /* 許容誤差のUIはアンカー用とハンドル用で中身が同一のため、1つの生成関数にまとめる
+               The anchor and handle tolerance blocks are identical, so one builder creates both. */
+            var TOL_MIN = 0.01;
+            var TOL_MAX = 3;
 
-            var anchorOptionsGroup = tabProcess.add('group');
-            anchorOptionsGroup.orientation = 'column';
-            anchorOptionsGroup.alignChildren = ['left', 'top'];
-            anchorOptionsGroup.margins = [0, 15, 0, 15];
-
-            var removeAnchorsCheckbox = anchorOptionsGroup.add('checkbox', undefined, getLabel('checkbox.removeAnchors'));
-            removeAnchorsCheckbox.helpTip = getLabel('tooltip.removeAnchors');
-            removeAnchorsCheckbox.value = true;
-
-            var anchorToleranceRow = anchorOptionsGroup.add('group');
-            anchorToleranceRow.orientation = 'row';
-            anchorToleranceRow.alignChildren = ['left', 'center'];
-            anchorToleranceRow.margins = [20, 0, 0, 0];
-
-            var anchorToleranceLabel = anchorToleranceRow.add('statictext', undefined, getLabel('label.tolAnchor'));
-            anchorToleranceLabel.helpTip = getLabel('tooltip.tolAnchor');
-            anchorToleranceLabel.characters = 6;
-
-            var anchorToleranceInput = anchorToleranceRow.add('edittext', undefined, TOL_ANCHOR_COLLINEAR.toFixed(2));
-            anchorToleranceInput.helpTip = getLabel('tooltip.tolAnchor');
-            anchorToleranceInput.characters = 6;
-
-            var anchorToleranceSlider = anchorOptionsGroup.add('slider', undefined, Math.round(TOL_ANCHOR_COLLINEAR * 100), 1, 300);
-            anchorToleranceSlider.helpTip = getLabel('tooltip.tolAnchor');
-            anchorToleranceSlider.preferredSize.width = 160;
-            anchorToleranceSlider.indent = 20;
+            /* アンカー数が多いと onChanging 1回ごとの全パス再計算が重くなるため、
+               しきい値を超える選択ではスライダーを離したとき（onChange）だけ予測を更新する */
+            var HEAVY_ANCHOR_LIMIT = 2000;
+            var isHeavySelection = frozenInfoNow.anchors > HEAVY_ANCHOR_LIMIT;
 
             /**
-             * アンカー許容誤差のUI（ラベル・入力欄・スライダー）をまとめて有効／無効にします。
-             * スライダーは入力欄と別グループにあるため、行だけを切り替えると消し忘れる。
-             * @param {boolean} enabled - 有効にする場合は true。
-             * @returns {void}
-             */
-            function setAnchorToleranceEnabled(enabled) {
-                anchorToleranceRow.enabled = enabled;
-                anchorToleranceSlider.enabled = enabled;
-            }
-
-            /**
-             * アンカー許容誤差を有効範囲（0.01〜3.00、小数2桁）に丸めます。
+             * 許容誤差を有効範囲（0.01〜3.00、小数2桁）に丸めます。
              * @param {number} toleranceValue - 入力値。
-             * @returns {number} 丸めた許容誤差。NaN の場合は現在値。
+             * @param {number} fallbackValue - NaN のときに返す値。
+             * @returns {number} 丸めた許容誤差。
              */
-            function clampAnchorTolerance(toleranceValue) {
-                if (isNaN(toleranceValue)) return TOL_ANCHOR_COLLINEAR;
-                if (toleranceValue < 0.01) toleranceValue = 0.01;
-                if (toleranceValue > 3) toleranceValue = 3;
-                toleranceValue = Math.round(toleranceValue * 100) / 100;
-                return toleranceValue;
+            function clampTolerance(toleranceValue, fallbackValue) {
+                if (isNaN(toleranceValue)) return fallbackValue;
+                if (toleranceValue < TOL_MIN) toleranceValue = TOL_MIN;
+                if (toleranceValue > TOL_MAX) toleranceValue = TOL_MAX;
+                return Math.round(toleranceValue * 100) / 100;
             }
 
             /**
-             * アンカー許容誤差を確定し、入力欄・スライダー・内部値を同期します。
-             * @param {number} toleranceValue - 設定する許容誤差。
+             * 数値入力欄で↑↓キーによる増減を有効にします（Shift併用で0.1刻み）。
+             * @param {EditText} inputField - 対象の入力欄。
+             * @param {function(number):void} onValueChanged - 増減後の値を受け取るコールバック。
              * @returns {void}
              */
-            function syncAnchorToleranceFromValue(toleranceValue) {
-                toleranceValue = clampAnchorTolerance(toleranceValue);
-                TOL_ANCHOR_COLLINEAR = toleranceValue;
-                anchorToleranceInput.text = toleranceValue.toFixed(2);
-                anchorToleranceSlider.value = Math.round(toleranceValue * 100);
-            }
+            function changeValueByArrowKey(inputField, onValueChanged) {
+                inputField.addEventListener('keydown', function (event) {
+                    if (event.keyName != 'Up' && event.keyName != 'Down') return;
+                    var currentValue = parseToleranceText(inputField.text);
+                    if (isNaN(currentValue)) return;
 
-            anchorToleranceSlider.onChanging = function () {
-                var toleranceValue = anchorToleranceSlider.value / 100;
-                syncAnchorToleranceFromValue(toleranceValue);
-                refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
-            };
+                    /* 修飾キーは event から読む（keyboardState は macOS で誤報あり）
+                       Read the modifier from event (keyboardState misreports on macOS) */
+                    var shiftPressed = event.shiftKey;
+                    if (shiftPressed === undefined) {
+                        shiftPressed = ScriptUI.environment.keyboardState.shiftKey;
+                    }
 
-            anchorToleranceInput.onChange = function () {
-                var toleranceValue = parseToleranceText(anchorToleranceInput.text);
-                syncAnchorToleranceFromValue(toleranceValue);
-                refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
-            };
-
-            syncAnchorToleranceFromValue(TOL_ANCHOR_COLLINEAR);
-
-            var handleOptionsGroup = tabProcess.add('group');
-            handleOptionsGroup.orientation = 'column';
-            handleOptionsGroup.alignChildren = ['left', 'top'];
-            // handleOptionsGroup.margins = [0, 0, 0, 8];
-
-            var removeHandlesCheckbox = handleOptionsGroup.add('checkbox', undefined, getLabel('checkbox.removeHandles'));
-            removeHandlesCheckbox.helpTip = getLabel('tooltip.removeHandles');
-            removeHandlesCheckbox.value = true;
-
-            // Tolerance for straight-segment handle detection (0.01 - 3.00)
-            var handleToleranceRow = handleOptionsGroup.add('group');
-            handleToleranceRow.orientation = 'row';
-            handleToleranceRow.alignChildren = ['left', 'center'];
-            handleToleranceRow.margins = [20, 0, 0, 0];
-
-            var handleToleranceLabel = handleToleranceRow.add('statictext', undefined, getLabel('label.tolHandle'));
-            handleToleranceLabel.helpTip = getLabel('tooltip.tolHandle');
-            handleToleranceLabel.characters = 6;
-
-            var handleToleranceInput = handleToleranceRow.add('edittext', undefined, TOL_HANDLE_COLLINEAR.toFixed(2));
-            handleToleranceInput.helpTip = getLabel('tooltip.tolHandle');
-            handleToleranceInput.characters = 6;
-
-            var handleToleranceSlider = handleOptionsGroup.add('slider', undefined, Math.round(TOL_HANDLE_COLLINEAR * 100), 1, 300);
-            handleToleranceSlider.helpTip = getLabel('tooltip.tolHandle');
-            handleToleranceSlider.preferredSize.width = 160;
-            handleToleranceSlider.indent = 20;
-
-            /**
-             * ハンドル許容誤差のUI（ラベル・入力欄・スライダー）をまとめて有効／無効にします。
-             * スライダーは入力欄と別グループにあるため、行だけを切り替えると消し忘れる。
-             * @param {boolean} enabled - 有効にする場合は true。
-             * @returns {void}
-             */
-            function setHandleToleranceEnabled(enabled) {
-                handleToleranceRow.enabled = enabled;
-                handleToleranceSlider.enabled = enabled;
+                    var stepDirection = (event.keyName == 'Up') ? 1 : -1;
+                    event.preventDefault();
+                    onValueChanged(currentValue + stepDirection * (shiftPressed ? 0.1 : 0.01));
+                });
             }
 
             /**
-             * ハンドル許容誤差を有効範囲（0.01〜3.00、小数2桁）に丸めます。
-             * @param {number} toleranceValue - 入力値。
-             * @returns {number} 丸めた許容誤差。NaN の場合は現在値。
+             * 「チェックボックス＋許容誤差（ラベル・入力欄・スライダー）」を1組生成します。
+             * @param {Object} config - 生成設定。
+             * @param {string} config.checkboxKey - チェックボックスの LABELS キー。
+             * @param {string} config.checkboxTooltipKey - チェックボックスの tooltip の LABELS キー。
+             * @param {string} config.labelKey - 許容誤差ラベルの LABELS キー。
+             * @param {string} config.tooltipKey - 許容誤差まわりの tooltip の LABELS キー。
+             * @param {number} config.initial - 許容誤差の初期値。
+             * @param {Array<number>} [config.margins] - グループ余白 [左,上,右,下]。
+             * @param {function(number):void} config.onCommit - 確定した許容誤差を受け取るコールバック。
+             * @returns {{checkbox: Checkbox, setEnabled: function(boolean):void}} 生成したUIへのアクセサ。
              */
-            function clampHandleTolerance(toleranceValue) {
-                if (isNaN(toleranceValue)) return TOL_HANDLE_COLLINEAR;
-                if (toleranceValue < 0.01) toleranceValue = 0.01;
-                if (toleranceValue > 3) toleranceValue = 3;
-                // keep 2 decimals
-                toleranceValue = Math.round(toleranceValue * 100) / 100;
-                return toleranceValue;
+            function createToleranceBlock(config) {
+                var group = tabProcess.add('group');
+                group.orientation = 'column';
+                group.alignChildren = ['left', 'top'];
+                if (config.margins) group.margins = config.margins;
+
+                var checkbox = group.add('checkbox', undefined, getLabel(config.checkboxKey));
+                checkbox.helpTip = getLabel(config.checkboxTooltipKey);
+                checkbox.value = true;
+
+                var row = group.add('group');
+                row.orientation = 'row';
+                row.alignChildren = ['left', 'center'];
+                row.margins = [20, 0, 0, 0];
+
+                var label = row.add('statictext', undefined, labelText(config.labelKey));
+                label.helpTip = getLabel(config.tooltipKey);
+                label.characters = 10;
+
+                var input = row.add('edittext', undefined, config.initial.toFixed(2));
+                input.helpTip = getLabel(config.tooltipKey);
+                input.characters = 6;
+
+                var slider = group.add('slider', undefined, Math.round(config.initial * 100), TOL_MIN * 100, TOL_MAX * 100);
+                slider.helpTip = getLabel(config.tooltipKey);
+                slider.preferredSize.width = 160;
+                slider.indent = 20;
+
+                var currentValue = config.initial;
+
+                /**
+                 * 入力欄・スライダー・呼び出し元の値を、丸めた許容誤差に揃えます。
+                 * @param {number} toleranceValue - 設定する許容誤差。
+                 * @param {boolean} refresh - 予測表示も更新する場合は true。
+                 * @returns {void}
+                 */
+                function sync(toleranceValue, refresh) {
+                    currentValue = clampTolerance(toleranceValue, currentValue);
+                    input.text = currentValue.toFixed(2);
+                    slider.value = Math.round(currentValue * 100);
+                    config.onCommit(currentValue);
+                    if (refresh) refreshInfoPreview();
+                }
+
+                /* ドラッグ中（onChanging）は重い選択では表示更新を省き、離したとき（onChange）に反映する */
+                slider.onChanging = function () {
+                    sync(slider.value / 100, !isHeavySelection);
+                };
+                slider.onChange = function () {
+                    sync(slider.value / 100, true);
+                };
+                input.onChange = function () {
+                    sync(parseToleranceText(input.text), true);
+                };
+                changeValueByArrowKey(input, function (steppedValue) {
+                    sync(steppedValue, true);
+                });
+
+                return {
+                    checkbox: checkbox,
+                    /* スライダーは入力欄と別グループにあるため、行だけを切り替えると消し忘れる */
+                    setEnabled: function (enabled) {
+                        row.enabled = enabled;
+                        slider.enabled = enabled;
+                    }
+                };
             }
 
-            /**
-             * ハンドル許容誤差を確定し、入力欄・スライダー・内部値を同期します。
-             * @param {number} toleranceValue - 設定する許容誤差。
-             * @returns {void}
-             */
-            function syncHandleToleranceFromValue(toleranceValue) {
-                toleranceValue = clampHandleTolerance(toleranceValue);
-                TOL_HANDLE_COLLINEAR = toleranceValue;
-                handleToleranceInput.text = toleranceValue.toFixed(2);
-                handleToleranceSlider.value = Math.round(toleranceValue * 100);
-            }
+            var anchorToleranceBlock = createToleranceBlock({
+                checkboxKey: 'checkbox.removeAnchors',
+                checkboxTooltipKey: 'tooltip.removeAnchors',
+                labelKey: 'label.tolAnchor',
+                tooltipKey: 'tooltip.tolAnchor',
+                initial: TOL_ANCHOR_COLLINEAR,
+                margins: [0, 15, 0, 15],
+                onCommit: function (toleranceValue) {
+                    TOL_ANCHOR_COLLINEAR = toleranceValue;
+                }
+            });
+            var removeAnchorsCheckbox = anchorToleranceBlock.checkbox;
 
-            handleToleranceSlider.onChanging = function () {
-                var toleranceValue = handleToleranceSlider.value / 100;
-                syncHandleToleranceFromValue(toleranceValue);
-                refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
-            };
-
-            handleToleranceInput.onChange = function () {
-                var toleranceValue = parseToleranceText(handleToleranceInput.text);
-                syncHandleToleranceFromValue(toleranceValue);
-                refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
-            };
-
-            // init
-            syncHandleToleranceFromValue(TOL_HANDLE_COLLINEAR);
+            var handleToleranceBlock = createToleranceBlock({
+                checkboxKey: 'checkbox.removeHandles',
+                checkboxTooltipKey: 'tooltip.removeHandles',
+                labelKey: 'label.tolHandle',
+                tooltipKey: 'tooltip.tolHandle',
+                initial: TOL_HANDLE_COLLINEAR,
+                onCommit: function (toleranceValue) {
+                    TOL_HANDLE_COLLINEAR = toleranceValue;
+                }
+            });
+            var removeHandlesCheckbox = handleToleranceBlock.checkbox;
 
             removeSameAnchorsCheckbox.onClick = function () {
-                refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
+                refreshInfoPreview();
             };
             removeAnchorsCheckbox.onClick = function () {
-                setAnchorToleranceEnabled(removeAnchorsCheckbox.value);
-                refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
+                anchorToleranceBlock.setEnabled(removeAnchorsCheckbox.value);
+                refreshInfoPreview();
             };
             removeHandlesCheckbox.onClick = function () {
-                setHandleToleranceEnabled(removeHandlesCheckbox.value);
-                refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
+                handleToleranceBlock.setEnabled(removeHandlesCheckbox.value);
+                refreshInfoPreview();
             };
 
             // 初回反映
-            refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
-            setAnchorToleranceEnabled(removeAnchorsCheckbox.value);
-            setHandleToleranceEnabled(removeHandlesCheckbox.value);
+            refreshInfoPreview();
+            anchorToleranceBlock.setEnabled(removeAnchorsCheckbox.value);
+            handleToleranceBlock.setEnabled(removeHandlesCheckbox.value);
 
-            // --- Tab 2: その他 ---
+            // --- Tab 2: 変換 ---
             var tabOther = tabbedPanel.add('tab', undefined, getLabel('tab.other'));
             setupPanel(tabOther);
             /* タブ内の右余白を詰める（PANEL_MARGINS の右16→6）。サブプロパティ代入は反映されないため配列で上書き */
@@ -1502,34 +1498,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                     }
                 }
             } else if (item.typename === 'GroupItem') {
+                /* convertPathItem は入口で isSkippableItem() を見るため、ここでは重ねて判定しない */
                 for (var j = 0; j < item.pageItems.length; j++) {
-                    if (!isSkippableItem(item.pageItems[j])) {
-                        convertPathItem(item.pageItems[j], mode);
-                    }
+                    convertPathItem(item.pageItems[j], mode);
                 }
             }
         }
 
         /**
-         * 分割後のパスを追加するコンテナを返します。
-         * グループ内のパスはそのグループへ追加してグループ構造と重ね順を保ちます。
-         * 複合パスの子は、開いたパスを複合パスへ戻せないため一段上のコンテナへ逃がします。
+         * 分割後のパスを置く位置の基準になるオブジェクトを返します。
+         * 通常は元のパス自身ですが、複合パスの子の場合は複合パス自身を返します。
+         * 開いたパスは複合パスへ戻せないため、複合パスを基準に move すれば外へ逃がせます。
          * @param {PathItem} pathItem - 分割対象のパス。
-         * @returns {Object} pathItems.add() を持つコンテナ（GroupItem または Layer）。
+         * @returns {PageItem} 重ね順の基準になるオブジェクト。
          */
-        function getSplitContainer(pathItem) {
+        function getSplitAnchorItem(pathItem) {
+            var anchorItem = pathItem;
             try {
-                var container = pathItem.parent;
-                while (container && container.typename === 'CompoundPathItem') {
-                    container = container.parent;
-                }
-                if (container && (container.typename === 'GroupItem' || container.typename === 'Layer')) {
-                    return container;
+                var parent = pathItem.parent;
+                while (parent && parent.typename === 'CompoundPathItem') {
+                    anchorItem = parent;
+                    parent = parent.parent;
                 }
             } catch (e) {
-                logProcessError('getSplitContainer', e);
+                logProcessError('getSplitAnchorItem', e);
             }
-            return pathItem.layer;
+            return anchorItem;
         }
 
         /**
@@ -1541,8 +1535,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
             var pts = pathItem.pathPoints;
             if (pts.length < 2) return;
 
-            var parentContainer = getSplitContainer(pathItem);
+            var anchorItem = getSplitAnchorItem(pathItem);
             var segCount = pathItem.closed ? pts.length : pts.length - 1;
+            var previousPath = null;
 
             for (var s = 0; s < segCount; s++) {
                 var startIndex = s;
@@ -1550,25 +1545,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                 var startPoint = pts[startIndex];
                 var endPoint = pts[endIndex];
 
-                var newPath = parentContainer.pathItems.add();
-                newPath.closed = false;
-                newPath.filled = pathItem.filled;
-                if (pathItem.filled) {
-                    newPath.fillColor = pathItem.fillColor;
-                }
-                newPath.stroked = pathItem.stroked;
-                if (pathItem.stroked) {
-                    newPath.strokeColor = pathItem.strokeColor;
-                    newPath.strokeWidth = pathItem.strokeWidth;
+                /* duplicate() は効果・グラフィックスタイル・破線・不透明度まで丸ごと複製するため、
+                   属性を1つずつコピーするより取りこぼしがない */
+                var newPath = pathItem.duplicate();
+
+                /* 元のパスがあった位置へ移す。複合パスの子の複製は複合パス内に落ちるので、
+                   この move が「複合パスの外へ逃がす」処理も兼ねる（開いたパスは複合パスへ戻せない）。
+                   PLACEBEFORE は基準のすぐ前面、PLACEAFTER はすぐ背面に入るため、
+                   1本目だけ基準の前面に置き、2本目以降は直前に作ったパスの背面へ繋げて順序を保つ */
+                try {
+                    if (previousPath) {
+                        newPath.move(previousPath, ElementPlacement.PLACEAFTER);
+                    } else {
+                        newPath.move(anchorItem, ElementPlacement.PLACEBEFORE);
+                    }
+                    previousPath = newPath;
+                } catch (e) {
+                    logProcessError('splitAtAnchors.move', e);
                 }
 
-                var newStartPoint = newPath.pathPoints.add();
+                /* 複合パスから出したあとでないと開けないため、move の後に closed を落とす */
+                newPath.closed = false;
+
+                /* 複製は元と同じ点数なので、2点に詰めてからセグメントの座標で上書きする */
+                while (newPath.pathPoints.length > 2) {
+                    newPath.pathPoints[newPath.pathPoints.length - 1].remove();
+                }
+
+                var newStartPoint = newPath.pathPoints[0];
                 newStartPoint.anchor = startPoint.anchor;
                 newStartPoint.leftDirection = startPoint.anchor;
                 newStartPoint.rightDirection = startPoint.rightDirection;
                 newStartPoint.pointType = startPoint.pointType;
 
-                var newEndPoint = newPath.pathPoints.add();
+                var newEndPoint = newPath.pathPoints[1];
                 newEndPoint.anchor = endPoint.anchor;
                 newEndPoint.leftDirection = endPoint.leftDirection;
                 newEndPoint.rightDirection = endPoint.anchor;
@@ -1584,6 +1594,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
          * @returns {void}
          */
         function fillHolesOnSelection() {
+            /* DOM で立てた選択が反映される前にコマンドが走らないよう、先に画面を更新する */
+            app.redraw();
             /* executeMenuCommand は実行できないコマンドでも例外を投げず何もしないため、
                冒頭の group と対になる ungroup をそのまま呼ぶ */
             app.executeMenuCommand('group');
@@ -1612,12 +1624,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                 for (var ii = 0; ii < childPaths.length; ii++) {
                     splitAtAnchors(childPaths[ii]);
                 }
+                /* 子をすべて開いたパスとして外へ出したため、空になった複合パスを残さない */
+                try {
+                    if (item.pathItems.length === 0) item.remove();
+                } catch (e) {
+                    logProcessError('splitItem.removeEmptyCompoundPath', e);
+                }
             } else if (item.typename === 'GroupItem') {
+                /* splitAtAnchors がグループへ新しいパスを足すため、先に子をスナップショットする
+                   （スキップ判定は再帰先の splitItem が入口で行う） */
                 var childItems = [];
                 for (var j = 0; j < item.pageItems.length; j++) {
-                    if (!isSkippableItem(item.pageItems[j])) {
-                        childItems.push(item.pageItems[j]);
-                    }
+                    childItems.push(item.pageItems[j]);
                 }
                 for (var jj = 0; jj < childItems.length; jj++) {
                     splitItem(childItems[jj]);
@@ -1830,12 +1848,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                     logProcessError("addExtremePointsToPath", e);
                 }
             } else if (item.typename === 'CompoundPathItem') {
+                /* addExtremePointsToItem は入口で isSkippableItem() を見るため、ここでは重ねて判定しない */
                 for (var i = 0; i < item.pathItems.length; i++) {
-                    if (!isSkippableItem(item.pathItems[i])) addExtremePointsToItem(item.pathItems[i]);
+                    addExtremePointsToItem(item.pathItems[i]);
                 }
             } else if (item.typename === 'GroupItem') {
                 for (var j = 0; j < item.pageItems.length; j++) {
-                    if (!isSkippableItem(item.pageItems[j])) addExtremePointsToItem(item.pageItems[j]);
+                    addExtremePointsToItem(item.pageItems[j]);
                 }
             }
         }
@@ -1941,23 +1960,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
         }
 
         if (ui.activeMode === 'other') {
-            // --- その他タブ: 変換・分割処理 ---
+            // --- 「変換」タブ: 変換・分割処理 ---
+            /* splitItem / addExtremePointsToItem / convertPathItem はいずれも入口で
+               isSkippableItem() を見るため、ここでは重ねて判定しない */
             var selectionSnapshot = selectionAtOpen.slice(0);
             if (ui.convertMode === 'add') {
                 if (restoreSelectableSelection(selectionSnapshot) > 0) {
+                    /* DOM で立てた選択が反映される前にコマンドが走らないよう、先に画面を更新する */
+                    app.redraw();
                     app.executeMenuCommand('Add Anchor Points2');
                 }
             } else if (ui.convertMode === 'split') {
-                for (var n = 0; n < selectionSnapshot.length; n++) {
-                    if (!isSkippableItem(selectionSnapshot[n])) {
-                        splitItem(selectionSnapshot[n]);
-                    }
+                for (var i = 0; i < selectionSnapshot.length; i++) {
+                    splitItem(selectionSnapshot[i]);
                 }
             } else if (ui.convertMode === 'extreme') {
-                for (var n = 0; n < selectionSnapshot.length; n++) {
-                    if (!isSkippableItem(selectionSnapshot[n])) {
-                        addExtremePointsToItem(selectionSnapshot[n]);
-                    }
+                for (var j = 0; j < selectionSnapshot.length; j++) {
+                    addExtremePointsToItem(selectionSnapshot[j]);
                 }
             } else if (ui.convertMode === 'fillHoles') {
                 /* マド埋めは複合パス自体に対する操作なので、子パスに分解せず
@@ -1966,21 +1985,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹�
                     fillHolesOnSelection();
                 }
             } else {
-                for (var n = 0; n < selectionSnapshot.length; n++) {
-                    if (!selectionSnapshot[n] || isSkippableItem(selectionSnapshot[n])) continue;
-                    convertPathItem(selectionSnapshot[n], ui.convertMode);
+                for (var k = 0; k < selectionSnapshot.length; k++) {
+                    convertPathItem(selectionSnapshot[k], ui.convertMode);
                 }
             }
         } else {
-            // --- 削除対象タブ: クリーンアップ処理 ---
-            var targetsAtOk = targetsAtOpen;
-
+            // --- 「削除対象」タブ: クリーンアップ処理 ---
             if (!ui.doRemoveSameAnchors && !ui.doRemoveAnchors && !ui.doRemoveHandles) {
                 return;
             }
 
             // 情報パネルの予測とまったく同じ関数・同じ実行順を通す
-            runCleanupOnTargets(targetsAtOk, ui.doRemoveSameAnchors, ui.doRemoveAnchors, ui.doRemoveHandles);
+            runCleanupOnTargets(targetsAtOpen, ui.doRemoveSameAnchors, ui.doRemoveAnchors, ui.doRemoveHandles);
         }
     })();
 

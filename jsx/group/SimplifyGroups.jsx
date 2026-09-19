@@ -2,77 +2,38 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SimplifyGroups.jsx
 
 ### 概要
 
-- 選択したグループ内のサブグループを再帰的に解除します。
-- 最外層のグループは解除せず残します。
-- 選択にグループが1つだけあり、他に非グループがある場合は非グループをそのグループに追加します。
-- 複数のグループと非グループが混在している場合はまとめて1つのグループにしてから処理します。
+選択したグループの中にあるサブグループを再帰的に解除し、最外層のグループだけを残します。
+グループと非グループが混在している場合は、まとめて1つのグループにしてから処理します。
 
-### 主な機能
-
-- サブグループの再帰的解除
-- 混在選択時の自動グループ化
-- 既存グループへの非グループ追加
-- Illustratorメニュー「グループ解除」コマンドの利用
-
-### 処理の流れ
-
-1. ドキュメントと選択を確認
-2. 選択にグループが1つだけの場合は非グループをそのグループに追加
-3. 複数のグループと非グループが混在していればまとめてグループ化
-4. グループ内のサブグループを再帰的に探索し解除
-
-### note
-
-https://note.com/dtp_tranist/n/n45797beb72bb
-
-### 更新履歴
-
-- v1.0 (20250707) : 初版公開
-- v1.1 (20250707) : 実行後の選択状態を調整
-- v1.2 (20250707) : 非グループを既存グループに追加する際の挙動を変更
-- v1.3 (20250707) : クリップグループに選択オブジェクトを追加する機能を追加
-
----
-
-### Script Name:
-
-SimplifyGroups.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- Recursively ungroups subgroups inside the selected group.
-- The outermost group remains intact.
-- If there is only one group in the selection and other non-group objects, the non-groups are added to that group.
-- If groups and non-groups are mixed, they are grouped together before processing.
+Recursively ungroups the subgroups inside the selection, leaving only the outermost group.
+When groups and non-groups are mixed, they are grouped together first.
 
-### Main Features
-
-- Recursive ungrouping of subgroups
-- Auto-grouping when mixed selection
-- Adding non-groups to existing single group
-- Uses Illustrator's "ungroup" menu command internally
-
-### Process Flow
-
-1. Check document and selection
-2. If only one group selected with other non-groups, add non-groups to that group
-3. Group mixed selection if needed
-4. Recursively find and ungroup subgroups
-
-### Change Log
-
-- v1.0 (20250707): Initial release
-- v1.１ (20250707): Added feature to add non-groups to existing single group
-- v1.2 (20250707): Improved behavior when adding non-groups to existing group
-- v1.3 (20250707): Added functionality to add selected objects to clip groups
+See the README for details.
 
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SimplifyGroups";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-07";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-07";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SimplifyGroups.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SimplifyGroups.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n45797beb72bb"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // zOrderPosition の増減方向を実ドキュメント上で判定
 // true: 数値が大きいほど前面 / false: 数値が小さいほど前面
@@ -149,7 +110,7 @@ function main() {
     }
 
     // 1つだけグループがあり、他が非グループの場合
-    if (groupCount === 1 && nonGroupCount > 0å) {
+    if (groupCount === 1 && nonGroupCount > 0) {
         for (var i = sel.length - 1; i >= 0; i--) {
             var item = sel[i];
             if (item !== firstGroup && !item.locked && !item.hidden) {

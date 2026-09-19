@@ -10,7 +10,6 @@
 
 ### Overview
 
-- Updated: 2026-05-10
 - Runs release compound path, unite, expand appearance, ungroup and offset path over the selection in one pass
 - Enabling the preview in the dialog lets you check the result without closing it
 

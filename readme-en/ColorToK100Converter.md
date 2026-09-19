@@ -10,7 +10,6 @@
 
 ### Overview
 
-- Updated: 2025-06-15
 - Converts blacks built from RGB or CMYK into a stable K100 black
 - Fill and stroke colours on text, paths and swatches are all covered
 

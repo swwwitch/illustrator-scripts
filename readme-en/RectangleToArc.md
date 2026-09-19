@@ -10,7 +10,6 @@
 
 ### Overview
 
-- Updated: 2026-05-19
 - Converts the selected rectangle into an arc through three points: the bottom-left corner, the middle of the top edge, and the bottom-right corner
 - The radius, center, start angle and end angle are derived from the rectangle's width and height, and the arc is built from Bezier segments of at most 90 degrees
 - The original rectangle is deleted

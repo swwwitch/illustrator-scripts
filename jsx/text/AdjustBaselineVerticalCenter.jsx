@@ -2,70 +2,43 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-AdjustBaselineVerticalCenter.jsx
 
 ### 概要
 
-- 指定した文字（1文字以上）を、基準文字に合わせて縦位置（ベースライン）を調整するスクリプトです。
-- 複数のテキストフレームに対して一括適用が可能です。
+指定した文字を、基準文字の中心に合わせてベースラインシフトで上下に動かします。
+複数のテキストフレームへまとめて適用できます。
 
-### 主な機能
-
-- 複数文字の対象指定に対応
-- 基準文字の中心に合わせてベースラインシフトを自動調整
-- 最頻出記号を自動抽出し、デフォルト対象文字に設定
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ダイアログで対象文字と基準文字を指定
-2. 各文字のアウトライン複製から中心Y座標を取得
-3. 差分に応じてベースラインシフトを自動適用
-
-### オリジナル、謝辞
-
-Egor Chistyakov https://x.com/tchegr
-
-### 更新履歴
-
-- v1.0.0 (20250704) : 初版リリース
-- v1.0.6 (20250705) : 複数の対象文字を指定し、一括調整に対応
-
----
-
-### Script Name:
-
-AdjustBaselineVerticalCenter.jsx
+詳細は README を参照してください。
 
 ### Overview
 
-- A script to adjust the vertical position (baseline) of specified characters to align with a reference character.
-- Can be applied to multiple text frames at once.
+Shifts the specified characters up or down with a baseline shift so they line up with the center of a reference character.
+It can be applied to several text frames at once.
 
-### Main Features
+See the README for details.
 
-- Supports specifying multiple target characters
-- Automatically adjusts baseline shift to match the center of the reference character
-- Automatically detects the most frequent symbol as default target
-- Japanese and English UI support
-
-### Process Flow
-
-1. Specify target and reference characters in the dialog
-2. Duplicate outlines to calculate center Y positions
-3. Automatically apply baseline shift based on the difference
-
-### Original / Acknowledgements
-
-Egor Chistyakov https://x.com/tchegr
-
-### Update History
-
-- v1.0.0 (20250704): Initial release
-- v1.0.6 (20250705): Supported multiple target characters and batch adjustment
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AdjustBaselineVerticalCenter"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-07-05";                   /* 更新日 / last updated */
+
+var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustBaselineVerticalCenter.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustBaselineVerticalCenter.md"; /* README (English) */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion 参考、謝辞 / Reference and acknowledgements
+ * Egor Chistyakov (@tchegr)
+ * https://x.com/tchegr
+ */
 
 /* ロケール判定 / Locale detection */
 function getCurrentLang() {

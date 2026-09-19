@@ -10,7 +10,6 @@
 
 ### Overview
 
-- Updated: 2025-08-13
 - Duplicates the selection, sends it behind, applies Offset Path (a live effect), outlines it, unites it and expands it
 - Groups the original with the result, runs Subtract, and fills the outcome with white
 

@@ -24,6 +24,11 @@ An "auto touch type" tool that randomizes the baseline shift, scale, rotation, k
 2. Run the script.
 3. Set how much each property varies, check the preview, and click OK.
 
+### Article (note)
+
+https://note.com/dtp_tranist/n/ne6545c4717af
+
 ### Update History
 
+- v1.2.9 (2026-09-19): Added the article link and reorganized the internals (nested label definitions, clearer naming, merged duplicated code).
 - v1.2.7 (2026-02-20)

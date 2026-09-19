@@ -10,7 +10,6 @@
 
 ### Overview
 
-- Updated: 2026-05-24
 - Creates rectangles matching the bounds of the selected objects
 - The unit of creation is either per object or the whole selection
 - Margins (in ruler units, negative values inset), a corner-radius live effect, and fill and stroke presets can be set
