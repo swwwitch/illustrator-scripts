@@ -1,4 +1,4 @@
-# convert2separategradient
+# グラデーションをセパレートグラデーションに変換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-convert2separategradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/convert2separategradient.jsx)
 

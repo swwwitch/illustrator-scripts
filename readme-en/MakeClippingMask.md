@@ -1,4 +1,4 @@
-# MakeClippingMask
+# Create or release a clipping mask
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-MakeClippingMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/MakeClippingMask.jsx)
 

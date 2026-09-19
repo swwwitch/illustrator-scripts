@@ -1,4 +1,4 @@
-# FillSnapper
+# Snap the bounding box to the nearest reference edge
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FillSnapper.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/FillSnapper.jsx)
 

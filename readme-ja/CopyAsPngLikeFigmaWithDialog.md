@@ -1,4 +1,4 @@
-# CopyAsPngLikeFigmaWithDialog
+# 選択オブジェクトをPNG相当でクリップボードにコピー
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CopyAsPngLikeFigmaWithDialog.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/export/CopyAsPngLikeFigmaWithDialog.jsx)
 

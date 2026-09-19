@@ -1,4 +1,4 @@
-# TableRuleAverager
+# Redistribute the rules inside a frame evenly
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TableRuleAverager.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/TableRuleAverager.jsx)
 

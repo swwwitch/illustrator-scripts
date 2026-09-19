@@ -1,4 +1,4 @@
-# tabularize
+# 選択を表として解釈して罫線と塗りを生成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-tabularize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/tabularize.jsx)
 

@@ -1,4 +1,4 @@
-# TextCountStats
+# Visualize statistics about the text in a document
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextCountStats.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountStats.jsx)
 

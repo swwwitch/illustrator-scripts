@@ -1,4 +1,4 @@
-# ZIndexSorter
+# 重ね順を位置やZインデックスで並べ替え
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ZIndexSorter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/ZIndexSorter.jsx)
 

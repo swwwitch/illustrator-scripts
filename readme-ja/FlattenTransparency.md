@@ -1,4 +1,4 @@
-# FlattenTransparency
+# 透明部分を分割・統合
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FlattenTransparency.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/FlattenTransparency.jsx)
 

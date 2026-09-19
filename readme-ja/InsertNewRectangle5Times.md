@@ -1,4 +1,4 @@
-# InsertNewRectangle5Times
+# 表示領域の中心付近に正方形を5つ作成
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-insert--new--rectangle--5times.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-rectangle-5times.jsx)

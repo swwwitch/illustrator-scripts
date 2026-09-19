@@ -1,4 +1,4 @@
-# AiSmartRotateView.jsx
+# Switch the view rotation and the constrain angle
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiSmartRotateView.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AiSmartRotateView.jsx)
 

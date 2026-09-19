@@ -1,4 +1,4 @@
-# GroupEdgeAlignCENTERX
+# 選択の端または中心を左右中央に揃える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignCENTERX.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlign-7/GroupEdgeAlignCENTERX.jsx)
 

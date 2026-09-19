@@ -1,10 +1,10 @@
-# SmartShapeMaker.jsx
+# 円・正多角形・スター・スーパー楕円・ルーローを作成
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-SmartShapeMaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/SmartShapeMaker.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartShapeMaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/SmartShapeMaker.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 

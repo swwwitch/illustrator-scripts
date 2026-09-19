@@ -1,4 +1,4 @@
-# DrawRectangleBehindSelectedObject
+# 選択の背面にオフセット付きの長方形を作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DrawRectangleBehindSelectedObject.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DrawRectangleBehindSelectedObject.jsx)
 

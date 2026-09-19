@@ -1,4 +1,4 @@
-# LeaderLineBuilder
+# 外接矩形から指定角度の引き出し線を作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-LeaderLineBuilder.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/LeaderLineBuilder.jsx)
 

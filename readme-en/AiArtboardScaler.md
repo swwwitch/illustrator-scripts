@@ -1,4 +1,4 @@
-# AiArtboardScaler
+# Scale artboards with a live preview
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiArtboardScaler.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AiArtboardScaler.jsx)
 

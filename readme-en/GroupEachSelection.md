@@ -1,4 +1,4 @@
-# GroupEachSelection
+# Wrap each object in its own group
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GroupEachSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/GroupEachSelection.jsx)
 

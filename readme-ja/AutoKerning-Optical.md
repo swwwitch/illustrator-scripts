@@ -1,4 +1,4 @@
-# AutoKerning-Optical
+# 自動カーニングを「オプティカル」に設定
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--Optical.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerning-Optical.jsx)
 

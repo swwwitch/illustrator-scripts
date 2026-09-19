@@ -1,4 +1,4 @@
-# AutoKerningWabunSimple
+# Set Japanese auto-kerning to Optical
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerningWabunSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerningWabunSimple.jsx)
 

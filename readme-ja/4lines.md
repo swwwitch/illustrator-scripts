@@ -1,4 +1,4 @@
-# 4lines
+# アウトライン化した文字に4本のラインを引く
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-4lines.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/4lines.jsx)
 

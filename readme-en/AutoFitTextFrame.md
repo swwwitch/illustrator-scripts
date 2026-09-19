@@ -1,4 +1,4 @@
-# AutoFitTextFrame
+# Fit overset text by adjusting size or area height
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoFitTextFrame.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoFitTextFrame.jsx)
 

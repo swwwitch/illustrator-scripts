@@ -1,4 +1,4 @@
-# PreferenceManagerForTransformAndAlign
+# Switch transform and align preferences from a palette
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PreferenceManagerForTransformAndAlign.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PreferenceManagerForTransformAndAlign.jsx)
 

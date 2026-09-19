@@ -1,4 +1,4 @@
-# ExtendLines
+# Extend lines through adjacent anchors across the artboard
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ExtendLines.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ExtendLines.jsx)
 

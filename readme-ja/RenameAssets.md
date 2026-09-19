@@ -1,4 +1,4 @@
-# RenameAssets
+# スタイル・ブラシ・スウォッチ・シンボルの名前を一括置換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RenameAssets.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/RenameAssets.jsx)
 

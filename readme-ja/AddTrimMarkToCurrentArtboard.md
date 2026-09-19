@@ -1,4 +1,4 @@
-# AddTrimMarkToCurrentArtboard
+# 現在のアートボードに日本式トンボを作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AddTrimMarkToCurrentArtboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AddTrimMarkToCurrentArtboard.jsx)
 

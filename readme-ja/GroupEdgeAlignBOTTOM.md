@@ -1,4 +1,4 @@
-# GroupEdgeAlignBOTTOM
+# 選択の端または中心を下に揃える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignBOTTOM.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlign-7/GroupEdgeAlignBOTTOM.jsx)
 

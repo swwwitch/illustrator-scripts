@@ -1,4 +1,4 @@
-# bg-template
+# Create an artboard-sized background, template it and send it back
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-bg--template.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/bg-template.jsx)
 

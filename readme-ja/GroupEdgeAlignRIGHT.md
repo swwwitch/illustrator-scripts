@@ -1,4 +1,4 @@
-# GroupEdgeAlignRIGHT
+# 選択の端または中心を右に揃える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignRIGHT.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlign-7/GroupEdgeAlignRIGHT.jsx)
 

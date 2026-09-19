@@ -1,4 +1,4 @@
-# InsertNewAreaText
+# 表示領域の中心にサンプルのエリア内文字を作成
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-insert--new--areatext.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-areatext.jsx)

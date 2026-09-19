@@ -1,4 +1,4 @@
-# AutoLeadingStep-10
+# Lower the auto-leading percentage by ten steps
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoLeadingStep--10.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoLeadingStep-10.jsx)
 

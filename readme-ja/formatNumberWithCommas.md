@@ -1,4 +1,4 @@
-# formatNumberWithCommas
+# 数字に桁区切りのカンマを付与
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-formatNumberWithCommas.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/formatNumberWithCommas.jsx)
 

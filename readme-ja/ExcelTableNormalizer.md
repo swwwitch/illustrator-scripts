@@ -1,4 +1,4 @@
-# ExcelTableNormalizer
+# Excel由来のデータを表組みとして整形
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ExcelTableNormalizer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/ExcelTableNormalizer.jsx)
 

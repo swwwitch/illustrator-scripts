@@ -1,6 +1,8 @@
-# ShuffleObjectColors
+# Reapply fill and stroke colors at random
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ShuffleObjectColors.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/ShuffleObjectColors.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShuffleObjectColors.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

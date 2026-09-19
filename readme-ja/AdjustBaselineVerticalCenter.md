@@ -3,4 +3,4 @@
 ---
 
 
- [こちらのスクリプト](readme-en/SmartBaselineShifter.md)にマージしました。
+ [こちらのスクリプト](SmartBaselineShifter.md)にマージしました。

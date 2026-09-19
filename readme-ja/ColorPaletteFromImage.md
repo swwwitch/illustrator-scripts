@@ -1,10 +1,10 @@
-# ColorPaletteFromImage.jsx
+# 画像から代表色を抽出してカラーパレットを作成
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-ColorPaletteFromImage.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/ColorPaletteFromImage.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ColorPaletteFromImage.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/ColorPaletteFromImage.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPaletteFromImage.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 

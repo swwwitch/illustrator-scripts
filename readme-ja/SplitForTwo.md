@@ -1,4 +1,4 @@
-# SplitForTwo
+# 外接矩形を2分割して背面に2色の背景を作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SplitForTwo.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SplitForTwo.jsx)
 

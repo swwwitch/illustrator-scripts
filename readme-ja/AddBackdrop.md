@@ -1,4 +1,4 @@
-# AddBackdrop
+# テキストの背面に図形を敷く
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AddBackdrop.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AddBackdrop.jsx)
 

@@ -1,4 +1,4 @@
-# CollectGuides
+# Gather scattered guides into one layer
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CollectGuides.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/CollectGuides.jsx)
 

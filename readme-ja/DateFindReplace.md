@@ -1,4 +1,4 @@
-# DateFindReplace
+# ドキュメント内の日付を検索して置換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DateFindReplace.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DateFindReplace.jsx)
 

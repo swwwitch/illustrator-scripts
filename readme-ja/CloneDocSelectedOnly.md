@@ -1,4 +1,4 @@
-# CloneDocSelectedOnly
+# 選択オブジェクトだけを残した複製ドキュメントを作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CloneDocSelectedOnly.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/document/CloneDocSelectedOnly.jsx)
 

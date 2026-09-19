@@ -1,4 +1,4 @@
-# CloneDocSelectedOnly
+# Duplicate the document keeping only the selection
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CloneDocSelectedOnly.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/document/CloneDocSelectedOnly.jsx)
 

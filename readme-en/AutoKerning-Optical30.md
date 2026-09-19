@@ -1,4 +1,4 @@
-# AutoKerning-Optical30
+# Set auto-kerning to Optical (30)
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--Optical30.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerning-Optical30.jsx)
 

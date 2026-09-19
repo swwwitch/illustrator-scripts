@@ -1,4 +1,4 @@
-# ToggleTrimView
+# Toggle Trim View and show the guides
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ToggleTrimView.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ToggleTrimView.jsx)
 

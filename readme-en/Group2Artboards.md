@@ -1,4 +1,4 @@
-# Group2Artboards
+# Turn a group's bounds into an artboard with a margin
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-Group2Artboards.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/Group2Artboards.jsx)
 

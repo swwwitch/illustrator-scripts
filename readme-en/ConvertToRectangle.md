@@ -1,4 +1,4 @@
-# ConvertToRectangle
+# Create rectangles matching the bounds of the selection
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ConvertToRectangle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/ConvertToRectangle.jsx)
 

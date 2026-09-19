@@ -1,4 +1,4 @@
-# SortTextByColumn
+# タブ区切りテキストを指定列の値で並び替え
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SortTextByColumn.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/SortTextByColumn.jsx)
 

@@ -1,4 +1,4 @@
-# LeaderLineBuilder
+# Build leader lines at a given angle from the bounds
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-LeaderLineBuilder.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/LeaderLineBuilder.jsx)
 

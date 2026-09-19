@@ -1,4 +1,4 @@
-# KPTSketchy
+# ランダムな変形で手書き・スケッチ風にする
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-KPTSketchy.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/KPTSketchy.jsx)
 

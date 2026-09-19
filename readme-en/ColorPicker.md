@@ -1,4 +1,4 @@
-# ColorPicker
+# A reusable color-picker library
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ColorPicker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/ColorPicker.jsx)
 

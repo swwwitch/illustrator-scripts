@@ -1,4 +1,4 @@
-# SlideCollage-mihiraki
+# PDF/AIの各ページを見開きでアートボードに展開
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SlideCollage--mihiraki.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SlideCollage-mihiraki.jsx)
 

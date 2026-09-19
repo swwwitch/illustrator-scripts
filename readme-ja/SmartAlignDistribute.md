@@ -1,4 +1,4 @@
-# SmartAlignDistribute
+# 縦横を自動判定して指定間隔で分布
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignDistribute.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignDistribute.jsx)
 

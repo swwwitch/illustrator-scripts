@@ -1,4 +1,4 @@
-# DistributeDownFromTop
+# Adjust leading and placement downward from the top
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DistributeDownFromTop.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeDownFromTop.jsx)
 

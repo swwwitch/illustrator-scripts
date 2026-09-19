@@ -1,4 +1,4 @@
-# DrawLinesBetween
+# Draw horizontal rules between objects
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DrawLinesBetween.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/DrawLinesBetween.jsx)
 

@@ -1,4 +1,4 @@
-# PresetManagerArtboard
+# Toggle artboard name and border display
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PresetManagerArtboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PresetManagerArtboard.jsx)
 

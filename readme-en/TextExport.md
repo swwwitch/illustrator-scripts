@@ -1,4 +1,4 @@
-# TextExport
+# List the document's text and export it to a file
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextExport.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextExport.jsx)
 

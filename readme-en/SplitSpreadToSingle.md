@@ -1,4 +1,4 @@
-# SplitSpreadToSingle
+# Split spreads into left and right single pages
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SplitSpreadToSingle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/SplitSpreadToSingle.jsx)
 

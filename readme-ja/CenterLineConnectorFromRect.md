@@ -1,4 +1,4 @@
-# CenterLineConnectorFromRect
+# 貼り付けた長方形から罫線を自動生成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CenterLineConnectorFromRect.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/CenterLineConnectorFromRect.jsx)
 

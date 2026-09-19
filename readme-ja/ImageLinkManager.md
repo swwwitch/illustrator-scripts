@@ -1,4 +1,4 @@
-# ImageLinkManager
+# 配置画像の埋め込み・解除・リンクをまとめて扱う
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ImageLinkManager.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/ImageLinkManager.jsx)
 

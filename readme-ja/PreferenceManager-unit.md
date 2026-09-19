@@ -1,4 +1,4 @@
-# PreferenceManager-unit
+# 各種環境設定をダイアログから変更
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PreferenceManager--unit.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PreferenceManager-unit.jsx)
 

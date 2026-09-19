@@ -1,4 +1,4 @@
-# AttachTextToPath
+# Convert point type into type on a path
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AttachTextToPath.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AttachTextToPath.jsx)
 

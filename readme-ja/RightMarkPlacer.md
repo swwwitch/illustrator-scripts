@@ -1,10 +1,10 @@
-# RightMarkPlacer.jsx
+# 隣り合うオブジェクトのアキの中央に記号を配置
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-RightMarkPlacer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/RightMarkPlacer.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-RightMarkPlacer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/RightMarkPlacer.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkPlacer.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 

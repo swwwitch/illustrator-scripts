@@ -1,4 +1,4 @@
-# SelectAlternateItems
+# 奇数番目／偶数番目だけを互い違いに選択
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SelectAlternateItems.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/select/SelectAlternateItems.jsx)
 

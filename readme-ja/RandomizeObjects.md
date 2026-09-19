@@ -1,4 +1,4 @@
-# RandomizeObjects
+# 位置・スケール・回転・不透明度・カラーをランダムに変化
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RandomizeObjects.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RandomizeObjects.jsx)

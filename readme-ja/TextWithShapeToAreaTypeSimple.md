@@ -1,4 +1,4 @@
-# TextWithShapeToAreaTypeSimple
+# 見た目を保ったままエリア内文字に変換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextWithShapeToAreaTypeSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextWithShapeToAreaTypeSimple.jsx)
 

@@ -1,4 +1,4 @@
-# ConvertToAreaTypeLikeButton
+# エリア内文字の作成と調整
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ConvertToAreaTypeLikeButton.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ConvertToAreaTypeLikeButton.jsx)
 

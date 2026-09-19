@@ -1,4 +1,4 @@
-# InsertNewTextE
+# Create Latin point text at the center of the view
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-insert--new--text--e.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-text-e.jsx)

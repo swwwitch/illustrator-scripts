@@ -1,4 +1,4 @@
-# register-temp-style
+# Register the appearance as a fixed-name graphic style
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-register--temp--style.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/register-temp-style.jsx)
 

@@ -1,4 +1,4 @@
-# ToggleTrimView
+# トリミング表示を切り替えてガイドを表示
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ToggleTrimView.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ToggleTrimView.jsx)
 

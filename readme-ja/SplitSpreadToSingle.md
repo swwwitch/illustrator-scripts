@@ -1,4 +1,4 @@
-# SplitSpreadToSingle
+# 見開きを左右2つの片ページに分割
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SplitSpreadToSingle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/SplitSpreadToSingle.jsx)
 

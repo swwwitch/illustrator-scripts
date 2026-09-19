@@ -1,4 +1,4 @@
-# AutoLeadingCalc
+# Back-calculate the leading percentage from the current leading
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoLeadingCalc.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoLeadingCalc.jsx)
 

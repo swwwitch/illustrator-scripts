@@ -1,4 +1,4 @@
-# export200
+# Export the active artboard as PNG24
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-export200.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/export/export200.jsx)
 

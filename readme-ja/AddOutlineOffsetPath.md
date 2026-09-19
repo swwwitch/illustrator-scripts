@@ -1,4 +1,4 @@
-# AddOutlineOffsetPath
+# 背面に白フチを作る
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AddOutlineOffsetPath.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/AddOutlineOffsetPath.jsx)
 

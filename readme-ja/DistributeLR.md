@@ -1,4 +1,4 @@
-# DistributeLR
+# 左端を固定して右方向に等間隔で再配置
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLR.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeLR.jsx)
 

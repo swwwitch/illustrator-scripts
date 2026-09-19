@@ -1,4 +1,4 @@
-# AutoLeadingStep+10
+# 自動行送り％を10ステップ上げる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoLeadingStep+10.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoLeadingStep+10.jsx)
 

@@ -1,4 +1,4 @@
-# ClipEditMask
+# Toggle mask-edit mode or create a clipping mask
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ClipEditMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipEditMask.jsx)
 

@@ -1,4 +1,4 @@
-# SymbolListBuilder
+# Generate a "Symbol List" artboard
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SymbolListBuilder.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/symbol/SymbolListBuilder.jsx)
 

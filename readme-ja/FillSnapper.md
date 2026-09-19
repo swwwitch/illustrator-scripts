@@ -1,4 +1,4 @@
-# FillSnapper
+# 対象のバウンディングボックスを最寄りの基準線に合わせる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FillSnapper.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/FillSnapper.jsx)
 

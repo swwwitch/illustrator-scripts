@@ -1,4 +1,4 @@
-# PresetManagerNoDialog
+# Apply a fixed set of preferences without a dialog
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PresetManagerNoDialog.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PresetManagerNoDialog.jsx)
 

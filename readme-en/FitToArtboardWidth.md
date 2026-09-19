@@ -1,4 +1,4 @@
-# FitToArtboardWidth
+# Resize to the artboard width and center it
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FitToArtboardWidth.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/FitToArtboardWidth.jsx)

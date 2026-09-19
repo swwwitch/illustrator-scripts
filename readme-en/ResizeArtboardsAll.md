@@ -1,4 +1,4 @@
-# ResizeArtboardsAll
+# Resize artboards to a given width and height
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ResizeArtboardsAll.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/ResizeArtboardsAll.jsx)
 

@@ -1,4 +1,4 @@
-# SmartAlignAndTile-simple
+# 重なったオブジェクトを横方向に等間隔で並べ直す
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignAndTile--simple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile-simple.jsx)
 

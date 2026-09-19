@@ -1,4 +1,4 @@
-# TextScopeEdit
+# List the document's text, edit it and write it back
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextScopeEdit.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextScopeEdit.jsx)
 

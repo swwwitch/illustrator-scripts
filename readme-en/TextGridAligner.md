@@ -1,4 +1,4 @@
-# TextGridAligner
+# Align or group text frames row by row and column by column
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextGridAligner.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/TextGridAligner.jsx)
 

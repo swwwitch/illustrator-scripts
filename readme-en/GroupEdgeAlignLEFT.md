@@ -1,4 +1,4 @@
-# GroupEdgeAlignLEFT
+# Align the selection's edges or center to the left
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignLEFT.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlign-7/GroupEdgeAlignLEFT.jsx)
 

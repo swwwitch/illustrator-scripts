@@ -1,4 +1,4 @@
-# TextWithShapeToAreaType
+# Convert point text, path text or shape plus text into area type
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextWithShapeToAreaType.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextWithShapeToAreaType.jsx)
 

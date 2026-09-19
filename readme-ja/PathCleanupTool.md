@@ -2,6 +2,8 @@
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PathCleanupTool.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/PathCleanupTool.jsx)
 
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool.md)
+
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---

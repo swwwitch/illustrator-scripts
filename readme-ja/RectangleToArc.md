@@ -1,4 +1,4 @@
-# RectangleToArc
+# 長方形を3点を通る円弧に変換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RectangleToArc.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/RectangleToArc.jsx)
 

@@ -1,4 +1,4 @@
-# AddToGroup
+# Regroup the selection into a single group
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AddToGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/AddToGroup.jsx)
 

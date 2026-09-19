@@ -1,4 +1,4 @@
-# PathUnite
+# Release compound paths, unite and expand
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PathUnite.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/PathUnite.jsx)
 

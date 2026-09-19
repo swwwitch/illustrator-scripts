@@ -1,4 +1,4 @@
-# GridTextLayout
+# テキストフレームの背面にK15%の長方形を敷く
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GridTextLayout.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GridTextLayout.jsx)
 

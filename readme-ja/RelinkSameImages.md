@@ -1,10 +1,10 @@
-# RelinkSameImages.jsx
+# 同じリンクを参照する配置画像をドキュメント全体で差し替え
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-RelinkSameImages.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImages.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-RelinkSameImages.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImages.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkSameImages.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 

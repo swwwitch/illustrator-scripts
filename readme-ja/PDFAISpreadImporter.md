@@ -1,4 +1,4 @@
-# PDFAISpreadImporter
+# PDF/AIの各ページを新規ドキュメントのアートボードに配置
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PDFAISpreadImporter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/PDFAISpreadImporter.jsx)
 

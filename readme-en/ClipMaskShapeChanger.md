@@ -1,4 +1,4 @@
-# ClipMaskShapeChanger
+# Replace the clipping shape with a square, circle or hexagon
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ClipMaskShapeChanger.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipMaskShapeChanger.jsx)
 

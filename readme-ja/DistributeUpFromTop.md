@@ -1,4 +1,4 @@
-# DistributeUpFromTop
+# 上を固定して行送りと配置を上方向に調整
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DistributeUpFromTop.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeUpFromTop.jsx)
 

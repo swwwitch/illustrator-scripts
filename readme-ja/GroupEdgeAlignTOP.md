@@ -1,4 +1,4 @@
-# GroupEdgeAlignTOP
+# 選択の端または中心を上に揃える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignTOP.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlign-7/GroupEdgeAlignTOP.jsx)
 

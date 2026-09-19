@@ -1,4 +1,4 @@
-# SortByNumbers
+# Sort groups by the numbers in their text and align them
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SortByNumbers.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/SortByNumbers.jsx)
 

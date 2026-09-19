@@ -1,4 +1,4 @@
-# titlemaker
+# 指定した文字の直後で改行する
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-titlemaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/titlemaker.jsx)
 

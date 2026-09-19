@@ -1,4 +1,4 @@
-# TextBreakSplitMerge
+# 改行・分割・連結・整形をひとつのダイアログで
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextBreakSplitMerge.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextBreakSplitMerge.jsx)
 

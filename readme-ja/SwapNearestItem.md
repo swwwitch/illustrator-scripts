@@ -1,4 +1,4 @@
-# SwapNearestItem
+# 指定方向で最も近いオブジェクトと位置を入れ替える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SwapNearestItem.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SwapNearestItem.jsx)
 

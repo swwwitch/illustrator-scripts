@@ -1,4 +1,4 @@
-# MultiAreaText
+# Merge text frames into one area type, or split them apart
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-MultiAreaText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/MultiAreaText.jsx)
 

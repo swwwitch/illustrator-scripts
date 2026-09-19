@@ -1,4 +1,4 @@
-# swap-2-objects
+# 2つのオブジェクトの中心位置を入れ替える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-swap--2--objects.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/swap-2-objects.jsx)
 

@@ -1,4 +1,4 @@
-# RemoveTrimViewGuideLayer
+# 「Guides Preview for Trim View」レイヤーを削除
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RemoveTrimViewGuideLayer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/RemoveTrimViewGuideLayer.jsx)
 

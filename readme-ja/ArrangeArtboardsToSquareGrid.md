@@ -1,4 +1,4 @@
-# ArrangeArtboardsToSquareGrid
+# アートボード全体が正方形に近づくよう再配置
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ArrangeArtboardsToSquareGrid.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/ArrangeArtboardsToSquareGrid.jsx)
 

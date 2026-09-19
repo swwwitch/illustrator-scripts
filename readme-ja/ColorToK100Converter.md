@@ -1,4 +1,4 @@
-# ColorToK100Converter
+# RGB／CMYKの黒をK100に変換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ColorToK100Converter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/ColorToK100Converter.jsx)
 

@@ -1,4 +1,4 @@
-# ReleaseFromGroup
+# グループから出してレイヤー直下に移動
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ReleaseFromGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/ReleaseFromGroup.jsx)
 

@@ -1,4 +1,4 @@
-# AiAdjustVerticalGap
+# 2つのオブジェクトの上下の間隔をそろえる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiAdjustVerticalGap.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AiAdjustVerticalGap.jsx)
 

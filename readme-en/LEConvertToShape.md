@@ -1,4 +1,4 @@
-# LEConvertToShape
+# Apply the Convert to Shape live effect from a palette
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-LEConvertToShape.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/LEConvertToShape.jsx)
 

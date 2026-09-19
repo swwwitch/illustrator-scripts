@@ -1,4 +1,4 @@
-# TextFontPanelReinvented
+# 文字組み設定をまとめて調整するパネル
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextFontPanelReinvented.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextFontPanelReinvented.jsx)
 

@@ -1,4 +1,4 @@
-# SwapNearestItem
+# Swap places with the nearest object in a given direction
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SwapNearestItem.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SwapNearestItem.jsx)
 

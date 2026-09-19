@@ -1,4 +1,4 @@
-# GradientFromFill
+# 元の塗り色を始点にした線形グラデーションを作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GradientFromFill.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/GradientFromFill.jsx)
 

@@ -1,4 +1,4 @@
-# TextMergeToAreaBox
+# Rebuild text items that were split apart
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextMergeToAreaBox.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextMergeToAreaBox.jsx)
 

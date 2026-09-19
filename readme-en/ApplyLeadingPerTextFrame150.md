@@ -1,4 +1,4 @@
-# ApplyLeadingPerTextFrame150
+# Recalculate leading from the line's first characters (150%)
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ApplyLeadingPerTextFrame150.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ApplyLeadingPerTextFrame150.jsx)
 

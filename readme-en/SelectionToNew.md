@@ -1,10 +1,10 @@
-# SelectionToNew.jsx
+# Create a new layer, artboard or document from the selection
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-SelectionToNew.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionToNew.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SelectionToNew.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionToNew.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-e95464.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionToNew.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionToNew.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 

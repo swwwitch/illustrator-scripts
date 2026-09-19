@@ -1,4 +1,4 @@
-# SplitBackgroundForTwo
+# Build a split background behind two objects
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SplitBackgroundForTwo.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SplitBackgroundForTwo.jsx)
 

@@ -1,4 +1,4 @@
-# SlideCollage
+# PDF/AIをグリッド配置してサムネイル一覧を作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SlideCollage.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SlideCollage.jsx)
 

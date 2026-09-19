@@ -1,4 +1,4 @@
-# TitleBarLineCutSp
+# Cut a gap into the rule around the selection
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TitleBarLineCutSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/TitleBarLineCutSp.jsx)
 

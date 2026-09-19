@@ -1,4 +1,4 @@
-# ImgFitMask
+# Fit an image to a shape and clip it
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ImgFitMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ImgFitMask.jsx)
 

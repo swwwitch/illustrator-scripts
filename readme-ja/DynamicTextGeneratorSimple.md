@@ -1,4 +1,4 @@
-# DynamicTextGeneratorSimple
+# 各行の幅を最長行にそろえて変倍
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DynamicTextGeneratorSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DynamicTextGeneratorSimple.jsx)
 

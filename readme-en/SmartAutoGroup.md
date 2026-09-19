@@ -1,4 +1,4 @@
-# SmartAutoGroup
+# Group automatically by overlap, direction and proximity
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartAutoGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/SmartAutoGroup.jsx)
 

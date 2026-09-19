@@ -1,4 +1,4 @@
-# AutoKerning-MetricsRomanOnly
+# 自動カーニングを「和文等幅（欧文のみメトリクス）」に設定
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--MetricsRomanOnly.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerning-MetricsRomanOnly.jsx)
 

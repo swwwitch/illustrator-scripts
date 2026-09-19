@@ -1,4 +1,4 @@
-# BoundsToRectangle
+# 選択全体の外接矩形をひとつの長方形に
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-BoundsToRectangle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/BoundsToRectangle.jsx)
 

@@ -1,4 +1,4 @@
-# VerticalCenterAlignAsGroup
+# Center vertically while keeping horizontal positions
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-VerticalCenterAlignAsGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/VerticalCenterAlignAsGroup.jsx)

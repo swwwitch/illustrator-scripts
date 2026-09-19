@@ -1,4 +1,4 @@
-# MimicDynamicText
+# エリア内文字を改行ごとのポイント文字に分割
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-MimicDynamicText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/MimicDynamicText.jsx)
 

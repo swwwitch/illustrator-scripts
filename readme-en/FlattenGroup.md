@@ -1,4 +1,4 @@
-# FlattenGroup
+# Flatten nested groups into a single group
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FlattenGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/FlattenGroup.jsx)
 

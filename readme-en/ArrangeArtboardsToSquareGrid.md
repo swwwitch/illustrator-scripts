@@ -1,4 +1,4 @@
-# ArrangeArtboardsToSquareGrid
+# Re-lay out artboards so the whole grid is near-square
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ArrangeArtboardsToSquareGrid.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/ArrangeArtboardsToSquareGrid.jsx)
 

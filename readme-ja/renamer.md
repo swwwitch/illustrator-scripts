@@ -1,4 +1,4 @@
-# renamer
+# アートボード・レイヤー・シンボル名を検索置換とナンバリングで変更
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-renamer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/renamer.jsx)
 

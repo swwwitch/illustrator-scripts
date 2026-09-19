@@ -1,4 +1,4 @@
-# DocumentFontListSelector
+# 使用中の文字組み合わせを一覧から選択
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DocumentFontListSelector.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/DocumentFontListSelector.jsx)
 

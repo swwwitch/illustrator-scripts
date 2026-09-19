@@ -1,4 +1,4 @@
-# ColorGenerator
+# カラーパレットを生成してスウォッチに登録
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ColorGenerator.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/ColorGenerator.jsx)
 

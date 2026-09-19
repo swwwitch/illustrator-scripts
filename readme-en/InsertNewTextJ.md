@@ -1,4 +1,4 @@
-# InsertNewTextJ
+# Create Japanese point text at the center of the view
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-insert--new--text--j.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-text-j.jsx)

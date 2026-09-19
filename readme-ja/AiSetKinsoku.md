@@ -1,4 +1,4 @@
-# AiSetKinsoku
+# 禁則処理のプリセットを適用
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiSetKinsoku.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AiSetKinsoku.jsx)
 

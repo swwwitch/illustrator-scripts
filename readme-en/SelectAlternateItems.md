@@ -1,4 +1,4 @@
-# SelectAlternateItems
+# Select every other object in stacking order
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SelectAlternateItems.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/select/SelectAlternateItems.jsx)
 

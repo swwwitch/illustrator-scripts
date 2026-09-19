@@ -1,6 +1,8 @@
-# ApplyDocumentFonts.jsx
+# Apply fonts used in the document
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ApplyDocumentFonts.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ApplyDocumentFonts.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyDocumentFonts.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

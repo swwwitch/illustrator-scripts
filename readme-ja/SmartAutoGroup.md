@@ -1,4 +1,4 @@
-# SmartAutoGroup
+# 重なり・方向・近接度に応じて自動でグループ化
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartAutoGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/SmartAutoGroup.jsx)
 

@@ -1,4 +1,4 @@
-# RectangularGridReverseTool
+# 水平線・垂直線を長方形グリッドとして再構成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RectangularGridReverseTool.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/RectangularGridReverseTool.jsx)
 

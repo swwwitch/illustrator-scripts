@@ -1,4 +1,4 @@
-# PathTextToolkit
+# パス上文字の作成・分離・調整
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PathTextToolkit.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/PathTextToolkit.jsx)
 

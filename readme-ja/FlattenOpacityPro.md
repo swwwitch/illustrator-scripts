@@ -1,4 +1,4 @@
-# FlattenOpacityPro
+# 不透明度を塗りのカラーに焼き込む
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FlattenOpacityPro.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/FlattenOpacityPro.jsx)
 

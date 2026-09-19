@@ -1,4 +1,4 @@
-# PathTextToolkit
+# Create, detach and adjust type on a path
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PathTextToolkit.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/PathTextToolkit.jsx)
 

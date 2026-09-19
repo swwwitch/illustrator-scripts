@@ -1,4 +1,4 @@
-# export-Event
+# Export every artboard to PNG by naming rule
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-export--Event.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/export/export-Event.jsx)
 

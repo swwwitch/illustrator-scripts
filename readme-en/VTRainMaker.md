@@ -1,4 +1,4 @@
-# VTRainMaker
+# Generate rain-like rules
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-VTRainMaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/VTRainMaker.jsx)
 

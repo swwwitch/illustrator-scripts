@@ -1,4 +1,4 @@
-# SplitForTwo
+# Split the bounds in two and put a two-colour background behind
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SplitForTwo.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SplitForTwo.jsx)
 

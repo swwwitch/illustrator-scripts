@@ -1,4 +1,4 @@
-# KeepInView
+# 画面から外れたオブジェクトを見える位置に表示（再利用テンプレート）
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-KeepInView.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/_templates/KeepInView.jsx)
 

@@ -1,4 +1,4 @@
-# convert2separategradient
+# Convert a gradient into a separated, striped gradient
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-convert2separategradient.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/convert2separategradient.jsx)
 

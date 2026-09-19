@@ -1,4 +1,4 @@
-# ApplyFontWithFontsize
+# Apply each line as a font name, size and leading
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ApplyFontWithFontsize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ApplyFontWithFontsize.jsx)
 

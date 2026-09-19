@@ -1,4 +1,4 @@
-# CreateGradientFromSelection-Blend
+# 配置順の色からグラデーションを生成（ブレンド版）
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CreateGradientFromSelection--Blend.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/CreateGradientFromSelection-Blend.jsx)
 

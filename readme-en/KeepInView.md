@@ -1,4 +1,4 @@
-# KeepInView
+# Scroll an off-screen object into view (reusable template)
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-KeepInView.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/_templates/KeepInView.jsx)
 

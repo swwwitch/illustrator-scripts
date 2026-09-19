@@ -1,4 +1,4 @@
-# CopyTextAttributesToClipboard
+# 文字属性・段落属性を取得して保存
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CopyTextAttributesToClipboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/CopyTextAttributesToClipboard.jsx)
 

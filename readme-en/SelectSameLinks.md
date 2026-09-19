@@ -1,4 +1,4 @@
-# SelectSameLinks
+# Select placed images that share the same link
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SelectSameLinks.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/SelectSameLinks.jsx)
 

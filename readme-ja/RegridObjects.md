@@ -1,4 +1,4 @@
-# RegridObjects
+# だいたいグリッド状の並びを間隔を指定して再配置
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RegridObjects.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RegridObjects.jsx)
 

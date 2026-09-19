@@ -1,4 +1,4 @@
-# InsertNewRectangle
+# Create one square at the center of the view
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-insert--new--rectangle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-rectangle.jsx)

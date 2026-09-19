@@ -1,4 +1,4 @@
-# SwapStyle
+# 2つのオブジェクトの見た目または文字列を交換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SwapStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/SwapStyle.jsx)
 

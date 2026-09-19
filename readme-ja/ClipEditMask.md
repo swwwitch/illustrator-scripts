@@ -1,4 +1,4 @@
-# ClipEditMask
+# マスク編集モードへの切り替えとクリッピングマスク作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ClipEditMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipEditMask.jsx)
 

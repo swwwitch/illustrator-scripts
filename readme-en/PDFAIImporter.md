@@ -1,4 +1,4 @@
-# PDFAIImporter
+# Import a page range from a PDF/AI file
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PDFAIImporter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/PDFAIImporter.jsx)
 

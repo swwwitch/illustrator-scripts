@@ -1,4 +1,4 @@
-# BlendSp
+# ブレンドの作成と調整
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-%20BlendSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/blend/%20BlendSp.jsx)
 

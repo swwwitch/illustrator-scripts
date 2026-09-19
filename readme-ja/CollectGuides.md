@@ -1,4 +1,4 @@
-# CollectGuides
+# 散在するガイドを1つのレイヤーに集約
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CollectGuides.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/CollectGuides.jsx)
 

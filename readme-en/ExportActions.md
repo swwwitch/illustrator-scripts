@@ -1,4 +1,4 @@
-# ExportActions
+# Export action sets as .aia files
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ExportActions.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/files/ExportActions.jsx)
 

@@ -1,7 +1,9 @@
-# NewGuideMaker
+# 方向・位置・単位を指定してガイドを作成
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-NewGuideMaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/NewGuideMaker.jsx)
+
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/NewGuideMaker.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

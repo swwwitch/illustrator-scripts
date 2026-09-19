@@ -1,4 +1,4 @@
-# TextScopeEdit
+# テキストを一覧で編集してドキュメントに書き戻す
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextScopeEdit.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextScopeEdit.jsx)
 

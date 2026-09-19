@@ -1,4 +1,4 @@
-# SmartRenumber
+# 数値テキストをソートして連番を振り直す
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartRenumber.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartRenumber.jsx)
 

@@ -1,4 +1,4 @@
-# PathUniteOffsetTool
+# Release, unite, expand and offset in one pass
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PathUniteOffsetTool.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/PathUniteOffsetTool.jsx)
 

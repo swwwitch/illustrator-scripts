@@ -1,4 +1,4 @@
-# ClipWithSquare
+# 画像を中心基準の正方形でクリップ
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ClipWithSquare.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSquare.jsx)
 

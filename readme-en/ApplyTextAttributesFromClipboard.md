@@ -1,4 +1,4 @@
-# ApplyTextAttributesFromClipboard
+# Apply saved text attributes to the selection
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ApplyTextAttributesFromClipboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ApplyTextAttributesFromClipboard.jsx)
 

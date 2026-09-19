@@ -1,4 +1,4 @@
-# AiFontConverter
+# Switch font variants in bulk
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiFontConverter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/AiFontConverter.jsx)
 

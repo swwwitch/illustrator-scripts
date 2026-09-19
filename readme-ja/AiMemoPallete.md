@@ -1,4 +1,4 @@
-# AiMemoPallete
+# メモ入力パレット
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiMemoPallete.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AiMemoPallete.jsx)
 

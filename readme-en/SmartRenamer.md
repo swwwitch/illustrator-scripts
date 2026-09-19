@@ -1,4 +1,4 @@
-# SmartRenamer
+# Batch rename and reorder artboards, symbols and layers
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartRenamer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SmartRenamer.jsx)
 

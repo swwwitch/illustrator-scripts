@@ -1,4 +1,4 @@
-# ZIndexSorter
+# Reorder the stacking order by position or Z index
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ZIndexSorter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/ZIndexSorter.jsx)
 

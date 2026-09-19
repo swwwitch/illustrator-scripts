@@ -1,4 +1,4 @@
-# AverageRulesInRectangle
+# 外枠の中で罫線を均等に再配置
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AverageRulesInRectangle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/AverageRulesInRectangle.jsx)
 

@@ -1,4 +1,4 @@
-# GenerateGuidesGrid
+# Divide an artboard into a grid of guides
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GenerateGuidesGrid.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/GenerateGuidesGrid.jsx)
 

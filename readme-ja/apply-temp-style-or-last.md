@@ -1,4 +1,4 @@
-# apply-temp-style-or-last
+# グラフィックスタイル「temp_style」を適用
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-apply--temp--style--or--last.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/apply-temp-style-or-last.jsx)
 

@@ -1,4 +1,4 @@
-# SortByNumbers
+# テキスト内の数値でグループを並び替えて整列
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SortByNumbers.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/SortByNumbers.jsx)
 

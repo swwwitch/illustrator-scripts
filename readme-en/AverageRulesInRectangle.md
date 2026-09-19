@@ -1,4 +1,4 @@
-# AverageRulesInRectangle
+# Redistribute rules evenly inside a frame
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AverageRulesInRectangle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/table/AverageRulesInRectangle.jsx)
 

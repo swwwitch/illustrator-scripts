@@ -1,4 +1,4 @@
-# VerticalCenterAlignAsGroup
+# 横位置を保ったまま天地中央に整列
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-VerticalCenterAlignAsGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/VerticalCenterAlignAsGroup.jsx)

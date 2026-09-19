@@ -1,4 +1,4 @@
-# MakeRectangleFromGuides
+# Fill every area bounded by guides with a rectangle
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-MakeRectangleFromGuides.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/MakeRectangleFromGuides.jsx)
 

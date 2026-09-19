@@ -1,4 +1,4 @@
-# SmartAlignDistribute
+# Lay out and distribute with an auto-detected direction
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignDistribute.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignDistribute.jsx)
 

@@ -1,4 +1,4 @@
-# LongShadowMaker
+# Generate a long shadow from distance, angle and scale
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-LongShadowMaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/LongShadowMaker.jsx)
 

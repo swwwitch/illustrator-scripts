@@ -1,4 +1,4 @@
-# tabularize
+# Read the selection as a table and generate fills and rules
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-tabularize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/tabularize.jsx)
 

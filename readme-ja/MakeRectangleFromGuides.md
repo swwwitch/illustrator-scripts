@@ -1,4 +1,4 @@
-# MakeRectangleFromGuides
+# ガイドの交点で区切られた区画に長方形を一括生成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-MakeRectangleFromGuides.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/MakeRectangleFromGuides.jsx)
 

@@ -1,4 +1,4 @@
-# MakeClippingMask
+# クリッピングマスクの作成と解除を切り替える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-MakeClippingMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/MakeClippingMask.jsx)
 

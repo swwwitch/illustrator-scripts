@@ -1,4 +1,4 @@
-# ToggleTemplateLayer
+# アクティブレイヤーのテンプレート属性を切り替える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ToggleTemplateLayer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/ToggleTemplateLayer.jsx)
 

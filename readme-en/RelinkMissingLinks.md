@@ -1,4 +1,4 @@
-# RelinkMissingLinks
+# Relink missing images from a chosen folder
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RelinkMissingLinks.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkMissingLinks.jsx)
 

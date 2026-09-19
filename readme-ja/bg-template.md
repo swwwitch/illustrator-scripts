@@ -1,4 +1,4 @@
-# bg-template
+# アートボードと同じ大きさの背景をテンプレート化して最背面へ
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-bg--template.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/bg-template.jsx)
 

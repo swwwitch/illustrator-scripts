@@ -1,4 +1,4 @@
-# PreferenceManager-print-pt
+# 単位と数値インクリメントを変更
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PreferenceManager--print--pt.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PreferenceManager-print-pt.jsx)
 

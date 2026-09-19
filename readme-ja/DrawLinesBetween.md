@@ -1,4 +1,4 @@
-# DrawLinesBetween
+# オブジェクトの間に水平の罫線を描く
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DrawLinesBetween.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/DrawLinesBetween.jsx)
 

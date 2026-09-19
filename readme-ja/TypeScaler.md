@@ -1,4 +1,4 @@
-# TypeScaler
+# 基準サイズと倍率からタイプスケールを生成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TypeScaler.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TypeScaler.jsx)
 

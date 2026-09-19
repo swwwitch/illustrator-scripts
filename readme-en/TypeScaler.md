@@ -1,4 +1,4 @@
-# TypeScaler
+# Generate a type scale from a base size and a ratio
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TypeScaler.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TypeScaler.jsx)
 

@@ -1,4 +1,4 @@
-# ImgFitMask
+# 図形の大きさに画像を合わせてクリッピングマスクを作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ImgFitMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ImgFitMask.jsx)
 

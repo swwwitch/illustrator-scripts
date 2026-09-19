@@ -1,4 +1,4 @@
-# ImageStrokeAdder
+# Add a stroke to placed images as an appearance
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ImageStrokeAdder.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/ImageStrokeAdder.jsx)
 

@@ -1,4 +1,4 @@
-# RegisterAndApplySwatches
+# Register fill and stroke colors as swatches and reapply them
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RegisterAndApplySwatches.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/RegisterAndApplySwatches.jsx)
 

@@ -1,4 +1,4 @@
-# KPTSketchy
+# Give the selection a hand-drawn, sketchy look
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-KPTSketchy.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/KPTSketchy.jsx)
 

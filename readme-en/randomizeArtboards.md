@@ -1,4 +1,4 @@
-# randomizeArtboards
+# Shuffle artboards into a grid
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-randomizeArtboards.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/randomizeArtboards.jsx)
 

@@ -1,4 +1,4 @@
-# SwapStyle
+# Swap the appearance or the text between two objects
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SwapStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/SwapStyle.jsx)
 

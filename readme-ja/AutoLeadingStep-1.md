@@ -1,4 +1,4 @@
-# AutoLeadingStep-1
+# 自動行送り％を1ステップ下げる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoLeadingStep--1.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoLeadingStep-1.jsx)
 

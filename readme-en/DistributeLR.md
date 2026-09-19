@@ -1,4 +1,4 @@
-# DistributeLR
+# Keep the left edge fixed and redistribute rightward
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLR.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeLR.jsx)
 

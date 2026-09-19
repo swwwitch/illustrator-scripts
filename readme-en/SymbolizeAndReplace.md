@@ -1,4 +1,4 @@
-# SymbolizeAndReplace
+# Make a symbol and replace matching objects with it
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SymbolizeAndReplace.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/symbol/SymbolizeAndReplace.jsx)
 

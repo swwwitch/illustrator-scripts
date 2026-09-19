@@ -1,10 +1,10 @@
-# InvoiceFromClipboard.jsx
+# クリップボードの回答から領収書・請求書のPDFを書き出す
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-InvoiceFromClipboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/data/InvoiceFromClipboard.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-InvoiceFromClipboard.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/data/InvoiceFromClipboard.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 

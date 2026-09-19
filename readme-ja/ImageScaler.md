@@ -1,4 +1,4 @@
-# ImageScaler
+# 配置画像の拡大・縮小率を表示して再スケール
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ImageScaler.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ImageScaler.jsx)
 

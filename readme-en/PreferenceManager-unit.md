@@ -1,4 +1,4 @@
-# PreferenceManager-unit
+# Change Illustrator preferences from a dialog
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PreferenceManager--unit.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PreferenceManager-unit.jsx)
 

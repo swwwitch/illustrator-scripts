@@ -1,4 +1,4 @@
-# TitleBarLineCutSp
+# 選択の周りで罫線を欠けさせる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TitleBarLineCutSp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/TitleBarLineCutSp.jsx)
 

@@ -1,4 +1,4 @@
-# TransposeGrid
+# 行と列を自動判定して入れ替える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TransposeGrid.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/TransposeGrid.jsx)
 

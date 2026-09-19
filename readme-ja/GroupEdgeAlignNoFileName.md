@@ -1,4 +1,4 @@
-# GroupEdgeAlignNoFileName
+# 選択の端または中心を指定方向に揃える（方向をコード内で指定）
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignNoFileName.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlignNoFileName.jsx)
 

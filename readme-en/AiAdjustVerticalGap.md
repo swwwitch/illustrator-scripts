@@ -1,4 +1,4 @@
-# AiAdjustVerticalGap
+# Set the vertical gap between two objects
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiAdjustVerticalGap.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AiAdjustVerticalGap.jsx)
 

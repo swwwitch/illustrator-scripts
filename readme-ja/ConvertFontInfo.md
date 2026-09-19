@@ -1,4 +1,4 @@
-# ConvertFontInfo
+# 選択したテキストをフォント情報に置き換え
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ConvertFontInfo.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ConvertFontInfo.jsx)
 

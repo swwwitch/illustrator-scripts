@@ -1,4 +1,4 @@
-# InspectLayerTree
+# List layers with their lock and visibility state
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-InspectLayerTree.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/InspectLayerTree.jsx)
 

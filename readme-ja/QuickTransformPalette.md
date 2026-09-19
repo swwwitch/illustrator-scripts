@@ -1,4 +1,4 @@
-# QuickTransformPalette
+# 移動・複製・反転・回転を即時実行するパレット
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-QuickTransformPalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/QuickTransformPalette.jsx)
 

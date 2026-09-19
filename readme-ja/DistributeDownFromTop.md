@@ -1,4 +1,4 @@
-# DistributeDownFromTop
+# 上を固定して行送りと配置を下方向に調整
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DistributeDownFromTop.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeDownFromTop.jsx)
 

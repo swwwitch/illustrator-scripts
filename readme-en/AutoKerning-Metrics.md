@@ -1,4 +1,4 @@
-# AutoKerning-Metrics
+# Set auto-kerning to Metrics
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--Metrics.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerning-Metrics.jsx)
 

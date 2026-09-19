@@ -1,4 +1,4 @@
-# PathUnite
+# 複合パスを解除して合体し拡張
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PathUnite.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/PathUnite.jsx)
 

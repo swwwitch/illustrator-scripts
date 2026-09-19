@@ -1,4 +1,4 @@
-# PreferenceManager-print-pt
+# Set the units and the keyboard increment
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PreferenceManager--print--pt.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PreferenceManager-print-pt.jsx)
 

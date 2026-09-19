@@ -1,6 +1,8 @@
-# ResetRotation
+# Reset the rotation of the selection to 0 degrees
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ResetRotation.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetRotation.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetRotation.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

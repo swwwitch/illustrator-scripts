@@ -1,4 +1,4 @@
-# ConvertFontInfo
+# Replace the selected text with its font information
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ConvertFontInfo.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ConvertFontInfo.jsx)
 

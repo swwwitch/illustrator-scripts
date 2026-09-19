@@ -1,4 +1,4 @@
-# PresetManagerNoDialog
+# 決めておいた環境設定一式をダイアログなしで適用
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-PresetManagerNoDialog.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PresetManagerNoDialog.jsx)
 

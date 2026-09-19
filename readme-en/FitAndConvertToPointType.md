@@ -1,4 +1,4 @@
-# FitAndConvertToPointType
+# Resolve overset, then convert to point type
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FitAndConvertToPointType.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/FitAndConvertToPointType.jsx)

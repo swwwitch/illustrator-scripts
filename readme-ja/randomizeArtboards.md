@@ -1,4 +1,4 @@
-# randomizeArtboards
+# アートボードをランダムな順序でグリッドに並べ替え
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-randomizeArtboards.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/randomizeArtboards.jsx)
 

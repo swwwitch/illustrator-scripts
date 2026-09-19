@@ -1,4 +1,4 @@
-# RegisterAndApplySwatches
+# 塗りと線のカラーをスウォッチに登録して再適用
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RegisterAndApplySwatches.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/RegisterAndApplySwatches.jsx)
 

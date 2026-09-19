@@ -1,4 +1,4 @@
-# CenterLineConnectorFromRect
+# Build rules automatically from pasted rectangles
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CenterLineConnectorFromRect.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/CenterLineConnectorFromRect.jsx)
 

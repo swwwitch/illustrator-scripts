@@ -1,4 +1,4 @@
-# ExpandAppearanceEachObject
+# Expand the appearance of each object in turn
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ExpandAppearanceEachObject.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ExpandAppearanceEachObject.jsx)
 

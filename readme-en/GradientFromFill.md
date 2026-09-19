@@ -1,4 +1,4 @@
-# GradientFromFill
+# Create a linear gradient starting from the current fill
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-GradientFromFill.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/GradientFromFill.jsx)
 

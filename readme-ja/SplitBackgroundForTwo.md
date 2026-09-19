@@ -1,4 +1,4 @@
-# SplitBackgroundForTwo
+# 2つのオブジェクトの背面に2分割の背景を作成
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SplitBackgroundForTwo.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SplitBackgroundForTwo.jsx)
 

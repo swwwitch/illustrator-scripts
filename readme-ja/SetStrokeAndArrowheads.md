@@ -1,4 +1,4 @@
-# SetStrokeAndArrowheads
+# 線幅と矢印をまとめて設定
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SetStrokeAndArrowheads.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SetStrokeAndArrowheads.jsx)
 

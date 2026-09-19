@@ -1,4 +1,4 @@
-# ClearBulletsAndNumbering
+# Remove Bullets and Numbering
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ClearBulletsAndNumbering.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ClearBulletsAndNumbering.jsx)
 

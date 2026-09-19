@@ -1,10 +1,10 @@
-# RelinkSameImages.jsx
+# Relink every placed image sharing the same link
 
-[![Direct Link](https://img.shields.io/badge/Direct%20Link-RelinkSameImages.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImages.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-RelinkSameImages.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImages.jsx)
 
-[![Japanese](https://img.shields.io/badge/README-Japanese-e95464.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkSameImages.md)
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkSameImages.md)
 
-[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 

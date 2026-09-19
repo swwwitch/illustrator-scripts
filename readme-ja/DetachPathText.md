@@ -1,4 +1,4 @@
-# DetachPathText
+# パス上文字をポイント文字に変換
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-DetachPathText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DetachPathText.jsx)
 

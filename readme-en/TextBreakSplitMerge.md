@@ -1,4 +1,4 @@
-# TextBreakSplitMerge
+# Break, split, join and tidy text in one dialog
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextBreakSplitMerge.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextBreakSplitMerge.jsx)
 

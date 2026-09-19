@@ -1,4 +1,4 @@
-# CollectArtboardTexts
+# 全アートボードのテキストを集めて並べる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CollectArtboardTexts.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/CollectArtboardTexts.jsx)
 

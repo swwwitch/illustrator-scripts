@@ -1,4 +1,4 @@
-# FlattenOpacityPro
+# Bake opacity into the fill color
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-FlattenOpacityPro.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/FlattenOpacityPro.jsx)
 

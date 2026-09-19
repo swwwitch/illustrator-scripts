@@ -1,4 +1,4 @@
-# AutoLeadingStep+1
+# Raise the auto-leading percentage by one step
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AutoLeadingStep+1.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoLeadingStep+1.jsx)
 

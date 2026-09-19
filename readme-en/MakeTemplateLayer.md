@@ -1,4 +1,4 @@
-# MakeTemplateLayer
+# Turn the active layer into a template layer
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-MakeTemplateLayer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/MakeTemplateLayer.jsx)
 

@@ -1,4 +1,4 @@
-# CollectArtboardTexts
+# Collect text from every artboard and line it up
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CollectArtboardTexts.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/CollectArtboardTexts.jsx)
 

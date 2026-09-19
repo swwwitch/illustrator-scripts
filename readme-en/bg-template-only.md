@@ -1,4 +1,4 @@
-# bg-template-only
+# Give the target layer the template attribute
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-bg--template--only.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/bg-template-only.jsx)
 

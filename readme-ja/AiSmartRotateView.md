@@ -1,4 +1,4 @@
-# AiSmartRotateView.jsx
+# 表示の回転と角度の制限を切り替える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiSmartRotateView.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/AiSmartRotateView.jsx)
 

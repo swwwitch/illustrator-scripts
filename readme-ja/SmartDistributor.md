@@ -1,4 +1,4 @@
-# SmartDistributor
+# 行送りと配置を上下方向に調整するパレット
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-SmartDistributor.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartDistributor.jsx)
 

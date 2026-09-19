@@ -1,4 +1,4 @@
-# ImageStrokeAdder
+# 配置画像にアピアランスでケイ線を追加
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ImageStrokeAdder.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/ImageStrokeAdder.jsx)
 

@@ -1,6 +1,8 @@
-# AiCreateArtboardGuides
+# Create guides from artboards and convert ruler guides
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiCreateArtboardGuides.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/AiCreateArtboardGuides.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCreateArtboardGuides.md)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

@@ -1,4 +1,4 @@
-# TextNormalize
+# Tidy the selected text by rules you set
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextNormalize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextNormalize.jsx)
 

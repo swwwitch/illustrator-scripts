@@ -1,4 +1,4 @@
-# AlignLabelWidths
+# Match ScriptUI label widths (reusable template)
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AlignLabelWidths.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/_templates/AlignLabelWidths.jsx)
 

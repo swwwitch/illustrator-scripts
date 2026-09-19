@@ -1,4 +1,4 @@
-# RenameAssets
+# Rename graphic styles, brushes, swatches and symbols in bulk
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-RenameAssets.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/RenameAssets.jsx)
 

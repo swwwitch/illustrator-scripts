@@ -1,4 +1,4 @@
-# InsertNewAreaText
+# Create sample area type at the center of the view
 
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-insert--new--areatext.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/demo/insert-new-areatext.jsx)

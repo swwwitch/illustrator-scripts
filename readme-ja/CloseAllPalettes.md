@@ -1,4 +1,4 @@
-# CloseAllPalettes
+# 常駐パレットをまとめて閉じる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-CloseAllPalettes.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/CloseAllPalettes.jsx)
 

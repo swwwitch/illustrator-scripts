@@ -1,4 +1,4 @@
-# シンボルに置き換え-sw
+# Replace the selection with a symbol chosen from the document
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AB%E3%81%AB%E7%BD%AE%E3%81%8D%E6%8F%9B%E3%81%88--sw.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/symbol/%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AB%E3%81%AB%E7%BD%AE%E3%81%8D%E6%8F%9B%E3%81%88-sw.jsx)
 
