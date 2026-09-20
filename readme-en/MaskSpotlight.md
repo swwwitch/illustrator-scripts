@@ -14,6 +14,8 @@ Select an image or a group of vector objects together with the path to mask with
 
 The original artwork and path stay as they are, and the only additions are one copy and the clipping group — the single exception being Outside the mask, which blurs the original artwork itself.
 
+<img alt="The Loupe and Frosted Glass dialog" src="../png/ss-926-918-144-20260920-202456.png" width="50%" />
+
 ### Features
 
 - Blur area set to None, Inside the mask or Outside the mask (radius 0 to 1000 px)
