@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-画像と帯状のパスを選択して実行すると、パスの幅で画像をトリミングし、帯が重なる範囲を取り除いて、残った上下を指定の間隔に詰めます。切り口はワープ（旗・上昇）で曲げられ、切り口に沿った省略線も引けます。
+オブジェクト（画像・グループなど）とパスを選択して実行すると、パスの範囲を取り除き、残りを指定の間隔に詰めます。パスが対象を横にまたぐなら上下、縦にまたぐなら左右に切り分け、切り口はワープ（旗・上昇）で曲げたり、省略線を引いたりできます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-With an image and a band-shaped path selected, trims the image to the width of the path, drops the area the band covers and closes the remaining parts up to a set gap. The cut edge can be bent with a Flag or Rise warp, and break lines can be drawn along it.
+With an object (image, group, …) and a path selected, drops the area the path covers and closes the remaining parts up to a set gap. A path spanning the artwork horizontally splits it top and bottom, one spanning it vertically splits it left and right; the cut edge can be bent with a Flag or Rise warp and traced with break lines.
 
 See the README for details.
 
@@ -21,7 +21,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
@@ -36,7 +36,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2483bd96e284"; /* 紹�
 // =========================================
 // ユーザー設定 / User Settings
 // =========================================
-var DEFAULT_GAP_MM       = 5;      /* 切り詰めたあとの上下パーツの間隔の初期値（mm） */
+var DEFAULT_GAP_MM       = 3;      /* 切り詰めたあとの上下パーツの間隔の初期値（mm） */
+var DEFAULT_MASK_SCALE   = 100;    /* 帯の縦スケールの初期値（%） */
+var DEFAULT_MASK_OFFSET  = 0;      /* 帯の上下位置の初期値（pt、プラスで下へ） */
+var MIN_BAND_MARGIN      = 1;      /* 帯を画像の内側に保つ余白（pt） */
 var DEFAULT_WARP_STYLE   = "flag"; /* ワープの初期スタイル（WARP_STYLES のキー） */
 var DEFAULT_WARP_PERCENT = 3;      /* カーブの初期値（%） */
 var MAX_WARP_PERCENT     = 100;    /* カーブの上限（%） */
@@ -45,9 +48,16 @@ var DEFAULT_RULE_DASHED  = false;  /* 罫線を破線にするかの初期値 */
 var DEFAULT_GROUP_RULES  = true;   /* 罫線をパーツとグループ化するかの初期値 */
 var DEFAULT_DASH_SEGMENTS = 20;    /* 破線の分割数（線分の本数）の初期値 */
 var DEFAULT_ROUND_CAP    = false;  /* 罫線を丸形線端にするかの初期値 */
-var RULE_STROKE_WIDTH    = 1;      /* 罫線の太さ（pt） */
+var DEFAULT_RULE_WIDTH   = 1;      /* 罫線の線幅の初期値（pt） */
 var RULE_STROKE_GRAY     = 100;    /* 罫線の濃さ（0〜100のグレー） */
 var TOLERANCE            = 0.001;  /* 座標比較の許容値（pt） */
+
+// =========================================
+// 切る方向 / Cut direction
+// =========================================
+/* 座標の添字と合わせる（0=X、1=Y）/ matches the index into [x, y] */
+var AXIS_X = 0;  /* 縦長の図形で左右に切り分ける / a tall shape splits it left and right */
+var AXIS_Y = 1;  /* 横長の図形で上下に切り分ける / a wide shape splits it top and bottom */
 
 // =========================================
 // ワープの種類 / Warp styles
@@ -105,7 +115,9 @@ var WINDOW_SPACING        = 12;  /* ウィンドウ内の要素間隔 */
 var ROW_SPACING           = 6;   /* 行内の要素間隔 */
 var PANEL_MARGINS         = [16, 20, 16, 12];  /* パネル余白 [左,上,右,下] */
 var PANEL_SPACING         = 6;   /* パネル内の要素間隔 */
-var LABEL_WIDTH           = 75;  /* 項目名の共通幅 */
+var COLUMN_SPACING        = 12;  /* 2カラムの間隔 */
+var LABEL_WIDTH           = 75;  /* 左カラムの項目名の幅 */
+var RULE_LABEL_WIDTH      = 60;  /* 省略線パネルの項目名の幅（「分割数：」が収まる幅） */
 var FIELD_CHARACTERS      = 5;   /* 数値入力欄の文字数 */
 var BUTTON_ROW_TOP_MARGIN = 8;   /* ボタンエリアの上余白 */
 var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
@@ -127,15 +139,21 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             title: { ja: "トリミングと省略線 " + SCRIPT_VERSION, en: "Trim and Break Line " + SCRIPT_VERSION }
         },
         panel: {
+            mask:      { ja: "マスクの図形", en: "Mask shape" },
             trim:      { ja: "トリミング", en: "Trim" },
             breakLine: { ja: "省略線", en: "Break line" }
         },
         fieldLabel: {
+            maskHeight:   { ja: "高さ", en: "Height" },
+            maskWidth:    { ja: "幅", en: "Width" },
+            maskOffsetY:  { ja: "上下位置", en: "Offset" },
+            maskOffsetX:  { ja: "左右位置", en: "Offset" },
             warpStyle:    { ja: "スタイル", en: "Style" },
             warpAmount:   { ja: "カーブ", en: "Bend" },
             gap:          { ja: "間隔", en: "Gap" },
             ruleStyle:    { ja: "線種", en: "Style" },
             dashSegments: { ja: "分割数", en: "Segments" },
+            strokeWidth:  { ja: "線幅", en: "Weight" },
             strokeCap:    { ja: "線端", en: "Cap" }
         },
         radio: {
@@ -155,6 +173,14 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             ok:     { ja: "OK", en: "OK" }
         },
         tooltip: {
+            maskScale: {
+                ja: "マスク用の図形（描いた長方形）の、切る方向の大きさです。100%で描いたとおりになります。",
+                en: "Size of the shape used as the mask along the cut direction. 100% keeps it as drawn."
+            },
+            maskOffset: {
+                ja: "マスク用の図形の位置です。プラスで下（右）へ、マイナスで上（左）へ動きます。",
+                en: "Position of the shape used as the mask. A positive value moves it down (right), a negative one up (left)."
+            },
             warpStyle: {
                 ja: "切り口の形です。旗は波、上昇は右上がりのカーブになります。",
                 en: "Shape of the cut edge. Flag waves, Rise curves upward to the right."
@@ -179,6 +205,10 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
                 ja: "線分の本数です。線分と間隔は同じ長さで、両端が線分で終わります。",
                 en: "Number of dashes. Dash and gap are equal, and both ends finish with a dash."
             },
+            strokeWidth: {
+                ja: "罫線の線幅です（pt）。",
+                en: "Stroke weight of the rules, in points."
+            },
             strokeCap: {
                 ja: "罫線の線端です。丸型にすると破線が丸くなります。",
                 en: "Cap of the rules. A round cap makes the dashes rounded."
@@ -189,16 +219,19 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             }
         },
         alert: {
-            noDocument:  { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            selectTwo:   { ja: "画像とパスを2つだけ選択してください。", en: "Select exactly one image and one path." },
-            noBandPath:  { ja: "削除範囲を示すパスが選択されていません。", en: "No path for the area to remove is selected." },
-            noImage: {
-                ja: "画像が選択されていません。\n選択中: ",
-                en: "No image is selected.\nSelected: "
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            selectTwo:  { ja: "オブジェクトと、マスク用のパスを2つだけ選択してください。", en: "Select exactly two objects: the artwork and the path to use as the mask." },
+            noBandPath: {
+                ja: "マスク用のパスが選択されていません。\n選択中: ",
+                en: "No path to use as the mask is selected.\nSelected: "
             },
-            bandOutside: {
-                ja: "削除する帯は、画像の上端・下端より内側に描いてください。",
-                en: "Draw the band inside the top and bottom edges of the image."
+            bandOutsideY: {
+                ja: "マスク用の図形は、オブジェクトの上端・下端より内側に描いてください。",
+                en: "Draw the mask shape inside the top and bottom edges of the object."
+            },
+            bandOutsideX: {
+                ja: "マスク用の図形は、オブジェクトの左端・右端より内側に描いてください。",
+                en: "Draw the mask shape inside the left and right edges of the object."
             }
         }
     };
@@ -247,6 +280,19 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
+     * パネルを縦に並べる列グループを作る
+     * @param {Group} parentGroup - 追加先
+     * @returns {Group} 追加した列グループ
+     */
+    function addColumn(parentGroup) {
+        var columnGroup = parentGroup.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = ["fill", "top"];
+        columnGroup.spacing = WINDOW_SPACING;
+        return columnGroup;
+    }
+
+    /**
      * 項目名と入力を並べる行グループを作る
      * @param {Window|Group} parentGroup - 追加先
      * @returns {Group} 追加した行グループ
@@ -264,11 +310,12 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * 右揃えの項目名を行グループに追加する
      * @param {Group} fieldRow - 追加先の行グループ
      * @param {string} labelPath - ドット区切りキー
+     * @param {number} [labelWidth] - 項目名の幅（省略時は LABEL_WIDTH）
      * @returns {StaticText} 追加した項目名
      */
-    function addRowLabel(fieldRow, labelPath) {
+    function addRowLabel(fieldRow, labelPath, labelWidth) {
         var rowLabel = fieldRow.add("statictext", undefined, labelText(labelPath));
-        rowLabel.preferredSize.width = LABEL_WIDTH;
+        rowLabel.preferredSize.width = labelWidth || LABEL_WIDTH;
         rowLabel.justify = "right";
         return rowLabel;
     }
@@ -280,11 +327,12 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * @param {string} tooltipPath - tooltipのラベルキー
      * @param {string} defaultText - 初期値の表示
      * @param {string} [unitText] - 欄の右に置く単位の表記
+     * @param {number} [labelWidth] - 項目名の幅（省略時は LABEL_WIDTH）
      * @returns {{row: Group, field: EditText}} 追加した行と入力欄
      */
-    function addNumberFieldRow(parentGroup, labelPath, tooltipPath, defaultText, unitText) {
+    function addNumberFieldRow(parentGroup, labelPath, tooltipPath, defaultText, unitText, labelWidth) {
         var fieldRow = addFieldRow(parentGroup);
-        addRowLabel(fieldRow, labelPath);
+        addRowLabel(fieldRow, labelPath, labelWidth);
 
         var numberField = fieldRow.add("edittext", undefined, defaultText);
         numberField.characters = FIELD_CHARACTERS;
@@ -301,11 +349,12 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * @param {string} tooltipPath - tooltipのラベルキー
      * @param {string[]} optionLabelPaths - 選択肢のラベルキー
      * @param {number} selectedIndex - 初期選択の位置
+     * @param {number} [labelWidth] - 項目名の幅（省略時は LABEL_WIDTH）
      * @returns {{row: Group, radios: RadioButton[]}} 追加した行とラジオボタン
      */
-    function addRadioRow(parentGroup, labelPath, tooltipPath, optionLabelPaths, selectedIndex) {
+    function addRadioRow(parentGroup, labelPath, tooltipPath, optionLabelPaths, selectedIndex, labelWidth) {
         var fieldRow = addFieldRow(parentGroup);
-        addRowLabel(fieldRow, labelPath);
+        addRowLabel(fieldRow, labelPath, labelWidth);
 
         /* ラジオは同じ親の中だけで排他になる / radios are exclusive only within one parent */
         var radioGroup = fieldRow.add("group");
@@ -330,13 +379,14 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * @param {string} tooltipPath - tooltipのラベルキー
      * @param {boolean} defaultValue - 初期値
      * @param {boolean} [indent] - true で項目名の位置に合わせて字下げする
+     * @param {number} [labelWidth] - 字下げ幅（省略時は LABEL_WIDTH）
      * @returns {Checkbox} 追加したチェックボックス
      */
-    function addCheckboxRow(parentGroup, labelPath, tooltipPath, defaultValue, indent) {
+    function addCheckboxRow(parentGroup, labelPath, tooltipPath, defaultValue, indent, labelWidth) {
         var fieldRow = addFieldRow(parentGroup);
         if (indent) {
             var rowIndent = fieldRow.add("statictext", undefined, "");
-            rowIndent.preferredSize.width = LABEL_WIDTH;
+            rowIndent.preferredSize.width = labelWidth || LABEL_WIDTH;
         }
 
         var checkbox = fieldRow.add("checkbox", undefined, getLabel(labelPath));
@@ -346,7 +396,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
-     * ボタンエリアを作る（左右中央）
+     * ボタンエリアを作る（右揃え）
      * @param {Window} dialog - 追加先のダイアログ
      * @returns {{btnOK: Button, btnCancel: Button}} 追加したボタン
      */
@@ -354,12 +404,19 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         var btnRowGroup = dialog.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        btnRowGroup.alignment = ["center", "bottom"];
-        btnRowGroup.alignChildren = ["center", "center"];
-        btnRowGroup.spacing = BUTTON_SPACING;
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        var btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        /* 伸縮するスペーサーでボタンを右へ押し出す / a stretchable spacer pushes the buttons right */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_SPACING;
+
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
         return { btnOK: btnOK, btnCancel: btnCancel };
     }
 
@@ -370,16 +427,34 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * 数値を許容範囲に収める
      * @param {number} inputValue - 入力された値
-     * @param {number} minValue - 下限
+     * @param {number|null} minValue - 下限（null で下限なし）
      * @param {number|null} maxValue - 上限（null で上限なし）
      * @param {number} fallbackValue - 数値として読めなかったときの値
      * @returns {number} 範囲に収めた値
      */
     function clampRange(inputValue, minValue, maxValue, fallbackValue) {
         if (isNaN(inputValue)) return fallbackValue;
-        if (inputValue < minValue) return minValue;
+        if (minValue !== null && inputValue < minValue) return minValue;
         if (maxValue !== null && inputValue > maxValue) return maxValue;
         return inputValue;
+    }
+
+    /**
+     * マスクの縦スケールを1%以上に収める
+     * @param {number} inputValue - 入力された値（%）
+     * @returns {number} 1以上の値
+     */
+    function clampMaskScale(inputValue) {
+        return clampRange(inputValue, 1, null, initialValues.maskScale);
+    }
+
+    /**
+     * 上下位置を読み取る（上下どちらにもずらせる）
+     * @param {number} inputValue - 入力された値（pt）
+     * @returns {number} そのままの値（数値として読めなければ0）
+     */
+    function clampOffsetValue(inputValue) {
+        return clampRange(inputValue, null, null, 0);
     }
 
     /**
@@ -388,7 +463,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * @returns {number} 0〜MAX_WARP_PERCENT に収めた値
      */
     function clampWarpPercent(inputValue) {
-        return clampRange(inputValue, 0, MAX_WARP_PERCENT, DEFAULT_WARP_PERCENT);
+        return clampRange(inputValue, 0, MAX_WARP_PERCENT, initialValues.warpPercent);
     }
 
     /**
@@ -406,7 +481,16 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * @returns {number} 1以上の整数
      */
     function clampDashSegments(inputValue) {
-        return clampRange(Math.round(inputValue), 1, null, DEFAULT_DASH_SEGMENTS);
+        return clampRange(Math.round(inputValue), 1, null, initialValues.dashSegments);
+    }
+
+    /**
+     * 罫線の線幅を0以上に収める
+     * @param {number} inputValue - 入力された値（pt）
+     * @returns {number} 0以上の値
+     */
+    function clampRuleWidth(inputValue) {
+        return clampRange(inputValue, 0, null, initialValues.ruleWidth);
     }
 
     /**
@@ -491,6 +575,102 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     // =========================================
+    // 設定の保存 / Saved settings
+    // =========================================
+
+    var SETTINGS_FILE = new File(Folder.userData + "/" + SCRIPT_NAME + "/settings.txt");
+
+    /**
+     * 設定ファイルを key=value の連想配列として読み込む
+     * @returns {object} 保存されていた値（無ければ空）
+     */
+    function loadSettings() {
+        var savedValues = {};
+        if (!SETTINGS_FILE.exists) return savedValues;
+
+        /* 読めない場所・壊れたファイルでも実行は続ける / keep running even if the file cannot be read */
+        try {
+            if (!SETTINGS_FILE.open("r")) return savedValues;
+            var content = SETTINGS_FILE.read();
+            SETTINGS_FILE.close();
+
+            var lines = content.split(/\r\n|\r|\n/);
+            for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                var separatorIndex = lines[lineIndex].indexOf("=");
+                if (separatorIndex < 1) continue;
+                savedValues[lines[lineIndex].substring(0, separatorIndex)] = lines[lineIndex].substring(separatorIndex + 1);
+            }
+        } catch (e) {
+        }
+        return savedValues;
+    }
+
+    /**
+     * 次回のために設定を保存する（長さはptで持つ）
+     * @param {object} buildSettings - 確定した設定
+     * @returns {void}
+     */
+    function saveSettings(buildSettings) {
+        /* 書き込めない環境でも処理は止めない / a failed write must not stop the script */
+        try {
+            var settingsFolder = SETTINGS_FILE.parent;
+            if (!settingsFolder.exists) settingsFolder.create();
+            if (!SETTINGS_FILE.open("w")) return;
+
+            SETTINGS_FILE.write([
+                "maskScale=" + buildSettings.maskScale,
+                "maskOffsetPt=" + buildSettings.maskOffsetPt,
+                "warpStyle=" + buildSettings.warpStyleKey,
+                "warpPercent=" + buildSettings.warpPercent,
+                "gapPt=" + buildSettings.gapPt,
+                "addRule=" + (buildSettings.addRule ? "1" : "0"),
+                "ruleDashed=" + (buildSettings.ruleDashed ? "1" : "0"),
+                "dashSegments=" + buildSettings.dashSegments,
+                "ruleWidthPt=" + buildSettings.ruleWidth,
+                "roundCap=" + (buildSettings.roundCap ? "1" : "0"),
+                "groupRules=" + (buildSettings.groupRules ? "1" : "0")
+            ].join("\n"));
+            SETTINGS_FILE.close();
+        } catch (e) {
+        }
+    }
+
+    /**
+     * 保存値を数値として取り出す
+     * @param {object} savedValues - 読み込んだ設定
+     * @param {string} settingKey - キー
+     * @param {number} fallbackValue - 無いときの値
+     * @returns {number} 取り出した値
+     */
+    function settingNumber(savedValues, settingKey, fallbackValue) {
+        var savedValue = Number(savedValues[settingKey]);
+        return (savedValues[settingKey] === undefined || isNaN(savedValue)) ? fallbackValue : savedValue;
+    }
+
+    /**
+     * 保存値を真偽として取り出す
+     * @param {object} savedValues - 読み込んだ設定
+     * @param {string} settingKey - キー
+     * @param {boolean} fallbackValue - 無いときの値
+     * @returns {boolean} 取り出した値
+     */
+    function settingBool(savedValues, settingKey, fallbackValue) {
+        if (savedValues[settingKey] === undefined) return fallbackValue;
+        return savedValues[settingKey] === "1";
+    }
+
+    /**
+     * 保存値を文字列として取り出す
+     * @param {object} savedValues - 読み込んだ設定
+     * @param {string} settingKey - キー
+     * @param {string} fallbackValue - 無いときの値
+     * @returns {string} 取り出した値
+     */
+    function settingText(savedValues, settingKey, fallbackValue) {
+        return (savedValues[settingKey] === undefined) ? fallbackValue : savedValues[settingKey];
+    }
+
+    // =========================================
     // 選択の確認 / Check the selection
     // =========================================
 
@@ -507,67 +687,145 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         return;
     }
 
-    var targetImage = null;
-    var bandPath = null;
-    var selectedTypeNames = [];
-
-    /* 選択アイテムを画像と帯のパスに振り分ける / Sort the selection into image and band path */
-    for (var i = 0; i < currentSelection.length; i++) {
-        var selectedItem = currentSelection[i];
-        selectedTypeNames.push(selectedItem.typename);
-
-        /* PlacedItem はリンク画像、RasterItem は埋め込み画像 */
-        if (selectedItem.typename === "PlacedItem" || selectedItem.typename === "RasterItem") {
-            targetImage = selectedItem;
-        } else if (selectedItem.typename === "PathItem" || selectedItem.typename === "CompoundPathItem") {
-            bandPath = selectedItem;
-        }
+    /**
+     * マスクに使えるパスかどうかを返す
+     * @param {PageItem} pageItem - 調べるアイテム
+     * @returns {boolean} パスまたは複合パスなら true
+     */
+    function isMaskablePath(pageItem) {
+        return (pageItem.typename === "PathItem" || pageItem.typename === "CompoundPathItem");
     }
 
-    if (!targetImage) {
-        alert(getLabel("alert.noImage") + selectedTypeNames.join(", "));
+    var firstItem = currentSelection[0];
+    var secondItem = currentSelection[1];
+    var firstIsPath = isMaskablePath(firstItem);
+    var secondIsPath = isMaskablePath(secondItem);
+
+    if (!firstIsPath && !secondIsPath) {
+        alert(getLabel("alert.noBandPath") + firstItem.typename + ", " + secondItem.typename);
         return;
     }
 
-    if (!bandPath) {
-        alert(getLabel("alert.noBandPath"));
-        return;
-    }
+    /* 対象はどんな種類でもよい。両方パスのときは前面にあるほうをマスクに使う
+       Any type can be the artwork; when both are paths, the one in front becomes the mask */
+    var bandIsFirst = firstIsPath && (!secondIsPath || firstItem.zOrderPosition > secondItem.zOrderPosition);
+    var bandPath = bandIsFirst ? firstItem : secondItem;
+    var targetItem = bandIsFirst ? secondItem : firstItem;
 
     /* geometricBounds は [left, top, right, bottom]、Y軸は上が大きい */
-    var imageBounds = targetImage.geometricBounds;
+    var targetBounds = targetItem.geometricBounds;
     var bandBounds = bandPath.geometricBounds;
 
-    var imageTop = imageBounds[1];
-    var imageBottom = imageBounds[3];
+    /* 対象をより広くまたいでいる向きに切る。パス自体の縦横比ではなく、対象に対する割合で見る
+       cut across whichever direction the path spans more of the artwork */
+    var bandCoverX = (bandBounds[2] - bandBounds[0]) / (targetBounds[2] - targetBounds[0]);
+    var bandCoverY = (bandBounds[1] - bandBounds[3]) / (targetBounds[1] - targetBounds[3]);
+    var axisIndex = (bandCoverX >= bandCoverY) ? AXIS_Y : AXIS_X;
 
-    var bandLeft = bandBounds[0];
-    var bandTop = bandBounds[1];
-    var bandRight = bandBounds[2];
-    var bandBottom = bandBounds[3];
+    /**
+     * 切る方向の、座標が大きいほうの端を返す（縦なら上端、横なら右端）
+     * @param {number[]} bounds - geometricBounds
+     * @returns {number} 端の座標
+     */
+    function getAxisMax(bounds) {
+        return (axisIndex === AXIS_Y) ? bounds[1] : bounds[2];
+    }
 
-    if (bandTop >= imageTop - TOLERANCE || bandBottom <= imageBottom + TOLERANCE) {
-        alert(getLabel("alert.bandOutside"));
+    /**
+     * 切る方向の、座標が小さいほうの端を返す（縦なら下端、横なら左端）
+     * @param {number[]} bounds - geometricBounds
+     * @returns {number} 端の座標
+     */
+    function getAxisMin(bounds) {
+        return (axisIndex === AXIS_Y) ? bounds[3] : bounds[0];
+    }
+
+    /**
+     * 切る方向と直交する側の、座標が大きいほうの端を返す
+     * @param {number[]} bounds - geometricBounds
+     * @returns {number} 端の座標
+     */
+    function getCrossMax(bounds) {
+        return (axisIndex === AXIS_Y) ? bounds[2] : bounds[1];
+    }
+
+    /**
+     * 切る方向と直交する側の、座標が小さいほうの端を返す
+     * @param {number[]} bounds - geometricBounds
+     * @returns {number} 端の座標
+     */
+    function getCrossMin(bounds) {
+        return (axisIndex === AXIS_Y) ? bounds[0] : bounds[3];
+    }
+
+    var targetAxisMax = getAxisMax(targetBounds);
+    var targetAxisMin = getAxisMin(targetBounds);
+    var bandAxisMax = getAxisMax(bandBounds);
+    var bandAxisMin = getAxisMin(bandBounds);
+
+    if (bandAxisMax >= targetAxisMax - TOLERANCE || bandAxisMin <= targetAxisMin + TOLERANCE) {
+        alert(getLabel((axisIndex === AXIS_Y) ? "alert.bandOutsideY" : "alert.bandOutsideX"));
         return;
     }
 
-    var parentContainer = targetImage.parent;
+    var parentContainer = targetItem.parent;
 
-    /* 幅は最前面の図形（帯のパス）に合わせる。画像はこの幅にトリミングされる
-       The band path in front sets the width; the image is trimmed to it */
-    var maskLeft = bandLeft;
-    var maskWidth = bandRight - bandLeft;
-    /* マスクはいったん画像と同じ高さの矩形で作り、下辺だけを切り口として使う
-       上下とも同じ下辺を使うので、どのスタイルでも切り口は必ずかみ合う */
-    var maskHeight = imageTop - imageBottom;
+    /* 切る方向と直交する幅は、最前面の図形（マスク用のパス）に合わせる。対象はこの幅にトリミングされる
+       The path in front sets the size across the cut; the artwork is trimmed to it */
+    var maskCrossMin = getCrossMin(bandBounds);
+    var maskCrossMax = getCrossMax(bandBounds);
+    var maskCrossSize = maskCrossMax - maskCrossMin;
+    /* マスクはいったん対象と同じ大きさの矩形で作り、切り口側の辺だけを使う
+       両方とも同じ辺を使うので、どのスタイルでも切り口は必ずかみ合う */
+    var maskAxisSize = targetAxisMax - targetAxisMin;
 
-    /* 間隔は定規の単位で入力する / the gap is entered in the ruler unit */
+    /* 上下はプラスで下へ、左右はプラスで右へ / down is positive for Y, right is positive for X */
+    var offsetSign = (axisIndex === AXIS_Y) ? -1 : 1;
+
+    /* 距離は定規の単位、線幅は線の単位で入力する
+       distances use the ruler unit, the stroke weight uses the stroke unit */
     var rulerUnit = getUnitInfo();
-    var defaultGapValue = DEFAULT_GAP_MM * (72 / 25.4) / rulerUnit.pointsPerUnit;
+    var strokeUnit = getUnitInfo("strokeUnits");
+
+    /* 前回の設定があればそれを初期値にする / start from the settings saved last time */
+    var savedValues = loadSettings();
+    var initialValues = {
+        maskScale:    settingNumber(savedValues, "maskScale", DEFAULT_MASK_SCALE),
+        maskOffset:   settingNumber(savedValues, "maskOffsetPt", DEFAULT_MASK_OFFSET) / rulerUnit.pointsPerUnit,
+        warpStyleKey: settingText(savedValues, "warpStyle", DEFAULT_WARP_STYLE),
+        warpPercent:  settingNumber(savedValues, "warpPercent", DEFAULT_WARP_PERCENT),
+        gap:          settingNumber(savedValues, "gapPt", DEFAULT_GAP_MM * 72 / 25.4) / rulerUnit.pointsPerUnit,
+        addRule:      settingBool(savedValues, "addRule", DEFAULT_ADD_RULE),
+        ruleDashed:   settingBool(savedValues, "ruleDashed", DEFAULT_RULE_DASHED),
+        dashSegments: settingNumber(savedValues, "dashSegments", DEFAULT_DASH_SEGMENTS),
+        ruleWidth:    settingNumber(savedValues, "ruleWidthPt", DEFAULT_RULE_WIDTH) / strokeUnit.pointsPerUnit,
+        roundCap:     settingBool(savedValues, "roundCap", DEFAULT_ROUND_CAP),
+        groupRules:   settingBool(savedValues, "groupRules", DEFAULT_GROUP_RULES)
+    };
 
     // =========================================
     // アイテムの操作 / Item helpers
     // =========================================
+
+    /**
+     * アイテムを切る方向へ動かす
+     * @param {PageItem} pageItem - 動かすアイテム
+     * @param {number} delta - 動かす量（座標が大きくなる向きが正）
+     * @returns {void}
+     */
+    function translateAlongAxis(pageItem, delta) {
+        pageItem.translate((axisIndex === AXIS_X) ? delta : 0, (axisIndex === AXIS_Y) ? delta : 0);
+    }
+
+    /**
+     * 点の座標を、切る方向だけ置き換えた組にする
+     * @param {number[]} anchor - もとの座標 [x, y]
+     * @param {number} axisValue - 切る方向の座標
+     * @returns {number[]} 置き換えた座標
+     */
+    function withAxisValue(anchor, axisValue) {
+        return (axisIndex === AXIS_Y) ? [anchor[0], axisValue] : [axisValue, anchor[1]];
+    }
 
     /**
      * グレーの色を作る
@@ -608,13 +866,13 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
-     * 切り口側と反対側を分ける境目のY座標を返す
+     * 切り口側と反対側を分ける境目の座標を返す
      * @param {PageItem} maskPath - 対象のマスクパス
-     * @returns {number} マスクの上下の中央
+     * @returns {number} 切る方向の中央
      */
-    function getMaskMidY(maskPath) {
+    function getMaskAxisMid(maskPath) {
         var maskBounds = maskPath.geometricBounds;
-        return (maskBounds[1] + maskBounds[3]) / 2;
+        return (getAxisMax(maskBounds) + getAxisMin(maskBounds)) / 2;
     }
 
     // =========================================
@@ -632,7 +890,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         var warpStyle = WARP_STYLES[warpStyleKey] || WARP_STYLES[DEFAULT_WARP_STYLE];
         var warpXml = '<LiveEffect name="Adobe Deform"><Dict data="S DisplayString Warp:' + warpStyle.warpName +
             ' I DeformStyle ' + warpStyle.deformStyle +
-            ' B Rotate 0 R DeformValue ' + (warpPercent / 100) +
+            ' B Rotate ' + ((axisIndex === AXIS_Y) ? 0 : 1) + ' R DeformValue ' + (warpPercent / 100) +
             ' R DeformHoriz 0 R DeformVert 0 "/></LiveEffect>';
         targetPath.applyEffect(warpXml);
     }
@@ -671,13 +929,17 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
 
     /**
      * マスク用の矩形を作り、カーブの量に応じてワープを掛けて分割する
-     * @param {number} rectTop - 矩形の上端のY座標
+     * @param {number} axisMax - 切る方向の、座標が大きいほうの端
+     * @param {number} axisSize - 切る方向の大きさ
      * @param {string} warpStyleKey - WARP_STYLES のキー
      * @param {number} warpPercent - カーブの量（%）
      * @returns {PageItem} マスクに使うパス
      */
-    function createMaskPath(rectTop, warpStyleKey, warpPercent) {
-        var maskRect = parentContainer.pathItems.rectangle(rectTop, maskLeft, maskWidth, maskHeight);
+    function createMaskPath(axisMax, axisSize, warpStyleKey, warpPercent) {
+        /* rectangle(top, left, width, height) は常に上端・左端で指定する */
+        var maskRect = (axisIndex === AXIS_Y) ?
+            parentContainer.pathItems.rectangle(axisMax, maskCrossMin, maskCrossSize, axisSize) :
+            parentContainer.pathItems.rectangle(maskCrossMax, axisMax - axisSize, axisSize, maskCrossSize);
         /* 塗りがないとワープを分割できない / the warp needs a filled path to expand */
         maskRect.filled = true;
         maskRect.fillColor = createGrayColor(100);
@@ -693,27 +955,27 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * 切り口の上下の中心が指定のY座標に来るようにマスクを動かす
      * 上昇のようにカーブが片寄るスタイルでも、帯の位置で切れるようにする
      * @param {PageItem} maskPath - 対象のマスクパス
-     * @param {number} targetY - 切り口を合わせるY座標
+     * @param {number} axisTarget - 切り口を合わせる座標
      * @returns {void}
      */
-    function alignCutEdge(maskPath, targetY) {
-        var midY = getMaskMidY(maskPath);
+    function alignCutEdge(maskPath, axisTarget) {
+        var axisMid = getMaskAxisMid(maskPath);
         var subPaths = getSubPaths(maskPath);
-        var lowestY = null;
-        var highestY = null;
+        var lowestValue = null;
+        var highestValue = null;
 
         for (var pathIndex = 0; pathIndex < subPaths.length; pathIndex++) {
             var pathPoints = subPaths[pathIndex].pathPoints;
             for (var pointIndex = 0; pointIndex < pathPoints.length; pointIndex++) {
-                var anchorY = pathPoints[pointIndex].anchor[1];
-                if (anchorY > midY) continue;
-                if (lowestY === null || anchorY < lowestY) lowestY = anchorY;
-                if (highestY === null || anchorY > highestY) highestY = anchorY;
+                var axisValue = pathPoints[pointIndex].anchor[axisIndex];
+                if (axisValue > axisMid) continue;
+                if (lowestValue === null || axisValue < lowestValue) lowestValue = axisValue;
+                if (highestValue === null || axisValue > highestValue) highestValue = axisValue;
             }
         }
 
-        if (lowestY === null) return;
-        maskPath.translate(0, targetY - (lowestY + highestY) / 2);
+        if (lowestValue === null) return;
+        translateAlongAxis(maskPath, axisTarget - (lowestValue + highestValue) / 2);
     }
 
     /**
@@ -744,25 +1006,25 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
-     * 1つのパスについて、境目より上の点を指定のY座標にそろえて直線にする
+     * 1つのパスについて、境目より外側の点を指定の座標にそろえて直線にする
      * @param {PathItem} targetPath - 対象のパス
-     * @param {number} midY - 切り口と反対側を分ける境目のY座標
-     * @param {number} targetY - そろえるY座標
+     * @param {number} axisMid - 切り口と反対側を分ける境目の座標
+     * @param {number} axisTarget - そろえる座標
      * @returns {void}
      */
-    function flattenFarEdgePoints(targetPath, midY, targetY) {
+    function flattenFarEdgePoints(targetPath, axisMid, axisTarget) {
         var pathPoints = targetPath.pathPoints;
         var isFlattened = [];
 
         for (var pointIndex = 0; pointIndex < pathPoints.length; pointIndex++) {
             var farPoint = pathPoints[pointIndex];
-            if (farPoint.anchor[1] <= midY) {
+            if (farPoint.anchor[axisIndex] <= axisMid) {
                 isFlattened.push(false);
                 continue;
             }
 
             /* アンカーと両方のハンドルを同じ座標に置いて、直線のコーナーにする */
-            var flatAnchor = [farPoint.anchor[0], targetY];
+            var flatAnchor = withAxisValue(farPoint.anchor, axisTarget);
             farPoint.anchor = flatAnchor;
             farPoint.leftDirection = flatAnchor;
             farPoint.rightDirection = flatAnchor;
@@ -774,17 +1036,17 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
-     * 切り口の反対側の辺を、画像の端でまっすぐに切りそろえる
-     * カーブは切り口側の辺にだけ残るので、マスクの外形は画像にぴったり収まる
+     * 切り口の反対側の辺を、対象の端でまっすぐに切りそろえる
+     * カーブは切り口側の辺にだけ残るので、マスクの外形は対象にぴったり収まる
      * @param {PageItem} maskPath - 対象のマスクパス
-     * @param {number} targetY - そろえるY座標（画像の上端または下端）
+     * @param {number} axisTarget - そろえる座標（対象の端）
      * @returns {void}
      */
-    function flattenFarEdge(maskPath, targetY) {
-        var midY = getMaskMidY(maskPath);
+    function flattenFarEdge(maskPath, axisTarget) {
+        var axisMid = getMaskAxisMid(maskPath);
         var subPaths = getSubPaths(maskPath);
         for (var pathIndex = 0; pathIndex < subPaths.length; pathIndex++) {
-            flattenFarEdgePoints(subPaths[pathIndex], midY, targetY);
+            flattenFarEdgePoints(subPaths[pathIndex], axisMid, axisTarget);
         }
     }
 
@@ -795,16 +1057,16 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * 切り口側の点を、ひと続きになる順で拾う
      * @param {PathPoints} sourcePoints - 元のパスの点
-     * @param {number} midY - 切り口と反対側を分ける境目のY座標
+     * @param {number} axisMid - 切り口と反対側を分ける境目の座標
      * @returns {number[]} 点の位置（切り口側がなければ空）
      */
-    function getEdgePointIndexes(sourcePoints, midY) {
+    function getEdgePointIndexes(sourcePoints, axisMid) {
         var pointCount = sourcePoints.length;
         var isEdgePoint = [];
         var pointIndex;
 
         for (pointIndex = 0; pointIndex < pointCount; pointIndex++) {
-            isEdgePoint.push(sourcePoints[pointIndex].anchor[1] <= midY);
+            isEdgePoint.push(sourcePoints[pointIndex].anchor[axisIndex] <= axisMid);
         }
 
         /* 切り口の点がひと続きになる開始位置を探す / find where the run of edge points starts */
@@ -829,13 +1091,13 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * 罫線の線の設定（太さ・色・線端）を適用する
      * @param {PathItem} rulePath - 対象の罫線
-     * @param {object} ruleSettings - { roundCap: boolean }
+     * @param {object} ruleSettings - { ruleWidth: number, roundCap: boolean }
      * @returns {void}
      */
     function applyRuleStroke(rulePath, ruleSettings) {
         rulePath.filled = false;
         rulePath.stroked = true;
-        rulePath.strokeWidth = RULE_STROKE_WIDTH;
+        rulePath.strokeWidth = ruleSettings.ruleWidth;
         rulePath.strokeColor = createGrayColor(RULE_STROKE_GRAY);
         rulePath.strokeCap = ruleSettings.roundCap ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
     }
@@ -843,13 +1105,13 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * パスの切り口側の辺だけを取り出して、開いたパス（罫線）を作る
      * @param {PathItem} sourcePath - 元になるマスクのパス
-     * @param {number} midY - 切り口と反対側を分ける境目のY座標
-     * @param {object} ruleSettings - { ruleDashed: boolean, dashSegments: number, roundCap: boolean }
+     * @param {number} axisMid - 切り口と反対側を分ける境目の座標
+     * @param {object} ruleSettings - { ruleDashed: boolean, dashSegments: number, ruleWidth: number, roundCap: boolean }
      * @returns {PathItem|null} 作成した罫線のパス（取り出せないときは null）
      */
-    function createEdgeRule(sourcePath, midY, ruleSettings) {
+    function createEdgeRule(sourcePath, axisMid, ruleSettings) {
         var sourcePoints = sourcePath.pathPoints;
-        var edgeIndexes = getEdgePointIndexes(sourcePoints, midY);
+        var edgeIndexes = getEdgePointIndexes(sourcePoints, axisMid);
         if (!edgeIndexes.length) return null;
 
         var rulePath = parentContainer.pathItems.add();
@@ -884,16 +1146,16 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * マスクの切り口に沿った罫線を作る（複合パスは中のパスごとに作る）
      * @param {PageItem} maskPath - 元になるマスクのパス
-     * @param {object} ruleSettings - { ruleDashed: boolean, dashSegments: number, roundCap: boolean }
+     * @param {object} ruleSettings - { ruleDashed: boolean, dashSegments: number, ruleWidth: number, roundCap: boolean }
      * @returns {PathItem[]} 作成した罫線のパス
      */
     function createEdgeRules(maskPath, ruleSettings) {
-        var midY = getMaskMidY(maskPath);
+        var axisMid = getMaskAxisMid(maskPath);
         var subPaths = getSubPaths(maskPath);
         var rulePaths = [];
 
         for (var pathIndex = 0; pathIndex < subPaths.length; pathIndex++) {
-            var rulePath = createEdgeRule(subPaths[pathIndex], midY, ruleSettings);
+            var rulePath = createEdgeRule(subPaths[pathIndex], axisMid, ruleSettings);
             if (rulePath) rulePaths.push(rulePath);
         }
         return rulePaths;
@@ -909,7 +1171,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * @returns {GroupItem} 作成したクリップグループ
      */
     function createClippedPart(maskPath) {
-        var partImage = targetImage.duplicate(parentContainer, ElementPlacement.PLACEATBEGINNING);
+        var partImage = targetItem.duplicate(parentContainer, ElementPlacement.PLACEATBEGINNING);
 
         var clipGroup = parentContainer.groupItems.add();
         maskPath.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
@@ -940,34 +1202,47 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      * 帯を取り除いた上下のパーツを作る
      * 上側は下辺を帯の上端に、下側は同じ複製の下辺を帯の下端に合わせ、
      * それぞれ反対側の辺を画像の上端・下端に切りそろえる
-     * @param {object} buildSettings - { warpStyleKey, warpPercent, gapPt, addRule, ruleDashed, dashSegments, roundCap, groupRules }
+     * @param {object} buildSettings - { maskScale, maskOffsetPt, warpStyleKey, warpPercent, gapPt, addRule, ruleDashed, dashSegments, ruleWidth, roundCap, groupRules }
      * @returns {PageItem[]} 作成したクリップグループと罫線
      */
     function buildParts(buildSettings) {
-        var upperMaskPath = createMaskPath(bandTop + maskHeight, buildSettings.warpStyleKey, buildSettings.warpPercent);
-        /* カーブの中心を帯の上端に合わせる（上昇は切り口が片寄るため） */
-        alignCutEdge(upperMaskPath, bandTop);
+        /* 描いたマスク用の図形を、大きさと位置の設定で伸縮・移動した範囲を取り除く
+           the mask shape as drawn, scaled and shifted by the mask settings */
+        var bandCenter = (bandAxisMax + bandAxisMin) / 2 + offsetSign * buildSettings.maskOffsetPt;
+        var bandHalfSize = (bandAxisMax - bandAxisMin) * buildSettings.maskScale / 200;
+        var cutMax = bandCenter + bandHalfSize;
+        var cutMin = bandCenter - bandHalfSize;
+
+        /* 対象からはみ出すと両側のパーツが作れなくなるので、内側に収める */
+        if (cutMax > targetAxisMax - MIN_BAND_MARGIN) cutMax = targetAxisMax - MIN_BAND_MARGIN;
+        if (cutMin < targetAxisMin + MIN_BAND_MARGIN) cutMin = targetAxisMin + MIN_BAND_MARGIN;
+
+        var upperMaskPath = createMaskPath(cutMax + maskAxisSize, maskAxisSize,
+            buildSettings.warpStyleKey, buildSettings.warpPercent);
+
+        /* カーブの中心を切り口に合わせる（上昇は切り口が片寄るため） */
+        alignCutEdge(upperMaskPath, cutMax);
 
         var lowerMaskPath = upperMaskPath.duplicate(parentContainer, ElementPlacement.PLACEATBEGINNING);
-        lowerMaskPath.translate(0, bandBottom - bandTop);
+        translateAlongAxis(lowerMaskPath, cutMin - cutMax);
 
         /* 罫線は切りそろえる前の辺から取り出す / take the rules before the far edge is flattened */
         var upperRules = buildSettings.addRule ? createEdgeRules(upperMaskPath, buildSettings) : [];
         var lowerRules = buildSettings.addRule ? createEdgeRules(lowerMaskPath, buildSettings) : [];
 
-        flattenFarEdge(upperMaskPath, imageTop);
-        flattenFarEdge(lowerMaskPath, imageBottom);
+        flattenFarEdge(upperMaskPath, targetAxisMax);
+        flattenFarEdge(lowerMaskPath, targetAxisMin);
 
         var upperPart = createClippedPart(upperMaskPath);
         var lowerPart = createClippedPart(lowerMaskPath);
 
-        /* 下側を上へ動かし、指定の間隔をあける。下側の罫線も一緒に動かす */
-        var lowerShift = bandTop - bandBottom - buildSettings.gapPt;
-        lowerPart.translate(0, lowerShift);
+        /* 残った側を寄せて、指定の間隔をあける。そちらの罫線も一緒に動かす */
+        var lowerShift = cutMax - cutMin - buildSettings.gapPt;
+        translateAlongAxis(lowerPart, lowerShift);
 
         var ruleIndex;
         for (ruleIndex = 0; ruleIndex < lowerRules.length; ruleIndex++) {
-            lowerRules[ruleIndex].translate(0, lowerShift);
+            translateAlongAxis(lowerRules[ruleIndex], lowerShift);
         }
 
         /* 罫線は切り口の上に出す / bring the rules in front of the parts */
@@ -1000,20 +1275,20 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             }
             previewItems = null;
         }
-        targetImage.hidden = false;
+        targetItem.hidden = false;
         bandPath.hidden = false;
     }
 
     /**
      * 現在の値でプレビューを作り直す
      * 複製は hidden 状態を引き継ぐので、元アイテムを表示したまま作ってから元を隠す
-     * @param {object} buildSettings - { warpStyleKey, warpPercent, gapPt, addRule, ruleDashed, dashSegments, roundCap, groupRules }
+     * @param {object} buildSettings - { maskScale, maskOffsetPt, warpStyleKey, warpPercent, gapPt, addRule, ruleDashed, dashSegments, ruleWidth, roundCap, groupRules }
      * @returns {void}
      */
     function refreshPreview(buildSettings) {
         clearPreview();
         previewItems = buildParts(buildSettings);
-        targetImage.hidden = true;
+        targetItem.hidden = true;
         bandPath.hidden = true;
         doc.selection = null;
         app.redraw();
@@ -1024,19 +1299,38 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     // =========================================
 
     /**
-     * 「トリミング」パネルを組み立てる
-     * @param {Window} dialog - 追加先のダイアログ
+     * 「マスクの図形」パネルを組み立てる
+     * @param {Group} parentGroup - 追加先の列グループ
      * @returns {object} パネルの入力コントロール
      */
-    function buildTrimPanel(dialog) {
-        var trimPanel = addPanel(dialog, "panel.trim");
+    function buildMaskPanel(parentGroup) {
+        var maskPanel = addPanel(parentGroup, "panel.mask");
+
+        var sizeLabelPath = (axisIndex === AXIS_Y) ? "fieldLabel.maskHeight" : "fieldLabel.maskWidth";
+        var offsetLabelPath = (axisIndex === AXIS_Y) ? "fieldLabel.maskOffsetY" : "fieldLabel.maskOffsetX";
+
+        var scaleRow = addNumberFieldRow(maskPanel, sizeLabelPath, "tooltip.maskScale",
+            formatFieldNumber(initialValues.maskScale), "%");
+        var offsetRow = addNumberFieldRow(maskPanel, offsetLabelPath, "tooltip.maskOffset",
+            formatFieldNumber(initialValues.maskOffset), rulerUnit.label);
+
+        return { scaleField: scaleRow.field, offsetField: offsetRow.field };
+    }
+
+    /**
+     * 「トリミング」パネルを組み立てる
+     * @param {Group} parentGroup - 追加先の列グループ
+     * @returns {object} パネルの入力コントロール
+     */
+    function buildTrimPanel(parentGroup) {
+        var trimPanel = addPanel(parentGroup, "panel.trim");
 
         var warpStyleRow = addRadioRow(trimPanel, "fieldLabel.warpStyle", "tooltip.warpStyle",
-            ["radio.flag", "radio.rise"], (DEFAULT_WARP_STYLE === "rise") ? 1 : 0);
+            ["radio.flag", "radio.rise"], (initialValues.warpStyleKey === "rise") ? 1 : 0);
         var warpAmountRow = addNumberFieldRow(trimPanel, "fieldLabel.warpAmount", "tooltip.warpAmount",
-            String(DEFAULT_WARP_PERCENT), "%");
+            formatFieldNumber(initialValues.warpPercent), "%");
         var gapRow = addNumberFieldRow(trimPanel, "fieldLabel.gap", "tooltip.gap",
-            formatFieldNumber(defaultGapValue), rulerUnit.label);
+            formatFieldNumber(initialValues.gap), rulerUnit.label);
 
         return {
             styleRadios: warpStyleRow.radios,
@@ -1048,21 +1342,23 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
 
     /**
      * 「省略線」パネルを組み立てる
-     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Group} parentGroup - 追加先の列グループ
      * @returns {object} パネルの入力コントロール
      */
-    function buildBreakLinePanel(dialog) {
-        var breakLinePanel = addPanel(dialog, "panel.breakLine");
+    function buildBreakLinePanel(parentGroup) {
+        var breakLinePanel = addPanel(parentGroup, "panel.breakLine");
 
-        var addRuleCheckbox = addCheckboxRow(breakLinePanel, "checkbox.addRule", "tooltip.addRule", DEFAULT_ADD_RULE);
+        var addRuleCheckbox = addCheckboxRow(breakLinePanel, "checkbox.addRule", "tooltip.addRule", initialValues.addRule);
         var ruleStyleRow = addRadioRow(breakLinePanel, "fieldLabel.ruleStyle", "tooltip.ruleStyle",
-            ["radio.solid", "radio.dashed"], DEFAULT_RULE_DASHED ? 1 : 0);
+            ["radio.solid", "radio.dashed"], initialValues.ruleDashed ? 1 : 0, RULE_LABEL_WIDTH);
         var dashSegmentsRow = addNumberFieldRow(breakLinePanel, "fieldLabel.dashSegments", "tooltip.dashSegments",
-            String(DEFAULT_DASH_SEGMENTS));
+            formatFieldNumber(initialValues.dashSegments), "", RULE_LABEL_WIDTH);
+        var strokeWidthRow = addNumberFieldRow(breakLinePanel, "fieldLabel.strokeWidth", "tooltip.strokeWidth",
+            formatFieldNumber(initialValues.ruleWidth), strokeUnit.label, RULE_LABEL_WIDTH);
         var strokeCapRow = addRadioRow(breakLinePanel, "fieldLabel.strokeCap", "tooltip.strokeCap",
-            ["radio.buttCap", "radio.roundCap"], DEFAULT_ROUND_CAP ? 1 : 0);
+            ["radio.buttCap", "radio.roundCap"], initialValues.roundCap ? 1 : 0, RULE_LABEL_WIDTH);
         var groupRulesCheckbox = addCheckboxRow(breakLinePanel, "checkbox.groupRules", "tooltip.groupRules",
-            DEFAULT_GROUP_RULES, true);
+            initialValues.groupRules, true, RULE_LABEL_WIDTH);
 
         return {
             addRuleCheckbox: addRuleCheckbox,
@@ -1071,6 +1367,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             dashedRadio: ruleStyleRow.radios[1],
             segmentsRow: dashSegmentsRow.row,
             segmentsField: dashSegmentsRow.field,
+            widthRow: strokeWidthRow.row,
+            widthField: strokeWidthRow.field,
             capRow: strokeCapRow.row,
             capRadios: strokeCapRow.radios,
             roundCapRadio: strokeCapRow.radios[1],
@@ -1089,8 +1387,19 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         dialog.margins = WINDOW_MARGINS;
         dialog.spacing = WINDOW_SPACING;
 
-        var trimControls = buildTrimPanel(dialog);
-        var ruleControls = buildBreakLinePanel(dialog);
+        /* 左に「マスクの図形」と「トリミング」、右に「省略線」を置く
+           mask and trim settings on the left, break lines on the right */
+        var columnsGroup = dialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+
+        var leftColumn = addColumn(columnsGroup);
+        var rightColumn = addColumn(columnsGroup);
+
+        var maskControls = buildMaskPanel(leftColumn);
+        var trimControls = buildTrimPanel(leftColumn);
+        var ruleControls = buildBreakLinePanel(rightColumn);
         var buttonControls = addButtonRow(dialog);
 
         /**
@@ -1101,6 +1410,7 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             var addRule = ruleControls.addRuleCheckbox.value;
             ruleControls.styleRow.enabled = addRule;
             ruleControls.segmentsRow.enabled = addRule && ruleControls.dashedRadio.value;
+            ruleControls.widthRow.enabled = addRule;
             ruleControls.capRow.enabled = addRule;
             ruleControls.groupRulesCheckbox.enabled = addRule;
         }
@@ -1112,12 +1422,15 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         function collectSettings() {
             var gapValue = readFieldValue(trimControls.gapField, clampGapValue);
             return {
+                maskScale: readFieldValue(maskControls.scaleField, clampMaskScale),
+                maskOffsetPt: readFieldValue(maskControls.offsetField, clampOffsetValue) * rulerUnit.pointsPerUnit,
                 warpStyleKey: trimControls.riseRadio.value ? "rise" : "flag",
                 warpPercent: readFieldValue(trimControls.warpAmountField, clampWarpPercent),
                 gapPt: gapValue * rulerUnit.pointsPerUnit,
                 addRule: ruleControls.addRuleCheckbox.value,
                 ruleDashed: ruleControls.dashedRadio.value,
                 dashSegments: readFieldValue(ruleControls.segmentsField, clampDashSegments),
+                ruleWidth: readFieldValue(ruleControls.widthField, clampRuleWidth) * strokeUnit.pointsPerUnit,
                 roundCap: ruleControls.roundCapRadio.value,
                 groupRules: ruleControls.groupRulesCheckbox.value
             };
@@ -1132,9 +1445,12 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
             refreshPreview(collectSettings());
         }
 
+        wireNumberField(maskControls.scaleField, clampMaskScale, onSettingChanged);
+        wireNumberField(maskControls.offsetField, clampOffsetValue, onSettingChanged);
         wireNumberField(trimControls.warpAmountField, clampWarpPercent, onSettingChanged);
         wireNumberField(trimControls.gapField, clampGapValue, onSettingChanged);
         wireNumberField(ruleControls.segmentsField, clampDashSegments, onSettingChanged);
+        wireNumberField(ruleControls.widthField, clampRuleWidth, onSettingChanged);
         wireClickControls(trimControls.styleRadios
             .concat([ruleControls.addRuleCheckbox])
             .concat(ruleControls.styleRadios)
@@ -1165,13 +1481,15 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     clearPreview();
 
     if (!buildSettings) {
-        selectItems([targetImage, bandPath]);
+        selectItems([targetItem, bandPath]);
         return;
     }
 
-    /* 確定実行。プレビューと同じ関数を通し、元画像と帯のパスは役目を終えるので削除する */
+    saveSettings(buildSettings);
+
+    /* 確定実行。プレビューと同じ関数を通し、元のオブジェクトとマスク用のパスは役目を終えるので削除する */
     var finalItems = buildParts(buildSettings);
-    targetImage.remove();
+    targetItem.remove();
     bandPath.remove();
     selectItems(finalItems);
 })();
