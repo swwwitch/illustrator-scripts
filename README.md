@@ -257,6 +257,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [クリップグループのマスクと内容を調整](readme-ja/ClipMaskAdjust.md)
 - [マスクした複製で、ぼかし・ルーペ・部分拡大をつくる](readme-ja/MaskSpotlight.md)
 - [選択された画像（配置画像/埋め込み画像）やクリッピングマスクグループ内の画像に対して、中心を基準とした最小の…](readme-ja/ClipWithSquare.md)
+- [画像を省略線でトリミング](readme-ja/TrimWithBreakLine.md)
 
 
 ## ガイド

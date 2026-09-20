@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-画像と帯状のパスを選択して実行すると、帯が重なる範囲を画像から取り除き、残った上下をクリッピングマスクで切り出して指定の間隔に詰めます。切り口にはワープ（旗・上昇）を掛けられ、切り口に沿った罫線も追加できます。
+画像と帯状のパスを選択して実行すると、パスの幅で画像をトリミングし、帯が重なる範囲を取り除いて、残った上下を指定の間隔に詰めます。切り口はワープ（旗・上昇）で曲げられ、切り口に沿った省略線も引けます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-With an image and a band-shaped path selected, drops the area covered by the band and rebuilds the remaining upper and lower parts as clipping masks, closed up to a set gap. The cut edge can be shaped with a Flag or Rise warp, and a rule can be drawn along it.
+With an image and a band-shaped path selected, trims the image to the width of the path, drops the area the band covers and closes the remaining parts up to a set gap. The cut edge can be bent with a Flag or Rise warp, and break lines can be drawn along it.
 
 See the README for details.
 
@@ -20,14 +20,14 @@ See the README for details.
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ImgCutAndClose";               /* スクリプト名 / script name */
+var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgCutAndClose.md"; /* README（日本語） */
-var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgCutAndClose.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TrimWithBreakLine.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBreakLine.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2483bd96e284"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
@@ -581,40 +581,6 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     }
 
     /**
-     * 複数のアイテムを縦に動かす
-     * @param {Array} pageItems - 対象のアイテム
-     * @param {number} dy - 動かす量（上が正）
-     * @returns {void}
-     */
-    function translateItems(pageItems, dy) {
-        for (var itemIndex = 0; itemIndex < pageItems.length; itemIndex++) {
-            pageItems[itemIndex].translate(0, dy);
-        }
-    }
-
-    /**
-     * 複数のアイテムを最前面へ出す
-     * @param {Array} pageItems - 対象のアイテム
-     * @returns {void}
-     */
-    function moveItemsToFront(pageItems) {
-        for (var itemIndex = 0; itemIndex < pageItems.length; itemIndex++) {
-            pageItems[itemIndex].move(parentContainer, ElementPlacement.PLACEATBEGINNING);
-        }
-    }
-
-    /**
-     * 複数のアイテムを削除する
-     * @param {Array} pageItems - 対象のアイテム
-     * @returns {void}
-     */
-    function removeItems(pageItems) {
-        for (var itemIndex = 0; itemIndex < pageItems.length; itemIndex++) {
-            pageItems[itemIndex].remove();
-        }
-    }
-
-    /**
      * 渡したアイテムだけを選択する
      * @param {Array} pageItems - 選択するアイテム
      * @returns {void}
@@ -998,11 +964,17 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         /* 下側を上へ動かし、指定の間隔をあける。下側の罫線も一緒に動かす */
         var lowerShift = bandTop - bandBottom - buildSettings.gapPt;
         lowerPart.translate(0, lowerShift);
-        translateItems(lowerRules, lowerShift);
+
+        var ruleIndex;
+        for (ruleIndex = 0; ruleIndex < lowerRules.length; ruleIndex++) {
+            lowerRules[ruleIndex].translate(0, lowerShift);
+        }
 
         /* 罫線は切り口の上に出す / bring the rules in front of the parts */
         var rulePaths = upperRules.concat(lowerRules);
-        moveItemsToFront(rulePaths);
+        for (ruleIndex = 0; ruleIndex < rulePaths.length; ruleIndex++) {
+            rulePaths[ruleIndex].move(parentContainer, ElementPlacement.PLACEATBEGINNING);
+        }
 
         if (buildSettings.groupRules) {
             return [groupWithRules(upperPart, upperRules), groupWithRules(lowerPart, lowerRules)];
@@ -1023,7 +995,9 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
      */
     function clearPreview() {
         if (previewItems) {
-            removeItems(previewItems);
+            for (var itemIndex = 0; itemIndex < previewItems.length; itemIndex++) {
+                previewItems[itemIndex].remove();
+            }
             previewItems = null;
         }
         targetImage.hidden = false;
