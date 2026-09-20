@@ -59,6 +59,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Convert between point / path type and area type](readme-en/ConvertAreaAndPointType.md)
 - [Clear the overset with auto-sizing, then convert to point type](readme-en/FitAndConvertToPointType.md)
 - [Increment dates, weekdays, and numbers in text](readme-en/IncrementDatesAndNumbers.md)
+- [Duplicate text while incrementing its digits or letters](readme-en/SmartIncrementText.md)
 - [Create and adjust area type in one flow](readme-en/AreaTypeToolkit.md)
 - [Replace the contents of selected text frames with the clipboard](readme-en/ReplaceTextWithPaste.md)
 - [Unified type panel](readme-en/UnifiedTypePanel.md)

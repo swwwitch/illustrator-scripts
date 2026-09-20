@@ -5,13 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストフレーム内の数字や英字を検出し、指定した数だけ下方向へ複製しながら値を増分します。
+選択したテキストフレーム内の数字・英字・日付・時刻を検出し、値を増分しながら下方向へ複製します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Finds the digits or letters in the selected text frame and duplicates it downwards the number of times you ask for, incrementing the value each time.
+Finds the digits, letters, dates or times in the selected text frame and duplicates it downwards,
+incrementing the value each time.
 
 See the README for details.
 
@@ -21,19 +22,49 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartIncrementText";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartIncrementText.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartIncrementText.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5f25ed17b123"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+    var DEFAULT_COPY_COUNT = 5;        /* ［複製数］の初期値 / initial number of copies */
+    var DEFAULT_STEP = 1;              /* ［増分］の初期値 / initial step */
+    var DEFAULT_PITCH_RATIO = 1.5;     /* 既定の送り＝文字サイズ×この倍率 / default pitch = font size * this */
+    var DEFAULT_ZERO_PAD = true;       /* ［ゼロ埋め］の初期状態 / zero padding on by default */
+    var DEFAULT_MERGE_ON_OK = false;   /* ［確定時にテキストを結合］の初期状態 / merging off by default */
+    var FALLBACK_FONT_SIZE_PT = 10;    /* 文字サイズを取得できないときの代替値 / fallback font size */
+
+    /* ダイアログ位置を覚えておく環境設定キー / Preference key that remembers the dialog position */
+    var DIALOG_POSITION_PREF_KEY = "dupTextWithIncrementNumbers_v2_dialog_pos";
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var FIELD_LABEL_WIDTH = 60;        /* 項目名の幅 / width of a row label */
+    var NUMBER_FIELD_CHARS = 4;        /* 数値入力欄の文字数 / width of a numeric field */
+    var START_FIELD_CHARS = 6;         /* ［開始値］入力欄の文字数 / width of the start field */
+    var BUTTON_ROW_TOP_MARGIN = 10;    /* ボタンエリアの上余白 / top margin of the button row */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * UIの表示言語を返す
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
@@ -41,283 +72,90 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "連番複製",
-            en: "Duplicate with Increment"
+        dialog: {
+            title: { ja: "連番複製", en: "Duplicate with Increment" }
         },
-        alertNoDoc: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document is open."
+        fieldLabel: {
+            copyCount: { ja: "複製数", en: "Copies" },
+            stepValue: { ja: "増分", en: "Step" },
+            gap: { ja: "アキ", en: "Gap" },
+            incrementTarget: { ja: "増分対象", en: "Target" }
         },
-        alertSelectOneTextFrame: {
-            ja: "テキストフレームを1つだけ選択してください。",
-            en: "Select exactly one text frame."
+        checkbox: {
+            startOverride: { ja: "開始値", en: "Start value" },
+            zeroPad: { ja: "ゼロ埋め", en: "Zero pad" },
+            mergeOnOK: { ja: "1つのテキストに結合", en: "Merge into one text" }
         },
-        alertNoTarget: {
-            ja: "増分対象が見つかりませんでした。\n英字は1文字（A〜Z）の場合のみ対応します。\n例: A1 はOK / AB1, Ver1 は英字増分対象になりません。",
-            en: "No increment target was found.\nAlphabet increment supports only single-letter tokens (A–Z).\nExamples: A1 is OK / AB1, Ver1 are NOT alphabet targets."
+        radio: {
+            year: { ja: "年", en: "Year" },
+            month: { ja: "月", en: "Month" },
+            day: { ja: "日", en: "Day" },
+            hour: { ja: "時", en: "Hour" },
+            minute: { ja: "分", en: "Minute" },
+            numberPrefix: { ja: "数字", en: "Num" },
+            alphabetPrefix: { ja: "英字", en: "Alpha" }
         },
-        alertNoToken: {
-            ja: "選択されたテキストの中に「半角数字」または「英字」が見つかりませんでした。\n数字/英字を含むテキスト（例: 01, 2025/11/21, 19:00, A1）を選択してください。",
-            en: "No digits or letters were found in the selected text.\nSelect text containing digits/letters (e.g., 01, 2025/11/21, 19:00, A1)."
+        tooltip: {
+            copyCount: { ja: "作る複製の数です。元のテキストは含みません。", en: "How many copies to create, not counting the original." },
+            stepValue: { ja: "1つ進むごとに足す数です。負の値で減らせます。", en: "Amount added at each step. Negative values count down." },
+            gap: { ja: "複製どうしのアキです。文字サイズに加算されます。", en: "Space between copies, added on top of the font size." },
+            incrementTarget: {
+                ja: "テキストの中で増やす箇所です。数字や英字が複数あるときに選べます。",
+                en: "Which part of the text to increment, when there is more than one number or letter."
+            },
+            startOverride: { ja: "元のテキストの値ではなく、指定した値から始めます。", en: "Starts from the value you enter instead of the one in the original text." },
+            startValue: { ja: "最初の複製に使う値です。", en: "Value used for the first copy." },
+            zeroPad: {
+                ja: "元の桁数に合わせて、頭に0を足します。最終値で桁が増えるときは桁数を広げます。",
+                en: "Pads with leading zeros to match the original width, widening it when the last value needs another digit."
+            },
+            mergeOnOK: {
+                ja: "OKを押したとき、複製したテキストを1つのテキストにまとめます。",
+                en: "Merges the duplicated text into a single text object when you press OK."
+            }
         },
-        labelCount: {
-            ja: "複製数",
-            en: "Copies"
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
-        labelStep: {
-            ja: "増分",
-            en: "Step"
-        },
-        labelInterval: {
-            ja: "間隔",
-            en: "Spacing"
-        },
-        labelTarget: {
-            ja: "増分対象",
-            en: "Increment"
-        },
-        labelStartOverride: {
-            ja: "開始番号",
-            en: "Start"
-        },
-        labelZeroPad: {
-            ja: "ゼロ埋め",
-            en: "Zero pad"
-        },
-        labelMergeOnOK: {
-            ja: "確定時にテキストを結合",
-            en: "Merge text on OK"
-        },
-        tipCount: {
-            ja: "作る複製の数です。元のテキストは含みません。",
-            en: "How many copies to create, not counting the original."
-        },
-        tipStep: {
-            ja: "1つ進むごとに足す数です。負の値で減らせます。",
-            en: "Amount added at each step. Negative values count down."
-        },
-        tipInterval: {
-            ja: "複製どうしのアキです。文字サイズに加算されます。",
-            en: "Space between copies, added on top of the font size."
-        },
-        tipTarget: {
-            ja: "テキストの中で増やす箇所です。数字や英字が複数あるときに選べます。",
-            en: "Which part of the text to increment, when there is more than one number or letter."
-        },
-        tipStartOverride: {
-            ja: "元のテキストの値ではなく、指定した値から始めます。",
-            en: "Starts from the value you enter instead of the one in the original text."
-        },
-        tipStartValue: {
-            ja: "最初の複製に使う値です。",
-            en: "Value used for the first copy."
-        },
-        tipZeroPad: {
-            ja: "元の桁数に合わせて、頭に0を足します。",
-            en: "Pads with leading zeros to match the original width."
-        },
-        tipMergeOnOK: {
-            ja: "OKを押したとき、複製したテキストを1つのテキストにまとめます。",
-            en: "Merges the duplicated text into a single text object when you press OK."
-        },
-        btnCancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        btnOK: {
-            ja: "OK",
-            en: "OK"
-        },
-        // target labels
-        labelYear: { ja: "年", en: "Year" },
-        labelMonth: { ja: "月", en: "Month" },
-        labelDay: { ja: "日", en: "Day" },
-        labelHour: { ja: "時", en: "Hour" },
-        labelMinute: { ja: "分", en: "Minute" },
-        prefixNum: { ja: "数字", en: "Num" },
-        prefixAlpha: { ja: "英字", en: "Alpha" }
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+            selectOneTextFrame: { ja: "テキストフレームを1つだけ選択してください。", en: "Select exactly one text frame." },
+            noTarget: {
+                ja: "増分対象が見つかりませんでした。\n英字は1文字（A〜Z）の場合のみ対応します。\n例: A1 はOK / AB1, Ver1 は英字増分対象になりません。",
+                en: "No increment target was found.\nAlphabet increment supports only single-letter tokens (A–Z).\nExamples: A1 is OK / AB1, Ver1 are NOT alphabet targets."
+            },
+            noToken: {
+                ja: "選択されたテキストの中に「半角数字」または「英字」が見つかりませんでした。\n数字/英字を含むテキスト（例: 01, 2025/11/21, 19:00, A1）を選択してください。",
+                en: "No digits or letters were found in the selected text.\nSelect text containing digits/letters (e.g., 01, 2025/11/21, 19:00, A1)."
+            }
+        }
     };
 
-    function getLabel(key) {
-        var entry = LABELS[key];
-        if (!entry) return String(key);
-        return entry[uiLang] || entry.en || String(key);
+    /**
+     * ラベル定義から現在の言語の文言を取り出す
+     * @param {object} labelSet - { ja: string, en: string } 形式のラベル定義
+     * @returns {string} 現在の言語の文言
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
     }
 
-    /* コロン付きの項目名を返す（日本語は全角、英語は半角） / Return a label with a colon */
-    function labelText(key) {
-        return getLabel(key) + (uiLang === "ja" ? "：" : ": ");
+    /**
+     * コロン付きの項目名を返す（日本語は全角、英語は半角）
+     * @param {object} labelSet - ラベル定義
+     * @returns {string} コロンを付けた項目名
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ": ");
     }
 
-    function makeTargetLabel(kind, idx1based) {
-        if (kind === "date_ymd") {
-            // idx1based: 1..3
-            if (idx1based === 1) return getLabel("labelYear");
-            if (idx1based === 2) return getLabel("labelMonth");
-            return getLabel("labelDay");
-        }
-        if (kind === "time_hm") {
-            if (idx1based === 1) return getLabel("labelHour");
-            return getLabel("labelMinute");
-        }
-        if (kind === "alpha1") return getLabel("prefixAlpha") + idx1based;
-        return getLabel("prefixNum") + idx1based;
-    }
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    /* 事前チェック / Pre-check */
-    if (app.documents.length === 0) {
-        alert(getLabel("alertNoDoc"));
-        return;
-    }
-
-    var currentSelection = app.activeDocument.selection;
-    if (currentSelection.length !== 1 || currentSelection[0].typename !== "TextFrame") {
-        alert(getLabel("alertSelectOneTextFrame"));
-        return;
-    }
-
-    var originalObj = currentSelection[0];
-    var originalText = originalObj.contents;
-    var __originalTextSnapshot = originalText; // 復帰用 / For restore
-
-    // 位置保持（OK確定時にテキストが動いて見える問題の対策） / Preserve position
-    function getTextFramePosition(tf) {
-        try {
-            if (tf && tf.position) return [tf.position[0], tf.position[1]];
-        } catch (e) { }
-        try {
-            if (tf) return [tf.left, tf.top];
-        } catch (e) { }
-        return null;
-    }
-
-    function setTextFramePosition(tf, pos) {
-        if (!tf || !pos) return;
-        try { tf.position = [pos[0], pos[1]]; return; } catch (e) { }
-        try { tf.left = pos[0]; tf.top = pos[1]; } catch (e) { }
-    }
-
-    // 数字/英字ラン（複数）を抽出してセグメント化 / Tokenize digits & letters
-    // 例: "A1" -> tokens: ["A","1"]
-    // 例: "AB1" -> tokens: ["AB","1"] （AB は英字増分対象外）
-    // 例: "Ver1" -> tokens: ["Ver","1"] （Ver は英字増分対象外）
-    var tokenRe = /[A-Za-z]+|\d+/g;
-    var m;
-    var lastIdx = 0;
-    var segments = [];
-    var tokensRaw = [];
-    var tokenTypes = []; // "alpha1" | "num" | "other"
-
-    while ((m = tokenRe.exec(originalText)) !== null) {
-        segments.push(originalText.substring(lastIdx, m.index));
-        tokensRaw.push(m[0]);
-        tokenTypes.push(/^[A-Za-z]$/.test(m[0]) ? "alpha1" : (/^\d+$/.test(m[0]) ? "num" : "other"));
-        lastIdx = m.index + m[0].length;
-    }
-    segments.push(originalText.substring(lastIdx));
-
-    if (tokensRaw.length === 0) {
-        alert(getLabel("alertNoToken"));
-        return;
-    }
-
-    // 復帰用（元のトークン配列） / Snapshot tokens
-    var __baseTokensSnapshot = tokensRaw.slice();
-
-    function rebuildText(tokenArr) {
-        var s = segments[0];
-        for (var i = 0; i < tokenArr.length; i++) {
-            s += String(tokenArr[i]) + segments[i + 1];
-        }
-        return s;
-    }
-
-    // 書式判定（最低限：日付/時刻/一般） / Format detection
-    var targetLabels = [];
-    var targetIndices = []; // ラジオ候補の token index
-    var patternType = "generic";
-
-    // 和文年月日 / Japanese YMD (with optional weekday)
-    var mYMD = originalText.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日(?:[（(［\[]?(?:日|月|火|水|木|金|土)[）)\]］]?)?$/);
-    // スラッシュ区切り / Slash YMD (with optional weekday)
-    var mSlash = originalText.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:[ 　\t]*[（(［\[]?(?:日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[）)\]］]?)?$/);
-    // ドット区切り3要素 / Dot 3 parts
-    var mDot3 = originalText.match(/^(\d+)\.(\d+)\.(\d+)$/);
-    // 時刻 / Time
-    var mTime = originalText.match(/^(\d{1,2}):(\d{2})$/);
-
-    if (mYMD || mSlash || mDot3) {
-        patternType = "date_ymd";
-        targetLabels = [makeTargetLabel("date_ymd", 1), makeTargetLabel("date_ymd", 2), makeTargetLabel("date_ymd", 3)];
-        targetIndices = [0, 1, 2];
-    } else if (mTime) {
-        patternType = "time_hm";
-        targetLabels = [makeTargetLabel("time_hm", 1), makeTargetLabel("time_hm", 2)];
-        targetIndices = [0, 1];
-    } else {
-        var numCount = 0;
-        var alphaCount = 0;
-        for (var ti = 0; ti < tokensRaw.length; ti++) {
-            if (tokenTypes[ti] === "alpha1") {
-                alphaCount++;
-                targetLabels.push(makeTargetLabel("alpha1", alphaCount));
-                targetIndices.push(ti);
-            } else if (tokenTypes[ti] === "num") {
-                numCount++;
-                targetLabels.push(makeTargetLabel("num", numCount));
-                targetIndices.push(ti);
-            }
-            // other（AB, Ver など）は増分対象にしない
-        }
-    }
-
-    // デフォルト増分対象 / Default target index
-    var targetIndex = 0;
-    if (patternType === "date_ymd") {
-        targetIndex = 2; // Day
-    } else if (patternType === "time_hm") {
-        targetIndex = 1; // Minute
-    } else {
-        // 一般は最後の候補（数値があれば末尾数値、なければ末尾英字）
-        if (targetIndices.length > 0) targetIndex = targetIndices[targetIndices.length - 1];
-    }
-
-    // 一般で増分対象がない場合（例: "AB" だけ等）
-    if (patternType === "generic" && targetIndices.length === 0) {
-        alert(getLabel("alertNoTarget"));
-        return;
-    }
-
-    // 対象トークン桁数 / Target length
-    var targetLength = String(tokensRaw[targetIndex]).length;
-
-    // アウトライン化した高さ（pt）を取得（計測用に複製して削除する） / Measure outlined height
-    function measureOutlinedHeightPt(textFrame) {
-        try {
-            var tmp = textFrame.duplicate();
-            try { tmp.selected = false; } catch (e) { }
-
-            var outlined = tmp.createOutline(); // GroupItem
-            var gb = outlined.geometricBounds;  // [L, T, R, B]
-            var h = gb[1] - gb[3];
-
-            try { outlined.remove(); } catch (e) { }
-            return h;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    var outlinedHeightPt = measureOutlinedHeightPt(originalObj);
-    if (outlinedHeightPt == null || isNaN(outlinedHeightPt) || outlinedHeightPt <= 0) {
-        outlinedHeightPt = originalObj.height; // fallback
-    }
-
-    /* ================================
-     * 単位ユーティリティ（text/units） / Unit util (text/units)
-     * ================================ */
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -337,271 +175,719 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    function ptToUnitValue(pt, unitInfo) {
-        return pt / unitInfo.pointsPerUnit;
+    /**
+     * ポイント値を現在の単位の値に換算する
+     * @param {number} pointValue - ポイント値
+     * @param {{pointsPerUnit: number}} unitInfo - 単位の情報
+     * @returns {number} 換算後の値
+     */
+    function ptToUnitValue(pointValue, unitInfo) {
+        return pointValue / unitInfo.pointsPerUnit;
     }
 
-    function unitValueToPt(v, unitInfo) {
-        return v * unitInfo.pointsPerUnit;
+    /**
+     * 単位付きの値をポイント値に換算する
+     * @param {number} unitValue - 単位の値
+     * @param {{pointsPerUnit: number}} unitInfo - 単位の情報
+     * @returns {number} ポイント値
+     */
+    function unitValueToPt(unitValue, unitInfo) {
+        return unitValue * unitInfo.pointsPerUnit;
     }
 
-    var __textUnit = getUnitInfo("text/units");
+    var textUnitInfo = getUnitInfo("text/units");
 
-    // 増分値を取得（0 は 1 扱い） / Get step value (0 => 1)
-    function getStepValue() {
-        var v = 1;
-        try {
-            v = parseInt(String(stepInput.text), 10);
-        } catch (e) { v = 1; }
-        if (isNaN(v)) v = 1;
-        if (v === 0) v = 1;
-        return v;
+    // =========================================
+    // 事前チェック / Pre-check
+    // =========================================
+    if (app.documents.length === 0) {
+        alert(getLabel(LABELS.alert.noDocument));
+        return;
     }
 
-    // プレビュー管理用 / Preview objects
-    var previewObjects = [];
+    var doc = app.activeDocument;
+    var selectedItems = doc.selection;
+    if (selectedItems.length !== 1 || selectedItems[0].typename !== "TextFrame") {
+        alert(getLabel(LABELS.alert.selectOneTextFrame));
+        return;
+    }
 
-    /* =========================================
-     * プレビュー用ヒストリー管理 / Preview history manager
-     * - プレビューで増えたUndoステップ数をカウントし、閉じる/確定時に一括Undoで戻す
-     * - app.undo() を優先し、失敗時は executeMenuCommand('undo') にフォールバック
-     * ========================================= */
-    var __suspendPreview = false;
-    var __closingByOK = false;
+    var sourceTextFrame = selectedItems[0];
+    var sourceText = sourceTextFrame.contents; /* 復帰用にも使う / also used to restore */
 
-    var PreviewHistory = (function () {
-        var _count = 0;
-        var _MAX_UNDO = 300; // 安全上限 / safety cap
+    // =========================================
+    // 元テキストの解析 / Analyze the source text
+    // =========================================
 
-        function _undoOnce() {
-            try {
-                if (app.undo) {
-                    app.undo();
-                    return true;
-                }
-            } catch (e) { }
-            try {
-                app.executeMenuCommand("undo");
-                return true;
-            } catch (e) { }
-            return false;
+    /* 数字・英字のまとまりを抽出し、リテラル部分とトークンに分ける
+       例: "A1" -> ["A", "1"] / "AB1" -> ["AB", "1"]（AB は英字増分の対象外）
+       Split the text into literal segments and digit/letter tokens */
+    var literalSegments = [];
+    var sourceTokens = [];
+    var tokenTypes = []; /* "alpha1"（英字1文字）/ "num"（数字）/ "other" */
+    var tokenPattern = /[A-Za-z]+|\d+/g;
+    var tokenMatch;
+    var literalStart = 0;
+
+    while ((tokenMatch = tokenPattern.exec(sourceText)) !== null) {
+        literalSegments.push(sourceText.substring(literalStart, tokenMatch.index));
+        sourceTokens.push(tokenMatch[0]);
+        tokenTypes.push(/^[A-Za-z]$/.test(tokenMatch[0]) ? "alpha1" : (/^\d+$/.test(tokenMatch[0]) ? "num" : "other"));
+        literalStart = tokenMatch.index + tokenMatch[0].length;
+    }
+    literalSegments.push(sourceText.substring(literalStart));
+
+    if (sourceTokens.length === 0) {
+        alert(getLabel(LABELS.alert.noToken));
+        return;
+    }
+
+    /**
+     * トークン配列からテキストを組み立て直す
+     * @param {string[]} tokens - 差し替え後のトークン
+     * @returns {string} 組み立てたテキスト
+     */
+    function rebuildText(tokens) {
+        var text = literalSegments[0];
+        for (var i = 0; i < tokens.length; i++) {
+            text += String(tokens[i]) + literalSegments[i + 1];
+        }
+        return text;
+    }
+
+    /**
+     * 増分対象のラジオに表示する名前を返す
+     * @param {string} kind - "date_ymd" / "time_hm" / "alpha1" / "num"
+     * @param {number} position - 同じ種類の中での位置（1始まり）
+     * @returns {string} ラジオのラベル
+     */
+    function getTargetRadioLabel(kind, position) {
+        if (kind === "date_ymd") {
+            if (position === 1) return getLabel(LABELS.radio.year);
+            if (position === 2) return getLabel(LABELS.radio.month);
+            return getLabel(LABELS.radio.day);
+        }
+        if (kind === "time_hm") {
+            return getLabel((position === 1) ? LABELS.radio.hour : LABELS.radio.minute);
+        }
+        if (kind === "alpha1") return getLabel(LABELS.radio.alphabetPrefix) + position;
+        return getLabel(LABELS.radio.numberPrefix) + position;
+    }
+
+    /**
+     * 元テキストの書式（日付／時刻／一般）を判定し、増分対象の候補を組み立てる
+     * @returns {{patternType: string, radioLabels: string[], tokenIndices: number[]}} 判定結果
+     */
+    function detectIncrementTargets() {
+        /* 和文年月日 / Japanese YMD (with optional weekday) */
+        var dateJaPattern = /^(\d{4})年(\d{1,2})月(\d{1,2})日(?:[（(［\[]?(?:日|月|火|水|木|金|土)[）)\]］]?)?$/;
+        /* スラッシュ区切り / Slash YMD (with optional weekday) */
+        var dateSlashPattern = /^(\d{4})\/(\d{1,2})\/(\d{1,2})(?:[ 　\t]*[（(［\[]?(?:日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[）)\]］]?)?$/;
+        /* ドット区切り3要素 / Dot 3 parts */
+        var dateDotPattern = /^(\d+)\.(\d+)\.(\d+)$/;
+        /* 時刻 / Time */
+        var timePattern = /^(\d{1,2}):(\d{2})$/;
+
+        if (dateJaPattern.test(sourceText) || dateSlashPattern.test(sourceText) || dateDotPattern.test(sourceText)) {
+            return {
+                patternType: "date_ymd",
+                radioLabels: [getTargetRadioLabel("date_ymd", 1), getTargetRadioLabel("date_ymd", 2), getTargetRadioLabel("date_ymd", 3)],
+                tokenIndices: [0, 1, 2]
+            };
+        }
+        if (timePattern.test(sourceText)) {
+            return {
+                patternType: "time_hm",
+                radioLabels: [getTargetRadioLabel("time_hm", 1), getTargetRadioLabel("time_hm", 2)],
+                tokenIndices: [0, 1]
+            };
         }
 
-        return {
-            start: function () { _count = 0; },
-            bump: function () { _count++; if (_count > _MAX_UNDO) _count = _MAX_UNDO; },
-            bumpBy: function (n) {
-                var k = 0;
-                try { k = parseInt(n, 10); } catch (e) { k = 0; }
-                if (isNaN(k) || k <= 0) return;
-                _count += k;
-                if (_count > _MAX_UNDO) _count = _MAX_UNDO;
-            },
-            undo: function () {
-                for (var i = 0; i < _count && i < _MAX_UNDO; i++) {
-                    if (!_undoOnce()) break;
-                }
-                _count = 0;
-            },
-            getCount: function () { return _count; }
-        };
-    })();
+        var radioLabels = [];
+        var tokenIndices = [];
+        var numberCount = 0;
+        var alphabetCount = 0;
+        for (var i = 0; i < sourceTokens.length; i++) {
+            /* "AB" や "Ver" のような2文字以上の英字は候補にしない / multi-letter tokens are not candidates */
+            if (tokenTypes[i] === "alpha1") {
+                alphabetCount++;
+                radioLabels.push(getTargetRadioLabel("alpha1", alphabetCount));
+                tokenIndices.push(i);
+            } else if (tokenTypes[i] === "num") {
+                numberCount++;
+                radioLabels.push(getTargetRadioLabel("num", numberCount));
+                tokenIndices.push(i);
+            }
+        }
+        return { patternType: "generic", radioLabels: radioLabels, tokenIndices: tokenIndices };
+    }
 
-    /* ダイアログ作成 / Build dialog */
-    var win = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
+    var incrementTargets = detectIncrementTargets();
+    var patternType = incrementTargets.patternType;
+    var targetRadioLabels = incrementTargets.radioLabels;
+    var targetTokenIndices = incrementTargets.tokenIndices;
 
-    /* ダイアログ位置の記憶 / Remember dialog position */
-    var __WINPOS_KEY = "dupTextWithIncrementNumbers_v2_dialog_pos";
+    if (targetTokenIndices.length === 0) {
+        alert(getLabel(LABELS.alert.noTarget));
+        return;
+    }
 
-    function __readDialogPos() {
+    /* 既定の増分対象：日付は日、時刻は分、一般は末尾の候補
+       Default target: day for dates, minute for times, the last candidate otherwise */
+    var targetTokenIndex = targetTokenIndices[targetTokenIndices.length - 1];
+    if (patternType === "date_ymd") targetTokenIndex = 2;
+    else if (patternType === "time_hm") targetTokenIndex = 1;
+
+    var targetDigitLength = String(sourceTokens[targetTokenIndex]).length;
+
+    // =========================================
+    // 増分の計算 / Increment helpers
+    // =========================================
+
+    /**
+     * 先頭に0を足して桁を揃える（負の値は符号を残して数字だけを揃える）
+     * @param {string|number} value - 対象の値
+     * @param {number} length - 揃える桁数
+     * @returns {string} ゼロ埋めした文字列
+     */
+    function zeroPad(value, length) {
+        var text = String(value);
+        var sign = "";
+        if (text.charAt(0) === "-") {
+            sign = "-";
+            text = text.substring(1);
+        }
+        while (text.length < length) text = "0" + text;
+        return sign + text;
+    }
+
+    /**
+     * 英字1文字のトークンかを判定する
+     * @param {string} token - 判定するトークン
+     * @returns {boolean} A〜Z／a〜z 1文字なら true
+     */
+    function isAlphaToken(token) {
+        return /^[A-Za-z]$/.test(String(token));
+    }
+
+    /**
+     * 英字1文字を番号に変換する（A=1〜Z=26）
+     * @param {string} alphaToken - 英字1文字
+     * @returns {number|null} 番号。英字1文字でなければ null
+     */
+    function alphaToNumber(alphaToken) {
+        var upperCased = String(alphaToken).toUpperCase();
+        if (!/^[A-Z]$/.test(upperCased)) return null;
+        return upperCased.charCodeAt(0) - 64;
+    }
+
+    /**
+     * 番号を英字1文字に変換する（26を超えたらAに戻る）
+     * @param {number} value - 番号
+     * @param {boolean} isLowerCase - 小文字で返すか
+     * @returns {string} 英字1文字
+     */
+    function numberToAlpha(value, isLowerCase) {
+        var number = Math.floor(Number(value));
+        if (!isFinite(number) || number <= 0) number = 1;
+        var offset = ((number - 1) % 26 + 26) % 26;
+        var alphaToken = String.fromCharCode(65 + offset);
+        return isLowerCase ? alphaToken.toLowerCase() : alphaToken;
+    }
+
+    /**
+     * トークンが小文字かを判定する
+     * @param {string} token - 判定するトークン
+     * @returns {boolean} 小文字なら true
+     */
+    function isLowerCaseToken(token) {
+        return String(token) === String(token).toLowerCase();
+    }
+
+    /**
+     * テキストに含まれる曜日表記を調べる
+     * @param {string} text - 調べるテキスト
+     * @returns {{has: boolean, style: string, left: string, right: string}} 曜日の有無と囲み記号
+     */
+    function detectWeekdayInfo(text) {
+        var matched = text.match(/([（(［\[])[ 　\t]*(日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ 　\t]*([）)\]］])/);
+        if (!matched) return { has: false };
+        return { has: true, style: (matched[2].length === 1) ? "ja" : "en", left: matched[1], right: matched[3] };
+    }
+
+    var weekdayInfo = detectWeekdayInfo(sourceText);
+
+    /**
+     * 日付に対応する曜日の文字を返す
+     * @param {Date} date - 対象の日付
+     * @param {string} style - "ja"（日〜土）または "en"（Sun〜Sat）
+     * @returns {string} 曜日の文字
+     */
+    function weekdayTokenByDate(date, style) {
+        var weekdaysJa = ["日", "月", "火", "水", "木", "金", "土"];
+        var weekdaysEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        return (style === "en") ? weekdaysEn[date.getDay()] : weekdaysJa[date.getDay()];
+    }
+
+    /**
+     * テキスト内の曜日表記を日付に合わせて書き換える
+     * @param {string} text - 対象のテキスト
+     * @param {Date} date - 合わせる日付
+     * @returns {string} 書き換えたテキスト
+     */
+    function applyWeekdayToText(text, date) {
+        if (!weekdayInfo.has) return text;
+        var weekdayPattern = /([（(［\[])[ 　\t]*(日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ 　\t]*([）)\]］])/;
+        return text.replace(weekdayPattern, weekdayInfo.left + weekdayTokenByDate(date, weekdayInfo.style) + weekdayInfo.right);
+    }
+
+    /**
+     * 年月日のトークンから日付を作る
+     * @param {string[]} tokens - トークン配列
+     * @returns {Date|null} 日付。数値として読めなければ null
+     */
+    function parseDateFromTokens(tokens) {
+        if (tokens.length < 3) return null;
+        var year = parseInt(tokens[0], 10);
+        var month = parseInt(tokens[1], 10);
+        var day = parseInt(tokens[2], 10);
+        if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+
+        /* 2桁年などは現在の世紀で補う / short years are completed with the current century */
+        if (String(sourceTokens[0]).length < 4) {
+            year = Math.floor((new Date()).getFullYear() / 100) * 100 + year;
+        }
+        return new Date(year, month - 1, day);
+    }
+
+    /**
+     * 日付を元テキストの桁数に合わせたトークンにする
+     * @param {Date} date - 対象の日付
+     * @returns {string[]} 年・月・日のトークン
+     */
+    function formatDateToTokens(date) {
+        var yearLength = String(sourceTokens[0]).length;
+        var monthLength = String(sourceTokens[1]).length;
+        var dayLength = String(sourceTokens[2]).length;
+
+        var yearToken = String(date.getFullYear());
+        if (yearLength < yearToken.length) yearToken = yearToken.slice(yearToken.length - yearLength);
+        if (yearLength > yearToken.length) yearToken = zeroPad(yearToken, yearLength);
+
+        var monthToken = String(date.getMonth() + 1);
+        var dayToken = String(date.getDate());
+        if (monthLength > 1) monthToken = zeroPad(monthToken, monthLength);
+        if (dayLength > 1) dayToken = zeroPad(dayToken, dayLength);
+
+        return [yearToken, monthToken, dayToken];
+    }
+
+    /**
+     * 日付を年／月／日の単位で増減する
+     * @param {Date} baseDate - 基準の日付
+     * @param {number} unitIndex - 0=年 / 1=月 / 2=日
+     * @param {number} step - 増減する量
+     * @returns {Date} 増減後の日付
+     */
+    function addDateByUnit(baseDate, unitIndex, step) {
+        var date = new Date(baseDate.getTime());
+        if (unitIndex === 0) date.setFullYear(date.getFullYear() + step);
+        else if (unitIndex === 1) date.setMonth(date.getMonth() + step);
+        else date.setDate(date.getDate() + step);
+        return date;
+    }
+
+    /**
+     * 時分のトークンから時刻を作る
+     * @param {string[]} tokens - トークン配列
+     * @returns {{hour: number, minute: number}|null} 時刻。数値として読めなければ null
+     */
+    function parseTimeFromTokens(tokens) {
+        if (tokens.length < 2) return null;
+        var hour = parseInt(tokens[0], 10);
+        var minute = parseInt(tokens[1], 10);
+        if (isNaN(hour) || isNaN(minute)) return null;
+        return { hour: hour, minute: minute };
+    }
+
+    /**
+     * 時刻を時／分の単位で増減する（24時間で繰り上がる）
+     * @param {{hour: number, minute: number}} baseTime - 基準の時刻
+     * @param {number} unitIndex - 0=時 / 1=分
+     * @param {number} step - 増減する量
+     * @returns {{hour: number, minute: number}} 増減後の時刻
+     */
+    function addTimeByUnit(baseTime, unitIndex, step) {
+        var totalMinutes = baseTime.hour * 60 + baseTime.minute + ((unitIndex === 0) ? step * 60 : step);
+        totalMinutes = ((totalMinutes % 1440) + 1440) % 1440;
+        return { hour: Math.floor(totalMinutes / 60), minute: totalMinutes % 60 };
+    }
+
+    /**
+     * 時刻を元テキストの桁数に合わせたトークンにする
+     * @param {{hour: number, minute: number}} time - 対象の時刻
+     * @returns {string[]} 時・分のトークン
+     */
+    function formatTimeToTokens(time) {
+        var hourLength = String(sourceTokens[0]).length;
+        var minuteLength = String(sourceTokens[1]).length;
+        var hourToken = String(time.hour);
+        var minuteToken = String(time.minute);
+        if (hourLength > 1) hourToken = zeroPad(hourToken, hourLength);
+        if (minuteLength > 1) minuteToken = zeroPad(minuteToken, minuteLength);
+        return [hourToken, minuteToken];
+    }
+
+    // =========================================
+    // UIの値の取り出し / Reading the dialog values
+    // =========================================
+
+    /**
+     * ［増分］の値を取り出す（0は1として扱う）
+     * @returns {number} 増分の値
+     */
+    function getStepValue() {
+        var stepValue = parseInt(String(stepInput.text), 10);
+        return (isNaN(stepValue) || stepValue === 0) ? 1 : stepValue;
+    }
+
+    /**
+     * ［開始値］に有効な値が入っているかを判定する
+     * @returns {boolean} 使える値なら true
+     */
+    function isStartValueValid() {
+        if (!startOverrideCheckbox.value) return true;
+        var rawValue = String(startValueInput.text);
+        if (tokenTypes[targetTokenIndex] === "alpha1") return isAlphaToken(rawValue);
+        return !isNaN(parseInt(rawValue, 10));
+    }
+
+    /**
+     * ［開始値］を反映した、増分前のトークン配列を作る
+     * @returns {string[]} トークン配列
+     */
+    function buildBaseTokens() {
+        var tokens = sourceTokens.slice();
+        if (!startOverrideCheckbox.value) return tokens;
+
+        var rawValue = String(startValueInput.text);
+        if (tokenTypes[targetTokenIndex] === "alpha1") {
+            if (isAlphaToken(rawValue)) tokens[targetTokenIndex] = rawValue;
+        } else {
+            var startNumber = parseInt(rawValue, 10);
+            if (!isNaN(startNumber)) tokens[targetTokenIndex] = String(startNumber);
+        }
+        return tokens;
+    }
+
+    /**
+     * ［ゼロ埋め］ON時の桁数を返す（最終値が桁上がりするときは広げる）
+     * @param {number} baseNumber - 開始の値
+     * @param {number} baseLength - 元の桁数
+     * @returns {number} 使用する桁数
+     */
+    function getPadLength(baseNumber, baseLength) {
+        var copyCount = parseInt(countInput.text, 10);
+        if (isNaN(copyCount) || copyCount < 0) return baseLength;
+        var lastNumber = baseNumber + (copyCount * getStepValue());
+        /* 桁数は符号を除いて数える / the minus sign does not count as a digit */
+        var neededLength = Math.max(String(Math.abs(baseNumber)).length, String(Math.abs(lastNumber)).length);
+        return (neededLength > baseLength) ? neededLength : baseLength;
+    }
+
+    /**
+     * ［ゼロ埋め］の設定に従って数値を文字列にする
+     * @param {number} value - 変換する値
+     * @param {number} baseNumber - 開始の値
+     * @param {number} baseLength - 元の桁数
+     * @returns {string} 文字列にした値
+     */
+    function formatNumberToken(value, baseNumber, baseLength) {
+        if (!zeroPadCheckbox.value) return String(value);
+        return zeroPad(value, getPadLength(baseNumber, baseLength));
+    }
+
+    // =========================================
+    // テキストの生成 / Building the text
+    // =========================================
+
+    /**
+     * 対象トークンを数値として増分したテキストを作る
+     * @param {string[]} tokens - 元にするトークン配列（書き換える）
+     * @param {number} offset - 開始の値からの増分
+     * @param {boolean} usePadding - ［ゼロ埋め］の設定を反映するか
+     * @returns {string} 組み立てたテキスト
+     */
+    function buildNumberIncrementedText(tokens, offset, usePadding) {
+        var baseNumber = parseInt(tokens[targetTokenIndex], 10);
+        if (isNaN(baseNumber)) baseNumber = 0;
+        var value = baseNumber + offset;
+        tokens[targetTokenIndex] = usePadding ? formatNumberToken(value, baseNumber, targetDigitLength) : String(value);
+        return rebuildText(tokens);
+    }
+
+    /**
+     * 複製1つ分のテキストを作る
+     * @param {string[]} baseTokens - 増分前のトークン配列
+     * @param {number} offset - 開始の値からの増分（0で複製元と同じ値）
+     * @returns {string} 複製に入れるテキスト
+     */
+    function buildIncrementedText(baseTokens, offset) {
+        var tokens = baseTokens.slice();
+
+        if (patternType === "date_ymd") {
+            var baseDate = parseDateFromTokens(baseTokens);
+            /* 暦として読めない並びは、対象トークンを数値として増分する / fall back to a plain number */
+            if (!baseDate) return buildNumberIncrementedText(tokens, offset, false);
+            var shiftedDate = addDateByUnit(baseDate, targetTokenIndex, offset);
+            var dateTokens = formatDateToTokens(shiftedDate);
+            tokens[0] = dateTokens[0];
+            tokens[1] = dateTokens[1];
+            tokens[2] = dateTokens[2];
+            return applyWeekdayToText(rebuildText(tokens), shiftedDate);
+        }
+
+        if (patternType === "time_hm") {
+            var baseTime = parseTimeFromTokens(baseTokens);
+            if (!baseTime) return buildNumberIncrementedText(tokens, offset, false);
+            var timeTokens = formatTimeToTokens(addTimeByUnit(baseTime, targetTokenIndex, offset));
+            tokens[0] = timeTokens[0];
+            tokens[1] = timeTokens[1];
+            return rebuildText(tokens);
+        }
+
+        if (tokenTypes[targetTokenIndex] === "alpha1") {
+            var baseAlphaToken = String(baseTokens[targetTokenIndex]);
+            var alphaNumber = alphaToNumber(baseAlphaToken);
+            if (alphaNumber == null) alphaNumber = 1;
+            tokens[targetTokenIndex] = numberToAlpha(alphaNumber + offset, isLowerCaseToken(baseAlphaToken));
+            return rebuildText(tokens);
+        }
+
+        return buildNumberIncrementedText(tokens, offset, true);
+    }
+
+    /**
+     * 現在のUI設定を反映した複製元のテキストを作る
+     * @returns {string|null} 反映後のテキスト。［開始値］が不正なときは null
+     */
+    function buildSourceContents() {
+        if (!isStartValueValid()) return null;
+
+        /* 数字が対象で、ゼロ埋めも開始値の指定もないときは元の表記のまま
+           Keep the original spelling when nothing reformats the number */
+        if (patternType === "generic" && tokenTypes[targetTokenIndex] !== "alpha1" &&
+            !zeroPadCheckbox.value && !startOverrideCheckbox.value) {
+            return sourceText;
+        }
+        return buildIncrementedText(buildBaseTokens(), 0);
+    }
+
+    // =========================================
+    // ドキュメントの更新 / Updating the document
+    // =========================================
+
+    /**
+     * テキストフレームの位置を控える（contents の書き換えで位置がずれるため）
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @returns {number[]} [x, y]
+     */
+    function getTextFramePosition(textFrame) {
+        return [textFrame.position[0], textFrame.position[1]];
+    }
+
+    /**
+     * 控えておいた位置にテキストフレームを戻す
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {number[]} position - [x, y]
+     * @returns {void}
+     */
+    function setTextFramePosition(textFrame, position) {
+        textFrame.position = [position[0], position[1]];
+    }
+
+    /**
+     * 複製元のテキストを、位置を保ったまま書き換える
+     * @param {string} text - 設定するテキスト
+     * @returns {void}
+     */
+    function setSourceContents(text) {
+        var savedPosition = getTextFramePosition(sourceTextFrame);
+        sourceTextFrame.contents = text;
+        setTextFramePosition(sourceTextFrame, savedPosition);
+    }
+
+    /**
+     * 現在のUI設定を複製元のテキストに反映する
+     * @returns {void}
+     */
+    function applySettingsToSourceText() {
+        var contents = buildSourceContents();
+        if (contents === null) return;
+        setSourceContents(contents);
+    }
+
+    /**
+     * 指定した数だけ複製を作り、値を増分する
+     * @returns {TextFrame[]} 作成した複製
+     */
+    function createIncrementedCopies() {
+        var copyCount = parseInt(countInput.text, 10);
+        var gapValue = parseFloat(gapInput.text);
+        if (isNaN(copyCount) || isNaN(gapValue)) return [];
+
+        /* ［アキ］は文字サイズに足すアキ → 実際の送り＝文字サイズ＋アキ
+              The gap field holds the space added on top of the font size */
+        var pitchPt = sourceFontSizePt + unitValueToPt(gapValue, textUnitInfo);
+        var stepValue = getStepValue();
+        var baseTokens = buildBaseTokens();
+        var copies = [];
+
+        for (var i = 1; i <= copyCount; i++) {
+            var copy = sourceTextFrame.duplicate();
+            copy.top = sourceTextFrame.top - (pitchPt * i);
+            copy.left = sourceTextFrame.left;
+            copy.contents = buildIncrementedText(baseTokens, i * stepValue);
+            copies.push(copy);
+        }
+        return copies;
+    }
+
+    /**
+     * 複製を改行でつないで複製元の1つのテキストにまとめる
+     * @returns {void}
+     */
+    function mergeCopiesIntoSource() {
+        var savedPosition = getTextFramePosition(sourceTextFrame);
+        var lines = [String(sourceTextFrame.contents)];
+        for (var i = 0; i < previewItems.length; i++) {
+            lines.push(String(previewItems[i].contents));
+        }
+        sourceTextFrame.contents = lines.join("\r");
+
+        /* 行送り＝文字サイズ＋［アキ］ / Leading = font size + the gap field */
+        var fontSizePt = sourceTextFrame.textRange.characterAttributes.size;
+        if (isNaN(fontSizePt) || fontSizePt <= 0) fontSizePt = sourceFontSizePt;
+        var gapValue = parseFloat(gapInput.text);
+        if (isNaN(gapValue)) gapValue = 0;
+        var leadingPt = fontSizePt + unitValueToPt(gapValue, textUnitInfo);
+        if (leadingPt > 0) {
+            sourceTextFrame.textRange.characterAttributes.autoLeading = false;
+            sourceTextFrame.textRange.characterAttributes.leading = leadingPt;
+        }
+
+        clearPreview();
+        setTextFramePosition(sourceTextFrame, savedPosition);
+    }
+
+    /**
+     * 複製元のテキストと位置を実行前の状態に戻す
+     * @returns {void}
+     */
+    function restoreSourceText() {
+        previewSuspended = true;
+        clearPreview();
+        setSourceContents(sourceText);
+        previewSuspended = false;
+    }
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
+    var previewItems = [];
+    var previewSuspended = false;
+    var closedWithOK = false;
+
+    /**
+     * プレビューで作った複製を取り除く
+     * @returns {void}
+     */
+    function clearPreview() {
+        for (var i = previewItems.length - 1; i >= 0; i--) {
+            previewItems[i].remove();
+        }
+        previewItems = [];
+    }
+
+    /**
+     * 現在のUI設定でプレビューを作り直す
+     * @returns {void}
+     */
+    function updatePreview() {
+        if (previewSuspended) return;
+        applySettingsToSourceText();
+        clearPreview();
+        /* ［開始値］が不正な間はプレビューを出さず、［OK］も押せなくする
+           No preview and no OK while the start value is invalid */
+        var startValueValid = isStartValueValid();
+        btnOK.enabled = startValueValid;
+        if (startValueValid) previewItems = createIncrementedCopies();
+        app.redraw();
+    }
+
+    // =========================================
+    // ダイアログの位置 / Dialog position
+    // =========================================
+
+    /**
+     * 前回のダイアログ位置を読む
+     * @returns {number[]|null} [x, y]。保存されていなければ null
+     */
+    function readDialogPosition() {
+        var savedValue = "";
+        /* 未登録のキーは例外になることがある / an unset key can throw */
         try {
-            var s = app.preferences.getStringPreference(__WINPOS_KEY);
-            if (!s) return null;
-            var p = s.split(",");
-            if (p.length !== 2) return null;
-            var x = parseFloat(p[0]);
-            var y = parseFloat(p[1]);
-            if (isNaN(x) || isNaN(y)) return null;
-            return { x: x, y: y };
-        } catch (e) { }
-        return null;
+            savedValue = app.preferences.getStringPreference(DIALOG_POSITION_PREF_KEY);
+        } catch (e) {
+            return null;
+        }
+        if (!savedValue) return null;
+
+        var parts = savedValue.split(",");
+        if (parts.length !== 2) return null;
+        var x = parseFloat(parts[0]);
+        var y = parseFloat(parts[1]);
+        if (isNaN(x) || isNaN(y)) return null;
+        return [x, y];
     }
 
-    function __writeDialogPos(winObj) {
-        try {
-            if (!winObj || !winObj.location) return;
-            var x = winObj.location[0];
-            var y = winObj.location[1];
-            if (x == null || y == null) return;
-            app.preferences.setStringPreference(__WINPOS_KEY, String(x) + "," + String(y));
-        } catch (e) { }
+    /**
+     * ダイアログの位置を保存する
+     * @param {Window} dialogWindow - 対象のダイアログ
+     * @returns {void}
+     */
+    function saveDialogPosition(dialogWindow) {
+        var location = dialogWindow.location;
+        if (!location) return;
+        app.preferences.setStringPreference(DIALOG_POSITION_PREF_KEY, String(location[0]) + "," + String(location[1]));
     }
 
-    // 前回位置を復元（失敗したらデフォルトのまま） / Restore previous position
-    try {
-        var __p = __readDialogPos();
-        if (__p) win.location = [__p.x, __p.y];
-    } catch (e) { }
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
 
-    win.orientation = "column";
-    win.alignChildren = "fill";
-
-    /* 入力エリア / Inputs */
-    var mainGroup = win.add("group");
-    mainGroup.orientation = "column";
-    mainGroup.alignChildren = "left";
-
-    // 複製数 / Copies
-    var group1 = mainGroup.add("group");
-    var stCount = group1.add("statictext", undefined, labelText("labelCount"));
-    stCount.preferredSize.width = 60;
-    stCount.justify = "right";
-    var countInput = group1.add("edittext", undefined, "5");
-    countInput.characters = 4;
-    countInput.helpTip = getLabel("tipCount");
-
-    // 増分 / Step
-    var groupStep = mainGroup.add("group");
-    var stStep = groupStep.add("statictext", undefined, labelText("labelStep"));
-    stStep.preferredSize.width = 60;
-    stStep.justify = "right";
-    var stepInput = groupStep.add("edittext", undefined, "1");
-    stepInput.characters = 4;
-    stepInput.helpTip = getLabel("tipStep");
-
-    // 間隔 / Spacing
-    var group2 = mainGroup.add("group");
-    var stInterval = group2.add("statictext", undefined, labelText("labelInterval"));
-    stInterval.preferredSize.width = 60;
-    stInterval.justify = "right";
-
-    // デフォルト間隔 = 文字サイズの1.5倍（実際の間隔） / Default spacing = fontSize * 1.5 (actual)
-    // UI表示は「実際の間隔 - 文字サイズ」 / UI shows (actual - fontSize)
-    var fontSizePt = originalObj.textRange.characterAttributes.size;
-    if (isNaN(fontSizePt) || fontSizePt <= 0) fontSizePt = 10;
-
-    var defaultOffsetPt = fontSizePt * 1.5;          // actual
-    var defaultGapPt = defaultOffsetPt - fontSizePt; // UI
-    if (defaultGapPt < 0) defaultGapPt = 0;
-
-    var defaultGapUnit = ptToUnitValue(defaultGapPt, __textUnit);
-    var offsetInput = group2.add("edittext", undefined, defaultGapUnit.toFixed(1));
-    offsetInput.characters = 4;
-    offsetInput.helpTip = getLabel("tipInterval");
-
-    var stOffsetUnit = group2.add("statictext", undefined, __textUnit.label);
-
-    // 増分対象 / Increment target
-    // 複数候補があるときだけラジオ表示 / Show radios only when multiple
-    var groupTarget = mainGroup.add("group");
-    groupTarget.orientation = "row";
-    groupTarget.alignChildren = ["left", "center"];
-
-    var stTarget = groupTarget.add("statictext", undefined, labelText("labelTarget"));
-    stTarget.preferredSize.width = 60;
-    stTarget.justify = "right";
-
-    var gTargetRadios = groupTarget.add("group");
-    gTargetRadios.orientation = "row";
-    gTargetRadios.alignChildren = ["left", "center"];
-
-    var rbTargets = [];
-    for (var targetLabelIndex = 0; targetLabelIndex < targetLabels.length; targetLabelIndex++) {
-        var rb = gTargetRadios.add("radiobutton", undefined, targetLabels[targetLabelIndex]);
-        var idxToken = (targetIndices && targetIndices.length > 0) ? targetIndices[targetLabelIndex] : targetLabelIndex;
-        rb.value = (idxToken === targetIndex);
-        rb.helpTip = getLabel("tipTarget");
-        rbTargets.push(rb);
-    }
-
-    groupTarget.visible = (targetLabels.length > 1);
-
-    // 開始番号 / Start override
-    var groupStart = mainGroup.add("group");
-    groupStart.orientation = "row";
-    groupStart.alignChildren = ["left", "center"];
-
-    var chkStartOverride = groupStart.add("checkbox", undefined, getLabel("labelStartOverride"));
-    chkStartOverride.helpTip = getLabel("tipStartOverride");
-    var startInput = groupStart.add("edittext", undefined, __baseTokensSnapshot[targetIndex]);
-    startInput.characters = 6;
-    startInput.helpTip = getLabel("tipStartValue");
-    startInput.enabled = false;
-
-    function onTargetIndexChanged(newIndex) {
-        targetIndex = (targetIndices && targetIndices.length > 0) ? targetIndices[newIndex] : newIndex;
-
-        var raw = __baseTokensSnapshot[targetIndex];
-        targetLength = String(raw).length;
-
-        startInput.text = String(raw);
-        startInput.enabled = chkStartOverride.value;
-
-        applyStartNumberToOriginal();
-        updatePreview();
-    }
-
-    for (var radioIndex = 0; radioIndex < rbTargets.length; radioIndex++) {
-        (function (idx) {
-            rbTargets[idx].onClick = function () { onTargetIndexChanged(idx); };
-        })(radioIndex);
-    }
-
-    // チェックONのときだけ入力可能 / Enable only when checked
-    chkStartOverride.onClick = function () {
-        startInput.enabled = chkStartOverride.value;
-        applyStartNumberToOriginal();
-        updatePreview();
-    };
-
-    // ゼロ埋め / Zero pad (default ON)
-    var groupZeroPad = mainGroup.add("group");
-    groupZeroPad.orientation = "row";
-    groupZeroPad.alignChildren = ["left", "center"];
-
-    var chkZeroPad = groupZeroPad.add("checkbox", undefined, getLabel("labelZeroPad"));
-    chkZeroPad.helpTip = getLabel("tipZeroPad");
-    chkZeroPad.value = true;
-    chkZeroPad.onClick = function () {
-        applyStartNumberToOriginal();
-        updatePreview();
-    };
-
-    // 確定時にテキストを結合 / Merge text on OK (default OFF)
-    var groupMergeText = mainGroup.add("group");
-    groupMergeText.orientation = "row";
-    groupMergeText.alignChildren = ["left", "center"];
-
-    var chkMergeTextOnOK = groupMergeText.add("checkbox", undefined, getLabel("labelMergeOnOK"));
-    chkMergeTextOnOK.helpTip = getLabel("tipMergeOnOK");
-    chkMergeTextOnOK.value = false;
-
-    /* ボタンエリア（OKを右寄せ） / Buttons (OK aligned right) */
-    var btnGroup = win.add("group");
-    btnGroup.orientation = "row";
-    btnGroup.alignment = "right";
-
-    var cancelBtn = btnGroup.add("button", undefined, getLabel("btnCancel"), { name: "cancel" });
-    var okBtn = btnGroup.add("button", undefined, getLabel("btnOK"), { name: "ok" });
-
-    // ↑↓ / Shift+↑↓ / Option+↑↓ で値を増減 / Change value by arrow keys
+    /**
+     * ↑↓キーで数値を増減できるようにする（Shiftで10、Optionで0.1）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {boolean} allowNegative - 負の値を許すか
+     * @param {function} onChanged - 値が変わったときに呼ぶ処理
+     * @param {boolean} forceInteger - 整数に丸めるか
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText, allowNegative, onChanged, forceInteger) {
-        if (!editText) return;
-        if (allowNegative == null) allowNegative = false;
-        if (forceInteger == null) forceInteger = false;
-
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
@@ -609,519 +895,216 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             if (isNaN(value)) return;
 
             var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
             if (keyboard.shiftKey) {
-                delta = 10;
-                if (event.keyName === "Up") value = Math.ceil((value + 1) / delta) * delta;
-                else value = Math.floor((value - 1) / delta) * delta;
+                if (event.keyName === "Up") value = Math.ceil((value + 1) / 10) * 10;
+                else value = Math.floor((value - 1) / 10) * 10;
             } else if (keyboard.altKey) {
-                delta = 0.1;
-                value += (event.keyName === "Up") ? delta : -delta;
+                value += (event.keyName === "Up") ? 0.1 : -0.1;
             } else {
                 value += (event.keyName === "Up") ? 1 : -1;
             }
 
-            // rounding
             if (!forceInteger && keyboard.altKey) value = Math.round(value * 10) / 10;
             else value = Math.round(value);
-
             if (!allowNegative && value < 0) value = 0;
 
             event.preventDefault();
             editText.text = value;
-
-            if (typeof onChanged === "function") onChanged();
+            onChanged();
         });
     }
 
-    // ↑↓キー / Arrow key support
-    changeValueByArrowKey(countInput, false, updatePreview, true);
-    changeValueByArrowKey(offsetInput, false, updatePreview, false);
-    changeValueByArrowKey(startInput, false, function () { applyStartNumberToOriginal(); updatePreview(); }, true);
+    /**
+     * 行の左端に置く項目名を作る
+     * @param {Group} row - 追加先の行
+     * @param {object} labelSet - 項目名のラベル定義
+     * @returns {StaticText} 作成した項目名
+     */
+    function addRowLabel(row, labelSet) {
+        var rowLabel = row.add("statictext", undefined, labelText(labelSet));
+        rowLabel.preferredSize.width = FIELD_LABEL_WIDTH;
+        rowLabel.justify = "right";
+        return rowLabel;
+    }
 
-    changeValueByArrowKey(stepInput, true, updatePreview, true);
+    /**
+     * 「項目名＋入力欄」の行を作る
+     * @param {Group} parent - 追加先のグループ
+     * @param {object} labelSet - 項目名のラベル定義
+     * @param {string} initialValue - 入力欄の初期値
+     * @param {number} fieldChars - 入力欄の文字数
+     * @param {object} tooltipSet - 入力欄のツールチップ定義
+     * @returns {{row: Group, input: EditText}} 作成した行と入力欄
+     */
+    function addFieldRow(parent, labelSet, initialValue, fieldChars, tooltipSet) {
+        var row = parent.add("group");
+        row.orientation = "row";
+        row.alignChildren = ["left", "center"];
+        addRowLabel(row, labelSet);
+
+        var input = row.add("edittext", undefined, initialValue);
+        input.characters = fieldChars;
+        input.helpTip = getLabel(tooltipSet);
+        return { row: row, input: input };
+    }
+
+    var sourceFontSizePt = sourceTextFrame.textRange.characterAttributes.size;
+    if (isNaN(sourceFontSizePt) || sourceFontSizePt <= 0) sourceFontSizePt = FALLBACK_FONT_SIZE_PT;
+
+    var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+    dialog.orientation = "column";
+    dialog.alignChildren = "fill";
+
+    var savedDialogPosition = readDialogPosition();
+    if (savedDialogPosition) dialog.location = savedDialogPosition;
+
+    var settingsGroup = dialog.add("group");
+    settingsGroup.orientation = "column";
+    settingsGroup.alignChildren = "left";
+
+    /* 複製数 / Copies */
+    var countInput = addFieldRow(settingsGroup, LABELS.fieldLabel.copyCount, String(DEFAULT_COPY_COUNT), NUMBER_FIELD_CHARS, LABELS.tooltip.copyCount).input;
+
+    /* 増分 / Step */
+    var stepInput = addFieldRow(settingsGroup, LABELS.fieldLabel.stepValue, String(DEFAULT_STEP), NUMBER_FIELD_CHARS, LABELS.tooltip.stepValue).input;
+
+    /* アキ（文字サイズに足す量） / Gap added on top of the font size */
+    var defaultGapPt = sourceFontSizePt * (DEFAULT_PITCH_RATIO - 1);
+    if (defaultGapPt < 0) defaultGapPt = 0;
+    var gapRow = addFieldRow(settingsGroup, LABELS.fieldLabel.gap, ptToUnitValue(defaultGapPt, textUnitInfo).toFixed(1), NUMBER_FIELD_CHARS, LABELS.tooltip.gap);
+    var gapInput = gapRow.input;
+    gapRow.row.add("statictext", undefined, textUnitInfo.label);
+
+    /* 増分対象（候補が複数あるときだけ作る） / Increment target (only when there is a choice) */
+    var targetRadios = [];
+    if (targetRadioLabels.length > 1) {
+        var targetRow = settingsGroup.add("group");
+        targetRow.orientation = "row";
+        targetRow.alignChildren = ["left", "center"];
+        addRowLabel(targetRow, LABELS.fieldLabel.incrementTarget);
+
+        var targetRadioGroup = targetRow.add("group");
+        targetRadioGroup.orientation = "row";
+        targetRadioGroup.alignChildren = ["left", "center"];
+
+        for (var i = 0; i < targetRadioLabels.length; i++) {
+            var targetRadio = targetRadioGroup.add("radiobutton", undefined, targetRadioLabels[i]);
+            targetRadio.value = (targetTokenIndices[i] === targetTokenIndex);
+            targetRadio.helpTip = getLabel(LABELS.tooltip.incrementTarget);
+            targetRadios.push(targetRadio);
+        }
+    }
+
+    /* 開始値 / Start value */
+    var startRow = settingsGroup.add("group");
+    startRow.orientation = "row";
+    startRow.alignChildren = ["left", "center"];
+
+    var startOverrideCheckbox = startRow.add("checkbox", undefined, getLabel(LABELS.checkbox.startOverride));
+    startOverrideCheckbox.helpTip = getLabel(LABELS.tooltip.startOverride);
+
+    var startValueInput = startRow.add("edittext", undefined, String(sourceTokens[targetTokenIndex]));
+    startValueInput.characters = START_FIELD_CHARS;
+    startValueInput.helpTip = getLabel(LABELS.tooltip.startValue);
+    startValueInput.enabled = false;
 
     /* ゼロ埋め / Zero padding */
-    function zeroPad(num, len) {
-        var str = String(num);
-        while (str.length < len) str = "0" + str;
-        return str;
+    var zeroPadRow = settingsGroup.add("group");
+    zeroPadRow.orientation = "row";
+    zeroPadRow.alignChildren = ["left", "center"];
+
+    var zeroPadCheckbox = zeroPadRow.add("checkbox", undefined, getLabel(LABELS.checkbox.zeroPad));
+    zeroPadCheckbox.helpTip = getLabel(LABELS.tooltip.zeroPad);
+    zeroPadCheckbox.value = DEFAULT_ZERO_PAD;
+
+    /* 確定時にテキストを結合 / Merge text on OK */
+    var mergeRow = settingsGroup.add("group");
+    mergeRow.orientation = "row";
+    mergeRow.alignChildren = ["left", "center"];
+
+    var mergeOnOKCheckbox = mergeRow.add("checkbox", undefined, getLabel(LABELS.checkbox.mergeOnOK));
+    mergeOnOKCheckbox.helpTip = getLabel(LABELS.tooltip.mergeOnOK);
+    mergeOnOKCheckbox.value = DEFAULT_MERGE_ON_OK;
+
+    /* ボタンエリア / Buttons */
+    var btnRowGroup = dialog.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.alignment = ["fill", "bottom"];
+
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+    var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+
+    // =========================================
+    // イベント / Event handlers
+    // =========================================
+
+    /**
+     * 増分対象のラジオが切り替わったときの処理
+     * @param {number} radioIndex - 選択されたラジオの位置
+     * @returns {void}
+     */
+    function onTargetChanged(radioIndex) {
+        targetTokenIndex = targetTokenIndices[radioIndex];
+        targetDigitLength = String(sourceTokens[targetTokenIndex]).length;
+        startValueInput.text = String(sourceTokens[targetTokenIndex]);
+        startValueInput.enabled = startOverrideCheckbox.value;
+        updatePreview();
     }
 
-    // 「ゼロ埋め」ON時の桁数（最大値に合わせて自動拡張） / Dynamic pad length
-    function getDynamicPadLengthFor(baseStartNum, baseLen) {
-        var len = baseLen;
-        try {
-            var dupCount = parseInt(countInput.text, 10);
-            if (isNaN(dupCount) || dupCount < 0) return len;
-
-            var stepVal = 1;
-            try { stepVal = getStepValue(); } catch (e) { stepVal = 1; }
-
-            var endVal = baseStartNum + (dupCount * stepVal);
-            var dynLen = Math.max(String(baseStartNum).length, String(endVal).length);
-            if (dynLen > len) len = dynLen;
-        } catch (e) { }
-        return len;
+    for (var j = 0; j < targetRadios.length; j++) {
+        (function (radioIndex) {
+            targetRadios[radioIndex].onClick = function () { onTargetChanged(radioIndex); };
+        })(j);
     }
 
-    function formatNumberByOption(num, baseStartNum, baseLen) {
-        try {
-            if (chkZeroPad && chkZeroPad.value) {
-                var dlen = getDynamicPadLengthFor(baseStartNum, baseLen);
-                return zeroPad(num, dlen);
-            }
-        } catch (e) { }
-        return String(num);
-    }
+    startOverrideCheckbox.onClick = function () {
+        startValueInput.enabled = startOverrideCheckbox.value;
+        updatePreview();
+    };
+    zeroPadCheckbox.onClick = updatePreview;
 
-    /* 英字（1文字のみ） / Single-letter alpha helpers */
-    function isAlphaToken(s) {
-        return /^[A-Za-z]$/.test(String(s));
-    }
-
-    function alphaToNumber(alphaStr) {
-        var up = String(alphaStr).toUpperCase();
-        if (!/^[A-Z]$/.test(up)) return null;
-        return up.charCodeAt(0) - 64; // A=1..Z=26
-    }
-
-    function numberToAlpha(n, isLower) {
-        var num = Math.floor(Number(n));
-        if (!isFinite(num) || num <= 0) num = 1;
-        // 1文字のみ：1..26 でロール
-        var v = ((num - 1) % 26 + 26) % 26; // safe
-        var s = String.fromCharCode(65 + v);
-        return isLower ? s.toLowerCase() : s;
-    }
-
-    /* 暦として正しい増減 + 曜日追従 / Calendar-correct increment + weekday follow */
-    function detectWeekdayInfo(text) {
-        var mm = text.match(/([（(［\[])[ 　\t]*(日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ 　\t]*([）)\]］])/);
-        if (!mm) return { has: false };
-        var token = mm[2];
-        var style = (token.length === 1) ? "ja" : "en";
-        return { has: true, style: style, left: mm[1], right: mm[3] };
-    }
-
-    var __weekdayInfo = detectWeekdayInfo(originalText);
-
-    function weekdayTokenByDate(d, style) {
-        var ja = ["日", "月", "火", "水", "木", "金", "土"];
-        var en = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        return (style === "en") ? en[d.getDay()] : ja[d.getDay()];
-    }
-
-    function applyWeekdayToText(text, d) {
-        if (!__weekdayInfo || !__weekdayInfo.has) return text;
-        var tok = weekdayTokenByDate(d, __weekdayInfo.style);
-        var re = /([（(［\[])[ 　\t]*(日|月|火|水|木|金|土|Sun|Mon|Tue|Wed|Thu|Fri|Sat)[ 　\t]*([）)\]］])/;
-        return text.replace(re, __weekdayInfo.left + tok + __weekdayInfo.right);
-    }
-
-    function buildBaseTokensArray() {
-        var arr = __baseTokensSnapshot.slice();
-        if (chkStartOverride.value) {
-            var raw = String(startInput.text);
-            if (tokenTypes[targetIndex] === "alpha1") {
-                if (isAlphaToken(raw)) arr[targetIndex] = raw;
-            } else {
-                var v = parseInt(raw, 10);
-                if (!isNaN(v)) arr[targetIndex] = String(v);
-            }
-        }
-        return arr;
-    }
-
-    function parseDateFromTokens(arr) {
-        if (arr.length < 3) return null;
-        var y = parseInt(arr[0], 10);
-        var mo = parseInt(arr[1], 10);
-        var da = parseInt(arr[2], 10);
-        if (isNaN(y) || isNaN(mo) || isNaN(da)) return null;
-
-        // 2桁年などは現在世紀で補完 / Normalize short year
-        var yLen = String(__baseTokensSnapshot[0]).length;
-        if (yLen < 4) {
-            var cy = (new Date()).getFullYear();
-            var base = Math.floor(cy / 100) * 100;
-            y = base + y;
-        }
-        return new Date(y, mo - 1, da);
-    }
-
-    function formatDateToTokens(d) {
-        // 表示桁は元の桁に合わせて固定（年は元の桁で下桁を使う） / Keep original digit lengths
-        var yLen = String(__baseTokensSnapshot[0]).length;
-        var mLen = String(__baseTokensSnapshot[1]).length;
-        var dLen = String(__baseTokensSnapshot[2]).length;
-
-        var y = d.getFullYear();
-        var mo = d.getMonth() + 1;
-        var da = d.getDate();
-
-        var ys = String(y);
-        if (yLen < ys.length) ys = ys.slice(ys.length - yLen);
-        if (yLen > ys.length) ys = zeroPad(ys, yLen);
-
-        var ms = String(mo);
-        var ds = String(da);
-        if (mLen > 1) ms = zeroPad(ms, mLen);
-        if (dLen > 1) ds = zeroPad(ds, dLen);
-
-        return [ys, ms, ds];
-    }
-
-    function addDateByUnit(baseDate, unitIdx, step) {
-        var d = new Date(baseDate.getTime());
-        if (unitIdx === 0) d.setFullYear(d.getFullYear() + step);
-        else if (unitIdx === 1) d.setMonth(d.getMonth() + step);
-        else d.setDate(d.getDate() + step);
-        return d;
-    }
-
-    function parseTimeFromTokens(arr) {
-        if (arr.length < 2) return null;
-        var h = parseInt(arr[0], 10);
-        var mi = parseInt(arr[1], 10);
-        if (isNaN(h) || isNaN(mi)) return null;
-        return {
-            h: h,
-            m: mi,
-            hLen: String(__baseTokensSnapshot[0]).length,
-            mLen: String(__baseTokensSnapshot[1]).length
-        };
-    }
-
-    function addTimeByUnit(baseTime, unitIdx, step) {
-        var total = baseTime.h * 60 + baseTime.m;
-        total += (unitIdx === 0) ? (step * 60) : step;
-        total = ((total % 1440) + 1440) % 1440;
-        return { h: Math.floor(total / 60), m: total % 60 };
-    }
-
-    function formatTimeToTokens(t) {
-        var hLen = String(__baseTokensSnapshot[0]).length;
-        var mLen = String(__baseTokensSnapshot[1]).length;
-        var hs = String(t.h);
-        var ms = String(t.m);
-        if (hLen > 1) hs = zeroPad(hs, hLen);
-        if (mLen > 1) ms = zeroPad(ms, mLen);
-        return [hs, ms];
-    }
-
-    /* 元テキスト更新 / Update original text */
-    function applyStartNumberToOriginal() {
-        var __posKeep = getTextFramePosition(originalObj);
-        var arr = __baseTokensSnapshot.slice();
-
-        // start override
-        if (chkStartOverride.value) {
-            var raw = String(startInput.text);
-            if (tokenTypes[targetIndex] === "alpha1") {
-                if (!isAlphaToken(raw)) { setTextFramePosition(originalObj, __posKeep); return; }
-                arr[targetIndex] = raw;
-            } else {
-                var v = parseInt(raw, 10);
-                if (isNaN(v)) { setTextFramePosition(originalObj, __posKeep); return; }
-                arr[targetIndex] = String(v);
-            }
-        }
-
-        // date
-        if (patternType === "date_ymd") {
-            var baseDate = parseDateFromTokens(arr);
-            if (!baseDate) {
-                try { originalObj.contents = rebuildText(arr); } catch (e) { }
-                setTextFramePosition(originalObj, __posKeep);
-                return;
-            }
-            var parts = formatDateToTokens(baseDate);
-            arr[0] = parts[0]; arr[1] = parts[1]; arr[2] = parts[2];
-            var t = rebuildText(arr);
-            t = applyWeekdayToText(t, baseDate);
-            try { originalObj.contents = t; } catch (e) { }
-            setTextFramePosition(originalObj, __posKeep);
-            return;
-        }
-
-        // time
-        if (patternType === "time_hm") {
-            var baseTime = parseTimeFromTokens(arr);
-            if (!baseTime) {
-                try { originalObj.contents = rebuildText(arr); } catch (e) { }
-                setTextFramePosition(originalObj, __posKeep);
-                return;
-            }
-            var total = baseTime.h * 60 + baseTime.m;
-            total = ((total % 1440) + 1440) % 1440;
-            var h = Math.floor(total / 60);
-            var mm = total % 60;
-            var parts2 = formatTimeToTokens({ h: h, m: mm });
-            arr[0] = parts2[0]; arr[1] = parts2[1];
-            try { originalObj.contents = rebuildText(arr); } catch (e) { }
-            setTextFramePosition(originalObj, __posKeep);
-            return;
-        }
-
-        // alpha1 (single letter)
-        if (tokenTypes[targetIndex] === "alpha1") {
-            var baseA = alphaToNumber(arr[targetIndex]);
-            if (baseA == null) baseA = 1;
-            var isLower = (String(arr[targetIndex]) === String(arr[targetIndex]).toLowerCase());
-            arr[targetIndex] = numberToAlpha(baseA, isLower);
-            try { originalObj.contents = rebuildText(arr); } catch (e) { }
-            setTextFramePosition(originalObj, __posKeep);
-            return;
-        }
-
-        // numeric
-        if (chkZeroPad && chkZeroPad.value) {
-            var base = parseInt(arr[targetIndex], 10);
-            if (isNaN(base)) base = 0;
-            arr[targetIndex] = formatNumberByOption(base, base, targetLength);
-            try { originalObj.contents = rebuildText(arr); } catch (e) { }
-            setTextFramePosition(originalObj, __posKeep);
-            return;
-        }
-
-        // zero pad OFF: restore unless start override
-        if (chkStartOverride.value) {
-            var base2 = parseInt(arr[targetIndex], 10);
-            if (isNaN(base2)) base2 = 0;
-            arr[targetIndex] = formatNumberByOption(base2, base2, targetLength);
-            try { originalObj.contents = rebuildText(arr); } catch (e) { }
-        } else {
-            try { originalObj.contents = __originalTextSnapshot; } catch (e) { }
-        }
-        setTextFramePosition(originalObj, __posKeep);
-    }
-
-    /* 生成処理 / Generate duplicates */
-    function generateNumbers() {
-        var dupCount = parseInt(countInput.text, 10);
-        var gapVal = parseFloat(offsetInput.text);
-        if (isNaN(dupCount) || isNaN(gapVal)) return [];
-
-        var createdItems = [];
-
-        var stepVal = getStepValue();
-
-        // UIの［間隔］は「実際の間隔 - 文字サイズ」→ 実際の間隔 = fontSize + gap
-        var gapPt = unitValueToPt(gapVal, __textUnit);
-        var offsetPt = fontSizePt + gapPt;
-
-        for (var i = 1; i <= dupCount; i++) {
-            var newObj = originalObj.duplicate();
-            newObj.top = originalObj.top - (offsetPt * i);
-            newObj.left = originalObj.left;
-
-            var baseArr = buildBaseTokensArray();
-            var arr = baseArr.slice();
-
-            if (patternType === "date_ymd") {
-                var baseDate = parseDateFromTokens(baseArr);
-                if (baseDate) {
-                    var di = addDateByUnit(baseDate, targetIndex, i * stepVal);
-                    var parts = formatDateToTokens(di);
-                    arr[0] = parts[0]; arr[1] = parts[1]; arr[2] = parts[2];
-                    var txt = rebuildText(arr);
-                    txt = applyWeekdayToText(txt, di);
-                    newObj.contents = txt;
-                } else {
-                    var baseStartNum = parseInt(baseArr[targetIndex], 10);
-                    if (isNaN(baseStartNum)) baseStartNum = 0;
-                    arr[targetIndex] = String(baseStartNum + (i * stepVal));
-                    newObj.contents = rebuildText(arr);
-                }
-            } else if (patternType === "time_hm") {
-                var bt = parseTimeFromTokens(baseArr);
-                if (bt) {
-                    var ti = addTimeByUnit(bt, targetIndex, i * stepVal);
-                    var parts2 = formatTimeToTokens(ti);
-                    arr[0] = parts2[0]; arr[1] = parts2[1];
-                    newObj.contents = rebuildText(arr);
-                } else {
-                    var baseStartNum2 = parseInt(baseArr[targetIndex], 10);
-                    if (isNaN(baseStartNum2)) baseStartNum2 = 0;
-                    arr[targetIndex] = String(baseStartNum2 + (i * stepVal));
-                    newObj.contents = rebuildText(arr);
-                }
-            } else {
-                // generic
-                if (tokenTypes[targetIndex] === "alpha1") {
-                    var baseAlphaStr = String(baseArr[targetIndex]);
-                    var baseA = alphaToNumber(baseAlphaStr);
-                    if (baseA == null) baseA = 1;
-
-                    // 開始番号の上書き（英字・1文字のみ）
-                    if (chkStartOverride.value) {
-                        var rawA = String(startInput.text);
-                        var tmpA = alphaToNumber(rawA);
-                        if (tmpA != null) baseA = tmpA;
-                    }
-
-                    var isLower = (baseAlphaStr === baseAlphaStr.toLowerCase());
-                    arr[targetIndex] = numberToAlpha(baseA + (i * stepVal), isLower);
-                    newObj.contents = rebuildText(arr);
-                } else {
-                    var baseStartNum3 = parseInt(baseArr[targetIndex], 10);
-                    if (isNaN(baseStartNum3)) baseStartNum3 = 0;
-                    var currentVal3 = baseStartNum3 + (i * stepVal);
-                    var currentNumStr = formatNumberByOption(currentVal3, baseStartNum3, targetLength);
-                    arr[targetIndex] = currentNumStr;
-                    newObj.contents = rebuildText(arr);
-                }
-            }
-
-            createdItems.push(newObj);
-        }
-        return createdItems;
-    }
-
-    /* OK確定時：各行を改行して1つのテキストに統合 / Merge lines into original on OK */
-    function mergeLinesIntoOriginalAndRemovePreviews() {
-        var __posKeep = getTextFramePosition(originalObj);
-        var lines = [];
-        try { lines.push(String(originalObj.contents)); } catch (e) { lines.push(""); }
-
-        for (var i = 0; i < previewObjects.length; i++) {
-            try { lines.push(String(previewObjects[i].contents)); } catch (e) { lines.push(""); }
-        }
-
-        try { originalObj.contents = lines.join("\r"); } catch (e) { }
-
-        // 行送り（leading）を設定 / Set leading
-        // 行送り = 文字サイズ(pt) + ［間隔］(text/units→pt)
-        try {
-            var fsPt = originalObj.textRange.characterAttributes.size;
-            if (isNaN(fsPt) || fsPt <= 0) fsPt = fontSizePt;
-
-            var gapVal = parseFloat(offsetInput.text);
-            if (isNaN(gapVal)) gapVal = 0;
-            var gapPt = unitValueToPt(gapVal, __textUnit);
-
-            var leadingPt = fsPt + gapPt;
-            if (!isNaN(leadingPt) && leadingPt > 0) {
-                try { originalObj.textRange.characterAttributes.autoLeading = false; } catch (e) { }
-                try { originalObj.textRange.characterAttributes.leading = leadingPt; } catch (e) { }
-            }
-        } catch (e) { }
-
-        // 統合後は複製したテキストを削除 / Remove merged duplicates
-        for (var j = previewObjects.length - 1; j >= 0; j--) {
-            try { previewObjects[j].remove(); } catch (e) { }
-        }
-        previewObjects = [];
-        setTextFramePosition(originalObj, __posKeep);
-    }
-
-    /* プレビュー削除 / Clear preview */
-    function clearPreview() {
-        var removed = 0;
-        try { removed = previewObjects ? previewObjects.length : 0; } catch (e) { removed = 0; }
-        for (var i = (previewObjects ? previewObjects.length - 1 : -1); i >= 0; i--) {
-            try { previewObjects[i].remove(); } catch (e) { }
-        }
-        previewObjects = [];
-        return removed;
-    }
-
-    /* プレビュー更新（常時ON） / Update preview (always on) */
-    function updatePreview() {
-        if (__suspendPreview) return;
-
-        // 元テキストを現在UI状態で更新（位置は内部で保持/復元）
-        applyStartNumberToOriginal();
-
-        // 開始番号が有効で不正値ならプレビューは出さず、既存プレビューだけ消す
-        if (chkStartOverride.value) {
-            var raw = String(startInput.text);
-            if (tokenTypes[targetIndex] === "alpha1") {
-                if (!isAlphaToken(raw)) {
-                    try { clearPreview(); } catch (e) { }
-                    app.redraw();
-                    return;
-                }
-            } else {
-                var t = parseInt(raw, 10);
-                if (isNaN(t)) {
-                    try { clearPreview(); } catch (e) { }
-                    app.redraw();
-                    return;
-                }
-            }
-        }
-
-        // プレビュー再生成（Undo を使わず remove ベースで安定化）
-        try { clearPreview(); } catch (e) { }
-        previewObjects = generateNumbers();
-        app.redraw();
-    }
-
-    /* イベントリスナー / Event listeners */
     countInput.onChanging = updatePreview;
-    offsetInput.onChanging = updatePreview;
+    gapInput.onChanging = updatePreview;
     stepInput.onChanging = updatePreview;
-    startInput.onChanging = function () { applyStartNumberToOriginal(); updatePreview(); };
+    startValueInput.onChanging = updatePreview;
 
-    cancelBtn.onClick = function () {
-        __suspendPreview = true;
-        var __posKeep = getTextFramePosition(originalObj);
-        try { clearPreview(); } catch (e) { }
-        try { originalObj.contents = __originalTextSnapshot; } catch (e) { }
-        setTextFramePosition(originalObj, __posKeep);
-        __suspendPreview = false;
-        try { __writeDialogPos(win); } catch (e) { }
-        win.close();
+    changeValueByArrowKey(countInput, false, updatePreview, true);
+    changeValueByArrowKey(stepInput, true, updatePreview, true);
+    changeValueByArrowKey(gapInput, false, updatePreview, false);
+    changeValueByArrowKey(startValueInput, false, updatePreview, true);
+
+    btnCancel.onClick = function () {
+        dialog.close();
     };
 
-    okBtn.onClick = function () {
-        __closingByOK = true;
-        __suspendPreview = true;
+    btnOK.onClick = function () {
+        closedWithOK = true;
+        applySettingsToSourceText();
 
-        var __posKeepOK = getTextFramePosition(originalObj);
+        /* プレビューがそのまま結果になる。空のときだけ作り直す / the preview is the result */
+        if (previewItems.length === 0) previewItems = createIncrementedCopies();
+        if (mergeOnOKCheckbox.value) mergeCopiesIntoSource();
 
-        // 確定：元テキストを現在UI状態で更新
-        __suspendPreview = false;
-        applyStartNumberToOriginal();
-        setTextFramePosition(originalObj, __posKeepOK);
-
-        // プレビューで見えているものをそのまま確定（既に生成済み）
-        // ※ 念のためプレビューが空なら生成する
-        if (!previewObjects || previewObjects.length === 0) {
-            previewObjects = generateNumbers();
-        }
-
-        // 確定時にテキストを結合
-        if (chkMergeTextOnOK && chkMergeTextOnOK.value) {
-            mergeLinesIntoOriginalAndRemovePreviews();
-        }
-
-        setTextFramePosition(originalObj, __posKeepOK);
-
-        // 管理対象外
-        previewObjects = [];
-
-        try { __writeDialogPos(win); } catch (e) { }
-        win.close();
+        /* 複製は確定したので、プレビューの管理対象から外す / keep the copies in the document */
+        previewItems = [];
+        dialog.close();
     };
 
-    // タイトルバーの×で閉じた場合もプレビューを消し、元テキストを復帰 / Close (X)
-    win.onClose = function () {
-        try { __writeDialogPos(win); } catch (e) { }
-        if (__closingByOK) return;
-        __suspendPreview = true;
-        var __posKeep = getTextFramePosition(originalObj);
-        try { clearPreview(); } catch (e) { }
-        try { originalObj.contents = __originalTextSnapshot; } catch (e) { }
-        setTextFramePosition(originalObj, __posKeep);
-        __suspendPreview = false;
+    /* タイトルバーの×で閉じたときも、プレビューを消して元のテキストに戻す / Also covers the close box */
+    dialog.onClose = function () {
+        saveDialogPosition(dialog);
+        if (closedWithOK) return;
+        restoreSourceText();
     };
 
-    /* ダイアログ表示 / Show dialog */
     updatePreview();
-    win.show();
+    dialog.show();
 
 })();
