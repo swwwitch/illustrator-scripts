@@ -5,15 +5,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-距離・角度・スケールを指定して、ロングシャドウを生成します。
-プレビュー付きのダイアログで設定でき、必要に応じて「パスの単純化」を実行できます。
+距離・角度・スケールを指定して、選択したオブジェクトからロングシャドウを生成します。
+プレビューを見ながらプリセットやオフセットで調整でき、生成後に「パスの単純化」を実行できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Generates a long shadow from a distance, an angle and a scale you specify.
-Everything is set in a dialog with a preview, and a Simplify Path pass can be run if needed.
+Generates a long shadow from the selected object using a distance, an angle and a scale.
+Presets and an offset are adjusted with a live preview, and a Simplify Path pass can be run afterwards.
 
 See the README for details.
 
@@ -23,24 +23,83 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "LongShadowMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md"; /* README (English) */
-var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0be484dab7fc"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 /**
+ * @author こじらせたクマー（オリジナルアイデア） / original idea
  * @discussion https://note.com/nice_lotus120/n/nf406fb3ae2b4
  */
 
 (function () {
 
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* 影の面を作るときに1セグメントを何点でサンプリングするか / Samples taken per curve segment */
+    var CURVE_SAMPLE_COUNT = 8;
+
+    /* 影の塗りの彩度（1=元のまま、0=無彩色）/ Saturation of the shadow fill (1 = as-is, 0 = gray) */
+    var SHADOW_SATURATION_FACTOR = 0.7;
+
+    /* オフセット初期値を「幅と高さの平均」の何分の1にするか / Divisor for the initial offset amount */
+    var OFFSET_SIZE_DIVISOR = 20;
+
+    /* プレビューの中間コピー（比率と不透明度）/ Intermediate preview copies (ratio and opacity) */
+    var PREVIEW_STEPS = [
+        { ratio: 1, opacity: 20 },
+        { ratio: 0.75, opacity: 40 },
+        { ratio: 0.5, opacity: 60 },
+        { ratio: 0.25, opacity: 80 }
+    ];
+
+    /* プリセット（スケール／角度）。距離は変更しない / Presets (scale / angle); distance is left untouched */
+    var PRESET_ITEMS = [
+        "100% /  45°",
+        "100% /  30°",
+        "100% /  60°",
+        " 50% /  90°",
+        "  1% /  90°",
+        "100% / 135°",
+        "100% / 120°",
+        "100% / 150°"
+    ];
+
+    /* 各スライダーの範囲 / Range of each slider */
+    var DISTANCE_SLIDER_MIN_RANGE = 500;
+    var ANGLE_MIN = -180;
+    var ANGLE_MAX = 180;
+    var SCALE_MIN = 1;
+    var SCALE_MAX = 300;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var ROW_LABEL_WIDTH = 60;     /* 行ラベルの幅 / Width of a row label */
+    var UNIT_LABEL_WIDTH = 24;    /* 単位ラベルの幅 / Width of a unit label */
+    var NUMBER_FIELD_CHARS = 4;   /* 数値欄の文字数 / Character width of a number field */
+    var SLIDER_WIDTH = 170;       /* スライダーの幅 / Width of a slider */
+    var PANEL_MARGINS = [15, 20, 15, 10];    /* パネルの余白 / Panel margins */
+    var SIMPLIFY_ROW_MARGINS = [0, 10, 0, 0]; /* 単純化行の余白 / Margins of the simplify row */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 実行環境のUI言語を返す
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
@@ -48,221 +107,210 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "ロングシャドウメーカー",
-            en: "Long Shadow Maker"
+        dialog: {
+            title: { ja: "ロングシャドウメーカー", en: "Long Shadow Maker" }
         },
-        openDocument: {
-            ja: "ドキュメントを開いてください。",
-            en: "Please open a document."
+        panel: {
+            settings: { ja: "設定", en: "Settings" },
+            offset: { ja: "オフセット", en: "Offset" }
         },
-        selectOneClosed: {
-            ja: "閉パス（単一パス／複合パス／グループ）を1つだけ選択してください。",
-            en: "Please select exactly one closed shape (path / compound path / group / text)."
+        fieldLabel: {
+            preset: { ja: "プリセット", en: "Preset" },
+            join: { ja: "形状", en: "Join" },
+            distance: { ja: "距離", en: "Distance" },
+            angle: { ja: "角度", en: "Angle" },
+            scale: { ja: "スケール", en: "Scale" }
         },
-        selectClosed: {
-            ja: "閉パスを選択してください。",
-            en: "Please select a closed path."
+        radio: {
+            joinMiter: { ja: "マイター", en: "Miter" },
+            joinRound: { ja: "ラウンド", en: "Round" },
+            joinBevel: { ja: "ベベル", en: "Bevel" }
         },
-        selectClosedGroup: {
-            ja: "閉パスのグループを選択してください。",
-            en: "Please select a group that consists of closed paths."
+        checkbox: {
+            simplify: { ja: "パスの単純化", en: "Simplify" },
+            preview: { ja: "プレビュー", en: "Preview" }
         },
-        cannotBuildFromGroup: {
-            ja: "グループから形状を作成できませんでした。閉パスのグループを選択してください。",
-            en: "Could not build a shape from the group. Please select a group of closed paths."
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
-        notGroupItem: {
-            ja: "GroupItem ではありません。",
-            en: "This is not a GroupItem."
+        tooltip: {
+            preset: {
+                ja: "スケールと角度の組み合わせをまとめて設定します。",
+                en: "Sets the scale and angle together."
+            },
+            offsetEnabled: {
+                ja: "影を作る前に、元の形を太らせます。",
+                en: "Grows the original shape before the shadow is built."
+            },
+            offsetValue: { ja: "太らせる量です。", en: "How much to grow the shape." },
+            join: {
+                ja: "太らせたときの角の処理です。",
+                en: "How corners are treated when the shape is grown."
+            },
+            distance: { ja: "影を伸ばす長さです。", en: "Length of the shadow." },
+            angle: { ja: "影が伸びる向きです。", en: "Direction the shadow extends." },
+            scale: {
+                ja: "影の先端の大きさです。100%で元の形と同じ大きさになります。",
+                en: "Size of the far end of the shadow. 100% matches the original shape."
+            },
+            simplify: {
+                ja: "影のアンカーポイントを減らして、軽いパスにします。",
+                en: "Reduces the number of anchor points in the shadow."
+            },
+            preview: {
+                ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
+                en: "Shows the result on the canvas. Cancel restores the original state."
+            }
         },
-        cannotGetMergedFromGroup: {
-            ja: "グループの合体結果を取得できませんでした。",
-            en: "Could not retrieve the merged result from the group."
-        },
-        groupMergeError: {
-            ja: "グループの合体中にエラーが発生しました: ",
-            en: "An error occurred while merging the group: "
-        },
-        notTextFrame: {
-            ja: "TextFrame ではありません。",
-            en: "This is not a TextFrame."
-        },
-        outlineFailed: {
-            ja: "アウトライン化に失敗しました。",
-            en: "Failed to create outlines."
-        },
-        textMergeError: {
-            ja: "テキストの合体中にエラーが発生しました: ",
-            en: "An error occurred while processing the text: "
-        },
-        preset: {
-            ja: "プリセット",
-            en: "Preset"
-        },
-        settings: {
-            ja: "設定",
-            en: "Settings"
-        },
-        offset: {
-            ja: "オフセット",
-            en: "Offset"
-        },
-        shape: {
-            ja: "形状",
-            en: "Join"
-        },
-        distance: {
-            ja: "距離",
-            en: "Distance"
-        },
-        angle: {
-            ja: "角度",
-            en: "Angle"
-        },
-        scale: {
-            ja: "スケール",
-            en: "Scale"
-        },
-        simplify: {
-            ja: "パスの単純化",
-            en: "Simplify"
-        },
-        preview: {
-            ja: "プレビュー",
-            en: "Preview"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        joinMiter: {
-            ja: "マイター",
-            en: "Miter"
-        },
-        joinRound: {
-            ja: "ラウンド",
-            en: "Round"
-        },
-        joinBevel: {
-            ja: "ベベル",
-            en: "Bevel"
-        },
-        tipPreset: {
-            ja: "スケールと角度の組み合わせをまとめて設定します。",
-            en: "Sets the scale and angle together."
-        },
-        tipOffsetEnabled: {
-            ja: "影を作る前に、元の形を太らせます。",
-            en: "Grows the original shape before the shadow is built."
-        },
-        tipOffsetValue: {
-            ja: "太らせる量です。",
-            en: "How much to grow the shape."
-        },
-        tipJoin: {
-            ja: "太らせたときの角の処理です。",
-            en: "How corners are treated when the shape is grown."
-        },
-        tipDistance: {
-            ja: "影を伸ばす長さです。",
-            en: "Length of the shadow."
-        },
-        tipAngle: {
-            ja: "影が伸びる向きです。",
-            en: "Direction the shadow extends."
-        },
-        tipScale: {
-            ja: "影の先端の大きさです。100%で元の形と同じ大きさになります。",
-            en: "Size of the far end of the shadow. 100% matches the original shape."
-        },
-        tipSimplify: {
-            ja: "影のアンカーポイントを減らして、軽いパスにします。",
-            en: "Reduces the number of anchor points in the shadow."
-        },
-        tipPreview: {
-            ja: "結果を画面で確認します。キャンセルすると元に戻ります。",
-            en: "Shows the result on the canvas. Cancel restores the original state."
+        alert: {
+            noDocument: {
+                ja: "ドキュメントを開いてください。",
+                en: "Please open a document."
+            },
+            selectSingleShape: {
+                ja: "閉パス（単一パス／複合パス／グループ）を1つだけ選択してください。",
+                en: "Please select exactly one closed shape (path / compound path / group / text)."
+            },
+            selectClosedPath: {
+                ja: "閉パスを選択してください。",
+                en: "Please select a closed path."
+            },
+            selectClosedGroup: {
+                ja: "閉パスのグループを選択してください。",
+                en: "Please select a group that consists of closed paths."
+            },
+            groupBuildFailed: {
+                ja: "グループから形状を作成できませんでした。閉パスのグループを選択してください。",
+                en: "Could not build a shape from the group. Please select a group of closed paths."
+            },
+            notGroupItem: { ja: "GroupItem ではありません。", en: "This is not a GroupItem." },
+            mergeResultMissing: {
+                ja: "グループの合体結果を取得できませんでした。",
+                en: "Could not retrieve the merged result from the group."
+            },
+            groupMergeError: {
+                ja: "グループの合体中にエラーが発生しました: ",
+                en: "An error occurred while merging the group: "
+            },
+            notTextFrame: { ja: "TextFrame ではありません。", en: "This is not a TextFrame." },
+            outlineFailed: { ja: "アウトライン化に失敗しました。", en: "Failed to create outlines." },
+            textMergeError: {
+                ja: "テキストの合体中にエラーが発生しました: ",
+                en: "An error occurred while processing the text: "
+            }
         }
     };
 
-    function getLabel(key) {
-        var entry = LABELS[key];
-        if (!entry) return key;
-        return entry[uiLang] || entry.en || key;
+    /**
+     * ドット区切りのキーからUI言語のラベルを取得する
+     * @param {string} labelPath - "dialog.title" のようなドット区切りのキー
+     * @returns {string} 表示言語のテキスト（見つからない場合は labelPath をそのまま返す）
+     */
+    function getLabel(labelPath) {
+        var pathKeys = String(labelPath).split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathKeys.length; i++) {
+            if (!labelNode) return labelPath;
+            labelNode = labelNode[pathKeys[i]];
+        }
+        if (!labelNode) return labelPath;
+        return labelNode[uiLang] || labelNode.en || labelPath;
     }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
 
     (function () {
         if (app.documents.length === 0) {
-            alert(getLabel('openDocument'));
+            alert(getLabel('alert.noDocument'));
             return;
         }
 
         var doc = app.activeDocument;
         var currentSelection = doc.selection;
 
-        function isSupportedItem(it) {
-            return it && (
-                it.typename === "PathItem" ||
-                it.typename === "CompoundPathItem" ||
-                it.typename === "GroupItem" ||
-                it.typename === "TextFrame"
+        /* 一時ベースの残骸を回収するためのタグ名 / Name tag used to sweep temporary base items */
+        var TEMP_BASE_NAME = "__LongShadowTempBase__";
+
+        // -----------------------------------------
+        // 選択オブジェクトの検証 / Selection checks
+        // -----------------------------------------
+
+        /**
+         * ロングシャドウの元にできる種類かどうかを判定する
+         * @param {PageItem} pageItem - 判定対象
+         * @returns {boolean} 対応している種類なら true
+         */
+        function isSupportedSourceItem(pageItem) {
+            return !!pageItem && (
+                pageItem.typename === "PathItem" ||
+                pageItem.typename === "CompoundPathItem" ||
+                pageItem.typename === "GroupItem" ||
+                pageItem.typename === "TextFrame"
             );
         }
 
-        function getSubPaths(it) {
-            if (!it) return [];
+        /**
+         * PathItem / CompoundPathItem / GroupItem から PathItem を再帰的に集める
+         * @param {PageItem} pageItem - 走査対象
+         * @returns {PathItem[]} 見つかった PathItem の配列
+         */
+        function collectSubPaths(pageItem) {
+            var subPaths = [];
+            if (!pageItem) return subPaths;
 
-            if (it.typename === "PathItem") return [it];
-
-            if (it.typename === "CompoundPathItem") {
-                var arr = [];
-                try {
-                    for (var i = 0; i < it.pathItems.length; i++) arr.push(it.pathItems[i]);
-                } catch (e) { }
-                return arr;
+            if (pageItem.typename === "PathItem") {
+                subPaths.push(pageItem);
+                return subPaths;
             }
 
-            // GroupItem: 中にある PathItem / CompoundPathItem を再帰的に集める
-            if (it.typename === "GroupItem") {
-                var out = [];
-
-                function collectFrom(container) {
-                    if (!container) return;
-                    var items = null;
-                    try { items = container.pageItems; } catch (e) { items = null; }
-                    if (!items) return;
-
-                    for (var j = 0; j < items.length; j++) {
-                        var child = items[j];
-                        if (!child) continue;
-
-                        if (child.typename === "PathItem") {
-                            out.push(child);
-                        } else if (child.typename === "CompoundPathItem") {
-                            try {
-                                for (var k = 0; k < child.pathItems.length; k++) out.push(child.pathItems[k]);
-                            } catch (e) { }
-                        } else if (child.typename === "GroupItem") {
-                            collectFrom(child);
-                        }
-                    }
-                }
-
-                collectFrom(it);
-                return out;
+            if (pageItem.typename === "CompoundPathItem") {
+                for (var i = 0; i < pageItem.pathItems.length; i++) subPaths.push(pageItem.pathItems[i]);
+                return subPaths;
             }
 
-            return [];
+            if (pageItem.typename === "GroupItem") {
+                collectSubPathsFromContainer(pageItem, subPaths);
+                return subPaths;
+            }
+
+            return subPaths;
         }
 
-        function isAllClosed(subPaths) {
+        /**
+         * グループの中身をたどって PathItem を集める
+         * @param {GroupItem} container - 走査対象のグループ
+         * @param {PathItem[]} collected - 集めた PathItem を追加する配列
+         * @returns {void}
+         */
+        function collectSubPathsFromContainer(container, collected) {
+            if (!container) return;
+
+            for (var i = 0; i < container.pageItems.length; i++) {
+                var childItem = container.pageItems[i];
+                if (!childItem) continue;
+
+                if (childItem.typename === "PathItem") {
+                    collected.push(childItem);
+                } else if (childItem.typename === "CompoundPathItem") {
+                    for (var j = 0; j < childItem.pathItems.length; j++) collected.push(childItem.pathItems[j]);
+                } else if (childItem.typename === "GroupItem") {
+                    collectSubPathsFromContainer(childItem, collected);
+                }
+            }
+        }
+
+        /**
+         * 渡されたパスがすべて閉じているかを判定する
+         * @param {PathItem[]} subPaths - 判定対象のパス
+         * @returns {boolean} 1つ以上あり、すべて閉じていれば true
+         */
+        function areAllPathsClosed(subPaths) {
             if (!subPaths || subPaths.length === 0) return false;
             for (var i = 0; i < subPaths.length; i++) {
+                /* 生成直後のパスは closed を読めないことがある / closed may not be readable yet */
                 try {
                     if (!subPaths[i].closed) return false;
                 } catch (e) {
@@ -272,803 +320,419 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             return true;
         }
 
-        if (currentSelection.length !== 1 || !isSupportedItem(currentSelection[0])) {
-            alert(getLabel('selectOneClosed'));
+        if (currentSelection.length !== 1 || !isSupportedSourceItem(currentSelection[0])) {
+            alert(getLabel('alert.selectSingleShape'));
             return;
         }
 
-        var originalPath = currentSelection[0];
-        var originalSubPaths = getSubPaths(originalPath);
+        var sourceItem = currentSelection[0];
+        var sourceSubPaths = collectSubPaths(sourceItem);
 
-        // --- 一時ベース（②）残骸回収用タグ ---
-        var TEMP_BASE_NAME = "__LongShadowTempBase__";
-
-        function tagTempBaseDeep(it) {
-            if (!it) return;
-            try { it.name = TEMP_BASE_NAME; } catch (e) { }
-            try {
-                if (it.typename === 'GroupItem') {
-                    for (var i = 0; i < it.pageItems.length; i++) tagTempBaseDeep(it.pageItems[i]);
-                } else if (it.typename === 'CompoundPathItem') {
-                    for (var j = 0; j < it.pathItems.length; j++) {
-                        try { it.pathItems[j].name = TEMP_BASE_NAME; } catch (e) { }
-                    }
-                }
-            } catch (e) { }
-        }
-
-        function removeAllTempBasesByName() {
-            // --- 一時レイヤー（__LongShadowTempBase__）の削除 ---
-            function removeTempLayerByName() {
-                try {
-                    var layers = doc.layers;
-                    for (var i = layers.length - 1; i >= 0; i--) {
-                        try {
-                            var lyr = layers[i];
-                            if (!lyr) continue;
-                            var nm = '';
-                            try { nm = lyr.name; } catch (e) { nm = ''; }
-                            if (nm === TEMP_BASE_NAME) {
-                                // unlock/visible before remove
-                                try { lyr.locked = false; } catch (e) { }
-                                try {
-                                    lyr.visible = true;
-                                } catch (e) {}
-                                try { lyr.remove(); } catch (e) { }
-                            }
-                        } catch (e) { }
-                    }
-                } catch (e) { }
-            }
-            function unlockChain(it) {
-                try {
-                    // unlock self
-                    try { it.locked = false; } catch (e) { }
-                    try { it.hidden = false; } catch (e) { }
-
-                    // unlock parent chain (GroupItem/Layer)
-                    var p = null;
-                    try { p = it.parent; } catch (e) { p = null; }
-                    var guard = 0;
-                    while (p && guard++ < 50) {
-                        try {
-                            if (p.typename === 'Layer') {
-                                try { p.locked = false; } catch (e) { }
-                                try {
-                                    p.visible = true;
-                                } catch (e) {}
-                                break;
-                            }
-                            if (p.typename === 'GroupItem') {
-                                try { p.locked = false; } catch (e) { }
-                                try { p.hidden = false; } catch (e) { }
-                            }
-                            try { p = p.parent; } catch (e) { p = null; }
-                        } catch (e) {
-                            break;
-                        }
-                    }
-                } catch (e) { }
-            }
-
-            function forceRemove(it) {
-                try { if (!it || !it.isValid) return; } catch (e) { return; }
-                // first: unlock chain
-                try { unlockChain(it); } catch (e) { }
-                // try direct remove
-                try { it.remove(); return; } catch (e) { }
-                // fallback: select + clear
-                try {
-                    doc.selection = null;
-                    it.selected = true;
-                    app.executeMenuCommand('clear');
-                } catch (e) { }
-                try { doc.selection = null; } catch (e) { }
-                // last try
-                try { if (it && it.isValid) it.remove(); } catch (e) { }
-            }
-
-            try {
-                // Prefer groupItems scan (temp base is usually a group)
-                var gi = doc.groupItems;
-                for (var i = gi.length - 1; i >= 0; i--) {
-                    try {
-                        var g = gi[i];
-                        if (!g || !g.isValid) continue;
-                        var nm = '';
-                        try { nm = g.name; } catch (e) { nm = ''; }
-                        if (nm === TEMP_BASE_NAME) {
-                            forceRemove(g);
-                        }
-                    } catch (e) { }
-                }
-            } catch (e) { }
-
-            // Also sweep remaining pageItems (covers non-group leftovers)
-            try {
-                var items = doc.pageItems;
-                for (var j = items.length - 1; j >= 0; j--) {
-                    try {
-                        var it = items[j];
-                        if (!it || !it.isValid) continue;
-                        var nm2 = '';
-                        try { nm2 = it.name; } catch (e) { nm2 = ''; }
-                        if (nm2 === TEMP_BASE_NAME) {
-                            forceRemove(it);
-                        }
-                    } catch (e) { }
-                }
-            } catch (e) { }
-        }
-
-        // Path/Compound はここで閉パス検証。Group/Text は実行時に一時パスへ変換して検証する。
-        if (originalPath.typename !== "GroupItem" && originalPath.typename !== "TextFrame") {
-            if (!isAllClosed(originalSubPaths)) {
-                alert(getLabel('selectClosed'));
+        /* Path/Compound はここで閉パス検証。Group/Text は実行時に一時パスへ変換して検証する
+           Paths and compound paths are checked here; groups and text are checked after conversion */
+        if (sourceItem.typename !== "GroupItem" && sourceItem.typename !== "TextFrame") {
+            if (!areAllPathsClosed(sourceSubPaths)) {
+                alert(getLabel('alert.selectClosedPath'));
                 return;
             }
         }
-        /* グループの一時合体 / Build temporary merged item from GroupItem */
+
+        // -----------------------------------------
+        // 一時ベースの後始末 / Temporary base cleanup
+        // -----------------------------------------
+
+        /**
+         * 一時ベースとその子要素に名前タグを付け外しする
+         * @param {PageItem} pageItem - 対象アイテム
+         * @param {string} tagName - 付ける名前（空文字でタグを外す）
+         * @returns {void}
+         */
+        function setTempBaseTag(pageItem, tagName) {
+            if (!pageItem) return;
+            /* 名前を持たない種類のアイテムがある / some item types reject a name */
+            try { pageItem.name = tagName; } catch (e) { }
+
+            if (pageItem.typename === 'GroupItem') {
+                for (var i = 0; i < pageItem.pageItems.length; i++) setTempBaseTag(pageItem.pageItems[i], tagName);
+            } else if (pageItem.typename === 'CompoundPathItem') {
+                for (var j = 0; j < pageItem.pathItems.length; j++) {
+                    try { pageItem.pathItems[j].name = tagName; } catch (e) { }
+                }
+            }
+        }
+
+        /**
+         * アイテム自身と親（グループ／レイヤー）のロックと非表示を解除する
+         * @param {PageItem} pageItem - 対象アイテム
+         * @returns {void}
+         */
+        function unlockItemAndAncestors(pageItem) {
+            try { pageItem.locked = false; } catch (e) { }
+            try { pageItem.hidden = false; } catch (e) { }
+
+            var parent = null;
+            try { parent = pageItem.parent; } catch (e) { parent = null; }
+
+            var guard = 0;
+            while (parent && guard++ < 50) {
+                if (parent.typename === 'Layer') {
+                    try { parent.locked = false; } catch (e) { }
+                    try { parent.visible = true; } catch (e) { }
+                    break;
+                }
+                if (parent.typename === 'GroupItem') {
+                    try { parent.locked = false; } catch (e) { }
+                    try { parent.hidden = false; } catch (e) { }
+                }
+                try { parent = parent.parent; } catch (e) { parent = null; }
+            }
+        }
+
+        /**
+         * ロックや非表示を解除したうえでアイテムを確実に削除する
+         * @param {PageItem} pageItem - 削除するアイテム
+         * @returns {void}
+         */
+        function forceRemoveItem(pageItem) {
+            try { if (!pageItem || !pageItem.isValid) return; } catch (e) { return; }
+
+            unlockItemAndAncestors(pageItem);
+
+            /* まず通常の削除 / first try a plain remove */
+            try { pageItem.remove(); return; } catch (e) { }
+
+            /* 削除できないときは選択してカット / fall back to selecting and clearing */
+            try {
+                doc.selection = null;
+                pageItem.selected = true;
+                app.executeMenuCommand('clear');
+            } catch (e) { }
+            doc.selection = null;
+
+            try { if (pageItem && pageItem.isValid) pageItem.remove(); } catch (e) { }
+        }
+
+        /**
+         * ドキュメント内に残った一時ベース（名前タグ付き）をすべて削除する
+         * @returns {void}
+         */
+        function removeTempBaseItemsByName() {
+            /* 一時ベースはグループであることが多いので先に走査 / temp bases are usually groups */
+            var groups = doc.groupItems;
+            for (var i = groups.length - 1; i >= 0; i--) {
+                if (readItemName(groups[i]) === TEMP_BASE_NAME) forceRemoveItem(groups[i]);
+            }
+
+            /* 取りこぼし（グループ以外）を掃除 / sweep the non-group leftovers */
+            var items = doc.pageItems;
+            for (var j = items.length - 1; j >= 0; j--) {
+                if (readItemName(items[j]) === TEMP_BASE_NAME) forceRemoveItem(items[j]);
+            }
+        }
+
+        /**
+         * アイテム名を安全に読み取る
+         * @param {PageItem} pageItem - 対象アイテム
+         * @returns {string} 読み取れない場合は空文字
+         */
+        function readItemName(pageItem) {
+            try {
+                if (!pageItem || !pageItem.isValid) return '';
+                return pageItem.name;
+            } catch (e) {
+                return '';
+            }
+        }
+
+        // -----------------------------------------
+        // 一時ベースの生成 / Building the temporary base
+        // -----------------------------------------
+
+        /**
+         * 一時生成物を控えて、あとでまとめて削除するための入れ物を作る
+         * @returns {{track: function, disposeAll: function}} 追跡用と削除用の関数
+         */
+        function createTempItemTracker() {
+            var temporaryItems = [];
+
+            return {
+                track: function (pageItem) {
+                    if (pageItem) temporaryItems.push(pageItem);
+                    return pageItem;
+                },
+                disposeAll: function () {
+                    doc.selection = null;
+                    for (var i = temporaryItems.length - 1; i >= 0; i--) {
+                        try {
+                            if (temporaryItems[i] && temporaryItems[i].isValid) temporaryItems[i].remove();
+                        } catch (e) { }
+                    }
+                }
+            };
+        }
+
+        /* 複製を合体して単一のパスにする / Merge the duplicate down to a single path */
         function executePathfinderAddAndExpand() {
             app.executeMenuCommand('Live Pathfinder Add');
             app.executeMenuCommand('expandStyle');
         }
 
-        // GroupItem を「一時的に」単一パス/複合パスへ変換して返す（元グループは残す）
-        // 戻り値: { item: PageItem, cleanup: Function, ok: Boolean, message: String }
+        /**
+         * GroupItem を一時的に単一パス／複合パスへ合体して返す（元グループは残す）
+         * @param {GroupItem} groupItem - 合体するグループ
+         * @returns {{item: PageItem, cleanup: function, ok: boolean, message: string}} 合体結果
+         */
         function buildMergedItemFromGroup(groupItem) {
-            var res = { item: null, cleanup: function () { }, ok: false, message: "" };
+            var result = { item: null, cleanup: function () { }, ok: false, message: "" };
 
             if (!groupItem || groupItem.typename !== "GroupItem") {
-                res.message = getLabel('notGroupItem');
-                return res;
+                result.message = getLabel('alert.notGroupItem');
+                return result;
             }
 
-            var tempDup = null;
-            var merged = null;
-            var trash = []; // 一時生成物を全部ここに入れて最後に削除する
-
-            res.cleanup = function () {
-                try { doc.selection = null; } catch (e) { }
-                try {
-                    for (var ti = trash.length - 1; ti >= 0; ti--) {
-                        try {
-                            var it = trash[ti];
-                            if (it && it.isValid) it.remove();
-                        } catch (e) { }
-                    }
-                } catch (e) { }
-
-                // 念のため
-                try { if (merged && merged.isValid) merged.remove(); } catch (e) { }
-                try { if (tempDup && tempDup.isValid) tempDup.remove(); } catch (e) { }
-            };
+            var tracker = createTempItemTracker();
+            result.cleanup = tracker.disposeAll;
 
             try {
-                tempDup = groupItem.duplicate();
-                try { trash.push(tempDup); } catch (e) { }
+                var duplicatedGroup = tracker.track(groupItem.duplicate());
 
-                // duplicate を選択して PathFinder → Expand
                 doc.selection = null;
-                tempDup.selected = true;
+                duplicatedGroup.selected = true;
                 executePathfinderAddAndExpand();
 
-                var items = doc.selection;
+                var expandedItems = doc.selection;
                 doc.selection = null;
-                try {
-                    if (items && items.length) {
-                        for (var t0 = 0; t0 < items.length; t0++) trash.push(items[t0]);
-                    }
-                } catch (e) { }
+                trackAll(tracker, expandedItems);
 
-                if (!items || items.length === 0) {
-                    res.message = getLabel('cannotGetMergedFromGroup');
-                    return res;
+                if (!expandedItems || expandedItems.length === 0) {
+                    result.message = getLabel('alert.mergeResultMissing');
+                    return result;
                 }
 
-                if (items.length === 1) {
-                    merged = items[0];
-                } else {
-                    // 複数残った場合は一度グループ化して再合体
-                    var g = doc.groupItems.add();
-                    try { trash.push(g); } catch (e) { }
-                    for (var i = 0; i < items.length; i++) {
-                        try { items[i].move(g, ElementPlacement.PLACEATEND); } catch (e) { }
+                var mergedItem = expandedItems[0];
+
+                /* 複数残った場合は一度グループ化して再合体 / regroup and merge again when several remain */
+                if (expandedItems.length > 1) {
+                    var regrouped = tracker.track(doc.groupItems.add());
+                    for (var i = 0; i < expandedItems.length; i++) {
+                        try { expandedItems[i].move(regrouped, ElementPlacement.PLACEATEND); } catch (e) { }
                     }
                     doc.selection = null;
-                    g.selected = true;
+                    regrouped.selected = true;
                     executePathfinderAddAndExpand();
 
-                    var items2 = doc.selection;
+                    var remergedItems = doc.selection;
                     doc.selection = null;
-                    try {
-                        if (items2 && items2.length) {
-                            for (var t1 = 0; t1 < items2.length; t1++) trash.push(items2[t1]);
-                        }
-                    } catch (e) { }
+                    trackAll(tracker, remergedItems);
 
-                    if (items2 && items2.length === 1) {
-                        merged = items2[0];
-                    } else {
-                        merged = (items2 && items2.length > 0) ? items2[0] : items[0];
-                    }
+                    if (remergedItems && remergedItems.length > 0) mergedItem = remergedItems[0];
                 }
 
-                try { if (merged) trash.push(merged); } catch (e) { }
-                // 一時ベース（②）にタグ付け（子要素まで）
-                try { tagTempBaseDeep(merged); } catch (e) { }
-                res.item = merged;
-                res.ok = true;
-                return res;
+                tracker.track(mergedItem);
+                setTempBaseTag(mergedItem, TEMP_BASE_NAME);
+                result.item = mergedItem;
+                result.ok = true;
+                return result;
 
             } catch (e) {
-                res.message = getLabel('groupMergeError') + e;
-                return res;
+                result.message = getLabel('alert.groupMergeError') + e;
+                return result;
             }
         }
-        // TextFrame を「一時的に」アウトライン化→合体して単一パス/複合パスへ変換して返す（元テキストは残す）
-        // 戻り値: { item: PageItem, cleanup: Function, ok: Boolean, message: String }
+
+        /**
+         * 選択結果の配列をまとめて一時生成物として控える
+         * @param {{track: function}} tracker - 一時生成物の入れ物
+         * @param {PageItem[]} items - 控えるアイテム（null 可）
+         * @returns {void}
+         */
+        function trackAll(tracker, items) {
+            if (!items || !items.length) return;
+            for (var i = 0; i < items.length; i++) tracker.track(items[i]);
+        }
+
+        /**
+         * TextFrame を一時的にアウトライン化して返す（元テキストは残す）
+         * @param {TextFrame} textFrame - アウトライン化するテキスト
+         * @returns {{item: PageItem, cleanup: function, ok: boolean, message: string}} アウトライン化結果
+         */
         function buildMergedItemFromText(textFrame) {
-            var res = { item: null, cleanup: function () { }, ok: false, message: "" };
+            var result = { item: null, cleanup: function () { }, ok: false, message: "" };
 
             if (!textFrame || textFrame.typename !== "TextFrame") {
-                res.message = getLabel('notTextFrame');
-                return res;
+                result.message = getLabel('alert.notTextFrame');
+                return result;
             }
 
-            var tempDup = null;
-            var merged = null;
-            var trash = [];
-
-            res.cleanup = function () {
-                try { doc.selection = null; } catch (e) { }
-                try {
-                    for (var ti = trash.length - 1; ti >= 0; ti--) {
-                        try {
-                            var it = trash[ti];
-                            if (it && it.isValid) it.remove();
-                        } catch (e) { }
-                    }
-                } catch (e) { }
-                try { if (merged && merged.isValid) merged.remove(); } catch (e) { }
-                try { if (tempDup && tempDup.isValid) tempDup.remove(); } catch (e) { }
-            };
+            var tracker = createTempItemTracker();
+            result.cleanup = tracker.disposeAll;
 
             try {
-                // ① テキストを複製
-                tempDup = textFrame.duplicate();
-                try { trash.push(tempDup); } catch (e) { }
+                /* 複製に対してアウトライン化するので、オリジナルは残る
+                   createOutline() consumes the duplicate, so the original survives */
+                var duplicatedText = tracker.track(textFrame.duplicate());
 
-                // ② アウトライン化（v15方式：TextFrame#createOutline を使用）
-                // createOutline() は元の TextFrame を削除して GroupItem/CompoundPathItem を返す
-                // ここでは複製に対して実行するので、オリジナルは残る
-                var outlined = null;
-                try {
-                    if (tempDup && typeof tempDup.createOutline === 'function') {
-                        outlined = tempDup.createOutline();
-                    }
-                } catch (eOutline) {
-                    outlined = null;
+                var outlinedItem = null;
+                try { outlinedItem = duplicatedText.createOutline(); } catch (e) { outlinedItem = null; }
+
+                if (!outlinedItem) {
+                    result.message = getLabel('alert.outlineFailed');
+                    return result;
                 }
 
-                // createOutline() 成功時は tempDup が消えるので trash から外す必要はない（cleanup側でisValidを見て消す）
+                /* 控えるのはアウトライン化で生成されたルートだけにする。子要素まで控えると、
+                   後段で移動・合体された要素を巻き込んで生成済みの影が消えることがある
+                   Track only the outlined root; tracking its children would delete the finished shadow */
+                tracker.track(outlinedItem);
 
-                if (!outlined) {
-                    res.message = getLabel('outlineFailed');
-                    return res;
-                }
+                /* 選択状態が残ると後段の処理に巻き込まれるので解除 / clear the selection before moving on */
+                doc.selection = null;
+                try { outlinedItem.selected = false; } catch (e) { }
 
-                // cleanup 対象は「アウトライン化で生成されたルート」だけにする。
-                // 子要素まで個別に trash に積むと、後段処理で移動・合体された要素を誤って削除して
-                // 生成済みのロングシャドウが消えることがあるため。
-                try { trash.push(outlined); } catch (e) { }
-
-                // 選択状態が残ると後段の処理に巻き込まれるので解除
-                try { doc.selection = null; } catch (e) { }
-                try { outlined.selected = false; } catch (e) { }
-
-                merged = outlined;
-                // 一時ベース（②）にタグ付け（子要素まで）
-                try { tagTempBaseDeep(merged); } catch (e) { }
-                res.item = merged;
-                res.ok = true;
-                return res;
+                setTempBaseTag(outlinedItem, TEMP_BASE_NAME);
+                result.item = outlinedItem;
+                result.ok = true;
+                return result;
 
             } catch (e) {
-                res.message = getLabel('textMergeError') + e;
-                return res;
+                result.message = getLabel('alert.textMergeError') + e;
+                return result;
             }
         }
 
-        var isPreviewing = false;
+        // -----------------------------------------
+        // 色処理 / Color utilities
+        // -----------------------------------------
 
-        var __applyOffsetNow = true; // プレビュー時は false にしてオフセットを無視
-
-        /* ダイアログ作成 / Build dialog */
-        var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = "fill";
-
-        // プリセット（スケール＋角度） ※距離は含めない（ダイアログ最上部）
-        // 外側グループで左右中央に配置し、内側グループにラベル＋プルダウンをまとめる
-        var grpPresetWrap = dlg.add("group");
-        grpPresetWrap.orientation = "row";
-        grpPresetWrap.alignChildren = ["center", "center"];
-        grpPresetWrap.alignment = "center";
-
-        var grpPreset = grpPresetWrap.add("group");
-        grpPreset.orientation = "row";
-        grpPreset.alignChildren = ["left", "center"];
-
-        grpPreset.add("statictext", undefined, getLabel('preset'));
-
-        var ddPreset = grpPreset.add("dropdownlist", undefined, [
-            "100% /  45°",
-            "100% /  30°",
-            "100% /  60°",
-            " 50% /  90°",
-            "  1% /  90°",
-            "100% / 135°",
-            "100% / 120°",
-            "100% / 150°"
-        ]);
-        ddPreset.selection = 0; // デフォルト：45° / 100%
-
-        // --- 1カラム（プリセットは貫通） ---
-        var cols = dlg.add("group");
-        ddPreset.helpTip = getLabel('tipPreset');
-        cols.orientation = "column";
-        cols.alignChildren = ["fill", "top"];
-        cols.alignment = "fill";
-
-        // 左：現状（設定）
-        var mainGroup = cols.add("panel", undefined, getLabel('settings'));
-        mainGroup.orientation = "column";
-        mainGroup.alignChildren = "left";
-        mainGroup.margins = [15, 20, 15, 10];
-
-        // 右：オフセット（中身は後で実装）
-        var offsetPanel = cols.add("panel", undefined, getLabel('offset'));
-        offsetPanel.orientation = "column";
-        offsetPanel.alignChildren = "left";
-        offsetPanel.margins = [15, 20, 15, 10];
-
-        // --- オフセットpanel内 2カラム ---
-        var offCols = offsetPanel.add("group");
-        offCols.orientation = "row";
-        offCols.alignChildren = ["fill", "top"];
-        // offCols.alignment = "fill";
-
-        // 左：□［　］pt
-        var offLeft = offCols.add("group");
-        offLeft.orientation = "column";
-        offLeft.alignChildren = ["left", "top"];
-
-        // オフセット（チェック＋値を1行に）
-        var gOff = offLeft.add("group");
-        gOff.orientation = "row";
-        gOff.alignChildren = ["left", "center"];
-
-        var cbOffsetRow = gOff.add("checkbox", undefined, "");
-        cbOffsetRow.helpTip = getLabel('tipOffsetEnabled');
-        cbOffsetRow.value = false;
-
-        // オフセット初期値を選択オブジェクト（originalPath）のサイズから計算（pt）
-        var initialOffset = 0;
-        try {
-            var bOff = null;
-            try { bOff = originalPath.geometricBounds; } catch (e) { bOff = null; }
-            if (!bOff) {
-                try { bOff = originalPath.visibleBounds; } catch (e) { bOff = null; }
-            }
-            if (bOff && bOff.length === 4) {
-                var wPtOff = Math.abs(bOff[2] - bOff[0]);
-                var hPtOff = Math.abs(bOff[1] - bOff[3]);
-
-                // 幅と高さの合計（pt）
-                var sizeSumPt = wPtOff + hPtOff;
-                // 平均サイズ（pt）
-                var halfSizePt = sizeSumPt / 2;
-
-                // PathItem 想定：divisor は 20
-                var divisor = 20;
-
-                // オフセット基準値（pt）
-                var offsetBasePt = halfSizePt / divisor;
-
-                if (!isNaN(offsetBasePt)) {
-                    initialOffset = Math.round(offsetBasePt);
-                }
-            }
-        } catch (e) { }
-
-        var etOff = gOff.add("edittext", undefined, String(initialOffset));
-        etOff.characters = 4;
-        etOff.helpTip = getLabel('tipOffsetValue');
-        changeValueByArrowKey(etOff, false, false);
-        var stOffUnit = gOff.add("statictext", undefined, "pt");
-
-        // 右：形状panel
-        var offRight = offCols.add("group");
-        offRight.orientation = "column";
-        offRight.alignChildren = ["fill", "top"];
-
-        // 形状（角の処理） - オフセットpanel内（2カラム：左=見出し / 右=ラジオ）
-        var pJoin = offRight.add("group");
-        pJoin.orientation = "row";
-        pJoin.alignChildren = ["left", "top"];
-        pJoin.margins = [0, 0, 0, 0];
-
-        // 左：見出し
-        var gJoinLabel = pJoin.add("group");
-        gJoinLabel.orientation = "column";
-        gJoinLabel.alignChildren = ["left", "top"];
-        var stJoin = gJoinLabel.add("statictext", undefined, getLabel('shape'));
-        stJoin.preferredSize.width = 60;
-        stJoin.justify = "right";
-
-        // 右：ラジオ（垂直並び）
-        var gJoinCol = pJoin.add("group");
-        gJoinCol.orientation = "column";
-        gJoinCol.alignChildren = ["left", "center"];
-
-        var rbMiter = gJoinCol.add("radiobutton", undefined, getLabel('joinMiter'));
-        rbMiter.helpTip = getLabel('tipJoin');
-        var rbRound = gJoinCol.add("radiobutton", undefined, getLabel('joinRound'));
-        rbRound.helpTip = getLabel('tipJoin');
-        var rbBevel = gJoinCol.add("radiobutton", undefined, getLabel('joinBevel'));
-        rbBevel.helpTip = getLabel('tipJoin');
-        rbMiter.value = false;
-        rbRound.value = true;  // default = Round
-        rbBevel.value = false;
-
-        // オフセットUIの有効/無効（ディム表示）
-        function updateOffsetEnabled() {
-            var on = !!cbOffsetRow.value;
-            etOff.enabled = on;
-            rbMiter.enabled = on;
-            rbRound.enabled = on;
-            rbBevel.enabled = on;
-            stOffUnit.enabled = on;
-            pJoin.enabled = on;
+        /**
+         * 0〜1の範囲に丸める
+         * @param {number} value - 丸める値
+         * @returns {number} 0〜1に収めた値
+         */
+        function clamp01(value) {
+            return Math.max(0, Math.min(1, value));
         }
 
-        cbOffsetRow.onClick = function () {
-            updateOffsetEnabled();
-        };
-
-        // 初期状態：OFF
-        updateOffsetEnabled();
-
-        // 距離入力
-        var grpDistance = mainGroup.add("group");
-        var lblDistance = grpDistance.add("statictext", undefined, getLabel('distance'));
-        lblDistance.preferredSize.width = 60;
-        lblDistance.justify = "right";
-
-        // オリジナルの幅＋高さを足した値をデフォルト距離にする（pt）
-        var gb = originalPath.geometricBounds; // [left, top, right, bottom]
-        var w = gb[2] - gb[0];
-        var h = gb[1] - gb[3];
-        var defaultDistance = (w + h);
-
-        var inputDistance = grpDistance.add("edittext", undefined, Math.round(defaultDistance).toString());
-        inputDistance.helpTip = getLabel('tipDistance');
-        changeValueByArrowKey(inputDistance, false, true);
-        inputDistance.characters = 4;
-        var stDistUnit = grpDistance.add("statictext", undefined, "pt");
-        stDistUnit.preferredSize.width = 24;
-
-        // スライダー（距離）※右側に配置
-        var maxDist = Math.max(500, Math.round(defaultDistance * 3));
-        var slDistance = grpDistance.add("slider", undefined, Math.round(defaultDistance), 0, maxDist);
-        slDistance.helpTip = getLabel('tipDistance');
-        slDistance.preferredSize.width = 170;
-
-        // 角度入力
-        var grpAngle = mainGroup.add("group");
-        var lblAngle = grpAngle.add("statictext", undefined, getLabel('angle'));
-        lblAngle.preferredSize.width = 60;
-        lblAngle.justify = "right";
-        var inputAngle = grpAngle.add("edittext", undefined, "45");
-        inputAngle.helpTip = getLabel('tipAngle');
-        changeValueByArrowKey(inputAngle, true, true);
-        inputAngle.characters = 4;
-        var stAngleUnit = grpAngle.add("statictext", undefined, "°");
-        stAngleUnit.preferredSize.width = 24;
-
-        // スライダー（角度）※右側に配置
-        var slAngle = grpAngle.add("slider", undefined, 45, -180, 180);
-        slAngle.helpTip = getLabel('tipAngle');
-        slAngle.preferredSize.width = 170;
-
-        // スケール入力
-        var grpScale = mainGroup.add("group");
-        var lblScale = grpScale.add("statictext", undefined, getLabel('scale'));
-        lblScale.preferredSize.width = 60;
-        lblScale.justify = "right";
-        var inputScale = grpScale.add("edittext", undefined, "100"); // デフォルト 100%
-        changeValueByArrowKey(inputScale, false, true);
-        inputScale.helpTip = getLabel('tipScale');
-        inputScale.characters = 4;
-        var stScaleUnit = grpScale.add("statictext", undefined, "%");
-        stScaleUnit.preferredSize.width = 24;
-
-        // スライダー（スケール）※右側に配置
-        var slScale = grpScale.add("slider", undefined, 100, 1, 300);
-        slScale.helpTip = getLabel('tipScale');
-        slScale.preferredSize.width = 170;
-
-        // パスの単純化（スケールの下）
-        var grpSimplify = mainGroup.add("group");
-        grpSimplify.orientation = "row";
-        grpSimplify.alignChildren = ["center", "center"];
-        grpSimplify.alignment = "center";
-        grpSimplify.margins = [0, 10, 0, 0];
-
-        var chkSimplify = grpSimplify.add("checkbox", undefined, getLabel('simplify'));
-        chkSimplify.helpTip = getLabel('tipSimplify');
-        chkSimplify.value = true;
-        chkSimplify.alignment = "center";
-
-        // スライダー連動（edittext <-> slider）
-        bindSliderNumber(inputDistance, slDistance, 0, maxDist, false);
-        bindSliderNumber(inputAngle, slAngle, -180, 180, true);
-        bindSliderNumber(inputScale, slScale, 1, 300, false);
-
-        // プリセット選択時：スケールと角度に反映（距離は変更しない）
-        ddPreset.onChange = function () {
-            if (!ddPreset.selection) return;
-
-            // 例: "100% / 45°"
-            var s = ddPreset.selection.text;
-            var m = s.match(/^\s*([\-]?\d+(?:\.\d+)?)\s*%\s*\/\s*([\-]?\d+(?:\.\d+)?)\s*°\s*$/);
-            if (!m) return;
-
-            var scl = m[1];
-            var ang = m[2];
-
-            inputAngle.text = ang;
-            inputScale.text = scl;
-
-            if (chkPreview && chkPreview.value) updatePreview();
-        };
-
-        // Buttons（3カラム：左=プレビュー / 中央=スペーサー / 右=キャンセル・OK）
-        var btnRowGroup = dlg.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignment = ["fill", "top"];
-        btnRowGroup.alignChildren = ["left", "center"];
-
-        // 左：プレビュー
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.orientation = "row";
-        btnLeftGroup.alignChildren = ["left", "center"];
-
-        var chkPreview = btnLeftGroup.add("checkbox", undefined, getLabel('preview'));
-        chkPreview.helpTip = getLabel('tipPreview');
-        chkPreview.value = true;   // デフォルトON
-        chkPreview.enabled = true; // 有効
-
-        // 中央：スペーサー（3カラムの中央）
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        // 右：キャンセル / OK
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.orientation = "row";
-        btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.alignment = ["right", "center"];
-
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel('cancel'), { name: "cancel" });
-        var btnOk = btnRightGroup.add("button", undefined, getLabel('ok'), { name: "ok" });
-        btnOk.active = true;
-
-        // --- ↑↓キーで数値を増減（Shift=±10, Option=±0.1） ---
-        function changeValueByArrowKey(editText, allowNegative, enablePreviewUpdate) {
-            editText.addEventListener("keydown", function (event) {
-                var value = Number(editText.text);
-                if (isNaN(value)) return;
-
-                var keyboard = ScriptUI.environment.keyboardState;
-                var delta = 1;
-
-                if (keyboard.shiftKey) {
-                    delta = 10;
-                    // Shiftキー押下時は10の倍数にスナップ
-                    if (event.keyName == "Up") {
-                        value = Math.ceil((value + 1) / delta) * delta;
-                        event.preventDefault();
-                    } else if (event.keyName == "Down") {
-                        value = Math.floor((value - 1) / delta) * delta;
-                        event.preventDefault();
-                    }
-                } else if (keyboard.altKey) {
-                    delta = 0.1;
-                    // Optionキー押下時は0.1単位で増減
-                    if (event.keyName == "Up") {
-                        value += delta;
-                        event.preventDefault();
-                    } else if (event.keyName == "Down") {
-                        value -= delta;
-                        event.preventDefault();
-                    }
-                } else {
-                    delta = 1;
-                    if (event.keyName == "Up") {
-                        value += delta;
-                        event.preventDefault();
-                    } else if (event.keyName == "Down") {
-                        value -= delta;
-                        event.preventDefault();
-                    }
-                }
-
-                if (keyboard.altKey) {
-                    // 小数第1位までに丸め
-                    value = Math.round(value * 10) / 10;
-                } else {
-                    // 整数に丸め
-                    value = Math.round(value);
-                }
-
-                if (!allowNegative && value < 0) value = 0;
-
-                // 反映
-                editText.text = value;
-
-                // プレビュー更新（必要なフィールドのみ／プレビューONの時のみ）
-                if (enablePreviewUpdate !== false && typeof updatePreview === "function" && chkPreview && chkPreview.value) {
-                    updatePreview();
-                }
-            });
-        }
-
-        // --- スライダー連動（距離/スケール/角度） ---
-        function clamp(v, min, max) {
-            return Math.max(min, Math.min(max, v));
-        }
-
-        // slider は整数のみなので、必要に応じて丸める
-        function bindSliderNumber(editText, slider, min, max, isAngle) {
-            var syncing = false;
-
-            function setEditFromSlider() {
-                if (syncing) return;
-                syncing = true;
-                try {
-                    var v = slider.value;
-                    if (!isAngle) {
-                        // 距離/スケールは整数
-                        v = Math.round(v);
-                    } else {
-                        // 角度も整数扱い
-                        v = Math.round(v);
-                    }
-                    editText.text = String(v);
-                } catch (e) { }
-                syncing = false;
-
-                // プレビュー更新（ONの時のみ）
-                if (typeof updatePreview === "function" && chkPreview && chkPreview.value) {
-                    updatePreview();
-                }
+        /**
+         * 塗り色をRGBの成分に変換する（GrayColor と未対応の色は null）
+         * @param {Color} fillColor - 元の塗り色
+         * @returns {{red: number, green: number, blue: number}|null} 0〜255のRGB成分
+         */
+        function toRgbComponents(fillColor) {
+            if (fillColor.typename === "RGBColor") {
+                return { red: fillColor.red, green: fillColor.green, blue: fillColor.blue };
             }
 
-            function setSliderFromEdit() {
-                if (syncing) return;
-                syncing = true;
-                try {
-                    var v = Number(editText.text);
-                    if (isNaN(v)) v = 0;
-                    v = clamp(v, min, max);
-                    slider.value = Math.round(v);
-                } catch (e) { }
-                syncing = false;
+            if (fillColor.typename === "CMYKColor") {
+                /* 簡易 CMYK -> RGB（0-100 を 0-1 に換算）/ rough CMYK to RGB conversion */
+                var cyan = fillColor.cyan / 100.0;
+                var magenta = fillColor.magenta / 100.0;
+                var yellow = fillColor.yellow / 100.0;
+                var black = fillColor.black / 100.0;
+                return {
+                    red: 255 * (1 - cyan) * (1 - black),
+                    green: 255 * (1 - magenta) * (1 - black),
+                    blue: 255 * (1 - yellow) * (1 - black)
+                };
             }
 
-            // 初期同期
-            setSliderFromEdit();
-
-            slider.onChanging = setEditFromSlider;
-            slider.onChange = setEditFromSlider; // マウス離したときも反映
-
-            // editText側の変化に追随（既存のonChangingは残しつつ、同期だけ追加）
-            var prevOnChanging = editText.onChanging;
-            editText.onChanging = function () {
-                try { setSliderFromEdit(); } catch (e) { }
-                if (typeof prevOnChanging === "function") prevOnChanging();
-            };
+            return null;
         }
 
-        /* 色処理 / Color utilities */
-        // A（オリジナル）の塗り色を元に、彩度を下げた色を作る
-        // factor: 0〜1（1=元の彩度、0=完全に無彩色）
+        /**
+         * HSLの中間値から1チャンネル分の値を求める
+         * @param {number} lowerBound - 下側の値
+         * @param {number} upperBound - 上側の値
+         * @param {number} hueFraction - 0〜1に正規化した色相
+         * @returns {number} 0〜1のチャンネル値
+         */
+        function hueToChannel(lowerBound, upperBound, hueFraction) {
+            var t = hueFraction;
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return lowerBound + (upperBound - lowerBound) * 6 * t;
+            if (t < 1 / 2) return upperBound;
+            if (t < 2 / 3) return lowerBound + (upperBound - lowerBound) * (2 / 3 - t) * 6;
+            return lowerBound;
+        }
+
+        /**
+         * 元の塗り色をもとに、彩度を下げた影用の色を作る
+         * @param {Color} fillColor - 元の塗り色
+         * @param {number} factor - 彩度の倍率（1=元のまま、0=無彩色）
+         * @returns {Color|null} 影用の色。色が無い場合は null
+         */
         function desaturateColorFromFill(fillColor, factor) {
             if (!fillColor) return null;
-            if (factor === undefined || factor === null) factor = 0.7;
+            if (factor === undefined || factor === null) factor = SHADOW_SATURATION_FACTOR;
 
-            // Grayはそのまま
+            /* グレーはそのまま複製する / gray is copied as-is */
             if (fillColor.typename === "GrayColor") {
-                var g = new GrayColor();
-                g.gray = fillColor.gray;
-                return g;
+                var grayCopy = new GrayColor();
+                grayCopy.gray = fillColor.gray;
+                return grayCopy;
             }
 
-            // CMYKは一旦RGBに近似変換して処理（戻しはRGBで適用）
-            var rgb = null;
-            if (fillColor.typename === "RGBColor") {
-                rgb = { r: fillColor.red, g: fillColor.green, b: fillColor.blue };
-            } else if (fillColor.typename === "CMYKColor") {
-                // 0-100 -> 0-1
-                var c = fillColor.cyan / 100.0;
-                var m = fillColor.magenta / 100.0;
-                var y = fillColor.yellow / 100.0;
-                var k = fillColor.black / 100.0;
-                // 簡易 CMYK -> RGB
-                var rr = 255 * (1 - c) * (1 - k);
-                var gg = 255 * (1 - m) * (1 - k);
-                var bb = 255 * (1 - y) * (1 - k);
-                rgb = { r: rr, g: gg, b: bb };
-            } else {
-                // 対応外はそのまま返す（NoColor等）
-                return fillColor;
-            }
+            var rgb = toRgbComponents(fillColor);
+            /* 未対応（NoColor / グラデーション / パターン）はそのまま返す / unsupported fills pass through */
+            if (!rgb) return fillColor;
 
-            // RGB -> HSL で彩度調整（HSLのSをfactor倍）
-            function clamp01(v) { return Math.max(0, Math.min(1, v)); }
-            var r1 = clamp01(rgb.r / 255.0);
-            var g1 = clamp01(rgb.g / 255.0);
-            var b1 = clamp01(rgb.b / 255.0);
+            var red = clamp01(rgb.red / 255.0);
+            var green = clamp01(rgb.green / 255.0);
+            var blue = clamp01(rgb.blue / 255.0);
 
-            var max = Math.max(r1, g1, b1);
-            var min = Math.min(r1, g1, b1);
-            var h = 0, s = 0, l = (max + min) / 2;
-            var d = max - min;
+            var maxChannel = Math.max(red, green, blue);
+            var minChannel = Math.min(red, green, blue);
+            var chroma = maxChannel - minChannel;
+            var lightness = (maxChannel + minChannel) / 2;
+            var hue = 0;
+            var saturation = 0;
 
-            if (d !== 0) {
-                s = d / (1 - Math.abs(2 * l - 1));
-                switch (max) {
-                    case r1: h = ((g1 - b1) / d) % 6; break;
-                    case g1: h = ((b1 - r1) / d) + 2; break;
-                    case b1: h = ((r1 - g1) / d) + 4; break;
+            if (chroma !== 0) {
+                saturation = chroma / (1 - Math.abs(2 * lightness - 1));
+                switch (maxChannel) {
+                    case red: hue = ((green - blue) / chroma) % 6; break;
+                    case green: hue = ((blue - red) / chroma) + 2; break;
+                    case blue: hue = ((red - green) / chroma) + 4; break;
                 }
-                h = h * 60;
-                if (h < 0) h += 360;
+                hue = hue * 60;
+                if (hue < 0) hue += 360;
             }
 
-            s = clamp01(s * factor);
+            saturation = clamp01(saturation * factor);
 
-            // HSL -> RGB
-            function hue2rgb(p, q, t) {
-                if (t < 0) t += 1;
-                if (t > 1) t -= 1;
-                if (t < 1 / 6) return p + (q - p) * 6 * t;
-                if (t < 1 / 2) return q;
-                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-                return p;
-            }
-
-            var r2, g2, b2;
-            if (s === 0) {
-                r2 = g2 = b2 = l;
+            var resultRed, resultGreen, resultBlue;
+            if (saturation === 0) {
+                resultRed = resultGreen = resultBlue = lightness;
             } else {
-                var q = l < 0.5 ? l * (1 + s) : (l + s - l * s);
-                var p = 2 * l - q;
-                var hk = h / 360;
-                r2 = hue2rgb(p, q, hk + 1 / 3);
-                g2 = hue2rgb(p, q, hk);
-                b2 = hue2rgb(p, q, hk - 1 / 3);
+                var upperBound = lightness < 0.5 ? lightness * (1 + saturation) : (lightness + saturation - lightness * saturation);
+                var lowerBound = 2 * lightness - upperBound;
+                var hueFraction = hue / 360;
+                resultRed = hueToChannel(lowerBound, upperBound, hueFraction + 1 / 3);
+                resultGreen = hueToChannel(lowerBound, upperBound, hueFraction);
+                resultBlue = hueToChannel(lowerBound, upperBound, hueFraction - 1 / 3);
             }
 
-            var out = new RGBColor();
-            out.red = Math.round(r2 * 255);
-            out.green = Math.round(g2 * 255);
-            out.blue = Math.round(b2 * 255);
-            return out;
+            var desaturatedColor = new RGBColor();
+            desaturatedColor.red = Math.round(resultRed * 255);
+            desaturatedColor.green = Math.round(resultGreen * 255);
+            desaturatedColor.blue = Math.round(resultBlue * 255);
+            return desaturatedColor;
         }
 
+        // -----------------------------------------
+        // 影の面を作る / Building the shadow faces
+        // -----------------------------------------
+
+        /**
+         * 3次ベジェ曲線上の点を求める
+         * @param {number[]} p0 - 始点
+         * @param {number[]} p1 - 始点側の方向点
+         * @param {number[]} p2 - 終点側の方向点
+         * @param {number[]} p3 - 終点
+         * @param {number} t - 0〜1の位置
+         * @returns {number[]} [x, y] 座標
+         */
         function bezierPoint(p0, p1, p2, p3, t) {
             var u = 1 - t;
             var tt = t * t;
@@ -1081,422 +745,801 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
             ];
         }
 
-        /* 実パス生成（サンプリング面生成） / Build shadow by sampling & bridging */
-        var CURVE_SAMPLE_COUNT = 8; // v15 相当（必要なら調整）
+        /**
+         * アイテムを複製し、中心を基準に拡大縮小してから移動する
+         * @param {PageItem} pageItem - 複製するアイテム
+         * @param {number} dx - 水平方向の移動量（pt）
+         * @param {number} dy - 垂直方向の移動量（pt）
+         * @param {number} scalePercent - 拡大率（100=等倍）
+         * @returns {PageItem|null} 複製したアイテム
+         */
+        function duplicateWithOffsetAndScale(pageItem, dx, dy, scalePercent) {
+            if (!pageItem) return null;
 
-        function duplicateMoveScale(item, dx, dy, scalePercent) {
-            if (!item) return null;
-            var dup = null;
-            try { dup = item.duplicate(); } catch (e) { dup = null; }
-            if (!dup) return null;
+            var duplicatedItem = null;
+            try { duplicatedItem = pageItem.duplicate(); } catch (e) { duplicatedItem = null; }
+            if (!duplicatedItem) return null;
 
-            // scale: percent (100 = 等倍)
+            resizeFromCenter(duplicatedItem, scalePercent);
+            try { duplicatedItem.translate(dx, dy); } catch (e) { }
+            return duplicatedItem;
+        }
+
+        /**
+         * 中心を基準にアイテムを拡大縮小する
+         * @param {PageItem} pageItem - 対象アイテム
+         * @param {number} scalePercent - 拡大率（100=等倍なら何もしない）
+         * @returns {void}
+         */
+        function resizeFromCenter(pageItem, scalePercent) {
+            var scaleValue = isFinite(scalePercent) ? Number(scalePercent) : 100;
+            if (scaleValue === 100) return;
+            /* テキストや効果付きのアイテムで resize が失敗することがある / resize can fail on some items */
             try {
-                var sp = (isFinite(scalePercent) ? Number(scalePercent) : 100);
-                if (sp !== 100 && dup && typeof dup.resize === 'function') {
-                    try { dup.resize(sp, sp, true, true, true, true, true, Transformation.CENTER); }
-                    catch (eR1) {
-                        try { dup.resize(sp, sp, true, true, true, true, true); } catch (e) { }
+                pageItem.resize(scaleValue, scaleValue, true, true, true, true, true, Transformation.CENTER);
+            } catch (e) { }
+        }
+
+        /**
+         * 閉パスを曲線も含めて点列にする
+         * @param {PathItem} pathItem - 点列にするパス
+         * @param {number} curveSamplesPerSegment - 1セグメントあたりのサンプル数
+         * @returns {number[][]} [x, y] の配列
+         */
+        function samplePathToPoints(pathItem, curveSamplesPerSegment) {
+            if (!curveSamplesPerSegment) curveSamplesPerSegment = CURVE_SAMPLE_COUNT;
+            var points = [];
+            if (!pathItem) return points;
+
+            /* 一時アイテムは走査中に無効化されることがある / temporary items can go invalid mid-scan */
+            try {
+                var pathPoints = pathItem.pathPoints;
+                var pointCount = pathPoints.length;
+                if (pointCount < 2) return points;
+
+                for (var i = 0; i < pointCount; i++) {
+                    var currentPoint = pathPoints[i];
+                    var nextPoint = pathPoints[(i + 1) % pointCount];
+
+                    for (var j = 0; j < curveSamplesPerSegment; j++) {
+                        points.push(bezierPoint(
+                            currentPoint.anchor,
+                            currentPoint.rightDirection,
+                            nextPoint.leftDirection,
+                            nextPoint.anchor,
+                            j / curveSamplesPerSegment
+                        ));
                     }
                 }
             } catch (e) { }
 
-            try { dup.translate(dx, dy); } catch (e) { }
-            return dup;
+            return points;
         }
 
-        // PathItem を「曲線も含めて」点列にする（閉パス前提）
-        function samplePathToPoints(pathItem, curveSamplesPerSeg) {
-            if (!curveSamplesPerSeg) curveSamplesPerSeg = CURVE_SAMPLE_COUNT;
-            var pts = [];
-            if (!pathItem) return pts;
+        /**
+         * 重なり順を保ったまま閉じた PathItem だけを集める
+         * @param {PageItem} pageItem - 走査対象
+         * @returns {PathItem[]} 閉じた PathItem の配列
+         */
+        function collectClosedPaths(pageItem) {
+            var closedPaths = [];
+            if (!pageItem) return closedPaths;
 
-            try {
-                var pp = pathItem.pathPoints;
-                var n = pp.length;
-                if (!pp || n < 2) return pts;
-
-                for (var i = 0; i < n; i++) {
-                    var a = pp[i];
-                    var b = pp[(i + 1) % n];
-
-                    var p0 = a.anchor;
-                    var p1 = a.rightDirection;
-                    var p2 = b.leftDirection;
-                    var p3 = b.anchor;
-
-                    for (var s = 0; s < curveSamplesPerSeg; s++) {
-                        var t = s / curveSamplesPerSeg;
-                        pts.push(bezierPoint(p0, p1, p2, p3, t));
-                    }
-                }
-            } catch (e) { }
-
-            return pts;
-        }
-
-        // PathItem/Compound/Group を「対応順序を保って」PathItem 配列として抽出（閉パスのみ）
-        function collectClosedPathsForBridge(item) {
-            var out = [];
-            if (!item) return out;
-
-            function pushIfClosed(p) {
-                try { if (p && p.typename === 'PathItem' && p.closed) out.push(p); } catch (e) { }
+            if (pageItem.typename === 'PathItem') {
+                pushIfClosed(closedPaths, pageItem);
+                return closedPaths;
             }
 
-            try {
-                if (item.typename === 'PathItem') {
-                    pushIfClosed(item);
-                    return out;
+            if (pageItem.typename === 'CompoundPathItem') {
+                for (var i = 0; i < pageItem.pathItems.length; i++) {
+                    pushIfClosed(closedPaths, pageItem.pathItems[i]);
                 }
-                if (item.typename === 'CompoundPathItem') {
-                    for (var i = 0; i < item.pathItems.length; i++) pushIfClosed(item.pathItems[i]);
-                    return out;
-                }
-                if (item.typename === 'GroupItem') {
-                    // pageItems 順で再帰（見た目の重なり順に近い）
-                    for (var j = 0; j < item.pageItems.length; j++) {
-                        var ch = item.pageItems[j];
-                        if (!ch) continue;
-                        if (ch.typename === 'PathItem') {
-                            pushIfClosed(ch);
-                        } else if (ch.typename === 'CompoundPathItem') {
-                            for (var k = 0; k < ch.pathItems.length; k++) pushIfClosed(ch.pathItems[k]);
-                        } else if (ch.typename === 'GroupItem') {
-                            var sub = collectClosedPathsForBridge(ch);
-                            for (var m = 0; m < sub.length; m++) out.push(sub[m]);
-                        }
-                    }
-                    return out;
-                }
-            } catch (e) { }
+                return closedPaths;
+            }
 
-            return out;
+            if (pageItem.typename === 'GroupItem') {
+                /* pageItems 順にたどる（見た目の重なり順に近い）/ follow pageItems order */
+                for (var j = 0; j < pageItem.pageItems.length; j++) {
+                    var nestedPaths = collectClosedPaths(pageItem.pageItems[j]);
+                    for (var k = 0; k < nestedPaths.length; k++) closedPaths.push(nestedPaths[k]);
+                }
+            }
+
+            return closedPaths;
         }
 
-        // 点列同士を結ぶ側面（四角形）を作る
-        function buildSideFacesFromPointLists(parentGroup, ptsA, ptsB, baseFill) {
-            var created = [];
-            if (!parentGroup || !ptsA || !ptsB) return created;
-            var n = Math.min(ptsA.length, ptsB.length);
-            if (n < 2) return created;
+        /**
+         * 閉じた PathItem のときだけ配列に加える
+         * @param {PathItem[]} closedPaths - 追加先の配列
+         * @param {PageItem} pathCandidate - 判定するアイテム
+         * @returns {void}
+         */
+        function pushIfClosed(closedPaths, pathCandidate) {
+            /* closed を読めない種類のアイテムが混ざる / closed is not readable on every item type */
+            try {
+                if (pathCandidate && pathCandidate.typename === 'PathItem' && pathCandidate.closed) {
+                    closedPaths.push(pathCandidate);
+                }
+            } catch (e) { }
+        }
 
-            for (var i = 0; i < n; i++) {
-                var next = (i + 1) % n;
-                var p = null;
+        /**
+         * 2つの点列の間を四角形の面で埋める
+         * @param {GroupItem} parentGroup - 面を追加するグループ
+         * @param {number[][]} nearPoints - 元の形の点列
+         * @param {number[][]} farPoints - 影の先端側の点列
+         * @param {Color} faceFill - 面の塗り色
+         * @returns {PathItem[]} 生成した面
+         */
+        function buildSideFaces(parentGroup, nearPoints, farPoints, faceFill) {
+            var createdFaces = [];
+            if (!parentGroup || !nearPoints || !farPoints) return createdFaces;
+
+            var pointCount = Math.min(nearPoints.length, farPoints.length);
+            if (pointCount < 2) return createdFaces;
+
+            for (var i = 0; i < pointCount; i++) {
+                var nextIndex = (i + 1) % pointCount;
+                var facePath = null;
+                /* 極端に小さい面はパス生成が失敗することがある / very small faces can fail to build */
                 try {
-                    p = parentGroup.pathItems.add();
-                    p.setEntirePath([ptsA[i], ptsB[i], ptsB[next], ptsA[next]]);
-                    p.closed = true;
-                    p.stroked = false;
-                    p.filled = true;
-                    if (baseFill) p.fillColor = baseFill;
-                    created.push(p);
+                    facePath = parentGroup.pathItems.add();
+                    facePath.setEntirePath([nearPoints[i], farPoints[i], farPoints[nextIndex], nearPoints[nextIndex]]);
+                    facePath.closed = true;
+                    facePath.stroked = false;
+                    facePath.filled = true;
+                    if (faceFill) facePath.fillColor = faceFill;
+                    createdFaces.push(facePath);
                 } catch (e) {
-                    try { if (p && p.isValid) p.remove(); } catch (e) { }
+                    try { if (facePath && facePath.isValid) facePath.remove(); } catch (err) { }
                 }
             }
-            return created;
+            return createdFaces;
         }
 
-        // v15系：サンプリングで面を作る実生成
-        // 戻り値: 生成した影グループ（GroupItem）
-        function generateShadowBySampling(baseItem, dx, dy, scalePercent) {
+        /**
+         * 元の形と複製した形の間を面でつないで影のグループを作る
+         * @param {PageItem} baseItem - 影の元になる形
+         * @param {number} dx - 水平方向の移動量（pt）
+         * @param {number} dy - 垂直方向の移動量（pt）
+         * @param {number} scalePercent - 先端の拡大率（100=等倍）
+         * @returns {GroupItem|null} 生成した影のグループ
+         */
+        function buildShadowFaces(baseItem, dx, dy, scalePercent) {
             if (!baseItem) return null;
 
-            // ベースの閉パス群を抽出
-            var basePaths = collectClosedPathsForBridge(baseItem);
-            if (!basePaths || basePaths.length === 0) return null;
+            var nearPaths = collectClosedPaths(baseItem);
+            if (nearPaths.length === 0) return null;
 
-            // 複製して移動/スケール（複製側）
-            var dup = duplicateMoveScale(baseItem, dx, dy, scalePercent);
-            if (!dup) return null;
+            var farItem = duplicateWithOffsetAndScale(baseItem, dx, dy, scalePercent);
+            if (!farItem) return null;
 
-            // 複製側の閉パス群を抽出
-            var dupPaths = collectClosedPathsForBridge(dup);
-            if (!dupPaths || dupPaths.length === 0) {
-                try { dup.remove(); } catch (e) { }
-                return null;
-            }
-
-            // ペアリング：数が違う場合は最小数で処理（落とさない優先）
-            var pairCount = Math.min(basePaths.length, dupPaths.length);
+            var farPaths = collectClosedPaths(farItem);
+            /* 数が違う場合は少ない方に合わせる（落とさない優先）/ pair up to the smaller count */
+            var pairCount = Math.min(nearPaths.length, farPaths.length);
             if (pairCount === 0) {
-                try { dup.remove(); } catch (e) { }
+                try { farItem.remove(); } catch (e) { }
                 return null;
             }
 
-            // 影用グループ
-            var g = doc.groupItems.add();
+            var shadowGroup = doc.groupItems.add();
 
-            // ベースの塗りを基準に彩度を落とす
-            var baseFill = null;
-            try { baseFill = desaturateColorFromFill(basePaths[0].fillColor, 0.7); } catch (e) { baseFill = null; }
+            var shadowFill = null;
+            /* 塗りを持たないパスがある / some paths carry no fill */
+            try {
+                shadowFill = desaturateColorFromFill(nearPaths[0].fillColor, SHADOW_SATURATION_FACTOR);
+            } catch (e) {
+                shadowFill = null;
+            }
 
             for (var i = 0; i < pairCount; i++) {
-                var a = basePaths[i];
-                var b = dupPaths[i];
-
-                // 曲線でも直線でも一定サンプルで点列化
-                var ptsA = samplePathToPoints(a, CURVE_SAMPLE_COUNT);
-                var ptsB = samplePathToPoints(b, CURVE_SAMPLE_COUNT);
-
-                // 点数がずれた場合に備えて、短い方に合わせる
-                if (ptsA.length < 2 || ptsB.length < 2) continue;
-
-                buildSideFacesFromPointLists(g, ptsA, ptsB, baseFill);
+                var nearPoints = samplePathToPoints(nearPaths[i], CURVE_SAMPLE_COUNT);
+                var farPoints = samplePathToPoints(farPaths[i], CURVE_SAMPLE_COUNT);
+                if (nearPoints.length < 2 || farPoints.length < 2) continue;
+                buildSideFaces(shadowGroup, nearPoints, farPoints, shadowFill);
             }
 
-            // 複製側（dup）は最終結果には不要
-            try { dup.remove(); } catch (e) { }
-
-            return g;
+            try { farItem.remove(); } catch (e) { }
+            return shadowGroup;
         }
 
-        /* オフセット（ライブ効果） / Offset Path live effect */
-        // joinTypes: 0 = Round, 1 = Bevel, 2 = Miter
+        // -----------------------------------------
+        // オフセット効果 / Offset Path live effect
+        // -----------------------------------------
+
+        /**
+         * 選択中の角の処理に対応する Offset Path のコードを返す
+         * @returns {number} 0=ラウンド、1=ベベル、2=マイター
+         */
         function getJoinCode() {
-            try {
-                if (rbRound && rbRound.value) return 0;
-                if (rbBevel && rbBevel.value) return 1;
-            } catch (e) { }
-            return 2; // マイター
+            if (joinRoundRadio.value) return 0;
+            if (joinBevelRadio.value) return 1;
+            return 2;
         }
 
+        /**
+         * Offset Path のライブ効果XMLを組み立てる
+         * @param {number} offsetPt - オフセット量（pt）
+         * @param {number} joinCode - 角の処理（0=ラウンド、1=ベベル、2=マイター）
+         * @returns {string} applyEffect() に渡すXML
+         */
         function buildOffsetEffectXML(offsetPt, joinCode) {
-            // mlim はマイター制限（既定 4）、ofst は pt
+            /* mlim はマイター制限（既定4）、ofst は pt / mlim is the miter limit, ofst is in points */
             return '<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst ' + offsetPt + ' I jntp ' + joinCode + ' "/></LiveEffect>';
         }
 
-        function groupItems(doc, items) {
-            var g = doc.groupItems.add();
-            // 受け取った順序で入れる
-            for (var i = 0; i < items.length; i++) {
-                try {
-                    items[i].move(g, ElementPlacement.PLACEATEND);
-                } catch (e) { }
-            }
-            return g;
-        }
+        /**
+         * 生成した影にオフセット（ライブ効果）を適用する
+         * @param {GroupItem} shadowGroup - 適用先のグループ
+         * @param {boolean} isFinalRun - 本実行なら true（プレビューでは適用しない）
+         * @returns {void}
+         */
+        function applyOffsetEffect(shadowGroup, isFinalRun) {
+            if (!shadowGroup || !isFinalRun) return;
+            if (!offsetCheckbox.value) return;
 
-        function applyOffsetEffectToCGroup(cGroup) {
-            if (!cGroup) return;
-            if (!__applyOffsetNow) return;
-            if (!cbOffsetRow || !cbOffsetRow.value) return;
+            var offsetPt = Number(offsetInput.text);
+            if (isNaN(offsetPt)) offsetPt = 0;
 
-            var off = Number(etOff.text);
-            if (isNaN(off)) off = 0;
-
-            // 0でもONなら適用する（結果が変わらないだけ）
+            /* 0でもONなら適用する（結果が変わらないだけ）/ apply even at 0; it simply changes nothing */
             var joinCode = getJoinCode();
-            var xml = buildOffsetEffectXML(off, joinCode);
+            try { shadowGroup.applyEffect(buildOffsetEffectXML(offsetPt, joinCode)); } catch (e) { }
 
-            try {
-                cGroup.applyEffect(xml);
-            } catch (e) { }
-
-            // 角丸（Round）の場合、後処理として Pathfinder Merge を実行
+            /* ラウンドのときは後処理として Pathfinder Merge を実行 / round joins need a merge pass */
             if (joinCode === 0) {
                 try {
                     doc.selection = null;
-                    cGroup.selected = true;
+                    shadowGroup.selected = true;
                     app.executeMenuCommand('Live Pathfinder Merge');
-                    doc.selection = null;
                 } catch (e) { }
+                doc.selection = null;
             }
         }
 
-        /* パスの単純化（メニュー実行） / Simplify paths (menu command) */
-        function simplifyPathsInItem(item) {
-            try {
-                if (!item) return;
-                if (!chkSimplify || !chkSimplify.value) return;
+        // -----------------------------------------
+        // パスの単純化 / Simplify paths
+        // -----------------------------------------
 
-                function collectTargets(container, out) {
-                    if (!container) return;
-                    try {
-                        if (container.typename === 'PathItem') {
-                            out.push(container);
-                            return;
-                        }
-                        if (container.typename === 'CompoundPathItem') {
-                            out.push(container);
-                            return;
-                        }
-                        if (container.typename === 'GroupItem') {
-                            for (var i = 0; i < container.pageItems.length; i++) {
-                                collectTargets(container.pageItems[i], out);
-                            }
-                            return;
-                        }
-                    } catch (e) { }
+        /**
+         * 単純化の対象になるパスを集める
+         * @param {PageItem} container - 走査対象
+         * @param {PageItem[]} collected - 集めたアイテムを追加する配列
+         * @returns {void}
+         */
+        function collectSimplifyTargets(container, collected) {
+            if (!container) return;
+
+            if (container.typename === 'PathItem' || container.typename === 'CompoundPathItem') {
+                collected.push(container);
+                return;
+            }
+            if (container.typename === 'GroupItem') {
+                for (var i = 0; i < container.pageItems.length; i++) {
+                    collectSimplifyTargets(container.pageItems[i], collected);
                 }
-
-                var targets = [];
-                collectTargets(item, targets);
-                if (!targets.length) return;
-
-                // Select targets and run Simplify
-                try { doc.selection = null; } catch (e) { }
-                for (var i = 0; i < targets.length; i++) {
-                    try { targets[i].selected = true; } catch (e) { }
-                }
-
-                // NOTE: This menu command opens the Simplify dialog (Illustrator limitation)
-                try { app.executeMenuCommand("simplify menu item"); } catch (e) { }
-
-                // clear selection to avoid affecting later operations
-                try { doc.selection = null; } catch (e) { }
-            } catch (e) { }
+            }
         }
 
-        // Scale special-case: treat 1% as 0.01% for ultra-small extrusion
+        /**
+         * 「パスの単純化」を実行する（Illustratorの仕様でダイアログが開く）
+         * @param {PageItem} pageItem - 単純化するアイテム
+         * @returns {void}
+         */
+        function simplifyPathsInItem(pageItem) {
+            if (!pageItem || !simplifyCheckbox.value) return;
+
+            var simplifyTargets = [];
+            collectSimplifyTargets(pageItem, simplifyTargets);
+            if (!simplifyTargets.length) return;
+
+            doc.selection = null;
+            for (var i = 0; i < simplifyTargets.length; i++) {
+                try { simplifyTargets[i].selected = true; } catch (e) { }
+            }
+
+            /* このメニューコマンドは単純化ダイアログを開く（Illustratorの制限）
+               This menu command opens the Simplify dialog (Illustrator limitation) */
+            try { app.executeMenuCommand("simplify menu item"); } catch (e) { }
+
+            doc.selection = null;
+        }
+
+        // -----------------------------------------
+        // ダイアログ / Dialog
+        // -----------------------------------------
+
+        var isPreviewing = false;
+        var hasFinished = false;
+
+        /* 数値欄とスライダーの同期関数。ダイアログ構築より前に用意する
+           Sync handlers per number field; must exist before the dialog is built */
+        var fieldSyncHandlers = [];
+
+        var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = "fill";
+
+        /* プリセット行（左右中央に配置）/ Preset row, centered in the dialog */
+        var presetRowGroup = dialog.add("group");
+        presetRowGroup.orientation = "row";
+        presetRowGroup.alignChildren = ["center", "center"];
+        presetRowGroup.alignment = "center";
+
+        var presetGroup = presetRowGroup.add("group");
+        presetGroup.orientation = "row";
+        presetGroup.alignChildren = ["left", "center"];
+        presetGroup.add("statictext", undefined, getLabel('fieldLabel.preset'));
+
+        var presetDropdown = presetGroup.add("dropdownlist", undefined, PRESET_ITEMS);
+        presetDropdown.selection = 0;
+        presetDropdown.helpTip = getLabel('tooltip.preset');
+
+        var panelColumnGroup = dialog.add("group");
+        panelColumnGroup.orientation = "column";
+        panelColumnGroup.alignChildren = ["fill", "top"];
+        panelColumnGroup.alignment = "fill";
+
+        var settingsPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.settings'));
+        settingsPanel.orientation = "column";
+        settingsPanel.alignChildren = "left";
+        settingsPanel.margins = PANEL_MARGINS;
+
+        var offsetPanel = panelColumnGroup.add("panel", undefined, getLabel('panel.offset'));
+        offsetPanel.orientation = "column";
+        offsetPanel.alignChildren = "left";
+        offsetPanel.margins = PANEL_MARGINS;
+
+        /* オフセットパネル内は2カラム（左=量／右=角の処理）/ Offset panel holds amount and join columns */
+        var offsetRowGroup = offsetPanel.add("group");
+        offsetRowGroup.orientation = "row";
+        offsetRowGroup.alignChildren = ["fill", "top"];
+
+        var offsetValueGroup = offsetRowGroup.add("group");
+        offsetValueGroup.orientation = "column";
+        offsetValueGroup.alignChildren = ["left", "top"];
+
+        var offsetInputGroup = offsetValueGroup.add("group");
+        offsetInputGroup.orientation = "row";
+        offsetInputGroup.alignChildren = ["left", "center"];
+
+        var offsetCheckbox = offsetInputGroup.add("checkbox", undefined, "");
+        offsetCheckbox.helpTip = getLabel('tooltip.offsetEnabled');
+        offsetCheckbox.value = false;
+
+        var offsetInput = offsetInputGroup.add("edittext", undefined, String(getInitialOffsetPt()));
+        offsetInput.characters = NUMBER_FIELD_CHARS;
+        offsetInput.helpTip = getLabel('tooltip.offsetValue');
+
+        var offsetUnitLabel = offsetInputGroup.add("statictext", undefined, "pt");
+
+        var joinColumnGroup = offsetRowGroup.add("group");
+        joinColumnGroup.orientation = "column";
+        joinColumnGroup.alignChildren = ["fill", "top"];
+
+        var joinRowGroup = joinColumnGroup.add("group");
+        joinRowGroup.orientation = "row";
+        joinRowGroup.alignChildren = ["left", "top"];
+        joinRowGroup.margins = [0, 0, 0, 0];
+
+        var joinLabelGroup = joinRowGroup.add("group");
+        joinLabelGroup.orientation = "column";
+        joinLabelGroup.alignChildren = ["left", "top"];
+        var joinLabel = joinLabelGroup.add("statictext", undefined, getLabel('fieldLabel.join'));
+        joinLabel.preferredSize.width = ROW_LABEL_WIDTH;
+        joinLabel.justify = "right";
+
+        var joinRadioGroup = joinRowGroup.add("group");
+        joinRadioGroup.orientation = "column";
+        joinRadioGroup.alignChildren = ["left", "center"];
+
+        var joinMiterRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinMiter'));
+        var joinRoundRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinRound'));
+        var joinBevelRadio = joinRadioGroup.add("radiobutton", undefined, getLabel('radio.joinBevel'));
+        joinMiterRadio.helpTip = getLabel('tooltip.join');
+        joinRoundRadio.helpTip = getLabel('tooltip.join');
+        joinBevelRadio.helpTip = getLabel('tooltip.join');
+        joinRoundRadio.value = true;
+
+        offsetCheckbox.onClick = updateOffsetControlsEnabled;
+        updateOffsetControlsEnabled();
+
+        /* 距離の初期値は元のオブジェクトの「幅＋高さ」/ Default distance is width plus height */
+        var sourceBoundsPt = sourceItem.geometricBounds; /* [left, top, right, bottom] */
+        var defaultDistancePt = Math.round((sourceBoundsPt[2] - sourceBoundsPt[0]) + (sourceBoundsPt[1] - sourceBoundsPt[3]));
+        var maxDistancePt = Math.max(DISTANCE_SLIDER_MIN_RANGE, defaultDistancePt * 3);
+
+        var distanceInput = addSliderRow(settingsPanel, 'fieldLabel.distance', 'tooltip.distance',
+            String(defaultDistancePt), "pt", 0, maxDistancePt, defaultDistancePt, false);
+        var angleInput = addSliderRow(settingsPanel, 'fieldLabel.angle', 'tooltip.angle',
+            "45", "°", ANGLE_MIN, ANGLE_MAX, 45, true);
+        var scaleInput = addSliderRow(settingsPanel, 'fieldLabel.scale', 'tooltip.scale',
+            "100", "%", SCALE_MIN, SCALE_MAX, 100, false);
+
+        var simplifyGroup = settingsPanel.add("group");
+        simplifyGroup.orientation = "row";
+        simplifyGroup.alignChildren = ["center", "center"];
+        simplifyGroup.alignment = "center";
+        simplifyGroup.margins = SIMPLIFY_ROW_MARGINS;
+
+        var simplifyCheckbox = simplifyGroup.add("checkbox", undefined, getLabel('checkbox.simplify'));
+        simplifyCheckbox.helpTip = getLabel('tooltip.simplify');
+        simplifyCheckbox.value = true;
+        simplifyCheckbox.alignment = "center";
+
+        /* ボタン行（左=プレビュー／中央=スペーサー／右=キャンセル・OK）/ Button row */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "top"];
+        btnRowGroup.alignChildren = ["left", "center"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.orientation = "row";
+        btnLeftGroup.alignChildren = ["left", "center"];
+
+        var previewCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel('checkbox.preview'));
+        previewCheckbox.helpTip = getLabel('tooltip.preview');
+        previewCheckbox.value = true;
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.orientation = "row";
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.alignment = ["right", "center"];
+
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+        var btnOk = btnRightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
+        btnOk.active = true;
+
+        changeValueByArrowKey(offsetInput, false, false);
+
+        /**
+         * 元のオブジェクトのサイズからオフセットの初期値を求める
+         * @returns {number} オフセットの初期値（pt）
+         */
+        function getInitialOffsetPt() {
+            var bounds = null;
+            /* 種類によって geometricBounds を読めないことがある / geometricBounds is not always readable */
+            try { bounds = sourceItem.geometricBounds; } catch (e) { bounds = null; }
+            if (!bounds) {
+                try { bounds = sourceItem.visibleBounds; } catch (e) { bounds = null; }
+            }
+            if (!bounds || bounds.length !== 4) return 0;
+
+            var widthPt = Math.abs(bounds[2] - bounds[0]);
+            var heightPt = Math.abs(bounds[1] - bounds[3]);
+            var averageSizePt = (widthPt + heightPt) / 2;
+            var offsetBasePt = averageSizePt / OFFSET_SIZE_DIVISOR;
+
+            return isNaN(offsetBasePt) ? 0 : Math.round(offsetBasePt);
+        }
+
+        /**
+         * 「ラベル＋数値欄＋単位＋スライダー」の1行を作る
+         * @param {Panel} parentPanel - 追加先のパネル
+         * @param {string} labelPath - 行ラベルのラベルキー
+         * @param {string} tooltipPath - ツールチップのラベルキー
+         * @param {string} initialText - 数値欄の初期値
+         * @param {string} unitText - 単位の表示
+         * @param {number} minValue - スライダーの最小値
+         * @param {number} maxValue - スライダーの最大値
+         * @param {number} initialValue - スライダーの初期値
+         * @param {boolean} allowNegative - 負の値を許可するか
+         * @returns {EditText} 作成した数値欄
+         */
+        function addSliderRow(parentPanel, labelPath, tooltipPath, initialText, unitText, minValue, maxValue, initialValue, allowNegative) {
+            var rowGroup = parentPanel.add("group");
+
+            var rowLabel = rowGroup.add("statictext", undefined, getLabel(labelPath));
+            rowLabel.preferredSize.width = ROW_LABEL_WIDTH;
+            rowLabel.justify = "right";
+
+            var numberInput = rowGroup.add("edittext", undefined, initialText);
+            numberInput.characters = NUMBER_FIELD_CHARS;
+            numberInput.helpTip = getLabel(tooltipPath);
+
+            var unitLabel = rowGroup.add("statictext", undefined, unitText);
+            unitLabel.preferredSize.width = UNIT_LABEL_WIDTH;
+
+            var rowSlider = rowGroup.add("slider", undefined, initialValue, minValue, maxValue);
+            rowSlider.preferredSize.width = SLIDER_WIDTH;
+            rowSlider.helpTip = getLabel(tooltipPath);
+
+            changeValueByArrowKey(numberInput, allowNegative, true);
+            bindSliderToInput(numberInput, rowSlider, minValue, maxValue);
+
+            return numberInput;
+        }
+
+        /**
+         * オフセットのコントロールをチェックボックスに合わせて有効／無効にする
+         * @returns {void}
+         */
+        function updateOffsetControlsEnabled() {
+            var isEnabled = !!offsetCheckbox.value;
+            offsetInput.enabled = isEnabled;
+            offsetUnitLabel.enabled = isEnabled;
+            joinRowGroup.enabled = isEnabled;
+            joinMiterRadio.enabled = isEnabled;
+            joinRoundRadio.enabled = isEnabled;
+            joinBevelRadio.enabled = isEnabled;
+        }
+
+        // -----------------------------------------
+        // 数値欄の操作 / Number field behavior
+        // -----------------------------------------
+
+        /**
+         * 数値欄の内容をスライダーへ反映する（登録済みの欄のみ）
+         * @param {EditText} editText - 対象の数値欄
+         * @returns {void}
+         */
+        function syncFieldToSlider(editText) {
+            for (var i = 0; i < fieldSyncHandlers.length; i++) {
+                if (fieldSyncHandlers[i].input === editText) {
+                    fieldSyncHandlers[i].sync();
+                    return;
+                }
+            }
+        }
+
+        /**
+         * 値を最小値と最大値の間に丸める
+         * @param {number} value - 丸める値
+         * @param {number} minValue - 最小値
+         * @param {number} maxValue - 最大値
+         * @returns {number} 範囲内に収めた値
+         */
+        function clamp(value, minValue, maxValue) {
+            return Math.max(minValue, Math.min(maxValue, value));
+        }
+
+        /**
+         * 数値欄とスライダーを双方向に同期させる
+         * @param {EditText} editText - 数値欄
+         * @param {Slider} slider - スライダー
+         * @param {number} minValue - 最小値
+         * @param {number} maxValue - 最大値
+         * @returns {void}
+         */
+        function bindSliderToInput(editText, slider, minValue, maxValue) {
+            var isSyncing = false;
+
+            function setInputFromSlider() {
+                if (isSyncing) return;
+                isSyncing = true;
+                editText.text = String(Math.round(slider.value));
+                isSyncing = false;
+                refreshPreviewIfEnabled();
+            }
+
+            function setSliderFromInput() {
+                if (isSyncing) return;
+                isSyncing = true;
+                var value = Number(editText.text);
+                if (isNaN(value)) value = 0;
+                slider.value = Math.round(clamp(value, minValue, maxValue));
+                isSyncing = false;
+            }
+
+            setSliderFromInput();
+            fieldSyncHandlers.push({ input: editText, sync: setSliderFromInput });
+
+            slider.onChanging = setInputFromSlider;
+            slider.onChange = setInputFromSlider;
+
+            editText.onChanging = function () {
+                setSliderFromInput();
+                refreshPreviewIfEnabled();
+            };
+        }
+
+        /**
+         * ↑↓キーで数値を増減する（Shift=±10、Option=±0.1）
+         * @param {EditText} editText - 対象の数値欄
+         * @param {boolean} allowNegative - 負の値を許可するか
+         * @param {boolean} enablePreviewUpdate - 変更時にプレビューを更新するか
+         * @returns {void}
+         */
+        function changeValueByArrowKey(editText, allowNegative, enablePreviewUpdate) {
+            editText.addEventListener("keydown", function (event) {
+                if (event.keyName !== "Up" && event.keyName !== "Down") return;
+
+                var value = Number(editText.text);
+                if (isNaN(value)) return;
+
+                var keyboard = ScriptUI.environment.keyboardState;
+                var isUp = (event.keyName === "Up");
+
+                if (keyboard.shiftKey) {
+                    /* Shift押下時は10の倍数にスナップ / snap to multiples of 10 */
+                    value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+                } else if (keyboard.altKey) {
+                    /* Option押下時は0.1単位で増減 / step by 0.1 */
+                    value = Math.round((value + (isUp ? 0.1 : -0.1)) * 10) / 10;
+                } else {
+                    value = Math.round(value + (isUp ? 1 : -1));
+                }
+                event.preventDefault();
+
+                if (!allowNegative && value < 0) value = 0;
+                editText.text = value;
+                syncFieldToSlider(editText);
+
+                if (enablePreviewUpdate !== false) refreshPreviewIfEnabled();
+            });
+        }
+
+        // -----------------------------------------
+        // プレビュー / Preview
+        // -----------------------------------------
+
+        /**
+         * プレビューがONのときだけ再描画する
+         * @returns {void}
+         */
+        function refreshPreviewIfEnabled() {
+            if (previewCheckbox && previewCheckbox.value) updatePreview();
+        }
+
+        /**
+         * 直前のプレビューを取り消して描き直す
+         * @returns {void}
+         */
+        function updatePreview() {
+            undoPreview();
+            if (previewCheckbox.value) {
+                buildLongShadow(false);
+                isPreviewing = true;
+            }
+            app.redraw();
+        }
+
+        /**
+         * 表示中のプレビューを取り消す
+         * @returns {void}
+         */
+        function undoPreview() {
+            if (!isPreviewing) return;
+            app.undo();
+            isPreviewing = false;
+        }
+
+        /**
+         * プレビュー用の半透明コピーを1つ作る
+         * @param {PageItem} previewSource - 複製元のアイテム
+         * @param {number} ratio - 影の先端までの比率（0〜1）
+         * @param {number} opacityPercent - 不透明度（%）
+         * @param {number} dx - 影の先端までの水平移動量（pt）
+         * @param {number} dy - 影の先端までの垂直移動量（pt）
+         * @param {number} scalePercent - 影の先端の拡大率
+         * @returns {PageItem|null} 作成したコピー
+         */
+        function addPreviewCopy(previewSource, ratio, opacityPercent, dx, dy, scalePercent) {
+            var previewCopy = null;
+            try { previewCopy = previewSource.duplicate(); } catch (e) { previewCopy = null; }
+            if (!previewCopy) return null;
+
+            /* 一時ベースの複製はタグを外さないと後始末で消えてしまう
+               Clear the temp tag, otherwise the cleanup sweep deletes the preview */
+            setTempBaseTag(previewCopy, "");
+
+            resizeFromCenter(previewCopy, 100 + (scalePercent - 100) * ratio);
+            try { previewCopy.translate(dx * ratio, dy * ratio); } catch (e) { }
+            try { previewCopy.move(sourceItem, ElementPlacement.PLACEBEFORE); } catch (e) { }
+            try { previewCopy.opacity = opacityPercent; } catch (e) { }
+            return previewCopy;
+        }
+
+        // -----------------------------------------
+        // 実行 / Execution
+        // -----------------------------------------
+
+        /**
+         * スケールを実際に使う倍率へ変換する
+         * @param {number} rawScalePercent - 入力されたスケール（%）
+         * @returns {number} 実際に使う倍率（%）
+         */
         function normalizeScalePercent(rawScalePercent) {
-            var v = Number(rawScalePercent);
-            if (isNaN(v)) return 100;
-            // User request: 1% should run as 0.01%
-            if (v === 1) return 0.01;
-            return v;
+            var value = Number(rawScalePercent);
+            if (isNaN(value)) return 100;
+            /* プリセット「1%」は極小の影を作るため0.01%として扱う / the 1% preset runs as 0.01% */
+            if (value === 1) return 0.01;
+            return value;
         }
 
-        /* 実行関数 / Main execution */
-        function doExtrude(applyOffset) {
-            __applyOffsetNow = (applyOffset !== false);
-            var dist = parseFloat(inputDistance.text) || 0;
-            var scale = normalizeScalePercent(parseFloat(inputScale.text));
-            if (isNaN(scale) || scale <= 0) scale = 100; // デフォルト 100%
-            var ang = -(parseFloat(inputAngle.text) || 0); // 入力角度を反転
+        /**
+         * 入力欄から距離・角度・スケールを読み取る
+         * @returns {{dx: number, dy: number, scalePercent: number}} 影の先端までの移動量と拡大率
+         */
+        function readShadowParameters() {
+            var distancePt = parseFloat(distanceInput.text) || 0;
+            var scalePercent = normalizeScalePercent(parseFloat(scaleInput.text));
+            if (isNaN(scalePercent) || scalePercent <= 0) scalePercent = 100;
 
-            var rad = ang * Math.PI / 180;
-            var dx = dist * Math.cos(rad);
-            var dy = dist * Math.sin(rad);
+            /* 入力角度を反転して画面座標に合わせる / flip the angle to match screen coordinates */
+            var angleRadians = -(parseFloat(angleInput.text) || 0) * Math.PI / 180;
 
-            // 実行対象（ベース形状）の確定
-            // GroupItem の場合は「複製→合体→expand」した一時パス/複合パスを使う（元は残す）
-            var baseItem = originalPath;
-            var baseCleanup = function () { };
-            var baseSubPaths = originalSubPaths;
+            return {
+                dx: distancePt * Math.cos(angleRadians),
+                dy: distancePt * Math.sin(angleRadians),
+                scalePercent: scalePercent
+            };
+        }
 
-            function cleanupTempBaseSafely() {
-                try { baseCleanup(); } catch (e) { }
-                try { removeAllTempBasesByName(); } catch (e) { }
-            }
+        /**
+         * 影の元になる形を用意する（グループとテキストは一時パスへ変換する）
+         * @param {boolean} isFinalRun - 本実行なら true
+         * @returns {{item: PageItem, cleanup: function, ok: boolean, message: string}} 影の元になる形
+         */
+        function prepareShadowBaseItem(isFinalRun) {
+            var result = { item: sourceItem, cleanup: function () { }, ok: true, message: "" };
 
-            if (originalPath.typename === "GroupItem") {
-                var built = buildMergedItemFromGroup(originalPath);
-                if (!built.ok || !built.item) {
-                    alert(built.message || getLabel('cannotBuildFromGroup'));
-                    cleanupTempBaseSafely();
-                    return;
+            var merged = null;
+            if (sourceItem.typename === "GroupItem") {
+                merged = buildMergedItemFromGroup(sourceItem);
+                if (!merged.ok || !merged.item) {
+                    merged.message = merged.message || getLabel('alert.groupBuildFailed');
+                    return merged;
                 }
-                baseItem = built.item;
-                baseCleanup = built.cleanup;
-                baseSubPaths = getSubPaths(baseItem);
-                if (!isAllClosed(baseSubPaths)) {
-                    cleanupTempBaseSafely();
-                    alert(getLabel('selectClosedGroup'));
-                    return;
-                }
-            }
-
-            if (__applyOffsetNow && originalPath.typename === "TextFrame") {
-                var builtT = buildMergedItemFromText(originalPath);
-                if (!builtT.ok || !builtT.item) {
-                    alert(builtT.message || getLabel('selectClosed'));
-                    cleanupTempBaseSafely();
-                    return;
-                }
-                baseItem = builtT.item;
-                baseCleanup = builtT.cleanup;
-                baseSubPaths = getSubPaths(baseItem);
-                if (!isAllClosed(baseSubPaths)) {
-                    cleanupTempBaseSafely();
-                    alert(getLabel('selectClosed'));
-                    return;
+            } else if (isFinalRun && sourceItem.typename === "TextFrame") {
+                merged = buildMergedItemFromText(sourceItem);
+                if (!merged.ok || !merged.item) {
+                    merged.message = merged.message || getLabel('alert.selectClosedPath');
+                    return merged;
                 }
             }
 
-            // --- プレビュー簡易化 ---
-            // プレビュー時は「合体した影」を作らず、複製オブジェクトのみ表示する
-            if (!__applyOffsetNow) {
-                // Path/Compound/Group（baseItem）用のプレビュー複製（f=1 相当）
-                var pathB = null;
-                try {
-                    pathB = baseItem.duplicate();
-                    // scale: percent (100 = 等倍)
-                    try { pathB.resize(scale, scale, true, true, true, true, true, Transformation.CENTER); } catch (e) { }
-                    try { pathB.translate(dx, dy); } catch (e) { }
-                } catch (e) { pathB = null; }
-                // TextFrame はアウトライン化せず、テキストそのものを複製して表示
-                if (originalPath.typename === "TextFrame") {
-                    function makeTextPreviewDup(f, op) {
-                        var d = null;
-                        try { d = originalPath.duplicate(); } catch (e) { d = null; }
-                        if (!d) return null;
+            if (!merged) return result;
 
-                        // scale interpolation: 100 -> scale
-                        var s = 100 + (scale - 100) * f;
-                        try { d.resize(s, s, true, true, true, true, true, Transformation.CENTER); } catch (e) { }
-                        try { d.translate(dx * f, dy * f); } catch (e) { }
-                        try { d.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (e) { }
-                        try { d.opacity = op; } catch (e) { }
-                        return d;
-                    }
+            if (!areAllPathsClosed(collectSubPaths(merged.item))) {
+                merged.ok = false;
+                merged.message = (sourceItem.typename === "GroupItem")
+                    ? getLabel('alert.selectClosedGroup')
+                    : getLabel('alert.selectClosedPath');
+            }
+            return merged;
+        }
 
-                    // 中間表示（scale=100%でも表示する）
-                    // 生成順：薄い→濃い（手前が見やすい）
-                    makeTextPreviewDup(1, 20);
-                    makeTextPreviewDup(0.75, 40);
-                    makeTextPreviewDup(0.5, 60);
-                    makeTextPreviewDup(0.25, 80);
+        /**
+         * 生成した影を元のオブジェクトの背面へ置く
+         * @param {PageItem} shadowItem - 生成した影
+         * @param {PageItem} originalItem - 元のオブジェクト
+         * @returns {void}
+         */
+        function placeShadowBehindOriginal(shadowItem, originalItem) {
+            if (!shadowItem || !originalItem) return;
 
-                    try { doc.selection = null; } catch (e) { }
-                    app.redraw();
-                    return;
-                }
-
-                function makePreviewDup(f, op) {
-                    var d = null;
-                    try { d = baseItem.duplicate(); } catch (e) { d = null; }
-                    if (!d) return null;
-
-                    var s = 100 + (scale - 100) * f;
-                    try { d.resize(s, s, true, true, true, true, true, Transformation.CENTER); } catch (e) { }
-                    try { d.translate(dx * f, dy * f); } catch (e) { }
-                    try { d.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (e) { }
-                    try { d.opacity = op; } catch (e) { }
-                    return d;
-                }
-
-                // 中間表示（scale=100%でも表示する）
-                // 生成順：薄い→濃い（手前が見やすい）
-                try { if (pathB) pathB.move(originalPath, ElementPlacement.PLACEBEFORE); } catch (e) { }
-                try { if (pathB) pathB.opacity = 20; } catch (e) { }
-
-                makePreviewDup(0.75, 40);
-                makePreviewDup(0.5, 60);
-                makePreviewDup(0.25, 80);
-
-                // 選択解除
-                try { doc.selection = null; } catch (e) { }
-
-                // Group 由来の一時ベースがある場合は片付け（pathBは残す）
-                cleanupTempBaseSafely();
-
-                app.redraw();
+            /* まずは元オブジェクトの直後（背面側）へ / first try placing it right behind the original */
+            try {
+                shadowItem.move(originalItem, ElementPlacement.PLACEAFTER);
                 return;
-            }
+            } catch (e) { }
 
-            // --- 実生成（サンプリング面生成） ---
-            // v15系の「元形状と複製形状の間を面でつなぐ」方式に差し替え
-            var shadowGroup = generateShadowBySampling(baseItem, dx, dy, scale);
-            if (!shadowGroup) {
-                cleanupTempBaseSafely();
-                alert(getLabel('selectClosed'));
-                return;
-            }
+            /* TextFrame などで move が失敗する場合は同一レイヤーの最背面へ
+               When move fails, fall back to the back of the same layer */
+            try {
+                var ownerLayer = originalItem.layer;
+                if (ownerLayer) {
+                    shadowItem.move(ownerLayer, ElementPlacement.PLACEATBEGINNING);
+                    return;
+                }
+            } catch (e) { }
 
-            // パスの穴を潰すため、Merge → Add → Expand の順で実行
+            /* 最後の手段。これで見えなくなることもあるので最後に試す / last resort */
+            try { shadowItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
+        }
+
+        /**
+         * 影の面を合体させ、オフセットと単純化を適用したグループを返す
+         * @param {GroupItem} shadowGroup - 面を集めたグループ
+         * @param {boolean} isFinalRun - 本実行なら true
+         * @returns {GroupItem} 仕上げた影のグループ
+         */
+        function finishShadowGroup(shadowGroup, isFinalRun) {
+            /* パスの穴を潰すため、Merge → Add → Expand の順で実行 / merge, add, then expand */
             try {
                 doc.selection = null;
                 shadowGroup.selected = true;
@@ -1505,119 +1548,141 @@ var SCRIPT_ARTICLE_URL = "https://note.com/nice_lotus120/n/nf406fb3ae2b4"; /* �
                 app.executeMenuCommand('expandStyle');
             } catch (e) { }
 
-            // 合体後の選択結果をまとめてグループ化（オフセット適用の受け皿）
-            var resultItems = null;
-            try { resultItems = doc.selection; } catch (e) { resultItems = null; }
-            try { doc.selection = null; } catch (e) { }
-            var cGroup = null;
-            try {
-                if (resultItems && resultItems.length) {
-                    cGroup = groupItems(doc, resultItems);
-                } else {
-                    cGroup = shadowGroup;
+            var mergedShadowItems = doc.selection;
+            doc.selection = null;
+
+            var shadowResultGroup = shadowGroup;
+            if (mergedShadowItems && mergedShadowItems.length) {
+                /* アクティブレイヤーがロックされているとグループを追加できない
+                   groupItems.add() fails when the active layer is locked */
+                try { shadowResultGroup = createGroupFrom(mergedShadowItems); } catch (e) { }
+            }
+
+            simplifyPathsInItem(shadowResultGroup);
+            applyOffsetEffect(shadowResultGroup, isFinalRun);
+            return shadowResultGroup;
+        }
+
+        /**
+         * 渡された順序のままアイテムを新しいグループにまとめる
+         * @param {PageItem[]} items - まとめるアイテム
+         * @returns {GroupItem} 作成したグループ
+         */
+        function createGroupFrom(items) {
+            var newGroup = doc.groupItems.add();
+            for (var i = 0; i < items.length; i++) {
+                try { items[i].move(newGroup, ElementPlacement.PLACEATEND); } catch (e) { }
+            }
+            return newGroup;
+        }
+
+        /**
+         * ロングシャドウを生成する
+         * @param {boolean} isFinalRun - 本実行なら true、プレビューなら false
+         * @returns {void}
+         */
+        function buildLongShadow(isFinalRun) {
+            var params = readShadowParameters();
+            var base = prepareShadowBaseItem(isFinalRun);
+
+            function cleanupTempBase() {
+                base.cleanup();
+                removeTempBaseItemsByName();
+            }
+
+            if (!base.ok) {
+                cleanupTempBase();
+                alert(base.message);
+                return;
+            }
+
+            /* プレビューでは影を合体させず、半透明のコピーを並べるだけにする
+               The preview stacks translucent copies instead of building the merged shadow */
+            if (!isFinalRun) {
+                for (var i = 0; i < PREVIEW_STEPS.length; i++) {
+                    addPreviewCopy(base.item, PREVIEW_STEPS[i].ratio, PREVIEW_STEPS[i].opacity,
+                        params.dx, params.dy, params.scalePercent);
                 }
-            } catch (e) { cGroup = shadowGroup; }
-
-            // パスの単純化（任意）
-            try { simplifyPathsInItem(cGroup); } catch (e) { }
-
-            // オフセット（ライブ効果）をCグループに適用
-            applyOffsetEffectToCGroup(cGroup);
-
-            // C を A の背面へ（TextFrame の場合に SENDTOBACK すると見えなくなることがあるため、同一レイヤー内へ配置を寄せる）
-            (function placeShadowBehindOriginal(shadowItem, originalItem) {
-                if (!shadowItem || !originalItem) return;
-
-                // まずは通常通り「元オブジェクトの直後」へ
-                try {
-                    shadowItem.move(originalItem, ElementPlacement.PLACEAFTER);
-                    return;
-                } catch (e) { }
-
-                // TextFrame や特殊な親のとき move が失敗する場合があるので、同一レイヤーへ移して背面側に置く
-                try {
-                    var lyr = null;
-                    try { lyr = originalItem.layer; } catch (e) { lyr = null; }
-                    if (lyr) {
-                        // レイヤー先頭（背面側）へ。ドキュメント全体の最背面には送らない。
-                        shadowItem.move(lyr, ElementPlacement.PLACEATBEGINNING);
-                        return;
-                    }
-                } catch (e) { }
-
-                // 最後の手段：ドキュメント全体の背面（これで見えなくなるケースもあるため最後に）
-                try { shadowItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
-            })(cGroup, originalPath);
-
-            // 一時ベース（Group由来など）の後始末
-            cleanupTempBaseSafely();
-
-            // 最終保険：Pathfinder/expand後に残った一時ベースを完全掃除
-            try { removeAllTempBasesByName(); } catch (e) { }
-            // 最終保険：一時レイヤー（__LongShadowTempBase__）が残っていれば削除
-            try { removeTempLayerByName(); } catch (e) { }
-
-            // 単一パス（PathItem）実行時は、生成したシャドウ（Cグループ）を選択状態にする
-            try {
                 doc.selection = null;
-                if (originalPath && originalPath.typename === "PathItem" && cGroup && cGroup.isValid) {
-                    doc.selection = [cGroup];
+                cleanupTempBase();
+                app.redraw();
+                return;
+            }
+
+            var shadowGroup = buildShadowFaces(base.item, params.dx, params.dy, params.scalePercent);
+            if (!shadowGroup) {
+                cleanupTempBase();
+                alert(getLabel('alert.selectClosedPath'));
+                return;
+            }
+
+            var shadowResultGroup = finishShadowGroup(shadowGroup, isFinalRun);
+            placeShadowBehindOriginal(shadowResultGroup, sourceItem);
+            cleanupTempBase();
+
+            /* 単一パスから作ったときは、生成した影を選択状態にする
+               Select the generated shadow when the source was a single path */
+            doc.selection = null;
+            try {
+                if (sourceItem.typename === "PathItem" && shadowResultGroup.isValid) {
+                    doc.selection = [shadowResultGroup];
                 }
             } catch (e) { }
 
             app.redraw();
-            return;
         }
 
-        /* プレビュー更新 / Update preview */
-        function updatePreview() {
-            if (isPreviewing) {
-                app.undo(); // 前回のプレビューを取り消し
-                isPreviewing = false;
-            }
-            if (chkPreview.value) {
-                doExtrude(false);
-                isPreviewing = true;
-            }
-            app.redraw();
-        }
+        // -----------------------------------------
+        // イベントリスナー / Event listeners
+        // -----------------------------------------
 
-        /* イベントリスナー / Event listeners */
-        // 値が変わった時
-        inputDistance.onChanging = function () { if (chkPreview.value) updatePreview(); };
-        inputAngle.onChanging = function () { if (chkPreview.value) updatePreview(); };
-        inputScale.onChanging = function () { if (chkPreview.value) updatePreview(); };
+        /* プリセット選択時：スケールと角度に反映（距離は変更しない）
+           Presets set the scale and the angle; the distance is left as it is */
+        presetDropdown.onChange = function () {
+            if (!presetDropdown.selection) return;
 
-        // 単純化チェックの切替時（プレビューがONなら再描画）
-        if (chkSimplify) chkSimplify.onClick = function () { if (chkPreview.value) updatePreview(); };
+            var matched = String(presetDropdown.selection.text)
+                .match(/^\s*(-?\d+(?:\.\d+)?)\s*%\s*\/\s*(-?\d+(?:\.\d+)?)\s*°\s*$/);
+            if (!matched) return;
 
-        // プレビューチェックボックスがクリックされた時
-        chkPreview.onClick = updatePreview;
+            scaleInput.text = matched[1];
+            angleInput.text = matched[2];
+            syncFieldToSlider(scaleInput);
+            syncFieldToSlider(angleInput);
 
-        // OKボタン
+            refreshPreviewIfEnabled();
+        };
+
+        simplifyCheckbox.onClick = refreshPreviewIfEnabled;
+        previewCheckbox.onClick = updatePreview;
+
         btnOk.onClick = function () {
-            if (isPreviewing) {
-                app.undo(); // 一旦プレビューを消してから確定実行
-            }
-            doExtrude(true);
-            dlg.close();
+            /* プレビューを消してから確定実行 / drop the preview before the real run */
+            undoPreview();
+            hasFinished = true;
+            buildLongShadow(true);
+            dialog.close();
         };
 
-        // キャンセルボタン
         btnCancel.onClick = function () {
-            if (isPreviewing) {
-                app.undo();
-            }
-            try { removeAllTempBasesByName(); } catch (e) { }
-            try { removeTempLayerByName(); } catch (e) { }
-            dlg.close();
+            undoPreview();
+            hasFinished = true;
+            removeTempBaseItemsByName();
+            dialog.close();
         };
 
-        // ダイアログを開いた時点でプレビューを表示
-        if (chkPreview && chkPreview.value) {
-            updatePreview();
-        }
-        dlg.show();
+        /* 閉じるボタンで閉じられたときもプレビューを後片付けする
+           Clean the preview up when the dialog is dismissed by its close box */
+        dialog.onClose = function () {
+            if (hasFinished) return;
+            undoPreview();
+            removeTempBaseItemsByName();
+            app.redraw();
+        };
+
+        /* ダイアログを開いた時点でプレビューを表示 / show the preview as the dialog opens */
+        refreshPreviewIfEnabled();
+        dialog.show();
 
     })();
 

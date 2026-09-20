@@ -169,6 +169,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択オブジェクトの境界に合わせて長方形を作成する Illustrator スクリプト](readme-ja/ConvertToRectangle.md)
 - [選択したオブジェクトにランダムな変形を加え、手書き・スケッチ風の見た目に整えます](readme-ja/KPTSketchy.md)
 - [選択オブジェクトに［形状に変換］のライブエフェクトを適用する常駐パレット。パレットで「長方形／楕円」と「値を…](readme-ja/LEConvertToShape.md)
+- [距離・角度・スケールを指定してロングシャドウを生成](readme-ja/LongShadowMaker.md)
 - [選択中のオブジェクトに対して、複合パスの解除 → パスの合体 → アピアランスの拡張 → グループ解除を一括…](readme-ja/PathUnite.md)
 - [選択中のオブジェクトに対して複合パス解除 → パスの合体 → アピアランス拡張 → グループ解除 → オフセ…](readme-ja/PathUniteOffsetTool.md)
 - [選択した長方形を、左下隅・上辺中央・右下隅の 3 点を通る円弧に変換](readme-ja/RectangleToArc.md)

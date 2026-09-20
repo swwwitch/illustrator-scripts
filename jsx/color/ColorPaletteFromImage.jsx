@@ -23,10 +23,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ColorPaletteFromImage";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-15";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPaletteFromImage.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPaletteFromImage.md"; /* README (English) */
@@ -101,8 +101,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /* CMYK補正の丸め幅（%） / Rounding step for the CMYK-adjusted row */
     var CMYK_ROUND_STEP = 5;
 
-    /* スウォッチ名の重複回避で試す連番の上限 / Highest suffix tried when making a swatch name unique */
-    var SWATCH_NAME_MAX_SUFFIX = 999;
+    /* スウォッチ名・スウォッチグループ名の重複回避で試す連番の上限 / Highest suffix tried when making a name unique */
+    var UNIQUE_NAME_MAX_SUFFIX = 999;
 
     /* ラベルに使うフォント（先頭から順に試す） / Label fonts, tried in order */
     var LABEL_FONT_NAMES = ["MyriadPro-Regular", "Myriad Pro"];
@@ -128,6 +128,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     var DIALOG_BUTTON_SIZE = [90, 26];       /* ボタンの寸法 / dialog button size */
     var PROGRESS_BAR_SIZE = [260, 14];       /* 進捗バーの寸法 / progress bar size */
     var PROGRESS_TEXT_CHARS = 28;            /* 進捗テキストの最小幅 / minimum width of the progress text */
+    var PANEL_ITEM_SPACING = 6;              /* パネル内のチェックボックス間隔 / spacing between checkboxes in a panel */
+    var FIT_VIEW_ROW_MARGINS = [20, 0, 0, 0]; /* 「画面にフィット」の左インデント / left indent of the Fit View row */
 
     /* パレットの寸法比 / Palette proportions */
     var PALETTE_MAX_COLUMNS = 16;            /* 最上段の色数（寸法の基準） / column count that defines the cell size */
@@ -140,80 +142,80 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /**
      * ウィンドウの余白と間隔をそろえる
-     * @param {Window} win - 対象ウィンドウ
+     * @param {Window} targetWindow - 対象ウィンドウ
      * @param {number} [spacing] - 要素間隔。省略時は WINDOW_SPACING
      * @returns {void}
      */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
      * パネルの余白と間隔をそろえる
-     * @param {Panel} panel - 対象パネル
+     * @param {Panel} targetPanel - 対象パネル
      * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
      * @returns {void}
      */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 横並びグループの配置と間隔をそろえる（ボタン列など）
-     * @param {Group} group - 対象グループ
+     * @param {Group} rowGroup - 対象の横並びグループ
      * @param {string|Array} [alignment] - グループ自身の alignment。省略時は "left"
      * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
      * @returns {void}
      */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    function setupRow(rowGroup, alignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = alignment || "left";
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * 見出し付きパネルを追加する
-     * @param {Window|Group} parent - 追加先
+     * @param {Window|Group} parentContainer - 追加先
      * @param {string} labelText - パネルの見出し
      * @param {number} [spacing] - パネル内の要素間隔
      * @returns {Panel} 追加したパネル
      */
-    function addPanel(parent, labelText, spacing) {
-        var panel = parent.add("panel", undefined, labelText);
-        setupPanel(panel, spacing);
-        return panel;
+    function addPanel(parentContainer, labelText, spacing) {
+        var newPanel = parentContainer.add("panel", undefined, labelText);
+        setupPanel(newPanel, spacing);
+        return newPanel;
     }
 
     /**
      * 縦並びのカラムグループを追加する
-     * @param {Window|Group} parent - 追加先
+     * @param {Window|Group} parentContainer - 追加先
      * @param {string|Array} [alignment] - グループ自身の alignment
      * @returns {Group} 追加したグループ
      */
-    function addColumnGroup(parent, alignment) {
-        var column = parent.add("group");
-        column.orientation = "column";
-        column.alignChildren = "fill";
-        if (alignment) column.alignment = alignment;
-        return column;
+    function addColumnGroup(parentContainer, alignment) {
+        var columnGroup = parentContainer.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = "fill";
+        if (alignment) columnGroup.alignment = alignment;
+        return columnGroup;
     }
 
     /**
      * パネル幅いっぱいに広げないチェックボックスを追加する
-     * @param {Panel} panel - 追加先のパネル
+     * @param {Panel} targetPanel - 追加先のパネル
      * @param {string} labelText - チェックボックスのラベル
      * @param {string} [tooltipText] - ツールチップ
      * @returns {Checkbox} 追加したチェックボックス
      */
-    function addLeftCheckbox(panel, labelText, tooltipText) {
-        var checkbox = panel.add("checkbox", undefined, labelText);
+    function addLeftCheckbox(targetPanel, labelText, tooltipText) {
+        var checkbox = targetPanel.add("checkbox", undefined, labelText);
         checkbox.alignment = "left";
         if (tooltipText) checkbox.helpTip = tooltipText;
         return checkbox;
@@ -277,6 +279,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                 ja: "「ほぼ白」「ほぼ黒」を除いた11色の行を出力します。",
                 en: "Outputs an 11-color row with near-white and near-black colors excluded."
             },
+            count8: {
+                ja: "11色の行から絞り込んだ8色の行を出力します。",
+                en: "Outputs an 8-color row narrowed down from the 11-color row."
+            },
+            count5: {
+                ja: "8色の行から絞り込んだ5色の行を出力します。",
+                en: "Outputs a 5-color row narrowed down from the 8-color row."
+            },
             count5Adjusted: {
                 ja: "5色の各値を5%刻みに丸めた行を出力します。",
                 en: "Outputs a row with each value rounded to the nearest 5%."
@@ -317,8 +327,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             done: { ja: "完了", en: "Done" }
         },
         group: {
-            colors16: { ja: "16色", en: "16 Colors" },
             colorsSuffix: { ja: "色", en: "Colors" },
+            colors5Adjusted: { ja: "5色（CMYK補正）", en: "5 Colors (CMYK Rounded)" },
             swatchPalette: { ja: "スウォッチパレット", en: "Swatch Palette" }
         },
         fallbackName: {
@@ -331,6 +341,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noRow: { ja: "出力する行が選ばれていません。", en: "No rows selected to output." },
+            lockedLayer: {
+                ja: "ロックまたは非表示のレイヤー上のオブジェクトは処理できません。",
+                en: "Objects on a locked or hidden layer cannot be processed."
+            },
             noSwatchSelected: {
                 ja: "対象のオブジェクトまたはスウォッチが選択されていません。",
                 en: "No applicable objects or swatches are selected."
@@ -502,6 +516,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         var converted = null;
         if (color.typename === "RGBColor") {
             converted = convertSampleColor(ImageColorSpace.RGB, [color.red, color.green, color.blue], ImageColorSpace.CMYK);
+        } else if (color.typename === "GrayColor") {
+            converted = convertSampleColor(ImageColorSpace.GrayScale, [color.gray], ImageColorSpace.CMYK);
         } else if (color.typename === "LabColor") {
             converted = convertSampleColor(ImageColorSpace.LAB, [color.l, color.a, color.b], ImageColorSpace.CMYK);
         }
@@ -527,13 +543,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     }
 
     /**
+     * RGB 値からカラーの一致判定に使うキーを作る
+     * @param {number} r - R 値（0〜255）
+     * @param {number} g - G 値（0〜255）
+     * @param {number} b - B 値（0〜255）
+     * @returns {string} RGB 値をまとめた文字列キー
+     */
+    function rgbKey(r, g, b) {
+        return Math.round(r) + "," + Math.round(g) + "," + Math.round(b);
+    }
+
+    /**
      * カラーの一致判定に使うキーを作る
      * @param {Color} color - 対象のカラー
      * @returns {string} RGB 値をまとめた文字列キー
      */
     function colorKey(color) {
         var rgb = colorToRGB(color);
-        return Math.round(rgb[0]) + "," + Math.round(rgb[1]) + "," + Math.round(rgb[2]);
+        return rgbKey(rgb[0], rgb[1], rgb[2]);
     }
 
     /**
@@ -561,11 +588,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * @returns {boolean} CMYK ドキュメントなら true
      */
     function isCmykDocument(doc) {
-        try {
-            return !!(doc && doc.documentColorSpace === DocumentColorSpace.CMYK);
-        } catch (e) {
-            return false;
-        }
+        return !!(doc && doc.documentColorSpace === DocumentColorSpace.CMYK);
     }
 
     /**
@@ -617,13 +640,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /**
      * オブジェクトツリーから塗りのカラーを面積付きで集める
      * @param {PageItem} item - 走査対象のオブジェクト
-     * @param {Array<object>} collected - 収集先の配列
-     * @param {object} [stats] - 正しく読めた保証がない塗りを数える { unreadableCount: number }
+     * @param {Array<object>} collectedEntries - 収集先の配列
+     * @param {object} [unreadableStats] - 正しく読めた保証がない塗りを数える { unreadableCount: number }
      * @returns {Array<object>} { color: Color, area: number } の配列
      */
-    function collectFillColors(item, collected, stats) {
-        if (!collected) collected = [];
-        if (!item) return collected;
+    function collectFillColors(item, collectedEntries, unreadableStats) {
+        if (!collectedEntries) collectedEntries = [];
+        if (!item) return collectedEntries;
 
         if (item.typename === "PathItem") {
             /* フリーグラデーションなど DOM から読めない塗りがあっても、1つのパスで全体を止めない
@@ -632,10 +655,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             try {
                 if (item.filled) fillColor = item.fillColor;
             } catch (e) {
-                if (stats) stats.unreadableCount++;
+                if (unreadableStats) unreadableStats.unreadableCount++;
                 logError(e, "path fill color");
             }
-            if (!fillColor) return collected;
+            if (!fillColor) return collectedEntries;
 
             var area = 1;
             try {
@@ -649,9 +672,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                 var stopColors = getGradientStopColors(fillColor);
                 /* ストップを1つも読めないグラデーション（フリーグラデーションなど）
                    A gradient whose stops cannot be read at all (a freeform gradient and the like) */
-                if (stopColors.length === 0 && stats) stats.unreadableCount++;
+                if (stopColors.length === 0 && unreadableStats) unreadableStats.unreadableCount++;
                 for (var i = 0; i < stopColors.length; i++) {
-                    collected.push({ color: stopColors[i], area: area / stopColors.length });
+                    collectedEntries.push({ color: stopColors[i], area: area / stopColors.length });
                 }
             } else if (fillColor.typename !== "NoColor" &&
                 fillColor.typename !== "PatternColor" &&
@@ -660,39 +683,39 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                    取りこぼすより余分にラスタライズするほうが安全なので、読めない塗りとして扱う。
                    Illustrator reports a freeform gradient as GrayColor(gray=0), which is indistinguishable from a
                    real gray fill. Flag it as unreadable: an extra rasterize costs less than losing the colors. */
-                if (fillColor.typename === "GrayColor" && stats) stats.unreadableCount++;
-                collected.push({ color: fillColor, area: area });
+                if (fillColor.typename === "GrayColor" && unreadableStats) unreadableStats.unreadableCount++;
+                collectedEntries.push({ color: fillColor, area: area });
             }
-            return collected;
+            return collectedEntries;
         }
 
         if (item.typename === "GroupItem" || item.typename === "CompoundPathItem") {
-            var children = (item.typename === "GroupItem") ? item.pageItems : item.pathItems;
-            for (var k = 0; k < children.length; k++) {
-                collectFillColors(children[k], collected, stats);
+            var childItems = (item.typename === "GroupItem") ? item.pageItems : item.pathItems;
+            for (var k = 0; k < childItems.length; k++) {
+                collectFillColors(childItems[k], collectedEntries, unreadableStats);
             }
         }
-        return collected;
+        return collectedEntries;
     }
 
     /**
      * 同じカラーをまとめ、面積を合算する
-     * @param {Array<object>} colors - { color: Color, area: number } の配列
+     * @param {Array<object>} colorEntries - { color: Color, area: number } の配列
      * @returns {Array<object>} 重複を除いた { color: Color, area: number } の配列
      */
-    function deduplicateColors(colors) {
-        var seenIndex = {};
-        var merged = [];
-        for (var i = 0; i < colors.length; i++) {
-            var key = colorKey(colors[i].color);
-            if (seenIndex[key] === undefined) {
-                seenIndex[key] = merged.length;
-                merged.push({ color: colors[i].color, area: colors[i].area || 1 });
+    function deduplicateColors(colorEntries) {
+        var indexByColorKey = {};
+        var mergedEntries = [];
+        for (var i = 0; i < colorEntries.length; i++) {
+            var key = colorKey(colorEntries[i].color);
+            if (indexByColorKey[key] === undefined) {
+                indexByColorKey[key] = mergedEntries.length;
+                mergedEntries.push({ color: colorEntries[i].color, area: colorEntries[i].area || 1 });
             } else {
-                merged[seenIndex[key]].area += (colors[i].area || 1);
+                mergedEntries[indexByColorKey[key]].area += (colorEntries[i].area || 1);
             }
         }
-        return merged;
+        return mergedEntries;
     }
 
     /**
@@ -701,31 +724,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * @returns {Array<object>} { color: Color, area: number } の配列
      */
     function getSelectedSwatchColors(doc) {
-        var colors = [];
-        try {
-            var selectedSwatches = doc.swatches.getSelected();
-            if (!selectedSwatches || selectedSwatches.length === 0) return colors;
+        var swatchColorEntries = [];
+        var selectedSwatches = doc.swatches.getSelected();
+        if (!selectedSwatches || selectedSwatches.length === 0) return swatchColorEntries;
 
-            for (var i = 0; i < selectedSwatches.length; i++) {
-                var swatchColor = selectedSwatches[i].color;
-                if (!swatchColor) continue;
+        for (var i = 0; i < selectedSwatches.length; i++) {
+            var swatchColor = selectedSwatches[i].color;
+            if (!swatchColor) continue;
 
-                /* [なし]・パターンは対象外 / Skip [None] and pattern swatches */
-                if (swatchColor.typename === "NoColor" || swatchColor.typename === "PatternColor") continue;
+            /* [なし]・パターンは対象外 / Skip [None] and pattern swatches */
+            if (swatchColor.typename === "NoColor" || swatchColor.typename === "PatternColor") continue;
 
-                if (swatchColor.typename === "GradientColor") {
-                    var stopColors = getGradientStopColors(swatchColor);
-                    for (var k = 0; k < stopColors.length; k++) {
-                        colors.push({ color: stopColors[k], area: 1 });
-                    }
-                    continue;
+            if (swatchColor.typename === "GradientColor") {
+                var stopColors = getGradientStopColors(swatchColor);
+                for (var k = 0; k < stopColors.length; k++) {
+                    swatchColorEntries.push({ color: stopColors[k], area: 1 });
                 }
-                colors.push({ color: swatchColor, area: 1 });
+                continue;
             }
-        } catch (e) {
-            logError(e, "getSelectedSwatchColors");
+            swatchColorEntries.push({ color: swatchColor, area: 1 });
         }
-        return colors;
+        return swatchColorEntries;
     }
 
     // =========================================
@@ -756,14 +775,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /**
      * 最も暗いエントリの位置を返す
-     * @param {Array<object>} entries - { r, g, b } を持つエントリの配列
+     * @param {Array<object>} paletteEntries - { r, g, b } を持つエントリの配列
      * @returns {number} 最も暗いエントリのインデックス
      */
-    function findDarkestIndex(entries) {
+    function findDarkestIndex(paletteEntries) {
         var darkestIndex = 0;
         var minLuminance = Infinity;
-        for (var i = 0; i < entries.length; i++) {
-            var luminance = getLuminance(entries[i]);
+        for (var i = 0; i < paletteEntries.length; i++) {
+            var luminance = getLuminance(paletteEntries[i]);
             if (luminance < minLuminance) {
                 minLuminance = luminance;
                 darkestIndex = i;
@@ -774,57 +793,48 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /**
      * 最も暗い色から始めて、最近傍法でグラデーション風に並べ替える
-     * @param {Array<object>} entries - { r, g, b } を持つエントリの配列
+     * @param {Array<object>} paletteEntries - { r, g, b } を持つエントリの配列
      * @returns {Array<object>} 並べ替えたエントリの配列
      */
-    function sortByNearest(entries) {
-        if (entries.length <= 1) return entries.slice();
+    function sortByNearest(paletteEntries) {
+        if (paletteEntries.length <= 1) return paletteEntries.slice();
 
-        var remaining = entries.slice();
-        var sorted = [remaining.splice(findDarkestIndex(remaining), 1)[0]];
+        var remainingEntries = paletteEntries.slice();
+        var sortedEntries = [remainingEntries.splice(findDarkestIndex(remainingEntries), 1)[0]];
 
-        while (remaining.length > 0) {
-            var last = sorted[sorted.length - 1];
+        while (remainingEntries.length > 0) {
+            var lastEntry = sortedEntries[sortedEntries.length - 1];
             var nearestIndex = 0;
             var nearestDistance = Infinity;
-            for (var i = 0; i < remaining.length; i++) {
-                var distance = getColorDistance(last, remaining[i]);
+            for (var i = 0; i < remainingEntries.length; i++) {
+                var distance = getColorDistance(lastEntry, remainingEntries[i]);
                 if (distance < nearestDistance) {
                     nearestDistance = distance;
                     nearestIndex = i;
                 }
             }
-            sorted.push(remaining.splice(nearestIndex, 1)[0]);
+            sortedEntries.push(remainingEntries.splice(nearestIndex, 1)[0]);
         }
-        return sorted;
+        return sortedEntries;
     }
 
     /**
      * カラー配列を RGB 付きのエントリに変換し、最近傍法で並べ替える
-     * @param {Array<object>} colorEntries - { color, area } または { swatch: { color, area } } の配列
-     * @returns {Array<object>} { swatch, r, g, b, area } の配列
+     * @param {Array<object>} colorEntries - { color, area } の配列
+     * @returns {Array<object>} { color, area, r, g, b } の配列
      */
     function buildOrderedPaletteEntries(colorEntries) {
         var paletteEntries = [];
         for (var i = 0; i < colorEntries.length; i++) {
-            var entry = colorEntries[i];
-            var swatch = (entry && entry.swatch) ? entry.swatch : entry;
-            if (!swatch) continue;
+            if (!colorEntries[i]) continue;
 
-            var area = 1;
-            if (swatch.area !== undefined) {
-                area = swatch.area;
-            } else if (entry && entry.area !== undefined) {
-                area = entry.area;
-            }
-
-            var rgb = colorToRGB(swatch.color);
+            var rgb = colorToRGB(colorEntries[i].color);
             paletteEntries.push({
-                swatch: { color: swatch.color, area: area },
+                color: colorEntries[i].color,
+                area: colorEntries[i].area || 1,
                 r: rgb[0],
                 g: rgb[1],
-                b: rgb[2],
-                area: area || 1
+                b: rgb[2]
             });
         }
         return sortByNearest(paletteEntries);
@@ -834,70 +844,92 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * 最大距離法で N 色を選ぶ（面積で重み付け）
      * スコア = 既選択色との最小距離 × pow(面積 / 平均面積, 0.75)
      * 面積が平均の4倍なら重み約2.83倍、1/4なら約0.35倍で、sqrt より強く面積を反映する。
-     * @param {Array<object>} colorList - { swatch, r, g, b, area } の配列
+     * @param {Array<object>} paletteEntries - { color, area, r, g, b } の配列
      * @param {number} pickCount - 選出する色数
      * @returns {Array<object>} 選出したエントリの配列
      */
-    function selectByMaxDistance(colorList, pickCount) {
-        if (colorList.length <= pickCount) return colorList.slice();
+    function selectByMaxDistance(paletteEntries, pickCount) {
+        if (paletteEntries.length <= pickCount) return paletteEntries.slice();
 
-        var totalArea = 0;
-        for (var i = 0; i < colorList.length; i++) {
-            totalArea += (colorList[i].area || 1);
-        }
-        var averageArea = totalArea / colorList.length;
-
-        var areaWeights = [];
+        var areaWeights = buildAreaWeights(paletteEntries);
         var isUsed = [];
-        for (var k = 0; k < colorList.length; k++) {
-            areaWeights.push(Math.pow((colorList[k].area || 1) / averageArea, 0.75));
-            isUsed.push(false);
-        }
+        for (var i = 0; i < paletteEntries.length; i++) isUsed.push(false);
 
         /* 最初の色は最も暗い色 / The first color is the darkest one */
-        var firstIndex = findDarkestIndex(colorList);
-        var selectedEntries = [colorList[firstIndex]];
+        var firstIndex = findDarkestIndex(paletteEntries);
+        var selectedEntries = [paletteEntries[firstIndex]];
         isUsed[firstIndex] = true;
 
         /* 既選択色から最も遠い色を順に選ぶ / Repeatedly pick the color farthest from the selected set */
         while (selectedEntries.length < pickCount) {
-            var bestIndex = -1;
-            var bestScore = -1;
-
-            for (var c = 0; c < colorList.length; c++) {
-                if (isUsed[c]) continue;
-
-                var minDistance = Infinity;
-                for (var s = 0; s < selectedEntries.length; s++) {
-                    var distance = getColorDistance(colorList[c], selectedEntries[s]);
-                    if (distance < minDistance) minDistance = distance;
-                }
-
-                var score = minDistance * areaWeights[c];
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestIndex = c;
-                }
-            }
-
-            selectedEntries.push(colorList[bestIndex]);
-            isUsed[bestIndex] = true;
+            var farthestIndex = findFarthestIndex(paletteEntries, selectedEntries, areaWeights, isUsed);
+            selectedEntries.push(paletteEntries[farthestIndex]);
+            isUsed[farthestIndex] = true;
         }
 
         return selectedEntries;
     }
 
     /**
+     * エントリごとの面積の重みを求める
+     * @param {Array<object>} paletteEntries - { area } を持つエントリの配列
+     * @returns {Array<number>} 面積の重みの配列
+     */
+    function buildAreaWeights(paletteEntries) {
+        var totalArea = 0;
+        for (var i = 0; i < paletteEntries.length; i++) {
+            totalArea += (paletteEntries[i].area || 1);
+        }
+        var averageArea = totalArea / paletteEntries.length;
+
+        var areaWeights = [];
+        for (var k = 0; k < paletteEntries.length; k++) {
+            areaWeights.push(Math.pow((paletteEntries[k].area || 1) / averageArea, 0.75));
+        }
+        return areaWeights;
+    }
+
+    /**
+     * 既に選んだ色から最も遠いエントリの位置を返す（面積で重み付け）
+     * @param {Array<object>} paletteEntries - 候補のエントリ配列
+     * @param {Array<object>} selectedEntries - 既に選んだエントリ配列
+     * @param {Array<number>} areaWeights - エントリごとの面積の重み
+     * @param {Array<boolean>} isUsed - 選出済みかどうかの配列
+     * @returns {number} 次に選ぶエントリのインデックス
+     */
+    function findFarthestIndex(paletteEntries, selectedEntries, areaWeights, isUsed) {
+        var bestIndex = -1;
+        var bestScore = -1;
+
+        for (var i = 0; i < paletteEntries.length; i++) {
+            if (isUsed[i]) continue;
+
+            var minDistance = Infinity;
+            for (var k = 0; k < selectedEntries.length; k++) {
+                var distance = getColorDistance(paletteEntries[i], selectedEntries[k]);
+                if (distance < minDistance) minDistance = distance;
+            }
+
+            var score = minDistance * areaWeights[i];
+            if (score > bestScore) {
+                bestScore = score;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    /**
      * エントリが「ほぼ白」かどうかを判定する
      * RGB の明るさで白候補を絞り、可能なら CMYK 合計量で確認する。
-     * @param {object} entry - { swatch, r, g, b } を持つエントリ
+     * @param {object} entry - { color, r, g, b } を持つエントリ
      * @returns {boolean} ほぼ白なら true
      */
     function isNearlyWhite(entry) {
         if (entry.r < NEAR_WHITE_RGB_MIN || entry.g < NEAR_WHITE_RGB_MIN || entry.b < NEAR_WHITE_RGB_MIN) {
             return false;
         }
-        var cmyk = colorToCMYKVals(entry.swatch.color);
+        var cmyk = colorToCMYKVals(entry.color);
         /* CMYK が取得できない場合は RGB 条件のみで判定する / Fall back to the RGB condition alone */
         if (!cmyk) return true;
         return (cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3]) <= NEAR_WHITE_CMYK_TOTAL_MAX;
@@ -906,92 +938,85 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /**
      * エントリが「ほぼ黒」かどうかを判定する
      * RGB の暗さで黒候補を絞り、可能なら CMYK 合計量または K 値で確認する。
-     * @param {object} entry - { swatch, r, g, b } を持つエントリ
+     * @param {object} entry - { color, r, g, b } を持つエントリ
      * @returns {boolean} ほぼ黒なら true
      */
     function isNearlyBlack(entry) {
         if (entry.r > NEAR_BLACK_RGB_MAX || entry.g > NEAR_BLACK_RGB_MAX || entry.b > NEAR_BLACK_RGB_MAX) {
             return false;
         }
-        var cmyk = colorToCMYKVals(entry.swatch.color);
+        var cmyk = colorToCMYKVals(entry.color);
         /* CMYK が取得できない場合は RGB 条件のみで判定する / Fall back to the RGB condition alone */
         if (!cmyk) return true;
         return ((cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3]) >= NEAR_BLACK_CMYK_TOTAL_MIN || cmyk[3] >= NEAR_BLACK_K_MIN);
     }
 
     /**
-     * 11色行の入力色を作る（カスケード時も「ほぼ白／ほぼ黒」の除外を効かせる）
-     * @param {Array<object>} colorList - 全カラーのエントリ配列
-     * @param {Array<object>} cascadePrev - 直前の行で選ばれたエントリ配列
-     * @param {boolean} useCascade - 段階的減色を使うかどうか
+     * 11色行の候補エントリを作る（直前の行から選ぶときも「ほぼ白／ほぼ黒」の除外を効かせる）
+     * @param {Array<object>} paletteEntries - 全カラーのエントリ配列
+     * @param {Array<object>} previousRow - 直前の行で選ばれたエントリ配列
      * @returns {Array<object>} 11色行の候補エントリ配列
      */
-    function getElevenRowSourceColors(colorList, cascadePrev, useCascade) {
+    function getElevenRowSourceColors(paletteEntries, previousRow) {
         var filtered = [];
-        for (var i = 0; i < colorList.length; i++) {
-            if (!isNearlyWhite(colorList[i]) && !isNearlyBlack(colorList[i])) filtered.push(colorList[i]);
+        for (var i = 0; i < paletteEntries.length; i++) {
+            if (!isNearlyWhite(paletteEntries[i]) && !isNearlyBlack(paletteEntries[i])) filtered.push(paletteEntries[i]);
         }
-        if (filtered.length === 0) filtered = colorList;
-        if (!useCascade || !cascadePrev) return filtered;
+        if (filtered.length === 0) filtered = paletteEntries;
+        if (!previousRow) return filtered;
 
         var filteredKeys = {};
         for (var k = 0; k < filtered.length; k++) {
-            filteredKeys[colorKey(filtered[k].swatch.color)] = true;
+            filteredKeys[rgbKey(filtered[k].r, filtered[k].g, filtered[k].b)] = true;
         }
 
-        var cascadedFiltered = [];
-        for (var j = 0; j < cascadePrev.length; j++) {
-            if (filteredKeys[colorKey(cascadePrev[j].swatch.color)]) cascadedFiltered.push(cascadePrev[j]);
+        var cascadedEntries = [];
+        for (var j = 0; j < previousRow.length; j++) {
+            if (filteredKeys[rgbKey(previousRow[j].r, previousRow[j].g, previousRow[j].b)]) {
+                cascadedEntries.push(previousRow[j]);
+            }
         }
-        return (cascadedFiltered.length > 0) ? cascadedFiltered : filtered;
+        return (cascadedEntries.length > 0) ? cascadedEntries : filtered;
     }
 
     /**
      * 16 → 11 → 8 → 5 の段階的減色で全行の代表色をまとめて選ぶ
-     * @param {Array<object>} colorList - 全カラーのエントリ配列
-     * @param {object} outputOptions - 出力オプション
+     * 16色行を出力しない場合も、以降の行の入力になるため必ず選出する。
+     * @param {Array<object>} paletteEntries - 全カラーのエントリ配列
      * @returns {object} 色数をキーにしたエントリ配列のマップ
      */
-    function buildAllPaletteRows(colorList, outputOptions) {
+    function buildAllPaletteRows(paletteEntries) {
         var rowsByCount = { 16: [], 11: [], 8: [], 5: [] };
-        if (!colorList || !colorList.length) return rowsByCount;
+        if (!paletteEntries || !paletteEntries.length) return rowsByCount;
 
-        var useCascade = !outputOptions || outputOptions.cascade !== false;
-        var cascadePrev = null;
-
-        if (useCascade || !outputOptions || outputOptions.out16) {
-            rowsByCount[16] = sortByNearest(selectByMaxDistance(colorList, 16));
-            cascadePrev = rowsByCount[16];
-        }
+        rowsByCount[16] = sortByNearest(selectByMaxDistance(paletteEntries, 16));
+        var previousRow = rowsByCount[16];
 
         var rowCounts = [11, 8, 5];
         for (var i = 0; i < rowCounts.length; i++) {
             var rowCount = rowCounts[i];
-            var sourceColors;
-            if (rowCount === 11) {
-                sourceColors = getElevenRowSourceColors(colorList, cascadePrev, useCascade);
-            } else {
-                sourceColors = (useCascade && cascadePrev) ? cascadePrev : colorList;
-            }
+            /* 11色行だけは「ほぼ白／ほぼ黒」を除いた候補から選ぶ / Only the 11-color row drops near-white and near-black */
+            var sourceEntries = (rowCount === 11)
+                ? getElevenRowSourceColors(paletteEntries, previousRow)
+                : previousRow;
 
-            var selectedEntries = selectByMaxDistance(sourceColors, rowCount);
-            if (useCascade) cascadePrev = selectedEntries;
-            rowsByCount[rowCount] = sortByNearest(selectedEntries);
+            previousRow = selectByMaxDistance(sourceEntries, rowCount);
+            rowsByCount[rowCount] = sortByNearest(previousRow);
         }
         return rowsByCount;
     }
 
     /**
      * 描画とスウォッチ登録で共有する行の選出結果と寸法を求める
+     * 選出結果は出力オプションに依存しないため、処理対象1件につき1回だけ求めればよい。
      * @param {number} sourceWidth - 元オブジェクトの幅
-     * @param {Array<object>} colors - { color, area } の配列
-     * @param {object} outputOptions - 出力オプション
+     * @param {Array<object>} colorEntries - { color, area } の配列
      * @returns {object} { rowsByCount, gap, squareSize }
      */
-    function buildPaletteRowPlan(sourceWidth, colors, outputOptions) {
+    function buildPaletteRowPlan(sourceWidth, colorEntries) {
         var gap = (sourceWidth / PALETTE_MAX_COLUMNS) * PALETTE_GAP_RATIO;
         return {
-            rowsByCount: buildAllPaletteRows(buildOrderedPaletteEntries(colors), outputOptions),
+            rowsByCount: buildAllPaletteRows(buildOrderedPaletteEntries(colorEntries)),
             gap: gap,
             squareSize: (sourceWidth - (PALETTE_MAX_COLUMNS - 1) * gap) / PALETTE_MAX_COLUMNS
         };
@@ -1012,21 +1037,36 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             doc.swatches.getByName(swatchName);
             return true;
         } catch (e) {
+            /* 見つからないと getByName() は例外を返す / getByName() throws when there is no match */
             return false;
         }
     }
 
     /**
-     * 既存のスウォッチ名と衝突しない名前を作る
+     * 指定した名前のスウォッチグループが既にあるかを調べる
      * @param {Document} doc - 対象ドキュメント
-     * @param {string} baseName - 基準となる名前
-     * @returns {string} 未使用のスウォッチ名
+     * @param {string} swatchGroupName - 調べる名前
+     * @returns {boolean} 存在すれば true
      */
-    function buildUniqueSwatchName(doc, baseName) {
-        if (!swatchNameExists(doc, baseName)) return baseName;
-        for (var i = 2; i <= SWATCH_NAME_MAX_SUFFIX; i++) {
+    function swatchGroupNameExists(doc, swatchGroupName) {
+        var swatchGroups = doc.swatchGroups;
+        for (var i = 0; i < swatchGroups.length; i++) {
+            if (swatchGroups[i].name === swatchGroupName) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 既存の名前と衝突しない名前を作る
+     * @param {string} baseName - 基準となる名前
+     * @param {function} nameExists - 名前を受け取り、使用済みなら true を返す関数
+     * @returns {string} 未使用の名前
+     */
+    function findUnusedName(baseName, nameExists) {
+        if (!nameExists(baseName)) return baseName;
+        for (var i = 2; i <= UNIQUE_NAME_MAX_SUFFIX; i++) {
             var candidate = baseName + " " + i;
-            if (!swatchNameExists(doc, candidate)) return candidate;
+            if (!nameExists(candidate)) return candidate;
         }
         return baseName;
     }
@@ -1052,7 +1092,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                Never reuse an existing swatch: a swatch belongs to only one group, so addSwatch() would
                move the user's swatch out of its group. colorToName() collides with the default swatch names. */
             var swatch = doc.swatches.add();
-            swatch.name = buildUniqueSwatchName(doc, colorToName(color));
+            swatch.name = findUnusedName(colorToName(color), function (candidate) {
+                return swatchNameExists(doc, candidate);
+            });
             swatch.color = color;
             swatchGroup.addSwatch(swatch);
         } catch (err) {
@@ -1064,55 +1106,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * カラー配列からスウォッチグループを作る
      * @param {Document} doc - 対象ドキュメント
      * @param {string} groupName - スウォッチグループ名
-     * @param {Array<object>} colors - { color, area } の配列
+     * @param {Array<object>} colorEntries - { color, area } の配列
      * @returns {SwatchGroup} 作成したスウォッチグループ
      */
-    function createSwatchGroupFromColors(doc, groupName, colors) {
+    function createSwatchGroupFromColors(doc, groupName, colorEntries) {
         var swatchGroup = doc.swatchGroups.add();
-        swatchGroup.name = groupName;
-        for (var i = 0; i < colors.length; i++) {
-            addSwatchToGroup(doc, swatchGroup, colors[i].color);
+
+        /* 同名グループがあると name の代入が例外になる（2回目の実行で起きる）
+           Assigning a name another group already uses throws, which happens on a second run */
+        swatchGroup.name = findUnusedName(groupName, function (candidate) {
+            return swatchGroupNameExists(doc, candidate);
+        });
+
+        for (var i = 0; i < colorEntries.length; i++) {
+            addSwatchToGroup(doc, swatchGroup, colorEntries[i].color);
         }
         return swatchGroup;
     }
 
     /**
      * パレットのエントリをスウォッチ登録用のカラー配列に変換する
-     * @param {Array<object>} rowEntries - { swatch: { color, area } } の配列
+     * @param {Array<object>} rowEntries - { color, area } を持つエントリの配列
      * @param {boolean} useCmykAdjusted - CMYK補正した色にするかどうか
      * @returns {Array<object>} { color, area } の配列
      */
     function toSwatchColors(rowEntries, useCmykAdjusted) {
-        var colors = [];
+        var swatchColorEntries = [];
         for (var i = 0; i < rowEntries.length; i++) {
-            var baseColor = rowEntries[i].swatch.color;
-            var color = baseColor;
-            if (useCmykAdjusted) color = buildCmykAdjustedColor(baseColor) || baseColor;
-            colors.push({ color: color, area: rowEntries[i].swatch.area || 1 });
+            var baseColor = rowEntries[i].color;
+            var color = useCmykAdjusted ? (buildCmykAdjustedColor(baseColor) || baseColor) : baseColor;
+            swatchColorEntries.push({ color: color, area: rowEntries[i].area || 1 });
         }
-        return colors;
+        return swatchColorEntries;
     }
 
     /**
      * 5色・5色（CMYK補正）のスウォッチグループを作る
      * @param {Document} doc - 対象ドキュメント
      * @param {string} baseName - グループ名の基準となる名前
-     * @param {Array<object>} colors - { color, area } の配列
+     * @param {Array<object>} fiveRowEntries - 5色行のエントリ配列
      * @param {object} outputOptions - 出力オプション
      * @returns {void}
      */
-    function createSwatchGroupsFor5Only(doc, baseName, colors, outputOptions) {
-        if (!outputOptions) return;
-
-        var fiveRowEntries = buildAllPaletteRows(buildOrderedPaletteEntries(colors), outputOptions)[5];
+    function createSwatchGroupsFor5Only(doc, baseName, fiveRowEntries, outputOptions) {
         if (!fiveRowEntries || !fiveRowEntries.length) return;
 
         if (outputOptions.out5) {
-            createSwatchGroupFromColors(doc, baseName + " - " + getLabel("checkbox.count5"),
+            createSwatchGroupFromColors(doc, baseName + " - " + buildRowName(5),
                 toSwatchColors(fiveRowEntries, false));
         }
         if (outputOptions.out5Adj) {
-            createSwatchGroupFromColors(doc, baseName + " - " + getLabel("checkbox.count5Adjusted"),
+            createSwatchGroupFromColors(doc, baseName + " - " + getLabel("group.colors5Adjusted"),
                 toSwatchColors(fiveRowEntries, true));
         }
     }
@@ -1150,9 +1194,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         var cmyk = colorToCMYKVals(color);
         if (!cmyk) return hex;
 
+        /* 色玉に適用した値をそのまま出す。5%丸めは補正行の塗りの時点で済んでいる
+           Print the values actually applied: the 5% rounding already happened on the adjusted row's fill */
         var cmykText = getLabel("prefix.cmyk") +
-            roundToStep(cmyk[0]) + ", " + roundToStep(cmyk[1]) + ", " +
-            roundToStep(cmyk[2]) + ", " + roundToStep(cmyk[3]);
+            Math.round(cmyk[0]) + ", " + Math.round(cmyk[1]) + ", " +
+            Math.round(cmyk[2]) + ", " + Math.round(cmyk[3]);
 
         return (labelMode === "cmyk") ? cmykText : (cmykText + "\r" + hex);
     }
@@ -1168,12 +1214,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * @returns {void}
      */
     function addPaletteLabel(targetLayer, doc, swatchRect, squareSize, labelGroup, labelMode) {
-        if (!swatchRect || !swatchRect.filled) return;
-
         try {
             var fontSize = squareSize / LABEL_SIZE_RATIO;
             var labelFrame = targetLayer.textFrames.add();
-            labelFrame.contents = buildColorLabelText(swatchRect.fillColor, labelMode || "both");
+            labelFrame.contents = buildColorLabelText(swatchRect.fillColor, labelMode);
             labelFrame.textRange.justification = Justification.LEFT;
             labelFrame.textRange.characterAttributes.size = fontSize;
             labelFrame.textRange.fillColor = getLabelBlackColor(doc);
@@ -1187,7 +1231,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /**
      * パレット1行分の色玉を描画する
-     * @param {GroupItem|Layer} container - 描画先のコンテナ
+     * @param {GroupItem|Layer} parentContainer - 描画先のグループまたはレイヤー
      * @param {string} rowName - 行のグループ名
      * @param {Array<object>} rowEntries - 行のエントリ配列
      * @param {number} rowLeft - 行の左端
@@ -1199,18 +1243,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * @param {Document} doc - 対象ドキュメント
      * @returns {GroupItem} 作成した行グループ
      */
-    function drawPaletteRow(container, rowName, rowEntries, rowLeft, rowTop, squareSize, gap, labelMode, targetLayer, doc) {
-        var rowGroup = container.groupItems.add();
+    function drawPaletteRow(parentContainer, rowName, rowEntries, rowLeft, rowTop, squareSize, gap, labelMode, targetLayer, doc) {
+        var rowGroup = parentContainer.groupItems.add();
         rowGroup.name = rowName;
 
-        var cellCount = Math.max(1, rowEntries.length);
-        for (var i = 0; i < cellCount; i++) {
+        for (var i = 0; i < rowEntries.length; i++) {
             var swatchRect = rowGroup.pathItems.rectangle(rowTop, rowLeft + i * (squareSize + gap), squareSize, squareSize);
             swatchRect.stroked = false;
-            swatchRect.filled = (rowEntries.length > 0);
-            if (swatchRect.filled) {
-                swatchRect.fillColor = rowEntries[i % rowEntries.length].swatch.color;
-            }
+            swatchRect.filled = true;
+            swatchRect.fillColor = rowEntries[i].color;
             if (labelMode) addPaletteLabel(targetLayer, doc, swatchRect, squareSize, rowGroup, labelMode);
         }
         return rowGroup;
@@ -1223,10 +1264,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      */
     function applyAdjustedColorsToRow(rowGroup) {
         for (var i = 0; i < rowGroup.pathItems.length; i++) {
-            var swatchRect = rowGroup.pathItems[i];
-            if (!swatchRect.filled) continue;
-            var adjustedColor = buildCmykAdjustedColor(swatchRect.fillColor);
-            if (adjustedColor) swatchRect.fillColor = adjustedColor;
+            var adjustedColor = buildCmykAdjustedColor(rowGroup.pathItems[i].fillColor);
+            if (adjustedColor) rowGroup.pathItems[i].fillColor = adjustedColor;
         }
     }
 
@@ -1267,6 +1306,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             adjustedRow = baseRowGroup.duplicate();
             adjustedRow.translate(0, -(squareSize + squareSize * ADJUSTED_ROW_GAP_RATIO));
         }
+
+        /* 複製した行も、基準行を転用した行も「5色」のままにしない / Neither the duplicate nor the reused base row may stay named "5 Colors" */
+        adjustedRow.name = getLabel("group.colors5Adjusted");
         applyAdjustedColorsToRow(adjustedRow);
         rebuildAdjustedRowLabels(adjustedRow, squareSize, outputOptions, targetLayer, doc);
         return adjustedRow;
@@ -1299,68 +1341,73 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * 元オブジェクトの下にカラーパレットを描画する
      * @param {Document} doc - 対象ドキュメント
      * @param {PageItem|object} originalItem - 配置の基準となるオブジェクトまたはアンカー
-     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} rowPlan - buildPaletteRowPlan() の戻り値
      * @param {object} outputOptions - 出力オプション
-     * @param {GroupItem} [containerGroup] - 描画先グループ。省略時はレイヤー直下
+     * @param {GroupItem} paletteContainer - 描画先グループ
      * @returns {void}
      */
-    function drawSwatchSquares(doc, originalItem, colors, outputOptions, containerGroup) {
+    function drawSwatchSquares(doc, originalItem, rowPlan, outputOptions, paletteContainer) {
         var sourceLeft = originalItem.left;
         var sourceWidth = originalItem.width;
         var sourceBottom = originalItem.top - originalItem.height;
 
-        var rowPlan = buildPaletteRowPlan(sourceWidth, colors, outputOptions);
         var gap = rowPlan.gap;
         var rowGap = sourceWidth / PALETTE_ROW_GAP_DIVISOR;
         var firstRowTop = sourceBottom - rowPlan.squareSize;
-
         var targetLayer = originalItem.layer;
-        var container = containerGroup || targetLayer;
 
         if (outputOptions.out16) {
-            drawPaletteRow(container, getLabel("group.colors16"), rowPlan.rowsByCount[16],
+            drawPaletteRow(paletteContainer, buildRowName(16), rowPlan.rowsByCount[16],
                 sourceLeft, firstRowTop, rowPlan.squareSize, gap, null, targetLayer, doc);
         }
 
         var rowCounts = [11, 8, 5];
-        var prevBottom = outputOptions.out16 ? (firstRowTop - rowPlan.squareSize) : (firstRowTop + rowGap);
+        var previousRowBottom = outputOptions.out16 ? (firstRowTop - rowPlan.squareSize) : (firstRowTop + rowGap);
 
         for (var i = 0; i < rowCounts.length; i++) {
             var rowCount = rowCounts[i];
             if (!isRowEnabled(rowCount, outputOptions)) continue;
 
             var squareSize = (sourceWidth - gap * (rowCount - 1)) / rowCount;
-            var rowTop = prevBottom - rowGap;
+            var rowTop = previousRowBottom - rowGap;
 
             /* 「5色」OFF＋「5色（CMYK補正）」ONのときは、基準行をそのまま補正行として使う / Reuse the base row when only the adjusted output is requested */
             var drawBaseRow = !(rowCount === 5 && !outputOptions.out5 && outputOptions.out5Adj);
             var labelMode = (rowCount === 5 && drawBaseRow && outputOptions.showHEX) ? "hex" : null;
 
-            var rowGroup = drawPaletteRow(container, buildRowName(rowCount), rowPlan.rowsByCount[rowCount] || [],
+            var rowGroup = drawPaletteRow(paletteContainer, buildRowName(rowCount), rowPlan.rowsByCount[rowCount],
                 sourceLeft, rowTop, squareSize, gap, labelMode, targetLayer, doc);
 
             if (rowCount === 5 && outputOptions.out5Adj) {
                 try {
+                    /* 補正行の作成に失敗しても、ここまでに描いた行は残す / Keep the rows already drawn even if the adjusted row fails */
                     buildAdjustedFiveRow(rowGroup, drawBaseRow, squareSize, outputOptions, targetLayer, doc);
                 } catch (e) {
                     logError(e, "adjusted five row");
                 }
             }
 
-            prevBottom = rowTop - squareSize;
+            previousRowBottom = rowTop - squareSize;
         }
     }
 
     /**
      * スウォッチ選択から固定サイズの色玉パレットを描画する
+     * 代表色の選出は行わず、スウォッチパネルで選んだ順のまま並べる。
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array<object>} colors - { color, area } の配列
+     * @param {Array<object>} colorEntries - { color, area } の配列
      * @returns {void}
      */
-    function drawPaletteFromSwatches(doc, colors) {
+    function drawPaletteFromSwatches(doc, colorEntries) {
+        var targetLayer = doc.activeLayer;
+        if (!canHoldPalette(targetLayer)) {
+            alert(getLabel("alert.lockedLayer"));
+            return;
+        }
+
         var squareSize = SWATCH_MODE_SQUARE_SIZE;
         var gap = squareSize * PALETTE_GAP_RATIO;
-        var colorCount = colors.length;
+        var colorCount = colorEntries.length;
 
         /* アクティブアートボードの中央に配置 / Place at the center of the active artboard */
         var artboardRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
@@ -1368,19 +1415,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         var rowLeft = artboardRect[0] + ((artboardRect[2] - artboardRect[0]) - totalWidth) / 2;
         var rowTop = artboardRect[1] - ((artboardRect[1] - artboardRect[3]) - squareSize) / 2;
 
-        var targetLayer = doc.activeLayer;
-
-        /* 代表色の選出とは違い、スウォッチパネルで選んだ順のまま並べる / Unlike the extracted palettes, keep the order the swatches were selected in */
-        var rowEntries = [];
-        for (var i = 0; i < colorCount; i++) {
-            rowEntries.push({ swatch: colors[i] });
-        }
-
-        drawPaletteRow(targetLayer, getLabel("group.swatchPalette"), rowEntries,
+        drawPaletteRow(targetLayer, getLabel("group.swatchPalette"), colorEntries,
             rowLeft, rowTop, squareSize, gap, isCmykDocument(doc) ? "both" : "hex", targetLayer, doc);
 
         try {
-            createSwatchGroupFromColors(doc, getLabel("group.swatchPalette"), colors);
+            /* スウォッチ登録に失敗しても、描いた色玉は残す / Keep the drawn squares even if the registration fails */
+            createSwatchGroupFromColors(doc, getLabel("group.swatchPalette"), colorEntries);
         } catch (e) {
             logError(e, "swatch group registration");
         }
@@ -1394,6 +1434,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /* セッション中だけ保持するダイアログ位置 / Dialog position remembered for this session only */
     var outputDialogBounds = null;
+
+    /* 出力オプションダイアログの戻り値 / Return codes of the output options dialog */
+    var DIALOG_RESULT_CANCEL = 0;
+    var DIALOG_RESULT_OK = 1;
+    var DIALOG_RESULT_RETRY = 2;
+
+    /* 「選び直す」が選ばれたことを呼び出し元に伝える値 / Marker telling the caller that Reselect was clicked */
+    var RETRY_OPTIONS_RESULT = "__RETRY__";
 
     /**
      * プリセット名を照合用に正規化する（角カッコ・空白を除き、小文字と半角数字にそろえる）
@@ -1414,9 +1462,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      */
     function findDefaultPresetIndex(presetNames) {
         for (var i = 0; i < DEFAULT_TRACING_PRESETS.length; i++) {
-            var wanted = normalizePresetName(DEFAULT_TRACING_PRESETS[i]);
+            var wantedName = normalizePresetName(DEFAULT_TRACING_PRESETS[i]);
             for (var k = 0; k < presetNames.length; k++) {
-                if (normalizePresetName(presetNames[k]) === wanted) return k;
+                if (normalizePresetName(presetNames[k]) === wantedName) return k;
             }
         }
         return -1;
@@ -1427,50 +1475,44 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * @returns {string|null} プリセット名。見つからない場合は null
      */
     function getDefaultTracingPresetName() {
-        var presets = null;
-        try {
-            presets = app.tracingPresetsList;
-        } catch (e) {
-            logError(e, "tracing presets");
-            return null;
-        }
-        if (!presets || !presets.length) return null;
+        var presetNames = app.tracingPresetsList;
+        if (!presetNames || !presetNames.length) return null;
 
-        var index = findDefaultPresetIndex(presets);
-        return (index >= 0) ? presets[index] : null;
+        var defaultIndex = findDefaultPresetIndex(presetNames);
+        return (defaultIndex >= 0) ? presetNames[defaultIndex] : null;
     }
 
     /**
      * トレースプリセットを標準（[]付き）とユーザー定義に分類する
-     * @param {Array<string>} presets - プリセット名の配列
+     * @param {Array<string>} presetNames - プリセット名の配列
      * @returns {object} { builtIn: Array<string>, custom: Array<string> }
      */
-    function categorizePresets(presets) {
-        var builtIn = [];
-        var custom = [];
-        for (var i = 0; i < presets.length; i++) {
-            if (presets[i].charAt(0) === "[") {
-                builtIn.push(presets[i]);
+    function categorizePresets(presetNames) {
+        var builtInNames = [];
+        var customNames = [];
+        for (var i = 0; i < presetNames.length; i++) {
+            if (presetNames[i].charAt(0) === "[") {
+                builtInNames.push(presetNames[i]);
             } else {
-                custom.push(presets[i]);
+                customNames.push(presetNames[i]);
             }
         }
-        return { builtIn: builtIn, custom: custom };
+        return { builtIn: builtInNames, custom: customNames };
     }
 
     /**
      * 見出し付きのプリセット一覧を追加する
-     * @param {Group} parent - 追加先の行グループ
+     * @param {Group} parentRow - 追加先の行グループ
      * @param {string} headerText - 一覧の見出し
      * @param {Array<string>} presetNames - プリセット名の配列
      * @param {string} tooltipText - ツールチップ
      * @returns {ListBox} 追加した一覧
      */
-    function addPresetList(parent, headerText, presetNames, tooltipText) {
-        var column = addColumnGroup(parent);
-        column.add("statictext", undefined, headerText);
+    function addPresetList(parentRow, headerText, presetNames, tooltipText) {
+        var presetColumn = addColumnGroup(parentRow);
+        presetColumn.add("statictext", undefined, headerText);
 
-        var presetList = column.add("listbox", undefined, presetNames);
+        var presetList = presetColumn.add("listbox", undefined, presetNames);
         presetList.preferredSize = PRESET_LIST_SIZE;
         presetList.helpTip = tooltipText;
         return presetList;
@@ -1478,11 +1520,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /**
      * トレースプリセット選択ダイアログを表示する
-     * @param {Array<string>} presets - プリセット名の配列
+     * @param {Array<string>} presetNames - プリセット名の配列
      * @returns {string|null} 選択したプリセット名。キャンセル時は null
      */
-    function showPresetDialog(presets) {
-        var presetCategories = categorizePresets(presets);
+    function showPresetDialog(presetNames) {
+        var presetCategories = categorizePresets(presetNames);
 
         var presetDialog = new Window("dialog", getLabel("dialog.preset"));
         setupWindow(presetDialog);
@@ -1530,19 +1572,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     }
 
     /**
-     * 出力オプションダイアログを表示する
-     * @param {function} onPreviewChange - 設定変更時に呼ばれるプレビュー更新関数
-     * @param {function} onFitView - 「画面にフィット」がONのときに呼ばれる関数
-     * @returns {object|string|null} 出力オプション、"__RETRY__"、キャンセル時は null
+     * 出力オプションダイアログのコントロールを組み立てる
+     * @param {Window} outputDialog - 対象のダイアログ
+     * @returns {object} 作成したコントロールをまとめたオブジェクト
      */
-    function showOutputOptionsDialog(onPreviewChange, onFitView) {
-        var outputDialog = new Window("dialog", getLabel("dialog.output") + " " + SCRIPT_VERSION);
-        setupWindow(outputDialog);
-
-        outputDialog.onMove = outputDialog.onResize = function () {
-            outputDialogBounds = outputDialog.bounds;
-        };
-
+    function buildOutputOptionsControls(outputDialog) {
         var rowScopeRow = outputDialog.add("group");
         setupRow(rowScopeRow, "center");
         var allRowsRadio = rowScopeRow.add("radiobutton", undefined, getLabel("radio.allRows"));
@@ -1554,43 +1588,125 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         setupRow(optionColumnsRow, "fill", COLUMN_SPACING);
         optionColumnsRow.alignChildren = ["fill", "top"];
 
-        var outputRowsColumn = addColumnGroup(optionColumnsRow);
-        var colorInfoColumn = addColumnGroup(optionColumnsRow);
-
-        var outputRowsPanel = addPanel(outputRowsColumn, getLabel("panel.outputRows"), 6);
+        var outputRowsPanel = addPanel(addColumnGroup(optionColumnsRow), getLabel("panel.outputRows"), PANEL_ITEM_SPACING);
         var count16Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count16"), getLabel("tooltip.count16"));
         var count11Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count11"), getLabel("tooltip.count11"));
-        var count8Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count8"));
-        var count5Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count5"));
+        var count8Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count8"), getLabel("tooltip.count8"));
+        var count5Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count5"), getLabel("tooltip.count5"));
         var count5AdjustedCheckbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count5Adjusted"), getLabel("tooltip.count5Adjusted"));
 
-        var colorInfoPanel = addPanel(colorInfoColumn, getLabel("panel.colorInfo"), 6);
+        var colorInfoPanel = addPanel(addColumnGroup(optionColumnsRow), getLabel("panel.colorInfo"), PANEL_ITEM_SPACING);
         var hexCheckbox = addLeftCheckbox(colorInfoPanel, getLabel("checkbox.hex"), getLabel("tooltip.hexLabel"));
         var cmykCheckbox = addLeftCheckbox(colorInfoPanel, getLabel("checkbox.cmyk"), getLabel("tooltip.cmykLabel"));
+
+        var fitViewRow = outputDialog.add("group");
+        setupRow(fitViewRow, "left");
+        fitViewRow.margins = FIT_VIEW_ROW_MARGINS;
+        var fitViewCheckbox = fitViewRow.add("checkbox", undefined, getLabel("checkbox.fitView"));
+        fitViewCheckbox.value = true;
+        fitViewCheckbox.helpTip = getLabel("tooltip.fitView");
+
+        return {
+            allRowsRadio: allRowsRadio,
+            fiveRowsOnlyRadio: fiveRowsOnlyRadio,
+            count16Checkbox: count16Checkbox,
+            count11Checkbox: count11Checkbox,
+            count8Checkbox: count8Checkbox,
+            count5Checkbox: count5Checkbox,
+            count5AdjustedCheckbox: count5AdjustedCheckbox,
+            hexCheckbox: hexCheckbox,
+            cmykCheckbox: cmykCheckbox,
+            fitViewCheckbox: fitViewCheckbox
+        };
+    }
+
+    /**
+     * 出力オプションダイアログを、表示位置を覚えてから閉じる
+     * @param {Window} outputDialog - 対象のダイアログ
+     * @param {number} dialogResult - 閉じるときの戻り値
+     * @returns {void}
+     */
+    function closeOutputDialog(outputDialog, dialogResult) {
+        outputDialogBounds = outputDialog.bounds;
+        outputDialog.close(dialogResult);
+    }
+
+    /**
+     * 出力オプションダイアログの最下部にボタン列を追加する（左＝選び直す／右＝キャンセル・OK）
+     * @param {Window} outputDialog - 対象のダイアログ
+     * @param {function} canAccept - OK を受け付けてよいかを返す関数
+     * @returns {void}
+     */
+    function addOutputDialogButtons(outputDialog, canAccept) {
+        var dialogButtonRow = outputDialog.add("group");
+        setupRow(dialogButtonRow, "fill");
+
+        var retryButton = dialogButtonRow.add("button", undefined, getLabel("button.retry"));
+        retryButton.preferredSize = DIALOG_BUTTON_SIZE;
+        retryButton.helpTip = getLabel("tooltip.retry");
+
+        var buttonRowSpacer = dialogButtonRow.add("group");
+        buttonRowSpacer.alignment = ["fill", "fill"];
+
+        var cancelButton = dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        cancelButton.preferredSize = DIALOG_BUTTON_SIZE;
+        var okButton = dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        okButton.preferredSize = DIALOG_BUTTON_SIZE;
+
+        retryButton.onClick = function () {
+            closeOutputDialog(outputDialog, DIALOG_RESULT_RETRY);
+        };
+        cancelButton.onClick = function () {
+            closeOutputDialog(outputDialog, DIALOG_RESULT_CANCEL);
+        };
+        okButton.onClick = function () {
+            if (canAccept()) closeOutputDialog(outputDialog, DIALOG_RESULT_OK);
+        };
+    }
+
+    /**
+     * 出力オプションダイアログを表示する
+     * @param {function} onPreviewChange - 設定変更時に呼ばれるプレビュー更新関数
+     * @param {function} onFitView - 「画面にフィット」がONのときに呼ばれる関数
+     * @returns {object|string|null} 出力オプション、RETRY_OPTIONS_RESULT、キャンセル時は null
+     */
+    function showOutputOptionsDialog(onPreviewChange, onFitView) {
+        var outputDialog = new Window("dialog", getLabel("dialog.output") + " " + SCRIPT_VERSION);
+        setupWindow(outputDialog);
+
+        outputDialog.onMove = outputDialog.onResize = function () {
+            outputDialogBounds = outputDialog.bounds;
+        };
+
+        var controls = buildOutputOptionsControls(outputDialog);
+        var allRowsRadio = controls.allRowsRadio;
+        var fiveRowsOnlyRadio = controls.fiveRowsOnlyRadio;
+        var count16Checkbox = controls.count16Checkbox;
+        var count11Checkbox = controls.count11Checkbox;
+        var count8Checkbox = controls.count8Checkbox;
+        var count5Checkbox = controls.count5Checkbox;
+        var count5AdjustedCheckbox = controls.count5AdjustedCheckbox;
+        var hexCheckbox = controls.hexCheckbox;
+        var cmykCheckbox = controls.cmykCheckbox;
+        var fitViewCheckbox = controls.fitViewCheckbox;
 
         /* CMYKラベルは CMYK ドキュメントでのみ意味を持つ / CMYK labels only make sense in a CMYK document */
         var canUseCmykLabels = isCmykDocument(app.activeDocument);
         if (!canUseCmykLabels) cmykCheckbox.helpTip = getLabel("tooltip.cmykDocOnly");
 
-        var fitViewRow = outputDialog.add("group");
-        setupRow(fitViewRow, "left");
-        fitViewRow.margins = [20, 0, 0, 0];
-        var fitViewCheckbox = fitViewRow.add("checkbox", undefined, getLabel("checkbox.fitView"));
-        fitViewCheckbox.value = true;
-        fitViewCheckbox.helpTip = getLabel("tooltip.fitView");
-
-        /* 「5色の行のみ」で伏せる行と、状態を保存する対象 / Rows hidden by "5-color rows only", and the checkboxes whose state is saved */
+        /* 「5色の行のみ」で伏せる行と、出力対象になりうる行 / Rows hidden by "5-color rows only", and every row that can be output */
         var wideRowCheckboxes = [count16Checkbox, count11Checkbox, count8Checkbox];
         var rowCheckboxes = [count16Checkbox, count11Checkbox, count8Checkbox, count5Checkbox, count5AdjustedCheckbox];
-        var stateCheckboxes = [count16Checkbox, count11Checkbox, count8Checkbox, count5Checkbox,
-            count5AdjustedCheckbox, hexCheckbox, cmykCheckbox];
 
-        for (var i = 0; i < stateCheckboxes.length; i++) stateCheckboxes[i].value = true;
+        var initialOnCheckboxes = rowCheckboxes.concat([hexCheckbox, cmykCheckbox]);
+        for (var i = 0; i < initialOnCheckboxes.length; i++) initialOnCheckboxes[i].value = true;
         allRowsRadio.value = false;
         fiveRowsOnlyRadio.value = true;
 
         var isInitializing = true;
-        var savedRowState = null;
+        /* 「すべての行」に戻したときに復元する 16／11／8色の状態 / State of the 16/11/8 rows, restored when switching back to "All rows" */
+        var savedWideRowState = null;
+        var isFiveRowsOnlyScope = false;
 
         /**
          * 現在の設定から出力オプションを組み立てる
@@ -1604,8 +1720,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                 out5: count5Checkbox.value,
                 out5Adj: count5AdjustedCheckbox.value,
                 showHEX: hexCheckbox.value,
-                showCMYK: cmykCheckbox.value,
-                cascade: true
+                showCMYK: cmykCheckbox.value
             };
         }
 
@@ -1660,19 +1775,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         function updateRowScope(doNotify) {
             var i;
             if (fiveRowsOnlyRadio.value) {
+                /* 選択済みのラジオを押し直してもOFFにした状態を控えないようにする
+                   Clicking the already-selected radio must not overwrite the snapshot with the cleared state */
+                if (!isFiveRowsOnlyScope) {
+                    savedWideRowState = [];
+                    for (i = 0; i < wideRowCheckboxes.length; i++) savedWideRowState.push(wideRowCheckboxes[i].value);
+                }
+
                 /* 5色の行のみ: 他の行をOFFにして操作できないようにする / 5-rows-only: force the other rows off and disable them */
-                savedRowState = [];
-                for (i = 0; i < stateCheckboxes.length; i++) savedRowState.push(stateCheckboxes[i].value);
                 for (i = 0; i < wideRowCheckboxes.length; i++) {
                     wideRowCheckboxes[i].value = false;
                     wideRowCheckboxes[i].enabled = false;
                 }
+                isFiveRowsOnlyScope = true;
             } else {
-                for (i = 0; i < wideRowCheckboxes.length; i++) wideRowCheckboxes[i].enabled = true;
-                if (savedRowState) {
-                    for (i = 0; i < stateCheckboxes.length; i++) stateCheckboxes[i].value = !!savedRowState[i];
+                for (i = 0; i < wideRowCheckboxes.length; i++) {
+                    wideRowCheckboxes[i].enabled = true;
+                    if (savedWideRowState) wideRowCheckboxes[i].value = !!savedWideRowState[i];
                 }
-                updateColorInfoAvailability(false);
+                isFiveRowsOnlyScope = false;
             }
 
             if (doNotify !== false) notifyPreviewChange();
@@ -1700,39 +1821,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             notifyPreviewChange();
         };
 
-        /* 最下部のボタン列: 左＝選び直す／右＝キャンセル・OK / Bottom button row: reselect on the left, cancel & OK on the right */
-        var dialogButtonRow = outputDialog.add("group");
-        setupRow(dialogButtonRow, "fill");
-
-        var retryButton = dialogButtonRow.add("button", undefined, getLabel("button.retry"));
-        retryButton.preferredSize = DIALOG_BUTTON_SIZE;
-        retryButton.helpTip = getLabel("tooltip.retry");
-        retryButton.onClick = function () {
-            outputDialogBounds = outputDialog.bounds;
-            outputDialog.close(2);
-        };
-
-        var buttonRowSpacer = dialogButtonRow.add("group");
-        buttonRowSpacer.alignment = ["fill", "fill"];
-
-        var cancelButton = dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        cancelButton.preferredSize = DIALOG_BUTTON_SIZE;
-        var okButton = dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        okButton.preferredSize = DIALOG_BUTTON_SIZE;
-
-        okButton.onClick = function () {
-            for (var i = 0; i < rowCheckboxes.length; i++) {
-                if (!rowCheckboxes[i].value) continue;
-                outputDialogBounds = outputDialog.bounds;
-                outputDialog.close(1);
-                return;
+        addOutputDialogButtons(outputDialog, function () {
+            for (var k = 0; k < rowCheckboxes.length; k++) {
+                if (rowCheckboxes[k].value) return true;
             }
             alert(getLabel("alert.noRow"));
-        };
-        cancelButton.onClick = function () {
-            outputDialogBounds = outputDialog.bounds;
-            outputDialog.close(0);
-        };
+            return false;
+        });
 
         /* すべてのコントロールを作ってから初期状態を反映する / Apply the initial state after every control exists */
         updateColorInfoAvailability(false);
@@ -1750,17 +1845,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         var dialogResult = outputDialog.show();
         outputDialogBounds = outputDialog.bounds;
 
-        if (dialogResult === 2) return "__RETRY__";
-        if (dialogResult !== 1) return null;
+        if (dialogResult === DIALOG_RESULT_RETRY) return RETRY_OPTIONS_RESULT;
+        if (dialogResult !== DIALOG_RESULT_OK) return null;
         return getCurrentOptions();
     }
 
     /**
      * 進捗ウィンドウを作る
-     * @param {number} maxValue - 進捗バーの最大値
+     * @param {number} maxProgressValue - 進捗バーの最大値
      * @returns {object} { window: Window, set: function, close: function }
      */
-    function createProgressWindow(maxValue) {
+    function createProgressWindow(maxProgressValue) {
         var progressWindow = new Window("palette", getLabel("dialog.progress"));
         setupWindow(progressWindow);
 
@@ -1768,7 +1863,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         progressText.characters = PROGRESS_TEXT_CHARS;
         progressText.alignment = ["fill", "center"];
 
-        var progressBar = progressWindow.add("progressbar", undefined, 0, Math.max(1, maxValue));
+        var progressBar = progressWindow.add("progressbar", undefined, 0, Math.max(1, maxProgressValue));
         progressBar.preferredSize = PROGRESS_BAR_SIZE;
 
         progressWindow.show();
@@ -1783,6 +1878,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                     progressWindow.update();
                     app.redraw();
                 } catch (e) {
+                    /* 進捗ウィンドウはユーザーが閉じられる。閉じたあとの更新で処理ごと止めない
+                       The progress palette can be closed by the user; an update after that must not stop the run */
                     logError(e, "progress update");
                 }
             },
@@ -1820,12 +1917,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /**
      * 複数オブジェクト全体の境界からパレット配置用アンカーを作る
-     * @param {Array<PageItem>} items - 対象のオブジェクト配列
+     * @param {Array<PageItem>} targetItems - 対象のオブジェクト配列
      * @param {PageItem} fallbackItem - 境界が取れない場合に返すオブジェクト
      * @returns {object|PageItem} アンカー、または fallbackItem
      */
-    function buildPaletteAnchorFromItems(items, fallbackItem) {
-        if (!items || !items.length || !fallbackItem) return fallbackItem;
+    function buildPaletteAnchorFromItems(targetItems, fallbackItem) {
+        if (!targetItems || !targetItems.length || !fallbackItem) return fallbackItem;
 
         var left = Infinity;
         var top = -Infinity;
@@ -1833,9 +1930,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         var bottom = Infinity;
         var found = false;
 
-        for (var i = 0; i < items.length; i++) {
+        for (var i = 0; i < targetItems.length; i++) {
             try {
-                var bounds = items[i].geometricBounds;
+                /* 中身が空のテキストグループなどは geometricBounds で例外になる / An empty text group throws on geometricBounds */
+                var bounds = targetItems[i].geometricBounds;
                 if (!bounds || bounds.length < 4) continue;
                 if (bounds[0] < left) left = bounds[0];
                 if (bounds[1] > top) top = bounds[1];
@@ -1882,32 +1980,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     }
 
     /**
-     * 選択内のクリップグループをラスタライズし、処理対象の一覧を返す
-     * @param {Document} doc - 対象ドキュメント
+     * 選択を処理対象の一覧に整える
+     * クリップグループはここではラスタライズせず、クリップ範囲だけをパレット配置の基準として控える。
+     * 実際のラスタライズは作業用レイヤーの複製に対して行うため、元のオブジェクトは変化しない。
      * @param {Array<PageItem>} selection - 選択中のオブジェクト
-     * @returns {Array<object>} { item: PageItem, anchor: object|null } の配列
+     * @returns {Array<object>} { item: PageItem, clipAnchor: object|null } の配列
      */
-    function rasterizeClippedGroups(doc, selection) {
+    function buildSourceEntries(selection) {
         var sourceEntries = [];
-        var rasterizedCount = 0;
 
         for (var i = 0; i < selection.length; i++) {
             if (selection[i].typename !== "GroupItem" || !selection[i].clipped) {
-                sourceEntries.push({ item: selection[i], anchor: null });
+                sourceEntries.push({ item: selection[i], clipAnchor: null });
                 continue;
             }
 
-            /* クリップ範囲はパレット配置の基準として残す / Keep the clip bounds as the palette anchor */
+            /* クリップ範囲はパレット配置の基準として控える / Keep the clip bounds as the palette anchor */
             var clipBounds = getClippingBounds(selection[i]);
-            var rasterizedItem = doc.rasterize(selection[i], clipBounds, createRasterizeOptions());
-            rasterizedCount++;
-            sourceEntries.push({ item: rasterizedItem, anchor: createBoundsAnchor(clipBounds, rasterizedItem.layer) });
-        }
-
-        if (rasterizedCount > 0) {
-            var newSelection = [];
-            for (var k = 0; k < sourceEntries.length; k++) newSelection.push(sourceEntries[k].item);
-            app.selection = newSelection;
+            sourceEntries.push({ item: selection[i], clipAnchor: createBoundsAnchor(clipBounds, selection[i].layer) });
         }
         return sourceEntries;
     }
@@ -1915,7 +2005,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /**
      * 処理対象を「何から色を取るか」と「どこにパレットを置くか」に分けて組み立てる
      * ラスター／配置画像は個別に、ベクターとテキストはまとめて1件として扱う。
-     * @param {Array<object>} sourceEntries - rasterizeClippedGroups() の戻り値
+     * @param {Array<object>} sourceEntries - buildSourceEntries() の戻り値
      * @returns {object} { tasks, vectorItems, textItems }
      */
     function buildExtractionPlan(sourceEntries) {
@@ -1925,14 +2015,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
         for (var i = 0; i < sourceEntries.length; i++) {
             var item = sourceEntries[i].item;
+            var clipAnchor = sourceEntries[i].clipAnchor;
             var typeName = item.typename;
 
-            if (typeName === "PlacedItem" || typeName === "RasterItem") {
-                /* アンカーがある場合、配置はアンカー・複製元は実アイテム / With an anchor, place by the anchor but duplicate the real item */
+            if (clipAnchor) {
+                /* クリップグループは複製をラスタライズしてから扱い、配置はクリップ範囲を基準にする
+                   A clipped group is rasterized as a duplicate, and the palette is placed by the clip bounds */
                 paletteTasks.push({
                     type: "raster",
-                    originalItem: sourceEntries[i].anchor || item,
-                    workSource: sourceEntries[i].anchor ? item : null
+                    originalItem: clipAnchor,
+                    workSource: item,
+                    rasterizeBounds: clipAnchor.geometricBounds
+                });
+            } else if (typeName === "PlacedItem" || typeName === "RasterItem") {
+                paletteTasks.push({
+                    type: "raster",
+                    originalItem: item,
+                    workSource: null,
+                    rasterizeBounds: null
                 });
             } else if (typeName === "PathItem" || typeName === "CompoundPathItem" || typeName === "GroupItem") {
                 vectorItems.push(item);
@@ -1989,11 +2089,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
     /**
      * 処理対象を作業用レイヤーに複製する
+     * クリップグループの複製は、ここでクリップ範囲どおりにラスタライズする。
+     * @param {Document} doc - 対象ドキュメント
      * @param {Layer} workLayer - 作業用レイヤー
      * @param {object} extractionPlan - buildExtractionPlan() の戻り値
      * @returns {Array<object>} { type, originalItem, workItem } の配列
      */
-    function duplicateTasksToWorkLayer(workLayer, extractionPlan) {
+    function duplicateTasksToWorkLayer(doc, workLayer, extractionPlan) {
         var workTasks = [];
 
         for (var i = 0; i < extractionPlan.tasks.length; i++) {
@@ -2007,6 +2109,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             } else {
                 var duplicatedItem = (paletteTask.workSource || paletteTask.originalItem).duplicate();
                 duplicatedItem.move(workLayer, ElementPlacement.PLACEATEND);
+
+                /* クリップグループの複製はここでラスタライズする（元のオブジェクトは触らない）
+                   Rasterize the clipped duplicate here so the original stays untouched */
+                if (paletteTask.rasterizeBounds) {
+                    duplicatedItem = doc.rasterize(duplicatedItem, paletteTask.rasterizeBounds, createRasterizeOptions());
+                }
                 workTasks.push({ type: "raster", originalItem: paletteTask.originalItem, workItem: duplicatedItem });
             }
         }
@@ -2051,14 +2159,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             return expanded ? deduplicateColors(collectFillColors(expanded, [])) : null;
         }
 
-        var stats = { unreadableCount: 0 };
-        var colors = deduplicateColors(collectFillColors(workTask.workItem, [], stats));
-        if (stats.unreadableCount === 0) return colors;
+        var unreadableStats = { unreadableCount: 0 };
+        var colorEntries = deduplicateColors(collectFillColors(workTask.workItem, [], unreadableStats));
+        if (unreadableStats.unreadableCount === 0) return colorEntries;
 
         /* 読めない塗りがあったぶんは色が欠けるので、複製をラスタライズしてトレースし直す
            Some fills could not be read, so rasterize the duplicate and trace it instead */
-        var fallbackColors = extractColorsByRasterizing(doc, workTask.workItem, tracingPresetName);
-        return (fallbackColors && fallbackColors.length > 0) ? fallbackColors : colors;
+        var fallbackEntries = extractColorsByRasterizing(doc, workTask.workItem, tracingPresetName);
+        return (fallbackEntries && fallbackEntries.length > 0) ? fallbackEntries : colorEntries;
     }
 
     /**
@@ -2114,14 +2222,37 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     }
 
     /**
+     * そのレイヤーにパレットを描き込めるかを判定する
+     * @param {Layer} targetLayer - 対象のレイヤー
+     * @returns {boolean} 描き込める場合は true
+     */
+    function canHoldPalette(targetLayer) {
+        return !!targetLayer && targetLayer.visible && !targetLayer.locked;
+    }
+
+    /**
+     * パレットを描き込めるレイヤーの処理対象だけを残す
+     * @param {Array<object>} paletteTasks - 処理対象の配列
+     * @returns {Array<object>} 描き込める処理対象の配列
+     */
+    function filterDrawableTasks(paletteTasks) {
+        var drawableTasks = [];
+        for (var i = 0; i < paletteTasks.length; i++) {
+            if (canHoldPalette(paletteTasks[i].originalItem.layer)) drawableTasks.push(paletteTasks[i]);
+        }
+        return drawableTasks;
+    }
+
+    /**
      * グループを安全に削除する
-     * @param {GroupItem} group - 削除するグループ
+     * @param {GroupItem} targetGroup - 削除するグループ
      * @returns {void}
      */
-    function removeGroup(group) {
-        if (!group) return;
+    function removeGroup(targetGroup) {
+        if (!targetGroup) return;
         try {
-            group.remove();
+            /* 既に削除済みのグループを指していることがある / The group may already be gone */
+            targetGroup.remove();
         } catch (e) {
             logError(e, "group remove");
         }
@@ -2132,17 +2263,24 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * @param {Document} doc - 対象ドキュメント
      * @param {object} workTask - { type, originalItem, workItem }
      * @param {number} taskIndex - 処理対象の連番（0起点）
-     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} rowPlan - buildPaletteRowPlan() の戻り値
      * @param {object} outputOptions - 出力オプション
      * @returns {void}
      */
-    function outputPaletteForTask(doc, workTask, taskIndex, colors, outputOptions) {
-        /* スウォッチ登録は5色・5色（CMYK補正）だけを対象にする / Register swatches only for the 5-color rows */
-        createSwatchGroupsFor5Only(doc, buildPaletteGroupName(workTask.originalItem, taskIndex), colors, outputOptions);
-
+    function outputPaletteForTask(doc, workTask, taskIndex, rowPlan, outputOptions) {
         var paletteContainer = createPaletteContainer(workTask.originalItem, PALETTE_GROUP_NAME);
+        if (!paletteContainer) return;
+
         try {
-            drawSwatchSquares(doc, workTask.originalItem, colors, outputOptions, paletteContainer);
+            /* スウォッチ登録が失敗しても描画は続ける / A failed swatch registration must not drop the palette */
+            createSwatchGroupsFor5Only(doc, buildPaletteGroupName(workTask.originalItem, taskIndex),
+                rowPlan.rowsByCount[5], outputOptions);
+        } catch (e) {
+            logError(e, "swatch group registration");
+        }
+
+        try {
+            drawSwatchSquares(doc, workTask.originalItem, rowPlan, outputOptions, paletteContainer);
         } catch (e) {
             logError(e, "palette draw");
         }
@@ -2151,18 +2289,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /**
      * 対象オブジェクトとプレビューが収まるようにビューを合わせる
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array<PageItem>} items - 対象のオブジェクト配列
+     * @param {Array<PageItem>} targetItems - 対象のオブジェクト配列
      * @returns {void}
      */
-    function fitViewToItems(doc, items) {
-        if (!items.length) return;
+    function fitViewToItems(doc, targetItems) {
+        if (!targetItems.length) return;
 
         var left = Infinity;
         var top = -Infinity;
         var right = -Infinity;
         var bottom = Infinity;
-        for (var i = 0; i < items.length; i++) {
-            var bounds = items[i].geometricBounds;
+        for (var i = 0; i < targetItems.length; i++) {
+            var bounds = targetItems[i].geometricBounds;
             if (bounds[0] < left) left = bounds[0];
             if (bounds[1] > top) top = bounds[1];
             if (bounds[2] > right) right = bounds[2];
@@ -2188,51 +2326,58 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /**
      * プレビューを表示しながら出力オプションを尋ねる
      * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} workLayer - 作業用レイヤー
      * @param {object} workTask - { type, originalItem, workItem }
-     * @param {Array<object>} colors - { color, area } の配列
+     * @param {object} rowPlan - buildPaletteRowPlan() の戻り値
      * @param {object} progress - 進捗ウィンドウ
      * @returns {object} { result: "ok"|"retry"|"cancel", options, previewGroup }
      */
-    function askOutputOptions(doc, workTask, colors, progress) {
-        var previewOptions = {
-            out16: true, out11: true, out8: true, out5: true, out5Adj: true,
-            showHEX: true, showCMYK: true, cascade: true
-        };
-        var previewGroup = createPaletteContainer(workTask.originalItem, PREVIEW_GROUP_NAME);
+    function askOutputOptions(doc, workLayer, workTask, rowPlan, progress) {
+        var previewGroup = null;
+        var isFirstPreview = true;
 
+        /* トレースした複製が元のオブジェクトに重なって見えないよう、ダイアログの間は作業用レイヤーを隠す
+           Hide the work layer so the traced duplicate does not cover the original while the dialog is open */
+        workLayer.visible = false;
+        progress.window.hide();
+
+        var outputOptions;
         try {
-            if (previewGroup) drawSwatchSquares(doc, workTask.originalItem, colors, previewOptions, previewGroup);
-        } catch (e) {
-            logError(e, "preview initial draw");
+            outputOptions = showOutputOptionsDialog(function (currentOptions) {
+                /* 取り残しを防ぐため、プレビューグループは毎回作り直す / Recreate the preview group each time so nothing lingers */
+                removeGroup(previewGroup);
+                previewGroup = createPaletteContainer(workTask.originalItem, PREVIEW_GROUP_NAME);
+                if (previewGroup) {
+                    try {
+                        drawSwatchSquares(doc, workTask.originalItem, rowPlan, currentOptions, previewGroup);
+                    } catch (e) {
+                        logError(e, "preview draw");
+                    }
+                }
+                app.redraw();
+
+                /* 最初の1回だけ、モーダルが開く前に描き切らせる / Let only the first preview finish rendering before the modal opens */
+                if (isFirstPreview) {
+                    $.sleep(80);
+                    isFirstPreview = false;
+                }
+            }, function () {
+                var fitTargets = [workTask.originalItem];
+                if (previewGroup) fitTargets.push(previewGroup);
+                fitViewToItems(doc, fitTargets);
+            });
+        } finally {
+            workLayer.visible = true;
+            progress.window.show();
         }
 
-        /* モーダルを開く前にプレビューを描き切らせる / Make sure the preview is rendered before the modal opens */
-        app.redraw();
-        $.sleep(80);
-
-        progress.window.hide();
-        var outputOptions = showOutputOptionsDialog(function (currentOptions) {
-            /* 取り残しを防ぐため、プレビューグループは毎回作り直す / Recreate the preview group each time so nothing lingers */
+        if (outputOptions === RETRY_OPTIONS_RESULT || !outputOptions) {
             removeGroup(previewGroup);
-            previewGroup = createPaletteContainer(workTask.originalItem, PREVIEW_GROUP_NAME);
-            if (previewGroup) {
-                try {
-                    drawSwatchSquares(doc, workTask.originalItem, colors, currentOptions, previewGroup);
-                } catch (e) {
-                    logError(e, "preview redraw");
-                }
-            }
-            app.redraw();
-        }, function () {
-            var items = [workTask.originalItem];
-            if (previewGroup) items.push(previewGroup);
-            fitViewToItems(doc, items);
-        });
-        progress.window.show();
-
-        if (outputOptions === "__RETRY__" || !outputOptions) {
-            removeGroup(previewGroup);
-            return { result: (outputOptions === "__RETRY__") ? "retry" : "cancel", options: null, previewGroup: null };
+            return {
+                result: (outputOptions === RETRY_OPTIONS_RESULT) ? "retry" : "cancel",
+                options: null,
+                previewGroup: null
+            };
         }
 
         /* 最終出力を描き終えるまでプレビューは残す / Keep the preview until the final output is drawn */
@@ -2243,12 +2388,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * 処理対象を順に処理する
      * 最初にカラーを取得できた時点で出力オプションを尋ね、以降はその設定を使う。
      * @param {Document} doc - 対象ドキュメント
+     * @param {Layer} workLayer - 作業用レイヤー
      * @param {Array<object>} workTasks - duplicateTasksToWorkLayer() の戻り値
      * @param {object} progress - 進捗ウィンドウ
      * @param {string|null} tracingPresetName - 適用するプリセット名
      * @returns {string} "done" または "retry"
      */
-    function processPaletteTasks(doc, workTasks, progress, tracingPresetName) {
+    function processPaletteTasks(doc, workLayer, workTasks, progress, tracingPresetName) {
         var outputOptions = null;
 
         for (var i = 0; i < workTasks.length; i++) {
@@ -2256,23 +2402,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                 var workTask = workTasks[i];
 
                 progress.set(i * 2 + 1, getLabel("progress.tracing"));
-                var colors = extractTaskColors(doc, workTask, tracingPresetName);
+                var colorEntries = extractTaskColors(doc, workTask, tracingPresetName);
 
                 progress.set(i * 2 + 2, getLabel("progress.palette"));
-                if (!colors || colors.length === 0) continue;
+                if (!colorEntries || colorEntries.length === 0) continue;
+
+                /* 行の選出は出力オプションに依存しないので、1件につき1回だけ求めて描画と登録で使い回す
+                   The row selection does not depend on the options: compute it once and reuse it */
+                var rowPlan = buildPaletteRowPlan(workTask.originalItem.width, colorEntries);
 
                 if (outputOptions !== null) {
-                    outputPaletteForTask(doc, workTask, i, colors, outputOptions);
+                    outputPaletteForTask(doc, workTask, i, rowPlan, outputOptions);
                     continue;
                 }
 
-                var optionsChoice = askOutputOptions(doc, workTask, colors, progress);
+                var optionsChoice = askOutputOptions(doc, workLayer, workTask, rowPlan, progress);
                 if (optionsChoice.result !== "ok") {
                     return (optionsChoice.result === "retry") ? "retry" : "done";
                 }
 
                 outputOptions = optionsChoice.options;
-                outputPaletteForTask(doc, workTask, i, colors, outputOptions);
+                outputPaletteForTask(doc, workTask, i, rowPlan, outputOptions);
                 removeGroup(optionsChoice.previewGroup);
             } catch (e) {
                 logError(e, "per-item processing");
@@ -2319,8 +2469,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
         var sessionResult = "done";
         try {
-            var workTasks = duplicateTasksToWorkLayer(workLayer, extractionPlan);
-            sessionResult = processPaletteTasks(doc, workTasks, progress, tracingPresetName);
+            var workTasks = duplicateTasksToWorkLayer(doc, workLayer, extractionPlan);
+            sessionResult = processPaletteTasks(doc, workLayer, workTasks, progress, tracingPresetName);
             progress.set(extractionPlan.tasks.length * 2, getLabel("progress.done"));
         } finally {
             try {
@@ -2346,18 +2496,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         }
 
         var doc = app.activeDocument;
-        var extractionPlan = buildExtractionPlan(rasterizeClippedGroups(doc, doc.selection));
+        var extractionPlan = buildExtractionPlan(buildSourceEntries(doc.selection));
 
         /* オブジェクト未選択のときはスウォッチパネルの選択を使う / With no objects selected, fall back to the swatch selection */
         if (extractionPlan.tasks.length === 0) {
-            var swatchColors = getSelectedSwatchColors(doc);
-            if (swatchColors.length === 0) {
+            var swatchColorEntries = getSelectedSwatchColors(doc);
+            if (swatchColorEntries.length === 0) {
                 alert(getLabel("alert.noSwatchSelected"));
                 return;
             }
-            drawPaletteFromSwatches(doc, swatchColors);
+            drawPaletteFromSwatches(doc, swatchColorEntries);
             return;
         }
+
+        /* 描き込めないレイヤーの対象は、複製やトレースを始める前に落とす
+           Drop the tasks we cannot draw for before any duplicating or tracing starts */
+        var drawableTasks = filterDrawableTasks(extractionPlan.tasks);
+        if (drawableTasks.length < extractionPlan.tasks.length) alert(getLabel("alert.lockedLayer"));
+        if (drawableTasks.length === 0) return;
+        extractionPlan.tasks = drawableTasks;
 
         while (runPaletteSession(doc, extractionPlan) === "retry") {
             /* 「選び直す」が選ばれている間は繰り返す / Repeat while the user keeps choosing Reselect */
