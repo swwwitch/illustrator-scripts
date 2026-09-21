@@ -1,20 +1,23 @@
 #target illustrator
-#targetengine "SplitBackgroundForTwoEngine"
+#targetengine "SplitForTwoEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 ### 概要
 
-1つのオブジェクトを選択して実行すると、その外接矩形を左右または上下に2分割し、背面に2色の背景を作成します。
+1つのオブジェクトを選択して実行すると、その外接矩形を左右または上下に2分割し、2色の背景に置き換えます。
 ［バランス］パネルで、左右（または上下）の幅と比率を数値入力とスライダーで調整できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n1b7b8759e53b
+
 ### Overview
 
-With a single object selected, splits its bounding box left/right or top/bottom and creates a two-color background behind it.
+With a single object selected, splits its bounding box left/right or top/bottom and replaces the object with a two-color background.
 The Balance panel adjusts the width and ratio of each half with a field and a slider.
 
 See the README for details.
@@ -26,264 +29,145 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTw
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SplitForTwo";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.9.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.9.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-14";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n1b7b8759e53b"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
 
-    // --- Dialog UI prefs / ダイアログUI設定 ---
-    var DIALOG_OPACITY = 0.98;
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
+    // 色は "RRGGBB"（RGB の16進数）か "cmyk:C,M,Y,K"（0〜100）で書く
+    // Colors are written as "RRGGBB" (RGB hex) or "cmyk:C,M,Y,K" (0-100)
 
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    var DEFAULT_FIRST_COLOR = "DCDCDC";    /* 左（上）側の塗りの初期値 / initial fill of the left (top) side */
+    var DEFAULT_SECOND_COLOR = "808080";   /* 右（下）側の塗りの初期値 / initial fill of the right (bottom) side */
+    var DEFAULT_STROKE_COLOR = "000000";   /* 外枠と区切り線の色の初期値 / initial color of the frame and divider */
+    var DEFAULT_STROKE_PT = 1;             /* 線幅の初期値（pt）/ initial stroke width (pt) */
+    var DEFAULT_CORNER_PT = 0;             /* 角丸の初期値（pt）/ initial corner radius (pt) */
+    var DEFAULT_GROUP_ITEMS = true;        /* ［グループ化］の初期値 / initial state of Group items */
 
-    /* 日英ラベル定義 / Japanese-English label definitions */
-    var LABELS = {
-        scriptName: {
-            ja: "SplitBackgroundForTwo",
-            en: "SplitBackgroundForTwo"
-        },
-        dialogTitle: {
-            ja: "オブジェクトの分割背景を作成",
-            en: "Create Split Background"
-        },
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
 
-        colorPickerTitle: {
-            ja: "カラー選択",
-            en: "Color Picker"
-        },
-        labelWhite: {
-            ja: "白",
-            en: "White"
-        },
-        labelBlack: {
-            ja: "黒",
-            en: "Black"
-        },
-        labelCustom: {
-            ja: "カスタム",
-            en: "Custom"
-        },
-        labelRGB: {
-            ja: "RGB",
-            en: "RGB"
-        },
-        labelCMYK: {
-            ja: "CMYK",
-            en: "CMYK"
-        },
-        labelGray: {
-            ja: "グレー",
-            en: "Gray"
-        },
-        panelPreset: {
-            ja: "プリセット",
-            en: "Preset"
-        },
-        presetPlaceholder: {
-            ja: "---",
-            en: "---"
-        },
-        labelSave: {
-            ja: "保存",
-            en: "Save"
-        },
-        labelExport: {
-            ja: "書き出し",
-            en: "Export"
-        },
-        presetSaveTitle: {
-            ja: "プリセット保存",
-            en: "Save Preset"
-        },
-        presetNamePrompt: {
-            ja: "プリセット名を入力：",
-            en: "Enter preset name:"
-        },
-        panelSplitDirection: {
-            ja: "分割方法",
-            en: "Split Direction"
-        },
-        labelSplitLR: {
-            ja: "左右",
-            en: "Left/Right"
-        },
-        labelSplitTB: {
-            ja: "上下",
-            en: "Top/Bottom"
-        },
-        panelFill: {
-            ja: "塗り",
-            en: "Fill"
-        },
-        labelColor: {
-            ja: "カラー：",
-            en: "Color"
-        },
-        panelOptions: {
-            ja: "オプション",
-            en: "Options"
-        },
-        labelPillShape: {
-            ja: "ピル形状",
-            en: "Pill shape"
-        },
-        labelTop: {
-            ja: "上：",
-            en: "Top"
-        },
-        labelBottom: {
-            ja: "下：",
-            en: "Bottom"
-        },
-        alertExportedSettings: {
-            ja: "現在の設定を書き出しました：",
-            en: "Exported current settings:"
-        },
-        alertExportFailed: {
-            ja: "ファイルの書き出しに失敗しました。",
-            en: "Failed to export the file."
-        },
+    var DIALOG_MARGINS = 18;                     /* ダイアログ外周の余白 / dialog margins */
+    var DIALOG_OPACITY = 0.98;                   /* ダイアログの不透明度 / dialog opacity */
+    var PANEL_MARGINS = [15, 20, 15, 10];        /* パネル・タブの余白 [左,上,右,下] / panel and tab margins */
+    var BALANCE_SPACING = 6;                     /* バランスの行の間隔 / spacing between the balance rows */
+    var BALANCE_SLIDER_MARGINS = [0, 10, 0, 0];  /* 幅スライダーの上の余白 / space above the width slider */
+    var BALANCE_SLIDER_SIZE = [180, 20];         /* 幅スライダーの大きさ / width slider size */
+    var WIDTH_INPUT_CHARS = 5;                   /* 幅の入力欄の文字数 / characters for the width fields */
+    var PERCENT_INPUT_CHARS = 3;                 /* ％の入力欄の文字数 / characters for the percent fields */
+    var STROKE_INPUT_CHARS = 3;                  /* 線幅の入力欄の文字数 / characters for the stroke field */
+    var CORNER_INPUT_CHARS = 4;                  /* 角丸の入力欄の文字数 / characters for the corner fields */
+    var SWATCH_SIZE = [20, 20];                  /* 色見本の大きさ / swatch size */
+    var PRESET_DROPDOWN_WIDTH = 120;             /* プリセットのドロップダウンの幅 / preset dropdown width */
+    var PRESET_SAVE_BUTTON_WIDTH = 50;           /* ［保存］ボタンの幅 / Save button width */
+    var PRESET_EXPORT_BUTTON_WIDTH = 60;         /* ［書き出し］ボタンの幅 / Export button width */
+    var PRESET_NAME_CHARS = 20;                  /* プリセット名の入力欄の文字数 / characters for the preset name field */
+    var PICKER_PREVIEW_SIZE = [90, 40];          /* カラー選択の色見本の大きさ / color picker preview size */
+    var PICKER_LABEL_WIDTH = 20;                 /* カラー選択のチャンネル名の幅 / color picker channel label width */
+    var PICKER_SLIDER_SIZE = [120, 20];          /* カラー選択のスライダーの大きさ / color picker slider size */
+    var PICKER_VALUE_CHARS = 3;                  /* カラー選択の数値欄の文字数 / characters for the color picker value fields */
+    var PICKER_HEX_CHARS = 6;                    /* 16進数の入力欄の文字数 / characters for the hex field */
+    var PICKER_BUTTON_MARGINS = [0, 10, 0, 0];   /* カラー選択のボタン行の余白 / color picker button row margins */
 
-        alertOpenDoc: {
-            ja: "ドキュメントを開いてください。",
-            en: "Please open a document."
-        },
-        alertSelectOneItem: {
-            ja: "1つのオブジェクトを選択してください。",
-            en: "Please select one object."
-        },
-
-        labelPreview: {
-            ja: "プレビュー",
-            en: "Preview"
-        },
-        labelOverallFrame: {
-            ja: "外枠",
-            en: "Outer frame"
-        },
-        labelDivider: {
-            ja: "区切り線",
-            en: "Divider"
-        },
-        labelFillLeft: {
-            ja: "左：",
-            en: "Left"
-        },
-        labelFillRight: {
-            ja: "右：",
-            en: "Right"
-        },
-        panelLine: {
-            ja: "線",
-            en: "Stroke"
-        },
-        // --- 固定パネルラベル追加 ---
-        panelFixed: {
-            ja: "バランス",
-            en: "Balance"
-        },
-        // --- 幅パネルラベル追加 ---
-        panelWidth: {
-            ja: "幅",
-            en: "Width"
-        },
-        labelWidth: {
-            ja: "幅",
-            en: "Width"
-        },
-        labelPercentSign: {
-            ja: "%",
-            en: "%"
-        },
-        labelStrokeWidth: {
-            ja: "線幅：",
-            en: "Stroke width"
-        },
-        labelCornerRadius: {
-            ja: "角丸",
-            en: "Corner radius"
-        },
-        labelPt: {
-            ja: "pt",
-            en: "pt"
-        },
-        labelOK: {
-            ja: "OK",
-            en: "OK"
-        },
-        labelCancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        labelSquare: {
-            ja: "正方形",
-            en: "Square"
-        },
-        labelCornerLink: {
-            ja: "連動",
-            en: "Link"
-        },
-        labelCornerTL: {
-            ja: "左上",
-            en: "TL"
-        },
-        labelCornerBL: {
-            ja: "左下",
-            en: "BL"
-        },
-        labelCornerTR: {
-            ja: "右上",
-            en: "TR"
-        },
-        labelCornerBR: {
-            ja: "右下",
-            en: "BR"
-        },
-        labelGroupItems: {
-        tipColorType: { ja: "塗りに使う色の決め方です。「カスタム」を選ぶと下の欄で指定できます。", en: "How the fill color is chosen. Custom lets you set it in the fields below." },
-        tipHex: { ja: "塗りの色を16進数で指定します（例: DCDCDC）。", en: "Fill color as a hex value, for example DCDCDC." },
-        tipGray: { ja: "CMYKのK版だけで色を作ります（グレースケール）。", en: "Builds the color from the K plate only, giving a grayscale." },
-        tipPreset: { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
-        tipPresetName: { ja: "保存する設定の名前です。", en: "Name the settings are saved under." },
-        tipFillSide: { ja: "この側に塗りを付けます。色は右の欄で指定します。", en: "Fills this side. The field on the right sets the color." },
-        tipOverallFrame: { ja: "分割した全体を1つの枠線で囲みます。", en: "Draws a single frame around the whole split shape." },
-        tipDivider: { ja: "分割の境目にケイ線を引きます。", en: "Draws a rule along the split." },
-        tipStroke: { ja: "ケイ線の太さです。", en: "Weight of the rules." },
-        tipStrokeColor: { ja: "ケイ線の色を16進数で指定します。", en: "Color of the rules, as a hex value." },
-        tipPillShape: { ja: "左右の端を半円にして、丸いピル型にします。", en: "Rounds both ends into a pill shape." },
-        tipCornerLink: { ja: "4つの角丸の値を連動させます。", en: "Links the four corner radii together." },
-        tipCorner: { ja: "この角を丸めます。半径は右の欄で指定します。", en: "Rounds this corner. The field on the right sets the radius." },
-        tipWidth: { ja: "この側の幅です。0 なら％の指定が使われます。", en: "Width of this side. 0 means the percentage below is used instead." },
-        tipPct: { ja: "この側が占める割合（％）です。", en: "Share of the whole this side takes, in percent." },
-        tipSquare: { ja: "この側を正方形にします。", en: "Makes this side a square." },
-        tipWidthSlider: { ja: "左右の割合をドラッグで決めます。", en: "Drag to set the split ratio." },
-        tipSplitLR: { ja: "左右に分割します。", en: "Splits the shape left and right." },
-        tipSplitTB: { ja: "上下に分割します。", en: "Splits the shape top and bottom." },
-        tipGroupItems: { ja: "作ったオブジェクトを1つのグループにまとめます。", en: "Groups the resulting objects together." },
-            ja: "グループ化",
-            en: "Group items"
-        },
-    };
-
-    function getLabel(key) {
-        var v = LABELS[key];
-        if (!v) return key;
-        return (v[uiLang] !== undefined) ? v[uiLang] : (v.en !== undefined ? v.en : key);
+    /**
+     * 共通レイアウトのパネルを追加する
+     * @param {Group|Panel|Window} parent - 追加先
+     * @param {string} titleText - パネルのタイトル
+     * @param {string} [childAlignment] - 子の横方向の揃え（既定は "left"）
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parent, titleText, childAlignment) {
+        var panel = parent.add("panel", undefined, titleText);
+        panel.orientation = "column";
+        panel.alignChildren = [childAlignment || "left", "top"];
+        panel.alignment = ["fill", "top"];
+        panel.margins = PANEL_MARGINS;
+        return panel;
     }
 
-    /* 単位ラベル取得ユーティリティ / Unit label utilities */
-    // 設定キー: rulerType / strokeUnits / text/units / text/asianunits
+    /**
+     * 横並びの行グループを追加する
+     * @param {Group|Panel|Window} parent - 追加先
+     * @returns {Group} 追加した行グループ
+     */
+    function addRow(parent) {
+        var rowGroup = parent.add("group");
+        rowGroup.orientation = "row";
+        rowGroup.alignChildren = ["left", "center"];
+        return rowGroup;
+    }
+
+    /**
+     * 縦並びの列グループを追加する
+     * @param {Group|Panel|Window} parent - 追加先
+     * @param {string} childAlignment - 子の横方向の揃え
+     * @returns {Group} 追加した列グループ
+     */
+    function addColumn(parent, childAlignment) {
+        var columnGroup = parent.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = [childAlignment, "top"];
+        return columnGroup;
+    }
+
+    /**
+     * ツールチップ付きのチェックボックスを追加する
+     * @param {Group|Panel|Window} parent - 追加先
+     * @param {string} labelKey - ラベルの LABELS キー
+     * @param {string} tooltipKey - ツールチップの LABELS キー
+     * @param {boolean} checked - 初期状態
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addCheckbox(parent, labelKey, tooltipKey, checked) {
+        var checkbox = parent.add("checkbox", undefined, getLabel(labelKey));
+        checkbox.helpTip = getLabel(tooltipKey);
+        checkbox.value = !!checked;
+        return checkbox;
+    }
+
+    /**
+     * ツールチップ付きのラジオボタンを追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {string} labelKey - ラベルの LABELS キー
+     * @param {string} tooltipKey - ツールチップの LABELS キー
+     * @returns {RadioButton} 追加したラジオボタン
+     */
+    function addRadio(parent, labelKey, tooltipKey) {
+        var radio = parent.add("radiobutton", undefined, getLabel(labelKey));
+        radio.helpTip = getLabel(tooltipKey);
+        return radio;
+    }
+
+    /**
+     * 文字列の中でいちばん長いものを返す（あとで文言を切り替えるラベルの幅を確保するため）
+     * @param {string[]} texts - 候補の文字列
+     * @returns {string} いちばん長い文字列
+     */
+    function getLongestText(texts) {
+        var longestText = "";
+        for (var i = 0; i < texts.length; i++) {
+            if (texts[i].length > longestText.length) longestText = texts[i];
+        }
+        return longestText;
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
     /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
@@ -316,3285 +200,2924 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* 設定キーの単位ラベルを取得 / Get the unit label for a preference key */
-    function getCurrentUnitLabelByPrefKey(prefKey) {
-        return getUnitInfo(prefKey).label;
-    }
-
-    /* pt換算ユーティリティ / Unit conversion (to/from pt) */
+    /**
+     * 環境設定の単位の値を pt に換算する
+     * @param {number} value - 単位の値
+     * @param {string} prefKey - 環境設定キー
+     * @returns {number} pt の値
+     */
     function unitToPt(value, prefKey) {
-        var v = Number(value);
-        if (isNaN(v)) return NaN;
-        return v * getUnitInfo(prefKey).pointsPerUnit;
+        return value * getUnitInfo(prefKey).pointsPerUnit;
     }
 
-    function ptToUnit(ptValue, prefKey) {
-        var v = Number(ptValue);
-        if (isNaN(v)) return NaN;
-        return v / getUnitInfo(prefKey).pointsPerUnit;
+    /**
+     * pt の値を環境設定の単位に換算する
+     * @param {number} valuePt - pt の値
+     * @param {string} prefKey - 環境設定キー
+     * @returns {number} 単位の値
+     */
+    function ptToUnit(valuePt, prefKey) {
+        return valuePt / getUnitInfo(prefKey).pointsPerUnit;
     }
 
-    function formatUnitValue(v) {
-        if (isNaN(v)) return "";
-        var r = Math.round(v * 10) / 10;
-        if (Math.abs(r - Math.round(r)) < 1e-9) return String(Math.round(r));
-        return String(r);
+    /**
+     * 単位の大きさに合わせて丸める（pt・Q は小数1桁、mm は2桁、in・cm・ft など1単位が10pt以上は3桁）
+     * @param {number} value - 単位の値
+     * @param {string} prefKey - 環境設定キー
+     * @returns {number} 丸めた値
+     */
+    function roundUnitValue(value, prefKey) {
+        var pointsPerUnit = getUnitInfo(prefKey).pointsPerUnit;
+        var scale = (pointsPerUnit >= 10) ? 1000 : (pointsPerUnit >= 2) ? 100 : 10;
+        return Math.round(value * scale) / scale;
     }
 
-    /* ダイアログ透明度 / Set dialog opacity */
-    function setDialogOpacity(dlg, opacityValue) {
-        if (!dlg) return;
-        try { dlg.opacity = opacityValue; } catch (e) { }
+    /**
+     * 単位の値を入力欄の文字列にする
+     * @param {number} value - 単位の値
+     * @param {string} prefKey - 環境設定キー
+     * @returns {string} 表示用の文字列
+     */
+    function formatUnitValue(value, prefKey) {
+        return String(roundUnitValue(value, prefKey));
     }
 
-    // --- Session settings (kept until Illustrator restart) / セッション設定（Ai再起動まで保持） ---
-    // --- Session settings (kept until Illustrator restart) / セッション設定（Ai再起動まで保持） ---
-    var SETTINGS_KEY = "SplitBackgroundForTwo_settings";
-    var DIALOG_POS_KEY = "SplitBackgroundForTwo_dialogPosition";
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
+    var uiLang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    /* 日英ラベル定義 / Japanese-English label definitions */
+    var LABELS = {
+        dialog: {
+            title: { ja: "オブジェクトの分割背景を作成", en: "Create Split Background" },
+            colorPicker: { ja: "カラー選択", en: "Color Picker" },
+            presetSave: { ja: "プリセット保存", en: "Save Preset" }
+        },
+        panel: {
+            splitDirection: { ja: "分割方法", en: "Split Direction" },
+            balance: { ja: "バランス", en: "Balance" },
+            fill: { ja: "塗り", en: "Fill" },
+            stroke: { ja: "線", en: "Stroke" },
+            cornerRadius: { ja: "角丸", en: "Corner radius" }
+        },
+        tab: {
+            rgb: { ja: "RGB", en: "RGB" },
+            cmyk: { ja: "CMYK", en: "CMYK" }
+        },
+        radio: {
+            splitLR: { ja: "左右", en: "Left/Right" },
+            splitTB: { ja: "上下", en: "Top/Bottom" },
+            white: { ja: "白", en: "White" },
+            black: { ja: "黒", en: "Black" },
+            custom: { ja: "カスタム", en: "Custom" }
+        },
+        checkbox: {
+            square: { ja: "正方形", en: "Square" },
+            overallFrame: { ja: "外枠", en: "Outer frame" },
+            divider: { ja: "区切り線", en: "Divider" },
+            pillShape: { ja: "ピル形状", en: "Pill shape" },
+            cornerLink: { ja: "連動", en: "Link" },
+            cornerTL: { ja: "左上", en: "TL" },
+            cornerBL: { ja: "左下", en: "BL" },
+            cornerTR: { ja: "右上", en: "TR" },
+            cornerBR: { ja: "右下", en: "BR" },
+            groupItems: { ja: "グループ化", en: "Group items" },
+            gray: { ja: "グレー", en: "Gray" }
+        },
+        fieldLabel: {
+            left: { ja: "左", en: "Left" },
+            right: { ja: "右", en: "Right" },
+            top: { ja: "上", en: "Top" },
+            bottom: { ja: "下", en: "Bottom" },
+            strokeWidth: { ja: "線幅", en: "Stroke width" },
+            color: { ja: "カラー", en: "Color" },
+            preset: { ja: "プリセット", en: "Preset" },
+            presetName: { ja: "プリセット名を入力", en: "Enter preset name" }
+        },
+        dropdown: {
+            presetPlaceholder: { ja: "---", en: "---" }
+        },
+        tooltip: {
+            splitLR: { ja: "左右に分割します。", en: "Splits the shape left and right." },
+            splitTB: { ja: "上下に分割します。", en: "Splits the shape top and bottom." },
+            width: {
+                ja: "この側の幅です。0 なら％の指定が使われます。",
+                en: "Width of this side. 0 means the percentage below is used instead."
+            },
+            percent: { ja: "この側が占める割合（％）です。", en: "Share of the whole this side takes, in percent." },
+            square: { ja: "この側を正方形にします。", en: "Makes this side a square." },
+            widthSlider: { ja: "左右の割合をドラッグで決めます。", en: "Drag to set the split ratio." },
+            fillSide: {
+                ja: "この側に塗りを付けます。色は右の欄で指定します。",
+                en: "Fills this side. The field on the right sets the color."
+            },
+            overallFrame: {
+                ja: "分割した全体を1つの枠線で囲みます。",
+                en: "Draws a single frame around the whole split shape."
+            },
+            divider: { ja: "分割の境目にケイ線を引きます。", en: "Draws a rule along the split." },
+            strokeWidth: { ja: "ケイ線の太さです。", en: "Weight of the rules." },
+            pillShape: { ja: "左右の端を半円にして、丸いピル型にします。", en: "Rounds both ends into a pill shape." },
+            cornerLink: { ja: "4つの角丸の値を連動させます。", en: "Links the four corner radii together." },
+            corner: {
+                ja: "この角を丸めます。半径は右の欄で指定します。",
+                en: "Rounds this corner. The field on the right sets the radius."
+            },
+            groupItems: {
+                ja: "作ったオブジェクトを1つのグループにまとめます。",
+                en: "Groups the resulting objects together."
+            },
+            colorType: {
+                ja: "塗りに使う色の決め方です。「カスタム」を選ぶと下の欄で指定できます。",
+                en: "How the fill color is chosen. Custom lets you set it in the fields below."
+            },
+            hex: { ja: "塗りの色を16進数で指定します（例: DCDCDC）。", en: "Fill color as a hex value, for example DCDCDC." },
+            gray: {
+                ja: "CMYKのK版だけで色を作ります（グレースケール）。",
+                en: "Builds the color from the K plate only, giving a grayscale."
+            },
+            preset: { ja: "保存した設定を読み込みます。", en: "Loads a saved set of settings." },
+            presetName: { ja: "保存する設定の名前です。", en: "Name the settings are saved under." }
+        },
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            save: { ja: "保存", en: "Save" },
+            exportSettings: { ja: "書き出し", en: "Export" }
+        },
+        alert: {
+            openDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            selectOneItem: { ja: "1つのオブジェクトを選択してください。", en: "Please select one object." },
+            exportedSettings: { ja: "現在の設定を書き出しました：", en: "Exported current settings:" },
+            exportFailed: { ja: "ファイルの書き出しに失敗しました。", en: "Failed to export the file." }
+        }
+    };
+
+    /**
+     * ドット区切りキーで現在の言語のラベルを取得する
+     * @param {string} key - LABELS のキー（例: "panel.balance"）
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(key) {
+        var keyParts = key.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < keyParts.length; i++) {
+            labelNode = labelNode[keyParts[i]];
+        }
+        return labelNode[uiLang] || labelNode.en;
+    }
+
+    /**
+     * コロン付きのラベルを取得する（日本語は全角、英語は半角）
+     * @param {string} key - LABELS のキー
+     * @returns {string} コロンを付けたラベル文字列
+     */
+    function labelText(key) {
+        return getLabel(key) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // セッション設定 / Session settings
+    // =========================================
+    // Illustrator の起動中だけダイアログの値と位置を保持する（長さは単位を変えても崩れないよう pt で持つ）
+    // Dialog values and positions are kept while Illustrator is running; lengths are stored in pt so unit changes do not skew them
+
+    var SESSION_KEY = "SplitForTwo_settings";
+    var PRESETS_KEY = "SplitForTwo_presets";
+
+    /**
+     * セッションに残したダイアログの値を返す（欠けている項目は初期値で補う）
+     * @returns {Object} セッション設定
+     */
     function getSessionSettings() {
+        var session = $.global[SESSION_KEY] || {};
+        var defaults = {
+            fillFirst: true,
+            fillSecond: true,
+            firstColor: DEFAULT_FIRST_COLOR,
+            secondColor: DEFAULT_SECOND_COLOR,
+            overallFrame: false,
+            divider: false,
+            strokeWidthPt: DEFAULT_STROKE_PT,
+            strokeColor: DEFAULT_STROKE_COLOR,
+            pillShape: false,
+            cornerLink: false,
+            cornerEnabled: { tl: false, bl: false, tr: false, br: false },
+            cornerRadiusPt: { tl: DEFAULT_CORNER_PT, bl: DEFAULT_CORNER_PT, tr: DEFAULT_CORNER_PT, br: DEFAULT_CORNER_PT },
+            dialogLocation: null,
+            colorPickerLocation: null
+        };
+        for (var key in defaults) {
+            if (session[key] === undefined) session[key] = defaults[key];
+        }
+        $.global[SESSION_KEY] = session;
+        return session;
+    }
+
+    /**
+     * 保存したプリセットの置き場所を返す
+     * @returns {Object} プリセット名をキーにした設定の集まり
+     */
+    function getPresetStore() {
+        if (!$.global[PRESETS_KEY]) $.global[PRESETS_KEY] = {};
+        return $.global[PRESETS_KEY];
+    }
+
+    // =========================================
+    // ダイアログ共通 / Dialog helpers
+    // =========================================
+
+    /**
+     * ダイアログの不透明度を設定する
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {number} opacityValue - 不透明度（0〜1）
+     * @returns {void}
+     */
+    function setDialogOpacity(dialog, opacityValue) {
         try {
-            if (!$.global[SETTINGS_KEY]) {
-                $.global[SETTINGS_KEY] = {
-                    preview: true,
-                    overallFrame: false,
-                    divider: false,
-                    fillLeft: true,
-                    fillRight: true,
-                    strokeUnit: formatUnitValue(ptToUnit(1, "strokeUnits")),
-                    widthUnit: 0
-                };
-            }
-            return $.global[SETTINGS_KEY];
+            dialog.opacity = opacityValue;
         } catch (e) {
-            return {
-                preview: true,
-                overallFrame: false,
-                divider: false,
-                fillLeft: true,
-                fillRight: true,
-                strokeUnit: formatUnitValue(ptToUnit(1, "strokeUnits")),
-                cornerUnit: formatUnitValue(ptToUnit(0, "rulerType")),
-                widthUnit: 0
-            };
+            /* 不透明度を持たない環境では既定のまま / keep the default where opacity is unsupported */
         }
     }
 
-    function saveSessionSettings(s) {
-        try { $.global[SETTINGS_KEY] = s; } catch (e) { }
+    /**
+     * ダイアログの位置を覚えておき、次に開くときに同じ位置へ出す（既存の onShow は先に呼ぶ）
+     * @param {Window} dialog - 対象のダイアログ
+     * @param {Object} locationStore - 位置を持っておくオブジェクト
+     * @param {string} locationKey - locationStore のキー
+     * @returns {void}
+     */
+    function keepDialogLocation(dialog, locationStore, locationKey) {
+        var previousOnShow = dialog.onShow;
+        dialog.onShow = function () {
+            if (typeof previousOnShow === "function") previousOnShow();
+            var savedLocation = locationStore[locationKey];
+            if (savedLocation) dialog.location = [savedLocation[0], savedLocation[1]];
+        };
+        var saveLocation = function () {
+            locationStore[locationKey] = [dialog.location[0], dialog.location[1]];
+        };
+        dialog.onMove = saveLocation;
+        dialog.onClose = saveLocation;
     }
 
-    function getSessionDialogPosition() {
-        try {
-            var p = $.global[DIALOG_POS_KEY];
-            if (!p || p.length < 2) return null;
-            return [Number(p[0]), Number(p[1])];
-        } catch (e) {
-            return null;
-        }
-    }
+    /**
+     * ↑↓キーで数値を増減する（shift で±10、option で±0.1）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {boolean} allowNegative - 負の値を許すか
+     * @param {Function} onChange - 値を変えたあとに呼ぶ関数
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, allowNegative, onChange) {
+        if (!editText) return;
 
-    function saveSessionDialogPosition(dlg) {
-        if (!dlg) return;
-        try {
-            $.global[DIALOG_POS_KEY] = [dlg.location[0], dlg.location[1]];
-        } catch (e) { }
-    }
+        editText.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
-    (function () {
-        if (app.documents.length === 0) {
-            alert(getLabel("alertOpenDoc"));
-            return;
-        }
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
 
-        var doc = app.activeDocument;
-        var currentSelection = doc.selection;
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
 
-        if (!currentSelection || currentSelection.length !== 1) {
-            alert(getLabel("alertSelectOneItem"));
-            return;
-        }
-
-        var item = currentSelection[0];
-
-        // --- Temporary marker (cleanup) / 一時生成物マーカー（後片付け） ---
-        var TEMP_NOTE = "__SplitBackgroundForTwo_TEMP__";
-        var TEMP_NAME_PREFIX = "__SplitBackgroundForTwo_TEMP__";
-
-        // --- Preview marker (cleanup) / プレビューマーカー（後片付け） ---
-        var PREVIEW_NOTE = "__SplitBackgroundForTwo_PREVIEW__";
-
-        // --- Preview layer (robust preview container) / プレビューレイヤー（堅牢なプレビュー用コンテナ） ---
-        var PREVIEW_LAYER_NAME = "__SplitBackgroundForTwo__PreviewLayer__";
-
-        function findLayerByName(doc, name) {
-            try {
-                for (var i = 0; i < doc.layers.length; i++) {
-                    if (doc.layers[i].name === name) return doc.layers[i];
+            if (keyboard.shiftKey) {
+                delta = 10;
+                if (event.keyName === "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                } else if (event.keyName === "Down") {
+                    value = Math.floor((value - 1) / delta) * delta;
                 }
-            } catch (e) { }
-            return null;
-        }
-
-        function ensurePreviewLayer(doc, layerA, layerB) {
-            var lyr = findLayerByName(doc, PREVIEW_LAYER_NAME);
-            try {
-                if (!lyr) {
-                    lyr = doc.layers.add();
-                    lyr.name = PREVIEW_LAYER_NAME;
-                }
-
-                // 2レイヤーのうち“背面側”よりさらに背面へ
-                var backmost = getBackmostLayer(doc, layerA, layerB) || layerA || layerB;
-                if (backmost && backmost.isValid) {
-                    try { lyr.move(backmost, ElementPlacement.PLACEAFTER); } catch (eMv) { }
-                }
-
-                try {
-                    lyr.visible = true;
-                } catch (e) {}
-                try { lyr.locked = false; } catch (eL) { }
-                try { lyr.printable = true; } catch (eP) { }
-                try { lyr.template = false; } catch (eT) { }
-            } catch (e2) { }
-            return lyr;
-        }
-
-        function clearLayerItems(layer) {
-            if (!layer) return;
-            try { layer.locked = false; } catch (e0) { }
-            try {
-                layer.visible = true;
-            } catch (e) {}
-            try {
-                for (var i = layer.pageItems.length - 1; i >= 0; i--) {
-                    var it = layer.pageItems[i];
-                    try { unlockAndShow(it); } catch (eU) { }
-                    try { it.remove(); } catch (eR) { }
-                }
-            } catch (eLoop) { }
-        }
-
-        function removePreviewLayerIfExists(doc) {
-            var lyr = findLayerByName(doc, PREVIEW_LAYER_NAME);
-            if (!lyr) return;
-            try {
-                clearLayerItems(lyr);
-                lyr.remove();
-            } catch (e) { }
-        }
-
-        /* =========================================
-     * PreviewHistory util (extractable)
-     * ヒストリーを残さないプレビューのための小さなユーティリティ。
-     * 他スクリプトでもこのブロックをコピペすれば再利用できます。
-     * 使い方:
-     *   PreviewHistory.start();      // ダイアログ表示時などにカウンタ初期化
-     *   PreviewHistory.bump();       // プレビュー描画ごとにカウント(+1)
-     *   PreviewHistory.undo();       // 閉じる/キャンセル時に一括Undo
-     *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
-     * ========================================= */
-
-        (function (g) {
-            if (!g.PreviewHistory) {
-                g.PreviewHistory = {
-                    start: function () { g.__previewUndoCount = 0; },
-                    bump: function () { g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
-                    dec: function () {
-                        var n = g.__previewUndoCount | 0;
-                        g.__previewUndoCount = (n > 0) ? (n - 1) : 0;
-                    },
-                    rollbackOne: function () {
-                        var n = g.__previewUndoCount | 0;
-                        if (n <= 0) return;
-                        try { app.executeMenuCommand('undo'); } catch (e) { }
-                        g.__previewUndoCount = (n > 0) ? (n - 1) : 0;
-                    },
-                    undo: function () {
-                        var n = g.__previewUndoCount | 0;
-                        try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) { }
-                        g.__previewUndoCount = 0;
-                    },
-                    cancelTask: function (taskId) {
-                        try { if (taskId) app.cancelTask(taskId); } catch (e) { }
-                    }
-                };
-            }
-        })($.global);
-
-        function markPreview(item) {
-            if (!item) return;
-            try { item.note = PREVIEW_NOTE; } catch (e0) { }
-        }
-
-        function unmarkPreview(item) {
-            if (!item) return;
-            try {
-                if (item.note === PREVIEW_NOTE) item.note = "";
-            } catch (e0) { }
-        }
-
-        function unlockAndShow(item) {
-            if (!item) return;
-            try { item.locked = false; } catch (e1) { }
-            try { item.hidden = false; } catch (e2) { }
-            try {
-                item.visible = true;
-            } catch (e) {}
-            try { item.template = false; } catch (e4) { }
-            try { item.printable = true; } catch (e5) { }
-        }
-
-        function removeMarkedPreviewItems(doc) {
-            try {
-                for (var i = doc.pageItems.length - 1; i >= 0; i--) {
-                    var it = doc.pageItems[i];
-                    var isMarked = false;
-                    try { isMarked = (it.note === PREVIEW_NOTE); } catch (eNote) { isMarked = false; }
-                    if (isMarked) {
-                        unlockAndShow(it);
-                        try { it.remove(); } catch (eRm) { }
-                    }
-                }
-            } catch (eLoop) { }
-        }
-
-        // Remove current preview objects without touching last* state.
-        function clearPreviewItemsOnly(doc) {
-            // Prefer clearing the dedicated preview layer (most robust)
-            try {
-                var lyr = findLayerByName(doc, PREVIEW_LAYER_NAME);
-                if (lyr && lyr.isValid) {
-                    clearLayerItems(lyr);
-                }
-            } catch (eLy) { }
-
-            // Fallback: remove by PREVIEW_NOTE
-            try { removeMarkedPreviewItems(doc); } catch (e0) { }
-
-            previewState.rect1 = null;
-            previewState.rect2 = null;
-            previewState.frame = null;
-            previewState.divider = null;
-            previewState.applied = false;
-            safeRedraw();
-        }
-
-        function hasMarkedPreviewItems(doc) {
-            try {
-                for (var i = doc.pageItems.length - 1; i >= 0; i--) {
-                    var it = doc.pageItems[i];
-                    try {
-                        if (it.note === PREVIEW_NOTE) return true;
-                    } catch (eNote) { }
-                }
-            } catch (eLoop) { }
-            return false;
-        }
-
-        function markTemp(item) {
-            if (!item) return;
-
-            // note（従来）
-            try { item.note = TEMP_NOTE; } catch (e0) { }
-
-            // name（Undoでnoteが失われる対策）
-            try {
-                if (item.name !== undefined) {
-                    var nm = "";
-                    try { nm = String(item.name || ""); } catch (eN0) { nm = ""; }
-                    if (nm.indexOf(TEMP_NAME_PREFIX) !== 0) {
-                        item.name = TEMP_NAME_PREFIX;
-                    }
-                }
-            } catch (eName) { }
-
-            // 子要素もマーキング
-            try {
-                if (item.pageItems && item.pageItems.length) {
-                    for (var i = item.pageItems.length - 1; i >= 0; i--) {
-                        markTemp(item.pageItems[i]);
-                    }
-                }
-            } catch (eChildren) { }
-        }
-
-        function removeMarkedTempItems(doc) {
-            if (!doc) return;
-
-            // pageItems: note または name プレフィックスで消す
-            try {
-                for (var i = doc.pageItems.length - 1; i >= 0; i--) {
-                    var it = doc.pageItems[i];
-                    var isMarked = false;
-
-                    try { isMarked = (it.note === TEMP_NOTE); } catch (eNote) { isMarked = false; }
-
-                    if (!isMarked) {
-                        try {
-                            if (it.name !== undefined) {
-                                var nm = String(it.name || "");
-                                isMarked = (nm.indexOf(TEMP_NAME_PREFIX) === 0);
-                            }
-                        } catch (eNm) { }
-                    }
-
-                    if (isMarked) {
-                        unlockAndShow(it);
-                        try { it.remove(); } catch (eRm) { }
-                    }
-                }
-            } catch (eLoop) { }
-
-            // groupItems: 念のため group 名でも掃除（Undo後に漏れる保険）
-            try {
-                for (var g = doc.groupItems.length - 1; g >= 0; g--) {
-                    var gi = doc.groupItems[g];
-                    var hit = false;
-                    try {
-                        if (gi.name !== undefined) {
-                            var gnm = String(gi.name || "");
-                            hit = (gnm.indexOf(TEMP_NAME_PREFIX) === 0) || (gnm.indexOf("__temp_outline_group") === 0);
-                        }
-                    } catch (eGnm) { }
-                    if (hit) {
-                        try { unlockAndShow(gi); } catch (eUG) { }
-                        try { gi.remove(); } catch (eRG) { }
-                    }
-                }
-            } catch (eGrp) { }
-        }
-
-        /**
-         * テキストを「一時グループ」へ複製→アウトライン化し、その外接矩形を返す。
-         */
-        function getOutlineBoundsFromText(tf, tempGroup) {
-            var dup = null;
-            var outlineItem = null;
-            var b;
-
-            try {
-                dup = tf.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
-                markTemp(dup);
-                unlockAndShow(dup);
-
-                try {
-                    outlineItem = dup.createOutline();
-                    if (outlineItem) {
-                        markTemp(outlineItem);
-                        unlockAndShow(outlineItem);
-                        try {
-                            if (outlineItem.parent !== tempGroup) {
-                                outlineItem.move(tempGroup, ElementPlacement.PLACEATBEGINNING);
-                            }
-                        } catch (eMove) { }
-                    }
-                } catch (eOutline) {
-                    outlineItem = null;
-                }
-
-                var target = outlineItem ? outlineItem : dup;
-                b = target.geometricBounds; // [left, top, right, bottom]
-
-            } finally {
-                // ★ 取得後に即削除（残留防止）
-                try {
-                    if (outlineItem && outlineItem.isValid) {
-                        unlockAndShow(outlineItem);
-                        outlineItem.remove();
-                    }
-                } catch (eRmO) { }
-                try {
-                    if (dup && dup.isValid) {
-                        unlockAndShow(dup);
-                        dup.remove();
-                    }
-                } catch (eRmD) { }
-            }
-
-            if (!b || b.length < 4) b = [0, 0, 0, 0];
-
-            return {
-                bounds: [b[0], b[1], b[2], b[3]],
-                outline: null,
-                duplicateText: null
-            };
-        }
-
-        /**
-         * 任意オブジェクトの外接矩形（geometricBounds）を取得する。
-         * TextFrame の場合はアウトライン化した複製から取得して精度を上げる。
-         */
-        function getBoundsInfo(item, tempGroup) {
-            if (!item) {
-                return { bounds: [0, 0, 0, 0], outline: null, duplicateItem: null };
-            }
-
-            if (item.typename === "TextFrame") {
-                var info = getOutlineBoundsFromText(item, tempGroup);
-                return {
-                    bounds: info.bounds,
-                    outline: info.outline,
-                    duplicateItem: info.duplicateText
-                };
-            }
-
-            var dup = null;
-            var b;
-            try {
-                dup = item.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
-                markTemp(dup);
-                unlockAndShow(dup);
-                b = dup.geometricBounds;
-            } finally {
-                try {
-                    if (dup && dup.isValid) {
-                        unlockAndShow(dup);
-                        dup.remove();
-                    }
-                } catch (eRmDup) { }
-            }
-
-            if (!b || b.length < 4) b = [0, 0, 0, 0];
-            return {
-                bounds: [b[0], b[1], b[2], b[3]],
-                outline: null,
-                duplicateItem: null
-            };
-        }
-
-        // =============================================
-        // カラーシステム
-        // 値の形式: "RRGGBB" (RGB HEX) または "cmyk:C,M,Y,K" (CMYK 0-100)
-        // =============================================
-
-        function isCmykString(s) { return String(s).indexOf('cmyk:') === 0; }
-
-        function parseCmykString(s) {
-            var parts = String(s).replace('cmyk:', '').split(',');
-            var c = parseFloat(parts[0]) || 0;
-            var m = parseFloat(parts[1]) || 0;
-            var y = parseFloat(parts[2]) || 0;
-            var k = parseFloat(parts[3]) || 0;
-            return { c: c, m: m, y: y, k: k };
-        }
-
-        function cmykStringFromValues(c, m, y, k) {
-            return 'cmyk:' + Math.round(c) + ',' + Math.round(m) + ',' + Math.round(y) + ',' + Math.round(k);
-        }
-
-        // HEX→RGBColor
-        function hexToRGBColor(hex) {
-            hex = String(hex).replace(/^#/, '');
-            if (hex.length !== 6) hex = 'CCCCCC';
-            var r = parseInt(hex.substring(0, 2), 16);
-            var g = parseInt(hex.substring(2, 4), 16);
-            var b = parseInt(hex.substring(4, 6), 16);
-            if (isNaN(r)) r = 200; if (isNaN(g)) g = 200; if (isNaN(b)) b = 200;
-            var col = new RGBColor();
-            col.red = r; col.green = g; col.blue = b;
-            return col;
-        }
-
-        // CMYK値→CMYKColor
-        function cmykValuesToColor(c, m, y, k) {
-            var col = new CMYKColor();
-            col.cyan = c; col.magenta = m; col.yellow = y; col.black = k;
-            return col;
-        }
-
-        // 文字列からIllustrator Colorオブジェクトを生成
-        function parseColorString(s) {
-            if (isCmykString(s)) {
-                var v = parseCmykString(s);
-                return cmykValuesToColor(v.c, v.m, v.y, v.k);
-            }
-            return hexToRGBColor(s);
-        }
-
-        // RGB→HEX
-        function rgbToHex(r, g, b) {
-            function toHex2(n) {
-                var h = Math.round(n).toString(16).toUpperCase();
-                return h.length < 2 ? '0' + h : h;
-            }
-            return toHex2(r) + toHex2(g) + toHex2(b);
-        }
-
-        // 簡易 CMYK→RGB 変換（プレビュー表示用、近似値）
-        function cmykToRgbApprox(c, m, y, k) {
-            var r = 255 * (1 - c / 100) * (1 - k / 100);
-            var g = 255 * (1 - m / 100) * (1 - k / 100);
-            var b = 255 * (1 - y / 100) * (1 - k / 100);
-            return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
-        }
-
-        // 簡易 RGB→CMYK 変換（近似値）
-        function rgbToCmykApprox(r, g, b) {
-            var rr = r / 255, gg = g / 255, bb = b / 255;
-            var k = 1 - Math.max(rr, gg, bb);
-            if (k >= 1) return { c: 0, m: 0, y: 0, k: 100 };
-            var c = (1 - rr - k) / (1 - k) * 100;
-            var m = (1 - gg - k) / (1 - k) * 100;
-            var y = (1 - bb - k) / (1 - k) * 100;
-            return { c: Math.round(c), m: Math.round(m), y: Math.round(y), k: Math.round(k * 100) };
-        }
-
-        // カラー文字列からプレビュー用RGB(0-1)を取得
-        function colorStringToRgbNorm(s) {
-            if (isCmykString(s)) {
-                var v = parseCmykString(s);
-                var rgb = cmykToRgbApprox(v.c, v.m, v.y, v.k);
-                return [rgb.r / 255, rgb.g / 255, rgb.b / 255];
-            }
-            var hex = String(s).replace(/^#/, '');
-            if (hex.length !== 6) hex = '000000';
-            return [
-                (parseInt(hex.substring(0, 2), 16) || 0) / 255,
-                (parseInt(hex.substring(2, 4), 16) || 0) / 255,
-                (parseInt(hex.substring(4, 6), 16) || 0) / 255
-            ];
-        }
-
-        var _colorPickerLastPos = null; // ダイアログ位置記憶用
-
-        function createColorPickerState(initColorStr) {
-            var state = {
-                source: String(initColorStr || ''),
-                presetType: 'custom', // white | black | custom
-                mode: 'rgb',          // rgb | cmyk | gray
-                dialogTab: 'rgb',     // rgb | cmyk
-                rgb: { r: 0, g: 0, b: 0 },
-                cmyk: { c: 0, m: 0, y: 0, k: 0 }
-            };
-
-            if (isCmykString(initColorStr)) {
-                var cv = parseCmykString(initColorStr);
-                state.cmyk = {
-                    c: cv.c,
-                    m: cv.m,
-                    y: cv.y,
-                    k: cv.k
-                };
-
-                var rgbFromCmyk = cmykToRgbApprox(cv.c, cv.m, cv.y, cv.k);
-                state.rgb = {
-                    r: rgbFromCmyk.r,
-                    g: rgbFromCmyk.g,
-                    b: rgbFromCmyk.b
-                };
-
-                var isGray = (cv.c === 0 && cv.m === 0 && cv.y === 0 && cv.k > 0);
-                var isWhite = (cv.c === 0 && cv.m === 0 && cv.y === 0 && cv.k === 0);
-                var isBlack = (cv.c === 0 && cv.m === 0 && cv.y === 0 && cv.k === 100);
-
-                state.mode = isGray ? 'gray' : 'cmyk';
-                state.dialogTab = 'cmyk';
-                state.presetType = isWhite ? 'white' : (isBlack ? 'black' : 'custom');
+                event.preventDefault();
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                if (event.keyName === "Up") value += delta;
+                else if (event.keyName === "Down") value -= delta;
+                event.preventDefault();
             } else {
-                var hex = String(initColorStr || '').replace(/^#/, '');
-                if (hex.length !== 6) hex = '000000';
-
-                var r = parseInt(hex.substring(0, 2), 16) || 0;
-                var g = parseInt(hex.substring(2, 4), 16) || 0;
-                var b = parseInt(hex.substring(4, 6), 16) || 0;
-
-                state.rgb = { r: r, g: g, b: b };
-                state.cmyk = rgbToCmykApprox(r, g, b);
-                state.mode = 'rgb';
-                state.dialogTab = 'rgb';
-
-                var isWhiteRgb = (r === 255 && g === 255 && b === 255);
-                var isBlackRgb = (r === 0 && g === 0 && b === 0);
-                state.presetType = isWhiteRgb ? 'white' : (isBlackRgb ? 'black' : 'custom');
-            }
-
-            return state;
-        }
-
-        function syncStateCmykFromRgb(state) {
-            if (!state) return;
-            state.cmyk = rgbToCmykApprox(
-                Math.round(state.rgb.r),
-                Math.round(state.rgb.g),
-                Math.round(state.rgb.b)
-            );
-        }
-
-        function syncStateRgbFromCmyk(state) {
-            if (!state) return;
-            var rgb = cmykToRgbApprox(
-                state.cmyk.c,
-                state.cmyk.m,
-                state.cmyk.y,
-                state.cmyk.k
-            );
-            state.rgb = { r: rgb.r, g: rgb.g, b: rgb.b };
-        }
-
-        function serializeColorPickerState(state) {
-            if (!state) return null;
-
-            if (state.presetType === 'white') return 'FFFFFF';
-            if (state.presetType === 'black') return '000000';
-
-            if (state.mode === 'gray') {
-                return cmykStringFromValues(0, 0, 0, Math.round(state.cmyk.k));
-            }
-
-            if (state.mode === 'cmyk') {
-                return cmykStringFromValues(
-                    Math.round(state.cmyk.c),
-                    Math.round(state.cmyk.m),
-                    Math.round(state.cmyk.y),
-                    Math.round(state.cmyk.k)
-                );
-            }
-
-            return rgbToHex(
-                Math.round(state.rgb.r),
-                Math.round(state.rgb.g),
-                Math.round(state.rgb.b)
-            );
-        }
-
-        function getPreviewRgbFromState(state) {
-            if (!state) return { r: 0, g: 0, b: 0 };
-            if (state.presetType === 'white') return { r: 255, g: 255, b: 255 };
-            if (state.presetType === 'black') return { r: 0, g: 0, b: 0 };
-            if (state.mode === 'gray' || state.mode === 'cmyk') {
-                return cmykToRgbApprox(state.cmyk.c, state.cmyk.m, state.cmyk.y, state.cmyk.k);
-            }
-            return {
-                r: Math.round(state.rgb.r),
-                g: Math.round(state.rgb.g),
-                b: Math.round(state.rgb.b)
-            };
-        }
-
-        function saveColorPickerDialogPosition(dlg) {
-            if (!dlg) return;
-            try { _colorPickerLastPos = [dlg.location[0], dlg.location[1]]; } catch (e) { }
-        }
-
-        function restoreColorPickerDialogPosition(dlg) {
-            if (!dlg || !_colorPickerLastPos) return;
-            var prev = dlg.onShow;
-            dlg.onShow = function () {
-                if (typeof prev === 'function') {
-                    try { prev(); } catch (ePrev) { }
-                }
-                try { dlg.location = _colorPickerLastPos; } catch (e) { }
-            };
-        }
-
-        function attachColorPickerDialogPosition(dlg) {
-            if (!dlg) return;
-            dlg.onMove = function () {
-                saveColorPickerDialogPosition(dlg);
-            };
-            dlg.onClose = function () {
-                saveColorPickerDialogPosition(dlg);
-            };
-        }
-
-        function makeColorPickerSliderRow(parent, label, initVal, maxVal) {
-            var row = parent.add('group');
-            row.orientation = 'row';
-            row.alignChildren = ['left', 'center'];
-            var st = row.add('statictext', undefined, label);
-            st.justify = 'center';
-            st.preferredSize = [20, -1];
-            var sl = row.add('slider', undefined, initVal, 0, maxVal);
-            sl.preferredSize = [120, 20];
-            var et = row.add('edittext', undefined, String(Math.round(initVal)));
-            et.characters = 3;
-            sl.onChanging = function () {
-                var v = sl.value;
-                var keyboard = ScriptUI.environment.keyboardState;
-                if (keyboard.shiftKey) {
-                    var step = maxVal * 0.1;
-                    v = Math.round(v / step) * step;
-                } else if (keyboard.altKey) {
-                    var stepAlt = (maxVal === 255) ? 16 : maxVal * 0.05;
-                    v = Math.round(v / stepAlt) * stepAlt;
-                    if (maxVal === 255 && v > 255) v = 255;
-                }
-                v = Math.round(v);
-                if (v < 0) v = 0;
-                if (v > maxVal) v = maxVal;
-                sl.value = v;
-                et.text = String(v);
-            };
-            et.addEventListener('changing', function () {
-                var v = parseFloat(et.text);
-                if (isNaN(v)) v = 0;
-                if (v < 0) v = 0;
-                if (v > maxVal) v = maxVal;
-                sl.value = v;
-            });
-            var _onKeyChange = null;
-            sl.addEventListener('keydown', function (event) {
-                if (event.keyName !== 'Up' && event.keyName !== 'Down') return;
-                var keyboard = ScriptUI.environment.keyboardState;
-                if (!keyboard.shiftKey) return;
-                var v = sl.value;
-                var delta = Math.round(maxVal * 0.1);
-                if (delta < 1) delta = 1;
-                if (event.keyName === 'Up') v += delta;
-                else v -= delta;
-                if (v < 0) v = 0;
-                if (v > maxVal) v = maxVal;
-                v = Math.round(v);
-                sl.value = v;
-                et.text = String(v);
-                if (typeof _onKeyChange === 'function') _onKeyChange();
+                delta = 1;
+                if (event.keyName === "Up") value += delta;
+                else if (event.keyName === "Down") value -= delta;
                 event.preventDefault();
-            });
-            et.addEventListener('keydown', function (event) {
-                if (event.keyName !== 'Up' && event.keyName !== 'Down') return;
-                var v = parseFloat(et.text);
-                if (isNaN(v)) v = 0;
-                var keyboard = ScriptUI.environment.keyboardState;
-                var delta = keyboard.shiftKey ? 10 : 1;
-                if (event.keyName === 'Up') v += delta;
-                else v -= delta;
-                if (v < 0) v = 0;
-                if (v > maxVal) v = maxVal;
-                v = Math.round(v);
-                et.text = String(v);
-                sl.value = v;
-                if (typeof _onKeyChange === 'function') _onKeyChange();
-                event.preventDefault();
-            });
-            var result = { slider: sl, edit: et, row: row };
-            result.setOnKeyChange = function (fn) { _onKeyChange = fn; };
-            return result;
-        }
-
-        function renderColorPickerUI(state, ui, refreshPreview, options) {
-            if (!state || !ui) return;
-
-            options = options || {};
-            var suppressTabSelection = !!options.suppressTabSelection;
-
-            ui.rbWhite.value = (state.presetType === 'white');
-            ui.rbBlack.value = (state.presetType === 'black');
-            ui.rbCustom.value = (state.presetType === 'custom');
-
-            if (!suppressTabSelection) {
-                var targetTab = (state.dialogTab === 'cmyk') ? ui.tabCMYK : ui.tabRGB;
-                try {
-                    if (ui.tabPanel.selection !== targetTab) {
-                        ui.tabPanel.selection = targetTab;
-                    }
-                } catch (eTabSel) { }
             }
 
-            ui.cbGray.value = (state.mode === 'gray');
+            if (keyboard.altKey) value = Math.round(value * 10) / 10;
+            else value = Math.round(value);
 
-            ui.slR.value = Math.round(state.rgb.r);
-            ui.rRow.edit.text = String(Math.round(state.rgb.r));
-            ui.slG.value = Math.round(state.rgb.g);
-            ui.gRow.edit.text = String(Math.round(state.rgb.g));
-            ui.slB.value = Math.round(state.rgb.b);
-            ui.bRow.edit.text = String(Math.round(state.rgb.b));
-            ui.etHex.text = rgbToHex(state.rgb.r, state.rgb.g, state.rgb.b);
+            if (!allowNegative && value < 0) value = 0;
 
-            ui.slC.value = Math.round(state.cmyk.c);
-            ui.cRow.edit.text = String(Math.round(state.cmyk.c));
-            ui.slM.value = Math.round(state.cmyk.m);
-            ui.mRow.edit.text = String(Math.round(state.cmyk.m));
-            ui.slY.value = Math.round(state.cmyk.y);
-            ui.yRow.edit.text = String(Math.round(state.cmyk.y));
-            ui.slK.value = Math.round(state.cmyk.k);
-            ui.kRow.edit.text = String(Math.round(state.cmyk.k));
+            editText.text = String(value);
 
-            var customEnabled = (state.presetType === 'custom');
-            ui.tabPanel.enabled = customEnabled;
-            ui.cRow.row.enabled = customEnabled && state.mode !== 'gray';
-            ui.mRow.row.enabled = customEnabled && state.mode !== 'gray';
-            ui.yRow.row.enabled = customEnabled && state.mode !== 'gray';
+            if (typeof onChange === "function") {
+                try { onChange(); } catch (e) { }
+            }
+        });
+    }
 
-            if (typeof refreshPreview === 'function') refreshPreview();
+    /**
+     * コントロールを描き直させる（onDraw をもう一度呼ばせる）
+     * @param {Object} control - 対象のコントロール
+     * @returns {void}
+     */
+    function repaintControl(control) {
+        control.hide();
+        control.show();
+    }
+
+    /**
+     * コントロールを単色で塗る（onDraw の中で使う）
+     * @param {Object} control - 描画するコントロール
+     * @param {{r: number, g: number, b: number}} rgb - 0〜255 の RGB
+     * @param {boolean} withBorder - 黒い枠線を付けるか
+     * @returns {void}
+     */
+    function paintSolidColor(control, rgb, withBorder) {
+        var graphics = control.graphics;
+        var brush = graphics.newBrush(graphics.BrushType.SOLID_COLOR, [rgb.r / 255, rgb.g / 255, rgb.b / 255, 1]);
+        /* newPath() を呼ばないとパスが積み重なる / without newPath() the paths accumulate */
+        graphics.newPath();
+        graphics.rectPath(0, 0, control.size[0], control.size[1]);
+        graphics.fillPath(brush);
+        if (!withBorder) return;
+        var borderPen = graphics.newPen(graphics.PenType.SOLID_COLOR, [0, 0, 0, 1], 1);
+        graphics.newPath();
+        graphics.rectPath(0, 0, control.size[0], control.size[1]);
+        graphics.strokePath(borderPen);
+    }
+
+    /**
+     * 値を範囲内に収める
+     * @param {number} value - 値
+     * @param {number} minValue - 下限
+     * @param {number} maxValue - 上限
+     * @returns {number} 収めた値
+     */
+    function clampNumber(value, minValue, maxValue) {
+        if (value < minValue) return minValue;
+        if (value > maxValue) return maxValue;
+        return value;
+    }
+
+    // =========================================
+    // 実行時の状態 / Run state
+    // =========================================
+
+    var doc = null;           /* 対象ドキュメント / target document */
+    var targetItem = null;    /* 選択したオブジェクト（確定すると削除する）/ the selected object, removed on OK */
+    var targetBounds = null;  /* targetItem の外接矩形 [左, 上, 右, 下] / bounds of targetItem [left, top, right, bottom] */
+
+    /* プレビュー専用レイヤー（ダイアログを閉じると消す）/ Dedicated preview layer, removed when the dialog closes */
+    var PREVIEW_LAYER_NAME = "__SplitForTwo__PreviewLayer__";
+
+    // =========================================
+    // 計測 / Measuring
+    // =========================================
+
+    /**
+     * 削除する（createOutline() に消費された複製など、すでに無いものは無視する）
+     * @param {PageItem} item - 削除するオブジェクト
+     * @returns {void}
+     */
+    function removeItem(item) {
+        if (!item) return;
+        try {
+            item.remove();
+        } catch (e) {
+            /* すでに無い / already gone */
+        }
+    }
+
+    /**
+     * テキストを複製してアウトライン化し、その外接矩形を返す（サイドベアリングを含めない）
+     * @param {TextFrame} textFrame - 対象のテキスト
+     * @returns {number[]|null} 外接矩形。測れなければ null
+     */
+    function getOutlineBounds(textFrame) {
+        var duplicateText = null;
+        var outlineGroup = null;
+        var bounds = null;
+        try {
+            duplicateText = textFrame.duplicate(textFrame.layer, ElementPlacement.PLACEATBEGINNING);
+            outlineGroup = duplicateText.createOutline();
+            bounds = outlineGroup.geometricBounds;
+        } catch (e) {
+            /* 空白だけのテキストは中身の無いグループになり、geometricBounds が例外になる / whitespace-only text outlines to an empty group whose bounds throw */
+            bounds = null;
+        } finally {
+            removeItem(outlineGroup);
+            /* createOutline() が成功していれば複製は消費済み / the duplicate is already consumed when createOutline() succeeds */
+            removeItem(duplicateText);
+        }
+        return bounds;
+    }
+
+    /**
+     * オブジェクトの外接矩形を返す。テキストはアウトライン、クリップグループはマスクの範囲で測る
+     * @param {PageItem} item - 対象のオブジェクト
+     * @returns {number[]} 外接矩形 [左, 上, 右, 下]
+     */
+    function getItemBounds(item) {
+        var bounds = null;
+        if (item.typename === "TextFrame") {
+            bounds = getOutlineBounds(item);
+        } else if (item.typename === "GroupItem" && item.clipped && item.pageItems.length > 0) {
+            /* クリップグループのマスクは pageItems[0] / the mask of a clip group is pageItems[0] */
+            bounds = getItemBounds(item.pageItems[0]);
+        }
+        if (!bounds) bounds = item.geometricBounds;
+        return [bounds[0], bounds[1], bounds[2], bounds[3]];
+    }
+
+    // =========================================
+    // レイヤー / Layers
+    // =========================================
+
+    /**
+     * サブレイヤーをたどって最上位のレイヤーを返す
+     * @param {Layer} layer - 対象のレイヤー
+     * @returns {Layer} 最上位のレイヤー
+     */
+    function getTopLevelLayer(layer) {
+        while (layer.parent.typename === "Layer") layer = layer.parent;
+        return layer;
+    }
+
+    /**
+     * プレビューレイヤーを探す
+     * @returns {Layer|null} プレビューレイヤー。無ければ null
+     */
+    function findPreviewLayer() {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === PREVIEW_LAYER_NAME) return doc.layers[i];
+        }
+        return null;
+    }
+
+    /**
+     * プレビューレイヤーを用意し、元のオブジェクトのレイヤーより背面に置く
+     * @returns {Layer} プレビューレイヤー
+     */
+    function ensurePreviewLayer() {
+        var previewLayer = findPreviewLayer();
+        if (previewLayer) return previewLayer;
+
+        previewLayer = doc.layers.add();
+        previewLayer.name = PREVIEW_LAYER_NAME;
+        /* サブレイヤーなら最上位の親の背面へ / behind the top-level parent when the object sits on a sublayer */
+        previewLayer.move(getTopLevelLayer(targetItem.layer), ElementPlacement.PLACEAFTER);
+        return previewLayer;
+    }
+
+    /**
+     * プレビューレイヤーを中身ごと削除する
+     * @returns {void}
+     */
+    function removePreviewLayer() {
+        var previewLayer = findPreviewLayer();
+        if (previewLayer) previewLayer.remove();
+    }
+
+    // =========================================
+    // カラー / Colors
+    // =========================================
+
+    /**
+     * CMYK の色文字列か
+     * @param {string} colorText - 色文字列
+     * @returns {boolean} "cmyk:" で始まるか
+     */
+    function isCmykString(colorText) {
+        return String(colorText).indexOf("cmyk:") === 0;
+    }
+
+    /**
+     * "cmyk:C,M,Y,K" を数値に分ける
+     * @param {string} colorText - 色文字列
+     * @returns {{c: number, m: number, y: number, k: number}} CMYK（0〜100）
+     */
+    function parseCmykString(colorText) {
+        var parts = String(colorText).replace("cmyk:", "").split(",");
+        return {
+            c: parseFloat(parts[0]) || 0,
+            m: parseFloat(parts[1]) || 0,
+            y: parseFloat(parts[2]) || 0,
+            k: parseFloat(parts[3]) || 0
+        };
+    }
+
+    /**
+     * CMYK から "cmyk:C,M,Y,K" を作る
+     * @param {{c: number, m: number, y: number, k: number}} cmyk - CMYK（0〜100）
+     * @returns {string} 色文字列
+     */
+    function cmykStringFromValues(cmyk) {
+        return "cmyk:" + Math.round(cmyk.c) + "," + Math.round(cmyk.m) + "," + Math.round(cmyk.y) + "," + Math.round(cmyk.k);
+    }
+
+    /**
+     * "RRGGBB" を RGB に分ける
+     * @param {string} colorText - 16進数の色文字列（先頭の # は無視）
+     * @param {string} fallbackHex - 読めないときに使う16進数
+     * @returns {{r: number, g: number, b: number}} RGB（0〜255）
+     */
+    function parseHexRgb(colorText, fallbackHex) {
+        var hex = String(colorText).replace(/^#/, "");
+        if (!/^[0-9A-Fa-f]{6}$/.test(hex)) hex = fallbackHex;
+        return {
+            r: parseInt(hex.substring(0, 2), 16),
+            g: parseInt(hex.substring(2, 4), 16),
+            b: parseInt(hex.substring(4, 6), 16)
+        };
+    }
+
+    /**
+     * RGB から "RRGGBB" を作る
+     * @param {{r: number, g: number, b: number}} rgb - RGB（0〜255）
+     * @returns {string} 大文字の16進数
+     */
+    function rgbToHex(rgb) {
+        var toHex2 = function (channelValue) {
+            var hex = Math.round(channelValue).toString(16).toUpperCase();
+            return (hex.length < 2) ? "0" + hex : hex;
+        };
+        return toHex2(rgb.r) + toHex2(rgb.g) + toHex2(rgb.b);
+    }
+
+    /**
+     * CMYK を RGB に簡易換算する（プレビュー用の近似値）
+     * @param {{c: number, m: number, y: number, k: number}} cmyk - CMYK（0〜100）
+     * @returns {{r: number, g: number, b: number}} RGB（0〜255）
+     */
+    function cmykToRgbApprox(cmyk) {
+        var black = 1 - cmyk.k / 100;
+        return {
+            r: Math.round(255 * (1 - cmyk.c / 100) * black),
+            g: Math.round(255 * (1 - cmyk.m / 100) * black),
+            b: Math.round(255 * (1 - cmyk.y / 100) * black)
+        };
+    }
+
+    /**
+     * RGB を CMYK に簡易換算する（近似値）
+     * @param {{r: number, g: number, b: number}} rgb - RGB（0〜255）
+     * @returns {{c: number, m: number, y: number, k: number}} CMYK（0〜100）
+     */
+    function rgbToCmykApprox(rgb) {
+        var red = rgb.r / 255;
+        var green = rgb.g / 255;
+        var blue = rgb.b / 255;
+        var black = 1 - Math.max(red, green, blue);
+        if (black >= 1) return { c: 0, m: 0, y: 0, k: 100 };
+        return {
+            c: Math.round((1 - red - black) / (1 - black) * 100),
+            m: Math.round((1 - green - black) / (1 - black) * 100),
+            y: Math.round((1 - blue - black) / (1 - black) * 100),
+            k: Math.round(black * 100)
+        };
+    }
+
+    /**
+     * RGB から色を作る
+     * @param {{r: number, g: number, b: number}} rgb - RGB（0〜255）
+     * @returns {RGBColor} 色
+     */
+    function makeRGBColor(rgb) {
+        var color = new RGBColor();
+        color.red = rgb.r;
+        color.green = rgb.g;
+        color.blue = rgb.b;
+        return color;
+    }
+
+    /**
+     * CMYK から色を作る
+     * @param {{c: number, m: number, y: number, k: number}} cmyk - CMYK（0〜100）
+     * @returns {CMYKColor} 色
+     */
+    function makeCMYKColor(cmyk) {
+        var color = new CMYKColor();
+        color.cyan = cmyk.c;
+        color.magenta = cmyk.m;
+        color.yellow = cmyk.y;
+        color.black = cmyk.k;
+        return color;
+    }
+
+    /**
+     * 色文字列から Illustrator の色を作る
+     * @param {string} colorText - "RRGGBB" か "cmyk:C,M,Y,K"
+     * @returns {RGBColor|CMYKColor} 色
+     */
+    function parseColorString(colorText) {
+        if (isCmykString(colorText)) return makeCMYKColor(parseCmykString(colorText));
+        return makeRGBColor(parseHexRgb(colorText, "CCCCCC"));
+    }
+
+    /**
+     * 色文字列を画面表示用の RGB にする
+     * @param {string} colorText - "RRGGBB" か "cmyk:C,M,Y,K"
+     * @returns {{r: number, g: number, b: number}} RGB（0〜255）
+     */
+    function colorStringToRgb(colorText) {
+        if (isCmykString(colorText)) return cmykToRgbApprox(parseCmykString(colorText));
+        return parseHexRgb(colorText, "000000");
+    }
+
+    // =========================================
+    // カラー選択 / Color picker
+    // =========================================
+    // 状態の mode は "rgb" | "cmyk" | "gray"、presetType は "white" | "black" | "custom"、dialogTab は "rgb" | "cmyk"
+    // State: mode is "rgb" | "cmyk" | "gray", presetType is "white" | "black" | "custom", dialogTab is "rgb" | "cmyk"
+
+    /**
+     * 色文字列からカラー選択の状態を作る
+     * @param {string} initialColor - "RRGGBB" か "cmyk:C,M,Y,K"
+     * @returns {Object} カラー選択の状態
+     */
+    function createColorPickerState(initialColor) {
+        var pickerState = {
+            presetType: "custom",
+            mode: "rgb",
+            dialogTab: "rgb",
+            rgb: { r: 0, g: 0, b: 0 },
+            cmyk: { c: 0, m: 0, y: 0, k: 0 }
+        };
+
+        if (isCmykString(initialColor)) {
+            var cmyk = parseCmykString(initialColor);
+            var noColorInk = (cmyk.c === 0 && cmyk.m === 0 && cmyk.y === 0);
+            pickerState.cmyk = cmyk;
+            pickerState.rgb = cmykToRgbApprox(cmyk);
+            pickerState.mode = (noColorInk && cmyk.k > 0) ? "gray" : "cmyk";
+            pickerState.dialogTab = "cmyk";
+            pickerState.presetType = (noColorInk && cmyk.k === 0) ? "white" : (noColorInk && cmyk.k === 100) ? "black" : "custom";
+        } else {
+            var rgb = parseHexRgb(initialColor, "000000");
+            pickerState.rgb = rgb;
+            pickerState.cmyk = rgbToCmykApprox(rgb);
+            var isWhite = (rgb.r === 255 && rgb.g === 255 && rgb.b === 255);
+            var isBlack = (rgb.r === 0 && rgb.g === 0 && rgb.b === 0);
+            pickerState.presetType = isWhite ? "white" : isBlack ? "black" : "custom";
+        }
+        return pickerState;
+    }
+
+    /**
+     * RGB から CMYK を求め直す
+     * @param {Object} pickerState - カラー選択の状態
+     * @returns {void}
+     */
+    function syncPickerCmykFromRgb(pickerState) {
+        pickerState.cmyk = rgbToCmykApprox({
+            r: Math.round(pickerState.rgb.r),
+            g: Math.round(pickerState.rgb.g),
+            b: Math.round(pickerState.rgb.b)
+        });
+    }
+
+    /**
+     * CMYK から RGB を求め直す
+     * @param {Object} pickerState - カラー選択の状態
+     * @returns {void}
+     */
+    function syncPickerRgbFromCmyk(pickerState) {
+        pickerState.rgb = cmykToRgbApprox(pickerState.cmyk);
+    }
+
+    /**
+     * 白・黒・カスタムを切り替える
+     * @param {Object} pickerState - カラー選択の状態
+     * @param {string} presetType - "white" | "black" | "custom"
+     * @returns {void}
+     */
+    function setPickerPresetType(pickerState, presetType) {
+        pickerState.presetType = presetType;
+
+        if (presetType === "white" || presetType === "black") {
+            var channelValue = (presetType === "white") ? 255 : 0;
+            pickerState.rgb = { r: channelValue, g: channelValue, b: channelValue };
+            syncPickerCmykFromRgb(pickerState);
+            if (pickerState.dialogTab !== "cmyk") pickerState.mode = "rgb";
+        } else if (pickerState.dialogTab === "cmyk") {
+            if (pickerState.mode !== "gray") pickerState.mode = "cmyk";
+            syncPickerRgbFromCmyk(pickerState);
+        } else {
+            pickerState.mode = "rgb";
+            syncPickerCmykFromRgb(pickerState);
+        }
+    }
+
+    /**
+     * RGB の値を入れる（カスタムの RGB に切り替わる）
+     * @param {Object} pickerState - カラー選択の状態
+     * @param {number} red - R（0〜255）
+     * @param {number} green - G（0〜255）
+     * @param {number} blue - B（0〜255）
+     * @returns {void}
+     */
+    function setPickerRgb(pickerState, red, green, blue) {
+        pickerState.rgb = { r: Math.round(red), g: Math.round(green), b: Math.round(blue) };
+        syncPickerCmykFromRgb(pickerState);
+        pickerState.mode = "rgb";
+        pickerState.dialogTab = "rgb";
+        pickerState.presetType = "custom";
+    }
+
+    /**
+     * CMYK の値を入れる（カスタムの CMYK かグレーに切り替わる）
+     * @param {Object} pickerState - カラー選択の状態
+     * @param {number} cyan - C（0〜100）
+     * @param {number} magenta - M（0〜100）
+     * @param {number} yellow - Y（0〜100）
+     * @param {number} black - K（0〜100）
+     * @param {boolean} keepGrayMode - グレーのままにするか
+     * @returns {void}
+     */
+    function setPickerCmyk(pickerState, cyan, magenta, yellow, black, keepGrayMode) {
+        pickerState.cmyk = { c: Math.round(cyan), m: Math.round(magenta), y: Math.round(yellow), k: Math.round(black) };
+        syncPickerRgbFromCmyk(pickerState);
+        pickerState.mode = keepGrayMode ? "gray" : "cmyk";
+        pickerState.dialogTab = "cmyk";
+        pickerState.presetType = "custom";
+    }
+
+    /**
+     * カラー選択の状態を色文字列にする
+     * @param {Object} pickerState - カラー選択の状態
+     * @returns {string} "RRGGBB" か "cmyk:C,M,Y,K"
+     */
+    function serializeColorPickerState(pickerState) {
+        if (pickerState.presetType === "white") return "FFFFFF";
+        if (pickerState.presetType === "black") return "000000";
+        if (pickerState.mode === "gray") return cmykStringFromValues({ c: 0, m: 0, y: 0, k: pickerState.cmyk.k });
+        if (pickerState.mode === "cmyk") return cmykStringFromValues(pickerState.cmyk);
+        return rgbToHex(pickerState.rgb);
+    }
+
+    /**
+     * カラー選択の状態を画面表示用の RGB にする
+     * @param {Object} pickerState - カラー選択の状態
+     * @returns {{r: number, g: number, b: number}} RGB（0〜255）
+     */
+    function getPickerPreviewRgb(pickerState) {
+        if (pickerState.presetType === "white") return { r: 255, g: 255, b: 255 };
+        if (pickerState.presetType === "black") return { r: 0, g: 0, b: 0 };
+        if (pickerState.mode === "gray" || pickerState.mode === "cmyk") return cmykToRgbApprox(pickerState.cmyk);
+        return {
+            r: Math.round(pickerState.rgb.r),
+            g: Math.round(pickerState.rgb.g),
+            b: Math.round(pickerState.rgb.b)
+        };
+    }
+
+    /**
+     * カラー選択のスライダー行（チャンネル名・スライダー・数値欄）を追加する
+     * @param {Group} parent - 追加先
+     * @param {string} channelLabel - チャンネル名（"R" など）
+     * @param {number} initialValue - 初期値
+     * @param {number} maxValue - 上限（RGB は 255、CMYK は 100）
+     * @returns {Object} row・slider・input と、値が変わったときの関数を登録する setOnValueChange
+     */
+    function addPickerSliderRow(parent, channelLabel, initialValue, maxValue) {
+        var onValueChange = null;
+        var rowGroup = addRow(parent);
+        var channelText = rowGroup.add("statictext", undefined, channelLabel);
+        channelText.justify = "center";
+        channelText.preferredSize = [PICKER_LABEL_WIDTH, -1];
+        var slider = rowGroup.add("slider", undefined, initialValue, 0, maxValue);
+        slider.preferredSize = PICKER_SLIDER_SIZE;
+        var valueInput = rowGroup.add("edittext", undefined, String(Math.round(initialValue)));
+        valueInput.characters = PICKER_VALUE_CHARS;
+
+        /* 値を整数に丸めて範囲内に収め、スライダーと数値欄に反映してから知らせる
+           Round and clamp the value, show it on the slider and field, then notify */
+        var commitValue = function (value, typedInInput) {
+            value = clampNumber(Math.round(value), 0, maxValue);
+            slider.value = value;
+            /* 入力中の欄は書き換えない / leave the field alone while it is being typed in */
+            if (!typedInInput) valueInput.text = String(value);
+            if (typeof onValueChange === "function") onValueChange(value, typedInInput ? valueInput : null);
+        };
+
+        slider.onChanging = function () {
+            var value = slider.value;
+            var keyboard = ScriptUI.environment.keyboardState;
+            if (keyboard.shiftKey) {
+                /* shift で10%刻み / snap to 10% steps with Shift */
+                var shiftStep = maxValue * 0.1;
+                value = Math.round(value / shiftStep) * shiftStep;
+            } else if (keyboard.altKey) {
+                /* option で RGB は16、CMYK は5%刻み / snap to 16 (RGB) or 5% (CMYK) with Option */
+                var altStep = (maxValue === 255) ? 16 : maxValue * 0.05;
+                value = Math.round(value / altStep) * altStep;
+            }
+            commitValue(value, false);
+        };
+
+        /* shift+↑↓ でスライダーを10%ずつ動かす / Shift+Up/Down moves the slider by 10% */
+        slider.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+            if (!ScriptUI.environment.keyboardState.shiftKey) return;
+            var delta = Math.max(Math.round(maxValue * 0.1), 1);
+            commitValue(slider.value + ((event.keyName === "Up") ? delta : -delta), false);
+            event.preventDefault();
+        });
+
+        /* ↑↓で±1、shift+↑↓で±10 / Up/Down steps by 1, Shift+Up/Down by 10 */
+        valueInput.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+            var value = parseFloat(valueInput.text);
+            if (isNaN(value)) value = 0;
+            var delta = ScriptUI.environment.keyboardState.shiftKey ? 10 : 1;
+            commitValue(value + ((event.keyName === "Up") ? delta : -delta), false);
+            event.preventDefault();
+        });
+
+        valueInput.addEventListener("changing", function () {
+            var value = parseFloat(valueInput.text);
+            if (!isNaN(value)) commitValue(value, true);
+        });
+
+        return {
+            row: rowGroup,
+            slider: slider,
+            input: valueInput,
+            setOnValueChange: function (callback) { onValueChange = callback; }
+        };
+    }
+
+    /**
+     * スライダー行に値を入れる
+     * @param {Object} sliderRow - addPickerSliderRow() の戻り値
+     * @param {number} value - 値
+     * @param {EditText|null} skipInput - 書き換えない入力欄（入力中の欄）
+     * @returns {void}
+     */
+    function setPickerSliderRow(sliderRow, value, skipInput) {
+        sliderRow.slider.value = Math.round(value);
+        if (sliderRow.input !== skipInput) sliderRow.input.text = String(Math.round(value));
+    }
+
+    /**
+     * カラー選択の状態をダイアログに映す
+     * @param {Object} pickerState - カラー選択の状態
+     * @param {Object} pickerControls - カラー選択のコントロール
+     * @param {Object} [renderOptions] - suppressTabSelection（タブを切り替えない）、skipInput（書き換えない欄）
+     * @returns {void}
+     */
+    function renderColorPicker(pickerState, pickerControls, renderOptions) {
+        renderOptions = renderOptions || {};
+        var skipInput = renderOptions.skipInput || null;
+
+        pickerControls.whiteRadio.value = (pickerState.presetType === "white");
+        pickerControls.blackRadio.value = (pickerState.presetType === "black");
+        pickerControls.customRadio.value = (pickerState.presetType === "custom");
+
+        if (!renderOptions.suppressTabSelection) {
+            var targetTab = (pickerState.dialogTab === "cmyk") ? pickerControls.cmykTab : pickerControls.rgbTab;
+            if (pickerControls.tabPanel.selection !== targetTab) pickerControls.tabPanel.selection = targetTab;
         }
 
-        function buildColorPickerUI(state, initRgb) {
-            var d = new Window('dialog', getLabel('colorPickerTitle'));
-            d.orientation = 'column';
-            d.alignChildren = ['fill', 'top'];
-
-            var previewRow = d.add('group');
-            previewRow.orientation = 'row';
-            previewRow.alignment = ['center', 'top'];
-            previewRow.spacing = 1; // 1px gap between preview bars
-            var previewOrig = previewRow.add('group');
-            previewOrig.preferredSize = [90, 40];
-            var previewCur = previewRow.add('group');
-            previewCur.preferredSize = [90, 40];
-
-            var colorTypeRow = d.add('group');
-            colorTypeRow.orientation = 'row';
-            colorTypeRow.alignment = ['center', 'top'];
-            colorTypeRow.alignChildren = ['left', 'center'];
-            var rbWhite = colorTypeRow.add('radiobutton', undefined, getLabel('labelWhite'));
-            rbWhite.helpTip = getLabel('tipColorType');
-            var rbBlack = colorTypeRow.add('radiobutton', undefined, getLabel('labelBlack'));
-            rbBlack.helpTip = getLabel('tipColorType');
-            var rbCustom = colorTypeRow.add('radiobutton', undefined, getLabel('labelCustom'));
-            rbCustom.helpTip = getLabel('tipColorType');
-
-            previewOrig.onDraw = function () {
-                var gr = this.graphics;
-                var brush = gr.newBrush(gr.BrushType.SOLID_COLOR, [initRgb.r / 255, initRgb.g / 255, initRgb.b / 255, 1]);
-                gr.rectPath(0, 0, this.size[0], this.size[1]);
-                gr.fillPath(brush);
-            };
-
-            var tabPanel = d.add('tabbedpanel');
-            tabPanel.alignment = ['fill', 'top'];
-            tabPanel.alignChildren = ['fill', 'top'];
-
-            var tabRGB = tabPanel.add('tab', undefined, getLabel('labelRGB'));
-            tabRGB.orientation = 'column';
-            tabRGB.alignChildren = ['fill', 'top'];
-            tabRGB.margins = [15, 20, 15, 10];
-
-            var rgbPanel = tabRGB.add('group');
-            rgbPanel.orientation = 'column';
-            rgbPanel.alignChildren = ['fill', 'top'];
-
-            var rRow = makeColorPickerSliderRow(rgbPanel, 'R', state.rgb.r, 255);
-            var gRow = makeColorPickerSliderRow(rgbPanel, 'G', state.rgb.g, 255);
-            var bRow = makeColorPickerSliderRow(rgbPanel, 'B', state.rgb.b, 255);
-            var slR = rRow.slider, slG = gRow.slider, slB = bRow.slider;
-
-            var hexRow = tabRGB.add('group');
-            hexRow.orientation = 'row';
-            hexRow.alignment = ['center', 'top'];
-            hexRow.alignChildren = ['left', 'center'];
-            hexRow.add('statictext', undefined, '#');
-            var etHex = hexRow.add('edittext', undefined, rgbToHex(state.rgb.r, state.rgb.g, state.rgb.b));
-            etHex.helpTip = getLabel('tipHex');
-            etHex.characters = 6;
-
-            var tabCMYK = tabPanel.add('tab', undefined, getLabel('labelCMYK'));
-            tabCMYK.orientation = 'column';
-            tabCMYK.alignChildren = ['fill', 'top'];
-            tabCMYK.margins = [15, 20, 15, 10];
-
-            var cbGray = tabCMYK.add('checkbox', undefined, getLabel('labelGray'));
-            cbGray.helpTip = getLabel('tipGray');
-
-            var cmykPanel = tabCMYK.add('group');
-            cmykPanel.orientation = 'column';
-            cmykPanel.alignChildren = ['fill', 'top'];
-
-            var cRow = makeColorPickerSliderRow(cmykPanel, 'C', state.cmyk.c, 100);
-            var mRow = makeColorPickerSliderRow(cmykPanel, 'M', state.cmyk.m, 100);
-            var yRow = makeColorPickerSliderRow(cmykPanel, 'Y', state.cmyk.y, 100);
-            var kRow = makeColorPickerSliderRow(cmykPanel, 'K', state.cmyk.k, 100);
-            var slC = cRow.slider, slM = mRow.slider, slY = yRow.slider, slK = kRow.slider;
-
-            previewCur.onDraw = function () {
-                var gr = this.graphics;
-                var rgb = getPreviewRgbFromState(state);
-                var brush = gr.newBrush(gr.BrushType.SOLID_COLOR, [rgb.r / 255, rgb.g / 255, rgb.b / 255, 1]);
-                gr.rectPath(0, 0, this.size[0], this.size[1]);
-                gr.fillPath(brush);
-            };
-
-            var btns = d.add('group');
-            btns.orientation = 'row';
-            btns.alignment = ['center', 'center'];
-            btns.margins = [0, 10, 0, 0];
-            btns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
-            btns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
-
-            return {
-                dialog: d,
-                previewOrig: previewOrig,
-                previewCur: previewCur,
-                rbWhite: rbWhite,
-                rbBlack: rbBlack,
-                rbCustom: rbCustom,
-                tabPanel: tabPanel,
-                tabRGB: tabRGB,
-                tabCMYK: tabCMYK,
-                cbGray: cbGray,
-                rRow: rRow,
-                gRow: gRow,
-                bRow: bRow,
-                cRow: cRow,
-                mRow: mRow,
-                yRow: yRow,
-                kRow: kRow,
-                slR: slR,
-                slG: slG,
-                slB: slB,
-                slC: slC,
-                slM: slM,
-                slY: slY,
-                slK: slK,
-                etHex: etHex
-            };
-        }
-
-        function bindColorPickerEvents(state, ui, refreshPreview, setStatePresetType, setStateRgb, setStateCmyk) {
-            var slR = ui.slR, slG = ui.slG, slB = ui.slB;
-            var slC = ui.slC, slM = ui.slM, slY = ui.slY, slK = ui.slK;
-            var rRow = ui.rRow, gRow = ui.gRow, bRow = ui.bRow;
-            var cRow = ui.cRow, mRow = ui.mRow, yRow = ui.yRow, kRow = ui.kRow;
-            var etHex = ui.etHex;
-            var rbWhite = ui.rbWhite, rbBlack = ui.rbBlack, rbCustom = ui.rbCustom;
-            var tabPanel = ui.tabPanel, tabCMYK = ui.tabCMYK;
-            var cbGray = ui.cbGray;
-
-            var isSyncingUI = false;
-
-            function safeRender(options) {
-                if (isSyncingUI) return;
-                isSyncingUI = true;
-                try {
-                    renderColorPickerUI(state, ui, refreshPreview, options);
-                } finally {
-                    isSyncingUI = false;
-                }
-            }
-
-            // --- RGB sliders ---
-            var origR = slR.onChanging, origG = slG.onChanging, origB = slB.onChanging;
-
-            slR.onChanging = function () {
-                origR.call(slR);
-                setStateRgb(slR.value, state.rgb.g, state.rgb.b);
-                safeRender();
-            };
-
-            slG.onChanging = function () {
-                origG.call(slG);
-                setStateRgb(state.rgb.r, slG.value, state.rgb.b);
-                safeRender();
-            };
-
-            slB.onChanging = function () {
-                origB.call(slB);
-                setStateRgb(state.rgb.r, state.rgb.g, slB.value);
-                safeRender();
-            };
-
-            // --- CMYK sliders ---
-            var origC = slC.onChanging, origM = slM.onChanging, origY = slY.onChanging, origK = slK.onChanging;
-
-            slC.onChanging = function () {
-                origC.call(slC);
-                setStateCmyk(slC.value, state.cmyk.m, state.cmyk.y, state.cmyk.k, cbGray.value);
-                safeRender();
-            };
-
-            slM.onChanging = function () {
-                origM.call(slM);
-                setStateCmyk(state.cmyk.c, slM.value, state.cmyk.y, state.cmyk.k, cbGray.value);
-                safeRender();
-            };
-
-            slY.onChanging = function () {
-                origY.call(slY);
-                setStateCmyk(state.cmyk.c, state.cmyk.m, slY.value, state.cmyk.k, cbGray.value);
-                safeRender();
-            };
-
-            slK.onChanging = function () {
-                origK.call(slK);
-                setStateCmyk(state.cmyk.c, state.cmyk.m, state.cmyk.y, slK.value, cbGray.value);
-                safeRender();
-            };
-
-            // --- keyboard editing ---
-            rRow.setOnKeyChange(function () {
-                setStateRgb(rRow.edit.text, state.rgb.g, state.rgb.b);
-                safeRender();
-            });
-
-            gRow.setOnKeyChange(function () {
-                setStateRgb(state.rgb.r, gRow.edit.text, state.rgb.b);
-                safeRender();
-            });
-
-            bRow.setOnKeyChange(function () {
-                setStateRgb(state.rgb.r, state.rgb.g, bRow.edit.text);
-                safeRender();
-            });
-
-            cRow.setOnKeyChange(function () {
-                setStateCmyk(cRow.edit.text, state.cmyk.m, state.cmyk.y, state.cmyk.k, cbGray.value);
-                safeRender();
-            });
-
-            mRow.setOnKeyChange(function () {
-                setStateCmyk(state.cmyk.c, mRow.edit.text, state.cmyk.y, state.cmyk.k, cbGray.value);
-                safeRender();
-            });
-
-            yRow.setOnKeyChange(function () {
-                setStateCmyk(state.cmyk.c, state.cmyk.m, yRow.edit.text, state.cmyk.k, cbGray.value);
-                safeRender();
-            });
-
-            kRow.setOnKeyChange(function () {
-                setStateCmyk(state.cmyk.c, state.cmyk.m, state.cmyk.y, kRow.edit.text, cbGray.value);
-                safeRender();
-            });
-
-            // --- HEX field ---
-            etHex.addEventListener('changing', function () {
-                var h = etHex.text.replace(/^#/, '');
-                if (h.length !== 6) return;
-
-                var hr = parseInt(h.substring(0, 2), 16);
-                var hg = parseInt(h.substring(2, 4), 16);
-                var hb = parseInt(h.substring(4, 6), 16);
-
-                if (isNaN(hr) || isNaN(hg) || isNaN(hb)) return;
-
-                setStateRgb(hr, hg, hb);
-                safeRender();
-            });
-
-            // --- preset buttons ---
-            rbWhite.onClick = function () {
-                setStatePresetType('white');
-                safeRender();
-            };
-
-            rbBlack.onClick = function () {
-                setStatePresetType('black');
-                safeRender();
-            };
-
-            rbCustom.onClick = function () {
-                setStatePresetType('custom');
-                try { ui.tabPanel.enabled = true; } catch (e0) { }
-
-                try {
-                    if (!ui.tabPanel.selection) {
-                        ui.tabPanel.selection = (state.dialogTab === 'cmyk') ? ui.tabCMYK : ui.tabRGB;
-                    }
-                } catch (e1) { }
-
-                safeRender();
-            };
-
-            // --- tab change ---
-            tabPanel.onChange = function () {
-                if (isSyncingUI) return;
-
-                state.dialogTab = (tabPanel.selection === tabCMYK) ? 'cmyk' : 'rgb';
-
-                if (state.dialogTab === 'rgb') {
-                    syncStateRgbFromCmyk(state);
-                    state.mode = 'rgb';
-                } else {
-                    syncStateCmykFromRgb(state);
-                    state.mode = cbGray.value ? 'gray' : 'cmyk';
-                }
-
-                safeRender({ suppressTabSelection: true });
-            };
-
-            // --- gray toggle ---
-            cbGray.onClick = function () {
-                if (cbGray.value) {
-                    state.cmyk.c = 0;
-                    state.cmyk.m = 0;
-                    state.cmyk.y = 0;
-                    state.mode = 'gray';
-                } else {
-                    state.mode = 'cmyk';
-                }
-
-                state.dialogTab = 'cmyk';
-                state.presetType = 'custom';
-                syncStateRgbFromCmyk(state);
-
-                safeRender();
-            };
-        }
-
-        function showColorPickerDialog(initColorStr) {
-            var state = createColorPickerState(initColorStr);
-            var initRgb = {
-                r: state.rgb.r,
-                g: state.rgb.g,
-                b: state.rgb.b
-            };
-
-            function setStatePresetType(nextType) {
-                state.presetType = nextType;
-
-                if (nextType === 'white') {
-                    state.rgb = { r: 255, g: 255, b: 255 };
-                    syncStateCmykFromRgb(state);
-                    if (state.dialogTab !== 'cmyk') state.mode = 'rgb';
-                } else if (nextType === 'black') {
-                    state.rgb = { r: 0, g: 0, b: 0 };
-                    syncStateCmykFromRgb(state);
-                    if (state.dialogTab !== 'cmyk') state.mode = 'rgb';
-                } else if (nextType === 'custom') {
-                    if (state.dialogTab === 'cmyk') {
-                        if (state.mode !== 'gray') state.mode = 'cmyk';
-                        syncStateRgbFromCmyk(state);
-                    } else {
-                        state.mode = 'rgb';
-                        syncStateCmykFromRgb(state);
-                    }
-                }
-            }
-
-            function setStateRgb(r, g, b) {
-                state.rgb.r = Math.round(r);
-                state.rgb.g = Math.round(g);
-                state.rgb.b = Math.round(b);
-                syncStateCmykFromRgb(state);
-                state.mode = 'rgb';
-                state.dialogTab = 'rgb';
-                state.presetType = 'custom';
-            }
-
-            function setStateCmyk(c, m, y, k, keepGrayMode) {
-                state.cmyk.c = Math.round(c);
-                state.cmyk.m = Math.round(m);
-                state.cmyk.y = Math.round(y);
-                state.cmyk.k = Math.round(k);
-                syncStateRgbFromCmyk(state);
-                state.mode = keepGrayMode ? 'gray' : 'cmyk';
-                state.dialogTab = 'cmyk';
-                state.presetType = 'custom';
-            }
-
-            var colorPickerUI = buildColorPickerUI(state, initRgb);
-            var d = colorPickerUI.dialog;
-
-            function refreshPreview() {
-                try {
-                    colorPickerUI.previewCur.hide();
-                    colorPickerUI.previewCur.show();
-                } catch (e) { }
-            }
-
-            renderColorPickerUI(state, colorPickerUI, refreshPreview, { suppressTabSelection: false });
-            restoreColorPickerDialogPosition(d);
-            attachColorPickerDialogPosition(d);
-            saveColorPickerDialogPosition(d);
-            bindColorPickerEvents(state, colorPickerUI, refreshPreview, setStatePresetType, setStateRgb, setStateCmyk);
-
-            var result = d.show();
-            saveColorPickerDialogPosition(d);
-
-            if (result === 1) {
-                return serializeColorPickerState(state);
-            }
-            return null;
-        }
-
-        // =============================================
-        // カラースウォッチ
-        // =============================================
-        function createColorSwatch(parent, colorField, onChangeCallback) {
-            var swatch = parent.add('image', undefined, undefined, { name: 'swatch' });
-            swatch.preferredSize = [20, 20];
-
-            swatch.onDraw = function () {
-                var g = this.graphics;
-                var rgb = colorStringToRgbNorm(colorField.text);
-                var brush = g.newBrush(g.BrushType.SOLID_COLOR, [rgb[0], rgb[1], rgb[2], 1]);
-                g.rectPath(0, 0, this.size[0], this.size[1]);
-                g.fillPath(brush);
-                var borderPen = g.newPen(g.PenType.SOLID_COLOR, [0, 0, 0, 1], 1);
-                g.rectPath(0, 0, this.size[0], this.size[1]);
-                g.strokePath(borderPen);
-            };
-
-            swatch.addEventListener('click', function () {
-                try {
-                    var result = showColorPickerDialog(colorField.text);
-                    if (result !== null) {
-                        colorField.text = result;
-                        try { swatch.notify('onDraw'); } catch (eN) { }
-                        if (typeof onChangeCallback === 'function') onChangeCallback();
-                    }
-                } catch (eCP) { }
-            });
-
-            colorField.addEventListener('changing', function () {
-                try { swatch.notify('onDraw'); } catch (eN) { }
-            });
-
-            return swatch;
-        }
-
-        // デフォルト色
-        var colorLeft = parseColorString('DCDCDC');
-        var colorRight = parseColorString('808080');
-        var colorStroke = parseColorString('000000');
-
-        function createRoundCornersEffectXML(radius) {
-            var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius #value# "/></LiveEffect>';
-            return xml.replace('#value#', radius);
-        }
-
-        function applyRoundCornersIfNeeded(item, radius) {
-            if (!item) return;
-            var r = Number(radius);
-            if (isNaN(r) || r <= 0) return;
+        pickerControls.grayCheckbox.value = (pickerState.mode === "gray");
+
+        setPickerSliderRow(pickerControls.redRow, pickerState.rgb.r, skipInput);
+        setPickerSliderRow(pickerControls.greenRow, pickerState.rgb.g, skipInput);
+        setPickerSliderRow(pickerControls.blueRow, pickerState.rgb.b, skipInput);
+        if (pickerControls.hexInput !== skipInput) pickerControls.hexInput.text = rgbToHex(pickerState.rgb);
+
+        setPickerSliderRow(pickerControls.cyanRow, pickerState.cmyk.c, skipInput);
+        setPickerSliderRow(pickerControls.magentaRow, pickerState.cmyk.m, skipInput);
+        setPickerSliderRow(pickerControls.yellowRow, pickerState.cmyk.y, skipInput);
+        setPickerSliderRow(pickerControls.blackRow, pickerState.cmyk.k, skipInput);
+
+        /* 白・黒のときはタブごと、グレーのときは C・M・Y を使えなくする / disable the tabs for white or black, and C/M/Y for gray */
+        var customEnabled = (pickerState.presetType === "custom");
+        var colorInkEnabled = customEnabled && pickerState.mode !== "gray";
+        pickerControls.tabPanel.enabled = customEnabled;
+        pickerControls.cyanRow.row.enabled = colorInkEnabled;
+        pickerControls.magentaRow.row.enabled = colorInkEnabled;
+        pickerControls.yellowRow.row.enabled = colorInkEnabled;
+
+        pickerControls.refreshPreview();
+    }
+
+    /**
+     * カラー選択ダイアログを組み立てる（イベントは bindColorPickerEvents() で付ける）
+     * @param {Object} pickerState - カラー選択の状態
+     * @param {{r: number, g: number, b: number}} initialRgb - 開いたときの色（比較用）
+     * @returns {Object} ダイアログとコントロールの参照
+     */
+    function buildColorPickerDialog(pickerState, initialRgb) {
+        var pickerControls = {};
+        var pickerDialog = new Window("dialog", getLabel("dialog.colorPicker"));
+        pickerDialog.orientation = "column";
+        pickerDialog.alignChildren = ["fill", "top"];
+        pickerControls.dialog = pickerDialog;
+
+        /* 開いたときの色と今の色を並べる / the original color next to the current one */
+        var previewRowGroup = pickerDialog.add("group");
+        previewRowGroup.orientation = "row";
+        previewRowGroup.alignment = ["center", "top"];
+        previewRowGroup.spacing = 1;
+        var originalPreview = previewRowGroup.add("group");
+        originalPreview.preferredSize = PICKER_PREVIEW_SIZE;
+        originalPreview.onDraw = function () { paintSolidColor(this, initialRgb, false); };
+        var currentPreview = previewRowGroup.add("group");
+        currentPreview.preferredSize = PICKER_PREVIEW_SIZE;
+        currentPreview.onDraw = function () { paintSolidColor(this, getPickerPreviewRgb(pickerState), false); };
+        pickerControls.refreshPreview = function () { repaintControl(currentPreview); };
+
+        var colorTypeRowGroup = addRow(pickerDialog);
+        colorTypeRowGroup.alignment = ["center", "top"];
+        pickerControls.whiteRadio = addRadio(colorTypeRowGroup, "radio.white", "tooltip.colorType");
+        pickerControls.blackRadio = addRadio(colorTypeRowGroup, "radio.black", "tooltip.colorType");
+        pickerControls.customRadio = addRadio(colorTypeRowGroup, "radio.custom", "tooltip.colorType");
+
+        var tabPanel = pickerDialog.add("tabbedpanel");
+        tabPanel.alignment = ["fill", "top"];
+        tabPanel.alignChildren = ["fill", "top"];
+        pickerControls.tabPanel = tabPanel;
+
+        /* RGB タブ / RGB tab */
+        var rgbTab = tabPanel.add("tab", undefined, getLabel("tab.rgb"));
+        rgbTab.orientation = "column";
+        rgbTab.alignChildren = ["fill", "top"];
+        rgbTab.margins = PANEL_MARGINS;
+        pickerControls.rgbTab = rgbTab;
+
+        var rgbSliderGroup = addColumn(rgbTab, "fill");
+        pickerControls.redRow = addPickerSliderRow(rgbSliderGroup, "R", pickerState.rgb.r, 255);
+        pickerControls.greenRow = addPickerSliderRow(rgbSliderGroup, "G", pickerState.rgb.g, 255);
+        pickerControls.blueRow = addPickerSliderRow(rgbSliderGroup, "B", pickerState.rgb.b, 255);
+
+        var hexRowGroup = addRow(rgbTab);
+        hexRowGroup.alignment = ["center", "top"];
+        hexRowGroup.add("statictext", undefined, "#");
+        pickerControls.hexInput = hexRowGroup.add("edittext", undefined, rgbToHex(pickerState.rgb));
+        pickerControls.hexInput.helpTip = getLabel("tooltip.hex");
+        pickerControls.hexInput.characters = PICKER_HEX_CHARS;
+
+        /* CMYK タブ / CMYK tab */
+        var cmykTab = tabPanel.add("tab", undefined, getLabel("tab.cmyk"));
+        cmykTab.orientation = "column";
+        cmykTab.alignChildren = ["fill", "top"];
+        cmykTab.margins = PANEL_MARGINS;
+        pickerControls.cmykTab = cmykTab;
+
+        pickerControls.grayCheckbox = addCheckbox(cmykTab, "checkbox.gray", "tooltip.gray", false);
+
+        var cmykSliderGroup = addColumn(cmykTab, "fill");
+        pickerControls.cyanRow = addPickerSliderRow(cmykSliderGroup, "C", pickerState.cmyk.c, 100);
+        pickerControls.magentaRow = addPickerSliderRow(cmykSliderGroup, "M", pickerState.cmyk.m, 100);
+        pickerControls.yellowRow = addPickerSliderRow(cmykSliderGroup, "Y", pickerState.cmyk.y, 100);
+        pickerControls.blackRow = addPickerSliderRow(cmykSliderGroup, "K", pickerState.cmyk.k, 100);
+
+        var btnRowGroup = pickerDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["center", "center"];
+        btnRowGroup.margins = PICKER_BUTTON_MARGINS;
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        return pickerControls;
+    }
+
+    /**
+     * カラー選択ダイアログのイベントを付ける
+     * @param {Object} pickerState - カラー選択の状態
+     * @param {Object} pickerControls - カラー選択のコントロール
+     * @returns {void}
+     */
+    function bindColorPickerEvents(pickerState, pickerControls) {
+        /* 描き直し中に届いたイベントでは描き直さない / ignore events raised while the dialog is being redrawn */
+        var isRendering = false;
+        var render = function (renderOptions) {
+            if (isRendering) return;
+            isRendering = true;
             try {
-                var xml = createRoundCornersEffectXML(r);
-                item.applyEffect(xml);
-            } catch (e) { }
-        }
-
-        // --- Fill corner rounding / 塗りの角丸（選択アンカーのみ丸める） ---
-        function clearAnchorSelection(pathItem) {
-            if (!pathItem || !pathItem.pathPoints) return;
-            try {
-                var pp = pathItem.pathPoints;
-                for (var i = 0; i < pp.length; i++) {
-                    pp[i].selected = PathPointSelection.NOSELECTION;
-                }
-            } catch (e) { }
-        }
-
-        /**
-         * 矩形パスの指定コーナー(tl/tr/bl/br)のアンカーを選択し roundAnyCorner で丸める
-         */
-        function selectCornerByPosition(pathItem, corner) {
-            var pp = pathItem.pathPoints;
-            if (!pp || pp.length < 4) return false;
-            var gb = pathItem.geometricBounds; // [left, top, right, bottom]
-            var targetX, targetY;
-            switch (corner) {
-                case 'tl': targetX = gb[0]; targetY = gb[1]; break;
-                case 'tr': targetX = gb[2]; targetY = gb[1]; break;
-                case 'bl': targetX = gb[0]; targetY = gb[3]; break;
-                case 'br': targetX = gb[2]; targetY = gb[3]; break;
-                default: return false;
-            }
-            for (var i = 0; i < pp.length; i++) {
-                pp[i].selected = PathPointSelection.NOSELECTION;
-            }
-            var minD = Infinity, minI = -1;
-            for (var j = 0; j < pp.length; j++) {
-                var dx = pp[j].anchor[0] - targetX;
-                var dy = pp[j].anchor[1] - targetY;
-                var d = dx * dx + dy * dy;
-                if (d < minD) { minD = d; minI = j; }
-            }
-            if (minI >= 0) {
-                pp[minI].selected = PathPointSelection.ANCHORPOINT;
-                return true;
-            }
-            return false;
-        }
-
-        function applySingleCornerRounding(pathItem, corner, radiusPt) {
-            if (!pathItem) return;
-            var r = Number(radiusPt);
-            if (isNaN(r) || r <= 0) return;
-            clearAnchorSelection(pathItem);
-            if (selectCornerByPosition(pathItem, corner)) {
-                try { roundAnyCorner([pathItem], { rr: r }); } catch (e) { }
-            }
-            clearAnchorSelection(pathItem);
-        }
-
-        /**
-         * 複数コーナーを同時に選択する（1回の roundAnyCorner で複数角を丸めるため）
-         */
-        function selectCornersByPosition(pathItem, corners) {
-            var pp = pathItem.pathPoints;
-            if (!pp || pp.length < 4) return false;
-            var gb = pathItem.geometricBounds;
-            for (var i = 0; i < pp.length; i++) {
-                pp[i].selected = PathPointSelection.NOSELECTION;
-            }
-            var anySelected = false;
-            for (var c = 0; c < corners.length; c++) {
-                var targetX, targetY;
-                switch (corners[c]) {
-                    case 'tl': targetX = gb[0]; targetY = gb[1]; break;
-                    case 'tr': targetX = gb[2]; targetY = gb[1]; break;
-                    case 'bl': targetX = gb[0]; targetY = gb[3]; break;
-                    case 'br': targetX = gb[2]; targetY = gb[3]; break;
-                    default: continue;
-                }
-                var minD = Infinity, minI = -1;
-                for (var j = 0; j < pp.length; j++) {
-                    if (pp[j].selected === PathPointSelection.ANCHORPOINT) continue;
-                    var dx = pp[j].anchor[0] - targetX;
-                    var dy = pp[j].anchor[1] - targetY;
-                    var d = dx * dx + dy * dy;
-                    if (d < minD) { minD = d; minI = j; }
-                }
-                if (minI >= 0) {
-                    pp[minI].selected = PathPointSelection.ANCHORPOINT;
-                    anySelected = true;
-                }
-            }
-            return anySelected;
-        }
-
-        /**
-         * 複数コーナーを同じ半径で一度に丸める
-         */
-        function applyMultiCornerRounding(pathItem, corners, radiusPt) {
-            if (!pathItem) return;
-            var r = Number(radiusPt);
-            if (isNaN(r) || r <= 0) return;
-            clearAnchorSelection(pathItem);
-            if (selectCornersByPosition(pathItem, corners)) {
-                try { roundAnyCorner([pathItem], { rr: r }); } catch (e) { }
-            }
-            clearAnchorSelection(pathItem);
-        }
-
-        // --- 背景を置くターゲットレイヤーの決定 ---
-        function getLayerIndex(doc, layer) {
-            for (var i = 0; i < doc.layers.length; i++) {
-                if (doc.layers[i] === layer) return i;
-            }
-            return -1;
-        }
-
-        // Illustratorのlayers配列は基本的に「上（前面）→下（背面）」順で並ぶ想定。
-        function getBackmostLayer(doc, layerA, layerB) {
-            var ia = getLayerIndex(doc, layerA);
-            var ib = getLayerIndex(doc, layerB);
-            if (ia < 0) return layerB;
-            if (ib < 0) return layerA;
-            return (ia > ib) ? layerA : layerB;
-        }
-
-        function safeRedraw() {
-            app.redraw();
-        }
-
-        var previewState = {
-            rect1: null,
-            rect2: null,
-            frame: null,
-            divider: null,
-            applied: false,
-            last: {
-                overallFrame: false,
-                divider: false,
-                fillLeft: true,
-                fillRight: true,
-                strokeWidth: 1,
-                widthOffset: 0,      // Offset in pt from center (negative=left, positive=right)
-                splitDirection: 'lr' // 'lr' or 'tb'
+                renderColorPicker(pickerState, pickerControls, renderOptions);
+            } finally {
+                isRendering = false;
             }
         };
 
-        function clearPreviewRects() {
-            // NOTE: v2.7 以降は通常のプレビュー更新では使わず、例外時の掃除専用
-            try {
-                if (previewState.rect1 && previewState.rect1.isValid) {
-                    unlockAndShow(previewState.rect1);
-                    try { previewState.rect1.remove(); } catch (e1a) { }
-                }
-            } catch (e1) { }
-            try {
-                if (previewState.rect2 && previewState.rect2.isValid) {
-                    unlockAndShow(previewState.rect2);
-                    try { previewState.rect2.remove(); } catch (e2a) { }
-                }
-            } catch (e2) { }
-            try {
-                if (previewState.frame && previewState.frame.isValid) {
-                    unlockAndShow(previewState.frame);
-                    try { previewState.frame.remove(); } catch (e3a) { }
-                }
-            } catch (e3) { }
-            try {
-                if (previewState.divider && previewState.divider.isValid) {
-                    unlockAndShow(previewState.divider);
-                    try { previewState.divider.remove(); } catch (e4a) { }
-                }
-            } catch (e4) { }
+        pickerControls.redRow.setOnValueChange(function (value, typedInput) {
+            setPickerRgb(pickerState, value, pickerState.rgb.g, pickerState.rgb.b);
+            render({ skipInput: typedInput });
+        });
+        pickerControls.greenRow.setOnValueChange(function (value, typedInput) {
+            setPickerRgb(pickerState, pickerState.rgb.r, value, pickerState.rgb.b);
+            render({ skipInput: typedInput });
+        });
+        pickerControls.blueRow.setOnValueChange(function (value, typedInput) {
+            setPickerRgb(pickerState, pickerState.rgb.r, pickerState.rgb.g, value);
+            render({ skipInput: typedInput });
+        });
 
-            removeMarkedPreviewItems(doc);
+        pickerControls.cyanRow.setOnValueChange(function (value, typedInput) {
+            var cmyk = pickerState.cmyk;
+            setPickerCmyk(pickerState, value, cmyk.m, cmyk.y, cmyk.k, pickerControls.grayCheckbox.value);
+            render({ skipInput: typedInput });
+        });
+        pickerControls.magentaRow.setOnValueChange(function (value, typedInput) {
+            var cmyk = pickerState.cmyk;
+            setPickerCmyk(pickerState, cmyk.c, value, cmyk.y, cmyk.k, pickerControls.grayCheckbox.value);
+            render({ skipInput: typedInput });
+        });
+        pickerControls.yellowRow.setOnValueChange(function (value, typedInput) {
+            var cmyk = pickerState.cmyk;
+            setPickerCmyk(pickerState, cmyk.c, cmyk.m, value, cmyk.k, pickerControls.grayCheckbox.value);
+            render({ skipInput: typedInput });
+        });
+        pickerControls.blackRow.setOnValueChange(function (value, typedInput) {
+            var cmyk = pickerState.cmyk;
+            setPickerCmyk(pickerState, cmyk.c, cmyk.m, cmyk.y, value, pickerControls.grayCheckbox.value);
+            render({ skipInput: typedInput });
+        });
 
-            previewState.rect1 = null;
-            previewState.rect2 = null;
-            previewState.frame = null;
-            previewState.divider = null;
-            previewState.applied = false;
-            previewState.last.overallFrame = false;
-            previewState.last.divider = false;
-            previewState.last.fillLeft = true;
-            previewState.last.fillRight = true;
-            previewState.last.strokeWidth = 1;
-            previewState.last.widthOffset = 0;
-            previewState.last.splitDirection = 'lr';
-            safeRedraw();
-        }
+        /* 16進数は6桁そろったときだけ反映する / apply the hex value only once all six digits are in */
+        pickerControls.hexInput.addEventListener("changing", function () {
+            var hex = pickerControls.hexInput.text.replace(/^#/, "");
+            if (!/^[0-9A-Fa-f]{6}$/.test(hex)) return;
+            var hexRgb = parseHexRgb(hex, "000000");
+            setPickerRgb(pickerState, hexRgb.r, hexRgb.g, hexRgb.b);
+            render({ skipInput: pickerControls.hexInput });
+        });
 
-        /**
-         * 単一オブジェクトの外接矩形を分割し、背景長方形を作成。
-         * splitDirection: 'lr'=左右, 'tb'=上下
-         * offsetPt で中央からの分割位置オフセットを調整。
-         */
-        function drawBackgroundRects(targetItem, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidthValue, offsetPt, splitDirection, perCorner, pillShape) {
-            // --- 一時グループ（アウトライン生成用）---
-            var originalActiveLayer = doc.activeLayer;
+        pickerControls.whiteRadio.onClick = function () {
+            setPickerPresetType(pickerState, "white");
+            render();
+        };
+        pickerControls.blackRadio.onClick = function () {
+            setPickerPresetType(pickerState, "black");
+            render();
+        };
+        pickerControls.customRadio.onClick = function () {
+            setPickerPresetType(pickerState, "custom");
+            render();
+        };
 
-            var hostLayer = null;
-            try { hostLayer = targetItem.layer; } catch (eHL) { hostLayer = null; }
-            if (!hostLayer) {
-                try { hostLayer = doc.activeLayer; } catch (eHL2) { hostLayer = null; }
-            }
-            if (!hostLayer) hostLayer = doc.layers[0];
-
-            unlockAndShow(hostLayer);
-            var tempGroup = hostLayer.groupItems.add();
-
-            markTemp(tempGroup);
-            try { tempGroup.opacity = 0; } catch (eOp) { }
-            tempGroup.name = TEMP_NAME_PREFIX + "__temp_outline_group__";
-
-            var isVertical = (splitDirection === 'tb');
-            var objLeft, objTop, objRight, objBottom, objWidth, objHeight;
-            var splitX, splitY;
-
-            try {
-                var outlineInfo = getBoundsInfo(targetItem, tempGroup);
-                var b = outlineInfo.bounds;
-
-                unlockAndShow(outlineInfo.outline);
-                unlockAndShow(outlineInfo.duplicateItem);
-                try { if (outlineInfo.outline && outlineInfo.outline.isValid) outlineInfo.outline.remove(); } catch (eA) { }
-                try { if (outlineInfo.duplicateItem && outlineInfo.duplicateItem.isValid) outlineInfo.duplicateItem.remove(); } catch (eB) { }
-                removeMarkedTempItems(doc);
-
-                function clamp(v, mn, mx) {
-                    if (v < mn) return mn;
-                    if (v > mx) return mx;
-                    return v;
-                }
-
-                var oPt = Number(offsetPt);
-                if (isNaN(oPt)) oPt = 0;
-
-                objLeft = b[0]; objTop = b[1]; objRight = b[2]; objBottom = b[3];
-                objWidth = objRight - objLeft;
-                objHeight = objTop - objBottom;
-
-                if (isVertical) {
-                    // 上下分割: オフセット正=下方向（splitYが下がる）
-                    splitY = clamp(objTop - objHeight / 2 - oPt, objBottom, objTop);
-                } else {
-                    // 左右分割
-                    splitX = clamp(objLeft + objWidth / 2 + oPt, objLeft, objRight);
-                }
-
-            } finally {
-                try { doc.selection = null; } catch (eSel) { }
-
-                try {
-                    if (originalActiveLayer && originalActiveLayer.isValid) {
-                        doc.activeLayer = originalActiveLayer;
-                    }
-                } catch (eRestore) { }
-
-                try {
-                    unlockAndShow(tempGroup);
-                    for (var gi = tempGroup.pageItems.length - 1; gi >= 0; gi--) {
-                        try {
-                            unlockAndShow(tempGroup.pageItems[gi]);
-                            tempGroup.pageItems[gi].remove();
-                        } catch (eRmPI) { }
-                    }
-                } catch (eClearG) { }
-
-                try {
-                    if (tempGroup && tempGroup.isValid) {
-                        tempGroup.remove();
-                    }
-                } catch (eRemoveG) { }
-
-                removeMarkedTempItems(doc);
-            }
-
-            // --- ここから描画 ---
-            var itemLayer = null;
-            try { itemLayer = targetItem.layer; } catch (eIL) { itemLayer = null; }
-
-            var targetLayer = null;
-            try {
-                targetLayer = findLayerByName(doc, PREVIEW_LAYER_NAME);
-                if (!targetLayer || !targetLayer.isValid) {
-                    targetLayer = itemLayer;
-                }
-            } catch (eTL) {
-                targetLayer = itemLayer;
-            }
-
-            var rect1 = null;
-            var rect2 = null;
-            var pathItems = targetLayer ? targetLayer.pathItems : doc.pathItems;
-
-            if (isVertical) {
-                // rect1 = top, rect2 = bottom
-                if (addFillLeft) {
-                    rect1 = pathItems.rectangle(objTop, objLeft, objWidth, objTop - splitY);
-                    rect1.fillColor = colorLeft;
-                    rect1.stroked = false;
-                }
-                if (addFillRight) {
-                    rect2 = pathItems.rectangle(splitY, objLeft, objWidth, splitY - objBottom);
-                    rect2.fillColor = colorRight;
-                    rect2.stroked = false;
-                }
-                if (perCorner) {
-                    // 個別: TB rect1=top(TL,TR), rect2=bottom(BL,BR)
-                    if (rect1 && perCorner.tl && perCorner.tl.enabled) applySingleCornerRounding(rect1, 'tl', perCorner.tl.radius);
-                    if (rect1 && perCorner.tr && perCorner.tr.enabled) applySingleCornerRounding(rect1, 'tr', perCorner.tr.radius);
-                    if (rect2 && perCorner.bl && perCorner.bl.enabled) applySingleCornerRounding(rect2, 'bl', perCorner.bl.radius);
-                    if (rect2 && perCorner.br && perCorner.br.enabled) applySingleCornerRounding(rect2, 'br', perCorner.br.radius);
-                } else if (pillShape) {
-                    var pillR = objWidth / 2;
-                    if (rect1) applyMultiCornerRounding(rect1, ['tl', 'tr'], pillR);
-                    if (rect2) applyMultiCornerRounding(rect2, ['bl', 'br'], pillR);
-                    if (rect1) { doc.selection = [rect1]; app.redraw(); app.executeMenuCommand('Live Pathfinder Add'); app.redraw(); }
-                    if (rect2) { doc.selection = [rect2]; app.redraw(); app.executeMenuCommand('Live Pathfinder Add'); }
-                }
+        pickerControls.tabPanel.onChange = function () {
+            if (isRendering) return;
+            pickerState.dialogTab = (pickerControls.tabPanel.selection === pickerControls.cmykTab) ? "cmyk" : "rgb";
+            if (pickerState.dialogTab === "rgb") {
+                syncPickerRgbFromCmyk(pickerState);
+                pickerState.mode = "rgb";
             } else {
-                // rect1 = left, rect2 = right
-                if (addFillLeft) {
-                    rect1 = pathItems.rectangle(objTop, objLeft, splitX - objLeft, objHeight);
-                    rect1.fillColor = colorLeft;
-                    rect1.stroked = false;
-                }
-                if (addFillRight) {
-                    rect2 = pathItems.rectangle(objTop, splitX, objRight - splitX, objHeight);
-                    rect2.fillColor = colorRight;
-                    rect2.stroked = false;
-                }
-                if (perCorner) {
-                    // 個別: LR rect1=left(TL,BL), rect2=right(TR,BR)
-                    if (rect1 && perCorner.tl && perCorner.tl.enabled) applySingleCornerRounding(rect1, 'tl', perCorner.tl.radius);
-                    if (rect1 && perCorner.bl && perCorner.bl.enabled) applySingleCornerRounding(rect1, 'bl', perCorner.bl.radius);
-                    if (rect2 && perCorner.tr && perCorner.tr.enabled) applySingleCornerRounding(rect2, 'tr', perCorner.tr.radius);
-                    if (rect2 && perCorner.br && perCorner.br.enabled) applySingleCornerRounding(rect2, 'br', perCorner.br.radius);
-                } else if (pillShape) {
-                    var pillR = objHeight / 2;
-                    if (rect1) applyMultiCornerRounding(rect1, ['tl', 'bl'], pillR);
-                    if (rect2) applyMultiCornerRounding(rect2, ['tr', 'br'], pillR);
-                    if (rect1) { doc.selection = [rect1]; app.redraw(); app.executeMenuCommand('Live Pathfinder Add'); app.redraw(); }
-                    if (rect2) { doc.selection = [rect2]; app.redraw(); app.executeMenuCommand('Live Pathfinder Add'); }
-                }
+                syncPickerCmykFromRgb(pickerState);
+                pickerState.mode = pickerControls.grayCheckbox.value ? "gray" : "cmyk";
             }
+            render({ suppressTabSelection: true });
+        };
 
-            var frameRect = null;
-            if (addOverallFrame) {
-                try {
-                    frameRect = pathItems.rectangle(objTop, objLeft, objWidth, objHeight);
-                    frameRect.filled = false;
-                    frameRect.stroked = true;
-                    frameRect.strokeWidth = strokeWidthValue;
-                    frameRect.strokeColor = colorStroke;
-
-                    if (perCorner) {
-                        var frameCorners = [];
-                        if (perCorner.tl && perCorner.tl.enabled) frameCorners.push('tl');
-                        if (perCorner.tr && perCorner.tr.enabled) frameCorners.push('tr');
-                        if (perCorner.bl && perCorner.bl.enabled) frameCorners.push('bl');
-                        if (perCorner.br && perCorner.br.enabled) frameCorners.push('br');
-                        // 全コーナーが同じ半径なら一括適用
-                        var allSameRadius = frameCorners.length > 1;
-                        var firstRadius = frameCorners.length > 0 ? perCorner[frameCorners[0]].radius : 0;
-                        for (var fc = 0; fc < frameCorners.length; fc++) {
-                            if (perCorner[frameCorners[fc]].radius !== firstRadius) {
-                                allSameRadius = false;
-                                break;
-                            }
-                        }
-                        if (allSameRadius && frameCorners.length === 4) {
-                            applyRoundCornersIfNeeded(frameRect, firstRadius);
-                        } else if (allSameRadius && frameCorners.length > 0) {
-                            applyMultiCornerRounding(frameRect, frameCorners, firstRadius);
-                        } else {
-                            for (var fc2 = 0; fc2 < frameCorners.length; fc2++) {
-                                var fcKey = frameCorners[fc2];
-                                applySingleCornerRounding(frameRect, fcKey, perCorner[fcKey].radius);
-                            }
-                        }
-                    } else if (pillShape) {
-                        var framePillR = Math.min(objWidth, objHeight) / 2;
-                        applyMultiCornerRounding(frameRect, ['tl', 'tr', 'bl', 'br'], framePillR);
-                        doc.selection = null;
-                        app.redraw();
-                        doc.selection = [frameRect];
-                        app.redraw();
-                        app.executeMenuCommand('Live Pathfinder Add');
-                        app.redraw();
-                    }
-
-                    try { frameRect.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eFZ) { }
-                } catch (eFrame) {
-                    frameRect = null;
-                }
+        /* グレーにするときは C・M・Y を0にする / switching to gray clears C, M and Y */
+        pickerControls.grayCheckbox.onClick = function () {
+            if (pickerControls.grayCheckbox.value) {
+                pickerState.cmyk.c = 0;
+                pickerState.cmyk.m = 0;
+                pickerState.cmyk.y = 0;
+                pickerState.mode = "gray";
+            } else {
+                pickerState.mode = "cmyk";
             }
+            pickerState.dialogTab = "cmyk";
+            pickerState.presetType = "custom";
+            syncPickerRgbFromCmyk(pickerState);
+            render();
+        };
+    }
 
-            var dividerLine = null;
-            if (addDivider) {
-                try {
-                    dividerLine = pathItems.add();
-                    dividerLine.filled = false;
-                    dividerLine.stroked = true;
-                    dividerLine.strokeWidth = strokeWidthValue;
-                    dividerLine.strokeColor = colorStroke;
+    /**
+     * カラー選択ダイアログを表示する
+     * @param {string} initialColor - 開いたときの色（"RRGGBB" か "cmyk:C,M,Y,K"）
+     * @returns {string|null} 選んだ色の文字列。キャンセルなら null
+     */
+    function showColorPickerDialog(initialColor) {
+        var pickerState = createColorPickerState(initialColor);
+        var initialRgb = { r: pickerState.rgb.r, g: pickerState.rgb.g, b: pickerState.rgb.b };
+        var pickerControls = buildColorPickerDialog(pickerState, initialRgb);
 
-                    if (isVertical) {
-                        dividerLine.setEntirePath([
-                            [objLeft, splitY],
-                            [objRight, splitY]
-                        ]);
-                    } else {
-                        dividerLine.setEntirePath([
-                            [splitX, objTop],
-                            [splitX, objBottom]
-                        ]);
-                    }
+        renderColorPicker(pickerState, pickerControls);
+        keepDialogLocation(pickerControls.dialog, getSessionSettings(), "colorPickerLocation");
+        bindColorPickerEvents(pickerState, pickerControls);
 
-                    try { dividerLine.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eDZ) { }
-                } catch (eDiv) {
-                    dividerLine = null;
-                }
-            }
+        if (pickerControls.dialog.show() !== 1) return null;
+        return serializeColorPickerState(pickerState);
+    }
 
-            try { if (rect1) rect1.zOrder(ZOrderMethod.SENDTOBACK); } catch (eZ1) { }
-            try { if (rect2) rect2.zOrder(ZOrderMethod.SENDTOBACK); } catch (eZ2) { }
+    /**
+     * クリックでカラー選択を開く色見本を追加する
+     * @param {Group} parent - 追加先
+     * @param {string} initialColor - 初期の色（"RRGGBB" か "cmyk:C,M,Y,K"）
+     * @returns {Object} getColor()・setColor() と、色を変えたときに呼ぶ onChange を持つオブジェクト
+     */
+    function addColorSwatch(parent, initialColor) {
+        var colorSwatch = { colorText: initialColor, onChange: null };
+        var swatchImage = parent.add("image", undefined, undefined, { name: "swatch" });
+        swatchImage.preferredSize = SWATCH_SIZE;
+        swatchImage.onDraw = function () { paintSolidColor(this, colorStringToRgb(colorSwatch.colorText), true); };
 
-            try { targetItem.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eT1) { }
+        colorSwatch.getColor = function () { return colorSwatch.colorText; };
+        colorSwatch.setColor = function (colorText) {
+            colorSwatch.colorText = colorText;
+            repaintControl(swatchImage);
+        };
 
-            safeRedraw();
-            return { rect1: rect1, rect2: rect2, frame: frameRect, divider: dividerLine };
+        swatchImage.addEventListener("click", function () {
+            var pickedColor = showColorPickerDialog(colorSwatch.colorText);
+            if (pickedColor === null) return;
+            colorSwatch.setColor(pickedColor);
+            if (typeof colorSwatch.onChange === "function") colorSwatch.onChange();
+        });
+        return colorSwatch;
+    }
+
+    // =========================================
+    // 描画 / Drawing
+    // =========================================
+
+    var CORNER_KEYS = ["tl", "tr", "bl", "br"];  /* 角の並び（外枠で使う順）/ corner order used for the outer frame */
+
+    /**
+     * パスのアンカーの選択をすべて外す
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function deselectAnchors(pathItem) {
+        var points = pathItem.pathPoints;
+        for (var i = 0; i < points.length; i++) {
+            points[i].selected = PathPointSelection.NOSELECTION;
         }
+    }
 
-        /**
-         * ↑↓キーで数値を増減するユーティリティ
-         */
-        function changeValueByArrowKey(editText, allowNegative, onChange) {
-            if (!editText) return;
+    /**
+     * 外接矩形の角の座標を返す
+     * @param {number[]} bounds - 外接矩形 [左, 上, 右, 下]
+     * @param {string} cornerKey - "tl" | "tr" | "bl" | "br"
+     * @returns {number[]} 角の座標 [x, y]
+     */
+    function getCornerPoint(bounds, cornerKey) {
+        var x = (cornerKey === "tl" || cornerKey === "bl") ? bounds[0] : bounds[2];
+        var y = (cornerKey === "tl" || cornerKey === "tr") ? bounds[1] : bounds[3];
+        return [x, y];
+    }
 
-            editText.addEventListener("keydown", function (event) {
-                if (event.keyName !== "Up" && event.keyName !== "Down") return;
+    /**
+     * 指定した角にいちばん近いアンカーを選択する
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {string[]} cornerKeys - 選ぶ角（"tl" | "tr" | "bl" | "br"）
+     * @returns {boolean} 1つでも選択できたか
+     */
+    function selectCornerAnchors(pathItem, cornerKeys) {
+        var points = pathItem.pathPoints;
+        if (points.length < 4) return false;
+        var bounds = pathItem.geometricBounds;
+        deselectAnchors(pathItem);
 
-                var value = Number(editText.text);
-                if (isNaN(value)) return;
-
-                var keyboard = ScriptUI.environment.keyboardState;
-                var delta = 1;
-
-                if (keyboard.shiftKey) {
-                    delta = 10;
-                    if (event.keyName === "Up") {
-                        value = Math.ceil((value + 1) / delta) * delta;
-                    } else if (event.keyName === "Down") {
-                        value = Math.floor((value - 1) / delta) * delta;
-                    }
-                    event.preventDefault();
-                } else if (keyboard.altKey) {
-                    delta = 0.1;
-                    if (event.keyName === "Up") value += delta;
-                    else if (event.keyName === "Down") value -= delta;
-                    event.preventDefault();
-                } else {
-                    delta = 1;
-                    if (event.keyName === "Up") value += delta;
-                    else if (event.keyName === "Down") value -= delta;
-                    event.preventDefault();
+        var anySelected = false;
+        for (var c = 0; c < cornerKeys.length; c++) {
+            var cornerPoint = getCornerPoint(bounds, cornerKeys[c]);
+            var nearestIndex = -1;
+            var nearestDistance = Infinity;
+            for (var j = 0; j < points.length; j++) {
+                /* 別の角で選んだアンカーは除く / skip anchors already picked for another corner */
+                if (points[j].selected === PathPointSelection.ANCHORPOINT) continue;
+                var dx = points[j].anchor[0] - cornerPoint[0];
+                var dy = points[j].anchor[1] - cornerPoint[1];
+                var squaredDistance = dx * dx + dy * dy;
+                if (squaredDistance < nearestDistance) {
+                    nearestDistance = squaredDistance;
+                    nearestIndex = j;
                 }
-
-                if (keyboard.altKey) value = Math.round(value * 10) / 10;
-                else value = Math.round(value);
-
-                if (!allowNegative && value < 0) value = 0;
-
-                editText.text = String(value);
-
-                if (typeof onChange === "function") {
-                    try { onChange(); } catch (e) { }
-                }
-            });
+            }
+            if (nearestIndex >= 0) {
+                points[nearestIndex].selected = PathPointSelection.ANCHORPOINT;
+                anySelected = true;
+            }
         }
-
-        /**
-         * ダイアログ（プレビュー付き）
-         */
-        function showHeightDialog(previewFn, clearPreviewRects) {
-            var dlg = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
-            dlg.orientation = 'column';
-            dlg.alignChildren = ['fill', 'top'];
-            dlg.margins = 18;
-
-            try { PreviewHistory.start(); } catch (ePH0) { }
-
-            var ss = getSessionSettings();
-            var savedDialogPos = getSessionDialogPosition();
-
-            setDialogOpacity(dlg, DIALOG_OPACITY);
-
-            dlg.onShow = function () {
-                try {
-                    if (savedDialogPos && savedDialogPos.length >= 2) {
-                        dlg.location = [savedDialogPos[0], savedDialogPos[1]];
-                    }
-                } catch (e) { }
-            };
-
-            dlg.onMove = function () {
-                saveSessionDialogPosition(dlg);
-            };
-
-            dlg.onClose = function () {
-                saveSessionDialogPosition(dlg);
-            };
-
-            // --- プリセット / Presets ---
-            var PRESETS_KEY = "SplitBackgroundForTwo_presets";
-            if (!$.global[PRESETS_KEY]) $.global[PRESETS_KEY] = {};
-
-            function getPresetNames() {
-                var names = [];
-                var store = $.global[PRESETS_KEY];
-                for (var k in store) {
-                    if (store.hasOwnProperty(k)) names.push(k);
-                }
-                names.sort();
-                return names;
-            }
-
-            function getCurrentPresetData() {
-                var wo = Number(slWidth.value);
-                if (isNaN(wo)) wo = 0;
-                return {
-                    splitDirection: rbSplitLR.value ? 'lr' : 'tb',
-                    fillLeft: !!cbFillLeft.value,
-                    fillRight: !!cbFillRight.value,
-                    colorLeft: String(etColorLeft.text),
-                    colorRight: String(etColorRight.text),
-                    overallFrame: !!cbOverallFrame.value,
-                    divider: !!cbDivider.value,
-                    strokeUnit: String(etStroke.text),
-                    strokeColor: String(etStrokeColor.text),
-                    cornerAuto: !!cbCornerAuto.value,
-                    widthOffset: Math.round(wo * 10) / 10
-                };
-            }
-
-            function applyPresetData(data) {
-                if (!data) return;
-                try {
-                    if (data.splitDirection === 'tb') { rbSplitTB.value = true; rbSplitLR.value = false; }
-                    else { rbSplitLR.value = true; rbSplitTB.value = false; }
-                    cbFillLeft.value = !!data.fillLeft;
-                    cbFillRight.value = !!data.fillRight;
-                    etColorLeft.text = data.colorLeft || 'DCDCDC';
-                    etColorRight.text = data.colorRight || '808080';
-                    cbOverallFrame.value = !!data.overallFrame;
-                    cbDivider.value = !!data.divider;
-                    etStroke.text = data.strokeUnit || '1';
-                    etStrokeColor.text = data.strokeColor || '000000';
-                    cbCornerAuto.value = !!data.cornerAuto;
-                    updateBalanceLabels();
-                    updateStrokeWidthEnabled();
-                    updateCornerState();
-                    try { updateWidthSliderMaxBySelection(); } catch (e) { }
-                    if (data.widthOffset !== undefined) {
-                        syncAllFromOffset(data.widthOffset);
-                    }
-                    applyPreview();
-                } catch (e) { }
-            }
-
-            function refreshPresetDropdown() {
-                ddPreset.removeAll();
-                ddPreset.add('item', getLabel('presetPlaceholder'));
-                var names = getPresetNames();
-                for (var i = 0; i < names.length; i++) {
-                    ddPreset.add('item', names[i]);
-                }
-                ddPreset.selection = 0;
-            }
-
-            function exportCurrentSettingsToDesktop() {
-                var d = getCurrentPresetData();
-                var lines = [];
-                lines.push('splitDirection=' + (d.splitDirection || 'lr'));
-                lines.push('fillLeft=' + (d.fillLeft ? '1' : '0'));
-                lines.push('fillRight=' + (d.fillRight ? '1' : '0'));
-                lines.push('colorLeft=' + (d.colorLeft || 'DCDCDC'));
-                lines.push('colorRight=' + (d.colorRight || '808080'));
-                lines.push('overallFrame=' + (d.overallFrame ? '1' : '0'));
-                lines.push('divider=' + (d.divider ? '1' : '0'));
-                lines.push('strokeUnit=' + (d.strokeUnit || '1'));
-                lines.push('strokeColor=' + (d.strokeColor || '000000'));
-                lines.push('cornerAuto=' + (d.cornerAuto ? '1' : '0'));
-                lines.push('widthOffset=' + (d.widthOffset || 0));
-                var desktopPath = Folder.desktop.fsName;
-                var baseName = 'SplitBackgroundForTwo_settings';
-                var ext = '.txt';
-                var filePath = desktopPath + '/' + baseName + ext;
-                var n = 1;
-                while (new File(filePath).exists) {
-                    filePath = desktopPath + '/' + baseName + '_' + n + ext;
-                    n++;
-                }
-                var f = new File(filePath);
-                f.encoding = 'UTF-8';
-                if (f.open('w')) {
-                    f.write(lines.join('\n'));
-                    f.close();
-                    alert(getLabel('alertExportedSettings') + '\n' + filePath);
-                } else {
-                    alert(getLabel('alertExportFailed'));
-                }
-            }
-
-            function buildPresetRow(parent) {
-                var row = parent.add('group');
-                row.orientation = 'row';
-                row.alignChildren = ['left', 'center'];
-                row.alignment = ['center', 'top'];
-
-                row.add('statictext', undefined, getLabel('panelPreset'));
-                var dropdown = row.add('dropdownlist', undefined, [getLabel('presetPlaceholder')]);
-                dropdown.helpTip = getLabel('tipPreset');
-                dropdown.preferredSize = [120, -1];
-                dropdown.selection = 0;
-
-                var btnSave = row.add('button', undefined, getLabel('labelSave'));
-                btnSave.preferredSize = [50, -1];
-
-                var btnExport = row.add('button', undefined, getLabel('labelExport'));
-                btnExport.preferredSize = [60, -1];
-
-                (function () {
-                    var names = getPresetNames();
-                    for (var i = 0; i < names.length; i++) {
-                        dropdown.add('item', names[i]);
-                    }
-                })();
-
-                dropdown.onChange = function () {
-                    if (!dropdown.selection || dropdown.selection.index === 0) return;
-                    var name = dropdown.selection.text;
-                    var store = $.global[PRESETS_KEY];
-                    if (store[name]) applyPresetData(store[name]);
-                };
-
-                btnSave.onClick = function () {
-                    var nameDialog = new Window('dialog', getLabel('presetSaveTitle'));
-                    nameDialog.orientation = 'column';
-                    nameDialog.alignChildren = ['fill', 'top'];
-                    nameDialog.add('statictext', undefined, getLabel('presetNamePrompt'));
-                    var etName = nameDialog.add('edittext', undefined, '');
-                    etName.helpTip = getLabel('tipPresetName');
-                    etName.characters = 20;
-                    etName.active = true;
-                    var nameBtns = nameDialog.add('group');
-                    nameBtns.alignment = ['right', 'center'];
-                    nameBtns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
-                    nameBtns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
-                    if (nameDialog.show() !== 1) return;
-                    var name = etName.text;
-                    if (!name || name === '' || name === getLabel('presetPlaceholder')) return;
-                    $.global[PRESETS_KEY][name] = getCurrentPresetData();
-                    refreshPresetDropdown();
-                };
-
-                btnExport.onClick = function () {
-                    exportCurrentSettingsToDesktop();
-                };
-
-                return {
-                    row: row,
-                    ddPreset: dropdown,
-                    btnPresetSave: btnSave,
-                    btnPresetExport: btnExport
-                };
-            }
-
-            function buildFillPanel(parent) {
-                var panel = parent.add('panel', undefined, getLabel('panelFill'));
-                panel.orientation = 'column';
-                panel.alignChildren = ['left', 'top'];
-                panel.margins = [15, 20, 15, 10];
-                panel.alignment = ['fill', 'top'];
-
-                var fillLeftRow = panel.add('group');
-                fillLeftRow.orientation = 'row';
-                fillLeftRow.alignChildren = ['left', 'center'];
-                var cbLeft = fillLeftRow.add('checkbox', undefined, getLabel('labelFillLeft'));
-                cbLeft.helpTip = getLabel('tipFillSide');
-                cbLeft.value = (ss.fillLeft !== undefined) ? !!ss.fillLeft : true;
-                var etLeft = fillLeftRow.add('edittext', undefined, (ss.colorLeft !== undefined) ? ss.colorLeft : 'DCDCDC');
-                etLeft.helpTip = getLabel('tipFillSide');
-                etLeft.preferredSize = [0, 0];
-                etLeft.visible = false;
-                createColorSwatch(fillLeftRow, etLeft, applyPreview);
-
-                var fillRightRow = panel.add('group');
-                fillRightRow.orientation = 'row';
-                fillRightRow.alignChildren = ['left', 'center'];
-                var cbRight = fillRightRow.add('checkbox', undefined, getLabel('labelFillRight'));
-                cbRight.helpTip = getLabel('tipFillSide');
-                cbRight.value = (ss.fillRight !== undefined) ? !!ss.fillRight : true;
-                var etRight = fillRightRow.add('edittext', undefined, (ss.colorRight !== undefined) ? ss.colorRight : '808080');
-                etRight.helpTip = getLabel('tipFillSide');
-                etRight.preferredSize = [0, 0];
-                etRight.visible = false;
-                createColorSwatch(fillRightRow, etRight, applyPreview);
-
-                return {
-                    panel: panel,
-                    cbFillLeft: cbLeft,
-                    etColorLeft: etLeft,
-                    cbFillRight: cbRight,
-                    etColorRight: etRight
-                };
-            }
-
-            function buildLinePanel(parent) {
-                var panel = parent.add('panel', undefined, getLabel('panelLine'));
-                panel.orientation = 'column';
-                panel.alignChildren = ['left', 'top'];
-                panel.margins = [15, 20, 15, 10];
-                panel.alignment = ['fill', 'top'];
-
-                var lineCbRow = panel.add('group');
-                lineCbRow.orientation = 'row';
-                lineCbRow.alignChildren = ['left', 'center'];
-
-                var cbFrame = lineCbRow.add('checkbox', undefined, getLabel('labelOverallFrame'));
-                cbFrame.helpTip = getLabel('tipOverallFrame');
-                cbFrame.value = (ss.overallFrame !== undefined) ? !!ss.overallFrame : false;
-
-                var lineCbRow2 = panel.add('group');
-                lineCbRow2.orientation = 'row';
-                lineCbRow2.alignChildren = ['left', 'center'];
-                var cbDiv = lineCbRow2.add('checkbox', undefined, getLabel('labelDivider'));
-                cbDiv.helpTip = getLabel('tipDivider');
-                cbDiv.value = (ss.divider !== undefined) ? !!ss.divider : false;
-
-                var strokeRow = panel.add('group');
-                strokeRow.orientation = 'row';
-                strokeRow.alignChildren = ['left', 'center'];
-
-                strokeRow.add('statictext', undefined, getLabel('labelStrokeWidth'));
-                var etStrokeLocal = strokeRow.add('edittext', undefined, (ss && ss.strokeUnit !== undefined) ? String(ss.strokeUnit) : formatUnitValue(ptToUnit(1, "strokeUnits")));
-                etStrokeLocal.helpTip = getLabel('tipStroke');
-                etStrokeLocal.characters = 3;
-                changeValueByArrowKey(etStrokeLocal, false, applyPreview);
-                strokeRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("strokeUnits"));
-
-                var colorRow = panel.add('group');
-                colorRow.orientation = 'row';
-                colorRow.alignChildren = ['left', 'center'];
-                colorRow.add('statictext', undefined, getLabel('labelColor'));
-                var etStrokeColorLocal = colorRow.add('edittext', undefined, (ss.strokeColor !== undefined) ? ss.strokeColor : '000000');
-                etStrokeColorLocal.helpTip = getLabel('tipStrokeColor');
-                etStrokeColorLocal.preferredSize = [0, 0];
-                etStrokeColorLocal.visible = false;
-                createColorSwatch(colorRow, etStrokeColorLocal, applyPreview);
-
-                return {
-                    panel: panel,
-                    cbOverallFrame: cbFrame,
-                    cbDivider: cbDiv,
-                    lineRow: strokeRow,
-                    etStroke: etStrokeLocal,
-                    lineColorRow: colorRow,
-                    etStrokeColor: etStrokeColorLocal
-                };
-            }
-
-            function buildOptionPanel(parent) {
-                var cornerUnitLabel = getCurrentUnitLabelByPrefKey("rulerType");
-                var panel = parent.add('panel', undefined, getLabel('labelCornerRadius') + '\u00A0(' + cornerUnitLabel + ')');
-                panel.orientation = 'column';
-                panel.alignChildren = ['left', 'top'];
-                panel.margins = [15, 20, 15, 10];
-                panel.alignment = ['fill', 'top'];
-
-                var pillRow = panel.add('group');
-                pillRow.orientation = 'row';
-                pillRow.alignChildren = ['left', 'center'];
-                var cbCornerAutoLocal = pillRow.add('checkbox', undefined, getLabel('labelPillShape'));
-                cbCornerAutoLocal.helpTip = getLabel('tipPillShape');
-                cbCornerAutoLocal.value = (ss.cornerAuto !== undefined) ? !!ss.cornerAuto : false;
-
-                var linkRow = panel.add('group');
-                linkRow.orientation = 'row';
-                linkRow.alignChildren = ['left', 'center'];
-                var cbCornerLink = linkRow.add('checkbox', undefined, getLabel('labelCornerLink'));
-                cbCornerLink.helpTip = getLabel('tipCornerLink');
-                cbCornerLink.value = (ss.cornerLink !== undefined) ? !!ss.cornerLink : false;
-
-                var perCornerRow = panel.add('group');
-                perCornerRow.orientation = 'row';
-                perCornerRow.alignChildren = ['fill', 'top'];
-                perCornerRow.alignment = ['fill', 'top'];
-
-                // 左カラム: 左上・左下
-                var cornerLeftCol = perCornerRow.add('group');
-                cornerLeftCol.orientation = 'column';
-                cornerLeftCol.alignChildren = ['left', 'top'];
-
-                var cornerTLRow = cornerLeftCol.add('group');
-                cornerTLRow.orientation = 'row';
-                cornerTLRow.alignChildren = ['left', 'center'];
-                var cbCornerTL = cornerTLRow.add('checkbox', undefined, getLabel('labelCornerTL'));
-                cbCornerTL.helpTip = getLabel('tipCorner');
-                cbCornerTL.value = (ss.cornerTL !== undefined) ? !!ss.cornerTL : false;
-                var etCornerTL = cornerTLRow.add('edittext', undefined, (ss.cornerTLVal !== undefined) ? String(ss.cornerTLVal) : '0');
-                etCornerTL.helpTip = getLabel('tipCorner');
-                etCornerTL.characters = 4;
-                changeValueByArrowKey(etCornerTL, false, applyPreview);
-
-                var cornerBLRow = cornerLeftCol.add('group');
-                cornerBLRow.orientation = 'row';
-                cornerBLRow.alignChildren = ['left', 'center'];
-                var cbCornerBL = cornerBLRow.add('checkbox', undefined, getLabel('labelCornerBL'));
-                cbCornerBL.helpTip = getLabel('tipCorner');
-                cbCornerBL.value = (ss.cornerBL !== undefined) ? !!ss.cornerBL : false;
-                var etCornerBL = cornerBLRow.add('edittext', undefined, (ss.cornerBLVal !== undefined) ? String(ss.cornerBLVal) : '0');
-                etCornerBL.helpTip = getLabel('tipCorner');
-                etCornerBL.characters = 4;
-                changeValueByArrowKey(etCornerBL, false, applyPreview);
-
-                // 右カラム: 右上・右下
-                var cornerRightCol = perCornerRow.add('group');
-                cornerRightCol.orientation = 'column';
-                cornerRightCol.alignChildren = ['left', 'top'];
-
-                var cornerTRRow = cornerRightCol.add('group');
-                cornerTRRow.orientation = 'row';
-                cornerTRRow.alignChildren = ['left', 'center'];
-                var cbCornerTR = cornerTRRow.add('checkbox', undefined, getLabel('labelCornerTR'));
-                cbCornerTR.helpTip = getLabel('tipCorner');
-                cbCornerTR.value = (ss.cornerTR !== undefined) ? !!ss.cornerTR : false;
-                var etCornerTR = cornerTRRow.add('edittext', undefined, (ss.cornerTRVal !== undefined) ? String(ss.cornerTRVal) : '0');
-                etCornerTR.helpTip = getLabel('tipCorner');
-                etCornerTR.characters = 4;
-                changeValueByArrowKey(etCornerTR, false, applyPreview);
-
-                var cornerBRRow = cornerRightCol.add('group');
-                cornerBRRow.orientation = 'row';
-                cornerBRRow.alignChildren = ['left', 'center'];
-                var cbCornerBR = cornerBRRow.add('checkbox', undefined, getLabel('labelCornerBR'));
-                cbCornerBR.helpTip = getLabel('tipCorner');
-                cbCornerBR.value = (ss.cornerBR !== undefined) ? !!ss.cornerBR : false;
-                var etCornerBR = cornerBRRow.add('edittext', undefined, (ss.cornerBRVal !== undefined) ? String(ss.cornerBRVal) : '0');
-                etCornerBR.helpTip = getLabel('tipCorner');
-                etCornerBR.characters = 4;
-                changeValueByArrowKey(etCornerBR, false, applyPreview);
-
-                return {
-                    panel: panel,
-                    cbCornerAuto: cbCornerAutoLocal,
-                    cbCornerTL: cbCornerTL, etCornerTL: etCornerTL, cornerTLRow: cornerTLRow,
-                    cbCornerBL: cbCornerBL, etCornerBL: etCornerBL, cornerBLRow: cornerBLRow,
-                    cbCornerTR: cbCornerTR, etCornerTR: etCornerTR, cornerTRRow: cornerTRRow,
-                    cbCornerBR: cbCornerBR, etCornerBR: etCornerBR, cornerBRRow: cornerBRRow,
-                    cbCornerLink: cbCornerLink
-                };
-            }
-
-            function buildBalancePanel(parent) {
-                var panel = parent.add('panel', undefined, getLabel('panelFixed'));
-                panel.orientation = 'column';
-                panel.alignChildren = ['fill', 'top'];
-                panel.margins = [15, 20, 15, 10];
-                panel.alignment = ['fill', 'top'];
-
-                var pinWidthColLocal = panel.add('group');
-                pinWidthColLocal.orientation = 'column';
-                pinWidthColLocal.alignChildren = ['fill', 'top'];
-                pinWidthColLocal.spacing = 6;
-
-                var unitLabelLocal = getCurrentUnitLabelByPrefKey("rulerType");
-
-                var leftRowLocal = pinWidthColLocal.add('group');
-                leftRowLocal.orientation = 'row';
-                leftRowLocal.alignChildren = ['left', 'center'];
-                var stLeftLabelLocal = leftRowLocal.add('statictext', undefined, getLabel('labelFillLeft'));
-                var etLeftWidthLocal = leftRowLocal.add('edittext', undefined, '0');
-                etLeftWidthLocal.helpTip = getLabel('tipWidth');
-                etLeftWidthLocal.characters = 5;
-                leftRowLocal.add('statictext', undefined, unitLabelLocal);
-                var etLeftPctLocal = leftRowLocal.add('edittext', undefined, '50');
-                etLeftPctLocal.helpTip = getLabel('tipPct');
-                etLeftPctLocal.characters = 3;
-                leftRowLocal.add('statictext', undefined, '%');
-                var cbSquareLeftLocal = leftRowLocal.add('checkbox', undefined, getLabel('labelSquare'));
-                cbSquareLeftLocal.helpTip = getLabel('tipSquare');
-
-                var rightRowLocal = pinWidthColLocal.add('group');
-                rightRowLocal.orientation = 'row';
-                rightRowLocal.alignChildren = ['left', 'center'];
-                var stRightLabelLocal = rightRowLocal.add('statictext', undefined, getLabel('labelFillRight'));
-                var etRightWidthLocal = rightRowLocal.add('edittext', undefined, '0');
-                etRightWidthLocal.helpTip = getLabel('tipWidth');
-                etRightWidthLocal.characters = 5;
-                rightRowLocal.add('statictext', undefined, unitLabelLocal);
-                var etRightPctLocal = rightRowLocal.add('edittext', undefined, '50');
-                etRightPctLocal.helpTip = getLabel('tipPct');
-                etRightPctLocal.characters = 3;
-                rightRowLocal.add('statictext', undefined, '%');
-                var cbSquareRightLocal = rightRowLocal.add('checkbox', undefined, getLabel('labelSquare'));
-                cbSquareRightLocal.helpTip = getLabel('tipSquare');
-
-                var sliderRowLocal = pinWidthColLocal.add('group');
-                sliderRowLocal.orientation = 'row';
-                sliderRowLocal.alignChildren = ['fill', 'center'];
-                sliderRowLocal.margins = [0, 10, 0, 0];
-
-                var slWidthLocal = sliderRowLocal.add('slider', undefined, 0, 0, 0);
-                slWidthLocal.helpTip = getLabel('tipWidthSlider');
-                slWidthLocal.preferredSize = [180, 20];
-
-                slWidthLocal.addEventListener('keydown', function (event) {
-                    if (event.keyName !== 'Up' && event.keyName !== 'Down') return;
-                    var keyboard = ScriptUI.environment.keyboardState;
-                    if (!keyboard.shiftKey) return;
-                    var maxV = slWidthLocal.maxvalue;
-                    if (maxV <= 0) return;
-                    var delta = Math.round(maxV * 0.1);
-                    if (delta < 1) delta = 1;
-                    var v = slWidthLocal.value;
-                    if (event.keyName === 'Up') v += delta;
-                    else v -= delta;
-                    if (v < 0) v = 0;
-                    if (v > maxV) v = maxV;
-                    slWidthLocal.value = Math.round(v);
-                    slWidthLocal.notify('onChanging');
-                    event.preventDefault();
-                });
-
-                return {
-                    panel: panel,
-                    pinWidthCol: pinWidthColLocal,
-                    leftRow: leftRowLocal,
-                    stLeftLabel: stLeftLabelLocal,
-                    etLeftWidth: etLeftWidthLocal,
-                    etLeftPct: etLeftPctLocal,
-                    rightRow: rightRowLocal,
-                    stRightLabel: stRightLabelLocal,
-                    etRightWidth: etRightWidthLocal,
-                    etRightPct: etRightPctLocal,
-                    pinWidthSliderRow: sliderRowLocal,
-                    slWidth: slWidthLocal,
-                    cbSquareLeft: cbSquareLeftLocal,
-                    cbSquareRight: cbSquareRightLocal,
-                    unitLabel: unitLabelLocal
-                };
-            }
-
-            function buildPerCornerConfig() {
-                // 個別角丸が1つでも有効なら perCorner オブジェクトを返す、なければ null
-                if (cbCornerAuto.value) return null;
-                var linked = cbCornerLink.value;
-                var any = cbCornerTL.value || (!linked && (cbCornerBL.value || cbCornerTR.value || cbCornerBR.value));
-                if (!any) return null;
-                function parseR(et) {
-                    var v = unitToPt(Number(et.text), "rulerType");
-                    if (isNaN(v) || v < 0) v = 0;
-                    return v;
-                }
-                var tlR = parseR(etCornerTL);
-                if (linked) {
-                    // 連動: 全コーナーに TL のチェック状態と値を適用
-                    var tlOn = !!cbCornerTL.value;
-                    return {
-                        tl: { enabled: tlOn, radius: tlR },
-                        bl: { enabled: tlOn, radius: tlR },
-                        tr: { enabled: tlOn, radius: tlR },
-                        br: { enabled: tlOn, radius: tlR }
-                    };
-                }
-                return {
-                    tl: { enabled: !!cbCornerTL.value, radius: tlR },
-                    bl: { enabled: !!cbCornerBL.value, radius: parseR(etCornerBL) },
-                    tr: { enabled: !!cbCornerTR.value, radius: parseR(etCornerTR) },
-                    br: { enabled: !!cbCornerBR.value, radius: parseR(etCornerBR) }
-                };
-            }
-
-            function getCurrentUIValues() {
-                var strokeWidthValue = unitToPt(Number(etStroke.text), "strokeUnits");
-                if (isNaN(strokeWidthValue) || strokeWidthValue < 0) strokeWidthValue = 0;
-
-                var offsetPt = unitToPt(Number(slWidth.value), "rulerType");
-                if (isNaN(offsetPt)) offsetPt = 0;
-
-                return {
-                    splitDirection: rbSplitLR.value ? 'lr' : 'tb',
-                    overallFrame: !!cbOverallFrame.value,
-                    divider: !!cbDivider.value,
-                    fillLeft: !!cbFillLeft.value,
-                    fillRight: !!cbFillRight.value,
-                    strokeWidth: strokeWidthValue,
-                    widthOffset: offsetPt,
-                    colorLeftText: String(etColorLeft.text),
-                    colorRightText: String(etColorRight.text),
-                    strokeColorText: String(etStrokeColor.text),
-                    groupItems: !!cbGroupItems.value,
-                    perCorner: buildPerCornerConfig(),
-                    pillShape: !!cbCornerAuto.value
-                };
-            }
-
-            var presetUI = buildPresetRow(dlg);
-            var presetRow = presetUI.row;
-            presetRow.preferredSize = [0, 0];
-            presetRow.maximumSize = [0, 0];
-            presetRow.visible = false;
-            var ddPreset = presetUI.ddPreset;
-            var btnPresetSave = presetUI.btnPresetSave;
-            var btnPresetExport = presetUI.btnPresetExport;
-
-            // --- 分割方向 / Split direction ---
-            var splitDirPanel = dlg.add('panel', undefined, getLabel('panelSplitDirection'));
-            splitDirPanel.orientation = 'row';
-            splitDirPanel.alignChildren = ['center', 'center'];
-            splitDirPanel.margins = [15, 20, 15, 10];
-            splitDirPanel.alignment = ['fill', 'top'];
-            var rbSplitLR = splitDirPanel.add('radiobutton', undefined, getLabel('labelSplitLR'));
-            rbSplitLR.helpTip = getLabel('tipSplitLR');
-            var rbSplitTB = splitDirPanel.add('radiobutton', undefined, getLabel('labelSplitTB'));
-            rbSplitTB.helpTip = getLabel('tipSplitTB');
-            var savedSplitDir = (ss.splitDirection !== undefined) ? ss.splitDirection : 'lr';
-            rbSplitLR.value = (savedSplitDir === 'lr');
-            rbSplitTB.value = (savedSplitDir === 'tb');
-            if (!rbSplitLR.value && !rbSplitTB.value) rbSplitLR.value = true;
-
-            // --- バランス / Balance ---
-            var balanceUI = buildBalancePanel(dlg);
-            var pinPanel = balanceUI.panel;
-            var pinWidthCol = balanceUI.pinWidthCol;
-            var leftRow = balanceUI.leftRow;
-            var stLeftLabel = balanceUI.stLeftLabel;
-            var etLeftWidth = balanceUI.etLeftWidth;
-            var etLeftPct = balanceUI.etLeftPct;
-            var rightRow = balanceUI.rightRow;
-            var stRightLabel = balanceUI.stRightLabel;
-            var etRightWidth = balanceUI.etRightWidth;
-            var etRightPct = balanceUI.etRightPct;
-            var pinWidthSliderRow = balanceUI.pinWidthSliderRow;
-            var slWidth = balanceUI.slWidth;
-            var cbSquareLeft = balanceUI.cbSquareLeft;
-            var cbSquareRight = balanceUI.cbSquareRight;
-
-            // --- 塗り＋角丸 / 線 2カラム ---
-            var fillLineCornerRow = dlg.add('group');
-            fillLineCornerRow.orientation = 'row';
-            fillLineCornerRow.alignment = ['fill', 'top'];
-            fillLineCornerRow.alignChildren = ['fill', 'top'];
-
-            // 左カラム: 塗り＋角丸
-            var leftColFL = fillLineCornerRow.add('group');
-            leftColFL.orientation = 'column';
-            leftColFL.alignChildren = ['fill', 'top'];
-
-            // --- 描画パネル / Drawing panel ---
-            var fillUI = buildFillPanel(leftColFL);
-            var drawPanel = fillUI.panel;
-            var cbFillLeft = fillUI.cbFillLeft;
-            var etColorLeft = fillUI.etColorLeft;
-            var cbFillRight = fillUI.cbFillRight;
-            var etColorRight = fillUI.etColorRight;
-
-            // 右カラム: 線
-            var rightColFL = fillLineCornerRow.add('group');
-            rightColFL.orientation = 'column';
-            rightColFL.alignChildren = ['fill', 'top'];
-
-            // --- 線パネル / Stroke panel ---
-            var lineUI = buildLinePanel(rightColFL);
-            var linePanel = lineUI.panel;
-            var cbOverallFrame = lineUI.cbOverallFrame;
-            var cbDivider = lineUI.cbDivider;
-            var lineRow = lineUI.lineRow;
-            var etStroke = lineUI.etStroke;
-            var lineColorRow = lineUI.lineColorRow;
-            var etStrokeColor = lineUI.etStrokeColor;
-
-            // --- 角丸パネル / Corner radius panel ---
-            var optionUI = buildOptionPanel(dlg);
-
-            function updateStrokeWidthEnabled() {
-                var on = !!(cbOverallFrame.value || cbDivider.value);
-                lineRow.enabled = on;
-                lineColorRow.enabled = on;
-            }
-
-            updateStrokeWidthEnabled();
-            var optPanel = optionUI.panel;
-            var cbCornerAuto = optionUI.cbCornerAuto;
-            var cbCornerTL = optionUI.cbCornerTL, etCornerTL = optionUI.etCornerTL;
-            var cbCornerBL = optionUI.cbCornerBL, etCornerBL = optionUI.etCornerBL;
-            var cbCornerTR = optionUI.cbCornerTR, etCornerTR = optionUI.etCornerTR;
-            var cbCornerBR = optionUI.cbCornerBR, etCornerBR = optionUI.etCornerBR;
-            var cbCornerLink = optionUI.cbCornerLink;
-
-            function updateCornerState() {
-                // ピル形状時は個別角丸を無効化
-                var perCornerEnabled = !cbCornerAuto.value;
-                var linked = cbCornerLink.value;
-                cbCornerLink.enabled = perCornerEnabled;
-                cbCornerTL.enabled = perCornerEnabled;
-                etCornerTL.enabled = perCornerEnabled && cbCornerTL.value;
-                // 連動時: BL/TR/BR のチェックと値はディム、値は TL を参照
-                cbCornerBL.enabled = perCornerEnabled && !linked;
-                etCornerBL.enabled = perCornerEnabled && !linked && cbCornerBL.value;
-                cbCornerTR.enabled = perCornerEnabled && !linked;
-                etCornerTR.enabled = perCornerEnabled && !linked && cbCornerTR.value;
-                cbCornerBR.enabled = perCornerEnabled && !linked;
-                etCornerBR.enabled = perCornerEnabled && !linked && cbCornerBR.value;
-                // 連動時: BL/TR/BR の値を TL に同期
-                if (linked) {
-                    var tlVal = etCornerTL.text;
-                    etCornerBL.text = tlVal;
-                    etCornerTR.text = tlVal;
-                    etCornerBR.text = tlVal;
-                }
-            }
-
-            // 連動: TL の値を BL/TR/BR へコピー
-            function syncLinkedCornerValues() {
-                if (!cbCornerLink.value) return;
-                var v = etCornerTL.text;
-                etCornerBL.text = v;
-                etCornerTR.text = v;
-                etCornerBR.text = v;
-            }
-
-            // 連動: TL のチェック状態を BL/TR/BR へコピー
-            function syncLinkedCornerChecks() {
-                if (!cbCornerLink.value) return;
-                var v = cbCornerTL.value;
-                cbCornerBL.value = v;
-                cbCornerTR.value = v;
-                cbCornerBR.value = v;
-            }
-
-            cbCornerAuto.onClick = function () { updateCornerState(); applyPreview(); };
-            cbCornerLink.onClick = function () { if (cbCornerLink.value) cbCornerTL.value = true; syncLinkedCornerChecks(); updateCornerState(); applyPreview(); };
-            cbCornerTL.onClick = function () { syncLinkedCornerChecks(); updateCornerState(); applyPreview(); };
-            cbCornerBL.onClick = function () { updateCornerState(); applyPreview(); };
-            cbCornerTR.onClick = function () { updateCornerState(); applyPreview(); };
-            cbCornerBR.onClick = function () { updateCornerState(); applyPreview(); };
-            etCornerTL.addEventListener('changing', function () { syncLinkedCornerValues(); applyPreview(); });
-            etCornerBL.addEventListener('changing', function () { applyPreview(); });
-            etCornerTR.addEventListener('changing', function () { applyPreview(); });
-            etCornerBR.addEventListener('changing', function () { applyPreview(); });
-
-            function getMaxV() {
-                var maxV = 0;
-                try { maxV = Number(slWidth.maxvalue); } catch (e) { }
-                if (isNaN(maxV) || maxV <= 0) maxV = 0;
-                return maxV;
-            }
-
-            function clampOffset(v) {
-                v = Number(v);
-                if (isNaN(v)) return 0;
-                var maxV = getMaxV();
-                if (v > maxV) v = maxV;
-                if (v < -maxV) v = -maxV;
-                return Math.round(v * 10) / 10;
-            }
-
-            // スライダー値(offset)から全フィールドを更新
-            function syncAllFromOffset(v) {
-                v = clampOffset(v);
-                slWidth.value = v;
-                var maxV = getMaxV();
-                var lw = Math.round((maxV + v) * 10) / 10;
-                var rw = Math.round((maxV - v) * 10) / 10;
-                etLeftWidth.text = String(lw);
-                etRightWidth.text = String(rw);
-                if (maxV > 0) {
-                    etLeftPct.text = String(Math.round((maxV + v) / (2 * maxV) * 100));
-                    etRightPct.text = String(Math.round((maxV - v) / (2 * maxV) * 100));
-                } else {
-                    etLeftPct.text = '50';
-                    etRightPct.text = '50';
-                }
-            }
-
-            function syncFromSlider() {
-                var kb = ScriptUI.environment.keyboardState;
-                var v = Number(slWidth.value);
-                if (kb && kb.altKey) v = Math.round(v);
-                syncAllFromOffset(v);
-            }
-
-            function syncFromLeftWidth() {
-                var lw = Number(etLeftWidth.text);
-                if (isNaN(lw)) lw = 0;
-                syncAllFromOffset(lw - getMaxV());
-            }
-
-            function syncFromRightWidth() {
-                var rw = Number(etRightWidth.text);
-                if (isNaN(rw)) rw = 0;
-                syncAllFromOffset(getMaxV() - rw);
-            }
-
-            function syncFromLeftPct() {
-                var pct = Number(etLeftPct.text);
-                if (isNaN(pct)) pct = 50;
-                if (pct < 0) pct = 0;
-                if (pct > 100) pct = 100;
-                var maxV = getMaxV();
-                syncAllFromOffset((pct / 100 - 0.5) * 2 * maxV);
-            }
-
-            function syncFromRightPct() {
-                var pct = Number(etRightPct.text);
-                if (isNaN(pct)) pct = 50;
-                if (pct < 0) pct = 0;
-                if (pct > 100) pct = 100;
-                var maxV = getMaxV();
-                syncAllFromOffset((0.5 - pct / 100) * 2 * maxV);
-            }
-
-            changeValueByArrowKey(etLeftWidth, false, function () { syncFromLeftWidth(); applyPreview(); });
-            changeValueByArrowKey(etRightWidth, false, function () { syncFromRightWidth(); applyPreview(); });
-            changeValueByArrowKey(etLeftPct, false, function () { syncFromLeftPct(); applyPreview(); });
-            changeValueByArrowKey(etRightPct, false, function () { syncFromRightPct(); applyPreview(); });
-
-            etLeftWidth.addEventListener('changing', function () { syncFromLeftWidth(); applyPreview(); });
-            etRightWidth.addEventListener('changing', function () { syncFromRightWidth(); applyPreview(); });
-            etLeftPct.addEventListener('changing', function () { syncFromLeftPct(); applyPreview(); });
-            etRightPct.addEventListener('changing', function () { syncFromRightPct(); applyPreview(); });
-
-            var maxCornerUnit = 0; // オブジェクト高さの1/2（角丸上限）
-
-            function updateWidthSliderMaxBySelection() {
-                var maxUnit = 0;
-                var tempGroupForMax = null;
-
-                try {
-                    var hostLayer2 = null;
-                    try { hostLayer2 = item.layer; } catch (eHLm) { hostLayer2 = null; }
-                    if (!hostLayer2) {
-                        try { hostLayer2 = doc.activeLayer; } catch (eHLm2) { hostLayer2 = null; }
-                    }
-                    if (!hostLayer2) hostLayer2 = doc.layers[0];
-
-                    unlockAndShow(hostLayer2);
-                    tempGroupForMax = hostLayer2.groupItems.add();
-                    tempGroupForMax.name = TEMP_NAME_PREFIX + "__temp_outline_group_for_max__";
-                    markTemp(tempGroupForMax);
-                    try { tempGroupForMax.opacity = 0; } catch (eOpM) { }
-
-                    var bi = getBoundsInfo(item, tempGroupForMax);
-                    var b = bi.bounds;
-
-                    var widthPt = b[2] - b[0];
-                    if (widthPt < 0) widthPt = 0;
-                    var heightPt = b[1] - b[3];
-                    if (heightPt < 0) heightPt = 0;
-
-                    // スライダー範囲: 分割方向に応じて幅or高さの半分
-                    var dimPt = rbSplitTB.value ? heightPt : widthPt;
-                    maxUnit = ptToUnit(dimPt / 2, "rulerType");
-                    if (isNaN(maxUnit) || maxUnit < 0) maxUnit = 0;
-                    maxUnit = Math.round(maxUnit * 10) / 10;
-
-                    // 角丸上限: 分割方向に応じて短辺の1/2
-                    var cornerDimPt = rbSplitTB.value ? widthPt : heightPt;
-                    maxCornerUnit = ptToUnit(cornerDimPt / 2, "rulerType");
-                    if (isNaN(maxCornerUnit) || maxCornerUnit < 0) maxCornerUnit = 0;
-                    maxCornerUnit = Math.round(maxCornerUnit * 10) / 10;
-                    updateCornerState();
-
-                } catch (eMax) {
-                    maxUnit = 0;
-                } finally {
-                    try { removeMarkedTempItems(doc); } catch (eRmTmp0) { }
-                    try {
-                        if (tempGroupForMax && tempGroupForMax.isValid) {
-                            unlockAndShow(tempGroupForMax);
-                            for (var giM = tempGroupForMax.pageItems.length - 1; giM >= 0; giM--) {
-                                try {
-                                    unlockAndShow(tempGroupForMax.pageItems[giM]);
-                                    tempGroupForMax.pageItems[giM].remove();
-                                } catch (eRmPI2) { }
-                            }
-                            tempGroupForMax.remove();
-                        }
-                    } catch (eRmTmp1) { }
-                    try { removeMarkedTempItems(doc); } catch (eRmTmp2) { }
-                }
-
-                try { slWidth.minvalue = -maxUnit; } catch (eSetMin) { }
-                try { slWidth.maxvalue = maxUnit; } catch (eSetMax) { }
-
-                syncAllFromOffset(0);
-            }
-
-            function applySquareOffset(side) {
-                var tempGroupForSq = null;
-                try {
-                    var hostLayerSq = null;
-                    try { hostLayerSq = item.layer; } catch (e) { hostLayerSq = doc.activeLayer; }
-                    if (!hostLayerSq) hostLayerSq = doc.layers[0];
-                    unlockAndShow(hostLayerSq);
-                    tempGroupForSq = hostLayerSq.groupItems.add();
-                    tempGroupForSq.name = TEMP_NAME_PREFIX + "__temp_square__";
-                    markTemp(tempGroupForSq);
-                    try { tempGroupForSq.opacity = 0; } catch (e) { }
-
-                    var biSq = getBoundsInfo(item, tempGroupForSq);
-                    var bSq = biSq.bounds;
-                    var wPt = bSq[2] - bSq[0];
-                    var hPt = bSq[1] - bSq[3];
-
-                    var shortSide, longHalf, offsetPtSq;
-
-                    if (rbSplitTB.value) {
-                        shortSide = wPt;
-                        longHalf = hPt / 2;
-                        offsetPtSq = longHalf - shortSide;
-                        if (side === 'left') offsetPtSq = -offsetPtSq;
-                    } else {
-                        shortSide = hPt;
-                        longHalf = wPt / 2;
-                        offsetPtSq = longHalf - shortSide;
-                        if (side === 'left') offsetPtSq = -offsetPtSq;
-                    }
-
-                    var offsetUnitSq = ptToUnit(offsetPtSq, "rulerType");
-                    syncAllFromOffset(offsetUnitSq);
-                } catch (eSq) {
-                } finally {
-                    try { removeMarkedTempItems(doc); } catch (e) { }
-                    try {
-                        if (tempGroupForSq && tempGroupForSq.isValid) {
-                            unlockAndShow(tempGroupForSq);
-                            tempGroupForSq.remove();
-                        }
-                    } catch (e) { }
-                    try { removeMarkedTempItems(doc); } catch (e) { }
-                }
-            }
-
-            cbSquareLeft.onClick = function () {
-                if (cbSquareLeft.value) {
-                    cbSquareRight.value = false;
-                    applySquareOffset('left');
-                }
-                applyPreview();
-            };
-
-            cbSquareRight.onClick = function () {
-                if (cbSquareRight.value) {
-                    cbSquareLeft.value = false;
-                    applySquareOffset('right');
-                }
-                applyPreview();
-            };
-
-            slWidth.onChanging = function () {
-                cbSquareLeft.value = false;
-                cbSquareRight.value = false;
-                syncFromSlider();
-                applyPreview();
-            };
-
-            // プレビューは常にON
-            var cbPreview = { value: true };
-
-            function parseStrokeWidth() {
-                var vUnit = Number(etStroke.text);
-                if (isNaN(vUnit) || vUnit <= 0) return null;
-                vUnit = Math.round(vUnit * 10) / 10;
-                var vPt = unitToPt(vUnit, "strokeUnits");
-                if (isNaN(vPt) || vPt <= 0) return null;
-                vPt = Math.round(vPt * 10) / 10;
-                return vPt;
-            }
-
-            function parseWidthOffset() {
-                var vUnit = Number(slWidth.value);
-                if (isNaN(vUnit)) vUnit = 0;
-                vUnit = Math.round(vUnit * 10) / 10;
-
-                var vPt = unitToPt(vUnit, "rulerType");
-                if (isNaN(vPt)) vPt = 0;
-                vPt = Math.round(vPt * 10) / 10;
-                return vPt;
-            }
-
-            function applyPreview() {
-                // カラーフィールドから色を更新（RGB/CMYK対応）
-                colorLeft = parseColorString(etColorLeft.text);
-                colorRight = parseColorString(etColorRight.text);
-                colorStroke = parseColorString(etStrokeColor.text);
-
-                var sw = parseStrokeWidth();
-                if (sw === null) {
-                    try { removeMarkedTempItems(doc); } catch (eTmp0) { }
-                    clearPreviewItemsOnly(doc);
-                    clearPreviewRects();
-                    return;
-                }
-
-                var wo = parseWidthOffset();
-
-                var sd = rbSplitLR.value ? 'lr' : 'tb';
-                var pc = buildPerCornerConfig();
-                var pill = !!cbCornerAuto.value;
-
-                previewFn(
-                    cbPreview.value,
-                    cbOverallFrame.value,
-                    cbDivider.value,
-                    cbFillLeft.value,
-                    cbFillRight.value,
-                    sw,
-                    wo,
-                    sd,
-                    pc,
-                    pill
-                );
-            }
-
-            function persistCurrentUIToSession() {
-                try {
-                    var s = getSessionSettings();
-                    s.preview = !!cbPreview.value;
-                    s.overallFrame = !!cbOverallFrame.value;
-                    s.divider = !!cbDivider.value;
-                    s.fillLeft = !!cbFillLeft.value;
-                    s.fillRight = !!cbFillRight.value;
-
-                    s.strokeUnit = String(etStroke.text);
-                    s.cornerAuto = !!cbCornerAuto.value;
-                    s.cornerLink = !!cbCornerLink.value;
-                    s.cornerTL = !!cbCornerTL.value;
-                    s.cornerTLVal = String(etCornerTL.text);
-                    s.cornerBL = !!cbCornerBL.value;
-                    s.cornerBLVal = String(etCornerBL.text);
-                    s.cornerTR = !!cbCornerTR.value;
-                    s.cornerTRVal = String(etCornerTR.text);
-                    s.cornerBR = !!cbCornerBR.value;
-                    s.cornerBRVal = String(etCornerBR.text);
-
-                    s.widthUnit = Number(slWidth.value);
-                    if (isNaN(s.widthUnit)) s.widthUnit = 0;
-                    s.widthUnit = Math.round(s.widthUnit * 10) / 10;
-
-                    s.splitDirection = rbSplitLR.value ? 'lr' : 'tb';
-                    s.colorLeft = String(etColorLeft.text);
-                    s.colorRight = String(etColorRight.text);
-                    s.strokeColor = String(etStrokeColor.text);
-
-                    saveSessionSettings(s);
-                } catch (e) { }
-            }
-
-            (function () {
-                var prevOnShow = dlg.onShow;
-                dlg.onShow = function () {
-                    if (typeof prevOnShow === "function") {
-                        try { prevOnShow(); } catch (ePrevShow) { }
-                    }
-                    // 元のオブジェクトを非表示
-                    try { item.hidden = true; } catch (eHide) { }
-                    // 幅と高さから分割方向を自動判定
-                    try {
-                        var gb = item.geometricBounds; // [left, top, right, bottom]
-                        var w = gb[2] - gb[0];
-                        var h = gb[1] - gb[3];
-                        if (h > w) {
-                            rbSplitTB.value = true;
-                            rbSplitLR.value = false;
-                        } else {
-                            rbSplitLR.value = true;
-                            rbSplitTB.value = false;
-                        }
-                    } catch (eAutoDir) { }
-                    try { updateBalanceLabels(); } catch (eLbl) { }
-                    try { updateWidthSliderMaxBySelection(); } catch (eMaxInit) { }
-                    // スライダーを中央（0）に設定
-                    try { slWidth.value = 0; syncAllFromOffset(0); } catch (eSlInit) { }
-                    try { applyPreview(); } catch (eInitPrev) { }
-                };
-            })();
-
-            etStroke.addEventListener('changing', function () { applyPreview(); });
-            etColorLeft.addEventListener('changing', function () { applyPreview(); });
-            etColorRight.addEventListener('changing', function () { applyPreview(); });
-            etStrokeColor.addEventListener('changing', function () { applyPreview(); });
-
-            function updateBalanceLabels() {
-                var isVert = rbSplitTB.value;
-                stLeftLabel.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft');
-                stRightLabel.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight');
-                cbFillLeft.text = isVert ? getLabel('labelTop') : getLabel('labelFillLeft');
-                cbFillRight.text = isVert ? getLabel('labelBottom') : getLabel('labelFillRight');
-            }
-
-            rbSplitLR.onClick = function () { updateBalanceLabels(); try { updateWidthSliderMaxBySelection(); } catch (e) { } applyPreview(); };
-            rbSplitTB.onClick = function () { updateBalanceLabels(); try { updateWidthSliderMaxBySelection(); } catch (e) { } applyPreview(); };
-
-            // H/Vキーで分割方向を切替
-            dlg.addEventListener('keydown', function (event) {
-                if (event.keyName === 'H') {
-                    rbSplitLR.value = true;
-                    rbSplitTB.value = false;
-                    updateBalanceLabels(); try { updateWidthSliderMaxBySelection(); } catch (e) { } applyPreview();
-                    event.preventDefault();
-                } else if (event.keyName === 'V') {
-                    rbSplitTB.value = true;
-                    rbSplitLR.value = false;
-                    updateBalanceLabels(); try { updateWidthSliderMaxBySelection(); } catch (e) { } applyPreview();
-                    event.preventDefault();
-                } else if (event.keyName === 'F') {
-                    cbOverallFrame.value = !cbOverallFrame.value;
-                    updateStrokeWidthEnabled(); applyPreview();
-                    event.preventDefault();
-                } else if (event.keyName === 'D') {
-                    cbDivider.value = !cbDivider.value;
-                    updateStrokeWidthEnabled(); applyPreview();
-                    event.preventDefault();
-                }
-            });
-            cbOverallFrame.onClick = function () { updateStrokeWidthEnabled(); applyPreview(); };
-            cbDivider.onClick = function () { updateStrokeWidthEnabled(); applyPreview(); };
-            cbFillLeft.onClick = function () { applyPreview(); };
-            cbFillRight.onClick = function () { applyPreview(); };
-
-            var cbGroupItems = dlg.add('checkbox', undefined, getLabel('labelGroupItems'));
-            cbGroupItems.helpTip = getLabel('tipGroupItems');
-            cbGroupItems.value = true;
-            cbGroupItems.alignment = ['center', 'center'];
-
-            var btns = dlg.add('group');
-            btns.orientation = 'row';
-            btns.alignment = ['center', 'center'];
-
-            var cancelBtn = btns.add('button', undefined, getLabel('labelCancel'), { name: 'cancel' });
-            var okBtn = btns.add('button', undefined, getLabel('labelOK'), { name: 'ok' });
-
-            okBtn.onClick = function () {
-                try { removeMarkedTempItems(doc); } catch (eTmpOK) { }
-                clearPreviewItemsOnly(doc);
-                try { removeMarkedPreviewItems(doc); } catch (ePrevRmOK) { }
-                try { removePreviewLayerIfExists(doc); } catch (eRmPL_OK) { }
-
-                previewState.rect1 = result.rect1;
-                previewState.rect2 = result.rect2;
-                previewState.frame = result.frame;
-                previewState.divider = result.divider;
-                previewState.applied = false;
-
-                persistCurrentUIToSession();
-                dlg.close(1);
-            };
-
-            cancelBtn.onClick = function () {
-                try { removeMarkedTempItems(doc); } catch (eTmpCancel) { }
-                clearPreviewItemsOnly(doc);
-                clearPreviewRects();
-                try { removePreviewLayerIfExists(doc); } catch (eRmPL_Cancel) { }
-                // 元のオブジェクトを再表示
-                try { item.hidden = false; } catch (eShow) { }
-                persistCurrentUIToSession();
-                dlg.close(0);
-            };
-
-            dlg.defaultElement = okBtn;
-            dlg.cancelElement = cancelBtn;
-
-            dlg.onClose = function () {
-                try { removeMarkedTempItems(doc); } catch (eTmpClose) { }
-                clearPreviewItemsOnly(doc);
-                try { removePreviewLayerIfExists(doc); } catch (eRmPL_Close) { }
-                // 元のオブジェクトを再表示（キャンセル・閉じる時の安全策）
-                try { item.hidden = false; } catch (eShow) { }
-                persistCurrentUIToSession();
-                return true;
-            };
-
-            try { saveSessionDialogPosition(dlg); } catch (eBeforeShow) { }
-            var result = dlg.show();
-            try { saveSessionDialogPosition(dlg); } catch (eAfterShow) { }
-
-            if (result === 1) {
-                return {
-                    ok: true,
-                    finalUI: getCurrentUIValues()
-                };
-            }
-            return { ok: false };
-        }
-
-        function updatePreviewLastState(addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, widthOffset, splitDir) {
-            previewState.last.overallFrame = !!addOverallFrame;
-            previewState.last.divider = !!addDivider;
-            previewState.last.fillLeft = !!addFillLeft;
-            previewState.last.fillRight = !!addFillRight;
-            previewState.last.strokeWidth = strokeWidth;
-            previewState.last.widthOffset = (widthOffset !== undefined && widthOffset !== null) ? widthOffset : 0;
-            previewState.last.splitDirection = splitDir || 'lr';
-        }
-
-        function previewFn(enabled, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, widthOffset, splitDir, perCorner, pillShape) {
-            try { removeMarkedTempItems(doc); } catch (eTmp0) { }
-            clearPreviewItemsOnly(doc);
-
-            var previewLayer = null;
+        return anySelected;
+    }
+
+    /**
+     * パスの指定した角を、同じ半径でまとめて丸める
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {string[]} cornerKeys - 丸める角（"tl" | "tr" | "bl" | "br"）
+     * @param {number} radiusPt - 角丸の半径（pt）
+     * @returns {void}
+     */
+    function roundPathCorners(pathItem, cornerKeys, radiusPt) {
+        if (!(radiusPt > 0)) return;
+        if (selectCornerAnchors(pathItem, cornerKeys)) {
             try {
-                var la = null;
-                try { la = item.layer; } catch (eLA) { la = null; }
-                previewLayer = ensurePreviewLayer(doc, la, la);
-                clearLayerItems(previewLayer);
-            } catch (ePL) { previewLayer = null; }
-
-            if (!enabled) return;
-
-            try {
-                var result = drawBackgroundRects(item, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, widthOffset, splitDir, perCorner, pillShape);
-
-                previewState.rect1 = result.rect1;
-                previewState.rect2 = result.rect2;
-                previewState.frame = result.frame;
-                previewState.divider = result.divider;
-                previewState.applied = true;
-
-                if (previewState.rect1) markPreview(previewState.rect1);
-                if (previewState.rect2) markPreview(previewState.rect2);
-                if (previewState.frame) markPreview(previewState.frame);
-                if (previewState.divider) markPreview(previewState.divider);
-
-                updatePreviewLastState(addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, widthOffset, splitDir);
-
-                safeRedraw();
-            } catch (ePrev) {
-                try { clearPreviewRects(); } catch (eClr) { }
-                throw ePrev;
+                roundAnyCorner([pathItem], { rr: radiusPt });
+            } catch (e) {
+                /* 幅0の長方形などで計算に失敗しても、角のまま描く / keep square corners if rounding fails, e.g. on a zero-width rectangle */
             }
         }
+        deselectAnchors(pathItem);
+    }
 
-        var dialogResult = showHeightDialog(previewFn, clearPreviewRects);
-        if (!dialogResult || !dialogResult.ok) {
-            clearPreviewRects();
-            return;
+    /**
+     * 有効な角を1つずつ、それぞれの半径で丸める
+     * @param {PathItem|null} pathItem - 対象のパス（null なら何もしない）
+     * @param {string[]} cornerKeys - 対象にする角
+     * @param {Object} perCorner - 角ごとの設定（buildPerCornerConfig() の戻り値）
+     * @returns {void}
+     */
+    function roundEachEnabledCorner(pathItem, cornerKeys, perCorner) {
+        if (!pathItem) return;
+        for (var i = 0; i < cornerKeys.length; i++) {
+            var cornerSetting = perCorner[cornerKeys[i]];
+            if (cornerSetting.enabled) roundPathCorners(pathItem, [cornerKeys[i]], cornerSetting.radius);
         }
+    }
 
-        var finalUI = dialogResult.finalUI;
+    /**
+     * 「角を丸くする」効果を適用する
+     * @param {PathItem} targetPath - 対象のパス
+     * @param {number} cornerRadiusPt - 角丸の半径（pt）
+     * @returns {void}
+     */
+    function applyRoundCornersEffect(targetPath, cornerRadiusPt) {
+        if (!(cornerRadiusPt > 0)) return;
+        try {
+            targetPath.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + cornerRadiusPt + ' "/></LiveEffect>');
+        } catch (e) {
+            /* 効果を適用できない環境では角のまま描く / keep square corners where the effect cannot be applied */
+        }
+    }
 
-        colorLeft = parseColorString(finalUI.colorLeftText);
-        colorRight = parseColorString(finalUI.colorRightText);
-        colorStroke = parseColorString(finalUI.strokeColorText);
-
-        var finalResult = drawBackgroundRects(
-            item,
-            finalUI.overallFrame, finalUI.divider,
-            finalUI.fillLeft, finalUI.fillRight,
-            finalUI.strokeWidth,
-            finalUI.widthOffset, finalUI.splitDirection,
-            finalUI.perCorner,
-            finalUI.pillShape
-        );
-
-        previewState.rect1 = finalResult.rect1;
-        previewState.rect2 = finalResult.rect2;
-        previewState.frame = finalResult.frame;
-        previewState.divider = finalResult.divider;
-
-        // 確定描画はプレビュー扱いにしない
-        if (previewState.rect1) unmarkPreview(previewState.rect1);
-        if (previewState.rect2) unmarkPreview(previewState.rect2);
-        if (previewState.frame) unmarkPreview(previewState.frame);
-        if (previewState.divider) unmarkPreview(previewState.divider);
-
-        // 元のオブジェクトを削除
-        try { item.remove(); } catch (eRmItem) { }
-
+    /**
+     * パスを選択して［ライブパスファインダー］の「合体」をかける（ピル形状の仕上げ）
+     * @param {PathItem} pathItem - 対象のパス
+     * @returns {void}
+     */
+    function applyLivePathfinderAdd(pathItem) {
         doc.selection = null;
+        app.redraw();
+        doc.selection = [pathItem];
+        app.redraw();
+        app.executeMenuCommand("Live Pathfinder Add");
+        app.redraw();
+    }
 
-        // グループ化
-        if (finalUI.groupItems) {
-            try {
-                var grp = doc.activeLayer.groupItems.add();
-                var itemsToGroup = [];
-                // 線が上になるよう、線→塗りの順で追加
-                if (previewState.frame) itemsToGroup.push(previewState.frame);
-                if (previewState.divider) itemsToGroup.push(previewState.divider);
-                if (previewState.rect1) itemsToGroup.push(previewState.rect1);
-                if (previewState.rect2) itemsToGroup.push(previewState.rect2);
-                for (var gi = 0; gi < itemsToGroup.length; gi++) {
-                    itemsToGroup[gi].move(grp, ElementPlacement.PLACEATEND);
+    /**
+     * 線をケイ線の設定にする
+     * @param {PathItem} pathItem - 対象のパス
+     * @param {number} strokeWidthPt - 線幅（pt）
+     * @param {RGBColor|CMYKColor} strokeColor - 線の色
+     * @returns {void}
+     */
+    function styleLine(pathItem, strokeWidthPt, strokeColor) {
+        pathItem.filled = false;
+        pathItem.stroked = true;
+        pathItem.strokeWidth = strokeWidthPt;
+        pathItem.strokeColor = strokeColor;
+    }
+
+    /**
+     * 塗りの長方形を追加する
+     * @param {PathItems} pathItems - 追加先
+     * @param {number} top - 上
+     * @param {number} left - 左
+     * @param {number} width - 幅
+     * @param {number} height - 高さ
+     * @param {RGBColor|CMYKColor} fillColor - 塗りの色
+     * @returns {PathItem} 追加した長方形
+     */
+    function addFillRect(pathItems, top, left, width, height, fillColor) {
+        var fillRect = pathItems.rectangle(top, left, width, height);
+        fillRect.fillColor = fillColor;
+        fillRect.stroked = false;
+        return fillRect;
+    }
+
+    /**
+     * 塗りを最背面へ送る
+     * @param {PathItem|null} fillRect - 塗りの長方形（null なら何もしない）
+     * @returns {void}
+     */
+    function sendFillToBack(fillRect) {
+        if (!fillRect) return;
+        try {
+            fillRect.zOrder(ZOrderMethod.SENDTOBACK);
+        } catch (e) {
+            /* ピル形状の塗りはライブパスファインダーの中に入り、重ね順を変えられないことがある / a pill-shaped fill sits inside a live pathfinder, which can refuse a z-order change */
+        }
+    }
+
+    /**
+     * 背景全体の範囲と分割位置を求める
+     * @param {Object} drawOptions - 描画の設定（collectDrawOptions() の戻り値）
+     * @returns {{left: number, top: number, right: number, bottom: number, width: number, height: number, split: number}} 範囲と分割位置（左右なら X、上下なら Y）
+     */
+    function computeSplitLayout(drawOptions) {
+        var layout = {
+            left: targetBounds[0],
+            top: targetBounds[1],
+            right: targetBounds[2],
+            bottom: targetBounds[3]
+        };
+        layout.width = layout.right - layout.left;
+        layout.height = layout.top - layout.bottom;
+        if (drawOptions.vertical) {
+            /* 上下：オフセットが正なら分割位置が下がる / top/bottom: a positive offset moves the split down */
+            layout.split = clampNumber(layout.top - layout.height / 2 - drawOptions.offsetPt, layout.bottom, layout.top);
+        } else {
+            layout.split = clampNumber(layout.left + layout.width / 2 + drawOptions.offsetPt, layout.left, layout.right);
+        }
+        return layout;
+    }
+
+    /**
+     * 塗りの外側の角を丸める（角ごとの角丸か、ピル形状）
+     * @param {PathItem|null} firstFill - 左（上）側の塗り
+     * @param {PathItem|null} secondFill - 右（下）側の塗り
+     * @param {Object} drawOptions - 描画の設定
+     * @param {Object} layout - computeSplitLayout() の戻り値
+     * @returns {void}
+     */
+    function roundFillCorners(firstFill, secondFill, drawOptions, layout) {
+        var firstCornerKeys = drawOptions.vertical ? ["tl", "tr"] : ["tl", "bl"];
+        var secondCornerKeys = drawOptions.vertical ? ["bl", "br"] : ["tr", "br"];
+
+        if (drawOptions.perCorner) {
+            roundEachEnabledCorner(firstFill, firstCornerKeys, drawOptions.perCorner);
+            roundEachEnabledCorner(secondFill, secondCornerKeys, drawOptions.perCorner);
+        } else if (drawOptions.pillShape) {
+            /* 短辺の半分で丸める / round with half the short side */
+            var pillRadiusPt = (drawOptions.vertical ? layout.width : layout.height) / 2;
+            if (firstFill) roundPathCorners(firstFill, firstCornerKeys, pillRadiusPt);
+            if (secondFill) roundPathCorners(secondFill, secondCornerKeys, pillRadiusPt);
+            if (firstFill) applyLivePathfinderAdd(firstFill);
+            if (secondFill) applyLivePathfinderAdd(secondFill);
+        }
+    }
+
+    /**
+     * 外枠の角を丸める（角ごとの角丸か、ピル形状）
+     * @param {PathItem} frameRect - 外枠
+     * @param {Object} drawOptions - 描画の設定
+     * @param {Object} layout - computeSplitLayout() の戻り値
+     * @returns {void}
+     */
+    function roundFrameCorners(frameRect, drawOptions, layout) {
+        var perCorner = drawOptions.perCorner;
+        if (perCorner) {
+            var enabledKeys = [];
+            for (var i = 0; i < CORNER_KEYS.length; i++) {
+                if (perCorner[CORNER_KEYS[i]].enabled) enabledKeys.push(CORNER_KEYS[i]);
+            }
+            if (enabledKeys.length === 0) return;
+
+            var firstRadiusPt = perCorner[enabledKeys[0]].radius;
+            var allSameRadius = enabledKeys.length > 1;
+            for (var j = 1; j < enabledKeys.length; j++) {
+                if (perCorner[enabledKeys[j]].radius !== firstRadiusPt) {
+                    allSameRadius = false;
+                    break;
                 }
-            } catch (eGrp) { }
+            }
+
+            if (allSameRadius && enabledKeys.length === 4) {
+                /* 4つとも同じ半径なら効果で丸める / use the effect when all four radii match */
+                applyRoundCornersEffect(frameRect, firstRadiusPt);
+            } else if (allSameRadius) {
+                roundPathCorners(frameRect, enabledKeys, firstRadiusPt);
+            } else {
+                roundEachEnabledCorner(frameRect, enabledKeys, perCorner);
+            }
+        } else if (drawOptions.pillShape) {
+            roundPathCorners(frameRect, CORNER_KEYS, Math.min(layout.width, layout.height) / 2);
+            applyLivePathfinderAdd(frameRect);
+        }
+    }
+
+    /**
+     * 2色の塗り・外枠・区切り線を描く
+     * @param {Object} drawOptions - 描画の設定（collectDrawOptions() の戻り値）
+     * @param {Layer} targetLayer - 描画先のレイヤー
+     * @returns {{firstFill: PathItem, secondFill: PathItem, frame: PathItem, divider: PathItem}} 描いたオブジェクト（描かなかったものは null）
+     */
+    function drawSplitBackground(drawOptions, targetLayer) {
+        var layout = computeSplitLayout(drawOptions);
+        var pathItems = targetLayer.pathItems;
+        var vertical = drawOptions.vertical;
+        var firstFill = null;
+        var secondFill = null;
+
+        if (drawOptions.fillFirst) {
+            firstFill = vertical
+                ? addFillRect(pathItems, layout.top, layout.left, layout.width, layout.top - layout.split, drawOptions.firstColor)
+                : addFillRect(pathItems, layout.top, layout.left, layout.split - layout.left, layout.height, drawOptions.firstColor);
+        }
+        if (drawOptions.fillSecond) {
+            secondFill = vertical
+                ? addFillRect(pathItems, layout.split, layout.left, layout.width, layout.split - layout.bottom, drawOptions.secondColor)
+                : addFillRect(pathItems, layout.top, layout.split, layout.right - layout.split, layout.height, drawOptions.secondColor);
+        }
+        roundFillCorners(firstFill, secondFill, drawOptions, layout);
+
+        var frameRect = null;
+        if (drawOptions.overallFrame) {
+            frameRect = pathItems.rectangle(layout.top, layout.left, layout.width, layout.height);
+            styleLine(frameRect, drawOptions.strokeWidthPt, drawOptions.strokeColor);
+            roundFrameCorners(frameRect, drawOptions, layout);
+            frameRect.zOrder(ZOrderMethod.BRINGTOFRONT);
         }
 
-        // Remove preview layer if it exists (keep document clean)
-        try { removePreviewLayerIfExists(doc); } catch (eRmPL_Final) { }
+        var dividerLine = null;
+        if (drawOptions.divider) {
+            dividerLine = pathItems.add();
+            styleLine(dividerLine, drawOptions.strokeWidthPt, drawOptions.strokeColor);
+            dividerLine.setEntirePath(vertical
+                ? [[layout.left, layout.split], [layout.right, layout.split]]
+                : [[layout.split, layout.top], [layout.split, layout.bottom]]);
+            dividerLine.zOrder(ZOrderMethod.BRINGTOFRONT);
+        }
 
-        // ==============================
-        // Round Any Corner / 角丸アルゴリズム（選択アンカーのみ丸める）
-        // Based on: Hiroyuki Sato (MIT) https://github.com/shspage
-        // ==============================
+        /* 塗りは最背面へ（左・上が右・下の上に来る順）/ send the fills to the back, keeping the left (top) one above */
+        sendFillToBack(firstFill);
+        sendFillToBack(secondFill);
 
-        function roundAnyCorner(s, conf) {
-            var rr = conf.rr;
+        return { firstFill: firstFill, secondFill: secondFill, frame: frameRect, divider: dividerLine };
+    }
 
-            var p, op, pnts;
-            var skipList, adjRdirAtEnd, redrawFlg;
-            var i, nxi, pvi, q, d, ds, r, g, t, qb;
-            var anc1, ldir1, rdir1, anc2, ldir2, rdir2;
+    /**
+     * 描いたオブジェクトを1つのグループにまとめる（線が上、塗りが下）
+     * @param {Object} drawnItems - drawSplitBackground() の戻り値
+     * @param {Layer} targetLayer - グループを作るレイヤー
+     * @returns {void}
+     */
+    function groupDrawnItems(drawnItems, targetLayer) {
+        var resultGroup = targetLayer.groupItems.add();
+        var orderedItems = [drawnItems.frame, drawnItems.divider, drawnItems.firstFill, drawnItems.secondFill];
+        try {
+            for (var i = 0; i < orderedItems.length; i++) {
+                if (orderedItems[i]) orderedItems[i].move(resultGroup, ElementPlacement.PLACEATEND);
+            }
+        } catch (e) {
+            /* ライブパスファインダーの中のパスは動かせないことがある。動かせた分だけまとめる / a path inside a live pathfinder may refuse to move; keep what was grouped */
+        }
+    }
 
-            var hanLen = 4 * (Math.sqrt(2) - 1) / 3;
-            var ptyp = PointType.SMOOTH;
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
 
-            for (var j = 0; j < s.length; j++) {
-                p = s[j].pathPoints;
-                if (readjustAnchors(p) < 2) continue;
-                op = !s[j].closed;
-                pnts = op ? [getDat(p[0])] : [];
-                redrawFlg = false;
-                adjRdirAtEnd = 0;
+    /**
+     * プレビューレイヤーの中身を消す
+     * @returns {void}
+     */
+    function clearPreview() {
+        var previewLayer = findPreviewLayer();
+        if (!previewLayer) return;
+        for (var i = previewLayer.pageItems.length - 1; i >= 0; i--) {
+            previewLayer.pageItems[i].remove();
+        }
+    }
 
-                skipList = [(op || !isSelected(p[0]) || !isCorner(p, 0))];
-                for (i = 1; i < p.length; i++) {
-                    skipList.push((!isSelected(p[i])
-                        || !isCorner(p, i)
-                        || (op && i == p.length - 1)));
-                }
+    /**
+     * プレビューを描き直す
+     * @param {Object|null} drawOptions - 描画の設定。null ならプレビューを消すだけ
+     * @returns {void}
+     */
+    function drawPreview(drawOptions) {
+        clearPreview();
+        if (drawOptions) {
+            try {
+                drawSplitBackground(drawOptions, ensurePreviewLayer());
+            } catch (e) {
+                /* 描けなくてもダイアログの入力は続けられるようにする / keep the dialog usable even if drawing fails */
+                clearPreview();
+            }
+            /* 角丸とライブパスファインダーが選択を残すので外す / rounding and the live pathfinder leave a selection behind */
+            doc.selection = null;
+        }
+        app.redraw();
+    }
 
-                for (i = 0; i < p.length; i++) {
-                    nxi = parseIdx(p, i + 1);
-                    if (nxi < 0) break;
+    // =========================================
+    // プリセット / Presets
+    // =========================================
+    // ［プリセット］の行は今は隠している（保存・読み込み・書き出しの処理は残す）
+    // The preset row is hidden for now; saving, loading and exporting still work behind it
 
-                    pvi = parseIdx(p, i - 1);
+    /**
+     * 保存したプリセットの名前を、名前順で返す
+     * @returns {string[]} プリセット名
+     */
+    function getPresetNames() {
+        var presetStore = getPresetStore();
+        var presetNames = [];
+        for (var presetName in presetStore) {
+            if (presetStore.hasOwnProperty(presetName)) presetNames.push(presetName);
+        }
+        presetNames.sort();
+        return presetNames;
+    }
 
-                    q = [p[i].anchor, p[i].rightDirection,
-                    p[nxi].leftDirection, p[nxi].anchor];
+    /**
+     * ダイアログの値をプリセットの形にまとめる
+     * @param {Object} controls - コントロールの参照
+     * @returns {Object} プリセット
+     */
+    function collectPresetData(controls) {
+        return {
+            splitDirection: controls.splitTBRadio.value ? "tb" : "lr",
+            fillLeft: controls.fillFirstCheckbox.value,
+            fillRight: controls.fillSecondCheckbox.value,
+            colorLeft: controls.firstColorSwatch.getColor(),
+            colorRight: controls.secondColorSwatch.getColor(),
+            overallFrame: controls.overallFrameCheckbox.value,
+            divider: controls.dividerCheckbox.value,
+            strokeUnit: String(controls.strokeInput.text),
+            strokeColor: controls.strokeColorSwatch.getColor(),
+            cornerAuto: controls.pillCheckbox.value,
+            widthOffset: clampOffset(controls, controls.balanceSlider.value)
+        };
+    }
 
-                    ds = dist(q[0], q[3]) / 2;
-                    if (arrEq(q[0], q[1]) && arrEq(q[2], q[3])) {
-                        r = Math.min(ds, rr);
-                        g = getRad(q[0], q[3]);
-                        anc1 = getPnt(q[0], g, r);
-                        ldir1 = getPnt(anc1, g + Math.PI, r * hanLen);
+    /**
+     * プリセットをダイアログに読み込む
+     * @param {Object} controls - コントロールの参照
+     * @param {Object} presetData - プリセット
+     * @returns {void}
+     */
+    function applyPresetData(controls, presetData) {
+        var vertical = (presetData.splitDirection === "tb");
+        controls.splitTBRadio.value = vertical;
+        controls.splitLRRadio.value = !vertical;
+        controls.fillFirstCheckbox.value = !!presetData.fillLeft;
+        controls.fillSecondCheckbox.value = !!presetData.fillRight;
+        controls.firstColorSwatch.setColor(presetData.colorLeft || DEFAULT_FIRST_COLOR);
+        controls.secondColorSwatch.setColor(presetData.colorRight || DEFAULT_SECOND_COLOR);
+        controls.overallFrameCheckbox.value = !!presetData.overallFrame;
+        controls.dividerCheckbox.value = !!presetData.divider;
+        controls.strokeInput.text = presetData.strokeUnit || formatUnitValue(ptToUnit(DEFAULT_STROKE_PT, "strokeUnits"), "strokeUnits");
+        controls.strokeColorSwatch.setColor(presetData.strokeColor || DEFAULT_STROKE_COLOR);
+        controls.pillCheckbox.value = !!presetData.cornerAuto;
 
-                        if (skipList[nxi]) {
-                            if (!skipList[i]) {
-                                pnts.push([anc1, anc1, ldir1, ptyp]);
-                                redrawFlg = true;
-                            }
+        updateBalanceLabels(controls);
+        updateStrokeEnabled(controls);
+        updateCornerState(controls);
+        updateBalanceRange(controls);
+        if (presetData.widthOffset !== undefined) syncBalanceFromOffset(controls, presetData.widthOffset, null);
+        refreshPreview(controls);
+    }
+
+    /**
+     * プリセットのドロップダウンを作り直す
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function fillPresetDropdown(controls) {
+        var presetDropdown = controls.presetDropdown;
+        var presetNames = getPresetNames();
+        presetDropdown.removeAll();
+        presetDropdown.add("item", getLabel("dropdown.presetPlaceholder"));
+        for (var i = 0; i < presetNames.length; i++) {
+            presetDropdown.add("item", presetNames[i]);
+        }
+        presetDropdown.selection = 0;
+    }
+
+    /**
+     * プリセット名を尋ねる
+     * @returns {string|null} プリセット名。キャンセルか空なら null
+     */
+    function showPresetNameDialog() {
+        var nameDialog = new Window("dialog", getLabel("dialog.presetSave"));
+        nameDialog.orientation = "column";
+        nameDialog.alignChildren = ["fill", "top"];
+        nameDialog.add("statictext", undefined, labelText("fieldLabel.presetName"));
+        var nameInput = nameDialog.add("edittext", undefined, "");
+        nameInput.helpTip = getLabel("tooltip.presetName");
+        nameInput.characters = PRESET_NAME_CHARS;
+        nameInput.active = true;
+
+        var btnRowGroup = nameDialog.add("group");
+        btnRowGroup.alignment = ["right", "center"];
+        btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        if (nameDialog.show() !== 1) return null;
+
+        var presetName = nameInput.text;
+        if (!presetName || presetName === getLabel("dropdown.presetPlaceholder")) return null;
+        return presetName;
+    }
+
+    /**
+     * 今の設定をデスクトップのテキストファイルに書き出す（同名があれば番号を付ける）
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function exportSettingsToDesktop(controls) {
+        var presetData = collectPresetData(controls);
+        var lines = [
+            "splitDirection=" + presetData.splitDirection,
+            "fillLeft=" + (presetData.fillLeft ? "1" : "0"),
+            "fillRight=" + (presetData.fillRight ? "1" : "0"),
+            "colorLeft=" + presetData.colorLeft,
+            "colorRight=" + presetData.colorRight,
+            "overallFrame=" + (presetData.overallFrame ? "1" : "0"),
+            "divider=" + (presetData.divider ? "1" : "0"),
+            "strokeUnit=" + presetData.strokeUnit,
+            "strokeColor=" + presetData.strokeColor,
+            "cornerAuto=" + (presetData.cornerAuto ? "1" : "0"),
+            "widthOffset=" + presetData.widthOffset
+        ];
+
+        var desktopPath = Folder.desktop.fsName;
+        var baseName = SCRIPT_NAME + "_settings";
+        var exportFile = new File(desktopPath + "/" + baseName + ".txt");
+        for (var n = 1; exportFile.exists; n++) {
+            exportFile = new File(desktopPath + "/" + baseName + "_" + n + ".txt");
+        }
+
+        exportFile.encoding = "UTF-8";
+        if (exportFile.open("w")) {
+            exportFile.write(lines.join("\n"));
+            exportFile.close();
+            alert(getLabel("alert.exportedSettings") + "\n" + exportFile.fsName);
+        } else {
+            alert(getLabel("alert.exportFailed"));
+        }
+    }
+
+    /**
+     * プリセットの行（ドロップダウン・保存・書き出し）を組み立てて隠す
+     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
+     * @returns {void}
+     */
+    function buildPresetRow(dialog, controls) {
+        var presetRowGroup = addRow(dialog);
+        presetRowGroup.alignment = ["center", "top"];
+        presetRowGroup.add("statictext", undefined, labelText("fieldLabel.preset"));
+
+        controls.presetDropdown = presetRowGroup.add("dropdownlist", undefined, []);
+        controls.presetDropdown.helpTip = getLabel("tooltip.preset");
+        controls.presetDropdown.preferredSize = [PRESET_DROPDOWN_WIDTH, -1];
+        fillPresetDropdown(controls);
+
+        controls.btnPresetSave = presetRowGroup.add("button", undefined, getLabel("button.save"));
+        controls.btnPresetSave.preferredSize = [PRESET_SAVE_BUTTON_WIDTH, -1];
+        controls.btnPresetExport = presetRowGroup.add("button", undefined, getLabel("button.exportSettings"));
+        controls.btnPresetExport.preferredSize = [PRESET_EXPORT_BUTTON_WIDTH, -1];
+
+        presetRowGroup.preferredSize = [0, 0];
+        presetRowGroup.maximumSize = [0, 0];
+        presetRowGroup.visible = false;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 左右・上下で切り替わるラベルのうち、いちばん長いもの（幅の確保用）
+     * @returns {string} いちばん長いラベル
+     */
+    function getLongestSideLabel() {
+        return getLongestText([
+            labelText("fieldLabel.left"), labelText("fieldLabel.right"),
+            labelText("fieldLabel.top"), labelText("fieldLabel.bottom")
+        ]);
+    }
+
+    /**
+     * 設定ダイアログを組み立てる（イベントは bindDialogEvents() で付ける）
+     * @param {Object} session - セッションに残した前回の値
+     * @returns {Object} ダイアログとコントロールの参照
+     */
+    function buildSettingsDialog(session) {
+        var controls = {};
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = ["fill", "top"];
+        dialog.margins = DIALOG_MARGINS;
+        setDialogOpacity(dialog, DIALOG_OPACITY);
+        controls.dialog = dialog;
+
+        buildPresetRow(dialog, controls);
+        buildSplitDirectionPanel(dialog, controls);
+        buildBalancePanel(dialog, controls);
+
+        /* 2カラム：左＝塗り、右＝線 / Two columns: fill on the left, stroke on the right */
+        var columnsGroup = dialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignment = ["fill", "top"];
+        columnsGroup.alignChildren = ["fill", "top"];
+        buildFillPanel(addColumn(columnsGroup, "fill"), controls, session);
+        buildStrokePanel(addColumn(columnsGroup, "fill"), controls, session);
+
+        buildCornerPanel(dialog, controls, session);
+
+        controls.groupItemsCheckbox = addCheckbox(dialog, "checkbox.groupItems", "tooltip.groupItems", DEFAULT_GROUP_ITEMS);
+        controls.groupItemsCheckbox.alignment = ["center", "center"];
+
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["center", "center"];
+        controls.btnCancel = btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        controls.btnOK = btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        dialog.defaultElement = controls.btnOK;
+        dialog.cancelElement = controls.btnCancel;
+
+        updateBalanceRange(controls);
+        updateStrokeEnabled(controls);
+        updateCornerState(controls);
+        return controls;
+    }
+
+    /**
+     * ［分割方法］パネルを組み立てる（縦長なら上下、それ以外は左右を選んでおく）
+     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
+     * @returns {void}
+     */
+    function buildSplitDirectionPanel(dialog, controls) {
+        var splitDirectionPanel = addPanel(dialog, getLabel("panel.splitDirection"));
+        splitDirectionPanel.orientation = "row";
+        splitDirectionPanel.alignChildren = ["center", "center"];
+        controls.splitLRRadio = addRadio(splitDirectionPanel, "radio.splitLR", "tooltip.splitLR");
+        controls.splitTBRadio = addRadio(splitDirectionPanel, "radio.splitTB", "tooltip.splitTB");
+
+        var vertical = (targetBounds[1] - targetBounds[3]) > (targetBounds[2] - targetBounds[0]);
+        controls.splitTBRadio.value = vertical;
+        controls.splitLRRadio.value = !vertical;
+    }
+
+    /**
+     * バランスの1行（ラベル・幅・％・正方形）を追加する
+     * @param {Group} parent - 追加先
+     * @param {string} reservedLabel - ラベルの幅を確保する文言（表示は updateBalanceLabels() で入れる）
+     * @returns {{label: StaticText, widthInput: EditText, percentInput: EditText, squareCheckbox: Checkbox}} 行のコントロール
+     */
+    function addBalanceRow(parent, reservedLabel) {
+        var rowGroup = addRow(parent);
+        var sideLabel = rowGroup.add("statictext", undefined, reservedLabel);
+        var widthInput = rowGroup.add("edittext", undefined, "0");
+        widthInput.helpTip = getLabel("tooltip.width");
+        widthInput.characters = WIDTH_INPUT_CHARS;
+        rowGroup.add("statictext", undefined, getUnitInfo("rulerType").label);
+        var percentInput = rowGroup.add("edittext", undefined, "50");
+        percentInput.helpTip = getLabel("tooltip.percent");
+        percentInput.characters = PERCENT_INPUT_CHARS;
+        rowGroup.add("statictext", undefined, "%");
+        var squareCheckbox = addCheckbox(rowGroup, "checkbox.square", "tooltip.square", false);
+        return { label: sideLabel, widthInput: widthInput, percentInput: percentInput, squareCheckbox: squareCheckbox };
+    }
+
+    /**
+     * ［バランス］パネル（左右の幅・％とスライダー）を組み立てる
+     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
+     * @returns {void}
+     */
+    function buildBalancePanel(dialog, controls) {
+        var balancePanel = addPanel(dialog, getLabel("panel.balance"), "fill");
+        var balanceGroup = addColumn(balancePanel, "fill");
+        balanceGroup.spacing = BALANCE_SPACING;
+
+        var reservedLabel = getLongestSideLabel();
+        controls.firstBalance = addBalanceRow(balanceGroup, reservedLabel);
+        controls.secondBalance = addBalanceRow(balanceGroup, reservedLabel);
+
+        var sliderRowGroup = addRow(balanceGroup);
+        sliderRowGroup.alignChildren = ["fill", "center"];
+        sliderRowGroup.margins = BALANCE_SLIDER_MARGINS;
+        /* 値は中央からのずれ（定規の単位）。範囲は updateBalanceRange() で決める / the value is the offset from the center in ruler units; updateBalanceRange() sets the range */
+        controls.balanceSlider = sliderRowGroup.add("slider", undefined, 0, 0, 0);
+        controls.balanceSlider.helpTip = getLabel("tooltip.widthSlider");
+        controls.balanceSlider.preferredSize = BALANCE_SLIDER_SIZE;
+        controls.balanceMax = 0;
+    }
+
+    /**
+     * 塗りの1行（チェックボックスと色見本）を追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {string} reservedLabel - チェックボックスの幅を確保する文言（表示は updateBalanceLabels() で入れる）
+     * @param {boolean} checked - 初期状態
+     * @param {string} colorText - 初期の色
+     * @returns {{checkbox: Checkbox, swatch: Object}} 行のコントロール
+     */
+    function addFillRow(parent, reservedLabel, checked, colorText) {
+        var rowGroup = addRow(parent);
+        var fillCheckbox = rowGroup.add("checkbox", undefined, reservedLabel);
+        fillCheckbox.helpTip = getLabel("tooltip.fillSide");
+        fillCheckbox.value = !!checked;
+        return { checkbox: fillCheckbox, swatch: addColorSwatch(rowGroup, colorText) };
+    }
+
+    /**
+     * ［塗り］パネルを組み立てる
+     * @param {Group} parent - 追加先
+     * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
+     * @param {Object} session - セッションに残した前回の値
+     * @returns {void}
+     */
+    function buildFillPanel(parent, controls, session) {
+        var fillPanel = addPanel(parent, getLabel("panel.fill"));
+        var reservedLabel = getLongestSideLabel();
+        var firstFillRow = addFillRow(fillPanel, reservedLabel, session.fillFirst, session.firstColor);
+        var secondFillRow = addFillRow(fillPanel, reservedLabel, session.fillSecond, session.secondColor);
+        controls.fillFirstCheckbox = firstFillRow.checkbox;
+        controls.firstColorSwatch = firstFillRow.swatch;
+        controls.fillSecondCheckbox = secondFillRow.checkbox;
+        controls.secondColorSwatch = secondFillRow.swatch;
+    }
+
+    /**
+     * ［線］パネル（外枠・区切り線・線幅・色）を組み立てる
+     * @param {Group} parent - 追加先
+     * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
+     * @param {Object} session - セッションに残した前回の値
+     * @returns {void}
+     */
+    function buildStrokePanel(parent, controls, session) {
+        var strokePanel = addPanel(parent, getLabel("panel.stroke"));
+        controls.overallFrameCheckbox = addCheckbox(strokePanel, "checkbox.overallFrame", "tooltip.overallFrame", session.overallFrame);
+        controls.dividerCheckbox = addCheckbox(strokePanel, "checkbox.divider", "tooltip.divider", session.divider);
+
+        controls.strokeRowGroup = addRow(strokePanel);
+        controls.strokeRowGroup.add("statictext", undefined, labelText("fieldLabel.strokeWidth"));
+        controls.strokeInput = controls.strokeRowGroup.add("edittext", undefined,
+            formatUnitValue(ptToUnit(session.strokeWidthPt, "strokeUnits"), "strokeUnits"));
+        controls.strokeInput.helpTip = getLabel("tooltip.strokeWidth");
+        controls.strokeInput.characters = STROKE_INPUT_CHARS;
+        controls.strokeRowGroup.add("statictext", undefined, getUnitInfo("strokeUnits").label);
+
+        controls.strokeColorRowGroup = addRow(strokePanel);
+        controls.strokeColorRowGroup.add("statictext", undefined, labelText("fieldLabel.color"));
+        controls.strokeColorSwatch = addColorSwatch(controls.strokeColorRowGroup, session.strokeColor);
+    }
+
+    /**
+     * 角丸の1行（チェックボックスと半径）を追加する
+     * @param {Group} parent - 追加先
+     * @param {string} labelKey - チェックボックスの LABELS キー
+     * @param {boolean} checked - 初期状態
+     * @param {number} radiusPt - 半径の初期値（pt）
+     * @returns {{checkbox: Checkbox, input: EditText}} 行のコントロール
+     */
+    function addCornerRow(parent, labelKey, checked, radiusPt) {
+        var rowGroup = addRow(parent);
+        var cornerCheckbox = addCheckbox(rowGroup, labelKey, "tooltip.corner", checked);
+        var radiusInput = rowGroup.add("edittext", undefined, formatUnitValue(ptToUnit(radiusPt, "rulerType"), "rulerType"));
+        radiusInput.helpTip = getLabel("tooltip.corner");
+        radiusInput.characters = CORNER_INPUT_CHARS;
+        return { checkbox: cornerCheckbox, input: radiusInput };
+    }
+
+    /**
+     * ［角丸］パネル（ピル形状・連動・4つの角）を組み立てる
+     * @param {Window} dialog - 追加先のダイアログ
+     * @param {Object} controls - コントロールの参照（ここで作ったものを足す）
+     * @param {Object} session - セッションに残した前回の値
+     * @returns {void}
+     */
+    function buildCornerPanel(dialog, controls, session) {
+        var cornerPanel = addPanel(dialog, getLabel("panel.cornerRadius") + " (" + getUnitInfo("rulerType").label + ")");
+        controls.pillCheckbox = addCheckbox(cornerPanel, "checkbox.pillShape", "tooltip.pillShape", session.pillShape);
+        controls.cornerLinkCheckbox = addCheckbox(cornerPanel, "checkbox.cornerLink", "tooltip.cornerLink", session.cornerLink);
+
+        /* 左の列に左上・左下、右の列に右上・右下 / top-left and bottom-left on the left, top-right and bottom-right on the right */
+        var cornerColumnsGroup = cornerPanel.add("group");
+        cornerColumnsGroup.orientation = "row";
+        cornerColumnsGroup.alignment = ["fill", "top"];
+        cornerColumnsGroup.alignChildren = ["fill", "top"];
+        var leftColumn = addColumn(cornerColumnsGroup, "left");
+        var rightColumn = addColumn(cornerColumnsGroup, "left");
+
+        var enabled = session.cornerEnabled;
+        var radiusPt = session.cornerRadiusPt;
+        controls.corners = {};
+        controls.corners.tl = addCornerRow(leftColumn, "checkbox.cornerTL", enabled.tl, radiusPt.tl);
+        controls.corners.bl = addCornerRow(leftColumn, "checkbox.cornerBL", enabled.bl, radiusPt.bl);
+        controls.corners.tr = addCornerRow(rightColumn, "checkbox.cornerTR", enabled.tr, radiusPt.tr);
+        controls.corners.br = addCornerRow(rightColumn, "checkbox.cornerBR", enabled.br, radiusPt.br);
+    }
+
+    /**
+     * 分割方法に合わせて、バランスと塗りのラベルを左・右か上・下にする
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function updateBalanceLabels(controls) {
+        var vertical = controls.splitTBRadio.value;
+        var firstText = labelText(vertical ? "fieldLabel.top" : "fieldLabel.left");
+        var secondText = labelText(vertical ? "fieldLabel.bottom" : "fieldLabel.right");
+        controls.firstBalance.label.text = firstText;
+        controls.secondBalance.label.text = secondText;
+        controls.fillFirstCheckbox.text = firstText;
+        controls.fillSecondCheckbox.text = secondText;
+    }
+
+    /**
+     * スライダーの範囲を分割する向きの長さの半分にし、中央に戻す
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function updateBalanceRange(controls) {
+        var splitLengthPt = controls.splitTBRadio.value
+            ? (targetBounds[1] - targetBounds[3])
+            : (targetBounds[2] - targetBounds[0]);
+        controls.balanceMax = Math.max(roundUnitValue(ptToUnit(splitLengthPt / 2, "rulerType"), "rulerType"), 0);
+        controls.balanceSlider.minvalue = -controls.balanceMax;
+        controls.balanceSlider.maxvalue = controls.balanceMax;
+        syncBalanceFromOffset(controls, 0, null);
+    }
+
+    /**
+     * 中央からのずれをスライダーの範囲に収めて丸める
+     * @param {Object} controls - コントロールの参照
+     * @param {number|string} offsetValue - 中央からのずれ（定規の単位）
+     * @returns {number} 収めたずれ
+     */
+    function clampOffset(controls, offsetValue) {
+        var offsetUnit = Number(offsetValue);
+        if (isNaN(offsetUnit)) return 0;
+        return roundUnitValue(clampNumber(offsetUnit, -controls.balanceMax, controls.balanceMax), "rulerType");
+    }
+
+    /**
+     * 入力欄に文字を入れる（入力中の欄は書き換えない）
+     * @param {EditText} input - 入力欄
+     * @param {string} text - 入れる文字
+     * @param {EditText|null} skipInput - 書き換えない入力欄
+     * @returns {void}
+     */
+    function setInputText(input, text, skipInput) {
+        if (input !== skipInput) input.text = text;
+    }
+
+    /**
+     * 中央からのずれを、スライダー・幅・％のすべてに反映する
+     * @param {Object} controls - コントロールの参照
+     * @param {number|string} offsetValue - 中央からのずれ（定規の単位。正なら左・上が広がる）
+     * @param {EditText|null} skipInput - 書き換えない入力欄（入力中の欄。小数点を打てるように）
+     * @returns {void}
+     */
+    function syncBalanceFromOffset(controls, offsetValue, skipInput) {
+        var offsetUnit = clampOffset(controls, offsetValue);
+        var maxUnit = controls.balanceMax;
+        controls.balanceSlider.value = offsetUnit;
+        setInputText(controls.firstBalance.widthInput, String(roundUnitValue(maxUnit + offsetUnit, "rulerType")), skipInput);
+        setInputText(controls.secondBalance.widthInput, String(roundUnitValue(maxUnit - offsetUnit, "rulerType")), skipInput);
+        var firstPercent = (maxUnit > 0) ? Math.round((maxUnit + offsetUnit) / (2 * maxUnit) * 100) : 50;
+        var secondPercent = (maxUnit > 0) ? Math.round((maxUnit - offsetUnit) / (2 * maxUnit) * 100) : 50;
+        setInputText(controls.firstBalance.percentInput, String(firstPercent), skipInput);
+        setInputText(controls.secondBalance.percentInput, String(secondPercent), skipInput);
+    }
+
+    /**
+     * 幅か％の入力欄の値から、中央からのずれを求めて反映する
+     * @param {Object} controls - コントロールの参照
+     * @param {EditText} input - 値を読む入力欄
+     * @param {boolean} whileTyping - 入力中か（true ならその欄は書き換えない）
+     * @returns {void}
+     */
+    function syncBalanceFromInput(controls, input, whileTyping) {
+        var value = Number(input.text);
+        var maxUnit = controls.balanceMax;
+        var offsetUnit;
+        if (input === controls.firstBalance.widthInput) {
+            offsetUnit = (isNaN(value) ? 0 : value) - maxUnit;
+        } else if (input === controls.secondBalance.widthInput) {
+            offsetUnit = maxUnit - (isNaN(value) ? 0 : value);
+        } else {
+            var percent = isNaN(value) ? 50 : clampNumber(value, 0, 100);
+            var firstRatio = (input === controls.firstBalance.percentInput) ? percent / 100 : 1 - percent / 100;
+            offsetUnit = (firstRatio - 0.5) * 2 * maxUnit;
+        }
+        syncBalanceFromOffset(controls, offsetUnit, whileTyping ? input : null);
+    }
+
+    /**
+     * 指定した側が正方形になる位置で分ける
+     * @param {Object} controls - コントロールの参照
+     * @param {string} side - "first"（左・上）| "second"（右・下）
+     * @returns {void}
+     */
+    function applySquareOffset(controls, side) {
+        var widthPt = targetBounds[2] - targetBounds[0];
+        var heightPt = targetBounds[1] - targetBounds[3];
+        var vertical = controls.splitTBRadio.value;
+        var shortSidePt = vertical ? widthPt : heightPt;
+        var halfLongSidePt = (vertical ? heightPt : widthPt) / 2;
+        var offsetPt = halfLongSidePt - shortSidePt;
+        if (side === "first") offsetPt = -offsetPt;
+        syncBalanceFromOffset(controls, ptToUnit(offsetPt, "rulerType"), null);
+    }
+
+    /**
+     * 線幅と線の色の欄を使うか（外枠か区切り線があるとき）
+     * @param {Object} controls - コントロールの参照
+     * @returns {boolean} 使うか
+     */
+    function needsStroke(controls) {
+        return controls.overallFrameCheckbox.value || controls.dividerCheckbox.value;
+    }
+
+    /**
+     * 使わない線の欄を無効にする
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function updateStrokeEnabled(controls) {
+        var strokeEnabled = needsStroke(controls);
+        controls.strokeRowGroup.enabled = strokeEnabled;
+        controls.strokeColorRowGroup.enabled = strokeEnabled;
+    }
+
+    /**
+     * 線幅を pt で読む
+     * @param {Object} controls - コントロールの参照
+     * @returns {number|null} 線幅（pt）。0以下や数値でなければ null
+     */
+    function readStrokeWidthPt(controls) {
+        var strokeWidthUnit = Number(controls.strokeInput.text);
+        if (isNaN(strokeWidthUnit) || strokeWidthUnit <= 0) return null;
+        return unitToPt(strokeWidthUnit, "strokeUnits");
+    }
+
+    /**
+     * 角丸の半径を pt で読む
+     * @param {EditText} radiusInput - 半径の入力欄
+     * @returns {number} 半径（pt）。負の値や数値でなければ 0
+     */
+    function readCornerRadiusPt(radiusInput) {
+        var radiusUnit = Number(radiusInput.text);
+        if (isNaN(radiusUnit) || radiusUnit < 0) return 0;
+        return unitToPt(radiusUnit, "rulerType");
+    }
+
+    /**
+     * 角丸の欄の有効・無効を切り替える（ピル形状なら全部、連動なら左上以外を無効に）
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function updateCornerState(controls) {
+        var corners = controls.corners;
+        var perCornerEnabled = !controls.pillCheckbox.value;
+        var linked = controls.cornerLinkCheckbox.value;
+
+        controls.cornerLinkCheckbox.enabled = perCornerEnabled;
+        corners.tl.checkbox.enabled = perCornerEnabled;
+        corners.tl.input.enabled = perCornerEnabled && corners.tl.checkbox.value;
+
+        var followerKeys = ["bl", "tr", "br"];
+        for (var i = 0; i < followerKeys.length; i++) {
+            var corner = corners[followerKeys[i]];
+            corner.checkbox.enabled = perCornerEnabled && !linked;
+            corner.input.enabled = perCornerEnabled && !linked && corner.checkbox.value;
+        }
+        syncLinkedCornerValues(controls);
+    }
+
+    /**
+     * 連動しているとき、左上の半径をほかの角に写す
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function syncLinkedCornerValues(controls) {
+        if (!controls.cornerLinkCheckbox.value) return;
+        var corners = controls.corners;
+        corners.bl.input.text = corners.tl.input.text;
+        corners.tr.input.text = corners.tl.input.text;
+        corners.br.input.text = corners.tl.input.text;
+    }
+
+    /**
+     * 連動しているとき、左上のチェックをほかの角に写す
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function syncLinkedCornerChecks(controls) {
+        if (!controls.cornerLinkCheckbox.value) return;
+        var corners = controls.corners;
+        corners.bl.checkbox.value = corners.tl.checkbox.value;
+        corners.tr.checkbox.value = corners.tl.checkbox.value;
+        corners.br.checkbox.value = corners.tl.checkbox.value;
+    }
+
+    /**
+     * 角ごとの角丸の設定をまとめる
+     * @param {Object} controls - コントロールの参照
+     * @returns {Object|null} 角（tl・bl・tr・br）ごとの { enabled, radius }。ピル形状か、どの角も使わなければ null
+     */
+    function buildPerCornerConfig(controls) {
+        if (controls.pillCheckbox.value) return null;
+        var corners = controls.corners;
+        var linked = controls.cornerLinkCheckbox.value;
+        var anyEnabled = corners.tl.checkbox.value ||
+            (!linked && (corners.bl.checkbox.value || corners.tr.checkbox.value || corners.br.checkbox.value));
+        if (!anyEnabled) return null;
+
+        var perCorner = {};
+        for (var i = 0; i < CORNER_KEYS.length; i++) {
+            /* 連動中は左上のチェックと半径を4つの角に使う / when linked, all four corners follow the top-left one */
+            var sourceCorner = linked ? corners.tl : corners[CORNER_KEYS[i]];
+            perCorner[CORNER_KEYS[i]] = {
+                enabled: !!sourceCorner.checkbox.value,
+                radius: readCornerRadiusPt(sourceCorner.input)
+            };
+        }
+        return perCorner;
+    }
+
+    /**
+     * ダイアログの値を描画の設定にまとめる
+     * @param {Object} controls - コントロールの参照
+     * @returns {Object|null} 描画の設定。線を使うのに線幅が不正なら null
+     */
+    function collectDrawOptions(controls) {
+        var strokeWidthPt = readStrokeWidthPt(controls);
+        if (strokeWidthPt === null) {
+            /* 線を使わないなら、不正な値でも既定値で進める / without a frame or divider, fall back to the default */
+            if (needsStroke(controls)) return null;
+            strokeWidthPt = DEFAULT_STROKE_PT;
+        }
+
+        return {
+            vertical: controls.splitTBRadio.value,
+            offsetPt: unitToPt(clampOffset(controls, controls.balanceSlider.value), "rulerType"),
+            fillFirst: controls.fillFirstCheckbox.value,
+            fillSecond: controls.fillSecondCheckbox.value,
+            firstColor: parseColorString(controls.firstColorSwatch.getColor()),
+            secondColor: parseColorString(controls.secondColorSwatch.getColor()),
+            overallFrame: controls.overallFrameCheckbox.value,
+            divider: controls.dividerCheckbox.value,
+            strokeWidthPt: strokeWidthPt,
+            strokeColor: parseColorString(controls.strokeColorSwatch.getColor()),
+            perCorner: buildPerCornerConfig(controls),
+            pillShape: controls.pillCheckbox.value,
+            groupItems: controls.groupItemsCheckbox.value
+        };
+    }
+
+    /**
+     * ダイアログの値でプレビューを描き直す（線幅が不正なら消すだけ）
+     * @param {Object} controls - コントロールの参照
+     * @returns {void}
+     */
+    function refreshPreview(controls) {
+        drawPreview(collectDrawOptions(controls));
+    }
+
+    /**
+     * 分割方法を切り替え、ラベルとバランスを合わせてプレビューを描き直す
+     * @param {Object} controls - コントロールの参照
+     * @param {boolean} vertical - 上下に分けるか
+     * @returns {void}
+     */
+    function setSplitDirection(controls, vertical) {
+        controls.splitTBRadio.value = vertical;
+        controls.splitLRRadio.value = !vertical;
+        updateBalanceLabels(controls);
+        updateBalanceRange(controls);
+        refreshPreview(controls);
+    }
+
+    /**
+     * バランスの幅・％の入力欄にイベントを付ける
+     * @param {Object} controls - コントロールの参照
+     * @param {EditText} input - 入力欄
+     * @returns {void}
+     */
+    function bindBalanceInput(controls, input) {
+        changeValueByArrowKey(input, false, function () {
+            syncBalanceFromInput(controls, input, false);
+            refreshPreview(controls);
+        });
+        input.addEventListener("changing", function () {
+            syncBalanceFromInput(controls, input, true);
+            refreshPreview(controls);
+        });
+        /* 確定したら、入力した欄も範囲内の値にそろえる / on commit, normalize the edited field too */
+        input.onChange = function () { syncBalanceFromInput(controls, input, false); };
+    }
+
+    /**
+     * ［正方形］のクリックを処理する（もう一方の［正方形］は外す）
+     * @param {Object} controls - コントロールの参照
+     * @param {string} side - "first"（左・上）| "second"（右・下）
+     * @returns {void}
+     */
+    function onSquareClick(controls, side) {
+        var clickedCheckbox = (side === "first") ? controls.firstBalance.squareCheckbox : controls.secondBalance.squareCheckbox;
+        var otherCheckbox = (side === "first") ? controls.secondBalance.squareCheckbox : controls.firstBalance.squareCheckbox;
+        if (clickedCheckbox.value) {
+            otherCheckbox.value = false;
+            applySquareOffset(controls, side);
+        }
+        refreshPreview(controls);
+    }
+
+    /**
+     * ダイアログのイベントを付ける
+     * @param {Object} controls - コントロールの参照
+     * @param {Object} session - セッション設定（ダイアログの位置を残す）
+     * @returns {void}
+     */
+    function bindDialogEvents(controls, session) {
+        var corners = controls.corners;
+        var refresh = function () { refreshPreview(controls); };
+        var onStrokeOptionClick = function () {
+            updateStrokeEnabled(controls);
+            refresh();
+        };
+        var onCornerOptionClick = function () {
+            updateCornerState(controls);
+            refresh();
+        };
+        var onTopLeftRadiusChange = function () {
+            syncLinkedCornerValues(controls);
+            refresh();
+        };
+
+        /* プリセット（行は隠している）/ Presets (the row is hidden) */
+        controls.presetDropdown.onChange = function () {
+            var selectedItem = controls.presetDropdown.selection;
+            if (!selectedItem || selectedItem.index === 0) return;
+            var presetData = getPresetStore()[selectedItem.text];
+            if (presetData) applyPresetData(controls, presetData);
+        };
+        controls.btnPresetSave.onClick = function () {
+            var presetName = showPresetNameDialog();
+            if (presetName === null) return;
+            getPresetStore()[presetName] = collectPresetData(controls);
+            fillPresetDropdown(controls);
+        };
+        controls.btnPresetExport.onClick = function () { exportSettingsToDesktop(controls); };
+
+        /* 分割方法 / Split direction */
+        controls.splitLRRadio.onClick = function () { setSplitDirection(controls, false); };
+        controls.splitTBRadio.onClick = function () { setSplitDirection(controls, true); };
+
+        /* バランス / Balance */
+        bindBalanceInput(controls, controls.firstBalance.widthInput);
+        bindBalanceInput(controls, controls.secondBalance.widthInput);
+        bindBalanceInput(controls, controls.firstBalance.percentInput);
+        bindBalanceInput(controls, controls.secondBalance.percentInput);
+        controls.balanceSlider.onChanging = function () {
+            controls.firstBalance.squareCheckbox.value = false;
+            controls.secondBalance.squareCheckbox.value = false;
+            var offsetUnit = Number(controls.balanceSlider.value);
+            /* option を押しながらドラッグすると整数に丸める / hold Option while dragging to snap to whole units */
+            if (ScriptUI.environment.keyboardState.altKey) offsetUnit = Math.round(offsetUnit);
+            syncBalanceFromOffset(controls, offsetUnit, null);
+            refresh();
+        };
+        /* shift+↑↓ でスライダーを範囲の10%ずつ動かす / Shift+Up/Down moves the slider by 10% of its range */
+        controls.balanceSlider.addEventListener("keydown", function (event) {
+            if (event.keyName !== "Up" && event.keyName !== "Down") return;
+            if (!ScriptUI.environment.keyboardState.shiftKey) return;
+            var maxUnit = controls.balanceSlider.maxvalue;
+            if (maxUnit <= 0) return;
+            var delta = Math.max(Math.round(maxUnit * 0.1), 1);
+            var offsetUnit = controls.balanceSlider.value + ((event.keyName === "Up") ? delta : -delta);
+            controls.balanceSlider.value = Math.round(clampNumber(offsetUnit, controls.balanceSlider.minvalue, maxUnit));
+            controls.balanceSlider.notify("onChanging");
+            event.preventDefault();
+        });
+        controls.firstBalance.squareCheckbox.onClick = function () { onSquareClick(controls, "first"); };
+        controls.secondBalance.squareCheckbox.onClick = function () { onSquareClick(controls, "second"); };
+
+        /* 塗り / Fill */
+        controls.fillFirstCheckbox.onClick = refresh;
+        controls.fillSecondCheckbox.onClick = refresh;
+        controls.firstColorSwatch.onChange = refresh;
+        controls.secondColorSwatch.onChange = refresh;
+
+        /* 線 / Stroke */
+        controls.overallFrameCheckbox.onClick = onStrokeOptionClick;
+        controls.dividerCheckbox.onClick = onStrokeOptionClick;
+        changeValueByArrowKey(controls.strokeInput, false, refresh);
+        controls.strokeInput.addEventListener("changing", refresh);
+        controls.strokeColorSwatch.onChange = refresh;
+
+        /* 角丸 / Corner radius */
+        controls.pillCheckbox.onClick = onCornerOptionClick;
+        controls.cornerLinkCheckbox.onClick = function () {
+            /* 連動を入れたら左上を有効にして、ほかの角をそろえる / turning Link on enables the top-left corner and copies it to the others */
+            if (controls.cornerLinkCheckbox.value) corners.tl.checkbox.value = true;
+            syncLinkedCornerChecks(controls);
+            onCornerOptionClick();
+        };
+        corners.tl.checkbox.onClick = function () {
+            syncLinkedCornerChecks(controls);
+            onCornerOptionClick();
+        };
+        corners.bl.checkbox.onClick = onCornerOptionClick;
+        corners.tr.checkbox.onClick = onCornerOptionClick;
+        corners.br.checkbox.onClick = onCornerOptionClick;
+        changeValueByArrowKey(corners.tl.input, false, onTopLeftRadiusChange);
+        corners.tl.input.addEventListener("changing", onTopLeftRadiusChange);
+        changeValueByArrowKey(corners.bl.input, false, refresh);
+        changeValueByArrowKey(corners.tr.input, false, refresh);
+        changeValueByArrowKey(corners.br.input, false, refresh);
+        corners.bl.input.addEventListener("changing", refresh);
+        corners.tr.input.addEventListener("changing", refresh);
+        corners.br.input.addEventListener("changing", refresh);
+
+        /* H・V で分割方法、F で外枠、D で区切り線を切り替える / H and V pick the split direction, F toggles the frame, D the divider */
+        controls.dialog.addEventListener("keydown", function (event) {
+            if (event.keyName === "H") {
+                setSplitDirection(controls, false);
+            } else if (event.keyName === "V") {
+                setSplitDirection(controls, true);
+            } else if (event.keyName === "F") {
+                controls.overallFrameCheckbox.value = !controls.overallFrameCheckbox.value;
+                onStrokeOptionClick();
+            } else if (event.keyName === "D") {
+                controls.dividerCheckbox.value = !controls.dividerCheckbox.value;
+                onStrokeOptionClick();
+            } else {
+                return;
+            }
+            event.preventDefault();
+        });
+
+        controls.btnOK.onClick = function () {
+            if (!collectDrawOptions(controls)) {
+                /* 線を使うのに線幅が不正なら、その欄に戻す / return to the stroke field when a needed stroke width is invalid */
+                controls.strokeInput.active = true;
+                return;
+            }
+            controls.dialog.close(1);
+        };
+        controls.btnCancel.onClick = function () { controls.dialog.close(0); };
+
+        controls.dialog.onShow = function () {
+            /* プレビューの間は元のオブジェクトを隠す / hide the original object while previewing */
+            targetItem.hidden = true;
+            /* レイアウトが済んでから本来の文言を入れる（幅は長いほうで確保済み）/ set the real labels after layout; the width is already reserved */
+            updateBalanceLabels(controls);
+            refresh();
+        };
+        keepDialogLocation(controls.dialog, session, "dialogLocation");
+    }
+
+    /**
+     * ダイアログの値をセッションに残す（不正な値の欄は前回の値のまま）
+     * @param {Object} controls - コントロールの参照
+     * @param {Object} session - セッション設定
+     * @returns {void}
+     */
+    function saveDialogToSession(controls, session) {
+        session.fillFirst = controls.fillFirstCheckbox.value;
+        session.fillSecond = controls.fillSecondCheckbox.value;
+        session.firstColor = controls.firstColorSwatch.getColor();
+        session.secondColor = controls.secondColorSwatch.getColor();
+        session.overallFrame = controls.overallFrameCheckbox.value;
+        session.divider = controls.dividerCheckbox.value;
+        session.strokeColor = controls.strokeColorSwatch.getColor();
+        session.pillShape = controls.pillCheckbox.value;
+        session.cornerLink = controls.cornerLinkCheckbox.value;
+
+        var strokeWidthPt = readStrokeWidthPt(controls);
+        if (strokeWidthPt !== null) session.strokeWidthPt = strokeWidthPt;
+
+        for (var i = 0; i < CORNER_KEYS.length; i++) {
+            var cornerKey = CORNER_KEYS[i];
+            var corner = controls.corners[cornerKey];
+            var radiusUnit = Number(corner.input.text);
+            session.cornerEnabled[cornerKey] = corner.checkbox.value;
+            if (!isNaN(radiusUnit) && radiusUnit >= 0) session.cornerRadiusPt[cornerKey] = unitToPt(radiusUnit, "rulerType");
+        }
+    }
+
+    /**
+     * 設定ダイアログを表示する。閉じたらプレビューを片付け、元のオブジェクトを表示に戻す
+     * @returns {Object|null} 描画の設定。キャンセルなら null
+     */
+    function showSettingsDialog() {
+        var session = getSessionSettings();
+        var controls = buildSettingsDialog(session);
+        bindDialogEvents(controls, session);
+
+        /* 中断した実行で残ったプレビューレイヤーを消してから始める / start without a preview layer left over from an interrupted run */
+        removePreviewLayer();
+        var dialogResult = controls.dialog.show();
+        removePreviewLayer();
+        targetItem.hidden = false;
+        saveDialogToSession(controls, session);
+
+        return (dialogResult === 1) ? collectDrawOptions(controls) : null;
+    }
+
+    // =========================================
+    // 角丸アルゴリズム / Round Any Corner
+    // 選択したアンカーだけを丸める / rounds only the selected anchors
+    // Based on: Hiroyuki Sato (MIT) https://github.com/shspage
+    // =========================================
+
+    /**
+     * 選択したアンカーの角を半径 rr で丸める
+     * @param {PathItem[]} s - 対象のパス
+     * @param {Object} conf - 設定（rr: 半径）
+     * @returns {void}
+     */
+    function roundAnyCorner(s, conf) {
+        var rr = conf.rr;
+
+        var p, op, pnts;
+        var skipList, adjRdirAtEnd, redrawFlg;
+        var i, nxi, pvi, q, d, ds, r, g, t, qb;
+        var anc1, ldir1, rdir1, anc2, ldir2, rdir2;
+
+        var hanLen = 4 * (Math.sqrt(2) - 1) / 3;
+        var ptyp = PointType.SMOOTH;
+
+        for (var j = 0; j < s.length; j++) {
+            p = s[j].pathPoints;
+            if (readjustAnchors(p) < 2) continue;
+            op = !s[j].closed;
+            pnts = op ? [getDat(p[0])] : [];
+            redrawFlg = false;
+            adjRdirAtEnd = 0;
+
+            skipList = [(op || !isSelected(p[0]) || !isCorner(p, 0))];
+            for (i = 1; i < p.length; i++) {
+                skipList.push((!isSelected(p[i])
+                    || !isCorner(p, i)
+                    || (op && i == p.length - 1)));
+            }
+
+            for (i = 0; i < p.length; i++) {
+                nxi = parseIdx(p, i + 1);
+                if (nxi < 0) break;
+
+                pvi = parseIdx(p, i - 1);
+
+                q = [p[i].anchor, p[i].rightDirection,
+                p[nxi].leftDirection, p[nxi].anchor];
+
+                ds = dist(q[0], q[3]) / 2;
+                if (arrEq(q[0], q[1]) && arrEq(q[2], q[3])) {
+                    r = Math.min(ds, rr);
+                    g = getRad(q[0], q[3]);
+                    anc1 = getPnt(q[0], g, r);
+                    ldir1 = getPnt(anc1, g + Math.PI, r * hanLen);
+
+                    if (skipList[nxi]) {
+                        if (!skipList[i]) {
+                            pnts.push([anc1, anc1, ldir1, ptyp]);
+                            redrawFlg = true;
+                        }
+                        pnts.push(getDat(p[nxi]));
+                    } else {
+                        if (r < rr) {
+                            pnts.push([anc1,
+                                getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
+                                ldir1,
+                                ptyp]);
+                        } else {
+                            if (!skipList[i]) pnts.push([anc1, anc1, ldir1, ptyp]);
+                            anc2 = getPnt(q[3], g + Math.PI, r);
+                            pnts.push([anc2,
+                                getPnt(anc2, g, r * hanLen),
+                                anc2,
+                                ptyp]);
+                        }
+                        redrawFlg = true;
+                    }
+                } else {
+                    d = getT4Len(q, 0) / 2;
+                    r = Math.min(d, rr);
+                    t = getT4Len(q, r);
+                    anc1 = bezier(q, t);
+                    rdir1 = defHan(t, q, 1);
+                    ldir1 = getPnt(anc1, getRad(rdir1, anc1), r * hanLen);
+
+                    if (skipList[nxi]) {
+                        if (skipList[i]) {
                             pnts.push(getDat(p[nxi]));
                         } else {
-                            if (r < rr) {
+                            pnts.push([anc1, rdir1, ldir1, ptyp]);
+                            with (p[nxi]) pnts.push([anchor,
+                                rightDirection,
+                                adjHan(anchor, leftDirection, 1 - t),
+                                ptyp]);
+                            redrawFlg = true;
+                        }
+                    } else {
+                        if (r < rr) {
+                            if (skipList[i]) {
+                                if (!op && i == 0) {
+                                    adjRdirAtEnd = t;
+                                } else {
+                                    pnts[pnts.length - 1][1] = adjHan(q[0], q[1], t);
+                                }
+                                pnts.push([anc1,
+                                    getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
+                                    defHan(t, q, 0),
+                                    ptyp]);
+                            } else {
                                 pnts.push([anc1,
                                     getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
                                     ldir1,
                                     ptyp]);
-                            } else {
-                                if (!skipList[i]) pnts.push([anc1, anc1, ldir1, ptyp]);
-                                anc2 = getPnt(q[3], g + Math.PI, r);
-                                pnts.push([anc2,
-                                    getPnt(anc2, g, r * hanLen),
-                                    anc2,
-                                    ptyp]);
-                            }
-                            redrawFlg = true;
-                        }
-                    } else {
-                        d = getT4Len(q, 0) / 2;
-                        r = Math.min(d, rr);
-                        t = getT4Len(q, r);
-                        anc1 = bezier(q, t);
-                        rdir1 = defHan(t, q, 1);
-                        ldir1 = getPnt(anc1, getRad(rdir1, anc1), r * hanLen);
-
-                        if (skipList[nxi]) {
-                            if (skipList[i]) {
-                                pnts.push(getDat(p[nxi]));
-                            } else {
-                                pnts.push([anc1, rdir1, ldir1, ptyp]);
-                                with (p[nxi]) pnts.push([anchor,
-                                    rightDirection,
-                                    adjHan(anchor, leftDirection, 1 - t),
-                                    ptyp]);
-                                redrawFlg = true;
                             }
                         } else {
-                            if (r < rr) {
-                                if (skipList[i]) {
-                                    if (!op && i == 0) {
-                                        adjRdirAtEnd = t;
-                                    } else {
-                                        pnts[pnts.length - 1][1] = adjHan(q[0], q[1], t);
-                                    }
-                                    pnts.push([anc1,
-                                        getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
-                                        defHan(t, q, 0),
-                                        ptyp]);
+                            if (skipList[i]) {
+                                t = getT4Len(q, -r);
+                                anc2 = bezier(q, t);
+
+                                if (!op && i == 0) {
+                                    adjRdirAtEnd = t;
                                 } else {
-                                    pnts.push([anc1,
-                                        getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
-                                        ldir1,
-                                        ptyp]);
+                                    pnts[pnts.length - 1][1] = adjHan(q[0], q[1], t);
                                 }
+
+                                ldir2 = defHan(t, q, 0);
+                                rdir2 = getPnt(anc2, getRad(ldir2, anc2), r * hanLen);
+
+                                pnts.push([anc2, rdir2, ldir2, ptyp]);
                             } else {
-                                if (skipList[i]) {
-                                    t = getT4Len(q, -r);
-                                    anc2 = bezier(q, t);
+                                qb = [anc1, rdir1, adjHan(q[3], q[2], 1 - t), q[3]];
+                                t = getT4Len(qb, -r);
+                                anc2 = bezier(qb, t);
+                                ldir2 = defHan(t, qb, 0);
+                                rdir2 = getPnt(anc2, getRad(ldir2, anc2), r * hanLen);
+                                rdir1 = adjHan(anc1, rdir1, t);
 
-                                    if (!op && i == 0) {
-                                        adjRdirAtEnd = t;
-                                    } else {
-                                        pnts[pnts.length - 1][1] = adjHan(q[0], q[1], t);
-                                    }
-
-                                    ldir2 = defHan(t, q, 0);
-                                    rdir2 = getPnt(anc2, getRad(ldir2, anc2), r * hanLen);
-
-                                    pnts.push([anc2, rdir2, ldir2, ptyp]);
-                                } else {
-                                    qb = [anc1, rdir1, adjHan(q[3], q[2], 1 - t), q[3]];
-                                    t = getT4Len(qb, -r);
-                                    anc2 = bezier(qb, t);
-                                    ldir2 = defHan(t, qb, 0);
-                                    rdir2 = getPnt(anc2, getRad(ldir2, anc2), r * hanLen);
-                                    rdir1 = adjHan(anc1, rdir1, t);
-
-                                    pnts.push([anc1, rdir1, ldir1, ptyp],
-                                        [anc2, rdir2, ldir2, ptyp]);
-                                }
+                                pnts.push([anc1, rdir1, ldir1, ptyp],
+                                    [anc2, rdir2, ldir2, ptyp]);
                             }
-                            redrawFlg = true;
                         }
-                    }
-                }
-                if (adjRdirAtEnd > 0) {
-                    pnts[pnts.length - 1][1] = adjHan(p[0].anchor, p[0].rightDirection, adjRdirAtEnd);
-                }
-
-                if (redrawFlg) {
-                    for (i = p.length - 1; i > 0; i--) p[i].remove();
-
-                    for (i = 0; i < pnts.length; i++) {
-                        var pt = i > 0 ? p.add() : p[0];
-                        with (pt) {
-                            anchor = pnts[i][0];
-                            rightDirection = pnts[i][1];
-                            leftDirection = pnts[i][2];
-                            pointType = pnts[i][3];
-                        }
+                        redrawFlg = true;
                     }
                 }
             }
-            app.activeDocument.selection = s;
-        }
+            if (adjRdirAtEnd > 0) {
+                pnts[pnts.length - 1][1] = adjHan(p[0].anchor, p[0].rightDirection, adjRdirAtEnd);
+            }
 
-        function getPnt(pt, rad, len) {
-            return [pt[0] + Math.cos(rad) * len,
-            pt[1] + Math.sin(rad) * len];
-        }
+            if (redrawFlg) {
+                for (i = p.length - 1; i > 0; i--) p[i].remove();
 
-        function defHan(t, q, n) {
-            return [t * (t * (q[n][0] - 2 * q[n + 1][0] + q[n + 2][0]) + 2 * (q[n + 1][0] - q[n][0])) + q[n][0],
-            t * (t * (q[n][1] - 2 * q[n + 1][1] + q[n + 2][1]) + 2 * (q[n + 1][1] - q[n][1])) + q[n][1]];
-        }
-
-        function bezier(q, t) {
-            var u = 1 - t;
-            return [u * u * u * q[0][0] + 3 * u * t * (u * q[1][0] + t * q[2][0]) + t * t * t * q[3][0],
-            u * u * u * q[0][1] + 3 * u * t * (u * q[1][1] + t * q[2][1]) + t * t * t * q[3][1]];
-        }
-
-        function adjHan(anc, dir, m) {
-            return [anc[0] + (dir[0] - anc[0]) * m,
-            anc[1] + (dir[1] - anc[1]) * m];
-        }
-
-        function isCorner(p, idx) {
-            var pnt0 = getAnglePnt(p, idx, -1);
-            var pnt1 = getAnglePnt(p, idx, 1);
-            if (!pnt0 || !pnt1) return false;
-            if (pnt0.length < 1 || pnt1.length < 1) return false;
-            var rad = getRad2(pnt0, p[idx].anchor, pnt1, true);
-            if (rad > Math.PI - 0.1) return false;
-            return true;
-        }
-
-        function getAnglePnt(p, idx1, dir) {
-            if (!dir) dir = -1;
-            var idx2 = parseIdx(p, idx1 + dir);
-            if (idx2 < 0) return null;
-            var p2 = p[idx2];
-            with (p[idx1]) {
-                if (dir < 0) {
-                    if (arrEq(leftDirection, anchor)) {
-                        if (arrEq(p2.anchor, anchor)) return [];
-                        if (arrEq(p2.anchor, p2.rightDirection)
-                            || arrEq(p2.rightDirection, anchor)) return p2.anchor;
-                        else return p2.rightDirection;
-                    } else {
-                        return leftDirection;
+                for (i = 0; i < pnts.length; i++) {
+                    var pt = i > 0 ? p.add() : p[0];
+                    with (pt) {
+                        anchor = pnts[i][0];
+                        rightDirection = pnts[i][1];
+                        leftDirection = pnts[i][2];
+                        pointType = pnts[i][3];
                     }
+                }
+            }
+        }
+        app.activeDocument.selection = s;
+    }
+
+    /**
+     * 点から角度 rad の方向へ len 進んだ点を返す
+     * @param {number[]} pt - 起点
+     * @param {number} rad - 角度（ラジアン）
+     * @param {number} len - 距離
+     * @returns {number[]} 点
+     */
+    function getPnt(pt, rad, len) {
+        return [pt[0] + Math.cos(rad) * len,
+        pt[1] + Math.sin(rad) * len];
+    }
+
+    /**
+     * ベジェ曲線の t における接線方向のハンドルを返す
+     * @param {number} t - 曲線上の位置（0〜1）
+     * @param {Array} q - 制御点4つ
+     * @param {number} n - 0 なら前側、1 なら後側
+     * @returns {number[]} ハンドルの点
+     */
+    function defHan(t, q, n) {
+        return [t * (t * (q[n][0] - 2 * q[n + 1][0] + q[n + 2][0]) + 2 * (q[n + 1][0] - q[n][0])) + q[n][0],
+        t * (t * (q[n][1] - 2 * q[n + 1][1] + q[n + 2][1]) + 2 * (q[n + 1][1] - q[n][1])) + q[n][1]];
+    }
+
+    /**
+     * ベジェ曲線の t における点を返す
+     * @param {Array} q - 制御点4つ
+     * @param {number} t - 曲線上の位置（0〜1）
+     * @returns {number[]} 点
+     */
+    function bezier(q, t) {
+        var u = 1 - t;
+        return [u * u * u * q[0][0] + 3 * u * t * (u * q[1][0] + t * q[2][0]) + t * t * t * q[3][0],
+        u * u * u * q[0][1] + 3 * u * t * (u * q[1][1] + t * q[2][1]) + t * t * t * q[3][1]];
+    }
+
+    /**
+     * ハンドルの長さを m 倍にする
+     * @param {number[]} anc - アンカー
+     * @param {number[]} dir - ハンドル
+     * @param {number} m - 倍率
+     * @returns {number[]} 新しいハンドルの点
+     */
+    function adjHan(anc, dir, m) {
+        return [anc[0] + (dir[0] - anc[0]) * m,
+        anc[1] + (dir[1] - anc[1]) * m];
+    }
+
+    /**
+     * アンカーが角（折れ点）か
+     * @param {PathPoints} p - パスポイント
+     * @param {number} idx - 添字
+     * @returns {boolean} 角か
+     */
+    function isCorner(p, idx) {
+        var pnt0 = getAnglePnt(p, idx, -1);
+        var pnt1 = getAnglePnt(p, idx, 1);
+        if (!pnt0 || !pnt1) return false;
+        if (pnt0.length < 1 || pnt1.length < 1) return false;
+        var rad = getRad2(pnt0, p[idx].anchor, pnt1, true);
+        if (rad > Math.PI - 0.1) return false;
+        return true;
+    }
+
+    /**
+     * 角度を測るための隣の点を返す
+     * @param {PathPoints} p - パスポイント
+     * @param {number} idx1 - 添字
+     * @param {number} dir - -1 なら前、1 なら後
+     * @returns {number[]|null} 点。無ければ null、重なっていれば空配列
+     */
+    function getAnglePnt(p, idx1, dir) {
+        if (!dir) dir = -1;
+        var idx2 = parseIdx(p, idx1 + dir);
+        if (idx2 < 0) return null;
+        var p2 = p[idx2];
+        with (p[idx1]) {
+            if (dir < 0) {
+                if (arrEq(leftDirection, anchor)) {
+                    if (arrEq(p2.anchor, anchor)) return [];
+                    if (arrEq(p2.anchor, p2.rightDirection)
+                        || arrEq(p2.rightDirection, anchor)) return p2.anchor;
+                    else return p2.rightDirection;
                 } else {
-                    if (arrEq(anchor, rightDirection)) {
-                        if (arrEq(anchor, p2.anchor)) return [];
-                        if (arrEq(p2.anchor, p2.leftDirection)
-                            || arrEq(anchor, p2.leftDirection)) return p2.anchor;
-                        else return p2.leftDirection;
-                    } else {
-                        return rightDirection;
-                    }
+                    return leftDirection;
                 }
-            }
-        }
-
-        function arrEq(arr1, arr2) {
-            for (var i = 0; i < arr1.length; i++) {
-                if (arr1[i] != arr2[i]) return false;
-            }
-            return true;
-        }
-
-        function dist(p1, p2) {
-            return Math.sqrt(Math.pow(p1[0] - p2[0], 2)
-                + Math.pow(p1[1] - p2[1], 2));
-        }
-
-        function dist2(p1, p2) {
-            return Math.pow(p1[0] - p2[0], 2)
-                + Math.pow(p1[1] - p2[1], 2);
-        }
-
-        function getRad(p1, p2) {
-            return Math.atan2(p2[1] - p1[1],
-                p2[0] - p1[0]);
-        }
-
-        function getRad2(p1, o, p2) {
-            var v1 = normalize(p1, o);
-            var v2 = normalize(p2, o);
-            return Math.acos(v1[0] * v2[0] + v1[1] * v2[1]);
-        }
-
-        function normalize(p, o) {
-            var d = dist(p, o);
-            return d == 0 ? [0, 0] : [(p[0] - o[0]) / d,
-            (p[1] - o[1]) / d];
-        }
-
-        function getT4Len(q, len) {
-            var m = [q[3][0] - q[0][0] + 3 * (q[1][0] - q[2][0]),
-            q[0][0] - 2 * q[1][0] + q[2][0],
-            q[1][0] - q[0][0]];
-            var n = [q[3][1] - q[0][1] + 3 * (q[1][1] - q[2][1]),
-            q[0][1] - 2 * q[1][1] + q[2][1],
-            q[1][1] - q[0][1]];
-            var k = [m[0] * m[0] + n[0] * n[0],
-            4 * (m[0] * m[1] + n[0] * n[1]),
-            2 * ((m[0] * m[2] + n[0] * n[2]) + 2 * (m[1] * m[1] + n[1] * n[1])),
-            4 * (m[1] * m[2] + n[1] * n[2]),
-            m[2] * m[2] + n[2] * n[2]];
-
-            var fullLen = getLength(k, 1);
-
-            if (len == 0) {
-                return fullLen;
-            } else if (len < 0) {
-                len += fullLen;
-                if (len < 0) return 0;
-            } else if (len > fullLen) {
-                return 1;
-            }
-
-            var t, d;
-            var t0 = 0;
-            var t1 = 1;
-            var torelance = 0.001;
-
-            for (var h = 1; h < 30; h++) {
-                t = t0 + (t1 - t0) / 2;
-                d = len - getLength(k, t);
-                if (Math.abs(d) < torelance) break;
-                else if (d < 0) t1 = t;
-                else t0 = t;
-            }
-            return t;
-        }
-
-        function getLength(k, t) {
-            var h = t / 128;
-            var hh = h * 2;
-            var fc = function (t, k) {
-                return Math.sqrt(t * (t * (t * (t * k[0] + k[1]) + k[2]) + k[3]) + k[4]) || 0;
-            };
-            var total = (fc(0, k) - fc(t, k)) / 2;
-            for (var i = h; i < t; i += hh) total += 2 * fc(i, k) + fc(i + h, k);
-            return total * hh;
-        }
-
-        function readjustAnchors(p) {
-            var minDist = 0.0025;
-            if (p.length < 2) return 1;
-            var i;
-
-            if (p.parent.closed) {
-                for (i = p.length - 1; i >= 1; i--) {
-                    if (dist2(p[0].anchor, p[i].anchor) < minDist) {
-                        p[0].leftDirection = p[i].leftDirection;
-                        p[i].remove();
-                    } else {
-                        break;
-                    }
-                }
-            }
-
-            for (i = p.length - 1; i >= 1; i--) {
-                if (dist2(p[i].anchor, p[i - 1].anchor) < minDist) {
-                    p[i - 1].rightDirection = p[i].rightDirection;
-                    p[i].remove();
-                }
-            }
-
-            return p.length;
-        }
-
-        function parseIdx(p, n) {
-            var len = p.length;
-            if (p.parent.closed) {
-                return n >= 0 ? n % len : len - Math.abs(n % len);
             } else {
-                return (n < 0 || n > len - 1) ? -1 : n;
+                if (arrEq(anchor, rightDirection)) {
+                    if (arrEq(anchor, p2.anchor)) return [];
+                    if (arrEq(p2.anchor, p2.leftDirection)
+                        || arrEq(anchor, p2.leftDirection)) return p2.anchor;
+                    else return p2.leftDirection;
+                } else {
+                    return rightDirection;
+                }
+            }
+        }
+    }
+
+    /**
+     * 2つの配列の要素が等しいか
+     * @param {number[]} arr1 - 配列1
+     * @param {number[]} arr2 - 配列2
+     * @returns {boolean} 等しいか
+     */
+    function arrEq(arr1, arr2) {
+        for (var i = 0; i < arr1.length; i++) {
+            if (arr1[i] != arr2[i]) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 2点間の距離
+     * @param {number[]} p1 - 点1
+     * @param {number[]} p2 - 点2
+     * @returns {number} 距離
+     */
+    function dist(p1, p2) {
+        return Math.sqrt(Math.pow(p1[0] - p2[0], 2)
+            + Math.pow(p1[1] - p2[1], 2));
+    }
+
+    /**
+     * 2点間の距離の2乗
+     * @param {number[]} p1 - 点1
+     * @param {number[]} p2 - 点2
+     * @returns {number} 距離の2乗
+     */
+    function dist2(p1, p2) {
+        return Math.pow(p1[0] - p2[0], 2)
+            + Math.pow(p1[1] - p2[1], 2);
+    }
+
+    /**
+     * p1 から p2 への角度
+     * @param {number[]} p1 - 起点
+     * @param {number[]} p2 - 終点
+     * @returns {number} 角度（ラジアン）
+     */
+    function getRad(p1, p2) {
+        return Math.atan2(p2[1] - p1[1],
+            p2[0] - p1[0]);
+    }
+
+    /**
+     * o を頂点とする p1-o-p2 の角度
+     * @param {number[]} p1 - 点1
+     * @param {number[]} o - 頂点
+     * @param {number[]} p2 - 点2
+     * @returns {number} 角度（ラジアン）
+     */
+    function getRad2(p1, o, p2) {
+        var v1 = normalize(p1, o);
+        var v2 = normalize(p2, o);
+        return Math.acos(v1[0] * v2[0] + v1[1] * v2[1]);
+    }
+
+    /**
+     * o から p への単位ベクトル
+     * @param {number[]} p - 点
+     * @param {number[]} o - 原点
+     * @returns {number[]} 単位ベクトル
+     */
+    function normalize(p, o) {
+        var d = dist(p, o);
+        return d == 0 ? [0, 0] : [(p[0] - o[0]) / d,
+        (p[1] - o[1]) / d];
+    }
+
+    /**
+     * ベジェ曲線上で長さ len の位置の t を返す（len が 0 なら全長）
+     * @param {Array} q - 制御点4つ
+     * @param {number} len - 長さ（負なら終点側から）
+     * @returns {number} t、または全長
+     */
+    function getT4Len(q, len) {
+        var m = [q[3][0] - q[0][0] + 3 * (q[1][0] - q[2][0]),
+        q[0][0] - 2 * q[1][0] + q[2][0],
+        q[1][0] - q[0][0]];
+        var n = [q[3][1] - q[0][1] + 3 * (q[1][1] - q[2][1]),
+        q[0][1] - 2 * q[1][1] + q[2][1],
+        q[1][1] - q[0][1]];
+        var k = [m[0] * m[0] + n[0] * n[0],
+        4 * (m[0] * m[1] + n[0] * n[1]),
+        2 * ((m[0] * m[2] + n[0] * n[2]) + 2 * (m[1] * m[1] + n[1] * n[1])),
+        4 * (m[1] * m[2] + n[1] * n[2]),
+        m[2] * m[2] + n[2] * n[2]];
+
+        var fullLen = getLength(k, 1);
+
+        if (len == 0) {
+            return fullLen;
+        } else if (len < 0) {
+            len += fullLen;
+            if (len < 0) return 0;
+        } else if (len > fullLen) {
+            return 1;
+        }
+
+        var t, d;
+        var t0 = 0;
+        var t1 = 1;
+        var torelance = 0.001;
+
+        for (var h = 1; h < 30; h++) {
+            t = t0 + (t1 - t0) / 2;
+            d = len - getLength(k, t);
+            if (Math.abs(d) < torelance) break;
+            else if (d < 0) t1 = t;
+            else t0 = t;
+        }
+        return t;
+    }
+
+    /**
+     * ベジェ曲線の 0〜t の長さ（シンプソン則）
+     * @param {number[]} k - 係数
+     * @param {number} t - 終わりの位置
+     * @returns {number} 長さ
+     */
+    function getLength(k, t) {
+        var h = t / 128;
+        var hh = h * 2;
+        var fc = function (t, k) {
+            return Math.sqrt(t * (t * (t * (t * k[0] + k[1]) + k[2]) + k[3]) + k[4]) || 0;
+        };
+        var total = (fc(0, k) - fc(t, k)) / 2;
+        for (var i = h; i < t; i += hh) total += 2 * fc(i, k) + fc(i + h, k);
+        return total * hh;
+    }
+
+    /**
+     * 重なったアンカーを1つにまとめる
+     * @param {PathPoints} p - パスポイント
+     * @returns {number} まとめたあとの点の数
+     */
+    function readjustAnchors(p) {
+        var minDist = 0.0025;
+        if (p.length < 2) return 1;
+        var i;
+
+        if (p.parent.closed) {
+            for (i = p.length - 1; i >= 1; i--) {
+                if (dist2(p[0].anchor, p[i].anchor) < minDist) {
+                    p[0].leftDirection = p[i].leftDirection;
+                    p[i].remove();
+                } else {
+                    break;
+                }
             }
         }
 
-        function getDat(p) {
-            with (p) return [anchor, rightDirection, leftDirection, pointType];
+        for (i = p.length - 1; i >= 1; i--) {
+            if (dist2(p[i].anchor, p[i - 1].anchor) < minDist) {
+                p[i - 1].rightDirection = p[i].rightDirection;
+                p[i].remove();
+            }
         }
 
-        function isSelected(p) {
-            return p.selected == PathPointSelection.ANCHORPOINT;
+        return p.length;
+    }
+
+    /**
+     * 添字を点の数の範囲に収める（閉じたパスは巡回、開いたパスは範囲外で -1）
+     * @param {PathPoints} p - パスポイント
+     * @param {number} n - 添字
+     * @returns {number} 収めた添字
+     */
+    function parseIdx(p, n) {
+        var len = p.length;
+        if (p.parent.closed) {
+            return n >= 0 ? n % len : len - Math.abs(n % len);
+        } else {
+            return (n < 0 || n > len - 1) ? -1 : n;
+        }
+    }
+
+    /**
+     * パスポイントの座標と種類を配列で返す
+     * @param {PathPoint} p - パスポイント
+     * @returns {Array} [アンカー, 右ハンドル, 左ハンドル, 種類]
+     */
+    function getDat(p) {
+        with (p) return [anchor, rightDirection, leftDirection, pointType];
+    }
+
+    /**
+     * アンカーが選択されているか
+     * @param {PathPoint} p - パスポイント
+     * @returns {boolean} 選択されているか
+     */
+    function isSelected(p) {
+        return p.selected == PathPointSelection.ANCHORPOINT;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選択した1つのオブジェクトを、外接矩形を2分割した2色の背景に置き換える
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel("alert.openDocument"));
+            return;
         }
 
-    })();
+        doc = app.activeDocument;
+        var selectedItems = doc.selection;
+        /* 文字の編集中は TextRange が返り、length は文字数になる / while editing text, the selection is a TextRange whose length counts characters */
+        if (!selectedItems || selectedItems.typename === "TextRange" || selectedItems.length !== 1) {
+            alert(getLabel("alert.selectOneItem"));
+            return;
+        }
+
+        targetItem = selectedItems[0];
+        targetBounds = getItemBounds(targetItem);
+
+        var originalActiveLayer = doc.activeLayer;
+        var drawOptions = showSettingsDialog();
+        if (drawOptions) {
+            var itemLayer = targetItem.layer;
+            var drawnItems = drawSplitBackground(drawOptions, itemLayer);
+            /* 元のオブジェクトは背景に置き換える / the background replaces the original object */
+            targetItem.remove();
+            doc.selection = null;
+            if (drawOptions.groupItems) groupDrawnItems(drawnItems, itemLayer);
+        } else {
+            /* キャンセルしたら選択を戻す / restore the selection on cancel */
+            doc.selection = [targetItem];
+        }
+
+        try {
+            doc.activeLayer = originalActiveLayer;
+        } catch (e) {
+            /* ロックされたレイヤーなどは戻せないことがある / a locked layer may refuse to become active again */
+        }
+    }
+
+    main();
 
 })();
