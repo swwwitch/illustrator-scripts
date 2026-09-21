@@ -1,6 +1,6 @@
 # 選択したオブジェクトを1つずつ個別にグループ化
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEachSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/GroupEachSelection.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEachSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/single-function/GroupEachSelection.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEachSelection.md)
 

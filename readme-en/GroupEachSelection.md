@@ -1,6 +1,6 @@
 # Wrap each object in its own group
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEachSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/GroupEachSelection.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEachSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/single-function/GroupEachSelection.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEachSelection.md)
 

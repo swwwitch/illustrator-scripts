@@ -12,20 +12,25 @@
 
 - Recursively ungroups subgroups inside the selected group.
 - The outermost group remains intact.
-- If groups and non-groups are mixed in the selection, they are grouped together before processing.
+- Other selected objects are moved into the group. With several groups, everything is grouped together first.
 
 ### Main Features
 
 - Recursive ungrouping of subgroups
-- Auto-grouping when mixed selection
+- Moves other selected objects into the group (auto-groups when there are several groups)
 - Uses Illustrator's "ungroup" menu command internally
 
 ### Process Flow
 
 1. Check document and selection
-2. Group mixed selection if needed
+2. If other objects are selected, move them into the group, or group everything when there are several groups
 3. Recursively find and ungroup subgroups
+
+### Notes
+
+- Locked or hidden subgroups are left as they are.
 
 ### Change Log
 
 - v1.0.0 (20250707): Initial release
+- v1.3.1 (20260922): Reworked the processing; objects can now be moved into clipping groups masked by text; locked or hidden subgroups are now left intact

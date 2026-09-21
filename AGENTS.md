@@ -97,11 +97,16 @@ Put the original credit (`@author` / `@discussion`) in a JSDoc block right after
 
 ## SCRIPT_VERSION
 
-**Never bump `SCRIPT_VERSION` on your own.** Change it only when explicitly told to.
-Version numbers are tied to the READMEs and published articles.
+Bump `SCRIPT_VERSION` whenever a change alters behavior; do not wait to be told.
+Version numbers are tied to the READMEs and published articles, so keep them in step.
 
-- On a feature change, update `SCRIPT_UPDATED` only
-- If a bump seems warranted, propose it and wait
+- Bug fix or small behavior change: bump the patch (`v1.6.0` → `v1.6.1`; two-part versions grow a third part, `v1.1` → `v1.1.1`)
+- Larger feature addition: bump the minor (`v1.6.1` → `v1.7.0`)
+- Set `SCRIPT_UPDATED` to that day and add the same version to the change log in `readme-ja/` and `readme-en/`
+  (create the section when it is missing)
+- Do not bump for links, comments, alignment or JSDoc only
+- Bump once per unreleased change set: count from the version in the last commit, not from today's working copy
+- New scripts start at `v1.0.0`
 
 ## Units
 

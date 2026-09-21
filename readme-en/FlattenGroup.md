@@ -22,3 +22,7 @@
 
 - Does nothing when nothing is selected.
 - There is no dialog.
+
+### Article
+
+- [DTP Transit 別館 (Japanese)](https://note.com/dtp_tranist/n/n36fbd4162721)
