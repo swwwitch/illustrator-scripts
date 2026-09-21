@@ -18,7 +18,7 @@ Use it to show the flow or the relationship between elements in a layout.
 
 - Nine marks to choose from (`▶` / `>` / `>>` / `─` / `→` / `➡` / `─\` / `＋` / `×`)
 - Places the same mark between every adjacent pair in the selection
-- The width is derived from the narrowest gap, on the safe side (it can also be typed in)
+- The width is calculated automatically (from the height for `▶` / `>` / `>>`, from the narrowest gap for the rest; it can also be typed in)
 - A width you type is the drawn size of the mark
 - Height (%), stroke width and position (horizontal / vertical) are adjustable
 - Position accepts negative values and can be stepped with the arrow keys
@@ -28,6 +28,7 @@ Use it to show the flow or the relationship between elements in a layout.
 - `>` / `>>` switch to a filled shape with Keep top and bottom edges horizontal (both draw the same width)
 - `➡` is sized from the stroke width alone; its head is three times the stroke width tall
 - The preview updates immediately and is always cleaned up when the dialog closes
+- Tooltips explain the fields and the keyboard shortcuts
 - Japanese and English UI
 
 ## Usage
@@ -64,8 +65,8 @@ Chooses None or Round for the stroke caps and joins. It is disabled for the fill
 | Item | Description |
 | --- | --- |
 | Height | Percentage of the combined height of the two adjacent objects, up to 200%. Unused for `─` / `＋` / `×` / `➡`. |
-| Width | Drawn width of the mark. Leave it empty to derive it from the narrowest gap. |
-| Inset | The dent in the left edge of `▶`, up to 80% of the width. |
+| Width | Drawn width of the mark. Clear it to calculate it automatically again (from the height for `▶` / `>` / `>>`, from the narrowest gap for the rest). |
+| Inset | The dent in the left edge of `▶`, up to 80% of the width (the arrow keys stop there too). |
 | Gap | Distance between the two chevrons of `>>`. Negative values are allowed. |
 | Stroke | Stroke width. The minimum is the equivalent of 0.25 pt, and the alert states it in the unit on screen. Unused for `▶`, which is fill-only. |
 | Angle | Slope of the slash in `─\`, up to 89°. |
@@ -85,7 +86,7 @@ Chooses None or Round for the stroke caps and joins. It is disabled for the fill
 | 3.6 pt (default) | 3.6 pt | 10.8 pt | 5.4 pt |
 | 5 pt | 5 pt | 15 pt | 7.5 pt |
 
-- The head is three times the stroke width tall (`ARROW3_HEIGHT_TO_STROKE_RATIO`).
+- The head is three times the stroke width tall (`SOLID_ARROW_HEIGHT_TO_STROKE_RATIO`).
 - Its depth is half its height, capped at 90% of the width (`MAX_ARROW_HEAD_RATIO`).
 - `→` caps the depth of its head the same way, so the head never exceeds Width, while its height still follows Height.
 
@@ -110,6 +111,7 @@ Chooses None or Round for the stroke caps and joins. It is disabled for the fill
 | `Option` (`Alt`) + `↑` / `↓` | Step by a tenth of a step |
 
 - `F` / `R` / `V` do nothing while a modifier (`command` / `control` / `option` / `shift`) is held, so shortcuts such as `command` + `V` still work.
+- `F` / `R` do nothing while the End Style panel is disabled (`▶` / `➡`), and `V` does nothing while Mirror horizontally is disabled (`─` / `＋` / `×`).
 - The step size follows the unit: `1` for percent, degrees, pt, px, mm and Q/H, `0.1` for cm, and `0.01` for inches.
 
 ## Settings
@@ -122,9 +124,9 @@ These can be changed in the User settings section at the top of the script.
 | `MAX_HEIGHT_PERCENT` | `200` | Maximum height percentage |
 | `MIN_STROKE_WIDTH_PT` | `0.25` | Minimum stroke width in points |
 | `MAX_INSET_RATIO` | `0.8` | Maximum inset as a ratio of the width |
-| `TRI_CORNER_RADIUS_RATIO` | `0.12` | Rounded-corner radius ratio for `▶` |
+| `TRIANGLE_CORNER_RADIUS_RATIO` | `0.12` | Rounded-corner radius ratio for `▶` |
 | `SLASH_ANGLE_DEFAULT` / `SLASH_ANGLE_MAX` | `35` / `89` | Slash angle and its maximum |
-| `ARROW3_HEIGHT_TO_STROKE_RATIO` | `3` | Height of the head of `➡` as a multiple of the stroke width |
+| `SOLID_ARROW_HEIGHT_TO_STROKE_RATIO` | `3` | Height of the head of `➡` as a multiple of the stroke width |
 | `MAX_ARROW_HEAD_RATIO` | `0.9` | Maximum head depth of `→` / `➡` as a ratio of the width |
 | `AUTO_WIDTH_GAP_RATIO` | `0.7` | Ratio of the gap used for the automatic width |
 | `AUTO_WIDTH_GAP_RATIO_SMALL` | `0.35` | Ratio used for the automatic width of `＋` / `×` |
@@ -148,6 +150,8 @@ These can be changed in the User settings section at the top of the script.
 
 ## Update history
 
+- v1.3.4 (2026-09-22): Cleaned up the code (shared shape settings, smaller functions). Added tooltips to the fields, checkboxes and shortcuts. Fixed `F` / `R` switching the end style while `▶` / `➡` was selected, which then carried over to other shapes. Inset now stops at 80% of the width when stepped with the arrow keys too. Renamed settings variables (`TRI_CORNER_RADIUS_RATIO` → `TRIANGLE_CORNER_RADIUS_RATIO`, `ARROW3_HEIGHT_TO_STROKE_RATIO` → `SOLID_ARROW_HEIGHT_TO_STROKE_RATIO`)
+- v1.3.3 (2026-09-19): Moved unit conversion to the shared unit table (no change in behavior)
 - v1.3.2 (2026-08-01): Unified the shape-creation code; reorganized the label definitions and layout settings. Made Width the drawn size for every shape (fixing the mismatch between the stroked and filled `>` / `>>`), kept the heads of `→` / `➡` inside Width, sized `➡` from its stroke width (head height = stroke × 3, dropping the Stroke ×3 label), added unit-aware decimals and arrow-key steps, and moved the locked-layer and no-gap checks to startup
 - v1.3.1 (2026-04-04): Fixed negative position values when stepped with the arrow keys
 - v1.0.0 (2026-03-28): Initial version
