@@ -97,6 +97,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択した「パス上文字（Path Text）」を、同じ文字内容・段落属性・文字属性をできるだけ維持したまま「ポ…](readme-ja/DetachPathText.md)
 - [選択オブジェクトの外接バウンディングボックスを基準に、オフセットを加えた長方形を生成](readme-ja/DrawRectangleBehindSelectedObject.md)
 - [選択テキスト内で文字サイズが混在しているとき、各テキストの先頭文字のサイズへ統一する](readme-ja/FontSizeToScaleConverter.md)
+- [テキスト内の4桁以上の数値に、3桁ごとの桁区切りのカンマを付けます](readme-ja/FormatNumberWithCommas.md)
 - [ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換する](readme-ja/ImportAndApplyGraphicStyle.md)
 - [選択したテキストフレームの各段落で使われている禁則処理セットの値を集め、一覧をアラートで表示します](readme-ja/InspectKinsokuSimple.md)
 - [エリア内文字をポイント文字に変換し、改行ごとに分割して個別に再配置するIllustrator用スクリプトです](readme-ja/MimicDynamicText.md)
@@ -108,7 +109,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したテキストの文字ツメを 30% に設定します](readme-ja/Tsume30simple.md)
 - [選択したテキストの基本的な文字組み設定（フォントサイズと行送り・自動カーニング・文字ツメ・](readme-ja/TypeBasicsPanel.md)
 - [基準フォントサイズと倍率からタイプスケールを自動生成](readme-ja/TypeScaler.md)
-- [Illustrator ドキュメント内の数字に桁区切りのカンマを自動で付与](readme-ja/formatNumberWithCommas.md)
 - [選択中のテキストフレームを、指定した文字の直後で改行する](readme-ja/titlemaker.md)
 
 

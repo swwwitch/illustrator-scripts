@@ -1,6 +1,6 @@
 # ジャスティフィケーションの設定を初期値に戻す
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ResetJustification.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ResetJustification.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ResetJustification.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/ResetJustification.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetJustification.md)
 

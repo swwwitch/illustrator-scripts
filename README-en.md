@@ -90,6 +90,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Converts the selected type on a path back into point t…](readme-en/DetachPathText.md)
 - [Generate rectangles offset from the bounding box of se…](readme-en/DrawRectangleBehindSelectedObject.md)
 - [Unifies mixed font sizes within selected text to the s…](readme-en/FontSizeToScaleConverter.md)
+- [Adds thousands separators to numbers of four or more d…](readme-en/FormatNumberWithCommas.md)
 - [Convert point text, path text, or text + shape into ar…](readme-en/ImportAndApplyGraphicStyle.md)
 - [Collects the kinsoku set used by each paragraph in the…](readme-en/InspectKinsokuSimple.md)
 - [An Illustrator script that converts area text to point…](readme-en/MimicDynamicText.md)
@@ -101,7 +102,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Sets the tsume of the selected text to 30%](readme-en/Tsume30simple.md)
 - [A docked palette that sets only the basic text-composi…](readme-en/TypeBasicsPanel.md)
 - [Generates a type scale from a base font size and a ratio](readme-en/TypeScaler.md)
-- [Automatically add thousand separators to numbers in Il…](readme-en/formatNumberWithCommas.md)
 - [Inserts a line break right after the specified charact…](readme-en/titlemaker.md)
 
 
