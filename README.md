@@ -69,6 +69,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [あふれを自動サイズ調整で解消してからポイント文字に変換](readme-ja/FitAndConvertToPointType.md)
 - [テキスト内の日付・曜日・数値を一括で増減](readme-ja/IncrementDatesAndNumbers.md)
 - [テキスト内の数字・英字を増分しながら複製](readme-ja/SmartIncrementText.md)
+- [数字・英字・漢数字をソートして連番を振り直す](readme-ja/SmartRenumber.md)
 - [エリア内文字ツールキット（作成と調整）](readme-ja/AreaTypeToolkit.md)
 - [クリップボードのテキストで選択テキストを置換](readme-ja/ReplaceTextWithPaste.md)
 - [クリップボードの複数行テキストを1行ずつ順に流し込む](readme-ja/ReplaceTextWithPasteSequential.md)
