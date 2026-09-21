@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 処理対象は、最前面のドキュメント／開いているすべてのドキュメント／指定フォルダー内の .ai ファイルから選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n0d70178f0f65
 
 ### Overview
 
@@ -17,6 +21,7 @@ Removes the clutter from a document — unused panel entries, stray points and e
 The scope can be the frontmost document, every open document, or the .ai files in a folder you choose.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocumentCleaner.md
 
 */
 

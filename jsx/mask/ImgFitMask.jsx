@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 1つの図形と1つの画像を選択して実行すると、図形の大きさに合わせて画像を拡大・縮小してからクリッピングマスクを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgFitMask.md
 
 ### Overview
 
 With one shape and one image selected, scales the image to the shape and then creates a clipping mask.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMask.md
 
 */
 

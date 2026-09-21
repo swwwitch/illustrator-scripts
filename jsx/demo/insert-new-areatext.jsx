@@ -8,6 +8,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 現在の表示領域の中心に指定サイズの矩形を作り、エリア内文字としてサンプルテキストを流し込み、フォント・サイズ・行送り・行揃えを適用して選択状態にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewAreaText.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n509eb6aa0a19
 
 ### Overview
 
@@ -15,6 +19,7 @@ Creates a rectangle of a given size at the center of the current view, converts 
 filled with sample text, applies font, size, leading and justification, and leaves it selected.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewAreaText.md
 
 */
 

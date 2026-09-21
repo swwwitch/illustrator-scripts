@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログ上で対象の絞り込み・並び替え・個別の手動編集ができ、結果はプレビューで確認できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartRenamer.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n2db43c753c0b
 
 ### Overview
 
@@ -16,6 +20,7 @@ Renames artboards, symbols, layers and graphic styles in bulk, combining a prefi
 The dialog filters, reorders and hand-edits individual entries, with a preview of the result.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartRenamer.md
 
 */
 

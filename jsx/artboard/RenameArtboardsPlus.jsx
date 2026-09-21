@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 プレビューで結果を確認してから適用でき、よく使う組み合わせはプリセットとして書き出せます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RenameArtboardsPlus.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n80f9534bc6fb
 
 ### Overview
 
@@ -16,6 +20,7 @@ Renames the artboards in bulk from a combination of the file name, a prefix, the
 The result is checked in a preview before it is applied, and a favourite combination can be exported as a preset.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameArtboardsPlus.md
 
 */
 

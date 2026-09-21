@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 9軸の基準点・マージン・プレビュー境界の設定はすべての操作に共通で、Option＋クリックすると複製してから変形します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/QuickTransformPalette.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n277bd0865986
 
 ### Overview
 
@@ -17,6 +21,7 @@ A persistent palette that moves, duplicates, flips and rotates the selection imm
 The nine-point reference, margin and preview-bounds settings are shared by every operation, and Option-clicking duplicates before transforming.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/QuickTransformPalette.md
 
 */
 

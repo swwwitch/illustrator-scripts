@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁（サイズ・行送り・行揃え・日本語の組版など）を調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nfd6cc5e13654
 
 ### Overview
 
 Builds area text from point text, text on a path, or a shape, and adjusts its formatting — size, leading, justification and Japanese composition — in the same pass.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeToolkit.md
 
 */
 

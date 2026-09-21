@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 比率・自動行送り・罫線の濃度・太罫・十字線などはダイアログで指定し、結果はその場でプレビューされます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenkoYoshiMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n036c34760079
 
 ### Overview
 
@@ -18,6 +22,7 @@ supported, and the writing direction is left as it is. A dialog sets the scale, 
 the rule density, the emphasis and the crosshairs, and previews the result live.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenkoYoshiMaker.md
 
 */
 

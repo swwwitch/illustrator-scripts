@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 線分から間隔を逆算するモードや、ランダムパターン、開始位置（位相）の指定にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashGapCalculator.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n868bedb96542
 
 ### Overview
 
@@ -16,6 +20,7 @@ Works out the dash length for the selected paths, open or closed, from their len
 It can also derive the gap from the dash, produce random patterns, and set the starting phase.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashGapCalculator.md
 
 */
 

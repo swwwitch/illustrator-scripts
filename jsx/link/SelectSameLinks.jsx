@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 同一かどうかの判定は、リンクの絶対パスとファイル名のどちらでも行えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameLinks.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Searches the whole document for placed images that reference the same file as th
 The match can be made either on the absolute path of the link or on the file name.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameLinks.md
 
 */
 

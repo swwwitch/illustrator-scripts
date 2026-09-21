@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 冒頭の ACTIVE_PRESET で、適用するプリセットを切り替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerNoDialog.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Applies a fixed set of Illustrator preferences at once, without showing a dialog
 ACTIVE_PRESET at the top selects which preset gets written.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerNoDialog.md
 
 */
 

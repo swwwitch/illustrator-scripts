@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 図形も一緒に選ぶ（またはテキストと図形のグループを選ぶ）と、その図形を座布団として使います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitShapeToContent.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n6e4a6a2b175f
 
 ### Overview
 
@@ -17,6 +21,7 @@ Quickly creates and adjusts a backing shape that fits a text frame or a group.
 Add a shape to the selection, or select a text+shape group, to reuse that shape instead of creating a rectangle.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitShapeToContent.md
 
 */
 

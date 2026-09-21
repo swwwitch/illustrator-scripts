@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択中のオブジェクトと、指定した方向（上下左右）にある最も近いオブジェクトの位置を入れ替えます。方向はダイアログで指定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItemWithDialogbox.md
 
 ### Overview
 
 Swaps the selected object with the nearest object in a chosen direction, picked from a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNearestItemWithDialogbox.md
 
 */
 

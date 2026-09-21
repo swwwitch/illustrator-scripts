@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 対象は選択オブジェクト、全テキスト、すべて、すべて（強制）から選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartLayerManage.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n95ec4929ae9d
 
 ### Overview
 
@@ -16,6 +20,7 @@ Moves objects to a chosen layer in bulk.
 The scope can be the selection, all text, everything, or everything (forced).
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartLayerManage.md
 
 */
 

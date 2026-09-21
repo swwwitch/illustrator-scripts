@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 単純解除、マスクパス削除、マスク内容削除の3つの方法から選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseClipMask.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nebc832e574f7
 
 ### Overview
 
@@ -16,6 +20,7 @@ Releases the selected clipping masks in one of three modes.
 You can release them plainly, delete the mask path, or delete the masked contents.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseClipMask.md
 
 */
 

@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 アイコンをクリックすると、その操作をメインエンジンへ委譲して即時に実行します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartPathfinder.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n6909b836221a
 
 ### Overview
 
@@ -17,6 +21,7 @@ A persistent palette that applies Pathfinder operations to the selected objects.
 Clicking an icon delegates the operation to the main engine and runs it immediately.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartPathfinder.md
 
 */
 

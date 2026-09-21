@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 全アートボード上にあるテキストフレームを収集し、最後のアートボードの右側に縦に並べて配置します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CollectArtboardTexts.md
 
 ### Overview
 
 Collects the text frames from every artboard and places them as new text frames, stacked vertically to the right of the last artboard.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CollectArtboardTexts.md
 
 */
 

@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「Guides Preview for Trim View」レイヤーを探し、ロックと非表示を解除してから削除し、結果をアラートで報告します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RemoveTrimViewGuideLayer.md
 
 ### Overview
 
 Finds the "Guides Preview for Trim View" layer, unlocks and unhides it, removes it, and reports the result in an alert.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RemoveTrimViewGuideLayer.md
 
 */
 

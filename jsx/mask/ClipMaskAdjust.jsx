@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログの操作はオートプレビューで即時反映されます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskAdjust.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Adjusts the mask path and the contents of a clipping group.
 Every change in the dialog is reflected immediately as an auto-preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskAdjust.md
 
 */
 

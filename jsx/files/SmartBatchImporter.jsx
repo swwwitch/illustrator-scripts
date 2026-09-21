@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 作成したアートボードは、全体が正方形に近くなるグリッドへ整列配置します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBatchImporter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n8180588e5630
 
 ### Overview
 
@@ -16,6 +20,7 @@ Batch-imports several Illustrator files (.ai / .svg / .eps) and creates one artb
 The artboards are then arranged in a grid that comes out close to square.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBatchImporter.md
 
 */
 

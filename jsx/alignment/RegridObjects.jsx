@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 間隔は現在の定規単位で入力でき、常時プレビューで結果を確認できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegridObjects.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n08861d0e40c3
 
 ### Overview
 
@@ -16,6 +20,7 @@ Re-lays out a roughly grid-shaped selection at the horizontal and vertical spaci
 The spacing is entered in the current ruler units, with a continuous preview of the result.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegridObjects.md
 
 */
 

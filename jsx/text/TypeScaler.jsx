@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストのフォントサイズを、基準サイズと比率から算出して適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeScaler.md
 
 ### Overview
 
 Sets the font size of the selected text from a base size and a ratio.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeScaler.md
 
 */
 

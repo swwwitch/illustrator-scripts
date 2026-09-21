@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 横並びに選択した複数オブジェクトのうち最も左のものを固定し、以降を環境設定［一般］の「キー入力」の値ぶんずつ左へ動かして間隔を狭めます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeLL.md
 
 ### Overview
 
 Keeps the leftmost object of a horizontal selection fixed and moves the rest left by the Keyboard Increment, tightening the spacing.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeLL.md
 
 */
 

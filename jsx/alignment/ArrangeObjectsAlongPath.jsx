@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 基準にするパスは「自動（面積最大）／最前面／最背面」から選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeObjectsAlongPath.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Distributes several objects evenly along a single path taken from the selection.
 The reference path is chosen automatically by largest area, or as the frontmost or backmost object.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeObjectsAlongPath.md
 
 */
 

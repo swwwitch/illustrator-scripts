@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 行頭・行末スペースの削除、ナンバリングの削除と振り直し、改行の変換、空行の整理などに対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextNormalize.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Tidies the selected text according to the rules you set in the dialog.
 It can trim leading and trailing spaces, remove and renumber list numbering, convert returns, and collapse blank lines.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextNormalize.md
 
 */
 

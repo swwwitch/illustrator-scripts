@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 数値・文字列の昇順／降順とランダム順に対応し、見出し行は自動で判定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortTextByColumn.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Sorts the tab-separated text inside a text frame by the values in a chosen colum
 Numeric and string sorting (ascending or descending) and random order are supported, and a header row is detected automatically.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortTextByColumn.md
 
 */
 

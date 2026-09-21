@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログは表示せず、実行するとその場で反映されます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoLeadingStep-10.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Works out the auto-leading percentage that decreases by ten whole steps the disp
 There is no dialog; running it applies the change straight away.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoLeadingStep-10.md
 
 */
 

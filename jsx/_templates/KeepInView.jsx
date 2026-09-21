@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 すでに見えているときは動かさず、画面に収まらないときはズームアウトのみ行います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KeepInView.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ A reusable template that scrolls the view only when the objects you created or c
 Objects already in view are left alone, and it only zooms out — never in — when they do not fit.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KeepInView.md
 
 */
 

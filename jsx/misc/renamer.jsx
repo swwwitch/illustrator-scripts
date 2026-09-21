@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 オブジェクトやレイヤーなどの名前を、条件を指定して一括で変更します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/renamer.md
 
 ### Overview
 
 Renames objects, layers and the like in bulk, according to the conditions you set.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/renamer.md
 
 */
 

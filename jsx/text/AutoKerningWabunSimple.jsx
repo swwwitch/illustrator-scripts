@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの自動カーニング方式を「和文等幅」に設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerningWabunSimple.md
 
 ### Overview
 
 Sets the auto-kerning method of the selected text to Metrics (Roman Only).
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerningWabunSimple.md
 
 */
 

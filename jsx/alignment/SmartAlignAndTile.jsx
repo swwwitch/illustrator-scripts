@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 行数・列数を指定すればタイル状に、キーオブジェクトを設定すればその位置を基準に配置できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf426908d8bcd
 
 ### Overview
 
@@ -16,6 +20,7 @@ Redistributes stacked objects along the horizontal or vertical axis at the spaci
 Set a row or column count to tile them, or set a key object to anchor the layout to it.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile.md
 
 */
 

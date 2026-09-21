@@ -9,6 +9,7 @@ Illustratorの各種環境設定をダイアログから変更します。
 単位、文字設定、変形／整列設定などを1つのパネルで調整できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-unit.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Changes a range of Illustrator preferences from a dialog.
 Units, text settings and transform/align settings are all adjusted in a single panel.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager-unit.md
 
 */
 

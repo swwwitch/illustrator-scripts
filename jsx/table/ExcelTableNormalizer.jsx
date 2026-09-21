@@ -9,6 +9,7 @@ Excel由来のIllustratorデータを、表組みとして扱いやすい状態�
 クリッピングマスクの解除、テキストの整理と配置、セル背景の抽出、罫線の中心線化と均等配置をまとめて行います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExcelTableNormalizer.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Normalizes Illustrator artwork that came from Excel so that it is easier to work
 It releases clipping masks, tidies and aligns the text, extracts cell backgrounds, and converts the rules to evenly distributed center lines.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExcelTableNormalizer.md
 
 */
 

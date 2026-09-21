@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択しているオブジェクトごとに、アピアランスを分割します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExpandAppearanceEachObject.md
 
 ### Overview
 
 Expands the appearance of each selected object individually.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExpandAppearanceEachObject.md
 
 */
 

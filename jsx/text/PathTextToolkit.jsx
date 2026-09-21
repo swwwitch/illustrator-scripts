@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 パス上文字の作成と調整をまとめて行うツールです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathTextToolkit.md
 
 ### Overview
 
 A toolkit for creating and adjusting text on a path.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathTextToolkit.md
 
 */
 

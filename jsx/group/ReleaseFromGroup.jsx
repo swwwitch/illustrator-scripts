@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 重ね順が反転しないよう、選択オブジェクトは逆順に処理します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReleaseFromGroup.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Moves the selected objects out of their groups and directly onto the layer that 
 They are processed in reverse order so that the stacking order is preserved.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReleaseFromGroup.md
 
 */
 

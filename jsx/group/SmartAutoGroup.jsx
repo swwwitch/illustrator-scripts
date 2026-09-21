@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 モードとしきい値はダイアログで指定でき、再実行時に未グループのオブジェクトを確認できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAutoGroup.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Automatically groups the selection by overlap, vertical alignment, horizontal al
 The mode and threshold are set in a dialog, and a re-run reports the objects that were left ungrouped.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAutoGroup.md
 
 */
 

@@ -10,6 +10,7 @@ sky-chaser-high 氏の moveLineDown.jsx（Visual Studio Code の「行を下へ�
 表示行ではなく段落単位で動かすように改変したものです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/moveParagraphDown.md
 
 ### Overview
 
@@ -18,6 +19,7 @@ A paragraph-based variant of moveLineDown.jsx by sky-chaser-high,
 which reproduces Visual Studio Code's "Move Line Down".
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/moveParagraphDown.md
 
 */
 

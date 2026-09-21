@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 3×3のボタンで8方向へ寄せ、押すたびにガイド・アートボードのエッジ・裁ち落としへと寄せ先が進みます。中央揃えはマージンの内側の中央へ寄せ、マージンや分割のガイドも引けます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAlignToArtboard.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n42952a7adcb6
 
 ### Overview
 
@@ -19,6 +23,7 @@ press: the guide, the artboard edge, then the bleed. The centred buttons align t
 margin, and it also draws margin and division guides.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAlignToArtboard.md
 
 */
 

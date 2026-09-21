@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストに、禁則処理のプリセットを適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSetKinsoku.md
 
 ### Overview
 
 Applies a kinsoku (line-breaking) preset to the selected text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSetKinsoku.md
 
 */
 

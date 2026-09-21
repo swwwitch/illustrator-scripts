@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストのベースラインシフトを調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBaselineShifter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n5e41727cf265
 
 ### Overview
 
 Adjusts the baseline shift of the selected text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBaselineShifter.md
 
 */
 

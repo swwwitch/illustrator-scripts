@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 600dpiでラスタライズしたあと、72ppi相当の偶数整数倍率に調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyAsPngLikeFigma.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf5f269788086
 
 ### Overview
 
@@ -16,6 +20,7 @@ Rasterizes the selection at high resolution and copies it to the clipboard as a 
 It rasterizes at 600 dpi, then scales the result to an even integer multiple of 72 ppi.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyAsPngLikeFigma.md
 
 */
 

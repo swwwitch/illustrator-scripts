@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 先頭・前・全体表示・次・末尾のボタンとキーボードショートカットで移動できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardNavigator.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ A persistent palette for moving smoothly between artboards, zooming as it goes.
 Buttons and keyboard shortcuts cover first, previous, fit-all, next and last.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardNavigator.md
 
 */
 

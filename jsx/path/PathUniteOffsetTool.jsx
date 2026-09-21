@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 プレビューを有効にすると、ダイアログを閉じずに結果を確認できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUniteOffsetTool.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Runs Release Compound Path, Unite, Expand Appearance, Ungroup and Offset Path on
 With the preview enabled you can check the result without closing the dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUniteOffsetTool.md
 
 */
 

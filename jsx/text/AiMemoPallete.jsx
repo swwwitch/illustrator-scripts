@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクトやクリップボードからテキストを読み込み、空行・改行を整理して、テキストファイルへの保存やクリップボードへのコピーができます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiMemoPallete.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n41e91e4b1a09
 
 ### Overview
 
@@ -17,6 +21,7 @@ A floating palette for taking notes.
 It can pull text in from the selection or the clipboard, tidy up blank lines and returns, and save the result to a text file or copy it back to the clipboard.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiMemoPallete.md
 
 */
 

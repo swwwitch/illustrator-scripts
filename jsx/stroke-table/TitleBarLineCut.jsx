@@ -10,6 +10,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 マージン、角丸、塗り、ノッチ、線幅をダイアログで指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TitleBarLineCut.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ With one text frame and one rectangle path selected, builds a title bar whose ru
 Margin, corner radius, fill, notch and stroke weight are set in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TitleBarLineCut.md
 
 */
 

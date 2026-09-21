@@ -10,6 +10,7 @@ CopyTextAttributesToClipboard.jsx が保存した文字属性を、選択中の�
 適用する属性はダイアログのチェックボックスで選べ、文字ツールでの部分選択にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyTextAttributesFromClipboard.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Applies the text attributes saved by CopyTextAttributesToClipboard.jsx to the cu
 Which attributes are applied is chosen with checkboxes in the dialog, and partial selections made with the Type tool are supported.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyTextAttributesFromClipboard.md
 
 */
 

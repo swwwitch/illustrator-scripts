@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「bg-template」レイヤーをテンプレート化します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template-only.md
 
 ### Overview
 
 Marks the "bg-template" layer as a template layer.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-template-only.md
 
 */
 

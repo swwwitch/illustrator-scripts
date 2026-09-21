@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Tailwind / Lightness / Saturation / Complementary / LCH のアルゴリズムに対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorGenerator.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Generates color palettes, draws them on the artboard and registers them as a swa
 Tailwind, Lightness, Saturation, Complementary and LCH algorithms are supported.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorGenerator.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 チェックボックスやラジオボタンの操作はそのつどプレビューへ反映され、T / M / B キーでも整列位置を切り替えられます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartVerticalAlign.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n9ee716675032
 
 ### Overview
 
@@ -16,6 +20,7 @@ Aligns objects vertically — top, center or bottom — while toggling Align to 
 Every checkbox and radio button refreshes the preview, and the T, M and B keys switch the alignment position.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartVerticalAlign.md
 
 */
 

@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 計算のためにテキストを複製・アウトライン化しますが、元のテキストは編集可能なまま残ります。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/tabularize.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Interprets the selection as a table grid and generates fills and rules, both hor
 Text is duplicated and outlined for measurement only, so the original stays editable.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/tabularize.md
 
 */
 

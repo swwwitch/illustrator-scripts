@@ -29,9 +29,38 @@ Keep layout metrics out of User Settings: pixel values are not what a user edits
 ## Header comment (`### 概要` / `### Overview`)
 
 - A few bullets, then point at the README for the full feature list
-- **No GitHub direct links** (no `### GitHub` section, no source URLs)
+- Put the README URL on the line right after the pointer: `SCRIPT_README_JA` under 概要,
+  `SCRIPT_README_EN` under Overview. When `SCRIPT_ARTICLE_URL` exists, add the article under 概要 only.
+  Copy the values from the basic info block and keep them there too. Skip the lines when the README
+  files do not exist
+- **No other GitHub links** (no `### GitHub` section, no source URLs)
 - **No version history** — the changelog lives in `readme-ja/` and `readme-en/`
 - Keep it to 概要 / 注意 / Overview / Notes
+
+```js
+/*
+
+### 概要
+
+（1〜2文の説明）
+
+詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/<ScriptName>.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
+
+### Overview
+
+(one or two sentences)
+
+See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/<ScriptName>.md
+
+*/
+```
+
+Bare URLs are safe inside this `/* */` block; the Error 11 label problem only affects `//` lines.
 
 ## Basic info block
 

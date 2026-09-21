@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 台形・平行四辺形・三角形・対角線の全18プリセットをアイコンから選び、調整可能なプリセットでは変形量と強度を設定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartFreeDistort.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n15a7ae196a23
 
 ### Overview
 
@@ -16,6 +20,7 @@ Applies Illustrator's Free Distort live effect to the selected objects.
 Eighteen presets — trapezoids, parallelograms, triangles and diagonals — are picked from icons, and the adjustable ones expose an amount and a strength setting.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartFreeDistort.md
 
 */
 

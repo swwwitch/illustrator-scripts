@@ -9,6 +9,10 @@ Illustratorで利用できるフォントをウェイト・スタイル順に並
 キーワード、ウェイト（5段階）、種類で対象を絞り込み、フォント名・PostScript名・サンプル・カスタムテキストから出力内容を選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypefaceSampler.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n103ac6622657
 
 ### Overview
 
@@ -16,6 +20,7 @@ Lays out the fonts available in Illustrator on the artboard, grouped by family a
 Narrow the list by keyword, weight (5 ranks) or style category, and output the font name, the PostScript name, a sample string, or your own custom text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypefaceSampler.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 解像度・背景色・アンチエイリアス・余白は、実行時のダイアログで指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyAsPngLikeFigmaWithDialog.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Rasterizes the selection at high resolution and copies it to the clipboard as a 
 Resolution, background color, anti-aliasing and margin are all set in a dialog when the script runs.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyAsPngLikeFigmaWithDialog.md
 
 */
 

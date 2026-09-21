@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクトの塗り／線カラーを配置順（左→右、上→下）で抽出し、スウォッチグループに登録してグラデーションを自動生成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGradientFromSelection.md
 
 ### Overview
 
 Extracts the fill and stroke colors of the selection in layout order (left to right, top to bottom), registers them as a swatch group, and builds a gradient from them.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGradientFromSelection.md
 
 */
 

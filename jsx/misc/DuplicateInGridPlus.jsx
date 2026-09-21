@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 繰り返し数・間隔・方向・アートボードへの敷き詰めを2カラムのダイアログで指定でき、結果はライブプレビューで確認できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DuplicateInGridPlus.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n228720785a71
 
 ### Overview
 
@@ -16,6 +20,7 @@ Duplicates and lays out the selected objects as a grid, a row, a column, or at r
 Repeat count, spacing, direction and filling the artboard are set in a two-column dialog, with a live preview of the result.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DuplicateInGridPlus.md
 
 */
 

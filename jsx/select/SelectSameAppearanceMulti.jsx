@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトそれぞれに「共通 > アピアランス」を適用し、見つかったオブジェクトをまとめて選択し直します。標準機能では基準にできるオブジェクトが1つだけという制限を回避できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectSameAppearanceMulti.md
 
 ### Overview
 
 Applies "Select > Same > Appearance" to each selected object and reselects every object found. This works around the built-in limitation of using only one object as the reference.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectSameAppearanceMulti.md
 
 */
 

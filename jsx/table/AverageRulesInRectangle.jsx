@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 横罫・縦罫はそれぞれON/OFFでき、プレビューの切り替えにも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AverageRulesInRectangle.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Evenly redistributes the vertical and horizontal rules inside the selected outer
 Horizontal and vertical rules can be toggled independently, with a live preview switch.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AverageRulesInRectangle.md
 
 */
 

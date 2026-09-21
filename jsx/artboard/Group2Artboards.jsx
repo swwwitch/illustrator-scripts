@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 複数のグループ選択に対応し、名前の連番付与やファイル名参照、既存アートボードの削除オプションも備えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Group2Artboards.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Adds an artboard covering the bounds of each selected group, plus a margin you s
 Several groups can be processed at once, with options for sequential naming, using the file name, and removing the existing artboards.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Group2Artboards.md
 
 */
 

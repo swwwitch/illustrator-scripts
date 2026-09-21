@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 プロポーショナルメトリクスはOFF、文字ツメは30%にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerning-Optical30.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Sets the auto-kerning method of the selected text to Optical.
 Proportional metrics are turned off and tsume is set to 30%.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerning-Optical30.md
 
 */
 

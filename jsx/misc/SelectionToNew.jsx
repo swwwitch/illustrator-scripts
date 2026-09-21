@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 作成対象はラジオボタン（`L` / `A` / `D` キー）で切り替え、元のオブジェクトを残すかどうかも指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionToNew.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n0f02f73a748d
 
 ### Overview
 
@@ -17,6 +21,7 @@ Creates a new layer, a new artboard, or a new document from the selected objects
 The target is picked with radio buttons (or the L / A / D keys), and you can choose whether the originals stay put.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionToNew.md
 
 */
 

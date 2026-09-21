@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ポイント文字・パス上文字・図形＋テキストを、見た目を保ったままエリア内文字へ変換します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextWithShapeToAreaType.md
 
 ### Overview
 
 Converts point text, text on a path, or a shape plus text into area text while preserving the appearance.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextWithShapeToAreaType.md
 
 */
 

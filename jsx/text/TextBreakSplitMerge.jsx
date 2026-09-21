@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 改行・分割・連結・整形といった、Illustratorで分散しがちなテキスト処理を1つのダイアログにまとめたツールです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMerge.md
 
 ### Overview
 
 Collects the text chores that are otherwise scattered around Illustrator — breaking, splitting, joining and tidying — into a single dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMerge.md
 
 */
 

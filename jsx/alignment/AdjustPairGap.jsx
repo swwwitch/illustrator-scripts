@@ -11,6 +11,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ［固定］で選んだ側は動かさず、残りをライブプレビューで確認しながら動かします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustPairGap.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nc8fab19d8164
 
 ### Overview
 
@@ -19,6 +23,7 @@ Three modes — even spacing inside a group, nearest-neighbour pairs, and margin
 artboard edge — hold the side picked as the key object and move the rest, with a live preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustPairGap.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 配色は選択中のスウォッチかスウォッチグループから取り込め、適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）を変えるたびにライブプレビューします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiApplySwatchesToSelection.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n5602f3084d2b
 
 ### Overview
 
@@ -16,6 +20,7 @@ A modal dialog that applies swatches, or predefined colors, to the selected obje
 Colors are captured from the selected swatches or from a swatch group, and every change to the application unit (object, character, word, line or paragraph) or order (as-is, reversed, random or fully random) is previewed live.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiApplySwatchesToSelection.md
 
 */
 

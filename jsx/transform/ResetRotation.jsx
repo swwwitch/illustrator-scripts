@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクトの回転を水平（0°）に補正します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetRotation.md
 
 ### Overview
 
 Corrects the rotation of the selected objects back to horizontal (0°).
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetRotation.md
 
 */
 

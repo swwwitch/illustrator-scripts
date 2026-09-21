@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 フォルダーとファイル名を左右のリストに分けて表示し、一度作った索引をキャッシュして次回以降の起動を早くします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFileFinder.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
@@ -16,6 +20,7 @@ A finder that filters .ai/.svg files across several registered folders by keywor
 Folders and file names are shown in two side-by-side lists, and the index is cached so later launches start quickly.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFileFinder.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 直線・ワープ・カギ・分岐・カーブの5種類の経路に、線・線端・矢印をプレビューしながら設定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiConnectorBuilder.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Draws a connector from the key object to each of the selected objects.
 Choose a straight, warped, elbow, branch, or curved route and set the stroke, caps, and arrowheads with a live preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiConnectorBuilder.md
 
 */
 

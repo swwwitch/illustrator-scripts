@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイナミックテキストのような見た目を、通常のテキストで再現します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MimicDynamicText.md
 
 ### Overview
 
 Reproduces the look of dynamic text using ordinary text objects.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MimicDynamicText.md
 
 */
 

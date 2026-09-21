@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 矢印はDOMから操作できないため、一時アクションを生成して実行します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SetStrokeAndArrowheads.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Sets the stroke weight and the arrowheads — start and end shape, scale and tip
 Arrowheads cannot be reached from the DOM, so a temporary action is generated and played instead.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetStrokeAndArrowheads.md
 
 */
 

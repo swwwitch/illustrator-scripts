@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 名前はテキスト内容・レイヤー名・メモ・連番から自動で付けるか、Illustrator 標準の［新規シンボル］ダイアログで確認しながら登録できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolizeEach.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nce9ec30232a0
 
 ### Overview
 
@@ -16,6 +20,7 @@ Registers the selected objects as symbols, one by one or as a single symbol, and
 Names are assigned automatically from the text contents, layer name, note, or a sequence number, or confirmed in Illustrator's native New Symbol dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeEach.md
 
 */
 

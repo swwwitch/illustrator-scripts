@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 選択した配置画像に、アピアランスとしてケイ線を追加します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageStrokeAdder.md
 
 ### Overview
 
 Adds a stroke to the selected placed images as an appearance.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageStrokeAdder.md
 
 */
 

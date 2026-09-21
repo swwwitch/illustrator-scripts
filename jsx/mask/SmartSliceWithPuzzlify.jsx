@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 行数・列数・ピース数のほか、オフセット、オーバーラップ、バラけ、ケイ、角丸を組み合わせて調整できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSliceWithPuzzlify.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n89f63325c0bc
 
 ### Overview
 
@@ -16,6 +20,7 @@ Slices the selected image or shape into a grid or into jigsaw pieces and applies
 Rows, columns and piece count can be combined with offset, overlap, scatter, stroke and rounded corners.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSliceWithPuzzlify.md
 
 */
 

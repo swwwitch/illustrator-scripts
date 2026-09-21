@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 パス上文字を、テキストとパスに分離します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DetachPathText.md
 
 ### Overview
 
 Detaches text on a path back into a separate text object and path.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DetachPathText.md
 
 */
 

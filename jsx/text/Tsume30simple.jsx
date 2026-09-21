@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの文字ツメを30%に設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Tsume30simple.md
 
 ### Overview
 
 Sets the tsume of the selected text to 30%.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Tsume30simple.md
 
 */
 

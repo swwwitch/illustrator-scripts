@@ -9,6 +9,10 @@ CSV／タブ区切りテキストのデータを、Illustratorのテンプレー
 テキストフレーム内の `<変数名>` タグを列の値に置き換え、データ件数ぶんのアートボードを生成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VariableDataImport.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n741c9f28d0fd
 
 ### Overview
 
@@ -16,6 +20,7 @@ A data-merge script that pours CSV / TSV data into an Illustrator template.
 It replaces `<tag>` placeholders inside text frames with values from a column and generates one artboard per data row.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VariableDataImport.md
 
 */
 

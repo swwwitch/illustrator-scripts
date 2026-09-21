@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 入力単位は環境設定の「線」に追従し、［延長］で罫線を左右方向に伸縮できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawLinesBetween.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Sorts the selected objects (shapes or text) from top to bottom and draws a horiz
 Input units follow the stroke-units preference, and Extend stretches or shrinks the rules horizontally.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawLinesBetween.md
 
 */
 

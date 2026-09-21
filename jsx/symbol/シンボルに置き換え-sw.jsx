@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ドキュメントに登録されているシンボルを一覧から選び、選択したオブジェクトをそのシンボルインスタンスへ置き換えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/シンボルに置き換え-sw.md
 
 ### Overview
 
 Picks a symbol from the ones registered in the document and replaces the selected objects with instances of it.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/シンボルに置き換え-sw.md
 
 */
 

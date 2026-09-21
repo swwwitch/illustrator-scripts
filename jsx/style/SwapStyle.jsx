@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 スタイル交換では、グラフィックスタイル・基本的な塗りや線・文字属性を組み合わせて指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapStyle.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Swaps the appearance, or the text content, between two selected objects.
 Style swapping can combine the graphic style, the basic fill and stroke, and the character attributes.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapStyle.md
 
 */
 

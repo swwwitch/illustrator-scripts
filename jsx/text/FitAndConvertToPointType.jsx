@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したエリア内文字のうち、あふれているものだけ自動サイズ調整をONにして解消してから、ポイント文字に変換します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitAndConvertToPointType.md
 
 ### Overview
 
 Turns on auto-sizing for whichever of the selected area texts are overset, resolves the overflow, and then converts them to point text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitAndConvertToPointType.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 実行中だけ「字形の境界に整列」をONにし、終了時に元の状態へ戻します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterAlignAsGroup.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
@@ -16,6 +20,7 @@ Groups the selection temporarily, then runs Align Horizontal Center and Align Ve
 "Align to glyph bounds" is turned on only while it runs and restored afterwards.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterAlignAsGroup.md
 
 */
 

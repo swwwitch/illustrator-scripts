@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 円弧に沿ったパス上文字を生成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArcTextGenerator.md
+
+note記事も参照してください。
+https://note.com/gautt/n/n92f6faeda048
 
 ### Overview
 
 Generates text on an arc-shaped path.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArcTextGenerator.md
 
 */
 

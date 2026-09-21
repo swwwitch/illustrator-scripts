@@ -9,6 +9,7 @@ Excelなどからコピー＆ペーストした長方形から、罫線（グリ
 線同士の関係に応じて、格子化・結合・統合まで実行します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Generates table rules — a grid and a border — from rectangles pasted in from
 Depending on how the lines relate to each other, it also lattices, joins and merges them.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md
 
 */
 

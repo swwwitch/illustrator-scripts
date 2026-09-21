@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「下絵」という名前のレイヤーを探し、そのレイヤーをテンプレート化します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/レイヤーをテンプレートに.md
 
 ### Overview
 
 Finds the layer named "下絵" and turns it into a template layer.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/レイヤーをテンプレートに.md
 
 */
 

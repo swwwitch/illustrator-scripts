@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アセット書き出しパネルに登録されたアセットの名前を、一括で変更します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RenameAssets.md
 
 ### Overview
 
 Renames the assets registered in the Asset Export panel in bulk.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameAssets.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 専用のプレビューレイヤーで結果を確認しながら設定でき、［OK］したときだけ元のオブジェクトへ適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CouponTicketMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n2e949946228a
 
 ### Overview
 
@@ -16,6 +20,7 @@ Turns a selected rectangle into a ticket-like shape combining perforations, zigz
 The result is set up on a dedicated preview layer and applied to the original only when you confirm with OK.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CouponTicketMaker.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 対象は現在のアートボード／すべて／指定から選べ、9つの基準点のいずれかを固定して再計算します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiArtboardScaler.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Scales artboards relative to their current size, with a live preview while the d
 The target can be the current artboard, all of them, or a specified set, recalculated around one of nine reference points.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiArtboardScaler.md
 
 */
 

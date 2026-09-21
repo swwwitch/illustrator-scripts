@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトをいったんグループ解除してから、あらためて1つのグループにまとめます。既存のグループへオブジェクトを加えたいときに使います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddToGroup.md
 
 ### Overview
 
 Ungroups the selection once and then groups it again as a single group. Use it to add objects to an existing group.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddToGroup.md
 
 */
 

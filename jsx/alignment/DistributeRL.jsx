@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 横並びに選択した複数オブジェクトのうち最も右のものを固定し、以降を環境設定［一般］の「キー入力」の値ぶんずつ左方向へ等間隔に再配置します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeRL.md
 
 ### Overview
 
 Keeps the rightmost object of a horizontal selection fixed and redistributes the rest to the left at intervals of the Keyboard Increment.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeRL.md
 
 */
 

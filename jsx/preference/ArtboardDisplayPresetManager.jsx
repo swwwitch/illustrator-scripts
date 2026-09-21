@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アートボードのサイズ確認とリサイズ、名前表示と枠線、プリセット、カンバスカラーの切り替えに対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardDisplayPresetManager.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n9eba8ab03170
 
 ### Overview
 
@@ -17,6 +21,7 @@ A persistent palette for switching the artboard-related Illustrator preferences.
 It covers checking and resizing artboards, name and border display, presets, and the canvas color.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardDisplayPresetManager.md
 
 */
 

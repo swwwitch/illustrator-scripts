@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 グループの中にある配置画像も自動で解決します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkSameImages.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne38eeee5abc8
 
 ### Overview
 
@@ -16,6 +20,7 @@ Searches the whole document for placed images that reference the same linked fil
 Placed images nested inside groups are resolved automatically.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkSameImages.md
 
 */
 

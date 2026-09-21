@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択された各テキストフレームの各行に、自動行送り（autoLeading）を設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFrameAUTO.md
 
 ### Overview
 
 Turns on auto leading for each line of the selected text frames.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFrameAUTO.md
 
 */
 

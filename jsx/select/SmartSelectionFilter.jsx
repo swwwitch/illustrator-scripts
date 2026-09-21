@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 文字種・行揃え・使用フォント・パスの開閉・塗りや線の状態を条件にでき、変更はダイアログを閉じずにカンバスへ反映されます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilter.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Reselects only the text frames and paths in the current selection that match the
 Text kind, justification, font, open/closed paths and fill/stroke state can all be used as conditions, and changes are reflected on the canvas without closing the dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilter.md
 
 */
 

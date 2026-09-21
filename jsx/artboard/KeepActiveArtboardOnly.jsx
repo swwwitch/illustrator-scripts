@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アクティブなアートボードだけを残す場合は、その外側にあるオブジェクト（ガイドを含む）も削除できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KeepActiveArtboardOnly.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Keeps only the active artboard, or removes every empty artboard in one pass.
 When the active artboard is kept, the objects outside it — guides included — can be deleted as well.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KeepActiveArtboardOnly.md
 
 */
 

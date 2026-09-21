@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択した配置画像と同じリンクファイルを参照している配置画像を探し、指定したファイルへ一括で差し替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkSameImage.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne38eeee5abc8?nt=_3084117
 
 ### Overview
 
 Finds the placed images that reference the same linked file as the selected one and relinks them all to a file you choose.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkSameImage.md
 
 */
 

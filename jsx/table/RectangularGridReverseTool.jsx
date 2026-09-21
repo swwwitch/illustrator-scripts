@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 不揃いな罫線や、結合セルを含むレイアウトを整理し、整った格子構造に変換します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangularGridReverseTool.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Analyzes the selected horizontal and vertical lines and reconstructs them into a
 Uneven rules and layouts containing merged cells are tidied into a regular lattice.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangularGridReverseTool.md
 
 */
 

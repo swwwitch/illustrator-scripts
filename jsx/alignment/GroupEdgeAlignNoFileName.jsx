@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 GroupEdgeAlign.jsx からファイル名による方向判定を外した版です。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlignNoFileName.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Aligns the edges or the center of the selected objects in the direction given by
 This is GroupEdgeAlign.jsx without the filename-based direction detection.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlignNoFileName.md
 
 */
 

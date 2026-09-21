@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 一覧から選んだフォントを選択テキストへ即座に適用でき、テキストファイルとして書き出すこともできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyDocumentFonts.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n01d6ef7e9b5f
 
 ### Overview
 
@@ -16,6 +20,7 @@ Collects the fonts used in the document and lists them in order of usage count.
 A font picked from the list can be applied to the selected text right away, and the list can be exported as a text file.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyDocumentFonts.md
 
 */
 

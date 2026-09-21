@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ［中央に集める］［重なりを避ける］による再配置にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RandomizeObjects.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nba8235fe91b2
 
 ### Overview
 
@@ -17,6 +21,7 @@ Randomizes the position, scale, rotation, opacity and fill color of the selected
 It can also regroup them with "gather to center" and "avoid overlap".
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RandomizeObjects.md
 
 */
 

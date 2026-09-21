@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 上書きモードとカスタム保存先を切り替えられ、対象の拡張子やパス表示の形式も指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AIBatchVersionSave.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Batch-saves the Illustrator files (.ai / .svg) in a folder in a chosen file-form
 You can switch between overwrite mode and a custom destination, and choose the target extensions and how paths are displayed.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AIBatchVersionSave.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 テキストの内容・文字属性・段落設定・タブストップは控えて戻すため、リスト書式だけが外れます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClearBulletsAndNumbering.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
@@ -16,6 +20,7 @@ Removes Illustrator's built-in Bullets and Numbering from the selected text fram
 The text content, character attributes, paragraph settings and tab stops are captured and restored, so only the list formatting comes off.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClearBulletsAndNumbering.md
 
 */
 

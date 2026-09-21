@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 終点カラー（黒・白・透明・補色・淡色）と角度を指定でき、セパレートグラデーションや反転にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GradientFromFill.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Creates a linear gradient on the selected filled objects, starting from their or
 The end color (black, white, transparent, complementary or tint) and the angle are selectable, and separate gradients and reversing are supported.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GradientFromFill.md
 
 */
 

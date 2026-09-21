@@ -11,6 +11,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 適用する設定を絞り込んだり、比率やアキを標準の状態へ戻したりもできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontPresetPicker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n3d7f8b58ef88
 
 ### Overview
 
@@ -19,6 +23,7 @@ and Japanese typesetting, and applies the whole set to the selected text with a 
 You can narrow down what gets applied, and reset scaling and aki back to their default state.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontPresetPicker.md
 
 */
 

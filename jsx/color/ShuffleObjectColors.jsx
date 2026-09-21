@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 RGB／CMYK／グレースケール／特色／グラデーション／パターンに対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ShuffleObjectColors.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Reshuffles the fill and stroke colors of the selected paths, groups and compound
 RGB, CMYK, grayscale, spot colors, gradients and patterns are all supported.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ShuffleObjectColors.md
 
 */
 

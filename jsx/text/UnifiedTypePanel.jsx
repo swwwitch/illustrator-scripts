@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ラジオや入力を操作した時点で、選択中のテキストへ即時適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnifiedTypePanel.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4e2b79cf2891
 
 ### Overview
 
@@ -17,6 +21,7 @@ Gathers the typography settings — font, size, auto-kerning, letter spacing, ch
 Every radio button and field applies to the current selection the moment you touch it.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTypePanel.md
 
 */
 

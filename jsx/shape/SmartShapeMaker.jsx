@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 リアルタイムプレビューで、辺の数・幅・回転・詳細オプションを調整できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n005a7087f9c3
 
 ### Overview
 
@@ -17,6 +21,7 @@ Creates custom shapes — circle, polygon, star, superellipse, Reuleaux-style �
 A real-time preview lets you adjust the number of sides, the width, the rotation and the advanced options.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md
 
 */
 

@@ -8,6 +8,7 @@
 元のガイドは残し、同じ座標に重なった余分なガイドだけを削除します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyGuidesAsPaths.md
 
 ### Overview
 
@@ -15,6 +16,7 @@ Converts the guides on the active artboard into stroked paths and sends them to 
 The original guides are kept, while duplicated guides stacked at the same position are removed.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyGuidesAsPaths.md
 
 */
 

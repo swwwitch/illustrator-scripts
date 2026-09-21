@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 一覧とカンバスの選択は相互に連動します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManager.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na66732d2056a
 
 ### Overview
 
@@ -17,6 +21,7 @@ A persistent palette that lists every placed image in the document — linked an
 The list and the canvas selection stay in sync with each other.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManager.md
 
 */
 

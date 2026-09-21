@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 郵便番号・電話番号・MACアドレス・クレジットカード番号などは除外します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/formatNumberWithCommas.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Finds numbers in the document and adds thousands separators according to the rul
 Postal codes, phone numbers, MAC addresses and credit-card numbers are excluded.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/formatNumberWithCommas.md
 
 */
 

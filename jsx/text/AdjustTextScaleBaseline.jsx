@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの文字比率とベースラインシフトを調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustTextScaleBaseline.md
 
 ### Overview
 
 Adjusts the character scale and the baseline shift of the selected text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustTextScaleBaseline.md
 
 */
 

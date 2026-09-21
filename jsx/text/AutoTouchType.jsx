@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 seed付きの乱数でプレビューの見た目を安定させ、文字回転を適用したときはトラッキングを自動補正します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoTouchType.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne6545c4717af
 
 ### Overview
 
@@ -16,6 +20,7 @@ Randomizes the baseline shift, scale, rotation, kerning and tracking of each cha
 A seeded RNG keeps the preview stable, and the tracking is corrected automatically when character rotation is applied.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoTouchType.md
 
 */
 

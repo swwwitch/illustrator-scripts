@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクトをグループ化し、線を塗りに変換してから Pathfinder の「合流」をライブエフェクトとして適用し、アピアランスを分割します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MergeExpand.md
 
 ### Overview
 
 Groups the selection, converts strokes to fills, applies Pathfinder Merge as a live effect, and then expands the appearance.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MergeExpand.md
 
 */
 

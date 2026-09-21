@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 歯抜けのある配置や、1行だけ／1列だけの転置にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TransposeGrid.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Detects the rows and columns of the selected objects, estimates the original pit
 Gaps in the grid, and single-row or single-column layouts, are handled too.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TransposeGrid.md
 
 */
 

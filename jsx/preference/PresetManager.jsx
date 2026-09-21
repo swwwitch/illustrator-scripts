@@ -9,6 +9,10 @@ Illustratorの主要な環境設定を、カテゴリ別に並べた1枚のダ�
 ［デフォルト］／［プリセット1］を選ぶと一式の設定値をUIに反映でき、変更は［OK］でまとめて書き込まれます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManager.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n3b33862538f6
 
 ### Overview
 
@@ -16,6 +20,7 @@ Reviews and changes the main Illustrator preferences from a single dialog laid o
 Default and Preset 1 fill the whole UI with a set of values, and everything is written at once when you click OK.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManager.md
 
 */
 

@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 指定したレイヤーをテンプレート化し、レイヤー名に接頭辞を付けます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SetTemplateLayer.md
 
 ### Overview
 
 Turns a chosen layer into a template layer and prefixes its name.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SetTemplateLayer.md
 
 */
 

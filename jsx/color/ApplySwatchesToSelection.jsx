@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 CMYK／RGBのカラーモードに応じて使う色を切り替え、CMYKでスウォッチ未選択のときは2色混合の色をランダム生成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplySwatchesToSelection.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Applies swatches, or predefined colors, to the selected objects and text automat
 The palette follows the CMYK/RGB color mode, and in CMYK with no swatch selected it generates random two-ink combinations.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplySwatchesToSelection.md
 
 */
 

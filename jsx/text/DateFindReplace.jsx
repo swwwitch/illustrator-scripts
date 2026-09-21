@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 オブジェクトが選択されている場合は、その選択範囲のテキストフレームだけを検索対象にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DateFindReplace.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Finds dates in the text frames of the document and replaces only the ones you ti
 When objects are selected, only the text frames within that selection are searched.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DateFindReplace.md
 
 */
 

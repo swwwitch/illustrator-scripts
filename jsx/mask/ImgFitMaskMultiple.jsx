@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 複数の画像と図形を選択して実行すると、対応する図形の大きさに合わせて各画像を拡大・縮小し、それぞれクリッピングマスクを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgFitMaskMultiple.md
 
 ### Overview
 
 With several images and shapes selected, scales each image to its matching shape and creates a clipping mask for each pair.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImgFitMaskMultiple.md
 
 */
 

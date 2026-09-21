@@ -9,12 +9,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Illustratorの各種環境設定を、常駐パレットでまとめて切り替えます。設定は操作した時点で即時反映されます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManagerForTransformAndAlign.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Overview
 
 A persistent palette for switching a range of Illustrator preferences. Every change takes effect the moment you make it.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManagerForTransformAndAlign.md
 
 */
 

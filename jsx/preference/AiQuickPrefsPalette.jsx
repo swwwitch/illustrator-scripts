@@ -10,6 +10,10 @@ Illustratorの使用頻度の高い環境設定を、常駐パレットでまと
 チェックや入力を操作したその場で反映されるため、環境設定ダイアログを開き直す手間がありません。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Overview
 
@@ -17,6 +21,7 @@ A persistent palette for toggling the Illustrator preferences you use most often
 Every checkbox and field applies as you touch it, so there is no reopening of the Preferences dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPrefsPalette.md
 
 */
 

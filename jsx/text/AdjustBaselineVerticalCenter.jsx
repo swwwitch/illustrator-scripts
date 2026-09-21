@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 複数のテキストフレームへまとめて適用できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustBaselineVerticalCenter.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Shifts the specified characters up or down with a baseline shift so they line up
 It can be applied to several text frames at once.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustBaselineVerticalCenter.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 同名スタイルが既に存在する場合は削除してから登録するため、繰り返し実行しても重複しません。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/register-temp-style.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Registers the appearance of the selected object as a graphic style with a fixed 
 An existing style with the same name is removed first, so repeated runs never create duplicates.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/register-temp-style.md
 
 */
 

@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択中のオブジェクトに対して、複合パスの解除→パスの合体→アピアランスの拡張→グループ解除を一括で実行します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUnite.md
 
 ### Overview
 
 Runs Release Compound Path, Unite, Expand Appearance and Ungroup on the selection in one pass.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUnite.md
 
 */
 

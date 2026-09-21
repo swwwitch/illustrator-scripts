@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトを、正方形のクリッピングマスクで切り抜きます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipWithSquare.md
 
 ### Overview
 
 Clips the selected objects with a square clipping mask.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipWithSquare.md
 
 */
 

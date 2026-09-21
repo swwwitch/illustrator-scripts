@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 XMPで足りない分はドキュメント内のテキストから補い、環境にないフォントだけに絞り込んで書き出すこともできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExportFontInfoFromXMP.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n16e7e95652b6
 
 ### Overview
 
@@ -16,6 +20,7 @@ Extracts font usage information from the XMP metadata embedded in the document a
 What the XMP lacks is topped up from the text in the document, and the export can be narrowed to the fonts this machine does not have.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExportFontInfoFromXMP.md
 
 */
 

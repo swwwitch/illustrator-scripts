@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 縦横比保持と片辺のみを切り替えでき、操作はリアルタイムにプレビューされます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectResizer.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n6f35bd4000ec
 
 ### Overview
 
@@ -17,6 +21,7 @@ Resizes the selected objects to the largest, the smallest, the key object, a giv
 You can switch between keeping the aspect ratio and constraining a single edge, with a real-time preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectResizer.md
 
 */
 

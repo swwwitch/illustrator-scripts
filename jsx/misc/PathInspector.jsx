@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択中またはドキュメント全体のパス統計を集計し、常駐パレットで表示します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathInspector.md
 
 ### Overview
 
 Counts path statistics for the selection, or for the whole document, and shows them in a persistent palette.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathInspector.md
 
 */
 

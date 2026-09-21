@@ -9,6 +9,10 @@ PDF/AI ファイルを指定したページ範囲で読み込み、現在のド�
 各ページを個別のアートボードとして並べるか、アートボードを追加せずオブジェクトとして配置するかを選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAIImporter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n42595650216f
 
 ### Overview
 
@@ -16,6 +20,7 @@ Imports a PDF/AI file over a given page range and places the pages in the curren
 The pages can be laid out as one artboard each, or placed as objects without adding artboards.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAIImporter.md
 
 */
 

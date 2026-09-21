@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「Guides Preview for Trim View」レイヤーを作成し、そのレイヤーをテンプレート化します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ガイドをテンプレートに.md
 
 ### Overview
 
 Creates the "Guides Preview for Trim View" layer and turns it into a template layer.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ガイドをテンプレートに.md
 
 */
 

@@ -8,6 +8,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 現在の表示領域の中心付近に、黒く塗ってランダムな不透明度を与えた正方形を5つ作成し、重ならないように配置してから「Convert to Shape」「Make Pixel Perfect」コマンドを適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewRectangle5Times.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n509eb6aa0a19
 
 ### Overview
 
@@ -15,6 +19,7 @@ Creates five black squares with random opacity near the center of the current vi
 they do not overlap, and applies the "Convert to Shape" and "Make Pixel Perfect" commands.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewRectangle5Times.md
 
 */
 

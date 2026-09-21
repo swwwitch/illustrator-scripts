@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 オフセット・線幅・線端・角の形状をダイアログで指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TitleBarLineCutSp.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Cuts a gap into a rule around the selected objects.
 Offset, stroke weight, cap and join are set in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TitleBarLineCutSp.md
 
 */
 

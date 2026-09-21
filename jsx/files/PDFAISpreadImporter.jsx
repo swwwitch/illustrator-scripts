@@ -9,6 +9,10 @@ PDF/AI ファイルを指定したページ範囲で読み込み、新規ドキ�
 横長ページは見開きとして自動判定し、左右2つのアートボードに分割します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PDFAISpreadImporter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n5514d9f2c5f8
 
 ### Overview
 
@@ -16,6 +20,7 @@ Imports a PDF/AI file over a given page range and places each page on its own ar
 Landscape pages are detected as spreads and split into two artboards, left and right.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PDFAISpreadImporter.md
 
 */
 

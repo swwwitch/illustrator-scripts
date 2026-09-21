@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 シンボル名と基準点はダイアログで指定でき、テキスト選択時は同じフォント・スタイル・文字列のフレームを対象にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolizeAndReplace.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n650a4b91329d
 
 ### Overview
 
@@ -16,6 +20,7 @@ Registers the selection as a symbol and replaces every matching item in the docu
 The symbol name and registration point are set in a dialog; with text selected, frames sharing the same font, style and string are targeted.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolizeAndReplace.md
 
 */
 

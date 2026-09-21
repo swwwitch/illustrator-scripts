@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 クリップグループのマスクパスの大きさを変更します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResizeClipMask.md
 
 ### Overview
 
 Resizes the mask path of a clipping group.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResizeClipMask.md
 
 */
 

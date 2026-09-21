@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選んだフォントを別のフォントへまとめて置き換えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceDocumentFonts.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ncc9330ba1f7d
 
 ### Overview
 
@@ -16,6 +20,7 @@ Lists the fonts used in the document by family and style, and replaces
 the selected ones with another font in a single pass.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceDocumentFonts.md
 
 */
 

@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ［バランス］パネルで、左右（または上下）の幅と比率を数値入力とスライダーで調整できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitForTwo.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ With a single object selected, splits its bounding box left/right or top/bottom 
 The Balance panel adjusts the width and ratio of each half with a field and a slider.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitForTwo.md
 
 */
 

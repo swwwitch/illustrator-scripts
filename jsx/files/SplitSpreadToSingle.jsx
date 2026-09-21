@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 対象は選択オブジェクトのみ、またはドキュメント内のすべてから選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitSpreadToSingle.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Detects spread-like objects and splits them into left and right single pages.
 You can process only the selection, or every matching object in the document.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitSpreadToSingle.md
 
 */
 

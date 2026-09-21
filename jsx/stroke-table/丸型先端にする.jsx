@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したパスアイテム（グループ内も含む）の線端を、丸型線端に設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/丸型先端にする.md
 
 ### Overview
 
 Sets the stroke cap of the selected path items, including those inside groups, to a round cap.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/丸型先端にする.md
 
 */
 

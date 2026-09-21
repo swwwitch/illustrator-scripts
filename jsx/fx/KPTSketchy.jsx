@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 変形はすべてライブ効果として適用するため、あとから編集・解除できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/KPTSketchy.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na808bac430d9
 
 ### Overview
 
@@ -17,6 +21,7 @@ A persistent palette that adds random distortion to the selected objects for a h
 Everything is applied as live effects, so the result stays editable and removable.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/KPTSketchy.md
 
 */
 

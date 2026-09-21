@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストフレームを、書式を保ったまま1文字ごとのテキストフレームへ分割します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTextSplitter.md
 
 ### Overview
 
 Splits the selected text frame into one text frame per character, preserving the formatting.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTextSplitter.md
 
 */
 

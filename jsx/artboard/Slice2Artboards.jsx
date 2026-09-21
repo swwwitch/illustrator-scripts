@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 分割したピースごとにアートボードを作成することもできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Slice2Artboards.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Slices the selected objects into a grid of the given rows and columns and clips 
 An artboard can be created for each piece as well.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Slice2Artboards.md
 
 */
 

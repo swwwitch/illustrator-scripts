@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログでパラメーターを操作しながらライブプレビューで確認でき、［OK］で確定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SymbolListBuilder.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ncac687d0a3a0
 
 ### Overview
 
@@ -16,6 +20,7 @@ Generates a dedicated "Symbol List" artboard that lays out every symbol register
 Parameters are adjusted with a live preview in the dialog, and OK commits the result.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SymbolListBuilder.md
 
 */
 

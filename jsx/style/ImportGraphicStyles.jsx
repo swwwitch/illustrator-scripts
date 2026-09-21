@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 指定したファイルは記憶され、次回以降は自動で参照します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportGraphicStyles.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Imports the graphic styles from an AI file you choose, builds a radio button per
 The chosen file is remembered and reused on later runs.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportGraphicStyles.md
 
 */
 

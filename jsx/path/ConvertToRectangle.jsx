@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 作成単位、マージン、角丸、塗り・線プリセット、元オブジェクトの扱いをダイアログで指定でき、プレビューにも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToRectangle.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Creates rectangles that match the bounds of the selected objects.
 The unit of creation, margin, corner radius, fill and stroke presets, and what happens to the originals are set in a dialog, with a preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToRectangle.md
 
 */
 

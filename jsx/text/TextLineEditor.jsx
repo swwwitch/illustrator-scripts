@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストオブジェクトの行を、一覧で並べ替え・編集します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextLineEditor.md
 
 ### Overview
 
 Reorders and edits the lines of the selected text object from a list.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextLineEditor.md
 
 */
 

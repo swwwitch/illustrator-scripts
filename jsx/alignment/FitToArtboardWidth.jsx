@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 選択したオブジェクトを重なるアートボードごとにまとめ、それぞれひとまとまりとして、縦横比を保ったままアートボードの幅（既定は90%）に合わせてリサイズし、中央に配置します。幅に合わせるとアートボードの高さを超える場合は、高さ（既定は90%）を基準にリサイズします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitToArtboardWidth.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
 Groups the currentSelection by the artboard each object sits on, resizes every group as one unit to the artboard width (90% by default) while keeping its aspect ratio, and centers it on that artboard. When fitting to the width would exceed the artboard height, it fits to the height (90% by default) instead.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitToArtboardWidth.md
 
 */
 

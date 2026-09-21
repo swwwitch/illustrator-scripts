@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択中の2つのテキストオブジェクトの文字列（contents）を入れ替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapText.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n071e09af28a7
 
 ### Overview
 
 Swaps the contents of two selected text objects.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapText.md
 
 */
 

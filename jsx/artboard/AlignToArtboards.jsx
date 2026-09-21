@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 整列先は3×3の9点から選べ、辺からのマージンも指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignToArtboards.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n50aacdeb4908
 
 ### Overview
 
@@ -16,6 +20,7 @@ Aligns the selected objects to a chosen position on the artboard.
 The target is picked from a 3x3 grid of nine points, with a margin from the edges.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignToArtboards.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 非表示・ロックされたレイヤーのガイドも一時解除して対象にし、処理後に元の状態へ戻します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CollectGuides.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Collects guides scattered across layers and sublayers into a single layer ("// g
 Hidden and locked layers are unlocked temporarily so their guides are included, then restored afterwards.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CollectGuides.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログでプレビューを確認しながら、［再実行］で抽選し直せます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontShuffle.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Applies a random font to each character of the selected text.
 The dialog previews the result, and a Reshuffle button redraws the assignment.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontShuffle.md
 
 */
 

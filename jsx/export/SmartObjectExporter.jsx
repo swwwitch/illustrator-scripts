@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 設定した内容はアートボード上でそのままプレビューでき、よく使う組み合わせはプリセットとして呼び出せます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectExporter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/necf308c39f5d
 
 ### Overview
 
@@ -16,6 +20,7 @@ Places the selection on a temporary artboard and exports it as PNG with a chosen
 Every setting is previewed on the artboard itself, and frequently used combinations can be recalled as presets.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectExporter.md
 
 */
 

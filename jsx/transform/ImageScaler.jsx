@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択している配置画像（PlacedItem / RasterItem）の拡大・縮小率（%）を表示し、入力した値で再スケールします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageScaler.md
 
 ### Overview
 
 Shows the scale (%) of the selected placed image (PlacedItem / RasterItem) and rescales it to the value you enter.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageScaler.md
 
 */
 

@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 現在の表示領域の中心に、欧文フォントを適用したポイントテキストを作成し、選択状態にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewTextE.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n509eb6aa0a19
 
 ### Overview
 
 Creates a point text with a Latin font at the center of the current view and leaves it selected.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewTextE.md
 
 */
 

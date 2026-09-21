@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アートボード名表示とアートボード枠線の表示設定を、ダイアログでまとめて切り替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManagerArtboard.md
 
 ### Overview
 
 Switches the artboard-name and artboard-border display preferences from a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PresetManagerArtboard.md
 
 */
 

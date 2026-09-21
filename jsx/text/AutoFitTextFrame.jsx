@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 またはエリア内文字の高さの調整で解消します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoFitTextFrame.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n8c2e2568a6b7
 
 ### Overview
 
@@ -16,6 +20,7 @@ Resolves overset text in the selected area type and path type, either by shrinki
 the font size, or by adjusting the height of the area type.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoFitTextFrame.md
 
 */
 

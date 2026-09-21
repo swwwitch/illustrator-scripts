@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストフレームの段落で使われている禁則処理の値を列挙して表示します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InspectKinsokuSimple.md
 
 ### Overview
 
 Lists the kinsoku (line-breaking) settings used by the paragraphs of the selected text frames.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InspectKinsokuSimple.md
 
 */
 

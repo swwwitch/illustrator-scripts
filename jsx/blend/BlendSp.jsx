@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ステップ数と方向はライブプレビューで確認でき、解除／拡張／ブレンド軸の置き換えは［OK］で確定したときだけ実行します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BlendSp.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Creates, configures and adjusts a blend from a single dialog, depending on what 
 Steps and orientation are shown as a live preview, while Release, Expand and Replace Spine run only when the dialog is confirmed.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BlendSp.md
 
 */
 

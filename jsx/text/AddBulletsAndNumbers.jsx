@@ -11,6 +11,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログを開くと現在の行頭マーカーから設定を推定し、プレビューを見ながら「現状の続き」として編集できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBulletsAndNumbers.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nd738e3258989
 
 ### Overview
 
@@ -18,6 +22,7 @@ Adds a bullet or a sequence number to the start of each line in the selected tex
 The dialog infers its settings from the markers already present, so you can carry on from the current state while watching a preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBulletsAndNumbers.md
 
 */
 

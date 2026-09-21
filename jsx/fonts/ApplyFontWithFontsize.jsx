@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「ヒラギノ角ゴシック W3 12pt↓16pt」のようにサイズ・行送りを併記でき、併記のない行はフォントだけを適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyFontWithFontsize.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n33d152e73f35
 
 ### Overview
 
@@ -16,6 +20,7 @@ Reads each line (paragraph) of the selected text frames as a "font name (plus si
 Sizes and leading can be written after the name, as in "Hiragino Kaku Gothic W3 12pt↓16pt"; a line without them only changes the font.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyFontWithFontsize.md
 
 */
 

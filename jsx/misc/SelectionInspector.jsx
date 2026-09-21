@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 テキスト・配置画像・透明・グループ・パス・ガイドの内訳を確認でき、選択オブジェクトのメモの閲覧・編集にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionInspector.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nefcb1ce828ce
 
 ### Overview
 
@@ -17,6 +21,7 @@ Tallies the objects in the selection, or in the whole document, and shows them i
 It breaks down text, placed images, transparency, groups, paths and guides, and can view and edit the note on the selected object.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionInspector.md
 
 */
 

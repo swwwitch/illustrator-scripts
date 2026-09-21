@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 値を変えるたびにアートボード上のプレビューが更新され、オブジェクトを選択して実行すると、その大きさと向きに合わせて配置します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCurlyBracketMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nd6b3e36ff79d
 
 ### Overview
 
@@ -16,6 +20,7 @@ Creates a curly bracket path from two radii, the position of its middle point, t
 The artboard preview updates as the values change, and running it with a selection fits the bracket to that selection's size and direction.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCurlyBracketMaker.md
 
 */
 

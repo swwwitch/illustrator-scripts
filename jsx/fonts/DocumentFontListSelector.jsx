@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 同じフォントでも設定が異なれば、別の候補としてリストアップします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DocumentFontListSelector.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Collects the formatting combinations used by the text in the document — font, 
 The same font appears as separate entries when these settings differ.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DocumentFontListSelector.md
 
 */
 

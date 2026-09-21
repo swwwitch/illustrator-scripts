@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 名前全体が「行番号＋区切り文字（-, _, x）＋列番号」に一致するアートボードを、行列指定として扱います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GridArrangeArtboards.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Parses the artboard names and re-lays the artboards out as a row-column grid.
 An artboard counts as positioned when its whole name matches "row number + separator (-, _, x) + column number".
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GridArrangeArtboards.md
 
 */
 

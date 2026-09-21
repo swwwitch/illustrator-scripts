@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 オブジェクト（画像・グループなど）とパスを選択して実行すると、パスの範囲を取り除いて残りを指定の間隔に詰めます（パスが対象の端を覆っているときは、その側だけを残します）。切り口はワープで曲げたり、省略線を引いたりできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TrimWithBreakLine.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n2483bd96e284
 
 ### Overview
 
 With an object (image, group, …) and a path selected, drops the area the path covers and closes the remaining parts up to a set gap (when the path covers an edge of the artwork, only that side is kept). The cut edge can be bent with a warp and traced with break lines.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TrimWithBreakLine.md
 
 */
 

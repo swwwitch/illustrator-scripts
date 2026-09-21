@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの背面に長方形を作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DrawRectangleBehindSelectedObject.md
 
 ### Overview
 
 Draws a rectangle behind the selected objects.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DrawRectangleBehindSelectedObject.md
 
 */
 

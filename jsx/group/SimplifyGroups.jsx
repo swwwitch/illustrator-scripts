@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 グループと非グループが混在している場合は、まとめて1つのグループにしてから処理します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SimplifyGroups.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n45797beb72bb
 
 ### Overview
 
@@ -16,6 +20,7 @@ Recursively ungroups the subgroups inside the selection, leaving only the outerm
 When groups and non-groups are mixed, they are grouped together first.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SimplifyGroups.md
 
 */
 

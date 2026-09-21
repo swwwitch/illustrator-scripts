@@ -8,6 +8,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストフレーム内の数字・英字・日付・時刻を検出し、値を増分しながら下方向へ複製します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartIncrementText.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n5f25ed17b123
 
 ### Overview
 
@@ -15,6 +19,7 @@ Finds the digits, letters, dates or times in the selected text frame and duplica
 incrementing the value each time.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartIncrementText.md
 
 */
 

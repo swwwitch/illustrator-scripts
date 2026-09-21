@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 保存形式は常に Illustrator 形式（.ai）なので、.ai 以外の書類では「別名で保存」だけが使えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Ai-FileNameManager.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nc88dd887eb1c
 
 ### Overview
 
@@ -16,6 +20,7 @@ Reassembles the active document's filename from its segments — base, title, st
 The output is always Illustrator format (.ai), so only "Save As" is available for a non-.ai document.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Ai-FileNameManager.md
 
 */
 

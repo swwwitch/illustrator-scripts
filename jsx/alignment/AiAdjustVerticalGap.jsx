@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ライブプレビューに対応し、設定を変えるたびに結果を確認できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAdjustVerticalGap.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n8201294835f9
 
 ### Overview
 
@@ -17,6 +21,7 @@ A persistent palette that sets the vertical gap between two selected objects to 
 A live preview shows the result as you change the settings.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAdjustVerticalGap.md
 
 */
 

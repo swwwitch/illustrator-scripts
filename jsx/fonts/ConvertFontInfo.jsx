@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストを、そのテキストで使われているフォント情報の文字列に変換します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertFontInfo.md
 
 ### Overview
 
 Replaces the selected text with a string describing the font information it uses.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertFontInfo.md
 
 */
 

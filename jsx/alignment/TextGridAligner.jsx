@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 行方向と列方向のしきい値を独立して調整でき、行・列のアキを均等に配置するオプションもあります。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextGridAligner.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Aligns or groups text frames by row and by column.
 The row and column thresholds are tuned independently, and an option evens out the gaps between them.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextGridAligner.md
 
 */
 

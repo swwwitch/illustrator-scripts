@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ［方向］で左右2分割と上下2分割を切り替えられ、サイズ倍率（%）をプレビューしながら指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SplitBackgroundForTwo.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ With two objects selected — text, paths or groups — creates a background beh
 The Direction option switches between a left/right and a top/bottom split, and the size scale (%) is set with a preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SplitBackgroundForTwo.md
 
 */
 

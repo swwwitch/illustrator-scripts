@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 形状・生成数・分布・ランダム量をプレビューで確かめながら調整し、［OK］で Confetti レイヤーへ出力します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConfettiMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n5a41fb524a5a
 
 ### Overview
 
@@ -16,6 +20,7 @@ Scatters confetti across the selected object, or across the artboard when nothin
 Shape, count, distribution and randomness are tuned against a live preview, and OK commits the result onto a Confetti layer.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConfettiMaker.md
 
 */
 

@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ビューの回転角度と環境設定の「角度の制限」をパレットから確認・変更し、選択オブジェクトの角度と合わせられます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartRotateView.md
 
 ### Overview
 
 A palette for checking and changing the view rotation and the "constrain angle" preference, and for aligning them with the selected object's angle.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartRotateView.md
 
 */
 

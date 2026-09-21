@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 完全に内側に収まるタイルのみを残し、元の2オブジェクトはそのまま残します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PatternFill.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ With two objects selected, treats the larger as the container and the smaller as
 Only the tiles that fit entirely inside are kept, and both originals are left in place.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PatternFill.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 通常オブジェクトは visibleBounds、クリップグループはマスクパスの geometricBounds を基準にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/swap-2-objects.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Swaps the center positions of two selected objects.
 Ordinary objects use their visibleBounds, while clipping groups use the geometricBounds of the mask path.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/swap-2-objects.md
 
 */
 

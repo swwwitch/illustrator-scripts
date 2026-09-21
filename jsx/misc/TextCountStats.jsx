@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ドキュメント内のテキストの文字数などを集計して表示します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextCountStats.md
 
 ### Overview
 
 Tallies the character counts and related statistics of the text in the document.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextCountStats.md
 
 */
 

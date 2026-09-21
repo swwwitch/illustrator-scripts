@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 現在のアートボードと同じ大きさの長方形を作成し、「bg-template」レイヤーに置いてテンプレート化したうえで最背面へ移動します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/bg-template.md
 
 ### Overview
 
 Creates a rectangle the size of the current artboard, places it on a "bg-template" layer, marks that layer as a template and sends it to the back.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/bg-template.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 接頭辞・接尾辞・ゼロ埋め・総ページ数表示に対応し、変更は即時プレビューされます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddPageNumberFromTextSelection.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ndc3d96ffc335
 
 ### Overview
 
@@ -16,6 +20,7 @@ Uses the selected point text as a template and places a page number on every art
 Prefix, suffix, zero padding and a total-pages display are supported, with an immediate preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddPageNumberFromTextSelection.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 順変換は見た目を保ったままエリア内文字へ、逆変換は枠サイズを保ったままポイント文字へ変換します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertAreaAndPointType.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Converts between point text or text on a path and area text, depending on what i
 The forward conversion preserves the appearance, and the reverse keeps the frame size when returning to point text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertAreaAndPointType.md
 
 */
 

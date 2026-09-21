@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 フォント情報によるグループ分けと、昇順・降順・ランダム順に対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortByNumbers.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Extracts numbers from the text inside groups, sorts the groups by those numbers,
 Groups can be split by font, and the order can be ascending, descending or random.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortByNumbers.md
 
 */
 

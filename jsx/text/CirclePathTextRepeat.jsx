@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 区切り文字はスペースまたは任意の文字（初期値は「•」）から選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CirclePathTextRepeat.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na9334a217ec3
 
 ### Overview
 
@@ -16,6 +20,7 @@ With one circle and one text frame selected, repeats the text a given number of 
 The separator can be a space or any character you type ("•" by default).
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CirclePathTextRepeat.md
 
 */
 

@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ページアイテムをX座標またはY座標で並べ替え、その順序で重ね順を更新します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SortItemsByPosition.md
 
 ### Overview
 
 Sorts page items by their X or Y coordinate and rewrites the stacking order to match.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SortItemsByPosition.md
 
 */
 

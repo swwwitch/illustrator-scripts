@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「中心位置を交換」と「両端の位置を保って交換」を切り替えられ、見た目のサイズを基準にすることもできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapObjects.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na534a676fae2
 
 ### Overview
 
@@ -16,6 +20,7 @@ Swaps the positions of two selected objects.
 You can swap their centers, or keep their outer edges fixed, and optionally work from their visual bounds.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapObjects.md
 
 */
 

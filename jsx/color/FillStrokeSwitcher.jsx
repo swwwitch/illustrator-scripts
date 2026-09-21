@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 塗り↔線、塗り→線、線→塗りの3モードに対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillStrokeSwitcher.md
+
+note記事も参照してください。
+https://note.com/shibumi/n/n5229b4357dd3
 
 ### Overview
 
@@ -16,6 +20,7 @@ Swaps the fill and stroke of the selected objects, or moves one into the other.
 Three modes are available: fill ↔ stroke, fill → stroke, and stroke → fill.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillStrokeSwitcher.md
 
 */
 

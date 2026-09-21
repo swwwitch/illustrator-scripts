@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 すべてのアートボードを、指定した列数のグリッドへランダムな順序で並べ替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/randomizeArtboards.md
 
 ### Overview
 
 Shuffles all artboards into a grid with a fixed number of columns.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/randomizeArtboards.md
 
 */
 

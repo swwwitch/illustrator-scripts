@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 グループ・複合パス・テキストは再帰的に処理し、線色も対象にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwatchGroupFromSelection.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Extracts the fill colors of the selected objects in layout order (left to right,
 Groups, compound paths and text are processed recursively, and stroke colors are collected as well.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwatchGroupFromSelection.md
 
 */
 

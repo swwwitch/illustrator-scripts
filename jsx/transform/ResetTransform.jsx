@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 バウンディングボックスをリセットしたあと元の中心位置へ戻すため、見た目の位置は保たれます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetTransform.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n52f6b645bc70
 
 ### Overview
 
@@ -17,6 +21,7 @@ Safely resets rotation, shear, scale and aspect ratio on placed images, text, re
 The bounding box is reset and the item is moved back to its original center, so its apparent position is preserved.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetTransform.md
 
 */
 

@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 コピー済みのオブジェクトを、開いているすべてのドキュメントへ同じ位置に貼り付けます（pasteInPlace）。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PasteInAllDocs.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n04535658c7f6
 
 ### Overview
 
 Pastes the copied objects into every open document at the same position, using Paste in Place.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PasteInAllDocs.md
 
 */
 

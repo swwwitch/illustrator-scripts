@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの体裁を、段落スタイルとして登録します。既存のスタイルを選んで上書きすることもできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/段落スタイル.md
 
 ### Overview
 
 Registers the formatting of the selected text as a paragraph style, or overwrites an existing style with it.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/段落スタイル.md
 
 */
 

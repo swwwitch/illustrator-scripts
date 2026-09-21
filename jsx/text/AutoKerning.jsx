@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの自動カーニング方式（和文等幅／0／メトリクス／オプティカル）をまとめて設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerning.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne7a198a4f527
 
 ### Overview
 
 Sets the auto-kerning method — Metrics (Roman Only), 0, Metrics or Optical — on the selected text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerning.md
 
 */
 

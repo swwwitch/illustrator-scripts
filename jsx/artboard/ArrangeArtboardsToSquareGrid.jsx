@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 各アートボード内のアートワークも一緒に移動し、グリッドはカンバス中央に配置します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArrangeArtboardsToSquareGrid.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Re-lays out every artboard so the whole grid's outline is as close to a square a
 Each artboard's artwork moves with it, and the grid is centered on the canvas.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArrangeArtboardsToSquareGrid.md
 
 */
 

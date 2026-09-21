@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 対象はアートボード単位やレイヤー単位で絞り込め、重複をまとめることもできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextExport.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nb845889dd553
 
 ### Overview
 
@@ -16,6 +20,7 @@ Collects the text in the document, lists it, and exports it to a file.
 The scope can be narrowed by artboard or by layer, and duplicates can be folded together.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextExport.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 30個ぶん／アートボードいっぱい／すべてのフォント、の3モードから選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontSampler.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Lays out the text you type in each of the installed fonts.
 Three modes are available: 30 fonts, as many as fit the artboard, or every font.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontSampler.md
 
 */
 

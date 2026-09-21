@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ドキュメント内のレイヤーとサブレイヤーを階層順にたどり、名前・ロック状態・表示状態をアラートで一覧表示します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InspectLayerTree.md
 
 ### Overview
 
 Walks the document's layers and sublayers in hierarchy order and lists each name with its locked and visible state in an alert.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InspectLayerTree.md
 
 */
 

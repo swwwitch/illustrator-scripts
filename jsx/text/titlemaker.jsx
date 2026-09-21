@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 改行の対象にする文字はチェックボックスで選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/titlemaker.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Breaks the selected text frame onto a new line right after the characters you ch
 Which characters trigger a break is set with checkboxes.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/titlemaker.md
 
 */
 

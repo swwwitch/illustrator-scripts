@@ -11,6 +11,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクトに合わせるほか、各アートボード内のオブジェクトに合わせて全アートボードを個別に調整できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FitArtboardWithMargin.md
+
+note記事も参照してください。
+https://note.com/dtp_transit/n/n15d3c6c5a1e5
 
 ### Overview
 
@@ -18,6 +22,7 @@ Adjusts artboard size by operation, target and size (width & height).
 Fits to the selection, or fits every artboard individually to the objects it contains.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FitArtboardWithMargin.md
 
 */
 

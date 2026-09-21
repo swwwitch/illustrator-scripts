@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 最も上のオブジェクトを固定し、以降を上方向へ詰めます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeUpFromTop.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Adjusts the leading and the placement according to what is selected.
 The topmost object stays fixed and the rest close up upwards.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeUpFromTop.md
 
 */
 

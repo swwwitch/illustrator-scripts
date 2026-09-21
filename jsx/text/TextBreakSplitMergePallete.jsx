@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択状態に応じて、実行できる処理のボタンだけを有効化します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePallete.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf6f34559ba46
 
 ### Overview
 
@@ -17,6 +21,7 @@ A palette that gathers breaking, splitting, joining and tidying — plus reorder
 Only the buttons that make sense for the current selection stay enabled.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMergePallete.md
 
 */
 

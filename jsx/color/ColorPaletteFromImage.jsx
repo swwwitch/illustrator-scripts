@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 オブジェクトを選択していないときは、スウォッチパネルで選択中のスウォッチから色玉パレットを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPaletteFromImage.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n8b57cf662462
 
 ### Overview
 
@@ -16,6 +20,7 @@ Extracts representative colors from the selected placed image, raster image, vec
 With nothing selected, it builds the palette from the swatches selected in the Swatches panel instead.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPaletteFromImage.md
 
 */
 

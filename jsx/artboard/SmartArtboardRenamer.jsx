@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログでプレビューを確認しながら、アートボードの並び替えや1件ずつの手動リネームもできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartArtboardRenamer.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne0934ee22972
 
 ### Overview
 
@@ -16,6 +20,7 @@ Renames the artboards in bulk from a prefix and suffix plus a reference text —
 The dialog offers a preview, along with reordering and renaming artboards one at a time.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartArtboardRenamer.md
 
 */
 

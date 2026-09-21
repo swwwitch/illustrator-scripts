@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 配置先は「現在のアートボード」「最背面のオブジェクト」「_target レイヤーの長方形」から選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na3c45cea09b7
 
 ### Overview
 
@@ -16,6 +20,7 @@ Places the selected objects at the center of each cell of a grid with the rows a
 The target area can be the current artboard, the backmost object, or a rectangle on the `_target` layer.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md
 
 */
 

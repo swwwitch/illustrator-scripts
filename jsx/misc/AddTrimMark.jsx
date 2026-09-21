@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 実行時のダイアログで、対象と「ガイドを残す」「日本式トンボ」のON/OFFを選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMark.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n40e3e39cf9f2
 
 ### Overview
 
@@ -16,6 +20,7 @@ Creates trim marks for a selected object (a single simple rectangle), the curren
 A dialog picks the target and toggles "keep guides" and "Japanese-style trim marks".
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMark.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 高さ倍率（%）をダイアログで指定でき、閉じる前にプレビューを確認できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTableMaker.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ With two objects selected — text, paths or groups — creates a background beh
 The height scale (%) is set in a dialog, with a preview before you commit.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartTableMaker.md
 
 */
 

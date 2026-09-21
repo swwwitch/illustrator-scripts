@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 セル幅・高さや月間隔をダイアログで調整でき、日本の祝日（2020〜2035年、振替休日・国民の休日を含む）に対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartCalendarMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nc54c315c5dc3
 
 ### Overview
 
@@ -17,6 +21,7 @@ Builds calendars — Monday-first — for a number of months from a reference da
 Cell size and the spacing between months are set in a dialog, and Japanese public holidays from 2020 to 2035, including substitute and citizens' holidays, are covered.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartCalendarMaker.md
 
 */
 

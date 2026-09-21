@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アウトライン化した文字のパスを解析し、ディセンダーライン・ベースライン・ミーンライン・アセンダーラインの4本を推定して引きます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/4lines.md
 
 ### Overview
 
 Analyzes the paths of outlined text and draws the four typographic lines — descender, baseline, mean line and ascender.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/4lines.md
 
 */
 

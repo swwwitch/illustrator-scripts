@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 カラー・配置位置・対象をライブプレビューで確かめながら指定でき、描画後に「ガイドに変換」「ライブシェイプ化」を適用できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDrawArtboardRectangle.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n1ba88513a9c8
 
 ### Overview
 
@@ -16,6 +20,7 @@ Draws a rectangle the size of the active artboard, or of every artboard, taking 
 Color, placement and target scope are set with a live preview, and the result can be converted to guides or to a live shape.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDrawArtboardRectangle.md
 
 */
 

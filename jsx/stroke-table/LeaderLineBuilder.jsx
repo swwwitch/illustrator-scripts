@@ -12,6 +12,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 角度・斜線の方向・線のスタイル・先端マーカー・フチを、ダイアログでプレビューしながら調整できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LeaderLineBuilder.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n506df641d5c5
 
 ### Overview
 
@@ -19,6 +23,7 @@ Builds a leader line at a chosen angle from the bounding box of the selected pat
 Angle, diagonal direction, stroke style, end marker and outline are all adjusted with a preview in the dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LeaderLineBuilder.md
 
 */
 

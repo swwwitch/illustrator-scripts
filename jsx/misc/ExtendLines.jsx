@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ［円弧から円］でBezier曲線セグメントから円を推定することもできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExtendLines.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Takes pairs of adjacent anchor points from the paths in the selection — groups
 The "arc to circle" option can also estimate a circle from a Bézier segment.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExtendLines.md
 
 */
 

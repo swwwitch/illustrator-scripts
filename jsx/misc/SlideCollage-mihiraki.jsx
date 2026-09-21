@@ -9,6 +9,7 @@ PDF/AIファイルを指定したページ範囲で配置し、各ページを�
 横長ページは見開きとみなして左右に分割し、綴じ方向に応じた順序で配置できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage-mihiraki.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Places a PDF/AI file over a given page range and lays each page out on its own a
 Landscape pages are treated as spreads, split left and right, and ordered according to the binding direction.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage-mihiraki.md
 
 */
 

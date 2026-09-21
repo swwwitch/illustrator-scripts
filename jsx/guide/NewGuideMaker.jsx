@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログで方向・位置・単位・対象（カンバス／アートボード）を指定してガイドを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/NewGuideMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n1085336d7265
 
 ### Overview
 
 Creates guides by specifying direction, position, unit, and target (canvas or artboard) in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/NewGuideMaker.md
 
 */
 

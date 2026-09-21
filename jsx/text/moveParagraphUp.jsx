@@ -10,6 +10,7 @@ sky-chaser-high 氏の moveLineUp.jsx（Visual Studio Code の「行を上へ移
 表示行ではなく段落単位で動かすように改変したものです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/moveParagraphUp.md
 
 ### Overview
 
@@ -18,6 +19,7 @@ A paragraph-based variant of moveLineUp.jsx by sky-chaser-high,
 which reproduces Visual Studio Code's "Move Line Up".
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/moveParagraphUp.md
 
 */
 

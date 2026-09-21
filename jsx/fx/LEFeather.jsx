@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 半径は現在の定規単位で入力し、内部で pt に換算します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LEFeather.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Applies the Effect > Stylize > Feather live effect to the current selection.
 The radius is entered in the current ruler unit and converted to points internally.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEFeather.md
 
 */
 

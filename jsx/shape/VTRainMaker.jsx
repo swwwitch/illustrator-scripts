@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 雨の種類（雨粒・春雨・五月雨・鉄砲雨）や粒の形状、線幅・角度・密度・本数を指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VTRainMaker.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Generates rain-like rules.
 The rain type (raindrop, spring rain, early-summer rain, driving rain), the drop shape, and the stroke weight, angle, density and count are all configurable.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VTRainMaker.md
 
 */
 

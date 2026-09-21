@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 縦のズレが許容値以内であれば、横に大きく離れていても同じ行とみなします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAutoGroup-yoko.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Automatically groups the selection into horizontal rows.
 Objects count as the same row when their vertical offset is within the tolerance, however far apart they are horizontally.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAutoGroup-yoko.md
 
 */
 

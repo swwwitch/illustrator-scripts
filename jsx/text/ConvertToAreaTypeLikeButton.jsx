@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ポイント文字・パス上文字・図形・エリア内文字を対象に、エリア内文字の作成と調整を行います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToAreaTypeLikeButton.md
 
 ### Overview
 
 Creates and adjusts area text from point text, text on a path, shapes, or existing area text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButton.md
 
 */
 

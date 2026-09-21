@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 保存した内容は ApplyTextAttributesFromClipboard.jsx から読み取って適用できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CopyTextAttributesToClipboard.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Reads the character and paragraph attributes of the selected text, taking the fi
 The stored values can then be applied with ApplyTextAttributesFromClipboard.jsx.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CopyTextAttributesToClipboard.md
 
 */
 

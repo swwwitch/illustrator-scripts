@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 整列先は3×3の9点から選べるほか、矢印キーでの1段階ずつの送りやファイル名からの自動判定にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlign.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4ae0e1e70481
 
 ### Overview
 
@@ -16,6 +20,7 @@ Aligns the edges or the center of the selected objects to the edge or the center
 The target is picked from a 3x3 grid of nine points, stepped one target at a time with the arrow keys, or derived from the filename.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlign.md
 
 */
 

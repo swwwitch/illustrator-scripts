@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 RGBとCMYKに対応し、既存の同名スウォッチは再利用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegisterAndApplySwatches.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Registers the fill and stroke colors of the selected objects as spot-color swatc
 RGB and CMYK are supported, and an existing swatch with the same name is reused.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegisterAndApplySwatches.md
 
 */
 

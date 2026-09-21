@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 表示する文字列とフォントサイズはダイアログで指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontCatalogGenerator.md
+
+note記事も参照してください。
+https://note.com/studio_tofu/n/n7b0cf367ec88
 
 ### Overview
 
@@ -16,6 +20,7 @@ Lists the fonts installed on the system and generates a specimen sheet for them 
 The sample string and the font size are set in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontCatalogGenerator.md
 
 */
 

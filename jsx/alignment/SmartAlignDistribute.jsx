@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 方向は自動判定でき、揃え（左右／上下）、プレビュー境界、ランダム並べ替えにも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignDistribute.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Lines the selected objects up vertically or horizontally and distributes them at
 The direction can be detected automatically, and alignment, preview bounds and random reordering are all supported.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignDistribute.md
 
 */
 

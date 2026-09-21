@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 同じ段落内で文字列を選択している場合も、その段落全体に広げます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSelectParagraph.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Selects the whole paragraph the text cursor is sitting in.
 A selection already inside a paragraph is expanded to cover the whole paragraph.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSelectParagraph.md
 
 */
 

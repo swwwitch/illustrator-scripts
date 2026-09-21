@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 リンク切れの配置画像を検出し、指定したフォルダーから同名ファイルを探して自動的に再リンクします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkMissingLinks.md
 
 ### Overview
 
 Detects missing linked images and relinks them automatically from a folder you choose, matching by file name.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkMissingLinks.md
 
 */
 

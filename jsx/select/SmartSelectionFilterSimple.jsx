@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 対象スコープを切り替えると、選択直下だけでなくグループ内のオブジェクトも対象にできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSelectionFilterSimple.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Filters the selection by condition and reselects text frames, open paths, or clo
 Switching the scope extends the filter from the top level of the selection to objects inside groups as well.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSelectionFilterSimple.md
 
 */
 

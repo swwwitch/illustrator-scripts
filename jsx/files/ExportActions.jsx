@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Illustratorに登録されているアクションセットを、デスクトップへ書き出します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExportActions.md
 
 ### Overview
 
 Exports the action sets registered in Illustrator to the desktop.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExportActions.md
 
 */
 

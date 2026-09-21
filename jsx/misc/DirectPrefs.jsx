@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 環境設定の「角度の制限」と「キー増加」の変更、およびガイド・グリッドの表示やロックの切り替えをパレットから行います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DirectPrefs.md
 
 ### Overview
 
 A palette for changing the constrain angle and the keyboard increment, and for toggling the display and lock state of guides and the grid.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DirectPrefs.md
 
 */
 

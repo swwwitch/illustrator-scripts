@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 画像またはベクターオブジェクトのグループと、パスを選択して実行すると、アートワークの複製をパスでマスクして、すりガラス風のぼかし、スポットライト、ルーペ、部分拡大をプレビューしながら作ります。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MaskSpotlight.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nfc777dda965d
 
 ### Overview
 
 With an image or a group of vector objects and a path selected, masks a copy of the artwork with the path and builds a frosted-glass blur, a spotlight, a loupe or a detail callout against a live preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MaskSpotlight.md
 
 */
 

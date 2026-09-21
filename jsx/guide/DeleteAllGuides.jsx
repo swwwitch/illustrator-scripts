@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ロックされたレイヤーも一時的にロックを解除して対象にし、処理後に元のロック状態へ戻します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DeleteAllGuides.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4907511336ad
 
 ### Overview
 
@@ -16,6 +20,7 @@ Deletes every guide in the document.
 Locked layers are unlocked temporarily so their guides are included, then their lock state is restored.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DeleteAllGuides.md
 
 */
 

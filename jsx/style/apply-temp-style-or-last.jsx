@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクトに、既存のグラフィックスタイル「temp_style」を適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/apply-temp-style-or-last.md
 
 ### Overview
 
 Applies the existing graphic style named "temp_style" to the selected objects.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/apply-temp-style-or-last.md
 
 */
 

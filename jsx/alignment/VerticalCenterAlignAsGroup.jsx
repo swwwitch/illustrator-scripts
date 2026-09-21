@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 天地中央のみで左右方向は動かさず、整列の基準は整列パネルの設定に従います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VerticalCenterAlignAsGroup.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
@@ -16,6 +20,7 @@ Groups the selection temporarily, then runs Align Vertical Centers from the Alig
 Only the vertical position changes, and the alignment reference follows the Align panel's own setting.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalCenterAlignAsGroup.md
 
 */
 

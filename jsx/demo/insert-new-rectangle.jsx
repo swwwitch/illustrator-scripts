@@ -8,6 +8,10 @@ app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 現在の表示領域の中心に黒く塗った正方形を作成して選択し、「Convert to Shape」「Make Pixel Perfect」コマンドを適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InsertNewRectangle.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n509eb6aa0a19
 
 ### Overview
 
@@ -15,6 +19,7 @@ Creates a black square at the center of the current view, selects it, and applie
 "Convert to Shape" and "Make Pixel Perfect" commands.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InsertNewRectangle.md
 
 */
 

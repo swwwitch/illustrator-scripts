@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 グループ内のインスタンスや複数シンボルの混在にも対応し、シンボルを含まない選択では同じアピアランスのオブジェクトを選択します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FindAllSymbolInstances.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n140952ad5011
 
 ### Overview
 
@@ -16,6 +20,7 @@ Finds every instance of the same symbols as the selected symbol instances across
 Instances inside groups and mixed symbols are handled; when no symbol instance is selected, objects with the same appearance are selected instead.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FindAllSymbolInstances.md
 
 */
 

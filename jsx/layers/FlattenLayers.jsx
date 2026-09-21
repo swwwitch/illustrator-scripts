@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ロック／非表示の扱いやガイドの行き先は、ダイアログで個別に指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenLayers.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Flattens the document by moving the objects under every layer except the exclude
 How locked and hidden items are treated, and where guides end up, are chosen in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenLayers.md
 
 */
 

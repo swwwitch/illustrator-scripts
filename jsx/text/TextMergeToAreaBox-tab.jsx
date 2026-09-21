@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 バラバラに分割されたテキストオブジェクトを行単位にまとめ、タブ区切りの1つのエリア内文字に再構成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextMergeToAreaBox-tab.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne8d31278c266
 
 ### Overview
 
 Gathers scattered text objects line by line and rebuilds them as a single tab-separated area text.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextMergeToAreaBox-tab.md
 
 */
 

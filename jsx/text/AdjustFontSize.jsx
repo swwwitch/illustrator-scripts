@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ライブプレビューで結果を確認しながら調整でき、キャンセルすると開く前の状態に戻ります。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustFontSize.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
@@ -16,6 +20,7 @@ Adjusts the font size and the horizontal and vertical scale of the selected char
 A live preview shows the result, and cancelling restores the state from before the dialog opened.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustFontSize.md
 
 */
 

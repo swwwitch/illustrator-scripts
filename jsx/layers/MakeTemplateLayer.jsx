@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アクティブレイヤーを「テンプレート」属性（ロック・印刷不可・画像を薄く表示）にします。ダイアログを出さずに即実行します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeTemplateLayer.md
 
 ### Overview
 
 Turns the active layer into a template layer — locked, non-printing and dimmed images. It runs immediately, without a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeTemplateLayer.md
 
 */
 

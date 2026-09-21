@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ケイ線の追加、角丸、複数オブジェクトの大きさ揃えにも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipMaskShapeChanger.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Replaces the clipping shape of the selected images, or of an existing clipping g
 Adding a stroke, rounding corners, and matching sizes across several objects are supported too.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipMaskShapeChanger.md
 
 */
 

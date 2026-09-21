@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 行送りは110%に固定されます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFrame110.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Recalculates the leading of each line in the selected text frames from the font 
 The leading is fixed at 110%.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFrame110.md
 
 */
 

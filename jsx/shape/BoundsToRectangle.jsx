@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 属性の引き継ぎ元やプレビュー境界／オブジェクト境界の切り替え、元の図形を残すオプションを指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/BoundsToRectangle.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Merges the selected objects into a single rectangle based on their overall bound
 You can choose which object's attributes to inherit, switch between preview and geometric bounds, and keep the originals.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/BoundsToRectangle.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログ上部のモードで処理を切り替え、対応するパネルだけが有効になります。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImageLinkManager.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Handles Embed, Unembed, Reset, Stroke and Relink for placed images from a single
 The mode selector at the top switches the operation, and only the matching panel stays enabled.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImageLinkManager.md
 
 */
 

@@ -9,12 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 重なって配置されたオブジェクトを、横方向へ等間隔に並べ直します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-simple.md
 
 ### Overview
 
 Redistributes stacked objects evenly along the horizontal axis.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartAlignAndTile-simple.md
 
 */
 

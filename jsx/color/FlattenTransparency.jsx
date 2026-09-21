@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイナミックアクションを使って、ドキュメントの透明部分を分割・統合します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenTransparency.md
 
 ### Overview
 
 Flattens the transparency in the document by running a dynamic action.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenTransparency.md
 
 */
 

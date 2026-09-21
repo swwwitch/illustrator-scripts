@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 背景の透明・白、倍率、書き出し対象外の判定は `buildExportJobs()` で定義します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/export-Event.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Exports every artboard of the active document to PNG, using rules keyed on the a
 Transparent or white background, scale, and exclusions are all defined in `buildExportJobs()`.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export-Event.md
 
 */
 

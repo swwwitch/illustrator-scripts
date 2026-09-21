@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 分割後の後処理として、重なりを整理してひとまとめにする／両端からブレンドを作成する、を選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ExpandGradient.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nbe084e691ba5
 
 ### Overview
 
@@ -16,6 +20,7 @@ Splits the gradient on the selected objects into a given number of solid-color o
 Post-processing can tidy the overlaps into a single set or build a blend from the two end objects.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ExpandGradient.md
 
 */
 

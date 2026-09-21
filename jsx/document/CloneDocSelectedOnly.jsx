@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 元ドキュメントを一時保存してから複製を開き、非選択・非表示のオブジェクトを削除します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CloneDocSelectedOnly.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ An InDesign script that creates a duplicate document containing only the selecte
 The original is saved to a temporary file, the copy is opened, and unselected and hidden objects are removed from it.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CloneDocSelectedOnly.md
 
 */
 

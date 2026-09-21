@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 見た目の大きさは変えず、サイズ差を水平比率・垂直比率に変換して補正します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FontSizeToScaleConverter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
@@ -16,6 +20,7 @@ Unifies mixed font sizes in the selected text to the size of each text's first c
 The apparent size is preserved by converting the difference into horizontal and vertical scale.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FontSizeToScaleConverter.md
 
 */
 

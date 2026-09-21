@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 外枠・タイトルエリア・内側エリアの分割や線種、裁ち落とし対応のフレームを、プレビューを見ながら1つのダイアログで設定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartGridMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n2b01f896c423
 
 ### Overview
 
@@ -17,6 +21,7 @@ Builds a border and a grid from a selected rectangle, or from the artboard.
 The outer frame, the title area, the inner-area divisions, the line types, and a bleed-aware frame are all set in one dialog with a live preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridMaker.md
 
 */
 

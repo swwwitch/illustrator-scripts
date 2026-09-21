@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 整列方向、基準、順序、間隔、幅・高さの統一を、プレビューを見ながら指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectSorter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n663264db75ff
 
 ### Overview
 
@@ -16,6 +20,7 @@ Sorts the selected objects by height, width, opacity or color and then aligns an
 Direction, sort key, order, spacing and size unification are all set while watching a preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectSorter.md
 
 */
 

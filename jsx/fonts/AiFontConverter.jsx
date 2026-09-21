@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 対象は選択オブジェクト／ドキュメント全体／アクティブアートボードから選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiFontConverter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n261c771b4b41
 
 ### Overview
 
@@ -16,6 +20,7 @@ Changes font variants — character set, P, UD, N, NT and weight — across the 
 The scope can be the selection, the whole document, or the active artboard.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiFontConverter.md
 
 */
 

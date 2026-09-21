@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 元オブジェクトと結果をグループ化し、Subtract を実行して白で塗りつぶします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddOutlineOffsetPath.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Duplicates the selection behind itself and runs Offset Path, Outline Stroke, Uni
 The original and the result are grouped, then Subtract is run and the result filled with white.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddOutlineOffsetPath.md
 
 */
 

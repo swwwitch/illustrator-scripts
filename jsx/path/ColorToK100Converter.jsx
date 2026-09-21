@@ -9,6 +9,7 @@ RGBまたはCMYKで構成された黒を、安定したK100の黒に変換しま
 テキスト、パス、スウォッチの塗りおよび線カラーが一括の対象です。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorToK100Converter.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Converts blacks built from RGB or CMYK into a stable K100 black.
 Text, paths and swatches are all covered, for both fill and stroke colors.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorToK100Converter.md
 
 */
 

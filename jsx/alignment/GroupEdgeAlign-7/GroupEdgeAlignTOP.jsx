@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 揃え先は、アクティブアートボードの端、または条件に合うガイドです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlignTOP.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Takes the edges or the center of the selected objects and aligns them to the top
 The target is the edge of the active artboard, or a matching guide.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlignTOP.md
 
 */
 

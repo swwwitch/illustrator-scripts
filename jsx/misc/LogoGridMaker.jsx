@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「文字形状からグリッド構造を抽出する」ことを目的としたスクリプトです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LogoGridMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n95a285784495
 
 ### Overview
 
@@ -16,6 +20,7 @@ Generates construction lines and clear space for a logo, based on the visibleBou
 The script is aimed at extracting a grid structure from letterforms.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LogoGridMaker.md
 
 */
 

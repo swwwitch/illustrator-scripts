@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 所属アートボードは各オブジェクトの重心位置で判定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardLayerOrganizer.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nadb8b8ba49fe
 
 ### Overview
 
@@ -16,6 +20,7 @@ Distributes the objects in the document by artboard and organizes them into "num
 Each object is assigned to the artboard that contains its centroid.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardLayerOrganizer.md
 
 */
 

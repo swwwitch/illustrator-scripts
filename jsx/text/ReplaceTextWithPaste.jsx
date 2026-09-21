@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択がない場合は、画面の中央に既定の書式でテキストフレームを新規作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPaste.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf14ce08eb618
 
 ### Overview
 
@@ -16,6 +20,7 @@ Replaces the contents of the selected text frames with the text on the clipboard
 With nothing selected, it creates a new text frame at the center of the view using the default formatting.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPaste.md
 
 */
 

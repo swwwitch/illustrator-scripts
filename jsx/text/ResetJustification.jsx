@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの段落に対して、ジャスティフィケーション関連の設定（ワードスペース、文字間、グリフスケーリング）を初期値に戻します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ResetJustification.md
 
 ### Overview
 
 Resets the justification settings — word spacing, letter spacing and glyph scaling — of the selected paragraphs to their defaults.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ResetJustification.md
 
 */
 

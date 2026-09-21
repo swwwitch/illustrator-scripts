@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 トリミング表示を切り替え、ガイドを表示します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ToggleTrimView.md
 
 ### Overview
 
 Toggles Trim View and shows the guides.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ToggleTrimView.md
 
 */
 

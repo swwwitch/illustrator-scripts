@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 記号は9種類から選べ、高さ・幅・線幅・位置をダイアログで調整できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RightMarkPlacer.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nebac730ec187
 
 ### Overview
 
@@ -16,6 +20,7 @@ Scans the selected objects from left to right and places a mark in the middle of
 Nine marks are available, with height, width, stroke weight and position set from the dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RightMarkPlacer.md
 
 */
 

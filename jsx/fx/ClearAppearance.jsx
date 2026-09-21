@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 実行前にダイアログを表示し、復元するかどうかと、選択オブジェクトに応じた復元方法を選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClearAppearance.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na4c70c5acd60
 
 ### Overview
 
@@ -16,6 +20,7 @@ Runs Clear Appearance on the selected objects.
 A dialog first asks whether to restore anything, and which restore mode fits the selection.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClearAppearance.md
 
 */
 

@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトを、指定した縦横比に合わせて拡大・縮小します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AspectRatioScaler.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4a212e6eacf1
 
 ### Overview
 
 Scales the selected objects to a specified aspect ratio.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AspectRatioScaler.md
 
 */
 

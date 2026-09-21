@@ -11,6 +11,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 既存の背面図形があれば検出して置き換え、プレビューは［OK］時に1ステップで確定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddBackdrop.md
 
 ### Overview
 
@@ -18,6 +19,7 @@ Generates a shape sized to the visual bounds of the selected text (or objects) a
 An existing backdrop is detected and replaced, and the undo-based preview commits in one step on OK.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddBackdrop.md
 
 */
 

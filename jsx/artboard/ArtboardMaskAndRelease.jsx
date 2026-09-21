@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 クリップグループ名はアートボード名に設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ArtboardMaskAndRelease.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Draws a rectangle the size of each artboard and uses it to mask the objects on t
 Each clipping group is named after its artboard.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ArtboardMaskAndRelease.md
 
 */
 

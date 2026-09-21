@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 現在のアートボードにかかっているテキスト、またはドキュメント全体のテキストを一覧表示し、まとめてクリップボードにコピーします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/selecttext.md
 
 ### Overview
 
 Lists the text on the current artboard, or in the whole document, and copies it all to the clipboard.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/selecttext.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アートボードのエッジ、セルの長方形化（角丸・中心点の表示）、現在の設定のプリセット書き出しにも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GenerateGuidesGrid.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n7adc7290b607
 
 ### Overview
 
@@ -16,6 +20,7 @@ Divides the artboard, or the bounding box of the selection, into the specified r
 It can also draw the artboard edges, draw the cells as rectangles (with round corners and center points), and export the current settings as a preset.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GenerateGuidesGrid.md
 
 */
 

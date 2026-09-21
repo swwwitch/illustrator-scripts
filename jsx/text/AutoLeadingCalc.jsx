@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 これにより、以後は常に自動行送りとして扱われます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoLeadingCalc.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Derives the leading percentage from the current absolute leading and font size o
 From then on the text uses auto leading.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoLeadingCalc.md
 
 */
 

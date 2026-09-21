@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択がクリップグループのときはマスク編集モードへ切り替え、そうでないときは重なり合うオブジェクトごとにクリッピングマスクを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ClipEditMask.md
 
 ### Overview
 
 Enters mask-edit mode when the selection is a clipping group, and otherwise builds a clipping mask for each cluster of overlapping objects.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipEditMask.md
 
 */
 

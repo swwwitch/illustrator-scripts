@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 `ColorPicker.show()` を呼ぶとダイアログを開き、選択された色を返します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPicker.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ A reusable color-picker library meant to be pulled in from other scripts with `#
 Calling `ColorPicker.show()` opens the dialog and returns the chosen color.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPicker.md
 
 */
 

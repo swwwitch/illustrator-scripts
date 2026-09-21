@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 最大の長方形を外枠として判定し、縦罫は左右、横罫は上下方向に均等配置します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableRuleAverager.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Evenly redistributes the internal vertical and horizontal rules, using the large
 Vertical rules are spaced horizontally and horizontal rules vertically.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableRuleAverager.md
 
 */
 

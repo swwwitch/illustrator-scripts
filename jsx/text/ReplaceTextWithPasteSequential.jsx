@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf4b285b87940
 
 ### Overview
 
@@ -16,6 +20,7 @@ Takes the first line of the multi-line text on the clipboard and applies it to t
 The line used is removed from the clipboard, so running it again moves on to the next one.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md
 
 */
 

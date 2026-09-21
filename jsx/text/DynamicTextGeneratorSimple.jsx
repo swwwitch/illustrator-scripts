@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択した1つのテキストフレームの各行をアウトライン幅で測定し、最長行の幅にそろうよう行ごとの文字サイズを変倍します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGeneratorSimple.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/xxxxxxxx
 
 ### Overview
 
 Measures each line of a selected text frame by its outline width and scales the per-line font size so every line matches the longest one.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGeneratorSimple.md
 
 */
 

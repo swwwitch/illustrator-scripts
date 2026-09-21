@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 テキスト＋オブジェクトのグループ選択や、複数グループの一括処理にも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RegisterGraphicStyleWithText.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Registers the appearance of the selected object as a graphic style, using the se
 A group containing one text frame plus one object, and several such groups at once, are handled as well.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RegisterGraphicStyleWithText.md
 
 */
 

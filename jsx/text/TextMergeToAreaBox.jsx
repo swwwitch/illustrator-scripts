@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 PDFをIllustratorで開いたときの分断テキストの復元に使います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextMergeToAreaBox.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne8d31278c266
 
 ### Overview
 
@@ -16,6 +20,7 @@ Gathers scattered text objects line by line and rebuilds them as a single area t
 It is meant for restoring text broken apart when a PDF is opened in Illustrator.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextMergeToAreaBox.md
 
 */
 

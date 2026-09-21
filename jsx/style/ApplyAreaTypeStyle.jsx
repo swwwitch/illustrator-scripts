@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選んだスタイルがドキュメントに無ければ、あらかじめ定義したAIファイルから取り込みます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyAreaTypeStyle.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Picks a graphic style with radio buttons in a dialog and applies it to the selec
 If the chosen style is not in the document, it is imported from a predefined AI file.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyAreaTypeStyle.md
 
 */
 

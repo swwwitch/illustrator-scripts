@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 読み込むアートボード番号やページを指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SlideCollage.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Lays out the .ai and .pdf files you choose in a grid to build a portfolio-style 
 The artboards or pages to import can be specified by number.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SlideCollage.md
 
 */
 

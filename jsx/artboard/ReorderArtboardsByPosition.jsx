@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 列数指定やアートボード名にもとづくカンバス上の再配置、「行-列」形式へのリネームも実行できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReorderArtboardsByPosition.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nb416cb01728a
 
 ### Overview
 
@@ -16,6 +20,7 @@ Reorders the Artboards panel to match the visual arrangement on the canvas, work
 It can also rearrange the artboards on the canvas by column count or by name, and rename them into a "row-column" form.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArtboardsByPosition.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 属性・テキストの種類・文字列で絞り込み、選択後に非表示やレイヤー移動、一括編集も行えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextSelector.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Selects text frames across the document by a combination of conditions.
 You can filter by attribute, text kind and string, then hide, move to a layer, or bulk-edit what was selected.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextSelector.md
 
 */
 

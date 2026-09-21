@@ -10,6 +10,7 @@ DistributeDownFromTop.jsx / DistributeUpFromTop.jsx を統合した常駐パレ�
 十字ボタン（↑ / ← 0 → / ↓）を押すたびに、その時点の選択へ1ステップぶん適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartDistributor.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ A persistent palette that combines DistributeDownFromTop.jsx and DistributeUpFro
 Each press of the cross buttons (↑ / ← 0 → / ↓) applies one step to whatever is selected at that moment.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartDistributor.md
 
 */
 

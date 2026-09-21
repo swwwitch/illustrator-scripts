@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 プラスで明るく、マイナスで暗くなり、プレビューを確認しながら決めた結果は、取り消し1ステップにまとまります。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorToneSlider.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n88e33648b19a
 
 ### Overview
 
@@ -16,6 +20,7 @@ Adjusts the brightness of the selected objects with a slider.
 Positive values lighten and negative values darken, and the previewed result commits as a single undo step.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorToneSlider.md
 
 */
 

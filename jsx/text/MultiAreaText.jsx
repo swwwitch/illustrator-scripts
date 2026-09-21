@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 複数のテキストフレームを1つのエリア内文字にまとめたり、逆に分割したりします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MultiAreaText.md
 
 ### Overview
 
 Merges several text frames into a single area text, or splits one back out.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MultiAreaText.md
 
 */
 

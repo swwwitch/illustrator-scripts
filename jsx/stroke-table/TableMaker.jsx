@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 テキスト（文字・タブ・スタイル・タブストップ）には一切手を加えません。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TableMaker.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Generates rules and backgrounds that match the appearance — position, width an
 The text itself, including tabs, styles and tab stops, is never touched.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TableMaker.md
 
 */
 

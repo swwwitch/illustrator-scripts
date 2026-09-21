@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択オブジェクト・アートボード・カンバスを基準にガイドを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuidesFromSelection.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nd1359cf41a2c
 
 ### Overview
 
 Creates guides based on the selection, the artboard, or the canvas.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuidesFromSelection.md
 
 */
 

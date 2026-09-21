@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 複数選択時は全体の外接矩形にフィットし、選択がないときは100%表示に戻します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZoomToSelection.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Zooms and centers the active view on the selected objects.
 With several objects selected it fits their overall bounding box, and with nothing selected it returns to 100%.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZoomToSelection.md
 
 */
 

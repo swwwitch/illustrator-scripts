@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 あらかじめ登録しておいたAIファイルを一覧から選び、その中身を現在のドキュメントへ取り込みます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportStyles.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n0b929db4a4ad
 
 ### Overview
 
 Picks one of the registered AI files from a list and imports its contents into the current document.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportStyles.md
 
 */
 

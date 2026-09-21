@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ガイドの交点で区切られた区画に、塗りつぶした長方形を一括生成します。対象にするガイドと作成先はダイアログで指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeRectangleFromGuides.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4907511336ad
 
 ### Overview
 
 Fills every area bounded by guide intersections with a generated rectangle. A dialog selects which guides to use and where the rectangles go.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeRectangleFromGuides.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 書き出し中は「Guides Preview for Trim View」レイヤーを一時的に非表示にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/export200.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Exports the active artboard as a PNG24 at 200% scale on a white background, into
 The "Guides Preview for Trim View" layer is hidden while the export runs.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/export200.md
 
 */
 

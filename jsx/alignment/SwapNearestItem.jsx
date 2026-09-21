@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトを基準に、指定した方向（右／左／上／下）にある最も近いオブジェクトと位置を入れ替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapNearestItem.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n21a03e135423
 
 ### Overview
 
 Swaps the selected object with the nearest object in a chosen direction — right, left, up or down.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapNearestItem.md
 
 */
 

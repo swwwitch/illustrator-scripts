@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 パスに対して文字が占める割合を指定でき、各行の幅を最長行にそろえる「ブロック」も選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nb9e9082df5e5
 
 ### Overview
 
@@ -16,6 +20,7 @@ Builds a path sized to the width of the selected text and converts it into text 
 The share of the path the text occupies is configurable, and a "block" mode evens every line out to the width of the longest one.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGenerator.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「選択オブジェクトと置換」で配置するため、位置・サイズ・回転角・重ね順はそのまま引き継がれます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnembedToLinks.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n6d9e2dabb054
 
 ### Overview
 
@@ -16,6 +20,7 @@ Replaces embedded images with linked images by generating and running a temporar
 Because the placement replaces the selected object, position, size, rotation and stacking order all carry over unchanged.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedToLinks.md
 
 */
 

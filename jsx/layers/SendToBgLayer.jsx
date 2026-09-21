@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「bg」レイヤーは自動的に作成され、処理後にロックされます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SendToBgLayer.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf7c1e8a0f0c7
 
 ### Overview
 
@@ -16,6 +20,7 @@ Moves the selected objects to a "bg" layer, preserving their stacking order, and
 The "bg" layer is created automatically and locked once the move is done.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SendToBgLayer.md
 
 */
 

@@ -9,12 +9,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの基本的な文字組み設定（フォントサイズと行送り・自動カーニング・プロポーショナルメトリクス・文字ツメ・トラッキング）だけをまとめて行う常駐パレットです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TypeBasicsPanel.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n29e7115b5e70
 
 ### Overview
 
 A persistent palette covering just the basics of typography for the selected text: font size and leading, auto-kerning, proportional metrics, tsume and tracking.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TypeBasicsPanel.md
 
 */
 

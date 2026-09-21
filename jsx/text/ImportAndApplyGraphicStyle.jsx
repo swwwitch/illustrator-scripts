@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 あわせて、指定したファイルからグラフィックスタイルを取り込んで適用できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImportAndApplyGraphicStyle.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ Converts point text, text on a path, or a shape plus text into area text while p
 A graphic style can be imported from a file you choose and applied at the same time.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ImportAndApplyGraphicStyle.md
 
 */
 

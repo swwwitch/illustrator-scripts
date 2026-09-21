@@ -9,6 +9,7 @@ ScriptUI の複数ラベル（statictext）の幅を、実際の描画幅を測�
 「ラベル：値」を縦に並べるパネルで、コロンの位置と値の開始位置をそろえる用途に使います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AlignLabelWidths.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ A reusable template that measures the rendered width of ScriptUI statictext labe
 It keeps the colon and the value column lined up in stacked "label: value" panels.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AlignLabelWidths.md
 
 */
 

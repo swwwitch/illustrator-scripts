@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 アウトライン化の直前に文字・段落属性をオブジェクトのメモ（note）へ保存し、そのメモをもとにテキストフレームを再生成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nc476be8ad43c
 
 ### Overview
 
@@ -17,6 +21,7 @@ Outlines text and restores it back from the outlines, driven from a persistent p
 Character and paragraph attributes are serialized into the object's note just before outlining, and the note is parsed to rebuild the text frame.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette.md
 
 */
 

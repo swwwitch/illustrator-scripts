@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 現在のアートボードを対象に、トンボを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTrimMarkToCurrentArtboard.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n40e3e39cf9f2
 
 ### Overview
 
 Creates trim marks for the current artboard.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTrimMarkToCurrentArtboard.md
 
 */
 

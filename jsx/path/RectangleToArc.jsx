@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 長方形の幅と高さから円の半径・中心・開始角・終了角を求め、元の長方形は削除します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArc.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Converts the selected rectangle into an arc passing through its bottom-left corn
 The radius, center and start and end angles come from the rectangle's width and height, and the rectangle itself is deleted.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArc.md
 
 */
 

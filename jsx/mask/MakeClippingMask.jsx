@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 すでにマスクが設定されていれば解除し、配置画像やパスの選択からは新たにマスクを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/MakeClippingMask.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Creates or releases a clipping mask, depending on what is selected.
 An existing mask is released, while a selection of placed images or paths produces a new one.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeClippingMask.md
 
 */
 

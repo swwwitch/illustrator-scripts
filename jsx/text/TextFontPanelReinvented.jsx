@@ -9,12 +9,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したテキストの文字組み設定（フォント・サイズ・自動カーニング・字間・文字揃え・行揃え・行送り・文字組みアキ量）をまとめて行う常駐パレットです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextFontPanelReinvented.md
+
+note記事も参照してください。
+https://note.com/yukifurushima/n/n9f2078dc156f
 
 ### Overview
 
 A persistent palette for setting the typography of the selected text — font, size, auto-kerning, letter spacing, character alignment, justification, leading and mojikumi — all in one place.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextFontPanelReinvented.md
 
 */
 

@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したシンボルインスタンスのリンクを解除し、通常のオブジェクトとして扱える状態にします。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiBreakLink.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf729c53f4300
 
 ### Overview
 
 Breaks the links of the selected symbol instances and turns them into regular editable objects.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiBreakLink.md
 
 */
 

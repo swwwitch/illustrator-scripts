@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択中のオブジェクトを並び順で数え、奇数番目または偶数番目だけを互い違いに選択し直します。数える方向は垂直・水平から選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectAlternateItems.md
 
 ### Overview
 
 Counts the selected objects in order and reselects only the odd- or even-numbered ones. The counting direction can be set to vertical or horizontal.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectAlternateItems.md
 
 */
 

@@ -8,12 +8,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ポイント文字とパスを選択して実行すると、パス上文字に変換します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AttachTextToPath.md
+
+note記事も参照してください。
+https://note.com/gautt/n/n92f6faeda048
 
 ### Overview
 
 Converts a selected point text and path into text on a path.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AttachTextToPath.md
 
 */
 

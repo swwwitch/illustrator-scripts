@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 2つだけ開いているときは自動で切り替え、3つ以上のときはダイアログのリストから選びます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartSwitchDocs.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nd9c7b7c077fb
 
 ### Overview
 
@@ -16,6 +20,7 @@ Quickly switches to another Illustrator document when several are open.
 With two documents it switches automatically; with three or more it offers a list in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartSwitchDocs.md
 
 */
 

@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 配置画像限定のクリップや正方形マスクにも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartClipAndGroup.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nb23985473f80
 
 ### Overview
 
@@ -16,6 +20,7 @@ Groups the selection by overlap ratio or distance threshold, or builds a clippin
 Placed-image-only clipping and square masks are supported as well.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartClipAndGroup.md
 
 */
 

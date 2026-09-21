@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 削除・変換の内容を選び、アンカー数とハンドル数の増減を確認してから実行できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nd82f59bf63a8
 
 ### Overview
 
@@ -17,6 +21,7 @@ Tidies the anchor points and handles of the selected paths, including those insi
 You choose what to remove or convert and can see how the anchor and handle counts will change before running it.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 オフセットパス→グループ化→パスファインダー：合流→アピアランスを分割の順で処理します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/OverlapRemover.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Runs a sequence of menu commands on the selection to even out overlaps.
 The order is Offset Path, Group, Pathfinder Merge, and Expand Appearance.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/OverlapRemover.md
 
 */
 

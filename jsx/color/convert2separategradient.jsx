@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 通常モードでは滑らかなグラデーション、セパレートモードでは色が混ざらない縞模様グラデーションを生成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/convert2separategradient.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Adds a given number of intermediate color stops to the gradient on the selected 
 The normal mode produces a smooth gradient, while the separate mode produces hard-edged bands.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/convert2separategradient.md
 
 */
 

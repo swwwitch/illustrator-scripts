@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 パスはアンカーポイントを直接変形するため、クリップグループ内の子パスにも対応します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FillSnapper.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Classifies the current selection into items to move and snap references, then sn
 Paths are transformed at the anchor level, so child paths inside clipping groups are handled too.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FillSnapper.md
 
 */
 

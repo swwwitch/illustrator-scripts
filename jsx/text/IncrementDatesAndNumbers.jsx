@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択中のテキストに含まれる日付・曜日・連番・数値などを、一括して増減します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/IncrementDatesAndNumbers.md
 
 ### Overview
 
 Increments or decrements the dates, weekday names, sequence numbers and other values found in the selected text, all at once.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/IncrementDatesAndNumbers.md
 
 */
 

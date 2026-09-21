@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「長方形／楕円」と「値を指定／値を追加」、幅・高さを設定すると、選択にライブプレビューが反映されます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LEConvertToShape.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ A persistent palette that applies the "Convert to Shape" live effect to the sele
 Pick Rectangle or Ellipse, Absolute or Relative sizing, and the width and height; the selection updates as a live preview.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LEConvertToShape.md
 
 */
 

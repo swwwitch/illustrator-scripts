@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 対象は「現在のアートボードのみ」または「すべてのアートボード」から選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DeleteOutsideArtboard.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Tests the objects in the document against the artboards and either deletes the o
 The scope can be the current artboard only, or every artboard.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DeleteOutsideArtboard.md
 
 */
 

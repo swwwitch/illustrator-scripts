@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 書き出したあとは、保存先フォルダーと、宛先・件名・本文を入れたメールの下書きを開きます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InvoiceFromClipboard.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n1901883d86cd
 
 ### Overview
 
@@ -16,6 +20,7 @@ A worked example that reads heading-and-value text from the clipboard, replaces 
 Once the export is done it opens the output folder and a pre-filled mail draft.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InvoiceFromClipboard.md
 
 */
 

@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの重ね順を、指定した基準で並べ替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ZIndexSorter.md
 
 ### Overview
 
 Reorders the stacking order of the selected objects according to a chosen criterion.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ZIndexSorter.md
 
 */
 

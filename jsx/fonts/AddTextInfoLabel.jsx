@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細表示（エリア内文字）と簡易表示（ポイント文字）を切り替えられ、表示項目は個別に指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddTextInfoLabel.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n607ef418877f
 
 ### Overview
 
@@ -16,6 +20,7 @@ Adds a label showing the font information below or beside the selected text obje
 You can switch between a detailed layout (area text) and a compact one (point text), and choose which items appear.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddTextInfoLabel.md
 
 */
 

@@ -9,6 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 小さなダイアログで切り替えを選び、ダイナミックアクションで実行します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ToggleTemplateLayer.md
 
 ### Overview
 
@@ -16,6 +17,7 @@ Toggles the template attribute — locked, non-printing and dimmed images — on
 A small dialog picks the direction, and the change is applied through a dynamic action.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ToggleTemplateLayer.md
 
 */
 

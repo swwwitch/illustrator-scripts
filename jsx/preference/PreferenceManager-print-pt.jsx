@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 単位と数値インクリメントを、ダイアログから指定・変更します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-print-pt.md
 
 ### Overview
 
 Sets the units and the numeric increment from a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PreferenceManager-print-pt.md
 
 */
 

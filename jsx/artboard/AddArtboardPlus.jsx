@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 追加方法・追加位置・追加数・間隔をダイアログで指定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddArtboardPlus.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/naf239a44b8ff
 
 ### Overview
 
@@ -16,6 +20,7 @@ Analyzes how the existing artboards are arranged in rows and columns and inserts
 The method, position, count and spacing are all set in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddArtboardPlus.md
 
 */
 

@@ -8,12 +8,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの入れ子グループをすべて解除してから、1つのグループにまとめ直します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/FlattenGroup.md
 
 ### Overview
 
 Releases every nested group in the selection and then regroups everything as a single group.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/FlattenGroup.md
 
 */
 

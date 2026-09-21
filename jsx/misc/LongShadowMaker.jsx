@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 プレビューを見ながらプリセットやオフセットで調整でき、生成後に「パスの単純化」を実行できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LongShadowMaker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n0be484dab7fc
 
 ### Overview
 
@@ -16,6 +20,7 @@ Generates a long shadow from the selected object using a distance, an angle and 
 Presets and an offset are adjusted with a live preview, and a Simplify Path pass can be run afterwards.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LongShadowMaker.md
 
 */
 

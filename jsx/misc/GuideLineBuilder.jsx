@@ -10,6 +10,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Bezier曲線から円を推定する［円弧から円］、アンカーポイントに円・正方形を置く機能もあります。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GuideLineBuilder.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nd801b9b0367f
 
 ### Overview
 
@@ -17,6 +21,7 @@ Collects the straight segments of the selection — groups, compound paths and t
 It can also estimate circles from Bézier curves and place circles or squares on the anchor points.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GuideLineBuilder.md
 
 */
 

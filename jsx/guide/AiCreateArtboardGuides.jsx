@@ -9,6 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 作成したガイドは「_guide」レイヤーに集約し、ライブプレビューで結果を確認しながら設定できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiCreateArtboardGuides.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n56d9c936a364
 
 ### Overview
 
@@ -16,6 +20,7 @@ Creates artboard-based guides — converted ruler guides, center guides, and edg
 The generated guides are collected into a "_guide" layer, with a live preview of the result.
 
 See the README for details.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiCreateArtboardGuides.md
 
 */
 
