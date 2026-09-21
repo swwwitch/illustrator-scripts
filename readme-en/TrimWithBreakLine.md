@@ -81,6 +81,7 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 ### Update history
 
+- v1.0.6 (20260921) : When cutting left and right, the left part now stays in place and the right part closes up to it
 - v1.0.5 (20260921) : Bend now accepts negative values (-100 to 100%) to bend the cut edge the other way
 - v1.0.4 (20260921) : A path covering an edge of the artwork now keeps that side only. Added the Rise (straight) cut-edge style. Stacked the radio buttons (style, line style, cap) and shortened the number fields by one character
 - v1.0.3 (20260921) : The cut direction is now decided from how much of the artwork the path spans. Unified the wording around "break lines" and matched the tooltips for weight, gap and offset to the actual unit and direction

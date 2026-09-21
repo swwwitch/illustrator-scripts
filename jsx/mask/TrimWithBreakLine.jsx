@@ -21,7 +21,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
@@ -1334,12 +1334,17 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
         var upperPart = createClippedPart(upperMaskPath);
         var lowerPart = createClippedPart(lowerMaskPath);
 
-        /* 残った側を寄せて、指定の間隔をあける。そちらの罫線も一緒に動かす */
-        var lowerShift = cutMax - cutMin - buildSettings.gapPt;
-        translateAlongAxis(lowerPart, lowerShift);
+        /* 片側を寄せて、指定の間隔をあける。上下は上側、左右は左側を動かさず、寄せる側の罫線も一緒に動かす
+           close up to the gap, keeping the top part (Y) or the left part (X) in place */
+        var closeDistance = cutMax - cutMin - buildSettings.gapPt;
+        var moveUpperPart = (axisIndex === AXIS_X);
+        var movingPart = moveUpperPart ? upperPart : lowerPart;
+        var movingRules = moveUpperPart ? upperRules : lowerRules;
+        var partShift = moveUpperPart ? -closeDistance : closeDistance;
+        translateAlongAxis(movingPart, partShift);
 
-        for (var ruleIndex = 0; ruleIndex < lowerRules.length; ruleIndex++) {
-            translateAlongAxis(lowerRules[ruleIndex], lowerShift);
+        for (var ruleIndex = 0; ruleIndex < movingRules.length; ruleIndex++) {
+            translateAlongAxis(movingRules[ruleIndex], partShift);
         }
 
         /* 罫線は切り口の上に出す / bring the rules in front of the parts */
