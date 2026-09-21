@@ -1,6 +1,6 @@
 # Move the paragraph at the cursor up
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-moveParagraphUp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/moveParagraphUp.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-moveParagraphUp.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/moveParagraphUp.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/moveParagraphUp.md)
 

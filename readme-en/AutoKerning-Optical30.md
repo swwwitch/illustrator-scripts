@@ -1,6 +1,6 @@
 # Set auto-kerning to Optical (30)
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--Optical30.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerning-Optical30.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--Optical30.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/AutoKerning-Optical30.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerning-Optical30.md)
 

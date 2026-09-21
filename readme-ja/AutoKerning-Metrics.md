@@ -1,6 +1,6 @@
 # 自動カーニングを「メトリクス」に設定
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--Metrics.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerning-Metrics.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--Metrics.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/AutoKerning-Metrics.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerning-Metrics.md)
 

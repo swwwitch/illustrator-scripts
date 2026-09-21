@@ -1,6 +1,6 @@
 # 行頭の文字サイズを基準に行送りを再計算（150%）
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyLeadingPerTextFrame150.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ApplyLeadingPerTextFrame150.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyLeadingPerTextFrame150.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/ApplyLeadingPerTextFrame150.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyLeadingPerTextFrame150.md)
 

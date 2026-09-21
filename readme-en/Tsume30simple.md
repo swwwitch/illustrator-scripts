@@ -1,6 +1,6 @@
 # Set tsume to 30%
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-Tsume30simple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/Tsume30simple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-Tsume30simple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/Tsume30simple.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/Tsume30simple.md)
 

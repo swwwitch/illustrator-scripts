@@ -1,6 +1,6 @@
 # 禁則処理セットの値をアラートで一覧表示
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsokuSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/InspectKinsokuSimple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsokuSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/InspectKinsokuSimple.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/InspectKinsokuSimple.md)
 

@@ -1,6 +1,6 @@
 # Turn on auto leading for every line
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyLeadingPerTextFrameAUTO.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ApplyLeadingPerTextFrameAUTO.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyLeadingPerTextFrameAUTO.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/ApplyLeadingPerTextFrameAUTO.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyLeadingPerTextFrameAUTO.md)
 

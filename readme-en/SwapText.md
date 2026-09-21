@@ -1,6 +1,6 @@
 # Swap the contents of two text objects
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SwapText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SwapText.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SwapText.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/SwapText.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapText.md)
 

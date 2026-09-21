@@ -11,6 +11,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustBaselineVerticalCenter.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na7a8c907c68c
+
 ### Overview
 
 Shifts the specified characters up or down with a baseline shift so they line up with the center of a reference character.
@@ -25,13 +28,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustBase
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AdjustBaselineVerticalCenter"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-07-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustBaselineVerticalCenter.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustBaselineVerticalCenter.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustBaselineVerticalCenter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustBaselineVerticalCenter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na7a8c907c68c"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -42,187 +46,295 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
  * https://x.com/tchegr
  */
 
-/* ロケール判定 / Locale detection */
-function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var lang = getCurrentLang();
+(function () {
 
-/* 日本語 / English */
-var LABELS = {
-    dialogTitle: { ja: "ベースライン調整", en: "Adjust Baseline" },
-    infoTextMsg: { ja: "対象文字を縦方向に揃えます。", en: "This will align selected symbol vertically." },
-    targetCharLabel: { ja: "対象文字:", en: "Target Character:" },
-    baseCharLabel: { ja: "基準文字:", en: "Reference Character:" },
-    okBtnLabel: { ja: "調整", en: "Adjust" },
-    cancelBtnLabel: { ja: "キャンセル", en: "Cancel" },
-    selectFrameMsg: { ja: "テキストフレームを選択してください。", en: "Select one or more text frames." },
-    docOpenMsg: { ja: "ドキュメントが開かれていません。", en: "No document open." },
-    invalidCharMsg: { ja: "対象文字は1文字以上、基準文字は1文字を入力してください。", en: "Enter at least one target character and exactly one reference character." },
-    notFoundMsg: { ja: "対象文字が含まれていません。", en: "Target character not found." },
-    errorMsg: { ja: "エラー: ", en: "Error: " }
-};
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-/* アイテムのジオメトリック境界から中心のY座標を計算して返す / Calculate and return the center Y coordinate from item's geometric bounds */
-function getCenterY(item) {
-    /*
-    アイテムのジオメトリック境界から中心のY座標を計算して返す。
-    */
-    var bounds = item.geometricBounds;
-    return bounds[1] - (bounds[1] - bounds[3]) / 2;
-}
+    var DEFAULT_REFERENCE_CHAR = "0"; /* 基準文字の初期値 / Initial reference character */
 
-/* 指定文字を含むテキストフレームを複製し、アウトライン化後に中心Y座標を取得 / Duplicate text frame with specified character, outline it, then get center Y */
-function createOutlineAndGetCenterY(textFrame, character) {
-    /*
-    指定文字を含むテキストフレームを複製し、アウトライン化後に中心Y座標を取得する。
-    */
-    var tempFrame = textFrame.duplicate();
-    tempFrame.contents = character;
-    tempFrame.filled = false;
-    tempFrame.stroked = false;
-    var outline = tempFrame.createOutline();
-    var centerY = getCenterY(outline);
-    outline.remove();
-    return centerY;
-}
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
 
-/* 選択テキスト内の記号・非英数字の出現頻度を集計して返す / Count frequency of symbols and non-alphanumeric chars in selection */
-function getSymbolFrequency(sel) {
-    /*
-    選択テキスト内の記号・非英数字の出現頻度を集計して返す。
-    */
-    var charCount = {};
-    for (var i = 0; i < sel.length; i++) {
-        var item = sel[i];
-        if (item.typename == "TextFrame") {
-            var selText = item.contents;
-            for (var j = 0; j < selText.length; j++) {
-                var c = selText.charAt(j);
-                if (!c.match(/^[A-Za-z0-9\s]$/)) {
-                    charCount[c] = (charCount[c] || 0) + 1;
-                }
-            }
-        }
+    var INPUT_GROUP_MARGINS = [15, 5, 15, 5]; /* 入力欄グループの余白 [左,上,右,下] / Input group margins */
+    var CHAR_INPUT_CHARACTERS = 5;            /* 文字入力欄の幅（文字数）/ Width of the character fields (in characters) */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 実行環境の言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    return charCount;
-}
+    var uiLang = getCurrentLang();
 
-/* ユーザーに対象文字と基準文字を入力させるダイアログを表示し、入力結果を返す / Show dialog to input target and reference characters, return input */
-function showDialog() {
-    /*
-    ユーザーに対象文字と基準文字を入力させるダイアログを表示し、入力結果を返す。
-    */
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-    dialog.orientation = "column";
-    dialog.alignChildren = "left";
-
-    var infoText = dialog.add("statictext", undefined, LABELS.infoTextMsg[lang]);
-    infoText.alignment = "left";
-
-    /* デフォルト対象文字（複数選択でも最頻出記号を抽出） / Default target character (most frequent symbol even in multiple selection) */
-    var defaultTarget = "";
-    var sel = app.activeDocument.selection;
-    if (sel && sel.length > 0) {
-        var charCount = getSymbolFrequency(sel);
-        var maxCount = 0;
-        for (var key in charCount) {
-            if (charCount[key] > maxCount) {
-                maxCount = charCount[key];
-                defaultTarget = key;
-            }
+    var LABELS = {
+        dialog: {
+            title: { ja: "ベースライン調整", en: "Adjust Baseline" },
+            description: { ja: "対象文字を縦方向に揃えます。", en: "This will align selected symbol vertically." }
+        },
+        fieldLabel: {
+            targetChar: { ja: "対象文字", en: "Target Character" },
+            referenceChar: { ja: "基準文字", en: "Reference Character" }
+        },
+        button: {
+            adjust: { ja: "調整", en: "Adjust" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document open." },
+            selectTextFrame: { ja: "テキストフレームを選択してください。", en: "Select one or more text frames." },
+            invalidChars: {
+                ja: "対象文字は1文字以上、基準文字は1文字を入力してください。",
+                en: "Enter at least one target character and exactly one reference character."
+            },
+            errorPrefix: { ja: "エラー: ", en: "Error: " }
         }
-    }
-
-    var inputGroup = dialog.add("group");
-    inputGroup.orientation = "column";
-    inputGroup.alignChildren = "left";
-    inputGroup.margins = [15, 5, 15, 5];
-
-    var targetGroup = inputGroup.add("group");
-    targetGroup.add("statictext", undefined, LABELS.targetCharLabel[lang]);
-    var targetInput = targetGroup.add("edittext", undefined, defaultTarget);
-    targetInput.characters = 5;
-    targetInput.active = true;
-
-    var refGroup = inputGroup.add("group");
-    refGroup.add("statictext", undefined, LABELS.baseCharLabel[lang]);
-    var refInput = refGroup.add("edittext", undefined, "0");
-    refInput.characters = 5;
-
-    var buttonGroup = dialog.add("group");
-    buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[lang]);
-    var okBtn = buttonGroup.add("button", undefined, LABELS.okBtnLabel[lang], { name: "ok" });
-
-    okBtn.onClick = function () {
-        if (targetInput.text.length == 0) {
-            alert(LABELS.invalidCharMsg[lang]);
-            return;
-        }
-        if (refInput.text.length != 1) {
-            alert(LABELS.invalidCharMsg[lang]);
-            return;
-        }
-        dialog.close(1);
     };
-    cancelBtn.onClick = function () { dialog.close(0); };
 
-    if (dialog.show() == 1) {
-        return { target: targetInput.text, reference: refInput.text };
+    /**
+     * 現在の言語のラベルを取得する
+     * @param {object} labelSet - { ja: string, en: string } 形式のラベル
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(labelSet) {
+        return labelSet[uiLang] || labelSet.en;
     }
-    return null;
-}
 
-/* メイン処理。ドキュメントと選択状態をチェックし、ダイアログを表示して調整を実行 / Main process: check document and selection, show dialog and apply adjustments */
-function main() {
-    /*
-    メイン処理。ドキュメントと選択状態をチェックし、ダイアログを表示して調整を実行。
-    */
-    try {
-        if (app.documents.length == 0) {
-            alert(LABELS.docOpenMsg[lang]);
-            return;
+    /**
+     * 項目名にコロンを付けて返す（日本語は全角、英語は半角）
+     * @param {object} labelSet - { ja: string, en: string } 形式のラベル
+     * @returns {string} コロン付きのラベル文字列
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    // =========================================
+    // 文字の中心の実測 / Measuring character centers
+    // =========================================
+
+    /**
+     * アイテムの天地中央のY座標を求める
+     * @param {PageItem} item - 対象のアイテム
+     * @returns {number} 天地中央のY座標
+     */
+    function getCenterY(item) {
+        var bounds = item.geometricBounds;
+        return (bounds[1] + bounds[3]) / 2;
+    }
+
+    /**
+     * テキストフレームを複製して1文字だけにし、アウトライン化した字形の天地中央を測る
+     * @param {TextFrame} textFrame - 書式の元になるテキストフレーム
+     * @param {string} character - 測る文字
+     * @returns {number} 字形の天地中央のY座標
+     */
+    function measureCharCenterY(textFrame, character) {
+        var tempFrame = textFrame.duplicate();
+        var outlineGroup = null;
+        try {
+            tempFrame.contents = character;
+            outlineGroup = tempFrame.createOutline(); /* 複製はここで消費される / The duplicate is consumed here */
+            return getCenterY(outlineGroup);
+        } finally {
+            /* 途中で失敗しても一時オブジェクトを残さない / Never leave the temporary objects behind, even on failure */
+            if (outlineGroup) outlineGroup.remove();
+            else tempFrame.remove();
         }
+    }
 
-        var selection = app.activeDocument.selection;
-        if (!selection || selection.length == 0) {
-            alert(LABELS.selectFrameMsg[lang]);
-            return;
-        }
+    // =========================================
+    // 対象の収集 / Collecting targets
+    // =========================================
 
-        var input = showDialog();
-        if (!input) return;
-
+    /**
+     * 選択からテキストフレームを取り出す（文字の編集中は対象なし）
+     * @param {Array<PageItem>|TextRange} selection - ドキュメントの選択
+     * @returns {TextFrame[]} 選択中のテキストフレーム
+     */
+    function collectTextFrames(selection) {
+        var textFrames = [];
+        /* 文字の編集中は選択が TextRange になる / While editing text, the selection is a TextRange */
+        if (!selection || selection.typename === "TextRange") return textFrames;
         for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            if (item.typename == "TextFrame") {
-                var contents = item.contents;
-                for (var c = 0; c < input.target.length; c++) {
-                    var targetChar = input.target.charAt(c);
-                    if (contents.indexOf(targetChar) == -1) {
-                        continue;
-                    }
+            if (selection[i].typename === "TextFrame") textFrames.push(selection[i]);
+        }
+        return textFrames;
+    }
 
-                    var refCenterY = createOutlineAndGetCenterY(item, input.reference);
-                    var targetCenterY = createOutlineAndGetCenterY(item, targetChar);
-                    var yOffset = targetCenterY - refCenterY;
-
-                    var chars = item.textRange.characters;
-                    for (var j = 0; j < chars.length; j++) {
-                        var ch = chars[j].contents;
-                        if (ch && ch === targetChar) {
-                            chars[j].characterAttributes.baselineShift = -yOffset;
-                        }
-                    }
-                }
+    /**
+     * 英数字と空白を除いた文字のうち、いちばん多く出てくる文字を求める（対象文字の初期値）
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @returns {string} 最も多い文字（見つからなければ空文字）
+     */
+    function findDefaultTargetChar(textFrames) {
+        var charCounts = {};
+        for (var i = 0; i < textFrames.length; i++) {
+            var frameText = textFrames[i].contents;
+            for (var j = 0; j < frameText.length; j++) {
+                var character = frameText.charAt(j);
+                if (!/^[A-Za-z0-9\s]$/.test(character)) charCounts[character] = (charCounts[character] || 0) + 1;
             }
         }
 
-    } catch (e) {
-        alert(LABELS.errorMsg[lang] + e);
+        var mostFrequentChar = "";
+        var maxCount = 0;
+        for (var countedChar in charCounts) {
+            if (charCounts[countedChar] > maxCount) {
+                maxCount = charCounts[countedChar];
+                mostFrequentChar = countedChar;
+            }
+        }
+        return mostFrequentChar;
     }
-}
 
-/* メイン処理の実行 / Execute main process */
-main();
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 項目名＋文字入力欄の1行を追加する
+     * @param {Group} parent - 追加先
+     * @param {object} labelSet - 項目名のラベル
+     * @param {string} initialText - 入力欄の初期値
+     * @returns {EditText} 追加した入力欄
+     */
+    function addCharField(parent, labelSet, initialText) {
+        var fieldRow = parent.add("group");
+        fieldRow.add("statictext", undefined, labelText(labelSet));
+        var charInput = fieldRow.add("edittext", undefined, initialText);
+        charInput.characters = CHAR_INPUT_CHARACTERS;
+        return charInput;
+    }
+
+    /**
+     * 対象文字と基準文字を入力するダイアログを表示する
+     * @param {string} defaultTargetChar - 対象文字の初期値
+     * @returns {{targetChars: string, referenceChar: string}|null} 入力された文字（キャンセル時は null）
+     */
+    function showCharDialog(defaultTargetChar) {
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title));
+        dialog.orientation = "column";
+        dialog.alignChildren = "left";
+
+        dialog.add("statictext", undefined, getLabel(LABELS.dialog.description));
+
+        var inputGroup = dialog.add("group");
+        inputGroup.orientation = "column";
+        inputGroup.alignChildren = "left";
+        inputGroup.margins = INPUT_GROUP_MARGINS;
+
+        var targetCharInput = addCharField(inputGroup, LABELS.fieldLabel.targetChar, defaultTargetChar);
+        targetCharInput.active = true;
+        var referenceCharInput = addCharField(inputGroup, LABELS.fieldLabel.referenceChar, DEFAULT_REFERENCE_CHAR);
+
+        /* ボタンエリア（左右中央）/ Button area (centered) */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.alignment = "center";
+        var btnCancel = btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel(LABELS.button.adjust), { name: "ok" });
+
+        btnOK.onClick = function () {
+            if (targetCharInput.text.length === 0 || referenceCharInput.text.length !== 1) {
+                alert(getLabel(LABELS.alert.invalidChars));
+                return;
+            }
+            dialog.close(1);
+        };
+        btnCancel.onClick = function () { dialog.close(0); };
+
+        if (dialog.show() !== 1) return null;
+        return { targetChars: targetCharInput.text, referenceChar: referenceCharInput.text };
+    }
+
+    // =========================================
+    // ベースラインの調整 / Baseline adjustment
+    // =========================================
+
+    /**
+     * フレーム内の指定文字すべてにベースラインシフトを設定する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} targetChar - 対象の文字
+     * @param {number} shiftAmount - ベースラインシフトの値（pt）
+     * @returns {void}
+     */
+    function applyBaselineShift(textFrame, targetChar, shiftAmount) {
+        var characters = textFrame.textRange.characters;
+        for (var i = 0; i < characters.length; i++) {
+            if (characters[i].contents === targetChar) characters[i].characterAttributes.baselineShift = shiftAmount;
+        }
+    }
+
+    /**
+     * 1つのフレームで、対象文字それぞれの天地中央を基準文字の天地中央にそろえる
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} targetChars - 対象文字（複数可）
+     * @param {string} referenceChar - 基準文字（1文字）
+     * @returns {void}
+     */
+    function adjustTextFrame(textFrame, targetChars, referenceChar) {
+        var frameText = textFrame.contents;
+
+        /* 先にすべて測ってから適用する。測定用の複製は先頭文字の書式を引き継ぐため、
+           先頭文字をずらしたあとに測ると基準文字の測定値と食い違う
+           Measure everything first: the measuring duplicate inherits the first character's formatting,
+           so measuring after that character has been shifted would disagree with the reference measurement */
+        var referenceCenterY = null; /* フレームごとに1回だけ測る / Measured once per frame */
+        var shifts = [];
+        for (var i = 0; i < targetChars.length; i++) {
+            var targetChar = targetChars.charAt(i);
+            if (frameText.indexOf(targetChar) === -1) continue;
+
+            if (referenceCenterY === null) referenceCenterY = measureCharCenterY(textFrame, referenceChar);
+            shifts.push({ targetChar: targetChar, shiftAmount: referenceCenterY - measureCharCenterY(textFrame, targetChar) });
+        }
+
+        for (var j = 0; j < shifts.length; j++) {
+            applyBaselineShift(textFrame, shifts[j].targetChar, shifts[j].shiftAmount);
+        }
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 前提を確かめてダイアログを表示し、選択中のテキストフレームを調整する
+     * @returns {void}
+     */
+    function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel(LABELS.alert.noDocument));
+            return;
+        }
+
+        var textFrames = collectTextFrames(app.activeDocument.selection);
+        if (textFrames.length === 0) {
+            alert(getLabel(LABELS.alert.selectTextFrame));
+            return;
+        }
+
+        var charInput = showCharDialog(findDefaultTargetChar(textFrames));
+        if (!charInput) return;
+
+        /* 字形を持たない文字（スペースなど）はアウトライン化で例外になるため、ここで知らせる
+           Characters with no glyph (spaces etc.) throw during outlining, so report it here */
+        try {
+            for (var i = 0; i < textFrames.length; i++) {
+                adjustTextFrame(textFrames[i], charInput.targetChars, charInput.referenceChar);
+            }
+        } catch (e) {
+            alert(getLabel(LABELS.alert.errorPrefix) + e);
+        }
+    }
+
+    main();
+
+})();

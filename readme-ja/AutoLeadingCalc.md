@@ -1,6 +1,6 @@
 # 現在の行送りから行送り％を逆算
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AutoLeadingCalc.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoLeadingCalc.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AutoLeadingCalc.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/AutoLeadingCalc.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoLeadingCalc.md)
 

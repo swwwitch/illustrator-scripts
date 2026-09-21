@@ -6,3 +6,7 @@
 
 
 This has been merged into [this script](SmartBaselineShifter.md).
+
+### Article
+
+https://note.com/dtp_tranist/n/na7a8c907c68c

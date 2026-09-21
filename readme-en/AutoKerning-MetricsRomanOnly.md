@@ -1,6 +1,6 @@
 # Set auto-kerning to Metrics - Roman Only
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--MetricsRomanOnly.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerning-MetricsRomanOnly.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerning--MetricsRomanOnly.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/AutoKerning-MetricsRomanOnly.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AutoKerning-MetricsRomanOnly.md)
 

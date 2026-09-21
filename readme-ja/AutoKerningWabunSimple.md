@@ -1,6 +1,6 @@
 # 和文の自動カーニングを「オプティカル」に設定
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerningWabunSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AutoKerningWabunSimple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AutoKerningWabunSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/AutoKerningWabunSimple.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AutoKerningWabunSimple.md)
 

@@ -1,6 +1,6 @@
 # 文字ツメを30%に設定
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-Tsume30simple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/Tsume30simple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-Tsume30simple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/Tsume30simple.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/Tsume30simple.md)
 

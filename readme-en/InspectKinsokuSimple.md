@@ -1,6 +1,6 @@
 # Show the kinsoku sets in use in an alert
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsokuSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/InspectKinsokuSimple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-InspectKinsokuSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/InspectKinsokuSimple.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/InspectKinsokuSimple.md)
 
