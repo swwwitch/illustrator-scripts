@@ -5,16 +5,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-破線を選択して実行すると、アウトライン化して1つずつの線分に分け、それぞれを同じ見た目の線（中心線）に置き換えます。
-アウトライン化済みの図形（アンカーポイントが4つの閉じたパス）を1つ選択したときは、その図形を中心線に置き換えます。
+破線を選択して実行すると、アウトライン化して1つずつの線分に分け、それぞれを同じ見た目の線（中心線）に置き換えて、破線ごとにグループにまとめます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashNipper.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nae6882ac8a73
+
 ### Overview
 
-With a dashed line selected, outlines it, splits it into its dashes, and replaces each dash with a line that looks the same (its center line).
-With one already-outlined shape selected (a closed path with four anchor points), replaces that shape with its center line.
+With a dashed line selected, outlines it, splits it into its dashes, replaces each dash with a line that looks the same (its center line), and groups the lines of each dashed line.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashNipper.md
@@ -30,8 +31,9 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashNipper.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashNipper.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashNipper.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashNipper.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nae6882ac8a73"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -46,12 +48,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var LABELS = {
         alert: {
             noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            selectOneItem: { ja: "長方形を1つだけ選択してください。", en: "Select only one rectangle." },
-            notClosedPath: { ja: "閉じた長方形を1つ選択してください。", en: "Select one closed rectangle." },
-            notFourAnchors: {
-                ja: "4つのアンカーポイントを持つ長方形を選択してください。",
-                en: "Select a rectangle with four anchor points."
-            },
+            notDashedLine: { ja: "破線を選択してください。", en: "Select a dashed line." },
             dashOutlineFailed: { ja: "破線をアウトライン化できませんでした。", en: "Could not outline the dashed line." },
             skippedPieces: {
                 ja: "中心線にできなかったパーツが {count} 個あります。アウトラインのまま残しました。",
@@ -78,6 +75,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     var BEZIER_LENGTH_STEPS = 16;         /* 曲線の長さを測る分割数 / subdivisions used to measure a curve */
     var ARC_CHECK_STEPS = 4;              /* 半円かを確かめる、1セグメントあたりの点の数 / points checked per segment for a semicircle */
     var MAX_CAP_SEGMENTS = 4;             /* 丸型線端の半円を作るセグメント数の上限 / max segments forming a round cap */
+    var TINY_SEGMENT_RATIO = 0.05;        /* 線幅に対して、ごく短いとみなすセグメントの比率 / segment length treated as tiny (ratio to stroke width) */
 
     /**
      * @typedef {object} AnchorInfo
@@ -173,16 +171,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * パスの1辺が直線かどうかを返す（ハンドルが両端を結ぶ線上にあれば直線）
+     * 2つのアンカーを結ぶセグメントが直線かどうかを返す（ハンドルが両端を結ぶ線上にあれば直線）
+     * @param {AnchorInfo} from - セグメントの始点
+     * @param {AnchorInfo} to - セグメントの終点
+     * @returns {boolean} 直線なら true
+     */
+    function isStraightSegment(from, to) {
+        return getDistanceToLine(from.rightDirection, from.anchor, to.anchor) <= STRAIGHT_TOLERANCE &&
+            getDistanceToLine(to.leftDirection, from.anchor, to.anchor) <= STRAIGHT_TOLERANCE;
+    }
+
+    /**
+     * パスの1辺が直線かどうかを返す
      * @param {AnchorInfo[]} anchors - パスのアンカー情報
      * @param {number} sideIndex - 辺の始点になるアンカーの番号
      * @returns {boolean} 直線なら true
      */
     function isStraightSide(anchors, sideIndex) {
-        var from = anchors[sideIndex % anchors.length];
-        var to = anchors[(sideIndex + 1) % anchors.length];
-        return getDistanceToLine(from.rightDirection, from.anchor, to.anchor) <= STRAIGHT_TOLERANCE &&
-            getDistanceToLine(to.leftDirection, from.anchor, to.anchor) <= STRAIGHT_TOLERANCE;
+        return isStraightSegment(anchors[sideIndex % anchors.length], anchors[(sideIndex + 1) % anchors.length]);
     }
 
     /**
@@ -279,7 +285,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      * 両端が半円の図形（ピル形状）なら、両端の半円の中心を結ぶ中心線を作る
      * 半円どうしの間の2本の辺は、セグメントの数がそろっているものだけを受け付ける
      * @param {AnchorInfo[]} anchors - パスのアンカー情報
-     * @param {number} [expectedThickness] - 太さがわかっていれば指定（pt）。半円の直径と一致するものだけを使う
+     * @param {number} expectedThickness - 元の破線の線幅（pt）。半円の直径と一致するものだけを使う
      * @returns {CenterLine|null} 線端を丸型にする中心線。ピル形状でなければ null
      */
     function buildPillCenterLine(anchors, expectedThickness) {
@@ -288,7 +294,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             for (var capSegments = 1; capSegments <= MAX_CAP_SEGMENTS; capSegments++) {
                 if (!isSemicircleChain(anchors, capStart, capSegments)) continue;
                 var capDiameter = getDistance(anchors[capStart].anchor, anchors[(capStart + capSegments) % anchorCount].anchor);
-                if (expectedThickness !== undefined && !isMatchingLength(capDiameter, expectedThickness)) continue;
+                if (!isMatchingLength(capDiameter, expectedThickness)) continue;
 
                 for (var otherCapSegments = 1; otherCapSegments <= MAX_CAP_SEGMENTS; otherCapSegments++) {
                     var sideSegments = (anchorCount - capSegments - otherCapSegments) / 2;
@@ -344,11 +350,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     /**
      * 閉じたパスのアンカーから中心線を求める
      * 両端が半円（ピル形状）なら線端を丸型にする中心線を使う。
-     * そうでなければ、両端の候補のうち太さ（両端の辺の長さ）が最も小さいものを使う。
-     * アンカーが4つのときはどの形でも受け付け、それより多いときは両端が直線で長さのそろうものだけを受け付ける
+     * そうでなければ、太さ（両端の辺の長さ）が線幅と一致する向きを使う（線分は線幅より短いことがあり、
+     * 細い方を選ぶと向きを取り違えるため）。アンカーが4つのときはどの形でも受け付け、
+     * それより多いときは両端が直線で長さのそろうものだけを受け付ける
      * @param {AnchorInfo[]} anchors - パスのアンカー情報
-     * @param {number} [expectedThickness] - 太さがわかっていれば指定（pt）。一致する候補だけを使う
-     *     （破線の線分は線幅より短いことがあり、細い方を選ぶと向きを取り違えるため）
+     * @param {number} expectedThickness - 元の破線の線幅（pt）
      * @returns {CenterLine|null} 中心線。求められなければ null
      */
     function getCenterLine(anchors, expectedThickness) {
@@ -364,7 +370,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
         for (var endSideIndex = 0; endSideIndex < anchorCount / 2; endSideIndex++) {
             if (anchorCount > 4 && !hasMatchingEnds(anchors, endSideIndex)) continue;
             var candidate = buildCenterLine(anchors, endSideIndex);
-            if (expectedThickness !== undefined && !isMatchingLength(candidate.thickness, expectedThickness)) continue;
+            if (!isMatchingLength(candidate.thickness, expectedThickness)) continue;
             if (!bestLine || isBetterCenterLine(candidate, bestLine)) bestLine = candidate;
         }
         return bestLine ? orientCenterLine(bestLine) : null;
@@ -381,6 +387,124 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             return isMostlyVertical(candidate) && !isMostlyVertical(currentBest);
         }
         return candidate.thickness < currentBest.thickness;
+    }
+
+    // =========================================
+    // アウトラインの整形 / Outline cleanup
+    // =========================================
+    // 閉じたパスの破線をアウトライン化すると、継ぎ目の近くの線分に、長さ 0.1pt 前後のセグメントや
+    // 切り口の途中のアンカーが混ざる。中心線を求められなかった線分だけ、これを取り除いてから判定し直す
+    // Outlining a closed dashed path leaves ~0.1pt segments and extra anchors on the cut near the seam.
+    // Only dashes that fail the first attempt are cleaned up and tried again
+
+    /**
+     * 近接したアンカーの集まりを1つのアンカーにまとめる（位置は平均、ハンドルは位置の移動に合わせてずらす）
+     * @param {AnchorInfo[]} cluster - まとめるアンカー（パスの順）
+     * @returns {AnchorInfo} まとめたアンカー
+     */
+    function mergeAnchorCluster(cluster) {
+        if (cluster.length === 1) return cluster[0];
+        var sumX = 0;
+        var sumY = 0;
+        for (var i = 0; i < cluster.length; i++) {
+            sumX += cluster[i].anchor[0];
+            sumY += cluster[i].anchor[1];
+        }
+        var position = [sumX / cluster.length, sumY / cluster.length];
+        var first = cluster[0];
+        var last = cluster[cluster.length - 1];
+        return {
+            anchor: position,
+            leftDirection: [first.leftDirection[0] + position[0] - first.anchor[0], first.leftDirection[1] + position[1] - first.anchor[1]],
+            rightDirection: [last.rightDirection[0] + position[0] - last.anchor[0], last.rightDirection[1] + position[1] - last.anchor[1]]
+        };
+    }
+
+    /**
+     * ごく短いセグメントでつながったアンカーを、1つのアンカーにまとめる
+     * @param {AnchorInfo[]} anchors - パスのアンカー情報
+     * @param {number} mergeDistance - これより短いセグメントをまとめる（pt）
+     * @returns {AnchorInfo[]} まとめたあとのアンカー。全体がごく小さいときは空の配列
+     */
+    function mergeTinySegments(anchors, mergeDistance) {
+        var anchorCount = anchors.length;
+        /* 手前のセグメントが長いアンカーから数え始め、集まりが先頭と末尾に割れないようにする
+           Start right after a long segment so no cluster wraps around the start */
+        var startIndex = -1;
+        for (var i = 0; i < anchorCount; i++) {
+            var previousAnchor = anchors[(i - 1 + anchorCount) % anchorCount];
+            if (getDistance(previousAnchor.anchor, anchors[i].anchor) >= mergeDistance) {
+                startIndex = i;
+                break;
+            }
+        }
+        if (startIndex < 0) return [];
+
+        var mergedAnchors = [];
+        var offset = 0;
+        while (offset < anchorCount) {
+            var cluster = [anchors[(startIndex + offset) % anchorCount]];
+            offset++;
+            while (offset < anchorCount &&
+                getDistance(cluster[cluster.length - 1].anchor, anchors[(startIndex + offset) % anchorCount].anchor) < mergeDistance) {
+                cluster.push(anchors[(startIndex + offset) % anchorCount]);
+                offset++;
+            }
+            mergedAnchors.push(mergeAnchorCluster(cluster));
+        }
+        return mergedAnchors;
+    }
+
+    /**
+     * 直線どうしのつなぎ目で、ほぼ一直線上にある余分なアンカーを取り除く
+     * @param {AnchorInfo[]} anchors - パスのアンカー情報
+     * @param {number} maxDeviation - 前後のアンカーを結ぶ線からのずれがこれ以下なら取り除く（pt）
+     * @returns {AnchorInfo[]} 取り除いたあとのアンカー
+     */
+    function removeStraightMidAnchors(anchors, maxDeviation) {
+        var remainingAnchors = anchors.slice(0);
+        var hasRemoved = true;
+        while (hasRemoved && remainingAnchors.length > 3) {
+            hasRemoved = false;
+            for (var i = 0; i < remainingAnchors.length; i++) {
+                var anchorCount = remainingAnchors.length;
+                var previousAnchor = remainingAnchors[(i - 1 + anchorCount) % anchorCount];
+                var currentAnchor = remainingAnchors[i];
+                var nextAnchor = remainingAnchors[(i + 1) % anchorCount];
+                if (!isStraightSegment(previousAnchor, currentAnchor) || !isStraightSegment(currentAnchor, nextAnchor)) continue;
+                if (getDistanceToLine(currentAnchor.anchor, previousAnchor.anchor, nextAnchor.anchor) > maxDeviation) continue;
+                /* 前後のアンカーの間にあるとき（折り返しでないとき）だけ / Only when it lies between its neighbors */
+                if (getDistance(previousAnchor.anchor, currentAnchor.anchor) >= getDistance(previousAnchor.anchor, nextAnchor.anchor) ||
+                    getDistance(nextAnchor.anchor, currentAnchor.anchor) >= getDistance(previousAnchor.anchor, nextAnchor.anchor)) continue;
+                remainingAnchors.splice(i, 1);
+                hasRemoved = true;
+                break;
+            }
+        }
+        return remainingAnchors;
+    }
+
+    /**
+     * 破線の線分から中心線を求める。そのままで求められなければ、ごく短いセグメントと余分なアンカーを除いて判定し直す
+     * @param {AnchorInfo[]} anchors - 線分のアンカー情報
+     * @param {number} strokeWidth - 元の破線の線幅（pt）
+     * @returns {CenterLine|null} 中心線。求められなければ null
+     */
+    function getDashCenterLine(anchors, strokeWidth) {
+        var centerLine = getCenterLine(anchors, strokeWidth);
+        if (centerLine) return centerLine;
+        var tinyLength = strokeWidth * TINY_SEGMENT_RATIO;
+        return getCenterLine(removeStraightMidAnchors(mergeTinySegments(anchors, tinyLength), tinyLength), strokeWidth);
+    }
+
+    /**
+     * アウトライン化で生じた、線分とは呼べないほど小さな破片かどうかを返す
+     * @param {AnchorInfo[]} anchors - 線分のアンカー情報
+     * @param {number} strokeWidth - 元の破線の線幅（pt）
+     * @returns {boolean} ごく短いセグメントをまとめるとアンカーが3つ未満になるなら true
+     */
+    function isOutlineDebris(anchors, strokeWidth) {
+        return mergeTinySegments(anchors, strokeWidth * TINY_SEGMENT_RATIO).length < 3;
     }
 
     // =========================================
@@ -414,13 +538,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
      */
     function collectDashedPaths(selectedItems) {
         var dashedPaths = [];
-        /* 文字の選択中は selection が TextRange になり、[i] は undefined
-           While editing text, selection is a TextRange and [i] is undefined */
-        for (var i = 0; i < selectedItems.length; i++) {
-            var item = selectedItems[i];
-            if (item && item.typename === "PathItem" && item.stroked && item.strokeDashes.length > 0) {
-                dashedPaths.push(item);
-            }
+        /* グループの中もたどる。文字の選択中は selection が TextRange になり、[i] は undefined なので飛ばされる
+           Groups are searched too; a TextRange selection yields undefined items, which are skipped */
+        var paths = collectItemsByType(selectedItems, "PathItem");
+        for (var i = 0; i < paths.length; i++) {
+            if (paths[i].stroked && paths[i].strokeDashes.length > 0) dashedPaths.push(paths[i]);
         }
         return dashedPaths;
     }
@@ -451,28 +573,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
             dashPieces = dashPieces.concat(collectItemsByType(doc.selection, "PathItem"));
         }
         return dashPieces;
-    }
-
-    /**
-     * 選択中のパスが単体の変換の対象になるか確かめ、なれば返す（なれなければ警告を出して null）
-     * @param {PageItem[]} selectedItems - 選択中のアイテム
-     * @returns {PathItem|null} 対象のパス
-     */
-    function getSelectedSourcePath(selectedItems) {
-        if (!selectedItems || selectedItems.length !== 1) {
-            alert(getLabel(LABELS.alert.selectOneItem));
-            return null;
-        }
-        var sourcePath = selectedItems[0];
-        if (!sourcePath || sourcePath.typename !== "PathItem" || !sourcePath.closed) {
-            alert(getLabel(LABELS.alert.notClosedPath));
-            return null;
-        }
-        if (sourcePath.pathPoints.length !== 4) {
-            alert(getLabel(LABELS.alert.notFourAnchors));
-            return null;
-        }
-        return sourcePath;
     }
 
     /**
@@ -528,18 +628,29 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 閉じたパスを中心線に置き換える
+     * 元の図形を中心線に置き換える
      * @param {PathItem} sourcePath - 元の図形
-     * @param {number} [expectedThickness] - 太さがわかっていれば指定（pt）
-     * @returns {PathItem|null} 描いた中心線。置き換えられなければ null（元の図形はそのまま）
+     * @param {CenterLine} centerLine - 中心線
+     * @returns {PathItem} 描いた中心線
      */
-    function replaceWithCenterLine(sourcePath, expectedThickness) {
-        if (!sourcePath.closed) return null;
-        var centerLine = getCenterLine(readAnchors(sourcePath), expectedThickness);
-        if (!centerLine) return null;
+    function replaceWithCenterLine(sourcePath, centerLine) {
         var linePath = drawCenterLine(sourcePath, centerLine);
         sourcePath.remove();
         return linePath;
+    }
+
+    /**
+     * アイテムを1つのグループにまとめる（グループは先頭のアイテムの位置に置き、アイテムの並び順は保つ）
+     * @param {PageItem[]} items - まとめるアイテム（前面から順）
+     * @returns {GroupItem} 作ったグループ
+     */
+    function groupInPlace(items) {
+        var wrapperGroup = items[0].parent.groupItems.add();
+        wrapperGroup.move(items[0], ElementPlacement.PLACEBEFORE);
+        for (var i = 0; i < items.length; i++) {
+            items[i].move(wrapperGroup, ElementPlacement.PLACEATEND);
+        }
+        return wrapperGroup;
     }
 
     // =========================================
@@ -547,32 +658,61 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     // =========================================
 
     /**
-     * 破線を線分ごとの中心線に置き換える
+     * 1本の破線を線分ごとの中心線に置き換え、2つ以上になればグループにまとめる
+     * 中心線にできなかった線分もアウトラインのまま同じグループに入れ、アウトライン化で生じた破片は削除する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PathItem} dashedPath - 破線のパス
+     * @returns {{resultItem: PageItem|null, skippedCount: number}} 置き換えた結果（グループか1本の線。線分が無ければ null）と、中心線にできなかった線分の数
+     */
+    function convertDashedPath(doc, dashedPath) {
+        var strokeWidth = dashedPath.strokeWidth;
+        var dashPieces = outlineDashedPath(doc, dashedPath);
+        var resultItems = [];
+        var skippedCount = 0;
+        for (var i = 0; i < dashPieces.length; i++) {
+            var anchors = readAnchors(dashPieces[i]);
+            if (isOutlineDebris(anchors, strokeWidth)) {
+                dashPieces[i].remove();
+                continue;
+            }
+            var centerLine = dashPieces[i].closed ? getDashCenterLine(anchors, strokeWidth) : null;
+            if (centerLine) {
+                resultItems.push(replaceWithCenterLine(dashPieces[i], centerLine));
+            } else {
+                resultItems.push(dashPieces[i]);
+                skippedCount++;
+            }
+        }
+
+        var resultItem = null;
+        if (resultItems.length === 1) resultItem = resultItems[0];
+        if (resultItems.length > 1) resultItem = groupInPlace(resultItems);
+        return { resultItem: resultItem, skippedCount: skippedCount };
+    }
+
+    /**
+     * 破線を線分ごとの中心線に置き換える（破線ごとに1つのグループ）
      * @param {Document} doc - 対象ドキュメント
      * @param {PathItem[]} dashedPaths - 破線のパス
      * @returns {void}
      */
     function convertDashedPaths(doc, dashedPaths) {
-        var linePaths = [];
+        var resultItems = [];
         var skippedCount = 0;
         var hasOutlineFailure = false;
         /* 線幅は破線ごとに違いうるので、1本ずつアウトライン化する
            Outline one path at a time, since each may have its own stroke width */
         for (var i = 0; i < dashedPaths.length; i++) {
-            var strokeWidth = dashedPaths[i].strokeWidth;
-            var dashPieces = outlineDashedPath(doc, dashedPaths[i]);
-            if (dashPieces.length === 0) hasOutlineFailure = true;
-            for (var j = 0; j < dashPieces.length; j++) {
-                var linePath = replaceWithCenterLine(dashPieces[j], strokeWidth);
-                if (linePath) {
-                    linePaths.push(linePath);
-                } else {
-                    skippedCount++;
-                }
+            var conversion = convertDashedPath(doc, dashedPaths[i]);
+            if (conversion.resultItem) {
+                resultItems.push(conversion.resultItem);
+            } else {
+                hasOutlineFailure = true;
             }
+            skippedCount += conversion.skippedCount;
         }
 
-        doc.selection = linePaths;
+        doc.selection = resultItems;
         if (hasOutlineFailure) {
             alert(getLabel(LABELS.alert.dashOutlineFailed));
         }
@@ -582,20 +722,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
     }
 
     /**
-     * 選択した1つの図形を中心線に置き換える
-     * @param {Document} doc - 対象ドキュメント
-     * @returns {void}
-     */
-    function convertSelectedShape(doc) {
-        var sourcePath = getSelectedSourcePath(doc.selection);
-        if (!sourcePath) return;
-        var linePath = replaceWithCenterLine(sourcePath);
-        doc.selection = null;
-        linePath.selected = true;
-    }
-
-    /**
-     * 選択が破線なら線分ごとに、そうでなければ選択した図形を中心線に置き換える
+     * 選択中の破線を、1本ずつ順に線分ごとの中心線に置き換える（破線が無ければ警告を出して終了）
      * @returns {void}
      */
     function main() {
@@ -606,11 +733,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/mas
 
         var doc = app.activeDocument;
         var dashedPaths = doc.selection ? collectDashedPaths(doc.selection) : [];
-        if (dashedPaths.length > 0) {
-            convertDashedPaths(doc, dashedPaths);
-        } else {
-            convertSelectedShape(doc);
+        if (dashedPaths.length === 0) {
+            alert(getLabel(LABELS.alert.notDashedLine));
+            return;
         }
+        convertDashedPaths(doc, dashedPaths);
     }
 
     main();
