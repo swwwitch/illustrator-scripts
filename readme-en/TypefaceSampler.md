@@ -28,7 +28,9 @@ Groups the fonts available in Illustrator by family (`font.family`), orders each
 2. Set the keyword, the output content and the filters in the dialog.
 3. Press OK — the samples are drawn from the top-left of the active artboard.
 
-Leaving the keyword blank targets every installed font, so a confirmation dialog appears first. Depending on how many fonts are installed, this can take a long time.
+Running without a keyword, weight or style filter targets every installed font, so a confirmation dialog appears first. Depending on how many fonts are installed, this can take a long time.
+
+Column widths and row heights follow the content, so families with many weights and long sample strings do not overlap.
 
 ### Options
 
@@ -42,6 +44,7 @@ The search covers `font.name`, `font.family` and `font.style`.
 | `+` | AND (matches all) | `DIN+Bold` |
 | `^` | Prefix match | `^DIN` |
 | `-` | Exclude (NOT) | `Helvetica -Now` |
+| `"…"` | Phrase match ignoring spaces and hyphens | `"Helvetica Neue"` |
 
 Full-width spaces and commas are handled as well, and the forms combine (for example `^DIN+Bold -Condensed` means: starts with DIN, contains Bold, does not contain Condensed).
 
@@ -83,7 +86,7 @@ Classifies by the decoration words found in `font.style`. A font can fall into m
 | Category | Matching words |
 | --- | --- |
 | Basic | Text, Headline |
-| Condensed | Cond, Condensed, Compressed, Comp |
+| Condensed | Cond, Condensed, Compressed, Comp (not Compact) |
 | Expanded | Expanded, Extended |
 | Display / Special | Compact, Display |
 | Size / Proportion | Micro, Low, Wide |
@@ -92,9 +95,10 @@ If nothing is checked in a group, that filter is ignored. When both groups have 
 
 ### Notes
 
-- Running with a blank keyword can cover several thousand faces and take a long time.
+- Running without any filter can cover several thousand faces and take a long time.
 - Basic only matches fonts whose `font.style` contains Text or Headline; ordinary Regular and Bold cuts do not qualify.
 - Fonts that cannot be applied are skipped and logged to the ExtendScript console.
+- Missing fonts (placeholder entries for fonts that a document uses but that are not installed) are left out.
 
 ### Article
 
@@ -106,3 +110,4 @@ If nothing is checked in a group, that filter is ignored. When both groups have 
 - v1.3.0 (20250508): Improved evaluation logic and filter features
 - v1.3.1 (20250706): Localization adjustments
 - v1.3.2 (20260902): Added weight and style-category filters (merged TypefaceSampler-text.jsx)
+- v1.3.4 (20260922): Columns and rows now fit their contents (no more overlaps); fixed weight detection for styles such as Ultra Condensed, quoted keyword search and full-width commas; missing fonts are left out
