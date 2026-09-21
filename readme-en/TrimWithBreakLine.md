@@ -50,7 +50,7 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 | Height / Width | Size of the mask shape along the cut (%). 100% keeps it as drawn; the label follows the direction |
 | Offset | Position of the mask shape (ruler unit). Positive moves it down or right, negative up or left |
 | Warp style | Shape of the cut edge: Flag waves, Rise curves upward to the right, Rise (straight) slants in a straight line |
-| Bend | How much the cut edge bends (0-100%). 0 cuts along a straight line |
+| Bend | How much the cut edge bends (-100 to 100%). 0 cuts along a straight line; negative values bend it the other way |
 | Gap | Distance between the two parts after closing up (ruler unit). Unused when only one side is kept |
 | Add break lines | Draws a break line along each cut edge |
 | Line style | Solid or dashed |
@@ -81,6 +81,7 @@ Drawn inside the two edges along the cut (the top and bottom edges when cutting 
 
 ### Update history
 
+- v1.0.5 (20260921) : Bend now accepts negative values (-100 to 100%) to bend the cut edge the other way
 - v1.0.4 (20260921) : A path covering an edge of the artwork now keeps that side only. Added the Rise (straight) cut-edge style. Stacked the radio buttons (style, line style, cap) and shortened the number fields by one character
 - v1.0.3 (20260921) : The cut direction is now decided from how much of the artwork the path spans. Unified the wording around "break lines" and matched the tooltips for weight, gap and offset to the actual unit and direction
 - v1.0.2 (20260921) : Left/right cutting with automatic direction detection; any object can be the artwork; settings are restored. Added the Mask shape panel (height and offset) and the stroke weight of the break lines; distances use the ruler unit and the weight uses the Stroke unit

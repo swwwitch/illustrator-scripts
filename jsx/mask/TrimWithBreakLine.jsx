@@ -21,7 +21,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TrimWithBreakLine";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
@@ -42,7 +42,7 @@ var DEFAULT_MASK_OFFSET  = 0;      /* 帯の上下位置の初期値（pt、プ�
 var MIN_BAND_MARGIN      = 1;      /* 帯を画像の内側に保つ余白（pt） */
 var DEFAULT_WARP_STYLE   = "flag"; /* ワープの初期スタイル（WARP_STYLES のキー） */
 var DEFAULT_WARP_PERCENT = 3;      /* カーブの初期値（%） */
-var MAX_WARP_PERCENT     = 100;    /* カーブの上限（%） */
+var MAX_WARP_PERCENT     = 100;    /* カーブの上限（%、マイナス側も同じ幅） */
 var DEFAULT_ADD_RULE     = true;   /* 罫線を追加するかの初期値 */
 var DEFAULT_RULE_DASHED  = false;  /* 罫線を破線にするかの初期値 */
 var DEFAULT_GROUP_RULES  = true;   /* 罫線をパーツとグループ化するかの初期値 */
@@ -200,8 +200,8 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
                 en: "Shape of the cut edge. Flag waves, Rise curves upward to the right, Rise (straight) slants in a straight line."
             },
             warpAmount: {
-                ja: "切り口を曲げる量です（0〜" + MAX_WARP_PERCENT + "%）。0にすると直線で切ります。",
-                en: "How much the cut edge bends (0-" + MAX_WARP_PERCENT + "%). 0 cuts along a straight line."
+                ja: "切り口を曲げる量です（-" + MAX_WARP_PERCENT + "〜" + MAX_WARP_PERCENT + "%）。0にすると直線で切り、マイナスにすると逆向きに曲がります。",
+                en: "How much the cut edge bends (-" + MAX_WARP_PERCENT + " to " + MAX_WARP_PERCENT + "%). 0 cuts along a straight line; negative values bend it the other way."
             },
             gap: {
                 ja: "切り詰めたあとの、2つのパーツのあいだの距離です。",
@@ -483,10 +483,10 @@ var BUTTON_SPACING        = 8;   /* ボタン同士の間隔 */
     /**
      * カーブの量を許容範囲に収める
      * @param {number} inputValue - 入力された値（%）
-     * @returns {number} 0〜MAX_WARP_PERCENT に収めた値
+     * @returns {number} -MAX_WARP_PERCENT〜MAX_WARP_PERCENT に収めた値
      */
     function clampWarpPercent(inputValue) {
-        return clampRange(inputValue, 0, MAX_WARP_PERCENT, initialValues.warpPercent);
+        return clampRange(inputValue, -MAX_WARP_PERCENT, MAX_WARP_PERCENT, initialValues.warpPercent);
     }
 
     /**
