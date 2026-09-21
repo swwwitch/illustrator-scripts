@@ -26,10 +26,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartBaselineShifter";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.2.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-07-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBaselineShifter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBaselineShifter.md"; /* README (English) */
@@ -40,179 +40,69 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
 
 (function () {
 
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var uiLang = getCurrentLang();
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    var LABELS = {
-        dialogTitle: {
-            ja: "ベースライン調整 " + SCRIPT_VERSION,
-            en: "Adjust Baseline " + SCRIPT_VERSION
-        },
-        targetCharLabel: {
-            ja: "対象文字",
-            en: "Target Character"
-        },
-        baseCharLabel: {
-            ja: "基準文字",
-            en: "Reference Character"
-        },
-        okBtnLabel: {
-            ja: "調整",
-            en: "Adjust"
-        },
-        adjustBtnLabel: {
-            ja: "計算",
-            en: "Calculate"
-        },
-        cancelBtnLabel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        selectFrameMsg: {
-            ja: "テキストフレームを選択してください。",
-            en: "Select one or more text frames."
-        },
-        docOpenMsg: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document open."
-        },
-        invalidCharMsg: {
-            ja: "対象文字は1文字以上、基準文字は1文字を入力してください。",
-            en: "Enter at least one target character and exactly one reference character."
-        },
-        notFoundMsg: {
-            ja: "対象文字が含まれていません。",
-            en: "Target character not found."
-        },
-        errorMsg: {
-            ja: "エラー: ",
-            en: "Error: "
-        },
-        resetBtnLabel: {
-            ja: "リセット",
-            en: "Reset"
-        },
-        shiftAmountLabel: {
-            ja: "シフト量",
-            en: "Shift Amount"
-        },
-        autoPanelTitle: {
-            ja: "自動調整（天地）",
-            en: "Auto Adjust (Vertical)"
-        },
-        numericErrorMsg: {
-            ja: "シフト量は数値で入力してください。",
-            en: "Shift amount must be a number."
-        },
-        helpTips: {
-            targetInput: {
-                ja: "ベースラインをシフトする対象文字を入力します。",
-                en: "Enter the character(s) to shift."
-            },
-            shiftInput: {
-                ja: "手動で指定するベースラインシフト量（数値）です。",
-                en: "Specify the baseline shift amount manually."
-            },
-            refInput: {
-                ja: "基準となる文字を1文字入力します。",
-                en: "Enter the reference character (1 character)."
-            },
-            calBtn: {
-                ja: "対象文字と基準文字からシフト量を自動計算します。",
-                en: "Calculate shift amount automatically."
-            },
-            finalOkBtn: {
-                ja: "指定したシフト量を確定して適用します。",
-                en: "Apply the specified shift amount."
-            },
-            resetBtn: {
-                ja: "選択しているテキストのベースラインシフトを全リセットします。",
-                en: "Reset baseline shifts in all text frames."
-            }
-        }
-    };
+    var DEFAULT_REFERENCE_CHAR = "0"; /* 基準文字の初期値 / Initial reference character */
+    var SHIFT_DECIMAL_PLACES   = 4;   /* 計算したシフト量の小数桁数 / Decimal places of the calculated shift amount */
+
+    /* 対象文字の初期値から外す文字（空白・改行・英数字・ひらがな・カタカナ・漢字）
+       Characters left out of the initial target (whitespace, line breaks, alphanumerics, kana, kanji) */
+    var NON_SYMBOL_CHAR_PATTERN = /^[\x00-\x20 　A-Za-z0-9぀-ゟ゠-ヿ一-鿿]$/;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var INPUT_COLUMN_MARGINS       = [15, 5, 15, 5];  /* 入力欄の列の余白 [左,上,右,下] / Input column margins */
+    var SHIFT_ROW_MARGINS          = [0, 0, 0, 10];   /* シフト量の行の余白 [左,上,右,下] / Shift amount row margins */
+    var AUTO_ADJUST_PANEL_MARGINS  = [15, 20, 15, 5]; /* 自動調整パネルの余白 [左,上,右,下] / Auto adjust panel margins */
+    var TEXT_INPUT_CHARACTERS      = 6;               /* 対象文字・シフト量の欄の幅（文字数）/ Width of the target and shift fields */
+    var REFERENCE_INPUT_CHARACTERS = 3;               /* 基準文字の欄の幅（文字数）/ Width of the reference field */
+    var CALCULATE_BUTTON_BOUNDS    = [0, 0, 60, 25];  /* 計算ボタンの大きさ / Calculate button bounds */
+    var BUTTON_SPACER_BOUNDS       = [0, 0, 0, 30];   /* キャンセルとリセットの間隔 / Gap between Cancel and Reset */
+    var DIALOG_OFFSET_X            = 300;             /* ダイアログを右へずらす量 / Horizontal dialog offset */
+    var DIALOG_OPACITY             = 0.97;            /* ダイアログの不透明度 / Dialog opacity */
 
     /**
-     * コロン付きの項目名を返す（日本語は全角、英語は半角）
-     * @param {string} key - LABELS のキー
-     * @returns {string} コロンを添えたラベル
+     * ↑↓キーで数値を増減できるようにする（Shift で10刻み、Option で0.1刻み）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {function} [onChanged] - 値が変わったときに呼ぶ処理
+     * @returns {void}
      */
-    function labelText(key) {
-        return LABELS[key][uiLang] + (uiLang === "ja" ? "：" : ": ");
-    }
+    function changeValueByArrowKey(editText, onChanged) {
+        editText.addEventListener("keydown", function (event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
 
-    /* =========================================
-     * PreviewManager util
-     * プレビュー時の履歴管理と一括Undoを制御するクラス
-     * - addStep(): 変更を実行してUndo回数をカウント
-     * - rollback(): プレビューで行った変更を全てUndo
-     * - confirm(finalAction): rollback後に本番処理を1回だけ実行
-     * ========================================= */
-    function PreviewManager() {
-        this.undoDepth = 0;
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
 
-        this.addStep = function (func) {
-            try {
-                func();
-                this.undoDepth++;
-                app.redraw();
-            } catch (e) {
-                // プレビュー中にアラート連発は邪魔なので黙殺（必要なら一時的にalert復活）
-                // alert("Preview Error: " + e);
-            }
-        };
+            var keyboard = ScriptUI.environment.keyboardState;
+            var isUp = (event.keyName == "Up");
+            event.preventDefault();
 
-        this.rollback = function () {
-            while (this.undoDepth > 0) {
-                try {
-                    app.undo();
-                } catch (e) {
-                    // If undo fails, prevent counter drift
-                    this.undoDepth = 0;
-                    break;
-                }
-                this.undoDepth--;
-            }
-            app.redraw();
-        };
-
-        this.confirm = function (finalAction) {
-            if (finalAction) {
-                this.rollback();
-                finalAction();
+            if (keyboard.shiftKey) {
+                /* Shift：10 単位にスナップ / Shift snaps to multiples of 10 */
+                value = isUp ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+            } else if (keyboard.altKey) {
+                /* Option：0.1 刻み / Option steps by 0.1 */
+                value = Math.round((value + (isUp ? 0.1 : -0.1)) * 10) / 10;
             } else {
-                this.undoDepth = 0;
+                value = Math.round(value + (isUp ? 1 : -1));
             }
-        };
+
+            editText.text = value;
+            if (typeof onChanged === "function") onChanged();
+        });
     }
 
-    /* 言語判定 / Determine language from locale */
-    // (Removed old getLang, using getCurrentLang and uiLang variable)
+    // =========================================
+    // 単位 / Units
+    // =========================================
 
-    // 再帰的に選択内のすべての TextFrame を抽出 / Recursively extract all TextFrames in selection
-    function getAllTextFrames(selection) {
-        var textFrames = [];
-
-        function extractTextFrames(item) {
-            if (item.typename === "TextFrame") {
-                textFrames.push(item);
-            } else if (item.typename === "GroupItem") {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    extractTextFrames(item.pageItems[i]);
-                }
-            }
-        }
-
-        for (var i = 0; i < selection.length; i++) {
-            extractTextFrames(selection[i]);
-        }
-
-        return textFrames;
-    }
-
-    /* 単位テーブル（配列の添字が rulerType コードと一致：0=in, 1=mm, 2=pt …）/ Unit table; the array index equals the rulerType code */
+    /* 単位コードに対応する表示ラベルと、1単位あたりのポイント数
+       Unit code -> display label and points per unit */
     var UNITS = [
         { label: "in",    pointsPerUnit: 72 },                /* 0 */
         { label: "mm",    pointsPerUnit: 72 / 25.4 },         /* 1 */
@@ -232,465 +122,531 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5e41727cf265"; /* 紹�
     var HA_UNIT_PREF_KEYS = { "rulerType": true, "strokeUnits": true, "text/asianunits": true };
 
     /**
-     * 設定キーごとの単位情報を取得する
-     * @param {string} prefKey - 環境設定キー（省略時は "rulerType"）
-     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位情報
+     * 環境設定キーの単位を返す
+     * @param {string} [prefKey] - "rulerType"（既定）/ "strokeUnits" / "text/units" / "text/asianunits"
+     * @returns {{code: number, label: string, pointsPerUnit: number}} 単位の情報
      */
     function getUnitInfo(prefKey) {
         var unitKey = prefKey || "rulerType";
         var unitCode = app.preferences.getIntegerPreference(unitKey);
+        /* 未知のコードは pt に寄せる / unknown codes fall back to points */
         var unit = UNITS[unitCode] || UNITS[2];
+        /* 級（Q）と歯（H）は同じ長さだが、文字サイズは「Q」、距離は「H」と呼び分ける */
         var label = (unitCode === 5 && HA_UNIT_PREF_KEYS[unitKey]) ? "H" : unit.label;
         return { code: unitCode, label: label, pointsPerUnit: unit.pointsPerUnit };
     }
 
-    /* EditTextで上下キーによる値の増減を実装 / Enable arrow key increment/decrement on EditText */
-    function changeValueByArrowKey(editText, allowNegative, targetInput, textFrames, previewMgr) {
-        editText.addEventListener("keydown", function (event) {
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
-            var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
-
-            if (keyboard.shiftKey) {
-                delta = 10;
-                if (event.keyName == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            } else {
-                delta = 1;
-                if (event.keyName == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (event.keyName == "Down") {
-                    value -= delta;
-                    event.preventDefault();
-                }
-            }
-
-            if (keyboard.altKey) {
-                value = Math.round(value * 10) / 10; /* 小数第1位まで / Round to 1 decimal */
-            } else {
-                value = Math.round(value); /* 整数に丸め / Round to integer */
-            }
-
-            if (!allowNegative && value < 0) value = 0;
-
-            event.preventDefault();
-            editText.text = value;
-            /* プレビュー更新 / Update preview */
-            if (typeof previewShiftAll === "function" && targetInput && textFrames) {
-                previewShiftAll(targetInput, editText, textFrames, previewMgr || null);
-            }
-        });
+    /**
+     * 実行環境の言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
+    var uiLang = getCurrentLang();
 
-    /* 指定テキストフレームの特定文字にベースラインシフトを適用 / Apply baseline shift to specific characters in a text frame */
-    function applyBaselineShiftToChars(textFrame, targetChar, yOffset) {
-        var chars = textFrame.textRange.characters;
-        for (var j = 0; j < chars.length; j++) {
-            var ch = chars[j].contents;
-            if (ch && ch === targetChar) {
-                chars[j].characterAttributes.baselineShift = -yOffset;
+    var LABELS = {
+        dialog: {
+            title: { ja: "ベースライン調整", en: "Adjust Baseline" }
+        },
+        panel: {
+            autoAdjust: { ja: "自動調整（天地）", en: "Auto Adjust (Vertical)" }
+        },
+        fieldLabel: {
+            targetChars: { ja: "対象文字", en: "Target Character" },
+            shiftAmount: { ja: "シフト量", en: "Shift Amount" },
+            referenceChar: { ja: "基準文字", en: "Reference Character" }
+        },
+        button: {
+            adjust: { ja: "調整", en: "Adjust" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            reset: { ja: "リセット", en: "Reset" },
+            calculate: { ja: "計算", en: "Calculate" }
+        },
+        tooltip: {
+            targetChars: {
+                ja: "ベースラインをシフトする対象文字を入力します。",
+                en: "Enter the character(s) to shift."
+            },
+            shiftAmount: {
+                ja: "手動で指定するベースラインシフト量（数値）です。",
+                en: "Specify the baseline shift amount manually."
+            },
+            referenceChar: {
+                ja: "基準となる文字を1文字入力します。",
+                en: "Enter the reference character (1 character)."
+            },
+            calculate: {
+                ja: "対象文字と基準文字からシフト量を自動計算します。",
+                en: "Calculate shift amount automatically."
+            },
+            adjust: {
+                ja: "指定したシフト量を確定して適用します。",
+                en: "Apply the specified shift amount."
+            },
+            reset: {
+                ja: "選択しているテキストのベースラインシフトを全リセットします。",
+                en: "Reset baseline shifts in all text frames."
             }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントが開かれていません。", en: "No document open." },
+            selectTextFrame: { ja: "テキストフレームを選択してください。", en: "Select one or more text frames." },
+            invalidChars: {
+                ja: "対象文字は1文字以上、基準文字は1文字を入力してください。",
+                en: "Enter at least one target character and exactly one reference character."
+            },
+            targetNotFound: { ja: "対象文字が含まれていません。", en: "Target character not found." },
+            shiftNotNumber: { ja: "シフト量は数値で入力してください。", en: "Shift amount must be a number." },
+            errorPrefix: { ja: "エラー: ", en: "Error: " }
         }
+    };
+
+    /**
+     * 現在の言語のラベルを取得する
+     * @param {object} labelSet - { ja: string, en: string } 形式のラベル
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(labelSet) {
+        return labelSet[uiLang] || labelSet.en;
     }
 
-    /* プレビューとして全選択テキストのベースラインシフトを更新 / Preview baseline shift for all selected text */
-    function previewShiftAll(targetInput, shiftInput, textFrames, previewMgr) {
-        var targetText = targetInput.text;
-        var shiftValue = parseFloat(shiftInput.text);
-        if (isNaN(shiftValue)) shiftValue = 0;
-
-        if (!previewMgr) {
-            // Fallback（通常はshowDialog内から呼ぶのでここには来ない想定）
-            if (!targetText) {
-                resetBaselineShift(textFrames);
-                app.redraw();
-                return;
-            }
-            applyShiftAll(targetText, shiftValue, textFrames);
-            app.redraw();
-            return;
-        }
-
-        // Always rollback previous preview first
-        previewMgr.rollback();
-
-        if (!targetText) {
-            // Nothing to preview
-            return;
-        }
-
-        previewMgr.addStep(function () {
-            applyShiftAll(targetText, shiftValue, textFrames);
-        });
+    /**
+     * 項目名にコロンを付けて返す（日本語は全角、英語は半角）
+     * @param {object} labelSet - { ja: string, en: string } 形式のラベル
+     * @returns {string} コロン付きのラベル文字列
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ": ");
     }
 
-    /* ベースラインシフトを適用（共通処理） / Apply baseline shift (shared) */
-    function applyShiftAll(targetText, shiftValue, textFrames) {
-        resetBaselineShift(textFrames);
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
 
-        for (var j = 0; j < textFrames.length; j++) {
-            var tf = textFrames[j];
-            for (var c = 0; c < targetText.length; c++) {
-                var ch = targetText.charAt(c);
-                applyBaselineShiftToChars(tf, ch, -shiftValue);
-            }
-        }
+    /**
+     * プレビューで加えた変更を数えておき、app.undo() でまとめて取り消す
+     * @constructor
+     */
+    function PreviewManager() {
+        this.undoDepth = 0;
     }
 
-    /* アイテムのジオメトリック境界から中心Y座標を取得 / Get center Y coordinate from geometric bounds */
-    function getCenterY(item) {
-        var bounds = item.geometricBounds;
-        return bounds[1] - (bounds[1] - bounds[3]) / 2;
-    }
-
-    /* 指定文字でアウトラインを作成し中心Y座標を取得 / Create outline for character and get center Y */
-    function createOutlineAndGetCenterY(textFrame, character) {
-        var tempFrame = null;
-        var outline = null;
-        var centerY = 0;
-
+    /**
+     * 変更を実行し、取り消す段数を1つ増やす
+     * @param {function} changeFunc - 実行する変更
+     * @returns {void}
+     */
+    PreviewManager.prototype.addStep = function (changeFunc) {
+        /* プレビュー中の失敗はアラートを出さずに見送る / Preview failures are skipped without an alert */
         try {
-            tempFrame = textFrame.duplicate();
-            tempFrame.contents = character;
-            tempFrame.filled = false;
-            tempFrame.stroked = false;
+            changeFunc();
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) { }
+    };
 
-            outline = tempFrame.createOutline();
-            centerY = getCenterY(outline);
-
-        } finally {
-            // Ensure cleanup even if createOutline() fails
+    /**
+     * プレビューで加えた変更をすべて取り消す
+     * @returns {void}
+     */
+    PreviewManager.prototype.rollback = function () {
+        while (this.undoDepth > 0) {
+            /* 取り消せなくなったら段数を捨てて数え違いを残さない / If undo fails, drop the count so it cannot drift */
             try {
-                if (outline) outline.remove();
-            } catch (e1) { }
-            try {
-                if (tempFrame) tempFrame.remove();
-            } catch (e2) { }
+                app.undo();
+            } catch (e) {
+                this.undoDepth = 0;
+                break;
+            }
+            this.undoDepth--;
         }
+        app.redraw();
+    };
 
-        return centerY;
+    /**
+     * プレビューを取り消してから本番の処理を1回だけ実行する（取り消しを1段にまとめる）
+     * @param {function} finalAction - 本番の処理
+     * @returns {void}
+     */
+    PreviewManager.prototype.confirm = function (finalAction) {
+        this.rollback();
+        finalAction();
+    };
+
+    // =========================================
+    // 対象の収集 / Collecting targets
+    // =========================================
+
+    /**
+     * 文字の編集中で、そのストーリーがテキストフレーム1つだけなら、そのフレームを選択し直す
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {void}
+     */
+    function selectFrameOfEditedText(doc) {
+        var selection = doc.selection;
+        if (!selection || selection.typename !== "TextRange") return;
+
+        var storyFrames = selection.story.textFrames;
+        if (storyFrames.length !== 1) return;
+
+        app.executeMenuCommand("deselectall");
+        doc.selection = [storyFrames[0]];
+        app.selectTool("Adobe Select Tool");
     }
 
-    /* 選択テキスト内の全文字の出現頻度を集計し、デフォルト対象文字選択時は非英数字・非日本語のみ考慮 /
-       Count frequency of all characters; when selecting default target, only consider non-alphanumeric, non-kanji, non-hiragana, non-katakana */
-    function getSymbolFrequency(sel) {
-        var charCount = {};
-        for (var i = 0; i < sel.length; i++) {
-            var item = sel[i];
-            if (item.typename == "TextFrame") {
-                var selText = item.contents;
-                for (var j = 0; j < selText.length; j++) {
-                    var c = selText.charAt(j);
-                    // Count all characters
-                    charCount[c] = (charCount[c] || 0) + 1;
-                }
+    /**
+     * アイテムがテキストフレームなら追加し、グループなら中を再帰的にたどる
+     * @param {PageItem} item - 調べるアイテム
+     * @param {TextFrame[]} textFrames - 見つけたフレームを追加する配列
+     * @returns {void}
+     */
+    function appendTextFrames(item, textFrames) {
+        if (item.typename === "TextFrame") {
+            textFrames.push(item);
+        } else if (item.typename === "GroupItem") {
+            for (var i = 0; i < item.pageItems.length; i++) {
+                appendTextFrames(item.pageItems[i], textFrames);
             }
         }
-        return charCount;
     }
 
-    /* 全テキストフレームのベースラインシフトをリセット / Reset baseline shift for all characters */
+    /**
+     * 選択（グループの中を含む）からテキストフレームを集める
+     * @param {Array<PageItem>|TextRange} selection - ドキュメントの選択
+     * @returns {TextFrame[]} テキストフレーム（文字の編集中は空）
+     */
+    function collectTextFrames(selection) {
+        var textFrames = [];
+        if (!selection || selection.typename === "TextRange") return textFrames;
+        for (var i = 0; i < selection.length; i++) {
+            appendTextFrames(selection[i], textFrames);
+        }
+        return textFrames;
+    }
+
+    /**
+     * 英数字・かな・漢字以外の文字を、出てきた順に重複なく集める（対象文字の初期値）
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @returns {string} 集めた文字
+     */
+    function collectSymbolChars(textFrames) {
+        var symbolChars = "";
+        for (var i = 0; i < textFrames.length; i++) {
+            var frameText = textFrames[i].contents;
+            for (var j = 0; j < frameText.length; j++) {
+                var character = frameText.charAt(j);
+                if (!NON_SYMBOL_CHAR_PATTERN.test(character) && symbolChars.indexOf(character) === -1) symbolChars += character;
+            }
+        }
+        return symbolChars;
+    }
+
+    // =========================================
+    // ベースラインシフト / Baseline shift
+    // =========================================
+
+    /**
+     * テキストフレームのベースラインシフトをすべて0に戻す
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @returns {void}
+     */
     function resetBaselineShift(textFrames) {
         for (var i = 0; i < textFrames.length; i++) {
-            var tf = textFrames[i];
+            /* 書き換えられないフレームは飛ばして残りを続ける / Skip frames that cannot be modified and carry on */
             try {
-                // Strongest: clear per-character overrides in one go
-                tf.textRange.characters.everyItem().characterAttributes.baselineShift = 0;
-            } catch (e) {
-                try {
-                    // Next best: apply to the whole range
-                    tf.textRange.characterAttributes.baselineShift = 0;
-                } catch (e2) {
-                    // Fallback: per-character reset
-                    try {
-                        var chars = tf.textRange.characters;
-                        for (var j = 0; j < chars.length; j++) {
-                            chars[j].characterAttributes.baselineShift = 0;
-                        }
-                    } catch (e3) {
-                        // Ignore frames that cannot be processed
-                    }
-                }
-            }
+                textFrames[i].textRange.characterAttributes.baselineShift = 0;
+            } catch (e) { }
         }
     }
 
-    /* 対象文字と基準文字を入力するダイアログを表示 / Show dialog to input target and reference characters */
-    function showDialog(textFrames, previewMgr) {
-        // var uiLang = getLang(); // Use global uiLang
-        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
-        dialog.orientation = "column";
-        dialog.alignChildren = "left";
-
-        // Preview manager is provided by main()
-        if (!previewMgr) previewMgr = new PreviewManager();
-
-        // 1️⃣ プレビュー制御用フラグ / Preview control flag
-        var enablePreview = true;
-
-        var mainGroup = dialog.add("group");
-        mainGroup.orientation = "row";
-        mainGroup.alignChildren = ["fill", "top"];
-
-        /* デフォルト対象文字を全ユニークな非英数字・非日本語記号から抽出 / Default target from all unique non-alphanumeric, non-Japanese symbols */
-        var defaultTarget = "";
-        if (textFrames && textFrames.length > 0) {
-            var charCount = getSymbolFrequency(textFrames);
-            var targetChars = "";
-            for (var key in charCount) {
-                // Only consider non-alphanumeric, non-kanji, non-hiragana, non-katakana
-                if (!key.match(/^[A-Za-z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]$/)) {
-                    if (targetChars.indexOf(key) === -1) {
-                        targetChars += key;
-                    }
-                }
-            }
-            defaultTarget = targetChars;
+    /**
+     * フレーム内の対象文字すべてにベースラインシフトを設定する
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} targetChars - 対象文字（複数可）
+     * @param {number} shiftAmount - ベースラインシフトの値（pt）
+     * @returns {void}
+     */
+    function applyBaselineShift(textFrame, targetChars, shiftAmount) {
+        var characters = textFrame.textRange.characters;
+        for (var i = 0; i < characters.length; i++) {
+            var character = characters[i].contents;
+            if (character && targetChars.indexOf(character) !== -1) characters[i].characterAttributes.baselineShift = shiftAmount;
         }
+    }
 
-        var inputGroup = mainGroup.add("group");
-        inputGroup.orientation = "column";
-        inputGroup.alignChildren = "left";
-        inputGroup.margins = [15, 5, 15, 5];
-
-        var targetGroup = inputGroup.add("group");
-        targetGroup.add("statictext", undefined, labelText("targetCharLabel"));
-        var targetInput = targetGroup.add("edittext", undefined, defaultTarget);
-        targetInput.characters = 6;
-        targetInput.active = true;
-        targetInput.helpTip = LABELS.helpTips.targetInput[uiLang];
-        targetInput.onChanging = updatePreview;
-
-        var shiftGroup = inputGroup.add("group");
-        shiftGroup.add("statictext", undefined, labelText("shiftAmountLabel"));
-        var shiftInput = shiftGroup.add("edittext", undefined, "0");
-        var unitLabel = shiftGroup.add("statictext", undefined, getUnitInfo("text/asianunits").label);
-        shiftInput.characters = 6;
-        changeValueByArrowKey(shiftInput, true, targetInput, textFrames, previewMgr);
-        // 2️⃣ プレビュー制御フラグを用いたonChanging / Use preview control flag in onChanging
-        shiftInput.onChanging = function () {
-            updatePreview();
-        };
-
-        function updatePreview() {
-            if (!enablePreview) return;
-            previewShiftAll(targetInput, shiftInput, textFrames, previewMgr);
+    /**
+     * ベースラインシフトをいったん全部戻し、対象文字だけにシフト量を設定する
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @param {string} targetChars - 対象文字（複数可）
+     * @param {number} shiftAmount - ベースラインシフトの値（pt）
+     * @returns {void}
+     */
+    function applyShiftToAll(textFrames, targetChars, shiftAmount) {
+        resetBaselineShift(textFrames);
+        for (var i = 0; i < textFrames.length; i++) {
+            applyBaselineShift(textFrames[i], targetChars, shiftAmount);
         }
+    }
 
-        shiftInput.active = true;
-        shiftGroup.margins = [0, 0, 0, 10];
-        shiftInput.helpTip = LABELS.helpTips.shiftInput[uiLang];
+    // =========================================
+    // 文字の中心の実測 / Measuring character centers
+    // =========================================
 
-        var autoPanel = inputGroup.add("panel", undefined, LABELS.autoPanelTitle[uiLang]);
-        autoPanel.orientation = "column";
-        autoPanel.alignChildren = "left";
-        autoPanel.margins = [15, 20, 15, 5];
+    /**
+     * アイテムの天地中央のY座標を求める
+     * @param {PageItem} item - 対象のアイテム
+     * @returns {number} 天地中央のY座標
+     */
+    function getCenterY(item) {
+        var bounds = item.geometricBounds;
+        return (bounds[1] + bounds[3]) / 2;
+    }
 
-        var refGroup = autoPanel.add("group");
-        refGroup.add("statictext", undefined, labelText("baseCharLabel"));
-        var refInput = refGroup.add("edittext", undefined, "0");
-        refInput.characters = 3;
-        refInput.helpTip = LABELS.helpTips.refInput[uiLang];
-        var calBtn = refGroup.add("button", [0, 0, 60, 25], LABELS.adjustBtnLabel[uiLang]);
-        calBtn.helpTip = LABELS.helpTips.calBtn[uiLang];
-
-        var buttonGroup = mainGroup.add("group");
-        buttonGroup.orientation = "column";
-        buttonGroup.alignChildren = "fill";
-
-        var finalOkBtn = buttonGroup.add("button", undefined, LABELS.okBtnLabel[uiLang], {
-            name: "ok"
-        });
-        finalOkBtn.helpTip = LABELS.helpTips.finalOkBtn[uiLang];
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[uiLang], {
-            name: "cancel"
-        });
-
-        buttonGroup.add("statictext", [0, 0, 0, 30], " "); // Spacer
-        var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtnLabel[uiLang]);
-        resetBtn.helpTip = LABELS.helpTips.resetBtn[uiLang];
-
-        resetBtn.onClick = function () {
-            if (!textFrames || textFrames.length == 0) {
-                alert(LABELS.selectFrameMsg[uiLang]);
-                return;
-            }
-
-            // Avoid immediate re-preview while resetting UI values
-            enablePreview = false;
-
-            // Rollback any previous preview and apply reset as a single preview step
-            previewMgr.rollback();
-            previewMgr.addStep(function () {
-                resetBaselineShift(textFrames);
-            });
-
-            shiftInput.text = "0";
-            enablePreview = true;
-        };
-
-        /* 自動調整ボタンのクリック処理 / Auto adjust button click */
-        calBtn.onClick = function () {
-            if (targetInput.text.length == 0) {
-                alert(LABELS.invalidCharMsg[uiLang]);
-                return;
-            }
-            if (refInput.text.length != 1) {
-                alert(LABELS.invalidCharMsg[uiLang]);
-                return;
-            }
-            if (!app.documents.length) {
-                alert(LABELS.docOpenMsg[uiLang]);
-                return;
-            }
-            if (!textFrames || textFrames.length == 0) {
-                alert(LABELS.selectFrameMsg[uiLang]);
-                return;
-            }
-            /* 最初の該当文字で基準文字とのY座標差分を計算し、シフト量を設定 / Calculate offset for first valid character */
-            for (var i = 0; i < textFrames.length; i++) {
-                var item = textFrames[i];
-                if (item.typename == "TextFrame") {
-                    var contents = item.contents;
-                    for (var c = 0; c < targetInput.text.length; c++) {
-                        var targetChar = targetInput.text.charAt(c);
-                        if (contents.indexOf(targetChar) == -1) {
-                            continue;
-                        }
-                        var refCenterY = createOutlineAndGetCenterY(item, refInput.text);
-                        var targetCenterY = createOutlineAndGetCenterY(item, targetChar);
-                        var yOffset = refCenterY - targetCenterY;
-                        shiftInput.text = yOffset.toFixed(4);
-                        updatePreview();
-                        return;
-                    }
-                }
-            }
-        };
-
-        /* OKボタンのクリック処理 / Final OK button click */
-        finalOkBtn.onClick = function () {
-            if (targetInput.text.length == 0) {
-                alert(LABELS.invalidCharMsg[uiLang]);
-                return;
-            }
-            var shiftValue = Number(shiftInput.text);
-            if (isNaN(shiftValue)) {
-                alert(LABELS.numericErrorMsg[uiLang]);
-                return;
-            }
-            // 3️⃣ OKボタン押下時にプレビュー無効化 / Disable preview on OK
-            enablePreview = false;
-
-            // Do not confirm here; main() will confirm to keep undo as a single step
-            dialog.close(1);
-        };
-
-        /* キャンセルボタンのクリック処理 / Cancel button click */
-        cancelBtn.onClick = function () {
-            previewMgr.rollback();
-            dialog.close(0);
-        };
-
-        var offsetX = 300;
-        var dialogOpacity = 0.97;
-
-        function shiftDialogPosition(dlg, offsetX, offsetY) {
-            dlg.onShow = function () {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
-            };
+    /**
+     * テキストフレームを複製して1文字だけにし、アウトライン化した字形の天地中央を測る
+     * @param {TextFrame} textFrame - 書式の元になるテキストフレーム
+     * @param {string} character - 測る文字
+     * @returns {number} 字形の天地中央のY座標
+     */
+    function measureCharCenterY(textFrame, character) {
+        var tempFrame = textFrame.duplicate();
+        var outlineGroup = null;
+        try {
+            tempFrame.contents = character;
+            outlineGroup = tempFrame.createOutline(); /* 複製はここで消費される / The duplicate is consumed here */
+            return getCenterY(outlineGroup);
+        } finally {
+            /* 途中で失敗しても一時オブジェクトを残さない / Never leave the temporary objects behind, even on failure */
+            if (outlineGroup) outlineGroup.remove();
+            else tempFrame.remove();
         }
+    }
 
-        function setDialogOpacity(dlg, opacityValue) {
-            dlg.opacity = opacityValue;
-        }
+    /**
+     * 対象文字を含む最初のフレームで、基準文字と対象文字の天地中央の差（シフト量）を求める
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @param {string} targetChars - 対象文字（最初に見つかった1文字で測る）
+     * @param {string} referenceChar - 基準文字（1文字）
+     * @returns {number|null} シフト量（pt）。対象文字が見つからなければ null
+     */
+    function calculateShiftAmount(textFrames, targetChars, referenceChar) {
+        for (var i = 0; i < textFrames.length; i++) {
+            var frameText = textFrames[i].contents;
+            for (var j = 0; j < targetChars.length; j++) {
+                var targetChar = targetChars.charAt(j);
+                if (frameText.indexOf(targetChar) === -1) continue;
 
-        setDialogOpacity(dialog, dialogOpacity);
-        shiftDialogPosition(dialog, offsetX, 0);
-
-        if (dialog.show() == 1) {
-            var shiftValue = Number(shiftInput.text);
-            return {
-                target: targetInput.text,
-                reference: refInput.text,
-                shift: shiftValue
-            };
+                var referenceCenterY = measureCharCenterY(textFrames[i], referenceChar);
+                return referenceCenterY - measureCharCenterY(textFrames[i], targetChar);
+            }
         }
         return null;
     }
 
-    /* メイン処理 / Main process */
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * 項目名＋入力欄の1行を追加する
+     * @param {Group|Panel} parent - 追加先
+     * @param {object} labelSet - 項目名のラベル
+     * @param {string} initialText - 入力欄の初期値
+     * @param {number} characters - 入力欄の幅（文字数）
+     * @returns {EditText} 追加した入力欄（行のグループは parent で取れる）
+     */
+    function addFieldRow(parent, labelSet, initialText, characters) {
+        var fieldRow = parent.add("group");
+        fieldRow.add("statictext", undefined, labelText(labelSet));
+        var fieldInput = fieldRow.add("edittext", undefined, initialText);
+        fieldInput.characters = characters;
+        return fieldInput;
+    }
+
+    /**
+     * 左の列（対象文字・シフト量・自動調整パネル）を組む
+     * @param {Group} parent - 追加先
+     * @param {string} defaultTargetChars - 対象文字の初期値
+     * @param {string} shiftUnitLabel - シフト量の単位の表示
+     * @returns {{targetInput: EditText, shiftInput: EditText, referenceInput: EditText, btnCalculate: Button}} 入力欄と計算ボタン
+     */
+    function buildInputColumn(parent, defaultTargetChars, shiftUnitLabel) {
+        var inputColumn = parent.add("group");
+        inputColumn.orientation = "column";
+        inputColumn.alignChildren = "left";
+        inputColumn.margins = INPUT_COLUMN_MARGINS;
+
+        var targetInput = addFieldRow(inputColumn, LABELS.fieldLabel.targetChars, defaultTargetChars, TEXT_INPUT_CHARACTERS);
+        targetInput.helpTip = getLabel(LABELS.tooltip.targetChars);
+
+        var shiftInput = addFieldRow(inputColumn, LABELS.fieldLabel.shiftAmount, "0", TEXT_INPUT_CHARACTERS);
+        shiftInput.helpTip = getLabel(LABELS.tooltip.shiftAmount);
+        shiftInput.parent.add("statictext", undefined, shiftUnitLabel);
+        shiftInput.parent.margins = SHIFT_ROW_MARGINS;
+        shiftInput.active = true;
+
+        var autoAdjustPanel = inputColumn.add("panel", undefined, getLabel(LABELS.panel.autoAdjust));
+        autoAdjustPanel.orientation = "column";
+        autoAdjustPanel.alignChildren = "left";
+        autoAdjustPanel.margins = AUTO_ADJUST_PANEL_MARGINS;
+
+        var referenceInput = addFieldRow(autoAdjustPanel, LABELS.fieldLabel.referenceChar, DEFAULT_REFERENCE_CHAR, REFERENCE_INPUT_CHARACTERS);
+        referenceInput.helpTip = getLabel(LABELS.tooltip.referenceChar);
+        var btnCalculate = referenceInput.parent.add("button", CALCULATE_BUTTON_BOUNDS, getLabel(LABELS.button.calculate));
+        btnCalculate.helpTip = getLabel(LABELS.tooltip.calculate);
+
+        return { targetInput: targetInput, shiftInput: shiftInput, referenceInput: referenceInput, btnCalculate: btnCalculate };
+    }
+
+    /**
+     * 右の列（調整・キャンセル・リセット）を組む
+     * @param {Group} parent - 追加先
+     * @returns {{btnOK: Button, btnCancel: Button, btnReset: Button}} ボタン
+     */
+    function buildButtonColumn(parent) {
+        var buttonColumn = parent.add("group");
+        buttonColumn.orientation = "column";
+        buttonColumn.alignChildren = "fill";
+
+        var btnOK = buttonColumn.add("button", undefined, getLabel(LABELS.button.adjust), { name: "ok" });
+        btnOK.helpTip = getLabel(LABELS.tooltip.adjust);
+        var btnCancel = buttonColumn.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+
+        buttonColumn.add("statictext", BUTTON_SPACER_BOUNDS, " "); /* スペーサー / Spacer */
+        var btnReset = buttonColumn.add("button", undefined, getLabel(LABELS.button.reset));
+        btnReset.helpTip = getLabel(LABELS.tooltip.reset);
+
+        return { btnOK: btnOK, btnCancel: btnCancel, btnReset: btnReset };
+    }
+
+    /**
+     * 対象文字とシフト量を指定するダイアログを表示する（入力のたびにプレビュー）
+     * @param {TextFrame[]} textFrames - 対象のテキストフレーム
+     * @param {PreviewManager} previewManager - プレビューの取り消し管理
+     * @returns {{targetChars: string, shiftAmount: number}|null} 対象文字とシフト量（pt）。キャンセル時は null
+     */
+    function showShiftDialog(textFrames, previewManager) {
+        /* シフト量の欄は環境設定の「東アジア言語」の単位で表示し、適用するときに pt へ換算する
+           The shift field uses the East Asian type unit; values are converted to points when applied */
+        var shiftUnit = getUnitInfo("text/asianunits");
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = "left";
+        dialog.opacity = DIALOG_OPACITY;
+        dialog.onShow = function () {
+            dialog.location = [dialog.location[0] + DIALOG_OFFSET_X, dialog.location[1]];
+        };
+
+        var columnsGroup = dialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+
+        var inputControls = buildInputColumn(columnsGroup, collectSymbolChars(textFrames), shiftUnit.label);
+        var dialogButtons = buildButtonColumn(columnsGroup);
+        var targetInput = inputControls.targetInput;
+        var shiftInput = inputControls.shiftInput;
+        var referenceInput = inputControls.referenceInput;
+
+        /* 直前のプレビューを取り消してから、いまの入力で掛け直す / Undo the previous preview, then apply the current input */
+        function updatePreview() {
+            previewManager.rollback();
+            if (!targetInput.text) return;
+
+            var shiftAmount = parseFloat(shiftInput.text);
+            if (isNaN(shiftAmount)) shiftAmount = 0;
+            previewManager.addStep(function () {
+                applyShiftToAll(textFrames, targetInput.text, shiftAmount * shiftUnit.pointsPerUnit);
+            });
+        }
+
+        targetInput.onChanging = updatePreview;
+        shiftInput.onChanging = updatePreview;
+        changeValueByArrowKey(shiftInput, updatePreview);
+
+        /* 基準文字との天地中央の差をシフト量に入れる / Put the center difference from the reference character into the shift field */
+        inputControls.btnCalculate.onClick = function () {
+            if (targetInput.text.length === 0 || referenceInput.text.length !== 1) {
+                alert(getLabel(LABELS.alert.invalidChars));
+                return;
+            }
+            var shiftAmount = calculateShiftAmount(textFrames, targetInput.text, referenceInput.text);
+            if (shiftAmount === null) {
+                alert(getLabel(LABELS.alert.targetNotFound));
+                return;
+            }
+
+            shiftInput.text = (shiftAmount / shiftUnit.pointsPerUnit).toFixed(SHIFT_DECIMAL_PLACES);
+            updatePreview();
+        };
+
+        /* ベースラインシフトを全部0に戻すのも、プレビューの1段として扱う / Resetting everything is also a single preview step */
+        dialogButtons.btnReset.onClick = function () {
+            previewManager.rollback();
+            previewManager.addStep(function () {
+                resetBaselineShift(textFrames);
+            });
+            shiftInput.text = "0";
+        };
+
+        /* 確定はダイアログを閉じてから main() で行う / The final apply happens in main() after the dialog closes */
+        dialogButtons.btnOK.onClick = function () {
+            if (targetInput.text.length === 0) {
+                alert(getLabel(LABELS.alert.invalidChars));
+                return;
+            }
+            if (isNaN(Number(shiftInput.text))) {
+                alert(getLabel(LABELS.alert.shiftNotNumber));
+                return;
+            }
+            dialog.close(1);
+        };
+
+        if (dialog.show() !== 1) return null;
+        return { targetChars: targetInput.text, shiftAmount: Number(shiftInput.text) * shiftUnit.pointsPerUnit };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 前提を確かめてダイアログを表示し、確定したシフト量を適用する
+     * @returns {void}
+     */
     function main() {
         try {
-            if (app.documents.length == 0) {
-                alert(LABELS.docOpenMsg[uiLang]);
+            if (app.documents.length === 0) {
+                alert(getLabel(LABELS.alert.noDocument));
                 return;
             }
 
-            // --- 追加: テキスト範囲が選択されている場合は、そのストーリーの唯一のテキストフレームを選択し直す ---
-            if (app.documents.length && app.selection && app.selection.constructor && app.selection.constructor.name === "TextRange") {
-                var textFramesInStory = app.selection.story.textFrames;
-                if (textFramesInStory.length === 1) {
-                    app.executeMenuCommand("deselectall");
-                    app.selection = [textFramesInStory[0]];
-                    try {
-                        app.selectTool("Adobe Select Tool");
-                    } catch (e) { }
-                }
-            }
-            // -----------------------------------------------------------------------
+            var doc = app.activeDocument;
+            selectFrameOfEditedText(doc);
 
-            var selection = app.activeDocument.selection;
-            if (!selection || selection.length == 0) {
-                alert(LABELS.selectFrameMsg[uiLang]);
+            var textFrames = collectTextFrames(doc.selection);
+            if (textFrames.length === 0) {
+                alert(getLabel(LABELS.alert.selectTextFrame));
                 return;
             }
 
-            var textFrames = getAllTextFrames(selection);
-            if (textFrames.length == 0) {
-                alert(LABELS.selectFrameMsg[uiLang]);
+            var previewManager = new PreviewManager();
+            var dialogResult = showShiftDialog(textFrames, previewManager);
+            if (!dialogResult) {
+                /* キャンセルでも閉じるボタンでもプレビューを戻す / Undo the preview on Cancel and on the close box */
+                previewManager.rollback();
                 return;
             }
 
-            // Preview manager shared with dialog (undo-safe preview)
-            var previewMgr = new PreviewManager();
-
-            var input = showDialog(textFrames, previewMgr);
-            if (!input) {
-                // showDialog already rolled back on cancel
-                return;
-            }
-
-            // Confirm in main: rollback preview and apply final action once (single undo step)
-            var t = input.target;
-            var s = Number(input.shift);
-            if (isNaN(s)) s = 0;
-
-            previewMgr.confirm(function () {
-                applyShiftAll(t, s, textFrames);
+            previewManager.confirm(function () {
+                applyShiftToAll(textFrames, dialogResult.targetChars, dialogResult.shiftAmount);
             });
-
         } catch (e) {
-            alert(LABELS.errorMsg[uiLang] + e);
+            alert(getLabel(LABELS.alert.errorPrefix) + e);
         }
     }
 

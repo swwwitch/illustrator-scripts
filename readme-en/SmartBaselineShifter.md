@@ -14,7 +14,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 
 ### Overview:
 
-- Apply baseline shift (points) individually to specified characters in selected text frames
+- Apply baseline shift individually to specified characters in selected text frames (in the East Asian Type unit set in Preferences > Units)
 - Configure target characters and shift amount in dialog with instant preview
 
 <img alt="" src="https://www.dtp-transit.jp/images/ss-742-402-72-20250716-205309.png" width="80%" />
@@ -43,5 +43,4 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 - v1.6 (20240630): Removed regex support, fine adjustments
 - v1.7 (20250716): Refactoring, improved preview
 - v1.8 (20250720): Added automatic calculation feature
-
-*/
+- v2.2.2 (20260921): Shift amount now uses the unit set in Preferences, fixed decimals not being typable in the shift field, whitespace and line breaks left out of the default target, alert when auto calculation finds no target character
