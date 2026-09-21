@@ -1,6 +1,6 @@
 # Keep the left edge fixed and tighten spacing leftward
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLL.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeLL.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLL.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/DistributeLL.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeLL.md)
 

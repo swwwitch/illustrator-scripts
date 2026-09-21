@@ -1,6 +1,6 @@
 # Show path statistics in a palette
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-PathInspector.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/PathInspector.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-PathInspector.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/single-function/PathInspector.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathInspector.md)
 

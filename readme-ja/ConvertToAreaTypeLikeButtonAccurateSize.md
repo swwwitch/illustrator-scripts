@@ -1,6 +1,6 @@
 # 見た目を保ったままエリア内文字に変換
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ConvertToAreaTypeLikeButtonAccurateSize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/ConvertToAreaTypeLikeButtonAccurateSize.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ConvertToAreaTypeLikeButtonAccurateSize.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/ConvertToAreaTypeLikeButtonAccurateSize.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToAreaTypeLikeButtonAccurateSize.md)
 

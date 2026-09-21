@@ -1,6 +1,6 @@
 # Build a two-part background behind two objects
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartTableMaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SmartTableMaker.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartTableMaker.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/single-function/SmartTableMaker.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartTableMaker.md)
 

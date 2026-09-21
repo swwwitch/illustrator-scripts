@@ -1,6 +1,6 @@
 # 選択の端または中心を左に揃える
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignLEFT.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlign-7/GroupEdgeAlignLEFT.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignLEFT.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/GroupEdgeAlign-7/GroupEdgeAlignLEFT.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/GroupEdgeAlignLEFT.md)
 

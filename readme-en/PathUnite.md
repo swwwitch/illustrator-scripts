@@ -1,6 +1,6 @@
 # Release compound paths, unite and expand
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-PathUnite.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/PathUnite.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-PathUnite.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/single-function/PathUnite.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUnite.md)
 

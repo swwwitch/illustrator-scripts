@@ -1,6 +1,6 @@
 # Set the units and the keyboard increment
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-PreferenceManager--print--pt.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PreferenceManager-print-pt.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-PreferenceManager--print--pt.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/single-function/PreferenceManager-print-pt.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PreferenceManager-print-pt.md)
 

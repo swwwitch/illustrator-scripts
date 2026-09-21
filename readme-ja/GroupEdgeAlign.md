@@ -54,8 +54,8 @@
 - 対象になるガイドは、アクティブアートボードの内側にあるものだけです。
 - 3×3で整列先を選んだときはガイドを使わず、アートボードの端・中央へ揃えます（「ガイドを使用」はディム表示）。ガイドが使われるのは、矢印キーでの移動時と、ダイアログを出さない実行（`SHOW_DIALOG = false`）のときです。
 - 中央揃え（上中央／左中央／中央／右中央／下中央）はガイドに吸着しません。
-- 方向を固定した単発スクリプトが必要な場合は、`GroupEdgeAlign-7/` の7本（LEFT / RIGHT / TOP / BOTTOM / CENTER / CENTERX / CENTERY）を利用できます。
-- ファイル名による判定を使わない版として `GroupEdgeAlignNoFileName.jsx` があります。
+- 方向を固定した単発スクリプトが必要な場合は、`single-function/GroupEdgeAlign-7/` の7本（LEFT / RIGHT / TOP / BOTTOM / CENTER / CENTERX / CENTERY）を利用できます。
+- ファイル名による判定を使わない版として `single-function/GroupEdgeAlignNoFileName.jsx` があります。
 
 ### 紹介記事
 

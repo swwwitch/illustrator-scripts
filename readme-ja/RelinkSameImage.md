@@ -1,6 +1,6 @@
 # 同じリンクを参照する配置画像を一括で差し替え
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-RelinkSameImage.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImage.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-RelinkSameImage.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/single-function/RelinkSameImage.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RelinkSameImage.md)
 

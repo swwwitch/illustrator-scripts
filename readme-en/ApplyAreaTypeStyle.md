@@ -1,6 +1,6 @@
 # Apply an area-type graphic style
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyAreaTypeStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ApplyAreaTypeStyle.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyAreaTypeStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/single-function/ApplyAreaTypeStyle.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ApplyAreaTypeStyle.md)
 

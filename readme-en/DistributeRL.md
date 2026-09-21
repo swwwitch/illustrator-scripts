@@ -1,6 +1,6 @@
 # Keep the right edge fixed and redistribute leftward
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeRL.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeRL.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeRL.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/DistributeRL.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DistributeRL.md)
 

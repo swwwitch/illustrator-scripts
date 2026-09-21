@@ -1,7 +1,7 @@
 # 位置関係を保ったまま中央に整列
 
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-CenterAlignAsGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/CenterAlignAsGroup.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-CenterAlignAsGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/CenterAlignAsGroup.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterAlignAsGroup.md)
 

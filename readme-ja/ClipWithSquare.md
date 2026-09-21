@@ -1,6 +1,6 @@
 # 画像を中心基準の正方形でクリップ
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ClipWithSquare.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSquare.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ClipWithSquare.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/single-function/ClipWithSquare.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ClipWithSquare.md)
 

@@ -1,6 +1,6 @@
 # エリア内文字用のグラフィックスタイルを適用
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyAreaTypeStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ApplyAreaTypeStyle.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyAreaTypeStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/single-function/ApplyAreaTypeStyle.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ApplyAreaTypeStyle.md)
 

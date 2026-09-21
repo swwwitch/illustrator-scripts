@@ -1,6 +1,6 @@
 # 左端を固定して左方向に間隔を狭める
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLL.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeLL.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLL.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/DistributeLL.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeLL.md)
 

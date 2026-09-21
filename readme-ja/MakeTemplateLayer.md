@@ -1,6 +1,6 @@
 # アクティブレイヤーをテンプレート属性にする
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-MakeTemplateLayer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/MakeTemplateLayer.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-MakeTemplateLayer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/single-function/MakeTemplateLayer.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/MakeTemplateLayer.md)
 

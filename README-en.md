@@ -249,7 +249,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Generate guides in a grid](readme-en/GenerateGuidesGrid.md)
 - [Generate a border and grid in one pass](readme-en/SmartGridMaker.md)
 - [Create Guides From Selection](readme-en/CreateGuidesFromSelection.md)
-- [Delete All Guides](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
+- [Delete All Guides](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/single-function/DeleteAllGuides.jsx)
 - [New Guide Maker](readme-en/NewGuideMaker.md)
 - [Create artboard-based guides and convert ruler guides](readme-en/AiCreateArtboardGuides.md)
 - [Collects guides scattered across multiple layers and s…](readme-en/CollectGuides.md)

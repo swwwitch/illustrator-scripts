@@ -1,6 +1,6 @@
 # Relink placed images that share the same link
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-RelinkSameImage.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/RelinkSameImage.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-RelinkSameImage.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/link/single-function/RelinkSameImage.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RelinkSameImage.md)
 

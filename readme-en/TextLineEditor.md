@@ -1,6 +1,6 @@
 # Reorder and edit the lines of a text object
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-TextLineEditor.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextLineEditor.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TextLineEditor.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/TextLineEditor.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextLineEditor.md)
 

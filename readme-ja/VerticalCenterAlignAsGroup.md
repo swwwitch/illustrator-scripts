@@ -1,7 +1,7 @@
 # 横位置を保ったまま天地中央に整列
 
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-VerticalCenterAlignAsGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/VerticalCenterAlignAsGroup.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-VerticalCenterAlignAsGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/VerticalCenterAlignAsGroup.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VerticalCenterAlignAsGroup.md)
 

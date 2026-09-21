@@ -1,6 +1,6 @@
 # 複合パスを解除して合体し拡張
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-PathUnite.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/PathUnite.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-PathUnite.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/single-function/PathUnite.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUnite.md)
 

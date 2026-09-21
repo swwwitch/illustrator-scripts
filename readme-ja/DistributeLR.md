@@ -1,6 +1,6 @@
 # 左端を固定して右方向に等間隔で再配置
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLR.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/DistributeLR.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-DistributeLR.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/DistributeLR.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DistributeLR.md)
 

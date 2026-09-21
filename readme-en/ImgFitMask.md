@@ -1,6 +1,6 @@
 # Fit an image to a shape and clip it
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ImgFitMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ImgFitMask.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ImgFitMask.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/single-function/ImgFitMask.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ImgFitMask.md)
 

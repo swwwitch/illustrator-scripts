@@ -266,7 +266,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [グリッド状にガイドを生成](readme-ja/GenerateGuidesGrid.md)
 - [囲み罫とグリッドを一括生成](readme-ja/SmartGridMaker.md)
 - [選択したオブジェクトに対してガイドを自動作成](readme-ja/CreateGuidesFromSelection.md)
-- [すべてのガイドを削除](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
+- [すべてのガイドを削除](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/single-function/DeleteAllGuides.jsx)
 - [Photoshopの「新規ガイド」をIllustratorでも可能にする](readme-ja/NewGuideMaker.md)
 - [アートボード基準のガイド作成とルーラーガイドの変換](readme-ja/AiCreateArtboardGuides.md)
 - [複数のレイヤー／サブレイヤーに散在するガイドを、1 つのレイヤー（既定は `// guide`）へ集約します](readme-ja/CollectGuides.md)

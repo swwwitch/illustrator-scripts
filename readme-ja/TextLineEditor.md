@@ -1,6 +1,6 @@
 # テキストの行を一覧で並べ替え・編集
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-TextLineEditor.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextLineEditor.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TextLineEditor.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/TextLineEditor.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextLineEditor.md)
 

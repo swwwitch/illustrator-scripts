@@ -154,7 +154,7 @@ function getUnitInfo(prefKey) {
 - Another preference: `getUnitInfo("strokeUnits")`, `getUnitInfo("text/units")`
 - Include only `UNITS` and `getUnitInfo()` when the script never shows a Q/H label;
   keep `HA_UNIT_PREF_KEYS` whenever a label reaches the UI.
-- **Exception:** `jsx/preference/PreferenceManager-print-pt.jsx` keeps its own `["pt","pc",…,"Q/H","px"]`
+- **Exception:** `jsx/preference/single-function/PreferenceManager-print-pt.jsx` keeps its own `["pt","pc",…,"Q/H","px"]`
   list. One dropdown serves four preference keys there, so unit code 5 needs the neutral `Q/H` label,
   and the file does no pt conversion at all. Leave it as it is.
 

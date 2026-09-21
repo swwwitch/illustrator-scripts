@@ -1,6 +1,6 @@
 # Convert to area type while preserving the appearance
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-TextWithShapeToAreaTypeSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextWithShapeToAreaTypeSimple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TextWithShapeToAreaTypeSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/TextWithShapeToAreaTypeSimple.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextWithShapeToAreaTypeSimple.md)
 

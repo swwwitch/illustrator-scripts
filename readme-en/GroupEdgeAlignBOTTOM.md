@@ -1,6 +1,6 @@
 # Align the selection's edges or center to the bottom
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignBOTTOM.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/GroupEdgeAlign-7/GroupEdgeAlignBOTTOM.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-GroupEdgeAlignBOTTOM.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/GroupEdgeAlign-7/GroupEdgeAlignBOTTOM.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/GroupEdgeAlignBOTTOM.md)
 

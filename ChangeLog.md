@@ -78,7 +78,7 @@
 ### 新しいスクリプトを追加
 
 - [選択したオブジェクトに対してガイドを自動作成](readme-ja/CreateGuidesFromSelection.md)
-- [すべてのガイドを削除](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
+- [すべてのガイドを削除](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/single-function/DeleteAllGuides.jsx)
 
 
 ## 20250710

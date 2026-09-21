@@ -1,6 +1,6 @@
 # Redistribute stacked objects evenly across the horizontal axis
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignAndTile--simple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile-simple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartAlignAndTile--simple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/single-function/SmartAlignAndTile-simple.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartAlignAndTile-simple.md)
 

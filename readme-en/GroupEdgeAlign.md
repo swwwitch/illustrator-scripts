@@ -54,8 +54,8 @@ The defaults live in the User Settings block at the top of the script.
 - Only guides inside the active artboard are considered.
 - Picking a target on the 3x3 widget ignores guides and aligns to the artboard edge or center (Use guides goes dim). Guides apply to the arrow-key steps and to runs without the dialog (`SHOW_DIALOG = false`).
 - Center targets (top-center / middle-left / center / middle-right / bottom-center) never snap to guides.
-- For one-shot scripts fixed to a single direction, use the seven files under `GroupEdgeAlign-7/` (LEFT / RIGHT / TOP / BOTTOM / CENTER / CENTERX / CENTERY).
-- `GroupEdgeAlignNoFileName.jsx` is the variant without filename-based detection.
+- For one-shot scripts fixed to a single direction, use the seven files under `single-function/GroupEdgeAlign-7/` (LEFT / RIGHT / TOP / BOTTOM / CENTER / CENTERX / CENTERY).
+- `single-function/GroupEdgeAlignNoFileName.jsx` is the variant without filename-based detection.
 
 ### Article
 

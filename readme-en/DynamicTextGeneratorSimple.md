@@ -1,6 +1,6 @@
 # Scale each line to match the longest line
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-DynamicTextGeneratorSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DynamicTextGeneratorSimple.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-DynamicTextGeneratorSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/single-function/DynamicTextGeneratorSimple.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGeneratorSimple.md)
 
