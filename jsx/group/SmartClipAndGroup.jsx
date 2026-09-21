@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトを重なり率や距離のしきい値でグループ化するか、最前面／最背面のオブジェクトを基準にクリッピングマスクを作成します。
-配置画像限定のクリップや正方形マスクにも対応します。
+選択オブジェクトを重なりや距離、縦の列・横の行でまとまりに分け、まとまりごとにグループ化するか、クリッピングマスクを作成します（配置画像を1つずつクリップすることもできます）。
+［OK］の前に、できるグループの数と範囲を件数表示とプレビューの枠で確認できます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartClipAndGroup.md
@@ -16,8 +16,8 @@ https://note.com/dtp_tranist/n/nb23985473f80
 
 ### Overview
 
-Groups the selection by overlap ratio or distance threshold, or builds a clipping mask from the frontmost or backmost object.
-Placed-image-only clipping and square masks are supported as well.
+Splits the selection into clusters by overlap, distance, column or row, and groups or clips each cluster (placed images can also be clipped one by one).
+Before you click OK, a count and preview frames show the groups to be created.
 
 See the README for details.
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartClipAndGroup.md
@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartClipA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartClipAndGroup";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.0.6";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.7";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-06-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartClipAndGroup.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartClipAndGroup.md"; /* README (English) */
@@ -42,635 +42,1100 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb23985473f80"; /* 紹�
 
 (function () {
 
-    var overlapThreshold = 10;
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
+    /* しきい値スライダーの初期値と範囲（pt） / Default and range of the threshold slider (pt) */
+    var DEFAULT_THRESHOLD = 10;
+    var THRESHOLD_MIN     = 0;
+    var THRESHOLD_MAX     = 100;
+
+    /* 「間隔が空いたら分ける」の初期値 / Default of "Split at gaps" */
+    var DEFAULT_SPLIT_AT_GAPS = false;
+
+    /* 「プレビューを表示」の初期値 / Default of "Show preview" */
+    var DEFAULT_SHOW_PREVIEW = true;
+
+    /* 「重なり」や、列・行で揃っているとみなす距離（pt） / Gap treated as touching or aligned (pt) */
+    var TOUCH_TOLERANCE = 0.01;
+
+    /* スライダーのドラッグ中も件数とプレビューを更新する選択数の上限（超えると指を離したときだけ更新する）
+       Max selection size for live updates while dragging; above it, the count and preview update on release only */
+    var LIVE_COUNT_MAX_ITEMS = 300;
+
+    /* プレビューの枠（赤・塗りなし・線 10 pt・不透明度 50%） / Preview frames: red, no fill, 10 pt stroke, 50% opacity */
+    var PREVIEW_RGB          = [255, 0, 0];     /* RGB ドキュメントの線の色 / Stroke color in RGB documents */
+    var PREVIEW_CMYK         = [0, 100, 100, 0]; /* CMYK ドキュメントの線の色 / Stroke color in CMYK documents */
+    var PREVIEW_STROKE_WIDTH = 10;              /* 線幅（pt） / Stroke width (pt) */
+    var PREVIEW_OPACITY      = 50;              /* 不透明度（%） / Opacity (%) */
+    var PREVIEW_LAYER_NAME   = "SmartClipAndGroup Preview"; /* プレビュー用の一時レイヤー名 / Temporary preview layer name */
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    var DIALOG_MARGINS       = [25, 20, 25, 20];  /* ダイアログ余白 [左,上,右,下] / Dialog margins */
+    var PANEL_MARGINS        = [15, 20, 15, 10];  /* パネル余白 [左,上,右,下] / Panel margins */
+    var RADIO_COLUMN_SPACING = 20;                /* ラジオボタンの列の間隔 / Gap between radio button columns */
+    var SLIDER_WIDTH         = 150;               /* しきい値スライダーの幅 / Threshold slider width */
+    var VALUE_TEXT_CHARS     = 5;                 /* しきい値表示の文字数 / Width of the threshold readout in characters */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 表示言語を判定する
+     * @returns {string} 日本語環境なら "ja"、それ以外は "en"
+     */
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
     var uiLang = getCurrentLang();
-    // 日英ラベル定義 / Define label (ja/en)
-    // ラベル定義（UI出現順に再配置）
+
+    /* 日英ラベル定義（UIパーツ別） / Bilingual labels grouped by UI part */
     var LABELS = {
-        dialogTitle: {
-            ja: "マスクとグループ化",
-            en: "Mask and Group"
+        dialog: {
+            title: { ja: "クリップとグループ化", en: "Clip and Group" }
         },
-        clipPanel: {
-            ja: "クリッピングマスク",
-            en: "Clipping Mask"
+        panel: {
+            clip: { ja: "クリッピングマスク", en: "Clipping Mask" },
+            grouping: { ja: "グループ化", en: "Grouping" }
         },
-        clipFront: {
-            ja: "最前面でクリップ",
-            en: "Clip with Front"
+        radio: {
+            clipWithFront: { ja: "最前面でクリップ", en: "Clip with Frontmost" },
+            clipWithBack: { ja: "最背面でクリップ", en: "Clip with Backmost" },
+            clipPlacedOnly: { ja: "配置画像のみをクリップ", en: "Clip Placed Images Only" },
+            groupOverlap: { ja: "重なり", en: "Overlap" },
+            groupProximity: { ja: "近接度", en: "Proximity" },
+            groupVertical: { ja: "上下方向", en: "Vertical" },
+            groupHorizontal: { ja: "左右方向", en: "Horizontal" }
         },
-        clip: {
-            ja: "最背面でクリップ",
-            en: "Clip with Back"
+        fieldLabel: {
+            threshold: { ja: "しきい値", en: "Threshold" },
+            selectedCount: { ja: "選択しているオブジェクト", en: "Selected objects" },
+            groupCount: { ja: "グループ化", en: "Groups" },
+            clipCount: { ja: "クリップ", en: "Clips" }
         },
-        clipPlacedOnly: {
-            ja: "配置画像のみをクリップ",
-            en: "Clip Placed Only"
+        checkbox: {
+            splitAtGaps: { ja: "間隔が空いたら分ける", en: "Split at gaps" },
+            perArtboard: { ja: "アートボードごと", en: "Within each artboard" },
+            showPreview: { ja: "プレビューを表示", en: "Show preview" }
         },
-        groupPanel: {
-            ja: "グループ化",
-            en: "Grouping"
+        tooltip: {
+            clipWithFront: {
+                ja: "重なっているまとまりごとに、最前面のパスを型にしてクリップします。",
+                en: "Clips each cluster of overlapping objects, using its frontmost path as the mask."
+            },
+            clipWithBack: {
+                ja: "重なっているまとまりごとに、最背面のパスを型にしてクリップします。",
+                en: "Clips each cluster of overlapping objects, using its backmost path as the mask."
+            },
+            clipPlacedOnly: {
+                ja: "画像を1つずつ、同じ大きさの長方形でクリップします。クリップグループを選ぶと、元のマスクだけを削除して中の画像をクリップし直します。",
+                en: "Clips each image with a rectangle of the same size. For a clipping group, only the old mask is removed and the images inside are clipped again."
+            },
+            groupOverlap: {
+                ja: "外枠が重なっているか接しているオブジェクトをグループにします。",
+                en: "Groups objects whose bounding boxes overlap or touch."
+            },
+            groupProximity: {
+                ja: "しきい値以内の距離にあるオブジェクトを、向きを問わずグループにします。",
+                en: "Groups objects that sit within the threshold distance, in any direction."
+            },
+            groupVertical: {
+                ja: "上下に並んでいるオブジェクトを、縦の列ごとにグループにします。左右のすき間がしきい値以内なら同じ列とみなします。",
+                en: "Groups objects that line up vertically, column by column. Objects whose horizontal gap is within the threshold count as the same column."
+            },
+            groupHorizontal: {
+                ja: "左右に並んでいるオブジェクトを、横の行ごとにグループにします。上下のすき間がしきい値以内なら同じ行とみなします。",
+                en: "Groups objects that line up horizontally, row by row. Objects whose vertical gap is within the threshold count as the same row."
+            },
+            threshold: {
+                ja: "同じグループとみなす距離です。大きくするとまとまりが粗くなります。",
+                en: "How close objects must be to land in the same group. Larger values group more loosely."
+            },
+            splitAtGaps: {
+                ja: "上下方向・左右方向で使います。ONにすると、列（行）の途中ですき間がしきい値より空いたところでグループを分けます。つなぐのは揃って並んでいるもの（列なら左右が重なるもの）だけです。OFFのときは距離を問わず、列（行）全体をまとめます。",
+                en: "Used with Vertical and Horizontal. When on, a column (row) is split wherever the gap exceeds the threshold, and only aligned objects (horizontally overlapping, for columns) are linked. When off, whole columns (rows) are grouped regardless of distance."
+            },
+            perArtboard: {
+                ja: "ONにすると、別のアートボードにあるオブジェクトは別々のグループにします。オブジェクトの中心がどのアートボードに含まれるかで判定します。",
+                en: "When on, objects on different artboards go into separate groups. The artboard is determined by each object's center point."
+            },
+            showPreview: {
+                ja: "ONにすると、作成されるグループの範囲を赤い枠で表示します。枠はダイアログを閉じると消えます。",
+                en: "When on, red frames show where the groups will be created. The frames disappear when the dialog closes."
+            }
         },
-        overlap: {
-            ja: "重なり",
-            en: "Overlap"
-        },
-        group: {
-            ja: "近接度",
-            en: "Threshold"
-        },
-        vertical: {
-            ja: "上下方向",
-            en: "Vertical"
-        },
-        horizontal: {
-            ja: "左右方向",
-            en: "Horizontal"
-        },
-        threshold: {
-            ja: "しきい値（px）",
-            en: "Threshold (px)"
-        },
-        tipClipFront: { ja: "最前面のオブジェクトを型にして、その下のものをクリップします。", en: "Uses the frontmost object as the mask and clips what sits below it." },
-        tipClip: { ja: "最背面のオブジェクトを型にして、その上のものをクリップします。", en: "Uses the backmost object as the mask and clips what sits above it." },
-        tipClipPlacedOnly: { ja: "選択の中の配置画像だけをクリップします。ほかのオブジェクトはそのまま残ります。", en: "Clips only the placed images in the selection, leaving other objects alone." },
-        tipOverlap: { ja: "実際に重なっているオブジェクトだけをグループにします。", en: "Groups only the objects that actually overlap." },
-        tipGroup: { ja: "しきい値以内の距離にあるオブジェクトを、向きを問わずグループにします。", en: "Groups objects that sit within the threshold distance, in any direction." },
-        tipVertical: { ja: "上下に並んでいるオブジェクトを、縦の列ごとにグループにします。", en: "Groups objects that line up vertically, column by column." },
-        tipHorizontal: { ja: "左右に並んでいるオブジェクトを、横の行ごとにグループにします。", en: "Groups objects that line up horizontally, row by row." },
-        tipThreshold: { ja: "同じグループとみなす距離です。大きくするとまとまりが粗くなります。", en: "How close objects must be to land in the same group. Larger values group more loosely." },
-        ok: {
-            ja: "OK",
-            en: "OK"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
+        button: {
+            ok: { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         }
     };
 
-    // グループ内で最前面のPathItemを取得
-    function getTopmostPath(group) {
-        var topItem = null;
-        for (var i = 0; i < group.length; i++) {
-            if (group[i].typename === "PathItem") {
-                if (!topItem || group[i].zOrderPosition > topItem.zOrderPosition) {
-                    topItem = group[i];
-                }
-            }
-        }
-        return topItem;
+    /**
+     * 現在の言語のラベルを返す
+     * @param {Object} labelSet - { ja: string, en: string }
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(labelSet) {
+        return (labelSet && labelSet[uiLang]) || "";
     }
 
-    // グループ内で最背面のPathItemを取得
-    function getBottommostPath(group) {
-        var bottomItem = null;
-        for (var i = 0; i < group.length; i++) {
-            if (group[i].typename === "PathItem") {
-                if (!bottomItem || group[i].zOrderPosition < bottomItem.zOrderPosition) {
-                    bottomItem = group[i];
-                }
-            }
-        }
-        return bottomItem;
+    /**
+     * 項目名にコロンを付けて返す（日本語は全角、英語は半角）
+     * @param {Object} labelSet - { ja: string, en: string }
+     * @returns {string} コロン付きのラベル
+     */
+    function labelText(labelSet) {
+        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
     }
 
-    // 有効な選択オブジェクトを取得
+    // =========================================
+    // モード / Modes
+    // =========================================
+
+    /* パネルごとのモードの並び（キーは LABELS.radio / LABELS.tooltip と共通）
+       Mode order per panel; keys are shared with LABELS.radio and LABELS.tooltip */
+    var CLIP_MODES  = ["clipWithFront", "clipWithBack", "clipPlacedOnly"];
+    var GROUP_MODES = ["groupOverlap", "groupProximity", "groupVertical", "groupHorizontal"];
+    var ALL_MODES   = CLIP_MODES.concat(GROUP_MODES);
+
+    /* グループ化のモードごとに使う設定（クリップ系はどれも使わない）
+       Settings each grouping mode uses; the clipping modes use none */
+    var MODE_OPTIONS = {
+        groupOverlap: { perArtboard: true },
+        groupProximity: { threshold: true, perArtboard: true },
+        groupVertical: { threshold: true, splitAtGaps: true, perArtboard: true },
+        groupHorizontal: { threshold: true, splitAtGaps: true, perArtboard: true }
+    };
+
+    /* まとまりをクリップするモードと、型にするパスの側 / Cluster-clipping modes and which side supplies the mask */
+    var MASK_SIDES = { clipWithFront: "front", clipWithBack: "back" };
+
+    /* すき間の判定を通さず、面積を持つ重なりだけでつなぐ（すき間は0以上なので常に不成立）
+       Link by area overlap only; gaps are never negative, so the gap test always fails */
+    var OVERLAP_ONLY = -1;
+
+    // =========================================
+    // 選択 / Selection
+    // =========================================
+
+    /**
+     * 処理対象の選択オブジェクトを返す
+     * @returns {PageItem[]|null} 選択オブジェクト。ドキュメントがない・未選択・文字の選択中は null
+     */
     function getValidSelection() {
         if (!app.documents.length) return null;
-        var items = app.activeDocument.selection;
-        if (!items || items.length === 0) return null;
-        return items;
+        var selectedItems = app.activeDocument.selection;
+        /* 文字ツールで文字を選択中は、添字で要素を取れない TextRange が返る
+           A text selection returns a TextRange that cannot be indexed */
+        if (!selectedItems || !selectedItems.length || selectedItems.typename === "TextRange") return null;
+        return selectedItems;
     }
 
-    // ダイアログUIの表示とユーザー選択取得
-    function showDialog(initialThreshold) {
-        var sel = getValidSelection();
-        // ラジオボタンの初期選択
-        var defaultKey = (sel && isAllPlacedItems(sel)) ? "clipPlacedOnly" : "group";
-        var dialog = new Window("dialog", LABELS.dialogTitle[uiLang]);
-        dialog.orientation = "column";
-        dialog.alignChildren = "left";
-        dialog.margins = [25, 20, 25, 20];
-
-        // クリッピングマスク用パネル
-        var clipPanel = dialog.add("panel", undefined, LABELS.clipPanel[uiLang]);
-        clipPanel.orientation = "column";
-        clipPanel.alignChildren = "left";
-        clipPanel.margins = [15, 20, 15, 10];
-
-        // グループ化用パネル
-        var groupPanel = dialog.add("panel", undefined, LABELS.groupPanel[uiLang]);
-        groupPanel.orientation = "column";
-        groupPanel.alignChildren = "left";
-        groupPanel.margins = [15, 20, 15, 10];
-
-        // ラジオボタン定義
-        var radioButtons = {};
-        radioButtons.clipFront = clipPanel.add("radiobutton", undefined, LABELS.clipFront[uiLang]);
-        radioButtons.clipFront.helpTip = LABELS.tipClipFront[uiLang];
-        radioButtons.clip = clipPanel.add("radiobutton", undefined, LABELS.clip[uiLang]);
-        radioButtons.clip.helpTip = LABELS.tipClip[uiLang];
-        radioButtons.clipPlacedOnly = clipPanel.add("radiobutton", undefined, LABELS.clipPlacedOnly[uiLang]);
-        radioButtons.clipPlacedOnly.helpTip = LABELS.tipClipPlacedOnly[uiLang];
-        radioButtons.overlap = groupPanel.add("radiobutton", undefined, LABELS.overlap[uiLang]);
-        radioButtons.overlap.helpTip = LABELS.tipOverlap[uiLang];
-        radioButtons.group = groupPanel.add("radiobutton", undefined, LABELS.group[uiLang]);
-        radioButtons.group.helpTip = LABELS.tipGroup[uiLang];
-        // 追加: 上下方向・左右方向ラジオボタン
-        radioButtons.vertical = groupPanel.add("radiobutton", undefined, LABELS.vertical[uiLang]);
-        radioButtons.vertical.helpTip = LABELS.tipVertical[uiLang];
-        radioButtons.horizontal = groupPanel.add("radiobutton", undefined, LABELS.horizontal[uiLang]);
-        radioButtons.horizontal.helpTip = LABELS.tipHorizontal[uiLang];
-
-        // 初期選択ラジオボタン設定
-        radioButtons[defaultKey].value = true;
-
-        // しきい値スライダー
-        var thresholdSlider = groupPanel.add("slider", undefined, 10, 0, 100);
-        thresholdSlider.helpTip = LABELS.tipThreshold[uiLang];
-        thresholdSlider.value = (typeof initialThreshold === "number") ? initialThreshold : 10;
-        thresholdSlider.preferredSize.width = 150;
-        var thresholdLabel = groupPanel.add("statictext", undefined, LABELS.threshold[uiLang]);
-        thresholdLabel.alignment = "center";
-        thresholdLabel.characters = 5;
-        thresholdLabel.text = Math.round(thresholdSlider.value) + " pt";
-
-        // しきい値スライダー表示制御
-        var thresholdControls = [thresholdSlider, thresholdLabel];
-        thresholdSlider.onChanging = function() {
-            thresholdLabel.text = Math.round(thresholdSlider.value) + " pt";
-        };
-
-        // ボタングループ
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "right";
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[uiLang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[uiLang], {
-            name: "ok"
-        });
-
-        // ダイアログタイトル設定
-        dialog.text = LABELS.dialogTitle[uiLang];
-
-        var result = null;
-        // しきい値スライダーの有効制御
-        for (var key in radioButtons) {
-            if (radioButtons[key].value) {
-                var dim = !(key === "group" || key === "vertical");
-                for (var i = 0; i < thresholdControls.length; i++) {
-                    thresholdControls[i].enabled = !dim;
-                }
-            }
-        }
-        for (var key in radioButtons) {
-            radioButtons[key].onClick = function() {
-                for (var k in radioButtons) {
-                    radioButtons[k].value = (radioButtons[k] === this);
-                }
-                var dim = !(this === radioButtons.group || this === radioButtons.vertical);
-                for (var i = 0; i < thresholdControls.length; i++) {
-                    thresholdControls[i].enabled = !dim;
-                }
-            };
-        }
-        cancelBtn.onClick = function() {
-            // On cancel, just close dialog, return null
-            dialog.close();
-            result = null;
-        };
-        okBtn.onClick = function() {
-            for (var key in radioButtons) {
-                if (radioButtons[key].value) result = key;
-            }
-            overlapThreshold = thresholdSlider.value;
-            dialog.close();
-        };
-
-        dialog.show();
-        return result;
+    /**
+     * 配置画像または埋め込み画像かどうかを返す
+     * @param {PageItem} item - 判定するオブジェクト
+     * @returns {boolean} PlacedItem か RasterItem なら true
+     */
+    function isImageItem(item) {
+        return item.typename === "PlacedItem" || item.typename === "RasterItem";
     }
 
-    // 隣接度または重なり率に基づいてグループを抽出（DFSによる連結成分抽出）
-    function getGroupedOverlappingItems(items, threshold, direction) {
-        var groups = [];
-        var visited = [];
-
+    /**
+     * すべてが画像かどうかを返す
+     * @param {PageItem[]} items - 判定するオブジェクト
+     * @returns {boolean} 1つ以上あり、すべてが画像なら true
+     */
+    function isAllImages(items) {
+        if (!items || !items.length) return false;
         for (var i = 0; i < items.length; i++) {
-            visited[i] = false;
-        }
-
-        for (var i = 0; i < items.length; i++) {
-            if (visited[i]) continue;
-
-            var group = [];
-            dfs(i, items, visited, group, threshold, direction);
-            groups.push(group);
-        }
-
-        return groups;
-    }
-
-    // DFSで隣接または重なりオブジェクトを探索
-    function dfs(index, items, visited, group, threshold, direction) {
-        visited[index] = true;
-        group.push(items[index]);
-        var boundsA = items[index].geometricBounds;
-
-        for (var j = 0; j < items.length; j++) {
-            if (visited[j]) continue;
-            var boundsB = items[j].geometricBounds;
-            var overlapRatio = getOverlapRatio(boundsA, boundsB);
-            var adjacentDistance = getAdjacentDistance(boundsA, boundsB, direction);
-
-            if (direction === "vertical") {
-                if (adjacentDistance <= threshold) {
-                    dfs(j, items, visited, group, threshold, direction);
-                }
-            } else {
-                if (overlapRatio > 0 || adjacentDistance <= threshold) {
-                    dfs(j, items, visited, group, threshold, direction);
-                }
-            }
-        }
-    }
-
-    // 2つのバウンディングボックス間の最小距離を返す
-    function getAdjacentDistance(a, b, direction) {
-        var ax1 = a[0],
-            ay1 = a[1],
-            ax2 = a[2],
-            ay2 = a[3];
-        var bx1 = b[0],
-            by1 = b[1],
-            bx2 = b[2],
-            by2 = b[3];
-
-        var horzGap = Math.max(0, Math.max(bx1 - ax2, ax1 - bx2));
-        var vertGap = Math.max(0, Math.max(ay2 - by1, by2 - ay1));
-
-        if (direction === "vertical") {
-            return vertGap;
-        }
-        // デフォルトは最大
-        return Math.max(horzGap, vertGap);
-    }
-
-    // 2つのバウンディングボックスの重なり率（小さい方の面積に対する割合）を返す
-    function getOverlapRatio(a, b) {
-        var ax = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0]));
-        var ay = Math.max(0, Math.min(a[1], b[1]) - Math.max(a[3], b[3]));
-        var overlapArea = ax * ay;
-        if (overlapArea <= 0) return 0;
-        var areaA = (a[2] - a[0]) * (a[1] - a[3]);
-        var areaB = (b[2] - b[0]) * (b[1] - b[3]);
-        var minArea = Math.min(areaA, areaB);
-        return overlapArea / minArea;
-    }
-
-    // 指定パスをグループ内で最前面に移動する関数
-    function bringReferenceToFront(group, refItem) {
-        for (var i = 0; i < group.length; i++) {
-            if (group[i] !== refItem) {
-                if (group[i].zOrderPosition > refItem.zOrderPosition) {
-                    refItem.move(group[i], ElementPlacement.PLACEBEFORE);
-                }
-            }
-        }
-    }
-
-    // 指定関数で取得したパスを用いてマスクを作成
-    function clipWithReferenceItem(itemsToGroup, getReferencePath) {
-        if (itemsToGroup.length <= 1) return;
-        // グループ化前に最前面のオブジェクトのzOrderPositionを記録
-        // 1. 元の重ね順を記録
-        var originalZOrders = [];
-        for (var i = 0; i < itemsToGroup.length; i++) {
-            originalZOrders.push(itemsToGroup[i].zOrderPosition);
-        }
-        var doc = app.activeDocument;
-        var group = doc.groupItems.add();
-        var refItem = getReferencePath(itemsToGroup);
-        if (!refItem) return;
-        bringReferenceToFront(itemsToGroup, refItem);
-        refItem.move(group, ElementPlacement.PLACEATBEGINNING);
-        refItem.clipping = true;
-        for (var i = 0; i < itemsToGroup.length; i++) {
-            if (itemsToGroup[i] !== refItem) {
-                itemsToGroup[i].move(group, ElementPlacement.PLACEATEND);
-            }
-        }
-        group.clipped = true;
-        // グループ内の順序を元に戻す
-        for (var i = 1; i < group.pageItems.length; i++) {
-            for (var j = i; j > 0; j--) {
-                var idxJ = -1, idxJm1 = -1;
-                for (var k = 0; k < itemsToGroup.length; k++) {
-                    if (group.pageItems[j] === itemsToGroup[k]) idxJ = k;
-                    if (group.pageItems[j-1] === itemsToGroup[k]) idxJm1 = k;
-                }
-                if (group.pageItems[j] === refItem) idxJ = itemsToGroup.indexOf(refItem);
-                if (group.pageItems[j-1] === refItem) idxJm1 = itemsToGroup.indexOf(refItem);
-                if (idxJ < 0 || idxJm1 < 0) continue;
-                if (originalZOrders[idxJ] < originalZOrders[idxJm1]) {
-                    group.pageItems[j].zOrder(ZOrderMethod.SENDTOBACK);
-                }
-            }
-        }
-        // グループを元の参照アイテムの直前に配置
-        group.move(refItem, ElementPlacement.PLACEBEFORE);
-    }
-
-    // 最背面のパスを使いグループごとにクリッピングマスクを作成
-    function clipOverlappingObjects() {
-        var items = getValidSelection();
-        if (!items) return;
-        var groups = getGroupedOverlappingItems(items);
-        for (var i = 0; i < groups.length; i++) {
-            clipWithReferenceItem(groups[i], getBottommostPath);
-        }
-    }
-    // 最前面のパスを使いグループごとにクリッピングマスクを作成
-    function clipOverlappingObjectsFront() {
-        var items = getValidSelection();
-        if (!items) return;
-        var groups = getGroupedOverlappingItems(items);
-        for (var i = 0; i < groups.length; i++) {
-            clipWithReferenceItem(groups[i], getTopmostPath);
-        }
-    }
-
-    // 配置画像のみを矩形マスク
-    function clipPlacedOnlyMask() {
-        processPlacedItemsByType("rect");
-    }
-
-    // グループ解除
-    function ungroupGroupItem(groupItem) {
-        var parent = groupItem.parent;
-        while (groupItem.pageItems.length > 0) {
-            groupItem.pageItems[0].moveToBeginning(parent);
-        }
-        groupItem.remove();
-    }
-
-    // 配列が全て配置画像か判定
-    function isAllPlacedItems(selectionArray) {
-        if (!selectionArray || selectionArray.length === 0) return false;
-        for (var i = 0; i < selectionArray.length; i++) {
-            if (selectionArray[i].typename !== "PlacedItem" && selectionArray[i].typename !== "RasterItem") {
-                return false;
-            }
+            if (!isImageItem(items[i])) return false;
         }
         return true;
     }
 
-    // ユーザー選択に応じて処理を実行
-    function executeUserChoice(choice) {
-        switch (choice) {
-            case "group":
-            case "vertical":
-                var newGroups = groupOverlappingObjectsByThreshold(choice);
-                if (newGroups && newGroups.length > 0) {
-                    app.activeDocument.selection = null;
-                    for (var i = 0; i < newGroups.length; i++) {
-                        newGroups[i].selected = true;
-                    }
-                }
-                break;
-            case "clip":
-                clipOverlappingObjects();
-                break;
-            case "clipFront":
-                clipOverlappingObjectsFront();
-                break;
-            case "clipPlacedOnly":
-                clipPlacedOnlyMask();
-                break;
-            case "overlap":
-                groupOverlappingObjectsByThreshold("overlap");
-                break;
+    /**
+     * 選択を解除して、指定のオブジェクトを選択する
+     * @param {PageItem[]} items - 選択するオブジェクト
+     * @returns {void}
+     */
+    function selectOnly(items) {
+        app.activeDocument.selection = null;
+        for (var i = 0; i < items.length; i++) {
+            items[i].selected = true;
         }
     }
 
-    // 配置画像のみ・矩形/正方形マスク処理
-    function processPlacedItemsByType(type) {
-        var doc = app.activeDocument;
-        var sel = getValidSelection();
-        if (!sel) return;
+    // =========================================
+    // まとまりの判定 / Cluster detection
+    // =========================================
 
-        var createdGroups = [];
+    /**
+     * @typedef {Object} ClusterRule まとまりのつなぎ方
+     * @property {number} maxGap - つなぐ最大のすき間（pt）。OVERLAP_ONLY なら重なりだけでつなぐ
+     * @property {string} [direction] - "vertical" なら縦の列、"horizontal" なら横の行で判定
+     * @property {boolean} [splitAtGaps] - 列・行の途中で、すき間がしきい値より空いたところで分ける（揃っているものだけをつなぐ）
+     * @property {boolean} [perArtboard] - 別のアートボードにあるものはつながない
+     */
 
-        for (var i = 0; i < sel.length; i++) {
-            var item = sel[i];
-            if (item.typename === 'GroupItem' && item.clipped) {
-                item.clipped = false;
-                var itemsToProcess = [];
-                for (var j = item.pageItems.length - 1; j >= 0; j--) {
-                    var pageItem = item.pageItems[j];
-                    if (pageItem.typename === 'PlacedItem' || pageItem.typename === 'RasterItem') {
-                        itemsToProcess.push({
-                            img: pageItem,
-                            idx: i
-                        });
-                    } else {
-                        pageItem.remove();
-                    }
-                }
-                for (var k = 0; k < itemsToProcess.length; k++) {
-                    processImageWithShape(itemsToProcess[k].img, type, createdGroups, itemsToProcess[k].idx);
-                }
-            } else if (item.typename === 'PlacedItem' || item.typename === 'RasterItem') {
-                var originalLayer = item.layer;
-                processImageWithShape(item, type, createdGroups, i);
-                var lastGroup = createdGroups[createdGroups.length - 1].group;
-                if (lastGroup.layer != originalLayer) {
-                    lastGroup.move(originalLayer, ElementPlacement.PLACEATEND);
+    /**
+     * 2つの矩形が面積を持って重なっているかを返す
+     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @returns {boolean} 重なっていれば true
+     */
+    function boundsOverlap(a, b) {
+        var overlapWidth = Math.min(a[2], b[2]) - Math.max(a[0], b[0]);
+        var overlapHeight = Math.min(a[1], b[1]) - Math.max(a[3], b[3]);
+        return overlapWidth > 0 && overlapHeight > 0;
+    }
+
+    /**
+     * 2つの矩形の左右のすき間を返す
+     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @returns {number} すき間（pt）。左右の範囲が重なっていれば 0
+     */
+    function getHorizontalGap(a, b) {
+        return Math.max(0, b[0] - a[2], a[0] - b[2]);
+    }
+
+    /**
+     * 2つの矩形の上下のすき間を返す
+     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @returns {number} すき間（pt）。上下の範囲が重なっていれば 0
+     */
+    function getVerticalGap(a, b) {
+        return Math.max(0, a[3] - b[1], b[3] - a[1]);
+    }
+
+    /**
+     * 列・行の判定で2つの矩形をつなぐかどうかを返す
+     * @param {number} crossGap - 並ぶ向きと直交する向きのすき間（列なら左右）
+     * @param {number} alongGap - 並ぶ向きのすき間（列なら上下）
+     * @param {ClusterRule} clusterRule - つなぎ方
+     * @returns {boolean} つなぐなら true
+     */
+    function areInSameLine(crossGap, alongGap, clusterRule) {
+        /* 間隔が空いたら分ける：揃っていて、並ぶ向きのすき間がしきい値以内 / Split at gaps: aligned, and the gap along the line is within the threshold */
+        if (clusterRule.splitAtGaps) return crossGap <= TOUCH_TOLERANCE && alongGap <= clusterRule.maxGap;
+        /* 距離は問わない：直交する向きのずれがしきい値以内 / Any distance along the line; the cross offset is within the threshold */
+        return crossGap <= clusterRule.maxGap;
+    }
+
+    /**
+     * 2つの矩形を同じまとまりとしてつなぐかどうかを返す
+     * @param {number[]} a - geometricBounds [左, 上, 右, 下]
+     * @param {number[]} b - geometricBounds [左, 上, 右, 下]
+     * @param {ClusterRule} clusterRule - つなぎ方
+     * @returns {boolean} つなぐなら true
+     */
+    function areNeighbors(a, b, clusterRule) {
+        var horizontalGap = getHorizontalGap(a, b);
+        var verticalGap = getVerticalGap(a, b);
+        if (clusterRule.direction === "vertical") return areInSameLine(horizontalGap, verticalGap, clusterRule);
+        if (clusterRule.direction === "horizontal") return areInSameLine(verticalGap, horizontalGap, clusterRule);
+        return boundsOverlap(a, b) || Math.max(horizontalGap, verticalGap) <= clusterRule.maxGap;
+    }
+
+    /**
+     * 起点からつながっている矩形の番号をすべて集める（visited を更新する）
+     * @param {Array<number[]>} boundsList - 各オブジェクトの geometricBounds
+     * @param {number} startIndex - 起点の番号
+     * @param {boolean[]} visited - 集め済みの印
+     * @param {ClusterRule} clusterRule - つなぎ方
+     * @param {number[]|null} artboardIndexes - 各オブジェクトのアートボード番号（アートボードごとに分けないときは null）
+     * @returns {number[]} つながっている番号（昇順）
+     */
+    function collectConnectedIndexes(boundsList, startIndex, visited, clusterRule, artboardIndexes) {
+        var connectedIndexes = [];
+        var pendingIndexes = [startIndex];
+        visited[startIndex] = true;
+        /* 再帰を使わず積み残しを順に処理する（大きなまとまりでスタックがあふれないように）
+           Walk a work list instead of recursing so large clusters cannot overflow the stack */
+        while (pendingIndexes.length) {
+            var currentIndex = pendingIndexes.pop();
+            connectedIndexes.push(currentIndex);
+            for (var j = 0; j < boundsList.length; j++) {
+                if (visited[j]) continue;
+                if (artboardIndexes && artboardIndexes[j] !== artboardIndexes[currentIndex]) continue;
+                if (!areNeighbors(boundsList[currentIndex], boundsList[j], clusterRule)) continue;
+                visited[j] = true;
+                pendingIndexes.push(j);
+            }
+        }
+        connectedIndexes.sort(function (a, b) { return a - b; });
+        return connectedIndexes;
+    }
+
+    /**
+     * 矩形の並びを、重なりや距離でつながるまとまりに分ける
+     * @param {Array<number[]>} boundsList - 各オブジェクトの geometricBounds
+     * @param {ClusterRule} clusterRule - つなぎ方
+     * @param {number[]|null} artboardIndexes - 各オブジェクトのアートボード番号（アートボードごとに分けないときは null）
+     * @returns {Array<number[]>} まとまりごとの番号の配列（各まとまりは昇順）
+     */
+    function collectClusterIndexes(boundsList, clusterRule, artboardIndexes) {
+        var visited = [];
+        for (var i = 0; i < boundsList.length; i++) {
+            visited.push(false);
+        }
+        var clusterIndexes = [];
+        for (var j = 0; j < boundsList.length; j++) {
+            if (!visited[j]) clusterIndexes.push(collectConnectedIndexes(boundsList, j, visited, clusterRule, artboardIndexes));
+        }
+        return clusterIndexes;
+    }
+
+    /**
+     * モードと設定に応じた、まとまりのつなぎ方を返す
+     * @param {string} mode - モードのキー（「配置画像のみをクリップ」以外）
+     * @param {{threshold: number, splitAtGaps: boolean, perArtboard: boolean}} groupingOptions - ダイアログの設定
+     * @returns {ClusterRule|null} つなぎ方。該当しないモードは null
+     */
+    function getClusterRule(mode, groupingOptions) {
+        var usedOptions = MODE_OPTIONS[mode] || {};
+        var perArtboard = usedOptions.perArtboard === true && groupingOptions.perArtboard === true;
+        switch (mode) {
+            case "clipWithFront":
+            case "clipWithBack":
+                return { maxGap: OVERLAP_ONLY };
+            case "groupOverlap":
+                return { maxGap: TOUCH_TOLERANCE, perArtboard: perArtboard };
+            case "groupProximity":
+                return { maxGap: groupingOptions.threshold, perArtboard: perArtboard };
+            case "groupVertical":
+            case "groupHorizontal":
+                return {
+                    maxGap: groupingOptions.threshold,
+                    direction: (mode === "groupVertical") ? "vertical" : "horizontal",
+                    splitAtGaps: groupingOptions.splitAtGaps === true,
+                    perArtboard: perArtboard
+                };
+        }
+        return null;
+    }
+
+    // =========================================
+    // アートボード / Artboards
+    // =========================================
+
+    /**
+     * 矩形の中心が含まれるアートボードの番号を返す
+     * @param {number[]} bounds - geometricBounds [左, 上, 右, 下]
+     * @param {Array<number[]>} artboardRects - 各アートボードの artboardRect
+     * @returns {number} アートボードの番号。どこにも含まれなければ -1
+     */
+    function findArtboardIndex(bounds, artboardRects) {
+        var centerX = (bounds[0] + bounds[2]) / 2;
+        var centerY = (bounds[1] + bounds[3]) / 2;
+        for (var i = 0; i < artboardRects.length; i++) {
+            var rect = artboardRects[i];
+            if (centerX >= rect[0] && centerX <= rect[2] && centerY <= rect[1] && centerY >= rect[3]) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * 各矩形が属するアートボードの番号を返す
+     * @param {Array<number[]>} boundsList - 各オブジェクトの geometricBounds
+     * @returns {number[]} アートボードの番号（boundsList と同じ並び）
+     */
+    function getArtboardIndexes(boundsList) {
+        var artboards = app.activeDocument.artboards;
+        var artboardRects = [];
+        for (var i = 0; i < artboards.length; i++) {
+            artboardRects.push(artboards[i].artboardRect);
+        }
+        var artboardIndexes = [];
+        for (var j = 0; j < boundsList.length; j++) {
+            artboardIndexes.push(findArtboardIndex(boundsList[j], artboardRects));
+        }
+        return artboardIndexes;
+    }
+
+    /**
+     * 2つ以上のアートボードにまたがっているかを返す（どのアートボードにもないものは数えない）
+     * @param {number[]} artboardIndexes - 各オブジェクトのアートボード番号
+     * @returns {boolean} またがっていれば true
+     */
+    function spansMultipleArtboards(artboardIndexes) {
+        var firstIndex = -1;
+        for (var i = 0; i < artboardIndexes.length; i++) {
+            if (artboardIndexes[i] < 0) continue;
+            if (firstIndex < 0) {
+                firstIndex = artboardIndexes[i];
+            } else if (artboardIndexes[i] !== firstIndex) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // =========================================
+    // 選択の読み取りと結果の見積もり / Selection snapshot and result plan
+    // =========================================
+
+    /**
+     * @typedef {Object} SelectionInfo ダイアログを開く前に読み取った選択の情報
+     * @property {PageItem[]} items - 選択オブジェクト（前面から背面の順）
+     * @property {number} itemCount - 選択オブジェクトの数
+     * @property {Array<number[]>} boundsList - 各オブジェクトの geometricBounds
+     * @property {boolean[]} isPath - 各オブジェクトがパスかどうか
+     * @property {Array<number[]>} imageBoundsList - 「配置画像のみをクリップ」の対象になる画像の visibleBounds
+     * @property {number[]} artboardIndexes - 各オブジェクトのアートボード番号
+     * @property {boolean} hasMultipleArtboards - ドキュメントにアートボードが2つ以上あるか
+     */
+
+    /**
+     * 選択の情報を一度だけ読み取る（件数・プレビュー・実行で共有する）
+     * @param {PageItem[]|null} selectedItems - 選択オブジェクト
+     * @returns {SelectionInfo} 選択の情報
+     */
+    function readSelection(selectedItems) {
+        var selectionInfo = {
+            items: selectedItems || [],
+            itemCount: 0,
+            boundsList: [],
+            isPath: [],
+            imageBoundsList: [],
+            artboardIndexes: [],
+            hasMultipleArtboards: false
+        };
+        if (!selectedItems) return selectionInfo;
+
+        selectionInfo.itemCount = selectedItems.length;
+        for (var i = 0; i < selectedItems.length; i++) {
+            var item = selectedItems[i];
+            selectionInfo.boundsList.push(item.geometricBounds);
+            selectionInfo.isPath.push(item.typename === "PathItem");
+            /* 「配置画像のみをクリップ」の対象：選択中の画像と、クリップグループ直下の画像
+               Targets of Clip Placed Images Only: selected images and images directly inside clipping groups */
+            if (isImageItem(item)) {
+                selectionInfo.imageBoundsList.push(item.visibleBounds);
+            } else if (item.typename === "GroupItem" && item.clipped) {
+                var childImages = getChildImages(item);
+                for (var j = 0; j < childImages.length; j++) {
+                    selectionInfo.imageBoundsList.push(childImages[j].visibleBounds);
                 }
             }
         }
+        selectionInfo.artboardIndexes = getArtboardIndexes(selectionInfo.boundsList);
+        selectionInfo.hasMultipleArtboards = app.activeDocument.artboards.length > 1;
+        return selectionInfo;
+    }
 
-        doc.selection = null;
-        sortByIndex(createdGroups);
-        for (var i = 0; i < createdGroups.length; i++) {
-            var group = createdGroups[i].group;
-            var originalLayer = group.layer;
-            group.move(originalLayer, ElementPlacement.PLACEATEND);
-            group.selected = true;
+    /**
+     * 選択を、つなぎ方に従ってまとまりの番号に分ける
+     * @param {SelectionInfo} selectionInfo - 選択の情報
+     * @param {ClusterRule} clusterRule - つなぎ方
+     * @returns {Array<number[]>} まとまりごとの番号の配列
+     */
+    function collectSelectionClusters(selectionInfo, clusterRule) {
+        var artboardIndexes = clusterRule.perArtboard ? selectionInfo.artboardIndexes : null;
+        return collectClusterIndexes(selectionInfo.boundsList, clusterRule, artboardIndexes);
+    }
+
+    /**
+     * まとまりにパスが含まれるかを返す
+     * @param {boolean[]} isPath - 選択の各オブジェクトがパスかどうか
+     * @param {number[]} memberIndexes - まとまりの番号
+     * @returns {boolean} パスがあれば true
+     */
+    function hasPathMember(isPath, memberIndexes) {
+        for (var i = 0; i < memberIndexes.length; i++) {
+            if (isPath[memberIndexes[i]]) return true;
+        }
+        return false;
+    }
+
+    /**
+     * まとまりの外枠（すべてを囲む矩形）を返す
+     * @param {Array<number[]>} boundsList - 各オブジェクトの geometricBounds
+     * @param {number[]} memberIndexes - まとまりの番号
+     * @returns {number[]} 外枠 [左, 上, 右, 下]
+     */
+    function getUnionBounds(boundsList, memberIndexes) {
+        var unionBounds = boundsList[memberIndexes[0]].slice(0);
+        for (var i = 1; i < memberIndexes.length; i++) {
+            var bounds = boundsList[memberIndexes[i]];
+            unionBounds[0] = Math.min(unionBounds[0], bounds[0]);
+            unionBounds[1] = Math.max(unionBounds[1], bounds[1]);
+            unionBounds[2] = Math.max(unionBounds[2], bounds[2]);
+            unionBounds[3] = Math.min(unionBounds[3], bounds[3]);
+        }
+        return unionBounds;
+    }
+
+    /**
+     * 選ばれたモードで作成されるグループの外枠を返す（実行時と同じ判定を使う）
+     * @param {SelectionInfo} selectionInfo - 選択の情報
+     * @param {string} mode - モードのキー
+     * @param {{threshold: number, splitAtGaps: boolean, perArtboard: boolean}} groupingOptions - ダイアログの設定
+     * @returns {Array<number[]>} 作成されるグループごとの外枠
+     */
+    function planResultBounds(selectionInfo, mode, groupingOptions) {
+        if (mode === "clipPlacedOnly") return selectionInfo.imageBoundsList;
+        var clusterRule = getClusterRule(mode, groupingOptions);
+        if (!clusterRule) return [];
+
+        var clusterIndexes = collectSelectionClusters(selectionInfo, clusterRule);
+        var resultBounds = [];
+        for (var i = 0; i < clusterIndexes.length; i++) {
+            if (clusterIndexes[i].length < 2) continue;
+            /* クリップはパスを含むまとまりだけが対象 / Clipping needs a path in the cluster */
+            if (MASK_SIDES[mode] && !hasPathMember(selectionInfo.isPath, clusterIndexes[i])) continue;
+            resultBounds.push(getUnionBounds(selectionInfo.boundsList, clusterIndexes[i]));
+        }
+        return resultBounds;
+    }
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
+
+    /**
+     * プレビューの線の色を作る（ドキュメントのカラーモードに合わせる）
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {RGBColor|CMYKColor} 線の色
+     */
+    function createPreviewColor(doc) {
+        var previewColor;
+        if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            previewColor = new CMYKColor();
+            previewColor.cyan = PREVIEW_CMYK[0];
+            previewColor.magenta = PREVIEW_CMYK[1];
+            previewColor.yellow = PREVIEW_CMYK[2];
+            previewColor.black = PREVIEW_CMYK[3];
+        } else {
+            previewColor = new RGBColor();
+            previewColor.red = PREVIEW_RGB[0];
+            previewColor.green = PREVIEW_RGB[1];
+            previewColor.blue = PREVIEW_RGB[2];
+        }
+        return previewColor;
+    }
+
+    /**
+     * 作成されるグループの範囲を枠で示すプレビューを用意する（最上位の専用レイヤーに描き、閉じるときにレイヤーごと消す）
+     * @param {Document} doc - 対象のドキュメント
+     * @returns {{show: function(Array<number[]>): void, remove: function(): void}} プレビューの操作
+     */
+    function createGroupPreview(doc) {
+        var previousActiveLayer = doc.activeLayer;
+        var previewColor = createPreviewColor(doc);
+        var previewLayer = null;
+
+        /* 外枠ごとに枠を描く / Draw one frame per result */
+        function show(resultBounds) {
+            if (!previewLayer) {
+                previewLayer = doc.layers.add();
+                previewLayer.name = PREVIEW_LAYER_NAME;
+                /* 最上位レイヤーの一番上に置き、どのオブジェクトより手前に枠を出す
+                   Keep the layer at the very top so the frames sit in front of every object */
+                previewLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+            }
+            for (var i = previewLayer.pageItems.length - 1; i >= 0; i--) {
+                previewLayer.pageItems[i].remove();
+            }
+            for (var j = 0; j < resultBounds.length; j++) {
+                var bounds = resultBounds[j];
+                var frame = previewLayer.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
+                frame.filled = false;
+                frame.stroked = true;
+                frame.strokeColor = previewColor;
+                frame.strokeWidth = PREVIEW_STROKE_WIDTH;
+                frame.opacity = PREVIEW_OPACITY;
+            }
+            app.redraw();
+        }
+
+        /* プレビューのレイヤーを消して、アクティブレイヤーを戻す / Remove the preview layer and restore the active layer */
+        function remove() {
+            if (!previewLayer) return;
+            previewLayer.remove();
+            previewLayer = null;
+            doc.activeLayer = previousActiveLayer;
+            app.redraw();
+        }
+
+        return { show: show, remove: remove };
+    }
+
+    // =========================================
+    // クリッピングマスク / Clipping mask
+    // =========================================
+
+    /**
+     * まとまりの中から型にするパスを探す
+     * @param {PageItem[]} clusterItems - まとまり（前面から背面の順）
+     * @param {string} maskSide - "front" なら最前面、"back" なら最背面のパス
+     * @returns {PathItem|null} 型にするパス。パスがなければ null
+     */
+    function findMaskPath(clusterItems, maskSide) {
+        var fromBack = (maskSide === "back");
+        for (var i = 0; i < clusterItems.length; i++) {
+            var item = clusterItems[fromBack ? clusterItems.length - 1 - i : i];
+            if (item.typename === "PathItem") return item;
+        }
+        return null;
+    }
+
+    /**
+     * まとまりを、指定のパスを型にしたクリップグループにする
+     * @param {PageItem[]} clusterItems - まとまり（前面から背面の順）
+     * @param {PathItem|null} maskPath - 型にするパス
+     * @returns {void}
+     */
+    function clipCluster(clusterItems, maskPath) {
+        if (clusterItems.length <= 1 || !maskPath) return;
+
+        /* 型にするパスがあった位置にグループを置く / Put the group where the mask path was */
+        var clipGroup = app.activeDocument.groupItems.add();
+        clipGroup.move(maskPath, ElementPlacement.PLACEBEFORE);
+        maskPath.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
+
+        /* 残りを前面から順に末尾へ足し、元の重ね順を保つ / Append the rest front to back to keep the stacking order */
+        for (var i = 0; i < clusterItems.length; i++) {
+            if (clusterItems[i] !== maskPath) {
+                clusterItems[i].move(clipGroup, ElementPlacement.PLACEATEND);
+            }
+        }
+        clipGroup.clipped = true;
+    }
+
+    /**
+     * まとまりごとにクリッピングマスクを作成する
+     * @param {Array<PageItem[]>} clusters - まとまりの配列
+     * @param {string} maskSide - "front" なら最前面、"back" なら最背面のパスを型にする
+     * @returns {void}
+     */
+    function clipEachCluster(clusters, maskSide) {
+        for (var i = 0; i < clusters.length; i++) {
+            clipCluster(clusters[i], findMaskPath(clusters[i], maskSide));
         }
     }
 
-    // 配置画像を指定形状でクリッピング
-    function processImageWithShape(image, shapeType, groups, index) {
+    // =========================================
+    // 配置画像のクリップ / Placed image clipping
+    // =========================================
+
+    /**
+     * 画像を、表示範囲と同じ大きさの長方形でクリップする（画像があった位置に置く）
+     * @param {PlacedItem|RasterItem} image - クリップする画像
+     * @returns {GroupItem} 作成したクリップグループ
+     */
+    function maskImageWithBounds(image) {
+        var imageLayer = image.layer;
+        var wasLocked = imageLayer.locked;
+        var wasTemplate = imageLayer.isTemplate;
+        if (wasLocked) imageLayer.locked = false;
+        if (wasTemplate) imageLayer.isTemplate = false;
+
         var bounds = image.visibleBounds;
-        var width = bounds[2] - bounds[0];
-        var height = bounds[1] - bounds[3];
-        var centerX = bounds[0] + width / 2;
-        var centerY = bounds[1] - height / 2;
-        var sideLength = Math.min(width, height);
-        var parentLayer = image.layer;
-        var wasLocked = parentLayer.locked;
-        var wasTemplate = parentLayer.isTemplate;
-        if (wasLocked) parentLayer.locked = false;
-        if (wasTemplate) parentLayer.isTemplate = false;
+        var maskRect = imageLayer.pathItems.rectangle(bounds[1], bounds[0], bounds[2] - bounds[0], bounds[1] - bounds[3]);
+        maskRect.stroked = false;
+        maskRect.filled = false;
 
-        // パスを画像のすぐ上に作成
-        var shape;
-        if (shapeType === "square") {
-            shape = parentLayer.pathItems.rectangle(centerY + sideLength / 2, centerX - sideLength / 2, sideLength, sideLength);
-        } else {
-            shape = parentLayer.pathItems.rectangle(bounds[1], bounds[0], width, height);
+        /* 画像があった位置にグループを置き、画像→長方形の順に先頭へ入れて長方形を最前面にする
+           Put the group where the image was; add the image, then the rectangle, so the rectangle ends up on top */
+        var maskedGroup = imageLayer.groupItems.add();
+        maskedGroup.move(image, ElementPlacement.PLACEBEFORE);
+        image.moveToBeginning(maskedGroup);
+        maskRect.moveToBeginning(maskedGroup);
+        maskedGroup.clipped = true;
+
+        if (wasLocked) imageLayer.locked = true;
+        if (wasTemplate) imageLayer.isTemplate = true;
+        return maskedGroup;
+    }
+
+    /**
+     * グループの直下にある画像を返す
+     * @param {GroupItem} parentGroup - 調べるグループ
+     * @returns {Array<PlacedItem|RasterItem>} 画像（前面から背面の順）
+     */
+    function getChildImages(parentGroup) {
+        var images = [];
+        for (var i = 0; i < parentGroup.pageItems.length; i++) {
+            if (isImageItem(parentGroup.pageItems[i])) images.push(parentGroup.pageItems[i]);
         }
-        shape.stroked = false;
-        shape.filled = false;
+        return images;
+    }
 
-        var zOrderPos = -1;
-        try {
-            zOrderPos = image.zOrderPosition;
-        } catch (e) {}
+    /**
+     * クリップグループの元のマスクを削除し、中の画像を1つずつクリップし直す（画像以外はそのまま残す）
+     * @param {GroupItem} clipGroup - クリップグループ
+     * @returns {GroupItem[]} 作成したクリップグループ
+     */
+    function remaskClipGroup(clipGroup) {
+        /* 元のマスクはクリップグループの最前面にある / The old mask is the topmost item of the clipping group */
+        var oldMask = clipGroup.pageItems[0];
+        clipGroup.clipped = false;
+        if (!isImageItem(oldMask)) oldMask.remove();
 
-        // 画像とパスを一時グループにまとめてマスク
-        var group = parentLayer.groupItems.add();
-        // 画像を先に、パスを後に move してパスが上に来るようにする
-        image.moveToBeginning(group);
-        shape.moveToBeginning(group);
-        group.clipped = true;
+        var images = getChildImages(clipGroup);
+        var maskedGroups = [];
+        for (var j = 0; j < images.length; j++) {
+            maskedGroups.push(maskImageWithBounds(images[j]));
+        }
 
-        // マスク対象のパスを最前面に再配置
-        try {
-            var topPath = null;
-            for (var j = 0; j < group.pageItems.length; j++) {
-                if (group.pageItems[j].typename === "PathItem") {
-                    topPath = group.pageItems[j];
-                    break;
-                }
+        /* 画像以外が残っていなければ、作成したグループを前面から順に外へ出して元のグループを消す
+           If nothing else is left, move the new groups out front to back and remove the original group */
+        if (clipGroup.pageItems.length === maskedGroups.length) {
+            for (var k = 0; k < maskedGroups.length; k++) {
+                maskedGroups[k].move(clipGroup, ElementPlacement.PLACEBEFORE);
             }
-            if (topPath) topPath.moveToBeginning(group);
-        } catch (e) {}
+            clipGroup.remove();
+        }
+        return maskedGroups;
+    }
 
-        try {
-            if (zOrderPos >= 0) group.zOrder(zOrderPos);
-        } catch (e) {}
-
-        groups.push({
-            group: group,
-            index: index
-        });
-
-        var originalGroup = image.parent;
-        if (originalGroup.typename === "GroupItem" && originalGroup.pageItems.length === 0) {
-            try {
-                originalGroup.remove();
-            } catch (e) {}
+    /**
+     * 選択中の画像とクリップグループ内の画像を、それぞれの大きさでクリップする
+     * @param {PageItem[]} selectedItems - 選択オブジェクト
+     * @returns {void}
+     */
+    function clipPlacedImages(selectedItems) {
+        var maskedGroups = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            var item = selectedItems[i];
+            if (item.typename === "GroupItem" && item.clipped) {
+                maskedGroups = maskedGroups.concat(remaskClipGroup(item));
+            } else if (isImageItem(item)) {
+                maskedGroups.push(maskImageWithBounds(item));
+            }
         }
 
-        if (wasLocked) parentLayer.locked = true;
-        if (wasTemplate) parentLayer.isTemplate = true;
-    }
-    // indexでソート
-    function sortByIndex(arr) {
-        arr.sort(function(a, b) {
-            return a.index - b.index;
-        });
-    }
-    // メイン処理
-    function main(prevThreshold) {
-        var userChoice = showDialog(prevThreshold);
-        executeUserChoice(userChoice);
+        /* 作成したグループを選択する / Select the new groups */
+        selectOnly(maskedGroups);
     }
 
-    // アイテムの配列を zOrderPosition に基づいて昇順ソートする汎用関数
-    function sortByZOrder(items) {
-        return items.slice().sort(function(a, b) {
-            var za = -1,
-                zb = -1;
-            try {
-                za = a.zOrderPosition;
-            } catch (e) {}
-            try {
-                zb = b.zOrderPosition;
-            } catch (e) {}
-            return za - zb;
-        });
-    }
+    // =========================================
+    // グループ化 / Grouping
+    // =========================================
 
-    // 指定した重なりしきい値でグループ化
-    function groupOverlappingObjectsByThreshold(mode) {
-        // threshold の定義を追加
-        var threshold = (mode === "threshold" || mode === "group") ? overlapThreshold : 0.01;
-        // 指定しきい値に基づき、重なり・隣接オブジェクトをグループ化（重ね順を保持）
-        var sel = getValidSelection();
-        if (!sel) return;
+    /**
+     * まとまりを1つのグループにする
+     * @param {PageItem[]} clusterItems - まとまり（前面から背面の順）
+     * @returns {GroupItem} 作成したグループ
+     */
+    function groupCluster(clusterItems) {
+        /* 最前面のオブジェクトの位置にグループを置く / Put the group where the frontmost item was */
+        var newGroup = app.activeDocument.groupItems.add();
+        newGroup.move(clusterItems[0], ElementPlacement.PLACEBEFORE);
 
-        var groups;
-        if (mode === "vertical") {
-            groups = getGroupedOverlappingItems(sel, threshold, "vertical");
-        } else {
-            groups = getGroupedOverlappingItems(sel, threshold);
+        /* 前面から順に末尾へ足し、元の重ね順を保つ / Append front to back to keep the stacking order */
+        for (var i = 0; i < clusterItems.length; i++) {
+            clusterItems[i].move(newGroup, ElementPlacement.PLACEATEND);
         }
-        var doc = app.activeDocument;
+        return newGroup;
+    }
+
+    /**
+     * 2つ以上のオブジェクトを含むまとまりをグループ化し、作成したグループを選択する
+     * @param {Array<PageItem[]>} clusters - まとまりの配列
+     * @returns {void}
+     */
+    function groupEachCluster(clusters) {
         var newGroups = [];
-
-        for (var i = 0; i < groups.length; i++) {
-            var group = groups[i];
-            if (group.length <= 1) continue;
-
-            var newGroup = doc.groupItems.add();
-            // 一旦すべて移動
-            for (var j = 0; j < group.length; j++) {
-                group[j].move(newGroup, ElementPlacement.PLACEATEND);
-            }
-            // 重ね順でソートして再配置
-            moveItemsToGroupSorted(group, newGroup);
-            newGroups.push(newGroup);
+        for (var i = 0; i < clusters.length; i++) {
+            if (clusters[i].length > 1) newGroups.push(groupCluster(clusters[i]));
         }
-
-        for (var i = 0; i < newGroups.length; i++) {
-            try {
-                newGroups[i].move(app.activeDocument, ElementPlacement.PLACEATEND);
-            } catch (e) {}
-        }
-
-        // グループ化されなかった（単独）オブジェクト数をカウント
-        var ungroupedCount = 0;
-        for (var i = 0; i < groups.length; i++) {
-            if (groups[i].length === 1) ungroupedCount++;
-        }
-        // mode === "threshold" のときのみ再実行確認
-        if (mode === "threshold" && ungroupedCount > 0) {
-            var retry = confirm("グループ化されなかったオブジェクトが " + ungroupedCount + " 個あります。\n再実行しますか？");
-            if (retry) {
-                main(overlapThreshold);
-            }
-        }
-
-        // mode が "overlap" または "threshold" のとき新しく作成されたグループを選択状態に設定
-        if (mode === "overlap" || mode === "threshold") {
-            app.activeDocument.selection = null;
-            for (var i = 0; i < newGroups.length; i++) {
-                newGroups[i].selected = true;
-            }
-        }
-        return newGroups;
+        if (newGroups.length) selectOnly(newGroups);
     }
 
-    // アイテムを zOrder でソートしてグループに移動する関数
-    function moveItemsToGroupSorted(items, group) {
-        var sorted = sortByZOrder(items);
-        for (var i = 0; i < sorted.length; i++) {
-            try {
-                sorted[i].move(group, ElementPlacement.PLACEATEND);
-            } catch (e) {}
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /**
+     * しきい値を表示用の文字列にする
+     * @param {number} value - しきい値（pt）
+     * @returns {string} 「10 pt」の形の文字列
+     */
+    function formatThreshold(value) {
+        return Math.round(value) + " pt";
+    }
+
+    /**
+     * モードのラジオボタンを並べたパネルを追加する
+     * @param {Window} dialog - 追加先のダイアログ
+     * @param {string} panelTitle - パネルの見出し
+     * @param {string[]} modeKeys - 並べるモードのキー
+     * @param {Object} modeRadios - 作成したラジオボタンをモードのキーで登録する先
+     * @param {number} [columnCount] - 列の数（省略時は1列）。左上から横へ順に並べる
+     * @returns {Panel} 追加したパネル
+     */
+    function addModePanel(dialog, panelTitle, modeKeys, modeRadios, columnCount) {
+        var modePanel = dialog.add("panel", undefined, panelTitle);
+        modePanel.orientation = "column";
+        modePanel.alignChildren = "left";
+        modePanel.margins = PANEL_MARGINS;
+
+        /* 複数列のときは列ごとのグループを横に並べる / For multiple columns, lay out one group per column side by side */
+        var radioColumns = [modePanel];
+        if (columnCount > 1) {
+            var columnsRow = modePanel.add("group");
+            columnsRow.orientation = "row";
+            columnsRow.alignChildren = ["left", "top"];
+            columnsRow.spacing = RADIO_COLUMN_SPACING;
+            radioColumns = [];
+            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+                var radioColumn = columnsRow.add("group");
+                radioColumn.orientation = "column";
+                radioColumn.alignChildren = "left";
+                radioColumns.push(radioColumn);
+            }
+        }
+
+        for (var i = 0; i < modeKeys.length; i++) {
+            var modeKey = modeKeys[i];
+            var modeRadio = radioColumns[i % radioColumns.length].add("radiobutton", undefined, getLabel(LABELS.radio[modeKey]));
+            modeRadio.helpTip = getLabel(LABELS.tooltip[modeKey]);
+            modeRadios[modeKey] = modeRadio;
+        }
+        return modePanel;
+    }
+
+    /**
+     * しきい値の見出し・スライダー・値の表示を追加する
+     * @param {Panel} parentPanel - 追加先のパネル
+     * @returns {{caption: StaticText, slider: Slider, valueText: StaticText}} 追加したコントロール
+     */
+    function addThresholdControls(parentPanel) {
+        var thresholdTip = getLabel(LABELS.tooltip.threshold);
+
+        var caption = parentPanel.add("statictext", undefined, labelText(LABELS.fieldLabel.threshold));
+        caption.helpTip = thresholdTip;
+
+        /* パネルの幅に合わせて伸ばし、値の表示をスライダーの中央に揃える / Stretch to the panel width so the readout stays centered under the slider */
+        var slider = parentPanel.add("slider", undefined, DEFAULT_THRESHOLD, THRESHOLD_MIN, THRESHOLD_MAX);
+        slider.preferredSize.width = SLIDER_WIDTH;
+        slider.alignment = "fill";
+        slider.helpTip = thresholdTip;
+
+        var valueText = parentPanel.add("statictext", undefined, formatThreshold(DEFAULT_THRESHOLD));
+        valueText.alignment = "center";
+        valueText.characters = VALUE_TEXT_CHARS;
+        valueText.helpTip = thresholdTip;
+
+        return { caption: caption, slider: slider, valueText: valueText };
+    }
+
+    /**
+     * チェックボックスを追加する
+     * @param {Window|Panel} parentPanel - 追加先のダイアログかパネル
+     * @param {string} optionKey - LABELS.checkbox / LABELS.tooltip のキー
+     * @param {boolean} initialValue - 初期状態
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addOptionCheckbox(parentPanel, optionKey, initialValue) {
+        var optionCheckbox = parentPanel.add("checkbox", undefined, getLabel(LABELS.checkbox[optionKey]));
+        optionCheckbox.value = initialValue;
+        optionCheckbox.helpTip = getLabel(LABELS.tooltip[optionKey]);
+        return optionCheckbox;
+    }
+
+    /**
+     * 選択数と、作成されるグループ数の表示を追加する
+     * @param {Window} dialog - 追加先のダイアログ
+     * @param {number} itemCount - 選択しているオブジェクトの数
+     * @returns {StaticText} 作成されるグループ数の表示
+     */
+    function addCountReadout(dialog, itemCount) {
+        var countGroup = dialog.add("group");
+        countGroup.orientation = "column";
+        countGroup.alignment = "fill";
+        countGroup.alignChildren = "fill";
+        countGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.selectedCount) + itemCount);
+        return countGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.groupCount) + 0);
+    }
+
+    /**
+     * ダイアログを表示して、選ばれたモードと設定を返す（開いている間は結果の範囲をプレビューする）
+     * @param {string} initialMode - 最初に選んでおくモードのキー
+     * @param {SelectionInfo} selectionInfo - 選択の情報
+     * @returns {{mode: string, groupingOptions: Object}|null} キャンセル時は null
+     */
+    function showDialog(initialMode, selectionInfo) {
+        var dialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = "left";
+        dialog.margins = DIALOG_MARGINS;
+
+        var modeRadios = {};
+        addModePanel(dialog, getLabel(LABELS.panel.clip), CLIP_MODES, modeRadios);
+        var groupingPanel = addModePanel(dialog, getLabel(LABELS.panel.grouping), GROUP_MODES, modeRadios, 2);
+        groupingPanel.alignment = "fill";  /* ダイアログの幅いっぱいに広げる / Stretch to the dialog width */
+        var thresholdControls = addThresholdControls(groupingPanel);
+        var splitAtGapsCheckbox = addOptionCheckbox(groupingPanel, "splitAtGaps", DEFAULT_SPLIT_AT_GAPS);
+        /* 選択が複数のアートボードにまたがるときだけ最初からON / On by default only when the selection spans artboards */
+        var perArtboardCheckbox = addOptionCheckbox(groupingPanel, "perArtboard",
+            selectionInfo.hasMultipleArtboards && spansMultipleArtboards(selectionInfo.artboardIndexes));
+        var resultCountText = addCountReadout(dialog, selectionInfo.itemCount);
+        var previewCheckbox = addOptionCheckbox(dialog, "showPreview", DEFAULT_SHOW_PREVIEW);
+
+        /* ボタンエリア（左右中央） / Button row (centered) */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+
+        var groupPreview = selectionInfo.itemCount ? createGroupPreview(app.activeDocument) : null;
+        previewCheckbox.enabled = (groupPreview !== null);
+
+        /* 選択中のモードのキーを返す / Return the key of the selected mode */
+        function getSelectedMode() {
+            for (var i = 0; i < ALL_MODES.length; i++) {
+                if (modeRadios[ALL_MODES[i]].value) return ALL_MODES[i];
+            }
+            return null;
+        }
+
+        /* ダイアログの設定（しきい値は表示と実行で同じく整数に丸める）
+           Dialog settings; the threshold is rounded the same way for display and execution */
+        function getGroupingOptions() {
+            return {
+                threshold: Math.round(thresholdControls.slider.value),
+                splitAtGaps: splitAtGapsCheckbox.value,
+                perArtboard: perArtboardCheckbox.value && selectionInfo.hasMultipleArtboards
+            };
+        }
+
+        /* 選んだモードで使う設定だけを有効にする / Enable only the settings the selected mode uses */
+        function updateOptionControls() {
+            var usedOptions = MODE_OPTIONS[getSelectedMode()] || {};
+            var thresholdEnabled = usedOptions.threshold === true;
+            thresholdControls.caption.enabled = thresholdEnabled;
+            thresholdControls.slider.enabled = thresholdEnabled;
+            thresholdControls.valueText.enabled = thresholdEnabled;
+            splitAtGapsCheckbox.enabled = usedOptions.splitAtGaps === true;
+            perArtboardCheckbox.enabled = usedOptions.perArtboard === true && selectionInfo.hasMultipleArtboards;
+        }
+
+        /* 作成されるグループの数と範囲を表示する（モードか設定が変わったときだけ数え直す）
+           Show the number and extent of the groups to be created; recount only when the mode or settings change */
+        var lastResultKey = null;
+        var lastResultBounds = [];
+        function refreshResult() {
+            var mode = getSelectedMode();
+            var groupingOptions = getGroupingOptions();
+            var resultKey = [mode, groupingOptions.threshold, groupingOptions.splitAtGaps, groupingOptions.perArtboard].join(":");
+            if (resultKey === lastResultKey) return;
+            lastResultKey = resultKey;
+
+            lastResultBounds = planResultBounds(selectionInfo, mode, groupingOptions);
+            var countLabel = (MASK_SIDES[mode] || mode === "clipPlacedOnly") ? LABELS.fieldLabel.clipCount : LABELS.fieldLabel.groupCount;
+            resultCountText.text = labelText(countLabel) + lastResultBounds.length;
+            updatePreview();
+        }
+
+        /* 「プレビューを表示」がONのときだけ枠を描き、OFFなら消す / Draw the frames only while "Show preview" is on; remove them otherwise */
+        function updatePreview() {
+            if (!groupPreview) return;
+            if (previewCheckbox.value) {
+                groupPreview.show(lastResultBounds);
+            } else {
+                groupPreview.remove();
+            }
+        }
+
+        /* ラジオボタンは2つのパネルに分かれているため、排他は手動で行う
+           The radios span two panels, so exclusivity is handled by hand */
+        function selectMode() {
+            for (var i = 0; i < ALL_MODES.length; i++) {
+                modeRadios[ALL_MODES[i]].value = (modeRadios[ALL_MODES[i]] === this);
+            }
+            updateOptionControls();
+            refreshResult();
+        }
+
+        for (var i = 0; i < ALL_MODES.length; i++) {
+            modeRadios[ALL_MODES[i]].onClick = selectMode;
+        }
+        splitAtGapsCheckbox.onClick = refreshResult;
+        perArtboardCheckbox.onClick = refreshResult;
+        previewCheckbox.onClick = updatePreview;
+        /* 選択が多いときは、ドラッグ中は値の表示だけ更新し、指を離したときに数える
+           With a large selection, update only the readout while dragging and recount on release */
+        thresholdControls.slider.onChanging = function () {
+            thresholdControls.valueText.text = formatThreshold(thresholdControls.slider.value);
+            if (selectionInfo.itemCount <= LIVE_COUNT_MAX_ITEMS) refreshResult();
+        };
+        thresholdControls.slider.onChange = refreshResult;
+
+        modeRadios[initialMode].value = true;
+        updateOptionControls();
+        refreshResult();
+
+        /* OK・キャンセルのどちらで閉じても、プレビューは実行前に消す / Remove the preview before running, however the dialog closes */
+        var dialogResult = dialog.show();
+        if (groupPreview) groupPreview.remove();
+        if (dialogResult !== 1) return null;
+        return { mode: getSelectedMode(), groupingOptions: getGroupingOptions() };
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * 選ばれたモードの処理を実行する
+     * @param {string} mode - モードのキー
+     * @param {{threshold: number, splitAtGaps: boolean, perArtboard: boolean}} groupingOptions - ダイアログの設定
+     * @param {SelectionInfo} selectionInfo - ダイアログを開く前に読み取った選択の情報
+     * @returns {void}
+     */
+    function runMode(mode, groupingOptions, selectionInfo) {
+        if (!selectionInfo.itemCount) return;
+        if (mode === "clipPlacedOnly") {
+            clipPlacedImages(selectionInfo.items);
+            return;
+        }
+
+        var clusterRule = getClusterRule(mode, groupingOptions);
+        if (!clusterRule) return;
+
+        /* プレビューと同じ判定でまとまりを作る / Build the clusters with the same rule as the preview */
+        var clusterIndexes = collectSelectionClusters(selectionInfo, clusterRule);
+        var clusters = [];
+        for (var i = 0; i < clusterIndexes.length; i++) {
+            var cluster = [];
+            for (var j = 0; j < clusterIndexes[i].length; j++) {
+                cluster.push(selectionInfo.items[clusterIndexes[i][j]]);
+            }
+            clusters.push(cluster);
+        }
+
+        if (MASK_SIDES[mode]) {
+            clipEachCluster(clusters, MASK_SIDES[mode]);
+        } else {
+            groupEachCluster(clusters);
         }
     }
 
-    // メイン処理の呼び出し
+    /**
+     * ダイアログを表示して、選ばれた処理を実行する
+     * @returns {void}
+     */
+    function main() {
+        var selectedItems = getValidSelection();
+        var selectionInfo = readSelection(selectedItems);
+        /* すべて画像なら「配置画像のみをクリップ」を初期選択にする / Preselect "Clip Placed Images Only" when every item is an image */
+        var initialMode = isAllImages(selectedItems) ? "clipPlacedOnly" : "groupProximity";
+        var dialogResult = showDialog(initialMode, selectionInfo);
+        if (dialogResult) runMode(dialogResult.mode, dialogResult.groupingOptions, selectionInfo);
+    }
+
     main();
 
 })();

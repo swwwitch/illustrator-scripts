@@ -135,7 +135,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Resets the transform applied to the selected objects a…](readme-en/ResetTransform.md)
 - [Redistributes stacked objects along the horizontal or…](readme-en/SmartAlignAndTile.md)
 - [Lays the selected objects out vertically or horizontal…](readme-en/SmartAlignDistribute.md)
-- [An Illustrator script to automatically group selected…](readme-en/SmartAutoGroup.md)
 - [Aligns objects vertically — top, center or bottom — wh…](readme-en/SmartVerticalAlign.md)
 - [An Illustrator script that extracts numbers from text…](readme-en/SortByNumbers.md)
 - [An Illustrator script that sorts tab-delimited text in…](readme-en/SortTextByColumn.md)
