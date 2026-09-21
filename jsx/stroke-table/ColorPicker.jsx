@@ -25,10 +25,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPicke
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "ColorPicker";                  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                         /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                             /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-21";                             /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorPicker.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorPicker.md"; /* README (English) */
@@ -243,7 +243,16 @@ var ColorPicker = (function () {
         return rgbToHex(state.rgb.r, state.rgb.g, state.rgb.b);
     }
 
-    function createSlider(parent, label, value, maxValue) {
+    /**
+     * ラベル＋スライダー＋数値欄の1行を追加する
+     * @param {Group|Tab} parent - 追加先
+     * @param {string} label - 成分名（"R" など）
+     * @param {number} value - 初期値
+     * @param {number} maxValue - 上限値
+     * @param {string} lng - "ja" または "en"（ツールチップの言語）
+     * @returns {{row: Group, slider: Slider, edit: EditText}} 生成した行と部品
+     */
+    function createSlider(parent, label, value, maxValue, lng) {
         var row = parent.add("group");
         row.orientation = "row";
         row.alignChildren = ["left", "center"];
@@ -354,9 +363,9 @@ var ColorPicker = (function () {
         tabCMYK.orientation = "column";
         tabCMYK.margins = [14, 18, 14, 10];
 
-        var r = createSlider(tabRGB, "R", state.rgb.r, 255);
-        var g = createSlider(tabRGB, "G", state.rgb.g, 255);
-        var b = createSlider(tabRGB, "B", state.rgb.b, 255);
+        var r = createSlider(tabRGB, "R", state.rgb.r, 255, lng);
+        var g = createSlider(tabRGB, "G", state.rgb.g, 255, lng);
+        var b = createSlider(tabRGB, "B", state.rgb.b, 255, lng);
 
         tabRGB.add("panel").preferredSize.height = 10; // spacer
 
@@ -369,10 +378,10 @@ var ColorPicker = (function () {
 
         var cbGray = tabCMYK.add("checkbox", undefined, getLabel("gray", lng));
         cbGray.helpTip = getLabel("tipGray", lng);
-        var c = createSlider(tabCMYK, "C", state.cmyk.c, 100);
-        var m = createSlider(tabCMYK, "M", state.cmyk.m, 100);
-        var y = createSlider(tabCMYK, "Y", state.cmyk.y, 100);
-        var k = createSlider(tabCMYK, "K", state.cmyk.k, 100);
+        var c = createSlider(tabCMYK, "C", state.cmyk.c, 100, lng);
+        var m = createSlider(tabCMYK, "M", state.cmyk.m, 100, lng);
+        var y = createSlider(tabCMYK, "Y", state.cmyk.y, 100, lng);
+        var k = createSlider(tabCMYK, "K", state.cmyk.k, 100, lng);
 
         var btns = dlg.add("group");
         btns.alignment = ["center", "center"];

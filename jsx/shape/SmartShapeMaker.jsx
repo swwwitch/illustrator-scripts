@@ -1,5 +1,6 @@
 #targetengine "MyScriptEngine"
 #target illustrator
+#include "../stroke-table/ColorPicker.jsx"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -29,10 +30,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShape
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartShapeMaker";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-21";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartShapeMaker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartShapeMaker.md"; /* README (English) */
@@ -42,11 +43,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n005a7087f9c3"; /* 紹�
 // http://opensource.org/licenses/mit-license.php
 
 (function () {
-
-    /* 外部JSX読み込み時の警告を抑止 / Suppress the warning raised when an external JSX is loaded */
-    app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
-    #include "../stroke-table/ColorPicker.jsx"
 
     (function () {
 

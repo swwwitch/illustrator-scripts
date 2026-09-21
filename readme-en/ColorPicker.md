@@ -14,12 +14,13 @@ A reusable color-picker library meant to be included from other scripts.
 
 ### Usage
 
-1. Include it with `#include "ColorPicker.jsx"`.
+1. Include it with `#include "ColorPicker.jsx"` at the top of the calling script (outside any function).
 2. Call `ColorPicker.show()`.
 
         var result = ColorPicker.show({
             value: "FF0000",      // "RRGGBB" or "cmyk:C,M,Y,K"
-            title: "Color Picker"
+            title: "Color Picker",
+            lang: "en"            // label language ("ja" or "en"; defaults to "en")
         });
 
 3. It returns `null` when the dialog is cancelled.
@@ -27,8 +28,12 @@ A reusable color-picker library meant to be included from other scripts.
 ### Notes
 
 - Running it on its own opens nothing.
-- Included by: `jsx/shape/SmartShapeMaker.jsx` / `jsx/stroke-table/LeaderLineBuilder.jsx` / `jsx/text/AddBulletsAndNumbers.jsx`
+- If the `#include` sits inside a function, this file's `SCRIPT_NAME` / `SCRIPT_VERSION` and the like become variables of that function and hide the caller's values of the same name.
+- Included by: `jsx/shape/SmartShapeMaker.jsx` / `jsx/stroke-table/LeaderLineBuilder.jsx`
+- `jsx/text/AddBulletsAndNumbers.jsx` has had the picker built in since v1.2.2 and no longer includes this file.
 
 ### Update History
 
+- v1.0.2 (2026-09-21): Fixed an error on opening the picker, caused by the sliders not receiving the tooltip language
+- v1.0.1 (2026-09-19): Added tooltips to the controls
 - v1.0

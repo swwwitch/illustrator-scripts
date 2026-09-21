@@ -59,8 +59,8 @@
 1. Collect text frames from the selection (recursing into groups) and order them top to bottom (then left to right)
 2. Snapshot the text, character attributes, paragraph settings and tab stops
 3. Show the dialog and initialize it from the markers already present
-4. On every change, roll back the previous preview, write the snapshot back, and reapply with the current settings
-5. OK commits (the preview is rolled back first and the settings are applied once, so a single undo step is added)
+4. On every change, reset the paragraph settings and tab stops to the snapshot, rebuild the leading markers from the snapshot text and apply them (a change that leaves the text as is does not rewrite it)
+5. OK commits (what the preview shows is the result)
 6. Cancel, or closing the dialog, restores the original state from the snapshot
 
 ### Not Supported
@@ -78,6 +78,8 @@ When a digit follows the delimiter, as in "12.5", the text is treated as body te
 
 ### Update History
 
+- v1.2.2 (2026-09-21): Folded ColorPicker.jsx into the script, so it now runs on its own. Fixed the color picker not opening when the Marker/Number or Delimiter color swatch is clicked. CMYK swatches are now drawn in the same color as the picker shows
+- v1.2.1 (2026-09-19): Now loads ColorPicker.jsx from `jsx/stroke-table/` (the copy in `jsx/text/` was retired)
 - v1.2.0 (2026-08-18): Added justification buttons to Paragraph Settings (the default follows the text kind: left for point text, justify-last-line-left for area text). Leading is now applied as an auto-leading amount (%) instead of a fixed value. Fixed tab stops, indents and space-after not being restored when Cancel followed "Reset". Right-aligned the labels in Marker Format and Paragraph Settings. Added tooltips to "None", the bullet symbol panel and the circled number styles, and expanded the ones on "Start No." and "Reset". Dimming the Body position now dims its label and unit as well. Sped things up by no longer rebuilding the line list on every preview and by reusing the Japanese-font keyword table. Unified the dialog margins and spacing. Preview updates are now deferred while typing or stepping through tab stop / scale values, and applied once the input settles
 - v1.1.1 (2026-06-10)
 - v1.0.0 (2026-05-30)
