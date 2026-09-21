@@ -13,8 +13,11 @@
 Finds clusters in the selection by overlap, distance, column or row, and groups or clips each cluster. Before you click OK, the dialog shows how many groups will be created, and red frames show where they will be while Show preview is on.
 
 The features of the former SmartAutoGroup.jsx and SmartAutoGroup-yoko.jsx are merged into this script (v1.0.7).
+<<<<<<< HEAD
 
 <img alt="The Clip and Group dialog" src="../png/ss-492-1078-144-20260922-010658.png" width="40%" />
+=======
+>>>>>>> 8c770881034697d309a19e73b044fdda335c3ad2
 
 ### Main Features
 
