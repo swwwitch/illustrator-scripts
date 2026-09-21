@@ -28,10 +28,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashGapCal
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DashGapCalculator";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-22";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DashGapCalculator.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DashGapCalculator.md"; /* README (English) */
@@ -827,23 +827,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         chkReversePath.helpTip = getLabel(LABELS.tooltip.reversePath);
 
         /* ボタン（左：破線クリア／右：キャンセル・OK）*/
-        var buttonRow = win.add("group");
-        setupRow(buttonRow, "fill");
-        buttonRow.alignChildren = ["fill", "center"];
-        buttonRow.margins = BUTTON_ROW_MARGINS;
+        var btnRowGroup = win.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_ROW_MARGINS;
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var clearButtonGroup = addRow(buttonRow, "left");
-        var btnClearDash = clearButtonGroup.add("button", undefined, getLabel(LABELS.button.clearDash));
-        btnClearDash.alignment = "left";
+        /* 左側グループ / Left-side button group */
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnClearDash = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.clearDash));
         btnClearDash.helpTip = getLabel(LABELS.tooltip.clearDash);
 
-        var buttonSpacer = buttonRow.add("group");
-        buttonSpacer.alignment = ["fill", "fill"];
-        buttonSpacer.minimumSize.width = 0;
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        var commitButtonGroup = addRow(buttonRow, "right");
-        var btnCancel = commitButtonGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = commitButtonGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
         // -----------------------------------------
         // 表示用の書式 / Display formatting

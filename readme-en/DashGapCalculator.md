@@ -135,10 +135,11 @@ The length and the results shown in the dialog belong to the **first** path, but
 - v1.5 (2026-02-25) : Support for multiple paths, partial display and offset presets
 - v2.0 (2026-02-28) : Added the random mode
 - v2.0.1 (2026-08-13) : Reorganized the internal structure; fixed the random mode being blocked by the unused segment count; added tooltips to the dialog
+- v2.0.3 (2026-09-22) : Fixed the OK button not sitting flush with the right edge of the dialog
 
 ### Script info
 
-- Version: v2.0.1
+- Version: v2.0.3
 - First release: 2026-02-25
-- Last updated: 2026-08-13
+- Last updated: 2026-09-22
 - Article: https://note.com/dtp_tranist/n/n868bedb96542
